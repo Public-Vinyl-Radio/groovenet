@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.11](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.10...v0.1.11) (2026-09-19)
+
+
+### Bug Fixes
+
+* **ci:** resolve CI warnings and pin Ubuntu runners ([#236](https://github.com/Public-Vinyl-Radio/groovenet/issues/236)) ([5c86a83](https://github.com/Public-Vinyl-Radio/groovenet/commit/5c86a83b5d04c2700bc0a2535838623fca7137d6))
+* **release:** create separate Release Please PRs ([#234](https://github.com/Public-Vinyl-Radio/groovenet/issues/234)) ([c97e868](https://github.com/Public-Vinyl-Radio/groovenet/commit/c97e868ab98a2c501503b48635a8131e49ff472a))
+
 ## [0.1.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.9...v0.1.10) (2026-09-19)
 
 
