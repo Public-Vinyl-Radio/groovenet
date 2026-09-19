@@ -1,0 +1,14 @@
+# Simple, single-machine override for a fresh self-hosted installation.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
+services:
+  app:
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  essentia:
+    restart: unless-stopped
+
+  ga-service:
+    restart: unless-stopped

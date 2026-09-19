@@ -362,6 +362,12 @@ redis-test:
 storybook:
   cd {{app_dir}} && npm run storybook
 
+# Build the static Storybook bundle into my-collection-search/storybook-static,
+# which is mounted into the app at /app/public/storybook and served same-origin
+# at /storybook/ (dev via docker-compose.dev.yml, prod via docker-compose.prod.yml).
+build-storybook:
+  cd {{app_dir}} && npm run build-storybook
+
 sync-album-covers:
   ./{{app_dir}}/scripts/sync-album-covers.sh \
     "{{album_covers_remote_host}}" \

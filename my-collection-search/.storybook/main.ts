@@ -14,8 +14,10 @@ const config: StorybookConfig = {
   ],
   addons: [],
   framework: getAbsolutePath('@storybook/nextjs-vite'),
-  staticDirs: ["../public"],
   viteFinal: async (config) => {
+    // The Storybook output is served from public/storybook. Disable Vite's
+    // automatic public-dir copy so it does not copy public into its own child.
+    config.publicDir = false;
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {
       ...config.resolve.alias,

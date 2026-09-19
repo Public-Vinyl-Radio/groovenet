@@ -21,6 +21,9 @@ services:
       - essentia_data:/app/essentia-data
       - db_dumps:/app/dumps
       - discogs_exports:/app/discogs_exports
+      # Serve the static Storybook build same-origin at /storybook/ in dev too.
+      # Run `just build-storybook` first so the dir exists, then recreate.
+      - ./my-collection-search/storybook-static:/app/public/storybook:ro
     command: sh -c "npm install && npm run dev -- -H 0.0.0.0 -p 3000"
 
   essentia:
