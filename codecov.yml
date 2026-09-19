@@ -1,0 +1,13 @@
+flags:
+  webapp:
+    paths:
+      - my-collection-search/
+  groovenet-client:
+    paths:
+      - packages/groovenet-client/
+  download-worker:
+    paths:
+      - download-worker/
+  ga-service:
+    paths:
+      - ga-service/
