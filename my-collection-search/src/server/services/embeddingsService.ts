@@ -19,7 +19,7 @@ export type EmbeddingPreviewResult = {
   data: unknown;
 };
 
-function applyEraFilter(
+export function applyEraFilter(
   tracks: SimilarIdentityTrack[],
   era?: string
 ): SimilarIdentityTrack[] {
