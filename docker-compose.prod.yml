@@ -28,9 +28,9 @@ services:
       - album_covers:/app/public/uploads/album-covers
       - essentia_data:/app/essentia-data
       # Optional: serve a static Storybook build same-origin at /storybook/.
-      # Build it with `just build-storybook` (outputs to public/storybook) and
+      # Build it with `just build-storybook` (outputs to storybook-static) and
       # set STORYBOOK_URL=/storybook/index.html. Harmless when the dir is empty.
-      - ${STORYBOOK_STATIC_DIR:-./my-collection-search/public/storybook}:/app/public/storybook:ro
+      - ${STORYBOOK_STATIC_DIR:-./my-collection-search/storybook-static}:/app/public/storybook:ro
     networks:
       # Keep the old `myapp` name resolvable on the network so existing reverse
       # proxies (e.g. Caddy: reverse_proxy myapp:3000) keep working after the

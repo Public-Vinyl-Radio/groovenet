@@ -362,9 +362,9 @@ redis-test:
 storybook:
   cd {{app_dir}} && npm run storybook
 
-# Build the static Storybook bundle into my-collection-search/public/storybook,
-# where the app serves it same-origin at /storybook/ (dev via bind mount, prod
-# via the mount in docker-compose.prod.yml).
+# Build the static Storybook bundle into my-collection-search/storybook-static,
+# which is mounted into the app at /app/public/storybook and served same-origin
+# at /storybook/ (dev via docker-compose.dev.yml, prod via docker-compose.prod.yml).
 build-storybook:
   cd {{app_dir}} && npm run build-storybook
 
