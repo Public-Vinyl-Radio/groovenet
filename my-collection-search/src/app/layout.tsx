@@ -5,6 +5,9 @@ import ClientProviders from "./providers"; // <- client wrapper
 import EmotionRegistry from "@/components/EmotionRegistry";
 import AppShell from "@/components/AppShell";
 import { Toaster } from "@/components/ui/toaster";
+import { developerToolsEnabled } from "@/lib/developerTools";
+
+export const dynamic = "force-dynamic";
 
 // Default document title + template so individual pages can extend it.
 export const metadata: Metadata = {
@@ -28,7 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <EmotionRegistry>
           <ClientProviders>
             <Toaster />
-            <AppShell>{children}</AppShell>
+            <AppShell developerToolsEnabled={developerToolsEnabled()}>{children}</AppShell>
           </ClientProviders>
         </EmotionRegistry>
       </body>

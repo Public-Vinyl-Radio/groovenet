@@ -18,7 +18,7 @@ import {
   CloseButton,
 } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FiChevronLeft, FiChevronRight, FiSearch, FiDisc, FiMoreHorizontal } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiSearch, FiDisc, FiMoreHorizontal, FiCode } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload } from "react-icons/lu";
 import {
@@ -36,7 +36,7 @@ import {
   MOBILE_NAV_BOTTOM_OFFSET,
 } from "@/lib/mobileLayout";
 
-const menuItems = [
+const baseMenuItems = [
   { href: "/", label: "Tracks" },
   { href: "/albums", label: "Albums" },
   { href: "/spins", label: "Spins" },
@@ -45,9 +45,6 @@ const menuItems = [
   { href: "/settings", label: "Settings" },
 ];
 
-const primaryMobileMenuItems = menuItems.slice(0, 4);
-const secondaryMobileMenuItems = menuItems.slice(4);
-
 function getItemIcon(href: string) {
   if (href === "/") return IoMusicalNotes;
   if (href === "/albums") return IoAlbums;
@@ -55,6 +52,7 @@ function getItemIcon(href: string) {
   if (href === "/settings") return IoSettings;
   if (href === "/playlists") return TbPlaylist;
   if (href === "/jobs") return LuCloudDownload;
+  if (href === "/developer") return FiCode;
   return IoBookSharp;
 }
 
@@ -72,7 +70,13 @@ function isMobileFullscreenEditRoute(pathname: string) {
   );
 }
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({
+  children,
+  developerToolsEnabled,
+}: {
+  children: React.ReactNode;
+  developerToolsEnabled: boolean;
+}) {
   const CONTENT_MAX_W = "1360px";
   const pathname = usePathname();
   const { playlistLength } = usePlaylistPlayer();
@@ -84,6 +88,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return pathname.split("?")[0];
   }, [pathname]);
   const isFullscreenEditMobile = isMobileFullscreenEditRoute(current);
+  const menuItems = useMemo(
+    () => developerToolsEnabled
+      ? [...baseMenuItems, { href: "/developer", label: "Developer" }]
+      : baseMenuItems,
+    [developerToolsEnabled],
+  );
+  const primaryMobileMenuItems = menuItems.slice(0, 4);
+  const secondaryMobileMenuItems = menuItems.slice(4);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { setPaletteOpen } = useCommandPalette();
