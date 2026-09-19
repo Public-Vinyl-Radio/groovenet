@@ -24,6 +24,20 @@ const outputDir = path.resolve(
 );
 const storageState = process.env.SCREENSHOT_STORAGE_STATE;
 
+function parseDimension(value: string | undefined, fallback: number, label: string): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive number.`);
+  }
+  return Math.round(parsed);
+}
+
+const viewportWidth = parseDimension(process.env.SCREENSHOT_WIDTH, 1280, "SCREENSHOT_WIDTH");
+const viewportHeight = parseDimension(process.env.SCREENSHOT_HEIGHT, 960, "SCREENSHOT_HEIGHT");
+
 const routes = [
   { name: "collection", path: "/" },
   { name: "albums", path: "/albums" },
@@ -52,7 +66,7 @@ async function main() {
 
   const browser = await chromium.launch();
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 1000 },
+    viewport: { width: viewportWidth, height: viewportHeight },
     deviceScaleFactor: 1,
     ...(storageState ? { storageState } : {}),
   });
@@ -69,7 +83,7 @@ async function main() {
         await page.waitForTimeout(750);
         await page.screenshot({
           path: path.join(outputDir, `${route.name}.png`),
-          fullPage: true,
+          clip: { x: 0, y: 0, width: viewportWidth, height: viewportHeight },
         });
         console.log("done");
       } catch (error) {

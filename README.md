@@ -38,7 +38,7 @@ cd my-collection-search
 GROOVENET_URL=http://groovenet.home.arpa npm run screenshots:readme
 ```
 
-Images are written to `docs/screenshots/`. By default the script captures the collection, albums, playlists, spins, settings, and enrich views at a 1440px desktop viewport. Limit the run with `SCREENSHOT_ROUTES=collection,albums`, or change the destination with `SCREENSHOT_OUTPUT_DIR=../docs/screenshots`.
+Images are written to `docs/screenshots/`. By default the script captures the collection, albums, playlists, spins, settings, and enrich views at a fixed 1280×960 viewport (clipped to the viewport rather than the full scrollable page, so the images stay squarish). Override the dimensions with `SCREENSHOT_WIDTH` / `SCREENSHOT_HEIGHT`, limit the run with `SCREENSHOT_ROUTES=collection,albums`, or change the destination with `SCREENSHOT_OUTPUT_DIR=../docs/screenshots`.
 
 For an authenticated host, create a Playwright storage-state file outside the repository and provide its path as `SCREENSHOT_STORAGE_STATE=/path/to/state.json`. Do not commit session-state files or screenshots containing private collection data.
 
