@@ -218,7 +218,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
   return {
     openapi: "3.1.0",
     info: {
-      title: "DJ Playlist API",
+      title: "GrooveNet API",
       version: "1.0.0",
       description:
         "OpenAPI for validated API handlers. Generated from src/api-contract definitions.",
@@ -257,9 +257,9 @@ function buildMobileOpenApiDocumentInternal(): OpenApiDocument {
     ...fullDoc,
     info: {
       ...fullDoc.info,
-      title: "DJ Playlist Mobile API",
+      title: "GrooveNet Mobile API",
       description:
-        "Mobile-focused subset of the DJ Playlist API for playlist generation and downloadable playlist workflows.",
+        "Mobile-focused subset of the GrooveNet API for playlist generation and downloadable playlist workflows.",
     },
     paths: mobilePaths,
   };
