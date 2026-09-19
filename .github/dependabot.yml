@@ -80,6 +80,12 @@ updates:
       - dependency-name: eslint
         update-types:
           - version-update:semver-major
+      # TypeScript 7.0 has no compiler API, while the typescript-eslint copy
+      # bundled by eslint-config-next imports that API. Keep TypeScript on the
+      # 6.x compatibility package until that stack supports TypeScript 7.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
     labels:
       - dependencies
       - javascript
