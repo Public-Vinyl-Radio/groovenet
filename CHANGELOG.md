@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.9...v0.1.10) (2026-09-19)
+
+
+### Features
+
+* add optional developer tools nav and page ([#223](https://github.com/Public-Vinyl-Radio/groovenet/issues/223)) ([489b759](https://github.com/Public-Vinyl-Radio/groovenet/commit/489b7595199d42d7e29ab95ff387e9a22e780cea))
+* **backup:** add repository monitoring ([#215](https://github.com/Public-Vinyl-Radio/groovenet/issues/215)) ([52ece6a](https://github.com/Public-Vinyl-Radio/groovenet/commit/52ece6aced72ae69996c933d32992168963796b9))
+* **openapi:** document tracks/deleted and backup endpoints ([#233](https://github.com/Public-Vinyl-Radio/groovenet/issues/233)) ([d44330d](https://github.com/Public-Vinyl-Radio/groovenet/commit/d44330d382a1843d8064ac43e5ee9ee8c5492f43))
+
 ## [0.1.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.8...v0.1.9) (2026-09-13)
 
 
