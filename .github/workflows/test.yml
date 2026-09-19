@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     defaults:
@@ -38,7 +38,7 @@ jobs:
         run: npm run lint
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     # Node 26's experimental server-side Web Storage shadows jsdom's
@@ -94,7 +94,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   migrate-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     defaults:
@@ -133,7 +133,7 @@ jobs:
           DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
 
   redis-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     defaults:

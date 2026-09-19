@@ -18,7 +18,6 @@ export default meta;
 type Story = StoryObj<typeof PlaylistItemActionsMenu>;
 
 export const Default: Story = {
-  name: 'Default',
 };
 
 export const LongName: Story = {

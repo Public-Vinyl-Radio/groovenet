@@ -30,7 +30,6 @@ export default meta;
 type Story = StoryObj<typeof PlaylistTrackItem>;
 
 export const Default: Story = {
-  name: 'Default',
 };
 
 export const WithAudio: Story = {
