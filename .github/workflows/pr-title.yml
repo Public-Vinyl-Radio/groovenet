@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   lint-title:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Dependabot PR titles ("Bump X from A to B") aren't conventional and can't
     # be customized for grouped security updates. Skip the check for it — those
     # commits just ride along in the next real release (release-please ignores

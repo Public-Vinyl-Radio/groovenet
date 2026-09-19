@@ -54,7 +54,6 @@ export const Paused: Story = {
 };
 
 export const Playing: Story = {
-  name: 'Playing',
   args: { isPlaying: true },
 };
 
@@ -68,7 +67,6 @@ export const MidQueue: Story = {
 };
 
 export const Muted: Story = {
-  name: 'Muted',
   args: {
     volume: 0,
     VolumeIcon: FiVolumeX,
