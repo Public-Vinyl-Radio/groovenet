@@ -1,5 +1,5 @@
 {
-  ".": "0.1.9",
+  ".": "0.1.10",
   "packages/groovenet-client": "1.0.3",
   "packages/groovenet-cli": "1.0.3"
 }
