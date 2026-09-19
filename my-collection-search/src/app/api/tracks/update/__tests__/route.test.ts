@@ -228,3 +228,90 @@ describe("PATCH /api/tracks — response", () => {
     expect(res.status).toBe(500);
   });
 });
+
+// ─── No-op change ─────────────────────────────────────────────────────────────
+
+describe("PATCH /api/tracks — no embedding-relevant change", () => {
+  it("regenerates nothing when current and updated are identical", async () => {
+    const track = baseTrack();
+    mockFindTrack.mockResolvedValueOnce(track);
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+    expect(mockGetTrackEmbedding).not.toHaveBeenCalled();
+    expect(mockUpdateEmbedding).not.toHaveBeenCalled();
+    expect(mockGenerateIdentityEmbedding).not.toHaveBeenCalled();
+    expect(mockGenerateAudioVibeEmbedding).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Error swallowing (side effects must not fail the request) ─────────────────
+
+describe("PATCH /api/tracks — side-effect errors are swallowed", () => {
+  it("still returns 200 when prompt embedding generation throws", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "changed" }));
+    mockGetTrackEmbedding.mockRejectedValueOnce(new Error("embed fail"));
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+    expect(mockUpdateEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("still returns 200 when updateTrackEmbedding throws", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "changed" }));
+    mockUpdateEmbedding.mockRejectedValueOnce(new Error("store fail"));
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+  });
+
+  it("still returns 200 when identity embedding generation throws", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old" }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New" }));
+    mockGenerateIdentityEmbedding.mockRejectedValueOnce(new Error("identity fail"));
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+  });
+
+  it("still returns 200 when audio vibe embedding generation throws", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ mood_happy: 0.2 }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ mood_happy: 0.9 }));
+    mockGenerateAudioVibeEmbedding.mockRejectedValueOnce(new Error("vibe fail"));
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+  });
+
+  it("still returns 200 when PostHog capture throws", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ star_rating: 5 }));
+    mockPostHogCapture.mockImplementationOnce(() => {
+      throw new Error("posthog fail");
+    });
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+  });
+});
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+describe("PATCH /api/tracks — PostHog analytics", () => {
+  it("captures track_edited with changed fields excluding identifiers", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ star_rating: 5, notes: "hi" }));
+    await PATCH(
+      makeReq({ track_id: "t1", friend_id: 1, star_rating: 5, notes: "hi" })
+    );
+    expect(mockPostHogCapture).toHaveBeenCalledOnce();
+    const arg = mockPostHogCapture.mock.calls[0][0];
+    expect(arg.event).toBe("track_edited");
+    expect(arg.properties.track_id).toBe("t1");
+    expect(arg.properties.changed_fields).toEqual(
+      expect.arrayContaining(["star_rating", "notes"])
+    );
+    expect(arg.properties.changed_fields).not.toContain("track_id");
+    expect(arg.properties.changed_fields).not.toContain("friend_id");
+    expect(arg.properties.has_rating_change).toBe(true);
+    expect(arg.properties.has_notes_change).toBe(true);
+    expect(arg.properties.has_tags_change).toBe(false);
+  });
+});
