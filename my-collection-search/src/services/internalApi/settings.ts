@@ -8,6 +8,7 @@ import {
   backupPolicyPutBodySchema,
   backupPolicyPutResponseSchema,
   backupPolicySchema,
+  backupMetricsSchema,
   backupStatusGetResponseSchema,
   backupStatusSchema,
   defaultLibrarySettingsGetResponseSchema,
@@ -69,6 +70,7 @@ export type UpdateBackupPolicyResponse = z.infer<
   typeof backupPolicyPutResponseSchema
 >;
 export type BackupStatus = z.infer<typeof backupStatusSchema>;
+export type BackupMetrics = z.infer<typeof backupMetricsSchema>;
 export type BackupStatusResponse = z.infer<typeof backupStatusGetResponseSchema>;
 export type DefaultLibrarySettingsResponse = z.infer<
   typeof defaultLibrarySettingsGetResponseSchema

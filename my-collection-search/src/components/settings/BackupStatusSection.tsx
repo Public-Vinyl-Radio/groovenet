@@ -6,6 +6,7 @@ import { toaster } from "@/components/ui/toaster";
 import {
   fetchBackupStatus,
   runBackupNow,
+  type BackupMetrics,
   type BackupStatus,
 } from "@/services/internalApi/settings";
 
@@ -19,8 +20,21 @@ function statusColor(status: BackupStatus["status"]): string {
   return "orange";
 }
 
+function formatBytes(value: number | null): string {
+  if (value === null) return "Unavailable";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let amount = value;
+  let unit = 0;
+  while (amount >= 1024 && unit < units.length - 1) {
+    amount /= 1024;
+    unit += 1;
+  }
+  return `${amount.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
 export default function BackupStatusSection(): React.JSX.Element {
   const [status, setStatus] = React.useState<BackupStatus | null>(null);
+  const [metrics, setMetrics] = React.useState<BackupMetrics | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [running, setRunning] = React.useState(false);
 
@@ -29,6 +43,7 @@ export default function BackupStatusSection(): React.JSX.Element {
     try {
       const data = await fetchBackupStatus();
       setStatus(data.status);
+      setMetrics(data.metrics ?? null);
     } catch (err) {
       toaster.create({
         title: "Failed to load backup status",
@@ -170,6 +185,40 @@ export default function BackupStatusSection(): React.JSX.Element {
               </Flex>
             )}
           </Box>
+
+          <Box>
+            <Text fontWeight="semibold" mb={1}>
+              Backup Storage
+            </Text>
+            {!metrics ? (
+              <Text fontSize="sm" color="gray.600">Loading repository metrics…</Text>
+            ) : (
+              <Flex direction="column" gap={1}>
+                <Text fontSize="sm">Local selected sources: {formatBytes(metrics.local_source_bytes)}</Text>
+                <Text fontSize="sm">Remote Restic repository: {formatBytes(metrics.remote_repository_bytes)}</Text>
+                <Text fontSize="sm">Remote snapshots: {metrics.snapshot_count ?? "Unavailable"}</Text>
+                {metrics.error ? (
+                  <Text fontSize="sm" color="red.500">Repository metrics error: {metrics.error}</Text>
+                ) : null}
+              </Flex>
+            )}
+          </Box>
+
+          {metrics?.recent_snapshots.length ? (
+            <Box>
+              <Text fontWeight="semibold" mb={1}>
+                Recent Snapshot Runs
+              </Text>
+              <Flex direction="column" gap={1}>
+                {metrics.recent_snapshots.slice(0, 10).map((snapshot) => (
+                  <Text key={snapshot.id} fontSize="sm">
+                    {formatTimestamp(snapshot.time)} · {snapshot.short_id ?? snapshot.id}
+                    {snapshot.tags.length ? ` · ${snapshot.tags.join(", ")}` : ""}
+                  </Text>
+                ))}
+              </Flex>
+            </Box>
+          ) : null}
         </Flex>
       )}
     </Box>

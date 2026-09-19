@@ -82,6 +82,15 @@ Optional connectivity check:
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app restic snapshots
 ```
 
+### Monitoring
+
+`GET /api/health/backup` is intended for an Uptime Kuma HTTP(s) monitor. It returns
+`200` after a recent successful backup and `503` when no status exists, a run has
+failed, or the last run is older than `BACKUP_HEALTH_MAX_AGE_HOURS` (12 by default).
+Set that variable to `30` when using a daily backup schedule. The Settings remote
+backup panel shows local selected-source size, Restic repository size, snapshot
+count, and recent snapshot runs.
+
 ## State ownership
 
 - See [docs/state-ownership.md](docs/state-ownership.md) for canonical ownership:
