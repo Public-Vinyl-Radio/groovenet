@@ -444,6 +444,38 @@ function makeTrackRoute(
 }
 
 const remainingTracksContracts: ApiContractRoute[] = [
+  makeTrackRoute("get", "/api/tracks/deleted", "List soft-deleted tracks", {
+    parameters: [
+      { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
+      { name: "limit", in: "query", required: false, schema: { type: "integer", default: 100 } },
+      { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+    ],
+    responses: {
+      "200": {
+        description: "Soft-deleted tracks with a total count",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                tracks: { type: "array", items: trackEntitySchemaObject },
+                total: { type: "integer" },
+              },
+              required: ["tracks", "total"],
+            },
+          },
+        },
+      },
+      "400": {
+        description: "Invalid query parameter",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "500": {
+        description: "Server error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+    },
+  }),
   makeTrackRoute("patch", "/api/tracks", "Update track fields", {
     requestBody: {
       required: true,
@@ -886,6 +918,224 @@ const remainingTracksContracts: ApiContractRoute[] = [
       "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
     },
   }),
+];
+
+const backupStatusSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    started_at: { type: "string" },
+    finished_at: { type: "string" },
+    stored_at: { type: "string" },
+    status: { type: "string", enum: ["success", "failed", "skipped"] },
+    reason: { type: "string" },
+    backed_up_paths: { type: "array", items: { type: "string" } },
+    snapshot: { type: ["object", "null"], additionalProperties: true },
+    error: { type: "string" },
+    missing_env: { type: "array", items: { type: "string" } },
+  },
+  required: [
+    "started_at",
+    "finished_at",
+    "stored_at",
+    "status",
+    "reason",
+    "backed_up_paths",
+    "snapshot",
+  ],
+  additionalProperties: true,
+};
+
+const backupHealthSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    healthy: { type: "boolean" },
+    status: { type: "string", enum: ["ok", "disabled", "unhealthy"] },
+    reason: {
+      type: "string",
+      enum: ["no-backup-status", "backup-failed", "backup-overdue", "status-unavailable"],
+    },
+    age_hours: { type: "number" },
+    finished_at: { type: "string" },
+    max_age_hours: { type: "number" },
+  },
+  required: ["status"],
+  additionalProperties: true,
+};
+
+const backupContracts: ApiContractRoute[] = [
+  {
+    operationId: "listBackups",
+    method: "get",
+    path: "/api/backups",
+    summary: "List available database backup files",
+    tags: ["Backups"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Backup filenames, newest first",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { files: { type: "array", items: { type: "string" } } },
+                required: ["files"],
+              },
+            },
+          },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "downloadBackup",
+    method: "get",
+    path: "/api/backups/{filename}",
+    summary: "Download a database backup file",
+    tags: ["Backups"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/backups/{filename}"),
+      responses: {
+        "200": {
+          description: "Backup file contents",
+          content: {
+            "application/octet-stream": {
+              schema: { type: "string", format: "binary" },
+            },
+          },
+        },
+        "400": {
+          description: "Missing or invalid filename",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "Backup file not found",
+          content: { "text/plain": { schema: { type: "string" } } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "restoreDatabase",
+    method: "post",
+    path: "/api/restore",
+    summary: "Restore the database from an uploaded backup file",
+    tags: ["Backups"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: { file: { type: "string", format: "binary" } },
+              required: ["file"],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Restore result with reindex summary",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  message: { type: "string" },
+                  backupType: { type: "string", enum: ["schema+data", "data-only"] },
+                  fileType: { type: "string", enum: ["sql", "dump"] },
+                  reindex: {
+                    type: "object",
+                    properties: {
+                      albumsIndexed: { type: "integer" },
+                      tracksIndexed: { type: "integer" },
+                      warning: { type: ["string", "null"] },
+                    },
+                    required: ["albumsIndexed", "tracksIndexed", "warning"],
+                  },
+                },
+                required: ["message", "backupType", "fileType", "reindex"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "No file uploaded",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Restore error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "runBackupNow",
+    method: "post",
+    path: "/api/settings/backup/run",
+    summary: "Trigger a manual backup run",
+    tags: ["Settings", "Backups"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Latest backup status after the run",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  status: { oneOf: [backupStatusSchemaObject, { type: "null" }] },
+                },
+                required: ["status"],
+              },
+            },
+          },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getBackupHealth",
+    method: "get",
+    path: "/api/health/backup",
+    summary: "Backup health check (200 healthy, 503 unhealthy)",
+    tags: ["Health"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Backup is healthy",
+          content: { "application/json": { schema: backupHealthSchemaObject } },
+        },
+        "503": {
+          description: "Backup is unhealthy or its status is unavailable",
+          content: { "application/json": { schema: backupHealthSchemaObject } },
+        },
+      },
+    },
+  },
 ];
 
 export const apiContractRoutes: ApiContractRoute[] = [
@@ -4053,4 +4303,5 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   ...remainingTracksContracts,
+  ...backupContracts,
 ];
