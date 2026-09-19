@@ -14,7 +14,6 @@ const config: StorybookConfig = {
   ],
   addons: [],
   framework: getAbsolutePath('@storybook/nextjs-vite'),
-  staticDirs: ["../public"],
   viteFinal: async (config) => {
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {
