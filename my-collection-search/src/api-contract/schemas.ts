@@ -294,8 +294,18 @@ export const backupStatusSchema = z.object({
   missing_env: z.array(z.string()).optional(),
 });
 
+export const backupMetricsSchema = z.object({
+  captured_at: z.string(),
+  local_source_bytes: z.number().nonnegative(),
+  snapshot_count: z.number().int().nonnegative().nullable(),
+  remote_repository_bytes: z.number().nonnegative().nullable(),
+  recent_snapshots: z.array(backupSnapshotSummarySchema),
+  error: z.string().optional(),
+});
+
 export const backupStatusGetResponseSchema = z.object({
   status: backupStatusSchema.nullable(),
+  metrics: backupMetricsSchema.optional(),
 });
 
 export const defaultLibrarySettingsGetResponseSchema = z.object({
