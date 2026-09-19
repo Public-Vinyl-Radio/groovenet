@@ -11,7 +11,9 @@ JOB_TTL_ACTIVE_SECONDS=604800
 JOB_TTL_TERMINAL_SECONDS=259200
 BACKUP_HEALTH_MAX_AGE_HOURS=30
 ENABLE_DEVELOPER_TOOLS=true
-STORYBOOK_URL=http://localhost:6006
+# Static Storybook served same-origin by the app (see docker-compose.prod.yml).
+# Build it with `just build-storybook` before deploying.
+STORYBOOK_URL=/storybook/index.html
 
 # Secrets from 1Password
 POSTGRES_PASSWORD=op://Homelab/groovenet/POSTGRES_PASSWORD
