@@ -33,6 +33,15 @@ export type BackupSnapshotSummary = {
   tags: string[];
 };
 
+export type BackupMetrics = {
+  captured_at: string;
+  local_source_bytes: number;
+  snapshot_count: number | null;
+  remote_repository_bytes: number | null;
+  recent_snapshots: BackupSnapshotSummary[];
+  error?: string;
+};
+
 export type BackupStatus = {
   started_at: string;
   finished_at: string;

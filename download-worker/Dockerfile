@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Build context: project root (needed to access packages/groovenet-python)
-FROM python:3.14-slim
+# gamdl's pywidevine/protobuf dependency is not yet compatible with Python 3.14.
+FROM python:3.13-slim
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \

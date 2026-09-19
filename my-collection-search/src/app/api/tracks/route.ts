@@ -5,9 +5,9 @@ import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
 import { getPostHogClient } from "@/lib/posthog-server";
 import {
   trackRepository,
-  type TrackWithLibraryIdentifierRow,
   type UpdateTrackInput,
 } from "@/server/repositories/trackRepository";
+import { computeEmbeddingUpdates } from "@/lib/trackEmbeddingDiff";
 
 export async function PATCH(req: Request) {
   try {
@@ -22,70 +22,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
     }
 
-    const promptFields: Array<keyof TrackWithLibraryIdentifierRow> = [
-      "local_tags",
-      "styles",
-      "genres",
-      "bpm",
-      "key",
-      "danceability",
-      "mood_happy",
-      "notes",
-    ];
-    let shouldUpdateEmbedding = false;
-    for (const field of promptFields) {
-      const before = current?.[field];
-      const after = updated?.[field];
-      if (Array.isArray(before) || Array.isArray(after)) {
-        const beforeArr = Array.isArray(before) ? before : [];
-        const afterArr = Array.isArray(after) ? after : [];
-        if (beforeArr.join() !== afterArr.join()) {
-          shouldUpdateEmbedding = true;
-          break;
-        }
-      } else if (before !== after) {
-        shouldUpdateEmbedding = true;
-        break;
-      }
-    }
+    const embeddingUpdates = computeEmbeddingUpdates(current, updated);
 
-    const identityFields: Array<keyof TrackWithLibraryIdentifierRow> = [
-      "title",
-      "artist",
-      "album",
-      "year",
-      "genres",
-      "styles",
-      "local_tags",
-      "composer",
-    ];
-    const audioVibeFields: Array<keyof TrackWithLibraryIdentifierRow> = [
-      "bpm",
-      "key",
-      "danceability",
-      "mood_happy",
-      "mood_sad",
-      "mood_relaxed",
-      "mood_aggressive",
-    ];
-    const fieldsChanged = (
-      fields: Array<keyof TrackWithLibraryIdentifierRow>
-    ): boolean => {
-      for (const field of fields) {
-        const before = current?.[field];
-        const after = updated?.[field];
-        if (Array.isArray(before) || Array.isArray(after)) {
-          const beforeArr = Array.isArray(before) ? before : [];
-          const afterArr = Array.isArray(after) ? after : [];
-          if (beforeArr.join() !== afterArr.join()) return true;
-          continue;
-        }
-        if (before !== after) return true;
-      }
-      return false;
-    };
-
-    if (shouldUpdateEmbedding) {
+    if (embeddingUpdates.prompt) {
       try {
         const embedding = await getTrackEmbedding(updated);
         await trackRepository.updateTrackEmbedding(
@@ -99,7 +38,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    if (fieldsChanged(identityFields)) {
+    if (embeddingUpdates.identity) {
       try {
         await generateAndStoreIdentityEmbedding(updated.track_id, updated.friend_id);
       } catch (identityError) {
@@ -107,7 +46,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    if (fieldsChanged(audioVibeFields)) {
+    if (embeddingUpdates.audioVibe) {
       try {
         await generateAndStoreAudioVibeEmbedding(updated.track_id, updated.friend_id);
       } catch (audioVibeError) {

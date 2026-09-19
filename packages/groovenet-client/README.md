@@ -32,7 +32,7 @@ const album = await client.getAlbum(releaseId, friendId);
 import { loadConfig, saveConfig } from "@groovenet/client";
 
 const cfg = loadConfig();
-saveConfig({ ...cfg, api_base: "https://your-groovenet-host" });
+saveConfig({ ...cfg, api_base: "https://your-groovenet-host/api" });
 ```
 
 ## Exports

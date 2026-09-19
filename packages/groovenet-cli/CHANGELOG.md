@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v1.0.2...groovenet-cli-v1.0.3) (2026-09-13)
+
+
+### Bug Fixes
+
+* **client:** align track search with API ([#207](https://github.com/Public-Vinyl-Radio/groovenet/issues/207)) ([596d8c5](https://github.com/Public-Vinyl-Radio/groovenet/commit/596d8c5df7987559be50d2e5bbd2c8c8a3e5c5e7))
+
+## [1.0.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v1.0.1...groovenet-cli-v1.0.2) (2026-09-13)
+
+
+### Bug Fixes
+
+* **cli:** publish from app releases only ([#205](https://github.com/Public-Vinyl-Radio/groovenet/issues/205)) ([db3225d](https://github.com/Public-Vinyl-Radio/groovenet/commit/db3225d4d7d1c24829428c59a19a641d6a3606f8))
+
 ## [1.0.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v1.0.0...groovenet-cli-v1.0.1) (2026-09-12)
 
 

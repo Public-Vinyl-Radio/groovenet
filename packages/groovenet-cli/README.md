@@ -15,7 +15,7 @@ Requires **Node.js ≥ 22.12**. The binary is `groovenet`.
 Point the CLI at your Groovenet API (stored in `~/.groovenet/config.json`):
 
 ```bash
-groovenet config set api_base https://your-groovenet-host
+groovenet config set api_base https://your-groovenet-host/api
 groovenet config set api_key <token>   # if your instance requires auth
 ```
 

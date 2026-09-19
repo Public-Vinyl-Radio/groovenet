@@ -47,3 +47,39 @@ describe("GroovenetClient.batchGetTracks", () => {
     });
   });
 });
+
+describe("GroovenetClient.searchTracks", () => {
+  beforeEach(() => {
+    createMock.mockClear();
+    requestMock.mockReset();
+  });
+
+  it("uses the GET search API and maps hits to tracks", async () => {
+    const hits = [{ track_id: "t1", title: "Blue", artist: "Artist", album: "Album" }];
+    requestMock.mockResolvedValue({
+      data: {
+        hits,
+        estimatedTotalHits: 1,
+        offset: 0,
+        limit: 20,
+        processingTimeMs: 4,
+      },
+    });
+    const client = new GroovenetClient({ baseUrl: "https://example.test/api" });
+
+    await expect(client.searchTracks({ query: "blue", limit: 20 })).resolves.toEqual({
+      tracks: hits,
+      estimatedTotalHits: 1,
+      offset: 0,
+      limit: 20,
+      processingTimeMs: 4,
+    });
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/tracks/search",
+      data: undefined,
+      params: { q: "blue", limit: 20, offset: 0, friend_id: undefined },
+    });
+  });
+});

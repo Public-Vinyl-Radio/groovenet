@@ -1,9 +1,46 @@
-# GrooveNET
-## Vinyl collection management for DJs
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Public-Vinyl-Radio/groovenet/main/my-collection-search/public/groovenet-logo.png" alt="GrooveNET logo" width="128" height="128" />
+</p>
 
-![screenshot](https://raw.githubusercontent.com/saegey/dj-playlist/refs/heads/main/content/grooveNetdemo.gif)
+<h1 align="center">GrooveNET</h1>
+
+<p align="center">Vinyl collection management for DJs</p>
+
+<p align="center">
+  <a href="https://github.com/Public-Vinyl-Radio/groovenet/releases"><img src="https://img.shields.io/github/v/release/Public-Vinyl-Radio/groovenet?display_name=tag&label=version" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Public-Vinyl-Radio/groovenet" alt="MIT license" /></a>
+  <a href="https://github.com/Public-Vinyl-Radio/groovenet/commits/main"><img src="https://img.shields.io/github/last-commit/Public-Vinyl-Radio/groovenet" alt="Last commit" /></a>
+  <a href="https://codecov.io/gh/Public-Vinyl-Radio/groovenet"><img src="https://codecov.io/gh/Public-Vinyl-Radio/groovenet/graph/badge.svg" alt="Code coverage" /></a>
+  <a href="https://github.com/Public-Vinyl-Radio/groovenet/actions/workflows/test.yml"><img src="https://github.com/Public-Vinyl-Radio/groovenet/actions/workflows/test.yml/badge.svg" alt="Tests" /></a>
+</p>
 
 A self-hosted, full-stack app for managing your vinyl collection. Import from Discogs, enrich metadata with Apple Music and YouTube, analyze audio for BPM/key/mood, and generate intelligent playlists — all from a web UI or terminal.
+
+## Screenshots
+
+![GrooveNET collection view](https://raw.githubusercontent.com/Public-Vinyl-Radio/groovenet/main/content/grooveNetdemo.gif)
+
+<table>
+  <tr>
+    <td width="50%"><img src="my-collection-search/docs/screenshots/collection.png" alt="GrooveNET collection search and track list" /><br /><sub>Collection</sub></td>
+    <td width="50%"><img src="my-collection-search/docs/screenshots/albums.png" alt="GrooveNET albums view" /><br /><sub>Albums</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="my-collection-search/docs/screenshots/playlists.png" alt="GrooveNET playlists view" /><br /><sub>Playlists</sub></td>
+    <td width="50%"><img src="my-collection-search/docs/screenshots/spins.png" alt="GrooveNET spins view" /><br /><sub>Listening history</sub></td>
+  </tr>
+</table>
+
+Use the screenshot utility to capture current UI images from a running GrooveNET host and save them as versioned documentation assets:
+
+```bash
+cd my-collection-search
+GROOVENET_URL=http://groovenet.home.arpa npm run screenshots:readme
+```
+
+Images are written to `docs/screenshots/`. By default the script captures the collection, albums, playlists, spins, settings, and enrich views at a fixed 1280×960 viewport (clipped to the viewport rather than the full scrollable page, so the images stay squarish). Override the dimensions with `SCREENSHOT_WIDTH` / `SCREENSHOT_HEIGHT`, limit the run with `SCREENSHOT_ROUTES=collection,albums`, or change the destination with `SCREENSHOT_OUTPUT_DIR=../docs/screenshots`.
+
+For an authenticated host, create a Playwright storage-state file outside the repository and provide its path as `SCREENSHOT_STORAGE_STATE=/path/to/state.json`. Do not commit session-state files or screenshots containing private collection data.
 
 ## Features
 

@@ -15,12 +15,20 @@ on:
     types: [published]
   workflow_dispatch:
 
+# Release Please creates a release for the app and for each package. Only the
+# app release should publish packages; otherwise the three events race to
+# publish the same immutable npm versions.
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write # required for OIDC trusted publishing + provenance
 
 jobs:
   publish:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
