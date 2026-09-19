@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "my-collection-search",
-  "version": "0.1.6",
+  "version": "0.1.9",
   "private": true,
   "trustedDependencies": [
     "@sentry/cli",
@@ -28,6 +28,7 @@
     "worker": "tsx src/workers/index.ts",
     "worker:dev": "nodemon --watch src --ext ts,js --exec 'npm run worker'",
     "backfill-identity": "tsx src/scripts/backfill-identity.ts",
+    "screenshots:readme": "tsx scripts/readme-screenshots.ts",
     "screenshots:mobile": "tsx scripts/mobile-screenshots.ts",
     "backfill-audio-vibe": "tsx src/scripts/backfill-identity.ts -- --type=audio_vibe",
     "backfill-essentia": "tsx src/scripts/backfill-essentia.ts",

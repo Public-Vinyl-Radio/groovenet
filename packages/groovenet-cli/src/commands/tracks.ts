@@ -127,7 +127,7 @@ export function addTracksCommands(program: Command): void {
             process.exit(2);
           }
 
-          await client.updateTrack(id, updates);
+          await client.updateTrack(id, updates, loadConfig().default_friend_id);
           printSuccess("✓ Track updated.");
         } catch (err: unknown) {
           printError(err instanceof Error ? err.message : String(err));

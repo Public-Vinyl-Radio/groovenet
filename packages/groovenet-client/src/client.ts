@@ -79,24 +79,41 @@ export class GroovenetClient {
   // ── Tracks ─────────────────────────────────────────────────────────────────
 
   async searchTracks(query: TrackSearchQuery): Promise<TrackSearchResponse> {
-    return this.request<TrackSearchResponse>("POST", "/tracks/search", {
-      query: query.query ?? "",
+    const params: Record<string, string | number | undefined> = {
+      q: query.query ?? "",
       limit: query.limit ?? 10,
       offset: query.offset ?? 0,
-      filters:
-        query.filters && Object.keys(query.filters).length > 0
-          ? query.filters
-          : undefined,
-    });
+      friend_id: query.filters?.friend_id,
+    };
+    const result = await this.request<{
+      hits: Track[];
+      estimatedTotalHits: number;
+      offset: number;
+      limit: number;
+      processingTimeMs: number;
+    }>("GET", "/tracks/search", undefined, params);
+
+    return {
+      tracks: result.hits,
+      estimatedTotalHits: result.estimatedTotalHits,
+      offset: result.offset,
+      limit: result.limit,
+      processingTimeMs: result.processingTimeMs,
+    };
   }
 
   async getTrack(trackId: string, friendId: number): Promise<Track> {
     return this.request<Track>("GET", `/tracks/${trackId}`, undefined, { friend_id: friendId });
   }
 
-  async updateTrack(trackId: string, updates: TrackUpdate): Promise<Track> {
-    return this.request<Track>("PATCH", "/tracks/update", {
+  async updateTrack(
+    trackId: string,
+    updates: TrackUpdate,
+    friendId = 1
+  ): Promise<Track> {
+    return this.request<Track>("PATCH", "/tracks", {
       track_id: trackId,
+      friend_id: friendId,
       ...updates,
     });
   }
@@ -106,14 +123,24 @@ export class GroovenetClient {
     pageSize = 50,
     username?: string
   ): Promise<{ tracks: Track[]; total: number }> {
-    const params: Record<string, string | number> = { page, pageSize };
-    if (username) params.username = username;
-    return this.request<{ tracks: Track[]; total: number }>(
+    const result = await this.request<{
+      hits: Track[];
+      estimatedTotalHits: number;
+    }>(
       "GET",
-      "/tracks/missing-apple-music",
+      "/tracks/search",
       undefined,
-      params
+      {
+        q: "",
+        limit: pageSize,
+        offset: Math.max(0, page - 1) * pageSize,
+        filter: "apple_music_url IS NULL",
+      }
     );
+    // The current API does not expose a username filter. Keep the parameter
+    // for backward compatibility while using the supported collection search.
+    void username;
+    return { tracks: result.hits, total: result.estimatedTotalHits };
   }
 
   async batchGetTracks(
@@ -194,7 +221,7 @@ export class GroovenetClient {
     friendId: number,
     updates: AlbumUpdate
   ): Promise<{ success: boolean; album: Album; tracksUpdated?: number }> {
-    return this.request("PATCH", "/albums/update", {
+    return this.request("PATCH", "/albums", {
       release_id: releaseId,
       friend_id: friendId,
       ...updates,
@@ -294,26 +321,24 @@ export class GroovenetClient {
   // ── Playback (proxied via Next.js API → MPD) ────────────────────────────────
 
   async play(filename: string): Promise<void> {
-    await this.request("POST", "/playback/local", {
-      action: "play",
-      filename,
-    });
+    void filename;
+    throw new Error("Server-side playback is not supported by this Groovenet API.");
   }
 
   async pause(): Promise<void> {
-    await this.request("POST", "/playback/local", { action: "pause" });
+    throw new Error("Server-side playback is not supported by this Groovenet API.");
   }
 
   async resume(): Promise<void> {
-    await this.request("POST", "/playback/local", { action: "resume" });
+    throw new Error("Server-side playback is not supported by this Groovenet API.");
   }
 
   async stop(): Promise<void> {
-    await this.request("POST", "/playback/local", { action: "stop" });
+    throw new Error("Server-side playback is not supported by this Groovenet API.");
   }
 
   async getPlaybackStatus(): Promise<PlaybackStatus> {
-    return this.request<PlaybackStatus>("GET", "/playback/local");
+    throw new Error("Server-side playback is not supported by this Groovenet API.");
   }
 
   // ── Friends ─────────────────────────────────────────────────────────────────
@@ -344,7 +369,7 @@ export class GroovenetClient {
   }): Promise<{ results: unknown[] }> {
     return this.request<{ results: unknown[] }>(
       "POST",
-      "/ai/apple-music-search",
+      "/providers/apple-music/search",
       opts
     );
   }
@@ -355,7 +380,7 @@ export class GroovenetClient {
   }): Promise<{ results: unknown[] }> {
     return this.request<{ results: unknown[] }>(
       "POST",
-      "/ai/youtube-music-search",
+      "/providers/youtube/music-search",
       opts
     );
   }
@@ -367,21 +392,44 @@ export class GroovenetClient {
     friendId: number,
     opts?: IdentitySimilarityQuery
   ): Promise<SimilarIdentityResponse> {
+    if (opts?.era || opts?.country || opts?.tags) {
+      throw new Error("Identity search filters are not supported by the current Groovenet API.");
+    }
     const params: Record<string, string | number> = {
       track_id: trackId,
       friend_id: friendId,
+      mode: "identity",
+      limit_identity: opts?.limit ?? 10,
+      limit_audio: 0,
     };
-    if (opts?.limit != null) params.limit = opts.limit;
     if (opts?.ivfflat_probes != null) params.ivfflat_probes = opts.ivfflat_probes;
-    if (opts?.era) params.era = opts.era;
-    if (opts?.country) params.country = opts.country;
-    if (opts?.tags) params.tags = opts.tags;
-    return this.request<SimilarIdentityResponse>(
+    const result = await this.request<RecommendationCandidatesResponse>(
       "GET",
-      "/embeddings/similar",
+      "/recommendations/candidates",
       undefined,
       params
     );
+    return {
+      source_track_id: trackId,
+      source_friend_id: friendId,
+      filters: {},
+      count: result.candidates.length,
+      tracks: result.candidates.map((candidate) => ({
+        track_id: candidate.trackId,
+        friend_id: candidate.friendId,
+        title: candidate.metadata.title,
+        artist: candidate.metadata.artist,
+        album: candidate.metadata.album,
+        distance: 1 - (candidate.simIdentity ?? 0),
+        bpm: candidate.metadata.bpm,
+        key: candidate.metadata.key,
+        danceability: candidate.metadata.danceability,
+        mood_happy: candidate.metadata.moodHappy,
+        mood_sad: candidate.metadata.moodSad,
+        mood_relaxed: candidate.metadata.moodRelaxed,
+        mood_aggressive: candidate.metadata.moodAggressive,
+      })),
+    };
   }
 
   async getRecommendationCandidates(
@@ -412,14 +460,36 @@ export class GroovenetClient {
     const params: Record<string, string | number> = {
       track_id: trackId,
       friend_id: friendId,
+      mode: "audio",
+      limit_identity: 0,
+      limit_audio: opts?.limit ?? 10,
     };
-    if (opts?.limit != null) params.limit = opts.limit;
     if (opts?.ivfflat_probes != null) params.ivfflat_probes = opts.ivfflat_probes;
-    return this.request<SimilarVibeResponse>(
+    const result = await this.request<RecommendationCandidatesResponse>(
       "GET",
-      "/embeddings/similar-vibe",
+      "/recommendations/candidates",
       undefined,
       params
     );
+    return {
+      source_track_id: trackId,
+      source_friend_id: friendId,
+      count: result.candidates.length,
+      tracks: result.candidates.map((candidate) => ({
+        track_id: candidate.trackId,
+        friend_id: candidate.friendId,
+        title: candidate.metadata.title,
+        artist: candidate.metadata.artist,
+        album: candidate.metadata.album,
+        distance: 1 - (candidate.simAudio ?? 0),
+        bpm: candidate.metadata.bpm,
+        key: candidate.metadata.key,
+        danceability: candidate.metadata.danceability,
+        mood_happy: candidate.metadata.moodHappy,
+        mood_sad: candidate.metadata.moodSad,
+        mood_relaxed: candidate.metadata.moodRelaxed,
+        mood_aggressive: candidate.metadata.moodAggressive,
+      })),
+    };
   }
 }
