@@ -78,6 +78,14 @@ jobs:
             my-collection-search/coverage
           if-no-files-found: error
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: my-collection-search/coverage/lcov.info
+          fail_ci_if_error: false
+
       - name: Coverage summary
         run: |
           echo "## Coverage" >> "$GITHUB_STEP_SUMMARY"
