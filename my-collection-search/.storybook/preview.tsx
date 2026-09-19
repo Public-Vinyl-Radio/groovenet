@@ -29,6 +29,12 @@ const preview: Preview = {
     ),
   ],
   parameters: {
+    // Mount the mocked Next.js App Router so components using next/navigation
+    // hooks (useRouter, usePathname, ...) render instead of throwing
+    // "invariant expected app router to be mounted".
+    nextjs: {
+      appDirectory: true,
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
