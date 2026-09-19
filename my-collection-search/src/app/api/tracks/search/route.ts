@@ -16,7 +16,7 @@ const stripSearchOnlyFields = (row: Record<string, unknown>) => {
   return rest;
 };
 
-function parseTrackFilter(filter: string | undefined): ParsedFilter {
+export function parseTrackFilter(filter: string | undefined): ParsedFilter {
   if (!filter) return { where: [], params: [] };
 
   const where: string[] = [];
