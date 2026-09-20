@@ -2369,6 +2369,25 @@ export const apiContractRoutes: ApiContractRoute[] = [
       },
     },
   },
+  ...(["get", "post", "put", "delete"] as const).map((method) => ({
+    operationId: `${method}PlaylistSet`,
+    method,
+    path: "/api/playlists/{id}/set",
+    summary: `${method === "get" ? "Get" : method === "post" ? "Create" : method === "put" ? "Update" : "Remove"} a playlist set`,
+    tags: ["Playlists", "Sets"],
+    paramsSchema: playlistDetailParamsSchema,
+    bodySchema: method === "put" ? z.object({}).passthrough() : undefined,
+    successSchema: z.object({}).passthrough(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+      ...(method === "put" ? { requestBody: { required: true, content: { "application/json": { schema: { type: "object", additionalProperties: true } } } } } : {}),
+      responses: {
+        "200": { description: "Set operation completed", content: { "application/json": { schema: { type: "object", additionalProperties: true } } } },
+        "404": { description: "Playlist or set not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      },
+    },
+  })),
   {
     operationId: "generateGeneticPlaylist",
     method: "post",

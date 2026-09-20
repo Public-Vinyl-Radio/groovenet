@@ -43,6 +43,7 @@ import NamePlaylistDialog from "@/components/NamePlaylistDialog";
 import { queryKeys } from "@/lib/queryKeys";
 import { getTrackDurationSeconds } from "@/lib/trackUtils";
 import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
+import SetDetailsPanel from "@/components/SetDetailsPanel";
 
 const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const { playlistCounts } = useSearchResults({});
@@ -659,6 +660,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           />
         </Flex>
       </Flex>
+      {playlistId && <SetDetailsPanel playlistId={playlistId} />}
       {/* Mobile: compact summary bar with expand toggle */}
       <Box display={{ base: "block", md: "none" }} mb={3}>
         <Flex

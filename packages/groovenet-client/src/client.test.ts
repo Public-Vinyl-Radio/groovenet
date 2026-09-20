@@ -505,6 +505,19 @@ describe("GroovenetClient spin endpoints", () => {
 });
 
 describe("GroovenetClient playlist endpoints", () => {
+  it("uses the set endpoint for set lifecycle operations", async () => {
+    const client = clientReturning({ id: 4, playlist_id: 9 });
+    await client.getLiveSet(9);
+    await client.createLiveSet(9);
+    await client.updateLiveSet(9, { title: "Late set" });
+    await client.deleteLiveSet(9);
+    expect(requestMock.mock.calls.map(([request]) => request)).toEqual([
+      { method: "GET", url: "/playlists/9/set", data: undefined, params: undefined },
+      { method: "POST", url: "/playlists/9/set", data: undefined, params: undefined },
+      { method: "PUT", url: "/playlists/9/set", data: { title: "Late set" }, params: undefined },
+      { method: "DELETE", url: "/playlists/9/set", data: undefined, params: undefined },
+    ]);
+  });
   it("listPlaylists returns the raw list", async () => {
     const playlists = [{ id: 1, name: "Set" }];
     const client = clientReturning(playlists);

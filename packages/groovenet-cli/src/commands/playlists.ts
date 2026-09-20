@@ -9,6 +9,20 @@ function makeClient(): GroovenetClient {
 
 export function addPlaylistsCommands(program: Command): void {
   const playlists = program.command("playlists").description("Manage playlists");
+  const sets = playlists.command("set").description("Manage a playlist's optional set record");
+
+  sets.command("show <id>").option("--json", "Output as JSON").action(async (id: string, opts: { json?: boolean }) => {
+    try { const set = await makeClient().getLiveSet(id); opts.json ? printJson(set) : console.log(`${set.title || "Untitled set"} · ${set.status}`); }
+    catch (err: unknown) { printError(err instanceof Error ? err.message : String(err)); process.exit(1); }
+  });
+  sets.command("create <id>").action(async (id: string) => {
+    try { await makeClient().createLiveSet(id); printSuccess("Set created."); }
+    catch (err: unknown) { printError(err instanceof Error ? err.message : String(err)); process.exit(1); }
+  });
+  sets.command("delete <id>").action(async (id: string) => {
+    try { await makeClient().deleteLiveSet(id); printSuccess("Set removed; playlist kept."); }
+    catch (err: unknown) { printError(err instanceof Error ? err.message : String(err)); process.exit(1); }
+  });
 
   playlists
     .command("list")

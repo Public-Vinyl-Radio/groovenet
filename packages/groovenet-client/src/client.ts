@@ -3,6 +3,7 @@ import { Agent as HttpsAgent } from "https";
 import type {
   Track,
   Playlist,
+  LiveSet,
   Friend,
   Album,
   AlbumSearchQuery,
@@ -305,6 +306,22 @@ export class GroovenetClient {
 
   async createPlaylist(name: string, tracks: string[] = []): Promise<Playlist> {
     return this.request<Playlist>("POST", "/playlists", { name, tracks });
+  }
+
+  async getLiveSet(playlistId: number | string): Promise<LiveSet> {
+    return this.request<LiveSet>("GET", `/playlists/${playlistId}/set`);
+  }
+
+  async createLiveSet(playlistId: number | string): Promise<{ id: number; playlist_id: number }> {
+    return this.request("POST", `/playlists/${playlistId}/set`);
+  }
+
+  async updateLiveSet(playlistId: number | string, set: Partial<LiveSet>): Promise<void> {
+    await this.request("PUT", `/playlists/${playlistId}/set`, set);
+  }
+
+  async deleteLiveSet(playlistId: number | string): Promise<void> {
+    await this.request("DELETE", `/playlists/${playlistId}/set`);
   }
 
   async generatePlaylist(tracks: Track[]): Promise<Track[]> {

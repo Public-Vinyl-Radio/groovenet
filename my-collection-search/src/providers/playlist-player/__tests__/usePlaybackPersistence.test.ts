@@ -6,6 +6,22 @@ import type { Track } from "@/types/track";
 
 const KEY = "test-playback-state";
 
+// Vitest's jsdom environment can inherit Node's experimental localStorage,
+// which is undefined unless Node receives --localstorage-file. Use a tiny
+// deterministic Storage implementation for this hook suite instead.
+const storage = new Map<string, string>();
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  value: {
+    get length() { return storage.size; },
+    clear: () => storage.clear(),
+    getItem: (key: string) => storage.get(key) ?? null,
+    key: (index: number) => [...storage.keys()][index] ?? null,
+    removeItem: (key: string) => storage.delete(key),
+    setItem: (key: string, value: string) => storage.set(key, String(value)),
+  } satisfies Storage,
+});
+
 function makeTrack(id: string): Track {
   return {
     track_id: id,
