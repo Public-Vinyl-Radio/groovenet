@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import {
   Box,
   Button,
@@ -391,16 +392,14 @@ export default function SetDetailsPanel({
                 p={2}
               >
                 {(m.media_type === "flyer" || m.media_type === "image") && (
-                  <img
-                    src={m.url}
-                    alt={m.media_type}
-                    style={{
-                      width: 56,
-                      height: 56,
-                      objectFit: "cover",
-                      borderRadius: 4,
-                    }}
-                  />
+                    <Image
+                      src={m.url}
+                      alt={m.media_type}
+                      width={56}
+                      height={56}
+                      unoptimized
+                      style={{ objectFit: "cover", borderRadius: 4 }}
+                    />
                 )}
                 {m.media_type === "audio" && (
                   <audio controls src={m.url} style={{ maxWidth: 260 }} />
