@@ -1,6 +1,6 @@
 {
   "name": "@groovenet/cli",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "description": "CLI for managing your Groovenet DJ collection",
   "type": "module",
   "engines": {
@@ -36,7 +36,7 @@
   "homepage": "https://github.com/Public-Vinyl-Radio/groovenet/tree/main/packages/groovenet-cli#readme",
   "bugs": "https://github.com/Public-Vinyl-Radio/groovenet/issues",
   "dependencies": {
-    "@groovenet/client": "^1.0.2",
+    "@groovenet/client": "^2.0.0",
     "chalk": "^6",
     "cli-table3": "^0.6",
     "commander": "^15"
