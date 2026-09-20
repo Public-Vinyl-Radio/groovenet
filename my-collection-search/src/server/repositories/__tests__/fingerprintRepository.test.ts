@@ -385,4 +385,10 @@ describe("deleteFingerprintsByVersion()", () => {
     expect(params).toEqual(["chromaprint", "1"]);
     expect(result).toBe(3653);
   });
+
+  it("reports 0 when rowCount is null", async () => {
+    dbQuery.mockResolvedValue({ rows: [], rowCount: null });
+
+    expect(await makeRepo().deleteFingerprintsByVersion("chromaprint", "1")).toBe(0);
+  });
 });
