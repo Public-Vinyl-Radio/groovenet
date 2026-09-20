@@ -45,6 +45,29 @@ export interface SeedTrackRef {
 /**
  * Candidate track with similarity scores and metadata
  */
+export interface CandidateTrackMetadata {
+  bpm: number | null;
+  key: string | null;
+  keyConfidence: number | null;
+  tempoConfidence: number | null;
+  eraBucket: string | null;
+  tags: string[];
+  styles: string[];
+  energy: number | null;
+  danceability: number | null;
+  title: string;
+  artist: string;
+  album: string;
+  albumThumbnail: string | null;
+  year: string | null;
+  genres: string[];
+  starRating: number | null;
+  moodHappy: number | null;
+  moodSad: number | null;
+  moodRelaxed: number | null;
+  moodAggressive: number | null;
+}
+
 export interface CandidateTrack {
   trackId: string;
   friendId: number;
@@ -56,31 +79,7 @@ export interface CandidateTrack {
   simAudio: number | null;
 
   /** Track metadata for reranking */
-  metadata: {
-    bpm: number | null;
-    key: string | null;
-    keyConfidence: number | null;
-    tempoConfidence: number | null;
-    eraBucket: string | null;
-    tags: string[];
-    styles: string[];
-    energy: number | null;
-    danceability: number | null;
-
-    // Additional useful fields
-    title: string;
-    artist: string;
-    album: string;
-    year: string | null;
-    genres: string[];
-    starRating: number | null;
-
-    // Mood scores
-    moodHappy: number | null;
-    moodSad: number | null;
-    moodRelaxed: number | null;
-    moodAggressive: number | null;
-  };
+  metadata: CandidateTrackMetadata;
 }
 
 /**
@@ -224,7 +223,7 @@ async function queryAudioSimilarByCentroid(
 /**
  * Convert query result to candidate track metadata
  */
-function buildCandidateMetadata(row: EmbeddingQueryResult) {
+function buildCandidateMetadata(row: EmbeddingQueryResult): CandidateTrackMetadata {
   return {
     bpm: row.bpm,
     key: row.key,

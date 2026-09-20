@@ -178,6 +178,7 @@ function makeCandidate(
       title: "Track",
       artist: "Artist",
       album: "Album",
+      albumThumbnail: null,
       year: "1995",
       genres: ["Electronic"],
       starRating: 5,
