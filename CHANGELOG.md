@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.0...v0.2.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **release:** keep workspace dependency ranges in step with versions ([#263](https://github.com/Public-Vinyl-Radio/groovenet/issues/263)) ([1d68be2](https://github.com/Public-Vinyl-Radio/groovenet/commit/1d68be26a0586f9e12b3edcc55f7a40b6050bcf7))
+* **release:** release the client and CLI together ([#265](https://github.com/Public-Vinyl-Radio/groovenet/issues/265)) ([11a3be7](https://github.com/Public-Vinyl-Radio/groovenet/commit/11a3be7d81cec9dc5395f6ae54192af80fd3b104))
+
 ## [0.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.11...v0.2.0) (2026-09-20)
 
 
