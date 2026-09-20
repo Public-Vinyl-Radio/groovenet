@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.11...v0.2.0) (2026-09-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** remove the playback commands that never worked ([#261](https://github.com/Public-Vinyl-Radio/groovenet/issues/261))
+
+### Features
+
+* **cli:** remove the playback commands that never worked ([#261](https://github.com/Public-Vinyl-Radio/groovenet/issues/261)) ([75e5770](https://github.com/Public-Vinyl-Radio/groovenet/commit/75e5770dedd2f7f456ffaa5be940231800ffb5c3))
+* **playlists:** add set metadata and history ([#257](https://github.com/Public-Vinyl-Radio/groovenet/issues/257)) ([f0e822c](https://github.com/Public-Vinyl-Radio/groovenet/commit/f0e822cce8abfb2aeb876f3c9e3225e5f914475b))
+
+
+### Bug Fixes
+
+* **albums:** correct vinyl side labels and identity hash mutation ([#245](https://github.com/Public-Vinyl-Radio/groovenet/issues/245)) ([fed0c13](https://github.com/Public-Vinyl-Radio/groovenet/commit/fed0c13d5d48308cd165479daec47d3a897f0224))
+* **backup:** prevent concurrent Restic runs ([#241](https://github.com/Public-Vinyl-Radio/groovenet/issues/241)) ([5cfbb36](https://github.com/Public-Vinyl-Radio/groovenet/commit/5cfbb36cb2c2009f73d4e0aee8ab4b2909bdc241))
+* **db:** keep the original error when a transaction rollback fails ([#243](https://github.com/Public-Vinyl-Radio/groovenet/issues/243)) ([58ad074](https://github.com/Public-Vinyl-Radio/groovenet/commit/58ad074c494e86f9ec5bed55cb00b3a0fa39526e))
+
 ## [0.1.11](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.1.10...v0.1.11) (2026-09-19)
 
 
