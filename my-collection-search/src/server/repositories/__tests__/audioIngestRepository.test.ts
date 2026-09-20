@@ -89,3 +89,24 @@ describe("AudioIngestRepository lookups", () => {
     expect(dbQuery.mock.calls[0][1]).toEqual(["listener-1", 50, 0]);
   });
 });
+
+// ─── findByFilePaths (#269) ───────────────────────────────────────────────────
+
+describe("findByFilePaths()", () => {
+  it("returns the records claiming those files", async () => {
+    const row = { id: "a", file_path: "chunk.wav", status: "processed" };
+    dbQuery.mockResolvedValue({ rows: [row] });
+
+    const result = await new AudioIngestRepository().findByFilePaths(["chunk.wav"]);
+
+    expect(result).toEqual([row]);
+    expect(dbQuery.mock.calls[0][0]).toContain("file_path = ANY($1::text[])");
+    expect(dbQuery.mock.calls[0][1]).toEqual([["chunk.wav"]]);
+  });
+
+  it("never queries for an empty directory", async () => {
+    // The sweeper calls this on every tick; an empty volume should cost nothing.
+    expect(await new AudioIngestRepository().findByFilePaths([])).toEqual([]);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+});

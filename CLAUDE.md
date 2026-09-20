@@ -73,7 +73,9 @@ writes results back through the app's REST API.
 them to the shared `audio_ingest` volume and pushes a job onto the Redis list
 `fingerprint_queue`; `fingerprint-service` pops it, decodes to mono PCM, matches
 against the reference fingerprint index, and reports back over REST. Epic #281;
-the matcher itself is still stubbed.
+the matcher itself is still stubbed. The app sweeps that volume on a timer —
+raw audio is discarded once its `audio_ingests` row is terminal, and a file
+being written or decoded right now is never touched.
 
 **Reference indexing** — that match needs an index to search, built ahead of
 time by `groovenet fingerprint-library`. The app resolves the scope to tracks
@@ -108,9 +110,12 @@ the web app. CI runs the same hooks, so `--no-verify` only defers the failure.
 - **Build order for the packages:** client → cli → mcp-server
   (`just build-packages`).
 - **Integration tests are gated** behind `RUN_*_TESTS` env vars and run against
-  throwaway containers (`just migrate-test`, `just redis-test`). Use them when
-  bumping dependencies.
-- **New env vars** go in `my-collection-search/.env.example`.
+  throwaway containers (`just migrate-test`, `just redis-test`,
+  `just fingerprint-test`, `just ingest-test`). Use them when bumping
+  dependencies, and when the SQL is something a mocked driver would accept but a
+  real one would not.
+- **New env vars** go in the repo-root `.env.example`, which is the file
+  `docker-compose.yml` reads.
 
 ## Releases
 

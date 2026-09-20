@@ -37,6 +37,7 @@ import {
   providerYouTubeMusicSearchBodySchema,
   providerYouTubeMusicSearchResponseSchema,
   fingerprintIndexBodySchema,
+  ingestRetentionStatusSchema,
   fingerprintIndexRunSchema,
   fingerprintUpsertBodySchema,
   fingerprintUpsertResponseSchema,
@@ -1097,6 +1098,58 @@ const fingerprintContracts: ApiContractRoute[] = [
         "404": {
           description: "Run not found or expired",
           content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const audioIngestContracts: ApiContractRoute[] = [
+  {
+    operationId: "getIngestRetentionStatus",
+    method: "get",
+    path: "/api/audio/ingest/retention",
+    summary: "Ingest volume usage and what the next sweep would delete",
+    tags: ["Audio Ingest"],
+    successSchema: ingestRetentionStatusSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Current usage, sweep candidates and the active policy",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  files: { type: "integer" },
+                  bytes: { type: "integer" },
+                  sweepable: { type: "integer" },
+                  orphans: { type: "integer" },
+                  inFlight: {
+                    type: "integer",
+                    description:
+                      "Files held by a received/processing record. Never swept until they exceed the max age.",
+                  },
+                  lastSweptAt: { type: ["string", "null"], format: "date-time" },
+                  policy: { type: "object", additionalProperties: true },
+                },
+                required: [
+                  "files",
+                  "bytes",
+                  "sweepable",
+                  "orphans",
+                  "inFlight",
+                  "lastSweptAt",
+                  "policy",
+                ],
+              },
+            },
+          },
         },
         "500": {
           description: "Server error",
@@ -4546,5 +4599,6 @@ export const apiContractRoutes: ApiContractRoute[] = [
   },
   ...remainingTracksContracts,
   ...fingerprintContracts,
+  ...audioIngestContracts,
   ...backupContracts,
 ];

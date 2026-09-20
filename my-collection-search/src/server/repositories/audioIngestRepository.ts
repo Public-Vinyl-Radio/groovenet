@@ -104,6 +104,26 @@ export class AudioIngestRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * The records claiming any of these files, for the retention sweeper (#269).
+   *
+   * Keyed on the file names actually present on the ingest volume rather than
+   * scanning the table: the volume is transient and small, while `audio_ingests`
+   * is the durable history and grows without bound. A file with no row returned
+   * here is an orphan candidate.
+   */
+  async findByFilePaths(filePaths: string[]): Promise<AudioIngestRow[]> {
+    if (filePaths.length === 0) return [];
+    const { rows } = await dbQuery<AudioIngestRow>(
+      `
+      SELECT * FROM audio_ingests
+      WHERE file_path = ANY($1::text[])
+      `,
+      [filePaths]
+    );
+    return rows;
+  }
+
   async listBySource(
     sourceId: string,
     { limit = 50, offset = 0 }: ListAudioIngestsOptions = {}
