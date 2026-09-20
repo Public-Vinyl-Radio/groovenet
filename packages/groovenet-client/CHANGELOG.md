@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v1.0.3...groovenet-client-v2.0.0) (2026-09-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** remove the playback commands that never worked ([#261](https://github.com/Public-Vinyl-Radio/groovenet/issues/261))
+
+### Features
+
+* **cli:** remove the playback commands that never worked ([#261](https://github.com/Public-Vinyl-Radio/groovenet/issues/261)) ([75e5770](https://github.com/Public-Vinyl-Radio/groovenet/commit/75e5770dedd2f7f456ffaa5be940231800ffb5c3))
+* **playlists:** add set metadata and history ([#257](https://github.com/Public-Vinyl-Radio/groovenet/issues/257)) ([f0e822c](https://github.com/Public-Vinyl-Radio/groovenet/commit/f0e822cce8abfb2aeb876f3c9e3225e5f914475b))
+
+
+### Bug Fixes
+
+* **db:** keep the original error when a transaction rollback fails ([#243](https://github.com/Public-Vinyl-Radio/groovenet/issues/243)) ([58ad074](https://github.com/Public-Vinyl-Radio/groovenet/commit/58ad074c494e86f9ec5bed55cb00b3a0fa39526e))
+
 ## [1.0.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v1.0.2...groovenet-client-v1.0.3) (2026-09-13)
 
 
