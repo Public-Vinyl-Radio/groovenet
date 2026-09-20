@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:db": "RUN_DB_TESTS=1 vitest run",
     "test:fingerprints": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/fingerprintRepository.integration.test.ts",
+    "test:play-detections": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/playDetectionRepository.integration.test.ts",
     "test:redis": "RUN_REDIS_TESTS=1 vitest run src/server/services/__tests__/redisJobService.integration.test.ts",
     "typecheck": "tsc6 --noEmit",
     "lint": "eslint .",
