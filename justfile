@@ -353,6 +353,26 @@ migrate-test:
   DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist" \
     {{mise_exec}} bash ./{{app_dir}}/scripts/migrate-test.sh
 
+# Run the fingerprint schema integration tests against a throwaway pgvector db.
+fingerprint-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  name="groovenet-fptest-$$"
+  port="${FINGERPRINT_TEST_PORT:-55433}"
+  cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+  trap cleanup EXIT
+  echo "→ starting throwaway pgvector ($name) on :$port"
+  docker run -d --name "$name" \
+    -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
+    -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
+  for i in $(seq 1 60); do
+    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    sleep 1
+  done
+  export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
+  {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
+  {{mise_exec}} npm run test:fingerprints --prefix {{app_dir}}
+
 # Run the Redis integration tests against a throwaway redis container.
 redis-test:
   #!/usr/bin/env bash

@@ -225,6 +225,12 @@ jobs:
         env:
           DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
 
+      # Reuses the schema the step above just re-applied.
+      - name: Run fingerprint schema integration tests
+        run: npm run test:fingerprints
+        env:
+          DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
+
   redis-test:
     runs-on: ubuntu-24.04
     permissions:
