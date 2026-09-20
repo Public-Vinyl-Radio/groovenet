@@ -204,9 +204,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --group dev
 
-      # ffmpeg is preinstalled on ubuntu-24.04 runners. The decode tests skip
-      # themselves without it rather than failing, so a runner image that drops
-      # it would quietly narrow coverage — check for it explicitly.
+      # The decode tests skip themselves when ffmpeg is missing rather than
+      # failing, so install it explicitly and then assert it is there — an
+      # image that silently dropped it would quietly narrow coverage instead.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Verify ffmpeg is available
         run: ffmpeg -version
 
