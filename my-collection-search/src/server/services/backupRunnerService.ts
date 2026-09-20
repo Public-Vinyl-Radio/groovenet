@@ -40,6 +40,46 @@ function getExistingPath(p: string): string | null {
   return fs.existsSync(p) ? p : null;
 }
 
+// Next can execute server code in more than one process. `globalThis` only
+// protects one of those processes, so use the persistent backup-status
+// directory as a shared, atomic lock for the complete restic operation.
+function acquireBackupRunLock(): (() => void) | null {
+  const statusDir = path.resolve(
+    process.env.BACKUP_STATUS_DIR || path.resolve(process.cwd(), "dumps")
+  );
+  const lockPath = path.join(statusDir, ".backup-run.lock");
+  fs.mkdirSync(statusDir, { recursive: true });
+
+  let fd: number;
+  try {
+    fd = fs.openSync(lockPath, "wx", 0o600);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return null;
+    throw error;
+  }
+
+  try {
+    fs.writeFileSync(
+      fd,
+      `${JSON.stringify({ pid: process.pid, started_at: new Date().toISOString() })}\n`,
+      "utf8"
+    );
+  } catch (error) {
+    fs.closeSync(fd);
+    fs.unlinkSync(lockPath);
+    throw error;
+  }
+  fs.closeSync(fd);
+
+  return () => {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  };
+}
+
 function retentionArgs(preset: BackupRetentionPreset): string[] {
   if (preset === "aggressive") {
     return ["--keep-hourly", "24", "--keep-daily", "7"];
@@ -277,7 +317,18 @@ export async function runBackupNow(
   }
 
   g[GLOBAL_BACKUP_RUNNING_KEY] = true;
+  let releaseRunLock: (() => void) | null = null;
   try {
+    releaseRunLock = acquireBackupRunLock();
+    if (!releaseRunLock) {
+      return finish({
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        status: "skipped",
+        reason: "backup-already-running",
+      });
+    }
+
     const policy = backupPolicyService.getPolicy();
     if (reason === "scheduled" && !policy.enabled) {
       return finish({
@@ -349,6 +400,7 @@ export async function runBackupNow(
       error: error instanceof Error ? error.message : String(error),
     });
   } finally {
+    releaseRunLock?.();
     g[GLOBAL_BACKUP_RUNNING_KEY] = false;
   }
 }
