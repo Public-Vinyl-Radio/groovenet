@@ -42,3 +42,8 @@ mobile-screenshots/
 
 # Coverage output from workspace packages
 packages/*/coverage/
+
+# Python coverage artifacts (download-worker, ga-service)
+.coverage
+.coverage.*
+coverage.xml

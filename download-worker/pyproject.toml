@@ -27,3 +27,12 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 omit = ["tests/*"]
+
+[tool.coverage.report]
+# `exclude_also` adds to coverage's defaults; `exclude_lines` would replace
+# them and silently stop excluding `if TYPE_CHECKING:` blocks.
+exclude_also = [
+    # Entrypoint guards run under `python -m`, never under pytest.
+    'if __name__ == "__main__":',
+    "if __name__ == '__main__':",
+]
