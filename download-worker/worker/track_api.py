@@ -1,16 +1,15 @@
 import json
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
-
 from groovenet_client import Client
 from groovenet_client.api.tracks import patch_api_tracks
 from groovenet_client.models import PatchApiTracksBody
 
-from .config import ESSENTIA_DATA_DIR, logger
 from .audio_utils import get_audio_metadata_year
+from .config import ESSENTIA_DATA_DIR, logger
 from .subprocess_utils import run_subprocess
 
 
@@ -42,7 +41,7 @@ def update_track_analysis(
     track_id: str,
     friend_id: int,
     analysis_data: dict[str, Any],
-    audio_year: Optional[int] = None,
+    audio_year: int | None = None,
 ) -> None:
     try:
         bpm = None
@@ -127,7 +126,7 @@ def _extract_highlevel_mood(
     highlevel_data: dict[str, Any],
     section: str,
     key: str,
-) -> Optional[float]:
+) -> float | None:
     section_data = highlevel_data.get(section)
     if not isinstance(section_data, dict):
         return None
@@ -144,7 +143,7 @@ def analyze_audio_file(
     file_path: str,
     track_id: str,
     friend_id: int,
-    log_sink: Optional[list[str]] = None,
+    log_sink: list[str] | None = None,
 ) -> dict[str, Any]:
     # Write the WAV into the shared audio dir the app serves from — NOT next to
     # the source file, which may be a worker-local /tmp download the app can't

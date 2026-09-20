@@ -111,12 +111,19 @@ just compose-dev
 just migrate-up
 ```
 
+`just bootstrap` installs a git pre-commit hook that runs file hygiene checks,
+[ruff](https://docs.astral.sh/ruff/) over the Python services, and ESLint over
+the staged web files. The same hooks run in CI, so the hook only moves the
+feedback earlier — skip it with `git commit --no-verify` and CI will still
+catch it.
+
 Useful checks:
 
 ```bash
 just test
 just lint
 just typecheck
+just lint-all      # every pre-commit hook, over the whole repo
 ```
 
 Worktree setup, deployment, releases, and operator-specific overrides are maintainer workflows; see [`AGENTS.md`](AGENTS.md), [`RELEASING.md`](RELEASING.md), and the package-level READMEs when you need them.

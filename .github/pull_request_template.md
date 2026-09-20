@@ -4,7 +4,7 @@ Describe the change at a high level.
 
 ## What Changed
 
-- 
+-
 
 ## Testing
 

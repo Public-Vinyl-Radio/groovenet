@@ -7,7 +7,6 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
-
 from worker import track_api
 from worker.track_api import (
     _extract_highlevel_mood,

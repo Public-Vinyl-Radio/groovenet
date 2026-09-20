@@ -1,14 +1,13 @@
+import ipaddress
 import json
 import os
 import re
 import socket
 import subprocess
 import tempfile
-import ipaddress
+from urllib.parse import urlparse
 
 import requests
-
-from urllib.parse import urlparse
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 

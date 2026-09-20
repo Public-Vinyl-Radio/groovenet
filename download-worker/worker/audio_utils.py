@@ -1,7 +1,7 @@
 import json
 import os
 import shutil
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import requests
 
@@ -31,7 +31,7 @@ def cleanup_download_directory(download_dir: str, track_id: str) -> None:
         raise
 
 
-def extract_year_from_tag(value: str) -> Optional[int]:
+def extract_year_from_tag(value: str) -> int | None:
     if not isinstance(value, str):
         return None
     value = value.strip()
@@ -48,8 +48,8 @@ def extract_year_from_tag(value: str) -> Optional[int]:
 
 def get_audio_metadata_year(
     file_path: str,
-    log_sink: Optional[list[str]] = None,
-) -> Optional[int]:
+    log_sink: list[str] | None = None,
+) -> int | None:
     cmd = [
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
@@ -87,7 +87,7 @@ def get_audio_metadata_year(
 
 def get_duration_seconds(
     file_path: str,
-    log_sink: Optional[list[str]] = None,
+    log_sink: list[str] | None = None,
 ) -> int:
     cmd = [
         "ffprobe", "-v", "error",
@@ -109,8 +109,8 @@ def get_duration_seconds(
 
 def get_embedded_art_stream_index(
     file_path: str,
-    log_sink: Optional[list[str]] = None,
-) -> Optional[int]:
+    log_sink: list[str] | None = None,
+) -> int | None:
     cmd = [
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
@@ -144,7 +144,7 @@ def get_embedded_art_stream_index(
 
 def ensure_local_audio_file(
     job_data: "JobData",
-    log_sink: Optional[list[str]] = None,
+    log_sink: list[str] | None = None,
 ) -> str:
     local_audio_url = job_data.get("local_audio_url")
     if not local_audio_url:

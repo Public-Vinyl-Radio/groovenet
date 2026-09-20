@@ -1,21 +1,22 @@
 import json
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi.exception_handlers import RequestValidationError
 from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
 try:
     from pydantic import ConfigDict
 except ImportError:
     ConfigDict = None
-from typing import List, Literal, Optional
-from starlette.concurrency import run_in_threadpool
+from typing import Literal
+
 from optimizer import (
     run_cohesive_blocks_optimizer,
     run_genetic_algorithm,
     run_greedy_algorithm,
 )
+from starlette.concurrency import run_in_threadpool
 
 app = FastAPI()
 
@@ -40,21 +41,21 @@ class Track(BaseModel):
     if ConfigDict is not None and hasattr(BaseModel, "model_validate"):
         model_config = ConfigDict(extra="allow")
 
-    title: Optional[str] = None
-    artist: Optional[str] = None
-    album: Optional[str] = None
-    genres: Optional[List[str]] = None
-    styles: Optional[List[str]] = None
-    local_tags: Optional[str] = None
-    notes: Optional[str] = None
-    bpm: Optional[float] = None
-    key: Optional[str] = None
-    danceability: Optional[float] = None
-    mood_happy: Optional[float] = None
-    mood_relaxed: Optional[float] = None
-    mood_aggressive: Optional[float] = None
-    star_rating: Optional[float] = None
-    embedding: Optional[str] = None
+    title: str | None = None
+    artist: str | None = None
+    album: str | None = None
+    genres: list[str] | None = None
+    styles: list[str] | None = None
+    local_tags: str | None = None
+    notes: str | None = None
+    bpm: float | None = None
+    key: str | None = None
+    danceability: float | None = None
+    mood_happy: float | None = None
+    mood_relaxed: float | None = None
+    mood_aggressive: float | None = None
+    star_rating: float | None = None
+    embedding: str | None = None
 
     if ConfigDict is None or not hasattr(BaseModel, "model_validate"):
         class Config:
@@ -62,7 +63,7 @@ class Track(BaseModel):
 
 
 class OptimizeRequest(BaseModel):
-    tracks: List[Track]
+    tracks: list[Track]
     mode: Literal["genetic", "greedy", "cohesive_blocks"] = "genetic"
 
 

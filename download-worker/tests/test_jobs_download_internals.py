@@ -5,7 +5,6 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
-
 from worker.jobs.download import (
     _extract_ytdlp_error,
     download_with_gamdl,

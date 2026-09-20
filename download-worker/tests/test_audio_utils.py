@@ -1,15 +1,13 @@
-import os
 import subprocess
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-
 from worker.audio_utils import (
-    extract_year_from_tag,
-    get_duration_seconds,
-    get_audio_metadata_year,
     ensure_local_audio_file,
+    extract_year_from_tag,
+    get_audio_metadata_year,
+    get_duration_seconds,
 )
-
 
 # ---------------------------------------------------------------------------
 # extract_year_from_tag — pure function

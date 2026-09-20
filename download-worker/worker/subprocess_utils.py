@@ -1,6 +1,5 @@
 import shlex
 import subprocess
-from typing import Optional
 
 from .config import logger
 
@@ -9,7 +8,7 @@ def run_subprocess(
     cmd: list[str],
     *,
     timeout: int = 300,
-    log_sink: Optional[list[str]] = None,
+    log_sink: list[str] | None = None,
 ) -> subprocess.CompletedProcess:
     cmd_str = " ".join(shlex.quote(part) for part in cmd)
     logger.info(f"Executing command: {cmd_str}")

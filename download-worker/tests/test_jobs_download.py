@@ -1,8 +1,8 @@
 """Tests for the download job handler and its helpers."""
 import subprocess
-import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch
 
+import pytest
 from worker.jobs.download import has_download_urls
 
 

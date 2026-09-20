@@ -32,7 +32,7 @@ export function usePlaylistPlayer(initial: Track[] = []) {
       setIsPlaying(autoplay && hasTracks);
     },
     []
-  ); 
+  );
 
   // Reset when playlist content (not just reference) changes
   const prevPlaylistHashRef = useRef<string | null>(null);

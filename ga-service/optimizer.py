@@ -1,10 +1,11 @@
-import random
-import numpy as np
 import json
 import math
+import random
 import re
 import time
 from collections import defaultdict
+
+import numpy as np
 
 
 def _parse_embedding(value):

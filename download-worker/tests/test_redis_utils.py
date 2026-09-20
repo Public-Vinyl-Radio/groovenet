@@ -1,8 +1,11 @@
 import json
-import pytest
 
-from worker.redis_utils import update_job_status, append_job_logs
-from worker.config import JOBS_UPDATED_INDEX_KEY, JOB_TTL_ACTIVE_SECONDS, JOB_TTL_TERMINAL_SECONDS
+from worker.config import (
+    JOB_TTL_ACTIVE_SECONDS,
+    JOB_TTL_TERMINAL_SECONDS,
+    JOBS_UPDATED_INDEX_KEY,
+)
+from worker.redis_utils import append_job_logs, update_job_status
 
 
 def test_update_job_status_sets_hash_fields(fake_redis):

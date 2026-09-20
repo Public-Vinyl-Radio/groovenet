@@ -1,11 +1,11 @@
 import json
 import time
 import traceback
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import redis
 
-from .config import logger, redis_conn, HEARTBEAT_KEY, HEARTBEAT_TTL
+from .config import HEARTBEAT_KEY, HEARTBEAT_TTL, logger, redis_conn
 from .jobs.analyze import analyze_local_audio
 from .jobs.cover_art import extract_embedded_cover_art, extract_embedded_cover_art_album
 from .jobs.download import download_audio, has_download_urls
@@ -81,7 +81,7 @@ def write_heartbeat() -> None:
         logger.warning(f"Failed to write heartbeat: {hb_err}")
 
 
-def process_job(job_json: str) -> Optional[JobResult]:
+def process_job(job_json: str) -> JobResult | None:
     """Parse one queue payload and run its handler.
 
     Job-level failures are logged and swallowed so one bad job cannot stop the

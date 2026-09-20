@@ -4,9 +4,9 @@ import traceback
 
 import requests
 
-from ..config import logger
-from ..redis_utils import update_job_status, append_job_logs
 from ..audio_utils import ensure_local_audio_file, get_embedded_art_stream_index
+from ..config import logger
+from ..redis_utils import append_job_logs, update_job_status
 from ..subprocess_utils import run_subprocess
 from ..track_api import update_track_album_art_url
 from ..types import JobData, JobResult

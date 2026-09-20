@@ -10,7 +10,7 @@ import {
   Alert,
   CloseButton,
 } from "@chakra-ui/react";
- 
+
 import { useSettingsDialogs } from "@/providers/SettingsDialogProvider";
 import { useSyncStreams } from "@/providers/SyncStreamsProvider";
 

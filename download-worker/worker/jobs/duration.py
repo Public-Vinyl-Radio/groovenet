@@ -1,9 +1,9 @@
 import time
 import traceback
 
-from ..config import logger
-from ..redis_utils import update_job_status, append_job_logs
 from ..audio_utils import ensure_local_audio_file, get_duration_seconds
+from ..config import logger
+from ..redis_utils import append_job_logs, update_job_status
 from ..track_api import update_track_duration
 from ..types import JobData, JobResult
 

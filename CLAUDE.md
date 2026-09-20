@@ -476,6 +476,7 @@ When working across services:
 6. Update both CLAUDE.md files (root + my-collection-search/) if relevant
 7. When adding new API endpoints: add the method to `packages/groovenet-client/src/client.ts`, then wire into CLI and/or MCP server — types in `my-collection-search/src/types/track.ts` are the source of truth, copy to `packages/groovenet-client/src/types.ts` if they change
 8. Build order matters: client → cli → mcp-server (`just build-packages`)
+9. `just bootstrap` installs the pre-commit hook (`.pre-commit-config.yaml`); run `just lint-all` to check the whole repo as CI does. `packages/groovenet-python` is generated and excluded from it.
 
 ## See Also
 

@@ -172,7 +172,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     }
   });
 
-  // Mutation for adding track to playlist  
+  // Mutation for adding track to playlist
   const addTrackMutation = useMutation({
     mutationFn: async (track: Track) => {
       if (!playlistId) throw new Error("No playlist ID");
@@ -201,7 +201,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     removeTrackMutation.mutate(indexToRemove);
   };
 
-  // Add track to playlist (with server persistence) 
+  // Add track to playlist (with server persistence)
   const addToPlaylist = (track: Track) => {
     clearSortPositionChanges();
     addTrackMutation.mutate(track);
