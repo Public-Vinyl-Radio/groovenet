@@ -47,10 +47,6 @@ node build/bin/groovenet.js --help
 
 ## Gotchas
 
-- **`play`, `pause`, `stop` and `now-playing` do not work.** They call client
-  methods that unconditionally throw `"Server-side playback is not supported by
-  this Groovenet API."` The commands are still registered, so they fail at
-  runtime rather than being hidden. Either implement the API side or drop them.
 - `--json` emits the raw API shape, which is wider than the table columns —
   fields absent from the table are still present in the JSON.
 - No eslint config here either; see issue #253.

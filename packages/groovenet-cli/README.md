@@ -46,7 +46,6 @@ Run `groovenet --help` (or `groovenet <command> --help`) for the full command re
 | `albums` | Browse and manage albums |
 | `playlists` | Manage playlists |
 | `friends` | Manage the friends system |
-| `play` / `pause` / `stop` / `now-playing` | Control server-side MPD playback |
 
 ## Related
 

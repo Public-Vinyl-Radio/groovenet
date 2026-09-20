@@ -604,23 +604,6 @@ describe("GroovenetClient playlist endpoints", () => {
   });
 });
 
-describe("GroovenetClient playback", () => {
-  const unsupported = "Server-side playback is not supported by this Groovenet API.";
-
-  it.each([
-    ["play", (c: GroovenetClient) => c.play("song.flac")],
-    ["pause", (c: GroovenetClient) => c.pause()],
-    ["resume", (c: GroovenetClient) => c.resume()],
-    ["stop", (c: GroovenetClient) => c.stop()],
-    ["getPlaybackStatus", (c: GroovenetClient) => c.getPlaybackStatus()],
-  ])("%s rejects as unsupported", async (_name, call) => {
-    const client = new GroovenetClient({ baseUrl: "https://example.test" });
-
-    await expect(call(client)).rejects.toThrow(unsupported);
-    expect(requestMock).not.toHaveBeenCalled();
-  });
-});
-
 describe("GroovenetClient friends", () => {
   it("getFriends prefers a `results` payload", async () => {
     const results = [{ id: 7, username: "dj" }];

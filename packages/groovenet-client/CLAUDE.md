@@ -49,9 +49,6 @@ issues. Coverage is 100%.
 
 ## Gotchas
 
-- **Playback is not implemented.** `play`, `pause`, `resume`, `stop` and
-  `getPlaybackStatus` all throw `"Server-side playback is not supported by this
-  Groovenet API."` The CLI still exposes commands for them, so they always fail.
 - `searchTracks` maps the API's `hits` to `tracks`; the wire shape and the
   returned shape differ.
 - `generatePlaylist` tolerates the optimiser returning either an array or a

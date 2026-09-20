@@ -5,7 +5,6 @@ import { addConfigCommands } from "../commands/config.js";
 import { addTracksCommands } from "../commands/tracks.js";
 import { addAlbumsCommands } from "../commands/albums.js";
 import { addPlaylistsCommands } from "../commands/playlists.js";
-import { addPlayCommands } from "../commands/play.js";
 import { addFriendsCommands } from "../commands/friends.js";
 
 const require = createRequire(import.meta.url);
@@ -23,7 +22,6 @@ addConfigCommands(program);
 addTracksCommands(program);
 addAlbumsCommands(program);
 addPlaylistsCommands(program);
-addPlayCommands(program);
 addFriendsCommands(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

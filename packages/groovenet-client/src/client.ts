@@ -22,7 +22,6 @@ import type {
   TrackSearchQuery,
   TrackSearchResponse,
   TrackUpdate,
-  PlaybackStatus,
   SimilarIdentityResponse,
   SimilarVibeResponse,
   IdentitySimilarityQuery,
@@ -333,29 +332,6 @@ export class GroovenetClient {
     const raw = result.result;
     if (Array.isArray(raw)) return raw;
     return Object.values(raw);
-  }
-
-  // ── Playback (proxied via Next.js API → MPD) ────────────────────────────────
-
-  async play(filename: string): Promise<void> {
-    void filename;
-    throw new Error("Server-side playback is not supported by this Groovenet API.");
-  }
-
-  async pause(): Promise<void> {
-    throw new Error("Server-side playback is not supported by this Groovenet API.");
-  }
-
-  async resume(): Promise<void> {
-    throw new Error("Server-side playback is not supported by this Groovenet API.");
-  }
-
-  async stop(): Promise<void> {
-    throw new Error("Server-side playback is not supported by this Groovenet API.");
-  }
-
-  async getPlaybackStatus(): Promise<PlaybackStatus> {
-    throw new Error("Server-side playback is not supported by this Groovenet API.");
   }
 
   // ── Friends ─────────────────────────────────────────────────────────────────
