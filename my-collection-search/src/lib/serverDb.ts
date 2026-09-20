@@ -51,18 +51,33 @@ export async function withDbClient<T>(
   }
 }
 
+async function rollbackQuietly(client: PoolClient): Promise<void> {
+  try {
+    await client.query("ROLLBACK");
+  } catch (rollbackError) {
+    // The connection is usually already gone by the time a ROLLBACK fails.
+    // Swallow it so the error that actually aborted the transaction is the one
+    // the caller sees, but log it — it means this client is going back to the
+    // pool in a bad state.
+    console.error("[db] ROLLBACK failed after a transaction error:", rollbackError);
+  }
+}
+
 export async function withDbTransaction<T>(
   fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   return withDbClient(async (client) => {
     await client.query("BEGIN");
+    let result: T;
     try {
-      const result = await fn(client);
-      await client.query("COMMIT");
-      return result;
+      result = await fn(client);
     } catch (error) {
-      await client.query("ROLLBACK");
+      await rollbackQuietly(client);
       throw error;
     }
+    // COMMIT sits outside the rollback guard: once it fails Postgres has
+    // already ended the transaction, so there is nothing left to roll back.
+    await client.query("COMMIT");
+    return result;
   });
 }
