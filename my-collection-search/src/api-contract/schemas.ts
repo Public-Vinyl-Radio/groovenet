@@ -503,7 +503,26 @@ export const playlistSchema = z
     id: z.number().int(),
     name: z.string(),
     created_at: z.string(),
+    total_duration_seconds: z.number().optional(),
     tracks: z.array(playlistTrackRefSchema),
+    set: z
+      .object({
+        id: z.number().int(),
+        title: z.string().nullable(),
+        status: z.enum(["draft", "performed", "archived"]),
+        cover_image_url: z.string().nullable(),
+        last_performed_at: z.string().nullable(),
+        venue_name: z.string().nullable(),
+        location_city: z.string().nullable(),
+        collaborators: z.array(
+          z.object({
+            friend_id: z.number().int(),
+            username: z.string(),
+            role: z.string(),
+          })
+        ),
+      })
+      .optional(),
   })
   .passthrough();
 

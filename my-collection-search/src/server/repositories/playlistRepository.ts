@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import type { Playlist } from "@/types/track";
+import type { LiveSetSummary, Playlist } from "@/types/track";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import type { PlaylistTrackInput } from "@/api-contract/schemas";
 
@@ -19,6 +19,60 @@ function normalizeStringArray(arr?: unknown): string[] | null {
 }
 
 export class PlaylistRepository {
+  async listPlaylistDurationsByPlaylistIds(playlistIds: number[]): Promise<Record<number, number>> {
+    if (playlistIds.length === 0) return {};
+    const result = await dbQuery<{ playlist_id: number; total_duration_seconds: string | number }>(
+      `SELECT pt.playlist_id, COALESCE(SUM(t.duration_seconds), 0) AS total_duration_seconds
+       FROM playlist_tracks pt
+       LEFT JOIN tracks t ON t.track_id = pt.track_id AND t.friend_id = pt.friend_id
+       WHERE pt.playlist_id = ANY($1)
+       GROUP BY pt.playlist_id`,
+      [playlistIds]
+    );
+    return Object.fromEntries(result.rows.map((row) => [row.playlist_id, Number(row.total_duration_seconds)]));
+  }
+  async createLiveSetForPlaylist(playlistId: number): Promise<{ id: number }> {
+    const result = await dbQuery<{ id: number }>(
+      `INSERT INTO live_sets (playlist_id)
+       VALUES ($1)
+       ON CONFLICT (playlist_id) DO UPDATE SET updated_at = live_sets.updated_at
+       RETURNING id`,
+      [playlistId]
+    );
+    return result.rows[0];
+  }
+
+  async listLiveSetSummariesByPlaylistIds(
+    playlistIds: number[]
+  ): Promise<Record<number, LiveSetSummary>> {
+    if (playlistIds.length === 0) return {};
+    const result = await dbQuery<LiveSetSummary & { playlist_id: number }>(
+      `SELECT
+        s.playlist_id, s.id, s.title, s.status, s.cover_image_url,
+        latest.performed_at AS last_performed_at,
+        latest.venue_name, latest.location_city,
+        COALESCE(collaborators.collaborators, '[]'::json) AS collaborators
+      FROM live_sets s
+      LEFT JOIN LATERAL (
+        SELECT performed_at, venue_name, location_city
+        FROM live_set_performances
+        WHERE live_set_id = s.id
+        ORDER BY performed_at DESC
+        LIMIT 1
+      ) latest ON true
+      LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object('friend_id', c.friend_id, 'username', f.username, 'role', c.role) ORDER BY f.username) AS collaborators
+        FROM live_set_collaborators c
+        JOIN friends f ON f.id = c.friend_id
+        WHERE c.live_set_id = s.id
+      ) collaborators ON true
+      WHERE s.playlist_id = ANY($1)`,
+      [playlistIds]
+    );
+    return Object.fromEntries(
+      result.rows.map(({ playlist_id, ...set }) => [playlist_id, set])
+    );
+  }
   async getDefaultFriendId(): Promise<number> {
     const result = await dbQuery("SELECT id FROM friends ORDER BY id LIMIT 1");
     if (result.rows.length === 0) {

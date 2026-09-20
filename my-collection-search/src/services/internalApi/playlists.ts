@@ -15,6 +15,15 @@ export type CreatePlaylistTracks = string[] | PlaylistTrackPayload[];
 
 type PlaylistGeneticResponse = z.infer<typeof playlistGeneticResponseSchema>;
 export type PlaylistOptimizerMode = "genetic" | "greedy" | "cohesive_blocks";
+export type LiveSetMediaType = "image" | "flyer" | "audio" | "youtube" | "link";
+export type LiveSetDetail = {
+  id: number; playlist_id: number; title: string | null;
+  status: "draft" | "performed" | "archived"; notes: string | null;
+  location_name: string | null; location_city: string | null; cover_image_url: string | null;
+  collaborators: Array<{ friend_id: number; username: string; role: string }>;
+  performances: Array<{ id?: number; performed_at: string; venue_name: string | null; location_city: string | null; notes: string | null }>;
+  media: Array<{ id?: number; media_type: LiveSetMediaType; url: string; filename: string | null; caption: string | null }>;
+};
 
 export async function importPlaylist(
   name: string,
@@ -54,6 +63,27 @@ export async function fetchPlaylistTrackIds(
       cache: "no-store",
     }
   );
+}
+
+export async function createSetForPlaylist(playlistId: number): Promise<{ id: number }> {
+  return await http<{ id: number }>(
+    `/api/playlists/${encodeURIComponent(String(playlistId))}/set`,
+    { method: "POST" }
+  );
+}
+
+export async function fetchLiveSet(playlistId: number): Promise<LiveSetDetail> {
+  return http<LiveSetDetail>(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, { method: "GET", cache: "no-store" });
+}
+
+export async function updateLiveSet(playlistId: number, body: Partial<LiveSetDetail>): Promise<void> {
+  await http(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+}
+
+export async function deleteLiveSet(playlistId: number): Promise<void> {
+  await http(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, { method: "DELETE" });
 }
 
 export async function generateOptimizedPlaylist(

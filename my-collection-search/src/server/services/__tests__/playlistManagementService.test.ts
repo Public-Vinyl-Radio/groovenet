@@ -13,6 +13,8 @@ const repo = vi.hoisted(() => ({
   listTrackRefsForPlaylist: vi.fn(),
   listPlaylists: vi.fn(),
   listPlaylistTracksByPlaylistIds: vi.fn(),
+  listPlaylistDurationsByPlaylistIds: vi.fn(),
+  listLiveSetSummariesByPlaylistIds: vi.fn(),
   createPlaylistWithClient: vi.fn(),
   upsertTracksWithMetadata: vi.fn(),
   insertPlaylistTracks: vi.fn(),
@@ -101,6 +103,18 @@ describe("getPlaylistTrackDetails()", () => {
 
     const result = await makeService().getPlaylistTrackDetails(2);
     expect(result).toMatchObject({ notFound: false, detail: { tracks: [] } });
+  });
+});
+
+describe("getAllPlaylistsWithTracks()", () => {
+  it("enriches playlists with batched duration and optional set summaries", async () => {
+    repo.listPlaylists.mockResolvedValue([{ id: 1, name: "Set", created_at: "2026-01-01T00:00:00.000Z" }]);
+    repo.listPlaylistTracksByPlaylistIds.mockResolvedValue([{ playlist_id: 1, track_id: "t1", friend_id: 1, position: 0 }]);
+    repo.listPlaylistDurationsByPlaylistIds.mockResolvedValue({ 1: 3600 });
+    repo.listLiveSetSummariesByPlaylistIds.mockResolvedValue({ 1: { id: 7, status: "performed", collaborators: [] } });
+    const result = await makeService().getAllPlaylistsWithTracks();
+    expect(result).toMatchObject([{ id: 1, total_duration_seconds: 3600, set: { id: 7 }, tracks: [{ track_id: "t1" }] }]);
+    expect(repo.listPlaylistDurationsByPlaylistIds).toHaveBeenCalledWith([1]);
   });
 });
 

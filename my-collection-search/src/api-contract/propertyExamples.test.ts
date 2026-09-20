@@ -63,6 +63,33 @@ describe("suffix rules", () => {
   });
 });
 
+describe("multiple candidates", () => {
+  it("picks the string form when the schema wants a string", () => {
+    expect(exampleForProperty("duration", "string")).toBe("5:30");
+  });
+
+  it("picks the numeric form when the schema wants a number", () => {
+    expect(exampleForProperty("duration", "number")).toBe(213);
+  });
+
+  it("returns undefined when no candidate fits", () => {
+    expect(exampleForProperty("duration", "boolean")).toBeUndefined();
+  });
+});
+
+describe("date_ prefix", () => {
+  it.each(["date_added", "date_changed", "dateAdded"])(
+    "treats %s as a timestamp",
+    (name) => {
+      expect(exampleForProperty(name, "string")).toBe("2026-02-17T12:00:00.000Z");
+    }
+  );
+
+  it("declines the date prefix when a number is required", () => {
+    expect(exampleForProperty("date_added", "integer")).toBeUndefined();
+  });
+});
+
 describe("type agreement", () => {
   it("declines a value that does not fit the declared type", () => {
     // `title` is a string; a numeric schema must not receive it.

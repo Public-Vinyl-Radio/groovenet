@@ -19,6 +19,10 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["post", "/api/restore"],
   ["post", "/api/settings/backup/run"],
   ["get", "/api/health/backup"],
+  ["get", "/api/playlists/{id}/set"],
+  ["post", "/api/playlists/{id}/set"],
+  ["put", "/api/playlists/{id}/set"],
+  ["delete", "/api/playlists/{id}/set"],
 ];
 
 describe("OpenAPI contract coverage", () => {
