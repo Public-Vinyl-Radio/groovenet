@@ -127,18 +127,6 @@ groovenet friends add <username>
 "Friends" are the collection owners whose libraries are indexed — the unit that
 `--friend-id` selects.
 
-## Playback does not work
-
-`play`, `pause`, `stop` and `now-playing` are registered but always fail:
-
-```
-Error: Server-side playback is not supported by this Groovenet API.
-```
-
-They call client methods that unconditionally throw. Don't offer them, and if
-the user asks to play something, say plainly that the API side isn't
-implemented.
-
 ## Recipes
 
 **Build a setlist from a seed track**

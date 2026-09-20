@@ -142,11 +142,6 @@ export interface TrackUpdate {
   soundcloud_url?: string;
 }
 
-export interface PlaybackStatus {
-  enabled: boolean;
-  status: unknown;
-}
-
 export interface AlbumSearchQuery {
   q?: string;
   limit?: number;

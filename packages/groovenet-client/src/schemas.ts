@@ -142,11 +142,6 @@ export const localPlaybackControlResponseSchema = z.object({
   volume: z.number().optional(),
 });
 
-export const localPlaybackStatusResponseSchema = z.object({
-  enabled: z.boolean(),
-  status: z.unknown(),
-});
-
 export const albumEntitySchema = z
   .object({
     release_id: z.string(),
