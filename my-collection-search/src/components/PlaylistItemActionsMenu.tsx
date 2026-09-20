@@ -13,12 +13,14 @@ import {
 } from "@chakra-ui/react";
 import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
 import { FaPlay } from "react-icons/fa";
-import { FiMoreVertical, FiTrash } from "react-icons/fi";
+import { FiCalendar, FiEdit2, FiMoreVertical, FiTrash } from "react-icons/fi";
 
 interface PlaylistItemActionsMenuProps {
   playlistName: string;
   onPlay: () => void;
   onDelete: () => void;
+  onCreateSet?: () => void;
+  onOpen: () => void;
 }
 
 
@@ -26,6 +28,8 @@ export default function PlaylistItemActionsMenu({
   playlistName,
   onPlay,
   onDelete,
+  onCreateSet,
+  onOpen,
 }: PlaylistItemActionsMenuProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const close = () => setDrawerOpen(false);
@@ -52,7 +56,9 @@ export default function PlaylistItemActionsMenu({
                 </Drawer.Header>
                 <Drawer.Body p={0}>
                   <Stack gap={0}>
+                    <DrawerItem icon={<FiEdit2 />} label="Open playlist" onClick={() => { onOpen(); close(); }} />
                     <DrawerItem icon={<FaPlay />} label="Play Now" onClick={() => { onPlay(); close(); }} />
+                    {onCreateSet && <DrawerItem icon={<FiCalendar />} label="Turn into a set" onClick={() => { onCreateSet(); close(); }} />}
                     {drawerDivider}
                     <DrawerItem icon={<FiTrash />} label="Delete" color="red.500" onClick={() => { onDelete(); close(); }} />
                   </Stack>
@@ -73,9 +79,17 @@ export default function PlaylistItemActionsMenu({
           </Menu.Trigger>
           <Menu.Positioner>
             <Menu.Content>
+              <Menu.Item value="open" onClick={onOpen}>
+                <FiEdit2 /> Open playlist
+              </Menu.Item>
               <Menu.Item value="play-now" onClick={onPlay}>
                 <FaPlay /> Play now
               </Menu.Item>
+              {onCreateSet && (
+                <Menu.Item value="turn-into-set" onClick={onCreateSet}>
+                  <FiCalendar /> Turn into a set
+                </Menu.Item>
+              )}
               {menuDivider}
               <Menu.Item
                 value="delete"

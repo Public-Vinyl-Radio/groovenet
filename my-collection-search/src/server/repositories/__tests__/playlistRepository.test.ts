@@ -53,6 +53,18 @@ describe("PlaylistRepository — friend lookups", () => {
 // ─── Playlist reads ─────────────────────────────────────────────────────────
 
 describe("PlaylistRepository — reads", () => {
+  it("aggregates known track durations in one query", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ playlist_id: 1, total_duration_seconds: "3720" }] });
+    await expect(repo().listPlaylistDurationsByPlaylistIds([1, 2])).resolves.toEqual({ 1: 3720 });
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(/SUM\(t\.duration_seconds\)/);
+    expect(params).toEqual([[1, 2]]);
+  });
+
+  it("does not query duration aggregation for no playlists", async () => {
+    await expect(repo().listPlaylistDurationsByPlaylistIds([])).resolves.toEqual({});
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
   it("listPlaylistTracksByPlaylistIds short-circuits on empty input", async () => {
     await expect(repo().listPlaylistTracksByPlaylistIds([])).resolves.toEqual([]);
     expect(dbQuery).not.toHaveBeenCalled();

@@ -10,8 +10,9 @@ import {
   Box,
   Text,
   Button,
-  Stack,
+  SimpleGrid,
   EmptyState,
+  Skeleton,
   VStack,
   HStack,
   Menu,
@@ -21,7 +22,7 @@ import { Toaster, toaster } from "@/components/ui/toaster"; // See below
 import { FiHeadphones } from "react-icons/fi";
 import { TbFileImport } from "react-icons/tb";
 import { usePlaylists } from "@/providers/PlaylistsProvider";
-import { importPlaylist, PlaylistTrackPayload } from "@/services/internalApi/playlists";
+import { createSetForPlaylist, importPlaylist, PlaylistTrackPayload } from "@/services/internalApi/playlists";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
@@ -30,7 +31,7 @@ import posthog from "posthog-js";
 export default function PlaylistManager() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { playlists, loadingPlaylists, fetchPlaylists } = usePlaylists();
+  const { playlists, playlistsLoading, loadingPlaylists, fetchPlaylists } = usePlaylists();
   const { friends } = useFriendsQuery({
     showCurrentUser: true,
   });
@@ -174,7 +175,7 @@ export default function PlaylistManager() {
           query={filter}
           onQueryChange={setFilter}
           showLibrarySelect={false}
-          placeholder="Filter playlists..."
+          placeholder="Search playlists..."
           desktopControls={
             <>
               <Menu.Root>
@@ -225,8 +226,12 @@ export default function PlaylistManager() {
         )}
       </VStack>
 
-      <Stack overflowY="auto">
-        {playlists.length === 0 && !loadingPlaylists ? (
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={3} overflowY="auto">
+        {playlistsLoading ? (
+          Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} height="72px" borderRadius="md" />
+          ))
+        ) : playlists.length === 0 && !loadingPlaylists ? (
           <EmptyState.Root size={"sm"}>
             <EmptyState.Content>
               <EmptyState.Indicator>
@@ -277,11 +282,20 @@ export default function PlaylistManager() {
                   });
                 }}
                 onDelete={() => setDeleteDialogState({ open: true, playlistId: pl.id })}
+                onCreateSet={async () => {
+                  try {
+                    await createSetForPlaylist(pl.id);
+                    await fetchPlaylists();
+                    notify({ title: `Created a set for '${pl.name}'`, type: "success" });
+                  } catch {
+                    notify({ title: "Could not create set", type: "error" });
+                  }
+                }}
               />
             );
           })
         )}
-      </Stack>
+      </SimpleGrid>
       <DeletePlaylistDialog
         open={deleteDialogState.open}
         playlistId={deleteDialogState.playlistId}

@@ -4,6 +4,10 @@ import path from "path";
 export default defineConfig({
   test: {
     environment: "node",
+    // Suites that opt into jsdom need a non-opaque origin for localStorage.
+    environmentOptions: {
+      jsdom: { url: "http://localhost" },
+    },
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     coverage: {
       provider: "v8",
