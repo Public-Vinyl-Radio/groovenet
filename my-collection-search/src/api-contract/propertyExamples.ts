@@ -18,8 +18,14 @@
 
 type Primitive = string | number | boolean;
 
+/**
+ * One example, or several candidates tried in order against the declared type.
+ * `duration` is both "5:30" and a count of seconds depending on the endpoint.
+ */
+type Candidates = Primitive | Primitive[];
+
 /** Matched against the property name normalised to lower snake_case. */
-const BY_NAME: Record<string, Primitive> = {
+const BY_NAME: Record<string, Candidates> = {
   // Envelope fields — by far the most common.
   message: "Done",
   error: "Track not found",
@@ -53,7 +59,9 @@ const BY_NAME: Record<string, Primitive> = {
   notes: "Warm pad intro, easy to blend out of.",
   local_tags: "melodic, warm",
   position: "A1",
-  duration: "5:30",
+  side_label: "Side A",
+  duration: ["5:30", 213],
+  isrc: "USAB11800123",
 
   // Audio analysis.
   bpm: 122,
@@ -76,12 +84,24 @@ const BY_NAME: Record<string, Primitive> = {
   sim_identity: 0.82,
   sim_audio: 0.74,
 
+  // Media and links.
+  url: "https://example.com/resource",
+  thumbnail: "https://example.com/cover.jpg",
+  artwork: "https://example.com/cover.jpg",
+  album_thumbnail: "https://example.com/cover.jpg",
+  channel: "Night Driver Official",
+  file: "trk_001.m4a",
+  format: "m4a",
+  hostname: "example.com",
+  time: "12:00:00",
+
   // Free text.
   prompt: "Describe this track for a DJ set",
   text: "Track: Move Through — Night Driver",
   query: "night driver",
   q: "night driver",
   description: "Generated from the current collection.",
+  warning: "Backup is older than the configured maximum age.",
   summary: "Warmup Set",
   template: "{artist} - {title}",
   filter: "bpm > 100",
@@ -98,8 +118,12 @@ const BY_NAME: Record<string, Primitive> = {
  * Matched against the tail of the normalised name when no exact entry exists.
  * Ordered longest-first so `_track_count` does not match `_count` first.
  */
-const BY_SUFFIX: Array<[suffix: string, value: Primitive]> = [
+const BY_SUFFIX: Array<[suffix: string, value: Candidates]> = [
   ["_seconds", 213],
+  ["_hours", 6],
+  ["_prompt", "Describe this track for a DJ set"],
+  ["_template", "{artist} - {title}"],
+  ["_thumbnail", "https://example.com/cover.jpg"],
   ["_identifier", "LIB-0042"],
   ["_rating", 4],
   ["_count", 3],
@@ -125,6 +149,14 @@ function normalise(name: string): string {
     // acronym boundary: HTTPServer -> HTTP_Server (but not TRACK_ID -> T_R_A_C_K)
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
     .toLowerCase();
+}
+
+const ISO_DATE_TIME = "2026-02-17T12:00:00.000Z";
+
+/** The first candidate that fits the declared type, if any. */
+function pick(candidates: Candidates, type: unknown): Primitive | undefined {
+  const list = Array.isArray(candidates) ? candidates : [candidates];
+  return list.find((value) => matchesType(value, type));
 }
 
 /** True when `value` can legally be the example for a schema of this type. */
@@ -155,10 +187,19 @@ export function exampleForProperty(
   const key = normalise(propertyName);
 
   const exact = BY_NAME[key];
-  if (exact !== undefined && matchesType(exact, type)) return exact;
+  if (exact !== undefined) {
+    const picked = pick(exact, type);
+    if (picked !== undefined) return picked;
+  }
+
+  // `date_added` and `date_changed` carry the date at the front, not the end.
+  if (key.startsWith("date_") && matchesType(ISO_DATE_TIME, type)) return ISO_DATE_TIME;
 
   for (const [suffix, value] of BY_SUFFIX) {
-    if (key.endsWith(suffix) && matchesType(value, type)) return value;
+    if (key.endsWith(suffix)) {
+      const picked = pick(value, type);
+      if (picked !== undefined) return picked;
+    }
   }
 
   // An `*_id` that must be a number cannot use the string default above.
