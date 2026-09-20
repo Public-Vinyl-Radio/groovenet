@@ -65,8 +65,17 @@ npm error Missing: @groovenet/client@1.0.3 from lock file
 That message points at the lock file, but the lock file is not the problem —
 the unsatisfiable range is.
 
-`merge: false` is deliberate. The plugin otherwise combines the per-package
-release PRs into one, which would undo `separate-pull-requests: true`.
+The two are released **together, in one PR**, which is why the plugin's `merge`
+option is left at its default. Splitting them is not safe: a release PR that
+bumps the CLI's range to `^2.0.0` while the client is still `1.0.3` breaks
+`main` the moment it merges, with
+
+```
+npm error notarget No matching version found for @groovenet/client@^2.0.0
+```
+
+So `separate-pull-requests: true` still applies to the root package, but the
+client and CLI share a release PR by design.
 
 ## One-time setup
 

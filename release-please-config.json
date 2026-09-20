@@ -31,9 +31,6 @@
     }
   },
   "plugins": [
-    {
-      "type": "node-workspace",
-      "merge": false
-    }
+    "node-workspace"
   ]
 }
