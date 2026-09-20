@@ -61,6 +61,8 @@ export type SimilarTracksOptions = z.input<typeof similarIdentityQuerySchema>;
 export type SimilarTrack = Track & {
   distance: number;
   identity_text: string;
+  /** Always set by the mapper below, from metadata.tags. */
+  local_tags: string;
 };
 export type SimilarTracksResponse = {
   source_track_id: string;
@@ -84,6 +86,9 @@ export type SimilarVibeTracksResponse = {
   count: number;
   tracks: SimilarVibeTrack[];
 };
+type RecommendationCandidate =
+  z.infer<typeof recommendationsResponseSchema>["candidates"][number];
+
 export type TrackSearchQuery = z.input<typeof trackSearchGetQuerySchema>;
 type TrackSearchApiResponse = z.infer<typeof trackSearchGetResponseSchema>;
 export type TrackSearchResponse = Omit<TrackSearchApiResponse, "hits"> & {
@@ -336,8 +341,11 @@ export async function fetchSimilarVibeTracks(
   );
 
   const tracks: SimilarVibeTrack[] = data.candidates
-    .filter((candidate) => candidate.simAudio !== null)
-    .sort((a, b) => (b.simAudio ?? 0) - (a.simAudio ?? 0))
+    .filter(
+      (candidate): candidate is RecommendationCandidate & { simAudio: number } =>
+        candidate.simAudio !== null
+    )
+    .sort((a, b) => b.simAudio - a.simAudio)
     .map((candidate) => ({
       track_id: candidate.trackId,
       friend_id: candidate.friendId,
@@ -356,7 +364,7 @@ export async function fetchSimilarVibeTracks(
       mood_relaxed: candidate.metadata.moodRelaxed,
       mood_aggressive: candidate.metadata.moodAggressive,
       star_rating: candidate.metadata.starRating,
-      distance: 1 - (candidate.simAudio ?? 0),
+      distance: 1 - candidate.simAudio,
       identity_text: "",
     })) as SimilarVibeTrack[];
 
@@ -389,8 +397,11 @@ export async function fetchSimilarTracks(
   );
 
   let tracks: SimilarTrack[] = data.candidates
-    .filter((candidate) => candidate.simIdentity !== null)
-    .sort((a, b) => (b.simIdentity ?? 0) - (a.simIdentity ?? 0))
+    .filter(
+      (candidate): candidate is RecommendationCandidate & { simIdentity: number } =>
+        candidate.simIdentity !== null
+    )
+    .sort((a, b) => b.simIdentity - a.simIdentity)
     .map((candidate) => ({
       track_id: candidate.trackId,
       friend_id: candidate.friendId,
@@ -405,7 +416,7 @@ export async function fetchSimilarTracks(
       key: candidate.metadata.key,
       danceability: candidate.metadata.danceability,
       star_rating: candidate.metadata.starRating,
-      distance: 1 - (candidate.simIdentity ?? 0),
+      distance: 1 - candidate.simIdentity,
       identity_text: "",
     })) as SimilarTrack[];
 
@@ -420,7 +431,7 @@ export async function fetchSimilarTracks(
       .filter(Boolean);
     if (requiredTags.length > 0) {
       tracks = tracks.filter((track) => {
-        const trackTags = String(track.local_tags ?? "")
+        const trackTags = track.local_tags
           .split(",")
           .map((tag) => tag.trim().toLowerCase())
           .filter(Boolean);
