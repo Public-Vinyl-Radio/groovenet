@@ -181,11 +181,14 @@ export function normalizeLocalTags(
 export function normalizeComposer(composer: string | null | undefined): string[] {
   if (!composer) return [];
 
-  // Split by common delimiters if multiple composers
+  // Split by common delimiters if multiple composers, then normalize each name
+  // the same way every other identity field is normalized. Composers used to be
+  // trimmed only, so "Steve Reich" and "steve reich" produced different source
+  // hashes for the same track and forced a needless re-embed.
   const composers = composer
     .split(/[,;\/&]/)
-    .map((c) => c.trim())
-    .filter((c) => c.length > 0 && c.toLowerCase() !== "unknown" && c.toLowerCase() !== "various");
+    .map(normalizeToken)
+    .filter((c) => c.length > 0 && c !== "unknown" && c !== "various");
 
-  return composers;
+  return Array.from(new Set(composers));
 }

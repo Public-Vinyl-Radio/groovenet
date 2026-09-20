@@ -87,17 +87,20 @@ export function buildIdentityData(track: TrackWithAlbumMetadataRow): IdentityDat
   // Composer(s): normalize if present
   const composers = normalizeComposer(track.composer);
 
+  // Sort the list fields once, here, so identity data is canonical from the
+  // start: the embedding text, the source hash and the preview all agree on
+  // ordering without anyone having to re-sort (and without mutating a caller).
   return {
     title,
     artist,
     album,
     era,
     country,
-    labels,
-    composers,
-    genres,
-    styles,
-    tags,
+    labels: [...labels].sort(),
+    composers: [...composers].sort(),
+    genres: [...genres].sort(),
+    styles: [...styles].sort(),
+    tags: [...tags].sort(),
   };
 }
 
@@ -132,11 +135,13 @@ export function computeSourceHash(data: IdentityData): string {
       album: data.album,
       era: data.era,
       country: data.country,
-      labels: data.labels.sort(),
-      composers: data.composers.sort(),
-      genres: data.genres.sort(),
-      styles: data.styles.sort(),
-      tags: data.tags.sort(),
+      // Copy before sorting — Array.prototype.sort is in place, and hashing
+      // must not rewrite the caller's data.
+      labels: [...data.labels].sort(),
+      composers: [...data.composers].sort(),
+      genres: [...data.genres].sort(),
+      styles: [...data.styles].sort(),
+      tags: [...data.tags].sort(),
     },
     null,
     0

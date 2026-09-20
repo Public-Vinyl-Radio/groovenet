@@ -27,19 +27,6 @@ export type NormalizedSideGroup<TTrack> = {
   tracks: TTrack[];
 };
 
-function labelForSideKey(sideKey: string, classification: ParsedTrackPosition["classification"]): string {
-  if (classification === "disc-track") {
-    return `Disc ${sideKey.replace(/^DISC-/, "")}`;
-  }
-  if (classification === "numeric") {
-    return `Section ${sideKey}`;
-  }
-  if (classification === "freeform") {
-    return sideKey;
-  }
-  return `Side ${sideKey}`;
-}
-
 function parseNormalizedPosition(rawValue: TrackPositionValue): ParsedTrackPosition {
   const raw = String(rawValue ?? "").trim();
   const normalized = raw.toUpperCase();
@@ -149,7 +136,7 @@ function parseNormalizedPosition(rawValue: TrackPositionValue): ParsedTrackPosit
     sortGroup: side ? `FALLBACK:${side}` : `FREEFORM:${normalized}`,
     sortMajor: side ? 4 : 5,
     sortMinor: num,
-    classification: side ? "freeform" : "freeform",
+    classification: "freeform",
   };
 }
 
@@ -204,11 +191,16 @@ export function normalizeAlbumTrackSides<TTrack extends { position: TrackPositio
       sideKey = parsed.normalized || "TRACKLIST";
     }
 
+    // parseTrackPosition already derived the display label ("Side A", "Disc 1",
+    // "Side BONUS"), so reuse it rather than re-deriving one from the key —
+    // that kept the two disagreeing, and made a side's heading depend on which
+    // of its tracks happened to be grouped first. Sideless freeform positions
+    // have no label, so they fall back to their own key.
     let label: string;
     if (sideKey === "TRACKLIST") {
       label = "Tracklist";
     } else {
-      label = labelForSideKey(sideKey, parsed.classification);
+      label = parsed.sideLabel ?? sideKey;
     }
 
     let group = byKey.get(sideKey);
