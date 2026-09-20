@@ -132,3 +132,260 @@ describe("normalizeAlbumTrackSides", () => {
     expect(groups[0].tracks.map((track) => track.track_id)).toEqual(["t1", "t2"]);
   });
 });
+
+describe("parseTrackPosition edge cases", () => {
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["an empty string", ""],
+    ["whitespace only", "   "],
+  ])("classifies %s as empty and sorts it last", (_label, input) => {
+    expect(parseTrackPosition(input)).toEqual({
+      raw: "",
+      normalized: "",
+      side: "",
+      sideLabel: null,
+      num: 0,
+      rest: "",
+      sortGroup: "ZZZ",
+      sortMajor: Number.MAX_SAFE_INTEGER,
+      sortMinor: Number.MAX_SAFE_INTEGER,
+      classification: "empty",
+    });
+  });
+
+  it("accepts a number as the position", () => {
+    expect(parseTrackPosition(7)).toMatchObject({
+      raw: "7",
+      num: 7,
+      classification: "numeric",
+      sortGroup: "NUMERIC",
+    });
+  });
+
+  it("keeps a trailing letter as `rest` without disturbing the side", () => {
+    expect(parseTrackPosition("A1B")).toMatchObject({
+      side: "A",
+      num: 1,
+      rest: "B",
+      sortGroup: "SIDE:A",
+      classification: "side-number",
+    });
+  });
+
+  it("tolerates whitespace between the side and the track number", () => {
+    expect(parseTrackPosition("A 1")).toMatchObject({
+      side: "A",
+      num: 1,
+      classification: "side-number",
+    });
+  });
+
+  it("keeps `rest` on multi-letter and disc positions", () => {
+    expect(parseTrackPosition("AA1B")).toMatchObject({
+      side: "AA",
+      num: 1,
+      rest: "B",
+      classification: "multi-letter-side",
+    });
+    expect(parseTrackPosition("1-2C")).toMatchObject({
+      side: "DISC-1",
+      num: 2,
+      rest: "C",
+      classification: "disc-track",
+    });
+  });
+
+  it("accepts spaces around the disc separator", () => {
+    expect(parseTrackPosition("2 . 5")).toMatchObject({
+      side: "DISC-2",
+      num: 5,
+      classification: "disc-track",
+    });
+  });
+
+  it("treats an unparseable leading word as a fallback side", () => {
+    expect(parseTrackPosition("BONUS")).toMatchObject({
+      side: "BONUS",
+      sideLabel: "Side BONUS",
+      num: 0,
+      sortGroup: "FALLBACK:BONUS",
+      sortMajor: 4,
+      classification: "freeform",
+    });
+  });
+
+  it("keeps the leftover text as `rest` when a position only partly parses", () => {
+    expect(parseTrackPosition("A1-B")).toMatchObject({
+      side: "A",
+      num: 1,
+      rest: "-B",
+      sortGroup: "FALLBACK:A",
+      sortMajor: 4,
+      classification: "freeform",
+    });
+  });
+
+  it.each(["-", "???"])("treats %s as a sideless freeform position", (input) => {
+    expect(parseTrackPosition(input)).toMatchObject({
+      side: "",
+      sideLabel: null,
+      sortGroup: `FREEFORM:${input}`,
+      sortMajor: 5,
+      classification: "freeform",
+    });
+  });
+});
+
+describe("compareTrackPositions tiebreakers", () => {
+  it("returns 0 for identical positions", () => {
+    expect(compareTrackPositions("A1", "A1")).toBe(0);
+  });
+
+  it("orders classifications: sides, multi-letter, discs, numeric, fallback, freeform, empty", () => {
+    const positions = ["", "???", "A1-B", "5", "1-1", "AA1", "A1"];
+    expect([...positions].sort(compareTrackPositions)).toEqual([
+      "A1",
+      "AA1",
+      "1-1",
+      "5",
+      "A1-B",
+      "???",
+      "",
+    ]);
+  });
+
+  it("falls back to `rest` when side and number match", () => {
+    expect(compareTrackPositions("A1B", "A1A")).toBeGreaterThan(0);
+    expect(compareTrackPositions("A1A", "A1B")).toBeLessThan(0);
+    expect([...["A1C", "A1A", "A1B"]].sort(compareTrackPositions)).toEqual([
+      "A1A",
+      "A1B",
+      "A1C",
+    ]);
+  });
+
+  it("falls back to the normalized text when every other key matches", () => {
+    // "A 1" and "A1" agree on side, number and rest; only the raw text differs.
+    expect(compareTrackPositions("A 1", "A1")).toBeLessThan(0);
+    expect(compareTrackPositions("A1", "A 1")).toBeGreaterThan(0);
+  });
+
+  it("separates distinct sides that share a sort major and number", () => {
+    expect(compareTrackPositions("A1", "B1")).toBeLessThan(0);
+  });
+
+  it("sorts empty positions to the end regardless of order", () => {
+    expect([...["", "A1", ""]].sort(compareTrackPositions)).toEqual(["A1", "", ""]);
+  });
+});
+
+describe("getTrackSideLabel", () => {
+  it.each([
+    ["A1", "Side A"],
+    ["AA1", "Side AA"],
+    ["1-2", "Disc 1"],
+    ["BONUS", "Side BONUS"],
+  ])("labels %s as %s", (position, expected) => {
+    expect(getTrackSideLabel(position)).toBe(expected);
+  });
+
+  it.each([null, undefined, "", "5", "???"])(
+    "returns null for %s",
+    (position) => {
+      expect(getTrackSideLabel(position)).toBeNull();
+    }
+  );
+});
+
+describe("normalizeAlbumTrackSides grouping fallbacks", () => {
+  it("returns no groups for an empty track list", () => {
+    expect(normalizeAlbumTrackSides([])).toEqual([]);
+  });
+
+  it("collects positionless tracks into Tracklist", () => {
+    const groups = normalizeAlbumTrackSides([
+      { track_id: "b", position: null },
+      { track_id: "a", position: undefined },
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ side_key: "TRACKLIST", side_label: "Tracklist" });
+  });
+
+  it("puts numeric and positionless tracks in the same Tracklist group", () => {
+    const groups = normalizeAlbumTrackSides([
+      { track_id: "empty", position: "" },
+      { track_id: "one", position: "1" },
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].side_key).toBe("TRACKLIST");
+    // Numeric sorts ahead of empty, so the numeric track leads.
+    expect(groups[0].tracks.map((track) => track.track_id)).toEqual(["one", "empty"]);
+  });
+
+  it("gives a sideless freeform position its own group keyed by its text", () => {
+    const groups = normalizeAlbumTrackSides([{ track_id: "x", position: "???" }]);
+
+    expect(groups[0]).toMatchObject({ side_key: "???", side_label: "???" });
+  });
+
+  it("assigns ordinals and track counts in encounter order", () => {
+    const groups = normalizeAlbumTrackSides([
+      { track_id: "b1", position: "B1" },
+      { track_id: "a1", position: "A1" },
+      { track_id: "a2", position: "A2" },
+    ]);
+
+    expect(groups.map((group) => ({
+      key: group.side_key,
+      ordinal: group.ordinal,
+      track_count: group.track_count,
+    }))).toEqual([
+      { key: "A", ordinal: 0, track_count: 2 },
+      { key: "B", ordinal: 1, track_count: 1 },
+    ]);
+  });
+
+  it("does not mutate the caller's array", () => {
+    const tracks = [
+      { track_id: "b1", position: "B1" },
+      { track_id: "a1", position: "A1" },
+    ];
+    normalizeAlbumTrackSides(tracks);
+
+    expect(tracks.map((track) => track.track_id)).toEqual(["b1", "a1"]);
+  });
+
+  it("labels a group the same way getTrackSideLabel does", () => {
+    for (const position of ["A1", "AA1", "1-2", "BONUS"]) {
+      const [group] = normalizeAlbumTrackSides([{ track_id: "x", position }]);
+      expect(group.side_label).toBe(getTrackSideLabel(position));
+    }
+  });
+
+  it("labels a side consistently whether or not it holds a freeform position", () => {
+    const freeformOnly = normalizeAlbumTrackSides([
+      { track_id: "weird", position: "A1-B" },
+    ]);
+    const mixed = normalizeAlbumTrackSides([
+      { track_id: "weird", position: "A1-B" },
+      { track_id: "plain", position: "A1" },
+    ]);
+
+    // Both describe side A, so both read "Side A" — the heading must not
+    // depend on which of the side's tracks happens to be grouped first.
+    expect(freeformOnly[0].side_label).toBe("Side A");
+    expect(mixed[0].side_label).toBe("Side A");
+  });
+
+  it("keeps disc and vinyl sides in separate groups", () => {
+    const groups = normalizeAlbumTrackSides([
+      { track_id: "d", position: "1-1" },
+      { track_id: "a", position: "A1" },
+    ]);
+
+    expect(groups.map((group) => group.side_key)).toEqual(["A", "DISC-1"]);
+  });
+});
