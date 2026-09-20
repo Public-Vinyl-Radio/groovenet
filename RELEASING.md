@@ -65,17 +65,27 @@ npm error Missing: @groovenet/client@1.0.3 from lock file
 That message points at the lock file, but the lock file is not the problem —
 the unsatisfiable range is.
 
-The two are released **together, in one PR**, which is why the plugin's `merge`
-option is left at its default. Splitting them is not safe: a release PR that
-bumps the CLI's range to `^2.0.0` while the client is still `1.0.3` breaks
-`main` the moment it merges, with
+They must also be released **in the same PR**, which is why
+`separate-pull-requests` is `false`. Split across two PRs, neither can merge
+first:
 
-```
-npm error notarget No matching version found for @groovenet/client@^2.0.0
-```
+- client to `2.0.0` alone leaves the CLI asking for `^1.0.2` — `npm ci` fails
+  with `Missing: @groovenet/client@1.0.3 from lock file`
+- CLI alone carries `^2.0.0` while the client is still `1.0.3` — `npm ci` fails
+  with `notarget No matching version found for @groovenet/client@^2.0.0`
 
-So `separate-pull-requests: true` still applies to the root package, but the
-client and CLI share a release PR by design.
+Neither message names the real cause, which is the version skew between the two
+packages. One PR means both bumps land together and `main` is never in that
+state.
+
+The cost is that the root package releases in the same PR as the packages
+rather than on its own. That is the trade for the packages being safe.
+
+Setting `merge` on the plugins does **not** substitute for this —
+`separate-pull-requests: true` splits by component regardless, and
+release-please will not regroup release PRs that are already open. If the
+grouping ever needs to change again, close the open release PRs first so they
+are rebuilt from scratch.
 
 ## One-time setup
 
