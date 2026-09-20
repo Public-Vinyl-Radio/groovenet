@@ -48,7 +48,7 @@ interface EssentiaAnalysis {
 /**
  * Audio vibe data for embedding
  */
-interface AudioVibeData {
+export interface AudioVibeData {
   bpm: string;
   bpmRange: string;
   key: string;

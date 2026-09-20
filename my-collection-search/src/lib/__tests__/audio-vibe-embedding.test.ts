@@ -1,9 +1,42 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  createEmbedding,
+  readEssentiaAnalysis,
+  findTrackByTrackIdAndFriendIdRaw,
+  upsertTrackEmbedding,
+  findEmbeddingSourceHash,
+} = vi.hoisted(() => ({
+  createEmbedding: vi.fn(),
+  readEssentiaAnalysis: vi.fn(),
+  findTrackByTrackIdAndFriendIdRaw: vi.fn(),
+  upsertTrackEmbedding: vi.fn(),
+  findEmbeddingSourceHash: vi.fn(),
+}));
+
+vi.mock("openai", () => ({
+  default: class OpenAI {
+    embeddings = { create: createEmbedding };
+  },
+}));
+
+vi.mock("../essentia-storage", () => ({ readEssentiaAnalysis }));
+vi.mock("@/server/repositories/trackRepository", () => ({
+  trackRepository: { findTrackByTrackIdAndFriendIdRaw },
+}));
+vi.mock("@/server/repositories/embeddingsRepository", () => ({
+  embeddingsRepository: { upsertTrackEmbedding, findEmbeddingSourceHash },
+}));
+
 import {
   buildAudioVibeData,
   buildAudioVibeText,
   computeAudioVibeHash,
+  generateAndStoreAudioVibeEmbedding,
+  getAudioVibePreview,
   hasAudioData,
+  needsAudioVibeUpdate,
+  storeAudioVibeEmbedding,
 } from "../audio-vibe-embedding";
 import type { Track } from "@/types/track";
 
@@ -27,6 +60,11 @@ const mockTrack: Track = {
   mood_relaxed: 0.7,
   mood_aggressive: 0.1,
 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+});
 
 describe("hasAudioData", () => {
   it("returns true when bpm is present", () => {
@@ -92,6 +130,40 @@ describe("buildAudioVibeData", () => {
     expect(unknown.bpm).toBe("unknown");
     expect(unknown.key).toBe("unknown");
     expect(unknown.danceability).toBe("unknown");
+  });
+
+  it("adds enhanced features from Essentia analysis", () => {
+    readEssentiaAnalysis.mockReturnValue({
+      payload: {
+        analysis: {
+          highlevel: {
+            mood_acoustic: { all: { acoustic: 0.1 } },
+            mood_electronic: { all: { electronic: 0.8 } },
+            voice_instrumental: { all: { instrumental: 0.1, voice: 0.7 } },
+            mood_party: { all: { party: 0.5 } },
+          },
+          rhythm: { onset_rate: 5 },
+        },
+      },
+    });
+
+    expect(buildAudioVibeData(mockTrack)).toMatchObject({
+      acoustic: "very electronic",
+      vocalPresence: "heavy vocals",
+      percussiveness: "rhythmic",
+      partyMood: "high",
+    });
+    expect(readEssentiaAnalysis).toHaveBeenCalledWith("test-123", 1);
+  });
+
+  it("falls back to base data when Essentia analysis cannot be read", () => {
+    readEssentiaAnalysis.mockImplementation(() => {
+      throw new Error("missing analysis");
+    });
+
+    const vibeData = buildAudioVibeData(mockTrack);
+    expect(vibeData.acoustic).toBeUndefined();
+    expect(vibeData.vocalPresence).toBeUndefined();
   });
 });
 
@@ -163,5 +235,108 @@ describe("computeAudioVibeHash", () => {
     expect(text1).toContain("Happy");
     expect(text1).toContain("Sad");
     expect(text1).toContain("Aggressive");
+  });
+});
+
+describe("audio vibe embedding persistence", () => {
+  it("checks source hashes and stores audio-vibe embeddings with the expected metadata", async () => {
+    findEmbeddingSourceHash.mockResolvedValueOnce(null).mockResolvedValueOnce("same-hash");
+
+    await expect(needsAudioVibeUpdate("track", 4, "new-hash")).resolves.toBe(true);
+    await expect(needsAudioVibeUpdate("track", 4, "same-hash")).resolves.toBe(false);
+    expect(findEmbeddingSourceHash).toHaveBeenCalledWith("track", 4, "audio_vibe");
+
+    await storeAudioVibeEmbedding("track", 4, [0.1, 0.2], "source-hash", "vibe text", "custom-model", 2);
+    expect(upsertTrackEmbedding).toHaveBeenCalledWith({
+      trackId: "track",
+      friendId: 4,
+      embeddingType: "audio_vibe",
+      model: "custom-model",
+      dims: 2,
+      embedding: [0.1, 0.2],
+      sourceHash: "source-hash",
+      identityText: "vibe text",
+    });
+  });
+});
+
+describe("generateAndStoreAudioVibeEmbedding", () => {
+  it("rejects missing tracks and skips tracks without audio data", async () => {
+    findTrackByTrackIdAndFriendIdRaw.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      ...mockTrack,
+      bpm: undefined,
+      key: undefined,
+      danceability: undefined,
+      mood_happy: undefined,
+      mood_sad: undefined,
+      mood_relaxed: undefined,
+      mood_aggressive: undefined,
+    });
+
+    await expect(generateAndStoreAudioVibeEmbedding("missing", 1)).rejects.toThrow("Track not found: missing");
+    await expect(generateAndStoreAudioVibeEmbedding("empty", 1)).resolves.toEqual({
+      updated: false,
+      reason: "Track missing audio analysis data (BPM, key, mood, etc.)",
+    });
+    expect(createEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("skips an unchanged embedding unless forced", async () => {
+    findTrackByTrackIdAndFriendIdRaw.mockResolvedValue(mockTrack);
+    findEmbeddingSourceHash.mockResolvedValue(computeAudioVibeHash(buildAudioVibeData(mockTrack)));
+
+    await expect(generateAndStoreAudioVibeEmbedding("test-123", 1)).resolves.toEqual({
+      updated: false,
+      reason: "Source hash unchanged",
+    });
+    expect(createEmbedding).not.toHaveBeenCalled();
+    expect(upsertTrackEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("generates and stores an embedding when forced", async () => {
+    findTrackByTrackIdAndFriendIdRaw.mockResolvedValue(mockTrack);
+    createEmbedding.mockResolvedValue({ data: [{ embedding: [0.1, 0.2, 0.3] }] });
+
+    await expect(generateAndStoreAudioVibeEmbedding("test-123", 1, true)).resolves.toEqual({
+      updated: true,
+      reason: "Audio vibe embedding generated and stored",
+    });
+    expect(createEmbedding).toHaveBeenCalledWith({
+      model: "text-embedding-3-small",
+      input: expect.stringContaining("BPM: 128"),
+    });
+    expect(upsertTrackEmbedding).toHaveBeenCalledWith(expect.objectContaining({
+      trackId: "test-123",
+      friendId: 1,
+      embedding: [0.1, 0.2, 0.3],
+      embeddingType: "audio_vibe",
+    }));
+  });
+});
+
+describe("getAudioVibePreview", () => {
+  it("returns a generated preview for tracks with audio data", async () => {
+    findTrackByTrackIdAndFriendIdRaw.mockResolvedValue(mockTrack);
+
+    await expect(getAudioVibePreview("test-123", 1)).resolves.toMatchObject({
+      vibeText: expect.stringContaining("BPM: 128"),
+      vibeData: expect.objectContaining({ camelot: "8A" }),
+    });
+  });
+
+  it("rejects a missing track and a track without audio data", async () => {
+    findTrackByTrackIdAndFriendIdRaw.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      ...mockTrack,
+      bpm: undefined,
+      key: undefined,
+      danceability: undefined,
+      mood_happy: undefined,
+      mood_sad: undefined,
+      mood_relaxed: undefined,
+      mood_aggressive: undefined,
+    });
+
+    await expect(getAudioVibePreview("missing", 1)).rejects.toThrow("Track not found: missing");
+    await expect(getAudioVibePreview("empty", 1)).rejects.toThrow("Track missing audio analysis data");
   });
 });
