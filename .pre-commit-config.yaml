@@ -35,7 +35,7 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^(download-worker|ga-service|essentia-api)/
+        files: ^(download-worker|ga-service|essentia-api|fingerprint-service)/
 
   # eslint runs through the local install so it picks up
   # my-collection-search/eslint.config.mjs. packages/* and mcp-server have no

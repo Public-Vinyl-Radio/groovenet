@@ -1,0 +1,31 @@
+[project]
+name = "fingerprint-service"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "redis==8.1.0",
+    "requests==2.34.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
+    "fakeredis>=2.37.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+# `exclude_also` adds to coverage's defaults; `exclude_lines` would replace
+# them and silently stop excluding `if TYPE_CHECKING:` blocks.
+exclude_also = [
+    # Entrypoint guards run under `python -m`, never under pytest.
+    'if __name__ == "__main__":',
+    "if __name__ == '__main__':",
+]

@@ -36,7 +36,7 @@ elif [[ -n "${COMPOSE_TEMPLATE_FILE}" && -n "${OP_BIN}" ]]; then
 else
   COMPOSE_CMD=(docker compose)
 fi
-SERVICES=(app migrate essentia ga-service download-worker)
+SERVICES=(app migrate essentia ga-service download-worker fingerprint-service)
 MIN_FREE_GB="${MIN_FREE_GB:-5}"
 PGUSER="${POSTGRES_USER:-djplaylist}"
 PGDB="${POSTGRES_DB:-djplaylist}"

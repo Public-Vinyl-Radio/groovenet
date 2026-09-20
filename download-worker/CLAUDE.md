@@ -74,7 +74,7 @@ Audio quality is one of `best`, `high`, `standard`, `lossless`.
 ## Tests
 
 ```bash
-uv run --group dev pytest                     # 275 tests
+uv run --group dev pytest                     # 278 tests
 uv run --group dev pytest --cov=worker --cov-report=term-missing
 ```
 
@@ -94,5 +94,7 @@ Two things worth knowing when adding tests:
   `worker.main.redis_conn`, not the config module.
 - The heartbeat only stays fresh because `brpop` wakes every `BRPOP_TIMEOUT`
   seconds. Lengthening that timeout without raising `HEARTBEAT_TTL` will make
-  the container look unhealthy.
+  the container look unhealthy — and it must stay under `SOCKET_TIMEOUT`, or
+  the socket read times out racing the server-side block and the loop takes a
+  `TimeoutError` on every idle cycle. Both live in `config.py` for that reason.
 - Ruff runs over this directory in pre-commit; config is the root `ruff.toml`.

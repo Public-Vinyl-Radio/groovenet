@@ -1,0 +1,9 @@
+# The root .dockerignore does not apply here: this image builds with
+# fingerprint-service/ as its context.
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+.coverage
+coverage.xml

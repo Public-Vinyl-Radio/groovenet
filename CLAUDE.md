@@ -14,6 +14,7 @@ there rather than expanding this file.
 | Download worker | `download-worker/` | [CLAUDE.md](download-worker/CLAUDE.md) |
 | Audio analysis | `essentia-api/` | [CLAUDE.md](essentia-api/CLAUDE.md) |
 | Playlist optimiser | `ga-service/` | [CLAUDE.md](ga-service/CLAUDE.md) |
+| Fingerprint matcher | `fingerprint-service/` | [CLAUDE.md](fingerprint-service/CLAUDE.md) |
 | MCP server | `mcp-server/` | [CLAUDE.md](mcp-server/CLAUDE.md) |
 | Typed API client | `packages/groovenet-client/` | [CLAUDE.md](packages/groovenet-client/CLAUDE.md) |
 | CLI | `packages/groovenet-cli/` | [CLAUDE.md](packages/groovenet-cli/CLAUDE.md) |
@@ -31,23 +32,30 @@ there rather than expanding this file.
          ▼                      ▼                   ▼
    ┌───────────┐          ┌──────────┐      ┌──────────────┐
    │ Postgres  │          │  Redis   │      │ ga-service   │
-   │ + pgvector│          │  queue   │      │   :8002      │
+   │ + pgvector│          │  queues  │      │   :8002      │
    │   :5432   │          │  :6379   │      │ /optimize    │
-   └───────────┘          └────┬─────┘      └──────────────┘
-         ▲                     │
-         │                     ▼
-         │            ┌──────────────────┐     ┌──────────────┐
-         └────────────┤ download-worker  ├────►│ essentia-api │
-           via API    │  (no HTTP port)  │     │    :8001     │
-                      └──────────────────┘     │  /analyze    │
-                                               └──────────────┘
+   └───────────┘          └──┬────┬──┘      └──────────────┘
+         ▲                   │    │
+         │    download_queue │    │ fingerprint_queue
+         │                   ▼    ▼
+         │   ┌──────────────────┐ ┌─────────────────────┐
+         ├───┤ download-worker  │ │ fingerprint-service │
+         │   │  (no HTTP port)  │ │   (no HTTP port)    │
+         │   └────────┬─────────┘ └─────────────────────┘
+         │ via API    │
+         │            ▼
+         │   ┌──────────────┐
+         └───┤ essentia-api │
+             │    :8001     │
+             │  /analyze    │
+             └──────────────┘
 ```
 
 Postgres is the only datastore. Search is Postgres full-text + trigram, and
 similarity is pgvector — there is no separate search service.
 
 `docker-compose.yml` defines: `app`, `migrate`, `db`, `essentia`, `ga-service`,
-`redis`, `download-worker`.
+`redis`, `download-worker`, `fingerprint-service`.
 
 ## Data flow
 
@@ -60,6 +68,12 @@ writes results back through the app's REST API.
 
 **Playlist optimisation** — the app posts the selected tracks to ga-service
 `/optimize`, which returns an ordering tuned for BPM and key transitions.
+
+**Vinyl play tracking** — a listener posts audio chunks to the app, which writes
+them to the shared `audio_ingest` volume and pushes a job onto the Redis list
+`fingerprint_queue`; `fingerprint-service` pops it, decodes to mono PCM, matches
+against the reference fingerprint index, and reports back over REST. Epic #281;
+the matcher itself is still stubbed.
 
 ## Working on this repo
 
