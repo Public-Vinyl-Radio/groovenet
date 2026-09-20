@@ -6,7 +6,6 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
-
 from worker.audio_utils import (
     cleanup_download_directory,
     ensure_local_audio_file,

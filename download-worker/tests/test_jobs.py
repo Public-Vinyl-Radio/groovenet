@@ -1,7 +1,6 @@
 """Tests for fix_duration, analyze_local_audio, and cover art job handlers."""
 import subprocess
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def make_proc(returncode=0, stdout="", stderr=""):

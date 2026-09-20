@@ -2,7 +2,6 @@ import time
 
 import pytest
 import redis
-
 from worker import healthcheck
 from worker.config import HEARTBEAT_KEY, HEARTBEAT_TTL
 

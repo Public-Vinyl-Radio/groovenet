@@ -207,7 +207,7 @@ Tables
     - position varchar(20)
     - discogs_url text
     - apple_music_url text
-    - 
+    -
     - youtube_url text
     - soundcloud_url text
     - album_thumbnail text
@@ -224,7 +224,7 @@ Tables
   - Indexes/constraints:
     - tracks_compound_pk on (track_id, username)
     - Non-unique index on track_id (tracks_track_id_idx)
-    - 
+    -
     - Index on friend_id (idx_tracks_friend_id)
     - Foreign key: friend_id → friends.id
 

@@ -232,7 +232,7 @@ export async function POST(request: Request) {
 
   let user = users.get(username);
   const isNewUser = !user;
-  
+
   if (!user) {
     user = { username, burritoConsiderations: 0 };
     users.set(username, user);
@@ -290,7 +290,7 @@ export default function BurritoPage() {
     incrementBurritoConsiderations();
     setHasConsidered(true);
     setTimeout(() => setHasConsidered(false), 2000);
-    
+
     // Capture burrito consideration event
     posthog.capture('burrito_considered', {
       total_considerations: user.burritoConsiderations + 1,
@@ -302,22 +302,22 @@ export default function BurritoPage() {
     <div className="container">
       <h1>Burrito consideration zone</h1>
       <p>Take a moment to truly consider the potential of burritos.</p>
-      
+
       <div style={{ textAlign: 'center' }}>
-        <button 
+        <button
           onClick={handleConsideration}
           className="btn-burrito"
         >
           I have considered the burrito potential
         </button>
-        
+
         {hasConsidered && (
           <p className="success">
             Thank you for your consideration! Count: {user.burritoConsiderations}
           </p>
         )}
       </div>
-      
+
       <div className="stats">
         <h3>Consideration stats</h3>
         <p>Total considerations: {user.burritoConsiderations}</p>
@@ -380,7 +380,7 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     try {
       const success = await login(username, password);
       if (success) {
@@ -412,7 +412,7 @@ export default function Home() {
     <div className="container">
       <h1>Welcome to Burrito Consideration App</h1>
       <p>Please sign in to begin your burrito journey</p>
-      
+
       <form onSubmit={handleSubmit} className="form">
         <div className="form-group">
           <label htmlFor="username">Username:</label>
@@ -424,7 +424,7 @@ export default function Home() {
             placeholder="Enter any username"
           />
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="password">Password:</label>
           <input
@@ -435,12 +435,12 @@ export default function Home() {
             placeholder="Enter any password"
           />
         </div>
-        
+
         {error && <p className="error">{error}</p>}
-        
+
         <button type="submit" className="btn-primary">Sign In</button>
       </form>
-      
+
       <p className="note">
         Note: This is a demo app. Use any username and password to sign in.
       </p>
@@ -483,19 +483,19 @@ export default function ProfilePage() {
   return (
     <div className="container">
       <h1>User Profile</h1>
-      
+
       <div className="stats">
         <h2>Your Information</h2>
         <p><strong>Username:</strong> {user.username}</p>
         <p><strong>Burrito Considerations:</strong> {user.burritoConsiderations}</p>
       </div>
-      
+
       <div style={{ marginTop: '2rem' }}>
         <button onClick={triggerTestError} className="btn-primary" style={{ backgroundColor: '#dc3545' }}>
           Trigger Test Error (for PostHog)
         </button>
       </div>
-      
+
       <div style={{ marginTop: '2rem' }}>
         <h3>Your Burrito Journey</h3>
         {user.burritoConsiderations === 0 ? (
@@ -618,17 +618,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setUser(localUser);
         localStorage.setItem('currentUser', username);
-        
+
         // Identify user in PostHog using username as distinct ID
         posthog.identify(username, {
           username: username,
         });
-        
+
         // Capture login event
         posthog.capture('user_logged_in', {
           username: username,
         });
-        
+
         return true;
       }
       return false;
@@ -642,7 +642,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Capture logout event before resetting
     posthog.capture('user_logged_out');
     posthog.reset();
-    
+
     setUser(null);
     localStorage.removeItem('currentUser');
   };
@@ -684,7 +684,7 @@ export function getPostHogClient() {
   if (!posthogClient) {
     posthogClient = new PostHog(
       process.env.NEXT_PUBLIC_POSTHOG_KEY!,
-      { 
+      {
         host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
         flushAt: 1,
         flushInterval: 0
@@ -703,4 +703,3 @@ export async function shutdownPostHog() {
 ```
 
 ---
-

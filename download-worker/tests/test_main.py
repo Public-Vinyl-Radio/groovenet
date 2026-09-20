@@ -2,7 +2,6 @@ import json
 
 import pytest
 import redis
-
 from worker import main as worker_main
 
 

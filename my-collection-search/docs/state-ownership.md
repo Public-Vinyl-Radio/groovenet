@@ -84,4 +84,3 @@ Prefer:
 4. Component reads entities from store; query controls only loading/error/refetch.
 5. Mutation writes store and invalidates affected query keys.
 6. No duplicate entity patching in React Query cache.
-

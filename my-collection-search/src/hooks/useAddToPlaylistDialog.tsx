@@ -32,10 +32,10 @@ export function useAddToPlaylistDialog() {
     mutationFn: async ({ playlist, track }: { playlist: Playlist; track: Track }) => {
       // Check if track already exists in playlist
       const existingTracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
-      const trackExists = existingTracks.some((t) => 
+      const trackExists = existingTracks.some((t) =>
         typeof t === 'string' ? t === track.track_id : t.track_id === track.track_id
       );
-      
+
       if (trackExists) {
         throw new Error(`Track is already in playlist "${playlist.name}"`);
       }

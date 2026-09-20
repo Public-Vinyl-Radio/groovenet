@@ -1,7 +1,7 @@
 import subprocess
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import pytest
 from worker.subprocess_utils import run_subprocess
 
 

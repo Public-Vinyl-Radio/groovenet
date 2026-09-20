@@ -1,13 +1,12 @@
 import json
 import time
-from typing import Dict
 
 from .config import (
-    logger,
-    redis_conn,
-    JOBS_UPDATED_INDEX_KEY,
     JOB_TTL_ACTIVE_SECONDS,
     JOB_TTL_TERMINAL_SECONDS,
+    JOBS_UPDATED_INDEX_KEY,
+    logger,
+    redis_conn,
 )
 
 
@@ -16,7 +15,7 @@ def update_job_status(
     status: str,
     progress: int = 0,
     error: str = None,
-    result: Dict = None,
+    result: dict = None,
     analysis_error: str = None,
 ):
     now_ms = int(time.time() * 1000)

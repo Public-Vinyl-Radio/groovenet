@@ -29,19 +29,19 @@ export default function NamePlaylistDialog({
 }: NamePlaylistDialogProps) {
   // Local state for the input to prevent parent re-renders on every keystroke
   const [localName, setLocalName] = React.useState(name);
-  
+
   // Sync local state when the dialog opens or name prop changes
   React.useEffect(() => {
     if (open) {
       setLocalName(name);
     }
   }, [open, name]);
-  
+
   const handleConfirm = React.useCallback(() => {
     setName(localName); // Update parent state on confirm
     onConfirm(localName); // Pass the name to the confirm handler
   }, [localName, setName, onConfirm]);
-  
+
   const handleCancel = React.useCallback(() => {
     setLocalName(name); // Reset to original value
     onCancel();

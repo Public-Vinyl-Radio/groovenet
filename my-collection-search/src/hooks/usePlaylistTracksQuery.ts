@@ -13,7 +13,7 @@ export function usePlaylistTracksQuery(
 ) {
   const setTracks = useTrackStore((state) => state.setTracks);
   const tracksMap = useTrackStore((state) => state.tracks);
-  
+
   const query = useQuery<Track[], Error>({
     queryKey: queryKeys.playlistTracks(trackRefs),
     queryFn: () => fetchTracksByIds(trackRefs, { includeVectors: true }),

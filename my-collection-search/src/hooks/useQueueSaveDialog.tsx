@@ -33,9 +33,9 @@ export function useQueueSaveDialog() {
         friend_id: track.friend_id
       }));
       console.log("Saving queue as playlist with tracks:", tracksWithFriendId);
-      
+
       await importPlaylist(finalName.trim(), tracksWithFriendId);
-      
+
       toaster.create({ title: "Queue saved as playlist successfully", type: "success" });
       setOpen(false);
       setPlaylistName("");

@@ -165,17 +165,17 @@ export function useSearchResults({
   // Populate Zustand store when results change - but only with new tracks
   useEffect(() => {
     if (results.length === 0) return;
-    
+
     // Filter to only new tracks that we haven't populated yet
     const newTracks = results.filter(track => {
       const key = `${track.track_id}:${track.friend_id || 'default'}`;
       return !populatedTrackIds.current.has(key);
     });
-    
+
     if (newTracks.length > 0) {
       console.log('🔍 useSearchResults calling setTracks with', newTracks.length, 'new tracks');
       setTracks(newTracks);
-      
+
       // Mark these tracks as populated
       newTracks.forEach(track => {
         const key = `${track.track_id}:${track.friend_id || 'default'}`;

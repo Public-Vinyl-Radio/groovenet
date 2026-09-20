@@ -25,7 +25,7 @@ mise_exec := "mise exec --"
 default:
   @just --list
 
-bootstrap: bootstrap-js bootstrap-python
+bootstrap: bootstrap-js bootstrap-python bootstrap-hooks
 
 bootstrap-js: bootstrap-tools bootstrap-node
 
@@ -44,6 +44,19 @@ bootstrap-python:
   cd ga-service && {{mise_exec}} uv sync --frozen
   cd download-worker && {{mise_exec}} uv sync --frozen
   cd essentia-api && {{mise_exec}} uv sync --frozen
+
+# Install the git pre-commit hook (CI runs the same checks; this is just earlier feedback).
+bootstrap-hooks:
+  @command -v uv >/dev/null 2>&1 || { \
+    echo "uv is required for pre-commit. See https://docs.astral.sh/uv/"; \
+    exit 1; \
+  }
+  uv tool install --quiet pre-commit || true
+  uv tool run pre-commit install
+
+# Run every pre-commit hook over the whole repo, as CI does.
+lint-all:
+  uv tool run pre-commit run --all-files
 
 test: test-web test-packages
 

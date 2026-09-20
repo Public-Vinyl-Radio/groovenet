@@ -4,21 +4,20 @@ import shutil
 import subprocess
 import time
 import traceback
-from typing import Optional
 
 from groovenet_client.api.tracks import patch_api_tracks
 from groovenet_client.models import PatchApiTracksBody
 
-from ..config import logger
-from ..redis_utils import update_job_status, append_job_logs
-from ..subprocess_utils import run_subprocess
 from ..audio_utils import cleanup_download_directory
+from ..config import logger
+from ..redis_utils import append_job_logs, update_job_status
+from ..subprocess_utils import run_subprocess
 from ..track_api import analyze_audio_file, get_groovenet_client
 from ..types import JobData, JobResult
 from .analyze import analyze_local_audio
 
 
-def resolve_gamdl_cookie_file() -> Optional[str]:
+def resolve_gamdl_cookie_file() -> str | None:
     configured_path = os.getenv('GAMDL_COOKIE_FILE')
     candidates: list[str] = []
 
@@ -54,9 +53,9 @@ def download_with_gamdl(
     url: str,
     output_dir: str,
     track_id: str,
-    job_data: Optional[JobData] = None,
-    log_sink: Optional[list[str]] = None,
-) -> Optional[str]:
+    job_data: JobData | None = None,
+    log_sink: list[str] | None = None,
+) -> str | None:
     try:
         quality = 'best'
         if job_data and 'quality' in job_data:
@@ -76,7 +75,7 @@ def download_with_gamdl(
         if cookie_file:
             if os.path.exists(cookie_file):
                 try:
-                    with open(cookie_file, 'r') as f:
+                    with open(cookie_file) as f:
                         content = f.read().strip()
                     if not content:
                         logger.warning("Cookie file is empty")
@@ -86,7 +85,7 @@ def download_with_gamdl(
                         cmd.extend(['--cookies-path', cookie_file])
                         logger.info(f"Using gamdl cookie file: {cookie_file}")
                         lines = content.split('\n')
-                        apple_lines = [l for l in lines if 'apple' in l.lower()]
+                        apple_lines = [line for line in lines if 'apple' in line.lower()]
                         logger.info(f"Using cookie file with {len(apple_lines)} Apple entries")
                 except Exception as e:
                     logger.warning(f"Could not validate cookie file: {e}")
@@ -203,8 +202,8 @@ def download_with_ytdlp(
     url: str,
     output_dir: str,
     track_id: str,
-    log_sink: Optional[list[str]] = None,
-) -> Optional[str]:
+    log_sink: list[str] | None = None,
+) -> str | None:
     try:
         output_template = f"{output_dir}/{track_id}.%(ext)s"
 

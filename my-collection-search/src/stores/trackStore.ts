@@ -97,7 +97,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
     set((state) => {
       let hasChanges = false;
       const newTracks = new Map(state.tracks);
-      
+
       tracks.forEach((track) => {
         const friendId = track.friend_id;
         const key = createTrackKey(track.track_id, friendId);
@@ -142,7 +142,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
           }
         }
       });
-      
+
       // Only return new state if there were actual changes
       if (hasChanges) {
         if (isStoreDebugEnabled()) {
