@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FingerprintRepository } from "../fingerprintRepository";
-import type { TrackFingerprintRow } from "@/types/fingerprint";
+import type {
+  FingerprintIndexScope,
+  TrackFingerprintRow,
+} from "@/types/fingerprint";
 
 const dbQuery = vi.hoisted(() => vi.fn());
 
@@ -390,5 +393,158 @@ describe("deleteFingerprintsByVersion()", () => {
     dbQuery.mockResolvedValue({ rows: [], rowCount: null });
 
     expect(await makeRepo().deleteFingerprintsByVersion("chromaprint", "1")).toBe(0);
+  });
+});
+
+// ─── listIndexCandidates ──────────────────────────────────────────────────────
+
+describe("listIndexCandidates()", () => {
+  const engine = { fingerprint_type: "chromaprint", fingerprint_version: "1" };
+
+  function sqlFor(scope: FingerprintIndexScope) {
+    dbQuery.mockResolvedValue({ rows: [] });
+    return makeRepo()
+      .listIndexCandidates(scope, engine)
+      .then(() => ({
+        sql: dbQuery.mock.calls[0][0] as string,
+        params: dbQuery.mock.calls[0][1] as unknown[],
+      }));
+  }
+
+  it("returns candidates stamped with the stored hash", async () => {
+    dbQuery.mockResolvedValue({
+      rows: [
+        {
+          track_id: "t1",
+          friend_id: 1,
+          local_audio_url: "artist - title.m4a",
+          stored_audio_sha256: null,
+        },
+      ],
+    });
+
+    const result = await makeRepo().listIndexCandidates({ kind: "missing" }, engine);
+
+    expect(result).toEqual([
+      {
+        track_id: "t1",
+        friend_id: 1,
+        local_audio_url: "artist - title.m4a",
+        stored_audio_sha256: null,
+      },
+    ]);
+  });
+
+  it("pins the join to the active engine and version", async () => {
+    const { sql, params } = await sqlFor({ kind: "all" });
+
+    expect(sql).toContain("f.fingerprint_type = $1");
+    expect(sql).toContain("f.fingerprint_version = $2");
+    expect(params.slice(0, 2)).toEqual(["chromaprint", "1"]);
+  });
+
+  it("never offers a track without local audio", async () => {
+    const { sql } = await sqlFor({ kind: "all" });
+
+    expect(sql).toContain("t.local_audio_url IS NOT NULL");
+    expect(sql).toContain("t.local_audio_url <> ''");
+  });
+
+  it("excludes soft-deleted tracks", async () => {
+    const { sql } = await sqlFor({ kind: "all" });
+    expect(sql).toContain("t.deleted_at IS NULL");
+  });
+
+  // ── the scope flags ──
+
+  it("--missing takes only tracks with no row for this engine", async () => {
+    const { sql } = await sqlFor({ kind: "missing" });
+    expect(sql).toContain("f.track_id IS NULL");
+  });
+
+  it("--changed takes only tracks already indexed", async () => {
+    // The hash comparison itself happens in the worker, which is the only side
+    // that can read the file.
+    const { sql } = await sqlFor({ kind: "changed" });
+    expect(sql).toContain("f.track_id IS NOT NULL");
+  });
+
+  it("--all takes every track with audio, indexed or not", async () => {
+    const { sql } = await sqlFor({ kind: "all" });
+    expect(sql).not.toContain("f.track_id IS NULL");
+    expect(sql).not.toContain("f.track_id IS NOT NULL");
+  });
+
+  it("--track narrows to one track", async () => {
+    const { sql, params } = await sqlFor({ kind: "track", track_id: "t1" });
+    expect(sql).toContain("t.track_id = $3");
+    expect(params).toEqual(["chromaprint", "1", "t1"]);
+  });
+
+  it("--track can be narrowed further by friend", async () => {
+    const { sql, params } = await sqlFor({
+      kind: "track",
+      track_id: "t1",
+      friend_id: 2,
+    });
+    expect(sql).toContain("t.friend_id = $4");
+    expect(params).toEqual(["chromaprint", "1", "t1", 2]);
+  });
+
+  it("--release narrows to one release", async () => {
+    const { sql, params } = await sqlFor({ kind: "release", release_id: "r9" });
+    expect(sql).toContain("t.release_id = $3");
+    expect(params).toEqual(["chromaprint", "1", "r9"]);
+  });
+
+  it("--release can be narrowed further by friend", async () => {
+    const { params } = await sqlFor({
+      kind: "release",
+      release_id: "r9",
+      friend_id: 3,
+    });
+    expect(params).toEqual(["chromaprint", "1", "r9", 3]);
+  });
+});
+
+// ─── countUnindexableTracks ───────────────────────────────────────────────────
+
+describe("countUnindexableTracks()", () => {
+  it("counts tracks with no local audio", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "241" }] });
+
+    const result = await makeRepo().countUnindexableTracks({ kind: "all" });
+
+    expect(result).toBe(241);
+    const sql = dbQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("local_audio_url IS NULL OR local_audio_url = ''");
+  });
+
+  it("treats an empty result as zero", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await makeRepo().countUnindexableTracks({ kind: "all" })).toBe(0);
+  });
+
+  it("is always zero for --changed", async () => {
+    // A track with no audio has never been indexed, so it cannot be in the
+    // already-indexed set. Counting it would be noise.
+    expect(await makeRepo().countUnindexableTracks({ kind: "changed" })).toBe(0);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("narrows to a track", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "1" }] });
+    await makeRepo().countUnindexableTracks({ kind: "track", track_id: "t1" });
+    expect(dbQuery.mock.calls[0][1]).toEqual(["t1"]);
+  });
+
+  it("narrows to a release and friend", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "3" }] });
+    await makeRepo().countUnindexableTracks({
+      kind: "release",
+      release_id: "r9",
+      friend_id: 2,
+    });
+    expect(dbQuery.mock.calls[0][1]).toEqual(["r9", 2]);
   });
 });

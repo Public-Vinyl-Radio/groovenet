@@ -65,8 +65,9 @@ test-web:
   {{mise_exec}} npm test --prefix my-collection-search
 
 test-packages:
-  {{mise_exec}} npm install --workspace=@groovenet/client
+  {{mise_exec}} npm install --workspace=@groovenet/client --workspace=@groovenet/cli
   {{mise_exec}} npm run test --workspace=packages/groovenet-client
+  {{mise_exec}} npm run test --workspace=packages/groovenet-cli
 
 lint:
   {{mise_exec}} npm run lint --prefix my-collection-search

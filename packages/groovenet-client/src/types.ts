@@ -418,3 +418,50 @@ export interface RecommendationCandidatesQuery {
   limit_audio?: number;
   ivfflat_probes?: number;
 }
+
+// ─── Fingerprint indexing (#277) ──────────────────────────────────────────────
+
+/**
+ * Which slice of the reference library an indexing run covers.
+ *
+ * `missing` and `changed` are the two halves of "bring the index up to date".
+ * `all` adds the tracks that are already current, for forcing a regeneration.
+ */
+export type FingerprintIndexScope =
+  | "missing"
+  | "changed"
+  | "all"
+  | "track"
+  | "release";
+
+export interface FingerprintIndexRequest {
+  scope: FingerprintIndexScope;
+  track_id?: string;
+  release_id?: string;
+  friend_id?: number;
+  force?: boolean;
+}
+
+/**
+ * Counters for one indexing run.
+ *
+ * The four the CLI reports are `indexed` / `skipped` / `failed` / `unindexable`.
+ * The last is not a failure: `tracks.local_audio_url` is nullable, so only part
+ * of a library can be fingerprinted at all, and those tracks are counted at
+ * resolve time and never queued.
+ */
+export interface FingerprintIndexRun {
+  run_id: string;
+  scope: string;
+  fingerprint_type: string;
+  fingerprint_version: string;
+  queued: number;
+  unindexable: number;
+  indexed: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+  started_at: number;
+  updated_at: number;
+  complete: boolean;
+}

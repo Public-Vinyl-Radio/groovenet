@@ -55,6 +55,63 @@ def wav_file(ingest_dir):
 
 
 @pytest.fixture
+def audio_dir(tmp_path, monkeypatch):
+    """Point the reference library volume at a temp directory.
+
+    `indexer` captures AUDIO_DIR at import, so patch it there — the same rule
+    that applies to `main`'s AUDIO_INGEST_DIR.
+    """
+    directory = tmp_path / "audio"
+    directory.mkdir()
+    monkeypatch.setattr("fingerprint_service.indexer.AUDIO_DIR", str(directory))
+    return directory
+
+
+@pytest.fixture
+def reference_wav(audio_dir):
+    """Write a real WAV into the reference library and return its filename.
+
+    Returns the bare name rather than the path: that is what
+    `tracks.local_audio_url` holds and therefore what an index job carries.
+    """
+    def _make(name="artist - title.m4a", seconds=1.0, sample_rate=44100, freq=440):
+        path = audio_dir / name
+        frames = []
+        for i in range(int(seconds * sample_rate)):
+            frames.append(
+                struct.pack("<h", int(16000 * math.sin(2 * math.pi * freq * i / sample_rate)))
+            )
+        with wave.open(str(path), "wb") as out:
+            out.setnchannels(1)
+            out.setsampwidth(2)
+            out.setframerate(sample_rate)
+            out.writeframes(b"".join(frames))
+        return name
+
+    return _make
+
+
+@pytest.fixture
+def index_job():
+    """Factory for a well-formed `fingerprint_index_queue` payload."""
+    def _make(**overrides):
+        base = {
+            "run_id": "22222222-2222-2222-2222-222222222222",
+            "track_id": "track-1",
+            "friend_id": 1,
+            "file_path": "artist - title.m4a",
+            "fingerprint_type": "stub",
+            "fingerprint_version": "0",
+            "stored_audio_sha256": None,
+            "force": False,
+        }
+        base.update(overrides)
+        return base
+
+    return _make
+
+
+@pytest.fixture
 def job():
     """Factory for a well-formed queue payload."""
     def _make(**overrides):

@@ -59,3 +59,64 @@ export type ListFingerprintsFilters = {
   limit?: number;
   offset?: number;
 };
+
+/**
+ * Which slice of the library an indexing run covers (#277).
+ *
+ * `missing` and `changed` are the two halves of "bring the index up to date";
+ * `all` is the same set plus the tracks that are already current, for forcing a
+ * regeneration. `track` and `release` narrow to one thing.
+ */
+export type FingerprintIndexScope =
+  | { kind: "missing" }
+  | { kind: "changed" }
+  | { kind: "all" }
+  | { kind: "track"; track_id: string; friend_id?: number }
+  | { kind: "release"; release_id: string; friend_id?: number };
+
+/**
+ * One track an indexing run will queue, stamped with what is already stored for
+ * it under the active engine.
+ *
+ * `stored_audio_sha256` is the hash of the file as it was when last indexed, or
+ * `null` when nothing is stored — which is what lets the worker decide
+ * skip-or-regenerate from the bytes without asking back.
+ */
+export type FingerprintIndexCandidate = {
+  track_id: string;
+  friend_id: number;
+  local_audio_url: string;
+  stored_audio_sha256: string | null;
+};
+
+/**
+ * The engine a run indexes under, as `fingerprint-service` advertises it.
+ *
+ * Not configured here: the values live on the matcher class in Python, and the
+ * worker republishes them on its heartbeat cycle. A second copy in this app's
+ * env is exactly how half a library ends up indexed under the wrong version.
+ */
+export type FingerprintEngine = {
+  fingerprint_type: FingerprintType;
+  fingerprint_version: string;
+};
+
+/** Counters for one indexing run, as the CLI renders them. */
+export type FingerprintIndexRun = {
+  run_id: string;
+  scope: string;
+  fingerprint_type: FingerprintType;
+  fingerprint_version: string;
+  /** Candidates queued — excludes unindexable tracks, which are never queued. */
+  queued: number;
+  /** Tracks with no `local_audio_url`: reported, never treated as failures. */
+  unindexable: number;
+  indexed: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+  started_at: number;
+  updated_at: number;
+  /** True once every queued track has reached a terminal state. */
+  complete: boolean;
+};

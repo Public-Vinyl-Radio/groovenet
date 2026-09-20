@@ -75,6 +75,13 @@ them to the shared `audio_ingest` volume and pushes a job onto the Redis list
 against the reference fingerprint index, and reports back over REST. Epic #281;
 the matcher itself is still stubbed.
 
+**Reference indexing** — that match needs an index to search, built ahead of
+time by `groovenet fingerprint-library`. The app resolves the scope to tracks
+with a `local_audio_url` and queues one job per track on `fingerprint_index_queue`;
+`fingerprint-service` hashes each file, skips it when the stored `audio_sha256`
+still matches, and otherwise fingerprints it and persists the result through the
+app's REST API. Idempotent by design — a second run does no work.
+
 ## Working on this repo
 
 `just --list` is the command surface; prefer it over raw `docker compose`.

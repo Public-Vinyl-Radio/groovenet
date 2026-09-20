@@ -5,6 +5,9 @@ flags:
   groovenet-client:
     paths:
       - packages/groovenet-client/
+  groovenet-cli:
+    paths:
+      - packages/groovenet-cli/
   download-worker:
     paths:
       - download-worker/

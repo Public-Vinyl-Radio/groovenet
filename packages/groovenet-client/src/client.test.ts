@@ -847,3 +847,60 @@ describe("GroovenetClient.findSimilarVibe", () => {
     );
   });
 });
+
+describe("GroovenetClient fingerprint endpoints", () => {
+  it("starts an indexing run", async () => {
+    const client = clientReturning({ run_id: "run-1", queued: 12 });
+
+    const run = await client.startFingerprintIndex({ scope: "missing" });
+
+    expect(run.run_id).toBe("run-1");
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/fingerprints/index",
+      data: { scope: "missing" },
+      params: undefined,
+    });
+  });
+
+  it("forwards a narrowed scope", async () => {
+    const client = clientReturning({});
+
+    await client.startFingerprintIndex({
+      scope: "release",
+      release_id: "r9",
+      friend_id: 2,
+      force: true,
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { scope: "release", release_id: "r9", friend_id: 2, force: true },
+      })
+    );
+  });
+
+  it("reads a run's progress", async () => {
+    const client = clientReturning({ run_id: "run-1", indexed: 7 });
+
+    const run = await client.getFingerprintIndexRun("run-1");
+
+    expect(run.indexed).toBe(7);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/fingerprints/index/run-1",
+      data: undefined,
+      params: undefined,
+    });
+  });
+
+  it("escapes a run id", async () => {
+    const client = clientReturning({});
+
+    await client.getFingerprintIndexRun("run/../secrets");
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "/fingerprints/index/run%2F..%2Fsecrets" })
+    );
+  });
+});

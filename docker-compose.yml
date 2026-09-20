@@ -117,6 +117,7 @@ services:
       REDIS_URL: redis://redis:6379
       APP_URL: http://app:3000
       AUDIO_INGEST_DIR: /app/audio-ingest
+      AUDIO_DIR: /app/audio
       FINGERPRINT_SAMPLE_RATE: ${FINGERPRINT_SAMPLE_RATE:-22050}
       FINGERPRINT_MATCHER: ${FINGERPRINT_MATCHER:-stub}
     depends_on:
@@ -125,6 +126,9 @@ services:
       # Mounted directly, unlike essentia-api, so chunks never have to be
       # re-served over HTTP to reach the service that needs them.
       - audio_ingest:/app/audio-ingest
+      # The reference library, read-only: library indexing (#277) fingerprints
+      # whole tracks from here, and nothing in this service ever writes to it.
+      - ${WORKER_AUDIO_MOUNT:-music_data:/app/audio}:ro
     restart: unless-stopped
 
 volumes:

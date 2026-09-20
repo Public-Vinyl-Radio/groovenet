@@ -12,7 +12,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node build/bin/groovenet.js"
+    "start": "node build/bin/groovenet.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=lcov",
+    "test:watch": "vitest"
   },
   "files": [
     "build/"
@@ -43,6 +46,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
-    "typescript": "^7.0"
+    "@vitest/coverage-v8": "^5.0.0",
+    "typescript": "^7.0",
+    "vitest": "^5.0.0"
   }
 }

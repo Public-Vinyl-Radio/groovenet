@@ -5,8 +5,11 @@ from fingerprint_service.matcher import StubMatcher
 from fingerprint_service.results import (
     ResultReportError,
     build_result,
+    fingerprint_url,
+    persist_fingerprint,
     report_result,
     result_url,
+    try_persist_fingerprint,
     try_report_result,
 )
 
@@ -128,3 +131,66 @@ class TestTryReportResult:
         monkeypatch.setattr(results.requests, "post", boom)
         assert try_report_result(build_result(job(), matcher)) is False
         assert "Failed to report ingest" in caplog.text
+
+
+@pytest.fixture
+def upsert():
+    return {
+        "track_id": "track-1",
+        "friend_id": 1,
+        "fingerprint_type": "stub",
+        "fingerprint_version": "0",
+        "fingerprint_data": None,
+        "audio_sha256": "abc",
+        "audio_duration_seconds": 212.5,
+    }
+
+
+class TestFingerprintUrl:
+    def test_builds_the_collection_url(self, monkeypatch):
+        monkeypatch.setattr(results, "APP_URL", "http://app:3000")
+        assert fingerprint_url() == "http://app:3000/api/fingerprints"
+
+    def test_tolerates_a_trailing_slash(self, monkeypatch):
+        monkeypatch.setattr(results, "APP_URL", "http://app:3000/")
+        assert fingerprint_url() == "http://app:3000/api/fingerprints"
+
+
+class TestPersistFingerprint:
+    def test_posts_the_upsert_body(self, posted, upsert):
+        persist_fingerprint(upsert)
+
+        assert len(posted) == 1
+        assert posted[0]["url"].endswith("/api/fingerprints")
+        assert posted[0]["json"] == upsert
+
+    def test_raises_when_the_app_refuses(self, monkeypatch, upsert):
+        monkeypatch.setattr(
+            results.requests, "post", lambda *a, **k: FakeResponse(422, "bad friend_id")
+        )
+        with pytest.raises(ResultReportError, match="422"):
+            persist_fingerprint(upsert)
+
+    def test_raises_when_the_app_is_unreachable(self, monkeypatch, upsert):
+        def refuse(*args, **kwargs):
+            raise requests.ConnectionError("connection refused")
+
+        monkeypatch.setattr(results.requests, "post", refuse)
+        with pytest.raises(ResultReportError, match="Could not reach"):
+            persist_fingerprint(upsert)
+
+
+class TestTryPersistFingerprint:
+    def test_returns_true_on_success(self, posted, upsert):
+        assert try_persist_fingerprint(upsert) is True
+
+    def test_returns_false_rather_than_raising(self, monkeypatch, upsert):
+        """A track that could not be stored is a failed track, not a dead run.
+
+        The next run regenerates it anyway: with no row, there is no stored hash
+        to skip on.
+        """
+        monkeypatch.setattr(
+            results.requests, "post", lambda *a, **k: FakeResponse(500, "boom")
+        )
+        assert try_persist_fingerprint(upsert) is False

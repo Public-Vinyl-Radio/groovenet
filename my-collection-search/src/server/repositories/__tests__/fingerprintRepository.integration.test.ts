@@ -204,3 +204,150 @@ describe("track_fingerprints schema (DB integration)", () => {
     expect(await repo.countFingerprints({ friend_id: friendA })).toBe(0);
   });
 });
+
+// ─── indexing candidate resolution (#277) ─────────────────────────────────────
+
+// Its own fixtures: the suite above deletes its friends as its final assertions,
+// and these queries join tracks, which those tests cascade away.
+describe("index candidate resolution (DB integration)", () => {
+  const USERNAME_C = "fingerprint-index-test";
+  const RELEASE_ID = "fingerprint-index-release";
+  const engine = { fingerprint_type: "chromaprint", fingerprint_version: "1" };
+
+  let friendC = 0;
+
+  async function createIndexTrack(
+    trackId: string,
+    localAudioUrl: string | null,
+    releaseId: string | null = RELEASE_ID
+  ) {
+    await dbQuery(
+      `
+      INSERT INTO tracks (track_id, username, friend_id, title, artist, local_audio_url, release_id)
+      VALUES ($1, $2, $3, 'Test Title', 'Test Artist', $4, $5)
+      `,
+      [trackId, USERNAME_C, friendC, localAudioUrl, releaseId]
+    );
+  }
+
+  beforeAll(async () => {
+    if (process.env.RUN_DB_TESTS !== "1") return;
+    await dbQuery(`DELETE FROM friends WHERE username = $1`, [USERNAME_C]);
+    friendC = await createFriend(USERNAME_C);
+
+    await createIndexTrack("idx-indexed", "indexed.m4a");
+    await createIndexTrack("idx-missing", "missing.m4a");
+    await createIndexTrack("idx-no-audio", null);
+    await createIndexTrack("idx-other-release", "other.m4a", "some-other-release");
+
+    // One track already indexed under the active engine, and the same track
+    // indexed under a different version — which must not count as covered.
+    await repo.upsertFingerprint({
+      track_id: "idx-indexed",
+      friend_id: friendC,
+      ...engine,
+      fingerprint_data: Buffer.from([1]),
+      audio_sha256: SHA_ONE,
+      audio_duration_seconds: 100,
+    });
+    await repo.upsertFingerprint({
+      track_id: "idx-missing",
+      friend_id: friendC,
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "99",
+      fingerprint_data: Buffer.from([2]),
+      audio_sha256: SHA_TWO,
+      audio_duration_seconds: 100,
+    });
+  });
+
+  afterAll(async () => {
+    if (process.env.RUN_DB_TESTS !== "1") return;
+    await dbQuery(`DELETE FROM friends WHERE username = $1`, [USERNAME_C]);
+  });
+
+  function ids(rows: Array<{ track_id: string }>): string[] {
+    return rows.map((r) => r.track_id).sort();
+  }
+
+  dbTest("--missing skips what this engine already covers", async () => {
+    const rows = await repo.listIndexCandidates({ kind: "missing" }, engine);
+    const mine = rows.filter((r) => r.friend_id === friendC);
+
+    // idx-missing is indexed under version 99, not version 1, so it is still
+    // missing for this engine — the version bump case.
+    expect(ids(mine)).toEqual(["idx-missing", "idx-other-release"]);
+  });
+
+  dbTest("--missing never offers a track without local audio", async () => {
+    const rows = await repo.listIndexCandidates({ kind: "missing" }, engine);
+    expect(ids(rows)).not.toContain("idx-no-audio");
+  });
+
+  dbTest("--changed takes only what this engine already covers", async () => {
+    const rows = await repo.listIndexCandidates({ kind: "changed" }, engine);
+    const mine = rows.filter((r) => r.friend_id === friendC);
+
+    expect(ids(mine)).toEqual(["idx-indexed"]);
+    expect(mine[0].stored_audio_sha256).toBe(SHA_ONE);
+  });
+
+  dbTest("--all takes every track with audio", async () => {
+    const rows = await repo.listIndexCandidates({ kind: "all" }, engine);
+    const mine = rows.filter((r) => r.friend_id === friendC);
+
+    expect(ids(mine)).toEqual(["idx-indexed", "idx-missing", "idx-other-release"]);
+  });
+
+  dbTest("carries the stored hash so the worker can decide alone", async () => {
+    const rows = await repo.listIndexCandidates({ kind: "all" }, engine);
+    const byId = new Map(rows.map((r) => [r.track_id, r]));
+
+    expect(byId.get("idx-indexed")?.stored_audio_sha256).toBe(SHA_ONE);
+    // Indexed under another version only, so nothing this engine can reuse.
+    expect(byId.get("idx-missing")?.stored_audio_sha256).toBeNull();
+  });
+
+  dbTest("--track narrows to one track", async () => {
+    const rows = await repo.listIndexCandidates(
+      { kind: "track", track_id: "idx-indexed", friend_id: friendC },
+      engine
+    );
+
+    expect(ids(rows)).toEqual(["idx-indexed"]);
+  });
+
+  dbTest("--release narrows to one release", async () => {
+    const rows = await repo.listIndexCandidates(
+      { kind: "release", release_id: RELEASE_ID, friend_id: friendC },
+      engine
+    );
+
+    expect(ids(rows)).toEqual(["idx-indexed", "idx-missing"]);
+  });
+
+  dbTest("excludes soft-deleted tracks", async () => {
+    await dbQuery(
+      `UPDATE tracks SET deleted_at = NOW() WHERE track_id = $1 AND friend_id = $2`,
+      ["idx-other-release", friendC]
+    );
+
+    const rows = await repo.listIndexCandidates({ kind: "all" }, engine);
+    expect(ids(rows)).not.toContain("idx-other-release");
+
+    await dbQuery(
+      `UPDATE tracks SET deleted_at = NULL WHERE track_id = $1 AND friend_id = $2`,
+      ["idx-other-release", friendC]
+    );
+  });
+
+  dbTest("counts unindexable tracks rather than failing them", async () => {
+    const count = await repo.countUnindexableTracks({
+      kind: "release",
+      release_id: RELEASE_ID,
+      friend_id: friendC,
+    });
+
+    expect(count).toBe(1); // idx-no-audio
+  });
+});
