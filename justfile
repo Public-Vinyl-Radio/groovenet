@@ -95,12 +95,10 @@ tag-push: tag
 mount-music:
   @if [ -z "{{music_nfs_host}}" ]; then \
     echo "→ MUSIC_NFS_HOST is unset; skipping NFS mount"; \
-    exit 0; \
-  fi
-  @sudo mkdir -p {{music_mount}}
-  @if mount | grep -q '{{music_mount}}'; then \
+  elif mount | grep -q '{{music_mount}}'; then \
     echo "→ {{music_mount}} already mounted"; \
   else \
+    sudo mkdir -p {{music_mount}}; \
     echo "→ Mounting {{music_nfs_host}}:{{music_nfs_path}} at {{music_mount}}..."; \
     sudo mount -t nfs -o resvport,ro {{music_nfs_host}}:{{music_nfs_path}} {{music_mount}}; \
   fi
