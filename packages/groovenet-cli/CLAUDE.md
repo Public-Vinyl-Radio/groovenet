@@ -78,17 +78,25 @@ node build/bin/groovenet.js --help
 ## Tests
 
 ```bash
-npm test --workspace=packages/groovenet-cli      # 22 tests
+npm test --workspace=packages/groovenet-cli      # 46 tests
 ```
 
-Vitest, mirroring `groovenet-client`. The command file keeps its logic in pure
-exported functions — `resolveScope`, `formatProgress`, `formatSummary`,
-`waitForRun` — so the interesting parts are testable without a terminal or a
-server. `waitForRun` takes the client as a parameter for the same reason.
+Vitest, mirroring `groovenet-client`. The command file keeps its logic in
+exported functions rather than in the commander action, which is not callable
+from a test: `resolveScope`, `formatProgress`, `formatSummary`, `waitForRun`,
+and `runFingerprintLibrary` — the whole run, taking the client and an
+`io: { log, write }` so output can be asserted without a terminal. The action is
+then three lines and the file is at 100%.
 
-`waitForRun` tests use fake timers. Advance them with
-`vi.advanceTimersByTimeAsync`, not `vi.advanceTimersByTime` — the loop awaits
-between polls, and the synchronous version will not let those promises settle.
+Two things that will cost you an afternoon otherwise:
+
+- `waitForRun` tests use fake timers. Advance them with
+  `vi.advanceTimersByTimeAsync`, not `vi.advanceTimersByTime` — the loop awaits
+  between polls, and the synchronous version will not let those promises settle.
+- When mocking `GroovenetClient`, `mockImplementation` must take a **`function`,
+  not an arrow** — `makeClient` calls it with `new`, and an arrow is not a
+  constructor. The failure surfaces as a swallowed `TypeError` inside the
+  command's catch, not as a mock error.
 
 ## Gotchas
 
@@ -97,3 +105,5 @@ between polls, and the synchronous version will not let those promises settle.
 - No eslint config here either; see issue #253.
 - `fingerprint-library --json` prints one object at the end, not a stream. With
   `--no-wait` that object is the queued run; otherwise it is the finished one.
+  The exit code is the same either way — 1 if any track failed — so `--json`
+  is still usable as a gate in a script.

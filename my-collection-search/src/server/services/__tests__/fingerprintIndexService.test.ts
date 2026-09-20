@@ -286,6 +286,43 @@ describe("getRun()", () => {
     expect((await makeService().getRun("run-1"))?.complete).toBe(true);
   });
 
+  it("falls back to the requested id and empty fields on a partial hash", async () => {
+    // A run seeded by an older version, or caught mid-write.
+    mockRedis.hgetall.mockResolvedValue({ queued: "1", indexed: "1" });
+
+    const run = await makeService().getRun("run-7");
+
+    expect(run).toMatchObject({
+      run_id: "run-7",
+      scope: "",
+      fingerprint_type: "",
+      fingerprint_version: "",
+      complete: true,
+    });
+  });
+
+  it("survives an errors list that came back empty", async () => {
+    mockRedis.hgetall.mockResolvedValue({ run_id: "run-1", queued: "0" });
+    mockRedis.lrange.mockResolvedValue(null);
+
+    expect((await makeService().getRun("run-1"))?.errors).toEqual([]);
+  });
+
+  it("treats a non-numeric counter as zero", async () => {
+    // Nothing should write this, but a counter that parses to NaN must not
+    // become NaN in the summary the CLI prints.
+    mockRedis.hgetall.mockResolvedValue({
+      run_id: "run-1",
+      queued: "not-a-number",
+      indexed: "1",
+    });
+
+    const run = await makeService().getRun("run-1");
+
+    expect(run?.queued).toBe(0);
+    expect(run?.indexed).toBe(1);
+  });
+
   it("treats absent counters as zero", async () => {
     mockRedis.hgetall.mockResolvedValue({ run_id: "run-1", queued: "2" });
 

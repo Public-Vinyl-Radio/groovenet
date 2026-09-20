@@ -538,6 +538,22 @@ describe("countUnindexableTracks()", () => {
     expect(dbQuery.mock.calls[0][1]).toEqual(["t1"]);
   });
 
+  it("narrows to a track and friend", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "1" }] });
+    await makeRepo().countUnindexableTracks({
+      kind: "track",
+      track_id: "t1",
+      friend_id: 5,
+    });
+    expect(dbQuery.mock.calls[0][1]).toEqual(["t1", 5]);
+  });
+
+  it("narrows to a release without a friend", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "2" }] });
+    await makeRepo().countUnindexableTracks({ kind: "release", release_id: "r9" });
+    expect(dbQuery.mock.calls[0][1]).toEqual(["r9"]);
+  });
+
   it("narrows to a release and friend", async () => {
     dbQuery.mockResolvedValue({ rows: [{ count: "3" }] });
     await makeRepo().countUnindexableTracks({

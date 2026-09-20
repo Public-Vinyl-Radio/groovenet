@@ -2,9 +2,9 @@ import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
 import type { FingerprintIndexRequest, FingerprintIndexRun } from "@groovenet/client";
 import chalk from "chalk";
-import { printJson, printError } from "../output.js";
+import { printError } from "../output.js";
 
-function makeClient(): GroovenetClient {
+export function makeClient(): GroovenetClient {
   const cfg = loadConfig();
   return new GroovenetClient({
     baseUrl: cfg.api_base,
@@ -12,6 +12,31 @@ function makeClient(): GroovenetClient {
     insecureTls: cfg.insecure_tls,
   });
 }
+
+/** Just enough of the client for one run, so a test can pass two functions. */
+export type FingerprintLibraryClient = Pick<
+  GroovenetClient,
+  "startFingerprintIndex" | "getFingerprintIndexRun"
+>;
+
+/**
+ * Where the command's output goes.
+ *
+ * Injected rather than reaching for `console` and `process.stdout` directly, so
+ * the whole run — header, per-failure lines, the rewritten progress line and
+ * the summary — can be asserted without a terminal.
+ */
+export interface FingerprintLibraryIO {
+  /** A whole line, newline appended. */
+  log: (line: string) => void;
+  /** Raw, no newline — the progress line rewrites itself with \r. */
+  write: (text: string) => void;
+}
+
+export const consoleIO: FingerprintLibraryIO = {
+  log: (line) => console.log(line),
+  write: (text) => process.stdout.write(text),
+};
 
 export interface FingerprintLibraryOptions {
   missing?: boolean;
@@ -116,6 +141,66 @@ export async function waitForRun(
   }
 }
 
+/**
+ * One `fingerprint-library` run, start to finish. Returns the process exit
+ * code: non-zero when any track failed, so the command composes in a script.
+ *
+ * Separate from the commander wiring because everything interesting happens
+ * here — scope resolution, the two output modes, the polling and the exit code
+ * — and a commander action is not callable from a test.
+ */
+export async function runFingerprintLibrary(
+  client: FingerprintLibraryClient,
+  opts: FingerprintLibraryOptions,
+  io: FingerprintLibraryIO = consoleIO
+): Promise<number> {
+  const request = resolveScope(opts);
+  const started = await client.startFingerprintIndex(request);
+
+  if (!opts.json) {
+    io.log(
+      chalk.bold(`Indexing ${started.scope}`) +
+        chalk.gray(` — ${started.fingerprint_type} ${started.fingerprint_version}`)
+    );
+    io.log(
+      chalk.gray(
+        `  ${started.queued} queued, ${started.unindexable} without reference audio`
+      )
+    );
+  }
+
+  if (!opts.wait) {
+    if (opts.json) io.write(JSON.stringify(started, null, 2) + "\n");
+    else io.log(chalk.gray(`  run ${started.run_id}`));
+    return 0;
+  }
+
+  const seen = new Set<string>();
+  const finished = await waitForRun(client, started.run_id, {
+    pollIntervalMs: opts.pollInterval ?? 1000,
+    onProgress: (run) => {
+      if (opts.json) return;
+      // Failures scroll above the progress line as they happen, so a long run
+      // does not hide them until the very end.
+      for (const failure of run.errors) {
+        if (seen.has(failure)) continue;
+        seen.add(failure);
+        io.log(chalk.red(`  ✗ ${failure}`));
+      }
+      io.write(`\r${formatProgress(run)}`);
+    },
+  });
+
+  if (opts.json) {
+    io.write(JSON.stringify(finished, null, 2) + "\n");
+    return finished.failed > 0 ? 1 : 0;
+  }
+
+  io.write("\r\x1b[2K");
+  io.log(formatSummary(finished));
+  return finished.failed > 0 ? 1 : 0;
+}
+
 export function addFingerprintLibraryCommand(program: Command): void {
   program
     .command("fingerprint-library")
@@ -134,54 +219,7 @@ export function addFingerprintLibraryCommand(program: Command): void {
     .option("--json", "Output as JSON")
     .action(async (opts: FingerprintLibraryOptions) => {
       try {
-        const request = resolveScope(opts);
-        const client = makeClient();
-        const started = await client.startFingerprintIndex(request);
-
-        if (!opts.json) {
-          console.log(
-            chalk.bold(`Indexing ${started.scope}`) +
-              chalk.gray(
-                ` — ${started.fingerprint_type} ${started.fingerprint_version}`
-              )
-          );
-          console.log(
-            chalk.gray(
-              `  ${started.queued} queued, ${started.unindexable} without reference audio`
-            )
-          );
-        }
-
-        if (!opts.wait) {
-          if (opts.json) printJson(started);
-          else console.log(chalk.gray(`  run ${started.run_id}`));
-          return;
-        }
-
-        const seen = new Set<string>();
-        const finished = await waitForRun(client, started.run_id, {
-          pollIntervalMs: opts.pollInterval ?? 1000,
-          onProgress: (run) => {
-            if (opts.json) return;
-            // Failures scroll above the progress line as they happen, so a long
-            // run does not hide them until the very end.
-            for (const failure of run.errors) {
-              if (seen.has(failure)) continue;
-              seen.add(failure);
-              console.log(chalk.red(`  ✗ ${failure}`));
-            }
-            process.stdout.write(`\r${formatProgress(run)}`);
-          },
-        });
-
-        if (opts.json) {
-          printJson(finished);
-          return;
-        }
-
-        process.stdout.write("\r\x1b[2K");
-        console.log(formatSummary(finished));
-        if (finished.failed > 0) process.exitCode = 1;
+        process.exitCode = await runFingerprintLibrary(makeClient(), opts);
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
         process.exit(1);
