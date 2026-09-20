@@ -153,7 +153,7 @@ describe("buildIdentityData fallbacks", () => {
   it("splits multiple composers", () => {
     const data = buildIdentityData(trackWith({ composer: "Bach & Glass, Reich" }));
 
-    expect(data.composers).toEqual(["Bach", "Glass", "Reich"]);
+    expect(data.composers).toEqual(["bach", "glass", "reich"]);
   });
 
   it("produces no composers when the field is absent", () => {
@@ -180,7 +180,7 @@ describe("buildIdentityText", () => {
     const withComposer = buildIdentityText(
       buildIdentityData(trackWith({ composer: "Steve Reich" }))
     );
-    expect(withComposer).toContain("Composer: Steve Reich");
+    expect(withComposer).toContain("Composer: steve reich");
 
     const withoutComposer = buildIdentityText(buildIdentityData(mockTrack));
     expect(withoutComposer).not.toContain("Composer:");
