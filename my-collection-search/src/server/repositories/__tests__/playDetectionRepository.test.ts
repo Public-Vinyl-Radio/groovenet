@@ -34,7 +34,8 @@ describe("PlayDetectionRepository.create", () => {
 
   it("persists a no-match window with a null track", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "no-match" }] });
-    await repo().create({ ingest_id: "ingest-id", source_id: "listener-1" });
+    await repo().create({ id: "no-match", ingest_id: "ingest-id", source_id: "listener-1" });
+    expect(dbQuery.mock.calls[0][1][0]).toBe("no-match");
     expect(dbQuery.mock.calls[0][1].slice(3)).toEqual(Array(8).fill(null));
   });
 });
@@ -59,11 +60,23 @@ describe("PlayDetectionRepository lookups and retention", () => {
     expect(params).toEqual([7]);
   });
 
+  it("returns zero when the database reports no affected-row count", async () => {
+    dbQuery.mockResolvedValueOnce({ rowCount: null });
+    await expect(repo().pruneExpired(7)).resolves.toBe(0);
+  });
+
   it("reads retention days from configuration and allows pruning to be disabled", async () => {
     expect(playDetectionRetentionDays()).toBe(30);
     process.env.PLAY_DETECTIONS_RETENTION_DAYS = "0";
     expect(playDetectionRetentionDays()).toBe(0);
     await expect(repo().pruneExpired()).resolves.toBe(0);
     expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid retention setting", () => {
+    process.env.PLAY_DETECTIONS_RETENTION_DAYS = "one-week";
+    expect(playDetectionRetentionDays).toThrow(
+      "PLAY_DETECTIONS_RETENTION_DAYS must be a non-negative integer"
+    );
   });
 });
