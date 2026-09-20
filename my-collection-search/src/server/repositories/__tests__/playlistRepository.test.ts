@@ -53,6 +53,38 @@ describe("PlaylistRepository — friend lookups", () => {
 // ─── Playlist reads ─────────────────────────────────────────────────────────
 
 describe("PlaylistRepository — reads", () => {
+  it("short-circuits live set summaries for no playlists", async () => {
+    await expect(repo().listLiveSetSummariesByPlaylistIds([])).resolves.toEqual({});
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("maps live set summaries back to their playlist ids", async () => {
+    dbQuery.mockResolvedValueOnce({
+      rows: [{
+        playlist_id: 1,
+        id: 7,
+        title: "Late night",
+        status: "performed",
+        cover_image_url: null,
+        last_performed_at: "2026-09-01T00:00:00.000Z",
+        venue_name: "The Room",
+        location_city: "Seattle",
+        collaborators: [{ friend_id: 2, username: "alex", role: "DJ" }],
+      }],
+    });
+    await expect(repo().listLiveSetSummariesByPlaylistIds([1, 2])).resolves.toEqual({
+      1: {
+        id: 7, title: "Late night", status: "performed", cover_image_url: null,
+        last_performed_at: "2026-09-01T00:00:00.000Z", venue_name: "The Room",
+        location_city: "Seattle", collaborators: [{ friend_id: 2, username: "alex", role: "DJ" }],
+      },
+    });
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(/live_sets/);
+    expect(sql).toMatch(/json_agg/);
+    expect(params).toEqual([[1, 2]]);
+  });
+
   it("aggregates known track durations in one query", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ playlist_id: 1, total_duration_seconds: "3720" }] });
     await expect(repo().listPlaylistDurationsByPlaylistIds([1, 2])).resolves.toEqual({ 1: 3720 });
