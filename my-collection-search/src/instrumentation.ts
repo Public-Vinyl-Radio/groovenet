@@ -7,6 +7,13 @@ export async function register() {
       "@/server/services/backupRunnerService"
     );
     startBackupScheduler();
+
+    // Raw vinyl audio is transient: without this the ingest volume grows until
+    // the disk fills (#269).
+    const { startIngestSweeper } = await import(
+      "@/server/services/ingestSweeperService"
+    );
+    startIngestSweeper();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

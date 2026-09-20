@@ -90,6 +90,26 @@
 - Mixed cache shapes: infinite queries have pages[], single-page has { hits } — handle both.
 - Keep patches narrow (avoid undefined) to prevent clobbering fields.
 
+## Background work
+
+`src/instrumentation.ts` is where anything periodic starts, once per server
+process, guarded by a `globalThis` flag because Next can run server code in more
+than one process:
+
+- `startBackupScheduler()` — restic snapshots on a cron.
+- `startIngestSweeper()` — retention for the vinyl ingest volume (#269).
+
+Both tick every 60s and decide internally whether it is time to act, so the
+interval is configurable without restarting a timer.
+
+The sweeper's rules live in `selectForDeletion`, which is pure and takes the
+directory listing plus the matching `audio_ingests` rows. The one that matters:
+a file whose record is `received` or `processing` is never deleted, whatever the
+size pressure — deleting underneath a live job is how a half-file reaches the
+matcher. The exception is age, which is the backstop for a worker that died and
+left its record wedged. `GET /api/audio/ingest/retention` reports what the next
+sweep would do without doing it.
+
 ## API reference
 
 **Do not hand-maintain endpoint lists here.** The OpenAPI spec is generated from

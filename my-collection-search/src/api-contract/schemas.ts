@@ -1411,3 +1411,22 @@ export const fingerprintIndexRunSchema = z.object({
   updated_at: z.number().int(),
   complete: z.boolean(),
 });
+
+// ─── Audio ingest retention (#269) ────────────────────────────────────────────
+
+export const ingestRetentionPolicySchema = z.object({
+  maxAgeHours: z.number().positive(),
+  maxBytes: z.number().positive(),
+  orphanGraceMinutes: z.number().positive(),
+  sweepIntervalMinutes: z.number().positive(),
+});
+
+export const ingestRetentionStatusSchema = z.object({
+  files: z.number().int().nonnegative(),
+  bytes: z.number().int().nonnegative(),
+  sweepable: z.number().int().nonnegative(),
+  orphans: z.number().int().nonnegative(),
+  inFlight: z.number().int().nonnegative(),
+  lastSweptAt: z.string().nullable(),
+  policy: ingestRetentionPolicySchema,
+});
