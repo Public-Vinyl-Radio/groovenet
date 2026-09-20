@@ -52,7 +52,9 @@ bootstrap-hooks:
     exit 1; \
   }
   uv tool install --quiet pre-commit || true
-  uv tool run pre-commit install
+  # --allow-missing-config so the hook does not block commits on branches
+  # predating .pre-commit-config.yaml, or on ones that never carry it.
+  uv tool run pre-commit install --allow-missing-config
 
 # Run every pre-commit hook over the whole repo, as CI does.
 lint-all:
