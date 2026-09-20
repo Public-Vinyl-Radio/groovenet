@@ -110,11 +110,11 @@ describe("composition", () => {
     expect(
       exampleFromSchema({
         allOf: [
-          { type: "object", properties: { id: { type: "string" } } },
-          { type: "object", properties: { count: { type: "integer" } } },
+          { type: "object", properties: { alpha: { type: "string" } } },
+          { type: "object", properties: { beta: { type: "integer" } } },
         ],
       })
-    ).toEqual({ id: "string", count: 1 });
+    ).toEqual({ alpha: "string", beta: 1 });
   });
 
   it("skips allOf branches that are not objects", () => {
@@ -123,10 +123,10 @@ describe("composition", () => {
         allOf: [
           null,
           "nonsense",
-          { type: "object", properties: { id: { type: "string" } } },
+          { type: "object", properties: { alpha: { type: "string" } } },
         ],
       })
-    ).toEqual({ id: "string" });
+    ).toEqual({ alpha: "string" });
   });
 
   it("lets a later allOf branch override an earlier property", () => {
@@ -184,5 +184,58 @@ describe("arrays and objects", () => {
         additionalProperties: true,
       })
     ).toEqual({ known: "string" });
+  });
+});
+
+describe("property-name fallback", () => {
+  it("names the property when the schema says nothing else", () => {
+    expect(
+      exampleFromSchema({
+        type: "object",
+        properties: { message: { type: "string" }, track_id: { type: "string" } },
+      })
+    ).toEqual({ message: "Done", track_id: "trk_001" });
+  });
+
+  it("lets a declared format beat the property name", () => {
+    expect(
+      exampleFromSchema({
+        type: "object",
+        properties: { id: { type: "string", format: "uuid" } },
+      })
+    ).toEqual({ id: "6f1c2f80-9a3e-4d7b-8c11-2f5a9b0d4e63" });
+  });
+
+  it("lets an explicit example beat the property name", () => {
+    expect(
+      exampleFromSchema({
+        type: "object",
+        properties: { message: { type: "string", example: "Custom" } },
+      })
+    ).toEqual({ message: "Custom" });
+  });
+
+  it("falls back to the placeholder for an unknown property name", () => {
+    expect(
+      exampleFromSchema({ type: "object", properties: { wibble: { type: "string" } } })
+    ).toEqual({ wibble: "string" });
+  });
+
+  it("carries the name into array items, singularised", () => {
+    expect(
+      exampleFromSchema({
+        type: "object",
+        properties: { tracks: { type: "array", items: { type: "object", properties: { track_id: { type: "string" } } } } },
+      })
+    ).toEqual({ tracks: [{ track_id: "trk_001" }] });
+  });
+
+  it("carries the name through a oneOf branch", () => {
+    expect(
+      exampleFromSchema({
+        type: "object",
+        properties: { bpm: { oneOf: [{ type: "number" }, { type: "string" }] } },
+      })
+    ).toEqual({ bpm: 122 });
   });
 });
