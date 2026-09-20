@@ -912,11 +912,14 @@ const backupStatusSchemaObject: Record<string, unknown> = {
     finished_at: { type: "string" },
     stored_at: { type: "string" },
     status: { type: "string", enum: ["success", "failed", "skipped"] },
-    reason: { type: "string" },
+    reason: { type: "string", example: "no_changes_since_last_snapshot" },
     backed_up_paths: { type: "array", items: { type: "string" } },
     snapshot: { type: ["object", "null"], additionalProperties: true },
     error: { type: "string" },
-    missing_env: { type: "array", items: { type: "string" } },
+    missing_env: {
+      type: "array",
+      items: { type: "string", example: "RESTIC_PASSWORD" },
+    },
   },
   required: [
     "started_at",
@@ -1623,7 +1626,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
                     properties: {
                       id: { type: "integer" },
                       friend_id: { type: "integer" },
-                      audio_quality: { type: "string" },
+                      audio_quality: {
+                        type: "string",
+                        // Mirrors gamdlAudioQualitySchema; the OpenAPI copy had
+                        // lost the enum and rendered as a bare string.
+                        enum: ["best", "high", "standard", "lossless"],
+                      },
                       audio_format: { type: "string" },
                       save_cover: { type: "boolean" },
                       cover_format: { type: "string" },
@@ -1686,7 +1694,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
               type: "object",
               properties: {
                 friend_id: { type: "integer" },
-                audio_quality: { type: "string" },
+                audio_quality: {
+                        type: "string",
+                        // Mirrors gamdlAudioQualitySchema; the OpenAPI copy had
+                        // lost the enum and rendered as a bare string.
+                        enum: ["best", "high", "standard", "lossless"],
+                      },
                 audio_format: { type: "string" },
                 save_cover: { type: "boolean" },
                 cover_format: { type: "string" },
@@ -1759,7 +1772,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
                             type: "string",
                             enum: ["success", "failed", "skipped"],
                           },
-                          reason: { type: "string" },
+                          reason: {
+                            type: "string",
+                            example: "no_changes_since_last_snapshot",
+                          },
                           backed_up_paths: {
                             type: "array",
                             items: { type: "string" },
@@ -1769,17 +1785,32 @@ export const apiContractRoutes: ApiContractRoute[] = [
                               {
                                 type: "object",
                                 properties: {
-                                  id: { type: "string" },
-                                  short_id: { type: "string", nullable: true },
-                                  time: { type: "string" },
-                                  hostname: { type: "string", nullable: true },
+                                  id: {
+                                    type: "string",
+                                    example: "9f2a1c4e8b7d6035a1c2e4f6089badc1",
+                                  },
+                                  short_id: {
+                                    type: "string",
+                                    nullable: true,
+                                    example: "9f2a1c4e",
+                                  },
+                                  time: {
+                                    type: "string",
+                                    format: "date-time",
+                                    example: "2026-02-17T03:00:00.000Z",
+                                  },
+                                  hostname: {
+                                    type: "string",
+                                    nullable: true,
+                                    example: "beelink",
+                                  },
                                   paths: {
                                     type: "array",
-                                    items: { type: "string" },
+                                    items: { type: "string", example: "/srv/docker/groovenet" },
                                   },
                                   tags: {
                                     type: "array",
-                                    items: { type: "string" },
+                                    items: { type: "string", example: "groovenet-db" },
                                   },
                                 },
                                 required: [
@@ -1797,7 +1828,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                           error: { type: "string" },
                           missing_env: {
                             type: "array",
-                            items: { type: "string" },
+                            items: { type: "string", example: "RESTIC_PASSWORD" },
                           },
                         },
                         required: [
@@ -4178,8 +4209,14 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 type: "object",
                 properties: {
                   message: { type: "string" },
-                  deletedFiles: { type: "array", items: { type: "string" } },
-                  failedDeletes: { type: "array", items: { type: "string" } },
+                  deletedFiles: {
+                    type: "array",
+                    items: { type: "string", example: "/audio/trk_001.m4a" },
+                  },
+                  failedDeletes: {
+                    type: "array",
+                    items: { type: "string", example: "/audio/trk_404.m4a" },
+                  },
                   deletedTrackIds: { type: "array", items: { type: "string" } },
                   deletedFromDb: { type: "integer" },
                 },
