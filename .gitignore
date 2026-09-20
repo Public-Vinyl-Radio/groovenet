@@ -28,8 +28,10 @@ xcuserdata/
 # IMPORTANT: Never commit MCP config with production API keys!
 .mcp.json
 
-# Claude Code working files
-.claude/
+# Claude Code working files — personal, except skills, which are shared
+# project assets and belong in the repo.
+.claude/*
+!.claude/skills/
 .claude/scratch/
 .claude/questions.txt
 .claude/notes/

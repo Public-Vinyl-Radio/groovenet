@@ -15,7 +15,7 @@
 ## Tech stack
 - Framework: Next.js 16, React 19, TypeScript
 - UI: Chakra UI v3
-- Data: TanStack Query v5, PostgreSQL search
+- Data: TanStack Query v5; search is Postgres full-text + trigram
 - DB: Postgres (pgvector), migrations via node-pg-migrate
 - Services: optional Essentia API (audio analysis) and GA service
 
@@ -90,93 +90,27 @@
 - Mixed cache shapes: infinite queries have pages[], single-page has { hits } — handle both.
 - Keep patches narrow (avoid undefined) to prevent clobbering fields.
 
-## Services/endpoints used (client)
-- /api/tracks/update (PATCH) — saveTrack
-- /api/tracks/batch (POST) — fetchTracksByIds
-- /api/tracks/:id (GET) — fetchTrackById
-- /api/tracks/playlist_counts (POST)
-- /api/tracks/analyze, /api/tracks/upload, /api/ai/track-metadata — optional features
+## API reference
 
-## API contracts (client → server)
+**Do not hand-maintain endpoint lists here.** The OpenAPI spec is generated from
+`src/api-contract/` and is the accurate reference:
 
-Tracks
-- POST /api/tracks/batch
-  - body: { track_ids: string[] }
-  - res: Track[]
-  - 400 if invalid body
-- PATCH /api/tracks/update
-  - body: TrackEditFormProps (fields to update)
-  - res: Track (updated)
-- POST /api/tracks/vectorize
-  - body: { track_id: string, username: string }
-  - res: void
-- POST /api/tracks/analyze
-  - body: { track_id: string, apple_music_url?, youtube_url?, soundcloud_url?,  }
-  - res: { rhythm?, tonal?, metadata?, ... }
-- POST /api/tracks/upload (multipart/form-data)
-  - body: file, track_id
-  - res: { analysis: AnalyzeResponse, ... }
-- GET /api/tracks/:id?username=...
-  - res: Track
-- POST /api/tracks/bulk-notes
-  - body: { updates: Array<{ track_id: string, notes?, local_tags?, ... }> }
-  - res: { updated?: number }
-- POST /api/tracks/playlist_counts
-  - body: { track_ids: string[] }
-  - res: Record<string, number>
-- GET /api/tracks/missing-apple-music?page=&pageSize=&username?
-  - res: { tracks: Track[], total: number }
+- **Swagger UI:** `/api/docs` on a running app; raw spec at `/api/openapi.json`
+- **Regenerate the file:** `just generate-spec` → `openapi-generated.json`
+- **Source:** `src/api-contract/routes.ts` (paths, OpenAPI schemas) and
+  `src/api-contract/schemas.ts` (Zod schemas used at runtime)
 
-AI
-- POST /api/ai/youtube-music-search
-  - body: { title?, artist? }
-  - res: { results: YoutubeVideo[] }
-- POST /api/ai/apple-music-search
-  - body: { title?, artist?, album?, isrc? }
-  - res: { results: AppleMusicResult[] }
-- POST /api/ai/apple-music-search
-  - body: { title?, artist? }
-  - res: { results: AppleMusicTrackSearchItem[] }
-  - 401 triggers redirect to /api/ai/apple-music-search
+Every documented response carries a realistic example. Those examples come from
+`src/api-contract/exampleFromSchema.ts` plus the shared property vocabulary in
+`propertyExamples.ts` — when you add an endpoint whose field names already
+appear elsewhere, the examples fill themselves in. Add genuinely new recurring
+names to `propertyExamples.ts` rather than to individual schemas.
 
-Playlists
-- POST /api/playlists
-  - body: { name: string, tracks: string[] }
-  - res: Response (JSON varies)
-- GET /api/playlists
-  - res: any (list of playlists)
-- GET /api/playlists/:id/tracks
-  - res: { track_ids: string[] }
-- POST /api/playlists/genetic
-  - body: { playlist: Track[] }
-  - res: Track[] (normalized from { result })
-- DELETE /api/playlists?id=number
-  - res: 204 on success
+Frontend calls go through typed wrappers in `src/services/internalApi/`, not
+inline `fetch`. See `docs/frontend-api-pattern.md`.
 
-Friends
-- GET /api/friends?showCurrentUser=&showCurrentUser=
-  - res: { friends: string[] }
-- POST /api/friends
-  - body: { username: string }
-  - res: any
-- DELETE /api/friends?username=
-  - res: any
-  - also supports SSE via DELETE with streaming helper
-
-Streaming integration
-- GET /api/albums/[releaseId]/download?friend_id=
-  - 401 → redirect to /api/ai/apple-music-search
-  - res: { newReleases: string[], alreadyHave: string[], total? }
-
-Backups
-- POST /api/backup → { message }
-- GET /api/backups → { files: string[] }
-- POST /api/restore (multipart) → { message? }
-
-Error shape & status codes
-- http<T>() throws Error(message) when !res.ok.
-  - Message taken from { error } or { message } JSON field, else `HTTP <status>`.
-  - Expect 400 for bad inputs, 401 for , 500 for server errors.
+Error shape: `http<T>()` throws `Error(message)` when `!res.ok`, taking the
+message from the body's `error` or `message` field, else `HTTP <status>`.
 
 ## Conventions
 - TS strict, path alias @/* (see tsconfig paths)
