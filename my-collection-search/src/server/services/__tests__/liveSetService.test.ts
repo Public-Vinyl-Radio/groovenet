@@ -40,4 +40,10 @@ describe("LiveSetService lifecycle", () => {
     expect(setRepo.update).toHaveBeenCalledWith(expect.anything(), 4, { title: "Late" });
     expect(setRepo.replaceRelatedRecords).toHaveBeenCalled();
   });
+
+  it("does not update a set for a missing playlist", async () => {
+    playlistRepo.findPlaylistHeaderById.mockResolvedValue(null);
+    await expect(new LiveSetService().updateForPlaylist(99, { title: "Nope" })).resolves.toBeNull();
+    expect(setRepo.ensureForPlaylist).not.toHaveBeenCalled();
+  });
 });

@@ -85,6 +85,11 @@ describe("PlaylistRepository — reads", () => {
     expect(params).toEqual([[1, 2]]);
   });
 
+  it("returns an empty duration map when no tracks have timing", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(repo().listPlaylistDurationsByPlaylistIds([1])).resolves.toEqual({});
+  });
+
   it("aggregates known track durations in one query", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ playlist_id: 1, total_duration_seconds: "3720" }] });
     await expect(repo().listPlaylistDurationsByPlaylistIds([1, 2])).resolves.toEqual({ 1: 3720 });

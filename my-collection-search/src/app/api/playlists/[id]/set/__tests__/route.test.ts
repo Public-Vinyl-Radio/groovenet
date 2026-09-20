@@ -41,6 +41,12 @@ describe("playlist set lifecycle route", () => {
     expect((await GET(new Request("http://localhost"), context("9"))).status).toBe(404);
   });
 
+  it("handles invalid and failing reads", async () => {
+    expect((await GET(new Request("http://localhost"), context("bad"))).status).toBe(400);
+    service.getByPlaylistId.mockRejectedValueOnce(new Error("db"));
+    expect((await GET(new Request("http://localhost"), context("9"))).status).toBe(500);
+  });
+
   it("validates and updates set metadata", async () => {
     const invalid = await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({ status: "wrong" }) }), context("9"));
     expect(invalid.status).toBe(400);
@@ -53,5 +59,13 @@ describe("playlist set lifecycle route", () => {
   it("returns 404 for a missing set deletion", async () => {
     service.deleteForPlaylist.mockResolvedValue(false);
     expect((await DELETE(new Request("http://localhost"), context("9"))).status).toBe(404);
+  });
+
+  it("handles missing and failing updates/deletes", async () => {
+    service.updateForPlaylist.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error("db"));
+    expect((await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({}) }), context("9"))).status).toBe(404);
+    expect((await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({}) }), context("9"))).status).toBe(500);
+    service.deleteForPlaylist.mockRejectedValueOnce(new Error("db"));
+    expect((await DELETE(new Request("http://localhost"), context("9"))).status).toBe(500);
   });
 });
