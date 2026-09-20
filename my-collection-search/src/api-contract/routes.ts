@@ -220,6 +220,34 @@ const playlistDetailExample = {
   ],
 };
 
+const playlistGeneticRequestExample = {
+  playlist: [
+    {
+      track_id: "trk_001",
+      friend_id: 1,
+      bpm: 122,
+      // A float array, as returned by /api/tracks/batch with include_vectors.
+      embedding: [0.0121, -0.0487, 0.0332],
+    },
+    {
+      track_id: "trk_099",
+      friend_id: 1,
+      bpm: "124.5",
+      // The pgvector string form is accepted too.
+      embedding: "[0.0210,-0.0114,0.0655]",
+    },
+    {
+      track_id: "trk_143",
+      friend_id: 1,
+      bpm: 126,
+      // /api/tracks/batch nests the vector here; genetic falls back to it
+      // when `embedding` is absent.
+      _vectors: { default: [0.0333, -0.0091, 0.0428] },
+    },
+  ],
+  mode: "cohesive_blocks",
+};
+
 const trackSearchGetExample = {
   hits: [
     {
@@ -2344,18 +2372,21 @@ export const apiContractRoutes: ApiContractRoute[] = [
                       friend_id: { type: "integer" },
                       bpm: { type: ["number", "string", "null"] },
                       embedding: {
+                        description:
+                          "Track embedding, either a float array or the pgvector string form (\"[0.1,0.2]\"). Required for mode=genetic unless _vectors.default is supplied.",
                         oneOf: [
-                          { type: "string" },
                           { type: "array", items: { type: "number" } },
+                          { type: "string" },
                           { type: "null" },
                         ],
                       },
                       _vectors: {
                         type: "object",
+                        description:
+                          "Fallback embedding location, matching the shape /api/tracks/batch returns when include_vectors is set. Used only when `embedding` is absent.",
                         properties: {
                           default: { type: "array", items: { type: "number" } },
                         },
-                        additionalProperties: true,
                       },
                     },
                     required: ["track_id"],
@@ -2374,6 +2405,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
               },
               required: ["playlist"],
               additionalProperties: false,
+            },
+            examples: {
+              geneticRequest: {
+                summary: "Three tracks, each supplying its embedding differently",
+                value: playlistGeneticRequestExample,
+              },
             },
           },
         },

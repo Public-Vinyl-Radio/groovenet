@@ -228,7 +228,7 @@ deps-update-python cooldown_days="14":
   done
 
 generate-spec:
-  npm run openapi:generate-spec --workspace=my-collection-search
+  {{mise_exec}} npm run openapi:generate-spec --prefix my-collection-search
 
 generate-python-client: generate-spec
   openapi-python-client generate \
