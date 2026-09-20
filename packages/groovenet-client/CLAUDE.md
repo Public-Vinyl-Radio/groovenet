@@ -53,3 +53,5 @@ issues. Coverage is 100%.
   returned shape differ.
 - `generatePlaylist` tolerates the optimiser returning either an array or a
   keyed object, and normalises to an array.
+- `startFingerprintIndex` returns as soon as the run is *queued*, not finished.
+  Poll `getFingerprintIndexRun` until `complete`.

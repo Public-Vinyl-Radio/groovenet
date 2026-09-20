@@ -9,5 +9,12 @@ services:
     volumes:
       - ${WORKER_AUDIO_MOUNT:-worktree_audio:/app/audio}
 
+  # Library indexing (#277) reads the same reference audio the worker writes,
+  # so it has to follow it into the worktree volume or it would fingerprint the
+  # main checkout's library.
+  fingerprint-service:
+    volumes:
+      - ${WORKER_AUDIO_MOUNT:-worktree_audio:/app/audio}:ro
+
 volumes:
   worktree_audio:

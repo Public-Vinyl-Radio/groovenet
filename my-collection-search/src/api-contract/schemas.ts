@@ -1341,3 +1341,73 @@ export const albumUpdateResponseSchema = z.object({
   album: z.object({}).passthrough(),
   tracksUpdated: z.number().int().optional(),
 });
+
+// ─── Fingerprints (#277) ──────────────────────────────────────────────────────
+
+/**
+ * One reference fingerprint, as `fingerprint-service` posts it after indexing a
+ * library track. `fingerprint_data` is base64 because JSON has no bytes, and
+ * null when the engine stores no payload — which is what the stub does.
+ */
+export const fingerprintUpsertBodySchema = z.object({
+  track_id: z.string().min(1),
+  friend_id: intFromInputSchema,
+  fingerprint_type: z.string().min(1).max(50),
+  fingerprint_version: z.string().min(1).max(50),
+  fingerprint_data: z.string().base64().nullable().optional(),
+  audio_sha256: z.string().regex(/^[0-9a-f]{64}$/, "must be a hex sha256"),
+  audio_duration_seconds: z.number().positive().nullable().optional(),
+});
+
+export const fingerprintUpsertResponseSchema = z.object({
+  track_id: z.string(),
+  friend_id: z.number().int(),
+  fingerprint_type: z.string(),
+  fingerprint_version: z.string(),
+  audio_sha256: z.string(),
+  audio_duration_seconds: z.number().nullable(),
+  updated_at: z.string(),
+});
+
+/**
+ * Which slice of the library to index. Exactly one scope, so `--missing --all`
+ * is rejected rather than silently resolved to one of them.
+ */
+export const fingerprintIndexBodySchema = z
+  .object({
+    scope: z.enum(["missing", "changed", "all", "track", "release"]),
+    track_id: z.string().min(1).optional(),
+    release_id: z.string().min(1).optional(),
+    friend_id: intFromInputSchema.optional(),
+    force: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === "track" && !value.track_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "scope 'track' requires track_id",
+      });
+    }
+    if (value.scope === "release" && !value.release_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "scope 'release' requires release_id",
+      });
+    }
+  });
+
+export const fingerprintIndexRunSchema = z.object({
+  run_id: z.string(),
+  scope: z.string(),
+  fingerprint_type: z.string(),
+  fingerprint_version: z.string(),
+  queued: z.number().int(),
+  unindexable: z.number().int(),
+  indexed: z.number().int(),
+  skipped: z.number().int(),
+  failed: z.number().int(),
+  errors: z.array(z.string()),
+  started_at: z.number().int(),
+  updated_at: z.number().int(),
+  complete: z.boolean(),
+});

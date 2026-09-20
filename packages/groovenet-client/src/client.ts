@@ -28,6 +28,8 @@ import type {
   SimilarityQuery,
   RecommendationCandidatesResponse,
   RecommendationCandidatesQuery,
+  FingerprintIndexRequest,
+  FingerprintIndexRun,
 } from "./types.js";
 
 export interface GroovenetClientConfig {
@@ -484,5 +486,27 @@ export class GroovenetClient {
         mood_aggressive: candidate.metadata.moodAggressive,
       })),
     };
+  }
+
+  // ── Fingerprints ───────────────────────────────────────────────────────────
+
+  /**
+   * Queue a reference-library indexing run (#277).
+   *
+   * Returns as soon as the work is queued — the run itself happens in
+   * `fingerprint-service`. Poll `getFingerprintIndexRun` for progress.
+   */
+  async startFingerprintIndex(
+    request: FingerprintIndexRequest
+  ): Promise<FingerprintIndexRun> {
+    return this.request<FingerprintIndexRun>("POST", "/fingerprints/index", request);
+  }
+
+  /** Progress and final counters for one indexing run. */
+  async getFingerprintIndexRun(runId: string): Promise<FingerprintIndexRun> {
+    return this.request<FingerprintIndexRun>(
+      "GET",
+      `/fingerprints/index/${encodeURIComponent(runId)}`
+    );
   }
 }

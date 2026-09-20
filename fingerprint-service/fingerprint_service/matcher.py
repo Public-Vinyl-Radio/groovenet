@@ -18,7 +18,7 @@ from .types import MatchCandidate
 
 @runtime_checkable
 class FingerprintMatcher(Protocol):
-    """Answers "what does this window sound like", and nothing more.
+    """Both directions of one engine: build an index entry, and query it.
 
     Deciding whether a track was *played* is aggregation across windows (#279),
     and belongs nowhere near here.
@@ -29,6 +29,19 @@ class FingerprintMatcher(Protocol):
     fingerprint_type: str
     #: Engine revision, same purpose.
     fingerprint_version: str
+
+    def index(self, audio: NormalizedAudio) -> bytes | None:
+        """Fingerprint a whole reference track, for storage.
+
+        The inverse of `match`, and the reason the library indexer (#277) needs
+        nothing of its own: whatever an engine emits here is exactly what it
+        will later search, so the index cannot be built by one implementation
+        and queried by another.
+
+        `None` means the engine has no payload to store — honest for a stub,
+        and `track_fingerprints.fingerprint_data` is nullable for it.
+        """
+        ...
 
     def match(self, audio: NormalizedAudio) -> list[MatchCandidate]:
         """Zero or one candidate for this window. Empty means no match."""
@@ -52,6 +65,21 @@ class StubMatcher:
 
     def __init__(self, candidates: list[MatchCandidate] | None = None) -> None:
         self._candidates = list(candidates or [])
+
+    def index(self, audio: NormalizedAudio) -> bytes | None:
+        """Store nothing, but prove the whole indexing path runs end to end.
+
+        Returning `None` rather than a fake payload keeps the row honest: it
+        records that this track was decoded and hashed under this engine and
+        version, which is all the skip/regenerate logic in #277 needs, and
+        leaves no synthetic bytes for #278 to mistake for a real fingerprint.
+        """
+        logger.info(
+            "Stub matcher indexed %.2fs at %d Hz; storing no payload",
+            audio.duration_seconds,
+            audio.sample_rate,
+        )
+        return None
 
     def match(self, audio: NormalizedAudio) -> list[MatchCandidate]:
         logger.info(

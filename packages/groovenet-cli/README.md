@@ -27,6 +27,7 @@ groovenet albums search "kind of blue"    # browse albums
 groovenet playlists list                  # list playlists
 groovenet friends list                    # manage the friends system
 groovenet play <track-id>                 # play a track via MPD on the server
+groovenet fingerprint-library             # index reference audio for matching
 ```
 
 Every command accepts `--json` for machine-readable output:
@@ -46,6 +47,32 @@ Run `groovenet --help` (or `groovenet <command> --help`) for the full command re
 | `albums` | Browse and manage albums |
 | `playlists` | Manage playlists |
 | `friends` | Manage the friends system |
+| `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays |
+
+### fingerprint-library
+
+Fingerprints the library's reference audio so live vinyl playback can be
+recognised against it. Safe to re-run: each track's audio is hashed and skipped
+when nothing has changed.
+
+```bash
+groovenet fingerprint-library                  # only tracks not yet indexed
+groovenet fingerprint-library --changed        # re-check already-indexed files
+groovenet fingerprint-library --all --force    # regenerate everything
+groovenet fingerprint-library --track 12345-1  # one track
+groovenet fingerprint-library --release 12345  # one release
+groovenet fingerprint-library --no-wait        # queue it and return
+```
+
+```
+Indexing missing — chromaprint 1
+  3653 queued, 241 without reference audio
+  ✗ 12345-2: ffmpeg exited 1: Invalid data found when processing input
+  ✓ 3412 indexed   ⤼ 0 skipped   ✗ 2 failed   – 241 no audio
+```
+
+Tracks with no local audio are counted, not failed — only the part of the
+library you have downloaded can be fingerprinted. Exits 1 if any track failed.
 
 ## Related
 

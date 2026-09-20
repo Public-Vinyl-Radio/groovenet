@@ -7,7 +7,9 @@ from fingerprint_service.audio import AudioDecodeError, NormalizedAudio
 from fingerprint_service.main import (
     InvalidJob,
     parse_job,
+    process_index_job,
     process_job,
+    publish_engine,
     resolve_ingest_path,
     run_once,
     verify_redis,
@@ -227,6 +229,227 @@ class TestRunOnce:
         run_once(matcher)
 
         assert [r["status"] for r in reported] == ["processed"]
+
+
+class TestPublishEngine:
+    """The app reads this to know what `--missing` means (#277)."""
+
+    def test_advertises_the_running_engine(self, fake_redis, matcher):
+        publish_engine(matcher)
+
+        stored = fake_redis.hgetall(service_main.ENGINE_KEY)
+        assert stored == {"fingerprint_type": "stub", "fingerprint_version": "0"}
+
+    def test_expires_with_the_heartbeat(self, fake_redis, matcher):
+        publish_engine(matcher)
+        ttl = fake_redis.ttl(service_main.ENGINE_KEY)
+        assert 0 < ttl <= service_main.HEARTBEAT_TTL
+
+    def test_a_redis_failure_is_not_fatal(self, fake_redis, matcher, monkeypatch):
+        def explode():
+            raise ConnectionError("gone")
+
+        monkeypatch.setattr(fake_redis, "pipeline", explode)
+        publish_engine(matcher)  # must not raise
+
+
+@pytest.fixture
+def persisted(monkeypatch):
+    """Capture fingerprint upserts instead of posting them."""
+    sent = []
+    monkeypatch.setattr(
+        service_main, "try_persist_fingerprint", lambda body: sent.append(body) or True
+    )
+    return sent
+
+
+class TestProcessIndexJob:
+    def test_persists_and_counts_an_indexed_track(
+        self, fake_redis, index_job, audio_dir, matcher, persisted, monkeypatch
+    ):
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        monkeypatch.setattr(
+            "fingerprint_service.indexer.decode_to_pcm",
+            lambda *a, **k: NormalizedAudio(pcm=b"\x00\x00" * 22050, sample_rate=22050),
+        )
+
+        process_index_job(json.dumps(index_job(file_path="track.m4a")), matcher)
+
+        assert len(persisted) == 1
+        assert persisted[0]["track_id"] == "track-1"
+        assert fake_redis.hget(f"fpindex:run:{index_job()['run_id']}", "indexed") == "1"
+
+    def test_counts_a_skip_without_persisting(
+        self, fake_redis, index_job, audio_dir, matcher, persisted
+    ):
+        import hashlib
+
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        stored = hashlib.sha256(b"audio").hexdigest()
+
+        process_index_job(
+            json.dumps(index_job(file_path="track.m4a", stored_audio_sha256=stored)),
+            matcher,
+        )
+
+        assert persisted == []
+        assert fake_redis.hget(f"fpindex:run:{index_job()['run_id']}", "skipped") == "1"
+
+    def test_counts_a_missing_file_as_failed(
+        self, fake_redis, index_job, audio_dir, matcher, persisted
+    ):
+        process_index_job(json.dumps(index_job(file_path="gone.m4a")), matcher)
+
+        assert persisted == []
+        key = f"fpindex:run:{index_job()['run_id']}"
+        assert fake_redis.hget(key, "failed") == "1"
+        assert "gone.m4a" in fake_redis.lrange(f"{key}:errors", 0, -1)[0]
+
+    def test_an_escaping_path_is_isolated_to_that_track(
+        self, fake_redis, index_job, audio_dir, matcher, persisted
+    ):
+        process_index_job(json.dumps(index_job(file_path="../../etc/passwd")), matcher)
+
+        assert persisted == []
+        assert fake_redis.hget(f"fpindex:run:{index_job()['run_id']}", "failed") == "1"
+
+    def test_an_unexpected_error_is_isolated_to_that_track(
+        self, fake_redis, index_job, audio_dir, matcher, persisted, monkeypatch
+    ):
+        monkeypatch.setattr(
+            service_main,
+            "index_track",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("engine exploded")),
+        )
+
+        process_index_job(json.dumps(index_job()), matcher)
+
+        key = f"fpindex:run:{index_job()['run_id']}"
+        assert fake_redis.hget(key, "failed") == "1"
+        assert "engine exploded" in fake_redis.lrange(f"{key}:errors", 0, -1)[0]
+
+    def test_a_track_that_could_not_be_persisted_is_not_counted_as_indexed(
+        self, fake_redis, index_job, audio_dir, matcher, monkeypatch
+    ):
+        """Generated but not stored is not in the index.
+
+        Counting it as indexed would write a hash the next run skips on, for a
+        row that does not exist.
+        """
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        monkeypatch.setattr(
+            "fingerprint_service.indexer.decode_to_pcm",
+            lambda *a, **k: NormalizedAudio(pcm=b"\x00\x00" * 22050, sample_rate=22050),
+        )
+        monkeypatch.setattr(service_main, "try_persist_fingerprint", lambda body: False)
+
+        process_index_job(json.dumps(index_job(file_path="track.m4a")), matcher)
+
+        key = f"fpindex:run:{index_job()['run_id']}"
+        assert fake_redis.hget(key, "indexed") is None
+        assert fake_redis.hget(key, "failed") == "1"
+
+    def test_defaults_the_engine_identity_to_the_running_matcher(
+        self, index_job, audio_dir, matcher, persisted, monkeypatch
+    ):
+        """A job that names no engine is about whatever this worker is running."""
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        monkeypatch.setattr(
+            "fingerprint_service.indexer.decode_to_pcm",
+            lambda *a, **k: NormalizedAudio(pcm=b"\x00\x00" * 22050, sample_rate=22050),
+        )
+        payload = index_job(file_path="track.m4a")
+        del payload["fingerprint_type"]
+        del payload["fingerprint_version"]
+
+        process_index_job(json.dumps(payload), matcher)
+
+        assert persisted[0]["fingerprint_type"] == "stub"
+        assert persisted[0]["fingerprint_version"] == "0"
+
+    def test_malformed_json_is_logged_and_dropped(self, fake_redis, matcher, persisted):
+        process_index_job("{not json", matcher)
+        assert persisted == []
+        assert fake_redis.keys("fpindex:*") == []
+
+    def test_a_payload_missing_a_run_cannot_be_counted(
+        self, fake_redis, index_job, matcher, persisted
+    ):
+        # Nothing to count it against, so it is only logged — the same split as
+        # a chunk too malformed to name an ingest.
+        process_index_job(json.dumps(index_job(run_id=None)), matcher)
+        assert persisted == []
+        assert fake_redis.keys("fpindex:*") == []
+
+
+class TestRunOnceDispatch:
+    """One blocking pop across both queues, live windows first."""
+
+    def test_handles_an_index_job_from_the_index_queue(
+        self, fake_redis, index_job, audio_dir, matcher, persisted, monkeypatch
+    ):
+        monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        monkeypatch.setattr(
+            "fingerprint_service.indexer.decode_to_pcm",
+            lambda *a, **k: NormalizedAudio(pcm=b"\x00\x00" * 22050, sample_rate=22050),
+        )
+        fake_redis.lpush(
+            service_main.INDEX_QUEUE_KEY, json.dumps(index_job(file_path="track.m4a"))
+        )
+
+        run_once(matcher)
+
+        assert len(persisted) == 1
+        assert fake_redis.llen(service_main.INDEX_QUEUE_KEY) == 0
+
+    def test_a_live_chunk_preempts_a_queued_index_pass(
+        self,
+        fake_redis,
+        job,
+        index_job,
+        wav_file,
+        audio_dir,
+        matcher,
+        decoded,
+        reported,
+        persisted,
+        monkeypatch,
+    ):
+        """The reason indexing got its own list.
+
+        A full library pass is thousands of jobs deep; a window captured while
+        it runs must not wait behind all of them.
+        """
+        monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
+        wav_file()
+        for i in range(5):
+            fake_redis.rpush(
+                service_main.INDEX_QUEUE_KEY, json.dumps(index_job(track_id=f"t{i}"))
+            )
+        fake_redis.rpush(service_main.QUEUE_KEY, json.dumps(job()))
+
+        run_once(matcher)
+
+        assert len(reported) == 1, "the live chunk was served first"
+        assert persisted == []
+        assert fake_redis.llen(service_main.INDEX_QUEUE_KEY) == 5
+
+    def test_falls_back_to_the_index_queue_when_no_chunks_are_waiting(
+        self, fake_redis, index_job, audio_dir, matcher, reported, persisted, monkeypatch
+    ):
+        monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
+        fake_redis.rpush(service_main.INDEX_QUEUE_KEY, json.dumps(index_job()))
+
+        run_once(matcher)
+
+        assert reported == []
+        assert fake_redis.llen(service_main.INDEX_QUEUE_KEY) == 0
+
+    def test_publishes_the_engine_on_every_pass(self, fake_redis, matcher, monkeypatch):
+        monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
+        run_once(matcher)
+        assert fake_redis.hget(service_main.ENGINE_KEY, "fingerprint_type") == "stub"
 
 
 class TestMain:

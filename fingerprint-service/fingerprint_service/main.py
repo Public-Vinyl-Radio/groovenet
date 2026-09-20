@@ -15,16 +15,20 @@ from .audio import AudioDecodeError, decode_to_pcm
 from .config import (
     AUDIO_INGEST_DIR,
     BRPOP_TIMEOUT,
+    ENGINE_KEY,
     HEARTBEAT_KEY,
     HEARTBEAT_TTL,
+    INDEX_QUEUE_KEY,
     MATCHER_NAME,
     QUEUE_KEY,
     SAMPLE_RATE,
     logger,
     redis_conn,
 )
+from .indexer import InvalidIndexJob, index_track, outcome, parse_index_job
 from .matcher import FingerprintMatcher, build_matcher
-from .results import build_result, try_report_result
+from .results import build_result, try_persist_fingerprint, try_report_result
+from .runs import record_outcome
 from .types import IngestJob, IngestResult
 
 REQUIRED_FIELDS = ("ingest_id", "source_id", "file_path")
@@ -67,7 +71,13 @@ def verify_redis() -> bool:
     try:
         redis_conn.ping()
         logger.info("Redis connection successful")
-        logger.info("Current queue length: %s", redis_conn.llen(QUEUE_KEY))
+        logger.info(
+            "Queue lengths: %s=%s %s=%s",
+            QUEUE_KEY,
+            redis_conn.llen(QUEUE_KEY),
+            INDEX_QUEUE_KEY,
+            redis_conn.llen(INDEX_QUEUE_KEY),
+        )
         return True
     except Exception as e:
         logger.error(f"Redis connection failed: {e}")
@@ -84,6 +94,31 @@ def write_heartbeat() -> None:
         redis_conn.set(HEARTBEAT_KEY, int(time.time()), ex=HEARTBEAT_TTL)
     except Exception as hb_err:
         logger.warning(f"Failed to write heartbeat: {hb_err}")
+
+
+def publish_engine(matcher: FingerprintMatcher) -> None:
+    """Advertise which engine and version this worker is running (#277).
+
+    The app resolves `--missing` against a specific (fingerprint_type,
+    fingerprint_version), and those values live on the matcher class here. This
+    is how it learns them without a second copy in its own env that a bump could
+    miss. Written on the heartbeat cycle and with the heartbeat's TTL, so a
+    stopped worker stops advertising and the app can say "no engine registered"
+    instead of indexing under a stale identity.
+    """
+    try:
+        pipeline = redis_conn.pipeline()
+        pipeline.hset(
+            ENGINE_KEY,
+            mapping={
+                "fingerprint_type": matcher.fingerprint_type,
+                "fingerprint_version": matcher.fingerprint_version,
+            },
+        )
+        pipeline.expire(ENGINE_KEY, HEARTBEAT_TTL)
+        pipeline.execute()
+    except Exception as e:
+        logger.warning(f"Failed to publish engine identity: {e}")
 
 
 def handle_job(job: IngestJob, matcher: FingerprintMatcher) -> IngestResult:
@@ -146,17 +181,76 @@ def process_job(job_json: str, matcher: FingerprintMatcher) -> IngestResult | No
     return result
 
 
+def process_index_job(job_json: str, matcher: FingerprintMatcher) -> None:
+    """Fingerprint one reference track and count the result (#277).
+
+    Error isolation is the whole contract here: a corrupt file, an unreadable
+    one, or a payload that makes no sense costs exactly that track. The run goes
+    on, and the failure is counted and recorded so the final summary can name
+    it.
+    """
+    try:
+        job = parse_index_job(json.loads(job_json))
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse index job JSON: {e}")
+        return
+    except InvalidIndexJob as e:
+        logger.error(f"Skipping malformed index job: {e}")
+        return
+
+    job.setdefault("fingerprint_type", matcher.fingerprint_type)
+    job.setdefault("fingerprint_version", matcher.fingerprint_version)
+
+    try:
+        result, upsert = index_track(job, matcher)
+    except InvalidIndexJob as e:
+        # A rejection, not a crash — no traceback worth printing.
+        logger.error("Track %s cannot be indexed: %s", job["track_id"], e)
+        result, upsert = outcome(job, "failed", error=str(e)), None
+    except Exception as e:
+        logger.error(f"Indexing failed for track {job['track_id']}: {e}")
+        logger.error(traceback.format_exc())
+        result, upsert = outcome(job, "failed", error=str(e)), None
+
+    if upsert is not None and not try_persist_fingerprint(upsert):
+        # Generated but not stored is not indexed. Counting it as a success
+        # would make the next run skip a track that is not in the index.
+        result = outcome(
+            job,
+            "failed",
+            error="fingerprint could not be persisted",
+            audio_sha256=result.get("audio_sha256"),
+        )
+
+    record_outcome(redis_conn, result)
+
+
 def run_once(matcher: FingerprintMatcher) -> None:
-    """One pass of the loop: heartbeat, wait for a chunk, handle it."""
+    """One pass of the loop: heartbeat, wait for work, handle it.
+
+    Both queues in one blocking pop, live windows first. Redis returns the
+    earliest non-empty key in argument order, so a chunk captured mid-run is
+    served before the next reference track rather than behind the rest of the
+    library.
+    """
     write_heartbeat()
+    publish_engine(matcher)
 
     logger.info("Waiting for audio chunks...")
-    job_data = redis_conn.brpop(QUEUE_KEY, timeout=BRPOP_TIMEOUT)
+    job_data = redis_conn.brpop([QUEUE_KEY, INDEX_QUEUE_KEY], timeout=BRPOP_TIMEOUT)
 
     if job_data:
-        _, job_json = job_data
+        source_key, job_json = job_data
         logger.info(f"Received job: {job_json}")
-        process_job(job_json, matcher)
+        if _key_name(source_key) == INDEX_QUEUE_KEY:
+            process_index_job(job_json, matcher)
+        else:
+            process_job(job_json, matcher)
+
+
+def _key_name(key: str | bytes) -> str:
+    """The popped key, whether or not the client decodes responses."""
+    return key.decode() if isinstance(key, bytes) else key
 
 
 def main() -> None:
@@ -174,6 +268,7 @@ def main() -> None:
         matcher.fingerprint_version,
         SAMPLE_RATE,
     )
+    publish_engine(matcher)
 
     while True:
         try:

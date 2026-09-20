@@ -36,6 +36,10 @@ import {
   providerTrackMetadataResponseSchema,
   providerYouTubeMusicSearchBodySchema,
   providerYouTubeMusicSearchResponseSchema,
+  fingerprintIndexBodySchema,
+  fingerprintIndexRunSchema,
+  fingerprintUpsertBodySchema,
+  fingerprintUpsertResponseSchema,
   embeddingPromptSettingsGetResponseSchema,
   embeddingPromptSettingsPutBodySchema,
   embeddingPromptSettingsPutResponseSchema,
@@ -949,6 +953,159 @@ const backupHealthSchemaObject: Record<string, unknown> = {
   required: ["status"],
   additionalProperties: true,
 };
+
+const fingerprintContracts: ApiContractRoute[] = [
+  {
+    operationId: "storeTrackFingerprint",
+    method: "post",
+    path: "/api/fingerprints",
+    summary: "Store a reference fingerprint for a library track",
+    tags: ["Fingerprints"],
+    bodySchema: fingerprintUpsertBodySchema,
+    successSchema: fingerprintUpsertResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                track_id: { type: "string" },
+                friend_id: { type: "integer" },
+                fingerprint_type: { type: "string", example: "chromaprint" },
+                fingerprint_version: { type: "string", example: "1" },
+                fingerprint_data: {
+                  type: ["string", "null"],
+                  format: "byte",
+                  description:
+                    "Base64 engine payload, or null when the engine stores none.",
+                },
+                audio_sha256: { type: "string" },
+                audio_duration_seconds: { type: ["number", "null"] },
+              },
+              required: [
+                "track_id",
+                "friend_id",
+                "fingerprint_type",
+                "fingerprint_version",
+                "audio_sha256",
+              ],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The stored fingerprint, without its payload",
+          content: {
+            "application/json": {
+              schema: { type: "object", additionalProperties: true },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid fingerprint",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "409": {
+          description: "The track no longer exists",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "startFingerprintIndexRun",
+    method: "post",
+    path: "/api/fingerprints/index",
+    summary: "Queue a reference-library indexing run",
+    tags: ["Fingerprints"],
+    bodySchema: fingerprintIndexBodySchema,
+    successSchema: fingerprintIndexRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                scope: {
+                  type: "string",
+                  enum: ["missing", "changed", "all", "track", "release"],
+                },
+                track_id: { type: "string" },
+                release_id: { type: "string" },
+                friend_id: { type: "integer" },
+                force: { type: "boolean" },
+              },
+              required: ["scope"],
+            },
+          },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Run queued",
+          content: {
+            "application/json": {
+              schema: { type: "object", additionalProperties: true },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid scope",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "503": {
+          description: "No fingerprint engine registered",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getFingerprintIndexRun",
+    method: "get",
+    path: "/api/fingerprints/index/{runId}",
+    summary: "Progress and summary for one indexing run",
+    tags: ["Fingerprints"],
+    successSchema: fingerprintIndexRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/fingerprints/index/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters",
+          content: {
+            "application/json": {
+              schema: { type: "object", additionalProperties: true },
+            },
+          },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
 
 const backupContracts: ApiContractRoute[] = [
   {
@@ -4388,5 +4545,6 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   ...remainingTracksContracts,
+  ...fingerprintContracts,
   ...backupContracts,
 ];

@@ -9,7 +9,7 @@ import requests
 
 from .config import APP_URL, RESULT_TIMEOUT, logger
 from .matcher import FingerprintMatcher
-from .types import IngestJob, IngestResult, MatchCandidate
+from .types import FingerprintUpsert, IngestJob, IngestResult, MatchCandidate
 
 STATUS_PROCESSED = "processed"
 STATUS_FAILED = "failed"
@@ -89,4 +89,51 @@ def try_report_result(result: IngestResult) -> bool:
         return True
     except ResultReportError as e:
         logger.error("Failed to report ingest %s: %s", result["ingest_id"], e)
+        return False
+
+
+def fingerprint_url() -> str:
+    return f"{APP_URL.rstrip('/')}/api/fingerprints"
+
+
+def persist_fingerprint(upsert: FingerprintUpsert) -> None:
+    """POST one reference fingerprint for the app to store (#277).
+
+    Same division of labour as the ingest callback: this service does the CPU
+    work and the app owns the database. The route upserts on
+    (track_id, friend_id, fingerprint_type, fingerprint_version), so re-running
+    an index cannot produce a duplicate row.
+    """
+    url = fingerprint_url()
+    try:
+        response = requests.post(url, json=upsert, timeout=RESULT_TIMEOUT)
+    except requests.RequestException as e:
+        raise ResultReportError(f"Could not reach {url}: {e}") from e
+
+    if not response.ok:
+        raise ResultReportError(
+            f"{url} returned {response.status_code}: {response.text[:500]}"
+        )
+
+    logger.info(
+        "Persisted fingerprint for track %s under %s %s",
+        upsert["track_id"],
+        upsert["fingerprint_type"],
+        upsert["fingerprint_version"],
+    )
+
+
+def try_persist_fingerprint(upsert: FingerprintUpsert) -> bool:
+    """Persist a fingerprint, turning an unreachable app into a failed track.
+
+    Unlike the ingest callback there is nothing waiting on this and nothing to
+    reap: an unpersisted fingerprint simply is not in the index, and the next
+    run will generate it again because the stored hash is still missing. So the
+    honest thing is to count the track as failed and carry on.
+    """
+    try:
+        persist_fingerprint(upsert)
+        return True
+    except ResultReportError as e:
+        logger.error("Failed to persist fingerprint for track %s: %s", upsert["track_id"], e)
         return False

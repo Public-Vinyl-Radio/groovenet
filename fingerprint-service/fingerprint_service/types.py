@@ -55,3 +55,58 @@ class IngestResult(TypedDict):
     fingerprint_type: str
     fingerprint_version: str
     candidates: list[MatchCandidate]
+
+
+class IndexJob(TypedDict):
+    """One `fingerprint_index_queue` payload: fingerprint this reference track.
+
+    The app resolves the candidate set and stamps each job with what it already
+    holds for this track under the active engine — `stored_audio_sha256` is the
+    hash of the file as it was when last indexed, or absent when there is no
+    row. That is what lets the worker decide skip-or-regenerate from the bytes
+    in front of it without a round-trip back to the app per track (#277).
+
+    `run_id` names the progress counters; `force` is how `--all` says "index it
+    even if nothing changed".
+    """
+
+    run_id: str
+    track_id: str
+    friend_id: int
+    file_path: str
+    fingerprint_type: str
+    fingerprint_version: str
+    stored_audio_sha256: NotRequired[str | None]
+    force: NotRequired[bool]
+
+
+class IndexOutcome(TypedDict):
+    """What became of one reference track.
+
+    `indexed`, `skipped` and `failed` are three of the four counters the run
+    summary reports; the fourth — unindexable — is counted by the app at resolve
+    time, because a track with no `local_audio_url` never reaches the queue.
+    """
+
+    run_id: str
+    track_id: str
+    friend_id: int
+    status: str
+    error: str | None
+    audio_sha256: str | None
+
+
+class FingerprintUpsert(TypedDict):
+    """The body posted to the app to persist one reference fingerprint.
+
+    Mirrors `UpsertTrackFingerprintInput` on the app side. `fingerprint_data` is
+    base64 because JSON has no bytes; `None` means the engine stored no payload.
+    """
+
+    track_id: str
+    friend_id: int
+    fingerprint_type: str
+    fingerprint_version: str
+    fingerprint_data: str | None
+    audio_sha256: str
+    audio_duration_seconds: float | None
