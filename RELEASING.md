@@ -46,6 +46,28 @@ Add a footer to any commit / the Release PR:
 Release-As: 1.0.0
 ```
 
+## Workspace dependencies
+
+`packages/groovenet-cli` depends on `@groovenet/client`, so the two versions
+have to move together. The `node-workspace` plugin in
+`release-please-config.json` handles that: when the client's version bumps,
+release-please rewrites the CLI's dependency range to match and bumps the CLI
+alongside it.
+
+Without it, a major bump breaks CI. The client going to `2.0.0` while the CLI
+still asks for `^1.0.2` leaves npm unable to satisfy the workspace link, and
+`npm ci` fails on every job with:
+
+```
+npm error Missing: @groovenet/client@1.0.3 from lock file
+```
+
+That message points at the lock file, but the lock file is not the problem —
+the unsatisfiable range is.
+
+`merge: false` is deliberate. The plugin otherwise combines the per-package
+release PRs into one, which would undo `separate-pull-requests: true`.
+
 ## One-time setup
 
 1. **`RELEASE_PLEASE_TOKEN` secret** — release-please must create the tag with a

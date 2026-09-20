@@ -29,5 +29,11 @@
       "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md"
     }
-  }
+  },
+  "plugins": [
+    {
+      "type": "node-workspace",
+      "merge": false
+    }
+  ]
 }
