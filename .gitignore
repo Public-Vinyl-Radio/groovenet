@@ -39,3 +39,6 @@ xcuserdata/
 .vscode/
 .worktree/
 mobile-screenshots/
+
+# Coverage output from workspace packages
+packages/*/coverage/
