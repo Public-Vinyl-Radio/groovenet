@@ -140,6 +140,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # @groovenet/cli resolves @groovenet/client to its build output, so the
+      # client has to be built first — the same client → cli order as a release.
+      - name: Build the client
+        run: npm --workspace @groovenet/client run build
+
       - name: Run CLI tests with coverage
         run: npm --workspace @groovenet/cli run test:coverage
 

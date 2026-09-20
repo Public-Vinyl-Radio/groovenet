@@ -67,6 +67,8 @@ test-web:
 test-packages:
   {{mise_exec}} npm install --workspace=@groovenet/client --workspace=@groovenet/cli
   {{mise_exec}} npm run test --workspace=packages/groovenet-client
+  # The CLI imports @groovenet/client by its build output, so build it first.
+  {{mise_exec}} npm run build --workspace=packages/groovenet-client
   {{mise_exec}} npm run test --workspace=packages/groovenet-cli
 
 lint:
