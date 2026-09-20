@@ -1,6 +1,7 @@
 import { apiContractRoutes } from "@/api-contract/routes";
 import fs from "node:fs";
 import path from "node:path";
+import { exampleFromSchema } from "./exampleFromSchema";
 
 type OpenApiDocument = {
   openapi: string;
@@ -32,50 +33,6 @@ const MOBILE_OPENAPI_PATHS = new Set([
   "/api/discogs/verify-manifests",
 ]);
 
-function exampleFromSchema(schema: unknown): unknown {
-  if (!schema || typeof schema !== "object") return "example";
-  const s = schema as Record<string, unknown>;
-
-  if (s.example !== undefined) return s.example;
-
-  if (Array.isArray(s.oneOf) && s.oneOf.length > 0) {
-    return exampleFromSchema(s.oneOf[0]);
-  }
-
-  const type = s.type;
-  if (type === "string") return "string";
-  if (type === "integer") return 1;
-  if (type === "number") return 1.23;
-  if (type === "boolean") return true;
-  if (Array.isArray(type) && type.length > 0) {
-    const first = type.find((t) => t !== "null") ?? type[0];
-    return exampleFromSchema({ ...s, type: first });
-  }
-  if (type === "array") {
-    return [exampleFromSchema(s.items)];
-  }
-  if (type === "object") {
-    const properties =
-      s.properties && typeof s.properties === "object"
-        ? (s.properties as Record<string, unknown>)
-        : undefined;
-    if (properties && Object.keys(properties).length > 0) {
-      const obj: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(properties)) {
-        obj[key] = exampleFromSchema(value);
-      }
-      return obj;
-    }
-    if (s.additionalProperties) {
-      const additional =
-        s.additionalProperties === true ? { type: "string" } : s.additionalProperties;
-      return { exampleKey: exampleFromSchema(additional) };
-    }
-    return {};
-  }
-
-  return "example";
-}
 
 function addExamplesToOpenApiDocument(paths: Record<string, Record<string, unknown>>): void {
   for (const pathItem of Object.values(paths)) {

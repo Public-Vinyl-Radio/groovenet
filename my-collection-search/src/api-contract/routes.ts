@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { exampleFromSchema } from "./exampleFromSchema";
 import {
   aiPromptSettingsGetResponseSchema,
   aiPromptSettingsPutBodySchema,
@@ -220,6 +221,34 @@ const playlistDetailExample = {
   ],
 };
 
+const playlistGeneticRequestExample = {
+  playlist: [
+    {
+      track_id: "trk_001",
+      friend_id: 1,
+      bpm: 122,
+      // A float array, as returned by /api/tracks/batch with include_vectors.
+      embedding: [0.0121, -0.0487, 0.0332],
+    },
+    {
+      track_id: "trk_099",
+      friend_id: 1,
+      bpm: "124.5",
+      // The pgvector string form is accepted too.
+      embedding: "[0.0210,-0.0114,0.0655]",
+    },
+    {
+      track_id: "trk_143",
+      friend_id: 1,
+      bpm: 126,
+      // /api/tracks/batch nests the vector here; genetic falls back to it
+      // when `embedding` is absent.
+      _vectors: { default: [0.0333, -0.0091, 0.0428] },
+    },
+  ],
+  mode: "cohesive_blocks",
+};
+
 const trackSearchGetExample = {
   hits: [
     {
@@ -326,50 +355,6 @@ type TrackRouteOptions = {
   responses?: Record<string, unknown>;
 };
 
-function exampleFromSchema(schema: unknown): unknown {
-  if (!schema || typeof schema !== "object") return "example";
-  const s = schema as Record<string, unknown>;
-
-  if (s.example !== undefined) return s.example;
-
-  if (Array.isArray(s.oneOf) && s.oneOf.length > 0) {
-    return exampleFromSchema(s.oneOf[0]);
-  }
-
-  const type = s.type;
-  if (type === "string") return "string";
-  if (type === "integer") return 1;
-  if (type === "number") return 1.23;
-  if (type === "boolean") return true;
-  if (Array.isArray(type) && type.length > 0) {
-    const first = type.find((t) => t !== "null") ?? type[0];
-    return exampleFromSchema({ ...s, type: first });
-  }
-  if (type === "array") {
-    return [exampleFromSchema(s.items)];
-  }
-  if (type === "object") {
-    const properties =
-      s.properties && typeof s.properties === "object"
-        ? (s.properties as Record<string, unknown>)
-        : undefined;
-    if (properties && Object.keys(properties).length > 0) {
-      const obj: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(properties)) {
-        obj[key] = exampleFromSchema(value);
-      }
-      return obj;
-    }
-    if (s.additionalProperties) {
-      const additional =
-        s.additionalProperties === true ? { type: "string" } : s.additionalProperties;
-      return { exampleKey: exampleFromSchema(additional) };
-    }
-    return {};
-  }
-
-  return "example";
-}
 
 function withExamples(responses: Record<string, unknown>): Record<string, unknown> {
   const cloned = structuredClone(responses);
@@ -1408,21 +1393,56 @@ export const apiContractRoutes: ApiContractRoute[] = [
               schema: {
                 type: "object",
                 properties: {
-                  id: { type: "string" },
-                  name: { type: "string" },
-                  state: { type: "string" },
-                  queue: { type: "string" },
-                  data: { type: "object", additionalProperties: true },
-                  progress: { type: "number" },
+                  id: { type: "string", example: "job_8f21c4" },
+                  name: { type: "string", example: "download-audio" },
+                  state: {
+                    type: "string",
+                    // The handler maps queued -> waiting and processing ->
+                    // active before returning; these are the only values.
+                    enum: ["waiting", "active", "completed", "failed"],
+                    example: "completed",
+                  },
+                  queue: {
+                    type: "string",
+                    description: "Always \"download\"; this API exposes one queue.",
+                    example: "download",
+                  },
+                  data: {
+                    type: "object",
+                    description: "The job payload. Extra keys vary by job_type.",
+                    properties: {
+                      track_id: { type: "string", example: "trk_001" },
+                      friend_id: { type: "integer", example: 1 },
+                      release_id: { type: "string", example: "rel_4471" },
+                      job_type: { type: "string", example: "download-audio" },
+                      downloader: { type: "string", example: "gamdl" },
+                      source_url_key: { type: "string", example: "apple_music_url" },
+                    },
+                    additionalProperties: true,
+                  },
+                  progress: { type: "number", example: 100 },
                   returnvalue: {
                     type: ["object", "array", "string", "number", "boolean", "null"],
+                    example: { local_audio_url: "/audio/trk_001.m4a" },
                   },
-                  finishedOn: { type: "number" },
-                  processedOn: { type: "number" },
-                  failedReason: { type: "string" },
-                  attemptsMade: { type: "integer" },
-                  delay: { type: "number" },
-                  timestamp: { type: "number" },
+                  finishedOn: {
+                    type: "number",
+                    description: "Epoch milliseconds.",
+                    example: 1771329678000,
+                  },
+                  processedOn: {
+                    type: "number",
+                    description: "Epoch milliseconds.",
+                    example: 1771329604000,
+                  },
+                  failedReason: { type: "string", example: "gamdl error: Track not found on Apple Music" },
+                  attemptsMade: { type: "integer", example: 1 },
+                  delay: { type: "number", example: 0 },
+                  timestamp: {
+                    type: "number",
+                    description: "Epoch milliseconds when the job was enqueued.",
+                    example: 1771329600000,
+                  },
                   opts: { type: "object", additionalProperties: true },
                   logs: { type: "array", items: { type: "object", additionalProperties: true } },
                 },
@@ -2344,18 +2364,21 @@ export const apiContractRoutes: ApiContractRoute[] = [
                       friend_id: { type: "integer" },
                       bpm: { type: ["number", "string", "null"] },
                       embedding: {
+                        description:
+                          "Track embedding, either a float array or the pgvector string form (\"[0.1,0.2]\"). Required for mode=genetic unless _vectors.default is supplied.",
                         oneOf: [
-                          { type: "string" },
                           { type: "array", items: { type: "number" } },
+                          { type: "string" },
                           { type: "null" },
                         ],
                       },
                       _vectors: {
                         type: "object",
+                        description:
+                          "Fallback embedding location, matching the shape /api/tracks/batch returns when include_vectors is set. Used only when `embedding` is absent.",
                         properties: {
                           default: { type: "array", items: { type: "number" } },
                         },
-                        additionalProperties: true,
                       },
                     },
                     required: ["track_id"],
@@ -2374,6 +2397,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
               },
               required: ["playlist"],
               additionalProperties: false,
+            },
+            examples: {
+              geneticRequest: {
+                summary: "Three tracks, each supplying its embedding differently",
+                value: playlistGeneticRequestExample,
+              },
             },
           },
         },
