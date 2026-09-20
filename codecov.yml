@@ -11,3 +11,6 @@ flags:
   ga-service:
     paths:
       - ga-service/
+  fingerprint-service:
+    paths:
+      - fingerprint-service/

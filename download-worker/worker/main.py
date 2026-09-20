@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import redis
 
-from .config import HEARTBEAT_KEY, HEARTBEAT_TTL, logger, redis_conn
+from .config import BRPOP_TIMEOUT, HEARTBEAT_KEY, HEARTBEAT_TTL, logger, redis_conn
 from .jobs.analyze import analyze_local_audio
 from .jobs.cover_art import extract_embedded_cover_art, extract_embedded_cover_art_album
 from .jobs.download import download_audio, has_download_urls
@@ -13,7 +13,6 @@ from .jobs.duration import fix_duration
 from .types import JobData, JobResult
 
 QUEUE_KEY = "download_queue"
-BRPOP_TIMEOUT = 5
 
 JobHandler = Callable[[JobData], JobResult]
 

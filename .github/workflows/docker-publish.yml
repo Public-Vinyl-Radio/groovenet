@@ -26,6 +26,7 @@ jobs:
       essentia: ${{ steps.filter.outputs.essentia }}
       ga_service: ${{ steps.filter.outputs.ga_service }}
       download_worker: ${{ steps.filter.outputs.download_worker }}
+      fingerprint_service: ${{ steps.filter.outputs.fingerprint_service }}
       force_all: ${{ steps.filter.outputs.force_all }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
       should_push: ${{ steps.meta.outputs.should_push }}
@@ -58,6 +59,7 @@ jobs:
           essentia=false
           ga_service=false
           download_worker=false
+          fingerprint_service=false
           force_all=false
 
           while IFS= read -r file; do
@@ -92,6 +94,12 @@ jobs:
                 download_worker=true
                 ;;
             esac
+
+            case "$file" in
+              fingerprint-service/*)
+                fingerprint_service=true
+                ;;
+            esac
           done <<< "$changed_files"
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
@@ -102,6 +110,7 @@ jobs:
           echo "essentia=$essentia" >> "$GITHUB_OUTPUT"
           echo "ga_service=$ga_service" >> "$GITHUB_OUTPUT"
           echo "download_worker=$download_worker" >> "$GITHUB_OUTPUT"
+          echo "fingerprint_service=$fingerprint_service" >> "$GITHUB_OUTPUT"
           echo "force_all=$force_all" >> "$GITHUB_OUTPUT"
 
       - name: Resolve image tag / push policy
@@ -374,6 +383,62 @@ jobs:
           cache-from: type=gha,scope=download-worker
           cache-to: type=gha,mode=max,scope=download-worker
 
+  build-fingerprint-service:
+    needs: [changes, test]
+    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.fingerprint_service == 'true')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SHOULD_PUSH: ${{ needs.changes.outputs.should_push }}
+      IMAGE_TAG: ${{ needs.changes.outputs.image_tag }}
+      PLATFORMS: ${{ needs.changes.outputs.platforms }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Prepare image tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${{ github.repository_owner }}"
+          owner="${owner,,}"  # ghcr requires a lowercase repository name
+          tags="ghcr.io/${owner}/fingerprint-service:${{ env.IMAGE_TAG }}"
+          if [[ "${{ env.SHOULD_PUSH }}" == "true" && "${{ env.IMAGE_TAG }}" == v* ]]; then
+            tags="${tags}"$'\n'"ghcr.io/${owner}/fingerprint-service:latest"
+          fi
+          {
+            echo "tags<<EOF"
+            echo "$tags"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        if: env.SHOULD_PUSH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push fingerprint service
+        uses: docker/build-push-action@v7
+        with:
+          context: ./fingerprint-service
+          file: ./fingerprint-service/Dockerfile
+          push: ${{ env.SHOULD_PUSH == 'true' }}
+          platforms: ${{ env.PLATFORMS }}
+          tags: ${{ steps.tags.outputs.tags }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=fingerprint-service
+          cache-to: type=gha,mode=max,scope=fingerprint-service
+
   # The DB migration image (Dockerfile `migrator` target). Tracks the webapp
   # since it lives in the same source dir, and is promoted alongside it so
   # webapp-migrate:vX.Y.Z exists for the deploy's migrate step.
@@ -465,7 +530,7 @@ jobs:
           set -euo pipefail
           owner="${{ github.repository_owner }}"
           owner="${owner,,}"
-          services=(webapp webapp-migrate essentia-api ga-service download-worker)
+          services=(webapp webapp-migrate essentia-api ga-service download-worker fingerprint-service)
           for svc in "${services[@]}"; do
             src="ghcr.io/${owner}/${svc}:${SHA_TAG}"
             # The tag event can race the main-branch build of this commit, so

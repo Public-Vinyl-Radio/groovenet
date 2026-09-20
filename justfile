@@ -44,6 +44,7 @@ bootstrap-python:
   cd ga-service && {{mise_exec}} uv sync --frozen
   cd download-worker && {{mise_exec}} uv sync --frozen
   cd essentia-api && {{mise_exec}} uv sync --frozen
+  cd fingerprint-service && {{mise_exec}} uv sync --frozen
 
 # Install the git pre-commit hook (CI runs the same checks; this is just earlier feedback).
 bootstrap-hooks:
@@ -166,6 +167,9 @@ build-ga-service:
 build-download-worker:
   {{buildkit_env}} docker buildx build -t {{registry}}/download-worker:{{tag}} -f download-worker/Dockerfile .
 
+build-fingerprint-service:
+  {{buildkit_env}} docker buildx build -t {{registry}}/fingerprint-service:{{tag}} -f fingerprint-service/Dockerfile fingerprint-service
+
 rebuild-download-worker: check-compose
   {{op_env}} {{compose_cmd}} -f docker-compose.yml build --no-cache download-worker
   {{op_env}} {{compose_cmd}} -f docker-compose.yml up -d --force-recreate download-worker
@@ -174,17 +178,17 @@ rebuild-download-worker-worktree:
   bash --noprofile --norc -c 'source ./scripts/worktree/lib.sh && compose_exec build --no-cache download-worker'
   bash --noprofile --norc -c 'source ./scripts/worktree/lib.sh && compose_exec up -d --force-recreate download-worker'
 
-rebuild-containers services="app essentia ga-service download-worker":
+rebuild-containers services="app essentia ga-service download-worker fingerprint-service":
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml build {{services}}
 
-rebuild-containers-no-cache services="app essentia ga-service download-worker":
+rebuild-containers-no-cache services="app essentia ga-service download-worker fingerprint-service":
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml build --no-cache {{services}}
 
-rebuild-up-containers services="app essentia ga-service download-worker":
+rebuild-up-containers services="app essentia ga-service download-worker fingerprint-service":
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml build {{services}}
   {{op_env}} {{compose_cmd}} -f docker-compose.yml up -d {{services}}
 
-build-all: build-app build-essentia build-ga-service build-download-worker
+build-all: build-app build-essentia build-ga-service build-download-worker build-fingerprint-service
 
 build-packages:
   npm run build --workspace=packages/groovenet-client
@@ -215,7 +219,7 @@ deps-check-python cooldown_days="14":
   cooldown_days_value="{{cooldown_days}}"
   cooldown_days_value="${cooldown_days_value#cooldown_days=}"
   cutoff="$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=int("'"$cooldown_days_value"'" ))).date().isoformat())')"
-  for service in ga-service essentia-api download-worker; do
+  for service in ga-service essentia-api download-worker fingerprint-service; do
     echo "==> $service (excluding releases newer than $cutoff)"
     (
       cd "$service"
@@ -229,7 +233,7 @@ deps-update-python cooldown_days="14":
   cooldown_days_value="{{cooldown_days}}"
   cooldown_days_value="${cooldown_days_value#cooldown_days=}"
   cutoff="$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=int("'"$cooldown_days_value"'" ))).date().isoformat())')"
-  for service in ga-service essentia-api download-worker; do
+  for service in ga-service essentia-api download-worker fingerprint-service; do
     echo "==> $service (excluding releases newer than $cutoff)"
     (
       cd "$service"
@@ -253,6 +257,7 @@ push-images:
   {{buildkit_env}} docker buildx build --platform {{platform}} --push -t {{registry}}/essentia-api:{{tag}} -f essentia-api/Dockerfile essentia-api
   {{buildkit_env}} docker buildx build --platform {{platform}} --push -t {{registry}}/ga-service:{{tag}} -f ga-service/Dockerfile ga-service
   {{buildkit_env}} docker buildx build --platform {{platform}} --push -t {{registry}}/download-worker:{{tag}} -f download-worker/Dockerfile .
+  {{buildkit_env}} docker buildx build --platform {{platform}} --push -t {{registry}}/fingerprint-service:{{tag}} -f fingerprint-service/Dockerfile fingerprint-service
 
 deploy-prod-local:
   cd {{app_dir}} && ./scripts/deploy-prod.sh {{tag}}

@@ -18,6 +18,7 @@ services:
       REDIS_URL: redis://redis:6379
       ESSENTIA_API_URL: http://essentia:8001/analyze
       ESSENTIA_DATA_DIR: /app/essentia-data
+      AUDIO_INGEST_DIR: /app/audio-ingest
       WORKTREE_HOST: ${WORKTREE_HOST:-}
       ENABLE_DEVELOPER_TOOLS: ${ENABLE_DEVELOPER_TOOLS:-false}
       STORYBOOK_URL: ${STORYBOOK_URL:-}
@@ -37,6 +38,7 @@ services:
       - cookie_data:/app/cookies
       - album_covers:/app/public/uploads/album-covers
       - essentia_data:/app/essentia-data
+      - audio_ingest:/app/audio-ingest
 
   migrate:
     build:
@@ -106,6 +108,25 @@ services:
       - essentia_data:/app/essentia-data
     restart: unless-stopped
 
+  # Queue-driven: pops fingerprint_queue, decodes the chunk, matches it, and
+  # reports back over the app's REST API. No published port on purpose.
+  fingerprint-service:
+    build:
+      context: fingerprint-service
+    environment:
+      REDIS_URL: redis://redis:6379
+      APP_URL: http://app:3000
+      AUDIO_INGEST_DIR: /app/audio-ingest
+      FINGERPRINT_SAMPLE_RATE: ${FINGERPRINT_SAMPLE_RATE:-22050}
+      FINGERPRINT_MATCHER: ${FINGERPRINT_MATCHER:-stub}
+    depends_on:
+      - redis
+    volumes:
+      # Mounted directly, unlike essentia-api, so chunks never have to be
+      # re-served over HTTP to reach the service that needs them.
+      - audio_ingest:/app/audio-ingest
+    restart: unless-stopped
+
 volumes:
   db_data:
   music_data:
@@ -115,3 +136,4 @@ volumes:
   cookie_data:
   album_covers:
   essentia_data:
+  audio_ingest:

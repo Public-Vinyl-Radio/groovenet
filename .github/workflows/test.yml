@@ -186,6 +186,43 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
 
+  fingerprint-service-coverage:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: fingerprint-service
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev
+
+      # ffmpeg is preinstalled on ubuntu-24.04 runners. The decode tests skip
+      # themselves without it rather than failing, so a runner image that drops
+      # it would quietly narrow coverage — check for it explicitly.
+      - name: Verify ffmpeg is available
+        run: ffmpeg -version
+
+      - name: Run fingerprint service tests with coverage
+        run: uv run --group dev pytest --cov=fingerprint_service --cov-report=xml:coverage.xml
+
+      - name: Upload fingerprint service coverage to Codecov
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: fingerprint-service/coverage.xml
+          flags: fingerprint-service
+          disable_search: true
+          fail_ci_if_error: false
+
   migrate-test:
     runs-on: ubuntu-24.04
     permissions:
