@@ -8,8 +8,9 @@ import type {
 import chalk from "chalk";
 import Table from "cli-table3";
 import { printJson, printError } from "../output.js";
+import { intOption } from "../options.js";
 
-function makeClient(): GroovenetClient {
+export function makeClient(): GroovenetClient {
   const cfg = loadConfig();
   return new GroovenetClient({
     baseUrl: cfg.api_base,
@@ -180,7 +181,7 @@ export function addVinylCommands(program: Command): void {
   vinyl
     .command("status")
     .description("Is the pipeline working? Index, queue, ingests, match rate")
-    .option("--minutes <n>", "Window to summarise", parseInt, 60)
+    .option("--minutes <n>", "Window to summarise", intOption, 60)
     .option("--source <id>", "Limit to one listener source")
     .option("--json", "Output as JSON")
     .action(async (opts: { minutes: number; source?: string; json?: boolean }) => {
@@ -209,7 +210,7 @@ export function addVinylCommands(program: Command): void {
     .option("--session <id>", "Limit to one listening session")
     .option("--matched", "Only windows that matched something")
     .option("--no-match", "Only windows that matched nothing")
-    .option("--limit <n>", "How many", parseInt, 30)
+    .option("--limit <n>", "How many", intOption, 30)
     .option("--json", "Output as JSON")
     .action(
       async (opts: {
@@ -244,7 +245,7 @@ export function addVinylCommands(program: Command): void {
     .description("Recent audio chunks and what became of them")
     .option("--source <id>", "Limit to one listener source")
     .option("--status <s>", "received | processing | processed | failed")
-    .option("--limit <n>", "How many", parseInt, 30)
+    .option("--limit <n>", "How many", intOption, 30)
     .option("--json", "Output as JSON")
     .action(
       async (opts: { source?: string; status?: string; limit: number; json?: boolean }) => {

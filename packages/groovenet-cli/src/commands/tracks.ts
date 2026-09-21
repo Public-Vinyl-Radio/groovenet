@@ -9,6 +9,7 @@ import {
   printError,
 } from "../output.js";
 import chalk from "chalk";
+import { intOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -25,7 +26,7 @@ export function addTracksCommands(program: Command): void {
     .option("--bpm-max <n>", "Maximum BPM", parseFloat)
     .option("--key <k>", "Musical key (e.g. 'A minor')")
     .option("--rating <n>", "Filter by star rating (0-5)", parseFloat)
-    .option("--limit <n>", "Number of results", parseInt, 20)
+    .option("--limit <n>", "Number of results", intOption, 20)
     .option("--json", "Output as JSON")
     .action(
       async (
@@ -74,7 +75,7 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("show <id>")
     .description("Show details for a track")
-    .option("--friend-id <n>", "Friend ID (defaults to config default_friend_id)", parseInt)
+    .option("--friend-id <n>", "Friend ID (defaults to config default_friend_id)", intOption)
     .option("--json", "Output as JSON")
     .action(async (id: string, opts: { friendId?: number; json?: boolean }) => {
       try {
@@ -139,8 +140,8 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("missing-apple-music")
     .description("List tracks missing Apple Music URLs")
-    .option("--page <n>", "Page number", parseInt, 1)
-    .option("--page-size <n>", "Results per page", parseInt, 50)
+    .option("--page <n>", "Page number", intOption, 1)
+    .option("--page-size <n>", "Results per page", intOption, 50)
     .option("--username <u>", "Username")
     .option("--json", "Output as JSON")
     .action(
@@ -175,9 +176,9 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("deleted")
     .description("List soft-deleted tracks")
-    .option("--friend-id <n>", "Filter by friend ID", parseInt)
-    .option("--limit <n>", "Max results", parseInt, 100)
-    .option("--offset <n>", "Offset", parseInt, 0)
+    .option("--friend-id <n>", "Filter by friend ID", intOption)
+    .option("--limit <n>", "Max results", intOption, 100)
+    .option("--offset <n>", "Offset", intOption, 0)
     .option("--json", "Output as JSON")
     .action(
       async (opts: {
@@ -208,7 +209,7 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("restore <id>")
     .description("Restore a soft-deleted track")
-    .option("--friend-id <n>", "Friend ID (defaults to config default_friend_id)", parseInt)
+    .option("--friend-id <n>", "Friend ID (defaults to config default_friend_id)", intOption)
     .action(async (id: string, opts: { friendId?: number }) => {
       try {
         const cfg = loadConfig();
@@ -225,7 +226,7 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("recommend <id>")
     .description("Get combined recommendations using both identity and audio vibe embeddings")
-    .option("--limit <n>", "Number of candidates to return", parseInt, 20)
+    .option("--limit <n>", "Number of candidates to return", intOption, 20)
     .option("--json", "Output as JSON")
     .action(async (id: string, opts: { limit: number; json?: boolean }) => {
       try {
@@ -253,7 +254,7 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("similar-identity <id>")
     .description("Find tracks with similar identity (genre, era, style, tags)")
-    .option("--limit <n>", "Number of results", parseInt, 10)
+    .option("--limit <n>", "Number of results", intOption, 10)
     .option("--era <era>", "Filter by era (e.g. '1970s')")
     .option("--country <country>", "Filter by country")
     .option("--tags <tags>", "Comma-separated tags to filter by")
@@ -296,7 +297,7 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("similar-vibe <id>")
     .description("Find tracks with similar audio vibe (BPM, mood, danceability)")
-    .option("--limit <n>", "Number of results", parseInt, 10)
+    .option("--limit <n>", "Number of results", intOption, 10)
     .option("--json", "Output as JSON")
     .action(
       async (

@@ -124,6 +124,12 @@ Two things that will cost you an afternoon otherwise:
 - `--json` emits the raw API shape, which is wider than the table columns —
   fields absent from the table are still present in the JSON.
 - No eslint config here either; see issue #253.
+- **Never pass bare `parseInt` as a commander coercion.** Commander calls it as
+  `(value, previous)`, so a numeric default becomes the *radix*:
+  `.option("--limit <n>", …, parseInt, 20)` parsed `15` as **25**, and a default
+  of 60 put the radix out of range and yielded `NaN`. Neither failed loudly.
+  Use `intOption` / `boundedIntOption` from `src/options.ts`, which ignore the
+  second argument and reject nonsense instead of letting `NaN` travel.
 - `fingerprint-library --json` prints one object at the end, not a stream. With
   `--no-wait` that object is the queued run; otherwise it is the finished one.
   The exit code is the same either way — 1 if any track failed — so `--json`

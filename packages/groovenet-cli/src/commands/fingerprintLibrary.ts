@@ -3,6 +3,7 @@ import { GroovenetClient, loadConfig } from "@groovenet/client";
 import type { FingerprintIndexRequest, FingerprintIndexRun } from "@groovenet/client";
 import chalk from "chalk";
 import { printError } from "../output.js";
+import { intOption } from "../options.js";
 
 export function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -212,10 +213,10 @@ export function addFingerprintLibraryCommand(program: Command): void {
     .option("--all", "Every track with reference audio")
     .option("--track <id>", "One track")
     .option("--release <id>", "Every track on one release")
-    .option("--friend-id <n>", "Narrow to one friend's library", parseInt)
+    .option("--friend-id <n>", "Narrow to one friend's library", intOption)
     .option("--force", "Re-fingerprint even when the audio is unchanged")
     .option("--no-wait", "Queue the run and exit without waiting")
-    .option("--poll-interval <ms>", "How often to poll progress", parseInt, 1000)
+    .option("--poll-interval <ms>", "How often to poll progress", intOption, 1000)
     .option("--json", "Output as JSON")
     .action(async (opts: FingerprintLibraryOptions) => {
       try {
