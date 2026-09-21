@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.0.0...groovenet-cli-v2.1.0) (2026-09-21)
+
+
+### Features
+
+* **cli:** groovenet fingerprint-library reference indexing command ([#288](https://github.com/Public-Vinyl-Radio/groovenet/issues/288)) ([a16cf63](https://github.com/Public-Vinyl-Radio/groovenet/commit/a16cf6351f8c70c4d37c47ff22dc62173133168d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^2.0.0 to ^2.1.0
+
 ## [2.0.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v1.0.3...groovenet-cli-v2.0.0) (2026-09-20)
 
 

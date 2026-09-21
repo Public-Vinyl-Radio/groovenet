@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.1...v0.2.2) (2026-09-21)
+
+
+### Features
+
+* **api:** POST /api/audio/ingest for vinyl listener audio chunks ([#293](https://github.com/Public-Vinyl-Radio/groovenet/issues/293)) ([4c51a39](https://github.com/Public-Vinyl-Radio/groovenet/commit/4c51a39173af8f1b6b1f325ba398bff85743ab4b))
+* **api:** queue ingested audio and manage the ingest lifecycle ([#294](https://github.com/Public-Vinyl-Radio/groovenet/issues/294)) ([a96dbe0](https://github.com/Public-Vinyl-Radio/groovenet/commit/a96dbe0565a027d1b116edb5c61f9956db5de971))
+* **cli:** groovenet fingerprint-library reference indexing command ([#288](https://github.com/Public-Vinyl-Radio/groovenet/issues/288)) ([a16cf63](https://github.com/Public-Vinyl-Radio/groovenet/commit/a16cf6351f8c70c4d37c47ff22dc62173133168d))
+* **db:** add audio ingest records ([#286](https://github.com/Public-Vinyl-Radio/groovenet/issues/286)) ([5d5347f](https://github.com/Public-Vinyl-Radio/groovenet/commit/5d5347f919d941d78db25a20ad8b2b42ce635f88))
+* **db:** add raw play detections ([#289](https://github.com/Public-Vinyl-Radio/groovenet/issues/289)) ([cb0c285](https://github.com/Public-Vinyl-Radio/groovenet/commit/cb0c2856cb0ef567694a02c5a5673e6873823e88))
+* **db:** add reference fingerprint index schema ([#285](https://github.com/Public-Vinyl-Radio/groovenet/issues/285)) ([c9e1a03](https://github.com/Public-Vinyl-Radio/groovenet/commit/c9e1a03aa01548e0a399c2ef178739958d71affa))
+* **infra:** sweep the audio ingest volume on a retention policy ([#290](https://github.com/Public-Vinyl-Radio/groovenet/issues/290)) ([dc38c55](https://github.com/Public-Vinyl-Radio/groovenet/commit/dc38c55353599ee432462f95a8631d463e1087a4))
+* **service:** fingerprint-service skeleton with stubbed matcher ([#287](https://github.com/Public-Vinyl-Radio/groovenet/issues/287)) ([3c23983](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c239835866b4d56751a9a11489c59d655165c31))
+* **service:** match ingested audio against the reference fingerprint index ([#292](https://github.com/Public-Vinyl-Radio/groovenet/issues/292)) ([5a28ebc](https://github.com/Public-Vinyl-Radio/groovenet/commit/5a28ebc1472379d19394a0d0d06daf335b54e261))
+
+
+### Bug Fixes
+
+* **build:** silence runtime path tracing warnings ([#291](https://github.com/Public-Vinyl-Radio/groovenet/issues/291)) ([8b95cdc](https://github.com/Public-Vinyl-Radio/groovenet/commit/8b95cdc4981abf41846accbd8f9028c1b68ba0ad))
+* **dev:** skip NFS mount when host is unset ([#283](https://github.com/Public-Vinyl-Radio/groovenet/issues/283)) ([7af6519](https://github.com/Public-Vinyl-Radio/groovenet/commit/7af65192e4c96674652babc9746a0dd17e09106c))
+
 ## [0.2.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.0...v0.2.1) (2026-09-20)
 
 
