@@ -7,6 +7,7 @@ import {
   FingerprintIndexService,
 } from "@/server/services/fingerprintIndexService";
 import { FINGERPRINT_QUEUE_KEY } from "@/server/services/audioIngestService";
+import { ingestDirWritable } from "@/server/services/ingestSweeperService";
 import type { IngestPipelineStats } from "@/types/audioIngest";
 
 /**
@@ -50,6 +51,9 @@ export class IngestDebugService {
       since: since.toISOString(),
       window_minutes: sinceMinutes,
       source_id: sourceId ?? null,
+      // Checked because it has already gone wrong once: an unwritable volume
+      // fails every upload with EACCES while every other number looks fine.
+      ingest_writable: ingestDirWritable(),
       index: {
         engine_registered: engine !== null,
         fingerprint_type: engine?.fingerprint_type ?? null,

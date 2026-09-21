@@ -519,6 +519,8 @@ export interface IngestPipelineStats {
   since: string;
   window_minutes: number;
   source_id: string | null;
+  /** False means uploads cannot be saved at all — everything else is moot. */
+  ingest_writable: boolean;
   index: {
     engine_registered: boolean;
     fingerprint_type: string | null;

@@ -19,6 +19,7 @@ vi.mock("@/server/repositories/audioIngestRepository", () => ({
 
 import {
   ensureIngestDir,
+  ingestDirWritable,
   startIngestSweeper,
   getRetentionStatus,
   ingestDir,
@@ -466,6 +467,26 @@ describe("sweepIngestDirectory() (real temp directory)", () => {
 
   it("resolves the directory from the environment", () => {
     expect(ingestDir()).toBe(dir);
+  });
+
+  it("reports a writable volume", async () => {
+    expect(ingestDirWritable()).toBe(true);
+  });
+
+  it("reports an unwritable volume rather than throwing", async () => {
+    // The real failure: a named volume whose mount point is missing from the
+    // image is created root-owned, and every upload fails with EACCES while
+    // the route reports a 500 the device politely retries.
+    vi.spyOn(fs, "writeFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("EACCES"), { code: "EACCES" });
+    });
+
+    expect(ingestDirWritable()).toBe(false);
+  });
+
+  it("leaves no probe file behind", async () => {
+    ingestDirWritable();
+    expect(fs.readdirSync(dir).filter((n) => n.startsWith(".writable-"))).toEqual([]);
   });
 });
 

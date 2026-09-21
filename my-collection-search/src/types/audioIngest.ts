@@ -172,6 +172,11 @@ export type IngestPipelineStats = {
   since: string;
   window_minutes: number;
   source_id: string | null;
+  /**
+   * False means uploads cannot be saved at all. The route answers 500 and a
+   * well-behaved device retries forever, so nothing else looks wrong.
+   */
+  ingest_writable: boolean;
   index: {
     engine_registered: boolean;
     fingerprint_type: string | null;

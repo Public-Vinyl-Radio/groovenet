@@ -160,6 +160,27 @@ export function ensureIngestDir(): string {
   return dir;
 }
 
+/**
+ * Can the app actually write to the ingest volume?
+ *
+ * Worth asking explicitly. A named volume whose mount point is missing from
+ * the image is created root-owned, and the app runs as `nextjs` — so every
+ * upload fails with EACCES while the route reports a 500 and the listener
+ * device politely retries forever. Nothing in the pipeline looks broken; it
+ * simply never starts.
+ */
+export function ingestDirWritable(): boolean {
+  const probe = path.join(ingestDir(), `.writable-${process.pid}`);
+  try {
+    fs.mkdirSync(ingestDir(), { recursive: true });
+    fs.writeFileSync(probe, "");
+    fs.rmSync(probe, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Every regular file on the ingest volume, with the stats the rules need. */
 async function listCandidates(dir: string): Promise<SweepCandidate[]> {
   let entries: fs.Dirent[];

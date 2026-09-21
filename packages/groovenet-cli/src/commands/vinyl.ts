@@ -61,6 +61,16 @@ export function formatDetection(d: DetectionWindow): string[] {
 export function formatStats(s: IngestPipelineStats): string {
   const lines: string[] = [];
 
+  // First, because when this is false nothing else can even begin: uploads
+  // fail with EACCES, the route answers 500, and a well-behaved device
+  // retries forever while every other number looks perfectly healthy.
+  if (s.ingest_writable === false) {
+    lines.push(
+      chalk.red("✗ ingest volume is NOT writable") +
+        chalk.gray(" — every upload will fail; check ownership of AUDIO_INGEST_DIR")
+    );
+  }
+
   if (!s.index.engine_registered) {
     lines.push(
       chalk.red("✗ no fingerprint engine registered") +
@@ -194,7 +204,11 @@ export function addVinylCommands(program: Command): void {
         else console.log(formatStats(stats));
         // A pipeline that cannot match is a failure worth an exit code, so
         // this composes in a health check.
-        if (!stats.index.engine_registered || stats.index.empty) {
+        if (
+          stats.ingest_writable === false ||
+          !stats.index.engine_registered ||
+          stats.index.empty
+        ) {
           process.exitCode = 1;
         }
       } catch (err: unknown) {

@@ -56,7 +56,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-RUN mkdir -p cookies dumps discogs_exports audio essentia-data public/uploads/album-covers && \
+# Every path a named volume mounts over has to exist here first. Docker seeds a
+# new volume's ownership from the image, so a path missing from this list is
+# created root-owned and the app — running as nextjs — cannot write to it.
+# `audio-ingest` was missing, and the ingest route (#275) failed every upload
+# with EACCES while reporting a 500 the listener device politely retried.
+RUN mkdir -p cookies dumps discogs_exports audio audio-ingest essentia-data public/uploads/album-covers && \
     chown -R nextjs:nodejs /app
 
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
