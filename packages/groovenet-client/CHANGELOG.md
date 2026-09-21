@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.1.0...groovenet-client-v2.2.0) (2026-09-21)
+
+
+### Features
+
+* **obs:** read APIs and CLI for the vinyl ingest pipeline ([#300](https://github.com/Public-Vinyl-Radio/groovenet/issues/300)) ([7dc74cc](https://github.com/Public-Vinyl-Radio/groovenet/commit/7dc74cc8360cc341f604c0008b861d77ca1be846))
+
 ## [2.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.0.0...groovenet-client-v2.1.0) (2026-09-21)
 
 

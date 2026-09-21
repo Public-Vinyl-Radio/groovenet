@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.3...v0.2.4) (2026-09-21)
+
+
+### Features
+
+* **obs:** read APIs and CLI for the vinyl ingest pipeline ([#300](https://github.com/Public-Vinyl-Radio/groovenet/issues/300)) ([7dc74cc](https://github.com/Public-Vinyl-Radio/groovenet/commit/7dc74cc8360cc341f604c0008b861d77ca1be846))
+* **spins:** aggregate detections into automatic sessions ([#296](https://github.com/Public-Vinyl-Radio/groovenet/issues/296)) ([2045bc8](https://github.com/Public-Vinyl-Radio/groovenet/commit/2045bc8678c91faa18a78073da16d2b0f4029036))
+
 ## [0.2.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.2...v0.2.3) (2026-09-21)
 
 
