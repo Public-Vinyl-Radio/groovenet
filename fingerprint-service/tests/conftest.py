@@ -112,6 +112,44 @@ def index_job():
 
 
 @pytest.fixture
+def tone_pcm():
+    """Mono 16-bit PCM standing in for one track.
+
+    Six seed-chosen partials, each with its own vibrato, rather than a single
+    swept tone. That matters: Chromaprint keys off how the spectrum moves, so
+    two tracks built from the same formula with different scalars fingerprint
+    *alike* — an earlier version of this fixture produced a false match at a bit
+    error rate of 0.21 and made the matcher look broken when it was not. Drawing
+    the partials per seed gives the same bimodal separation the real corpus has:
+    the same seed matches at ~0.0, a different one sits at ~0.39.
+
+    `noise` degrades a capture the way a mix does, for testing recall.
+    """
+    def _make(seconds=20.0, sample_rate=22050, seed=1.0, noise=0.0):
+        import random
+
+        rng = random.Random(int(seed * 1000))
+        partials = [
+            (rng.uniform(110, 3000), rng.uniform(0.2, 1.0), rng.uniform(0.05, 0.4))
+            for _ in range(6)
+        ]
+        noise_rng = random.Random(int(seed * 1000) + 7)
+        out = bytearray()
+        for i in range(int(seconds * sample_rate)):
+            t = i / sample_rate
+            sample = 0.0
+            for freq, amp, rate in partials:
+                vibrato = freq + freq * 0.15 * math.sin(2 * math.pi * rate * t)
+                sample += amp * 4000 * math.sin(2 * math.pi * vibrato * t)
+            if noise:
+                sample += noise_rng.gauss(0, noise * 4000)
+            out += struct.pack("<h", max(-32768, min(32767, int(sample))))
+        return bytes(out)
+
+    return _make
+
+
+@pytest.fixture
 def job():
     """Factory for a well-formed queue payload."""
     def _make(**overrides):

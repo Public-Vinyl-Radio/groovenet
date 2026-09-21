@@ -10,9 +10,8 @@ indexing (#277)** pops a second queue, fingerprints whole tracks from the audio
 volume and persists them to `track_fingerprints` — the offline counterpart to
 live ingest, through the same `FingerprintMatcher`.
 
-Part of the automatic vinyl play tracking epic (#281). **The matcher is still a
-stub**: it decodes and reports, but always answers "no match". The real
-Chromaprint implementation is #278.
+Part of the automatic vinyl play tracking epic (#281). The matcher is
+**Chromaprint** (#278), searched two-stage against an index held in memory.
 
 Python 3.12+, managed with `uv`.
 
@@ -24,7 +23,10 @@ fingerprint_service/
   config.py        logger, redis_conn, queue/heartbeat keys, sample rate
   healthcheck.py   `python -m fingerprint_service.healthcheck` for HEALTHCHECK
   audio.py         ffmpeg decode to mono 16-bit PCM, truncation guard
-  matcher.py       FingerprintMatcher protocol + StubMatcher + registry
+  matcher.py       FingerprintMatcher protocol + Stub/Chromaprint + registry
+  chromaprint_engine.py  raw 32-bit fingerprints from in-memory PCM
+  reference_index.py     the two-stage search
+  reference_loader.py    rebuilds the index from the app's REST API
   indexer.py       reference-library indexing: hash, decide, fingerprint
   runs.py          per-run progress counters in Redis
   results.py       POSTs the ingest callback and reference fingerprints
@@ -228,6 +230,67 @@ The truncation guard is the part worth knowing about. When a job declares a
 as a partial write rather than passed on — a half-written file otherwise
 produces a confident answer about the wrong few seconds.
 
+## The matcher
+
+Chromaprint, via `pyacoustid`'s ctypes binding — but reaching past its public
+API, which returns the compressed base64 form meant for the AcoustID web
+service. We need the **raw 32-bit values**: the index is built on their top
+bits and verification is a bit error rate over the full 32.
+
+Nothing is written to disk and nothing is shelled out to. `decode_to_pcm`
+already put the samples in memory, and at a 12 ms/window budget a subprocess per
+window would cost more than the search it feeds.
+
+### The search, and why it is shaped this way
+
+1. **Candidate generation** — an inverted index over the top 28 bits of each
+   value (the low four are where cartridge and room noise lands), split into
+   **two 14-bit halves indexed separately**. Each hit votes for a
+   `(track, alignment)` pair, so stage 1 hands stage 2 the offset it needs.
+2. **Verification** — exact 32-bit bit error rate against the top 10 candidates
+   at the proposed alignment, and only where the window and the reference
+   overlap by at least **40 values (~5 s)**.
+
+Both of those details were measured on the #271 corpus — 41 tracks, a 3-hour
+vinyl set, 736 windows, 788 held-out negative queries:
+
+| stage 1 keying | verify overlap | recall | false positives |
+| --- | --- | --- | --- |
+| one 28-bit key | >= 1.0 s | 90.9% | 0 / 788 |
+| two 14-bit keys | >= 1.0 s | 97.8% | 4 / 788 |
+| **two 14-bit keys** | **>= 5.0 s** | **97.4%** | **0 / 788** |
+
+**Do not "simplify" the key back to one.** It looks safe and quietly loses a
+seventh of the set. At a bit error rate of 0.23 — a real match buried under a
+crossfade — about 7 of 32 bits differ, so the odds all 28 top bits survive are
+~0.1%: the window generates *no postings at all* and the track is never even a
+candidate. That is how a track playing for three minutes went missing. Splitting
+the key lets a value with one damaged half match on the other.
+
+The overlap floor pays for it. More candidates means more chances for a few
+values to line up by luck; without the floor that cost four false positives.
+`tests/test_reference_index.py` pins both with a measured regression test.
+
+### The threshold
+
+`FINGERPRINT_MAX_BER`, default **0.25**. On the corpus, true matches ran
+0.02–0.25 and the lowest false candidate sat at **0.298** — a clean bimodal
+split with margin on both sides, and zero false positives over 788 held-out
+queries. Raising it buys recall with false plays: #279 counts a single detection
+as a play, with nothing to corroborate it.
+
+### Where the index comes from
+
+This service holds no database connection by design, so `reference_loader`
+fetches the stored blobs from `GET /api/fingerprints` in pages and rebuilds a
+`ReferenceIndex`. Rebuilt at startup and every `FINGERPRINT_INDEX_REFRESH_SECONDS`,
+because library indexing (#277) runs on its own schedule and a service that only
+saw the tracks present at boot would silently never match anything added since.
+
+A failed refresh keeps the index it already has, and an *empty* result never
+replaces a populated index — that is far likelier to be a bad response than the
+whole library being deleted.
+
 ## The matcher seam
 
 ```python
@@ -249,11 +312,6 @@ interface, so the two paths cannot drift.
 `StubMatcher` takes an optional list of candidates, which is how tests and local
 end-to-end runs push the populated shape through the callback.
 
-The design #278 implements, measured in #271: raw Chromaprint fingerprint →
-inverted index on the **top 28 bits** for candidates (indexing all 32 drops
-recall) → exact 32-bit BER verify against the top 10 → accept **BER < 0.25**.
-12 ms per window against the full 3,653-track library.
-
 ## Config
 
 | var | default | |
@@ -269,7 +327,11 @@ recall) → exact 32-bit BER verify against the top 10 → accept **BER < 0.25**
 | `FINGERPRINT_INDEX_RUN_TTL` | `86400` | how long a run stays readable |
 | `FINGERPRINT_HASH_CHUNK_SIZE` | `1048576` | streaming sha256 read size |
 | `FINGERPRINT_SAMPLE_RATE` | `22050` | 22050 or 44100 only |
-| `FINGERPRINT_MATCHER` | `stub` | key into `MATCHERS` |
+| `FINGERPRINT_MATCHER` | `chromaprint` | key into `MATCHERS`; `stub` matches nothing |
+| `FINGERPRINT_MAX_BER` | `0.25` | above this, a candidate is discarded |
+| `FINGERPRINT_VERSION` | `1` | the recipe blobs are stored under |
+| `FINGERPRINT_INDEX_REFRESH_SECONDS` | `900` | how often the index is rebuilt |
+| `FINGERPRINT_INDEX_PAGE_SIZE` | `500` | fingerprints per request when loading |
 | `FINGERPRINT_BRPOP_TIMEOUT` | `5` | |
 | `FINGERPRINT_HEARTBEAT_TTL` | `30` | |
 | `FINGERPRINT_FFMPEG_TIMEOUT` | `60` | |
@@ -280,7 +342,7 @@ fails fast instead of failing every job identically forever.
 ## Tests
 
 ```bash
-uv run --group dev pytest                                        # 158 tests
+uv run --group dev pytest                                        # 228 tests
 uv run --group dev pytest --cov=fingerprint_service --cov-report=term-missing
 ```
 
@@ -317,3 +379,21 @@ Two things worth knowing when adding tests:
   limit — #271 measured 1569x realtime — but it does need to yield, which is why
   it is one job per track rather than one job per run.
 - Ruff runs over this directory in pre-commit; config is the root `ruff.toml`.
+- **libchromaprint is a native dependency.** `pyacoustid` imports fine without
+  it and only raises when asked to fingerprint, so a missing library surfaces as
+  every matcher test erroring at once rather than as an import error. The image
+  installs `libchromaprint1` and asserts it at build time; on macOS use
+  `brew install chromaprint` and set
+  `DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib` when running tests.
+- **`fingerprint_version` is deliberately not libchromaprint's version.** The
+  library's version changes with packaging; the fingerprint does not — 1.5.1
+  (Debian, in the image) and 1.6.1 (Homebrew, on a dev Mac) emit byte-identical
+  output for the same PCM. Keying on it would mean a base-image bump silently
+  invalidated the whole index: the matcher would hunt for a version nothing was
+  indexed under and match *nothing at all* until a full re-index finished.
+  `FINGERPRINT_VERSION` names our own recipe instead (chromaprint's default
+  algorithm, raw 32-bit values, little-endian); bump it when that changes.
+- Synthetic test audio has to be *spectrally* distinct, not just parameterised
+  differently. An earlier `tone_pcm` built every track from one formula with a
+  different scalar; they fingerprinted alike and produced a false match at BER
+  0.21, which looked like a matcher bug and was not.

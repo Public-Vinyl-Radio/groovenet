@@ -241,13 +241,18 @@ jobs:
       # The decode tests skip themselves when ffmpeg is missing rather than
       # failing, so install it explicitly and then assert it is there — an
       # image that silently dropped it would quietly narrow coverage instead.
-      - name: Install ffmpeg
+      # libchromaprint is not optional at all: `pyacoustid` imports fine
+      # without it and only raises when asked to fingerprint, so a missing
+      # library would surface as every matcher test erroring at once.
+      - name: Install ffmpeg and libchromaprint
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          sudo apt-get install -y --no-install-recommends ffmpeg libchromaprint1
 
-      - name: Verify ffmpeg is available
-        run: ffmpeg -version
+      - name: Verify ffmpeg and libchromaprint are available
+        run: |
+          ffmpeg -version
+          uv run python -c "import chromaprint; print('libchromaprint', chromaprint._libchromaprint.chromaprint_get_version())"
 
       - name: Run fingerprint service tests with coverage
         run: uv run --group dev pytest --cov=fingerprint_service --cov-report=xml:coverage.xml
