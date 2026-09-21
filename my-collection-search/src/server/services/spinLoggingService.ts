@@ -4,6 +4,7 @@ import {
 } from "@/lib/albumTrackPosition";
 import { withDbTransaction } from "@/lib/serverDb";
 import { albumRepository } from "@/server/repositories/albumRepository";
+import { trackRepository } from "@/server/repositories/trackRepository";
 import {
   spinSessionRepository,
   type CreateSpinSessionSelectionInput,
@@ -28,6 +29,10 @@ export type CreateSpinSessionInput = {
   played_at: string | Date;
   note?: string | null;
   context_type?: string | null;
+  provenance?: "manual" | "automatic";
+  source_id?: string | null;
+  detection_id?: string | null;
+  confidence?: number | null;
 } & (
   | {
       side_keys: string[];
@@ -216,10 +221,14 @@ export class SpinLoggingService {
       const session = await spinSessionRepository.createSession(client, {
         friend_id: input.friend_id,
         release_id: input.release_id,
-        selection_mode: selectionMode,
+        selection_mode: input.provenance === "automatic" ? "automatic" : selectionMode,
         played_at: input.played_at,
         note: input.note ?? null,
         context_type: input.context_type ?? null,
+        provenance: input.provenance,
+        source_id: input.source_id,
+        detection_id: input.detection_id,
+        confidence: input.confidence,
       });
 
       const insertedSelections = await spinSessionRepository.insertSelections(
@@ -265,6 +274,36 @@ export class SpinLoggingService {
       track_events: result.track_events.map(normalizeTrackEventRow),
       derived: result.derived,
     };
+  }
+
+  async findAutomaticSessionByDetectionId(detectionId: string): Promise<SpinSessionRow | null> {
+    return spinSessionRepository.findAutomaticSessionByDetectionId(detectionId);
+  }
+
+  /** Create one provenance-stamped, single-track session from a confirmed window. */
+  async createAutomaticSpinSession(input: {
+    detection_id: string;
+    source_id: string;
+    track_id: string;
+    friend_id: number;
+    played_at: string | Date;
+    confidence: number;
+  }): Promise<SpinSessionDetail> {
+    const track = await trackRepository.findTrackByTrackIdAndFriendId(
+      input.track_id,
+      input.friend_id
+    );
+    if (!track?.release_id) throw new Error("Detected track has no release");
+    return this.createSpinSession({
+      friend_id: input.friend_id,
+      release_id: track.release_id,
+      played_at: input.played_at,
+      track_refs: [{ track_id: input.track_id, friend_id: input.friend_id }],
+      provenance: "automatic",
+      source_id: input.source_id,
+      detection_id: input.detection_id,
+      confidence: input.confidence,
+    });
   }
 
   async listSpinSessions(filters: {
