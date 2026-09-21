@@ -38,6 +38,7 @@ import {
   providerYouTubeMusicSearchResponseSchema,
   fingerprintIndexBodySchema,
   fingerprintListResponseSchema,
+  acceptedIngestSchema,
   ingestRetentionStatusSchema,
   fingerprintIndexRunSchema,
   fingerprintUpsertBodySchema,
@@ -1157,6 +1158,75 @@ const fingerprintContracts: ApiContractRoute[] = [
 ];
 
 const audioIngestContracts: ApiContractRoute[] = [
+  {
+    operationId: "ingestAudioChunk",
+    method: "post",
+    path: "/api/audio/ingest",
+    summary: "Accept one audio chunk from a vinyl listener device",
+    tags: ["Audio Ingest"],
+    successSchema: acceptedIngestSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: {
+                audio: {
+                  type: "string",
+                  format: "binary",
+                  description:
+                    "WAV, FLAC or Ogg/Opus. Validated by inspecting the media, not the filename.",
+                },
+                source_id: { type: "string", example: "living-room-vinyl" },
+                session_id: { type: "string" },
+                sequence: { type: "integer" },
+                captured_at: { type: "string", format: "date-time" },
+              },
+              required: ["audio", "source_id"],
+            },
+          },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Chunk accepted and queued for matching",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["accepted"] },
+                  ingest_id: { type: "string", format: "uuid" },
+                  source_id: { type: "string" },
+                  duration_seconds: { type: "number" },
+                  sample_rate: { type: ["integer", "null"] },
+                  channels: { type: ["integer", "null"] },
+                  captured_at: { type: ["string", "null"], format: "date-time" },
+                },
+                required: ["status", "ingest_id", "source_id", "duration_seconds"],
+              },
+            },
+          },
+        },
+        "400": {
+          description:
+            "Rejected. `error` is one of missing_audio_file, missing_source_id, unsupported_audio_format, invalid_audio_stream, audio_too_short, audio_too_long.",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "413": {
+          description: "Upload exceeds the configured size limit (audio_too_large)",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
   {
     operationId: "getIngestRetentionStatus",
     method: "get",

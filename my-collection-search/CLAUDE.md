@@ -110,6 +110,35 @@ matcher. The exception is age, which is the backstop for a worker that died and
 left its record wedged. `GET /api/audio/ingest/retention` reports what the next
 sweep would do without doing it.
 
+## Audio ingest
+
+`POST /api/audio/ingest` is where automatic vinyl play tracking starts (#275):
+a listener device posts a ~15s chunk as `multipart/form-data`, and the app
+validates it, stores it on the ingest volume and queues it for
+`fingerprint-service`.
+
+Three rules worth knowing before changing it:
+
+- **The filename is never trusted.** `AudioProcessor` probes the media with
+  ffprobe and everything — duration, rate, channels, codec, and the extension
+  the file is stored under — comes from what it found. A device sending a JPEG
+  called `chunk.wav` has to fail here, not three services downstream where the
+  only symptom is an unexplainable decode error.
+- **The upload is streamed to disk and the size limit enforced as it writes.**
+  Buffering each 20 MB body to measure it is how several listeners at once
+  takes the app down.
+- **`(source_id, session_id, sequence)` is idempotent.** The Pi retries on
+  network loss; a retry that already landed returns the original `ingest_id`
+  rather than a second row and a second copy of the audio.
+
+The `error` strings in a rejection are a contract, not prose. The device has no
+screen and uses them to tell "this chunk is bad, drop it" from "retry later" —
+don't reword them. `202` rather than `200` because what the audio *is* will not
+be known for a second or two.
+
+Lifecycle after `received` — the callback, the status transitions and the
+stale-`processing` reaper — is #276.
+
 ## API reference
 
 **Do not hand-maintain endpoint lists here.** The OpenAPI spec is generated from

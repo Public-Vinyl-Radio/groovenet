@@ -64,6 +64,17 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # The audio ingest route validates uploads by probing the media (#275),
+      # and its tests skip themselves when ffprobe is missing rather than
+      # failing — install it and assert it, or coverage quietly narrows.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Verify ffprobe is available
+        run: ffprobe -version
+
       - name: Run tests
         run: npm test
 
