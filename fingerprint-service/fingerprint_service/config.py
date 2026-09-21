@@ -69,7 +69,37 @@ INDEX_RUN_TTL = int(os.getenv('FINGERPRINT_INDEX_RUN_TTL', '86400'))
 #: reading one whole into memory to sha256 it would be pointless.
 HASH_CHUNK_SIZE = int(os.getenv('FINGERPRINT_HASH_CHUNK_SIZE', str(1024 * 1024)))
 
-MATCHER_NAME = os.getenv('FINGERPRINT_MATCHER', 'stub')
+MATCHER_NAME = os.getenv('FINGERPRINT_MATCHER', 'chromaprint')
+
+#: Bit error rate above which a candidate is discarded (#278). Measured on the
+#: #271 corpus: true matches run 0.02–0.25 and the lowest false candidate sits
+#: at 0.298, so this has margin on both sides and produced zero false positives
+#: over 788 held-out queries. Raise it and you buy recall with false plays —
+#: #279 counts a single detection as a play, with nothing to corroborate it.
+MAX_BIT_ERROR_RATE = float(os.getenv('FINGERPRINT_MAX_BER', '0.25'))
+
+#: The `fingerprint_version` every stored blob is written under.
+#:
+#: Deliberately **not** libchromaprint's version. The library's version changes
+#: with packaging; the fingerprint does not. Verified: 1.5.1 (Debian, in the
+#: image) and 1.6.1 (Homebrew, on a dev Mac) produce byte-identical output for
+#: the same PCM. Keying on it would mean a base-image bump silently invalidated
+#: the whole index — the matcher would look for a version nothing was indexed
+#: under and match *nothing at all* until a full re-index finished.
+#:
+#: This names our own recipe instead: chromaprint's default algorithm, raw
+#: 32-bit values, little-endian. Bump it when that recipe changes, which is the
+#: one case where the stored bytes really are incompatible.
+FINGERPRINT_VERSION = os.getenv('FINGERPRINT_VERSION', '1')
+
+#: How often the in-memory reference index is rebuilt from the app. Library
+#: indexing (#277) runs on its own schedule, and a service that only ever saw
+#: the tracks present at boot would quietly never match anything added since.
+INDEX_REFRESH_SECONDS = int(os.getenv('FINGERPRINT_INDEX_REFRESH_SECONDS', '900'))
+
+#: Page size when fetching reference fingerprints. The whole library is ~30 MB
+#: of blobs; asking for it in one response would be a needlessly large request.
+INDEX_PAGE_SIZE = int(os.getenv('FINGERPRINT_INDEX_PAGE_SIZE', '500'))
 
 FFMPEG_TIMEOUT = int(os.getenv('FINGERPRINT_FFMPEG_TIMEOUT', '60'))
 

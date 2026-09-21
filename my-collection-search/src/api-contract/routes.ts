@@ -37,6 +37,7 @@ import {
   providerYouTubeMusicSearchBodySchema,
   providerYouTubeMusicSearchResponseSchema,
   fingerprintIndexBodySchema,
+  fingerprintListResponseSchema,
   ingestRetentionStatusSchema,
   fingerprintIndexRunSchema,
   fingerprintUpsertBodySchema,
@@ -1012,6 +1013,53 @@ const fingerprintContracts: ApiContractRoute[] = [
         },
         "409": {
           description: "The track no longer exists",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "listReferenceFingerprints",
+    method: "get",
+    path: "/api/fingerprints",
+    summary: "Stored reference fingerprints for one engine and version",
+    tags: ["Fingerprints"],
+    successSchema: fingerprintListResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "fingerprint_type", in: "query", required: true, schema: { type: "string" } },
+        { name: "fingerprint_version", in: "query", required: true, schema: { type: "string" } },
+        { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 500 } },
+        { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+      ],
+      responses: {
+        "200": {
+          description: "A page of fingerprints, blobs base64-encoded",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  fingerprints: {
+                    type: "array",
+                    items: { type: "object", additionalProperties: true },
+                  },
+                  limit: { type: "integer" },
+                  offset: { type: "integer" },
+                },
+                required: ["fingerprints", "limit", "offset"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Missing engine or version",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {

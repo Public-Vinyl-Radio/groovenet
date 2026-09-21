@@ -1,9 +1,76 @@
 import { NextResponse } from "next/server";
 import {
+  fingerprintListResponseSchema,
   fingerprintUpsertBodySchema,
   fingerprintUpsertResponseSchema,
 } from "@/api-contract/schemas";
 import { fingerprintRepository } from "@/server/repositories/fingerprintRepository";
+
+/**
+ * The stored reference fingerprints for one engine and version (#278).
+ *
+ * `fingerprint-service` calls this at startup and on a refresh interval to
+ * rebuild its in-memory index. It holds no database connection by design
+ * (#273), so the blobs travel as base64 — JSON has no bytes — and are paged,
+ * because the whole library is tens of megabytes.
+ */
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const fingerprintType = url.searchParams.get("fingerprint_type");
+    const fingerprintVersion = url.searchParams.get("fingerprint_version");
+
+    if (!fingerprintType || !fingerprintVersion) {
+      return NextResponse.json(
+        { error: "fingerprint_type and fingerprint_version are required" },
+        { status: 400 }
+      );
+    }
+
+    const limitParam = Number(url.searchParams.get("limit") ?? 500);
+    const offsetParam = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Number.isFinite(limitParam)
+      ? Math.min(Math.max(limitParam, 1), 1000)
+      : 500;
+    const offset = Number.isFinite(offsetParam) ? Math.max(offsetParam, 0) : 0;
+
+    const friendParam = url.searchParams.get("friend_id");
+    const friendId = friendParam !== null ? Number(friendParam) : undefined;
+
+    const rows = await fingerprintRepository.listFingerprintsForIndex({
+      fingerprint_type: fingerprintType,
+      fingerprint_version: fingerprintVersion,
+      friend_id: Number.isFinite(friendId) ? friendId : undefined,
+      limit,
+      offset,
+    });
+
+    return NextResponse.json(
+      fingerprintListResponseSchema.parse({
+        fingerprints: rows.map((row) => ({
+          track_id: row.track_id,
+          friend_id: row.friend_id,
+          fingerprint_type: row.fingerprint_type,
+          fingerprint_version: row.fingerprint_version,
+          fingerprint_data: row.fingerprint_data
+            ? Buffer.from(row.fingerprint_data).toString("base64")
+            : null,
+          audio_sha256: row.audio_sha256,
+          audio_duration_seconds: row.audio_duration_seconds,
+        })),
+        limit,
+        offset,
+      })
+    );
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("Error listing fingerprints:", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to list fingerprints" },
+      { status: 500 }
+    );
+  }
+}
 
 /**
  * Persist one reference fingerprint (#277).

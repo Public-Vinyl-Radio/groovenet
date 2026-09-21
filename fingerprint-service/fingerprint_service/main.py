@@ -19,6 +19,7 @@ from .config import (
     HEARTBEAT_KEY,
     HEARTBEAT_TTL,
     INDEX_QUEUE_KEY,
+    INDEX_REFRESH_SECONDS,
     MATCHER_NAME,
     QUEUE_KEY,
     SAMPLE_RATE,
@@ -26,7 +27,8 @@ from .config import (
     redis_conn,
 )
 from .indexer import InvalidIndexJob, index_track, outcome, parse_index_job
-from .matcher import FingerprintMatcher, build_matcher
+from .matcher import ChromaprintMatcher, FingerprintMatcher, build_matcher
+from .reference_loader import try_build_index
 from .results import build_result, try_persist_fingerprint, try_report_result
 from .runs import record_outcome
 from .types import IngestJob, IngestResult
@@ -225,6 +227,43 @@ def process_index_job(job_json: str, matcher: FingerprintMatcher) -> None:
     record_outcome(redis_conn, result)
 
 
+_last_index_refresh = 0.0
+
+
+def refresh_reference_index(matcher: FingerprintMatcher, now: float | None = None) -> None:
+    """Rebuild the matcher's index from the app, if it is time.
+
+    Library indexing (#277) runs on its own schedule, so a service that only
+    ever saw the tracks present at boot would silently never match anything
+    added since. A failed refresh keeps the index it already has: stale matches
+    beat no matches while the app restarts.
+    """
+    global _last_index_refresh
+    if not isinstance(matcher, ChromaprintMatcher):
+        return
+
+    moment = time.time() if now is None else now
+    if _last_index_refresh and moment - _last_index_refresh < INDEX_REFRESH_SECONDS:
+        return
+    _last_index_refresh = moment
+
+    index = try_build_index(matcher.fingerprint_type, matcher.fingerprint_version)
+    if index is None:
+        return
+    if len(index) == 0 and len(matcher.reference_index) > 0:
+        # An empty result against a populated index is far more likely to be a
+        # bad response than the whole library being deleted.
+        logger.warning("Refresh returned an empty index; keeping the current one")
+        return
+    matcher.reference_index = index
+
+
+def reset_index_clock() -> None:
+    """Exported for tests: the refresh interval is module state."""
+    global _last_index_refresh
+    _last_index_refresh = 0.0
+
+
 def run_once(matcher: FingerprintMatcher) -> None:
     """One pass of the loop: heartbeat, wait for work, handle it.
 
@@ -235,6 +274,7 @@ def run_once(matcher: FingerprintMatcher) -> None:
     """
     write_heartbeat()
     publish_engine(matcher)
+    refresh_reference_index(matcher)
 
     logger.info("Waiting for audio chunks...")
     job_data = redis_conn.brpop([QUEUE_KEY, INDEX_QUEUE_KEY], timeout=BRPOP_TIMEOUT)
@@ -269,6 +309,7 @@ def main() -> None:
         SAMPLE_RATE,
     )
     publish_engine(matcher)
+    refresh_reference_index(matcher)
 
     while True:
         try:

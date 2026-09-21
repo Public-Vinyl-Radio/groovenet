@@ -10,6 +10,8 @@ from fingerprint_service.main import (
     process_index_job,
     process_job,
     publish_engine,
+    refresh_reference_index,
+    reset_index_clock,
     resolve_ingest_path,
     run_once,
     verify_redis,
@@ -450,6 +452,104 @@ class TestRunOnceDispatch:
         monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
         run_once(matcher)
         assert fake_redis.hget(service_main.ENGINE_KEY, "fingerprint_type") == "stub"
+
+
+class TestRefreshReferenceIndex:
+    """Keeping the in-memory index current (#278)."""
+
+    @pytest.fixture(autouse=True)
+    def _clock(self):
+        reset_index_clock()
+        yield
+        reset_index_clock()
+
+    def chromaprint(self, tracks=0):
+        from fingerprint_service.chromaprint_engine import RawFingerprint
+        from fingerprint_service.matcher import ChromaprintMatcher
+        from fingerprint_service.reference_index import ReferenceIndex, TrackRef
+
+        matcher = ChromaprintMatcher()
+        index = ReferenceIndex()
+        for i in range(tracks):
+            index.add(TrackRef(f"t{i}", 1), RawFingerprint(tuple(range(i + 1, i + 200))))
+        matcher.reference_index = index
+        return matcher
+
+    def test_does_nothing_for_the_stub_matcher(self, matcher, monkeypatch):
+        called = []
+        monkeypatch.setattr(service_main, "try_build_index", lambda *a: called.append(a))
+        refresh_reference_index(matcher)
+        assert called == []
+
+    def test_loads_an_index_on_the_first_pass(self, monkeypatch):
+        from fingerprint_service.chromaprint_engine import RawFingerprint
+        from fingerprint_service.reference_index import ReferenceIndex, TrackRef
+
+        fresh = ReferenceIndex()
+        fresh.add(TrackRef("t1", 1), RawFingerprint(tuple(range(1, 200))))
+        monkeypatch.setattr(service_main, "try_build_index", lambda *a: fresh)
+
+        matcher = self.chromaprint()
+        refresh_reference_index(matcher, now=1000.0)
+
+        assert matcher.reference_index is fresh
+
+    def test_does_not_refetch_before_the_interval(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            service_main, "try_build_index", lambda *a: calls.append(a) or None
+        )
+        matcher = self.chromaprint()
+
+        refresh_reference_index(matcher, now=1000.0)
+        refresh_reference_index(matcher, now=1000.0 + service_main.INDEX_REFRESH_SECONDS - 1)
+
+        assert len(calls) == 1
+
+    def test_refetches_once_the_interval_has_passed(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            service_main, "try_build_index", lambda *a: calls.append(a) or None
+        )
+        matcher = self.chromaprint()
+
+        refresh_reference_index(matcher, now=1000.0)
+        refresh_reference_index(matcher, now=1000.0 + service_main.INDEX_REFRESH_SECONDS + 1)
+
+        assert len(calls) == 2
+
+    def test_keeps_the_current_index_when_the_app_is_down(self, monkeypatch):
+        monkeypatch.setattr(service_main, "try_build_index", lambda *a: None)
+        matcher = self.chromaprint(tracks=3)
+        before = matcher.reference_index
+
+        refresh_reference_index(matcher, now=1000.0)
+
+        assert matcher.reference_index is before
+        assert len(matcher.reference_index) == 3
+
+    def test_refuses_to_replace_a_populated_index_with_an_empty_one(self, monkeypatch):
+        """An empty response is far likelier to be a bad answer than a deletion."""
+        from fingerprint_service.reference_index import ReferenceIndex
+
+        monkeypatch.setattr(service_main, "try_build_index", lambda *a: ReferenceIndex())
+        matcher = self.chromaprint(tracks=3)
+
+        refresh_reference_index(matcher, now=1000.0)
+
+        assert len(matcher.reference_index) == 3
+
+    def test_accepts_an_empty_index_when_it_had_none(self, monkeypatch):
+        # Before library indexing has ever run, empty is the truth (#277).
+        from fingerprint_service.reference_index import ReferenceIndex
+
+        empty = ReferenceIndex()
+        monkeypatch.setattr(service_main, "try_build_index", lambda *a: empty)
+        matcher = self.chromaprint()
+
+        refresh_reference_index(matcher, now=1000.0)
+
+        assert matcher.reference_index is empty
 
 
 class TestMain:

@@ -1430,3 +1430,20 @@ export const ingestRetentionStatusSchema = z.object({
   lastSweptAt: z.string().nullable(),
   policy: ingestRetentionPolicySchema,
 });
+
+/** One reference fingerprint as the matcher loads it (#278). */
+export const fingerprintListItemSchema = z.object({
+  track_id: z.string(),
+  friend_id: z.number().int(),
+  fingerprint_type: z.string(),
+  fingerprint_version: z.string(),
+  fingerprint_data: z.string().nullable(),
+  audio_sha256: z.string(),
+  audio_duration_seconds: z.number().nullable(),
+});
+
+export const fingerprintListResponseSchema = z.object({
+  fingerprints: z.array(fingerprintListItemSchema),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});

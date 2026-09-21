@@ -72,8 +72,8 @@ writes results back through the app's REST API.
 **Vinyl play tracking** — a listener posts audio chunks to the app, which writes
 them to the shared `audio_ingest` volume and pushes a job onto the Redis list
 `fingerprint_queue`; `fingerprint-service` pops it, decodes to mono PCM, matches
-against the reference fingerprint index, and reports back over REST. Epic #281;
-the matcher itself is still stubbed. The app sweeps that volume on a timer —
+it against the reference fingerprint index with Chromaprint, and reports back
+over REST. Epic #281. The app sweeps that volume on a timer —
 raw audio is discarded once its `audio_ingests` row is terminal, and a file
 being written or decoded right now is never touched.
 
