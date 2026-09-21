@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Album, Track } from "@/types/track";
 
 const {
@@ -12,6 +12,8 @@ const {
   listSelectionsBySessionIdsMock,
   listEventsBySessionIdsMock,
   deleteSessionMock,
+  findAutomaticSessionByDetectionIdMock,
+  findTrackByTrackIdAndFriendIdMock,
 } = vi.hoisted(() => ({
   withDbTransactionMock: vi.fn(),
   getAlbumByReleaseAndFriendMock: vi.fn(),
@@ -23,6 +25,8 @@ const {
   listSelectionsBySessionIdsMock: vi.fn(),
   listEventsBySessionIdsMock: vi.fn(),
   deleteSessionMock: vi.fn(),
+  findAutomaticSessionByDetectionIdMock: vi.fn(),
+  findTrackByTrackIdAndFriendIdMock: vi.fn(),
 }));
 
 vi.mock("@/lib/serverDb", () => ({
@@ -35,6 +39,9 @@ vi.mock("@/server/repositories/albumRepository", () => ({
     getTracksByReleaseAndFriend: getTracksByReleaseAndFriendMock,
   },
 }));
+vi.mock("@/server/repositories/trackRepository", () => ({
+  trackRepository: { findTrackByTrackIdAndFriendId: findTrackByTrackIdAndFriendIdMock },
+}));
 
 vi.mock("@/server/repositories/spinSessionRepository", () => ({
   spinSessionRepository: {
@@ -43,6 +50,7 @@ vi.mock("@/server/repositories/spinSessionRepository", () => ({
     listSessions: listSessionsMock,
     listSelectionsBySessionIds: listSelectionsBySessionIdsMock,
     deleteSession: deleteSessionMock,
+    findAutomaticSessionByDetectionId: findAutomaticSessionByDetectionIdMock,
   },
 }));
 
@@ -91,6 +99,38 @@ describe("SpinLoggingService", () => {
     withDbTransactionMock.mockImplementation(async (fn: (client: object) => Promise<unknown>) =>
       fn({ query: vi.fn() })
     );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("creates an automatic session through the normal snapshot path", async () => {
+    findTrackByTrackIdAndFriendIdMock.mockResolvedValue(makeTrack({ release_id: "rel-1" }));
+    const create = vi.spyOn(service, "createSpinSession").mockResolvedValue({} as never);
+    await service.createAutomaticSpinSession({ detection_id: "d1", source_id: "pi", track_id: "trk-1", friend_id: 1, played_at: "2026-06-23T20:15:00.000Z", confidence: 0.9 });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ release_id: "rel-1", provenance: "automatic", detection_id: "d1", track_refs: [{ track_id: "trk-1", friend_id: 1 }] }));
+  });
+
+  it("marks the persisted session automatic while retaining normal track snapshots", async () => {
+    getAlbumByReleaseAndFriendMock.mockResolvedValue(makeAlbum());
+    getTracksByReleaseAndFriendMock.mockResolvedValue([makeTrack()]);
+    createSessionMock.mockResolvedValue({ id: 101, friend_id: 1, release_id: "rel-1", medium: "vinyl", selection_mode: "automatic", played_at: "2026-06-23T20:15:00.000Z", note: null, context_type: null, created_at: "2026-06-23T20:16:00.000Z", updated_at: "2026-06-23T20:16:00.000Z" });
+    insertSelectionsMock.mockResolvedValue([]);
+    insertEventsMock.mockResolvedValue([]);
+    await service.createSpinSession({ friend_id: 1, release_id: "rel-1", played_at: "2026-06-23T20:15:00.000Z", track_refs: [{ track_id: "trk-1", friend_id: 1 }], provenance: "automatic", source_id: "pi", detection_id: "d1", confidence: 0.9 });
+    expect(createSessionMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ selection_mode: "automatic", provenance: "automatic", source_id: "pi" }));
+  });
+
+  it("forwards the automatic-detection lookup to the session repository", async () => {
+    findAutomaticSessionByDetectionIdMock.mockResolvedValue({ id: 101 });
+    await expect(service.findAutomaticSessionByDetectionId("d1")).resolves.toEqual({ id: 101 });
+    expect(findAutomaticSessionByDetectionIdMock).toHaveBeenCalledWith("d1");
+  });
+
+  it("rejects an automatic detection whose track has no release", async () => {
+    findTrackByTrackIdAndFriendIdMock.mockResolvedValue(makeTrack({ release_id: undefined }));
+    await expect(service.createAutomaticSpinSession({ detection_id: "d1", source_id: "pi", track_id: "trk-1", friend_id: 1, played_at: "2026-06-23T20:15:00.000Z", confidence: 0.9 })).rejects.toThrow("Detected track has no release");
   });
 
   it("creates a side-based spin session and expands track events", async () => {

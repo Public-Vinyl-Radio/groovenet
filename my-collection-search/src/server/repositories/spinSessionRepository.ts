@@ -8,10 +8,14 @@ export type SpinSessionRow = {
   friend_id: number;
   release_id: string;
   medium: "vinyl";
-  selection_mode: "sides" | "tracks";
+  selection_mode: "sides" | "tracks" | "automatic";
   played_at: Date | string;
   note: string | null;
   context_type: string | null;
+  provenance: "manual" | "automatic";
+  source_id: string | null;
+  detection_id: string | null;
+  confidence: number | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -32,10 +36,14 @@ export type CreateSpinSessionInput = {
   friend_id: number;
   release_id: string;
   medium?: "vinyl";
-  selection_mode: "sides" | "tracks";
+  selection_mode: "sides" | "tracks" | "automatic";
   played_at: string | Date;
   note?: string | null;
   context_type?: string | null;
+  provenance?: "manual" | "automatic";
+  source_id?: string | null;
+  detection_id?: string | null;
+  confidence?: number | null;
 };
 
 export type CreateSpinSessionSelectionInput = {
@@ -65,9 +73,10 @@ export class SpinSessionRepository {
     const { rows } = await client.query<SpinSessionRow>(
       `
       INSERT INTO spin_sessions (
-        friend_id, release_id, medium, selection_mode, played_at, note, context_type
+        friend_id, release_id, medium, selection_mode, played_at, note, context_type,
+        provenance, source_id, detection_id, confidence
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
       `,
       [
@@ -78,10 +87,22 @@ export class SpinSessionRepository {
         input.played_at,
         input.note ?? null,
         input.context_type ?? null,
+        input.provenance ?? "manual",
+        input.source_id ?? null,
+        input.detection_id ?? null,
+        input.confidence ?? null,
       ]
     );
 
     return rows[0];
+  }
+
+  async findAutomaticSessionByDetectionId(detectionId: string): Promise<SpinSessionRow | null> {
+    const { rows } = await dbQuery<SpinSessionRow>(
+      "SELECT * FROM spin_sessions WHERE detection_id = $1",
+      [detectionId]
+    );
+    return rows[0] ?? null;
   }
 
   async insertSelections(
