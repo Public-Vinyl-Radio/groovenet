@@ -30,6 +30,20 @@ def reported(monkeypatch):
     return sent
 
 
+@pytest.fixture(autouse=True)
+def claimed(monkeypatch):
+    """Swallow the claim call.
+
+    `process_job` announces its pickup over HTTP; without this every test
+    attempts a real connection to the app host and waits for it to fail.
+    """
+    calls = []
+    monkeypatch.setattr(
+        service_main, "try_claim_ingest", lambda ingest_id: calls.append(ingest_id) or True
+    )
+    return calls
+
+
 @pytest.fixture
 def decoded(monkeypatch):
     """Return fixed audio instead of shelling out to ffmpeg."""
@@ -117,6 +131,30 @@ class TestWriteHeartbeat:
         monkeypatch.setattr(service_main, "redis_conn", Dead())
         write_heartbeat()
         assert "Failed to write heartbeat" in caplog.text
+
+
+class TestClaiming:
+    """The pickup announcement that makes `processing` a real state (#276)."""
+
+    def test_claims_before_doing_the_work(self, job, wav_file, matcher, decoded, reported, claimed):
+        wav_file()
+        process_job(json.dumps(job()), matcher)
+
+        assert claimed == ["11111111-1111-1111-1111-111111111111"]
+
+    def test_does_not_claim_a_payload_it_cannot_identify(self, matcher, claimed):
+        # Nothing to claim against, and nothing to report either.
+        process_job("{not json", matcher)
+        assert claimed == []
+
+    def test_still_reports_when_the_claim_fails(self, job, wav_file, matcher, decoded, reported, monkeypatch):
+        # Losing a claim costs diagnosis, not the result.
+        monkeypatch.setattr(service_main, "try_claim_ingest", lambda _id: False)
+        wav_file()
+
+        process_job(json.dumps(job()), matcher)
+
+        assert len(reported) == 1
 
 
 class TestProcessJob:

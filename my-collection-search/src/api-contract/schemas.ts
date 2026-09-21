@@ -1478,3 +1478,33 @@ export const ingestErrorSchema = z.object({
   ]),
   message: z.string(),
 });
+
+// ─── Ingest lifecycle (#276) ──────────────────────────────────────────────────
+
+export const ingestMatchCandidateSchema = z.object({
+  track_id: z.string().min(1),
+  friend_id: intFromInputSchema,
+  confidence: z.number(),
+  offset_seconds: z.number(),
+});
+
+/**
+ * The callback body from `fingerprint-service`.
+ *
+ * `ingest_id` is optional here because the path carries it; a body naming a
+ * different ingest is ignored rather than honoured.
+ */
+export const ingestResultBodySchema = z.object({
+  ingest_id: z.string().optional(),
+  source_id: z.string().optional(),
+  session_id: z.string().nullable().optional(),
+  sequence: z.number().nullable().optional(),
+  status: z.enum(["processed", "failed"]),
+  error: z.string().nullable().optional(),
+  window_start_at: z.string().nullable().optional(),
+  duration_seconds: z.number().nullable().optional(),
+  sample_rate: z.number().nullable().optional(),
+  fingerprint_type: z.string().nullable().optional(),
+  fingerprint_version: z.string().nullable().optional(),
+  candidates: z.array(ingestMatchCandidateSchema).default([]),
+});

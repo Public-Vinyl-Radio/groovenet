@@ -29,7 +29,12 @@ from .config import (
 from .indexer import InvalidIndexJob, index_track, outcome, parse_index_job
 from .matcher import ChromaprintMatcher, FingerprintMatcher, build_matcher
 from .reference_loader import try_build_index
-from .results import build_result, try_persist_fingerprint, try_report_result
+from .results import (
+    build_result,
+    try_claim_ingest,
+    try_persist_fingerprint,
+    try_report_result,
+)
 from .runs import record_outcome
 from .types import IngestJob, IngestResult
 
@@ -167,6 +172,10 @@ def process_job(job_json: str, matcher: FingerprintMatcher) -> IngestResult | No
     except InvalidJob as e:
         logger.error(f"Skipping malformed job: {e}")
         return None
+
+    # Announce the pickup before the work, so an ingest that kills this worker
+    # is distinguishable from one nothing ever collected (#276).
+    try_claim_ingest(str(job["ingest_id"]))
 
     try:
         result = handle_job(job, matcher)

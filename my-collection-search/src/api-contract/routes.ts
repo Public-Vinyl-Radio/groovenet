@@ -39,6 +39,7 @@ import {
   fingerprintIndexBodySchema,
   fingerprintListResponseSchema,
   acceptedIngestSchema,
+  ingestResultBodySchema,
   ingestRetentionStatusSchema,
   fingerprintIndexRunSchema,
   fingerprintUpsertBodySchema,
@@ -1218,6 +1219,121 @@ const audioIngestContracts: ApiContractRoute[] = [
         },
         "413": {
           description: "Upload exceeds the configured size limit (audio_too_large)",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "claimAudioIngest",
+    method: "post",
+    path: "/api/audio/ingest/{ingestId}/claim",
+    summary: "fingerprint-service announcing it has picked up a chunk",
+    tags: ["Audio Ingest"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/audio/ingest/{ingestId}/claim"),
+      responses: {
+        "200": {
+          description: "The ingest's status after the claim",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  ingest_id: { type: "string", format: "uuid" },
+                  status: { type: "string", enum: ["processing", "processed", "failed"] },
+                },
+                required: ["ingest_id", "status"],
+              },
+            },
+          },
+        },
+        "404": {
+          description: "No such ingest",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "reportAudioIngestResult",
+    method: "post",
+    path: "/api/audio/ingest/{ingestId}/result",
+    summary: "fingerprint-service reporting what a chunk turned out to be",
+    tags: ["Audio Ingest"],
+    bodySchema: ingestResultBodySchema,
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/audio/ingest/{ingestId}/result"),
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                status: { type: "string", enum: ["processed", "failed"] },
+                error: { type: ["string", "null"] },
+                window_start_at: { type: ["string", "null"], format: "date-time" },
+                duration_seconds: { type: ["number", "null"] },
+                sample_rate: { type: ["integer", "null"] },
+                fingerprint_type: { type: ["string", "null"] },
+                fingerprint_version: { type: ["string", "null"] },
+                candidates: {
+                  type: "array",
+                  description:
+                    "Zero or one entry. An empty list with status `processed` is a recorded no-match window, not a failure.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      track_id: { type: "string" },
+                      friend_id: { type: "integer" },
+                      confidence: { type: "number" },
+                      offset_seconds: { type: "number" },
+                    },
+                    required: ["track_id", "friend_id", "confidence", "offset_seconds"],
+                  },
+                },
+              },
+              required: ["status"],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Result recorded and the ingest closed out",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  ingest_id: { type: "string", format: "uuid" },
+                  status: { type: "string", enum: ["processed", "failed"] },
+                  detections: { type: "integer" },
+                },
+                required: ["ingest_id", "status", "detections"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Malformed result",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "No such ingest",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {

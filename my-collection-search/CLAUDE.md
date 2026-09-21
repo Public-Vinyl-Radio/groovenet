@@ -136,8 +136,39 @@ screen and uses them to tell "this chunk is bad, drop it" from "retry later" —
 don't reword them. `202` rather than `200` because what the audio *is* will not
 be known for a second or two.
 
-Lifecycle after `received` — the callback, the status transitions and the
-stale-`processing` reaper — is #276.
+### Lifecycle
+
+```
+received ──claim──▶ processing ──report──▶ processed
+   │                    │                     failed
+   └────────────────────┴───────reap──────▶ failed
+```
+
+`fingerprint-service` drives the first two: it POSTs `.../claim` when it picks
+a chunk up and `.../result` when it finishes. The claim exists only so a chunk
+nothing ever collected can be told from one a worker took and died on — one
+means restart the worker, the other means the worker is crashing on that audio.
+Losing a claim costs diagnosis, not the result, so the worker treats it as
+best-effort.
+
+Three rules in `ingestLifecycleService`:
+
+- **Every window produces a detection row, including the no-match ones.** A gap
+  in matches is how #279 finds the boundary between one play and the next, so
+  an empty `candidates` with `status: "processed"` is data, not an absence.
+- **Detections are written before the status moves.** Dying between the two
+  leaves an ingest in `processing` with rows already stored, which the reaper
+  recovers; the other order leaves a `processed` ingest with no rows, which is
+  indistinguishable from a genuine no-match.
+- **A terminal state always releases the file**, even if the status transition
+  lost a race. A chunk kept because of a race is one nothing will ever return
+  for.
+
+The reaper writes off anything stuck past `AUDIO_INGEST_STALL_MINUTES`. Its
+status guard is what makes it safe beside a live worker — a chunk that finished
+a millisecond before the deadline is not dragged back on top of its real
+result. It also retires the age backstop the retention sweeper carries for
+wedged records.
 
 ## API reference
 

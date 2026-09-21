@@ -92,6 +92,32 @@ def try_report_result(result: IngestResult) -> bool:
         return False
 
 
+def claim_url(ingest_id: str) -> str:
+    return f"{APP_URL.rstrip('/')}/api/audio/ingest/{ingest_id}/claim"
+
+
+def try_claim_ingest(ingest_id: str) -> bool:
+    """Tell the app this chunk has been picked up (#276).
+
+    Best-effort on purpose. The claim only exists so the app can tell a chunk
+    nothing ever collected from one a worker took and died on; losing it costs
+    diagnosis, not the result, and refusing to work because the app was briefly
+    unreachable would be the worse trade.
+    """
+    try:
+        response = requests.post(claim_url(ingest_id), timeout=RESULT_TIMEOUT)
+    except requests.RequestException as e:
+        logger.warning("Could not claim ingest %s: %s", ingest_id, e)
+        return False
+
+    if not response.ok:
+        logger.warning(
+            "Claim for ingest %s returned %s", ingest_id, response.status_code
+        )
+        return False
+    return True
+
+
 def fingerprint_url() -> str:
     return f"{APP_URL.rstrip('/')}/api/fingerprints"
 

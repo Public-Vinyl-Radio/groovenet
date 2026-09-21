@@ -5,10 +5,12 @@ from fingerprint_service.matcher import StubMatcher
 from fingerprint_service.results import (
     ResultReportError,
     build_result,
+    claim_url,
     fingerprint_url,
     persist_fingerprint,
     report_result,
     result_url,
+    try_claim_ingest,
     try_persist_fingerprint,
     try_report_result,
 )
@@ -194,3 +196,38 @@ class TestTryPersistFingerprint:
             results.requests, "post", lambda *a, **k: FakeResponse(500, "boom")
         )
         assert try_persist_fingerprint(upsert) is False
+
+
+class TestClaimIngest:
+    """Announcing a pickup (#276)."""
+
+    def test_builds_the_claim_url(self, monkeypatch):
+        monkeypatch.setattr(results, "APP_URL", "http://app:3000")
+        assert claim_url("abc") == "http://app:3000/api/audio/ingest/abc/claim"
+
+    def test_posts_to_the_claim_route(self, monkeypatch):
+        calls = []
+
+        def fake_post(url, timeout=None):
+            calls.append(url)
+            return FakeResponse(200)
+
+        monkeypatch.setattr(results.requests, "post", fake_post)
+
+        assert try_claim_ingest("abc") is True
+        assert calls == ["http://app:3000/api/audio/ingest/abc/claim"]
+
+    def test_a_refused_claim_is_not_fatal(self, monkeypatch):
+        # A 404 means the app does not know this ingest. Worth a warning, not
+        # worth refusing to process audio we are already holding.
+        monkeypatch.setattr(
+            results.requests, "post", lambda *a, **k: FakeResponse(404, "gone")
+        )
+        assert try_claim_ingest("abc") is False
+
+    def test_an_unreachable_app_is_not_fatal(self, monkeypatch):
+        def refuse(*args, **kwargs):
+            raise requests.ConnectionError("connection refused")
+
+        monkeypatch.setattr(results.requests, "post", refuse)
+        assert try_claim_ingest("abc") is False

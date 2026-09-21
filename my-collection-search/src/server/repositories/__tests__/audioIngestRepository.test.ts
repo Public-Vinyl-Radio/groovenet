@@ -110,3 +110,90 @@ describe("findByFilePaths()", () => {
     expect(dbQuery).not.toHaveBeenCalled();
   });
 });
+
+// ─── lifecycle queries (#276) ─────────────────────────────────────────────────
+
+describe("findById()", () => {
+  it("returns the ingest", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: "a", status: "received" }] });
+    expect(await new AudioIngestRepository().findById("a")).toMatchObject({ id: "a" });
+  });
+
+  it("returns null when there is none", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await new AudioIngestRepository().findById("a")).toBeNull();
+  });
+});
+
+describe("listStale()", () => {
+  it("looks for both non-terminal states by default", async () => {
+    // `received` means nothing picked it up; `processing` means something did
+    // and never came back. Both strand a file.
+    dbQuery.mockResolvedValue({ rows: [] });
+    const cutoff = new Date("2026-09-20T12:00:00Z");
+
+    await new AudioIngestRepository().listStale(cutoff);
+
+    expect(dbQuery.mock.calls[0][1]).toEqual([
+      ["received", "processing"],
+      cutoff,
+      500,
+    ]);
+  });
+
+  it("compares against updated_at, not received_at", async () => {
+    // A chunk claimed five minutes ago has been in flight five minutes, not
+    // however long since it was uploaded.
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new AudioIngestRepository().listStale(new Date());
+    expect(dbQuery.mock.calls[0][0]).toContain("updated_at <");
+  });
+
+  it("takes the oldest first, bounded", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new AudioIngestRepository().listStale(new Date(), ["processing"], 10);
+    expect(dbQuery.mock.calls[0][0]).toContain("ORDER BY updated_at ASC");
+    expect(dbQuery.mock.calls[0][1][2]).toBe(10);
+  });
+
+  it("returns the rows", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: "a" }, { id: "b" }] });
+    expect(await new AudioIngestRepository().listStale(new Date())).toHaveLength(2);
+  });
+});
+
+describe("transitionStatus()", () => {
+  it("only moves an ingest out of an expected state", async () => {
+    // The guard is what makes the reaper safe beside a live worker.
+    dbQuery.mockResolvedValue({ rows: [{ id: "a", status: "failed" }] });
+
+    await new AudioIngestRepository().transitionStatus("a", "failed", ["processing"], "stalled");
+
+    expect(dbQuery.mock.calls[0][0]).toContain("status = ANY($4::text[])");
+    expect(dbQuery.mock.calls[0][1]).toEqual(["a", "failed", "stalled", ["processing"]]);
+  });
+
+  it("returns null when the ingest had already moved on", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    const result = await new AudioIngestRepository().transitionStatus(
+      "a",
+      "failed",
+      ["processing"]
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("clears the error when none is given", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: "a" }] });
+    await new AudioIngestRepository().transitionStatus("a", "processed", ["processing"]);
+    expect(dbQuery.mock.calls[0][1][2]).toBeNull();
+  });
+
+  it("stamps updated_at so the reaper's clock restarts", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: "a" }] });
+    await new AudioIngestRepository().transitionStatus("a", "processing", ["received"]);
+    expect(dbQuery.mock.calls[0][0]).toContain("updated_at = current_timestamp");
+  });
+});

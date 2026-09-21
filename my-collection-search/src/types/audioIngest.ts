@@ -123,3 +123,38 @@ export type AcceptedIngest = {
   channels: number | null;
   captured_at: string | null;
 };
+
+// ─── Lifecycle (#276) ─────────────────────────────────────────────────────────
+
+/** One candidate the matcher proposed for a window. */
+export type IngestMatchCandidate = {
+  track_id: string;
+  friend_id: number;
+  confidence: number;
+  offset_seconds: number;
+};
+
+/**
+ * What `fingerprint-service` posts back when it finishes a chunk.
+ *
+ * `candidates` is list-shaped but only ever holds zero or one entry; an empty
+ * list with `status: "processed"` is a recorded no-match window, not a failure.
+ */
+export type IngestResultReport = {
+  ingest_id: string;
+  status: "processed" | "failed";
+  error?: string | null;
+  window_start_at?: string | null;
+  duration_seconds?: number | null;
+  sample_rate?: number | null;
+  fingerprint_type?: string | null;
+  fingerprint_version?: string | null;
+  candidates: IngestMatchCandidate[];
+};
+
+export type ReapSummary = {
+  examined: number;
+  failed: number;
+  /** Of those failed, how many were never picked up at all. */
+  neverClaimed: number;
+};
