@@ -160,6 +160,23 @@ describe("POST /api/fingerprints", () => {
     expect(res.status).toBe(500);
     expect((await res.json()).error).toContain("connection reset");
   });
+
+  it("handles a rejection that is not an Error", async () => {
+    repo.upsertFingerprint.mockRejectedValue("driver exploded");
+
+    const res = await storeFingerprint(post(validUpsert()));
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toContain("driver exploded");
+  });
+
+  it("falls back to a generic message when the error has none", async () => {
+    repo.upsertFingerprint.mockRejectedValue(new Error(""));
+
+    const res = await storeFingerprint(post(validUpsert()));
+
+    expect((await res.json()).error).toBe("Failed to store fingerprint");
+  });
 });
 
 // ─── POST /api/fingerprints/index ─────────────────────────────────────────────
@@ -363,16 +380,64 @@ describe("GET /api/fingerprints", () => {
     );
   });
 
-  it("falls back to sane paging for junk values", async () => {
+  it("falls back to sane paging for unparseable values", async () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
     await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1&limit=abc&offset=-5")
+      listRequest("fingerprint_type=c&fingerprint_version=1&limit=abc&offset=xyz")
     );
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 500, offset: 0 })
     );
+  });
+
+  it("clamps a negative offset rather than passing it to SQL", async () => {
+    repo.listFingerprintsForIndex.mockResolvedValue([]);
+
+    await listFingerprints(
+      listRequest("fingerprint_type=c&fingerprint_version=1&offset=-5")
+    );
+
+    expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ offset: 0 })
+    );
+  });
+
+  it("ignores an unparseable friend_id rather than filtering on NaN", async () => {
+    repo.listFingerprintsForIndex.mockResolvedValue([]);
+
+    await listFingerprints(
+      listRequest("fingerprint_type=c&fingerprint_version=1&friend_id=everyone")
+    );
+
+    expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ friend_id: undefined })
+    );
+  });
+
+  it("handles a rejection that is not an Error", async () => {
+    // pg can reject with a plain object; String() it rather than reading
+    // `.message` off something that has none.
+    repo.listFingerprintsForIndex.mockRejectedValue("connection reset by peer");
+
+    const res = await listFingerprints(
+      listRequest("fingerprint_type=c&fingerprint_version=1")
+    );
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toContain("connection reset");
+  });
+
+  it("falls back to a generic message when the error has none", async () => {
+    repo.listFingerprintsForIndex.mockRejectedValue(new Error(""));
+
+    const res = await listFingerprints(
+      listRequest("fingerprint_type=c&fingerprint_version=1")
+    );
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("Failed to list fingerprints");
   });
 
   it("can narrow to one friend's library", async () => {
