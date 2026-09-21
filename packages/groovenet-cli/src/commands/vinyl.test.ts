@@ -33,6 +33,7 @@ function window(overrides: Partial<DetectionWindow> = {}): DetectionWindow {
 function stats(overrides: Partial<IngestPipelineStats> = {}): IngestPipelineStats {
   return {
     since: "2026-09-21T01:00:00Z", window_minutes: 60, source_id: null,
+    ingest_writable: true,
     index: { engine_registered: true, fingerprint_type: "chromaprint",
              fingerprint_version: "1", indexed_tracks: 3783, empty: false },
     queue_depth: 0,
@@ -106,6 +107,21 @@ describe("formatDetection()", () => {
     const high = formatDetection(window({ confidence: 0.94 }))[2];
     const low = formatDetection(window({ confidence: 0.78 }))[2];
     expect(high).not.toBe(low);
+  });
+});
+
+describe("formatStats() — the volume", () => {
+  it("leads with an unwritable volume, above everything else", () => {
+    // It has already happened once: the volume was root-owned, every upload
+    // failed with EACCES, and every other number looked perfectly healthy.
+    const out = plain(formatStats(stats({ ingest_writable: false })));
+
+    expect(out.split("\n")[0]).toContain("ingest volume is NOT writable");
+    expect(out).toContain("AUDIO_INGEST_DIR");
+  });
+
+  it("says nothing about the volume when it is fine", () => {
+    expect(plain(formatStats(stats()))).not.toContain("NOT writable");
   });
 });
 
@@ -269,6 +285,14 @@ describe("addVinylCommands()", () => {
       index: { engine_registered: false, fingerprint_type: null,
                fingerprint_version: null, indexed_tracks: 0, empty: true },
     }));
+
+    await parse("status");
+
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("status exits non-zero when the volume is not writable", async () => {
+    getIngestStats.mockResolvedValue(stats({ ingest_writable: false }));
 
     await parse("status");
 

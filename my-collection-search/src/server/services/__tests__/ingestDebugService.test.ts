@@ -22,12 +22,16 @@ vi.mock("@/server/repositories/fingerprintRepository", () => ({
 }));
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => redis }));
 
+const sweeper = vi.hoisted(() => ({ ingestDirWritable: vi.fn(() => true) }));
+vi.mock("@/server/services/ingestSweeperService", () => sweeper);
+
 import { IngestDebugService } from "../ingestDebugService";
 
 const service = new IngestDebugService();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sweeper.ingestDirWritable.mockReturnValue(true);
   vi.spyOn(console, "error").mockImplementation(() => {});
   ingests.statsSince.mockResolvedValue({
     byStatus: { processed: 10, failed: 1 },
@@ -128,6 +132,20 @@ describe("stats() — counters", () => {
       ingest_id: "i9", status: "processing",
       received_at: "2026-09-21T02:00:00.000Z",
     });
+  });
+});
+
+describe("stats() — the volume", () => {
+  it("reports a writable volume", async () => {
+    expect((await service.stats()).ingest_writable).toBe(true);
+  });
+
+  it("reports an unwritable volume, which makes everything else moot", async () => {
+    sweeper.ingestDirWritable.mockReturnValue(false);
+
+    const s = await service.stats();
+
+    expect(s.ingest_writable).toBe(false);
   });
 });
 
