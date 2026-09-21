@@ -35,8 +35,14 @@ function selectedPaths(): string[] {
     [policy.include_uploads, "uploads"],
   ];
   return candidates
-    .filter(([enabled, relativePath]) => enabled && fs.existsSync(path.resolve(process.cwd(), relativePath)))
-    .map(([, relativePath]) => path.resolve(process.cwd(), relativePath));
+    // These paths are runtime backup volumes, not server bundle dependencies.
+    .filter(([enabled, relativePath]) => enabled && fs.existsSync(
+      path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath)
+    ))
+    .map(([, relativePath]) => path.resolve(
+      /* turbopackIgnore: true */ process.cwd(),
+      relativePath
+    ));
 }
 
 export function parseSnapshots(raw: string): BackupSnapshotSummary[] {

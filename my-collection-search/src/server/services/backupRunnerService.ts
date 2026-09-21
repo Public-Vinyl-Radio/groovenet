@@ -44,8 +44,9 @@ function getExistingPath(p: string): string | null {
 // protects one of those processes, so use the persistent backup-status
 // directory as a shared, atomic lock for the complete restic operation.
 function acquireBackupRunLock(): (() => void) | null {
+  // BACKUP_STATUS_DIR is a runtime volume, not a server bundle dependency.
   const statusDir = path.resolve(
-    process.env.BACKUP_STATUS_DIR || path.resolve(process.cwd(), "dumps")
+    /* turbopackIgnore: true */ process.env.BACKUP_STATUS_DIR || path.resolve(process.cwd(), "dumps")
   );
   const lockPath = path.join(statusDir, ".backup-run.lock");
   fs.mkdirSync(statusDir, { recursive: true });
