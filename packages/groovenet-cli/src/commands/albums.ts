@@ -4,6 +4,7 @@ import type { Album } from "@groovenet/client";
 import Table from "cli-table3";
 import chalk from "chalk";
 import { printJson, printSuccess, printError, printTracks } from "../output.js";
+import { intOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -56,9 +57,9 @@ export function addAlbumsCommands(program: Command): void {
     .description("Search/list albums")
     .argument("[query]", "Search query", "")
     .option("--sort <s>", "Sort (created_at:desc, date_added:desc, year:desc, title:asc, album_rating:desc)", "created_at:desc")
-    .option("--limit <n>", "Number of results", parseInt, 20)
-    .option("--offset <n>", "Offset", parseInt, 0)
-    .option("--friend-id <n>", "Friend ID", parseInt)
+    .option("--limit <n>", "Number of results", intOption, 20)
+    .option("--offset <n>", "Offset", intOption, 0)
+    .option("--friend-id <n>", "Friend ID", intOption)
     .option("--json", "Output as JSON")
     .action(
       async (
@@ -101,7 +102,7 @@ export function addAlbumsCommands(program: Command): void {
   albums
     .command("show <release-id>")
     .description("Show album details and track list")
-    .option("--friend-id <n>", "Friend ID", parseInt)
+    .option("--friend-id <n>", "Friend ID", intOption)
     .option("--json", "Output as JSON")
     .action(
       async (
@@ -139,7 +140,7 @@ export function addAlbumsCommands(program: Command): void {
   albums
     .command("update <release-id>")
     .description("Update album metadata")
-    .option("--friend-id <n>", "Friend ID", parseInt)
+    .option("--friend-id <n>", "Friend ID", intOption)
     .option("--rating <n>", "Album rating (0-5)", parseFloat)
     .option("--notes <text>", "Album notes")
     .option("--price <n>", "Purchase price", parseFloat)
@@ -184,7 +185,7 @@ export function addAlbumsCommands(program: Command): void {
   albums
     .command("download <release-id>")
     .description("Queue all missing tracks in an album for download")
-    .option("--friend-id <n>", "Friend ID", parseInt)
+    .option("--friend-id <n>", "Friend ID", intOption)
     .action(async (releaseId: string, opts: { friendId?: number }) => {
       try {
         const client = makeClient();

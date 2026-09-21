@@ -197,3 +197,59 @@ describe("transitionStatus()", () => {
     expect(dbQuery.mock.calls[0][0]).toContain("updated_at = current_timestamp");
   });
 });
+
+// ─── debug reads (#299) ───────────────────────────────────────────────────────
+
+describe("listRecent()", () => {
+  it("returns the newest first, bounded", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new AudioIngestRepository().listRecent();
+    expect(dbQuery.mock.calls[0][0]).toContain("ORDER BY received_at DESC");
+    expect(dbQuery.mock.calls[0][1]).toEqual([50, 0]);
+  });
+
+  it("filters by source, session and status", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new AudioIngestRepository().listRecent({
+      source_id: "aswitch", session_id: "s1", status: "failed", limit: 10, offset: 5,
+    });
+    expect(dbQuery.mock.calls[0][1]).toEqual(["aswitch", "s1", "failed", 10, 5]);
+  });
+});
+
+describe("statsSince()", () => {
+  beforeEach(() => {
+    dbQuery.mockResolvedValue({ rows: [] });
+  });
+
+  it("groups by status, names failures and finds the oldest in flight", async () => {
+    dbQuery
+      .mockResolvedValueOnce({ rows: [{ status: "processed", count: "10" }] })
+      .mockResolvedValueOnce({ rows: [{ error: "decode failed", count: "2" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "i9", status: "processing" }] });
+
+    const s = await new AudioIngestRepository().statsSince(new Date());
+
+    expect(s.byStatus).toEqual({ processed: 10 });
+    expect(s.failures).toEqual([{ error: "decode failed", count: 2 }]);
+    expect(s.oldestInFlight).toMatchObject({ id: "i9" });
+  });
+
+  it("scopes to a source when given one", async () => {
+    const since = new Date();
+    await new AudioIngestRepository().statsSince(since, "aswitch");
+    expect(dbQuery.mock.calls[0][1]).toEqual([since, "aswitch"]);
+  });
+
+  it("labels an unexplained failure rather than dropping it", async () => {
+    dbQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ error: "unknown", count: "1" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const s = await new AudioIngestRepository().statsSince(new Date());
+
+    expect(s.failures).toEqual([{ error: "unknown", count: 1 }]);
+    expect(s.oldestInFlight).toBeNull();
+  });
+});

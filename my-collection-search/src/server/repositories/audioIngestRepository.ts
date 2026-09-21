@@ -185,6 +185,102 @@ export class AudioIngestRepository {
     return rows[0] ?? null;
   }
 
+  /** The newest ingests, whatever their source, for the debug view (#299). */
+  async listRecent(
+    filters: {
+      source_id?: string;
+      session_id?: string;
+      status?: AudioIngestStatus;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<AudioIngestRow[]> {
+    const params: Array<string | number> = [];
+    const where: string[] = [];
+
+    if (filters.source_id) {
+      params.push(filters.source_id);
+      where.push(`source_id = $${params.length}`);
+    }
+    if (filters.session_id) {
+      params.push(filters.session_id);
+      where.push(`session_id = $${params.length}`);
+    }
+    if (filters.status) {
+      params.push(filters.status);
+      where.push(`status = $${params.length}`);
+    }
+
+    params.push(filters.limit ?? 50);
+    const limit = `$${params.length}`;
+    params.push(filters.offset ?? 0);
+    const offset = `$${params.length}`;
+
+    const { rows } = await dbQuery<AudioIngestRow>(
+      `
+      SELECT * FROM audio_ingests
+      ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY received_at DESC, id DESC
+      LIMIT ${limit} OFFSET ${offset}
+      `,
+      params
+    );
+    return rows;
+  }
+
+  /**
+   * Ingest counts by status, and the reasons the failures gave (#299).
+   *
+   * The error breakdown is the useful half: "12 failed" says nothing, while
+   * "12 failed, all `no such file`" names the stage that broke.
+   */
+  async statsSince(
+    since: Date | string,
+    sourceId?: string
+  ): Promise<{
+    byStatus: Record<string, number>;
+    failures: Array<{ error: string; count: number }>;
+    oldestInFlight: AudioIngestRow | null;
+  }> {
+    const params: Array<string | number | Date> = [since];
+    let scope = "received_at >= $1";
+    if (sourceId) {
+      params.push(sourceId);
+      scope += ` AND source_id = $${params.length}`;
+    }
+
+    const { rows: statusRows } = await dbQuery<{ status: string; count: string }>(
+      `SELECT status, COUNT(*)::text AS count FROM audio_ingests
+       WHERE ${scope} GROUP BY status`,
+      params
+    );
+
+    const { rows: failureRows } = await dbQuery<{ error: string; count: string }>(
+      `SELECT COALESCE(error, 'unknown') AS error, COUNT(*)::text AS count
+       FROM audio_ingests
+       WHERE ${scope} AND status = 'failed'
+       GROUP BY 1 ORDER BY 2 DESC LIMIT 10`,
+      params
+    );
+
+    const { rows: inFlight } = await dbQuery<AudioIngestRow>(
+      `SELECT * FROM audio_ingests
+       WHERE status IN ('received', 'processing')
+       ORDER BY received_at ASC LIMIT 1`
+    );
+
+    return {
+      byStatus: Object.fromEntries(
+        statusRows.map((r) => [r.status, Number(r.count)])
+      ),
+      failures: failureRows.map((r) => ({
+        error: r.error,
+        count: Number(r.count),
+      })),
+      oldestInFlight: inFlight[0] ?? null,
+    };
+  }
+
   async listBySource(
     sourceId: string,
     { limit = 50, offset = 0 }: ListAudioIngestsOptions = {}

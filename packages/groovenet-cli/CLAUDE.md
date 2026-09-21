@@ -24,6 +24,7 @@ albums              list | show | update | download
 playlists           list | show | create | generate
 friends             list | add
 fingerprint-library (no subcommands — scope flags)
+vinyl               status | detections | ingests
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -67,6 +68,26 @@ only part of the library is indexable at all, and the run reports how much.
 
 Exit code is 1 if any track failed, so it composes in a script.
 
+## vinyl
+
+Inspecting the automatic play tracking pipeline (#299). Before this, the only
+way to see a detection was `psql` on the box.
+
+```bash
+groovenet vinyl status                 # is the pipeline working at all?
+groovenet vinyl detections             # recent windows, matched and not
+groovenet vinyl detections --no-match  # only the windows that matched nothing
+groovenet vinyl ingests --status failed
+```
+
+`status` leads with the reference index and **exits 1** when the index is empty
+or no engine is registered, so it composes as a health check. That ordering is
+the whole point: an empty index is the failure that looks like success — chunks
+arrive, decode, report `processed`, and every one of them matches nothing.
+
+A no-match window is rendered plainly rather than in red. It is the expected
+state between tracks, and colouring it as an error trains you to ignore errors.
+
 ## Build
 
 ```bash
@@ -103,6 +124,12 @@ Two things that will cost you an afternoon otherwise:
 - `--json` emits the raw API shape, which is wider than the table columns —
   fields absent from the table are still present in the JSON.
 - No eslint config here either; see issue #253.
+- **Never pass bare `parseInt` as a commander coercion.** Commander calls it as
+  `(value, previous)`, so a numeric default becomes the *radix*:
+  `.option("--limit <n>", …, parseInt, 20)` parsed `15` as **25**, and a default
+  of 60 put the radix out of range and yielded `NaN`. Neither failed loudly.
+  Use `intOption` / `boundedIntOption` from `src/options.ts`, which ignore the
+  second argument and reject nonsense instead of letting `NaN` travel.
 - `fingerprint-library --json` prints one object at the end, not a stream. With
   `--no-wait` that object is the queued run; otherwise it is the finished one.
   The exit code is the same either way — 1 if any track failed — so `--json`
