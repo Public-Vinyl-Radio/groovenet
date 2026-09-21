@@ -119,7 +119,13 @@ services:
       AUDIO_INGEST_DIR: /app/audio-ingest
       AUDIO_DIR: /app/audio
       FINGERPRINT_SAMPLE_RATE: ${FINGERPRINT_SAMPLE_RATE:-22050}
-      FINGERPRINT_MATCHER: ${FINGERPRINT_MATCHER:-stub}
+      # `stub` matches nothing and stores null fingerprints — it exists to
+      # exercise the pipeline, not to run it. This default outlived the real
+      # matcher landing in #278 and quietly made a live deployment index its
+      # whole library to null blobs.
+      FINGERPRINT_MATCHER: ${FINGERPRINT_MATCHER:-chromaprint}
+      FINGERPRINT_MAX_BER: ${FINGERPRINT_MAX_BER:-0.25}
+      FINGERPRINT_VERSION: ${FINGERPRINT_VERSION:-1}
     depends_on:
       - redis
     volumes:

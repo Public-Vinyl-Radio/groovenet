@@ -10,6 +10,21 @@ NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 JOB_TTL_ACTIVE_SECONDS=604800
 JOB_TTL_TERMINAL_SECONDS=259200
 PLAY_DETECTIONS_RETENTION_DAYS=30
+
+# Vinyl play tracking (#281). `stub` matches nothing and stores null
+# fingerprints — it exists to exercise the pipeline, not to run it.
+FINGERPRINT_MATCHER=chromaprint
+# Bit error rate above which a candidate is discarded. Measured on the #271
+# corpus: true matches ran 0.02-0.25, the lowest false candidate sat at 0.298,
+# and this produced zero false positives over 788 held-out queries.
+FINGERPRINT_MAX_BER=0.25
+# The recipe stored fingerprints are written under — NOT libchromaprint's
+# version. Bump only when the fingerprint recipe itself changes; doing so
+# invalidates the index until it is rebuilt.
+FINGERPRINT_VERSION=1
+# How long a chunk may sit un-claimed or in-flight before it is written off as
+# failed so its file can be released.
+AUDIO_INGEST_STALL_MINUTES=10
 BACKUP_HEALTH_MAX_AGE_HOURS=30
 ENABLE_DEVELOPER_TOOLS=true
 # Static Storybook served same-origin by the app (see docker-compose.prod.yml).
