@@ -124,6 +124,67 @@ export class AudioIngestRepository {
     return rows;
   }
 
+  /**
+   * Ingests that have sat in a non-terminal state too long (#276).
+   *
+   * Two states, deliberately: `received` means nothing ever picked the chunk
+   * up — the worker is down or the queue was lost — while `processing` means
+   * something took it and never came back. Both strand a file, and telling
+   * them apart is the difference between "restart the worker" and "the worker
+   * is crashing on this audio".
+   */
+  async listStale(
+    olderThan: Date,
+    statuses: AudioIngestStatus[] = ["received", "processing"],
+    limit = 500
+  ): Promise<AudioIngestRow[]> {
+    const { rows } = await dbQuery<AudioIngestRow>(
+      `
+      SELECT * FROM audio_ingests
+      WHERE status = ANY($1::text[])
+        AND updated_at < $2
+      ORDER BY updated_at ASC
+      LIMIT $3
+      `,
+      [statuses, olderThan, limit]
+    );
+    return rows;
+  }
+
+  async findById(id: string): Promise<AudioIngestRow | null> {
+    const { rows } = await dbQuery<AudioIngestRow>(
+      `SELECT * FROM audio_ingests WHERE id = $1`,
+      [id]
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Move an ingest to a new status only if it is currently in one of
+   * `from`, returning null when it was not.
+   *
+   * The guard is what makes the reaper safe to run beside a live worker: a
+   * chunk that finished a millisecond before the deadline must not be dragged
+   * back to `failed` on top of its real result.
+   */
+  async transitionStatus(
+    id: string,
+    to: AudioIngestStatus,
+    from: AudioIngestStatus[],
+    error: string | null = null
+  ): Promise<AudioIngestRow | null> {
+    const { rows } = await dbQuery<AudioIngestRow>(
+      `
+      UPDATE audio_ingests
+      SET status = $2, error = $3, updated_at = current_timestamp
+      WHERE id = $1 AND status = ANY($4::text[])
+      RETURNING *
+      `,
+      [id, to, error, from]
+    );
+    return rows[0] ?? null;
+  }
+
   async listBySource(
     sourceId: string,
     { limit = 50, offset = 0 }: ListAudioIngestsOptions = {}

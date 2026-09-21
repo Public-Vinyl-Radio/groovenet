@@ -14,6 +14,13 @@ export async function register() {
       "@/server/services/ingestSweeperService"
     );
     startIngestSweeper();
+
+    // Without this a crashed worker strands its chunk in `processing` forever
+    // and the sweeper will not release the file until its age backstop (#276).
+    const { startIngestReaper } = await import(
+      "@/server/services/ingestLifecycleService"
+    );
+    startIngestReaper();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

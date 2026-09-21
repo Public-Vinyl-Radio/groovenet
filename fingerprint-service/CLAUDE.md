@@ -126,6 +126,18 @@ docker compose exec redis redis-cli HGETALL fpindex:run:<run_id>
 docker compose logs -f fingerprint-service
 ```
 
+## Claiming
+
+Before doing the work, the service POSTs `{APP_URL}/api/audio/ingest/{id}/claim`
+to move the ingest from `received` to `processing` (#276). That is the only
+reason the state exists: without it, a chunk nothing ever collected looks
+exactly like one a worker took and died on, and the app's reaper cannot tell
+"restart the worker" from "the worker is crashing on this audio".
+
+Best-effort on purpose. A failed claim is logged and the work proceeds —
+refusing to process audio already in hand because the app was briefly
+unreachable would be the worse trade.
+
 ## Result contract
 
 `POST {APP_URL}/api/audio/ingest/{ingest_id}/result`, one call per chunk:
