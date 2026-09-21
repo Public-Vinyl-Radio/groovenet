@@ -39,6 +39,16 @@ describe("groupDetections", () => {
     ], { confidenceFloor: 0.75 })).toEqual([]);
   });
 
+  it("ignores every incomplete or invalid candidate shape", () => {
+    expect(groupDetections([
+      detection({ track_id: null }),
+      detection({ id: "no-friend", friend_id: null }),
+      detection({ id: "no-confidence", confidence: null }),
+      detection({ id: "no-window", window_start_at: null }),
+      detection({ id: "bad-window", window_start_at: "not-a-date" }),
+    ])).toEqual([]);
+  });
+
   it("splits a play when the detected track changes", () => {
     expect(groupDetections([
       detection(), detection({ id: "d2", track_id: "track-b" }),
