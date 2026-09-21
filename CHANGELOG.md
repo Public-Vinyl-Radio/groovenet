@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.2...v0.2.3) (2026-09-21)
+
+
+### Bug Fixes
+
+* **deploy:** default the fingerprint matcher to chromaprint ([#295](https://github.com/Public-Vinyl-Radio/groovenet/issues/295)) ([925324f](https://github.com/Public-Vinyl-Radio/groovenet/commit/925324f949b1dfa177dc9b6d6b74908cfd39b95c))
+
 ## [0.2.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.1...v0.2.2) (2026-09-21)
 
 
