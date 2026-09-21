@@ -7,6 +7,7 @@ import { addAlbumsCommands } from "../commands/albums.js";
 import { addPlaylistsCommands } from "../commands/playlists.js";
 import { addFriendsCommands } from "../commands/friends.js";
 import { addFingerprintLibraryCommand } from "../commands/fingerprintLibrary.js";
+import { addVinylCommands } from "../commands/vinyl.js";
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -25,6 +26,7 @@ addAlbumsCommands(program);
 addPlaylistsCommands(program);
 addFriendsCommands(program);
 addFingerprintLibraryCommand(program);
+addVinylCommands(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(

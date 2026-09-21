@@ -465,3 +465,92 @@ export interface FingerprintIndexRun {
   updated_at: number;
   complete: boolean;
 }
+
+// ─── Vinyl pipeline debug (#299) ──────────────────────────────────────────────
+
+export interface DetectionWindow {
+  id: string;
+  ingest_id: string;
+  source_id: string;
+  session_id: string | null;
+  window_start_at: string | null;
+  /** False means the window was recorded and matched nothing — a real state. */
+  matched: boolean;
+  track_id: string | null;
+  friend_id: number | null;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  confidence: number | null;
+  offset_seconds: number | null;
+  fingerprint_type: string | null;
+  fingerprint_version: string | null;
+  created_at: string;
+}
+
+export interface DetectionListResponse {
+  detections: DetectionWindow[];
+  count: number;
+}
+
+export interface IngestRecord {
+  ingest_id: string;
+  source_id: string;
+  session_id: string | null;
+  sequence: number | null;
+  status: "received" | "processing" | "processed" | "failed";
+  error: string | null;
+  duration_seconds: number | null;
+  sample_rate: number | null;
+  channels: number | null;
+  codec: string | null;
+  file_path: string | null;
+  captured_at: string | null;
+  received_at: string;
+  updated_at: string;
+}
+
+export interface IngestListResponse {
+  ingests: IngestRecord[];
+  count: number;
+}
+
+export interface IngestPipelineStats {
+  since: string;
+  window_minutes: number;
+  source_id: string | null;
+  index: {
+    engine_registered: boolean;
+    fingerprint_type: string | null;
+    fingerprint_version: string | null;
+    indexed_tracks: number;
+    /** True means nothing can ever match, however healthy the rest looks. */
+    empty: boolean;
+  };
+  queue_depth: number | null;
+  ingests: {
+    by_status: Record<string, number>;
+    failures: Array<{ error: string; count: number }>;
+    oldest_in_flight: {
+      ingest_id: string;
+      status: string;
+      received_at: string;
+    } | null;
+  };
+  detections: {
+    windows: number;
+    matched: number;
+    no_match: number;
+    match_rate: number | null;
+    confidence_bands: Array<{ band: string; count: number }>;
+  };
+}
+
+export interface DetectionQuery {
+  source_id?: string;
+  session_id?: string;
+  matched?: boolean;
+  since?: string;
+  limit?: number;
+  offset?: number;
+}

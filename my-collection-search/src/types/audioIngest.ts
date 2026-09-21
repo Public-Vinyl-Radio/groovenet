@@ -158,3 +158,44 @@ export type ReapSummary = {
   /** Of those failed, how many were never picked up at all. */
   neverClaimed: number;
 };
+
+// ─── Pipeline debug stats (#299) ──────────────────────────────────────────────
+
+/**
+ * Everything needed to answer "is the vinyl pipeline working".
+ *
+ * `index.empty` is deliberately explicit. An empty reference index makes the
+ * whole pipeline look healthy while matching nothing, and a reader should not
+ * have to infer that from a zero buried among other counters.
+ */
+export type IngestPipelineStats = {
+  since: string;
+  window_minutes: number;
+  source_id: string | null;
+  index: {
+    engine_registered: boolean;
+    fingerprint_type: string | null;
+    fingerprint_version: string | null;
+    indexed_tracks: number;
+    empty: boolean;
+  };
+  /** Null when Redis could not be reached. */
+  queue_depth: number | null;
+  ingests: {
+    by_status: Record<string, number>;
+    failures: Array<{ error: string; count: number }>;
+    oldest_in_flight: {
+      ingest_id: string;
+      status: string;
+      received_at: string;
+    } | null;
+  };
+  detections: {
+    windows: number;
+    matched: number;
+    no_match: number;
+    /** Null when no windows were recorded at all. */
+    match_rate: number | null;
+    confidence_bands: Array<{ band: string; count: number }>;
+  };
+};

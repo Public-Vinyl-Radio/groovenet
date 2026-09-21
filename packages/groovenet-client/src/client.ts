@@ -30,6 +30,10 @@ import type {
   RecommendationCandidatesQuery,
   FingerprintIndexRequest,
   FingerprintIndexRun,
+  DetectionListResponse,
+  DetectionQuery,
+  IngestListResponse,
+  IngestPipelineStats,
 } from "./types.js";
 
 export interface GroovenetClientConfig {
@@ -508,5 +512,46 @@ export class GroovenetClient {
       "GET",
       `/fingerprints/index/${encodeURIComponent(runId)}`
     );
+  }
+
+  // ── Vinyl pipeline debug (#299) ────────────────────────────────────────────
+
+  /** Recent matcher windows, including the ones that matched nothing. */
+  async listDetections(query: DetectionQuery = {}): Promise<DetectionListResponse> {
+    const params: Record<string, string | number | boolean | undefined> = {
+      source_id: query.source_id,
+      session_id: query.session_id,
+      since: query.since,
+      limit: query.limit ?? 30,
+      offset: query.offset,
+    };
+    if (query.matched !== undefined) params.matched = query.matched;
+    return this.request<DetectionListResponse>(
+      "GET",
+      "/detections/recent",
+      undefined,
+      params
+    );
+  }
+
+  /** Recent audio chunks and what became of them. */
+  async listIngests(
+    query: { source_id?: string; status?: string; limit?: number } = {}
+  ): Promise<IngestListResponse> {
+    return this.request<IngestListResponse>("GET", "/audio/ingest/recent", undefined, {
+      source_id: query.source_id,
+      status: query.status,
+      limit: query.limit ?? 30,
+    });
+  }
+
+  /** Whether the pipeline is working, index included. */
+  async getIngestStats(
+    query: { minutes?: number; source_id?: string } = {}
+  ): Promise<IngestPipelineStats> {
+    return this.request<IngestPipelineStats>("GET", "/audio/ingest/stats", undefined, {
+      minutes: query.minutes,
+      source_id: query.source_id,
+    });
   }
 }

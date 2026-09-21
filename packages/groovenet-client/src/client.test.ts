@@ -904,3 +904,60 @@ describe("GroovenetClient fingerprint endpoints", () => {
     );
   });
 });
+
+describe("GroovenetClient vinyl debug endpoints", () => {
+  it("lists detections with defaults", async () => {
+    const client = clientReturning({ detections: [], count: 0 });
+
+    await client.listDetections();
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "GET",
+        url: "/detections/recent",
+        params: expect.objectContaining({ limit: 30 }),
+      })
+    );
+  });
+
+  it("forwards the matched filter only when set", async () => {
+    const client = clientReturning({ detections: [], count: 0 });
+
+    await client.listDetections({ matched: false, source_id: "aswitch" });
+
+    expect(requestMock.mock.calls[0][0].params).toMatchObject({
+      matched: false,
+      source_id: "aswitch",
+    });
+  });
+
+  it("omits the matched filter when unset, so both kinds come back", async () => {
+    const client = clientReturning({ detections: [], count: 0 });
+
+    await client.listDetections({ source_id: "aswitch" });
+
+    expect(requestMock.mock.calls[0][0].params).not.toHaveProperty("matched");
+  });
+
+  it("lists ingests", async () => {
+    const client = clientReturning({ ingests: [], count: 0 });
+
+    await client.listIngests({ status: "failed" });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/audio/ingest/recent",
+        params: expect.objectContaining({ status: "failed" }),
+      })
+    );
+  });
+
+  it("reads the pipeline stats", async () => {
+    const client = clientReturning({ index: { indexed_tracks: 3783 } });
+
+    const stats = await client.getIngestStats({ minutes: 15 });
+
+    expect(stats.index.indexed_tracks).toBe(3783);
+    expect(requestMock.mock.calls[0][0].url).toBe("/audio/ingest/stats");
+  });
+});

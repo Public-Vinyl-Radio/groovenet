@@ -401,6 +401,26 @@ ingest-test:
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
   {{mise_exec}} npm run test:ingest --prefix {{app_dir}}
 
+# Run the debug read queries against a throwaway pgvector db.
+debug-reads-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  name="groovenet-debugtest-$$"
+  port="${DEBUG_TEST_PORT:-55435}"
+  cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+  trap cleanup EXIT
+  echo "→ starting throwaway pgvector ($name) on :$port"
+  docker run -d --name "$name" \
+    -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
+    -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
+  for i in $(seq 1 60); do
+    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    sleep 1
+  done
+  export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
+  {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
+  {{mise_exec}} npm run test:debug-reads --prefix {{app_dir}}
+
 # Run the Redis integration tests against a throwaway redis container.
 redis-test:
   #!/usr/bin/env bash

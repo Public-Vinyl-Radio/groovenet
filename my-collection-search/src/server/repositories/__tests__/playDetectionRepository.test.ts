@@ -80,3 +80,85 @@ describe("PlayDetectionRepository lookups and retention", () => {
     );
   });
 });
+
+// ─── debug reads (#299) ───────────────────────────────────────────────────────
+
+describe("listRecent()", () => {
+  it("left joins the track so a no-match row survives", async () => {
+    // An inner join would silently drop every no-match window.
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent();
+    expect(dbQuery.mock.calls[0][0]).toContain("LEFT JOIN tracks");
+  });
+
+  it("joins on the compound track key", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent();
+    const sql = dbQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("t.track_id = d.track_id");
+    expect(sql).toContain("t.friend_id = d.friend_id");
+  });
+
+  it("returns the newest window first", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent();
+    expect(dbQuery.mock.calls[0][0]).toContain("ORDER BY d.window_start_at DESC");
+  });
+
+  it("filters to matches", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent({ matched: true });
+    expect(dbQuery.mock.calls[0][0]).toContain("d.track_id IS NOT NULL");
+  });
+
+  it("filters to no-match windows", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent({ matched: false });
+    expect(dbQuery.mock.calls[0][0]).toContain("d.track_id IS NULL");
+  });
+
+  it("applies neither filter when matched is unset", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent({});
+    const sql = dbQuery.mock.calls[0][0] as string;
+    expect(sql).not.toContain("d.track_id IS NULL");
+    expect(sql).not.toContain("d.track_id IS NOT NULL");
+  });
+
+  it("binds source, session, since and paging", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await new PlayDetectionRepository().listRecent({
+      source_id: "aswitch", session_id: "s1", since: "2026-09-21T00:00:00Z",
+      limit: 10, offset: 20,
+    });
+    expect(dbQuery.mock.calls[0][1]).toEqual([
+      "aswitch", "s1", "2026-09-21T00:00:00Z", 10, 20,
+    ]);
+  });
+});
+
+describe("statsSince()", () => {
+  it("counts matched and unmatched separately", async () => {
+    dbQuery
+      .mockResolvedValueOnce({ rows: [{ windows: "10", matched: "8", no_match: "2" }] })
+      .mockResolvedValueOnce({ rows: [{ band: "0.90-1.00", count: "8" }] });
+
+    const s = await new PlayDetectionRepository().statsSince(new Date());
+
+    expect(s).toMatchObject({ windows: 10, matched: 8, noMatch: 2 });
+    expect(s.bands).toEqual([{ band: "0.90-1.00", count: 8 }]);
+  });
+
+  it("returns zeroes for a quiet window rather than NaN", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    const s = await new PlayDetectionRepository().statsSince(new Date());
+    expect(s).toMatchObject({ windows: 0, matched: 0, noMatch: 0, bands: [] });
+  });
+
+  it("scopes to a source", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    const since = new Date();
+    await new PlayDetectionRepository().statsSince(since, "aswitch");
+    expect(dbQuery.mock.calls[0][1]).toEqual([since, "aswitch"]);
+  });
+});

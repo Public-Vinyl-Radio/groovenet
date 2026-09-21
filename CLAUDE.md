@@ -112,7 +112,7 @@ the web app. CI runs the same hooks, so `--no-verify` only defers the failure.
   (`just build-packages`).
 - **Integration tests are gated** behind `RUN_*_TESTS` env vars and run against
   throwaway containers (`just migrate-test`, `just redis-test`,
-  `just fingerprint-test`, `just ingest-test`). Use them when bumping
+  `just fingerprint-test`, `just ingest-test`, `just debug-reads-test`). Use them when bumping
   dependencies, and when the SQL is something a mocked driver would accept but a
   real one would not.
 - **New env vars** go in the repo-root `.env.example`, which is the file

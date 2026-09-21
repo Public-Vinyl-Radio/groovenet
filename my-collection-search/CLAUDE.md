@@ -170,6 +170,26 @@ a millisecond before the deadline is not dragged back on top of its real
 result. It also retires the age backstop the retention sweeper carries for
 wedged records.
 
+### Debugging it
+
+```
+GET /api/audio/ingest/recent    chunks and what became of them
+GET /api/detections/recent      windows, with the track resolved
+GET /api/audio/ingest/stats     index, queue, match rate, failures
+```
+
+Or `groovenet vinyl status | detections | ingests`.
+
+Two things to preserve if you touch these:
+
+- **No-match windows are included by default.** `listRecent` LEFT JOINs the
+  track; an inner join would silently drop every window that matched nothing,
+  which is both the most common healthy state and the signal #279 uses to find
+  the boundary between one play and the next.
+- **`stats` reports the index first, and says `empty` outright.** An empty
+  reference index makes every other number look healthy while nothing can
+  match. It should not be inferable from a zero among other counters.
+
 ## API reference
 
 **Do not hand-maintain endpoint lists here.** The OpenAPI spec is generated from

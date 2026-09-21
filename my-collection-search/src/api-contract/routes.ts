@@ -1344,6 +1344,96 @@ const audioIngestContracts: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "listRecentIngests",
+    method: "get",
+    path: "/api/audio/ingest/recent",
+    summary: "Recent audio chunks and what became of them",
+    tags: ["Audio Ingest"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "source_id", in: "query", required: false, schema: { type: "string" } },
+        { name: "session_id", in: "query", required: false, schema: { type: "string" } },
+        { name: "status", in: "query", required: false,
+          schema: { type: "string", enum: ["received", "processing", "processed", "failed"] } },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50 } },
+        { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+      ],
+      responses: {
+        "200": {
+          description: "Recent ingests, newest first",
+          content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+        },
+        "400": {
+          description: "Unknown status filter",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getIngestPipelineStats",
+    method: "get",
+    path: "/api/audio/ingest/stats",
+    summary: "Whether the vinyl pipeline is working: index, queue, match rate",
+    tags: ["Audio Ingest"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "minutes", in: "query", required: false, schema: { type: "integer", default: 60 } },
+        { name: "source_id", in: "query", required: false, schema: { type: "string" } },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Pipeline health. `index.empty` true means nothing can match, however healthy the rest looks.",
+          content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "listRecentDetections",
+    method: "get",
+    path: "/api/detections/recent",
+    summary: "Recent matcher windows, with the track resolved",
+    tags: ["Audio Ingest"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "source_id", in: "query", required: false, schema: { type: "string" } },
+        { name: "session_id", in: "query", required: false, schema: { type: "string" } },
+        { name: "matched", in: "query", required: false,
+          schema: { type: "boolean" },
+          description: "Omit for both. A no-match window is a recorded result, not an absence." },
+        { name: "since", in: "query", required: false, schema: { type: "string", format: "date-time" } },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50 } },
+        { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+      ],
+      responses: {
+        "200": {
+          description: "Recent windows, newest first, including no-match windows",
+          content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
     operationId: "getIngestRetentionStatus",
     method: "get",
     path: "/api/audio/ingest/retention",
