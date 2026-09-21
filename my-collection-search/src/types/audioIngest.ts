@@ -80,3 +80,46 @@ export type IngestRetentionStatus = {
   lastSweptAt: string | null;
   policy: IngestRetentionPolicy;
 };
+
+// ─── Ingest endpoint (#275) ───────────────────────────────────────────────────
+
+/**
+ * Stable, machine-readable rejection reasons.
+ *
+ * The listener device is a Raspberry Pi with no screen and nobody watching it.
+ * It needs to tell "stop retrying, this chunk is bad" from "the server is
+ * unhappy, try again" without parsing prose, so these strings are part of the
+ * contract and must not be reworded.
+ */
+export type IngestErrorCode =
+  | "missing_audio_file"
+  | "missing_source_id"
+  | "unsupported_audio_format"
+  | "invalid_audio_stream"
+  | "audio_too_large"
+  | "audio_too_short"
+  | "audio_too_long";
+
+/** Limits on what one chunk may be. */
+export type IngestLimits = {
+  maxBytes: number;
+  minDurationSeconds: number;
+  maxDurationSeconds: number;
+};
+
+export type IngestRequestFields = {
+  source_id: string;
+  session_id?: string | null;
+  sequence?: number | null;
+  captured_at?: string | null;
+};
+
+export type AcceptedIngest = {
+  status: "accepted";
+  ingest_id: string;
+  source_id: string;
+  duration_seconds: number;
+  sample_rate: number | null;
+  channels: number | null;
+  captured_at: string | null;
+};

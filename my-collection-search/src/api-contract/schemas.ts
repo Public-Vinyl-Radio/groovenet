@@ -1447,3 +1447,34 @@ export const fingerprintListResponseSchema = z.object({
   limit: z.number().int(),
   offset: z.number().int(),
 });
+
+// ─── Audio ingest endpoint (#275) ─────────────────────────────────────────────
+
+export const acceptedIngestSchema = z.object({
+  status: z.literal("accepted"),
+  ingest_id: z.string(),
+  source_id: z.string(),
+  duration_seconds: z.number(),
+  sample_rate: z.number().nullable(),
+  channels: z.number().nullable(),
+  captured_at: z.string().nullable(),
+});
+
+/**
+ * The rejection vocabulary, as the listener device reads it. These strings are
+ * part of the contract — a Pi with no screen uses them to tell "this chunk is
+ * bad, drop it" from "retry later", so they must not be reworded.
+ */
+export const ingestErrorSchema = z.object({
+  error: z.enum([
+    "missing_audio_file",
+    "missing_source_id",
+    "unsupported_audio_format",
+    "invalid_audio_stream",
+    "audio_too_large",
+    "audio_too_short",
+    "audio_too_long",
+    "internal_error",
+  ]),
+  message: z.string(),
+});

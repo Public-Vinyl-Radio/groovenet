@@ -69,8 +69,9 @@ writes results back through the app's REST API.
 **Playlist optimisation** — the app posts the selected tracks to ga-service
 `/optimize`, which returns an ordering tuned for BPM and key transitions.
 
-**Vinyl play tracking** — a listener posts audio chunks to the app, which writes
-them to the shared `audio_ingest` volume and pushes a job onto the Redis list
+**Vinyl play tracking** — a listener posts audio chunks to `POST
+/api/audio/ingest`, which validates them with ffprobe, writes them to the
+shared `audio_ingest` volume and pushes a job onto the Redis list
 `fingerprint_queue`; `fingerprint-service` pops it, decodes to mono PCM, matches
 it against the reference fingerprint index with Chromaprint, and reports back
 over REST. Epic #281. The app sweeps that volume on a timer —
