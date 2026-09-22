@@ -960,4 +960,38 @@ describe("GroovenetClient vinyl debug endpoints", () => {
     expect(stats.index.indexed_tracks).toBe(3783);
     expect(requestMock.mock.calls[0][0].url).toBe("/audio/ingest/stats");
   });
+
+  it("posts a manual aggregation backfill", async () => {
+    const client = clientReturning({
+      since: "2026-08-01T00:00:00Z",
+      created: 2,
+      skipped: 1,
+      sources: [{ source_id: "living-room-vinyl", created: 2, skipped: 1 }],
+    });
+
+    const result = await client.aggregateSpins({ since: "2026-08-01T00:00:00Z" });
+
+    expect(result.created).toBe(2);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/spins/aggregate",
+      data: { since: "2026-08-01T00:00:00Z" },
+      params: undefined,
+    });
+  });
+
+  it("scopes the backfill to one source", async () => {
+    const client = clientReturning({ since: "x", created: 0, skipped: 0, sources: [] });
+
+    await client.aggregateSpins({
+      since: "2026-08-01T00:00:00Z",
+      source_id: "living-room-vinyl",
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { since: "2026-08-01T00:00:00Z", source_id: "living-room-vinyl" },
+      })
+    );
+  });
 });

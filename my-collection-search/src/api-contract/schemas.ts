@@ -1308,6 +1308,31 @@ export const spinSessionParamsSchema = z.object({
   id: intFromInputSchema,
 });
 
+// ─── Manual aggregation backfill (#304) ───────────────────────────────────────
+//
+// Both automatic triggers for turning detections into spins — the immediate
+// one and the periodic backstop — are bounded by PLAY_AGGREGATION_LOOKBACK_MINUTES
+// (default 60), so a backlog older than that is never picked up on its own.
+// This is the manual escape hatch: an explicit `since`, run once.
+
+export const spinAggregateBodySchema = z.object({
+  since: z.string().min(1),
+  source_id: z.string().min(1).optional(),
+});
+
+export const spinAggregateSourceResultSchema = z.object({
+  source_id: z.string(),
+  created: z.number().int(),
+  skipped: z.number().int(),
+});
+
+export const spinAggregateResponseSchema = z.object({
+  since: z.string(),
+  created: z.number().int(),
+  skipped: z.number().int(),
+  sources: z.array(spinAggregateSourceResultSchema),
+});
+
 export const spinDeleteQuerySchema = z.object({
   friend_id: intFromInputSchema,
 });

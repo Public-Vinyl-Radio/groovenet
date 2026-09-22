@@ -6,6 +6,10 @@ import {
 } from "@/server/repositories/audioIngestRepository";
 import { playDetectionRepository } from "@/server/repositories/playDetectionRepository";
 import { ingestDir } from "@/server/services/ingestSweeperService";
+import {
+  aggregationLookbackMs,
+  playAggregationService,
+} from "@/server/services/playAggregationService";
 import type { IngestResultReport, ReapSummary } from "@/types/audioIngest";
 
 /**
@@ -79,6 +83,12 @@ export class IngestLifecycleService {
 
     if (report.status === "processed") {
       await this.recordDetections(ingest, report);
+      // Turn a confident detection into a spin right away (#304), rather than
+      // waiting on the periodic backstop (`aggregationTick`). A no-match
+      // window has nothing to aggregate, so this only fires on a real match.
+      if (report.candidates.length > 0) {
+        await this.triggerAggregation(ingest.source_id);
+      }
     }
 
     const terminal = await audioIngestRepository.transitionStatus(
@@ -134,6 +144,22 @@ export class IngestLifecycleService {
         confidence: candidate.confidence,
         offset_seconds: candidate.offset_seconds,
       });
+    }
+  }
+
+  /**
+   * Aggregate this source's recent detections into spin sessions.
+   *
+   * Best-effort: a failure here must not fail the callback that
+   * `fingerprint-service` is waiting on, or leave the ingest un-terminated.
+   * The periodic pass catches whatever this missed.
+   */
+  private async triggerAggregation(sourceId: string): Promise<void> {
+    try {
+      const since = new Date(Date.now() - aggregationLookbackMs());
+      await playAggregationService.aggregateSource(sourceId, since);
+    } catch (error) {
+      console.error(`Failed to aggregate detections for ${sourceId}:`, error);
     }
   }
 

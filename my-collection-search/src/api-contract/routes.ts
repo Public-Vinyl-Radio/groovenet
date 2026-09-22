@@ -77,6 +77,8 @@ import {
   recommendationsQuerySchema,
   recommendationsBatchBodySchema,
   recommendationsResponseSchema,
+  spinAggregateBodySchema,
+  spinAggregateResponseSchema,
   spinCreateBodySchema,
   spinCreateResponseSchema,
   spinDeleteQuerySchema,
@@ -4589,6 +4591,82 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
         "404": {
           description: "Album not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "aggregateSpins",
+    method: "post",
+    path: "/api/spins/aggregate",
+    summary: "Manually aggregate detections into spin sessions since a date (#304)",
+    tags: ["Spins"],
+    bodySchema: spinAggregateBodySchema,
+    successSchema: spinAggregateResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                since: {
+                  type: "string",
+                  format: "date-time",
+                  description:
+                    "Both automatic triggers only look back " +
+                    "PLAY_AGGREGATION_LOOKBACK_MINUTES (default 60), so this is " +
+                    "the manual escape hatch for anything older.",
+                },
+                source_id: {
+                  type: "string",
+                  description: "Omit to aggregate every source active since `since`.",
+                },
+              },
+              required: ["since"],
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Totals across every source aggregated, per source and overall",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  since: { type: "string" },
+                  created: { type: "integer" },
+                  skipped: { type: "integer" },
+                  sources: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        source_id: { type: "string" },
+                        created: { type: "integer" },
+                        skipped: { type: "integer" },
+                      },
+                      required: ["source_id", "created", "skipped"],
+                    },
+                  },
+                },
+                required: ["since", "created", "skipped", "sources"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid payload",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {

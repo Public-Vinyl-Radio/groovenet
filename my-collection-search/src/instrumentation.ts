@@ -29,6 +29,14 @@ export async function register() {
       "@/server/services/fingerprintBackfillService"
     );
     startFingerprintBackfill();
+
+    // Backstop for #304: `ingestLifecycleService.report()` aggregates a
+    // source's detections into spins immediately, but nothing previously
+    // re-ran that pass — this catches whatever the immediate trigger missed.
+    const { startPlayAggregation } = await import(
+      "@/server/services/playAggregationService"
+    );
+    startPlayAggregation();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

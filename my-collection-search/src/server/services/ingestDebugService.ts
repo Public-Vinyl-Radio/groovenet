@@ -8,6 +8,7 @@ import {
 } from "@/server/services/fingerprintIndexService";
 import { FINGERPRINT_QUEUE_KEY } from "@/server/services/audioIngestService";
 import { ingestDirWritable } from "@/server/services/ingestSweeperService";
+import { playAggregationService } from "@/server/services/playAggregationService";
 import type { IngestPipelineStats } from "@/types/audioIngest";
 
 /**
@@ -31,11 +32,12 @@ export class IngestDebugService {
   ): Promise<IngestPipelineStats> {
     const since = new Date(Date.now() - sinceMinutes * 60_000);
 
-    const [ingest, detections, engine, queueDepth] = await Promise.all([
+    const [ingest, detections, engine, queueDepth, pendingSpins] = await Promise.all([
       audioIngestRepository.statsSince(since, sourceId),
       playDetectionRepository.statsSince(since, sourceId),
       this.indexService.getEngine(),
       this.queueDepth(),
+      this.pendingSpinCount(since, sourceId),
     ]);
 
     // Without a registered engine there is nothing to count the index against,
@@ -94,6 +96,13 @@ export class IngestDebugService {
             : null,
         confidence_bands: detections.bands,
       },
+      spins: {
+        // Confident detections not yet written to spin_sessions (#304) — the
+        // aggregation equivalent of the fingerprint backlog above. Null, not
+        // 0, when it could not be computed, for the same reason queue_depth
+        // is null rather than 0 when redis is unreachable.
+        pending: pendingSpins,
+      },
     };
   }
 
@@ -103,6 +112,30 @@ export class IngestDebugService {
       return await this.redis.llen(FINGERPRINT_QUEUE_KEY);
     } catch (error) {
       console.error("Could not read the fingerprint queue depth:", error);
+      return null;
+    }
+  }
+
+  /**
+   * How many confidently-detected plays have not yet become a spin session.
+   *
+   * Reuses the exact grouping `aggregateSource` runs, so this is the true
+   * count the next aggregation pass would create — not an approximation.
+   */
+  private async pendingSpinCount(
+    since: Date,
+    sourceId?: string
+  ): Promise<number | null> {
+    try {
+      const sourceIds = sourceId
+        ? [sourceId]
+        : await playDetectionRepository.listActiveSourceIds(since);
+      const counts = await Promise.all(
+        sourceIds.map((id) => playAggregationService.countPending(id, since))
+      );
+      return counts.reduce((sum, count) => sum + count, 0);
+    } catch (error) {
+      console.error("Could not compute the pending spin count:", error);
       return null;
     }
   }

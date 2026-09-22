@@ -34,6 +34,8 @@ import type {
   DetectionQuery,
   IngestListResponse,
   IngestPipelineStats,
+  SpinAggregateRequest,
+  SpinAggregateResult,
 } from "./types.js";
 
 export interface GroovenetClientConfig {
@@ -553,5 +555,15 @@ export class GroovenetClient {
       minutes: query.minutes,
       source_id: query.source_id,
     });
+  }
+
+  /**
+   * Manually aggregate detections into spin sessions, from an explicit date
+   * (#304). Both automatic triggers only look back
+   * `PLAY_AGGREGATION_LOOKBACK_MINUTES` (default 60), so this is the escape
+   * hatch for a backlog older than that.
+   */
+  async aggregateSpins(request: SpinAggregateRequest): Promise<SpinAggregateResult> {
+    return this.request<SpinAggregateResult>("POST", "/spins/aggregate", request);
   }
 }

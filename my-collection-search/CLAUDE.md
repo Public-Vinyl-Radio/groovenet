@@ -105,6 +105,15 @@ than one process:
   fast path is immediate: `PATCH /api/tracks` queues a track's fingerprint the
   moment its `local_audio_url` transitions from null to a value
   (`trackFingerprintTrigger.ts`). This only catches what that trigger missed.
+- `startPlayAggregation()` — turns recent confident detections into spin
+  sessions (`playAggregationService.ts`), the backstop for #304. The fast path
+  is immediate here too: `ingestLifecycleService.report()` aggregates a
+  source's detections the moment it records a confident one. #279 built the
+  grouping/dedup logic and neither trigger existed until #304 — detections
+  landed in `play_detections` and nothing ever turned them into a spin.
+  Both are bounded by `PLAY_AGGREGATION_LOOKBACK_MINUTES` (default 60); a
+  backlog older than that needs `POST /api/spins/aggregate` (`since`,
+  optional `source_id`) or `groovenet vinyl aggregate --since <date>`.
 
 All of the above tick every 60s and decide internally whether it is time to
 act, so each interval is configurable without restarting a timer.
@@ -182,7 +191,7 @@ wedged records.
 ```
 GET /api/audio/ingest/recent    chunks and what became of them
 GET /api/detections/recent      windows, with the track resolved
-GET /api/audio/ingest/stats     index, queue, match rate, failures
+GET /api/audio/ingest/stats     index, queue, match rate, failures, spin backlog
 ```
 
 Or `groovenet vinyl status | detections | ingests`.

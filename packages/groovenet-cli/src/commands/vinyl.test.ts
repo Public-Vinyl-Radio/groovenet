@@ -10,12 +10,17 @@ vi.mock("@groovenet/client", () => ({
 import { Command } from "commander";
 import {
   addVinylCommands,
+  formatAggregateResult,
   formatDetection,
   formatOffset,
   formatStats,
   makeClient,
 } from "./vinyl.js";
-import type { DetectionWindow, IngestPipelineStats } from "@groovenet/client";
+import type {
+  DetectionWindow,
+  IngestPipelineStats,
+  SpinAggregateResult,
+} from "@groovenet/client";
 
 function window(overrides: Partial<DetectionWindow> = {}): DetectionWindow {
   return {
@@ -41,6 +46,19 @@ function stats(overrides: Partial<IngestPipelineStats> = {}): IngestPipelineStat
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
     detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,
                   confidence_bands: [{ band: "0.90-1.00", count: 8 }] },
+    spins: { pending: 0 },
+    ...overrides,
+  };
+}
+
+function aggregateResult(
+  overrides: Partial<SpinAggregateResult> = {}
+): SpinAggregateResult {
+  return {
+    since: "2026-08-01T00:00:00.000Z",
+    created: 2,
+    skipped: 1,
+    sources: [{ source_id: "living-room-vinyl", created: 2, skipped: 1 }],
     ...overrides,
   };
 }
@@ -167,6 +185,20 @@ describe("formatStats()", () => {
     expect(plain(formatStats(stats()))).not.toContain("no fingerprint");
   });
 
+  it("flags detections waiting to become spins", () => {
+    const out = plain(formatStats(stats({ spins: { pending: 5 } })));
+    expect(out).toContain("5 detection(s) awaiting a spin session");
+  });
+
+  it("flags an unavailable spin backlog rather than showing zero", () => {
+    const out = plain(formatStats(stats({ spins: { pending: null } })));
+    expect(out).toContain("spin aggregation backlog unavailable");
+  });
+
+  it("says nothing about spins when the backlog is empty", () => {
+    expect(plain(formatStats(stats({ spins: { pending: 0 } })))).not.toContain("spin");
+  });
+
   it("reports the match rate", () => {
     expect(plain(formatStats(stats()))).toContain("8 matched, 2 no-match (80.0%)");
   });
@@ -219,18 +251,49 @@ describe("formatStats()", () => {
   });
 });
 
+describe("formatAggregateResult()", () => {
+  it("reports totals and a per-source breakdown", () => {
+    const out = plain(formatAggregateResult(aggregateResult()));
+    expect(out).toContain("created 2");
+    expect(out).toContain("skipped 1");
+    expect(out).toContain("living-room-vinyl: created 2, skipped 1");
+  });
+
+  it("says so when nothing was active in that window, rather than an empty table", () => {
+    const out = plain(formatAggregateResult(
+      aggregateResult({ sources: [] })
+    ));
+    expect(out).toContain("no active source since");
+    expect(out).toContain("2026-08-01T00:00:00.000Z");
+  });
+
+  it("breaks totals down per source when more than one is active", () => {
+    const out = plain(formatAggregateResult(aggregateResult({
+      created: 3, skipped: 2,
+      sources: [
+        { source_id: "living-room-vinyl", created: 2, skipped: 1 },
+        { source_id: "basement-vinyl", created: 1, skipped: 1 },
+      ],
+    })));
+    expect(out).toContain("living-room-vinyl: created 2, skipped 1");
+    expect(out).toContain("basement-vinyl: created 1, skipped 1");
+  });
+});
+
 // ─── command wiring ───────────────────────────────────────────────────────────
 
 describe("addVinylCommands()", () => {
   const getIngestStats = vi.fn();
   const listDetections = vi.fn();
   const listIngests = vi.fn();
+  const aggregateSpins = vi.fn();
   let out: string[];
 
   beforeEach(() => {
     out = [];
     getIngestStats.mockReset().mockResolvedValue(stats());
     listDetections.mockReset().mockResolvedValue({ detections: [window()], count: 1 });
+    aggregateSpins.mockReset().mockResolvedValue(aggregateResult());
     listIngests.mockReset().mockResolvedValue({
       ingests: [{
         ingest_id: "i1", source_id: "aswitch", session_id: "s1", sequence: 42,
@@ -244,7 +307,7 @@ describe("addVinylCommands()", () => {
     loadConfig.mockReturnValue({ api_base: "http://localhost:3000/api" });
     GroovenetClientMock.mockReset().mockImplementation(function () {
       // Not an arrow: makeClient calls this with `new`.
-      return { getIngestStats, listDetections, listIngests };
+      return { getIngestStats, listDetections, listIngests, aggregateSpins };
     });
     vi.spyOn(console, "log").mockImplementation((line: unknown) => {
       out.push(String(line));
@@ -268,12 +331,12 @@ describe("addVinylCommands()", () => {
     return program.parseAsync(["node", "groovenet", "vinyl", ...args]);
   }
 
-  it("registers the three subcommands", () => {
+  it("registers the four subcommands", () => {
     const program = new Command();
     addVinylCommands(program);
     const vinyl = program.commands.find((c) => c.name() === "vinyl")!;
     expect(vinyl.commands.map((c) => c.name()).sort()).toEqual([
-      "detections", "ingests", "status",
+      "aggregate", "detections", "ingests", "status",
     ]);
   });
 
@@ -288,7 +351,8 @@ describe("addVinylCommands()", () => {
     // So it composes as a health check.
     getIngestStats.mockResolvedValue(stats({
       index: { engine_registered: true, fingerprint_type: "chromaprint",
-               fingerprint_version: "1", indexed_tracks: 0, empty: true },
+               fingerprint_version: "1", indexed_tracks: 0, empty: true,
+               missing_fingerprint_tracks: 0 },
     }));
 
     await parse("status");
@@ -299,7 +363,8 @@ describe("addVinylCommands()", () => {
   it("status exits non-zero when no engine is registered", async () => {
     getIngestStats.mockResolvedValue(stats({
       index: { engine_registered: false, fingerprint_type: null,
-               fingerprint_version: null, indexed_tracks: 0, empty: true },
+               fingerprint_version: null, indexed_tracks: 0, empty: true,
+               missing_fingerprint_tracks: 0 },
     }));
 
     await parse("status");
@@ -425,6 +490,65 @@ describe("addVinylCommands()", () => {
     await parse("ingests");
 
     expect(out.join("\n")).toContain("decode failed");
+  });
+
+  // ── aggregate ──
+
+  it("aggregate requires --since", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await expect(parse("aggregate")).rejects.toThrow();
+
+    expect(aggregateSpins).not.toHaveBeenCalled();
+    exit.mockRestore();
+  });
+
+  it("aggregate passes a normalised ISO date and the source through", async () => {
+    await parse("aggregate", "--since", "2026-08-01", "--source", "living-room-vinyl");
+
+    expect(aggregateSpins).toHaveBeenCalledWith({
+      since: new Date("2026-08-01").toISOString(),
+      source_id: "living-room-vinyl",
+    });
+  });
+
+  it("aggregate omits source_id when none is given, so every active source is checked", async () => {
+    await parse("aggregate", "--since", "2026-08-01");
+    expect(aggregateSpins.mock.calls[0][0].source_id).toBeUndefined();
+  });
+
+  it("aggregate prints the created/skipped summary", async () => {
+    await parse("aggregate", "--since", "2026-08-01");
+    expect(out.join("\n")).toContain("created 2");
+  });
+
+  it("aggregate --json emits the raw shape", async () => {
+    await parse("aggregate", "--since", "2026-08-01", "--json");
+    expect(JSON.parse(out.join(""))).toMatchObject({ created: 2, skipped: 1 });
+  });
+
+  it("aggregate rejects a date it cannot parse, without calling the API", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await parse("aggregate", "--since", "not-a-date");
+
+    expect(aggregateSpins).not.toHaveBeenCalled();
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("not-a-date")
+    );
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("aggregate reports an API failure on stderr and exits 1", async () => {
+    aggregateSpins.mockRejectedValue(new Error("API Error: connection refused"));
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await parse("aggregate", "--since", "2026-08-01");
+
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("connection refused")
+    );
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
   // ── failures ──

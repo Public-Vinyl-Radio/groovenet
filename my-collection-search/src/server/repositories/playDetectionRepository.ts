@@ -121,6 +121,26 @@ export class PlayDetectionRepository {
   }
 
   /**
+   * Distinct sources with any detection since `since` (#304).
+   *
+   * Feeds the periodic aggregation backstop, which needs to know what to
+   * check without scanning the whole table. Includes no-match rows too —
+   * cheaper than filtering them out here, and `aggregateSource`'s own dedup
+   * makes checking a source with nothing new to aggregate free.
+   */
+  async listActiveSourceIds(since: Date | string): Promise<string[]> {
+    const { rows } = await dbQuery<{ source_id: string }>(
+      `
+      SELECT DISTINCT source_id
+      FROM play_detections
+      WHERE window_start_at >= $1
+      `,
+      [since]
+    );
+    return rows.map((row) => row.source_id);
+  }
+
+  /**
    * Matched / no-match counts and the confidence spread over a window (#299).
    *
    * The bands matter more than an average: #271 found a clean bimodal split,
