@@ -9,6 +9,7 @@ import {
   backfillIntervalMinutes,
   backfillTick,
   resetBackfillClock,
+  startFingerprintBackfill,
 } from "../fingerprintBackfillService";
 
 const NOW = new Date("2026-09-22T00:00:00Z").getTime();
@@ -73,6 +74,18 @@ describe("backfillTick()", () => {
     expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" });
   });
 
+  it("logs how many tracks it queued", async () => {
+    indexService.startRun.mockResolvedValue({ run_id: "r1", queued: 29 });
+    const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await backfillTick(NOW);
+
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("queued 29 track(s)")
+    );
+    logged.mockRestore();
+  });
+
   it("never queues a track scope — this pass is library-wide by design", async () => {
     await backfillTick(NOW);
     const [scope] = indexService.startRun.mock.calls[0];
@@ -90,5 +103,81 @@ describe("backfillTick()", () => {
 
     expect(logged).toHaveBeenCalled();
     logged.mockRestore();
+  });
+});
+
+// ─── startFingerprintBackfill ─────────────────────────────────────────────────
+
+// Captured before any spy replaces it.
+const timerImpl = globalThis.setInterval;
+
+describe("startFingerprintBackfill()", () => {
+  const GUARD = "__groovenetFingerprintBackfillStarted";
+  let timers: ReturnType<typeof setInterval>[];
+
+  beforeEach(() => {
+    delete (globalThis as Record<string, unknown>)[GUARD];
+    timers = [];
+    vi.useFakeTimers();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    // Remember every timer registered. One test runs on real timers, and a
+    // stray 60s interval would keep the suite's event loop alive.
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((
+      fn: () => void,
+      ms: number
+    ) => {
+      const handle = timerImpl(fn, ms);
+      timers.push(handle);
+      return handle;
+    }) as typeof setInterval);
+  });
+
+  afterEach(() => {
+    for (const handle of timers) clearInterval(handle);
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    delete (globalThis as Record<string, unknown>)[GUARD];
+  });
+
+  it("starts only once per process", () => {
+    startFingerprintBackfill();
+    startFingerprintBackfill();
+
+    expect(globalThis.setInterval).toHaveBeenCalledTimes(1);
+  });
+
+  it("ticks every minute", () => {
+    startFingerprintBackfill();
+
+    expect(globalThis.setInterval).toHaveBeenCalledWith(expect.any(Function), 60_000);
+  });
+
+  it("queues a backfill run on startup rather than waiting out the first interval", async () => {
+    // Real timers: the tick resolves through a mocked promise, which fake
+    // timers do not advance on their own.
+    vi.useRealTimers();
+
+    startFingerprintBackfill();
+
+    await vi.waitFor(() =>
+      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" })
+    );
+  });
+
+  it("hands the timer a callback that ticks again", async () => {
+    startFingerprintBackfill();
+    const registered = (globalThis.setInterval as unknown as {
+      mock: { calls: [() => void, number][] };
+    }).mock.calls[0][0];
+
+    indexService.startRun.mockClear();
+    resetBackfillClock();
+    vi.useRealTimers();
+
+    registered();
+
+    await vi.waitFor(() =>
+      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" })
+    );
   });
 });
