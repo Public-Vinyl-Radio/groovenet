@@ -16,12 +16,17 @@ const ingests = vi.hoisted(() => ({
   listStale: vi.fn(),
 }));
 const detections = vi.hoisted(() => ({ create: vi.fn() }));
+const aggregation = vi.hoisted(() => ({ aggregateSource: vi.fn() }));
 
 vi.mock("@/server/repositories/audioIngestRepository", () => ({
   audioIngestRepository: ingests,
 }));
 vi.mock("@/server/repositories/playDetectionRepository", () => ({
   playDetectionRepository: detections,
+}));
+vi.mock("@/server/services/playAggregationService", () => ({
+  playAggregationService: aggregation,
+  aggregationLookbackMs: () => 60 * 60_000,
 }));
 
 import {
@@ -89,6 +94,7 @@ beforeEach(() => {
   ingests.transitionStatus.mockImplementation(async (_id, to) => row({ status: to }));
   ingests.listStale.mockResolvedValue([]);
   detections.create.mockResolvedValue({});
+  aggregation.aggregateSource.mockResolvedValue({ created: 0, skipped: 0 });
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
@@ -229,6 +235,57 @@ describe("report()", () => {
     await service.report(report({ status: "failed", error: "decode failed" }));
 
     expect(detections.create).not.toHaveBeenCalled();
+  });
+
+  // ─── aggregation trigger (#304) ───────────────────────────────────────────
+
+  it("aggregates the source's detections when a window matches", async () => {
+    await service.report(
+      report({
+        candidates: [
+          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
+        ],
+      })
+    );
+
+    expect(aggregation.aggregateSource).toHaveBeenCalledWith(
+      "living-room-vinyl",
+      expect.any(Date)
+    );
+  });
+
+  it("does not aggregate on a no-match window — nothing new to group", async () => {
+    await service.report(report({ candidates: [] }));
+
+    expect(aggregation.aggregateSource).not.toHaveBeenCalled();
+  });
+
+  it("does not aggregate a failed chunk", async () => {
+    await service.report(report({ status: "failed", error: "decode failed" }));
+
+    expect(aggregation.aggregateSource).not.toHaveBeenCalled();
+  });
+
+  it("still reports success when aggregation throws", async () => {
+    // The callback fingerprint-service is waiting on must not fail because
+    // the backstop scheduler could have handled this anyway.
+    aggregation.aggregateSource.mockRejectedValueOnce(new Error("db exploded"));
+
+    const result = await service.report(
+      report({
+        candidates: [
+          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
+        ],
+      })
+    );
+
+    expect(result.status).toBe("processed");
+    expect(ingests.transitionStatus).toHaveBeenCalledWith(
+      "ingest-1",
+      "processed",
+      ["received", "processing"],
+      null
+    );
   });
 
   it("writes the detections before moving the status", async () => {

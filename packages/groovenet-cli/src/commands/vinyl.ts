@@ -132,6 +132,18 @@ export function formatStats(s: IngestPipelineStats): string {
     }
   }
 
+  // Detections pile up here when nothing ever turns them into a spin — the
+  // failure #304 fixed, where the aggregation logic existed but nothing
+  // called it. Null (redis/query failure) is worth a different flag than a
+  // real, nonzero backlog.
+  if (s.spins.pending === null) {
+    lines.push(chalk.yellow("? spin aggregation backlog unavailable"));
+  } else if (s.spins.pending > 0) {
+    lines.push(
+      chalk.yellow(`⚠ ${s.spins.pending} detection(s) awaiting a spin session`)
+    );
+  }
+
   if (s.ingests.oldest_in_flight) {
     const o = s.ingests.oldest_in_flight;
     lines.push(

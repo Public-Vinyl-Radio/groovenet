@@ -7,11 +7,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const ingests = vi.hoisted(() => ({ statsSince: vi.fn() }));
-const detections = vi.hoisted(() => ({ statsSince: vi.fn() }));
+const detections = vi.hoisted(() => ({
+  statsSince: vi.fn(),
+  listActiveSourceIds: vi.fn(),
+}));
 const fingerprints = vi.hoisted(() => ({
   countFingerprints: vi.fn(),
   countIndexCandidates: vi.fn(),
 }));
+const aggregation = vi.hoisted(() => ({ countPending: vi.fn() }));
 const redis = vi.hoisted(() => ({ llen: vi.fn(), hgetall: vi.fn() }));
 
 vi.mock("@/server/repositories/audioIngestRepository", () => ({
@@ -22,6 +26,9 @@ vi.mock("@/server/repositories/playDetectionRepository", () => ({
 }));
 vi.mock("@/server/repositories/fingerprintRepository", () => ({
   fingerprintRepository: fingerprints,
+}));
+vi.mock("@/server/services/playAggregationService", () => ({
+  playAggregationService: aggregation,
 }));
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => redis }));
 
@@ -47,6 +54,8 @@ beforeEach(() => {
   });
   fingerprints.countFingerprints.mockResolvedValue(3783);
   fingerprints.countIndexCandidates.mockResolvedValue(29);
+  detections.listActiveSourceIds.mockResolvedValue(["living-room-vinyl"]);
+  aggregation.countPending.mockResolvedValue(2);
   redis.llen.mockResolvedValue(3);
   redis.hgetall.mockResolvedValue({
     fingerprint_type: "chromaprint",
@@ -149,6 +158,44 @@ describe("stats() — counters", () => {
       ingest_id: "i9", status: "processing",
       received_at: "2026-09-21T02:00:00.000Z",
     });
+  });
+});
+
+describe("stats() — spins (#304)", () => {
+  it("reports the pending backlog across every active source", async () => {
+    detections.listActiveSourceIds.mockResolvedValue(["a", "b"]);
+    aggregation.countPending.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
+
+    const s = await service.stats();
+
+    expect(s.spins.pending).toBe(3);
+    expect(aggregation.countPending).toHaveBeenCalledWith("a", expect.any(Date));
+    expect(aggregation.countPending).toHaveBeenCalledWith("b", expect.any(Date));
+  });
+
+  it("scopes to one source when given one, without listing active sources", async () => {
+    await service.stats(60, "aswitch");
+
+    expect(detections.listActiveSourceIds).not.toHaveBeenCalled();
+    expect(aggregation.countPending).toHaveBeenCalledWith("aswitch", expect.any(Date));
+  });
+
+  it("is zero, not null, when nothing is active", async () => {
+    detections.listActiveSourceIds.mockResolvedValue([]);
+
+    const s = await service.stats();
+
+    expect(s.spins.pending).toBe(0);
+    expect(aggregation.countPending).not.toHaveBeenCalled();
+  });
+
+  it("reports null rather than failing when the backlog cannot be computed", async () => {
+    detections.listActiveSourceIds.mockRejectedValue(new Error("connection reset"));
+
+    const s = await service.stats();
+
+    expect(s.spins.pending).toBeNull();
+    expect(s.detections.windows).toBe(10);
   });
 });
 

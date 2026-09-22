@@ -137,6 +137,29 @@ describe("listRecent()", () => {
   });
 });
 
+// ─── active sources (#304) ──────────────────────────────────────────────────
+
+describe("listActiveSourceIds()", () => {
+  it("returns the distinct sources with recent activity", async () => {
+    dbQuery.mockResolvedValue({
+      rows: [{ source_id: "listener-1" }, { source_id: "listener-2" }],
+    });
+
+    const result = await repo().listActiveSourceIds("2026-09-20T12:00:00Z");
+
+    expect(result).toEqual(["listener-1", "listener-2"]);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(/SELECT DISTINCT source_id/);
+    expect(sql).toMatch(/window_start_at >= \$1/);
+    expect(params).toEqual(["2026-09-20T12:00:00Z"]);
+  });
+
+  it("returns an empty list rather than throwing when nothing is active", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await repo().listActiveSourceIds(new Date())).toEqual([]);
+  });
+});
+
 describe("statsSince()", () => {
   it("counts matched and unmatched separately", async () => {
     dbQuery

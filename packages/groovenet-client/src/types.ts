@@ -548,6 +548,10 @@ export interface IngestPipelineStats {
     match_rate: number | null;
     confidence_bands: Array<{ band: string; count: number }>;
   };
+  spins: {
+    /** Confident detections not yet written to spin_sessions (#304). Null when it could not be computed. */
+    pending: number | null;
+  };
 }
 
 export interface DetectionQuery {

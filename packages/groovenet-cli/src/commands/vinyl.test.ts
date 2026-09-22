@@ -41,6 +41,7 @@ function stats(overrides: Partial<IngestPipelineStats> = {}): IngestPipelineStat
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
     detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,
                   confidence_bands: [{ band: "0.90-1.00", count: 8 }] },
+    spins: { pending: 0 },
     ...overrides,
   };
 }
@@ -165,6 +166,20 @@ describe("formatStats()", () => {
 
   it("says nothing about a fingerprint backlog when there is none", () => {
     expect(plain(formatStats(stats()))).not.toContain("no fingerprint");
+  });
+
+  it("flags detections waiting to become spins", () => {
+    const out = plain(formatStats(stats({ spins: { pending: 5 } })));
+    expect(out).toContain("5 detection(s) awaiting a spin session");
+  });
+
+  it("flags an unavailable spin backlog rather than showing zero", () => {
+    const out = plain(formatStats(stats({ spins: { pending: null } })));
+    expect(out).toContain("spin aggregation backlog unavailable");
+  });
+
+  it("says nothing about spins when the backlog is empty", () => {
+    expect(plain(formatStats(stats({ spins: { pending: 0 } })))).not.toContain("spin");
   });
 
   it("reports the match rate", () => {

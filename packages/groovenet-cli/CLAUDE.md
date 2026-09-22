@@ -94,6 +94,11 @@ run to notice. It doesn't fail the health check: the app queues these
 automatically (on download, and on a periodic backfill pass), so a nonzero
 count is a normal transient state, not a broken pipeline.
 
+Same shape for detections waiting to become spins (#304): a nonzero count is
+normal (the app aggregates on a confident detection and on a periodic pass),
+but before #304 this number would have grown forever — the aggregation logic
+from #279 existed and was tested, but nothing ever called it.
+
 ## Build
 
 ```bash

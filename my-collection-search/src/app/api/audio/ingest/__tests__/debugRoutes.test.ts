@@ -39,6 +39,7 @@ beforeEach(() => {
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
     detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,
                   confidence_bands: [] },
+    spins: { pending: 0 },
   });
 });
 
