@@ -4,6 +4,7 @@ import type {
   DetectionWindow,
   IngestPipelineStats,
   IngestRecord,
+  SpinAggregateResult,
 } from "@groovenet/client";
 import chalk from "chalk";
 import Table from "cli-table3";
@@ -156,6 +157,32 @@ export function formatStats(s: IngestPipelineStats): string {
   return lines.join("\n");
 }
 
+/**
+ * The backfill result (#304).
+ *
+ * Both automatic triggers only look back `PLAY_AGGREGATION_LOOKBACK_MINUTES`
+ * (default 60), so this is what confirms a manual `--since` actually reached
+ * older detections.
+ */
+export function formatAggregateResult(result: SpinAggregateResult): string {
+  const lines: string[] = [];
+
+  if (result.sources.length === 0) {
+    lines.push(chalk.yellow(`no active source since ${result.since}`));
+    return lines.join("\n");
+  }
+
+  lines.push(
+    chalk.green(`✓ created ${result.created}`) +
+      chalk.gray(`, skipped ${result.skipped} (already aggregated)`)
+  );
+  for (const s of result.sources) {
+    lines.push(chalk.gray(`  ${s.source_id}: created ${s.created}, skipped ${s.skipped}`));
+  }
+
+  return lines.join("\n");
+}
+
 function printDetections(rows: DetectionWindow[]): void {
   if (rows.length === 0) {
     console.log(chalk.yellow("No detections yet."));
@@ -300,4 +327,35 @@ export function addVinylCommands(program: Command): void {
         }
       }
     );
+
+  vinyl
+    .command("aggregate")
+    .description(
+      "Backfill: aggregate detections into spins from a date the automatic passes never reach (#304)"
+    )
+    .requiredOption(
+      "--since <date>",
+      "Aggregate detections at or after this date/time (anything Date can parse)"
+    )
+    .option("--source <id>", "Limit to one listener source")
+    .option("--json", "Output as JSON")
+    .action(async (opts: { since: string; source?: string; json?: boolean }) => {
+      try {
+        const since = new Date(opts.since);
+        if (Number.isNaN(since.getTime())) {
+          printError(`--since is not a date I can parse: ${opts.since}`);
+          process.exit(1);
+          return;
+        }
+        const result = await makeClient().aggregateSpins({
+          since: since.toISOString(),
+          source_id: opts.source,
+        });
+        if (opts.json) printJson(result);
+        else console.log(formatAggregateResult(result));
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    });
 }

@@ -562,3 +562,23 @@ export interface DetectionQuery {
   limit?: number;
   offset?: number;
 }
+
+// ─── Manual aggregation backfill (#304) ───────────────────────────────────────
+
+export interface SpinAggregateRequest {
+  since: string;
+  source_id?: string;
+}
+
+export interface SpinAggregateSourceResult {
+  source_id: string;
+  created: number;
+  skipped: number;
+}
+
+export interface SpinAggregateResult {
+  since: string;
+  created: number;
+  skipped: number;
+  sources: SpinAggregateSourceResult[];
+}

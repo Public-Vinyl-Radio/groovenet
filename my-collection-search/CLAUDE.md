@@ -111,6 +111,9 @@ than one process:
   source's detections the moment it records a confident one. #279 built the
   grouping/dedup logic and neither trigger existed until #304 — detections
   landed in `play_detections` and nothing ever turned them into a spin.
+  Both are bounded by `PLAY_AGGREGATION_LOOKBACK_MINUTES` (default 60); a
+  backlog older than that needs `POST /api/spins/aggregate` (`since`,
+  optional `source_id`) or `groovenet vinyl aggregate --since <date>`.
 
 All of the above tick every 60s and decide internally whether it is time to
 act, so each interval is configurable without restarting a timer.

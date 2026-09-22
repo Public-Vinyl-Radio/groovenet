@@ -24,7 +24,7 @@ albums              list | show | update | download
 playlists           list | show | create | generate
 friends             list | add
 fingerprint-library (no subcommands — scope flags)
-vinyl               status | detections | ingests
+vinyl               status | detections | ingests | aggregate
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -98,6 +98,16 @@ Same shape for detections waiting to become spins (#304): a nonzero count is
 normal (the app aggregates on a confident detection and on a periodic pass),
 but before #304 this number would have grown forever — the aggregation logic
 from #279 existed and was tested, but nothing ever called it.
+
+`groovenet vinyl aggregate --since <date>` is the manual escape hatch for that
+same backlog. Both automatic triggers only look back
+`PLAY_AGGREGATION_LOOKBACK_MINUTES` (default 60), so detections stored before
+this shipped — or from any longer gap — never get picked up on their own.
+`--since` accepts anything `Date` can parse (`2026-08-01`, a full ISO
+timestamp, …); add `--source <id>` to scope it to one listener. Safe to
+re-run: it hits the same `POST /api/spins/aggregate` route the schedulers use,
+whose dedup (`findAutomaticSessionByDetectionId`) means re-aggregating a
+window that already has spins creates nothing twice.
 
 ## Build
 
