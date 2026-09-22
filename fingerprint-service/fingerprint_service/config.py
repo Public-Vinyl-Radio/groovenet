@@ -78,6 +78,16 @@ MATCHER_NAME = os.getenv('FINGERPRINT_MATCHER', 'chromaprint')
 #: #279 counts a single detection as a play, with nothing to corroborate it.
 MAX_BIT_ERROR_RATE = float(os.getenv('FINGERPRINT_MAX_BER', '0.25'))
 
+#: Below this fraction of distinct fingerprint values, a query window is
+#: refused before it is ever searched (#306). Chromaprint values repeat when
+#: the input has almost no spectral movement, so silence measures 0.01-0.03
+#: and real music 0.98-1.00 — a gap two orders of magnitude wide that no BER
+#: threshold can substitute for, because two silences verify as a true BER of
+#: 0.0. Reference tracks are full-side rips and legitimately contain silent
+#: gaps, so this is checked on the query side, not the index side. 0 restores
+#: the old behaviour.
+MIN_FINGERPRINT_VARIETY = float(os.getenv('FINGERPRINT_MIN_VARIETY', '0.20'))
+
 #: The `fingerprint_version` every stored blob is written under.
 #:
 #: Deliberately **not** libchromaprint's version. The library's version changes
