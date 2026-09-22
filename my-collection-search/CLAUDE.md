@@ -98,9 +98,16 @@ than one process:
 
 - `startBackupScheduler()` — restic snapshots on a cron.
 - `startIngestSweeper()` — retention for the vinyl ingest volume (#269).
+- `startIngestReaper()` — writes off audio chunks stuck past their stall
+  window so their file can be released.
+- `startFingerprintBackfill()` — queues any track with audio but no
+  fingerprint (`fingerprintBackfillService.ts`), the backstop for #303. The
+  fast path is immediate: `PATCH /api/tracks` queues a track's fingerprint the
+  moment its `local_audio_url` transitions from null to a value
+  (`trackFingerprintTrigger.ts`). This only catches what that trigger missed.
 
-Both tick every 60s and decide internally whether it is time to act, so the
-interval is configurable without restarting a timer.
+All of the above tick every 60s and decide internally whether it is time to
+act, so each interval is configurable without restarting a timer.
 
 The sweeper's rules live in `selectForDeletion`, which is pure and takes the
 directory listing plus the matching `audio_ingests` rows. The one that matters:

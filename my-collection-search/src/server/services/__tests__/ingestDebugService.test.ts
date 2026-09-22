@@ -8,7 +8,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const ingests = vi.hoisted(() => ({ statsSince: vi.fn() }));
 const detections = vi.hoisted(() => ({ statsSince: vi.fn() }));
-const fingerprints = vi.hoisted(() => ({ countFingerprints: vi.fn() }));
+const fingerprints = vi.hoisted(() => ({
+  countFingerprints: vi.fn(),
+  countIndexCandidates: vi.fn(),
+}));
 const redis = vi.hoisted(() => ({ llen: vi.fn(), hgetall: vi.fn() }));
 
 vi.mock("@/server/repositories/audioIngestRepository", () => ({
@@ -43,6 +46,7 @@ beforeEach(() => {
     bands: [{ band: "0.90-1.00", count: 8 }],
   });
   fingerprints.countFingerprints.mockResolvedValue(3783);
+  fingerprints.countIndexCandidates.mockResolvedValue(29);
   redis.llen.mockResolvedValue(3);
   redis.hgetall.mockResolvedValue({
     fingerprint_type: "chromaprint",
@@ -60,11 +64,22 @@ describe("stats() — the index", () => {
       fingerprint_version: "1",
       indexed_tracks: 3783,
       empty: false,
+      missing_fingerprint_tracks: 29,
     });
     expect(fingerprints.countFingerprints).toHaveBeenCalledWith({
       fingerprint_type: "chromaprint",
       fingerprint_version: "1",
     });
+    expect(fingerprints.countIndexCandidates).toHaveBeenCalledWith(
+      { kind: "missing" },
+      { fingerprint_type: "chromaprint", fingerprint_version: "1" }
+    );
+  });
+
+  it("reports the fingerprint backlog as zero when nothing is missing", async () => {
+    fingerprints.countIndexCandidates.mockResolvedValue(0);
+    const s = await service.stats();
+    expect(s.index.missing_fingerprint_tracks).toBe(0);
   });
 
   it("says outright when the index is empty", async () => {
@@ -85,7 +100,9 @@ describe("stats() — the index", () => {
 
     expect(s.index.engine_registered).toBe(false);
     expect(s.index.fingerprint_type).toBeNull();
+    expect(s.index.missing_fingerprint_tracks).toBe(0);
     expect(fingerprints.countFingerprints).not.toHaveBeenCalled();
+    expect(fingerprints.countIndexCandidates).not.toHaveBeenCalled();
   });
 });
 

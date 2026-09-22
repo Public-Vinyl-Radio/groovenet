@@ -8,6 +8,8 @@ import {
   type UpdateTrackInput,
 } from "@/server/repositories/trackRepository";
 import { computeEmbeddingUpdates } from "@/lib/trackEmbeddingDiff";
+import { shouldTriggerFingerprintIndex } from "@/lib/trackFingerprintTrigger";
+import { fingerprintIndexService } from "@/server/services/fingerprintIndexService";
 
 export async function PATCH(req: Request) {
   try {
@@ -51,6 +53,27 @@ export async function PATCH(req: Request) {
         await generateAndStoreAudioVibeEmbedding(updated.track_id, updated.friend_id);
       } catch (audioVibeError) {
         console.error("Failed to update audio vibe embedding:", audioVibeError);
+      }
+    }
+
+    // A track that just gained reference audio is invisible to play tracking
+    // until it is fingerprinted (#303) — queue it now rather than waiting for
+    // someone to remember `groovenet fingerprint-library`.
+    if (shouldTriggerFingerprintIndex(current, updated)) {
+      try {
+        await fingerprintIndexService.startRun({
+          kind: "track",
+          track_id: updated.track_id,
+          friend_id: updated.friend_id,
+        });
+      } catch (fingerprintError) {
+        // NoFingerprintEngineError when fingerprint-service is down is
+        // expected and must not fail the PATCH — the periodic backfill pass
+        // catches this track on its next tick regardless.
+        console.error(
+          "Failed to queue fingerprint index for track:",
+          fingerprintError
+        );
       }
     }
 

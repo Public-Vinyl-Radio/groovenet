@@ -273,10 +273,15 @@ export class FingerprintRepository {
    * counted separately by `countUnindexableTracks`, because "no reference audio"
    * is a fact about the library, not a failure of the run.
    */
-  async listIndexCandidates(
+  /**
+   * The `WHERE` clause shared by `listIndexCandidates` and
+   * `countIndexCandidates` — same scope, one returns rows and the other just
+   * a count, and the two must never drift apart on what "in scope" means.
+   */
+  private indexScopeWhere(
     scope: FingerprintIndexScope,
     identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
-  ): Promise<FingerprintIndexCandidate[]> {
+  ): { where: string[]; params: Array<string | number> } {
     const params: Array<string | number> = [
       identity.fingerprint_type,
       identity.fingerprint_version,
@@ -317,6 +322,15 @@ export class FingerprintRepository {
         break;
     }
 
+    return { where, params };
+  }
+
+  async listIndexCandidates(
+    scope: FingerprintIndexScope,
+    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
+  ): Promise<FingerprintIndexCandidate[]> {
+    const { where, params } = this.indexScopeWhere(scope, identity);
+
     const { rows } = await dbQuery<FingerprintIndexCandidate>(
       `
       SELECT
@@ -336,6 +350,33 @@ export class FingerprintRepository {
       params
     );
     return rows;
+  }
+
+  /**
+   * Same scope as `listIndexCandidates`, as a count — for reporting a
+   * backlog (`groovenet vinyl status`, #303) without reading every candidate
+   * row just to measure how many there are.
+   */
+  async countIndexCandidates(
+    scope: FingerprintIndexScope,
+    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
+  ): Promise<number> {
+    const { where, params } = this.indexScopeWhere(scope, identity);
+
+    const { rows } = await dbQuery<{ count: string }>(
+      `
+      SELECT COUNT(*)::text AS count
+      FROM tracks t
+      LEFT JOIN track_fingerprints f
+        ON f.track_id = t.track_id
+       AND f.friend_id = t.friend_id
+       AND f.fingerprint_type = $1
+       AND f.fingerprint_version = $2
+      WHERE ${where.join(" AND ")}
+      `,
+      params
+    );
+    return Number(rows[0]?.count ?? 0);
   }
 
   /**

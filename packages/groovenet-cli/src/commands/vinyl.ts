@@ -88,6 +88,17 @@ export function formatStats(s: IngestPipelineStats): string {
     );
   }
 
+  // A gap here is silent otherwise: everything else can look healthy while
+  // recently-downloaded audio sits unfingerprinted, invisible to play
+  // tracking until someone happens to notice (#303).
+  if (s.index.missing_fingerprint_tracks > 0) {
+    lines.push(
+      chalk.yellow(
+        `⚠ ${s.index.missing_fingerprint_tracks} track(s) have audio but no fingerprint`
+      )
+    );
+  }
+
   const q = s.queue_depth;
   lines.push(
     q === null

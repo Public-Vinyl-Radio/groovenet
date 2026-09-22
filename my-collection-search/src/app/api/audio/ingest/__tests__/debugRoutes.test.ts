@@ -33,7 +33,8 @@ beforeEach(() => {
   debugSvc.stats.mockResolvedValue({
     since: "x", window_minutes: 60, source_id: null,
     index: { engine_registered: true, fingerprint_type: "chromaprint",
-             fingerprint_version: "1", indexed_tracks: 3783, empty: false },
+             fingerprint_version: "1", indexed_tracks: 3783, empty: false,
+             missing_fingerprint_tracks: 0 },
     queue_depth: 0,
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
     detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,

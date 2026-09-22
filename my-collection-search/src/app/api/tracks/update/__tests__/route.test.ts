@@ -8,6 +8,7 @@ const {
   mockGenerateIdentityEmbedding,
   mockGenerateAudioVibeEmbedding,
   mockPostHogCapture,
+  mockStartFingerprintRun,
 } = vi.hoisted(() => {
   return {
     mockFindTrack: vi.fn(),
@@ -17,6 +18,7 @@ const {
     mockGenerateIdentityEmbedding: vi.fn().mockResolvedValue({ updated: true }),
     mockGenerateAudioVibeEmbedding: vi.fn().mockResolvedValue({ updated: true }),
     mockPostHogCapture: vi.fn(),
+    mockStartFingerprintRun: vi.fn().mockResolvedValue({ run_id: "run-1" }),
   };
 });
 
@@ -42,6 +44,10 @@ vi.mock("@/lib/audio-vibe-embedding", () => ({
 
 vi.mock("@/lib/posthog-server", () => ({
   getPostHogClient: () => ({ capture: mockPostHogCapture }),
+}));
+
+vi.mock("@/server/services/fingerprintIndexService", () => ({
+  fingerprintIndexService: { startRun: mockStartFingerprintRun },
 }));
 
 import { PATCH } from "../../route";
@@ -85,11 +91,13 @@ beforeEach(() => {
   mockGenerateIdentityEmbedding.mockReset();
   mockGenerateAudioVibeEmbedding.mockReset();
   mockPostHogCapture.mockReset();
+  mockStartFingerprintRun.mockReset();
 
   mockUpdateEmbedding.mockResolvedValue(undefined);
   mockGetTrackEmbedding.mockResolvedValue([0.1, 0.2]);
   mockGenerateIdentityEmbedding.mockResolvedValue({ updated: true });
   mockGenerateAudioVibeEmbedding.mockResolvedValue({ updated: true });
+  mockStartFingerprintRun.mockResolvedValue({ run_id: "run-1" });
 });
 
 // ─── Track not found ──────────────────────────────────────────────────────────
@@ -287,6 +295,60 @@ describe("PATCH /api/tracks — side-effect errors are swallowed", () => {
     mockPostHogCapture.mockImplementationOnce(() => {
       throw new Error("posthog fail");
     });
+    const res = await PATCH(makeReq(PATCH_BODY));
+    expect(res.status).toBe(200);
+  });
+});
+
+// ─── Fingerprint index trigger (#303) ──────────────────────────────────────────
+
+describe("PATCH /api/tracks — fingerprint index trigger", () => {
+  it("queues a fingerprint index run when local_audio_url goes from null to a value", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: null }));
+    mockUpdateTrack.mockResolvedValueOnce(
+      baseTrack({ local_audio_url: "artist - title.m4a" })
+    );
+    await PATCH(makeReq(PATCH_BODY));
+    expect(mockStartFingerprintRun).toHaveBeenCalledWith({
+      kind: "track",
+      track_id: "t1",
+      friend_id: 1,
+    });
+  });
+
+  it("does not queue a run when local_audio_url is unchanged", async () => {
+    mockFindTrack.mockResolvedValueOnce(
+      baseTrack({ local_audio_url: "artist - title.m4a" })
+    );
+    mockUpdateTrack.mockResolvedValueOnce(
+      baseTrack({ local_audio_url: "artist - title.m4a" })
+    );
+    await PATCH(makeReq(PATCH_BODY));
+    expect(mockStartFingerprintRun).not.toHaveBeenCalled();
+  });
+
+  it("does not queue a run when neither side has audio", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: null }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: null }));
+    await PATCH(makeReq(PATCH_BODY));
+    expect(mockStartFingerprintRun).not.toHaveBeenCalled();
+  });
+
+  it("does not queue a run when an existing file is merely replaced", async () => {
+    // Only the null → value transition is handled here; a changed file is
+    // caught by the periodic "missing"/"changed" backfill pass instead.
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "old.m4a" }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "new.m4a" }));
+    await PATCH(makeReq(PATCH_BODY));
+    expect(mockStartFingerprintRun).not.toHaveBeenCalled();
+  });
+
+  it("still returns 200 when queuing the fingerprint run throws", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: null }));
+    mockUpdateTrack.mockResolvedValueOnce(
+      baseTrack({ local_audio_url: "artist - title.m4a" })
+    );
+    mockStartFingerprintRun.mockRejectedValueOnce(new Error("no engine registered"));
     const res = await PATCH(makeReq(PATCH_BODY));
     expect(res.status).toBe(200);
   });

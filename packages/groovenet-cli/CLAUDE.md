@@ -88,6 +88,12 @@ arrive, decode, report `processed`, and every one of them matches nothing.
 A no-match window is rendered plainly rather than in red. It is the expected
 state between tracks, and colouring it as an error trains you to ignore errors.
 
+`status` also warns when tracks have `local_audio_url` but no fingerprint
+(#303) — the gap that used to need a manual `groovenet fingerprint-library`
+run to notice. It doesn't fail the health check: the app queues these
+automatically (on download, and on a periodic backfill pass), so a nonzero
+count is a normal transient state, not a broken pipeline.
+
 ## Build
 
 ```bash
