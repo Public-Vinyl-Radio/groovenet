@@ -13,7 +13,12 @@ from typing import Protocol, runtime_checkable
 
 from .audio import NormalizedAudio
 from .chromaprint_engine import fingerprint_pcm
-from .config import FINGERPRINT_VERSION, MAX_BIT_ERROR_RATE, logger
+from .config import (
+    FINGERPRINT_VERSION,
+    MAX_BIT_ERROR_RATE,
+    MIN_FINGERPRINT_VARIETY,
+    logger,
+)
 from .reference_index import ReferenceIndex
 from .types import MatchCandidate
 
@@ -106,6 +111,14 @@ class ChromaprintMatcher:
     over the app's REST API and hands them in. A matcher with an empty index is
     a legitimate state — nothing has been indexed yet (#277) — and answers "no
     match" rather than failing.
+
+    A query is also refused before it ever reaches the index if it has too
+    little spectral variety (#306). Reference tracks are full-side rips, so a
+    silent gap is normal, not exceptional — and Chromaprint fingerprints two
+    silences identically, a true bit-error-rate of 0.0 that no BER threshold
+    can distinguish from a real match. Checked here, on the query, rather than
+    at index time: the reference library legitimately contains silence, and
+    refusing to *store* it would not stop a live silent window from finding it.
     """
 
     fingerprint_type = "chromaprint"
@@ -114,9 +127,11 @@ class ChromaprintMatcher:
         self,
         index: ReferenceIndex | None = None,
         max_bit_error_rate: float = MAX_BIT_ERROR_RATE,
+        min_variety: float = MIN_FINGERPRINT_VARIETY,
     ) -> None:
         self.reference_index = index if index is not None else ReferenceIndex()
         self.max_bit_error_rate = max_bit_error_rate
+        self.min_variety = min_variety
         # Our recipe's version, not libchromaprint's — see FINGERPRINT_VERSION.
         # Two library versions that emit identical bytes must index under the
         # same name, or upgrading the base image empties the index.
@@ -140,6 +155,17 @@ class ChromaprintMatcher:
 
         query = fingerprint_pcm(audio.pcm, audio.sample_rate)
         if not query.values:
+            return []
+
+        if query.variety < self.min_variety:
+            # Not a BER problem: two silences fingerprint identically, so
+            # nothing downstream can tell this apart from a real match.
+            logger.info(
+                "Window has too little variety (%.3f < %.2f) to search — "
+                "likely silence or surface noise",
+                query.variety,
+                self.min_variety,
+            )
             return []
 
         matches = self.reference_index.search(

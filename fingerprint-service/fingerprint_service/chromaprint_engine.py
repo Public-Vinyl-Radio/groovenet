@@ -60,6 +60,22 @@ class RawFingerprint:
     def duration_seconds(self) -> float:
         return len(self.values) * SECONDS_PER_VALUE
 
+    @property
+    def variety(self) -> float:
+        """Fraction of values that are distinct, in [0, 1] (#306).
+
+        Chromaprint describes how the spectrum *moves* — audio with no signal
+        repeats the same value. A 15s silent window fingerprints to one to
+        three distinct values out of roughly a hundred; real music gives
+        98-100. Two silences are therefore not merely similar, they are
+        identical: a true bit-error-rate of 0.0. This has to be checked before
+        a query is ever searched, because no BER threshold can tell it apart
+        from a real match.
+        """
+        if not self.values:
+            return 0.0
+        return len(set(self.values)) / len(self.values)
+
     def to_bytes(self) -> bytes:
         """Little-endian uint32s, as stored in `track_fingerprints`."""
         return b"".join(v.to_bytes(4, "little") for v in self.values)

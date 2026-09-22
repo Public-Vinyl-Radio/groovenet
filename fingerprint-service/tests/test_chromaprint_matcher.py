@@ -123,17 +123,6 @@ class TestMatchDirection:
         matcher = self.build(tone_pcm)
         assert matcher.match(audio_of(tone_pcm, seconds=30.0, seed=9.1)) == []
 
-    def test_silence_returns_no_candidates(self, tone_pcm):
-        """A required behaviour, not an edge case (#278).
-
-        A window of silence or pure surface noise must produce nothing rather
-        than a spurious low-confidence guess — #279 counts one detection as a
-        play, with nothing to corroborate it.
-        """
-        matcher = self.build(tone_pcm)
-        silence = NormalizedAudio(pcm=b"\x00\x00" * 22050 * 20, sample_rate=22050)
-        assert matcher.match(silence) == []
-
     def test_an_empty_index_matches_nothing(self, tone_pcm):
         # The real state before library indexing has run (#277).
         assert ChromaprintMatcher().match(audio_of(tone_pcm)) == []
@@ -159,3 +148,103 @@ class TestMatchDirection:
         strict = self.build(tone_pcm)
         strict.max_bit_error_rate = 0.0001
         assert strict.match(audio_of(tone_pcm, seconds=30.0, seed=2.3, noise=0.2)) == []
+
+
+def side_rip_pcm(tone_pcm, seed=1.0, music_seconds=30.0, silence_seconds=20.0, sample_rate=22050):
+    """PCM shaped like a real side rip: music, a silent gap, then music again.
+
+    The same seed on both sides — the silence is a gap in one track, not a
+    boundary between two different ones.
+    """
+    music = tone_pcm(music_seconds, seed=seed)
+    silence = b"\x00\x00" * int(silence_seconds * sample_rate)
+    return music + silence + music
+
+
+def silent_window(seconds=15.0, sample_rate=22050):
+    return NormalizedAudio(pcm=b"\x00\x00" * int(seconds * sample_rate), sample_rate=sample_rate)
+
+
+class TestSilenceRefusal:
+    """#306: a window with almost no signal must never match — even when the
+    reference library itself contains silence.
+
+    Reference tracks are full-side rips, so a silent gap is normal. Chromaprint
+    fingerprints two silences identically (a true bit-error-rate of 0.0), so no
+    BER threshold can tell a live silent window apart from the reference's own
+    silent gap. The old `test_silence_returns_no_candidates` built an index of
+    only tonal references, so silence had nothing to match and the test proved
+    nothing — these replace it with an index that actually contains silence.
+    """
+
+    def build_with_side_rip(self, tone_pcm, seed=1.0, music_seconds=30.0, silence_seconds=20.0):
+        matcher = ChromaprintMatcher()
+        pcm = side_rip_pcm(
+            tone_pcm, seed=seed, music_seconds=music_seconds, silence_seconds=silence_seconds
+        )
+        index = ReferenceIndex()
+        index.add(TrackRef("t1", 1), fingerprint_pcm(pcm, 22050))
+        matcher.reference_index = index
+        return matcher
+
+    def test_silence_returns_no_candidates_even_when_the_library_contains_silence(self, tone_pcm):
+        matcher = self.build_with_side_rip(tone_pcm)
+        assert matcher.match(silent_window()) == []
+
+    def test_without_the_check_the_same_window_matches_at_high_confidence(self, tone_pcm):
+        """Demonstrates the bug this fixes.
+
+        Disabling the gate lets the exact same silent window match the
+        reference's own silent gap — the failure seen in production.
+        """
+        matcher = self.build_with_side_rip(tone_pcm)
+        matcher.min_variety = 0.0
+
+        candidates = matcher.match(silent_window())
+
+        assert len(candidates) == 1
+        assert candidates[0]["confidence"] > 0.99
+
+    def test_a_near_silent_window_is_also_refused(self, tone_pcm):
+        """A real noise floor, not mathematical zero, must be refused too.
+
+        Modelled as quiet mains hum rather than independent random noise per
+        sample: a turntable or amp's actual noise floor is a low-amplitude,
+        *steady* signal — it does not move spectrally frame to frame any more
+        than true silence does. (Full-bandwidth Gaussian noise is the opposite
+        case: even very quiet, it re-randomises every frame and reads as high
+        variety, i.e. it isn't the failure mode this check is for.)
+        """
+        import math
+        import struct
+
+        sample_rate = 22050
+        hum_pcm = b"".join(
+            struct.pack("<h", int(30 * math.sin(2 * math.pi * 60.0 * i / sample_rate)))
+            for i in range(int(15.0 * sample_rate))
+        )
+
+        # Sanity check: this really is near-silent by the same measure the
+        # matcher uses, not merely low-amplitude by construction.
+        assert fingerprint_pcm(hum_pcm, sample_rate).variety < 0.20
+
+        matcher = self.build_with_side_rip(tone_pcm)
+        assert matcher.match(NormalizedAudio(pcm=hum_pcm, sample_rate=sample_rate)) == []
+
+    def test_real_music_still_matches_with_unchanged_confidence(self, tone_pcm):
+        matcher = self.build_with_side_rip(tone_pcm, seed=2.3)
+        window = audio_of(tone_pcm, seconds=20.0, seed=2.3)
+
+        candidates = matcher.match(window)
+
+        assert len(candidates) == 1
+        assert candidates[0]["track_id"] == "t1"
+        assert candidates[0]["confidence"] > 0.9
+
+    def test_setting_the_floor_to_zero_restores_the_old_behaviour(self, tone_pcm):
+        matcher = self.build_with_side_rip(tone_pcm)
+        assert matcher.match(silent_window()) == []
+
+        matcher.min_variety = 0.0
+
+        assert matcher.match(silent_window()) != []

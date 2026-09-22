@@ -283,6 +283,25 @@ The overlap floor pays for it. More candidates means more chances for a few
 values to line up by luck; without the floor that cost four false positives.
 `tests/test_reference_index.py` pins both with a measured regression test.
 
+### The silence gate
+
+A query is refused before it ever reaches the search if it has too little
+spectral variety — `RawFingerprint.variety`, the fraction of its values that
+are distinct (#306). Chromaprint describes how the spectrum *moves*; a 15s
+silent window fingerprints to one to three distinct values out of roughly a
+hundred, while real music gives 98-100. Two silences are therefore not merely
+similar, they are identical — a true bit error rate of 0.0 that no BER
+threshold can tell apart from a real match, and raising `FINGERPRINT_MAX_BER`
+only makes it worse by rejecting real matches first.
+
+Checked on the query side, not the index side: reference tracks are full-side
+rips and legitimately contain silent gaps, and refusing to *store* them
+wouldn't stop a live silent window from matching one anyway.
+
+`FINGERPRINT_MIN_VARIETY`, default **0.20** — silence measures 0.01-0.03 and
+music 0.98-1.00, so the floor sits in a gap two orders of magnitude wide. Set
+it to `0` to disable the check.
+
 ### The threshold
 
 `FINGERPRINT_MAX_BER`, default **0.25**. On the corpus, true matches ran
@@ -341,6 +360,7 @@ end-to-end runs push the populated shape through the callback.
 | `FINGERPRINT_SAMPLE_RATE` | `22050` | 22050 or 44100 only |
 | `FINGERPRINT_MATCHER` | `chromaprint` | key into `MATCHERS`; `stub` matches nothing |
 | `FINGERPRINT_MAX_BER` | `0.25` | above this, a candidate is discarded |
+| `FINGERPRINT_MIN_VARIETY` | `0.20` | below this fraction of distinct fingerprint values, a query is refused before searching (#306); `0` disables it |
 | `FINGERPRINT_VERSION` | `1` | the recipe blobs are stored under |
 | `FINGERPRINT_INDEX_REFRESH_SECONDS` | `900` | how often the index is rebuilt |
 | `FINGERPRINT_INDEX_PAGE_SIZE` | `500` | fingerprints per request when loading |
@@ -354,7 +374,7 @@ fails fast instead of failing every job identically forever.
 ## Tests
 
 ```bash
-uv run --group dev pytest                                        # 228 tests
+uv run --group dev pytest                                        # 241 tests
 uv run --group dev pytest --cov=fingerprint_service --cov-report=term-missing
 ```
 

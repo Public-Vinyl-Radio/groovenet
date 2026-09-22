@@ -34,6 +34,18 @@ class TestRawFingerprint:
     def test_an_empty_fingerprint_is_zero_length(self):
         assert RawFingerprint(()).duration_seconds == 0
 
+    def test_variety_is_the_fraction_of_distinct_values(self):
+        # Real music: nearly every value distinct (#306).
+        assert RawFingerprint((1, 2, 3, 4)).variety == 1.0
+        # Silence: Chromaprint repeats the same value with no signal to move.
+        assert RawFingerprint((7, 7, 7, 7)).variety == 0.25
+
+    def test_an_empty_fingerprint_has_zero_variety(self):
+        # Never reached through match() — it already refuses an empty
+        # fingerprint before asking for variety — but a property on the
+        # dataclass should not raise on its own edge case.
+        assert RawFingerprint(()).variety == 0.0
+
 
 class TestFingerprintPcm:
     def test_fingerprints_a_tone(self, tone_pcm):
