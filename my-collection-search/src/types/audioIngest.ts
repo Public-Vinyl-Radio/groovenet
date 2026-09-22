@@ -183,6 +183,8 @@ export type IngestPipelineStats = {
     fingerprint_version: string | null;
     indexed_tracks: number;
     empty: boolean;
+    /** Tracks with `local_audio_url` set but no row for the active engine (#303). */
+    missing_fingerprint_tracks: number;
   };
   /** Null when Redis could not be reached. */
   queue_depth: number | null;

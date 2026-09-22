@@ -507,6 +507,50 @@ describe("listIndexCandidates()", () => {
   });
 });
 
+// ─── countIndexCandidates ─────────────────────────────────────────────────────
+
+describe("countIndexCandidates()", () => {
+  const engine = { fingerprint_type: "chromaprint", fingerprint_version: "1" };
+
+  it("counts using the same scope rules as listIndexCandidates", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "29" }] });
+
+    const result = await makeRepo().countIndexCandidates({ kind: "missing" }, engine);
+
+    expect(result).toBe(29);
+    const sql = dbQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("f.track_id IS NULL");
+    expect(sql).toContain("t.local_audio_url IS NOT NULL");
+    expect(sql).toContain("COUNT(*)");
+  });
+
+  it("pins the join to the active engine and version", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "0" }] });
+
+    await makeRepo().countIndexCandidates({ kind: "all" }, engine);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("f.fingerprint_type = $1");
+    expect(sql).toContain("f.fingerprint_version = $2");
+    expect(params.slice(0, 2)).toEqual(["chromaprint", "1"]);
+  });
+
+  it("treats an empty result as zero", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await makeRepo().countIndexCandidates({ kind: "missing" }, engine)).toBe(0);
+  });
+
+  it("narrows to one track, matching --track's scope", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: "1" }] });
+
+    await makeRepo().countIndexCandidates({ kind: "track", track_id: "t1" }, engine);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("t.track_id = $3");
+    expect(params).toEqual(["chromaprint", "1", "t1"]);
+  });
+});
+
 // ─── countUnindexableTracks ───────────────────────────────────────────────────
 
 describe("countUnindexableTracks()", () => {

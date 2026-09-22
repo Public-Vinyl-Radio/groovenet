@@ -35,7 +35,8 @@ function stats(overrides: Partial<IngestPipelineStats> = {}): IngestPipelineStat
     since: "2026-09-21T01:00:00Z", window_minutes: 60, source_id: null,
     ingest_writable: true,
     index: { engine_registered: true, fingerprint_type: "chromaprint",
-             fingerprint_version: "1", indexed_tracks: 3783, empty: false },
+             fingerprint_version: "1", indexed_tracks: 3783, empty: false,
+             missing_fingerprint_tracks: 0 },
     queue_depth: 0,
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
     detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,
@@ -134,7 +135,8 @@ describe("formatStats()", () => {
     // The failure that otherwise looks like success.
     const out = plain(formatStats(stats({
       index: { engine_registered: true, fingerprint_type: "chromaprint",
-               fingerprint_version: "1", indexed_tracks: 0, empty: true },
+               fingerprint_version: "1", indexed_tracks: 0, empty: true,
+               missing_fingerprint_tracks: 0 },
     })));
 
     expect(out).toContain("reference index is EMPTY");
@@ -144,11 +146,25 @@ describe("formatStats()", () => {
   it("distinguishes a missing engine from an empty index", () => {
     const out = plain(formatStats(stats({
       index: { engine_registered: false, fingerprint_type: null,
-               fingerprint_version: null, indexed_tracks: 0, empty: true },
+               fingerprint_version: null, indexed_tracks: 0, empty: true,
+               missing_fingerprint_tracks: 0 },
     })));
 
     expect(out).toContain("no fingerprint engine registered");
     expect(out).toContain("fingerprint-service");
+  });
+
+  it("flags tracks with audio but no fingerprint", () => {
+    const out = plain(formatStats(stats({
+      index: { engine_registered: true, fingerprint_type: "chromaprint",
+               fingerprint_version: "1", indexed_tracks: 3783, empty: false,
+               missing_fingerprint_tracks: 29 },
+    })));
+    expect(out).toContain("29 track(s) have audio but no fingerprint");
+  });
+
+  it("says nothing about a fingerprint backlog when there is none", () => {
+    expect(plain(formatStats(stats()))).not.toContain("no fingerprint");
   });
 
   it("reports the match rate", () => {

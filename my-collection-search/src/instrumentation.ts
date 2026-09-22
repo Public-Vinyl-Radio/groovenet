@@ -21,6 +21,14 @@ export async function register() {
       "@/server/services/ingestLifecycleService"
     );
     startIngestReaper();
+
+    // Backstop for #303: catches audio that gained a fingerprint job outside
+    // the PATCH /api/tracks transition trigger, or missed it because
+    // fingerprint-service had no engine registered at the time.
+    const { startFingerprintBackfill } = await import(
+      "@/server/services/fingerprintBackfillService"
+    );
+    startFingerprintBackfill();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

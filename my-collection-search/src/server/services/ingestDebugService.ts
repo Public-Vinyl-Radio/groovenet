@@ -40,12 +40,15 @@ export class IngestDebugService {
 
     // Without a registered engine there is nothing to count the index against,
     // and the worker is almost certainly down — say so rather than report 0.
-    const indexedTracks = engine
-      ? await fingerprintRepository.countFingerprints({
-          fingerprint_type: engine.fingerprint_type,
-          fingerprint_version: engine.fingerprint_version,
-        })
-      : 0;
+    const [indexedTracks, missingFingerprintTracks] = engine
+      ? await Promise.all([
+          fingerprintRepository.countFingerprints({
+            fingerprint_type: engine.fingerprint_type,
+            fingerprint_version: engine.fingerprint_version,
+          }),
+          fingerprintRepository.countIndexCandidates({ kind: "missing" }, engine),
+        ])
+      : [0, 0];
 
     return {
       since: since.toISOString(),
@@ -62,6 +65,10 @@ export class IngestDebugService {
         // The headline. An empty index means nothing can ever match, however
         // healthy everything downstream looks.
         empty: indexedTracks === 0,
+        // Audio that has arrived but has not been fingerprinted yet (#303) —
+        // a silent gap otherwise: `local_audio_url` diffing against
+        // `track_fingerprints` is the only way to notice it exists.
+        missing_fingerprint_tracks: missingFingerprintTracks,
       },
       queue_depth: queueDepth,
       ingests: {

@@ -528,6 +528,8 @@ export interface IngestPipelineStats {
     indexed_tracks: number;
     /** True means nothing can ever match, however healthy the rest looks. */
     empty: boolean;
+    /** Tracks with local audio but no fingerprint for the active engine (#303). */
+    missing_fingerprint_tracks: number;
   };
   queue_depth: number | null;
   ingests: {
