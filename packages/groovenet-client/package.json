@@ -1,6 +1,6 @@
 {
   "name": "@groovenet/client",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Typed API client for the Groovenet DJ collection system",
   "type": "module",
   "main": "build/index.js",

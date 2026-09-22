@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.3.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.2.0...groovenet-cli-v2.3.0) (2026-09-22)
+
+
+### Features
+
+* **fingerprints:** index new audio automatically instead of by hand ([#305](https://github.com/Public-Vinyl-Radio/groovenet/issues/305)) ([299e42b](https://github.com/Public-Vinyl-Radio/groovenet/commit/299e42b561e169e827a1061e358bf11b3de64da6))
+
+
+### Bug Fixes
+
+* **ingest:** make the audio-ingest volume writable by the app ([#301](https://github.com/Public-Vinyl-Radio/groovenet/issues/301)) ([6ee2225](https://github.com/Public-Vinyl-Radio/groovenet/commit/6ee2225fb6699738558b4406a01c2ab2994c2739))
+* **spins:** wire play aggregation into a trigger and a scheduler ([#308](https://github.com/Public-Vinyl-Radio/groovenet/issues/308)) ([d18bda6](https://github.com/Public-Vinyl-Radio/groovenet/commit/d18bda605fc0d56d5da4403ff0b273d7f9b26ccc))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^2.2.0 to ^2.3.0
+
 ## [2.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.1.0...groovenet-cli-v2.2.0) (2026-09-21)
 
 
