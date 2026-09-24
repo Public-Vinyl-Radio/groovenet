@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRestorePrepSql,
   classifyBackup,
+  tolerateExistingPublicSchema,
 } from "../restoreService";
 
 describe("classifyBackup()", () => {
@@ -35,11 +36,21 @@ describe("buildRestorePrepSql()", () => {
     expect(sql).not.toContain("DROP SCHEMA");
   });
 
-  it("uses DROP OWNED instead of recreating public for schema+data restores", () => {
+  it("recreates public with its extensions for schema+data restores", () => {
     const sql = buildRestorePrepSql("schema+data", "djplaylist");
-    expect(sql).toContain('DROP OWNED BY "djplaylist" CASCADE;');
+    // The app role is the bootstrap superuser, so DROP OWNED always fails.
+    expect(sql).not.toContain("DROP OWNED");
+    expect(sql).toContain("DROP SCHEMA IF EXISTS public CASCADE;");
+    expect(sql).toContain("CREATE EXTENSION IF NOT EXISTS %I SCHEMA public");
     expect(sql).toContain('GRANT ALL ON SCHEMA public TO "djplaylist";');
-    expect(sql).not.toContain("DROP SCHEMA");
-    expect(sql).not.toContain("CREATE SCHEMA public");
+  });
+});
+
+describe("tolerateExistingPublicSchema()", () => {
+  it("makes the dump's CREATE SCHEMA public idempotent", () => {
+    const sql = "SET x;\nCREATE SCHEMA public;\nALTER SCHEMA public OWNER TO pg_database_owner;\n";
+    expect(tolerateExistingPublicSchema(sql)).toBe(
+      "SET x;\nCREATE SCHEMA IF NOT EXISTS public;\nALTER SCHEMA public OWNER TO pg_database_owner;\n"
+    );
   });
 });
