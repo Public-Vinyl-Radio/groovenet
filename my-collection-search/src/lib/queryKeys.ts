@@ -27,6 +27,24 @@ export const queryKeys = {
     offset?: number;
   }) => ["spins", "top-tracks", args] as const,
   spinTopTracksRoot: () => ["spins", "top-tracks"] as const,
+  recentIngests: (args: {
+    source_id?: string;
+    session_id?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) => ["vinyl", "ingests", args] as const,
+  ingestStats: (args: { minutes?: number; source_id?: string }) =>
+    ["vinyl", "stats", args] as const,
+  recentDetections: (args: {
+    source_id?: string;
+    session_id?: string;
+    matched?: boolean;
+    since?: string;
+    limit?: number;
+    offset?: number;
+  }) => ["vinyl", "detections", args] as const,
+  ingestRetention: () => ["vinyl", "retention"] as const,
   albumPlayableStructure: (releaseId: string, friendId: number) =>
     ["album", releaseId, friendId, "playable-structure"] as const,
   playlistTrackIds: (playlistId: number | string) =>

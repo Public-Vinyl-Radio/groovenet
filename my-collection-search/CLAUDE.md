@@ -194,7 +194,10 @@ GET /api/detections/recent      windows, with the track resolved
 GET /api/audio/ingest/stats     index, queue, match rate, failures, spin backlog
 ```
 
-Or `groovenet vinyl status | detections | ingests`.
+Or `groovenet vinyl status | detections | ingests`, or the `/vinyl` page (gated
+behind `ENABLE_DEVELOPER_TOOLS`, linked from `/developer`) — index status,
+ingest health and a live-polling detection timeline, in the browser rather
+than a terminal.
 
 Two things to preserve if you touch these:
 
