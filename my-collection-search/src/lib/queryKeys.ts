@@ -27,13 +27,6 @@ export const queryKeys = {
     offset?: number;
   }) => ["spins", "top-tracks", args] as const,
   spinTopTracksRoot: () => ["spins", "top-tracks"] as const,
-  recentIngests: (args: {
-    source_id?: string;
-    session_id?: string;
-    status?: string;
-    limit?: number;
-    offset?: number;
-  }) => ["vinyl", "ingests", args] as const,
   ingestStats: (args: { minutes?: number; source_id?: string }) =>
     ["vinyl", "stats", args] as const,
   recentDetections: (args: {
