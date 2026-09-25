@@ -107,6 +107,11 @@ FINGERPRINT_VERSION = os.getenv('FINGERPRINT_VERSION', '1')
 #: the tracks present at boot would quietly never match anything added since.
 INDEX_REFRESH_SECONDS = int(os.getenv('FINGERPRINT_INDEX_REFRESH_SECONDS', '900'))
 
+#: How soon a *failed* index load is retried (#315). A worker that starts
+#: before the app is reachable otherwise matches nothing for a whole refresh
+#: interval — observed on a dev stack, where both came up together.
+INDEX_RETRY_SECONDS = int(os.getenv('FINGERPRINT_INDEX_RETRY_SECONDS', '30'))
+
 #: Page size when fetching reference fingerprints. The whole library is ~30 MB
 #: of blobs; asking for it in one response would be a needlessly large request.
 INDEX_PAGE_SIZE = int(os.getenv('FINGERPRINT_INDEX_PAGE_SIZE', '500'))

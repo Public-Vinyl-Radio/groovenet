@@ -13,7 +13,6 @@ import base64
 
 import requests
 
-from .chromaprint_engine import RawFingerprint
 from .config import (
     APP_URL,
     INDEX_PAGE_SIZE,
@@ -94,16 +93,16 @@ def build_index(
                 skipped += 1
                 continue
             try:
-                fingerprint = RawFingerprint.from_bytes(base64.b64decode(blob))
+                index.add_blob(
+                    TrackRef(str(row["track_id"]), int(row["friend_id"])),
+                    base64.b64decode(blob),
+                )
             except Exception as e:
                 logger.warning(
                     "Skipping fingerprint for track %s: %s", row.get("track_id"), e
                 )
                 skipped += 1
                 continue
-            index.add(
-                TrackRef(str(row["track_id"]), int(row["friend_id"])), fingerprint
-            )
 
         if len(rows) < page_size:
             break

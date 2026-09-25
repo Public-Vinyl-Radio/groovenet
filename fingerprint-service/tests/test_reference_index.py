@@ -4,9 +4,11 @@ The design decisions here were measured on the #271 corpus and are recorded in
 the module docstring; these tests pin the behaviour those measurements bought,
 using synthetic audio so they run anywhere.
 """
+import numpy as np
 import pytest
 from fingerprint_service.chromaprint_engine import (
     SECONDS_PER_VALUE,
+    FingerprintError,
     RawFingerprint,
     fingerprint_pcm,
 )
@@ -16,6 +18,7 @@ from fingerprint_service.reference_index import (
     MIN_OVERLAP_VALUES,
     ReferenceIndex,
     TrackRef,
+    _keys_of,
     index_keys,
 )
 
@@ -42,6 +45,18 @@ class TestIndexKeys:
     def test_a_changed_high_bit_changes_a_key(self):
         assert index_keys(0x00000010) != index_keys(0x80000010)
 
+    def test_the_array_form_agrees_with_the_scalar_rule(self):
+        # The index is built with `_keys_of`; `index_keys` documents the rule.
+        values = [0, 1, 0xF, 0x10, 0xABCDEF00, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF]
+        rng = np.random.default_rng(315)
+        values += [int(v) for v in rng.integers(0, 2**32, 500, dtype=np.uint64)]
+
+        keys = _keys_of(np.asarray(values, dtype=np.uint32))
+
+        assert [tuple(int(k) for k in column) for column in keys.T] == [
+            index_keys(v) for v in values
+        ]
+
 
 class TestAdd:
     def test_counts_tracks_and_postings(self, tone_pcm):
@@ -56,6 +71,46 @@ class TestAdd:
         # Too short to fingerprint is unmatchable, not invalid.
         index = ReferenceIndex()
         index.add(TrackRef("t1", 1), RawFingerprint(()))
+        assert len(index) == 0
+
+    def test_a_track_added_after_a_search_is_found(self, tone_pcm):
+        # Adds queue until the next search; the arrays must be rebuilt then.
+        index = ReferenceIndex()
+        index.add(TrackRef("t1", 1), fp_of(tone_pcm, seconds=60.0, seed=1.0))
+        index.search(fp_of(tone_pcm, seconds=15.0, seed=1.0), max_bit_error_rate=0.25)
+
+        later = fp_of(tone_pcm, seconds=60.0, seed=3.7)
+        index.add(TrackRef("t2", 1), later)
+        hits = index.search(RawFingerprint(later.values[150:280]), max_bit_error_rate=0.25)
+
+        assert hits[0].track.track_id == "t2"
+        assert index.posting_count == KEY_CHUNKS * (
+            len(fp_of(tone_pcm, seconds=60.0, seed=1.0).values) + len(later.values)
+        )
+
+
+class TestAddBlob:
+    """The loader's path: stored little-endian bytes, no Python ints (#315)."""
+
+    def test_indexes_exactly_what_add_does(self, tone_pcm):
+        reference = fp_of(tone_pcm, seconds=60.0)
+        query = RawFingerprint(reference.values[200:330])
+        via_add, via_blob = ReferenceIndex(), ReferenceIndex()
+        via_add.add(TrackRef("t1", 1), reference)
+        via_blob.add_blob(TrackRef("t1", 1), reference.to_bytes())
+
+        assert via_blob.posting_count == via_add.posting_count
+        assert via_blob.search(query, max_bit_error_rate=0.25) == via_add.search(
+            query, max_bit_error_rate=0.25
+        )
+
+    def test_rejects_a_blob_that_is_not_whole_uint32s(self):
+        with pytest.raises(FingerprintError, match="whole number"):
+            ReferenceIndex().add_blob(TrackRef("t1", 1), b"\x01\x02\x03")
+
+    def test_ignores_an_empty_blob(self):
+        index = ReferenceIndex()
+        index.add_blob(TrackRef("t1", 1), b"")
         assert len(index) == 0
 
 
@@ -111,6 +166,33 @@ class TestSearch:
     def test_returns_nothing_from_an_empty_index(self, tone_pcm):
         assert ReferenceIndex().search(fp_of(tone_pcm), max_bit_error_rate=0.25) == []
 
+    def test_returns_nothing_when_no_key_is_indexed(self):
+        # Every query key sorts past the last indexed one: no postings at all.
+        index = ReferenceIndex()
+        index.add(TrackRef("t1", 1), RawFingerprint(tuple(i << 4 for i in range(100))))
+
+        query = RawFingerprint((0xFFFFFFF0,) * 60)
+
+        assert index.search(query, max_bit_error_rate=0.25) == []
+
+    def test_an_empty_index_tallies_nothing(self):
+        _, counts, _ = ReferenceIndex()._tally(np.asarray([1, 2, 3], dtype=np.uint32))
+        assert len(counts) == 0
+
+    def test_a_tie_goes_to_the_track_indexed_first(self, tone_pcm):
+        # The tuple-based index broke ties this way; the numpy one must too,
+        # or the same window could name a different track after a rebuild.
+        index = ReferenceIndex()
+        reference = fp_of(tone_pcm, seconds=60.0)
+        index.add(TrackRef("first", 1), reference)
+        index.add(TrackRef("second", 1), reference)
+
+        hits = index.search(
+            RawFingerprint(reference.values[200:330]), max_bit_error_rate=0.25
+        )
+
+        assert hits[0].track.track_id == "first"
+
     def test_returns_nothing_for_an_empty_query(self, tone_pcm):
         index = ReferenceIndex()
         index.add(TrackRef("t1", 1), fp_of(tone_pcm))
@@ -154,13 +236,8 @@ class TestSearch:
         def best_vote_count() -> int:
             index = ReferenceIndex()
             index.add(TrackRef("t1", 1), clean)
-            votes: dict[tuple[int, int], int] = {}
-            for query_position, value in enumerate(query.values):
-                for key in module.index_keys(value):
-                    for track_index, position in index._postings.get(key, ()):
-                        pair = (track_index, position - query_position)
-                        votes[pair] = votes.get(pair, 0) + 1
-            return max(votes.values(), default=0)
+            _, counts, _ = index._tally(np.asarray(query.values, dtype=np.uint32))
+            return int(counts.max(initial=0))
 
         monkeypatch.setattr(module, "KEY_CHUNKS", 1)
         monkeypatch.setattr(module, "CHUNK_BITS", 28)
