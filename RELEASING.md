@@ -87,6 +87,32 @@ release-please will not regroup release PRs that are already open. If the
 grouping ever needs to change again, close the open release PRs first so they
 are rebuilt from scratch.
 
+## Why the root package has no name
+
+The root package has `"package-name": ""` in `release-please-config.json`
+on purpose. Giving it a name breaks tagging whenever a release PR bumps only the
+root package.
+
+A release PR that bumps only the root package lists one entry with no component
+(`<summary>0.2.6</summary>`). release-please reads that as a single-package PR
+and checks that the PR branch's component matches the package's component. The
+branch, `release-please--branches--main`, has no component. A named root package
+takes its name as its component, so the check fails. release-please logs:
+
+```
+PR component: undefined does not match configured component: groovenet
+There are untagged, merged release PRs outstanding - aborting
+```
+
+The Release PR merges, but nothing is tagged and no images are published. An
+empty name gives the root package an empty component, which matches the branch.
+Release PRs that also bump the client or CLI take a different path, which is why
+the problem only shows up for root-only releases (v0.2.3 and v0.2.6 both hit it).
+
+If a release PR ever gets stuck at `autorelease: pending` anyway, create the
+release against its merge commit with `gh release create vX.Y.Z --target <sha>`,
+then swap the label to `autorelease: tagged`.
+
 ## One-time setup
 
 1. **`RELEASE_PLEASE_TOKEN` secret** — release-please must create the tag with a

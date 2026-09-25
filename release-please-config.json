@@ -7,7 +7,7 @@
   "bump-patch-for-minor-pre-major": true,
   "packages": {
     ".": {
-      "package-name": "groovenet",
+      "package-name": "",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
