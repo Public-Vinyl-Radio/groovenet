@@ -101,7 +101,8 @@ every `HEARTBEAT_TTL / 3` seconds and is joined before the next job. Without it
 a set decode — or a long reference track — marks the container unhealthy while
 it is doing exactly its job.
 
-Each process holds its own copy of the reference index in memory.
+Each process holds its own copy of the reference index in memory — ~165 MiB
+for the full library since #315, so the second worker is cheap to keep running.
 
 ## Queue contract
 
@@ -455,7 +456,7 @@ fails fast instead of failing every job identically forever.
 ## Tests
 
 ```bash
-uv run --group dev pytest                                        # 259 tests
+uv run --group dev pytest                                        # 270 tests
 uv run --group dev pytest --cov=fingerprint_service --cov-report=term-missing
 ```
 
