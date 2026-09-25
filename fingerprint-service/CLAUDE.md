@@ -369,7 +369,35 @@ saw the tracks present at boot would silently never match anything added since.
 
 A failed refresh keeps the index it already has, and an *empty* result never
 replaces a populated index — that is far likelier to be a bad response than the
-whole library being deleted.
+whole library being deleted. A failed load is retried after
+`FINGERPRINT_INDEX_RETRY_SECONDS` (30s), not a whole interval, so a worker that
+boots before the app is matching within a minute of the app coming up (#315).
+
+### How the index is held
+
+As **flat numpy arrays**, not Python containers (#315). The information is
+small — ~7.6M 32-bit values for ~3,900 tracks — but the original dict of lists
+of `(track, position)` tuples cost 70-100 bytes per 4-byte posting:
+
+| | resident | rebuild | per window p50 / p95 |
+| --- | --- | --- | --- |
+| tuples (before #315) | 1.8 GiB | 6.2 s | 74 / 117 ms |
+| **numpy arrays** | **165 MiB** | **0.9 s** | **11.6 / 16.7 ms** |
+
+Measured against the full dev library (3,911 tracks, 15.2M postings), in the
+container, and over every window of the #271 set: the two implementations
+returned **identical** candidate lists and matches for all 737 windows and 300
+random negatives. `reference_index.py` documents the array layout.
+
+Two things to keep if you touch it:
+
+- **Tie order is behaviour.** Postings within a key run in insertion order, and
+  `_vote` breaks equal vote counts on first sighting — what a stable sort over
+  a dict did before. Change it and the same window can name a different track
+  after a rebuild. `test_a_tie_goes_to_the_track_indexed_first` pins it.
+- **The loader uses `add_blob`**, not `add(RawFingerprint)`. `from_bytes`
+  builds one Python int per value; for a whole library that is millions of
+  short-lived objects and allocator arenas the process keeps afterwards.
 
 ## The matcher seam
 
@@ -415,6 +443,7 @@ end-to-end runs push the populated shape through the callback.
 | `FINGERPRINT_MIN_VARIETY` | `0.20` | below this fraction of distinct fingerprint values, a query is refused before searching (#306); `0` disables it |
 | `FINGERPRINT_VERSION` | `1` | the recipe blobs are stored under |
 | `FINGERPRINT_INDEX_REFRESH_SECONDS` | `900` | how often the index is rebuilt |
+| `FINGERPRINT_INDEX_RETRY_SECONDS` | `30` | how soon a failed index load is retried |
 | `FINGERPRINT_INDEX_PAGE_SIZE` | `500` | fingerprints per request when loading |
 | `FINGERPRINT_BRPOP_TIMEOUT` | `5` | |
 | `FINGERPRINT_HEARTBEAT_TTL` | `30` | |

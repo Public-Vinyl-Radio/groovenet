@@ -24,6 +24,7 @@ from .config import (
     HEARTBEAT_TTL,
     INDEX_QUEUE_KEY,
     INDEX_REFRESH_SECONDS,
+    INDEX_RETRY_SECONDS,
     MATCHER_NAME,
     QUEUE_KEY,
     QUEUES,
@@ -271,7 +272,7 @@ def process_index_job(job_json: str, matcher: FingerprintMatcher) -> None:
     record_outcome(redis_conn, result)
 
 
-_last_index_refresh = 0.0
+_next_index_refresh = 0.0
 
 
 def refresh_reference_index(matcher: FingerprintMatcher, now: float | None = None) -> None:
@@ -281,19 +282,26 @@ def refresh_reference_index(matcher: FingerprintMatcher, now: float | None = Non
     ever saw the tracks present at boot would silently never match anything
     added since. A failed refresh keeps the index it already has: stale matches
     beat no matches while the app restarts.
+
+    A failed load is retried after INDEX_RETRY_SECONDS, not a whole interval
+    (#315): a worker that boots before the app would otherwise match nothing
+    for fifteen minutes. The retry is scheduled *before* the attempt, so an
+    exception escaping it waits out the retry too rather than hammering the app
+    on every pass of the loop.
     """
-    global _last_index_refresh
+    global _next_index_refresh
     if not isinstance(matcher, ChromaprintMatcher):
         return
 
     moment = time.time() if now is None else now
-    if _last_index_refresh and moment - _last_index_refresh < INDEX_REFRESH_SECONDS:
+    if moment < _next_index_refresh:
         return
-    _last_index_refresh = moment
+    _next_index_refresh = moment + INDEX_RETRY_SECONDS
 
     index = try_build_index(matcher.fingerprint_type, matcher.fingerprint_version)
     if index is None:
         return
+    _next_index_refresh = moment + INDEX_REFRESH_SECONDS
     if len(index) == 0 and len(matcher.reference_index) > 0:
         # An empty result against a populated index is far more likely to be a
         # bad response than the whole library being deleted.
@@ -304,8 +312,8 @@ def refresh_reference_index(matcher: FingerprintMatcher, now: float | None = Non
 
 def reset_index_clock() -> None:
     """Exported for tests: the refresh interval is module state."""
-    global _last_index_refresh
-    _last_index_refresh = 0.0
+    global _next_index_refresh
+    _next_index_refresh = 0.0
 
 
 def process_set_job(job_json: str, matcher: FingerprintMatcher) -> None:

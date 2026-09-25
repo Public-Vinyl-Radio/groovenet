@@ -20,6 +20,7 @@ from fingerprint_service.main import (
     write_heartbeat,
 )
 from fingerprint_service.matcher import StubMatcher
+from fingerprint_service.reference_index import ReferenceIndex
 
 
 @pytest.fixture
@@ -626,7 +627,9 @@ class TestRefreshReferenceIndex:
     def test_does_not_refetch_before_the_interval(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
-            service_main, "try_build_index", lambda *a: calls.append(a) or None
+            service_main,
+            "try_build_index",
+            lambda *a: calls.append(a) or ReferenceIndex(),
         )
         matcher = self.chromaprint()
 
@@ -638,7 +641,9 @@ class TestRefreshReferenceIndex:
     def test_refetches_once_the_interval_has_passed(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
-            service_main, "try_build_index", lambda *a: calls.append(a) or None
+            service_main,
+            "try_build_index",
+            lambda *a: calls.append(a) or ReferenceIndex(),
         )
         matcher = self.chromaprint()
 
@@ -646,6 +651,56 @@ class TestRefreshReferenceIndex:
         refresh_reference_index(matcher, now=1000.0 + service_main.INDEX_REFRESH_SECONDS + 1)
 
         assert len(calls) == 2
+
+    def test_retries_a_failed_load_soon_not_after_a_whole_interval(self, monkeypatch):
+        """#315: a worker that boots before the app must not wait 15 minutes."""
+        calls = []
+        monkeypatch.setattr(
+            service_main, "try_build_index", lambda *a: calls.append(a) or None
+        )
+        matcher = self.chromaprint()
+
+        refresh_reference_index(matcher, now=1000.0)
+        refresh_reference_index(matcher, now=1000.0 + service_main.INDEX_RETRY_SECONDS - 1)
+        assert len(calls) == 1, "not before the retry delay"
+
+        refresh_reference_index(matcher, now=1000.0 + service_main.INDEX_RETRY_SECONDS)
+        assert len(calls) == 2
+
+    def test_a_success_after_a_failure_waits_the_full_interval(self, monkeypatch):
+        outcomes = iter([None, ReferenceIndex()])
+        calls = []
+        monkeypatch.setattr(
+            service_main,
+            "try_build_index",
+            lambda *a: calls.append(a) or next(outcomes),
+        )
+        matcher = self.chromaprint()
+        retry_at = 1000.0 + service_main.INDEX_RETRY_SECONDS
+
+        refresh_reference_index(matcher, now=1000.0)
+        refresh_reference_index(matcher, now=retry_at)
+        refresh_reference_index(
+            matcher, now=retry_at + service_main.INDEX_REFRESH_SECONDS - 1
+        )
+
+        assert len(calls) == 2
+
+    def test_an_exception_waits_out_the_retry_delay(self, monkeypatch):
+        calls = []
+
+        def explode(*a):
+            calls.append(a)
+            raise RuntimeError("unexpected")
+
+        monkeypatch.setattr(service_main, "try_build_index", explode)
+        matcher = self.chromaprint()
+
+        with pytest.raises(RuntimeError):
+            refresh_reference_index(matcher, now=1000.0)
+        refresh_reference_index(matcher, now=1001.0)
+
+        assert len(calls) == 1
 
     def test_keeps_the_current_index_when_the_app_is_down(self, monkeypatch):
         monkeypatch.setattr(service_main, "try_build_index", lambda *a: None)

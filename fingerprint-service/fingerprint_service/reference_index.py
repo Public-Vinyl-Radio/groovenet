@@ -35,14 +35,30 @@ four false positives. Requiring a real overlap removes all four while keeping
 almost all the recall, because a genuine match agrees over the whole window and
 a coincidence does not.
 
-Held in memory and rebuilt at startup from the stored per-track blobs: #271
-measured ~28 MB of postings for 3,653 tracks and a 2.3 s rebuild, which is not
-worth a table and a cache-invalidation problem.
+Held in memory and rebuilt at startup from the stored per-track blobs, as
+**flat numpy arrays** rather than Python containers (#315). The information is
+small — ~7.6M 32-bit values for ~3,900 tracks, about 30 MB — but a dict of
+lists of `(track, position)` tuples spent 70-100 bytes per 4-byte posting and
+reached 1.6-1.8 GiB. Packed, the postings are one `uint32` per entry.
+
+Layout, for `n` reference values across all tracks:
+
+- `_values` — every reference value, tracks concatenated (`n` x uint32).
+- `_bounds` — where each track starts in `_values`, plus a final sentinel.
+- `_postings` — for every value and key half, the value's position in
+  `_values`, grouped by key (`KEY_CHUNKS * n` x uint32).
+- `_keys` / `_offsets` — the distinct keys, sorted, and where each one's run
+  of postings starts. Sparse on purpose: a dense table would need 2^28 slots
+  if the key were ever keyed on all 28 bits again.
+
+Search behaviour is identical to the tuple-based index it replaced, down to
+how ties are broken — so every measured number above still holds.
 """
-from collections import defaultdict
 from dataclasses import dataclass
 
-from .chromaprint_engine import SECONDS_PER_VALUE, RawFingerprint
+import numpy as np
+
+from .chromaprint_engine import SECONDS_PER_VALUE, FingerprintError, RawFingerprint
 
 #: Bits dropped from each value before indexing. #271: indexing all 32 bits cut
 #: recall to 9 of 11 on real vinyl; the low bits are where the noise lands.
@@ -71,7 +87,7 @@ def index_keys(value: int) -> tuple[int, ...]:
     """The keys one fingerprint value is indexed under.
 
     Each is a (chunk number, chunk bits) pair packed into an int, so the halves
-    cannot collide with one another.
+    cannot collide with one another. `_keys_of` is the same rule over an array.
     """
     mask = (1 << CHUNK_BITS) - 1
     shifted = value >> NOISE_BITS
@@ -81,8 +97,24 @@ def index_keys(value: int) -> tuple[int, ...]:
     )
 
 
-def _popcount_distance(a: int, b: int) -> int:
-    return (a ^ b).bit_count()
+def _keys_of(values: np.ndarray) -> np.ndarray:
+    """`index_keys` for every value at once: shape (KEY_CHUNKS, len(values))."""
+    mask = np.uint32((1 << CHUNK_BITS) - 1)
+    shifted = values >> np.uint32(NOISE_BITS)
+    return np.stack(
+        [
+            np.uint32(chunk << CHUNK_BITS)
+            | ((shifted >> np.uint32(CHUNK_BITS * chunk)) & mask)
+            for chunk in range(KEY_CHUNKS)
+        ]
+    )
+
+
+#: A (track, alignment) pair packed into one int64 so candidates can be counted
+#: with a single `np.unique`. Alignment goes negative when a window starts
+#: before its reference does, hence the bias.
+_ALIGNMENT_BITS = 32
+_ALIGNMENT_BIAS = 1 << 31
 
 
 @dataclass(frozen=True)
@@ -109,9 +141,16 @@ class ReferenceIndex:
     """Every reference fingerprint for one engine version, searchable."""
 
     def __init__(self, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> None:
-        self._postings: dict[int, list[tuple[int, int]]] = defaultdict(list)
         self._tracks: list[TrackRef] = []
-        self._values: list[tuple[int, ...]] = []
+        #: Tracks added since the arrays were last built. `add` only queues;
+        #: the arrays are rebuilt once, on the next search, so loading a
+        #: library is one sort rather than one per track.
+        self._pending: list[np.ndarray] = []
+        self._values = np.empty(0, dtype=np.uint32)
+        self._bounds = np.zeros(1, dtype=np.int64)
+        self._postings = np.empty(0, dtype=np.uint32)
+        self._keys = np.empty(0, dtype=np.uint32)
+        self._offsets = np.zeros(1, dtype=np.int64)
         self.max_candidates = max_candidates
 
     def __len__(self) -> int:
@@ -119,7 +158,8 @@ class ReferenceIndex:
 
     @property
     def posting_count(self) -> int:
-        return sum(len(p) for p in self._postings.values())
+        self._build()
+        return len(self._postings)
 
     def add(self, track: TrackRef, fingerprint: RawFingerprint) -> None:
         """Index one reference track.
@@ -127,14 +167,51 @@ class ReferenceIndex:
         A track with no values — too short to fingerprint — is simply not
         indexed rather than rejected: it is unmatchable, not invalid.
         """
-        if not fingerprint.values:
+        self._queue(track, np.asarray(fingerprint.values, dtype=np.uint32))
+
+    def add_blob(self, track: TrackRef, blob: bytes) -> None:
+        """`add`, straight from the stored little-endian bytes.
+
+        What the loader uses. Going through `RawFingerprint` would build a
+        Python int per value — millions of short-lived objects for a whole
+        library, and allocator arenas the process keeps long after.
+        """
+        if len(blob) % 4 != 0:
+            raise FingerprintError(
+                f"fingerprint blob is {len(blob)} bytes, not a whole number of uint32s"
+            )
+        self._queue(track, np.frombuffer(blob, dtype="<u4").astype(np.uint32))
+
+    def _queue(self, track: TrackRef, values: np.ndarray) -> None:
+        if len(values) == 0:
             return
-        track_index = len(self._tracks)
         self._tracks.append(track)
-        self._values.append(fingerprint.values)
-        for position, value in enumerate(fingerprint.values):
-            for key in index_keys(value):
-                self._postings[key].append((track_index, position))
+        self._pending.append(values)
+
+    def _build(self) -> None:
+        """Fold pending tracks into the arrays, rebuilding the postings.
+
+        Postings are grouped by key with a *stable* sort over values laid out
+        in track order, so within one key they run in the same order the
+        tuple-based index appended them. `_vote` breaks ties on that order.
+        """
+        if not self._pending:
+            return
+        lengths = [len(values) for values in self._pending]
+        self._values = np.concatenate([self._values, *self._pending])
+        self._bounds = np.concatenate(
+            [self._bounds, self._bounds[-1] + np.cumsum(lengths, dtype=np.int64)]
+        )
+        self._pending = []
+
+        # Chunk-major, so each key's run comes from one chunk and stays in
+        # ascending position order through the stable sort.
+        keys = _keys_of(self._values).ravel()
+        order = np.argsort(keys, kind="stable")
+        positions = np.arange(len(self._values), dtype=np.uint32)
+        self._postings = np.tile(positions, KEY_CHUNKS)[order]
+        self._keys, counts = np.unique(keys[order], return_counts=True)
+        self._offsets = np.concatenate([[0], np.cumsum(counts, dtype=np.int64)])
 
     def search(
         self,
@@ -151,14 +228,16 @@ class ReferenceIndex:
         """
         if not query.values or not self._tracks:
             return []
+        self._build()
 
-        proposals = self._vote(query)
+        values = np.asarray(query.values, dtype=np.uint32)
+        proposals = self._vote(values)
         if not proposals:
             return []
 
         best: IndexMatch | None = None
         for track_index, alignment in proposals:
-            verified = self._verify(track_index, alignment, query, min_overlap)
+            verified = self._verify(track_index, alignment, values, min_overlap)
             if verified is None:
                 continue
             if best is None or verified.bit_error_rate < best.bit_error_rate:
@@ -168,45 +247,84 @@ class ReferenceIndex:
             return []
         return [best]
 
-    def _vote(self, query: RawFingerprint) -> list[tuple[int, int]]:
-        """Stage 1 — the `(track, alignment)` pairs worth verifying.
+    def _tally(
+        self, query: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Stage 1 votes: distinct packed pairs, their counts, first sighting.
 
         `alignment` is where in the reference this window would start, in
         values: a posting at reference position `p` matching query position `q`
         argues the window begins at `p - q`. Agreement on that difference is
         what separates a real match from scattered coincidental hits.
+
+        Postings are gathered in the order the tuple-based index visited them
+        — query position, then key half, then posting — so "first sighting"
+        means the same thing it did there.
         """
-        votes: dict[tuple[int, int], int] = defaultdict(int)
-        for query_position, value in enumerate(query.values):
-            for key in index_keys(value):
-                for track_index, position in self._postings.get(key, ()):
-                    votes[(track_index, position - query_position)] += 1
+        self._build()
+        empty = np.empty(0, dtype=np.int64)
+        if len(self._keys) == 0:
+            return empty, empty, empty
 
-        if not votes:
+        query_keys = _keys_of(query).T.ravel()
+        query_positions = np.repeat(np.arange(len(query), dtype=np.int64), KEY_CHUNKS)
+
+        slots = np.searchsorted(self._keys, query_keys)
+        clipped = np.minimum(slots, len(self._keys) - 1)
+        found = (slots < len(self._keys)) & (self._keys[clipped] == query_keys)
+        starts = self._offsets[clipped[found]]
+        lengths = self._offsets[clipped[found] + 1] - starts
+        total = int(lengths.sum())
+        if total == 0:
+            return empty, empty, empty
+
+        # Concatenate every matched key's run of postings without a loop.
+        run_starts = np.cumsum(lengths) - lengths
+        gather = np.arange(total, dtype=np.int64) + np.repeat(starts - run_starts, lengths)
+        positions = self._postings[gather].astype(np.int64)
+        query_at = np.repeat(query_positions[found], lengths)
+
+        tracks = np.searchsorted(self._bounds, positions, side="right") - 1
+        alignments = positions - self._bounds[tracks] - query_at
+        pairs = (tracks << _ALIGNMENT_BITS) + (alignments + _ALIGNMENT_BIAS)
+        distinct, first, counts = np.unique(pairs, return_index=True, return_counts=True)
+        return distinct, counts, first
+
+    def _vote(self, query: np.ndarray) -> list[tuple[int, int]]:
+        """Stage 1 — the `(track, alignment)` pairs worth verifying.
+
+        Most votes first; a tie goes to the pair seen first, exactly as a
+        stable sort over insertion order did before.
+        """
+        pairs, counts, first = self._tally(query)
+        if len(pairs) == 0:
             return []
-
-        ranked = sorted(votes.items(), key=lambda item: item[1], reverse=True)
-        return [pair for pair, _ in ranked[: self.max_candidates]]
+        ranked = pairs[np.lexsort((first, -counts))[: self.max_candidates]]
+        return [
+            (int(pair >> _ALIGNMENT_BITS), int(pair & 0xFFFFFFFF) - _ALIGNMENT_BIAS)
+            for pair in ranked
+        ]
 
     def _verify(
         self,
         track_index: int,
         alignment: int,
-        query: RawFingerprint,
+        query: np.ndarray,
         min_overlap: int,
     ) -> IndexMatch | None:
         """Stage 2 — exact bit error rate over the overlapping values."""
-        reference = self._values[track_index]
+        track_start = int(self._bounds[track_index])
+        track_length = int(self._bounds[track_index + 1]) - track_start
 
         start = max(alignment, 0)
         query_start = start - alignment
-        overlap = min(len(reference) - start, len(query.values) - query_start)
+        overlap = min(track_length - start, len(query) - query_start)
         if overlap < min_overlap:
             return None
 
-        errors = 0
-        for i in range(overlap):
-            errors += _popcount_distance(reference[start + i], query.values[query_start + i])
+        reference = self._values[track_start + start : track_start + start + overlap]
+        window = query[query_start : query_start + overlap]
+        errors = int(np.bitwise_count(reference ^ window).sum())
 
         bit_error_rate = errors / (overlap * 32)
         return IndexMatch(
