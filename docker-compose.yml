@@ -126,6 +126,9 @@ services:
       FINGERPRINT_MATCHER: ${FINGERPRINT_MATCHER:-chromaprint}
       FINGERPRINT_MAX_BER: ${FINGERPRINT_MAX_BER:-0.25}
       FINGERPRINT_VERSION: ${FINGERPRINT_VERSION:-1}
+      # Live windows and library indexing. Set recordings go to their own
+      # worker below, so a three-hour decode never delays a live window.
+      FINGERPRINT_QUEUES: fingerprint_queue,fingerprint_index_queue
     depends_on:
       - redis
     volumes:
@@ -136,6 +139,14 @@ services:
       # whole tracks from here, and nothing in this service ever writes to it.
       - ${WORKER_AUDIO_MOUNT:-music_data:/app/audio}:ro
     restart: unless-stopped
+
+  # Same image, second process: derives tracklists from whole set recordings
+  # (#282). Its own heartbeat key, or each worker would vouch for the other.
+  fingerprint-set-worker:
+    extends: fingerprint-service
+    environment:
+      FINGERPRINT_QUEUES: fingerprint_set_queue
+      FINGERPRINT_HEARTBEAT_KEY: fingerprint:heartbeat:set
 
 volumes:
   db_data:

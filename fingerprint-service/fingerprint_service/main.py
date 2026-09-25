@@ -6,8 +6,11 @@ call directly.
 """
 import json
 import os
+import threading
 import time
 import traceback
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import redis
 
@@ -16,13 +19,16 @@ from .config import (
     AUDIO_INGEST_DIR,
     BRPOP_TIMEOUT,
     ENGINE_KEY,
+    HEARTBEAT_INTERVAL,
     HEARTBEAT_KEY,
     HEARTBEAT_TTL,
     INDEX_QUEUE_KEY,
     INDEX_REFRESH_SECONDS,
     MATCHER_NAME,
     QUEUE_KEY,
+    QUEUES,
     SAMPLE_RATE,
+    SET_QUEUE_KEY,
     logger,
     redis_conn,
 )
@@ -79,11 +85,8 @@ def verify_redis() -> bool:
         redis_conn.ping()
         logger.info("Redis connection successful")
         logger.info(
-            "Queue lengths: %s=%s %s=%s",
-            QUEUE_KEY,
-            redis_conn.llen(QUEUE_KEY),
-            INDEX_QUEUE_KEY,
-            redis_conn.llen(INDEX_QUEUE_KEY),
+            "Queue lengths: %s",
+            " ".join(f"{key}={redis_conn.llen(key)}" for key in QUEUES),
         )
         return True
     except Exception as e:
@@ -103,6 +106,32 @@ def write_heartbeat() -> None:
         logger.warning(f"Failed to write heartbeat: {hb_err}")
 
 
+@contextmanager
+def heartbeat_while_busy(interval: float | None = None) -> Iterator[None]:
+    """Keep the heartbeat fresh from a background thread for one job.
+
+    The loop only beats between jobs, so anything that runs longer than the
+    TTL — a set recording decodes for minutes, a long reference track for tens
+    of seconds — would read as a dead worker to the HEALTHCHECK while it was
+    doing precisely its job. The thread does nothing but refresh the key, and
+    is joined before the next job so beats can never outlive the work.
+    """
+    period = HEARTBEAT_INTERVAL if interval is None else interval
+    stop = threading.Event()
+
+    def beat() -> None:
+        while not stop.wait(period):
+            write_heartbeat()
+
+    thread = threading.Thread(target=beat, name="heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join()
+
+
 def publish_engine(matcher: FingerprintMatcher) -> None:
     """Advertise which engine and version this worker is running (#277).
 
@@ -112,7 +141,13 @@ def publish_engine(matcher: FingerprintMatcher) -> None:
     miss. Written on the heartbeat cycle and with the heartbeat's TTL, so a
     stopped worker stops advertising and the app can say "no engine registered"
     instead of indexing under a stale identity.
+
+    Only a worker that pops the index queue advertises. The app reads this key
+    to decide whether indexing can run at all, so a set-only worker vouching
+    for an engine would let index jobs queue up with nothing to take them.
     """
+    if INDEX_QUEUE_KEY not in QUEUES:
+        return
     try:
         pipeline = redis_conn.pipeline()
         pipeline.hset(
@@ -273,28 +308,41 @@ def reset_index_clock() -> None:
     _last_index_refresh = 0.0
 
 
+def process_set_job(job_json: str, matcher: FingerprintMatcher) -> None:
+    """Derive a tracklist from one set recording (#282).
+
+    Not built yet: the worker split lands first so the queue, heartbeat and
+    compose service can be verified on their own. Nothing enqueues onto this
+    list until the app route exists.
+    """
+    logger.error("Set derivation is not implemented yet; dropping job: %s", job_json)
+
+
 def run_once(matcher: FingerprintMatcher) -> None:
     """One pass of the loop: heartbeat, wait for work, handle it.
 
-    Both queues in one blocking pop, live windows first. Redis returns the
-    earliest non-empty key in argument order, so a chunk captured mid-run is
-    served before the next reference track rather than behind the rest of the
-    library.
+    Every configured queue in one blocking pop, in priority order. Redis
+    returns the earliest non-empty key in argument order, so a chunk captured
+    mid-run is served before the next reference track rather than behind the
+    rest of the library.
     """
     write_heartbeat()
     publish_engine(matcher)
     refresh_reference_index(matcher)
 
-    logger.info("Waiting for audio chunks...")
-    job_data = redis_conn.brpop([QUEUE_KEY, INDEX_QUEUE_KEY], timeout=BRPOP_TIMEOUT)
+    logger.info("Waiting for jobs on %s...", ", ".join(QUEUES))
+    job_data = redis_conn.brpop(list(QUEUES), timeout=BRPOP_TIMEOUT)
 
     if job_data:
         source_key, job_json = job_data
         logger.info(f"Received job: {job_json}")
-        if _key_name(source_key) == INDEX_QUEUE_KEY:
-            process_index_job(job_json, matcher)
-        else:
-            process_job(job_json, matcher)
+        handlers = {
+            QUEUE_KEY: process_job,
+            INDEX_QUEUE_KEY: process_index_job,
+            SET_QUEUE_KEY: process_set_job,
+        }
+        with heartbeat_while_busy():
+            handlers[_key_name(source_key)](job_json, matcher)
 
 
 def _key_name(key: str | bytes) -> str:
