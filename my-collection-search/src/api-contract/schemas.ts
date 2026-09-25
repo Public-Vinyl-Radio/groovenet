@@ -1459,6 +1459,106 @@ export const ingestRetentionStatusSchema = z.object({
   policy: ingestRetentionPolicySchema,
 });
 
+// ─── Vinyl pipeline debug reads (#299) ─────────────────────────────────────────
+
+export const ingestRecordSchema = z.object({
+  ingest_id: z.string(),
+  source_id: z.string(),
+  session_id: z.string().nullable(),
+  sequence: z.number().int().nullable(),
+  status: z.enum(["received", "processing", "processed", "failed"]),
+  error: z.string().nullable(),
+  duration_seconds: z.number().nullable(),
+  sample_rate: z.number().int().nullable(),
+  channels: z.number().int().nullable(),
+  codec: z.string().nullable(),
+  file_path: z.string().nullable(),
+  captured_at: z.string().nullable(),
+  received_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const ingestRecentResponseSchema = z.object({
+  ingests: z.array(ingestRecordSchema),
+  count: z.number().int().nonnegative(),
+});
+
+/** One matched or no-match matcher window (#279 finds play boundaries in the gaps). */
+export const detectionWindowSchema = z.object({
+  id: z.string(),
+  ingest_id: z.string(),
+  source_id: z.string(),
+  session_id: z.string().nullable(),
+  window_start_at: z.string().nullable(),
+  matched: z.boolean(),
+  track_id: z.string().nullable(),
+  friend_id: z.number().int().nullable(),
+  title: z.string().nullable(),
+  artist: z.string().nullable(),
+  album: z.string().nullable(),
+  confidence: z.number().nullable(),
+  offset_seconds: z.number().nullable(),
+  fingerprint_type: z.string().nullable(),
+  fingerprint_version: z.string().nullable(),
+  created_at: z.string(),
+});
+
+export const detectionsRecentResponseSchema = z.object({
+  detections: z.array(detectionWindowSchema),
+  count: z.number().int().nonnegative(),
+});
+
+const detectionConfidenceBandSchema = z.object({
+  band: z.string(),
+  count: z.number().int().nonnegative(),
+});
+
+/**
+ * Whether the pipeline is working at all (#299).
+ *
+ * `index.empty` is stated outright rather than left to be inferred from a
+ * zero: an empty reference index makes every other number here look healthy
+ * while nothing can ever match.
+ */
+export const ingestPipelineStatsSchema = z.object({
+  since: z.string(),
+  window_minutes: z.number().int(),
+  source_id: z.string().nullable(),
+  ingest_writable: z.boolean(),
+  index: z.object({
+    engine_registered: z.boolean(),
+    fingerprint_type: z.string().nullable(),
+    fingerprint_version: z.string().nullable(),
+    indexed_tracks: z.number().int().nonnegative(),
+    empty: z.boolean(),
+    missing_fingerprint_tracks: z.number().int().nonnegative(),
+  }),
+  queue_depth: z.number().int().nullable(),
+  ingests: z.object({
+    by_status: z.record(z.string(), z.number().int()),
+    failures: z.array(
+      z.object({ error: z.string(), count: z.number().int().nonnegative() })
+    ),
+    oldest_in_flight: z
+      .object({
+        ingest_id: z.string(),
+        status: z.string(),
+        received_at: z.string(),
+      })
+      .nullable(),
+  }),
+  detections: z.object({
+    windows: z.number().int().nonnegative(),
+    matched: z.number().int().nonnegative(),
+    no_match: z.number().int().nonnegative(),
+    match_rate: z.number().nullable(),
+    confidence_bands: z.array(detectionConfidenceBandSchema),
+  }),
+  spins: z.object({
+    pending: z.number().int().nullable(),
+  }),
+});
+
 /** One reference fingerprint as the matcher loads it (#278). */
 export const fingerprintListItemSchema = z.object({
   track_id: z.string(),

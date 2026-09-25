@@ -41,6 +41,9 @@ import {
   acceptedIngestSchema,
   ingestResultBodySchema,
   ingestRetentionStatusSchema,
+  ingestRecentResponseSchema,
+  ingestPipelineStatsSchema,
+  detectionsRecentResponseSchema,
   fingerprintIndexRunSchema,
   fingerprintUpsertBodySchema,
   fingerprintUpsertResponseSchema,
@@ -1351,7 +1354,7 @@ const audioIngestContracts: ApiContractRoute[] = [
     path: "/api/audio/ingest/recent",
     summary: "Recent audio chunks and what became of them",
     tags: ["Audio Ingest"],
-    successSchema: z.unknown(),
+    successSchema: ingestRecentResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
@@ -1365,7 +1368,51 @@ const audioIngestContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Recent ingests, newest first",
-          content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  ingests: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        ingest_id: { type: "string" },
+                        source_id: { type: "string" },
+                        session_id: { type: ["string", "null"] },
+                        sequence: { type: ["integer", "null"] },
+                        status: {
+                          type: "string",
+                          enum: ["received", "processing", "processed", "failed"],
+                        },
+                        error: { type: ["string", "null"] },
+                        duration_seconds: { type: ["number", "null"] },
+                        sample_rate: { type: ["integer", "null"] },
+                        channels: { type: ["integer", "null"] },
+                        codec: { type: ["string", "null"] },
+                        file_path: {
+                          type: ["string", "null"],
+                          description:
+                            "Non-null in a terminal state means the raw audio is still on the volume, worth a look.",
+                        },
+                        captured_at: { type: ["string", "null"], format: "date-time" },
+                        received_at: { type: "string", format: "date-time" },
+                        updated_at: { type: "string", format: "date-time" },
+                      },
+                      required: [
+                        "ingest_id", "source_id", "session_id", "sequence", "status",
+                        "error", "duration_seconds", "sample_rate", "channels", "codec",
+                        "file_path", "captured_at", "received_at", "updated_at",
+                      ],
+                    },
+                  },
+                  count: { type: "integer" },
+                },
+                required: ["ingests", "count"],
+              },
+            },
+          },
         },
         "400": {
           description: "Unknown status filter",
@@ -1384,7 +1431,7 @@ const audioIngestContracts: ApiContractRoute[] = [
     path: "/api/audio/ingest/stats",
     summary: "Whether the vinyl pipeline is working: index, queue, match rate",
     tags: ["Audio Ingest"],
-    successSchema: z.unknown(),
+    successSchema: ingestPipelineStatsSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
@@ -1395,7 +1442,109 @@ const audioIngestContracts: ApiContractRoute[] = [
         "200": {
           description:
             "Pipeline health. `index.empty` true means nothing can match, however healthy the rest looks.",
-          content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  since: { type: "string", format: "date-time" },
+                  window_minutes: { type: "integer" },
+                  source_id: { type: ["string", "null"] },
+                  ingest_writable: {
+                    type: "boolean",
+                    description: "False means every upload fails with EACCES — check this first.",
+                  },
+                  index: {
+                    type: "object",
+                    properties: {
+                      engine_registered: { type: "boolean" },
+                      fingerprint_type: { type: ["string", "null"] },
+                      fingerprint_version: { type: ["string", "null"] },
+                      indexed_tracks: { type: "integer" },
+                      empty: {
+                        type: "boolean",
+                        description: "True means nothing can ever match, however healthy the rest looks.",
+                      },
+                      missing_fingerprint_tracks: { type: "integer" },
+                    },
+                    required: [
+                      "engine_registered", "fingerprint_type", "fingerprint_version",
+                      "indexed_tracks", "empty", "missing_fingerprint_tracks",
+                    ],
+                  },
+                  queue_depth: {
+                    type: ["integer", "null"],
+                    description: "Null when redis is unreachable — different from a genuine 0.",
+                  },
+                  ingests: {
+                    type: "object",
+                    properties: {
+                      by_status: { type: "object", additionalProperties: { type: "integer" } },
+                      failures: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            error: { type: "string" },
+                            count: { type: "integer" },
+                          },
+                          required: ["error", "count"],
+                        },
+                      },
+                      oldest_in_flight: {
+                        type: ["object", "null"],
+                        properties: {
+                          ingest_id: { type: "string" },
+                          status: { type: "string" },
+                          received_at: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                    required: ["by_status", "failures", "oldest_in_flight"],
+                  },
+                  detections: {
+                    type: "object",
+                    properties: {
+                      windows: { type: "integer" },
+                      matched: { type: "integer" },
+                      no_match: { type: "integer" },
+                      match_rate: {
+                        type: ["number", "null"],
+                        description: "Null when the window recorded no detections at all.",
+                      },
+                      confidence_bands: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            band: { type: "string" },
+                            count: { type: "integer" },
+                          },
+                          required: ["band", "count"],
+                        },
+                      },
+                    },
+                    required: ["windows", "matched", "no_match", "match_rate", "confidence_bands"],
+                  },
+                  spins: {
+                    type: "object",
+                    properties: {
+                      pending: {
+                        type: ["integer", "null"],
+                        description:
+                          "Confidently-detected plays not yet aggregated into a spin session (#304). Null when it could not be computed.",
+                      },
+                    },
+                    required: ["pending"],
+                  },
+                },
+                required: [
+                  "since", "window_minutes", "source_id", "ingest_writable", "index",
+                  "queue_depth", "ingests", "detections", "spins",
+                ],
+              },
+            },
+          },
         },
         "500": {
           description: "Server error",
@@ -1410,7 +1559,7 @@ const audioIngestContracts: ApiContractRoute[] = [
     path: "/api/detections/recent",
     summary: "Recent matcher windows, with the track resolved",
     tags: ["Audio Ingest"],
-    successSchema: z.unknown(),
+    successSchema: detectionsRecentResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
@@ -1426,7 +1575,50 @@ const audioIngestContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Recent windows, newest first, including no-match windows",
-          content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  detections: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        ingest_id: { type: "string" },
+                        source_id: { type: "string" },
+                        session_id: { type: ["string", "null"] },
+                        window_start_at: { type: ["string", "null"], format: "date-time" },
+                        matched: {
+                          type: "boolean",
+                          description: "False is a recorded no-match window, not an absence.",
+                        },
+                        track_id: { type: ["string", "null"] },
+                        friend_id: { type: ["integer", "null"] },
+                        title: { type: ["string", "null"] },
+                        artist: { type: ["string", "null"] },
+                        album: { type: ["string", "null"] },
+                        confidence: { type: ["number", "null"] },
+                        offset_seconds: { type: ["number", "null"] },
+                        fingerprint_type: { type: ["string", "null"] },
+                        fingerprint_version: { type: ["string", "null"] },
+                        created_at: { type: "string", format: "date-time" },
+                      },
+                      required: [
+                        "id", "ingest_id", "source_id", "session_id", "window_start_at",
+                        "matched", "track_id", "friend_id", "title", "artist", "album",
+                        "confidence", "offset_seconds", "fingerprint_type",
+                        "fingerprint_version", "created_at",
+                      ],
+                    },
+                  },
+                  count: { type: "integer" },
+                },
+                required: ["detections", "count"],
+              },
+            },
+          },
         },
         "500": {
           description: "Server error",

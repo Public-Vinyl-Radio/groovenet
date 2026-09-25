@@ -2,22 +2,32 @@
 
 import { Box, Button, Card, Heading, HStack, Icon, SimpleGrid, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { FiBookOpen, FiExternalLink, FiFileText } from "react-icons/fi";
+import { FiActivity, FiBookOpen, FiExternalLink, FiFileText } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import PageContainer from "@/components/layout/PageContainer";
 
-const tools: Array<{ title: string; description: string; href: string; icon: IconType }> = [
+type Tool = { title: string; description: string; href: string; icon: IconType; external?: boolean };
+
+const tools: Tool[] = [
   {
     title: "Swagger console",
     description: "Browse and exercise GrooveNet's API in Swagger UI.",
     href: "/api/docs",
     icon: FiBookOpen,
+    external: true,
   },
   {
     title: "OpenAPI specification",
     description: "View the generated OpenAPI 3.1 JSON document.",
     href: "/api/openapi.json",
     icon: FiFileText,
+    external: true,
+  },
+  {
+    title: "Vinyl pipeline",
+    description: "Index status, ingest health and the live detection timeline (#299).",
+    href: "/vinyl",
+    icon: FiActivity,
   },
 ];
 
@@ -45,9 +55,13 @@ export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: str
                 </Box>
               </HStack>
               <Button asChild alignSelf="flex-start">
-                <NextLink href={tool.href} target="_blank" rel="noreferrer">
-                  Open <FiExternalLink />
-                </NextLink>
+                {tool.external ? (
+                  <NextLink href={tool.href} target="_blank" rel="noreferrer">
+                    Open <FiExternalLink />
+                  </NextLink>
+                ) : (
+                  <NextLink href={tool.href}>Open</NextLink>
+                )}
               </Button>
             </Card.Body>
           </Card.Root>
