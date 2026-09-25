@@ -103,11 +103,41 @@ END $$;
 `.trim();
   }
 
+  // Backups are dumped with `-n public`, so they recreate the public schema but
+  // not the extensions living in it (vector, pg_trgm). Rebuild public empty with
+  // those extensions in place. DROP OWNED can't be used: the app role is the
+  // bootstrap superuser and owns the system catalogs.
   return `
-DROP OWNED BY ${quoteIdentifier(pgUser)} CASCADE;
+DO $$
+DECLARE
+  public_extensions text[];
+  ext text;
+BEGIN
+  SELECT coalesce(array_agg(e.extname), '{}')
+    INTO public_extensions
+  FROM pg_extension e
+  JOIN pg_namespace n ON n.oid = e.extnamespace
+  WHERE n.nspname = 'public';
+
+  DROP SCHEMA IF EXISTS public CASCADE;
+  CREATE SCHEMA public;
+
+  FOREACH ext IN ARRAY public_extensions LOOP
+    EXECUTE format('CREATE EXTENSION IF NOT EXISTS %I SCHEMA public', ext);
+  END LOOP;
+END $$;
 GRANT ALL ON SCHEMA public TO ${quoteIdentifier(pgUser)};
 GRANT ALL ON SCHEMA public TO public;
 `.trim();
+}
+
+// The prep step has already recreated public, so the dump's own CREATE SCHEMA
+// would fail under ON_ERROR_STOP.
+export function tolerateExistingPublicSchema(sqlContent: string): string {
+  return sqlContent.replace(
+    /^CREATE SCHEMA public;$/m,
+    "CREATE SCHEMA IF NOT EXISTS public;"
+  );
 }
 
 function removePgMigrationsData(sqlContent: string): string {
@@ -189,7 +219,7 @@ export async function restoreDatabaseFromUpload(file: File): Promise<RestoreResu
       const finalContent =
         backupType === "data-only"
           ? removePgMigrationsData(sqlContent)
-          : sqlContent;
+          : tolerateExistingPublicSchema(sqlContent);
       fs.writeFileSync(filteredPath, finalContent);
       runShell(
         `psql -U ${pg.user} -h ${pg.host} -p ${pg.port} -d ${pg.db} --single-transaction -v ON_ERROR_STOP=1 -q -f '${filteredPath}'`,
