@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.6](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.5...v0.2.6) (2026-09-25)
+
+
+### Features
+
+* **obs:** add the vinyl pipeline debug page ([#309](https://github.com/Public-Vinyl-Radio/groovenet/issues/309)) ([d42c7ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/d42c7ef2b6f412b5e82da5792fb628a4ddab884e))
+
+
+### Bug Fixes
+
+* **ingest:** chown the audio-ingest volume at startup ([#311](https://github.com/Public-Vinyl-Radio/groovenet/issues/311)) ([78b2ab4](https://github.com/Public-Vinyl-Radio/groovenet/commit/78b2ab48b11172819a305a3108add747dba60d8b))
+* **restore:** stop using DROP OWNED on full restores ([#310](https://github.com/Public-Vinyl-Radio/groovenet/issues/310)) ([ee8dd8e](https://github.com/Public-Vinyl-Radio/groovenet/commit/ee8dd8e3bf15772803912ffe029da1445a649aef))
+
 ## [0.2.5](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.4...v0.2.5) (2026-09-22)
 
 
