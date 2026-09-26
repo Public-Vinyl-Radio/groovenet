@@ -22,6 +22,8 @@ export type TracklistOptions = {
    * rate of 1.0013), so this only catches real jumps.
    */
   maxDriftSeconds?: number;
+  /** Consecutive windows that must agree on a new alignment to split; see groupWindows. */
+  driftConfirmWindows?: number;
 };
 
 export const DEFAULT_MAX_DRIFT_SECONDS = 20;
@@ -178,7 +180,18 @@ export function diffAgainstPlan(
   const insteadOf: SetDiff["played_instead_of"] = [];
   const notPlanned: SetDiff["played_not_planned"] = [];
 
+  // A track already paired as played-instead-of keeps that pairing when it
+  // shows up again: the same record resumed after a gap is still that slot,
+  // exactly as a planned track played in two stretches is.
+  const pairedByKey = new Map<string, PlannedEntry>();
+
   for (const i of unplanned) {
+    const paired = pairedByKey.get(keyOf(plays[i]));
+    if (paired) {
+      matchedIndex[i] = paired.index;
+      insteadOf.push({ play: i, planned: paired });
+      continue;
+    }
     const release = plays[i].track?.release_id ?? null;
     const expected = expectedIndex(matchedIndex, i);
     const candidates = release
@@ -193,6 +206,7 @@ export function diffAgainstPlan(
     );
     unplayed.splice(unplayed.indexOf(chosen), 1);
     matchedIndex[i] = chosen.index;
+    pairedByKey.set(keyOf(plays[i]), chosen);
     insteadOf.push({ play: i, planned: chosen });
   }
 

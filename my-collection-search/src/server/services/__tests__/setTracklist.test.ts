@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   derivePlays,
@@ -68,7 +70,7 @@ describe("derivePlays", () => {
   });
 
   it("splits when the offset jumps: the record was dropped back to the start", () => {
-    const plays = derivePlays([...run("1-A1", 0, 4, 0), ...run("1-A1", 60, 4, 0)]);
+    const plays = derivePlays([...run("1-A1", 0, 4, 0), ...run("1-A1", 60, 5, 0)]);
     expect(plays.map((p) => p.start_seconds)).toEqual([0, 60]);
   });
 
@@ -98,6 +100,102 @@ describe("derivePlays", () => {
     const windows = run("1-A1", 0, 2);
     windows[1].candidates[0].confidence = 0.97;
     expect(derivePlays(windows)[0].confidence).toBe(0.97);
+  });
+});
+
+/**
+ * One window on a given alignment: `anchor` is where on the recording the
+ * track would have started, so offset = start - anchor.
+ */
+function at(trackId: string, start: number, anchor: number): SetWindow {
+  return {
+    start_seconds: start,
+    duration_seconds: 15,
+    candidates: [{ track_id: trackId, friend_id: 1, confidence: 0.9, offset_seconds: Math.max(0, start - anchor) }],
+  };
+}
+
+/** Windows every 15 s from `from`, all on `anchor`. */
+function line(trackId: string, from: number, count: number, anchor: number): SetWindow[] {
+  return Array.from({ length: count }, (_, i) => at(trackId, from + i * 15, anchor));
+}
+
+describe("derivePlays on repetitive music (#282)", () => {
+  // Loop-based tracks sometimes match a *repeat* of the same section: one or
+  // two windows jump to another alignment, then the play carries on. On
+  // #271's set that split three tracks into eleven plays.
+
+  it("absorbs a single window that matched a repeat", () => {
+    const windows = [...line("1-A1", 0, 8, 0), at("1-A1", 120, 56), ...line("1-A1", 135, 8, 0)];
+    expect(derivePlays(windows)).toHaveLength(1);
+  });
+
+  it("absorbs two windows that matched the same repeat", () => {
+    // Cuco — Lover Is A Day: 7775 and 7790 s both at anchor 7469.8.
+    const windows = [...line("1-A1", 0, 3, 0), at("1-A1", 45, -256), at("1-A1", 60, -256), ...line("1-A1", 75, 7, 0)];
+    expect(derivePlays(windows)).toEqual([expect.objectContaining({ windows: 12, start_seconds: 0, end_seconds: 180 })]);
+  });
+
+  it("absorbs stray windows that do not agree with each other, up to the end of the track", () => {
+    // Tame Impala: two windows at one repeat, then one at another, then the next record.
+    const windows = [...line("1-A1", 0, 10, 0), at("1-A1", 150, -28), at("1-A1", 165, -28), at("1-A1", 180, 28), ...line("2-B1", 195, 4, 195)];
+    expect(derivePlays(windows).map((p) => [p.track_id, p.windows])).toEqual([["1-A1", 13], ["2-B1", 4]]);
+  });
+
+  it("splits a record really dropped back to the start, from the first window of the restart", () => {
+    const windows = [...line("1-A1", 0, 8, 0), ...line("1-A1", 120, 6, 120)];
+    // 120 s is at offset 0, the needle drop: alignment unknown on its own, it
+    // still belongs to the restart, not to the play before.
+    expect(derivePlays(windows).map((p) => [p.start_seconds, p.windows])).toEqual([[0, 8], [120, 6]]);
+  });
+
+  it("needs driftConfirmWindows agreeing windows to split", () => {
+    const threeOff = [...line("1-A1", 0, 8, 0), ...line("1-A1", 120, 4, 120), ...line("1-A1", 180, 2, 0)];
+    expect(derivePlays(threeOff)).toHaveLength(1);
+    expect(derivePlays(threeOff, { driftConfirmWindows: 3 })).toHaveLength(2);
+  });
+
+  it("follows the play's alignment rather than its first, clamped, window", () => {
+    // The first window starts before the needle drop, so its offset is
+    // clamped to 0 and its anchor is a few seconds off the real one.
+    const windows = [at("1-A1", 0, 4.4), ...line("1-A1", 15, 10, 4.4)];
+    expect(windows[0].candidates[0].offset_seconds).toBe(0);
+    expect(derivePlays(windows, { maxDriftSeconds: 3 })).toHaveLength(1);
+  });
+});
+
+describe("derivePlays on the #271 set (real matcher output)", () => {
+  const fixture = JSON.parse(
+    readFileSync(path.join(__dirname, "fixtures", "set-271-windows.json"), "utf8")
+  ) as { duration_seconds: number; windows: Array<[number, number, string | null, number | null, number | null, number | null]> };
+  const windows: SetWindow[] = fixture.windows.map(([start, duration, trackId, friendId, confidence, offset]) => ({
+    start_seconds: start,
+    duration_seconds: duration,
+    candidates: trackId
+      ? [{ track_id: trackId, friend_id: friendId as number, confidence: confidence as number, offset_seconds: offset as number }]
+      : [],
+  }));
+  const plays = derivePlays(windows);
+
+  it("groups the set into 41 plays", () => {
+    // 49 before repeats were absorbed. Of the 41, the only track appearing in
+    // two adjacent plays is Massive Attack's two low-confidence windows 75 s
+    // apart — separated by the gap rule, not by drift.
+    expect(plays).toHaveLength(41);
+    const adjacentRepeats = plays.filter((p, i) => i > 0 && plays[i - 1].track_id === p.track_id);
+    expect(adjacentRepeats.map((p) => p.track_id)).toEqual(["5077187-B2"]);
+  });
+
+  it.each([
+    ["14539820-B3", "Punta Diamante — Champ Fire"],
+    ["21303601-D2", "Tame Impala — I Don't Really Mind"],
+    ["23156720-A1", "Cuco — Lover Is A Day"],
+  ])("keeps %s (%s) as one play", (trackId) => {
+    expect(plays.filter((p) => p.track_id === trackId)).toHaveLength(1);
+  });
+
+  it("identifies nearly the whole set", () => {
+    expect(identifiedSeconds(plays) / fixture.duration_seconds).toBeGreaterThan(0.98);
   });
 });
 
@@ -240,6 +338,18 @@ describe("diffAgainstPlan", () => {
     expect(result.played_instead_of).toEqual([]);
     expect(result.played_not_planned).toEqual([{ play: 0 }, { play: 1 }]);
     expect(result.planned_not_played).toHaveLength(1);
+  });
+
+  it("keeps a substitution's pairing when the same track comes back", () => {
+    // Massive Attack on #271: B2 matched twice, 75 s apart, where D2 was
+    // planned. Both are that slot — not one instead-of and one unplanned.
+    const plan = [planned(0, "1-A1", "1"), planned(1, "5-D2", "5")];
+    const result = diffAgainstPlan([play("1-A1"), play("5-B2"), play("5-B2")], plan, 1);
+    expect(result.played_instead_of).toEqual([
+      { play: 1, planned: plan[1] },
+      { play: 2, planned: plan[1] },
+    ]);
+    expect(result.played_not_planned).toEqual([]);
   });
 
   it("does not pair across friends", () => {

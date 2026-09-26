@@ -29,7 +29,17 @@ export type GroupingOptions = {
    * (#279) do not need it, and set derivation (#282) does.
    */
   maxDriftSeconds?: number;
+  /**
+   * How many consecutive windows must agree on a *new* alignment before a
+   * drift splits the play. Repetitive music matches a repeat of the same
+   * section now and then — on #271's set, one or two windows at a time — and
+   * a play must not break on that. A record really restarted holds its new
+   * alignment for as long as it plays. Default 4, about a minute.
+   */
+  driftConfirmWindows?: number;
 };
+
+export const DEFAULT_DRIFT_CONFIRM_WINDOWS = 4;
 
 function timestamp(detection: PlayDetectionRow): number | null {
   if (!detection.window_start_at) return null;
@@ -37,9 +47,15 @@ function timestamp(detection: PlayDetectionRow): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-/** Where on the track this window says the recording started, in seconds. */
+/**
+ * Where on the recording this window says the track started, in seconds.
+ *
+ * Unknown at an offset of 0: that is where the matcher clamps a window that
+ * began before the track did, so it bounds the alignment without fixing it.
+ * Treating it as exact put a play's reference a few seconds off.
+ */
 function anchor(window: GroupableWindow): number | null {
-  if (window.offset_seconds == null || window.at == null) return null;
+  if (window.offset_seconds == null || window.offset_seconds <= 0 || window.at == null) return null;
   return window.at / 1000 - window.offset_seconds;
 }
 
@@ -55,39 +71,97 @@ export function groupWindows<T>(
     confidenceFloor = DEFAULT_PLAY_CONFIDENCE_FLOOR,
     gapSeconds = DEFAULT_PLAY_GAP_SECONDS,
     maxDriftSeconds,
+    driftConfirmWindows = DEFAULT_DRIFT_CONFIRM_WINDOWS,
   }: GroupingOptions = {}
 ): WindowGroup<T>[] {
   const groups: WindowGroup<T>[] = [];
+  // The current play's established alignment: followed window by window,
+  // not fixed at the first, whose offset is often clamped to 0 because the
+  // window began before the needle dropped.
+  let reference: number | null = null;
+  // Windows of the current track that disagree with `reference`, held until
+  // enough of them agree to be a restart, or the play resumes its line.
+  let held: T[] = [];
+  let lastAt: number | null = null;
+
+  const add = (group: WindowGroup<T>, item: T) => {
+    group.last = item;
+    group.members.push(item);
+    group.confidence = Math.max(group.confidence, view(item).confidence as number);
+  };
+  // Held windows that never became a restart were noise within this play.
+  const release = (group: WindowGroup<T> | undefined) => {
+    if (group) held.forEach((item) => add(group, item));
+    held = [];
+  };
+  const begin = (first: T, rest: T[] = []) => {
+    const group = { first, last: first, confidence: view(first).confidence as number, members: [first] };
+    rest.forEach((item) => add(group, item));
+    groups.push(group);
+  };
+  const agrees = (a: number | null, b: number | null) =>
+    maxDriftSeconds == null || a == null || b == null || Math.abs(a - b) <= maxDriftSeconds;
+
   for (const item of items) {
     const window = view(item);
     const { at, confidence } = window;
     if (!window.track_id || !window.friend_id || confidence == null || confidence < confidenceFloor || at == null) continue;
     const current = groups.at(-1);
     const first = current ? view(current.first) : null;
-    const lastAt = current ? view(current.last).at : null;
     const sameTrack = first?.track_id === window.track_id && first?.friend_id === window.friend_id;
     const withinGap = lastAt != null && at - lastAt <= gapSeconds * 1000;
-    if (current && sameTrack && withinGap && !drifted(first, window, maxDriftSeconds)) {
-      current.last = item;
-      current.members.push(item);
-      current.confidence = Math.max(current.confidence, confidence);
+    const aligned = anchor(window);
+    lastAt = at;
+
+    if (!current || !sameTrack || !withinGap) {
+      release(current);
+      begin(item);
+      reference = aligned;
+      continue;
+    }
+
+    if (agrees(aligned, reference)) {
+      release(current);
+      add(current, item);
+      reference = aligned ?? reference;
+      continue;
+    }
+
+    // Off the line: join the held run if it agrees with it, else start one.
+    if (held.length > 0 && agrees(aligned, anchor(view(held[0])))) {
+      held.push(item);
     } else {
-      groups.push({ first: item, last: item, confidence, members: [item] });
+      release(current);
+      held = [item];
+    }
+    if (held.length >= driftConfirmWindows) {
+      // A restart's first window is usually at offset 0 — the needle drop —
+      // so it went into the old play as alignment-unknown. Bring those back:
+      // only the ones after the old play's last aligned window.
+      const carried = trailingUnaligned(current, view);
+      const [head, ...rest] = [...carried, ...held];
+      held = [];
+      begin(head, rest);
+      reference = aligned;
     }
   }
+  release(groups.at(-1));
   return groups;
 }
 
-function drifted(
-  first: GroupableWindow | null,
-  window: GroupableWindow,
-  maxDriftSeconds: number | undefined
-): boolean {
-  if (maxDriftSeconds == null || !first) return false;
-  const expected = anchor(first);
-  const actual = anchor(window);
-  if (expected == null || actual == null) return false;
-  return Math.abs(actual - expected) > maxDriftSeconds;
+/**
+ * Remove and return the windows at the end of `group` whose alignment is
+ * unknown, back to its last aligned window. Only called on a confirmed
+ * restart, and a window is only ever held against an established reference —
+ * which came from an aligned member — so the group always keeps at least one.
+ */
+function trailingUnaligned<T>(group: WindowGroup<T>, view: (item: T) => GroupableWindow): T[] {
+  let cut = group.members.length;
+  while (anchor(view(group.members[cut - 1])) == null) cut--;
+  const carried = group.members.splice(cut);
+  group.last = group.members[group.members.length - 1];
+  group.confidence = Math.max(...group.members.map((item) => view(item).confidence as number));
+  return carried;
 }
 
 /** Pure grouping rule: order by capture time, not queue arrival time. */
