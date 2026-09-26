@@ -80,3 +80,24 @@ class TestDefaults:
     def test_sets_have_their_own_queue(self):
         assert config.SET_QUEUE_KEY == "fingerprint_set_queue"
         assert config.SET_QUEUE_KEY not in config.DEFAULT_QUEUES
+
+
+
+class TestResolveMinLevel:
+    """The silence floor: off until it is tuned from real levels."""
+
+    @pytest.mark.parametrize("raw", ["", "   "])
+    def test_blank_means_off(self, raw):
+        assert config.resolve_min_level(raw) is None
+
+    def test_unset_means_off(self, monkeypatch):
+        monkeypatch.delenv("FINGERPRINT_MIN_LEVEL_DBFS", raising=False)
+        assert config.resolve_min_level() is None
+
+    def test_reads_a_level(self, monkeypatch):
+        monkeypatch.setenv("FINGERPRINT_MIN_LEVEL_DBFS", "-55")
+        assert config.resolve_min_level() == -55.0
+
+    def test_rejects_nonsense(self):
+        with pytest.raises(ValueError, match="dBFS"):
+            config.resolve_min_level("quiet")

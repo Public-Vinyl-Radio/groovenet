@@ -37,6 +37,14 @@ describe("GET /api/detections/recent", () => {
     });
   });
 
+  it("returns each window's level, and null for rows recorded before levels were", async () => {
+    repo.listRecent.mockResolvedValue([row({ level_dbfs: -23.4 }), row({ id: "d2" })]);
+
+    const body = await (await GET(req())).json();
+
+    expect(body.detections.map((d: { level_dbfs: number | null }) => d.level_dbfs)).toEqual([-23.4, null]);
+  });
+
   it("marks a no-match window as unmatched rather than omitting it", async () => {
     // The state the pipeline is in most of the time between tracks.
     repo.listRecent.mockResolvedValue([

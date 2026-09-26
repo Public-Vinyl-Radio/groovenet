@@ -121,9 +121,21 @@ than one process:
   source's detections the moment it records a confident one. #279 built the
   grouping/dedup logic and neither trigger existed until #304 — detections
   landed in `play_detections` and nothing ever turned them into a spin.
-  Both are bounded by `PLAY_AGGREGATION_LOOKBACK_MINUTES` (default 60); a
-  backlog older than that needs `POST /api/spins/aggregate` (`since`,
-  optional `source_id`) or `groovenet vinyl aggregate --since <date>`.
+  Both are bounded by `PLAY_AGGREGATION_LOOKBACK_MINUTES` (default 60). The
+  fast path looks back from each window's **capture** time, not from now, so a
+  listener catching up on a backlog (a DNS failure, a reboot) still makes
+  spins; the periodic pass looks back from now. Anything older than both
+  needs `POST /api/spins/aggregate` (`since`, optional `source_id`) or
+  `groovenet vinyl aggregate --since <date>`.
+
+  **What counts as a play** (`isRealPlay`): at least `PLAY_MIN_WINDOWS` (2)
+  windows, and — where positions are known — a position that advances with
+  the clock (median step rate 0.75–1.25). Real use showed every false spin was
+  a single window at a track boundary, and idle-chain hiss that matched the
+  same spot of one track window after window: long enough for a window
+  minimum, but a rate of 0. `playAggregationService.test.ts` replays that
+  evening. Raw detections are unfiltered — every window still shows on
+  `/vinyl`, now with its level (`level_dbfs`).
 
 All of the above tick every 60s and decide internally whether it is time to
 act, so each interval is configurable without restarting a timer.

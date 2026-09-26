@@ -14,7 +14,7 @@ from contextlib import contextmanager
 
 import redis
 
-from .audio import AudioDecodeError, decode_to_pcm
+from .audio import AudioDecodeError, decode_to_pcm, level_dbfs
 from .config import (
     AUDIO_INGEST_DIR,
     BRPOP_TIMEOUT,
@@ -26,6 +26,7 @@ from .config import (
     INDEX_REFRESH_SECONDS,
     INDEX_RETRY_SECONDS,
     MATCHER_NAME,
+    MIN_LEVEL_DBFS,
     QUEUE_KEY,
     QUEUES,
     SAMPLE_RATE,
@@ -188,13 +189,27 @@ def handle_job(job: IngestJob, matcher: FingerprintMatcher) -> IngestResult:
         logger.error("Ingest %s could not be decoded: %s", job["ingest_id"], e)
         return build_result(job, matcher, error=str(e))
 
-    candidates = matcher.match(audio)
+    level = level_dbfs(audio.pcm)
+    if MIN_LEVEL_DBFS is not None and level < MIN_LEVEL_DBFS:
+        # Too quiet to be music: an idle chain's hiss can resemble a quiet
+        # stretch of some reference track closely enough to match it. Still
+        # a processed no-match window, so gaps stay visible to #279.
+        logger.info(
+            "Ingest %s is %.1f dBFS, under the %.1f dBFS floor; not matching",
+            job["ingest_id"],
+            level,
+            MIN_LEVEL_DBFS,
+        )
+        candidates = []
+    else:
+        candidates = matcher.match(audio)
     return build_result(
         job,
         matcher,
         candidates=candidates,
         duration_seconds=audio.duration_seconds,
         sample_rate=audio.sample_rate,
+        level_dbfs=level,
     )
 
 

@@ -14,6 +14,8 @@ import threading
 from collections.abc import Iterator
 from dataclasses import dataclass
 
+import numpy as np
+
 from .config import (
     FFMPEG_TIMEOUT,
     PCM_CHUNK_BYTES,
@@ -223,3 +225,24 @@ def _check_duration(
             audio.duration_seconds,
             declared_duration,
         )
+
+
+#: What `level_dbfs` reports for true digital silence, where the RMS is 0 and
+#: the log is minus infinity — which JSON cannot carry.
+SILENCE_DBFS = -120.0
+
+
+def level_dbfs(pcm: bytes) -> float:
+    """RMS level of mono 16-bit PCM, in dB relative to full scale.
+
+    0 is a full-scale square wave; music on vinyl typically sits around -30 to
+    -15; an idle chain's hiss is far lower. Rounded to 0.1 dB, and floored at
+    SILENCE_DBFS for all-zero audio.
+    """
+    samples = np.frombuffer(pcm[: len(pcm) - len(pcm) % BYTES_PER_SAMPLE], dtype="<i2")
+    if samples.size == 0:
+        return SILENCE_DBFS
+    rms = float(np.sqrt(np.mean(samples.astype(np.float64) ** 2)))
+    if rms == 0:
+        return SILENCE_DBFS
+    return round(max(20 * np.log10(rms / 32768.0), SILENCE_DBFS), 1)

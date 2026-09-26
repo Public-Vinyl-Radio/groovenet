@@ -254,6 +254,51 @@ describe("report()", () => {
     );
   });
 
+  it("looks back from when the window was captured, so a backlog still becomes spins", async () => {
+    // A listener catching up after a DNS outage reports windows hours old.
+    const match = { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 };
+    await service.report(report({ window_start_at: "2026-09-20T18:42:10.000Z", candidates: [match] }));
+
+    const since = aggregation.aggregateSource.mock.calls[0][1] as Date;
+    expect(since.toISOString()).toBe("2026-09-20T17:42:10.000Z");
+  });
+
+  it("falls back to the ingest's capture time, then to now", async () => {
+    const match = { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 };
+    await service.report(report({ window_start_at: null, candidates: [match] }));
+    expect((aggregation.aggregateSource.mock.calls[0][1] as Date).toISOString()).toBe(
+      "2026-09-20T17:42:10.000Z"
+    );
+
+    ingests.findById.mockResolvedValue(row({ captured_at: null }));
+    const before = Date.now();
+    await service.report(report({ window_start_at: null, candidates: [match] }));
+    const since = (aggregation.aggregateSource.mock.calls[1][1] as Date).getTime();
+    expect(since).toBeGreaterThanOrEqual(before - 60 * 60_000);
+    expect(since).toBeLessThanOrEqual(Date.now() - 60 * 60_000);
+  });
+
+  it("never looks back from a capture time in the future, nor a nonsense one", async () => {
+    const match = { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 };
+    for (const window_start_at of ["2099-01-01T00:00:00.000Z", "not-a-date"]) {
+      aggregation.aggregateSource.mockClear();
+      const before = Date.now();
+      await service.report(report({ window_start_at, candidates: [match] }));
+      const since = (aggregation.aggregateSource.mock.calls[0][1] as Date).getTime();
+      expect(since).toBeGreaterThanOrEqual(before - 60 * 60_000);
+      expect(since).toBeLessThanOrEqual(Date.now() - 60 * 60_000);
+    }
+  });
+
+  it("stores each window's level", async () => {
+    await service.report(report({ level_dbfs: -23.4 }));
+    expect(detections.create.mock.calls[0][0].level_dbfs).toBe(-23.4);
+
+    detections.create.mockClear();
+    await service.report(report());
+    expect(detections.create.mock.calls[0][0].level_dbfs).toBeNull();
+  });
+
   it("does not aggregate on a no-match window — nothing new to group", async () => {
     await service.report(report({ candidates: [] }));
 

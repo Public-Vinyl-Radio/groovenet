@@ -87,7 +87,10 @@ export class IngestLifecycleService {
       // waiting on the periodic backstop (`aggregationTick`). A no-match
       // window has nothing to aggregate, so this only fires on a real match.
       if (report.candidates.length > 0) {
-        await this.triggerAggregation(ingest.source_id);
+        await this.triggerAggregation(
+          ingest.source_id,
+          report.window_start_at ?? ingest.captured_at ?? null
+        );
       }
     }
 
@@ -123,6 +126,7 @@ export class IngestLifecycleService {
       window_start_at: windowStart,
       fingerprint_type: report.fingerprint_type ?? null,
       fingerprint_version: report.fingerprint_version ?? null,
+      level_dbfs: report.level_dbfs ?? null,
     };
 
     if (report.candidates.length === 0) {
@@ -154,9 +158,18 @@ export class IngestLifecycleService {
    * `fingerprint-service` is waiting on, or leave the ingest un-terminated.
    * The periodic pass catches whatever this missed.
    */
-  private async triggerAggregation(sourceId: string): Promise<void> {
+  private async triggerAggregation(
+    sourceId: string,
+    capturedAt: Date | string | null
+  ): Promise<void> {
     try {
-      const since = new Date(Date.now() - aggregationLookbackMs());
+      // Look back from when the window was *captured*, not from now. A
+      // listener catching up on a backlog — after a DNS failure, a reboot —
+      // reports windows hours old, and a lookback from now never reached
+      // them: detections arrived and no spin was ever made.
+      const captured = capturedAt ? new Date(capturedAt).getTime() : NaN;
+      const anchor = Number.isFinite(captured) ? Math.min(captured, Date.now()) : Date.now();
+      const since = new Date(anchor - aggregationLookbackMs());
       await playAggregationService.aggregateSource(sourceId, since);
     } catch (error) {
       console.error(`Failed to aggregate detections for ${sourceId}:`, error);

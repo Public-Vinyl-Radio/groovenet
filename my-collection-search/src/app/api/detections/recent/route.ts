@@ -45,6 +45,7 @@ export async function GET(req: Request) {
         album: row.track_album,
         confidence: row.confidence,
         offset_seconds: row.offset_seconds,
+        level_dbfs: row.level_dbfs ?? null,
         fingerprint_type: row.fingerprint_type,
         fingerprint_version: row.fingerprint_version,
         created_at: new Date(row.created_at).toISOString(),

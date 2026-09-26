@@ -6,9 +6,11 @@ import threading
 import pytest
 from fingerprint_service import audio
 from fingerprint_service.audio import (
+    SILENCE_DBFS,
     AudioDecodeError,
     NormalizedAudio,
     decode_to_pcm,
+    level_dbfs,
     stream_pcm,
 )
 
@@ -274,3 +276,33 @@ class TestStreamPcmAgainstRealFfmpeg:
         path.write_bytes(b"this is not a RIFF header")
         with pytest.raises(AudioDecodeError):
             list(stream_pcm(str(path), timeout=30))
+
+
+class TestLevelDbfs:
+    """How loud a window is — what tells an idle chain's hiss from music."""
+
+    def test_full_scale_square_is_0_dbfs(self):
+        assert level_dbfs(pcm([32767, -32768] * 500)) == pytest.approx(0.0, abs=0.1)
+
+    def test_half_scale_sine_is_minus_9_dbfs(self):
+        import math
+
+        # RMS of a sine is peak / sqrt(2): 0.5 / 1.414 -> -9.0 dBFS.
+        samples = [round(16384 * math.sin(2 * math.pi * 440 * i / 22050)) for i in range(22050)]
+        assert level_dbfs(pcm(samples)) == pytest.approx(-9.0, abs=0.1)
+
+    def test_quiet_hiss_is_far_below_music(self):
+        import random
+
+        rng = random.Random(7)
+        hiss = [round(rng.gauss(0, 30)) for _ in range(22050)]
+        assert level_dbfs(pcm(hiss)) < -55
+
+    def test_digital_silence_is_floored_not_minus_infinity(self):
+        assert level_dbfs(pcm([0] * 1000)) == SILENCE_DBFS
+
+    def test_empty_audio_is_silence(self):
+        assert level_dbfs(b"") == SILENCE_DBFS
+
+    def test_ignores_a_trailing_odd_byte(self):
+        assert level_dbfs(pcm([32767, -32768]) + b"\x01") == pytest.approx(0.0, abs=0.1)

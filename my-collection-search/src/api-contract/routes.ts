@@ -1371,6 +1371,10 @@ const audioIngestContracts: ApiContractRoute[] = [
                 window_start_at: { type: ["string", "null"], format: "date-time" },
                 duration_seconds: { type: ["number", "null"] },
                 sample_rate: { type: ["integer", "null"] },
+                level_dbfs: {
+                  type: ["number", "null"],
+                  description: "RMS level of the window, dBFS",
+                },
                 fingerprint_type: { type: ["string", "null"] },
                 fingerprint_version: { type: ["string", "null"] },
                 candidates: {
@@ -1679,6 +1683,10 @@ const audioIngestContracts: ApiContractRoute[] = [
                         album: { type: ["string", "null"] },
                         confidence: { type: ["number", "null"] },
                         offset_seconds: { type: ["number", "null"] },
+                        level_dbfs: {
+                          type: ["number", "null"],
+                          description: "RMS level of the window, dBFS; null on older rows",
+                        },
                         fingerprint_type: { type: ["string", "null"] },
                         fingerprint_version: { type: ["string", "null"] },
                         created_at: { type: "string", format: "date-time" },
@@ -1686,7 +1694,7 @@ const audioIngestContracts: ApiContractRoute[] = [
                       required: [
                         "id", "ingest_id", "source_id", "session_id", "window_start_at",
                         "matched", "track_id", "friend_id", "title", "artist", "album",
-                        "confidence", "offset_seconds", "fingerprint_type",
+                        "confidence", "offset_seconds", "level_dbfs", "fingerprint_type",
                         "fingerprint_version", "created_at",
                       ],
                     },

@@ -39,8 +39,9 @@ export function formatOffset(seconds: number | null): string {
  * state between tracks, and colouring it red would train you to ignore red.
  */
 export function formatDetection(d: DetectionWindow): string[] {
+  const level = chalk.gray(formatLevel(d.level_dbfs));
   if (!d.matched) {
-    return [clock(d.window_start_at), chalk.gray("no match"), "—", "—"];
+    return [clock(d.window_start_at), chalk.gray("no match"), "—", "—", level];
   }
   const confidence = d.confidence ?? 0;
   const paint = confidence >= 0.85 ? chalk.green : chalk.yellow;
@@ -49,7 +50,13 @@ export function formatDetection(d: DetectionWindow): string[] {
     `${d.artist ?? "?"} — ${d.title ?? "?"}`,
     paint(confidence.toFixed(3)),
     formatOffset(d.offset_seconds),
+    level,
   ];
+}
+
+/** `-23.4` → `-23 dB`: how loud the window was, for tuning a silence floor. */
+export function formatLevel(level: number | null | undefined): string {
+  return level == null ? "—" : `${Math.round(level)} dB`;
 }
 
 /**
@@ -189,8 +196,8 @@ function printDetections(rows: DetectionWindow[]): void {
     return;
   }
   const table = new Table({
-    head: [chalk.cyan("Time"), chalk.cyan("Track"), chalk.cyan("Conf"), chalk.cyan("At")],
-    colWidths: [12, 52, 8, 8],
+    head: [chalk.cyan("Time"), chalk.cyan("Track"), chalk.cyan("Conf"), chalk.cyan("At"), chalk.cyan("Level")],
+    colWidths: [12, 52, 8, 8, 9],
     wordWrap: true,
   });
   for (const row of rows) table.push(formatDetection(row));

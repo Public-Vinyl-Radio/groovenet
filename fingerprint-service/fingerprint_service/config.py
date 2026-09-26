@@ -133,6 +133,31 @@ MAX_BIT_ERROR_RATE = float(os.getenv('FINGERPRINT_MAX_BER', '0.25'))
 #: the old behaviour.
 MIN_FINGERPRINT_VARIETY = float(os.getenv('FINGERPRINT_MIN_VARIETY', '0.20'))
 
+
+def resolve_min_level(raw: str | None = None) -> float | None:
+    """FINGERPRINT_MIN_LEVEL_DBFS, or None when the gate is off.
+
+    Off unless set. The variety check above refuses *digital* silence, whose
+    fingerprint barely varies. An idle analog chain is not silent: its hiss
+    and hum fingerprint as random, pass that check, and have matched a quiet
+    stretch of a reference track at 0.876 — twice, at the same spot. Loudness
+    is what tells them apart, but the right floor depends on the listener's
+    noise floor and the quietest records played, so it is read from real
+    `level_dbfs` values before it is set.
+    """
+    value = os.getenv('FINGERPRINT_MIN_LEVEL_DBFS') if raw is None else raw
+    if value is None or not value.strip():
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(
+            f"FINGERPRINT_MIN_LEVEL_DBFS must be a number of dBFS, got {value!r}"
+        ) from None
+
+
+MIN_LEVEL_DBFS = resolve_min_level()
+
 #: The `fingerprint_version` every stored blob is written under.
 #:
 #: Deliberately **not** libchromaprint's version. The library's version changes
