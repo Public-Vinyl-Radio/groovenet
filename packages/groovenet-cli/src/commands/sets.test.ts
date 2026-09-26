@@ -215,6 +215,19 @@ describe("renderView()", () => {
     expect(text).toContain("0 as planned · 0 played instead");
   });
 
+  it("names an untitled neighbour by id, and does not flag a fingerprinted entry", () => {
+    const base = view();
+    const text = renderView({
+      ...base,
+      unidentified: [{ ...base.unidentified[0], unindexed_neighbours: [{ ...ref("11-A7", ""), title: null }] }],
+      diff: { ...base.diff!, planned_not_played: [{ ...base.diff!.planned_not_played[0], fingerprinted: true }] },
+    }).map(plain).join("\n");
+    expect(text).toContain("not indexed on the records either side: 11-A7");
+    expect(text).not.toContain("11-A7 null");
+    expect(text).toContain("Artist — El Palteado [12-A]");
+    expect(text).not.toContain("may have been played");
+  });
+
   it("reports a failed run", () => {
     expect(renderView(view({ derivation: derivation({ status: "failed", error: "moov atom not found" }) })).map(plain)).toEqual([
       "✗ Derivation of inner-signals.mp3 failed: moov atom not found",
@@ -310,6 +323,13 @@ describe("runDerive()", () => {
     expect(io.raw.some((t) => t.includes("uploading"))).toBe(true);
     expect(io.raw.some((t) => t.includes("hashing"))).toBe(true);
     expect(io.raw.some((t) => t.includes("matching   processed…"))).toBe(true);
+  });
+
+  it("polls on the default interval when none is given", async () => {
+    const c = client();
+    // Already processed on the first poll, so the default is never slept on.
+    expect(await runDerive(c as unknown as SetsClient, file, {}, capture())).toBe(0);
+    expect(c.getSetDerivation).toHaveBeenCalledTimes(2);
   });
 
   it("does not upload a recording the server already holds", async () => {
@@ -460,6 +480,17 @@ describe("addSetsCommands()", () => {
   it("shows a run", async () => {
     await parse("show", "d1", "--playlist", "176");
     expect(fake.getSetDerivation).toHaveBeenCalledWith("d1", { playlist_id: 176, live_set_id: undefined });
+  });
+
+  it.each([["derive"], ["show"]])("%s reports a thrown non-Error too", async (sub) => {
+    fake.getSetDerivation.mockRejectedValue("socket hang up");
+    fake.createSetDerivation.mockRejectedValue("socket hang up");
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await parse(sub, sub === "derive" ? file : "d1");
+
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("socket hang up"));
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
   it.each([["derive"], ["show"]])("%s reports a failure on stderr and exits 1", async (sub) => {
