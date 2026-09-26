@@ -33,6 +33,7 @@ fingerprint_service/
   reference_index.py     the two-stage search
   reference_loader.py    rebuilds the index from the app's REST API
   indexer.py       reference-library indexing: hash, decide, fingerprint
+  sets.py          set derivation: stream a recording, match every window
   runs.py          per-run progress counters in Redis
   results.py       POSTs the ingest callback and reference fingerprints
   types.py         Ingest*/Index*/MatchCandidate TypedDicts
@@ -54,7 +55,7 @@ call directly in a test:
 | `process_job` | parse one payload, run it, report the outcome |
 | `publish_engine` | advertise this worker's engine and version |
 | `process_index_job` | fingerprint one reference track, count the outcome |
-| `process_set_job` | derive a tracklist from a set recording (#282) — not built yet |
+| `process_set_job` | match every window of a set recording, report them (#282) |
 | `heartbeat_while_busy` | keeps the heartbeat fresh from a thread during a job |
 | `run_once` | one pass of the loop, across this worker's queues |
 
@@ -164,8 +165,20 @@ them skips.
 
 ### `fingerprint_set_queue` — set recordings (#282)
 
-Popped only by `fingerprint-set-worker`. The payload is defined with the set
-derivation itself; until then the handler logs and drops, and nothing enqueues.
+Popped only by `fingerprint-set-worker`. One job per recording:
+
+```json
+{
+  "derivation_id": "uuid",
+  "file_path": "2026-08-15/inner-signals.mp3",
+  "window_seconds": 15,
+  "step_seconds": 15
+}
+```
+
+`derivation_id` and `file_path` are required. `file_path` is relative to
+`SET_RECORDINGS_DIR` and confined to it like the other volumes; window and step
+default to #271's 15 s / 15 s.
 
 ```bash
 docker compose exec redis redis-cli LLEN fingerprint_queue
@@ -220,6 +233,65 @@ all.
 This goes over plain `requests` rather than `groovenet_client` because the
 callback route does not exist in the OpenAPI spec yet (#276). Switch to the
 generated client once it does.
+
+## Set derivation (#282)
+
+The offline sibling of live ingest: the same index and matcher, a whole
+recording instead of a 15 s chunk. `sets.derive` does three things, none of
+them holding the recording in memory:
+
+1. **Stream the decode.** `stream_pcm` reads ffmpeg's stdout in
+   `FINGERPRINT_PCM_CHUNK_BYTES` pieces. A three-hour set is ~490 MB of PCM;
+   streamed, the job's peak is within a few MB of the idle worker. stderr goes
+   to a temp file (a full pipe would stall ffmpeg), and the timeout is a timer
+   that kills the process, since a blocked read never gets to check a clock.
+2. **Fingerprint once.** `fingerprint_stream` feeds Chromaprint chunk by chunk
+   — byte-identical to feeding it whole.
+3. **Slice and match.** `ChromaprintMatcher.match_recording` cuts windows from
+   the finished fingerprint and searches each. Slicing also skips Chromaprint's
+   ~2.6 s lead-in, which a freshly fingerprinted window would lose.
+
+On the #271 recording (3h04m) against the full library of 3,911 tracks, in the
+container: **22-26 s end to end** (decode + fingerprint ~17 s, matching ~9 s),
+**724 of 737 windows matched**, identical window-for-window to fingerprinting
+the whole decode in one shot.
+
+A decode that dies halfway fails the whole set rather than returning the
+windows it managed — half a set would read as a short night.
+
+**No grouping here.** The result is raw per-window matches; the app groups them
+into plays with the same code as #279 and diffs against the planned playlist.
+
+### Result contract
+
+`POST {APP_URL}/api/set-derivations/{derivation_id}/result`, once per job:
+
+```json
+{
+  "derivation_id": "uuid",
+  "status": "processed",
+  "error": null,
+  "fingerprint_type": "chromaprint",
+  "fingerprint_version": "1",
+  "sample_rate": 22050,
+  "duration_seconds": 11044.0,
+  "window_seconds": 15.0,
+  "step_seconds": 15.0,
+  "windows": [
+    {
+      "start_seconds": 15.11,
+      "duration_seconds": 14.98,
+      "candidates": [
+        {"track_id": "1234-A1", "friend_id": 1, "confidence": 0.91, "offset_seconds": 14.36}
+      ]
+    }
+  ]
+}
+```
+
+Before the work, a best-effort `POST .../claim`, as for ingest. An empty
+`candidates` is an unidentified window, not a failure. `status: "failed"` means
+the recording could not be decoded or fingerprinted at all.
 
 ## Indexing contract
 
@@ -432,6 +504,11 @@ end-to-end runs push the populated shape through the callback.
 | `FINGERPRINT_QUEUE_KEY` | `fingerprint_queue` | |
 | `FINGERPRINT_INDEX_QUEUE_KEY` | `fingerprint_index_queue` | reference indexing |
 | `FINGERPRINT_SET_QUEUE_KEY` | `fingerprint_set_queue` | set recordings (#282) |
+| `SET_RECORDINGS_DIR` | `/app/set-recordings` | set recordings volume, read-only |
+| `FINGERPRINT_SET_WINDOW_SECONDS` | `15` | default window for set derivation |
+| `FINGERPRINT_SET_STEP_SECONDS` | `15` | default step for set derivation |
+| `FINGERPRINT_SET_DECODE_TIMEOUT` | `1800` | ceiling for decoding one whole set |
+| `FINGERPRINT_PCM_CHUNK_BYTES` | `524288` | streaming read size for set decodes |
 | `FINGERPRINT_QUEUES` | live + index | comma-separated; which lists this worker pops |
 | `FINGERPRINT_HEARTBEAT_KEY` | `fingerprint:heartbeat` | one per worker |
 | `FINGERPRINT_ENGINE_KEY` | `fingerprint:engine` | what the app reads |
@@ -456,7 +533,7 @@ fails fast instead of failing every job identically forever.
 ## Tests
 
 ```bash
-uv run --group dev pytest                                        # 270 tests
+uv run --group dev pytest                                        # 330 tests
 uv run --group dev pytest --cov=fingerprint_service --cov-report=term-missing
 ```
 

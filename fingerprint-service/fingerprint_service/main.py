@@ -38,12 +38,16 @@ from .matcher import ChromaprintMatcher, FingerprintMatcher, build_matcher
 from .reference_loader import try_build_index
 from .results import (
     build_result,
+    build_set_result,
     try_claim_ingest,
+    try_claim_set,
     try_persist_fingerprint,
     try_report_result,
+    try_report_set_result,
 )
 from .runs import record_outcome
-from .types import IngestJob, IngestResult
+from .sets import InvalidSetJob, derive, parse_set_job, window_settings
+from .types import IngestJob, IngestResult, SetResult
 
 REQUIRED_FIELDS = ("ingest_id", "source_id", "file_path")
 
@@ -316,14 +320,48 @@ def reset_index_clock() -> None:
     _next_index_refresh = 0.0
 
 
-def process_set_job(job_json: str, matcher: FingerprintMatcher) -> None:
-    """Derive a tracklist from one set recording (#282).
+def process_set_job(job_json: str, matcher: FingerprintMatcher) -> SetResult | None:
+    """Derive per-window matches for one set recording and report them (#282).
 
-    Not built yet: the worker split lands first so the queue, heartbeat and
-    compose service can be verified on their own. Nothing enqueues onto this
-    list until the app route exists.
+    Same shape as `process_job`: a payload too malformed to name a derivation
+    is only logged, and anything that names one reports a terminal state, even
+    on failure, because the app has a row waiting on it.
     """
-    logger.error("Set derivation is not implemented yet; dropping job: %s", job_json)
+    try:
+        job = parse_set_job(json.loads(job_json))
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse set job JSON: {e}")
+        return None
+    except InvalidSetJob as e:
+        logger.error(f"Skipping malformed set job: {e}")
+        return None
+
+    try_claim_set(str(job["derivation_id"]))
+
+    try:
+        result = derive(job, matcher)
+    except InvalidSetJob as e:
+        # A rejection, not a crash — no traceback worth printing.
+        logger.error("Set %s cannot be derived: %s", job["derivation_id"], e)
+        result = _failed_set(job, matcher, str(e))
+    except Exception as e:
+        logger.error(f"Set derivation failed: {e}")
+        logger.error(traceback.format_exc())
+        result = _failed_set(job, matcher, str(e))
+
+    try_report_set_result(result)
+    return result
+
+
+def _failed_set(job, matcher: FingerprintMatcher, error: str) -> SetResult:
+    """A failed result, echoing the job's window settings where they parse."""
+    try:
+        window_seconds, step_seconds = window_settings(job)
+    except InvalidSetJob:
+        window_seconds = step_seconds = 0.0
+    return build_set_result(
+        job, matcher, window_seconds=window_seconds, step_seconds=step_seconds, error=error
+    )
 
 
 def run_once(matcher: FingerprintMatcher) -> None:

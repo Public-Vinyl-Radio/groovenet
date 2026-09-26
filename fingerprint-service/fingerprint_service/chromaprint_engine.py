@@ -8,9 +8,11 @@ API to `chromaprint_get_raw_fingerprint`, declaring the signature itself.
 
 Nothing here writes to disk or spawns a process. `decode_to_pcm` already put the
 samples in memory, and at a 12 ms/window budget a subprocess per window would
-cost more than the search it feeds.
+cost more than the search it feeds. A whole set recording (#282) arrives as a
+stream of chunks instead — see `fingerprint_stream`.
 """
 import ctypes
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 try:  # pragma: no cover - exercised by the real import, not by a stub
@@ -100,22 +102,46 @@ def fingerprint_pcm(pcm: bytes, sample_rate: int, channels: int = 1) -> RawFinge
     before it emits its first value, so a sub-second window is not an error, it
     is simply unmatchable.
     """
-    fingerprinter = _chromaprint.Fingerprinter()
-    try:
-        fingerprinter.start(sample_rate, channels)
-        fingerprinter.feed(pcm)
-        fingerprinter.finish()
+    return fingerprint_stream((pcm,), sample_rate, channels)
 
-        pointer = ctypes.POINTER(ctypes.c_uint32)()
-        size = ctypes.c_int()
-        ok = _lib.chromaprint_get_raw_fingerprint(
-            fingerprinter._ctx, ctypes.byref(pointer), ctypes.byref(size)
-        )
-        if not ok:
-            raise FingerprintError("chromaprint refused to produce a fingerprint")
-        return RawFingerprint(tuple(pointer[i] for i in range(size.value)))
-    except FingerprintError:
-        raise
+
+def fingerprint_stream(
+    chunks: Iterable[bytes], sample_rate: int, channels: int = 1
+) -> RawFingerprint:
+    """Fingerprint PCM that arrives in pieces, in one pass (#282).
+
+    Chromaprint is incremental, so a three-hour set never has to be in memory
+    at once — about 490 MB of samples at 22050 Hz, for a job that runs a
+    couple of times a month. Feeding it in chunks gives byte-identical values
+    to feeding it whole.
+
+    Only Chromaprint's own failures become `FingerprintError`. Anything the
+    chunk source raises — a decode that dies halfway, a timeout — propagates as
+    itself, so the caller can still tell bad audio from a bad engine.
+    """
+    fingerprinter = _chromaprint.Fingerprinter()
+    _guarded(fingerprinter.start, sample_rate, channels)
+    for chunk in chunks:
+        _guarded(fingerprinter.feed, chunk)
+    _guarded(fingerprinter.finish)
+
+    pointer = ctypes.POINTER(ctypes.c_uint32)()
+    size = ctypes.c_int()
+    ok = _guarded(
+        _lib.chromaprint_get_raw_fingerprint,
+        fingerprinter._ctx,
+        ctypes.byref(pointer),
+        ctypes.byref(size),
+    )
+    if not ok:
+        raise FingerprintError("chromaprint refused to produce a fingerprint")
+    return RawFingerprint(tuple(pointer[i] for i in range(size.value)))
+
+
+def _guarded(call: Callable, *args):
+    """Run one Chromaprint call, reporting any failure as `FingerprintError`."""
+    try:
+        return call(*args)
     except Exception as e:
         raise FingerprintError(f"chromaprint failed: {e}") from e
 

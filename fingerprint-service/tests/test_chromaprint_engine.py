@@ -5,6 +5,7 @@ from fingerprint_service.chromaprint_engine import (
     FingerprintError,
     RawFingerprint,
     fingerprint_pcm,
+    fingerprint_stream,
     library_version,
 )
 
@@ -101,3 +102,24 @@ class TestFingerprintFailures:
         monkeypatch.setattr(engine._chromaprint, "Fingerprinter", Exploding)
         with pytest.raises(FingerprintError, match="chromaprint failed"):
             fingerprint_pcm(tone_pcm(20.0), 22050)
+
+
+class TestFingerprintStream:
+    """One pass over audio that arrives in pieces (#282)."""
+
+    def test_chunked_equals_whole(self, tone_pcm):
+        pcm = tone_pcm(30.0)
+        chunks = [pcm[i : i + 4096] for i in range(0, len(pcm), 4096)]
+        assert fingerprint_stream(chunks, 22050) == fingerprint_pcm(pcm, 22050)
+
+    def test_a_source_failure_is_not_disguised_as_an_engine_one(self, tone_pcm):
+        # A decode dying halfway must stay a decode error for the caller.
+        class SourceBroke(RuntimeError):
+            pass
+
+        def chunks():
+            yield tone_pcm(5.0)
+            raise SourceBroke("ffmpeg died")
+
+        with pytest.raises(SourceBroke):
+            fingerprint_stream(chunks(), 22050)

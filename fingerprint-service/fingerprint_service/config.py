@@ -163,6 +163,24 @@ INDEX_PAGE_SIZE = int(os.getenv('FINGERPRINT_INDEX_PAGE_SIZE', '500'))
 
 FFMPEG_TIMEOUT = int(os.getenv('FINGERPRINT_FFMPEG_TIMEOUT', '60'))
 
+#: Where whole set recordings live (#282), mounted into the set worker only. A
+#: volume of their own: the ingest volume is swept of anything without an
+#: `audio_ingests` row, and the reference library is not the place for them.
+SET_RECORDINGS_DIR = os.getenv('SET_RECORDINGS_DIR', '/app/set-recordings')
+
+#: Window and step for set derivation, in seconds — #271's settings. The job
+#: may override both.
+SET_WINDOW_SECONDS = float(os.getenv('FINGERPRINT_SET_WINDOW_SECONDS', '15'))
+SET_STEP_SECONDS = float(os.getenv('FINGERPRINT_SET_STEP_SECONDS', '15'))
+
+#: A whole-set decode, not a 15 s chunk. #271's 3h04m recording decoded in
+#: ~9 s on a laptop; this is the ceiling for a slow box and a long night.
+SET_DECODE_TIMEOUT = int(os.getenv('FINGERPRINT_SET_DECODE_TIMEOUT', '1800'))
+
+#: Read size when streaming a set's PCM out of ffmpeg — about 12 s of audio at
+#: 22050 Hz. Small enough to bound memory, large enough not to matter.
+PCM_CHUNK_BYTES = int(os.getenv('FINGERPRINT_PCM_CHUNK_BYTES', str(512 * 1024)))
+
 #: Chromaprint resamples internally, so anything above 22050 Hz only costs
 #: decode time. 44100 stays available for engines that want the full band.
 SUPPORTED_SAMPLE_RATES = (22050, 44100)

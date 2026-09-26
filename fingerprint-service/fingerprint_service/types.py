@@ -35,6 +35,19 @@ class MatchCandidate(TypedDict):
     offset_seconds: float
 
 
+class WindowMatch(TypedDict):
+    """One window of a set recording and what it matched (#282).
+
+    `start_seconds` is from the start of the recording. An empty `candidates`
+    is a window heard and not recognised — kept, not dropped, because the app
+    reports unidentified stretches rather than hiding them.
+    """
+
+    start_seconds: float
+    duration_seconds: float
+    candidates: list[MatchCandidate]
+
+
 class IngestResult(TypedDict):
     """The body posted back to the app's ingest callback.
 
@@ -55,6 +68,40 @@ class IngestResult(TypedDict):
     fingerprint_type: str
     fingerprint_version: str
     candidates: list[MatchCandidate]
+
+
+class SetJob(TypedDict):
+    """One `fingerprint_set_queue` payload: derive a tracklist from a set (#282).
+
+    `file_path` is relative to SET_RECORDINGS_DIR. Window and step default to
+    #271's 15 s / 15 s and are carried back in the result, so a stored
+    derivation always says how it was cut.
+    """
+
+    derivation_id: str
+    file_path: str
+    window_seconds: NotRequired[float | None]
+    step_seconds: NotRequired[float | None]
+
+
+class SetResult(TypedDict):
+    """The body posted back to the app for one set derivation (#282).
+
+    Raw per-window matches only. Grouping them into plays and diffing against a
+    planned playlist happens in the app, with the same code as #279, so there
+    is one grouping rule and not two.
+    """
+
+    derivation_id: str
+    status: str
+    error: str | None
+    fingerprint_type: str
+    fingerprint_version: str
+    sample_rate: int | None
+    duration_seconds: float | None
+    window_seconds: float
+    step_seconds: float
+    windows: list[WindowMatch]
 
 
 class IndexJob(TypedDict):
