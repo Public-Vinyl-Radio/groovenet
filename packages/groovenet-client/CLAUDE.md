@@ -41,7 +41,7 @@ no build-time link that will catch the drift.
 ## Tests
 
 ```bash
-npm test --workspace=packages/groovenet-client      # 62 tests
+npm test --workspace=packages/groovenet-client      # 76 tests
 ```
 
 `client.test.ts` mocks axios wholesale and asserts the exact request each method
@@ -55,3 +55,11 @@ issues. Coverage is 100%.
   keyed object, and normalises to an array.
 - `startFingerprintIndex` returns as soon as the run is *queued*, not finished.
   Poll `getFingerprintIndexRun` until `complete`.
+- `uploadSetRecording` sets `maxRedirects: 0` on purpose. Axios otherwise
+  routes the body through follow-redirects, which buffers all of it to replay
+  after a redirect — a whole set recording in memory. It also percent-encodes
+  `X-Filename`, since headers are Latin-1.
+- `hasSetRecording` treats `404` as an answer (`false`), not an error; that is
+  how the CLI knows to upload.
+- `createSetDerivation` can hand back an earlier equivalent run
+  (`reused: true`) rather than starting one; `force: true` always starts one.

@@ -25,6 +25,7 @@ playlists           list | show | create | generate
 friends             list | add
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
+sets                derive | show
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -36,7 +37,7 @@ output is a formatted table with ANSI colour that is painful to parse.
 src/
   bin/         entrypoint, commander wiring
   commands/    one file per group: tracks, albums, playlists, friends, play,
-               config, fingerprintLibrary
+               config, fingerprintLibrary, vinyl, sets
   output.ts    table and JSON rendering
 ```
 
@@ -155,3 +156,35 @@ Two things that will cost you an afternoon otherwise:
   `--no-wait` that object is the queued run; otherwise it is the finished one.
   The exit code is the same either way — 1 if any track failed — so `--json`
   is still usable as a gate in a script.
+
+## sets
+
+A corrected tracklist from a recording of a set (#282). The CLI's part is the
+file: it hashes the recording locally (`hashFile`, streamed), asks the server
+whether it already holds that sha256, uploads only if not, then starts a
+derivation and polls it. `fingerprint-set-worker` does the matching; the app
+groups windows into plays and diffs against the plan.
+
+```bash
+groovenet sets derive set.mp3 --playlist 176   # or --live-set <id>
+groovenet sets derive set.mp3 --force          # fresh run, not the earlier one
+groovenet sets derive set.mp3 --no-wait --json # start it, print the run
+groovenet sets show <id> --playlist 176        # re-read against any plan
+```
+
+Each play is marked against the plan — `✓` as planned, `↕` out of order, `⇄`
+played instead of a planned track on the same record, `+` not planned — and
+unidentified stretches are interleaved in time order with the unindexed
+tracks on the records either side, which is usually the explanation.
+
+**`--playlist` is a read-time choice.** A derivation depends only on the
+recording, engine and window settings, so the same run can be shown against
+any playlist; `derive` re-uses an equivalent earlier run unless `--force`.
+
+**The upload streams, and must keep streaming.** `uploadSetRecording` passes
+the file stream straight to axios with `maxRedirects: 0`. With redirects on,
+axios writes through follow-redirects, which keeps a copy of the whole body to
+replay — measured on a 253 MB recording at +234 MB of memory, against +78 MB
+without.
+
+Exit code is 1 if the derivation failed.
