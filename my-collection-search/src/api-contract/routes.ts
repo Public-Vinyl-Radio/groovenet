@@ -93,9 +93,12 @@ import {
   spinSessionParamsSchema,
   trackSearchGetQuerySchema,
   trackSearchGetResponseSchema,
+  setDerivationCreateBodySchema,
+  setDerivationResultBodySchema,
+  setDerivationViewQuerySchema,
 } from "@/api-contract/schemas";
 
-export type HttpMethod = "get" | "post" | "patch" | "put" | "delete";
+export type HttpMethod = "get" | "head" | "post" | "patch" | "put" | "delete";
 
 export type ApiContractRoute = {
   operationId: string;
@@ -1673,6 +1676,425 @@ const audioIngestContracts: ApiContractRoute[] = [
           description: "Server error",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
+      },
+    },
+  },
+];
+
+const sha256Param = {
+  name: "sha256",
+  in: "path",
+  required: true,
+  description: "Lowercase hex sha256 of the recording's bytes",
+  schema: { type: "string", pattern: "^[0-9a-f]{64}$" },
+};
+
+const idParam = {
+  name: "id",
+  in: "path",
+  required: true,
+  schema: { type: "string", format: "uuid" },
+};
+
+const setRecordingSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    sha256: { type: "string" },
+    file_path: { type: "string" },
+    original_filename: { type: ["string", "null"] },
+    format_name: { type: ["string", "null"] },
+    duration_seconds: { type: ["number", "null"] },
+    size_bytes: { type: ["integer", "string"] },
+    created_at: { type: "string", format: "date-time" },
+  },
+  required: ["sha256", "file_path", "size_bytes"],
+};
+
+const setDerivationSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    recording_sha256: { type: "string" },
+    fingerprint_type: { type: "string" },
+    fingerprint_version: { type: "string" },
+    window_seconds: { type: "number" },
+    step_seconds: { type: "number" },
+    status: { type: "string", enum: ["queued", "processing", "processed", "failed"] },
+    error: { type: ["string", "null"] },
+    duration_seconds: { type: ["number", "null"] },
+    created_at: { type: "string", format: "date-time" },
+    updated_at: { type: "string", format: "date-time" },
+    completed_at: { type: ["string", "null"], format: "date-time" },
+  },
+  required: ["id", "recording_sha256", "status"],
+};
+
+const setTrackRefSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    track_id: { type: "string" },
+    friend_id: { type: "integer" },
+    title: { type: ["string", "null"] },
+    artist: { type: ["string", "null"] },
+    release_id: { type: ["string", "null"] },
+    position: { type: ["string", "null"] },
+  },
+};
+
+const plannedEntrySchemaObject: Record<string, unknown> = {
+  ...setTrackRefSchemaObject,
+  properties: {
+    ...(setTrackRefSchemaObject.properties as Record<string, unknown>),
+    index: { type: "integer", description: "0-based position in the playlist" },
+    fingerprinted: {
+      type: "boolean",
+      description: "Whether this track is in the reference index at all",
+    },
+  },
+};
+
+const setDerivationViewSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    derivation: setDerivationSchemaObject,
+    recording: setRecordingSchemaObject,
+    summary: {
+      type: ["object", "null"],
+      properties: {
+        plays: { type: "integer" },
+        duration_seconds: { type: ["number", "null"] },
+        identified_seconds: { type: "number" },
+        identified_fraction: { type: ["number", "null"] },
+      },
+    },
+    tracklist: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          track_id: { type: "string" },
+          friend_id: { type: "integer" },
+          start_seconds: { type: "number" },
+          end_seconds: { type: "number" },
+          confidence: { type: "number" },
+          windows: { type: "integer" },
+          rate: {
+            type: ["number", "null"],
+            description: "Track seconds per recording second; ~1.0 is a record at pitch",
+          },
+          track: { ...setTrackRefSchemaObject, type: ["object", "null"] },
+        },
+      },
+    },
+    unidentified: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          start_seconds: { type: "number" },
+          end_seconds: { type: "number" },
+          unindexed_neighbours: { type: "array", items: setTrackRefSchemaObject },
+        },
+      },
+    },
+    diff: {
+      type: ["object", "null"],
+      description: "Present when playlist_id or live_set_id is given. `play` indexes into tracklist.",
+      properties: {
+        playlist_id: { type: "integer" },
+        played_as_planned: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              play: { type: "integer" },
+              planned: plannedEntrySchemaObject,
+              out_of_order: { type: "boolean" },
+            },
+          },
+        },
+        played_instead_of: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { play: { type: "integer" }, planned: plannedEntrySchemaObject },
+          },
+        },
+        played_not_planned: {
+          type: "array",
+          items: { type: "object", properties: { play: { type: "integer" } } },
+        },
+        planned_not_played: { type: "array", items: plannedEntrySchemaObject },
+      },
+    },
+  },
+  required: ["derivation", "recording", "tracklist", "unidentified"],
+};
+
+const jsonError = (description: string) => ({
+  description,
+  content: { "application/json": { schema: errorResponseSchemaObject } },
+});
+
+const setDerivationContracts: ApiContractRoute[] = [
+  {
+    operationId: "headSetRecording",
+    method: "head",
+    path: "/api/set-recordings/{sha256}",
+    summary: "Does the server already hold this recording?",
+    tags: ["Set Derivation"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [sha256Param],
+      responses: {
+        "200": { description: "Held; Content-Length is its size" },
+        "404": { description: "Not held; upload it with PUT" },
+      },
+    },
+  },
+  {
+    operationId: "uploadSetRecording",
+    method: "put",
+    path: "/api/set-recordings/{sha256}",
+    summary: "Stream a whole set recording, stored under its sha256",
+    tags: ["Set Derivation"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        sha256Param,
+        {
+          name: "X-Filename",
+          in: "header",
+          required: false,
+          description: "The file's original name, kept for display only",
+          schema: { type: "string" },
+        },
+      ],
+      requestBody: {
+        required: true,
+        description:
+          "The raw bytes of the recording, not multipart. Kept only if they hash to the sha256 in the path.",
+        content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
+      },
+      responses: {
+        "200": {
+          description: "Already held; the body was not read",
+          content: { "application/json": { schema: setRecordingSchemaObject } },
+        },
+        "201": {
+          description: "Stored",
+          content: { "application/json": { schema: setRecordingSchemaObject } },
+        },
+        "400": jsonError("Bad sha256, empty body, or not audio ffprobe can read"),
+        "413": jsonError("Over SET_RECORDING_MAX_BYTES"),
+        "422": jsonError("The body did not hash to the sha256 in the path; send it again"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "downloadSetRecording",
+    method: "get",
+    path: "/api/set-recordings/{sha256}",
+    summary: "Download a stored set recording",
+    tags: ["Set Derivation"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [sha256Param],
+      responses: {
+        "200": {
+          description: "The recording's bytes",
+          content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
+        },
+        "404": jsonError("No such recording"),
+      },
+    },
+  },
+  {
+    operationId: "createSetDerivation",
+    method: "post",
+    path: "/api/set-derivations",
+    summary: "Derive a tracklist from an uploaded set recording",
+    tags: ["Set Derivation"],
+    bodySchema: setDerivationCreateBodySchema,
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                recording_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+                window_seconds: { type: "number", default: 15 },
+                step_seconds: { type: "number", default: 15 },
+                force: {
+                  type: "boolean",
+                  description: "Start a new run even if an equivalent one exists",
+                },
+                live_set_id: {
+                  type: ["integer", "null"],
+                  description: "Also list the recording in this live set's media",
+                },
+              },
+              required: ["recording_sha256"],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "An equivalent run already exists and is returned (`reused: true`)",
+          content: { "application/json": { schema: setDerivationSchemaObject } },
+        },
+        "202": {
+          description: "Queued; poll GET /api/set-derivations/{id}",
+          content: { "application/json": { schema: setDerivationSchemaObject } },
+        },
+        "400": jsonError("Invalid request"),
+        "404": jsonError("No such recording; upload it first"),
+        "503": jsonError("No fingerprint engine registered, or the queue is unreachable"),
+      },
+    },
+  },
+  {
+    operationId: "getSetDerivation",
+    method: "get",
+    path: "/api/set-derivations/{id}",
+    summary: "A derived tracklist, its unidentified regions and a diff against a plan",
+    tags: ["Set Derivation"],
+    querySchema: setDerivationViewQuerySchema,
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        idParam,
+        {
+          name: "playlist_id",
+          in: "query",
+          required: false,
+          description: "Diff against this playlist",
+          schema: { type: "integer" },
+        },
+        {
+          name: "live_set_id",
+          in: "query",
+          required: false,
+          description: "Diff against this live set's playlist",
+          schema: { type: "integer" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "The derivation; tracklist and summary are empty until it is processed",
+          content: { "application/json": { schema: setDerivationViewSchemaObject } },
+        },
+        "404": jsonError("No such derivation, playlist or live set"),
+      },
+    },
+  },
+  {
+    operationId: "claimSetDerivation",
+    method: "post",
+    path: "/api/set-derivations/{id}/claim",
+    summary: "fingerprint-set-worker announcing it has picked up a run",
+    tags: ["Set Derivation"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [idParam],
+      responses: {
+        "200": {
+          description: "The run's status after the claim",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  derivation_id: { type: "string", format: "uuid" },
+                  status: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        "404": jsonError("No such derivation"),
+      },
+    },
+  },
+  {
+    operationId: "reportSetDerivationResult",
+    method: "post",
+    path: "/api/set-derivations/{id}/result",
+    summary: "fingerprint-set-worker reporting every window of a recording",
+    tags: ["Set Derivation"],
+    bodySchema: setDerivationResultBodySchema,
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [idParam],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                status: { type: "string", enum: ["processed", "failed"] },
+                error: { type: ["string", "null"] },
+                duration_seconds: { type: ["number", "null"] },
+                windows: {
+                  type: "array",
+                  description: "Every window; an empty candidates list is unidentified audio",
+                  items: {
+                    type: "object",
+                    properties: {
+                      start_seconds: { type: "number" },
+                      duration_seconds: { type: "number" },
+                      candidates: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            track_id: { type: "string" },
+                            friend_id: { type: "integer" },
+                            confidence: { type: "number" },
+                            offset_seconds: { type: "number" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              required: ["status"],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Result stored and the run closed out",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  derivation_id: { type: "string", format: "uuid" },
+                  status: { type: "string" },
+                  windows: { type: "integer" },
+                },
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid result body"),
+        "404": jsonError("No such derivation"),
       },
     },
   },
@@ -5194,5 +5616,6 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...audioIngestContracts,
+  ...setDerivationContracts,
   ...backupContracts,
 ];

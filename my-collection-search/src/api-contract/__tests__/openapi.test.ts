@@ -23,6 +23,13 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["post", "/api/playlists/{id}/set"],
   ["put", "/api/playlists/{id}/set"],
   ["delete", "/api/playlists/{id}/set"],
+  // Set derivation (#282).
+  ["get", "/api/set-recordings/{sha256}"],
+  ["put", "/api/set-recordings/{sha256}"],
+  ["post", "/api/set-derivations"],
+  ["get", "/api/set-derivations/{id}"],
+  ["post", "/api/set-derivations/{id}/claim"],
+  ["post", "/api/set-derivations/{id}/result"],
 ];
 
 describe("OpenAPI contract coverage", () => {

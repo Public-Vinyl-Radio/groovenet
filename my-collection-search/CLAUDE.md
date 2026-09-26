@@ -209,6 +209,65 @@ Two things to preserve if you touch these:
   reference index makes every other number look healthy while nothing can
   match. It should not be inferable from a zero among other counters.
 
+## Set derivation
+
+A tracklist derived from a whole recorded set (#282), and a diff against the
+playlist that was planned for it. The offline sibling of audio ingest: the same
+reference index and matcher, a three-hour file instead of a 15 s chunk.
+
+```
+CLI ──HEAD/PUT /api/set-recordings/{sha256}──▶ set_recordings (volume + table)
+CLI ──POST /api/set-derivations──────────────▶ set_derivations ──▶ fingerprint_set_queue
+fingerprint-set-worker ──claim / result─────▶ set_derivations.windows
+CLI ──GET /api/set-derivations/{id}?playlist_id=──▶ tracklist + unidentified + diff
+```
+
+**Recordings are content-addressed.** The CLI hashes the file locally and asks
+`HEAD` first, so a recording the server holds is never sent twice. `PUT`
+streams the raw body (not multipart — a 250 MB file must not be buffered),
+hashing as it writes; only a body whose sha256 matches the path is renamed
+into place, so a truncated upload can never become a recording. The stored
+name is `{sha256}.{ext}`, the extension from ffprobe, never the filename.
+
+**A run is the recording x engine x window settings — not the playlist.** The
+worker stores raw per-window matches, which do not depend on any plan. The
+tracklist, unidentified regions and diff are computed on read by
+`setTracklist.ts` (pure), so one run answers for any playlist, and a playlist
+corrected since reads back with a smaller diff. A repeat `POST` for the same
+key returns the existing run (`200`, `reused: true`) unless it failed or has
+sat unfinished past `SET_DERIVATION_STALL_MINUTES`; `force: true` always
+starts a new one.
+
+**Grouping is #279's rule**, via `groupWindows` in `playAggregationService`,
+with one addition only this path turns on: `maxDriftSeconds` splits a run of
+one track whose offset stops tracking the recording's clock (the record dropped
+back to the start, or played twice). Each play reports `rate` — track seconds
+per recording second, ~1.0 at pitch.
+
+**The diff**, against `playlist_id` or `live_set_id`:
+
+- *played as planned* — flagged `out_of_order` when outside the longest run
+  that kept the plan's order. A record resumed after a gap is the same slot.
+- *played instead of* — an unplanned play paired with an unplayed entry **on
+  the same release**, nearest in the plan to where it was played. #271's six
+  wrong playlist entries were all this shape.
+- *played but not planned*, *planned but not played* — the rest. Planned
+  entries carry `fingerprinted`: "not played" and "not in the index" otherwise
+  look the same.
+
+Unidentified stretches over 60 s are listed with the unfingerprinted tracks on
+the releases played either side — usually the answer.
+
+Two things to keep if you touch it:
+
+- **`transitionStatus` passes "is terminal" as its own parameter.** Reusing
+  `$2` in `CASE WHEN $2 IN (...)` makes Postgres deduce two types for it and
+  refuse. `just set-derivation-test` runs these statements against a real
+  database; a mocked `dbQuery` accepts them either way.
+- **`writeHashed` waits for the write stream to close on failure.** The file
+  is opened asynchronously; a stream destroyed mid-open can create it after
+  the caller's cleanup ran, stranding a `.incoming-*` file on the volume.
+
 ## API reference
 
 **Do not hand-maintain endpoint lists here.** The OpenAPI spec is generated from
