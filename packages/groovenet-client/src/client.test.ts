@@ -995,3 +995,107 @@ describe("GroovenetClient vinyl debug endpoints", () => {
     );
   });
 });
+
+describe("set derivation (#282)", () => {
+  const sha = "c".repeat(64);
+
+  it("asks whether a recording is held, treating 404 as an answer", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://example.test" });
+    requestMock.mockResolvedValueOnce({ status: 200, data: "" });
+    expect(await client.hasSetRecording(sha)).toBe(true);
+
+    requestMock.mockResolvedValueOnce({ status: 404, data: "" });
+    expect(await client.hasSetRecording(sha)).toBe(false);
+
+    const config = requestMock.mock.calls[0][0];
+    expect(config).toMatchObject({ method: "HEAD", url: `/set-recordings/${sha}` });
+    expect(config.validateStatus(404)).toBe(true);
+    expect(config.validateStatus(500)).toBe(false);
+  });
+
+  it("streams an upload with its size, an encoded filename and progress", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://example.test" });
+    requestMock.mockResolvedValueOnce({ status: 201, data: { sha256: sha } });
+    const body = new Uint8Array([1, 2, 3]);
+    const progress: number[] = [];
+
+    const stored = await client.uploadSetRecording(sha, body, {
+      size: 3,
+      filename: "Carlos Díaz.mp3",
+      onProgress: (sent) => progress.push(sent),
+    });
+
+    expect(stored).toEqual({ sha256: sha });
+    const config = requestMock.mock.calls[0][0];
+    expect(config).toMatchObject({
+      method: "PUT",
+      url: `/set-recordings/${sha}`,
+      data: body,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": "3",
+        "X-Filename": "Carlos%20D%C3%ADaz.mp3",
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      // Redirects would route the body through follow-redirects, which keeps
+      // a copy of all of it: the whole recording in memory.
+      maxRedirects: 0,
+    });
+    config.onUploadProgress({ loaded: 2 });
+    expect(progress).toEqual([2]);
+  });
+
+  it("uploads without a filename or a progress callback", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://example.test" });
+    requestMock.mockResolvedValueOnce({ status: 200, data: {} });
+
+    await client.uploadSetRecording(sha, new Uint8Array(), { size: 0 });
+
+    const config = requestMock.mock.calls[0][0];
+    expect(config.headers).not.toHaveProperty("X-Filename");
+    expect(() => config.onUploadProgress({ loaded: 1 })).not.toThrow();
+  });
+
+  it("surfaces an upload the server refused", async () => {
+    isAxiosErrorMock.mockReturnValue(true);
+    requestMock.mockRejectedValue({ response: { data: { error: "hash_mismatch" } }, message: "422" });
+    const client = new GroovenetClient({ baseUrl: "https://example.test" });
+
+    await expect(client.uploadSetRecording(sha, new Uint8Array(), { size: 0 })).rejects.toThrow(
+      "API Error: hash_mismatch"
+    );
+  });
+
+  it("starts a derivation", async () => {
+    const client = clientReturning({ id: "d1", reused: false });
+
+    await client.createSetDerivation({ recording_sha256: sha, live_set_id: 4, force: true });
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/set-derivations",
+      data: { recording_sha256: sha, live_set_id: 4, force: true },
+      params: undefined,
+    });
+  });
+
+  it("reads a derivation against a playlist", async () => {
+    const client = clientReturning({ tracklist: [] });
+
+    await client.getSetDerivation("d1", { playlist_id: 176 });
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/set-derivations/d1",
+      data: undefined,
+      params: { playlist_id: 176, live_set_id: undefined },
+    });
+  });
+
+  it("reads a derivation with no plan", async () => {
+    const client = clientReturning({ tracklist: [] });
+    await client.getSetDerivation("d1");
+    expect(requestMock.mock.calls[0][0].params).toEqual({ playlist_id: undefined, live_set_id: undefined });
+  });
+});

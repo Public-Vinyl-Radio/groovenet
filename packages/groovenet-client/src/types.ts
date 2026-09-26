@@ -582,3 +582,104 @@ export interface SpinAggregateResult {
   skipped: number;
   sources: SpinAggregateSourceResult[];
 }
+
+// ─── Set derivation (#282) ────────────────────────────────────────────────────
+// Copied from my-collection-search/src/types/setDerivation.ts.
+
+export interface SetRecording {
+  sha256: string;
+  file_path: string;
+  original_filename: string | null;
+  format_name: string | null;
+  duration_seconds: number | null;
+  size_bytes: string | number;
+  created_at: string;
+}
+
+export type SetDerivationStatus = "queued" | "processing" | "processed" | "failed";
+
+export interface SetDerivation {
+  id: string;
+  recording_sha256: string;
+  fingerprint_type: string;
+  fingerprint_version: string;
+  window_seconds: number;
+  step_seconds: number;
+  status: SetDerivationStatus;
+  error: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
+export interface SetDerivationRequest {
+  recording_sha256: string;
+  window_seconds?: number;
+  step_seconds?: number;
+  /** Start a new run even if an equivalent one exists. */
+  force?: boolean;
+  /** Also list the recording in this live set's media. */
+  live_set_id?: number;
+}
+
+export interface SetTrackRef {
+  track_id: string;
+  friend_id: number;
+  title: string | null;
+  artist: string | null;
+  release_id: string | null;
+  position: string | null;
+}
+
+export interface DerivedPlay {
+  track_id: string;
+  friend_id: number;
+  start_seconds: number;
+  end_seconds: number;
+  confidence: number;
+  windows: number;
+  /** Track seconds per recording second; ~1.0 is a record at pitch. */
+  rate: number | null;
+  track: SetTrackRef | null;
+}
+
+export interface UnidentifiedRegion {
+  start_seconds: number;
+  end_seconds: number;
+  unindexed_neighbours: SetTrackRef[];
+}
+
+export interface PlannedEntry extends SetTrackRef {
+  /** 0-based position in the playlist. */
+  index: number;
+  fingerprinted: boolean;
+}
+
+/** `play` indexes into the view's `tracklist`. */
+export interface SetDiff {
+  playlist_id: number;
+  played_as_planned: Array<{ play: number; planned: PlannedEntry; out_of_order: boolean }>;
+  played_instead_of: Array<{ play: number; planned: PlannedEntry }>;
+  played_not_planned: Array<{ play: number }>;
+  planned_not_played: PlannedEntry[];
+}
+
+export interface SetDerivationView {
+  derivation: SetDerivation;
+  recording: SetRecording;
+  summary: {
+    plays: number;
+    duration_seconds: number | null;
+    identified_seconds: number;
+    identified_fraction: number | null;
+  } | null;
+  tracklist: DerivedPlay[];
+  unidentified: UnidentifiedRegion[];
+  diff: SetDiff | null;
+}
+
+export interface SetDerivationViewQuery {
+  playlist_id?: number;
+  live_set_id?: number;
+}

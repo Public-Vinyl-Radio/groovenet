@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance } from "axios";
+import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Agent as HttpsAgent } from "https";
 import type {
   Track,
@@ -36,6 +36,11 @@ import type {
   IngestPipelineStats,
   SpinAggregateRequest,
   SpinAggregateResult,
+  SetRecording,
+  SetDerivation,
+  SetDerivationRequest,
+  SetDerivationView,
+  SetDerivationViewQuery,
 } from "./types.js";
 
 export interface GroovenetClientConfig {
@@ -69,9 +74,17 @@ export class GroovenetClient {
     data?: unknown,
     params?: Record<string, string | number | boolean | undefined>
   ): Promise<T> {
+    return (await this.send<T>({ method, url: path, data, params })).data;
+  }
+
+  /**
+   * `request`, for calls that need more of axios than a method and a body — a
+   * status to branch on, headers, a streamed upload. Same error unwrapping.
+   */
+  private async send<T>(config: AxiosRequestConfig): Promise<{ status: number; data: T }> {
     try {
-      const res = await this.http.request<T>({ method, url: path, data, params });
-      return res.data;
+      const res = await this.http.request<T>(config);
+      return { status: res.status, data: res.data };
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const msg =
@@ -566,4 +579,79 @@ export class GroovenetClient {
   async aggregateSpins(request: SpinAggregateRequest): Promise<SpinAggregateResult> {
     return this.request<SpinAggregateResult>("POST", "/spins/aggregate", request);
   }
+
+  // ── Set derivation (#282) ──────────────────────────────────────────────────
+
+  /**
+   * Does the server already hold this recording? Asked before uploading, so a
+   * recording is never sent twice.
+   */
+  async hasSetRecording(sha256: string): Promise<boolean> {
+    const { status } = await this.send({
+      method: "HEAD",
+      url: `/set-recordings/${encodeURIComponent(sha256)}`,
+      validateStatus: (code) => code === 200 || code === 404,
+    });
+    return status === 200;
+  }
+
+  /**
+   * Stream a recording to the server under its sha256.
+   *
+   * `body` is sent as-is — pass a file stream, not a buffer, for a real set.
+   * The server keeps it only if it hashes to `sha256`, so a transfer cut short
+   * fails loudly rather than storing half a night. `onProgress` gets the bytes
+   * sent so far.
+   */
+  async uploadSetRecording(
+    sha256: string,
+    body: NodeJS.ReadableStream | Uint8Array,
+    opts: { size: number; filename?: string; onProgress?: (sent: number) => void }
+  ): Promise<SetRecording> {
+    const { data } = await this.send<SetRecording>({
+      method: "PUT",
+      url: `/set-recordings/${encodeURIComponent(sha256)}`,
+      data: body,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(opts.size),
+        // Headers are Latin-1; a filename like "Díaz.mp3" is not.
+        ...(opts.filename ? { "X-Filename": encodeURIComponent(opts.filename) } : {}),
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      // No redirects. With them, axios writes through follow-redirects, which
+      // keeps a copy of the whole body to replay after a redirect — for a
+      // 250 MB set, the file in memory. Measured on #271's 253 MB recording:
+      // +234 MB with redirects, +78 MB without (a bare Node pipe: +46 MB).
+      maxRedirects: 0,
+      onUploadProgress: (event) => opts.onProgress?.(event.loaded),
+    });
+    return data;
+  }
+
+  /**
+   * Start deriving a tracklist, or get back the equivalent run already done
+   * or in progress (`reused: true`). Poll `getSetDerivation` for the result.
+   */
+  async createSetDerivation(
+    request: SetDerivationRequest
+  ): Promise<SetDerivation & { reused: boolean }> {
+    return this.request("POST", "/set-derivations", request);
+  }
+
+  /**
+   * A run's tracklist, unidentified stretches and — given a playlist or live
+   * set — its diff against the plan. Empty until the run is processed.
+   */
+  async getSetDerivation(
+    id: string,
+    query: SetDerivationViewQuery = {}
+  ): Promise<SetDerivationView> {
+    return this.request("GET", `/set-derivations/${encodeURIComponent(id)}`, undefined, {
+      playlist_id: query.playlist_id,
+      live_set_id: query.live_set_id,
+    });
+  }
+
 }

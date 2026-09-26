@@ -28,6 +28,7 @@ groovenet playlists list                  # list playlists
 groovenet friends list                    # manage the friends system
 groovenet play <track-id>                 # play a track via MPD on the server
 groovenet fingerprint-library             # index reference audio for matching
+groovenet sets derive set.mp3 --playlist 176  # tracklist + diff from a set recording
 ```
 
 Every command accepts `--json` for machine-readable output:
@@ -48,6 +49,34 @@ Run `groovenet --help` (or `groovenet <command> --help`) for the full command re
 | `playlists` | Manage playlists |
 | `friends` | Manage the friends system |
 | `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays |
+| `sets` | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
+
+### sets
+
+Turns a recording of a set into a timestamped tracklist, and — given the
+playlist you planned — shows how the night differed from the plan. The file is
+hashed locally and uploaded only if the server does not already have it.
+
+```bash
+groovenet sets derive ~/sets/2026-08-15.mp3 --playlist 176
+groovenet sets derive set.mp3 --live-set 12       # also attach it to the live set
+groovenet sets derive set.mp3 --force             # re-run even if done before
+groovenet sets show <derivation-id> --playlist 176
+```
+
+Example output (abridged):
+
+```
+inner-signals.mp3 — 40 plays, 87.5% of 3:04:04 identified (chromaprint 1)
+
+  ✓ 0:00:15  0:06:44  Herbie Mann — Soul Beat Momma [1234-A1]
+  ⇄ 0:12:44  0:16:58  Cuco — Lovetripper [13916746-A6]  instead of A5 Feelings
+  ? 0:16:58  0:19:28  unidentified (2m30s)
+  ↕ 0:48:41  0:50:56  Elia y Elizabeth — Hay Que Vivir La Vida [6279169-B4]  out of order
+
+Against playlist 176
+  32 as planned · 6 played instead · 0 not planned · 2 planned but not played
+```
 
 ### fingerprint-library
 
