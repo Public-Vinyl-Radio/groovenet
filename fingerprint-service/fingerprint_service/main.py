@@ -42,6 +42,7 @@ from .results import (
     try_claim_ingest,
     try_claim_set,
     try_persist_fingerprint,
+    try_record_file_stats,
     try_report_result,
     try_report_set_result,
 )
@@ -252,8 +253,9 @@ def process_index_job(job_json: str, matcher: FingerprintMatcher) -> None:
     job.setdefault("fingerprint_type", matcher.fingerprint_type)
     job.setdefault("fingerprint_version", matcher.fingerprint_version)
 
+    stats = None
     try:
-        result, upsert = index_track(job, matcher)
+        result, upsert, stats = index_track(job, matcher)
     except InvalidIndexJob as e:
         # A rejection, not a crash — no traceback worth printing.
         logger.error("Track %s cannot be indexed: %s", job["track_id"], e)
@@ -262,6 +264,10 @@ def process_index_job(job_json: str, matcher: FingerprintMatcher) -> None:
         logger.error(f"Indexing failed for track {job['track_id']}: {e}")
         logger.error(traceback.format_exc())
         result, upsert = outcome(job, "failed", error=str(e)), None
+
+    if stats is not None:
+        # Best-effort: a lost update costs a hash next time, never the track.
+        try_record_file_stats(stats)
 
     if upsert is not None and not try_persist_fingerprint(upsert):
         # Generated but not stored is not indexed. Counting it as a success

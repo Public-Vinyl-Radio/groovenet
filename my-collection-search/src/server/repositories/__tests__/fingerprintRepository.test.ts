@@ -27,6 +27,8 @@ function makeRow(overrides: Partial<TrackFingerprintRow> = {}): TrackFingerprint
     fingerprint_data: Buffer.from([1, 2, 3]),
     audio_sha256: "a".repeat(64),
     audio_duration_seconds: 321.5,
+    audio_size_bytes: 41_234_567,
+    audio_mtime_ms: 1_790_000_000_000,
     created_at: "2026-09-20T00:00:00Z",
     updated_at: "2026-09-20T00:00:00Z",
     ...overrides,
@@ -51,6 +53,35 @@ describe("upsertFingerprint()", () => {
     });
 
     expect(result).toEqual(row);
+  });
+
+  it("stores the audio's size and mtime, and refreshes them on conflict (#303)", async () => {
+    dbQuery.mockResolvedValue({ rows: [makeRow()] });
+
+    await makeRepo().upsertFingerprint({
+      track_id: "t1",
+      friend_id: 1,
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
+      fingerprint_data: Buffer.from([1]),
+      audio_sha256: "a".repeat(64),
+      audio_size_bytes: 41_234_567,
+      audio_mtime_ms: 1_790_000_000_000,
+    });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("audio_size_bytes       = EXCLUDED.audio_size_bytes");
+    expect(sql).toContain("audio_mtime_ms         = EXCLUDED.audio_mtime_ms");
+    expect(params.slice(7)).toEqual([41_234_567, 1_790_000_000_000]);
+  });
+
+  it("stores null stats when none are given", async () => {
+    dbQuery.mockResolvedValue({ rows: [makeRow()] });
+    await makeRepo().upsertFingerprint({
+      track_id: "t1", friend_id: 1, fingerprint_type: "chromaprint", fingerprint_version: "1",
+      fingerprint_data: null, audio_sha256: "a".repeat(64),
+    });
+    expect(dbQuery.mock.calls[0][1].slice(7)).toEqual([null, null]);
   });
 
   it("conflicts on the full type+version key, so engines and versions coexist", async () => {
@@ -606,5 +637,40 @@ describe("countUnindexableTracks()", () => {
       friend_id: 2,
     });
     expect(dbQuery.mock.calls[0][1]).toEqual(["r9", 2]);
+  });
+});
+
+// ─── recordFileStats (#303) ───────────────────────────────────────────────────
+
+describe("recordFileStats()", () => {
+  const input = {
+    track_id: "t1",
+    friend_id: 1,
+    fingerprint_type: "chromaprint" as const,
+    fingerprint_version: "1",
+    audio_sha256: "a".repeat(64),
+    audio_size_bytes: 41_234_567,
+    audio_mtime_ms: 1_790_000_000_000,
+  };
+
+  it("updates only the row whose stored hash still matches", async () => {
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 1 });
+
+    expect(await makeRepo().recordFileStats(input)).toBe(true);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("AND audio_sha256 = $5");
+    expect(sql).not.toContain("fingerprint_data");
+    expect(params).toEqual(["t1", 1, "chromaprint", "1", "a".repeat(64), 41_234_567, 1_790_000_000_000]);
+  });
+
+  it("reports false when the hash no longer matches", async () => {
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    expect(await makeRepo().recordFileStats(input)).toBe(false);
+  });
+
+  it("treats a missing row count as nothing updated", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await makeRepo().recordFileStats(input)).toBe(false);
   });
 });

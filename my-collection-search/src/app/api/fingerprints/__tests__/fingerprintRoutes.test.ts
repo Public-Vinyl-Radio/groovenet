@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const repo = vi.hoisted(() => ({
   upsertFingerprint: vi.fn(),
   listFingerprintsForIndex: vi.fn(),
+  recordFileStats: vi.fn(),
 }));
 const service = vi.hoisted(() => ({ startRun: vi.fn(), getRun: vi.fn() }));
 
@@ -24,7 +25,11 @@ vi.mock("@/server/services/fingerprintIndexService", async (importOriginal) => {
   return { ...actual, fingerprintIndexService: service };
 });
 
-import { GET as listFingerprints, POST as storeFingerprint } from "../route";
+import {
+  GET as listFingerprints,
+  PATCH as recordFileStats,
+  POST as storeFingerprint,
+} from "../route";
 import { POST as startRun } from "../index/route";
 import { GET as getRun } from "../index/[runId]/route";
 import { NoFingerprintEngineError } from "@/server/services/fingerprintIndexService";
@@ -180,6 +185,66 @@ describe("POST /api/fingerprints", () => {
 });
 
 // ─── POST /api/fingerprints/index ─────────────────────────────────────────────
+
+describe("audio file stats (#303)", () => {
+  const stats = {
+    track_id: "t1",
+    friend_id: 1,
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
+    audio_sha256: "e".repeat(64),
+    audio_size_bytes: 41_234_567,
+    audio_mtime_ms: 1_790_000_000_000,
+  };
+  const patch = (body: unknown) =>
+    new Request("http://app/api/fingerprints", { method: "PATCH", body: JSON.stringify(body) });
+
+  it("POST stores the size and mtime the fingerprint was taken from", async () => {
+    repo.upsertFingerprint.mockResolvedValue(storedRow());
+    await storeFingerprint(post(validUpsert({ audio_size_bytes: 41_234_567, audio_mtime_ms: 1_790_000_000_000 })));
+    expect(repo.upsertFingerprint).toHaveBeenCalledWith(
+      expect.objectContaining({ audio_size_bytes: 41_234_567, audio_mtime_ms: 1_790_000_000_000 })
+    );
+  });
+
+  it("POST stores nulls when the worker sends none", async () => {
+    repo.upsertFingerprint.mockResolvedValue(storedRow());
+    await storeFingerprint(post(validUpsert()));
+    expect(repo.upsertFingerprint).toHaveBeenCalledWith(
+      expect.objectContaining({ audio_size_bytes: null, audio_mtime_ms: null })
+    );
+  });
+
+  it("PATCH records stats for unchanged audio", async () => {
+    repo.recordFileStats.mockResolvedValue(true);
+    const res = await recordFileStats(patch(stats));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ updated: true });
+    expect(repo.recordFileStats).toHaveBeenCalledWith(stats);
+  });
+
+  it("PATCH reports a hash that no longer matches as not updated, not an error", async () => {
+    repo.recordFileStats.mockResolvedValue(false);
+    expect(await (await recordFileStats(patch(stats))).json()).toEqual({ updated: false });
+  });
+
+  it("PATCH rejects an incomplete or negative body", async () => {
+    expect((await recordFileStats(patch({ ...stats, audio_mtime_ms: undefined }))).status).toBe(400);
+    expect((await recordFileStats(patch({ ...stats, audio_size_bytes: -1 }))).status).toBe(400);
+    expect(repo.recordFileStats).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an Error", new Error("db down"), "db down"],
+    ["an Error without a message", new Error(""), "Failed to record file stats"],
+    ["a thrown string", "boom", "boom"],
+  ])("PATCH answers 500 for %s", async (_label, thrown, message) => {
+    repo.recordFileStats.mockRejectedValue(thrown);
+    const res = await recordFileStats(patch(stats));
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe(message);
+  });
+});
 
 describe("POST /api/fingerprints/index", () => {
   function indexPost(body: unknown): Request {

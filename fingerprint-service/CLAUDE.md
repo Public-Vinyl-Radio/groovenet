@@ -150,6 +150,8 @@ One job per track, enqueued by the app when the CLI starts a run.
   "fingerprint_type": "chromaprint",
   "fingerprint_version": "1",
   "stored_audio_sha256": "e3b0c442… or null",
+  "stored_audio_size_bytes": 41234567,
+  "stored_audio_mtime_ms": 1790000000123,
   "force": false
 }
 ```
@@ -309,15 +311,33 @@ the recording could not be decoded or fingerprinted at all.
 }
 ```
 
+`audio_size_bytes` and `audio_mtime_ms` describe the file fingerprinted (#303).
+
 `fingerprint_data` is base64 because JSON has no bytes, and `null` when the
 engine stores no payload — which is what the stub does, honestly, rather than
 inventing bytes #278 could mistake for a real fingerprint. The route upserts on
 (track_id, friend_id, fingerprint_type, fingerprint_version), so re-running an
 index can never duplicate a row.
 
-**Order of operations is hash, then decide, then decode.** sha256 over a 40 MB
-file is milliseconds; a decode is seconds. On a re-run, where almost everything
-skips, hashing first is the difference between a minute and an hour.
+**Order of operations is stat, then hash, then decide, then decode** (#303).
+A file whose size and mtime match `stored_audio_size_bytes` /
+`stored_audio_mtime_ms` is skipped without being read. Otherwise it is hashed:
+sha256 over a 40 MB file is milliseconds, a decode is seconds. Same hash means
+the fingerprint is still right; different means replaced audio, re-fingerprinted.
+
+The stat step is what makes it affordable to re-check the *whole* index for
+replaced audio — the app's hourly `changed` pass. Hashing every file would read
+the entire library (~150 GB) each time; statting it is a directory walk.
+
+When the bytes are unchanged but the size or mtime moved — a touch, a copy — or
+was never recorded (rows from before #303), the worker records the new values
+with `PATCH /api/fingerprints` so the next check is a stat again. That call is
+guarded on the stored hash and never touches the fingerprint; losing it costs
+one hash next time. Consequence worth knowing: **the first `changed` pass after
+deploying #303 hashes every indexed file once**, to record their stats.
+
+Stats are milliseconds, not the nanoseconds `stat` gives: ns since the epoch is
+~1.8e18, past what a JSON number carries exactly into the app.
 
 Progress is counted in Redis, not reported over HTTP: `runs.record_outcome`
 bumps `indexed` / `skipped` / `failed` on `fpindex:run:{run_id}` and appends the

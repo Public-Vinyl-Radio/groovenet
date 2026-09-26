@@ -1385,6 +1385,19 @@ export const fingerprintUpsertBodySchema = z.object({
   fingerprint_data: z.string().base64().nullable().optional(),
   audio_sha256: z.string().regex(/^[0-9a-f]{64}$/, "must be a hex sha256"),
   audio_duration_seconds: z.number().positive().nullable().optional(),
+  audio_size_bytes: z.number().int().nonnegative().nullable().optional(),
+  audio_mtime_ms: z.number().int().nonnegative().nullable().optional(),
+});
+
+/** `fingerprint-service` recording that a fingerprint's audio is unchanged (#303). */
+export const fingerprintFileStatsBodySchema = z.object({
+  track_id: z.string().min(1),
+  friend_id: intFromInputSchema,
+  fingerprint_type: z.string().min(1).max(50),
+  fingerprint_version: z.string().min(1).max(50),
+  audio_sha256: z.string().regex(/^[0-9a-f]{64}$/, "must be a hex sha256"),
+  audio_size_bytes: z.number().int().nonnegative(),
+  audio_mtime_ms: z.number().int().nonnegative(),
 });
 
 export const fingerprintUpsertResponseSchema = z.object({

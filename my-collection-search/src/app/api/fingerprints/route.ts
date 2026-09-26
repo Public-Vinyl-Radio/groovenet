@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  fingerprintFileStatsBodySchema,
   fingerprintListResponseSchema,
   fingerprintUpsertBodySchema,
   fingerprintUpsertResponseSchema,
@@ -102,6 +103,8 @@ export async function POST(req: Request) {
         : null,
       audio_sha256: body.audio_sha256,
       audio_duration_seconds: body.audio_duration_seconds ?? null,
+      audio_size_bytes: body.audio_size_bytes ?? null,
+      audio_mtime_ms: body.audio_mtime_ms ?? null,
     });
 
     return NextResponse.json(
@@ -124,6 +127,38 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: err.message || "Failed to store fingerprint" },
       { status }
+    );
+  }
+}
+
+/**
+ * Record that a fingerprint's audio was re-checked and is unchanged (#303).
+ *
+ * `fingerprint-service` sends this when a file's size or mtime moved — or was
+ * never recorded — but its bytes still hash to the stored `audio_sha256`.
+ * Storing the new size and mtime is what lets the next check skip hashing.
+ * The fingerprint itself is untouched; the upsert above would overwrite it.
+ *
+ * `updated: false` means the stored hash no longer matches — the row was
+ * re-fingerprinted from other audio in the meantime — which is not an error.
+ */
+export async function PATCH(req: Request) {
+  try {
+    const parsed = fingerprintFileStatsBodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid file stats", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+    const updated = await fingerprintRepository.recordFileStats(parsed.data);
+    return NextResponse.json({ updated });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("Error recording fingerprint file stats:", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to record file stats" },
+      { status: 500 }
     );
   }
 }

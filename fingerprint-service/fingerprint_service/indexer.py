@@ -19,7 +19,7 @@ import os
 from .audio import AudioDecodeError, decode_to_pcm
 from .config import AUDIO_DIR, HASH_CHUNK_SIZE, SAMPLE_RATE, logger
 from .matcher import FingerprintMatcher
-from .types import FingerprintUpsert, IndexJob, IndexOutcome
+from .types import FileStats, FingerprintUpsert, IndexJob, IndexOutcome
 
 REQUIRED_FIELDS = ("run_id", "track_id", "friend_id", "file_path")
 
@@ -73,6 +73,32 @@ def hash_file(path: str, chunk_size: int = HASH_CHUNK_SIZE) -> str:
     return digest.hexdigest()
 
 
+def file_stats(path: str) -> tuple[int, int]:
+    """Size in bytes and mtime in whole milliseconds.
+
+    Milliseconds, not the nanoseconds `stat` offers: ns since the epoch is past
+    what a JSON number carries exactly into the app, and a re-rip moves the
+    mtime by far more than a millisecond.
+    """
+    st = os.stat(path)
+    return st.st_size, st.st_mtime_ns // 1_000_000
+
+
+def unchanged_on_disk(job: IndexJob, size: int, mtime_ms: int) -> bool:
+    """True when the file is provably the one fingerprinted, without reading it.
+
+    Needs a stored hash and both stored stats to match (#303). A row from
+    before stats were recorded has neither and is hashed as it always was —
+    which is also how it gets them.
+    """
+    if job.get("force") or not job.get("stored_audio_sha256"):
+        return False
+    return (
+        job.get("stored_audio_size_bytes") == size
+        and job.get("stored_audio_mtime_ms") == mtime_ms
+    )
+
+
 def needs_index(
     stored_audio_sha256: str | None,
     current_audio_sha256: str,
@@ -103,6 +129,8 @@ def build_upsert(
     fingerprint_data: bytes | None,
     audio_sha256: str,
     duration_seconds: float | None,
+    size: int,
+    mtime_ms: int,
 ) -> FingerprintUpsert:
     """The persistence body for one freshly generated fingerprint."""
     return {
@@ -117,6 +145,21 @@ def build_upsert(
         ),
         "audio_sha256": audio_sha256,
         "audio_duration_seconds": duration_seconds,
+        "audio_size_bytes": size,
+        "audio_mtime_ms": mtime_ms,
+    }
+
+
+def build_file_stats(job: IndexJob, audio_sha256: str, size: int, mtime_ms: int) -> FileStats:
+    """The body recording an unchanged file's current size and mtime (#303)."""
+    return {
+        "track_id": str(job["track_id"]),
+        "friend_id": int(job["friend_id"]),
+        "fingerprint_type": str(job["fingerprint_type"]),
+        "fingerprint_version": str(job["fingerprint_version"]),
+        "audio_sha256": audio_sha256,
+        "audio_size_bytes": size,
+        "audio_mtime_ms": mtime_ms,
     }
 
 
@@ -140,13 +183,19 @@ def outcome(
 def index_track(
     job: IndexJob,
     matcher: FingerprintMatcher,
-) -> tuple[IndexOutcome, FingerprintUpsert | None]:
+) -> tuple[IndexOutcome, FingerprintUpsert | None, FileStats | None]:
     """Fingerprint one reference track, or establish that it needs no work.
 
-    Returns the outcome to count and, when something was generated, the body to
-    persist. Raising is left to the caller's error isolation: one unreadable
-    file must cost that file and nothing else, which is why every failure here
-    comes back as a `failed` outcome rather than an exception.
+    Returns the outcome to count; when something was generated, the body to
+    persist; and when unchanged audio has a size or mtime not yet recorded,
+    the body recording them. Raising is left to the caller's error isolation:
+    one unreadable file must cost that file and nothing else, which is why
+    every failure here comes back as a `failed` outcome rather than an
+    exception.
+
+    **Stat, then hash, then decide, then decode** (#303). A file whose size and
+    mtime match what was fingerprinted is skipped without being read, which is
+    what makes re-checking the whole library for replaced audio cheap.
     """
     path = resolve_audio_path(str(job["file_path"]))
 
@@ -154,12 +203,16 @@ def index_track(
         # A row pointing at a file that is not there is a real and common state
         # — the track was imported, the download failed or the file was moved.
         # It is a failure of this track, not of the run.
-        return outcome(job, STATUS_FAILED, error=f"no such file: {job['file_path']}"), None
+        return outcome(job, STATUS_FAILED, error=f"no such file: {job['file_path']}"), None, None
 
     try:
+        size, mtime_ms = file_stats(path)
+        if unchanged_on_disk(job, size, mtime_ms):
+            logger.info("Track %s is untouched on disk; skipping without a hash", job["track_id"])
+            return outcome(job, STATUS_SKIPPED, audio_sha256=job.get("stored_audio_sha256")), None, None
         audio_sha256 = hash_file(path)
     except OSError as e:
-        return outcome(job, STATUS_FAILED, error=f"could not read {job['file_path']}: {e}"), None
+        return outcome(job, STATUS_FAILED, error=f"could not read {job['file_path']}: {e}"), None, None
 
     if not needs_index(
         job.get("stored_audio_sha256"),
@@ -172,13 +225,18 @@ def index_track(
             job["fingerprint_type"],
             job["fingerprint_version"],
         )
-        return outcome(job, STATUS_SKIPPED, audio_sha256=audio_sha256), None
+        # Same bytes. If the size or mtime moved (a touch, a copy) or was never
+        # recorded, record them now so the next check needs no hash.
+        stats = None
+        if (job.get("stored_audio_size_bytes"), job.get("stored_audio_mtime_ms")) != (size, mtime_ms):
+            stats = build_file_stats(job, audio_sha256, size, mtime_ms)
+        return outcome(job, STATUS_SKIPPED, audio_sha256=audio_sha256), None, stats
 
     try:
         audio = decode_to_pcm(path, SAMPLE_RATE)
     except AudioDecodeError as e:
         logger.error("Track %s could not be decoded: %s", job["track_id"], e)
-        return outcome(job, STATUS_FAILED, error=str(e), audio_sha256=audio_sha256), None
+        return outcome(job, STATUS_FAILED, error=str(e), audio_sha256=audio_sha256), None, None
 
     fingerprint_data = matcher.index(audio)
     logger.info(
@@ -190,5 +248,6 @@ def index_track(
     )
     return (
         outcome(job, STATUS_INDEXED, audio_sha256=audio_sha256),
-        build_upsert(job, fingerprint_data, audio_sha256, audio.duration_seconds),
+        build_upsert(job, fingerprint_data, audio_sha256, audio.duration_seconds, size, mtime_ms),
+        None,
     )

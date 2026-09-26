@@ -17,6 +17,7 @@ from fingerprint_service.results import (
     try_claim_ingest,
     try_claim_set,
     try_persist_fingerprint,
+    try_record_file_stats,
     try_report_result,
     try_report_set_result,
 )
@@ -202,6 +203,45 @@ class TestTryPersistFingerprint:
             results.requests, "post", lambda *a, **k: FakeResponse(500, "boom")
         )
         assert try_persist_fingerprint(upsert) is False
+
+
+class TestTryRecordFileStats:
+    """Recording an unchanged file's size and mtime (#303)."""
+
+    stats = {
+        "track_id": "t1",
+        "friend_id": 1,
+        "fingerprint_type": "chromaprint",
+        "fingerprint_version": "1",
+        "audio_sha256": "e" * 64,
+        "audio_size_bytes": 41_234_567,
+        "audio_mtime_ms": 1_790_000_000_123,
+    }
+
+    def test_patches_the_fingerprints_collection(self, monkeypatch):
+        calls = []
+
+        def fake_patch(url, json=None, timeout=None):
+            calls.append((url, json))
+            return FakeResponse(200)
+
+        monkeypatch.setattr(results.requests, "patch", fake_patch)
+        assert try_record_file_stats(self.stats) is True
+        assert calls[0][0].endswith("/api/fingerprints")
+        assert calls[0][1] == self.stats
+
+    def test_a_refusal_is_logged_not_raised(self, monkeypatch, caplog):
+        monkeypatch.setattr(results.requests, "patch", lambda *a, **k: FakeResponse(500, "boom"))
+        assert try_record_file_stats(self.stats) is False
+        assert "returned 500" in caplog.text
+
+    def test_an_unreachable_app_is_logged_not_raised(self, monkeypatch, caplog):
+        def refuse(*args, **kwargs):
+            raise requests.ConnectionError("connection refused")
+
+        monkeypatch.setattr(results.requests, "patch", refuse)
+        assert try_record_file_stats(self.stats) is False
+        assert "Could not record file stats" in caplog.text
 
 
 class TestClaimIngest:

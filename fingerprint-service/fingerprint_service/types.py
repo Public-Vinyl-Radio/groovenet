@@ -124,6 +124,10 @@ class IndexJob(TypedDict):
     fingerprint_type: str
     fingerprint_version: str
     stored_audio_sha256: NotRequired[str | None]
+    # The file's size and mtime when fingerprinted (#303). When both match the
+    # file on disk, the worker skips without hashing. Absent on older rows.
+    stored_audio_size_bytes: NotRequired[int | None]
+    stored_audio_mtime_ms: NotRequired[int | None]
     force: NotRequired[bool]
 
 
@@ -157,3 +161,22 @@ class FingerprintUpsert(TypedDict):
     fingerprint_data: str | None
     audio_sha256: str
     audio_duration_seconds: float | None
+    audio_size_bytes: int
+    audio_mtime_ms: int
+
+
+class FileStats(TypedDict):
+    """The body sent when a fingerprint's audio is unchanged but its size or
+    mtime moved, or was never recorded (#303).
+
+    Recording them is what lets the next check skip the hash. The app only
+    applies them while `audio_sha256` still matches the stored row.
+    """
+
+    track_id: str
+    friend_id: int
+    fingerprint_type: str
+    fingerprint_version: str
+    audio_sha256: str
+    audio_size_bytes: int
+    audio_mtime_ms: int

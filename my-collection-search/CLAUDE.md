@@ -100,11 +100,21 @@ than one process:
 - `startIngestSweeper()` — retention for the vinyl ingest volume (#269).
 - `startIngestReaper()` — writes off audio chunks stuck past their stall
   window so their file can be released.
-- `startFingerprintBackfill()` — queues any track with audio but no
-  fingerprint (`fingerprintBackfillService.ts`), the backstop for #303. The
-  fast path is immediate: `PATCH /api/tracks` queues a track's fingerprint the
-  moment its `local_audio_url` transitions from null to a value
-  (`trackFingerprintTrigger.ts`). This only catches what that trigger missed.
+- `startFingerprintBackfill()` — two passes keeping the reference index
+  true (`fingerprintBackfillService.ts`, #303):
+  - **missing**, every 30 min: tracks with audio but no fingerprint.
+  - **changed**, hourly (`FINGERPRINT_VERIFY_INTERVAL_MINUTES`): every
+    fingerprinted track, re-checked against its audio. `fingerprint-service`
+    stats each file and hashes only those whose size or mtime moved, so this
+    is a directory walk, not a 150 GB read — except once after deploy, when
+    rows from before #303 are hashed to record their stats.
+
+  The missing pass never looks at a track that already has a fingerprint, so
+  without the changed pass, audio replaced behind an unchanged path — a
+  re-rip — left the index matching audio that was gone. The fast path is
+  immediate: `PATCH /api/tracks` queues a track's fingerprint whenever its
+  `local_audio_url` gains or **changes** value (`trackFingerprintTrigger.ts`).
+  Losing audio does not trigger: the fingerprint describes the record.
 - `startPlayAggregation()` — turns recent confident detections into spin
   sessions (`playAggregationService.ts`), the backstop for #304. The fast path
   is immediate here too: `ingestLifecycleService.report()` aggregates a

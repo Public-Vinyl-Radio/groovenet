@@ -5,12 +5,17 @@
 type TrackLike = { local_audio_url?: unknown } | null | undefined;
 
 /**
- * True the moment a track gains reference audio it did not have before (#303).
+ * True when a track's reference audio now points somewhere it did not (#303):
+ * gained for the first time, or replaced with a different file.
  *
- * Only the null/empty → value transition counts — a track whose audio is
- * later replaced is not re-triggered here. That case, and audio that arrives
- * by any path other than this route, are the periodic "missing" backfill
- * pass's job; this is only the fast path for the common one.
+ * Replacement matters as much as arrival. The "missing" backfill never looks
+ * at a track that already has a fingerprint, so a replaced file used to leave
+ * the index matching against audio that was gone. Re-queueing is cheap when
+ * the new path holds the same bytes: the worker hashes it and skips.
+ *
+ * Losing audio (value → empty) does not trigger: the fingerprint describes the
+ * record, which has not changed. Same bytes behind an unchanged path is the
+ * periodic verification pass's job — this route never sees it.
  */
 export function shouldTriggerFingerprintIndex(
   current: TrackLike,
@@ -18,5 +23,5 @@ export function shouldTriggerFingerprintIndex(
 ): boolean {
   const before = current?.local_audio_url;
   const after = updated?.local_audio_url;
-  return !before && !!after;
+  return !!after && after !== before;
 }

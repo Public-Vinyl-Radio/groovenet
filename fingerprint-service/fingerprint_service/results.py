@@ -10,6 +10,7 @@ import requests
 from .config import APP_URL, RESULT_TIMEOUT, logger
 from .matcher import FingerprintMatcher
 from .types import (
+    FileStats,
     FingerprintUpsert,
     IngestJob,
     IngestResult,
@@ -261,3 +262,24 @@ def try_persist_fingerprint(upsert: FingerprintUpsert) -> bool:
     except ResultReportError as e:
         logger.error("Failed to persist fingerprint for track %s: %s", upsert["track_id"], e)
         return False
+
+
+def try_record_file_stats(stats: FileStats) -> bool:
+    """Record an unchanged file's size and mtime (#303), logging on failure.
+
+    Losing this costs one hash on the next check and nothing else — the
+    fingerprint is still right — so it never fails the track.
+    """
+    url = fingerprint_url()
+    try:
+        response = requests.patch(url, json=stats, timeout=RESULT_TIMEOUT)
+    except requests.RequestException as e:
+        logger.warning("Could not record file stats for track %s: %s", stats["track_id"], e)
+        return False
+
+    if not response.ok:
+        logger.warning(
+            "Recording file stats for track %s returned %s", stats["track_id"], response.status_code
+        )
+        return False
+    return True

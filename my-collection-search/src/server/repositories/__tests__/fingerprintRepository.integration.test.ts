@@ -308,6 +308,42 @@ describe("index candidate resolution (DB integration)", () => {
     expect(byId.get("idx-missing")?.stored_audio_sha256).toBeNull();
   });
 
+  dbTest("round-trips the audio's size and mtime as numbers (#303)", async () => {
+    await repo.upsertFingerprint({
+      track_id: "idx-indexed",
+      friend_id: friendC,
+      ...engine,
+      fingerprint_data: Buffer.from([1]),
+      audio_sha256: SHA_ONE,
+      audio_duration_seconds: 100,
+      audio_size_bytes: 41_234_567,
+      audio_mtime_ms: 1_790_000_000_123,
+    });
+
+    const byId = new Map((await repo.listIndexCandidates({ kind: "changed" }, engine)).map((r) => [r.track_id, r]));
+    // bigint columns come back from pg as strings unless cast; the worker
+    // compares these with its own stat, so they must be exact numbers.
+    expect(byId.get("idx-indexed")?.stored_audio_size_bytes).toBe(41_234_567);
+    expect(byId.get("idx-indexed")?.stored_audio_mtime_ms).toBe(1_790_000_000_123);
+  });
+
+  dbTest("records stats only against the hash they were read from (#303)", async () => {
+    const identity = { track_id: "idx-indexed", friend_id: friendC, ...engine };
+
+    expect(
+      await repo.recordFileStats({ ...identity, audio_sha256: SHA_TWO, audio_size_bytes: 1, audio_mtime_ms: 2 })
+    ).toBe(false);
+    expect(
+      await repo.recordFileStats({ ...identity, audio_sha256: SHA_ONE, audio_size_bytes: 55, audio_mtime_ms: 66 })
+    ).toBe(true);
+
+    const row = await repo.findFingerprint(identity);
+    expect(row?.audio_size_bytes).toBe(55);
+    expect(row?.audio_mtime_ms).toBe(66);
+    // The fingerprint itself is untouched.
+    expect(row?.fingerprint_data).toEqual(Buffer.from([1]));
+  });
+
   dbTest("--track narrows to one track", async () => {
     const rows = await repo.listIndexCandidates(
       { kind: "track", track_id: "idx-indexed", friend_id: friendC },
