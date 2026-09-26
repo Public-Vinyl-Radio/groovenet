@@ -1636,3 +1636,38 @@ export const ingestResultBodySchema = z.object({
   fingerprint_version: z.string().nullable().optional(),
   candidates: z.array(ingestMatchCandidateSchema).default([]),
 });
+
+// ─── Set derivation (#282) ────────────────────────────────────────────────────
+
+export const setDerivationCreateBodySchema = z.object({
+  recording_sha256: z.string().regex(/^[0-9a-f]{64}$/, "expected a lowercase hex sha256"),
+  window_seconds: z.number().positive().optional(),
+  step_seconds: z.number().positive().optional(),
+  force: z.boolean().optional(),
+  live_set_id: intFromInputSchema.nullable().optional(),
+});
+
+export const setWindowSchema = z.object({
+  start_seconds: z.number(),
+  duration_seconds: z.number(),
+  candidates: z.array(ingestMatchCandidateSchema).default([]),
+});
+
+/** The callback body from `fingerprint-set-worker`. */
+export const setDerivationResultBodySchema = z.object({
+  derivation_id: z.string().optional(),
+  status: z.enum(["processed", "failed"]),
+  error: z.string().nullable().optional(),
+  fingerprint_type: z.string().nullable().optional(),
+  fingerprint_version: z.string().nullable().optional(),
+  sample_rate: z.number().nullable().optional(),
+  duration_seconds: z.number().nullable().optional(),
+  window_seconds: z.number().optional(),
+  step_seconds: z.number().optional(),
+  windows: z.array(setWindowSchema).default([]),
+});
+
+export const setDerivationViewQuerySchema = z.object({
+  playlist_id: intFromInputSchema.optional(),
+  live_set_id: intFromInputSchema.optional(),
+});

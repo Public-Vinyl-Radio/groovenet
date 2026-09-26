@@ -7,31 +7,99 @@ export const DEFAULT_PLAY_GAP_SECONDS = Number(process.env.PLAY_AGGREGATION_GAP_
 
 export type AggregatedPlay = { first: PlayDetectionRow; last: PlayDetectionRow; confidence: number };
 
+/** What the grouping rule needs from one window, whatever it came from. */
+export type GroupableWindow = {
+  /** When the window starts, in milliseconds on any consistent clock. */
+  at: number | null;
+  track_id: string | null;
+  friend_id: number | null;
+  confidence: number | null;
+  offset_seconds?: number | null;
+};
+
+export type WindowGroup<T> = { first: T; last: T; confidence: number; members: T[] };
+
+export type GroupingOptions = {
+  confidenceFloor?: number;
+  gapSeconds?: number;
+  /**
+   * Split a run of one track when its offset stops keeping pace with the
+   * clock by more than this many seconds — the same record dropped back to
+   * the start, or played twice back to back. Off unless given: live listeners
+   * (#279) do not need it, and set derivation (#282) does.
+   */
+  maxDriftSeconds?: number;
+};
+
 function timestamp(detection: PlayDetectionRow): number | null {
   if (!detection.window_start_at) return null;
   const value = new Date(detection.window_start_at).getTime();
   return Number.isFinite(value) ? value : null;
 }
 
+/** Where on the track this window says the recording started, in seconds. */
+function anchor(window: GroupableWindow): number | null {
+  if (window.offset_seconds == null || window.at == null) return null;
+  return window.at / 1000 - window.offset_seconds;
+}
+
+/**
+ * The grouping rule, shared by live play tracking (#279) and set derivation
+ * (#282): consecutive confident windows of one track, no more than
+ * `gapSeconds` apart, are one play. Windows arrive in capture order.
+ */
+export function groupWindows<T>(
+  items: T[],
+  view: (item: T) => GroupableWindow,
+  {
+    confidenceFloor = DEFAULT_PLAY_CONFIDENCE_FLOOR,
+    gapSeconds = DEFAULT_PLAY_GAP_SECONDS,
+    maxDriftSeconds,
+  }: GroupingOptions = {}
+): WindowGroup<T>[] {
+  const groups: WindowGroup<T>[] = [];
+  for (const item of items) {
+    const window = view(item);
+    const { at, confidence } = window;
+    if (!window.track_id || !window.friend_id || confidence == null || confidence < confidenceFloor || at == null) continue;
+    const current = groups.at(-1);
+    const first = current ? view(current.first) : null;
+    const lastAt = current ? view(current.last).at : null;
+    const sameTrack = first?.track_id === window.track_id && first?.friend_id === window.friend_id;
+    const withinGap = lastAt != null && at - lastAt <= gapSeconds * 1000;
+    if (current && sameTrack && withinGap && !drifted(first, window, maxDriftSeconds)) {
+      current.last = item;
+      current.members.push(item);
+      current.confidence = Math.max(current.confidence, confidence);
+    } else {
+      groups.push({ first: item, last: item, confidence, members: [item] });
+    }
+  }
+  return groups;
+}
+
+function drifted(
+  first: GroupableWindow | null,
+  window: GroupableWindow,
+  maxDriftSeconds: number | undefined
+): boolean {
+  if (maxDriftSeconds == null || !first) return false;
+  const expected = anchor(first);
+  const actual = anchor(window);
+  if (expected == null || actual == null) return false;
+  return Math.abs(actual - expected) > maxDriftSeconds;
+}
+
 /** Pure grouping rule: order by capture time, not queue arrival time. */
 export function groupDetections(
   detections: PlayDetectionRow[],
-  { confidenceFloor = DEFAULT_PLAY_CONFIDENCE_FLOOR, gapSeconds = DEFAULT_PLAY_GAP_SECONDS } = {}
+  options: { confidenceFloor?: number; gapSeconds?: number } = {}
 ): AggregatedPlay[] {
-  const plays: AggregatedPlay[] = [];
-  for (const detection of detections) {
-    const at = timestamp(detection);
-    if (!detection.track_id || !detection.friend_id || detection.confidence == null || detection.confidence < confidenceFloor || at == null) continue;
-    const current = plays.at(-1);
-    const currentAt = current ? timestamp(current.last) : null;
-    if (current && current.first.track_id === detection.track_id && current.first.friend_id === detection.friend_id && currentAt != null && at - currentAt <= gapSeconds * 1000) {
-      current.last = detection;
-      current.confidence = Math.max(current.confidence, detection.confidence);
-    } else {
-      plays.push({ first: detection, last: detection, confidence: detection.confidence });
-    }
-  }
-  return plays;
+  return groupWindows(
+    detections,
+    (d) => ({ at: timestamp(d), track_id: d.track_id, friend_id: d.friend_id, confidence: d.confidence }),
+    options
+  ).map(({ first, last, confidence }) => ({ first, last, confidence }));
 }
 
 /** Turns confidently matched windows into one automatic spin per contiguous play. */

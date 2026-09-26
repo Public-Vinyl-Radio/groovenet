@@ -19,6 +19,7 @@ services:
       ESSENTIA_API_URL: http://essentia:8001/analyze
       ESSENTIA_DATA_DIR: /app/essentia-data
       AUDIO_INGEST_DIR: /app/audio-ingest
+      SET_RECORDINGS_DIR: /app/set-recordings
       WORKTREE_HOST: ${WORKTREE_HOST:-}
       ENABLE_DEVELOPER_TOOLS: ${ENABLE_DEVELOPER_TOOLS:-false}
       STORYBOOK_URL: ${STORYBOOK_URL:-}
@@ -39,6 +40,9 @@ services:
       - album_covers:/app/public/uploads/album-covers
       - essentia_data:/app/essentia-data
       - audio_ingest:/app/audio-ingest
+      # Set recordings the CLI uploads (#282). Read-write here; the set worker
+      # mounts the same store read-only.
+      - ${SET_RECORDINGS_MOUNT:-set_recordings:/app/set-recordings}
 
   migrate:
     build:
