@@ -9,18 +9,24 @@ neither path can drift from the other.
 
 Nothing above this module knows which engine is in use.
 """
+from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
-from .audio import NormalizedAudio
-from .chromaprint_engine import fingerprint_pcm
+from .audio import BYTES_PER_SAMPLE, NormalizedAudio
+from .chromaprint_engine import (
+    SECONDS_PER_VALUE,
+    RawFingerprint,
+    fingerprint_pcm,
+    fingerprint_stream,
+)
 from .config import (
     FINGERPRINT_VERSION,
     MAX_BIT_ERROR_RATE,
     MIN_FINGERPRINT_VARIETY,
     logger,
 )
-from .reference_index import ReferenceIndex
-from .types import MatchCandidate
+from .reference_index import MIN_OVERLAP_VALUES, ReferenceIndex
+from .types import MatchCandidate, WindowMatch
 
 
 @runtime_checkable
@@ -53,6 +59,41 @@ class FingerprintMatcher(Protocol):
     def match(self, audio: NormalizedAudio) -> list[MatchCandidate]:
         """Zero or one candidate for this window. Empty means no match."""
         ...
+
+    def match_recording(
+        self,
+        pcm_chunks: Iterable[bytes],
+        sample_rate: int,
+        *,
+        window_seconds: float,
+        step_seconds: float,
+    ) -> list[WindowMatch]:
+        """Every window of a whole recording, matched (#282).
+
+        Why this is not `match` in a loop: an engine can analyse the recording
+        once and cut windows from the result, rather than decoding and
+        fingerprinting each window from scratch — #271 measured 10 s against
+        ~13 minutes for a three-hour set. How it cuts them is the engine's
+        business; the windows it returns are the contract.
+        """
+        ...
+
+
+def window_spans(
+    total: int, window: int, step: int, minimum: int
+) -> list[tuple[int, int]]:
+    """`(start, end)` spans over `total` units, keeping a short tail.
+
+    A trailing window shorter than `window` is kept as long as it has at least
+    `minimum` units — the end of a set is as much a part of it as the middle.
+    """
+    spans = []
+    for start in range(0, total, step):
+        end = min(start + window, total)
+        if end - start < minimum:
+            break
+        spans.append((start, end))
+    return spans
 
 
 class StubMatcher:
@@ -96,6 +137,27 @@ class StubMatcher:
             len(self._candidates),
         )
         return list(self._candidates)
+
+    def match_recording(
+        self,
+        pcm_chunks: Iterable[bytes],
+        sample_rate: int,
+        *,
+        window_seconds: float,
+        step_seconds: float,
+    ) -> list[WindowMatch]:
+        """Cut windows by time and give each the stub's fixed answer."""
+        samples = sum(len(chunk) for chunk in pcm_chunks) // BYTES_PER_SAMPLE
+        window = round(window_seconds * sample_rate)
+        step = round(step_seconds * sample_rate)
+        return [
+            {
+                "start_seconds": round(start / sample_rate, 2),
+                "duration_seconds": round((end - start) / sample_rate, 2),
+                "candidates": list(self._candidates),
+            }
+            for start, end in window_spans(samples, window, step, minimum=1)
+        ]
 
 
 class ChromaprintMatcher:
@@ -153,14 +215,77 @@ class ChromaprintMatcher:
             logger.warning("Reference index is empty; nothing can match")
             return []
 
-        query = fingerprint_pcm(audio.pcm, audio.sample_rate)
-        if not query.values:
+        candidates = self._search(fingerprint_pcm(audio.pcm, audio.sample_rate))
+        if candidates:
+            logger.info(
+                "Matched track %s at %.1fs (confidence %.3f)",
+                candidates[0]["track_id"],
+                candidates[0]["offset_seconds"],
+                candidates[0]["confidence"],
+            )
+        else:
+            logger.info(
+                "No match for %.2fs window against %d track(s)",
+                audio.duration_seconds,
+                len(self.reference_index),
+            )
+        return candidates
+
+    def match_recording(
+        self,
+        pcm_chunks: Iterable[bytes],
+        sample_rate: int,
+        *,
+        window_seconds: float,
+        step_seconds: float,
+    ) -> list[WindowMatch]:
+        """Fingerprint the whole recording once, then search a slice per window.
+
+        Slicing the fingerprint rather than the audio also avoids Chromaprint's
+        lead-in on every window: a freshly fingerprinted 15 s window loses its
+        first ~2.6 s, a slice loses nothing. Times are value index x
+        SECONDS_PER_VALUE, the same clock `offset_seconds` uses.
+        """
+        if len(self.reference_index) == 0:
+            # Say so loudly: a derivation against no index is all-unidentified,
+            # which would read as a set of records outside the library.
+            logger.warning("Reference index is empty; every window will be unidentified")
+
+        recording = fingerprint_stream(pcm_chunks, sample_rate)
+        window = max(1, round(window_seconds / SECONDS_PER_VALUE))
+        step = max(1, round(step_seconds / SECONDS_PER_VALUE))
+
+        windows: list[WindowMatch] = []
+        for start, end in window_spans(
+            len(recording.values), window, step, minimum=MIN_OVERLAP_VALUES
+        ):
+            windows.append(
+                {
+                    "start_seconds": round(start * SECONDS_PER_VALUE, 2),
+                    "duration_seconds": round((end - start) * SECONDS_PER_VALUE, 2),
+                    "candidates": self._search(
+                        RawFingerprint(recording.values[start:end])
+                    ),
+                }
+            )
+
+        logger.info(
+            "Matched %d of %d window(s) across %.0fs of recording",
+            sum(1 for w in windows if w["candidates"]),
+            len(windows),
+            recording.duration_seconds,
+        )
+        return windows
+
+    def _search(self, query: RawFingerprint) -> list[MatchCandidate]:
+        """One fingerprinted window against the index, through the silence gate."""
+        if not query.values or len(self.reference_index) == 0:
             return []
 
         if query.variety < self.min_variety:
             # Not a BER problem: two silences fingerprint identically, so
             # nothing downstream can tell this apart from a real match.
-            logger.info(
+            logger.debug(
                 "Window has too little variety (%.3f < %.2f) to search — "
                 "likely silence or surface noise",
                 query.variety,
@@ -172,21 +297,9 @@ class ChromaprintMatcher:
             query, max_bit_error_rate=self.max_bit_error_rate
         )
         if not matches:
-            logger.info(
-                "No match for %.2fs window against %d track(s)",
-                audio.duration_seconds,
-                len(self.reference_index),
-            )
             return []
 
         best = matches[0]
-        logger.info(
-            "Matched track %s at %.1fs (BER %.3f over %d values)",
-            best.track.track_id,
-            best.offset_seconds,
-            best.bit_error_rate,
-            best.overlap_values,
-        )
         return [
             {
                 "track_id": best.track.track_id,

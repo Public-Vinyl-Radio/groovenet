@@ -169,3 +169,29 @@ def job():
         return base
 
     return _make
+
+
+@pytest.fixture
+def set_dir(tmp_path, monkeypatch):
+    """Point the set recordings volume at a temp directory (#282).
+
+    `sets` captures SET_RECORDINGS_DIR at import, like the other volumes.
+    """
+    directory = tmp_path / "set-recordings"
+    directory.mkdir()
+    monkeypatch.setattr("fingerprint_service.sets.SET_RECORDINGS_DIR", str(directory))
+    return directory
+
+
+@pytest.fixture
+def set_job():
+    """Factory for a well-formed `fingerprint_set_queue` payload."""
+    def _make(**overrides):
+        base = {
+            "derivation_id": "33333333-3333-3333-3333-333333333333",
+            "file_path": "set.wav",
+        }
+        base.update(overrides)
+        return base
+
+    return _make

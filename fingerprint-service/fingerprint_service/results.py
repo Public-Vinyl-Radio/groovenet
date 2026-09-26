@@ -9,7 +9,15 @@ import requests
 
 from .config import APP_URL, RESULT_TIMEOUT, logger
 from .matcher import FingerprintMatcher
-from .types import FingerprintUpsert, IngestJob, IngestResult, MatchCandidate
+from .types import (
+    FingerprintUpsert,
+    IngestJob,
+    IngestResult,
+    MatchCandidate,
+    SetJob,
+    SetResult,
+    WindowMatch,
+)
 
 STATUS_PROCESSED = "processed"
 STATUS_FAILED = "failed"
@@ -113,6 +121,96 @@ def try_claim_ingest(ingest_id: str) -> bool:
     if not response.ok:
         logger.warning(
             "Claim for ingest %s returned %s", ingest_id, response.status_code
+        )
+        return False
+    return True
+
+
+def set_result_url(derivation_id: str) -> str:
+    return f"{APP_URL.rstrip('/')}/api/set-derivations/{derivation_id}/result"
+
+
+def set_claim_url(derivation_id: str) -> str:
+    return f"{APP_URL.rstrip('/')}/api/set-derivations/{derivation_id}/claim"
+
+
+def build_set_result(
+    job: SetJob,
+    matcher: FingerprintMatcher,
+    *,
+    window_seconds: float,
+    step_seconds: float,
+    windows: list[WindowMatch] | None = None,
+    duration_seconds: float | None = None,
+    sample_rate: int | None = None,
+    error: str | None = None,
+) -> SetResult:
+    """Assemble the callback body for one set derivation (#282).
+
+    Same rule as a chunk: an `error` makes it failed, and a recording where
+    nothing matched is still processed — every window unidentified is an
+    answer, usually "these records are not in the library".
+    """
+    return {
+        "derivation_id": str(job.get("derivation_id", "")),
+        "status": STATUS_FAILED if error else STATUS_PROCESSED,
+        "error": error,
+        "fingerprint_type": matcher.fingerprint_type,
+        "fingerprint_version": matcher.fingerprint_version,
+        "sample_rate": sample_rate,
+        "duration_seconds": duration_seconds,
+        "window_seconds": window_seconds,
+        "step_seconds": step_seconds,
+        "windows": list(windows or []),
+    }
+
+
+def report_set_result(result: SetResult) -> None:
+    """POST one set result, raising on anything the app did not accept."""
+    url = set_result_url(result["derivation_id"])
+    try:
+        response = requests.post(url, json=result, timeout=RESULT_TIMEOUT)
+    except requests.RequestException as e:
+        raise ResultReportError(f"Could not reach {url}: {e}") from e
+
+    if not response.ok:
+        raise ResultReportError(
+            f"{url} returned {response.status_code}: {response.text[:500]}"
+        )
+
+    logger.info(
+        "Reported set %s as %s with %d window(s)",
+        result["derivation_id"],
+        result["status"],
+        len(result["windows"]),
+    )
+
+
+def try_report_set_result(result: SetResult) -> bool:
+    """Report a set result, logging rather than raising if the app is down.
+
+    A lost result costs a re-run, not data: the recording is still on its
+    volume, and derivation is deterministic.
+    """
+    try:
+        report_set_result(result)
+        return True
+    except ResultReportError as e:
+        logger.error("Failed to report set %s: %s", result["derivation_id"], e)
+        return False
+
+
+def try_claim_set(derivation_id: str) -> bool:
+    """Tell the app this derivation has been picked up. Best-effort, like ingest."""
+    try:
+        response = requests.post(set_claim_url(derivation_id), timeout=RESULT_TIMEOUT)
+    except requests.RequestException as e:
+        logger.warning("Could not claim set %s: %s", derivation_id, e)
+        return False
+
+    if not response.ok:
+        logger.warning(
+            "Claim for set %s returned %s", derivation_id, response.status_code
         )
         return False
     return True

@@ -5,14 +5,20 @@ from fingerprint_service.matcher import StubMatcher
 from fingerprint_service.results import (
     ResultReportError,
     build_result,
+    build_set_result,
     claim_url,
     fingerprint_url,
     persist_fingerprint,
     report_result,
+    report_set_result,
     result_url,
+    set_claim_url,
+    set_result_url,
     try_claim_ingest,
+    try_claim_set,
     try_persist_fingerprint,
     try_report_result,
+    try_report_set_result,
 )
 
 
@@ -231,3 +237,66 @@ class TestClaimIngest:
 
         monkeypatch.setattr(results.requests, "post", refuse)
         assert try_claim_ingest("abc") is False
+
+
+class TestSetResults:
+    """The set derivation callback (#282)."""
+
+    def test_urls_address_the_derivation(self, monkeypatch):
+        monkeypatch.setattr(results, "APP_URL", "http://app:3000/")
+        assert set_result_url("d1") == "http://app:3000/api/set-derivations/d1/result"
+        assert set_claim_url("d1") == "http://app:3000/api/set-derivations/d1/claim"
+
+    def test_a_result_with_windows_is_processed(self, set_job, matcher):
+        window = {"start_seconds": 0.0, "duration_seconds": 15.0, "candidates": []}
+        result = build_set_result(
+            set_job(), matcher, window_seconds=15.0, step_seconds=15.0,
+            windows=[window], duration_seconds=15.0, sample_rate=22050,
+        )
+        assert result["status"] == "processed"
+        assert result["error"] is None
+        assert result["windows"] == [window]
+        assert result["fingerprint_type"] == "stub"
+
+    def test_an_error_makes_it_failed(self, set_job, matcher):
+        result = build_set_result(set_job(), matcher, window_seconds=15.0, step_seconds=15.0, error="boom")
+        assert result["status"] == "failed"
+        assert result["windows"] == []
+
+    def test_reports_to_the_derivation(self, set_job, matcher, posted):
+        result = build_set_result(set_job(), matcher, window_seconds=15.0, step_seconds=15.0)
+        report_set_result(result)
+        assert posted[0]["url"].endswith(f"/api/set-derivations/{result['derivation_id']}/result")
+        assert posted[0]["json"] == result
+
+    def test_a_rejected_report_raises(self, set_job, matcher, monkeypatch):
+        monkeypatch.setattr(results.requests, "post", lambda *a, **k: FakeResponse(422, "bad"))
+        result = build_set_result(set_job(), matcher, window_seconds=15.0, step_seconds=15.0)
+        with pytest.raises(ResultReportError, match="422"):
+            report_set_result(result)
+        assert try_report_set_result(result) is False
+
+    def test_an_unreachable_app_raises(self, set_job, matcher, monkeypatch):
+        def down(*a, **k):
+            raise requests.ConnectionError("refused")
+
+        monkeypatch.setattr(results.requests, "post", down)
+        result = build_set_result(set_job(), matcher, window_seconds=15.0, step_seconds=15.0)
+        with pytest.raises(ResultReportError, match="Could not reach"):
+            report_set_result(result)
+
+    def test_try_report_succeeds_quietly(self, set_job, matcher, posted):
+        result = build_set_result(set_job(), matcher, window_seconds=15.0, step_seconds=15.0)
+        assert try_report_set_result(result) is True
+
+    def test_claim_is_best_effort(self, monkeypatch, posted):
+        assert try_claim_set("d1") is True
+
+        monkeypatch.setattr(results.requests, "post", lambda *a, **k: FakeResponse(404))
+        assert try_claim_set("d1") is False
+
+        def down(*a, **k):
+            raise requests.ConnectionError("refused")
+
+        monkeypatch.setattr(results.requests, "post", down)
+        assert try_claim_set("d1") is False

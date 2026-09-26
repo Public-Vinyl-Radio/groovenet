@@ -5,7 +5,9 @@ from fingerprint_service.chromaprint_engine import RawFingerprint, fingerprint_p
 from fingerprint_service.matcher import (
     ChromaprintMatcher,
     FingerprintMatcher,
+    StubMatcher,
     build_matcher,
+    window_spans,
 )
 from fingerprint_service.reference_index import ReferenceIndex, TrackRef
 
@@ -248,3 +250,105 @@ class TestSilenceRefusal:
         matcher.min_variety = 0.0
 
         assert matcher.match(silent_window()) != []
+
+
+def chunked(pcm: bytes, size: int = 8192) -> list[bytes]:
+    return [pcm[i : i + size] for i in range(0, len(pcm), size)]
+
+
+class TestWindowSpans:
+    def test_back_to_back_windows(self):
+        assert window_spans(30, 10, 10, minimum=1) == [(0, 10), (10, 20), (20, 30)]
+
+    def test_keeps_a_tail_long_enough_to_search(self):
+        assert window_spans(25, 10, 10, minimum=5) == [(0, 10), (10, 20), (20, 25)]
+
+    def test_drops_a_tail_too_short_to_search(self):
+        assert window_spans(24, 10, 10, minimum=5) == [(0, 10), (10, 20)]
+
+    def test_overlapping_windows(self):
+        assert window_spans(20, 10, 5, minimum=10) == [(0, 10), (5, 15), (10, 20)]
+
+    def test_nothing_to_cut(self):
+        assert window_spans(0, 10, 10, minimum=1) == []
+
+
+class TestMatchRecording:
+    """Fingerprint once, slice many (#282)."""
+
+    def index_of(self, tone_pcm, seeds):
+        index = ReferenceIndex()
+        for seed in seeds:
+            index.add(TrackRef(f"seed-{seed}", 1), fingerprint_pcm(tone_pcm(40.0, seed=seed), 22050))
+        return index
+
+    def test_names_each_record_in_turn(self, tone_pcm):
+        index = self.index_of(tone_pcm, (1.0, 2.3))
+        recording = tone_pcm(40.0, seed=1.0) + tone_pcm(40.0, seed=2.3)
+
+        windows = ChromaprintMatcher(index=index).match_recording(
+            chunked(recording), 22050, window_seconds=15, step_seconds=15
+        )
+
+        named = [w["candidates"][0]["track_id"] if w["candidates"] else None for w in windows]
+        assert named[:2] == ["seed-1.0", "seed-1.0"]
+        assert named[-1] == "seed-2.3"
+
+    def test_windows_carry_their_place_in_the_recording(self, tone_pcm):
+        windows = ChromaprintMatcher(index=self.index_of(tone_pcm, (1.0,))).match_recording(
+            chunked(tone_pcm(40.0, seed=1.0)), 22050, window_seconds=15, step_seconds=15
+        )
+
+        assert [w["start_seconds"] for w in windows] == pytest.approx([0.0, 15.0, 30.0], abs=0.1)
+        assert windows[0]["duration_seconds"] == pytest.approx(15.0, abs=0.1)
+        assert windows[-1]["duration_seconds"] < 15.0
+
+    def test_the_offset_advances_with_the_recording(self, tone_pcm):
+        """The corroboration #282 leans on: wall clock and track clock agree."""
+        windows = ChromaprintMatcher(index=self.index_of(tone_pcm, (1.0,))).match_recording(
+            chunked(tone_pcm(40.0, seed=1.0)), 22050, window_seconds=10, step_seconds=10
+        )
+
+        offsets = [w["candidates"][0]["offset_seconds"] for w in windows if w["candidates"]]
+        starts = [w["start_seconds"] for w in windows if w["candidates"]]
+        assert offsets == pytest.approx(starts, abs=0.5)
+
+    def test_unknown_audio_is_kept_as_unidentified_windows(self, tone_pcm):
+        windows = ChromaprintMatcher(index=self.index_of(tone_pcm, (1.0,))).match_recording(
+            chunked(tone_pcm(30.0, seed=9.1)), 22050, window_seconds=15, step_seconds=15
+        )
+
+        assert len(windows) == 2
+        assert all(w["candidates"] == [] for w in windows)
+
+    def test_an_empty_index_warns_and_matches_nothing(self, tone_pcm, caplog):
+        windows = ChromaprintMatcher().match_recording(
+            chunked(tone_pcm(20.0)), 22050, window_seconds=15, step_seconds=15
+        )
+
+        assert windows and all(w["candidates"] == [] for w in windows)
+        assert "every window will be unidentified" in caplog.text
+
+    def test_silence_is_refused_per_window(self, tone_pcm):
+        index = self.index_of(tone_pcm, (1.0,))
+        recording = tone_pcm(20.0, seed=1.0) + b"\x00\x00" * 22050 * 20
+
+        windows = ChromaprintMatcher(index=index).match_recording(
+            chunked(recording), 22050, window_seconds=10, step_seconds=10
+        )
+
+        assert windows[0]["candidates"]
+        assert windows[-1]["candidates"] == []
+
+
+class TestStubMatchRecording:
+    def test_cuts_windows_by_time(self):
+        candidate = {"track_id": "t1", "friend_id": 1, "confidence": 0.9, "offset_seconds": 0.0}
+        pcm = b"\x00\x00" * 22050 * 20
+
+        windows = StubMatcher(candidates=[candidate]).match_recording(
+            chunked(pcm), 22050, window_seconds=15, step_seconds=15
+        )
+
+        assert [(w["start_seconds"], w["duration_seconds"]) for w in windows] == [(0.0, 15.0), (15.0, 5.0)]
+        assert windows[0]["candidates"] == [candidate]

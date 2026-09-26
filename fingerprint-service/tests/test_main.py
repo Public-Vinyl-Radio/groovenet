@@ -344,13 +344,13 @@ class TestSetOnlyWorker:
         assert fake_redis.llen(service_main.QUEUE_KEY) == 1
         assert fake_redis.llen(service_main.INDEX_QUEUE_KEY) == 1
 
-    def test_takes_a_set_job(self, fake_redis, matcher, caplog):
-        fake_redis.rpush(service_main.SET_QUEUE_KEY, json.dumps({"set": 1}))
+    def test_takes_a_set_job(self, fake_redis, matcher, set_job, set_dir, set_reported):
+        fake_redis.rpush(service_main.SET_QUEUE_KEY, json.dumps(set_job()))
 
         run_once(matcher)
 
         assert fake_redis.llen(service_main.SET_QUEUE_KEY) == 0
-        assert "not implemented yet" in caplog.text
+        assert len(set_reported) == 1
 
     def test_does_not_advertise_an_engine(self, fake_redis, matcher):
         # The app reads the engine key to decide indexing can run; a worker
@@ -764,3 +764,73 @@ class TestMain:
         monkeypatch.setattr(service_main, "MATCHER_NAME", "panako")
         with pytest.raises(ValueError, match="unknown matcher"):
             service_main.main()
+
+
+@pytest.fixture
+def set_reported(monkeypatch):
+    """Capture set results and claims instead of posting them."""
+    sent = []
+    monkeypatch.setattr(
+        service_main, "try_report_set_result", lambda result: sent.append(result) or True
+    )
+    monkeypatch.setattr(service_main, "try_claim_set", lambda derivation_id: True)
+    return sent
+
+
+class TestProcessSetJob:
+    """A set payload end to end (#282)."""
+
+    def test_reports_the_derivation(self, set_job, set_dir, matcher, set_reported, monkeypatch):
+        monkeypatch.setattr(
+            "fingerprint_service.sets.stream_pcm",
+            lambda *a, **k: iter([b"\x00\x00" * 22050 * 20]),
+        )
+
+        result = service_main.process_set_job(json.dumps(set_job()), matcher)
+
+        assert result["status"] == "processed"
+        assert len(result["windows"]) == 2
+        assert set_reported == [result]
+
+    def test_claims_before_the_work(self, set_job, set_dir, matcher, set_reported, monkeypatch):
+        order = []
+        monkeypatch.setattr(service_main, "try_claim_set", lambda d: order.append("claim"))
+        monkeypatch.setattr(service_main, "derive", lambda job, m: order.append("derive") or {"derivation_id": "d"})
+
+        service_main.process_set_job(json.dumps(set_job()), matcher)
+
+        assert order == ["claim", "derive"]
+
+    def test_bad_json_is_logged_not_reported(self, matcher, set_reported, caplog):
+        assert service_main.process_set_job("{not json", matcher) is None
+        assert set_reported == []
+        assert "Failed to parse set job JSON" in caplog.text
+
+    def test_a_payload_naming_no_derivation_is_logged_not_reported(self, matcher, set_reported):
+        assert service_main.process_set_job(json.dumps({"file_path": "x"}), matcher) is None
+        assert set_reported == []
+
+    def test_a_path_outside_the_volume_is_a_reported_rejection(self, set_job, set_dir, matcher, set_reported):
+        result = service_main.process_set_job(json.dumps(set_job(file_path="../../etc/passwd")), matcher)
+
+        assert result["status"] == "failed"
+        assert "outside" in result["error"]
+        assert set_reported == [result]
+
+    def test_bad_window_settings_are_a_reported_rejection(self, set_job, set_dir, matcher, set_reported):
+        result = service_main.process_set_job(json.dumps(set_job(step_seconds=0)), matcher)
+
+        assert result["status"] == "failed"
+        assert (result["window_seconds"], result["step_seconds"]) == (0.0, 0.0)
+
+    def test_a_crash_is_a_reported_failure(self, set_job, set_dir, matcher, set_reported, monkeypatch):
+        def explode(job, m):
+            raise RuntimeError("index exploded")
+
+        monkeypatch.setattr(service_main, "derive", explode)
+
+        result = service_main.process_set_job(json.dumps(set_job()), matcher)
+
+        assert result["status"] == "failed"
+        assert result["error"] == "index exploded"
+        assert (result["window_seconds"], result["step_seconds"]) == (15.0, 15.0)

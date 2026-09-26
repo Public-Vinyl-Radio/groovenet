@@ -85,6 +85,14 @@ with a `local_audio_url` and queues one job per track on `fingerprint_index_queu
 still matches, and otherwise fingerprints it and persists the result through the
 app's REST API. Idempotent by design — a second run does no work.
 
+**Set derivation** — the offline sibling of play tracking, for a whole recorded
+set (#282). A job on `fingerprint_set_queue` names a file on the
+`set_recordings` volume; `fingerprint-set-worker`, a second process of the same
+image, streams it through ffmpeg into Chromaprint, matches every 15 s window
+against the same index and posts the per-window matches back. The app groups
+them into plays and diffs against the planned playlist. A separate worker so a
+multi-minute decode never delays a live window.
+
 ## Working on this repo
 
 `just --list` is the command surface; prefer it over raw `docker compose`.

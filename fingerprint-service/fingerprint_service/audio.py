@@ -9,9 +9,18 @@ clean up.
 import os
 import shlex
 import subprocess
+import tempfile
+import threading
+from collections.abc import Iterator
 from dataclasses import dataclass
 
-from .config import FFMPEG_TIMEOUT, SAMPLE_RATE, SUPPORTED_SAMPLE_RATES, logger
+from .config import (
+    FFMPEG_TIMEOUT,
+    PCM_CHUNK_BYTES,
+    SAMPLE_RATE,
+    SUPPORTED_SAMPLE_RATES,
+    logger,
+)
 
 #: 16-bit samples.
 BYTES_PER_SAMPLE = 2
@@ -75,25 +84,7 @@ def decode_to_pcm(
     that is what a half-written file looks like, and handing one to the matcher
     would produce a confident answer about the wrong few seconds.
     """
-    if sample_rate not in SUPPORTED_SAMPLE_RATES:
-        raise AudioDecodeError(
-            f"sample rate {sample_rate} is not one of {SUPPORTED_SAMPLE_RATES}"
-        )
-    if not os.path.isfile(file_path):
-        raise AudioDecodeError(f"no such file: {file_path}")
-
-    cmd = [
-        "ffmpeg",
-        "-nostdin",
-        "-v", "error",
-        "-i", file_path,
-        "-vn",                       # cover art in a FLAC is a video stream
-        "-map", "0:a:0",             # first audio stream only
-        "-ac", "1",
-        "-ar", str(sample_rate),
-        "-f", "s16le",
-        "-",
-    ]
+    cmd = _decode_command(file_path, sample_rate)
     result = _run_ffmpeg(cmd, timeout)
 
     stderr = result.stderr.decode("utf-8", errors="replace").strip()
@@ -115,6 +106,101 @@ def decode_to_pcm(
         sample_rate,
     )
     return audio
+
+
+def stream_pcm(
+    file_path: str,
+    sample_rate: int = SAMPLE_RATE,
+    *,
+    timeout: int,
+    chunk_bytes: int = PCM_CHUNK_BYTES,
+) -> Iterator[bytes]:
+    """Decode like `decode_to_pcm`, but yield the samples as they arrive (#282).
+
+    For a whole set recording: three hours is ~490 MB of PCM, and nothing
+    downstream needs it all at once. Failures surface from the iterator — a
+    decode that dies halfway raises after the chunks it did produce, so the
+    consumer must treat the stream as all-or-nothing.
+
+    stderr goes to a temp file rather than a pipe: nobody reads it until the
+    end, and a full pipe would block ffmpeg mid-decode. The timeout is a timer
+    that kills the process, because a read blocked on a hung ffmpeg would
+    otherwise never return to check a clock.
+    """
+    cmd = _decode_command(file_path, sample_rate)
+    logger.info("Streaming command: %s", " ".join(shlex.quote(part) for part in cmd))
+
+    with tempfile.TemporaryFile() as stderr_file:
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=stderr_file,
+            )
+        except FileNotFoundError as e:
+            raise AudioDecodeError("ffmpeg is not installed in this image") from e
+
+        timed_out = threading.Event()
+
+        def expire() -> None:
+            timed_out.set()
+            process.kill()
+
+        timer = threading.Timer(timeout, expire)
+        timer.start()
+        produced = 0
+        try:
+            while chunk := process.stdout.read(chunk_bytes):
+                produced += len(chunk)
+                yield chunk
+            returncode = process.wait()
+        finally:
+            timer.cancel()
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            process.stdout.close()
+
+        stderr_file.seek(0)
+        stderr = stderr_file.read().decode("utf-8", errors="replace").strip()
+
+    if timed_out.is_set():
+        raise AudioDecodeError(f"ffmpeg timed out after {timeout}s")
+    if returncode != 0:
+        raise AudioDecodeError(f"ffmpeg exited {returncode}: {stderr or 'no output'}")
+    if stderr:
+        logger.warning("ffmpeg reported while decoding %s: %s", file_path, stderr)
+    if produced == 0:
+        raise AudioDecodeError(f"decoded no audio from {file_path}")
+    logger.info(
+        "Streamed %s as %.2fs of mono PCM at %d Hz",
+        file_path,
+        produced / BYTES_PER_SAMPLE / sample_rate,
+        sample_rate,
+    )
+
+
+def _decode_command(file_path: str, sample_rate: int) -> list[str]:
+    """The one ffmpeg invocation both decoders share, after checking inputs."""
+    if sample_rate not in SUPPORTED_SAMPLE_RATES:
+        raise AudioDecodeError(
+            f"sample rate {sample_rate} is not one of {SUPPORTED_SAMPLE_RATES}"
+        )
+    if not os.path.isfile(file_path):
+        raise AudioDecodeError(f"no such file: {file_path}")
+    return [
+        "ffmpeg",
+        "-nostdin",
+        "-v", "error",
+        "-i", file_path,
+        "-vn",                       # cover art in a FLAC is a video stream
+        "-map", "0:a:0",             # first audio stream only
+        "-ac", "1",
+        "-ar", str(sample_rate),
+        "-f", "s16le",
+        "-",
+    ]
 
 
 def _check_duration(

@@ -147,6 +147,10 @@ services:
     environment:
       FINGERPRINT_QUEUES: fingerprint_set_queue
       FINGERPRINT_HEARTBEAT_KEY: fingerprint:heartbeat:set
+    volumes:
+      # Whole set recordings, read-only. Not the ingest volume: the app sweeps
+      # anything there without an `audio_ingests` row. A host path works too.
+      - ${SET_RECORDINGS_MOUNT:-set_recordings:/app/set-recordings}:ro
 
 volumes:
   db_data:
@@ -158,3 +162,4 @@ volumes:
   album_covers:
   essentia_data:
   audio_ingest:
+  set_recordings:

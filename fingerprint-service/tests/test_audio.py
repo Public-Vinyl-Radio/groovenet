@@ -1,10 +1,16 @@
 import shutil
 import struct
 import subprocess
+import threading
 
 import pytest
 from fingerprint_service import audio
-from fingerprint_service.audio import AudioDecodeError, NormalizedAudio, decode_to_pcm
+from fingerprint_service.audio import (
+    AudioDecodeError,
+    NormalizedAudio,
+    decode_to_pcm,
+    stream_pcm,
+)
 
 needs_ffmpeg = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
 
@@ -138,3 +144,133 @@ class TestAgainstRealFfmpeg:
         path.write_bytes(b"this is not a RIFF header")
         with pytest.raises(AudioDecodeError):
             decode_to_pcm(str(path))
+
+
+class FakeProcess:
+    """Stands in for an ffmpeg Popen: serves `chunks`, then optionally hangs."""
+
+    def __init__(self, chunks=(), returncode=0, stderr=b"", hang=False, stderr_file=None):
+        self._chunks = list(chunks)
+        self.returncode_on_exit = returncode
+        self._stderr = stderr
+        self._hang = hang
+        self._killed = threading.Event()
+        self._stderr_file = stderr_file
+        self.stdout = self
+        self._done = False
+
+    # stdout
+    def read(self, size):
+        if self._chunks:
+            return self._chunks.pop(0)
+        if self._hang:
+            self._killed.wait(5)
+        return b""
+
+    def close(self):
+        pass
+
+    # process
+    def poll(self):
+        return self.returncode_on_exit if self._done else None
+
+    def wait(self):
+        self._done = True
+        if self._stderr_file is not None and self._stderr:
+            self._stderr_file.write(self._stderr)
+            self._stderr = b""
+        return -9 if self._killed.is_set() else self.returncode_on_exit
+
+    def kill(self):
+        self._killed.set()
+
+
+@pytest.fixture
+def fake_popen(monkeypatch, tmp_path):
+    """Swap Popen for a FakeProcess; the test configures it through `make`."""
+    source = tmp_path / "set.wav"
+    source.write_bytes(b"RIFF")
+    holder = {}
+
+    def make(**kwargs):
+        def popen(cmd, stdin=None, stdout=None, stderr=None):
+            holder["process"] = FakeProcess(stderr_file=stderr, **kwargs)
+            return holder["process"]
+
+        monkeypatch.setattr(audio.subprocess, "Popen", popen)
+        return str(source)
+
+    return make
+
+
+class TestStreamPcm:
+    """Whole set recordings, decoded as a stream (#282)."""
+
+    def test_yields_the_decoded_samples(self, fake_popen):
+        path = fake_popen(chunks=[b"\x01\x00" * 4, b"\x02\x00" * 4])
+        assert b"".join(stream_pcm(path, timeout=5)) == b"\x01\x00" * 4 + b"\x02\x00" * 4
+
+    def test_a_non_zero_exit_fails_after_the_chunks(self, fake_popen):
+        path = fake_popen(chunks=[b"\x00\x00"], returncode=1, stderr=b"moov atom not found")
+        chunks = stream_pcm(path, timeout=5)
+        assert next(chunks) == b"\x00\x00"
+        with pytest.raises(AudioDecodeError, match="moov atom"):
+            next(chunks)
+
+    def test_a_hung_decode_is_killed_at_the_timeout(self, fake_popen):
+        path = fake_popen(chunks=[b"\x00\x00"], hang=True)
+        with pytest.raises(AudioDecodeError, match="timed out"):
+            list(stream_pcm(path, timeout=0.05))
+
+    def test_no_audio_at_all_is_a_failure(self, fake_popen):
+        path = fake_popen(chunks=[])
+        with pytest.raises(AudioDecodeError, match="decoded no audio"):
+            list(stream_pcm(path, timeout=5))
+
+    def test_recoverable_damage_is_logged_not_fatal(self, fake_popen, caplog):
+        path = fake_popen(chunks=[b"\x00\x00"], stderr=b"invalid frame size")
+        assert list(stream_pcm(path, timeout=5)) == [b"\x00\x00"]
+        assert "invalid frame size" in caplog.text
+
+    def test_missing_ffmpeg_is_a_decode_error(self, tmp_path, monkeypatch):
+        source = tmp_path / "set.wav"
+        source.write_bytes(b"RIFF")
+
+        def missing(*args, **kwargs):
+            raise FileNotFoundError("ffmpeg")
+
+        monkeypatch.setattr(audio.subprocess, "Popen", missing)
+        with pytest.raises(AudioDecodeError, match="not installed"):
+            list(stream_pcm(str(source), timeout=5))
+
+    def test_refuses_a_missing_file(self, tmp_path):
+        with pytest.raises(AudioDecodeError, match="no such file"):
+            list(stream_pcm(str(tmp_path / "nope.mp3"), timeout=5))
+
+    def test_refuses_an_unsupported_rate(self, tmp_path):
+        with pytest.raises(AudioDecodeError, match="sample rate"):
+            list(stream_pcm(str(tmp_path / "nope.mp3"), 48000, timeout=5))
+
+    def test_stopping_early_kills_the_decoder(self, fake_popen):
+        path = fake_popen(chunks=[b"\x00\x00", b"\x00\x00"], hang=True)
+        chunks = stream_pcm(path, timeout=5)
+        next(chunks)
+        chunks.close()  # must not hang waiting for the rest
+
+
+@needs_ffmpeg
+class TestStreamPcmAgainstRealFfmpeg:
+    def test_matches_the_whole_file_decode_byte_for_byte(self, wav_file):
+        path = wav_file(seconds=3.0, sample_rate=44100)
+        streamed = b"".join(stream_pcm(path, 22050, timeout=30, chunk_bytes=4096))
+        assert streamed == decode_to_pcm(path, 22050).pcm
+
+    def test_chunks_are_bounded(self, wav_file):
+        path = wav_file(seconds=3.0)
+        assert max(len(c) for c in stream_pcm(path, timeout=30, chunk_bytes=4096)) <= 4096
+
+    def test_rejects_a_file_that_is_not_audio(self, ingest_dir):
+        path = ingest_dir / "not-audio.wav"
+        path.write_bytes(b"this is not a RIFF header")
+        with pytest.raises(AudioDecodeError):
+            list(stream_pcm(str(path), timeout=30))
