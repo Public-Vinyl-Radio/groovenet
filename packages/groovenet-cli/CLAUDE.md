@@ -25,7 +25,7 @@ playlists           list | show | create | generate
 friends             list | add
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
-sets                derive | show
+sets                derive | review | show
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -188,3 +188,39 @@ replay — measured on a 253 MB recording at +234 MB of memory, against +78 MB
 without.
 
 Exit code is 1 if the derivation failed.
+
+### Review: correcting the playlist
+
+```bash
+groovenet sets review <id> --playlist 176            # or --live-set <id>
+groovenet sets review <id> --playlist 176 --dry-run  # show the result, write nothing
+groovenet sets derive set.mp3 --playlist 176 --review
+```
+
+Goes through each difference in play order and asks `y` / `n` (or Enter) /
+`q`: **⇄** replace the planned entry in its slot with what was played, **+**
+insert an unplanned play after the slot played before it (or at the start),
+**−** remove an entry never played — flagged when that track is not
+fingerprinted, since then it may have been played unrecognised. A track that
+came back in two stretches is one question, not two.
+
+`setsReview.ts` keeps the logic apart from the asking: `changesFrom(view)`
+lists the changes, `applyChanges(plan, view, accepted)` returns the corrected
+list, `runReview` asks and writes. The plan is rebuilt from the diff itself —
+every planned entry is in exactly one of its lists — so no second read is
+needed to compute the result.
+
+Two guards, both deliberate:
+
+- **Nothing is written without a final confirm**, after the full corrected
+  playlist is shown with changed lines starred.
+- **The playlist is read again just before writing**, and the write refused
+  if it differs from the plan the diff was computed against. A review must
+  never undo an edit made in the meantime; run it again instead.
+
+Writing uses `setPlaylistTracks` (`PATCH /api/playlists` with the ordered
+list). Bare `{track_id, friend_id}` references are safe there: the app only
+overwrites a track's metadata with values actually sent.
+
+Review is interactive only — it refuses without a TTY, and with `--json` or
+`--no-wait` on `derive`.
