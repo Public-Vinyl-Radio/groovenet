@@ -244,6 +244,20 @@ one track whose offset stops tracking the recording's clock (the record dropped
 back to the start, or played twice). Each play reports `rate` — track seconds
 per recording second, ~1.0 at pitch.
 
+Drift only splits once **`driftConfirmWindows` (4) consecutive windows agree on
+the new alignment**. Loop-based music matches a *repeat* of the same section
+now and then — one or two windows jump, then the play carries on — and the
+first cut of this split three tracks of #271's set into eleven plays. Two rules
+hold that line; `derivePlays on the #271 set` pins both against the real
+matcher output in `__tests__/fixtures/set-271-windows.json` (41 plays):
+
+- The reference is the play's **established** alignment, followed window by
+  window — not its first window.
+- **An offset of 0 says nothing about alignment.** It is where the matcher
+  clamps a window that began before the track did — a play's first window, a
+  restart's needle drop — so it neither sets the reference nor counts as drift,
+  and a confirmed restart takes those windows with it.
+
 **The diff**, against `playlist_id` or `live_set_id`:
 
 - *played as planned* — flagged `out_of_order` when outside the longest run
