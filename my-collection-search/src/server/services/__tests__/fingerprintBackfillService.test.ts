@@ -10,6 +10,8 @@ import {
   backfillTick,
   resetBackfillClock,
   startFingerprintBackfill,
+  verifyIntervalMinutes,
+  verifyTick,
 } from "../fingerprintBackfillService";
 
 const NOW = new Date("2026-09-22T00:00:00Z").getTime();
@@ -23,6 +25,60 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.FINGERPRINT_BACKFILL_INTERVAL_MINUTES;
+  delete process.env.FINGERPRINT_VERIFY_INTERVAL_MINUTES;
+});
+
+// ─── verify pass (#303) ───────────────────────────────────────────────────────
+
+describe("verifyTick()", () => {
+  // The missing pass never looks at a track that already has a fingerprint;
+  // this is what catches audio replaced behind an unchanged path.
+
+  it("re-checks every fingerprinted track: the changed scope", async () => {
+    await verifyTick(NOW);
+    expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" });
+  });
+
+  it("runs hourly by default, on its own clock", async () => {
+    await verifyTick(NOW);
+    await verifyTick(NOW + 59 * MINUTE);
+    expect(indexService.startRun).toHaveBeenCalledTimes(1);
+
+    // The missing pass keeping its own interval does not reset this one.
+    await backfillTick(NOW + 59 * MINUTE);
+    expect(indexService.startRun).toHaveBeenLastCalledWith({ kind: "missing" });
+
+    await verifyTick(NOW + 60 * MINUTE);
+    expect(indexService.startRun).toHaveBeenLastCalledWith({ kind: "changed" });
+  });
+
+  it("reads its interval from the environment", () => {
+    expect(verifyIntervalMinutes()).toBe(60);
+    process.env.FINGERPRINT_VERIFY_INTERVAL_MINUTES = "15";
+    expect(verifyIntervalMinutes()).toBe(15);
+    process.env.FINGERPRINT_VERIFY_INTERVAL_MINUTES = "0";
+    expect(verifyIntervalMinutes()).toBe(60);
+  });
+
+  it("says how many tracks it is verifying, and stays quiet when none", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    indexService.startRun.mockResolvedValueOnce({ run_id: "r1", queued: 3900 });
+    await verifyTick(NOW);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("verifying 3900"));
+
+    log.mockClear();
+    await verifyTick(NOW + 61 * MINUTE);
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("logs a failure rather than throwing, and tries again next interval", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    indexService.startRun.mockRejectedValueOnce(new Error("no engine registered"));
+    await expect(verifyTick(NOW)).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalledWith("[fingerprint-backfill] verify tick failed:", expect.any(Error));
+    error.mockRestore();
+  });
 });
 
 // ─── backfillIntervalMinutes ────────────────────────────────────────────────────
@@ -162,6 +218,9 @@ describe("startFingerprintBackfill()", () => {
     await vi.waitFor(() =>
       expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" })
     );
+    await vi.waitFor(() =>
+      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" })
+    );
   });
 
   it("hands the timer a callback that ticks again", async () => {
@@ -178,6 +237,9 @@ describe("startFingerprintBackfill()", () => {
 
     await vi.waitFor(() =>
       expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" })
+    );
+    await vi.waitFor(() =>
+      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" })
     );
   });
 });

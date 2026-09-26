@@ -7,18 +7,22 @@ get the most attention here.
 """
 import base64
 import hashlib
+import os
 import shutil
 
 import pytest
+from fingerprint_service import indexer
 from fingerprint_service.audio import AudioDecodeError, NormalizedAudio
 from fingerprint_service.indexer import (
     InvalidIndexJob,
     build_upsert,
+    file_stats,
     hash_file,
     index_track,
     needs_index,
     parse_index_job,
     resolve_audio_path,
+    unchanged_on_disk,
 )
 from fingerprint_service.matcher import StubMatcher
 
@@ -108,7 +112,7 @@ class TestNeedsIndex:
 
 class TestBuildUpsert:
     def test_base64_encodes_the_payload(self, index_job):
-        upsert = build_upsert(index_job(), b"\x00\x01\x02", "abc", 12.5)
+        upsert = build_upsert(index_job(), b"\x00\x01\x02", "abc", 12.5, 10, 20)
         assert upsert["fingerprint_data"] == base64.b64encode(b"\x00\x01\x02").decode()
         assert upsert["audio_sha256"] == "abc"
         assert upsert["audio_duration_seconds"] == 12.5
@@ -116,7 +120,7 @@ class TestBuildUpsert:
     def test_keeps_a_null_payload_null(self, index_job):
         # Distinct from b"" — the stub stores nothing, and the column is
         # nullable exactly so it can say so.
-        assert build_upsert(index_job(), None, "abc", 1.0)["fingerprint_data"] is None
+        assert build_upsert(index_job(), None, "abc", 1.0, 10, 20)["fingerprint_data"] is None
 
     def test_carries_the_engine_identity_through(self, index_job):
         upsert = build_upsert(
@@ -124,9 +128,43 @@ class TestBuildUpsert:
             b"fp",
             "abc",
             1.0,
+            10,
+            20,
         )
         assert upsert["fingerprint_type"] == "chromaprint"
         assert upsert["fingerprint_version"] == "2"
+
+    def test_carries_the_audio_size_and_mtime(self, index_job):
+        upsert = build_upsert(index_job(), b"fp", "abc", 1.0, 41_234_567, 1_790_000_000_123)
+        assert upsert["audio_size_bytes"] == 41_234_567
+        assert upsert["audio_mtime_ms"] == 1_790_000_000_123
+
+
+class TestFileStats:
+    """What lets a re-check skip the hash (#303)."""
+
+    def test_reads_size_and_whole_milliseconds(self, tmp_path):
+        path = tmp_path / "track.m4a"
+        path.write_bytes(b"x" * 1234)
+        os.utime(path, ns=(1_790_000_000_123_456_789, 1_790_000_000_123_456_789))
+        assert file_stats(str(path)) == (1234, 1_790_000_000_123)
+
+    @pytest.mark.parametrize(
+        "stored, expected",
+        [
+            ({"stored_audio_sha256": "abc", "stored_audio_size_bytes": 10, "stored_audio_mtime_ms": 20}, True),
+            ({"stored_audio_sha256": "abc", "stored_audio_size_bytes": 11, "stored_audio_mtime_ms": 20}, False),
+            ({"stored_audio_sha256": "abc", "stored_audio_size_bytes": 10, "stored_audio_mtime_ms": 21}, False),
+            # A row from before stats were recorded: hashed as always.
+            ({"stored_audio_sha256": "abc", "stored_audio_size_bytes": None, "stored_audio_mtime_ms": None}, False),
+            ({"stored_audio_sha256": "abc"}, False),
+            # Nothing stored means nothing to be unchanged from.
+            ({"stored_audio_sha256": None, "stored_audio_size_bytes": 10, "stored_audio_mtime_ms": 20}, False),
+            ({"stored_audio_sha256": "abc", "stored_audio_size_bytes": 10, "stored_audio_mtime_ms": 20, "force": True}, False),
+        ],
+    )
+    def test_unchanged_only_when_everything_stored_matches(self, index_job, stored, expected):
+        assert unchanged_on_disk(index_job(**stored), 10, 20) is expected
 
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
@@ -140,7 +178,7 @@ class TestIndexTrack:
         name = reference_wav()
         matcher = RecordingMatcher()
 
-        result, upsert = index_track(index_job(file_path=name), matcher)
+        result, upsert, _ = index_track(index_job(file_path=name), matcher)
 
         assert result["status"] == "indexed"
         assert result["error"] is None
@@ -154,8 +192,8 @@ class TestIndexTrack:
         name = reference_wav()
         matcher = RecordingMatcher()
 
-        first, upsert = index_track(index_job(file_path=name), matcher)
-        second, second_upsert = index_track(
+        first, upsert, _ = index_track(index_job(file_path=name), matcher)
+        second, second_upsert, _ = index_track(
             index_job(file_path=name, stored_audio_sha256=upsert["audio_sha256"]),
             matcher,
         )
@@ -170,11 +208,11 @@ class TestIndexTrack:
         """Changing a source audio file causes that track to be re-fingerprinted."""
         name = reference_wav(freq=440)
         matcher = RecordingMatcher()
-        _, upsert = index_track(index_job(file_path=name), matcher)
+        _, upsert, _ = index_track(index_job(file_path=name), matcher)
 
         # Same filename, different audio — a re-rip.
         reference_wav(name=name, freq=880)
-        result, second_upsert = index_track(
+        result, second_upsert, _ = index_track(
             index_job(file_path=name, stored_audio_sha256=upsert["audio_sha256"]),
             matcher,
         )
@@ -194,9 +232,9 @@ class TestIndexTrack:
         """
         name = reference_wav()
         matcher = RecordingMatcher()
-        _, v1 = index_track(index_job(file_path=name, fingerprint_version="1"), matcher)
+        _, v1, _ = index_track(index_job(file_path=name, fingerprint_version="1"), matcher)
 
-        result, v2 = index_track(
+        result, v2, _ = index_track(
             index_job(
                 file_path=name,
                 fingerprint_version="2",
@@ -215,9 +253,9 @@ class TestIndexTrack:
     def test_force_reindexes_an_unchanged_file(self, index_job, reference_wav):
         name = reference_wav()
         matcher = RecordingMatcher()
-        _, upsert = index_track(index_job(file_path=name), matcher)
+        _, upsert, _ = index_track(index_job(file_path=name), matcher)
 
-        result, _ = index_track(
+        result, _, _ = index_track(
             index_job(
                 file_path=name,
                 stored_audio_sha256=upsert["audio_sha256"],
@@ -231,14 +269,14 @@ class TestIndexTrack:
 
     def test_records_the_decoded_duration(self, index_job, reference_wav):
         name = reference_wav(seconds=2.0)
-        _, upsert = index_track(index_job(file_path=name), RecordingMatcher())
+        _, upsert, _ = index_track(index_job(file_path=name), RecordingMatcher())
         assert upsert["audio_duration_seconds"] == pytest.approx(2.0, abs=0.05)
 
     def test_a_corrupt_file_fails_without_raising(self, index_job, audio_dir):
         """A single corrupt file is reported and skipped without ending the run."""
         (audio_dir / "broken.m4a").write_bytes(b"this is not audio")
 
-        result, upsert = index_track(
+        result, upsert, _ = index_track(
             index_job(file_path="broken.m4a"), RecordingMatcher()
         )
 
@@ -254,7 +292,7 @@ class TestIndexTrackWithoutDecoding:
     """Failure paths that never reach ffmpeg, so they need none installed."""
 
     def test_a_missing_file_fails_that_track(self, index_job, audio_dir):
-        result, upsert = index_track(
+        result, upsert, _ = index_track(
             index_job(file_path="gone.m4a"), RecordingMatcher()
         )
 
@@ -270,7 +308,7 @@ class TestIndexTrackWithoutDecoding:
             lambda *a, **k: (_ for _ in ()).throw(OSError("permission denied")),
         )
 
-        result, upsert = index_track(
+        result, upsert, _ = index_track(
             index_job(file_path="locked.m4a"), RecordingMatcher()
         )
 
@@ -295,7 +333,7 @@ class TestIndexTrackWithoutDecoding:
 
         monkeypatch.setattr("fingerprint_service.indexer.decode_to_pcm", explode)
 
-        result, upsert = index_track(
+        result, upsert, _ = index_track(
             index_job(file_path="track.m4a", stored_audio_sha256=stored),
             RecordingMatcher(),
         )
@@ -312,8 +350,110 @@ class TestIndexTrackWithoutDecoding:
             lambda *a, **k: (_ for _ in ()).throw(AudioDecodeError("ffmpeg exited 1")),
         )
 
-        result, upsert = index_track(index_job(file_path="track.m4a"), RecordingMatcher())
+        result, upsert, _ = index_track(index_job(file_path="track.m4a"), RecordingMatcher())
 
         assert result["status"] == "failed"
         assert "ffmpeg exited 1" in result["error"]
         assert upsert is None
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+class TestReplacedAudio:
+    """#303: the index must follow audio replaced behind an unchanged path."""
+
+    def fingerprinted(self, index_job, reference_wav):
+        name = reference_wav(freq=440)
+        _, upsert, _ = index_track(index_job(file_path=name), RecordingMatcher())
+        return name, upsert
+
+    def stored(self, index_job, name, upsert, **overrides):
+        return index_job(
+            file_path=name,
+            stored_audio_sha256=upsert["audio_sha256"],
+            stored_audio_size_bytes=upsert["audio_size_bytes"],
+            stored_audio_mtime_ms=upsert["audio_mtime_ms"],
+            **overrides,
+        )
+
+    def test_an_untouched_file_is_skipped_without_being_read(
+        self, index_job, reference_wav, monkeypatch
+    ):
+        name, upsert = self.fingerprinted(index_job, reference_wav)
+
+        def must_not_hash(path):
+            raise AssertionError("an untouched file must not be hashed")
+
+        monkeypatch.setattr(indexer, "hash_file", must_not_hash)
+        matcher = RecordingMatcher()
+        result, new_upsert, stats = index_track(self.stored(index_job, name, upsert), matcher)
+
+        assert result["status"] == "skipped"
+        assert result["audio_sha256"] == upsert["audio_sha256"]
+        assert (new_upsert, stats) == (None, None)
+        assert matcher.indexed == []
+
+    def test_a_replaced_file_is_refingerprinted_with_its_new_stats(self, index_job, reference_wav):
+        name, upsert = self.fingerprinted(index_job, reference_wav)
+        reference_wav(name=name, freq=880, seconds=2.0)  # a re-rip: new bytes, new size
+
+        matcher = RecordingMatcher()
+        result, new_upsert, stats = index_track(self.stored(index_job, name, upsert), matcher)
+
+        assert result["status"] == "indexed"
+        assert new_upsert["audio_sha256"] != upsert["audio_sha256"]
+        assert new_upsert["audio_size_bytes"] != upsert["audio_size_bytes"]
+        assert stats is None
+        assert len(matcher.indexed) == 1
+
+    def test_a_touched_file_with_the_same_bytes_records_its_new_mtime(self, index_job, reference_wav, audio_dir):
+        name, upsert = self.fingerprinted(index_job, reference_wav)
+        later = upsert["audio_mtime_ms"] + 60_000
+        os.utime(audio_dir / name, ns=(later * 1_000_000, later * 1_000_000))
+
+        matcher = RecordingMatcher()
+        result, new_upsert, stats = index_track(self.stored(index_job, name, upsert), matcher)
+
+        assert result["status"] == "skipped"
+        assert new_upsert is None
+        assert matcher.indexed == []
+        assert stats == {
+            "track_id": "track-1",
+            "friend_id": 1,
+            "fingerprint_type": "stub",
+            "fingerprint_version": "0",
+            "audio_sha256": upsert["audio_sha256"],
+            "audio_size_bytes": upsert["audio_size_bytes"],
+            "audio_mtime_ms": later,
+        }
+
+    def test_an_older_row_gains_its_stats_on_the_first_check(self, index_job, reference_wav):
+        name, upsert = self.fingerprinted(index_job, reference_wav)
+
+        result, _, stats = index_track(
+            index_job(file_path=name, stored_audio_sha256=upsert["audio_sha256"]),
+            RecordingMatcher(),
+        )
+
+        assert result["status"] == "skipped"
+        assert stats["audio_size_bytes"] == upsert["audio_size_bytes"]
+        assert stats["audio_mtime_ms"] == upsert["audio_mtime_ms"]
+
+    def test_force_regenerates_even_an_untouched_file(self, index_job, reference_wav):
+        name, upsert = self.fingerprinted(index_job, reference_wav)
+        matcher = RecordingMatcher()
+        result, _, _ = index_track(self.stored(index_job, name, upsert, force=True), matcher)
+        assert result["status"] == "indexed"
+        assert len(matcher.indexed) == 1
+
+    def test_a_file_that_cannot_be_statted_fails_the_track(self, index_job, reference_wav, monkeypatch):
+        name = reference_wav()
+
+        def unreadable(path):
+            raise PermissionError("permission denied")
+
+        monkeypatch.setattr(indexer, "file_stats", unreadable)
+        result, upsert, stats = index_track(index_job(file_path=name), RecordingMatcher())
+
+        assert result["status"] == "failed"
+        assert "permission denied" in result["error"]
+        assert (upsert, stats) == (None, None)

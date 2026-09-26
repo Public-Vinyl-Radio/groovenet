@@ -5,6 +5,7 @@ import type {
   FingerprintIndexScope,
   FingerprintType,
   ListFingerprintsFilters,
+  RecordFileStatsInput,
   TrackFingerprintRow,
   TrackFingerprintStatusRow,
   UpsertTrackFingerprintInput,
@@ -19,6 +20,8 @@ const ROW_COLUMNS = `
   fingerprint_data,
   audio_sha256,
   audio_duration_seconds,
+  audio_size_bytes::float8 AS audio_size_bytes,
+  audio_mtime_ms::float8 AS audio_mtime_ms,
   created_at,
   updated_at
 `;
@@ -45,14 +48,17 @@ export class FingerprintRepository {
       `
       INSERT INTO track_fingerprints (
         track_id, friend_id, fingerprint_type, fingerprint_version,
-        fingerprint_data, audio_sha256, audio_duration_seconds, updated_at
+        fingerprint_data, audio_sha256, audio_duration_seconds,
+        audio_size_bytes, audio_mtime_ms, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
       ON CONFLICT (track_id, friend_id, fingerprint_type, fingerprint_version)
       DO UPDATE SET
         fingerprint_data       = EXCLUDED.fingerprint_data,
         audio_sha256           = EXCLUDED.audio_sha256,
         audio_duration_seconds = EXCLUDED.audio_duration_seconds,
+        audio_size_bytes       = EXCLUDED.audio_size_bytes,
+        audio_mtime_ms         = EXCLUDED.audio_mtime_ms,
         updated_at             = CURRENT_TIMESTAMP
       RETURNING ${ROW_COLUMNS}
       `,
@@ -64,9 +70,42 @@ export class FingerprintRepository {
         input.fingerprint_data,
         input.audio_sha256,
         input.audio_duration_seconds ?? null,
+        input.audio_size_bytes ?? null,
+        input.audio_mtime_ms ?? null,
       ]
     );
     return rows[0];
+  }
+
+  /**
+   * Record the size and mtime of audio re-checked and found unchanged (#303).
+   *
+   * Guarded on the stored hash: stats are only ever attached to the bytes they
+   * were read from. If the row was re-fingerprinted from different audio in
+   * the meantime, this is a no-op and returns false.
+   */
+  async recordFileStats(input: RecordFileStatsInput): Promise<boolean> {
+    const { rowCount } = await dbQuery(
+      `
+      UPDATE track_fingerprints
+      SET audio_size_bytes = $6, audio_mtime_ms = $7, updated_at = CURRENT_TIMESTAMP
+      WHERE track_id = $1
+        AND friend_id = $2
+        AND fingerprint_type = $3
+        AND fingerprint_version = $4
+        AND audio_sha256 = $5
+      `,
+      [
+        input.track_id,
+        input.friend_id,
+        input.fingerprint_type,
+        input.fingerprint_version,
+        input.audio_sha256,
+        input.audio_size_bytes,
+        input.audio_mtime_ms,
+      ]
+    );
+    return (rowCount ?? 0) > 0;
   }
 
   /** The stored fingerprint for one track under one engine and version. */
@@ -297,9 +336,11 @@ export class FingerprintRepository {
         where.push("f.track_id IS NULL");
         break;
       case "changed":
-        // A stored row whose hash no longer matches cannot be detected here —
-        // only the worker can hash the file. "Changed" therefore means "already
-        // indexed", and the worker skips the ones that turn out to be current.
+        // A stored row whose audio changed cannot be detected here — only the
+        // worker can see the file. "Changed" therefore means "already
+        // indexed"; the worker stats each file against the size and mtime it
+        // was fingerprinted from, hashes only those that moved, and skips the
+        // ones that turn out to be current (#303).
         where.push("f.track_id IS NOT NULL");
         break;
       case "all":
@@ -337,7 +378,11 @@ export class FingerprintRepository {
         t.track_id,
         t.friend_id,
         t.local_audio_url,
-        f.audio_sha256 AS stored_audio_sha256
+        f.audio_sha256 AS stored_audio_sha256,
+        -- float8 so pg returns numbers, not the strings it uses for bigint.
+        -- Sizes and ms timestamps are far inside a double's exact range.
+        f.audio_size_bytes::float8 AS stored_audio_size_bytes,
+        f.audio_mtime_ms::float8 AS stored_audio_mtime_ms
       FROM tracks t
       LEFT JOIN track_fingerprints f
         ON f.track_id = t.track_id

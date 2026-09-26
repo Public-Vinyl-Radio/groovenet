@@ -74,6 +74,8 @@ function candidate(overrides: Record<string, unknown> = {}) {
     friend_id: 1,
     local_audio_url: "artist - title.m4a",
     stored_audio_sha256: null,
+    stored_audio_size_bytes: null,
+    stored_audio_mtime_ms: null,
     ...overrides,
   };
 }
@@ -154,6 +156,27 @@ describe("startRun()", () => {
       stored_audio_sha256: "a".repeat(64),
       force: false,
     });
+  });
+
+  it("stamps each job with the stored size and mtime, so an untouched file needs no hash (#303)", async () => {
+    engineRegistered();
+    repo.listIndexCandidates.mockResolvedValue([
+      candidate({
+        stored_audio_sha256: "a".repeat(64),
+        stored_audio_size_bytes: 41_234_567,
+        stored_audio_mtime_ms: 1_790_000_000_000,
+      }),
+      candidate({ track_id: "t2" }),
+    ]);
+
+    await makeService().startRun({ kind: "changed" });
+
+    expect(queuedJobs()[0]).toMatchObject({
+      stored_audio_size_bytes: 41_234_567,
+      stored_audio_mtime_ms: 1_790_000_000_000,
+    });
+    // A row fingerprinted before these were recorded carries nulls: hashed as before.
+    expect(queuedJobs()[1]).toMatchObject({ stored_audio_size_bytes: null, stored_audio_mtime_ms: null });
   });
 
   it("forces regeneration for --all", async () => {

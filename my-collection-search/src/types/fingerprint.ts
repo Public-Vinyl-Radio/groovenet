@@ -23,6 +23,9 @@ export type TrackFingerprintRow = {
   fingerprint_data: Buffer | null;
   audio_sha256: string;
   audio_duration_seconds: number | null;
+  /** The audio file's size and mtime when fingerprinted (#303); null on older rows. */
+  audio_size_bytes: number | null;
+  audio_mtime_ms: number | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -50,6 +53,19 @@ export type UpsertTrackFingerprintInput = FingerprintIdentity & {
   fingerprint_data: Buffer | null;
   audio_sha256: string;
   audio_duration_seconds?: number | null;
+  audio_size_bytes?: number | null;
+  audio_mtime_ms?: number | null;
+};
+
+/**
+ * A fingerprint's audio re-checked and found unchanged, byte for byte, but
+ * with a size or mtime not yet recorded (#303). Recording them is what lets
+ * the next check skip hashing.
+ */
+export type RecordFileStatsInput = FingerprintIdentity & {
+  audio_sha256: string;
+  audio_size_bytes: number;
+  audio_mtime_ms: number;
 };
 
 export type ListFingerprintsFilters = {
@@ -87,6 +103,8 @@ export type FingerprintIndexCandidate = {
   friend_id: number;
   local_audio_url: string;
   stored_audio_sha256: string | null;
+  stored_audio_size_bytes: number | null;
+  stored_audio_mtime_ms: number | null;
 };
 
 /**

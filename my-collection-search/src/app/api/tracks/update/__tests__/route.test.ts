@@ -334,13 +334,17 @@ describe("PATCH /api/tracks — fingerprint index trigger", () => {
     expect(mockStartFingerprintRun).not.toHaveBeenCalled();
   });
 
-  it("does not queue a run when an existing file is merely replaced", async () => {
-    // Only the null → value transition is handled here; a changed file is
-    // caught by the periodic "missing"/"changed" backfill pass instead.
+  it("queues a single-track run when an existing file is replaced (#303)", async () => {
+    // The "missing" backfill never re-checks a track that already has a
+    // fingerprint; a replaced file used to leave the index on the old audio.
     mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "old.m4a" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "new.m4a" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockStartFingerprintRun).not.toHaveBeenCalled();
+    expect(mockStartFingerprintRun).toHaveBeenCalledWith({
+      kind: "track",
+      track_id: "t1",
+      friend_id: 1,
+    });
   });
 
   it("still returns 200 when queuing the fingerprint run throws", async () => {

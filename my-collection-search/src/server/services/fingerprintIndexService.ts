@@ -136,6 +136,11 @@ export class FingerprintIndexService {
             fingerprint_type: engine.fingerprint_type,
             fingerprint_version: engine.fingerprint_version,
             stored_audio_sha256: candidate.stored_audio_sha256,
+            // What the file looked like when fingerprinted: a match lets the
+            // worker skip without hashing (#303). Null on older rows, which
+            // are hashed as before and gain them.
+            stored_audio_size_bytes: candidate.stored_audio_size_bytes,
+            stored_audio_mtime_ms: candidate.stored_audio_mtime_ms,
             force: options.force === true,
           })
         );

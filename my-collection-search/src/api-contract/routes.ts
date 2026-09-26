@@ -45,6 +45,7 @@ import {
   ingestPipelineStatsSchema,
   detectionsRecentResponseSchema,
   fingerprintIndexRunSchema,
+  fingerprintFileStatsBodySchema,
   fingerprintUpsertBodySchema,
   fingerprintUpsertResponseSchema,
   embeddingPromptSettingsGetResponseSchema,
@@ -996,6 +997,14 @@ const fingerprintContracts: ApiContractRoute[] = [
                 },
                 audio_sha256: { type: "string" },
                 audio_duration_seconds: { type: ["number", "null"] },
+                audio_size_bytes: {
+                  type: ["integer", "null"],
+                  description: "Size of the audio file fingerprinted, for cheap re-checks (#303)",
+                },
+                audio_mtime_ms: {
+                  type: ["integer", "null"],
+                  description: "Its modification time, epoch milliseconds",
+                },
               },
               required: [
                 "track_id",
@@ -1023,6 +1032,72 @@ const fingerprintContracts: ApiContractRoute[] = [
         },
         "409": {
           description: "The track no longer exists",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "recordFingerprintFileStats",
+    method: "patch",
+    path: "/api/fingerprints",
+    summary: "Record that a fingerprint's audio was re-checked and is unchanged",
+    tags: ["Fingerprints"],
+    bodySchema: fingerprintFileStatsBodySchema,
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                track_id: { type: "string" },
+                friend_id: { type: "integer" },
+                fingerprint_type: { type: "string" },
+                fingerprint_version: { type: "string" },
+                audio_sha256: {
+                  type: "string",
+                  description: "Only recorded if this still matches the stored hash",
+                },
+                audio_size_bytes: { type: "integer" },
+                audio_mtime_ms: { type: "integer", description: "Epoch milliseconds" },
+              },
+              required: [
+                "track_id",
+                "friend_id",
+                "fingerprint_type",
+                "fingerprint_version",
+                "audio_sha256",
+                "audio_size_bytes",
+                "audio_mtime_ms",
+              ],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "`updated: false` when the stored hash no longer matches — re-fingerprinted meanwhile",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { updated: { type: "boolean" } },
+                required: ["updated"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid file stats",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {

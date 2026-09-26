@@ -395,6 +395,59 @@ def persisted(monkeypatch):
     return sent
 
 
+@pytest.fixture
+def recorded_stats(monkeypatch):
+    """Capture file-stats updates instead of sending them (#303)."""
+    sent = []
+    monkeypatch.setattr(
+        service_main, "try_record_file_stats", lambda body: sent.append(body) or True
+    )
+    return sent
+
+
+class TestProcessIndexJobFileStats:
+    def test_records_new_stats_for_unchanged_audio(
+        self, fake_redis, index_job, audio_dir, matcher, persisted, recorded_stats
+    ):
+        import hashlib
+
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        stored = hashlib.sha256(b"audio").hexdigest()
+
+        process_index_job(
+            json.dumps(index_job(file_path="track.m4a", stored_audio_sha256=stored)), matcher
+        )
+
+        assert persisted == []
+        assert len(recorded_stats) == 1
+        assert recorded_stats[0]["audio_sha256"] == stored
+        assert recorded_stats[0]["audio_size_bytes"] == 5
+        assert fake_redis.hget(f"fpindex:run:{index_job()['run_id']}", "skipped") == "1"
+
+    def test_sends_nothing_when_the_file_was_not_even_read(
+        self, fake_redis, index_job, audio_dir, matcher, persisted, recorded_stats
+    ):
+        from fingerprint_service.indexer import file_stats
+
+        (audio_dir / "track.m4a").write_bytes(b"audio")
+        size, mtime_ms = file_stats(str(audio_dir / "track.m4a"))
+
+        process_index_job(
+            json.dumps(
+                index_job(
+                    file_path="track.m4a",
+                    stored_audio_sha256="a" * 64,
+                    stored_audio_size_bytes=size,
+                    stored_audio_mtime_ms=mtime_ms,
+                )
+            ),
+            matcher,
+        )
+
+        assert recorded_stats == []
+        assert persisted == []
+
+
 class TestProcessIndexJob:
     def test_persists_and_counts_an_indexed_track(
         self, fake_redis, index_job, audio_dir, matcher, persisted, monkeypatch

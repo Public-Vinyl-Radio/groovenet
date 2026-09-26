@@ -43,12 +43,14 @@ describe("shouldTriggerFingerprintIndex", () => {
     expect(result).toBe(false);
   });
 
-  it("does not trigger when an existing file is replaced with another — the backfill pass covers changed audio", () => {
+  it("triggers when an existing file is replaced with another (#303)", () => {
+    // The "missing" backfill never looks at a track that already has a
+    // fingerprint, so this used to leave the index matching audio that was gone.
     const result = shouldTriggerFingerprintIndex(
       track({ local_audio_url: "old.m4a" }),
       track({ local_audio_url: "new.m4a" })
     );
-    expect(result).toBe(false);
+    expect(result).toBe(true);
   });
 
   it("does not trigger when audio is removed", () => {
