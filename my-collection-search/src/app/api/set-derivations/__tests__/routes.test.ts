@@ -93,6 +93,29 @@ describe("/api/set-recordings/{sha256}", () => {
     expect((await put()).status).toBe(200);
   });
 
+  it("PUT decodes a percent-encoded filename, and keeps one that is not", async () => {
+    recordingService.store.mockResolvedValue({ recording, created: true });
+    const send = (name: string | null) =>
+      recordingRoute.PUT(
+        new Request("http://app", {
+          method: "PUT",
+          body: "bytes",
+          headers: name === null ? {} : { "x-filename": name },
+        }),
+        shaParams()
+      );
+
+    await send("Carlos%20D%C3%ADaz.mp3");
+    await send("100%.mp3");
+    await send(null);
+
+    expect(recordingService.store.mock.calls.map((call) => call[2])).toEqual([
+      "Carlos Díaz.mp3",
+      "100%.mp3",
+      null,
+    ]);
+  });
+
   it("PUT refuses a malformed sha256 before reading anything", async () => {
     const response = await put("nope");
     expect(response.status).toBe(400);

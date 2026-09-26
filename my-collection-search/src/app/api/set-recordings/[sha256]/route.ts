@@ -20,6 +20,21 @@ type Params = { params: Promise<{ sha256: string }> };
  * file must not be buffered); `GET` serves one back, which is what a live
  * set's media entry links to.
  */
+/**
+ * The original filename, for display only. The CLI percent-encodes it because
+ * headers are Latin-1 and a name like "Carlos Díaz.mp3" is not; a header that
+ * is not valid percent-encoding is kept as sent rather than refused.
+ */
+function filenameFrom(req: Request): string | null {
+  const raw = req.headers.get("x-filename");
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export async function HEAD(_req: Request, { params }: Params) {
   const { sha256 } = await params;
   const recording = await setRecordingService.find(sha256);
@@ -66,7 +81,7 @@ export async function PUT(req: Request, { params }: Params) {
     const { recording, created } = await setRecordingService.store(
       sha256,
       req.body,
-      req.headers.get("x-filename")
+      filenameFrom(req)
     );
     return NextResponse.json(recording, { status: created ? 201 : 200 });
   } catch (error) {
