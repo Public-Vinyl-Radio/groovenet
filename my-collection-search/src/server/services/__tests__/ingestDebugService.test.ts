@@ -32,6 +32,11 @@ vi.mock("@/server/services/playAggregationService", () => ({
 }));
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => redis }));
 
+const metrics = vi.hoisted(() => ({ summarize: vi.fn() }));
+vi.mock("@/server/services/ingestMetricsService", () => ({
+  ingestMetricsService: metrics,
+}));
+
 const sweeper = vi.hoisted(() => ({ ingestDirWritable: vi.fn(() => true) }));
 vi.mock("@/server/services/ingestSweeperService", () => sweeper);
 
@@ -57,6 +62,7 @@ beforeEach(() => {
   detections.listActiveSourceIds.mockResolvedValue(["living-room-vinyl"]);
   aggregation.countPending.mockResolvedValue(2);
   redis.llen.mockResolvedValue(3);
+  metrics.summarize.mockResolvedValue({ bucket_minutes: 5, chunks: {}, plays: {} });
   redis.hgetall.mockResolvedValue({
     fingerprint_type: "chromaprint",
     fingerprint_version: "1",
@@ -222,6 +228,27 @@ describe("stats() — resilience", () => {
 
     expect(s.queue_depth).toBeNull();
     expect(s.detections.windows).toBe(10);
+  });
+
+  it("carries the Redis counters through, for the same window (#280)", async () => {
+    const counters = {
+      bucket_minutes: 5,
+      chunks: { received: 4, rejected: 1 },
+      plays: { confirmed: 2 },
+    };
+    metrics.summarize.mockResolvedValue(counters);
+
+    const stats = await service.stats(30);
+
+    expect(stats.counters).toEqual(counters);
+    expect(metrics.summarize).toHaveBeenCalledWith(new Date(stats.since));
+  });
+
+  it("reports null counters rather than failing when redis is down", async () => {
+    metrics.summarize.mockRejectedValue(new Error("ECONNREFUSED"));
+    const stats = await service.stats(60);
+    expect(stats.counters).toBeNull();
+    expect(stats.queue_depth).toBe(3);
   });
 
   it("scopes the window and the source", async () => {

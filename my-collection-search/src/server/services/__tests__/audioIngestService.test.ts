@@ -17,10 +17,19 @@ vi.mock("@/server/repositories/audioIngestRepository", () => ({
   audioIngestRepository: repo,
 }));
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => redis }));
+const metrics = vi.hoisted(() => ({
+  chunkAccepted: vi.fn(),
+  chunkDuplicate: vi.fn(),
+  enqueueFailed: vi.fn(),
+}));
+vi.mock("@/server/services/ingestMetricsService", () => ({
+  ingestMetricsService: metrics,
+}));
 
 import {
   AudioIngestService,
   FINGERPRINT_QUEUE_KEY,
+  IngestFailure,
   IngestRejected,
   loadIngestLimits,
 } from "../audioIngestService";
@@ -440,6 +449,158 @@ describe("accept() — retries", () => {
 });
 
 // ─── limits from the environment ──────────────────────────────────────────────
+
+// ─── what it logs (#280) ──────────────────────────────────────────────────────
+
+describe("accept() — structured logging", () => {
+  function lines(fn: typeof console.log): Array<Record<string, unknown>> {
+    return vi
+      .mocked(fn)
+      .mock.calls.map(([first]) => JSON.parse(first as string))
+      .filter((line) => line.component === "audio-ingest");
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("writes one line at acceptance with what the chunk turned out to be", async () => {
+    redis.lpush.mockResolvedValue(3);
+    const { service } = makeService();
+    const bytes = wav();
+
+    await service.accept(
+      upload(bytes),
+      {
+        source_id: "living-room-vinyl",
+        session_id: "sess-1",
+        sequence: 42,
+        captured_at: "2026-09-20T18:42:10.000Z",
+      },
+      limits
+    );
+
+    expect(metrics.chunkAccepted).toHaveBeenCalledTimes(1);
+    const [line] = lines(console.log);
+    expect(line).toMatchObject({
+      event: "ingest.accepted",
+      source_id: "living-room-vinyl",
+      session_id: "sess-1",
+      sequence: 42,
+      status: "received",
+      size_bytes: bytes.length,
+      duration_seconds: 15.02,
+      sample_rate: 44100,
+      channels: 1,
+      codec: "pcm_s16le",
+      captured_at: "2026-09-20T18:42:10.000Z",
+      // LPUSH answers the depth after the push.
+      queue_depth: 3,
+    });
+    expect(line.ingest_id).toBe(JSON.parse(redis.lpush.mock.calls[0][1]).ingest_id);
+    expect(typeof line.processing_ms).toBe("number");
+  });
+
+  it("stamps the job so the service can log how long it waited", async () => {
+    const { service } = makeService();
+    const before = Date.now();
+    await service.accept(upload(wav()), { source_id: "s" }, limits);
+
+    const { enqueued_at } = JSON.parse(redis.lpush.mock.calls[0][1]);
+    expect(Date.parse(enqueued_at)).toBeGreaterThanOrEqual(before);
+  });
+
+  it("names the enqueue stage when the queue is unreachable, and still logs acceptance", async () => {
+    redis.lpush.mockRejectedValue(new Error("redis is down"));
+    const { service } = makeService();
+
+    await service.accept(upload(wav()), { source_id: "s" }, limits);
+
+    expect(metrics.enqueueFailed).toHaveBeenCalledTimes(1);
+    expect(lines(console.error)[0]).toMatchObject({
+      event: "ingest.enqueue_failed",
+      stage: "enqueue",
+      error: "redis is down",
+    });
+    expect(lines(console.log)[0]).toMatchObject({ event: "ingest.accepted", queue_depth: null });
+  });
+
+  it("logs a retry as a duplicate of the original", async () => {
+    repo.findByDedupeKey.mockResolvedValue(
+      row({ id: "original", session_id: "sess-1", sequence: "42", status: "processed" })
+    );
+    const { service } = makeService();
+
+    await service.accept(
+      upload(wav()),
+      { source_id: "living-room-vinyl", session_id: "sess-1", sequence: 42 },
+      limits
+    );
+
+    expect(metrics.chunkDuplicate).toHaveBeenCalledTimes(1);
+    expect(metrics.chunkAccepted).not.toHaveBeenCalled();
+    expect(lines(console.log)[0]).toMatchObject({
+      event: "ingest.duplicate",
+      ingest_id: "original",
+      duplicate: true,
+      status: "processed",
+      sequence: 42,
+    });
+  });
+
+  it("never puts the audio in a line", async () => {
+    const { service } = makeService();
+    await service.accept(upload(wav()), { source_id: "s" }, limits);
+
+    const text = vi.mocked(console.log).mock.calls.flat().join("\n");
+    expect(text).not.toContain("RIFF");
+    expect(text).not.toContain("WAVE");
+  });
+
+  it.each([
+    [
+      "store",
+      () => repo.create.mockRejectedValue(new Error("connection terminated")),
+      /connection terminated/,
+    ],
+    [
+      "store",
+      () => repo.findByDedupeKey.mockRejectedValue(new Error("db down")),
+      /db down/,
+    ],
+  ])("tags an unexpected failure with the %s stage", async (stage, arrange, message) => {
+    arrange();
+    const { service } = makeService();
+
+    const failure = await service
+      .accept(upload(wav()), { source_id: "s", session_id: "x", sequence: 1 }, limits)
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(IngestFailure);
+    expect((failure as IngestFailure).stage).toBe(stage);
+    expect((failure as Error).message).toMatch(message);
+  });
+
+  it("tags an ffprobe that will not run with the validation stage", async () => {
+    const { service } = makeService(vi.fn().mockRejectedValue(new Error("ENOENT ffprobe")));
+    const failure = await service
+      .accept(upload(wav()), { source_id: "s" }, limits)
+      .catch((error: unknown) => error);
+    expect((failure as IngestFailure).stage).toBe("validation");
+  });
+
+  it("tags a failed write to the volume with the upload stage", async () => {
+    process.env.AUDIO_INGEST_DIR = path.join(dir, "missing", "\0bad");
+    const { service } = makeService();
+    const failure = await service
+      .accept(upload(wav()), { source_id: "s" }, limits)
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(IngestFailure);
+    expect((failure as IngestFailure).stage).toBe("upload");
+  });
+});
 
 describe("loadIngestLimits()", () => {
   it("defaults to 20 MB, 3s and 60s", () => {

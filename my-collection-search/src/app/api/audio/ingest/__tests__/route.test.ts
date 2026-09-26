@@ -8,6 +8,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const service = vi.hoisted(() => ({ accept: vi.fn() }));
+const metrics = vi.hoisted(() => ({
+  chunkReceived: vi.fn(),
+  chunkRejected: vi.fn(),
+  chunkFailed: vi.fn(),
+}));
+vi.mock("@/server/services/ingestMetricsService", () => ({
+  ingestMetricsService: metrics,
+}));
 vi.mock("@/server/services/audioIngestService", async (importOriginal) => {
   const actual = await importOriginal<
     typeof import("@/server/services/audioIngestService")
@@ -16,7 +24,7 @@ vi.mock("@/server/services/audioIngestService", async (importOriginal) => {
 });
 
 import { POST } from "../route";
-import { IngestRejected } from "@/server/services/audioIngestService";
+import { IngestFailure, IngestRejected } from "@/server/services/audioIngestService";
 
 const accepted = {
   status: "accepted" as const,
@@ -41,10 +49,38 @@ function audioFile(name = "chunk.wav", bytes = 2048): File {
 }
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
   service.accept.mockResolvedValue(accepted);
 });
+
+/** Every structured line written so far, parsed; free-text lines are skipped. */
+function logged(): Array<Record<string, unknown>> {
+  const calls = [
+    ...vi.mocked(console.error).mock.calls,
+    ...(vi.isMockFunction(console.warn) ? vi.mocked(console.warn).mock.calls : []),
+    ...(vi.isMockFunction(console.log) ? vi.mocked(console.log).mock.calls : []),
+  ];
+  return calls
+    .map(([first]) => {
+      try {
+        return typeof first === "string" ? JSON.parse(first) : null;
+      } catch {
+        return null;
+      }
+    })
+    .filter((line): line is Record<string, unknown> => line?.component === "audio-ingest");
+}
+
+/** Everything written to the console, as one string, for leak checks. */
+function consoleText(): string {
+  return [console.error, console.warn, console.log]
+    .filter((fn) => vi.isMockFunction(fn))
+    .flatMap((fn) => vi.mocked(fn).mock.calls)
+    .map((args) => args.map((a) => (typeof a === "string" ? a : String(a))).join(" "))
+    .join("\n");
+}
 
 describe("POST /api/audio/ingest", () => {
   it("accepts a chunk with 202", async () => {
@@ -190,5 +226,113 @@ describe("POST /api/audio/ingest", () => {
     const res = await POST(request({ audio: audioFile(), source_id: "s" }));
 
     expect((await res.json()).message).toBe("Failed to accept audio");
+  });
+
+  // ── what the pipeline leaves behind (#280) ──
+
+  describe("observability", () => {
+    beforeEach(() => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.spyOn(console, "log").mockImplementation(() => {});
+    });
+
+    it("counts every upload that reaches the route", async () => {
+      await POST(request({ audio: audioFile(), source_id: "s" }));
+      await POST(request({ source_id: "s" }));
+      expect(metrics.chunkReceived).toHaveBeenCalledTimes(2);
+    });
+
+    it("logs and counts a rejection by reason and stage", async () => {
+      service.accept.mockRejectedValue(new IngestRejected("audio_too_short", "2.00s is under"));
+
+      await POST(
+        request({
+          audio: audioFile("chunk.wav", 4096),
+          source_id: "living-room-vinyl",
+          session_id: "sess-1",
+          sequence: "42",
+        })
+      );
+
+      expect(metrics.chunkRejected).toHaveBeenCalledWith("audio_too_short");
+      const [line] = logged();
+      expect(line).toMatchObject({
+        event: "ingest.rejected",
+        level: "warn",
+        stage: "validation",
+        reason: "audio_too_short",
+        source_id: "living-room-vinyl",
+        session_id: "sess-1",
+        sequence: 42,
+        size_bytes: 4096,
+      });
+      expect(typeof line.processing_ms).toBe("number");
+    });
+
+    it.each([
+      ["missing_audio_file", { source_id: "s" }, "upload"],
+      ["missing_source_id", { audio: audioFile() }, "upload"],
+    ] as const)("names the upload stage for %s", async (reason, parts, stage) => {
+      await POST(request(parts));
+      expect(logged()[0]).toMatchObject({ reason, stage });
+    });
+
+    it("names the upload stage for an oversized chunk", async () => {
+      service.accept.mockRejectedValue(new IngestRejected("audio_too_large", "too big"));
+      await POST(request({ audio: audioFile(), source_id: "s" }));
+      expect(logged()[0]).toMatchObject({ reason: "audio_too_large", stage: "upload" });
+    });
+
+    it("names the stage the app itself failed at", async () => {
+      service.accept.mockRejectedValue(new IngestFailure("store", new Error("disk is full")));
+
+      const res = await POST(request({ audio: audioFile(), source_id: "s" }));
+
+      expect(res.status).toBe(500);
+      expect(await res.json()).toMatchObject({ error: "internal_error", message: "disk is full" });
+      expect(metrics.chunkFailed).toHaveBeenCalledWith("store");
+      expect(logged()[0]).toMatchObject({
+        event: "ingest.error",
+        level: "error",
+        stage: "store",
+        error: "disk is full",
+      });
+    });
+
+    it("never logs the audio, the request's credentials, or its form", async () => {
+      service.accept.mockRejectedValue(new IngestRejected("invalid_audio_stream", "no audio stream"));
+      const form = new FormData();
+      form.append("audio", new File([new TextEncoder().encode("AUDIOBYTES".repeat(500))], "chunk.wav"));
+      form.append("source_id", "s");
+      form.append("device_token", "form-secret-123");
+
+      await POST(
+        new Request("http://app/api/audio/ingest?token=query-secret-456", {
+          method: "POST",
+          headers: { Authorization: "Bearer header-secret-789", Cookie: "session=cookie-secret" },
+          body: form,
+        })
+      );
+      service.accept.mockRejectedValue(new Error("boom"));
+      await POST(
+        new Request("http://app/api/audio/ingest", {
+          method: "POST",
+          headers: { Authorization: "Bearer header-secret-789" },
+          body: form,
+        })
+      );
+
+      expect(logged()).toHaveLength(2);
+      const text = consoleText();
+      for (const secret of [
+        "AUDIOBYTES",
+        "form-secret-123",
+        "query-secret-456",
+        "header-secret-789",
+        "cookie-secret",
+      ]) {
+        expect(text).not.toContain(secret);
+      }
+    });
   });
 });

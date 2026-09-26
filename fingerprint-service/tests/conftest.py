@@ -1,3 +1,5 @@
+import json
+import logging
 import math
 import struct
 import wave
@@ -16,6 +18,27 @@ def fake_redis():
 def patch_redis(fake_redis, monkeypatch):
     """Replace the module-level redis_conn in every module that holds a reference."""
     monkeypatch.setattr("fingerprint_service.main.redis_conn", fake_redis)
+
+
+@pytest.fixture
+def events(caplog):
+    """The structured event lines logged so far, parsed (#280).
+
+    A callable rather than a list so a test reads the lines logged *after* the
+    call it is checking. Every line must parse: one that does not is a bug in
+    the logger, not something to skip.
+    """
+    caplog.set_level(logging.INFO, logger="fingerprint_service.events")
+
+    def _read(name: str | None = None) -> list[dict]:
+        lines = [
+            json.loads(record.getMessage())
+            for record in caplog.records
+            if record.name == "fingerprint_service.events"
+        ]
+        return [line for line in lines if name is None or line["event"] == name]
+
+    return _read
 
 
 @pytest.fixture

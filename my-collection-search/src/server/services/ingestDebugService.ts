@@ -8,8 +8,9 @@ import {
 } from "@/server/services/fingerprintIndexService";
 import { FINGERPRINT_QUEUE_KEY } from "@/server/services/audioIngestService";
 import { ingestDirWritable } from "@/server/services/ingestSweeperService";
+import { ingestMetricsService } from "@/server/services/ingestMetricsService";
 import { playAggregationService } from "@/server/services/playAggregationService";
-import type { IngestPipelineStats } from "@/types/audioIngest";
+import type { IngestCounters, IngestPipelineStats } from "@/types/audioIngest";
 
 /**
  * One view of whether the vinyl pipeline is actually working (#299).
@@ -32,12 +33,13 @@ export class IngestDebugService {
   ): Promise<IngestPipelineStats> {
     const since = new Date(Date.now() - sinceMinutes * 60_000);
 
-    const [ingest, detections, engine, queueDepth, pendingSpins] = await Promise.all([
+    const [ingest, detections, engine, queueDepth, pendingSpins, counters] = await Promise.all([
       audioIngestRepository.statsSince(since, sourceId),
       playDetectionRepository.statsSince(since, sourceId),
       this.indexService.getEngine(),
       this.queueDepth(),
       this.pendingSpinCount(since, sourceId),
+      this.counters(since),
     ]);
 
     // Without a registered engine there is nothing to count the index against,
@@ -103,7 +105,18 @@ export class IngestDebugService {
         // is null rather than 0 when redis is unreachable.
         pending: pendingSpins,
       },
+      counters,
     };
+  }
+
+  /** Rejections and play latency (#280). Redis again: null, not a throw. */
+  private async counters(since: Date): Promise<IngestCounters | null> {
+    try {
+      return await ingestMetricsService.summarize(since);
+    } catch (error) {
+      console.error("Could not read the ingest counters:", error);
+      return null;
+    }
   }
 
   /** Redis may be unreachable; that is worth reporting, not throwing over. */

@@ -213,8 +213,44 @@ wedged records.
 ```
 GET /api/audio/ingest/recent    chunks and what became of them
 GET /api/detections/recent      windows, with the track resolved
-GET /api/audio/ingest/stats     index, queue, match rate, failures, spin backlog
+GET /api/audio/ingest/stats     index, queue, match rate, failures, spin backlog,
+                                rejections by reason, capture-to-spin latency
 ```
+
+**Following one chunk (#280).** Every stage writes one JSON line through
+`logIngestEvent` (`src/lib/ingestLog.ts`), keyed on `ingest_id`, and
+`fingerprint-service` writes the same shape, so one grep follows a chunk
+across both containers:
+
+```bash
+docker compose logs app fingerprint-service | grep <ingest_id>
+```
+
+| event | written by | when |
+| --- | --- | --- |
+| `ingest.rejected` | route | refused; `reason` is the device's error code |
+| `ingest.error` | route | the app failed (500); `stage` says where |
+| `ingest.accepted` / `ingest.duplicate` | `audioIngestService` | stored and queued, or a retry |
+| `ingest.enqueue_failed` | `audioIngestService` | stored, but Redis refused the job |
+| `ingest.claimed` | `ingestLifecycleService` | the worker picked it up |
+| `ingest.processed` / `ingest.failed` | `ingestLifecycleService` | terminal, including `stage: "reap"` |
+| `play.confirmed` | `playAggregationService` | a spin was made; `latency_ms` from capture |
+
+Every failure names a `stage`: `upload`, `validation`, `store`, `enqueue`,
+`claim`, `report` or `reap` on this side; `parse`, `resolve`, `decode` or
+`match` from the service, which sends its stage back as `error_stage`.
+
+The fields are an **allowlist**: anything not in `IngestLogFields` is dropped,
+only scalars survive, and free text is truncated and scrubbed of anything
+credential-shaped. Add a field there, not by passing an object — that is what
+keeps audio and tokens out, and the tests assert it.
+
+Counts Postgres cannot answer — rejections before a row exists, duplicates,
+confirmed plays and their latency — are kept by `ingestMetricsService` in
+five-minute Redis hash buckets (`ingest:metrics:<bucket>`, eight-day TTL), and
+`stats` returns them as `counters`. Everything else stays derived from the
+tables. Increments are fire-and-forget: a Redis outage costs a count, never an
+upload.
 
 Or `groovenet vinyl status | detections | ingests`, or the `/vinyl` page (gated
 behind `ENABLE_DEVELOPER_TOOLS`, linked from `/developer`) — index status,

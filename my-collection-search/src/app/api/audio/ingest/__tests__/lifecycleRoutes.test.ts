@@ -125,7 +125,9 @@ describe("POST /api/audio/ingest/[id]/result", () => {
     lifecycle.report.mockResolvedValue({ id: "ingest-1", status: "failed" });
 
     const res = await result(
-      resultRequest(validReport({ status: "failed", error: "decode failed" })),
+      resultRequest(
+        validReport({ status: "failed", error: "decode failed", error_stage: "decode" })
+      ),
       params()
     );
 
@@ -133,6 +135,8 @@ describe("POST /api/audio/ingest/[id]/result", () => {
     expect(lifecycle.report.mock.calls[0][0]).toMatchObject({
       status: "failed",
       error: "decode failed",
+      // Carried through so the terminal log line names the stage (#280).
+      error_stage: "decode",
     });
   });
 

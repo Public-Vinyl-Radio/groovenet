@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import {
+  errorMessage,
+  logIngestEvent,
+  type IngestStage,
+} from "@/lib/ingestLog";
 import { getRedisConnection } from "@/lib/redis";
 import {
   audioIngestRepository,
@@ -13,6 +18,7 @@ import {
   type ProbedAudio,
 } from "@/server/services/audioProcessor";
 import { ensureIngestDir, ingestDir } from "@/server/services/ingestSweeperService";
+import { ingestMetricsService } from "@/server/services/ingestMetricsService";
 import type {
   AcceptedIngest,
   IngestErrorCode,
@@ -35,6 +41,32 @@ export class IngestRejected extends Error {
   ) {
     super(message);
     this.name = "IngestRejected";
+  }
+}
+
+/**
+ * Something the app itself failed on, named by the stage it failed at (#280).
+ *
+ * Not the device's fault — the route still answers 500 — but "the upload
+ * failed" and "the database write failed" send you to very different places.
+ */
+export class IngestFailure extends Error {
+  constructor(
+    readonly stage: IngestStage,
+    cause: unknown
+  ) {
+    super(errorMessage(cause), { cause });
+    this.name = "IngestFailure";
+  }
+}
+
+/** Run one stage, tagging anything unexpected it throws with the stage's name. */
+async function atStage<T>(stage: IngestStage, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof IngestRejected || error instanceof IngestFailure) throw error;
+    throw new IngestFailure(stage, error);
   }
 }
 
@@ -168,14 +200,25 @@ export class AudioIngestService {
     fields: IngestRequestFields,
     limits: IngestLimits = loadIngestLimits()
   ): Promise<AcceptedIngest> {
+    const startedAt = Date.now();
     if (!fields.source_id?.trim()) {
       throw new IngestRejected("missing_source_id", "source_id is required");
     }
 
-    const existing = await this.findDuplicate(fields);
-    if (existing) return this.describe(existing);
+    const existing = await atStage("store", () => this.findDuplicate(fields));
+    if (existing) {
+      ingestMetricsService.chunkDuplicate();
+      logIngestEvent("ingest.duplicate", {
+        ...this.identify(existing),
+        duplicate: true,
+        status: existing.status,
+        size_bytes: file.size,
+        processing_ms: Date.now() - startedAt,
+      });
+      return this.describe(existing);
+    }
 
-    const tempPath = await this.streamToTemp(file, limits);
+    const tempPath = await atStage("upload", () => this.streamToTemp(file, limits));
 
     let probed: ProbedAudio;
     try {
@@ -187,29 +230,54 @@ export class AudioIngestService {
       if (error instanceof InvalidAudioError) {
         throw new IngestRejected("invalid_audio_stream", error.message);
       }
-      throw error;
+      throw new IngestFailure("validation", error);
     }
 
     const ingestId = randomUUID();
-    const relativePath = await this.store(tempPath, ingestId, probed);
+    const { row, relativePath } = await atStage("store", async () => {
+      const relativePath = await this.store(tempPath, ingestId, probed);
+      const row = await audioIngestRepository.create({
+        id: ingestId,
+        source_id: fields.source_id.trim(),
+        session_id: fields.session_id ?? null,
+        sequence: fields.sequence ?? null,
+        captured_at: fields.captured_at ?? null,
+        received_at: new Date(),
+        duration_seconds: probed.durationSeconds,
+        sample_rate: probed.sampleRate,
+        channels: probed.channels,
+        codec: probed.codec,
+        file_path: relativePath,
+        status: "received",
+      });
+      return { row, relativePath };
+    });
 
-    const row = await audioIngestRepository.create({
-      id: ingestId,
-      source_id: fields.source_id.trim(),
-      session_id: fields.session_id ?? null,
-      sequence: fields.sequence ?? null,
-      captured_at: fields.captured_at ?? null,
-      received_at: new Date(),
+    const queueDepth = await this.enqueue(row, probed, relativePath);
+    ingestMetricsService.chunkAccepted();
+    // One line at acceptance; `ingestLifecycleService` writes the terminal one.
+    logIngestEvent("ingest.accepted", {
+      ...this.identify(row),
+      status: row.status,
+      size_bytes: file.size,
       duration_seconds: probed.durationSeconds,
       sample_rate: probed.sampleRate,
       channels: probed.channels,
       codec: probed.codec,
-      file_path: relativePath,
-      status: "received",
+      captured_at: row.captured_at ? new Date(row.captured_at).toISOString() : null,
+      queue_depth: queueDepth,
+      processing_ms: Date.now() - startedAt,
     });
-
-    await this.enqueue(row, probed, relativePath);
     return this.describe(row);
+  }
+
+  private identify(row: AudioIngestRow) {
+    return {
+      ingest_id: row.id,
+      source_id: row.source_id,
+      session_id: row.session_id,
+      sequence: row.sequence === null ? null : Number(row.sequence),
+    };
   }
 
   private async findDuplicate(
@@ -245,14 +313,17 @@ export class AudioIngestService {
    * A failed enqueue is logged, not raised: the row exists and the file is on
    * disk, so the work is recoverable, and answering 500 would make the device
    * retry an upload that was in fact accepted.
+   *
+   * Returns the queue depth after the push — LPUSH answers it for free — or
+   * null when the push failed.
    */
   private async enqueue(
     row: AudioIngestRow,
     probed: ProbedAudio,
     relativePath: string
-  ): Promise<void> {
+  ): Promise<number | null> {
     try {
-      await this.redis.lpush(
+      return await this.redis.lpush(
         FINGERPRINT_QUEUE_KEY,
         JSON.stringify({
           ingest_id: row.id,
@@ -267,10 +338,18 @@ export class AudioIngestService {
           sample_rate: probed.sampleRate,
           channels: probed.channels,
           codec: probed.codec,
+          // So fingerprint-service can log how long the job waited (#280).
+          enqueued_at: new Date().toISOString(),
         })
       );
     } catch (error) {
-      console.error(`Failed to enqueue ingest ${row.id}:`, error);
+      ingestMetricsService.enqueueFailed();
+      logIngestEvent(
+        "ingest.enqueue_failed",
+        { ...this.identify(row), stage: "enqueue", error: errorMessage(error) },
+        "error"
+      );
+      return null;
     }
   }
 

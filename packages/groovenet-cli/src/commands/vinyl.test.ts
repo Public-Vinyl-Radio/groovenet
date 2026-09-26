@@ -264,6 +264,76 @@ describe("formatStats()", () => {
   });
 });
 
+describe("formatStats() — upload counters (#280)", () => {
+  const counters = {
+    bucket_minutes: 5,
+    chunks: {
+      received: 40,
+      accepted: 34,
+      duplicate: 1,
+      rejected: 5,
+      rejected_by_reason: [
+        { reason: "audio_too_short", count: 4 },
+        { reason: "invalid_audio_stream", count: 1 },
+      ],
+      failed_by_stage: [{ stage: "store", count: 2 }],
+      enqueue_failed: 3,
+    },
+    plays: {
+      confirmed: 6,
+      latency_ms_avg: 42_400,
+      latency_bands: [],
+    },
+  };
+
+  it("shows uploads that never became a row, by reason", () => {
+    const out = plain(formatStats(stats({ counters })));
+    expect(out).toContain("uploads: 40 received, 34 accepted, 1 duplicate, 5 rejected");
+    expect(out).toContain("4× audio_too_short");
+    expect(out).toContain("1× invalid_audio_stream");
+    expect(out).toContain("2× failed at store");
+    expect(out).toContain("3× could not be queued");
+  });
+
+  it("shows confirmed plays and how long after capture they landed", () => {
+    expect(plain(formatStats(stats({ counters })))).toContain(
+      "plays confirmed: 6, 42s after capture on average"
+    );
+  });
+
+  it("counts plays without an average when no latency was measured", () => {
+    const out = plain(formatStats(stats({
+      counters: { ...counters, plays: { confirmed: 2, latency_ms_avg: null, latency_bands: [] } },
+    })));
+    expect(out).toContain("plays confirmed: 2");
+    expect(out).not.toContain("after capture");
+  });
+
+  it("says nothing about plays or the queue when there is nothing to say", () => {
+    const out = plain(formatStats(stats({
+      counters: {
+        ...counters,
+        chunks: { ...counters.chunks, enqueue_failed: 0 },
+        plays: { confirmed: 0, latency_ms_avg: null, latency_bands: [] },
+      },
+    })));
+    expect(out).not.toContain("plays confirmed");
+    expect(out).not.toContain("could not be queued");
+  });
+
+  it("flags counters it could not read", () => {
+    expect(plain(formatStats(stats({ counters: null })))).toContain(
+      "upload counters unavailable"
+    );
+  });
+
+  it("says nothing about counters an older app does not send", () => {
+    const out = plain(formatStats(stats()));
+    expect(out).not.toContain("uploads:");
+    expect(out).not.toContain("counters");
+  });
+});
+
 describe("formatAggregateResult()", () => {
   it("reports totals and a per-source breakdown", () => {
     const out = plain(formatAggregateResult(aggregateResult()));

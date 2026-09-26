@@ -260,14 +260,17 @@ class TestProcessJob:
         assert seen["declared_duration"] == 15.0
         assert seen["path"].endswith("chunk.wav")
 
-    def test_malformed_json_is_logged_and_skipped(self, matcher, reported, caplog):
+    def test_malformed_json_is_logged_and_skipped(self, matcher, reported, events):
         assert process_job("{not json", matcher) is None
-        assert "Failed to parse job JSON" in caplog.text
+        [skipped] = events("ingest.skipped")
+        assert skipped["stage"] == "parse"
         assert reported == [], "there is no ingest to report against"
 
-    def test_a_job_missing_required_fields_is_logged_and_skipped(self, matcher, reported, caplog):
+    def test_a_job_missing_required_fields_is_logged_and_skipped(self, matcher, reported, events):
         assert process_job(json.dumps({"source_id": "s1"}), matcher) is None
-        assert "Skipping malformed job" in caplog.text
+        [skipped] = events("ingest.skipped")
+        assert skipped["stage"] == "parse"
+        assert "missing required field" in skipped["error"]
         assert reported == []
 
     def test_a_decode_failure_is_reported_as_failed(self, job, wav_file, matcher, reported, monkeypatch):
@@ -305,6 +308,137 @@ class TestProcessJob:
         result = process_job(json.dumps(job()), Exploding())
         assert result["status"] == "failed"
         assert result["error"] == "index not loaded"
+
+
+class TestIngestEvents:
+    """The structured lines one chunk leaves behind (#280)."""
+
+    def test_a_chunk_logs_picked_up_then_processed(self, job, wav_file, decoded, reported, events):
+        wav_file()
+        candidate = {"track_id": "13916746-A6", "friend_id": 1, "confidence": 0.94, "offset_seconds": 12.4}
+        process_job(json.dumps(job()), StubMatcher([candidate]))
+
+        assert [line["event"] for line in events()] == ["ingest.picked_up", "ingest.processed"]
+        picked_up, processed = events()
+        for line in (picked_up, processed):
+            assert line["ingest_id"] == job()["ingest_id"]
+            assert line["source_id"] == "living-room-vinyl"
+            assert line["session_id"] == "session-1"
+            assert line["sequence"] == 7
+            assert line["component"] == "fingerprint-service"
+        assert processed["status"] == "processed"
+        assert processed["candidates"] == 1
+        assert processed["track_id"] == "13916746-A6"
+        assert processed["confidence"] == 0.94
+        assert processed["sample_rate"] == 22050
+        assert processed["codec"] == "pcm_s16le"
+        for timing in ("decode_ms", "match_ms", "processing_ms"):
+            assert isinstance(processed[timing], int)
+
+    def test_a_no_match_window_is_processed_not_failed(self, job, wav_file, matcher, decoded, reported, events):
+        wav_file()
+        process_job(json.dumps(job()), matcher)
+        [processed] = events("ingest.processed")
+        assert processed["candidates"] == 0
+        assert "stage" not in processed or processed["stage"] is None
+
+    def test_queue_wait_comes_from_the_enqueue_stamp(self, job, wav_file, matcher, decoded, reported, events):
+        wav_file()
+        process_job(json.dumps(job(enqueued_at="2000-01-01T00:00:00Z")), matcher)
+        [picked_up] = events("ingest.picked_up")
+        assert picked_up["queue_wait_ms"] > 0
+        assert picked_up["queue"] == service_main.QUEUE_KEY
+
+    def test_a_decode_failure_names_the_decode_stage(self, job, wav_file, matcher, reported, events, monkeypatch):
+        wav_file()
+
+        def boom(*args, **kwargs):
+            raise AudioDecodeError("truncated upload")
+
+        monkeypatch.setattr(service_main, "decode_to_pcm", boom)
+        result = process_job(json.dumps(job()), matcher)
+
+        assert result["error_stage"] == "decode", "the app logs the stage it is told"
+        [failed] = events("ingest.failed")
+        assert failed["stage"] == "decode"
+        assert failed["level"] == "error"
+        assert failed["error"] == "truncated upload"
+
+    def test_an_unexpected_decode_crash_still_names_the_decode_stage(
+        self, job, wav_file, matcher, reported, events, monkeypatch
+    ):
+        wav_file()
+
+        def boom(*args, **kwargs):
+            raise OSError("ffmpeg vanished")
+
+        monkeypatch.setattr(service_main, "decode_to_pcm", boom)
+        result = process_job(json.dumps(job()), matcher)
+        assert result["error_stage"] == "decode"
+        assert result["error"] == "ffmpeg vanished"
+
+    def test_a_matcher_crash_names_the_match_stage(self, job, wav_file, decoded, reported, events):
+        class Exploding(StubMatcher):
+            def match(self, audio):
+                raise RuntimeError("index not loaded")
+
+        wav_file()
+        process_job(json.dumps(job()), Exploding())
+        [failed] = events("ingest.failed")
+        assert failed["stage"] == "match"
+
+    def test_a_path_outside_the_volume_names_the_resolve_stage(self, job, ingest_dir, matcher, reported, events):
+        process_job(json.dumps(job(file_path="../escape.wav")), matcher)
+        [failed] = events("ingest.failed")
+        assert failed["stage"] == "resolve"
+
+    def test_a_crash_outside_any_stage_is_still_reported(self, job, wav_file, matcher, decoded, reported, monkeypatch):
+        wav_file()
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("level meter broke")
+
+        monkeypatch.setattr(service_main, "level_dbfs", boom)
+        result = process_job(json.dumps(job()), matcher)
+        assert result["status"] == "failed"
+        assert result["error_stage"] == "match"
+
+    def test_no_line_carries_audio_or_the_payload(self, job, wav_file, matcher, reported, events, caplog, monkeypatch):
+        wav_file()
+        # Recognisable PCM, so any leak of the samples is findable in the text.
+        marker = b"AUDIOBYTES" * 2000
+        monkeypatch.setattr(
+            service_main,
+            "decode_to_pcm",
+            lambda *a, **k: NormalizedAudio(pcm=marker, sample_rate=22050),
+        )
+        process_job(json.dumps(job(file_path="chunk.wav")), matcher)
+
+        assert len(events()) == 2
+        assert "AUDIOBYTES" not in caplog.text
+        assert "chunk.wav" not in caplog.text, "the payload is not logged, even in part"
+
+    def test_no_line_carries_a_credential(self, job, wav_file, matcher, events, caplog, monkeypatch):
+        from fingerprint_service import results
+
+        wav_file()
+        monkeypatch.setattr(results, "APP_URL", "http://svc:hunter2@app:3000")
+
+        def refuse(url, **kwargs):
+            raise results.requests.ConnectionError(f"{url} Authorization: Bearer sk-live-abc123 token=abc123")
+
+        monkeypatch.setattr(results.requests, "post", refuse)
+        monkeypatch.setattr(
+            service_main,
+            "decode_to_pcm",
+            lambda *a, **k: NormalizedAudio(pcm=b"\x00\x00" * 100, sample_rate=22050),
+        )
+        process_job(json.dumps(job()), matcher)
+
+        [failed] = events("ingest.report_failed")
+        assert failed["stage"] == "report"
+        for secret in ("hunter2", "sk-live-abc123", "abc123"):
+            assert secret not in caplog.text
 
 
 class TestRunOnce:

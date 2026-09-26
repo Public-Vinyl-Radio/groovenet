@@ -1,5 +1,6 @@
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { logIngestEvent, msSince, type IngestLogFields } from "@/lib/ingestLog";
 import {
   audioIngestRepository,
   type AudioIngestRow,
@@ -41,6 +42,20 @@ export function reapIntervalMs(): number {
   return (Number.isFinite(minutes) && minutes > 0 ? minutes : 5) * 60_000;
 }
 
+/** The fields that identify one chunk on every line written about it. */
+function identify(ingest: AudioIngestRow): IngestLogFields {
+  return {
+    ingest_id: ingest.id,
+    source_id: ingest.source_id,
+    session_id: ingest.session_id,
+    sequence: ingest.sequence === null ? null : Number(ingest.sequence),
+  };
+}
+
+function iso(at: Date | string | null | undefined): string | null {
+  return at ? new Date(at).toISOString() : null;
+}
+
 export class IngestNotFound extends Error {
   constructor(id: string) {
     super(`no ingest ${id}`);
@@ -62,10 +77,31 @@ export class IngestLifecycleService {
       "processing",
       ["received"]
     );
-    if (claimed) return claimed;
+    if (claimed) {
+      logIngestEvent("ingest.claimed", {
+        ...identify(claimed),
+        status: claimed.status,
+        processing_ms: msSince(claimed.received_at),
+      });
+      return claimed;
+    }
 
     const existing = await audioIngestRepository.findById(ingestId);
-    if (!existing) throw new IngestNotFound(ingestId);
+    if (!existing) {
+      logIngestEvent(
+        "ingest.claim_unknown",
+        { ingest_id: ingestId, stage: "claim", error: "no such ingest" },
+        "warn"
+      );
+      throw new IngestNotFound(ingestId);
+    }
+    // A replayed job, or a claim that lost a race with the reaper: worth a
+    // line, because it means two workers or a stall.
+    logIngestEvent(
+      "ingest.claim_ignored",
+      { ...identify(existing), status: existing.status, stage: "claim" },
+      "warn"
+    );
     return existing;
   }
 
@@ -79,7 +115,14 @@ export class IngestLifecycleService {
    */
   async report(report: IngestResultReport): Promise<AudioIngestRow> {
     const ingest = await audioIngestRepository.findById(report.ingest_id);
-    if (!ingest) throw new IngestNotFound(report.ingest_id);
+    if (!ingest) {
+      logIngestEvent(
+        "ingest.report_unknown",
+        { ingest_id: report.ingest_id, stage: "report", error: "no such ingest" },
+        "warn"
+      );
+      throw new IngestNotFound(report.ingest_id);
+    }
 
     if (report.status === "processed") {
       await this.recordDetections(ingest, report);
@@ -105,7 +148,50 @@ export class IngestLifecycleService {
     // because a status update raced is a file nothing will ever come back for.
     await this.releaseFile(ingest);
 
+    this.logTerminal(ingest, report, terminal !== null);
     return terminal ?? ingest;
+  }
+
+  /**
+   * The one line every chunk ends on (#280), whichever way it went.
+   *
+   * `processing_ms` is time in the pipeline, from acceptance; `latency_ms` is
+   * from capture on the device, which is the number a listener notices.
+   */
+  private logTerminal(
+    ingest: AudioIngestRow,
+    report: IngestResultReport,
+    transitioned: boolean
+  ): void {
+    const failed = report.status === "failed";
+    const top = report.candidates[0];
+    logIngestEvent(
+      failed ? "ingest.failed" : "ingest.processed",
+      {
+        ...identify(ingest),
+        status: report.status,
+        // A failure names its stage. One the service did not name happened
+        // on its side of the boundary, somewhere between decode and report.
+        stage: failed ? (report.error_stage ?? "match") : null,
+        error: report.error ?? null,
+        // False when the ingest was already terminal — a late or duplicate
+        // result, typically after the reaper wrote it off.
+        reason: transitioned ? null : `already ${ingest.status}`,
+        captured_at: iso(ingest.captured_at),
+        duration_seconds: report.duration_seconds ?? ingest.duration_seconds,
+        sample_rate: report.sample_rate ?? null,
+        codec: ingest.codec,
+        level_dbfs: report.level_dbfs ?? null,
+        fingerprint_type: report.fingerprint_type ?? null,
+        candidates: report.candidates.length,
+        track_id: top?.track_id ?? null,
+        friend_id: top?.friend_id ?? null,
+        confidence: top?.confidence ?? null,
+        processing_ms: msSince(ingest.received_at),
+        latency_ms: msSince(report.window_start_at ?? ingest.captured_at),
+      },
+      failed ? "error" : "info"
+    );
   }
 
   /**
@@ -227,6 +313,21 @@ export class IngestLifecycleService {
       summary.failed += 1;
       if (ingest.status === "received") summary.neverClaimed += 1;
       await this.releaseFile(ingest);
+      // Stage "reap" because the reaper is what noticed; `reason` says which
+      // side stalled — nothing collected it, or a worker took it and died.
+      logIngestEvent(
+        "ingest.failed",
+        {
+          ...identify(ingest),
+          status: "failed",
+          stage: "reap",
+          reason: ingest.status === "received" ? "never_claimed" : "abandoned",
+          error: `stalled: ${reason}`,
+          captured_at: iso(ingest.captured_at),
+          processing_ms: msSince(ingest.received_at, now),
+        },
+        "error"
+      );
     }
 
     return summary;

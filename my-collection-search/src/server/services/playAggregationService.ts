@@ -1,4 +1,6 @@
+import { logIngestEvent, msSince } from "@/lib/ingestLog";
 import { playDetectionRepository } from "@/server/repositories/playDetectionRepository";
+import { ingestMetricsService } from "@/server/services/ingestMetricsService";
 import { spinLoggingService } from "@/server/services/spinLoggingService";
 import type { PlayDetectionRow } from "@/types/playDetection";
 
@@ -245,6 +247,32 @@ export function isRealPlay(
 
 type AggregationOptions = { confidenceFloor?: number; gapSeconds?: number; minWindows?: number };
 
+/**
+ * The end of the pipeline for one play (#280): a line, and a latency sample.
+ *
+ * Latency runs from the capture of the play's newest window — the one whose
+ * arrival tipped it over into a play, on the immediate trigger — to now. A
+ * spin made by the periodic backstop, or from a listener's backlog, reports
+ * the delay honestly rather than hiding it.
+ */
+function recordConfirmedPlay(sourceId: string, play: AggregatedPlay): void {
+  const latencyMs = msSince(play.last.window_start_at);
+  ingestMetricsService.playConfirmed(latencyMs);
+  logIngestEvent("play.confirmed", {
+    ingest_id: play.last.ingest_id,
+    source_id: sourceId,
+    session_id: play.first.session_id,
+    detection_id: play.first.id,
+    track_id: play.first.track_id,
+    friend_id: play.first.friend_id,
+    confidence: play.confidence,
+    windows: play.windows,
+    // Never null: `groupWindows` skips a window with no capture time.
+    captured_at: new Date(play.last.window_start_at!).toISOString(),
+    latency_ms: latencyMs,
+  });
+}
+
 /** Turns confidently matched windows into one automatic spin per contiguous play. */
 export class PlayAggregationService {
   async aggregateSource(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<{ created: number; skipped: number }> {
@@ -258,6 +286,7 @@ export class PlayAggregationService {
         friend_id: play.first.friend_id!, played_at: play.first.window_start_at!, confidence: play.confidence,
       });
       created++;
+      recordConfirmedPlay(sourceId, play);
     }
     return { created, skipped };
   }
