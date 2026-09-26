@@ -77,6 +77,14 @@ describe("derivePlays", () => {
     expect(plays).toHaveLength(1);
   });
 
+  it("cannot judge drift without offsets, so does not split on it", () => {
+    const windows = run("1-A1", 0, 4).map((w) => ({
+      ...w,
+      candidates: [{ ...w.candidates[0], offset_seconds: null as unknown as number }],
+    }));
+    expect(derivePlays(windows, { maxDriftSeconds: 1 })).toHaveLength(1);
+  });
+
   it("ignores low-confidence windows", () => {
     expect(derivePlays(run("1-A1", 0, 3, 0, 0.5))).toEqual([]);
   });
@@ -213,6 +221,18 @@ describe("diffAgainstPlan", () => {
       1
     );
     expect(result.played_instead_of).toEqual([{ play: 4, planned: twoOnOneRecord[4] }]);
+  });
+
+  it("prefers a later candidate when it is nearer where the play happened", () => {
+    const plan = [planned(0, "30-A1", "30"), planned(1, "20-A1", "20"), planned(2, "30-B1", "30")];
+    const result = diffAgainstPlan([play("20-A1"), play("30-X9")], plan, 1);
+    expect(result.played_instead_of).toEqual([{ play: 1, planned: plan[2] }]);
+  });
+
+  it("keeps the first candidate when it is already the nearest", () => {
+    const plan = [planned(0, "30-A1", "30"), planned(1, "20-A1", "20"), planned(2, "30-B1", "30")];
+    const result = diffAgainstPlan([play("30-X9")], plan, 1);
+    expect(result.played_instead_of).toEqual([{ play: 0, planned: plan[0] }]);
   });
 
   it("does not pair across releases or when the play's release is unknown", () => {

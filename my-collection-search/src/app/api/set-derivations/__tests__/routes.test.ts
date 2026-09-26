@@ -238,3 +238,50 @@ describe("worker callbacks", () => {
     expect((await resultRoute.POST(new Request("http://app", json(result)), idParams())).status).toBe(500);
   });
 });
+
+describe("error fallbacks", () => {
+  // A thrown non-Error, and an Error with no message, still produce a 500
+  // with something to read.
+  const oddities = [["a thrown string", "boom"], ["an Error without a message", new Error("")]] as const;
+
+  it.each(oddities)("PUT recording answers 500 for %s", async (_label, thrown) => {
+    recordingService.store.mockRejectedValue(thrown);
+    const response = await recordingRoute.PUT(
+      new Request("http://app", { method: "PUT", body: "x" }),
+      shaParams()
+    );
+    expect(response.status).toBe(500);
+    expect((await response.json()).message).toBeTruthy();
+  });
+
+  it.each(oddities)("POST derivation answers 500 for %s", async (_label, thrown) => {
+    derivationService.create.mockRejectedValue(thrown);
+    const response = await createRoute.POST(new Request("http://app", json({ recording_sha256: SHA })));
+    expect(response.status).toBe(500);
+    expect((await response.json()).error).toBeTruthy();
+  });
+
+  it.each(oddities)("GET derivation answers 500 for %s", async (_label, thrown) => {
+    derivationService.view.mockRejectedValue(thrown);
+    const response = await viewRoute.GET(new Request("http://app/x"), idParams());
+    expect(response.status).toBe(500);
+    expect((await response.json()).error).toBeTruthy();
+  });
+
+  it.each(oddities)("claim answers 500 for %s", async (_label, thrown) => {
+    derivationService.claim.mockRejectedValue(thrown);
+    const response = await claimRoute.POST(new Request("http://app"), idParams());
+    expect(response.status).toBe(500);
+    expect((await response.json()).error).toBeTruthy();
+  });
+
+  it.each(oddities)("result answers 500 for %s", async (_label, thrown) => {
+    derivationService.report.mockRejectedValue(thrown);
+    const response = await resultRoute.POST(
+      new Request("http://app", json({ status: "processed", windows: [] })),
+      idParams()
+    );
+    expect(response.status).toBe(500);
+    expect((await response.json()).error).toBeTruthy();
+  });
+});

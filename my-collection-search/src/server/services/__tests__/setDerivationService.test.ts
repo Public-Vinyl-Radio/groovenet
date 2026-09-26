@@ -140,6 +140,12 @@ describe("create", () => {
     expect(repository.transitionStatus).toHaveBeenCalledWith("new", "failed", ["queued"], "could not be queued");
   });
 
+  it("describes a queue failure whatever was thrown", () => {
+    expect(new SetDerivationQueueError("socket closed").message).toBe(
+      "could not queue the derivation: socket closed"
+    );
+  });
+
   it("lists the recording in a live set's media when asked", async () => {
     await service.create({ recording_sha256: SHA, live_set_id: 7 }, NOW);
     expect(repository.attachToLiveSet).toHaveBeenCalledWith(7, `/api/set-recordings/${SHA}`, "set.mp3");

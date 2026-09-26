@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
+import { finished } from "node:stream/promises";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
@@ -192,9 +193,8 @@ export async function writeHashed(
     await closed;
     throw error;
   }
-  await new Promise<void>((resolve, reject) => {
-    out.end((error?: Error | null) => (error ? reject(error) : resolve()));
-  });
+  out.end();
+  await finished(out);
   return { digest: hash.digest("hex"), size };
 }
 
