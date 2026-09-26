@@ -84,9 +84,16 @@ wait_for_db_ready() {
   done
 }
 
-echo "==> Fetching tags and checking out ${TAG}"
+# A release candidate (`just deploy-rc`) is deployed by its image tag,
+# sha-<short>, which is not a git ref; the commit it was built from is.
+GIT_REF="${TAG}"
+if [[ "${TAG}" =~ ^sha-([0-9a-f]{7,40})$ ]]; then
+  GIT_REF="${BASH_REMATCH[1]}"
+fi
+
+echo "==> Fetching tags and checking out ${GIT_REF}"
 git fetch --tags
-git checkout "${TAG}"
+git checkout "${GIT_REF}"
 
 if [[ -n "${COMPOSE_ENV_FILE}" ]]; then
   echo "==> Using env file ${COMPOSE_ENV_FILE}"

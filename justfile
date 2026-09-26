@@ -277,7 +277,22 @@ deploy-prod-remote:
     bash ./scripts/render-env.sh .env.tpl "$tmp_env"
     scp "$tmp_env" {{prod_host}}:{{prod_stack_dir}}/.env
   fi
-  ssh {{prod_host}} 'set -euo pipefail; cd {{prod_stack_dir}}; if [ -x ./my-collection-search/scripts/deploy-prod.sh ]; then ./my-collection-search/scripts/deploy-prod.sh {{tag}}; elif [ -x ./scripts/deploy-prod.sh ]; then ./scripts/deploy-prod.sh {{tag}}; else echo "deploy-prod.sh not found"; exit 127; fi'
+  # Check out what is being deployed *before* running its deploy script, so
+  # the script that runs is the one from that commit — not whatever the box
+  # last checked out, which may predate what this release needs (e.g. an old
+  # script that cannot deploy a sha- candidate).
+  #
+  # A release candidate's image tag, sha-<short>, is not a git ref. Its commit
+  # is checked out, and a matching tag is made in the box's clone — local only,
+  # never pushed — because deploy-prod.sh checks out its argument, and scripts
+  # from before it learned to map sha- tags would otherwise fail on it.
+  git_ref="{{tag}}"
+  tag_rc=""
+  if [[ "$git_ref" =~ ^sha-([0-9a-f]{7,40})$ ]]; then
+    git_ref="${BASH_REMATCH[1]}"
+    tag_rc="git tag -f {{tag}} ${git_ref} >/dev/null;"
+  fi
+  ssh {{prod_host}} "set -euo pipefail; cd {{prod_stack_dir}}; git fetch --quiet --tags; git checkout --quiet ${git_ref}; ${tag_rc} if [ -x ./my-collection-search/scripts/deploy-prod.sh ]; then ./my-collection-search/scripts/deploy-prod.sh {{tag}}; elif [ -x ./scripts/deploy-prod.sh ]; then ./scripts/deploy-prod.sh {{tag}}; else echo 'deploy-prod.sh not found'; exit 127; fi"
 
 # Pulls images from GHCR. A release candidate is the tested set CI builds for
 # every main commit, tagged sha-<7 hex> — see `deploy-rc`.
