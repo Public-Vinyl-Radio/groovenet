@@ -279,15 +279,70 @@ deploy-prod-remote:
   fi
   ssh {{prod_host}} 'set -euo pipefail; cd {{prod_stack_dir}}; if [ -x ./my-collection-search/scripts/deploy-prod.sh ]; then ./my-collection-search/scripts/deploy-prod.sh {{tag}}; elif [ -x ./scripts/deploy-prod.sh ]; then ./scripts/deploy-prod.sh {{tag}}; else echo "deploy-prod.sh not found"; exit 127; fi'
 
-# Deploy a published release (vX.Y.Z) to the prod host (pulls images from GHCR).
+# Pulls images from GHCR. A release candidate is the tested set CI builds for
+# every main commit, tagged sha-<7 hex> — see `deploy-rc`.
+# Deploy a release (vX.Y.Z) or a release candidate (sha-abc1234) to the prod host.
 deploy version:
   #!/usr/bin/env bash
   set -euo pipefail
-  if [[ ! "{{version}}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Usage: just deploy v1.2.3   (a published release tag)"
+  if [[ "{{version}}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    :
+  elif [[ "{{version}}" =~ ^sha-[0-9a-f]{7}$ ]]; then
+    # A release's images were all promoted together; a candidate's are only
+    # as complete as its CI run. Refuse a half-built set rather than deploy
+    # new images for some services and fail to pull the rest.
+    just registry="{{registry}}" check-images "{{version}}"
+  else
+    echo "Usage: just deploy v1.2.3        (a published release)"
+    echo "       just deploy sha-abc1234   (a release candidate; see just deploy-rc)"
     exit 1
   fi
   TAG="{{version}}" just prod_host="{{prod_host}}" prod_stack_dir="{{prod_stack_dir}}" deploy-prod-remote
+
+# The images are the ones a release later promotes unchanged, so what you test
+# is what ships. Defaults to the tip of origin/main.
+# Deploy a main commit's tested images as a release candidate, before releasing.
+deploy-rc commit="origin/main":
+  #!/usr/bin/env bash
+  set -euo pipefail
+  git fetch --quiet --tags origin main
+  full="$(git rev-parse --verify --quiet "{{commit}}^{commit}")" || {
+    echo "Unknown commit: {{commit}}"; exit 1;
+  }
+  # CI only builds images for commits pushed to main.
+  if ! git merge-base --is-ancestor "$full" origin/main; then
+    echo "{{commit}} is not on origin/main, so CI never built images for it."
+    exit 1
+  fi
+  image_tag="sha-${full:0:7}"
+  last="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' "$full" 2>/dev/null || true)"
+  echo "Release candidate ${image_tag}: $(git log -1 --format=%s "$full")"
+  if [[ -n "$last" ]]; then
+    echo "Changes since ${last}:"
+    git log --format='  %h %s' "${last}..${full}"
+  fi
+  echo
+  just registry="{{registry}}" prod_host="{{prod_host}}" prod_stack_dir="{{prod_stack_dir}}" deploy "$image_tag"
+
+# Keep the list in step with SERVICES in deploy-prod.sh and `promote` in
+# docker-publish.yml (fingerprint-set-worker runs the fingerprint-service image).
+# Check that every service has an image in GHCR under this tag.
+check-images image_tag:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  missing=()
+  for svc in webapp webapp-migrate essentia-api ga-service download-worker fingerprint-service; do
+    if docker manifest inspect "{{registry}}/${svc}:{{image_tag}}" >/dev/null 2>&1; then
+      echo "  ✓ ${svc}:{{image_tag}}"
+    else
+      echo "  ✗ ${svc}:{{image_tag}}"
+      missing+=("$svc")
+    fi
+  done
+  if (( ${#missing[@]} )); then
+    echo "Missing ${#missing[@]} image(s) for {{image_tag}}. Is its CI run finished and green?"
+    exit 1
+  fi
 
 # Releases are cut by release-please (merge the Release PR), not from here.
 # See RELEASING.md. This recipe no longer tags/builds/deploys in one shot.
@@ -296,6 +351,7 @@ release:
   @echo "  1) Land Conventional Commit PRs on main (feat:/fix:/…)"
   @echo "  2) Merge the 'chore(main): release X.Y.Z' PR → tags vX.Y.Z, CI publishes images"
   @echo "  3) Deploy it:  just deploy vX.Y.Z"
+  @echo "  To test main on the box first:  just deploy-rc"
 
 deploy-prod-remote-localbuild:
   #!/usr/bin/env bash

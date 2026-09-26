@@ -136,6 +136,10 @@ Automated via release-please — see `RELEASING.md`.
    `ghcr.io/public-vinyl-radio/*` images.
 4. Deploy with `just deploy vX.Y.Z`.
 
+To test before releasing, `just deploy-rc` deploys the tip of `main` as a
+release candidate: the `sha-<short>` images CI already built, which a release
+later promotes unchanged. See "Testing a release candidate" in `RELEASING.md`.
+
 Images are built for **amd64 only**, deliberately — the homelab targets are
 amd64 and QEMU emulation in CI is too slow to be worth it.
 

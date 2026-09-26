@@ -146,6 +146,57 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm migrate
 Rollback = `just deploy v1.1.0` (the previous tag). Images are immutable, so
 rollback is exact.
 
+## Testing a release candidate on the box
+
+Every push to `main` already builds and pushes **all six** images as
+`sha-<7 hex>`, after lint and tests pass — and a release later *promotes*
+those same images rather than rebuilding them. So any merged commit is a
+complete release candidate, and what you test is byte-for-byte what ships.
+
+```bash
+just deploy-rc                 # the tip of origin/main
+just deploy-rc abc1234         # a specific main commit
+just deploy sha-abc1234        # the same, by image tag
+just check-images sha-abc1234  # only check its images exist
+```
+
+`deploy-rc` prints the commit and everything it adds since the last release,
+then checks that every service has an image under that tag before touching the
+box. A candidate is only as complete as its CI run: deploying while one image
+is still building would move some services forward and fail to pull the rest,
+so a missing image stops the deploy instead. It refuses a commit that is not on
+`origin/main`, since CI never built images for it.
+
+The loop:
+
+1. Merge the PRs you want to test.
+2. Wait for **Build and Publish Docker Images** on that commit to go green.
+3. `just deploy-rc`, and test end to end.
+4. Merge the release PR. It promotes the images you just tested.
+5. `just deploy vX.Y.Z` — a restart onto identical images.
+
+To back out, `just deploy <previous vX.Y.Z>`. Migrations only move forward; a
+candidate that added tables leaves them in place, which the previous release
+ignores. A candidate that *changed* or dropped something needs more thought
+before you test it on real data.
+
+Two things a candidate is not:
+
+- **Not a git tag.** `v0.3.0-rc.1` would match the publish workflow's
+  `v*.*.*` trigger, and `promote` would tag it `latest`. Candidates are image
+  tags only.
+- **Not a new version number.** The About page reads `package.json`, so it
+  shows the last release's version while a candidate is running.
+  `deploy-rc` prints the commit; that is the identity to note.
+
+The CLI is not part of a candidate. To try an unreleased command against it,
+run the CLI from a checkout of the same commit:
+
+```bash
+npm run build -w packages/groovenet-client -w packages/groovenet-cli
+node packages/groovenet-cli/build/bin/groovenet.js sets derive set.mp3 --playlist 176
+```
+
 > `just release` no longer tags/builds/deploys in one shot — releases are cut by
 > release-please. The `release-localbuild-*` recipes remain as an escape hatch
 > for building + deploying locally (e.g. bypassing the registry) and still use
