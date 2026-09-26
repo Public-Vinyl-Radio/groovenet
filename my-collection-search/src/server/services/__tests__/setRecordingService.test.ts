@@ -160,6 +160,48 @@ describe("writeHashed", () => {
   });
 });
 
+describe("writeHashed failures (#282 hang)", () => {
+  // Each of these used to be able to wedge the handler: it stopped reading the
+  // body and never answered, and the CLI stalled mid-upload. They must reject.
+
+  it("rejects promptly when the file cannot be opened", async () => {
+    const readonly = path.join(dir, "readonly");
+    fs.mkdirSync(readonly, { mode: 0o500 });
+    const big = new Uint8Array(1024 * 1024);
+
+    await expect(
+      writeHashed(body(big, big, big, big), path.join(readonly, "x"), 1e9)
+    ).rejects.toMatchObject({ code: "EACCES" });
+  }, 5000);
+
+  it("cancels the request body when it gives up", async () => {
+    let cancelled = false;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(64 * 1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    await expect(writeHashed(endless, path.join(dir, "big"), 256 * 1024)).rejects.toMatchObject({
+      code: "recording_too_large",
+    });
+    expect(cancelled).toBe(true);
+  }, 5000);
+
+  it("leaves no file behind when refused mid-open", async () => {
+    const target = path.join(dir, "refused");
+    await expect(writeHashed(body(new Uint8Array(10)), target, 5)).rejects.toMatchObject({
+      code: "recording_too_large",
+    });
+    await fs.promises.rm(target, { force: true });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fs.existsSync(target)).toBe(false);
+  });
+});
+
 describe("helpers", () => {
   it.each([
     ["mp3", "mp3"],

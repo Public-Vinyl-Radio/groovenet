@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { once } from "node:events";
-import { finished } from "node:stream/promises";
 import fs from "node:fs";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import {
@@ -158,6 +159,14 @@ export class SetRecordingService {
 /**
  * Stream a body to `target`, hashing as it writes and refusing it the moment
  * it passes `maxBytes`. Nothing is buffered beyond one chunk.
+ *
+ * Built on `pipeline` so a failure at *any* stage ends the whole transfer:
+ * the file failing to open (a volume the app cannot write to), the size
+ * limit, or the client going away. A hand-rolled loop here once waited for a
+ * `drain` that an errored file stream never emits — the handler stopped
+ * reading, never answered, and the CLI hung at ~12 MB, the size of the
+ * buffers between them. Tearing the pipeline down also cancels the request
+ * body, so the client gets an error instead of a stall.
  */
 export async function writeHashed(
   body: ReadableStream<Uint8Array>,
@@ -165,36 +174,23 @@ export async function writeHashed(
   maxBytes: number
 ): Promise<{ digest: string; size: number }> {
   const hash = createHash("sha256");
-  const out = fs.createWriteStream(target);
   let size = 0;
-  const reader = body.getReader();
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
+  const out = fs.createWriteStream(target);
+  const meter = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      size += chunk.byteLength;
       if (size > maxBytes) {
-        throw new RecordingRejected(
-          "recording_too_large",
-          `upload exceeds ${maxBytes} bytes`
-        );
+        callback(new RecordingRejected("recording_too_large", `upload exceeds ${maxBytes} bytes`));
+        return;
       }
-      hash.update(value);
-      if (!out.write(value)) {
-        await new Promise<void>((resolve) => out.once("drain", resolve));
-      }
-    }
-  } catch (error) {
-    await reader.cancel().catch(() => {});
-    // Wait for the close: the file is opened asynchronously, and a stream
-    // destroyed mid-open can create it after the caller's cleanup has run.
-    const closed = once(out, "close");
-    out.destroy();
-    await closed;
-    throw error;
-  }
-  out.end();
-  await finished(out);
+      hash.update(chunk);
+      callback(null, chunk);
+    },
+  });
+
+  // `pipeline` settles only once every stream has closed, so a file stream
+  // destroyed mid-open cannot create the file after the caller's cleanup.
+  await pipeline(Readable.fromWeb(body as NodeWebReadableStream<Uint8Array>), meter, out);
   return { digest: hash.digest("hex"), size };
 }
 

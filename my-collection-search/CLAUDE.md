@@ -264,9 +264,16 @@ Two things to keep if you touch it:
   `$2` in `CASE WHEN $2 IN (...)` makes Postgres deduce two types for it and
   refuse. `just set-derivation-test` runs these statements against a real
   database; a mocked `dbQuery` accepts them either way.
-- **`writeHashed` waits for the write stream to close on failure.** The file
-  is opened asynchronously; a stream destroyed mid-open can create it after
-  the caller's cleanup ran, stranding a `.incoming-*` file on the volume.
+- **`writeHashed` is a `pipeline`, and must stay one.** Any stage failing —
+  the file not opening, the size limit, the client leaving — tears the whole
+  transfer down and cancels the request body. A hand-rolled loop here waited
+  for a `drain` an errored file stream never emits: on a volume the app could
+  not write, the handler stopped reading and never answered, and the CLI hung
+  at ~12 MB. `pipeline` also waits for every stream to close, so a file
+  opened mid-failure cannot outlive the caller's cleanup.
+- **The app must own `/app/set-recordings`.** `entrypoint.sh` chowns it with
+  the other writable volumes before dropping to `nextjs`; a new volume the app
+  writes to needs adding there too.
 
 ## API reference
 
