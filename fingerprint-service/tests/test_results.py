@@ -132,14 +132,16 @@ class TestTryReportResult:
         assert try_report_result(build_result(job(), matcher)) is True
 
     def test_logs_rather_than_raising_when_the_app_is_down(
-        self, job, matcher, monkeypatch, caplog
+        self, job, matcher, monkeypatch, events
     ):
         def boom(*args, **kwargs):
             raise requests.ConnectionError("no route to host")
 
         monkeypatch.setattr(results.requests, "post", boom)
         assert try_report_result(build_result(job(), matcher)) is False
-        assert "Failed to report ingest" in caplog.text
+        [failed] = events("ingest.report_failed")
+        assert failed["stage"] == "report"
+        assert failed["ingest_id"] == job()["ingest_id"]
 
 
 @pytest.fixture

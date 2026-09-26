@@ -4,6 +4,8 @@ const { listRecentBySource, listActiveSourceIds, findAutomaticSessionByDetection
 }));
 vi.mock("@/server/repositories/playDetectionRepository", () => ({ playDetectionRepository: { listRecentBySource, listActiveSourceIds } }));
 vi.mock("@/server/services/spinLoggingService", () => ({ spinLoggingService: { findAutomaticSessionByDetectionId, createAutomaticSpinSession } }));
+const { playConfirmed } = vi.hoisted(() => ({ playConfirmed: vi.fn() }));
+vi.mock("@/server/services/ingestMetricsService", () => ({ ingestMetricsService: { playConfirmed } }));
 import {
   aggregationIntervalMs,
   aggregationLookbackMs,
@@ -74,6 +76,48 @@ describe("groupDetections", () => {
     const result = await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
     expect(result).toEqual({ created: 1, skipped: 1 });
     expect(createAutomaticSpinSession).toHaveBeenCalledWith(expect.objectContaining({ detection_id: "d2", source_id: "listener", track_id: "track-b" }));
+  });
+
+  it("logs each confirmed play with its capture-to-spin latency (#280)", async () => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ now: new Date("2026-09-20T12:01:00Z"), toFake: ["Date"] });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      listRecentBySource.mockResolvedValue([
+        detection({ session_id: "sess-1" }),
+        detection({ id: "d1b", ingest_id: "i2", window_start_at: "2026-09-20T12:00:15Z", confidence: 0.95 }),
+      ]);
+      findAutomaticSessionByDetectionId.mockResolvedValue(null);
+
+      await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
+
+      // From the capture of the newest window, 12:00:15, to now, 12:01:00.
+      expect(playConfirmed).toHaveBeenCalledWith(45_000);
+      const line = JSON.parse(log.mock.calls[0][0] as string);
+      expect(line).toMatchObject({
+        event: "play.confirmed",
+        ingest_id: "i2",
+        source_id: "listener",
+        session_id: "sess-1",
+        detection_id: "d1",
+        track_id: "track-a",
+        confidence: 0.95,
+        windows: 2,
+        captured_at: "2026-09-20T12:00:15.000Z",
+        latency_ms: 45_000,
+      });
+    } finally {
+      vi.useRealTimers();
+      log.mockRestore();
+    }
+  });
+
+  it("does not count a play it skipped as already aggregated", async () => {
+    vi.clearAllMocks();
+    listRecentBySource.mockResolvedValue([detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" })]);
+    findAutomaticSessionByDetectionId.mockResolvedValue({ id: 1 });
+    await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
+    expect(playConfirmed).not.toHaveBeenCalled();
   });
 });
 

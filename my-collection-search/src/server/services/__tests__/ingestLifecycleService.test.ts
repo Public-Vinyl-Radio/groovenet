@@ -472,6 +472,136 @@ describe("reapStalled()", () => {
   });
 });
 
+// ─── what it logs (#280) ──────────────────────────────────────────────────────
+
+describe("structured logging", () => {
+  function lines(): Array<Record<string, unknown>> {
+    return [console.log, console.warn, console.error]
+      .filter((fn) => vi.isMockFunction(fn))
+      .flatMap((fn) => vi.mocked(fn).mock.calls)
+      .map(([first]) => {
+        try {
+          return JSON.parse(first as string);
+        } catch {
+          return null;
+        }
+      })
+      .filter((line) => line?.component === "audio-ingest");
+  }
+
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  it("logs a claim", async () => {
+    await service.claim("ingest-1");
+    expect(lines()).toEqual([
+      expect.objectContaining({
+        event: "ingest.claimed",
+        ingest_id: "ingest-1",
+        source_id: "living-room-vinyl",
+        session_id: "sess-1",
+        sequence: 42,
+        status: "processing",
+      }),
+    ]);
+  });
+
+  it("warns about a claim on an ingest already past received", async () => {
+    ingests.transitionStatus.mockResolvedValue(null);
+    ingests.findById.mockResolvedValue(row({ status: "failed" }));
+    await service.claim("ingest-1");
+    expect(lines()[0]).toMatchObject({
+      event: "ingest.claim_ignored",
+      level: "warn",
+      stage: "claim",
+      status: "failed",
+    });
+  });
+
+  it("warns about a claim or result for an ingest that does not exist", async () => {
+    ingests.transitionStatus.mockResolvedValue(null);
+    ingests.findById.mockResolvedValue(null);
+    await expect(service.claim("ghost")).rejects.toThrow();
+    await expect(service.report(report({ ingest_id: "ghost" }))).rejects.toThrow();
+    expect(lines().map((l) => [l.event, l.stage, l.ingest_id])).toEqual([
+      ["ingest.claim_unknown", "claim", "ghost"],
+      ["ingest.report_unknown", "report", "ghost"],
+    ]);
+  });
+
+  it("ends a matched window on one processed line", async () => {
+    await service.report(
+      report({
+        duration_seconds: 15.0,
+        sample_rate: 22050,
+        level_dbfs: -18.5,
+        candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.93, offset_seconds: 12 }],
+      })
+    );
+
+    const terminal = lines().filter((l) => l.event === "ingest.processed");
+    expect(terminal).toHaveLength(1);
+    expect(terminal[0]).toMatchObject({
+      level: "info",
+      ingest_id: "ingest-1",
+      source_id: "living-room-vinyl",
+      session_id: "sess-1",
+      sequence: 42,
+      status: "processed",
+      stage: null,
+      candidates: 1,
+      track_id: "t1",
+      confidence: 0.93,
+      level_dbfs: -18.5,
+      codec: "pcm_s16le",
+      sample_rate: 22050,
+      duration_seconds: 15,
+      captured_at: "2026-09-20T18:42:10.000Z",
+    });
+    expect(typeof terminal[0].processing_ms).toBe("number");
+    expect(typeof terminal[0].latency_ms).toBe("number");
+  });
+
+  it("ends a failed chunk on one error line naming the service's stage", async () => {
+    await service.report(report({ status: "failed", error: "truncated upload", error_stage: "decode" }));
+    expect(lines()).toEqual([
+      expect.objectContaining({
+        event: "ingest.failed",
+        level: "error",
+        stage: "decode",
+        error: "truncated upload",
+        candidates: 0,
+      }),
+    ]);
+  });
+
+  it("still names a stage when the service did not", async () => {
+    await service.report(report({ status: "failed", error: "boom" }));
+    expect(lines()[0]).toMatchObject({ event: "ingest.failed", stage: "match" });
+  });
+
+  it("says so when a result lands on an ingest already terminal", async () => {
+    ingests.findById.mockResolvedValue(row({ status: "failed" }));
+    ingests.transitionStatus.mockResolvedValue(null);
+    await service.report(report());
+    expect(lines()[0]).toMatchObject({ event: "ingest.processed", reason: "already failed" });
+  });
+
+  it("ends a stalled chunk on a line naming the reaper and which side stalled", async () => {
+    ingests.listStale.mockResolvedValue([
+      row({ id: "a", status: "received" }),
+      row({ id: "b", status: "processing" }),
+    ]);
+    await service.reapStalled();
+
+    expect(lines().map((l) => [l.event, l.ingest_id, l.stage, l.reason])).toEqual([
+      ["ingest.failed", "a", "reap", "never_claimed"],
+      ["ingest.failed", "b", "reap", "abandoned"],
+    ]);
+  });
+});
+
 describe("configuration", () => {
   it("defaults to a ten minute stall and a five minute sweep", () => {
     delete process.env.AUDIO_INGEST_STALL_MINUTES;

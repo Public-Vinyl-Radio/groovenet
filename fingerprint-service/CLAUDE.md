@@ -36,6 +36,7 @@ fingerprint_service/
   sets.py          set derivation: stream a recording, match every window
   runs.py          per-run progress counters in Redis
   results.py       POSTs the ingest callback and reference fingerprints
+  observability.py one JSON line per stage of a live window (#280)
   types.py         Ingest*/Index*/MatchCandidate TypedDicts
 ```
 
@@ -128,11 +129,13 @@ head-of-line block a 15 second window.
   "duration_seconds": 15.02,
   "sample_rate": 44100,
   "channels": 1,
-  "codec": "pcm_s16le"
+  "codec": "pcm_s16le",
+  "enqueued_at": "2026-09-20T18:42:11.204Z"
 }
 ```
 
-`ingest_id`, `source_id` and `file_path` are required; the rest is whatever the
+`ingest_id`, `source_id` and `file_path` are required; `enqueued_at` is only
+used to log how long the job waited (#280); the rest is whatever the
 ingest route's ffprobe pass learned (#275). `file_path` is relative to
 `AUDIO_INGEST_DIR` — absolute paths work too, but anything resolving outside the
 volume is refused.
@@ -214,6 +217,7 @@ unreachable would be the worse trade.
   "sequence": 42,
   "status": "processed",
   "error": null,
+  "error_stage": null,
   "window_start_at": "2026-09-20T18:42:10Z",
   "duration_seconds": 15.02,
   "sample_rate": 22050,
@@ -230,11 +234,34 @@ signature change (#278) — nothing is built for that case.
 **An empty `candidates` is a success, not a failure.** A no-match window is
 recorded, because a gap in matches is how #279 finds the boundary between one
 play and the next. `status: "failed"` means the chunk could not be processed at
-all.
+all, and `error_stage` says where: `resolve`, `decode` or `match`.
 
 This goes over plain `requests` rather than `groovenet_client` because the
 callback route does not exist in the OpenAPI spec yet (#276). Switch to the
 generated client once it does.
+
+## Logging a live window (#280)
+
+Every live window writes exactly two JSON lines on the `fingerprint_service.events`
+logger — `ingest.picked_up` (with `queue_wait_ms`), then `ingest.processed` or
+`ingest.failed` (with `decode_ms`, `match_ms`, `processing_ms`, the top
+candidate and `stage` on failure) — plus `ingest.report_failed` if the callback
+does not land, and `ingest.skipped` for a payload too broken to name an ingest.
+The app writes the same shape keyed on the same `ingest_id`, so
+
+```bash
+docker compose logs app fingerprint-service | grep <ingest_id>
+```
+
+follows one chunk end to end. The events logger does not propagate to the root
+handler, so each line is a bare JSON object with no timestamp prefix.
+
+`observability.log_event` takes an **allowlist** of fields (`ALLOWED_FIELDS`)
+and drops anything else, and anything that is not a scalar — so PCM, a job
+payload or a response body cannot reach a line by accident. Free text is
+truncated and scrubbed of credential shapes (bearer tokens, `token=`, URL
+userinfo). Add a field to the allowlist rather than widening that rule. The job
+payload is deliberately never logged; `run_once` names only the queue.
 
 ## Set derivation (#282)
 
@@ -574,7 +601,7 @@ fails fast instead of failing every job identically forever.
 ## Tests
 
 ```bash
-uv run --group dev pytest                                        # 330 tests
+uv run --group dev pytest                                        # 404 tests
 uv run --group dev pytest --cov=fingerprint_service --cov-report=term-missing
 ```
 

@@ -144,6 +144,8 @@ export type IngestResultReport = {
   ingest_id: string;
   status: "processed" | "failed";
   error?: string | null;
+  /** Where `fingerprint-service` failed (#280): parse, resolve, decode or match. */
+  error_stage?: string | null;
   window_start_at?: string | null;
   duration_seconds?: number | null;
   sample_rate?: number | null;
@@ -210,5 +212,36 @@ export type IngestPipelineStats = {
   spins: {
     /** Confident detections not yet written to spin_sessions (#304). Null when it could not be computed. */
     pending: number | null;
+  };
+  /**
+   * What leaves no row behind (#280), from Redis. Across all sources even when
+   * `source_id` is set, and rounded out to whole buckets. Null when Redis
+   * could not be reached.
+   */
+  counters: IngestCounters | null;
+};
+
+/** Counters for the ingest pipeline that Postgres cannot answer (#280). */
+export type IngestCounters = {
+  bucket_minutes: number;
+  chunks: {
+    /** Every upload that reached the route, whatever became of it. */
+    received: number;
+    /** New chunks stored and queued. */
+    accepted: number;
+    /** Retries answered with the original `ingest_id`. */
+    duplicate: number;
+    rejected: number;
+    rejected_by_reason: Array<{ reason: string; count: number }>;
+    /** Uploads the app itself failed on (500), by the stage that failed. */
+    failed_by_stage: Array<{ stage: string; count: number }>;
+    enqueue_failed: number;
+  };
+  plays: {
+    /** Spin sessions created from detections. */
+    confirmed: number;
+    /** From the capture of the window that confirmed a play to its spin. */
+    latency_ms_avg: number | null;
+    latency_bands: Array<{ band: string; count: number }>;
   };
 };

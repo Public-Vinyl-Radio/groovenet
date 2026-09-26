@@ -124,6 +124,28 @@ export function formatStats(s: IngestPipelineStats): string {
     lines.push(chalk.red(`    ✗ ${f.count}× ${f.error}`));
   }
 
+  // Uploads that never became a row (#280) — invisible in the counts above.
+  if (s.counters === null) {
+    lines.push(chalk.yellow("? upload counters unavailable (redis unreachable)"));
+  } else if (s.counters) {
+    const c = s.counters.chunks;
+    lines.push(
+      chalk.gray(
+        `  uploads: ${c.received} received, ${c.accepted} accepted, ` +
+          `${c.duplicate} duplicate, ${c.rejected} rejected`
+      )
+    );
+    for (const r of c.rejected_by_reason) {
+      lines.push(chalk.yellow(`    ⚠ ${r.count}× ${r.reason}`));
+    }
+    for (const f of c.failed_by_stage) {
+      lines.push(chalk.red(`    ✗ ${f.count}× failed at ${f.stage}`));
+    }
+    if (c.enqueue_failed > 0) {
+      lines.push(chalk.red(`    ✗ ${c.enqueue_failed}× could not be queued`));
+    }
+  }
+
   const d = s.detections;
   if (d.windows === 0) {
     lines.push(chalk.gray("  detections: none in this window"));
@@ -150,6 +172,13 @@ export function formatStats(s: IngestPipelineStats): string {
     lines.push(
       chalk.yellow(`⚠ ${s.spins.pending} detection(s) awaiting a spin session`)
     );
+  }
+
+  const plays = s.counters?.plays;
+  if (plays && plays.confirmed > 0) {
+    const avg =
+      plays.latency_ms_avg === null ? "" : `, ${(plays.latency_ms_avg / 1000).toFixed(0)}s after capture on average`;
+    lines.push(chalk.gray(`  plays confirmed: ${plays.confirmed}${avg}`));
   }
 
   if (s.ingests.oldest_in_flight) {

@@ -5,6 +5,7 @@ probe then `while True: run_once()`, with every step a named function a test can
 call directly.
 """
 import json
+import logging
 import os
 import threading
 import time
@@ -36,8 +37,18 @@ from .config import (
 )
 from .indexer import InvalidIndexJob, index_track, outcome, parse_index_job
 from .matcher import ChromaprintMatcher, FingerprintMatcher, build_matcher
+from .observability import (
+    STAGE_DECODE,
+    STAGE_MATCH,
+    STAGE_PARSE,
+    STAGE_RESOLVE,
+    elapsed_ms,
+    log_event,
+    queue_wait_ms,
+)
 from .reference_loader import try_build_index
 from .results import (
+    STATUS_FAILED,
     build_result,
     build_set_result,
     try_claim_ingest,
@@ -170,15 +181,31 @@ def publish_engine(matcher: FingerprintMatcher) -> None:
         logger.warning(f"Failed to publish engine identity: {e}")
 
 
-def handle_job(job: IngestJob, matcher: FingerprintMatcher) -> IngestResult:
+class _StageFailure(Exception):
+    """A chunk failed at a named stage; carries the stage to the result."""
+
+    def __init__(self, stage: str, error: Exception):
+        super().__init__(str(error))
+        self.stage = stage
+        self.error = error
+
+
+def handle_job(
+    job: IngestJob, matcher: FingerprintMatcher, timings: dict | None = None
+) -> IngestResult:
     """Decode one chunk, match it, and build the result to report.
 
     A decode failure is a *reported* failure, not a swallowed one: the app is
     waiting on a terminal state before it will release the file (#276).
+
+    `timings`, when given, is filled with `decode_ms` and `match_ms` for the
+    terminal log line (#280).
     """
+    timings = {} if timings is None else timings
     path = resolve_ingest_path(str(job["file_path"]))
     declared = job.get("duration_seconds")
 
+    started = time.monotonic()
     try:
         audio = decode_to_pcm(
             path,
@@ -186,10 +213,15 @@ def handle_job(job: IngestJob, matcher: FingerprintMatcher) -> IngestResult:
             declared_duration=float(declared) if declared else None,
         )
     except AudioDecodeError as e:
-        logger.error("Ingest %s could not be decoded: %s", job["ingest_id"], e)
-        return build_result(job, matcher, error=str(e))
+        timings["decode_ms"] = elapsed_ms(started)
+        return build_result(job, matcher, error=str(e), error_stage=STAGE_DECODE)
+    except Exception as e:
+        timings["decode_ms"] = elapsed_ms(started)
+        raise _StageFailure(STAGE_DECODE, e) from e
+    timings["decode_ms"] = elapsed_ms(started)
 
     level = level_dbfs(audio.pcm)
+    started = time.monotonic()
     if MIN_LEVEL_DBFS is not None and level < MIN_LEVEL_DBFS:
         # Too quiet to be music: an idle chain's hiss can resemble a quiet
         # stretch of some reference track closely enough to match it. Still
@@ -202,7 +234,12 @@ def handle_job(job: IngestJob, matcher: FingerprintMatcher) -> IngestResult:
         )
         candidates = []
     else:
-        candidates = matcher.match(audio)
+        try:
+            candidates = matcher.match(audio)
+        except Exception as e:
+            timings["match_ms"] = elapsed_ms(started)
+            raise _StageFailure(STAGE_MATCH, e) from e
+    timings["match_ms"] = elapsed_ms(started)
     return build_result(
         job,
         matcher,
@@ -213,37 +250,92 @@ def handle_job(job: IngestJob, matcher: FingerprintMatcher) -> IngestResult:
     )
 
 
+def _job_fields(job: dict) -> dict:
+    """The identifying fields every line about one chunk carries."""
+    return {
+        "ingest_id": job.get("ingest_id"),
+        "source_id": job.get("source_id"),
+        "session_id": job.get("session_id"),
+        "sequence": job.get("sequence"),
+    }
+
+
+def _log_terminal(job: IngestJob, result: IngestResult, timings: dict, started: float) -> None:
+    """One line per chunk at its terminal state (#280)."""
+    top = result["candidates"][0] if result["candidates"] else {}
+    failed = result["status"] == STATUS_FAILED
+    log_event(
+        "ingest.failed" if failed else "ingest.processed",
+        level=logging.ERROR if failed else logging.INFO,
+        **_job_fields(job),
+        status=result["status"],
+        stage=result.get("error_stage"),
+        error=result.get("error"),
+        captured_at=job.get("captured_at"),
+        declared_duration_seconds=job.get("duration_seconds"),
+        duration_seconds=result.get("duration_seconds"),
+        sample_rate=result.get("sample_rate"),
+        channels=job.get("channels"),
+        codec=job.get("codec"),
+        level_dbfs=result.get("level_dbfs"),
+        candidates=len(result["candidates"]),
+        track_id=top.get("track_id"),
+        friend_id=top.get("friend_id"),
+        confidence=top.get("confidence"),
+        offset_seconds=top.get("offset_seconds"),
+        fingerprint_type=result.get("fingerprint_type"),
+        fingerprint_version=result.get("fingerprint_version"),
+        decode_ms=timings.get("decode_ms"),
+        match_ms=timings.get("match_ms"),
+        processing_ms=elapsed_ms(started),
+    )
+
+
 def process_job(job_json: str, matcher: FingerprintMatcher) -> IngestResult | None:
     """Run one payload end to end, reporting the outcome to the app.
 
     Job-level failures are logged and swallowed so one bad payload cannot stop
     the loop. A payload too malformed to name an ingest cannot be reported at
     all — there is nothing to report it against — so it is only logged.
+
+    Every chunk that names an ingest logs exactly two structured lines here:
+    `ingest.picked_up`, then `ingest.processed` or `ingest.failed` (#280).
     """
+    started = time.monotonic()
     try:
         job = parse_job(job_json)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse job JSON: {e}")
+    except (json.JSONDecodeError, InvalidJob) as e:
+        # The payload itself is never logged: it is the one input this service
+        # takes from elsewhere.
+        log_event("ingest.skipped", level=logging.ERROR, stage=STAGE_PARSE, error=str(e))
         return None
-    except InvalidJob as e:
-        logger.error(f"Skipping malformed job: {e}")
-        return None
+
+    log_event(
+        "ingest.picked_up",
+        **_job_fields(job),
+        queue=QUEUE_KEY,
+        captured_at=job.get("captured_at"),
+        queue_wait_ms=queue_wait_ms(job.get("enqueued_at")),
+    )
 
     # Announce the pickup before the work, so an ingest that kills this worker
     # is distinguishable from one nothing ever collected (#276).
     try_claim_ingest(str(job["ingest_id"]))
 
+    timings: dict = {}
     try:
-        result = handle_job(job, matcher)
+        result = handle_job(job, matcher, timings)
     except InvalidJob as e:
         # A rejection, not a crash — no traceback worth printing.
-        logger.error("Ingest %s cannot be processed: %s", job["ingest_id"], e)
-        result = build_result(job, matcher, error=str(e))
-    except Exception as e:
-        logger.error(f"Job processing failed: {e}")
+        result = build_result(job, matcher, error=str(e), error_stage=STAGE_RESOLVE)
+    except _StageFailure as e:
         logger.error(traceback.format_exc())
-        result = build_result(job, matcher, error=str(e))
+        result = build_result(job, matcher, error=str(e.error), error_stage=e.stage)
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        result = build_result(job, matcher, error=str(e), error_stage=STAGE_MATCH)
 
+    _log_terminal(job, result, timings, started)
     try_report_result(result)
     return result
 
@@ -402,7 +494,8 @@ def run_once(matcher: FingerprintMatcher) -> None:
 
     if job_data:
         source_key, job_json = job_data
-        logger.info(f"Received job: {job_json}")
+        # Not the payload: each handler logs what it needs, structurally.
+        logger.info("Received job from %s", _key_name(source_key))
         handlers = {
             QUEUE_KEY: process_job,
             INDEX_QUEUE_KEY: process_index_job,

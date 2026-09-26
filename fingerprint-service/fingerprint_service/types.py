@@ -19,6 +19,8 @@ class IngestJob(TypedDict):
     sample_rate: NotRequired[int | None]
     channels: NotRequired[int | None]
     codec: NotRequired[str | None]
+    #: When the app pushed the job (#280), so queue wait can be logged.
+    enqueued_at: NotRequired[str | None]
 
 
 class MatchCandidate(TypedDict):
@@ -62,6 +64,8 @@ class IngestResult(TypedDict):
     sequence: int | None
     status: str
     error: str | None
+    #: Where a failed chunk failed (#280): parse, resolve, decode or match.
+    error_stage: str | None
     window_start_at: str | None
     duration_seconds: float | None
     sample_rate: int | None

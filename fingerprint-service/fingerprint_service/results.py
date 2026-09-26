@@ -5,10 +5,13 @@ owns the database. It posts with `requests` rather than `groovenet_client`
 because the callback route does not exist in the OpenAPI spec yet (#276) —
 switch to the generated client once it does.
 """
+import logging
+
 import requests
 
 from .config import APP_URL, RESULT_TIMEOUT, logger
 from .matcher import FingerprintMatcher
+from .observability import STAGE_REPORT, log_event
 from .types import (
     FileStats,
     FingerprintUpsert,
@@ -41,12 +44,14 @@ def build_result(
     sample_rate: int | None = None,
     level_dbfs: float | None = None,
     error: str | None = None,
+    error_stage: str | None = None,
 ) -> IngestResult:
     """Assemble the callback body for one chunk.
 
     An `error` makes it a failed ingest; absent, it is processed — including
     when `candidates` is empty, which is a recorded no-match window and not a
-    failure.
+    failure. `error_stage` names where it failed (#280), so the app's terminal
+    log line says which half of the pipeline to look at.
     """
     return {
         "ingest_id": str(job.get("ingest_id", "")),
@@ -55,6 +60,7 @@ def build_result(
         "sequence": job.get("sequence"),
         "status": STATUS_FAILED if error else STATUS_PROCESSED,
         "error": error,
+        "error_stage": error_stage if error else None,
         # The detection window starts when the listener captured it, not when
         # we got round to it, so #279 can order windows across a queue backlog.
         "window_start_at": job.get("captured_at"),
@@ -101,7 +107,15 @@ def try_report_result(result: IngestResult) -> bool:
         report_result(result)
         return True
     except ResultReportError as e:
-        logger.error("Failed to report ingest %s: %s", result["ingest_id"], e)
+        log_event(
+            "ingest.report_failed",
+            level=logging.ERROR,
+            ingest_id=result["ingest_id"],
+            source_id=result["source_id"],
+            status=result["status"],
+            stage=STAGE_REPORT,
+            error=str(e),
+        )
         return False
 
 

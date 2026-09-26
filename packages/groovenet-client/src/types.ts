@@ -554,6 +554,31 @@ export interface IngestPipelineStats {
     /** Confident detections not yet written to spin_sessions (#304). Null when it could not be computed. */
     pending: number | null;
   };
+  /**
+   * What leaves no row behind (#280), from Redis: across all sources, rounded
+   * out to whole buckets. Null when Redis could not be reached; absent from an
+   * app older than #280.
+   */
+  counters?: IngestCounters | null;
+}
+
+/** Counters for the ingest pipeline that Postgres cannot answer (#280). */
+export interface IngestCounters {
+  bucket_minutes: number;
+  chunks: {
+    received: number;
+    accepted: number;
+    duplicate: number;
+    rejected: number;
+    rejected_by_reason: Array<{ reason: string; count: number }>;
+    failed_by_stage: Array<{ stage: string; count: number }>;
+    enqueue_failed: number;
+  };
+  plays: {
+    confirmed: number;
+    latency_ms_avg: number | null;
+    latency_bands: Array<{ band: string; count: number }>;
+  };
 }
 
 export interface DetectionQuery {

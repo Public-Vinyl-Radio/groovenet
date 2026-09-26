@@ -1571,6 +1571,34 @@ export const ingestPipelineStatsSchema = z.object({
   spins: z.object({
     pending: z.number().int().nullable(),
   }),
+  counters: z
+    .object({
+      bucket_minutes: z.number().int(),
+      chunks: z.object({
+        received: z.number().int().nonnegative(),
+        accepted: z.number().int().nonnegative(),
+        duplicate: z.number().int().nonnegative(),
+        rejected: z.number().int().nonnegative(),
+        rejected_by_reason: z.array(
+          z.object({ reason: z.string(), count: z.number().int().nonnegative() })
+        ),
+        failed_by_stage: z.array(
+          z.object({ stage: z.string(), count: z.number().int().nonnegative() })
+        ),
+        enqueue_failed: z.number().int().nonnegative(),
+      }),
+      plays: z.object({
+        confirmed: z.number().int().nonnegative(),
+        latency_ms_avg: z.number().int().nullable(),
+        latency_bands: z.array(
+          z.object({ band: z.string(), count: z.number().int().nonnegative() })
+        ),
+      }),
+    })
+    .nullable()
+    // Optional so a client built against this schema still reads an app
+    // from before #280.
+    .optional(),
 });
 
 /** One reference fingerprint as the matcher loads it (#278). */
@@ -1643,6 +1671,7 @@ export const ingestResultBodySchema = z.object({
   sequence: z.number().nullable().optional(),
   status: z.enum(["processed", "failed"]),
   error: z.string().nullable().optional(),
+  error_stage: z.string().nullable().optional(),
   window_start_at: z.string().nullable().optional(),
   duration_seconds: z.number().nullable().optional(),
   sample_rate: z.number().nullable().optional(),
