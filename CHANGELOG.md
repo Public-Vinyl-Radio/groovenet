@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.7](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.6...v0.2.7) (2026-09-26)
+
+
+### Features
+
+* **cli:** derive a set's tracklist with groovenet sets ([#321](https://github.com/Public-Vinyl-Radio/groovenet/issues/321)) ([976db63](https://github.com/Public-Vinyl-Radio/groovenet/commit/976db63c4dfe91d62995f3fc3342842b9186ef4a))
+* **cli:** review a set's differences and correct the playlist ([#326](https://github.com/Public-Vinyl-Radio/groovenet/issues/326)) ([61a0ca5](https://github.com/Public-Vinyl-Radio/groovenet/commit/61a0ca5cfb6d8ee07ae79fe6c4e52ee3056c485c))
+* **fingerprint:** match every window of a set recording ([#319](https://github.com/Public-Vinyl-Radio/groovenet/issues/319)) ([56c9887](https://github.com/Public-Vinyl-Radio/groovenet/commit/56c988767c6989b318c0bf5c4a6ea0b3749d74ef))
+* **fingerprint:** run set recordings on their own worker ([#316](https://github.com/Public-Vinyl-Radio/groovenet/issues/316)) ([68fbaed](https://github.com/Public-Vinyl-Radio/groovenet/commit/68fbaedb01ea556b2fcf94abc1904c4d7b0e3534))
+* **obs:** structured logging and counters for the audio ingest pipeline ([#329](https://github.com/Public-Vinyl-Radio/groovenet/issues/329)) ([689ec77](https://github.com/Public-Vinyl-Radio/groovenet/commit/689ec77bbd726a86cf4e1cd90d533fe2c837b62f))
+* **release:** deploy main's tested images as a release candidate ([#322](https://github.com/Public-Vinyl-Radio/groovenet/issues/322)) ([e66cc0f](https://github.com/Public-Vinyl-Radio/groovenet/commit/e66cc0fc08a8a579fcf19832e0c49ed789679f67))
+* **sets:** derive a tracklist and a diff from a set recording ([#320](https://github.com/Public-Vinyl-Radio/groovenet/issues/320)) ([f0f47e4](https://github.com/Public-Vinyl-Radio/groovenet/commit/f0f47e4519b729c116339f657f3a5c0fc0d1d1a4))
+
+
+### Bug Fixes
+
+* **fingerprints:** re-fingerprint replaced audio, cheaply ([#327](https://github.com/Public-Vinyl-Radio/groovenet/issues/327)) ([d6c3b33](https://github.com/Public-Vinyl-Radio/groovenet/commit/d6c3b332a53dae53ab0dfbdb08d07744532b9b38))
+* **release:** check out a release candidate's commit on the box ([#323](https://github.com/Public-Vinyl-Radio/groovenet/issues/323)) ([350bbbd](https://github.com/Public-Vinyl-Radio/groovenet/commit/350bbbd3ce934509379fb06ca67d01ecfb096a2c))
+* **release:** tag release PRs that only bump the root package ([#314](https://github.com/Public-Vinyl-Radio/groovenet/issues/314)) ([045089d](https://github.com/Public-Vinyl-Radio/groovenet/commit/045089de16fb70262e686adf4d9466fcb7fb0837))
+* **sets:** let the app write set recordings, and never hang an upload ([#324](https://github.com/Public-Vinyl-Radio/groovenet/issues/324)) ([68ec293](https://github.com/Public-Vinyl-Radio/groovenet/commit/68ec2936194e738c869090c8cfdd4375ed14dac7))
+* **sets:** stop repetitive music splitting one play into several ([#325](https://github.com/Public-Vinyl-Radio/groovenet/issues/325)) ([9a429e3](https://github.com/Public-Vinyl-Radio/groovenet/commit/9a429e39820be205db4fa30cc008ed7d3c8b7ee2))
+* **vinyl:** fewer false plays, and spins from buffered audio ([#328](https://github.com/Public-Vinyl-Radio/groovenet/issues/328)) ([52eeb1d](https://github.com/Public-Vinyl-Radio/groovenet/commit/52eeb1d6d6fbfe1f12ae29f4b69c5856281be0b7))
+
+
+### Performance Improvements
+
+* **fingerprint:** pack the reference index into numpy arrays ([#318](https://github.com/Public-Vinyl-Radio/groovenet/issues/318)) ([4e8e46d](https://github.com/Public-Vinyl-Radio/groovenet/commit/4e8e46d0376a1463b73ce626f9aba32b7f1e29ee))
+
 ## [0.2.6](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.5...v0.2.6) (2026-09-25)
 
 
