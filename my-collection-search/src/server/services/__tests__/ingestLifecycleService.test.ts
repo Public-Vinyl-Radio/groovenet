@@ -588,6 +588,12 @@ describe("structured logging", () => {
     expect(lines()[0]).toMatchObject({ event: "ingest.processed", reason: "already failed" });
   });
 
+  it("logs a null sequence for a chunk that was never numbered", async () => {
+    ingests.transitionStatus.mockImplementation(async (_id, to) => row({ status: to, sequence: null }));
+    await service.claim("ingest-1");
+    expect(lines()[0]).toMatchObject({ event: "ingest.claimed", sequence: null });
+  });
+
   it("ends a stalled chunk on a line naming the reaper and which side stalled", async () => {
     ingests.listStale.mockResolvedValue([
       row({ id: "a", status: "received" }),

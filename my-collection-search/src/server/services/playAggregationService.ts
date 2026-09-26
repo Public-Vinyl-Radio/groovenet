@@ -267,7 +267,8 @@ function recordConfirmedPlay(sourceId: string, play: AggregatedPlay): void {
     friend_id: play.first.friend_id,
     confidence: play.confidence,
     windows: play.windows,
-    captured_at: play.last.window_start_at ? new Date(play.last.window_start_at).toISOString() : null,
+    // Never null: `groupWindows` skips a window with no capture time.
+    captured_at: new Date(play.last.window_start_at!).toISOString(),
     latency_ms: latencyMs,
   });
 }

@@ -35,7 +35,8 @@ export const LATENCY_BANDS: Array<[label: string, maxSeconds: number]> = [
 
 export function latencyBand(latencyMs: number): string {
   const seconds = latencyMs / 1000;
-  return (LATENCY_BANDS.find(([, max]) => seconds <= max) ?? LATENCY_BANDS[LATENCY_BANDS.length - 1])[0];
+  // The last band is unbounded, so there is always a match.
+  return LATENCY_BANDS.find(([, max]) => seconds <= max)![0];
 }
 
 export function bucketKey(at: number): string {
@@ -131,6 +132,7 @@ export class IngestMetricsService {
   /** The counters as the stats endpoint reports them. */
   async summarize(since: Date, now: number = Date.now()): Promise<IngestCounters> {
     const totals = await this.totals(since, now);
+    const count = (field: string) => totals[field] ?? 0;
     const prefixed = (prefix: string) =>
       Object.entries(totals)
         .filter(([field]) => field.startsWith(prefix))
@@ -143,26 +145,26 @@ export class IngestMetricsService {
     const failed = prefixed("chunks.failed.")
       .map(([stage, count]) => ({ stage, count }))
       .sort((a, b) => b.count - a.count || a.stage.localeCompare(b.stage));
-    const measured = totals["plays.latency_measured"] ?? 0;
+    const measured = count("plays.latency_measured");
 
     return {
       bucket_minutes: BUCKET_MS / 60_000,
       chunks: {
-        received: totals["chunks.received"] ?? 0,
-        accepted: totals["chunks.accepted"] ?? 0,
-        duplicate: totals["chunks.duplicate"] ?? 0,
+        received: count("chunks.received"),
+        accepted: count("chunks.accepted"),
+        duplicate: count("chunks.duplicate"),
         rejected: rejected.reduce((sum, r) => sum + r.count, 0),
         rejected_by_reason: rejected,
         failed_by_stage: failed,
-        enqueue_failed: totals["chunks.enqueue_failed"] ?? 0,
+        enqueue_failed: count("chunks.enqueue_failed"),
       },
       plays: {
-        confirmed: totals["plays.confirmed"] ?? 0,
+        confirmed: count("plays.confirmed"),
         latency_ms_avg:
-          measured > 0 ? Math.round((totals["plays.latency_ms_sum"] ?? 0) / measured) : null,
+          measured > 0 ? Math.round(count("plays.latency_ms_sum") / measured) : null,
         latency_bands: LATENCY_BANDS.map(([band]) => ({
           band,
-          count: totals[`plays.latency.${band}`] ?? 0,
+          count: count(`plays.latency.${band}`),
         })),
       },
     };

@@ -301,6 +301,26 @@ describe("formatStats() — upload counters (#280)", () => {
     );
   });
 
+  it("counts plays without an average when no latency was measured", () => {
+    const out = plain(formatStats(stats({
+      counters: { ...counters, plays: { confirmed: 2, latency_ms_avg: null, latency_bands: [] } },
+    })));
+    expect(out).toContain("plays confirmed: 2");
+    expect(out).not.toContain("after capture");
+  });
+
+  it("says nothing about plays or the queue when there is nothing to say", () => {
+    const out = plain(formatStats(stats({
+      counters: {
+        ...counters,
+        chunks: { ...counters.chunks, enqueue_failed: 0 },
+        plays: { confirmed: 0, latency_ms_avg: null, latency_bands: [] },
+      },
+    })));
+    expect(out).not.toContain("plays confirmed");
+    expect(out).not.toContain("could not be queued");
+  });
+
   it("flags counters it could not read", () => {
     expect(plain(formatStats(stats({ counters: null })))).toContain(
       "upload counters unavailable"

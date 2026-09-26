@@ -9,11 +9,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const store = vi.hoisted(() => new Map<string, Map<string, number>>());
 const expiries = vi.hoisted(() => new Map<string, number>());
-const fail = vi.hoisted(() => ({ exec: false, read: false }));
+const fail = vi.hoisted(() => ({
+  exec: false,
+  read: false,
+  multi: false,
+  /** When set, what the pipeline's exec resolves to instead of real replies. */
+  reply: undefined as unknown,
+}));
 
 vi.mock("@/lib/redis", () => ({
   getRedisConnection: () => ({
     multi: () => {
+      if (fail.multi) throw new Error("connection is closed");
       const ops: Array<() => void> = [];
       const tx = {
         hincrby(key: string, field: string, by: number) {
@@ -45,6 +52,7 @@ vi.mock("@/lib/redis", () => ({
         },
         exec: async () => {
           if (fail.read) throw new Error("ECONNREFUSED");
+          if (fail.reply !== undefined) return fail.reply;
           return keys.map((key) => [
             null,
             Object.fromEntries(
@@ -75,6 +83,8 @@ beforeEach(() => {
   expiries.clear();
   fail.exec = false;
   fail.read = false;
+  fail.multi = false;
+  fail.reply = undefined;
   vi.restoreAllMocks();
 });
 
@@ -114,6 +124,53 @@ describe("IngestMetricsService", () => {
     expect(() => metrics.chunkAccepted()).not.toThrow();
     await flush();
     expect(error).toHaveBeenCalledWith("Could not record ingest metrics:", expect.any(Error));
+  });
+
+  it("never throws when the client refuses the transaction outright", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    fail.multi = true;
+    expect(() => metrics.chunkReceived()).not.toThrow();
+    expect(error).toHaveBeenCalledWith("Could not record ingest metrics:", expect.any(Error));
+  });
+
+  it("skips zero increments rather than writing them", async () => {
+    metrics.increment({ "chunks.received": 0, "chunks.accepted": 1 });
+    await flush();
+    const [hash] = [...store.values()];
+    expect([...hash.keys()]).toEqual(["chunks.accepted"]);
+  });
+
+  it("orders ties by name, so the output is stable", async () => {
+    metrics.chunkRejected("audio_too_short");
+    metrics.chunkRejected("audio_too_long");
+    metrics.chunkFailed("upload");
+    metrics.chunkFailed("store");
+    metrics.chunkFailed("store");
+    metrics.chunkFailed("validation");
+    await flush();
+
+    const summary = await metrics.summarize(new Date(Date.now() - 60_000));
+    expect(summary.chunks.rejected_by_reason.map((r) => r.reason)).toEqual([
+      "audio_too_long",
+      "audio_too_short",
+    ]);
+    expect(summary.chunks.failed_by_stage).toEqual([
+      { stage: "store", count: 2 },
+      { stage: "upload", count: 1 },
+      { stage: "validation", count: 1 },
+    ]);
+  });
+
+  it("treats an empty pipeline reply and a missing hash as nothing counted", async () => {
+    fail.reply = null;
+    expect((await metrics.summarize(new Date(Date.now() - 60_000))).chunks.received).toBe(0);
+    fail.reply = [[null, null]];
+    expect((await metrics.summarize(new Date(Date.now() - 60_000))).chunks.received).toBe(0);
+  });
+
+  it("surfaces an error inside a pipeline reply", async () => {
+    fail.reply = [[new Error("WRONGTYPE"), null]];
+    await expect(metrics.summarize(new Date(Date.now() - 60_000))).rejects.toThrow("WRONGTYPE");
   });
 
   it("summarizes a window into the stats shape", async () => {
