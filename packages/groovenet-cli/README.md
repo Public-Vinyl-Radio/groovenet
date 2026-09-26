@@ -62,6 +62,7 @@ groovenet sets derive ~/sets/2026-08-15.mp3 --playlist 176
 groovenet sets derive set.mp3 --live-set 12       # also attach it to the live set
 groovenet sets derive set.mp3 --force             # re-run even if done before
 groovenet sets show <derivation-id> --playlist 176
+groovenet sets review <derivation-id> --playlist 176  # accept or skip each difference, fix the playlist
 ```
 
 Example output (abridged):

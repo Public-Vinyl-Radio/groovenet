@@ -328,6 +328,18 @@ export class GroovenetClient {
     return this.request<Playlist>("POST", "/playlists", { name, tracks });
   }
 
+  /**
+   * Replace a playlist's tracks with this ordered list. Bare references are
+   * enough: the app only overwrites a track's metadata with values actually
+   * sent, so this never blanks a title or artist.
+   */
+  async setPlaylistTracks(
+    playlistId: number,
+    tracks: Array<{ track_id: string; friend_id: number }>
+  ): Promise<Playlist> {
+    return this.request<Playlist>("PATCH", "/playlists", { id: playlistId, tracks });
+  }
+
   async getLiveSet(playlistId: number | string): Promise<LiveSet> {
     return this.request<LiveSet>("GET", `/playlists/${playlistId}/set`);
   }

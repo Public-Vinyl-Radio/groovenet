@@ -1099,3 +1099,16 @@ describe("set derivation (#282)", () => {
     expect(requestMock.mock.calls[0][0].params).toEqual({ playlist_id: undefined, live_set_id: undefined });
   });
 });
+
+describe("setPlaylistTracks", () => {
+  it("replaces a playlist's tracks with the ordered list", async () => {
+    const client = clientReturning({ id: 176 });
+    await client.setPlaylistTracks(176, [{ track_id: "1-A1", friend_id: 1 }]);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "PATCH",
+      url: "/playlists",
+      data: { id: 176, tracks: [{ track_id: "1-A1", friend_id: 1 }] },
+      params: undefined,
+    });
+  });
+});

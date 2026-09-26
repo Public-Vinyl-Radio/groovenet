@@ -12,9 +12,17 @@ vi.mock("@groovenet/client", () => ({
   GroovenetClient: GroovenetClientMock,
 }));
 
+const runReviewMock = vi.hoisted(() => vi.fn());
+const askStub = vi.hoisted(() => vi.fn());
+vi.mock("./setsReview.js", () => ({
+  runReview: runReviewMock,
+  readlineAsk: () => askStub,
+}));
+
 import { Command } from "commander";
 import {
   addSetsCommands,
+  assertCanReview,
   consoleIO,
   describeTrack,
   formatBar,
@@ -397,6 +405,35 @@ describe("runDerive()", () => {
   });
 });
 
+describe("review hand-off", () => {
+  it("continues into review with the derivation's id once it is shown", async () => {
+    const then = vi.fn().mockResolvedValue(0);
+    const io = capture();
+    expect(await runDerive(client() as unknown as SetsClient, file, { pollInterval: 0 }, io, then)).toBe(0);
+    expect(then).toHaveBeenCalledWith("d1");
+  });
+
+  it("passes review's exit code through", async () => {
+    const then = vi.fn().mockResolvedValue(1);
+    expect(await runDerive(client() as unknown as SetsClient, file, { pollInterval: 0 }, capture(), then)).toBe(1);
+  });
+
+  it("does not review a derivation that failed", async () => {
+    const failed = view({ derivation: derivation({ status: "failed" }) });
+    const then = vi.fn();
+    const c = client({ getSetDerivation: vi.fn().mockResolvedValue(failed) });
+    expect(await runDerive(c as unknown as SetsClient, file, { pollInterval: 0 }, capture(), then)).toBe(1);
+    expect(then).not.toHaveBeenCalled();
+  });
+
+  it("only reviews at a terminal, and not with --json or --no-wait", () => {
+    expect(() => assertCanReview({}, true)).not.toThrow();
+    expect(() => assertCanReview({}, false)).toThrow("Review is interactive");
+    expect(() => assertCanReview({ json: true }, true)).toThrow("--json");
+    expect(() => assertCanReview({ wait: false }, true)).toThrow("--no-wait");
+  });
+});
+
 describe("runShow()", () => {
   it("renders a run against a plan", async () => {
     const c = client();
@@ -475,6 +512,64 @@ describe("addSetsCommands()", () => {
     expect(fake.createSetDerivation).toHaveBeenCalledWith(expect.objectContaining({ window_seconds: 10 }));
     expect(fake.getSetDerivation).toHaveBeenLastCalledWith("d1", { playlist_id: 176, live_set_id: undefined });
     expect(process.exitCode).toBe(0);
+  });
+
+  function setTTY(value: boolean | undefined) {
+    Object.defineProperty(process.stdin, "isTTY", { value, configurable: true });
+  }
+
+  it("reviews a run at a terminal", async () => {
+    const original = process.stdin.isTTY;
+    setTTY(true);
+    runReviewMock.mockReset().mockResolvedValue(0);
+    try {
+      await parse("review", "d1", "--playlist", "176", "--dry-run");
+    } finally {
+      setTTY(original);
+    }
+    expect(runReviewMock).toHaveBeenCalledWith(fake, "d1", { playlist: 176, dryRun: true }, askStub);
+    expect(process.exitCode).toBe(0);
+  });
+
+  it("refuses to review without a terminal", async () => {
+    const original = process.stdin.isTTY;
+    setTTY(false);
+    runReviewMock.mockReset();
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    try {
+      await parse("review", "d1", "--playlist", "176");
+    } finally {
+      setTTY(original);
+    }
+    expect(runReviewMock).not.toHaveBeenCalled();
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("Review is interactive"));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("reports a thrown non-Error from review", async () => {
+    const original = process.stdin.isTTY;
+    setTTY(true);
+    runReviewMock.mockReset().mockRejectedValue("stdin closed");
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    try {
+      await parse("review", "d1", "--playlist", "176");
+    } finally {
+      setTTY(original);
+    }
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("stdin closed"));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("derives then reviews with --review", async () => {
+    const original = process.stdin.isTTY;
+    setTTY(true);
+    runReviewMock.mockReset().mockResolvedValue(0);
+    try {
+      await parse("derive", file, "--playlist", "176", "--review", "--poll-interval", "0");
+    } finally {
+      setTTY(original);
+    }
+    expect(runReviewMock).toHaveBeenCalledWith(fake, "d1", expect.objectContaining({ playlist: 176, review: true }), askStub);
   });
 
   it("shows a run", async () => {

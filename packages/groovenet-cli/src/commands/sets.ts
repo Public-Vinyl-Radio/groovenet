@@ -12,6 +12,7 @@ import type {
 import chalk from "chalk";
 import { printError } from "../output.js";
 import { intOption } from "../options.js";
+import { readlineAsk, runReview, type ReviewClient } from "./setsReview.js";
 
 /**
  * `groovenet sets` — a corrected tracklist from a recording of a set (#282).
@@ -54,6 +55,8 @@ export interface PlanOptions {
 }
 
 export interface DeriveOptions extends PlanOptions {
+  /** Go straight into `sets review` once the derivation is shown. */
+  review?: boolean;
   window?: number;
   step?: number;
   force?: boolean;
@@ -270,7 +273,9 @@ export async function runDerive(
   client: SetsClient,
   file: string,
   opts: DeriveOptions,
-  io: SetsIO = consoleIO
+  io: SetsIO = consoleIO,
+  /** Run on the derivation once it is shown — how `--review` continues. */
+  then?: (derivationId: string) => Promise<number>
 ): Promise<number> {
   const query = planQuery(opts);
   const size = fs.statSync(file).size;
@@ -335,7 +340,19 @@ export async function runDerive(
   const view = await client.getSetDerivation(derivation.id, query);
   if (quiet) io.write(JSON.stringify(view, null, 2) + "\n");
   else renderView(view).forEach((line) => io.log(line));
-  return view.derivation.status === "failed" ? 1 : 0;
+  if (view.derivation.status === "failed") return 1;
+  if (then) {
+    io.log("");
+    return then(derivation.id);
+  }
+  return 0;
+}
+
+/** Review needs someone at a terminal to answer; never guess for them. */
+export function assertCanReview(opts: { json?: boolean; wait?: boolean }, isTTY: boolean): void {
+  if (opts.json) throw new Error("--review is interactive and cannot be combined with --json");
+  if (opts.wait === false) throw new Error("--review needs the derivation to finish; drop --no-wait");
+  if (!isTTY) throw new Error("Review is interactive: run it in a terminal");
 }
 
 /** `sets show` — read an existing run back, optionally against a plan. */
@@ -364,12 +381,39 @@ export function addSetsCommands(program: Command): void {
     .option("--window <seconds>", "Window length (default 15)", intOption)
     .option("--step <seconds>", "Step between windows (default 15)", intOption)
     .option("--force", "Start a fresh run even if an equivalent one exists")
+    .option("--review", "Then accept or skip each difference and correct the playlist")
     .option("--no-wait", "Start the run and exit without waiting")
     .option("--poll-interval <ms>", "How often to poll while matching", intOption, 2000)
     .option("--json", "Output as JSON")
     .action(async (file: string, opts: DeriveOptions) => {
       try {
-        process.exitCode = await runDerive(makeClient(), file, opts);
+        const client = makeClient();
+        if (opts.review) assertCanReview(opts, Boolean(process.stdin.isTTY));
+        process.exitCode = await runDerive(
+          client,
+          file,
+          opts,
+          consoleIO,
+          opts.review
+            ? (id) => runReview(client as unknown as ReviewClient, id, opts, readlineAsk())
+            : undefined
+        );
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    });
+
+  sets
+    .command("review <id>")
+    .description("Accept or skip each difference from the plan, and correct the playlist")
+    .option("--playlist <id>", "The playlist to correct", intOption)
+    .option("--live-set <id>", "Correct this live set's playlist", intOption)
+    .option("--dry-run", "Show the corrected playlist without writing it")
+    .action(async (id: string, opts: PlanOptions & { dryRun?: boolean }) => {
+      try {
+        assertCanReview({}, Boolean(process.stdin.isTTY));
+        process.exitCode = await runReview(makeClient(), id, opts, readlineAsk());
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
         process.exit(1);
