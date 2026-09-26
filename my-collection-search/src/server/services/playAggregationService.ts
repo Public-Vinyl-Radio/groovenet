@@ -5,7 +5,36 @@ import type { PlayDetectionRow } from "@/types/playDetection";
 export const DEFAULT_PLAY_CONFIDENCE_FLOOR = Number(process.env.PLAY_CONFIDENCE_FLOOR ?? "0.75");
 export const DEFAULT_PLAY_GAP_SECONDS = Number(process.env.PLAY_AGGREGATION_GAP_SECONDS ?? "45");
 
-export type AggregatedPlay = { first: PlayDetectionRow; last: PlayDetectionRow; confidence: number };
+/**
+ * Windows a run needs before it is a play, and so a spin. One used to be
+ * enough; real use showed every false spin was a single window at a track
+ * boundary — run-out noise or an idle chain's hiss resembling a quiet stretch
+ * of some reference track — while every real play ran four or more.
+ */
+export const DEFAULT_PLAY_MIN_WINDOWS = Number(process.env.PLAY_MIN_WINDOWS ?? "2");
+
+/**
+ * How fast a play's position in its track may advance per second of clock to
+ * count as playing. Vinyl at pitch is 1.0; turntable pitch control reaches
+ * about ±8%, and offsets are only as precise as a window's alignment. Noise
+ * that keeps matching the same spot of a track advances at 0.
+ */
+export const PLAY_RATE_MIN = 0.75;
+export const PLAY_RATE_MAX = 1.25;
+
+export type AggregatedPlay = {
+  first: PlayDetectionRow;
+  last: PlayDetectionRow;
+  confidence: number;
+  /** Windows in the run. */
+  windows: number;
+  /**
+   * Median seconds of track per second of clock between consecutive windows
+   * with a known position; null with fewer than two. The median, so one
+   * window that matched a repeat cannot sink a long play.
+   */
+  rate: number | null;
+};
 
 /** What the grouping rule needs from one window, whatever it came from. */
 export type GroupableWindow = {
@@ -173,16 +202,56 @@ export function groupDetections(
     detections,
     (d) => ({ at: timestamp(d), track_id: d.track_id, friend_id: d.friend_id, confidence: d.confidence }),
     options
-  ).map(({ first, last, confidence }) => ({ first, last, confidence }));
+  ).map(({ first, last, confidence, members }) => ({
+    first,
+    last,
+    confidence,
+    windows: members.length,
+    rate: medianRate(members),
+  }));
 }
+
+function medianRate(members: PlayDetectionRow[]): number | null {
+  // A 0 offset is where the matcher clamps a window that began before the
+  // track did: it says nothing about position, so it is left out.
+  const known = members.filter((d) => (d.offset_seconds ?? 0) > 0 && timestamp(d) != null);
+  const rates: number[] = [];
+  for (let i = 1; i < known.length; i++) {
+    const seconds = ((timestamp(known[i]) as number) - (timestamp(known[i - 1]) as number)) / 1000;
+    if (seconds > 0) {
+      rates.push(((known[i].offset_seconds as number) - (known[i - 1].offset_seconds as number)) / seconds);
+    }
+  }
+  if (rates.length === 0) return null;
+  rates.sort((x, y) => x - y);
+  const mid = Math.floor(rates.length / 2);
+  return rates.length % 2 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2;
+}
+
+/**
+ * Whether a run of windows is a play worth a spin.
+ *
+ * Enough windows, and — where positions are known — a position that advances
+ * with the clock. Without known positions the window count decides alone.
+ */
+export function isRealPlay(
+  play: Pick<AggregatedPlay, "windows" | "rate">,
+  { minWindows = DEFAULT_PLAY_MIN_WINDOWS }: { minWindows?: number } = {}
+): boolean {
+  if (play.windows < minWindows) return false;
+  if (play.rate === null) return true;
+  return play.rate >= PLAY_RATE_MIN && play.rate <= PLAY_RATE_MAX;
+}
+
+type AggregationOptions = { confidenceFloor?: number; gapSeconds?: number; minWindows?: number };
 
 /** Turns confidently matched windows into one automatic spin per contiguous play. */
 export class PlayAggregationService {
-  async aggregateSource(sourceId: string, since: Date | string, options: { confidenceFloor?: number; gapSeconds?: number } = {}): Promise<{ created: number; skipped: number }> {
+  async aggregateSource(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<{ created: number; skipped: number }> {
     const detections = await playDetectionRepository.listRecentBySource(sourceId, since);
     let created = 0;
     let skipped = 0;
-    for (const play of groupDetections(detections, options)) {
+    for (const play of groupDetections(detections, options).filter((p) => isRealPlay(p, options))) {
       if (await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id)) { skipped++; continue; }
       await spinLoggingService.createAutomaticSpinSession({
         detection_id: play.first.id, source_id: sourceId, track_id: play.first.track_id!,
@@ -198,10 +267,10 @@ export class PlayAggregationService {
    * yet been written to spins (#304). Never writes — for `vinyl status`, so a
    * silent backlog is visible without waiting on the next scheduled pass.
    */
-  async countPending(sourceId: string, since: Date | string, options: { confidenceFloor?: number; gapSeconds?: number } = {}): Promise<number> {
+  async countPending(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<number> {
     const detections = await playDetectionRepository.listRecentBySource(sourceId, since);
     let pending = 0;
-    for (const play of groupDetections(detections, options)) {
+    for (const play of groupDetections(detections, options).filter((p) => isRealPlay(p, options))) {
       if (!(await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id))) pending++;
     }
     return pending;

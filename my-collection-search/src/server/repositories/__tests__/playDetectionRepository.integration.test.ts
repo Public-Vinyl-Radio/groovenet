@@ -43,6 +43,19 @@ describe("play_detections schema (DB integration)", () => {
     expect(rows.some((row) => row.track_id === null)).toBe(true);
   });
 
+  dbTest("stores a window's level and returns it from both reads", async () => {
+    await repo.create({
+      ingest_id: ingestId, source_id: sourceId, track_id: "level-probe",
+      confidence: 0.9, window_start_at: windowStart, level_dbfs: -23.4,
+    });
+
+    const bySource = (await repo.listRecentBySource(sourceId, windowStart)).find((r) => r.track_id === "level-probe");
+    expect(bySource?.level_dbfs).toBeCloseTo(-23.4, 4);
+
+    const recent = (await repo.listRecent({ source_id: sourceId })).find((r) => r.track_id === "level-probe");
+    expect(recent?.level_dbfs).toBeCloseTo(-23.4, 4);
+  });
+
   dbTest("deleting an ingest cascades to its detections", async () => {
     await dbQuery(`DELETE FROM audio_ingests WHERE id = $1`, [ingestId]);
     const { rows } = await dbQuery<{ count: string }>(

@@ -28,9 +28,10 @@ export class PlayDetectionRepository {
       `
       INSERT INTO play_detections (
         id, ingest_id, source_id, session_id, track_id, friend_id, confidence,
-        offset_seconds, window_start_at, fingerprint_type, fingerprint_version
+        offset_seconds, window_start_at, fingerprint_type, fingerprint_version,
+        level_dbfs
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
       `,
       [
@@ -45,6 +46,7 @@ export class PlayDetectionRepository {
         input.window_start_at ?? null,
         input.fingerprint_type ?? null,
         input.fingerprint_version ?? null,
+        input.level_dbfs ?? null,
       ]
     );
     return rows[0];
@@ -103,7 +105,7 @@ export class PlayDetectionRepository {
       `
       SELECT
         d.id, d.ingest_id, d.source_id, d.session_id, d.track_id, d.friend_id,
-        d.confidence, d.offset_seconds, d.window_start_at,
+        d.confidence, d.offset_seconds, d.level_dbfs, d.window_start_at,
         d.fingerprint_type, d.fingerprint_version, d.created_at,
         t.title  AS track_title,
         t.artist AS track_artist,

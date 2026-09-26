@@ -39,6 +39,7 @@ def build_result(
     candidates: list[MatchCandidate] | None = None,
     duration_seconds: float | None = None,
     sample_rate: int | None = None,
+    level_dbfs: float | None = None,
     error: str | None = None,
 ) -> IngestResult:
     """Assemble the callback body for one chunk.
@@ -59,6 +60,9 @@ def build_result(
         "window_start_at": job.get("captured_at"),
         "duration_seconds": duration_seconds,
         "sample_rate": sample_rate,
+        # How loud the window was (#282 follow-up): what a silence floor
+        # is tuned from. None when the chunk could not be decoded.
+        "level_dbfs": level_dbfs,
         "fingerprint_type": matcher.fingerprint_type,
         "fingerprint_version": matcher.fingerprint_version,
         "candidates": list(candidates or []),

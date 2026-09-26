@@ -444,6 +444,26 @@ wouldn't stop a live silent window from matching one anyway.
 music 0.98-1.00, so the floor sits in a gap two orders of magnitude wide. Set
 it to `0` to disable the check.
 
+### The level floor
+
+The variety check refuses *digital* silence. An idle **analog** chain is not
+silent: its hiss and hum fingerprint as random, sail through the variety check,
+and on real use matched a quiet stretch near the end of a reference track at
+0.876 — twice, days apart, at the same spot (7:08). Loudness is what separates
+them, so every live window's RMS level is measured (`audio.level_dbfs`) and
+reported as `level_dbfs` on the result, and the app stores it on each detection.
+
+`FINGERPRINT_MIN_LEVEL_DBFS` refuses windows quieter than that before they are
+searched — reported as processed no-match windows, like the variety check.
+**Off unless set**, because the right value depends on the listener's noise
+floor and the quietest records played. Read it from the Level column on
+`/vinyl` (or `groovenet vinyl detections`) after an evening of playing, and set
+it between the loudest silence and the quietest music.
+
+Live windows only. Set derivation (#282) is not gated: a set recording is
+matched window by window from one fingerprint, and a stretch of silence in it
+is reported as an unidentified region either way.
+
 ### The threshold
 
 `FINGERPRINT_MAX_BER`, default **0.25**. On the corpus, true matches ran
@@ -539,6 +559,7 @@ end-to-end runs push the populated shape through the callback.
 | `FINGERPRINT_MATCHER` | `chromaprint` | key into `MATCHERS`; `stub` matches nothing |
 | `FINGERPRINT_MAX_BER` | `0.25` | above this, a candidate is discarded |
 | `FINGERPRINT_MIN_VARIETY` | `0.20` | below this fraction of distinct fingerprint values, a query is refused before searching (#306); `0` disables it |
+| `FINGERPRINT_MIN_LEVEL_DBFS` | unset (off) | live windows quieter than this many dBFS are not matched; tune from the stored `level_dbfs` |
 | `FINGERPRINT_VERSION` | `1` | the recipe blobs are stored under |
 | `FINGERPRINT_INDEX_REFRESH_SECONDS` | `900` | how often the index is rebuilt |
 | `FINGERPRINT_INDEX_RETRY_SECONDS` | `30` | how soon a failed index load is retried |

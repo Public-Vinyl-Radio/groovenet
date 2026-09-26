@@ -160,6 +160,71 @@ class TestClaiming:
         assert len(reported) == 1
 
 
+class TestSilenceFloor:
+    """Windows too quiet to be music are not matched (#282 follow-up)."""
+
+    class Counting(StubMatcher):
+        def __init__(self):
+            super().__init__([{"track_id": "t", "friend_id": 1, "confidence": 0.876, "offset_seconds": 428.0}])
+            self.calls = 0
+
+        def match(self, audio):
+            self.calls += 1
+            return super().match(audio)
+
+    def test_reports_every_window_s_level(self, job, wav_file, matcher, decoded, reported):
+        wav_file()
+        result = process_job(json.dumps(job()), matcher)
+        # `decoded` is all zeros: digital silence.
+        assert result["level_dbfs"] == -120.0
+
+    def test_off_by_default_so_even_silence_is_matched(self, job, wav_file, decoded, reported, monkeypatch):
+        monkeypatch.setattr(service_main, "MIN_LEVEL_DBFS", None)
+        wav_file()
+        matcher = self.Counting()
+        result = process_job(json.dumps(job()), matcher)
+        assert matcher.calls == 1
+        assert result["candidates"]
+
+    def test_a_window_under_the_floor_is_a_no_match_without_asking_the_matcher(
+        self, job, wav_file, decoded, reported, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(service_main, "MIN_LEVEL_DBFS", -60.0)
+        caplog.set_level("INFO")
+        wav_file()
+        matcher = self.Counting()
+
+        result = process_job(json.dumps(job()), matcher)
+
+        assert matcher.calls == 0
+        assert result["status"] == "processed"
+        assert result["candidates"] == []
+        assert result["level_dbfs"] == -120.0
+        assert "under the -60.0 dBFS floor" in caplog.text
+
+    def test_a_window_over_the_floor_is_matched(self, job, wav_file, reported, monkeypatch):
+        monkeypatch.setattr(service_main, "MIN_LEVEL_DBFS", -60.0)
+        loud = NormalizedAudio(pcm=b"\xff\x7f\x00\x80" * 22050, sample_rate=22050)
+        monkeypatch.setattr(service_main, "decode_to_pcm", lambda *a, **k: loud)
+        wav_file()
+        matcher = self.Counting()
+
+        result = process_job(json.dumps(job()), matcher)
+
+        assert matcher.calls == 1
+        assert result["level_dbfs"] == pytest.approx(0.0, abs=0.1)
+
+    def test_an_undecodable_chunk_has_no_level(self, job, wav_file, matcher, reported, monkeypatch):
+        def fail(*args, **kwargs):
+            raise AudioDecodeError("moov atom not found")
+
+        monkeypatch.setattr(service_main, "decode_to_pcm", fail)
+        wav_file()
+        result = process_job(json.dumps(job()), matcher)
+        assert result["status"] == "failed"
+        assert result["level_dbfs"] is None
+
+
 class TestProcessJob:
     def test_decodes_matches_and_reports(self, job, wav_file, matcher, decoded, reported):
         wav_file()

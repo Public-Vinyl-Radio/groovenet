@@ -8,6 +8,8 @@ export type PlayDetectionRow = {
   friend_id: number | null;
   confidence: number | null;
   offset_seconds: number | null;
+  /** How loud the window was, dBFS. Null on older rows. */
+  level_dbfs: number | null;
   window_start_at: Date | string | null;
   fingerprint_type: string | null;
   fingerprint_version: string | null;
@@ -23,6 +25,7 @@ export type CreatePlayDetectionInput = {
   friend_id?: number | null;
   confidence?: number | null;
   offset_seconds?: number | null;
+  level_dbfs?: number | null;
   window_start_at?: Date | string | null;
   fingerprint_type?: string | null;
   fingerprint_version?: string | null;

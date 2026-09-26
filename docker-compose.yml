@@ -129,6 +129,9 @@ services:
       # whole library to null blobs.
       FINGERPRINT_MATCHER: ${FINGERPRINT_MATCHER:-chromaprint}
       FINGERPRINT_MAX_BER: ${FINGERPRINT_MAX_BER:-0.25}
+      # Off unless set: windows quieter than this many dBFS are not matched.
+      # Tune it from the Level column on /vinyl before setting it.
+      FINGERPRINT_MIN_LEVEL_DBFS: ${FINGERPRINT_MIN_LEVEL_DBFS:-}
       FINGERPRINT_VERSION: ${FINGERPRINT_VERSION:-1}
       # Live windows and library indexing. Set recordings go to their own
       # worker below, so a three-hour decode never delays a live window.

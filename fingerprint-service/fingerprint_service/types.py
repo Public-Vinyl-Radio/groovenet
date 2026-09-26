@@ -65,6 +65,7 @@ class IngestResult(TypedDict):
     window_start_at: str | None
     duration_seconds: float | None
     sample_rate: int | None
+    level_dbfs: float | None
     fingerprint_type: str
     fingerprint_version: str
     candidates: list[MatchCandidate]

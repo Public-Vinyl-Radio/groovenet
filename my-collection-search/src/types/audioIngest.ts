@@ -147,6 +147,8 @@ export type IngestResultReport = {
   window_start_at?: string | null;
   duration_seconds?: number | null;
   sample_rate?: number | null;
+  /** RMS level of the window, dBFS; what a silence floor is tuned from. */
+  level_dbfs?: number | null;
   fingerprint_type?: string | null;
   fingerprint_version?: string | null;
   candidates: IngestMatchCandidate[];

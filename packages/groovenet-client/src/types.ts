@@ -483,6 +483,8 @@ export interface DetectionWindow {
   album: string | null;
   confidence: number | null;
   offset_seconds: number | null;
+  /** RMS level of the window, dBFS; null on older rows. */
+  level_dbfs?: number | null;
   fingerprint_type: string | null;
   fingerprint_version: string | null;
   created_at: string;

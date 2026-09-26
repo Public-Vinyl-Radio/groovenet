@@ -25,6 +25,7 @@ import {
   useRecentDetectionsQuery,
 } from "@/hooks/useVinylPipelineQuery";
 import type { DetectionsRecentResponse } from "@/services/internalApi/vinylPipeline";
+import { formatLevel } from "@/lib/audioLevel";
 
 type DetectionWindow = DetectionsRecentResponse["detections"][number];
 
@@ -74,6 +75,7 @@ function DetectionRow({ detection }: { detection: DetectionWindow }) {
         <Table.Cell color="gray.500">no match</Table.Cell>
         <Table.Cell>—</Table.Cell>
         <Table.Cell>—</Table.Cell>
+        <Table.Cell whiteSpace="nowrap" color="gray.500">{formatLevel(detection.level_dbfs)}</Table.Cell>
       </Table.Row>
     );
   }
@@ -89,6 +91,7 @@ function DetectionRow({ detection }: { detection: DetectionWindow }) {
       </Table.Cell>
       <Table.Cell color={color} fontWeight="medium">{confidence.toFixed(3)}</Table.Cell>
       <Table.Cell whiteSpace="nowrap">{formatOffset(detection.offset_seconds)}</Table.Cell>
+      <Table.Cell whiteSpace="nowrap" color="gray.500">{formatLevel(detection.level_dbfs)}</Table.Cell>
     </Table.Row>
   );
 }
@@ -281,6 +284,7 @@ export default function VinylPipelineView() {
                     <Table.ColumnHeader minW="240px">Track</Table.ColumnHeader>
                     <Table.ColumnHeader width="90px">Conf</Table.ColumnHeader>
                     <Table.ColumnHeader width="70px">At</Table.ColumnHeader>
+                    <Table.ColumnHeader width="70px">Level</Table.ColumnHeader>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>

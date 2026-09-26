@@ -12,6 +12,7 @@ import {
   addVinylCommands,
   formatAggregateResult,
   formatDetection,
+  formatLevel,
   formatOffset,
   formatStats,
   makeClient,
@@ -90,6 +91,18 @@ describe("formatDetection() — timestamps", () => {
   it("renders a time when it has one", () => {
     const row = formatDetection(window());
     expect(plain(row[0])).not.toBe("—");
+  });
+});
+
+describe("formatDetection() — level", () => {
+  it("shows how loud each window was, matched or not", () => {
+    expect(plain(formatDetection(window({ level_dbfs: -23.4 }))[4])).toBe("-23 dB");
+    expect(plain(formatDetection(window({ matched: false, level_dbfs: -71.2 }))[4])).toBe("-71 dB");
+  });
+
+  it("shows a dash for windows recorded before levels were", () => {
+    expect(formatLevel(null)).toBe("—");
+    expect(formatLevel(undefined)).toBe("—");
   });
 });
 

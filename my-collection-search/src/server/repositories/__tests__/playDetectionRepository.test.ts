@@ -19,7 +19,7 @@ describe("PlayDetectionRepository.create", () => {
       ingest_id: "ingest-id", source_id: "listener-1", session_id: "session-1",
       track_id: "track-a", friend_id: 2, confidence: 0.87, offset_seconds: 12.5,
       window_start_at: "2026-09-20T12:00:00Z", fingerprint_type: "chromaprint",
-      fingerprint_version: "1",
+      fingerprint_version: "1", level_dbfs: -23.4,
     };
 
     await expect(repo().create(input)).resolves.toEqual({ id: "detection-id" });
@@ -28,7 +28,7 @@ describe("PlayDetectionRepository.create", () => {
     expect(params[0]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(params.slice(1)).toEqual([
       "ingest-id", "listener-1", "session-1", "track-a", 2, 0.87, 12.5,
-      "2026-09-20T12:00:00Z", "chromaprint", "1",
+      "2026-09-20T12:00:00Z", "chromaprint", "1", -23.4,
     ]);
   });
 
@@ -36,7 +36,7 @@ describe("PlayDetectionRepository.create", () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "no-match" }] });
     await repo().create({ id: "no-match", ingest_id: "ingest-id", source_id: "listener-1" });
     expect(dbQuery.mock.calls[0][1][0]).toBe("no-match");
-    expect(dbQuery.mock.calls[0][1].slice(3)).toEqual(Array(8).fill(null));
+    expect(dbQuery.mock.calls[0][1].slice(3)).toEqual(Array(9).fill(null));
   });
 });
 
