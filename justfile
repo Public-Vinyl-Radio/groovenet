@@ -181,13 +181,13 @@ rebuild-download-worker-worktree:
   bash --noprofile --norc -c 'source ./scripts/worktree/lib.sh && compose_exec build --no-cache download-worker'
   bash --noprofile --norc -c 'source ./scripts/worktree/lib.sh && compose_exec up -d --force-recreate download-worker'
 
-rebuild-containers services="app essentia ga-service download-worker fingerprint-service":
+rebuild-containers services="app essentia ga-service download-worker fingerprint-service fingerprint-set-worker":
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml build {{services}}
 
-rebuild-containers-no-cache services="app essentia ga-service download-worker fingerprint-service":
+rebuild-containers-no-cache services="app essentia ga-service download-worker fingerprint-service fingerprint-set-worker":
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml build --no-cache {{services}}
 
-rebuild-up-containers services="app essentia ga-service download-worker fingerprint-service":
+rebuild-up-containers services="app essentia ga-service download-worker fingerprint-service fingerprint-set-worker":
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml build {{services}}
   {{op_env}} {{compose_cmd}} -f docker-compose.yml up -d {{services}}
 

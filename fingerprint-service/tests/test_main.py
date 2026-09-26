@@ -1,4 +1,5 @@
 import json
+import time
 
 import pytest
 import redis
@@ -6,6 +7,7 @@ from fingerprint_service import main as service_main
 from fingerprint_service.audio import AudioDecodeError, NormalizedAudio
 from fingerprint_service.main import (
     InvalidJob,
+    heartbeat_while_busy,
     parse_job,
     process_index_job,
     process_job,
@@ -270,6 +272,95 @@ class TestRunOnce:
         run_once(matcher)
 
         assert [r["status"] for r in reported] == ["processed"]
+
+
+class TestHeartbeatWhileBusy:
+    """A long job must not read as a dead worker (#282)."""
+
+    def test_beats_while_a_slow_job_runs(self, monkeypatch):
+        beats = []
+        monkeypatch.setattr(service_main, "write_heartbeat", lambda: beats.append(1))
+
+        with heartbeat_while_busy(interval=0.01):
+            time.sleep(0.1)
+
+        assert len(beats) >= 3
+
+    def test_stops_beating_once_the_job_is_done(self, monkeypatch):
+        beats = []
+        monkeypatch.setattr(service_main, "write_heartbeat", lambda: beats.append(1))
+
+        with heartbeat_while_busy(interval=0.01):
+            time.sleep(0.05)
+        after = len(beats)
+        time.sleep(0.05)
+
+        assert len(beats) == after
+
+    def test_stops_beating_when_the_job_raises(self, monkeypatch):
+        beats = []
+        monkeypatch.setattr(service_main, "write_heartbeat", lambda: beats.append(1))
+
+        with pytest.raises(RuntimeError), heartbeat_while_busy(interval=0.01):
+            raise RuntimeError("decode blew up")
+        after = len(beats)
+        time.sleep(0.05)
+
+        assert len(beats) == after
+
+    def test_run_once_beats_during_a_long_job(self, fake_redis, matcher, monkeypatch):
+        monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
+        monkeypatch.setattr(service_main, "HEARTBEAT_INTERVAL", 0.01)
+        beats = []
+        monkeypatch.setattr(service_main, "write_heartbeat", lambda: beats.append(1))
+        monkeypatch.setattr(
+            service_main, "process_job", lambda job_json, m: time.sleep(0.1)
+        )
+        fake_redis.rpush(service_main.QUEUE_KEY, "{}")
+
+        run_once(matcher)
+
+        # One beat from the loop itself, the rest from inside the job.
+        assert len(beats) >= 4
+
+
+class TestSetOnlyWorker:
+    """The second worker pops sets and nothing else (#282)."""
+
+    @pytest.fixture(autouse=True)
+    def _sets_only(self, monkeypatch):
+        monkeypatch.setattr(service_main, "QUEUES", (service_main.SET_QUEUE_KEY,))
+        monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
+
+    def test_leaves_live_and_index_jobs_for_the_other_worker(
+        self, fake_redis, job, index_job, matcher, reported
+    ):
+        fake_redis.rpush(service_main.QUEUE_KEY, json.dumps(job()))
+        fake_redis.rpush(service_main.INDEX_QUEUE_KEY, json.dumps(index_job()))
+
+        run_once(matcher)
+
+        assert reported == []
+        assert fake_redis.llen(service_main.QUEUE_KEY) == 1
+        assert fake_redis.llen(service_main.INDEX_QUEUE_KEY) == 1
+
+    def test_takes_a_set_job(self, fake_redis, matcher, caplog):
+        fake_redis.rpush(service_main.SET_QUEUE_KEY, json.dumps({"set": 1}))
+
+        run_once(matcher)
+
+        assert fake_redis.llen(service_main.SET_QUEUE_KEY) == 0
+        assert "not implemented yet" in caplog.text
+
+    def test_does_not_advertise_an_engine(self, fake_redis, matcher):
+        # The app reads the engine key to decide indexing can run; a worker
+        # that never pops the index queue must not vouch for it.
+        run_once(matcher)
+        assert fake_redis.exists(service_main.ENGINE_KEY) == 0
+
+    def test_still_heartbeats(self, fake_redis, matcher):
+        run_once(matcher)
+        assert fake_redis.get(service_main.HEARTBEAT_KEY) is not None
 
 
 class TestPublishEngine:

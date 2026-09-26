@@ -16,5 +16,9 @@ services:
     volumes:
       - ${WORKER_AUDIO_MOUNT:-worktree_audio:/app/audio}:ro
 
+  fingerprint-set-worker:
+    volumes:
+      - ${WORKER_AUDIO_MOUNT:-worktree_audio:/app/audio}:ro
+
 volumes:
   worktree_audio:

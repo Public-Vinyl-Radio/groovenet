@@ -59,6 +59,11 @@ services:
     container_name: fingerprint-service
     restart: unless-stopped
 
+  fingerprint-set-worker:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/fingerprint-service:${IMAGE_TAG:-latest}
+    container_name: fingerprint-set-worker
+    restart: unless-stopped
+
   download-worker:
     image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/download-worker:${IMAGE_TAG:-latest}
     container_name: download-worker

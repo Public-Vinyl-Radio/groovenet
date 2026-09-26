@@ -10,6 +10,11 @@ indexing (#277)** pops a second queue, fingerprints whole tracks from the audio
 volume and persists them to `track_fingerprints` — the offline counterpart to
 live ingest, through the same `FingerprintMatcher`.
 
+The same image runs twice. `fingerprint-service` takes live windows and
+indexing; `fingerprint-set-worker` takes whole set recordings (#282), so a
+three-hour decode never delays a live window. `FINGERPRINT_QUEUES` is the only
+difference between them — see [Workers](#workers).
+
 Part of the automatic vinyl play tracking epic (#281). The matcher is
 **Chromaprint** (#278), searched two-stage against an index held in memory.
 
@@ -49,7 +54,9 @@ call directly in a test:
 | `process_job` | parse one payload, run it, report the outcome |
 | `publish_engine` | advertise this worker's engine and version |
 | `process_index_job` | fingerprint one reference track, count the outcome |
-| `run_once` | one pass of the loop, across both queues |
+| `process_set_job` | derive a tracklist from a set recording (#282) — not built yet |
+| `heartbeat_while_busy` | keeps the heartbeat fresh from a thread during a job |
+| `run_once` | one pass of the loop, across this worker's queues |
 
 Errors are caught at the same three levels as `download-worker`: a bad heartbeat
 is logged and ignored, a bad job is logged and skipped so one payload cannot
@@ -61,12 +68,48 @@ name an ingest is only logged — there is no row to report it against. Anything
 that names an ingest reports a terminal state even when it fails, because the
 app holds the raw file until it gets one (#276).
 
+## Workers
+
+`FINGERPRINT_QUEUES` names the lists one process pops, and is validated at
+import: an unknown name crashes the container rather than popping nothing
+forever while reporting healthy.
+
+| service | `FINGERPRINT_QUEUES` | heartbeat key |
+| --- | --- | --- |
+| `fingerprint-service` | `fingerprint_queue,fingerprint_index_queue` (the default) | `fingerprint:heartbeat` |
+| `fingerprint-set-worker` | `fingerprint_set_queue` | `fingerprint:heartbeat:set` |
+
+**Priority is ours, not the env's.** Whatever order the variable lists, the
+queues are popped live → index → set. `index,live` would otherwise starve live
+windows behind a library pass.
+
+**Why a second process, not a third queue on the first.** Preemption only
+happens *between* jobs. It is enough for indexing — one job per track, seconds
+each — but a set is one job lasting minutes, and a live window that arrives
+during it would wait for the whole thing.
+
+**One heartbeat key per worker.** Shared, each worker would vouch for the
+other: a dead live worker would stay healthy for as long as the set worker ran.
+
+**Only the indexing worker advertises the engine.** The app reads
+`fingerprint:engine` to decide whether indexing can run at all; a set-only
+worker vouching for it would let index jobs queue with nothing to take them.
+
+**A job keeps the heartbeat alive.** The loop beats only between jobs, so every
+job runs inside `heartbeat_while_busy`, which refreshes the key from a thread
+every `HEARTBEAT_TTL / 3` seconds and is joined before the next job. Without it
+a set decode — or a long reference track — marks the container unhealthy while
+it is doing exactly its job.
+
+Each process holds its own copy of the reference index in memory — ~165 MiB
+for the full library since #315, so the second worker is cheap to keep running.
+
 ## Queue contract
 
-Two lists, popped in **one** `BRPOP fingerprint_queue fingerprint_index_queue`.
-Redis returns the earliest non-empty key in argument order, so live windows win
-every iteration and an index pass is preempted between reference tracks rather
-than blocking for its whole duration.
+The live worker pops two lists in **one** `BRPOP fingerprint_queue
+fingerprint_index_queue`. Redis returns the earliest non-empty key in argument
+order, so live windows win every iteration and an index pass is preempted
+between reference tracks rather than blocking for its whole duration.
 
 ### `fingerprint_queue` — live windows
 
@@ -119,9 +162,15 @@ skip-or-regenerate from the file in front of it without a round trip per track.
 That is what makes a second run free — it queues the same jobs and every one of
 them skips.
 
+### `fingerprint_set_queue` — set recordings (#282)
+
+Popped only by `fingerprint-set-worker`. The payload is defined with the set
+derivation itself; until then the handler logs and drops, and nothing enqueues.
+
 ```bash
 docker compose exec redis redis-cli LLEN fingerprint_queue
 docker compose exec redis redis-cli LLEN fingerprint_index_queue
+docker compose exec redis redis-cli LLEN fingerprint_set_queue
 docker compose exec redis redis-cli HGETALL fpindex:run:<run_id>
 docker compose logs -f fingerprint-service
 ```
@@ -221,9 +270,10 @@ HSET fingerprint:engine fingerprint_type stub fingerprint_version 0
 EXPIRE fingerprint:engine 30
 ```
 
-Written on the heartbeat cycle with the heartbeat's TTL. A stopped worker stops
-advertising, and the app answers `503 no fingerprint engine registered` rather
-than indexing under a stale identity. The alternative — a copy of these values
+Written on the heartbeat cycle with the heartbeat's TTL, and only by a worker
+that pops the index queue. A stopped worker stops advertising, and the app
+answers `503 no fingerprint engine registered` rather than indexing under a
+stale identity. The alternative — a copy of these values
 in the app's env — is precisely how half a library ends up indexed under a
 version nothing will ever query.
 
@@ -381,6 +431,9 @@ end-to-end runs push the populated shape through the callback.
 | `AUDIO_DIR` | `/app/audio` | reference library, mounted read-only |
 | `FINGERPRINT_QUEUE_KEY` | `fingerprint_queue` | |
 | `FINGERPRINT_INDEX_QUEUE_KEY` | `fingerprint_index_queue` | reference indexing |
+| `FINGERPRINT_SET_QUEUE_KEY` | `fingerprint_set_queue` | set recordings (#282) |
+| `FINGERPRINT_QUEUES` | live + index | comma-separated; which lists this worker pops |
+| `FINGERPRINT_HEARTBEAT_KEY` | `fingerprint:heartbeat` | one per worker |
 | `FINGERPRINT_ENGINE_KEY` | `fingerprint:engine` | what the app reads |
 | `FINGERPRINT_INDEX_RUN_PREFIX` | `fpindex:run:` | progress counters |
 | `FINGERPRINT_INDEX_RUN_TTL` | `86400` | how long a run stays readable |
@@ -403,7 +456,7 @@ fails fast instead of failing every job identically forever.
 ## Tests
 
 ```bash
-uv run --group dev pytest                                        # 252 tests
+uv run --group dev pytest                                        # 270 tests
 uv run --group dev pytest --cov=fingerprint_service --cov-report=term-missing
 ```
 
@@ -425,9 +478,10 @@ Two things worth knowing when adding tests:
 
 - `main.py` holds `redis_conn` and `AUDIO_INGEST_DIR` as module globals captured
   at import. Patch `fingerprint_service.main.*`, not the config module.
-- The heartbeat only stays fresh because `brpop` wakes every `BRPOP_TIMEOUT`
-  seconds. Lengthening that timeout without raising `HEARTBEAT_TTL` will make
-  the container look unhealthy.
+- Between jobs the heartbeat only stays fresh because `brpop` wakes every
+  `BRPOP_TIMEOUT` seconds. Lengthening that timeout without raising
+  `HEARTBEAT_TTL` will make the container look unhealthy. During a job,
+  `heartbeat_while_busy` covers it.
 - The ingest volume is mounted **directly**, unlike `essentia-api`, which cannot
   see the shared audio volume and so forces `download-worker` to convert files
   and pass an HTTP URL. Don't reintroduce that here.
@@ -436,9 +490,12 @@ Two things worth knowing when adding tests:
 - The reference library is mounted **read-only**. Nothing here writes to it, and
   a run that touched the audio it was meant to be reading would be a bug worth
   failing loudly on.
-- Both queues share one worker and one CPU. Indexing does not need a concurrency
-  limit — #271 measured 1569x realtime — but it does need to yield, which is why
-  it is one job per track rather than one job per run.
+- Live and index share one worker and one CPU. Indexing does not need a
+  concurrency limit — #271 measured 1569x realtime — but it does need to yield,
+  which is why it is one job per track rather than one job per run. Sets cannot
+  yield that way, which is why they get their own worker.
+- Adding a worker means adding it to `SERVICES` in
+  `my-collection-search/scripts/deploy-prod.sh` too, or a deploy never starts it.
 - Ruff runs over this directory in pre-commit; config is the root `ruff.toml`.
 - **libchromaprint is a native dependency.** `pyacoustid` imports fine without
   it and only raises when asked to fingerprint, so a missing library surfaces as

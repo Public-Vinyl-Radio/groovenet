@@ -21,6 +21,42 @@ QUEUE_KEY = os.getenv('FINGERPRINT_QUEUE_KEY', 'fingerprint_queue')
 # of waiting out the whole pass.
 INDEX_QUEUE_KEY = os.getenv('FINGERPRINT_INDEX_QUEUE_KEY', 'fingerprint_index_queue')
 
+# Whole set recordings (#282). A three-hour set is minutes of decode, and
+# preemption between jobs cannot help a live window that arrives during one —
+# so this list is popped by a second worker, never alongside the live queue.
+SET_QUEUE_KEY = os.getenv('FINGERPRINT_SET_QUEUE_KEY', 'fingerprint_set_queue')
+
+#: Every list this service knows how to handle, in priority order.
+KNOWN_QUEUES = (QUEUE_KEY, INDEX_QUEUE_KEY, SET_QUEUE_KEY)
+
+#: What a worker pops when FINGERPRINT_QUEUES is unset: everything but sets,
+#: which is exactly what the single worker did before #282.
+DEFAULT_QUEUES = (QUEUE_KEY, INDEX_QUEUE_KEY)
+
+
+def resolve_queues(raw: str | None = None) -> tuple[str, ...]:
+    """Validate FINGERPRINT_QUEUES, returned in priority order.
+
+    The order is ours, not the env's: BRPOP serves keys in argument order, and
+    a worker configured `index,live` would quietly starve live windows behind
+    a library pass. Unknown names fail at import for the same reason as the
+    sample rate — a typo would otherwise pop nothing, forever, while healthy.
+    """
+    value = os.getenv('FINGERPRINT_QUEUES') if raw is None else raw
+    queues = {name.strip() for name in (value or '').split(',') if name.strip()}
+    if not queues:
+        return DEFAULT_QUEUES
+    unknown = sorted(queues - set(KNOWN_QUEUES))
+    if unknown:
+        raise ValueError(
+            f"FINGERPRINT_QUEUES has unknown queue(s) {unknown}; "
+            f"expected any of {KNOWN_QUEUES}"
+        )
+    return tuple(name for name in KNOWN_QUEUES if name in queues)
+
+
+QUEUES = resolve_queues()
+
 BRPOP_TIMEOUT = int(os.getenv('FINGERPRINT_BRPOP_TIMEOUT', '5'))
 
 # redis-py 8 applies a 5s socket read timeout by default. Left alone that is
@@ -34,8 +70,17 @@ redis_conn = redis.from_url(
     socket_timeout=SOCKET_TIMEOUT,
 )
 
+# One key per worker. Two workers sharing it would each vouch for the other: a
+# dead live worker stays "healthy" for as long as the set worker is alive. The
+# second compose service overrides this.
 HEARTBEAT_KEY = os.getenv('FINGERPRINT_HEARTBEAT_KEY', 'fingerprint:heartbeat')
 HEARTBEAT_TTL = int(os.getenv('FINGERPRINT_HEARTBEAT_TTL', '30'))
+
+#: How often the heartbeat is refreshed from a background thread while a job
+#: runs. The loop only refreshes between jobs, and a set decode or a long
+#: reference track outlasts the TTL — the container would go unhealthy while
+#: doing exactly what it is for. Three beats per TTL tolerates one slow write.
+HEARTBEAT_INTERVAL = HEARTBEAT_TTL / 3
 
 # The app has to know which engine and version it is resolving `--missing`
 # against, and those values live on the matcher class here. Rather than copy

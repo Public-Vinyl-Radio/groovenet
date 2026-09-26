@@ -55,7 +55,7 @@ Postgres is the only datastore. Search is Postgres full-text + trigram, and
 similarity is pgvector — there is no separate search service.
 
 `docker-compose.yml` defines: `app`, `migrate`, `db`, `essentia`, `ga-service`,
-`redis`, `download-worker`, `fingerprint-service`.
+`redis`, `download-worker`, `fingerprint-service`, `fingerprint-set-worker`.
 
 ## Data flow
 
