@@ -1257,11 +1257,18 @@ export const spinListQuerySchema = z.object({
   offset: nonNegativeIntFromInputSchema.optional().default(0),
 });
 
+export const spinAlbumSummarySchema = z.object({
+  title: z.string().nullable(),
+  artist: z.string().nullable(),
+  thumbnail: z.string().nullable(),
+});
+
 export const spinListItemSchema = z.object({
   session: spinSessionSchema,
   selections: z.array(spinSelectionSchema),
   track_events: z.array(trackSpinEventSchema),
   derived: spinDerivedSchema,
+  album: spinAlbumSummarySchema.nullable().optional(),
 });
 
 export const spinListResponseSchema = z.object({

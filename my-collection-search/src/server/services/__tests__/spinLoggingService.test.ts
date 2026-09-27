@@ -267,6 +267,9 @@ describe("SpinLoggingService", () => {
         created_at: "2026-06-23T20:16:00.000Z",
         updated_at: "2026-06-23T20:16:00.000Z",
         track_event_count: 2,
+        album_title: "Album",
+        album_artist: "Artist",
+        album_thumbnail: "https://img.example/rel-1.jpg",
       },
     ]);
     listSelectionsBySessionIdsMock.mockResolvedValue([
@@ -307,6 +310,39 @@ describe("SpinLoggingService", () => {
     expect(result[0].track_events[0].track_id).toBe("trk-a1");
     expect(result[0].derived.track_count).toBe(1);
     expect(result[0].derived.selected_side_count).toBe(1);
+    expect(result[0].album).toEqual({
+      title: "Album",
+      artist: "Artist",
+      thumbnail: "https://img.example/rel-1.jpg",
+    });
+    expect(result[0].session).not.toHaveProperty("album_title");
+  });
+
+  it("lists a session whose album row is gone with a null album", async () => {
+    listSessionsMock.mockResolvedValue([
+      {
+        id: 102,
+        friend_id: 1,
+        release_id: "rel-gone",
+        medium: "vinyl",
+        selection_mode: "automatic",
+        played_at: "2026-06-23T20:15:00.000Z",
+        note: null,
+        context_type: null,
+        created_at: "2026-06-23T20:16:00.000Z",
+        updated_at: "2026-06-23T20:16:00.000Z",
+        track_event_count: 0,
+        album_title: null,
+        album_artist: null,
+        album_thumbnail: null,
+      },
+    ]);
+    listSelectionsBySessionIdsMock.mockResolvedValue([]);
+    listEventsBySessionIdsMock.mockResolvedValue([]);
+
+    const [item] = await service.listSpinSessions({ friend_id: 1 });
+
+    expect(item.album).toBeNull();
   });
 
   it("deletes a session through the transactional repository path", async () => {

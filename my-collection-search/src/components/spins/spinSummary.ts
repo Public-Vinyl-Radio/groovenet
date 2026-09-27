@@ -92,3 +92,57 @@ export function describeProvenance(item: SpinListItem): SpinProvenance {
   }
   return { label: "Manual", description: "Logged by hand" };
 }
+
+export type SpinAlbum = {
+  title: string | null;
+  artist: string | null;
+  thumbnail: string | null;
+};
+
+/** The album a spin belongs to, from the album row, else the event snapshots. */
+export function describeSpinAlbum(item: SpinListItem): SpinAlbum {
+  const firstEvent = item.track_events[0];
+  return {
+    title: item.album?.title ?? firstEvent?.album_snapshot ?? null,
+    artist: item.album?.artist ?? firstEvent?.artist_snapshot ?? null,
+    thumbnail: item.album?.thumbnail ?? null,
+  };
+}
+
+export type SpinDayGroup = {
+  key: string;
+  label: string;
+  items: SpinListItem[];
+};
+
+function localDayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function dayLabel(date: Date, now: Date): string {
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (localDayKey(date) === localDayKey(now)) return "Today";
+  if (localDayKey(date) === localDayKey(yesterday)) return "Yesterday";
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+/** Groups spins, already newest first, by the local day they were played. */
+export function groupSpinsByDay(items: SpinListItem[], now: Date = new Date()): SpinDayGroup[] {
+  const groups: SpinDayGroup[] = [];
+  for (const item of items) {
+    const playedAt = new Date(item.session.played_at);
+    const key = localDayKey(playedAt);
+    const current = groups[groups.length - 1];
+    if (current?.key === key) {
+      current.items.push(item);
+    } else {
+      groups.push({ key, label: dayLabel(playedAt, now), items: [item] });
+    }
+  }
+  return groups;
+}

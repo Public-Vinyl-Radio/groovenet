@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { describeProvenance, summarizeSpin, type SpinListItem } from "./spinSummary";
+import {
+  describeProvenance,
+  describeSpinAlbum,
+  groupSpinsByDay,
+  summarizeSpin,
+  type SpinListItem,
+} from "./spinSummary";
 
 type Event = SpinListItem["track_events"][number];
 
@@ -156,5 +162,76 @@ describe("describeProvenance", () => {
 
   it("marks hand-logged spins as manual", () => {
     expect(describeProvenance(spin({})).label).toBe("Manual");
+  });
+});
+
+describe("describeSpinAlbum", () => {
+  it("prefers the album row", () => {
+    const item = {
+      ...spin({ events: [{ ...event(0, "D2", "Tipo Raro"), album_snapshot: "Old name" }] }),
+      album: { title: "Algo-Ritmo", artist: "MIS", thumbnail: "https://img.example/a.jpg" },
+    };
+    expect(describeSpinAlbum(item)).toEqual({
+      title: "Algo-Ritmo",
+      artist: "MIS",
+      thumbnail: "https://img.example/a.jpg",
+    });
+  });
+
+  it("falls back to the event snapshots when the album row is gone", () => {
+    const item = {
+      ...spin({
+        events: [
+          { ...event(0, "A6", "Hermanos"), album_snapshot: "BACH", artist_snapshot: "Bandalos Chinos" },
+        ],
+      }),
+      album: null,
+    };
+    expect(describeSpinAlbum(item)).toEqual({
+      title: "BACH",
+      artist: "Bandalos Chinos",
+      thumbnail: null,
+    });
+  });
+
+  it("returns nulls when there is nothing to go on", () => {
+    expect(describeSpinAlbum(spin({}))).toEqual({ title: null, artist: null, thumbnail: null });
+  });
+});
+
+describe("groupSpinsByDay", () => {
+  // Local times, so the day boundaries hold in any timezone.
+  const at = (month: number, day: number, hour: number) =>
+    new Date(2026, month - 1, day, hour).toISOString();
+  const playedAt = (iso: string) => {
+    const item = spin({});
+    return { ...item, session: { ...item.session, played_at: iso } };
+  };
+  const now = new Date(2026, 8, 27, 13);
+
+  it("groups consecutive spins by local day, labelling today and yesterday", () => {
+    const groups = groupSpinsByDay(
+      [
+        playedAt(at(9, 27, 11)),
+        playedAt(at(9, 27, 9)),
+        playedAt(at(9, 26, 22)),
+        playedAt(at(9, 21, 20)),
+      ],
+      now
+    );
+    expect(groups.map((g) => [g.label, g.items.length])).toEqual([
+      ["Today", 2],
+      ["Yesterday", 1],
+      [new Date(2026, 8, 21).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }), 1],
+    ]);
+  });
+
+  it("adds the year for spins from another year", () => {
+    const [group] = groupSpinsByDay([playedAt(new Date(2025, 11, 31, 22).toISOString())], now);
+    expect(group.label).toContain("2025");
+  });
+
+  it("returns no groups for no spins", () => {
+    expect(groupSpinsByDay([], now)).toEqual([]);
   });
 });

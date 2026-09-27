@@ -271,11 +271,19 @@ export type SpinCreateInput =
       track_refs: SpinTrackRef[];
     });
 
+export interface SpinAlbumSummary {
+  title: string | null;
+  artist: string | null;
+  thumbnail: string | null;
+}
+
 export interface SpinSessionDetail {
   session: SpinSession;
   selections: SpinSelection[];
   track_events: TrackSpinEvent[];
   derived: SpinDerived;
+  /** Present on list responses; null when the album is no longer in the collection. */
+  album?: SpinAlbumSummary | null;
 }
 
 export interface SpinCreateResponse {

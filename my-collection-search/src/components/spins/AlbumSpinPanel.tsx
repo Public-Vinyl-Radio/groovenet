@@ -24,7 +24,7 @@ import {
 } from "@chakra-ui/react";
 import { FiClock, FiDisc } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
-import AlbumSpinRow from "@/components/spins/AlbumSpinRow";
+import SpinRow from "@/components/spins/SpinRow";
 import { formatTrackLine } from "@/components/spins/spinSummary";
 import {
   useSpinsQuery,
@@ -464,7 +464,7 @@ export default function AlbumSpinPanel({
         ) : (
           <Stack gap={0}>
             {spinsQuery.spins.map((item) => (
-              <AlbumSpinRow
+              <SpinRow
                 key={item.session.id}
                 item={item}
                 onDelete={handleDeleteSpin}
