@@ -1,9 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Box, Stack } from '@chakra-ui/react';
-import AlbumSpinRow from '@/components/spins/AlbumSpinRow';
+import SpinRow from '@/components/spins/SpinRow';
 import type { SpinListItem } from '@/components/spins/spinSummary';
 
 const noop = () => {};
+
+// Inline so the story needs no network.
+const SAMPLE_ART =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c2410c"/><stop offset="1" stop-color="#166534"/></linearGradient></defs><rect width="48" height="48" fill="url(#g)"/><circle cx="24" cy="24" r="9" fill="#111"/><circle cx="24" cy="24" r="2" fill="#eee"/></svg>'
+  );
 
 type Event = SpinListItem['track_events'][number];
 
@@ -50,6 +57,11 @@ function spin(
       side_key,
     })),
     track_events: events,
+    album: {
+      title: 'Algo-Ritmo (Hits 2004–2024)',
+      artist: 'Mexican Institute Of Sound',
+      thumbnail: SAMPLE_ART,
+    },
     derived: {
       is_full_album_spin: false,
       selected_side_count: sideKeys.length,
@@ -90,9 +102,18 @@ const sideSpin = spin(
   ['A', 'B']
 );
 
-const meta: Meta<typeof AlbumSpinRow> = {
-  title: 'Components/AlbumSpinRow',
-  component: AlbumSpinRow,
+// A spin whose album row is gone and whose art never resolved: falls back to
+// the event snapshots and a disc icon.
+const noArtSpin: SpinListItem = {
+  ...spin(4, { played_at: '2026-09-20T20:02:00.000Z', confidence: 0.81 }, [
+    event(0, 'A6', 'Hermanos'),
+  ]),
+  album: null,
+};
+
+const meta: Meta<typeof SpinRow> = {
+  title: 'Components/SpinRow',
+  component: SpinRow,
   parameters: { layout: 'padded' },
   decorators: [
     (Story) => (
@@ -109,7 +130,7 @@ const meta: Meta<typeof AlbumSpinRow> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof AlbumSpinRow>;
+type Story = StoryObj<typeof SpinRow>;
 
 export const Automatic: Story = {
   name: 'Detected by the listener',
@@ -129,9 +150,20 @@ export const List: Story = {
   name: 'Album spin list',
   render: (args) => (
     <Stack gap={0}>
-      <AlbumSpinRow {...args} item={autoSpin} />
-      <AlbumSpinRow {...args} item={manualTracks} />
-      <AlbumSpinRow {...args} item={sideSpin} />
+      <SpinRow {...args} item={autoSpin} />
+      <SpinRow {...args} item={manualTracks} />
+      <SpinRow {...args} item={sideSpin} />
+    </Stack>
+  ),
+};
+
+export const RecentSpins: Story = {
+  name: 'Recent spins (with album, time only)',
+  render: (args) => (
+    <Stack gap={0}>
+      <SpinRow {...args} item={autoSpin} showAlbum timeOnly />
+      <SpinRow {...args} item={manualTracks} showAlbum timeOnly />
+      <SpinRow {...args} item={noArtSpin} showAlbum timeOnly />
     </Stack>
   ),
 };

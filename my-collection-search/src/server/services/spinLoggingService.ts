@@ -318,6 +318,7 @@ export class SpinLoggingService {
     Array<
       SpinSessionDetail & {
         derived: SpinSessionDetail["derived"];
+        album: { title: string | null; artist: string | null; thumbnail: string | null } | null;
       }
     >
   > {
@@ -340,7 +341,7 @@ export class SpinLoggingService {
       trackEventsBySessionId.set(event.session_id, group);
     }
 
-    return sessions.map((session) => {
+    return sessions.map(({ album_title, album_artist, album_thumbnail, ...session }) => {
       const sessionSelections = selectionsBySessionId.get(session.id) ?? [];
       const sessionTrackEvents = trackEventsBySessionId.get(session.id) ?? [];
       const selectedSideCount = new Set(
@@ -360,6 +361,12 @@ export class SpinLoggingService {
           album_side_count: 0,
           track_count: sessionTrackEvents.length,
         },
+        // albums.title is NOT NULL, so a null one means no albums row: the spin
+        // outlived its album, and the event snapshots still name it.
+        album:
+          album_title == null
+            ? null
+            : { title: album_title, artist: album_artist, thumbnail: album_thumbnail },
       };
     });
   }

@@ -28,3 +28,41 @@ describe("SpinSessionRepository automatic sessions", () => {
     expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("detection_id = $1"), ["d1"]);
   });
 });
+
+describe("SpinSessionRepository.listSessions", () => {
+  const repo = new SpinSessionRepository();
+  beforeEach(() => vi.resetAllMocks());
+
+  it("joins the album and groups by the columns it selects", async () => {
+    const row = { id: 1, album_title: "Algo-Ritmo", track_event_count: 2 };
+    dbQuery.mockResolvedValueOnce({ rows: [row] });
+
+    await expect(repo.listSessions({ friend_id: 7 })).resolves.toEqual([row]);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(/LEFT JOIN albums a\s+ON a\.release_id = ss\.release_id AND a\.friend_id = ss\.friend_id/);
+    expect(sql).toMatch(/GROUP BY ss\.id, a\.title, a\.artist, a\.album_thumbnail/);
+    expect(params).toEqual([7, 50, 0]);
+  });
+
+  it("adds each filter as its own parameter, before the paging ones", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+
+    await repo.listSessions({
+      friend_id: 7,
+      release_id: "rel",
+      track_id: "trk",
+      from: "2026-09-01",
+      to: "2026-09-30",
+      limit: 10,
+      offset: 20,
+    });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("ss.release_id = $2");
+    expect(sql).toContain("tse_filter.track_id = $3");
+    expect(sql).toContain("ss.played_at >= $4");
+    expect(sql).toContain("ss.played_at <= $5");
+    expect(params).toEqual([7, "rel", "trk", "2026-09-01", "2026-09-30", 10, 20]);
+  });
+});

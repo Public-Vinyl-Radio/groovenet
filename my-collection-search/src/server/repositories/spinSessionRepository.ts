@@ -55,6 +55,14 @@ export type CreateSpinSessionSelectionInput = {
   position_snapshot?: string | null;
 };
 
+// The album a session belongs to, joined for list views. Null when the album
+// row is gone (the spin outlives it) — the track event snapshots still name it.
+export type SpinSessionAlbumColumns = {
+  album_title: string | null;
+  album_artist: string | null;
+  album_thumbnail: string | null;
+};
+
 export type ListSpinSessionsFilters = {
   friend_id: number;
   release_id?: string;
@@ -147,7 +155,7 @@ export class SpinSessionRepository {
 
   async listSessions(
     filters: ListSpinSessionsFilters
-  ): Promise<Array<SpinSessionRow & { track_event_count: number }>> {
+  ): Promise<Array<SpinSessionRow & SpinSessionAlbumColumns & { track_event_count: number }>> {
     const whereClauses = ["ss.friend_id = $1"];
     const params: Array<number | string | Date> = [filters.friend_id];
 
@@ -180,15 +188,22 @@ export class SpinSessionRepository {
     params.push(filters.offset ?? 0);
     const offsetRef = `$${params.length}`;
 
-    const { rows } = await dbQuery<SpinSessionRow & { track_event_count: number }>(
+    const { rows } = await dbQuery<
+      SpinSessionRow & SpinSessionAlbumColumns & { track_event_count: number }
+    >(
       `
       SELECT
         ss.*,
+        a.title AS album_title,
+        a.artist AS album_artist,
+        a.album_thumbnail,
         COUNT(tse.id)::int AS track_event_count
       FROM spin_sessions ss
+      LEFT JOIN albums a
+        ON a.release_id = ss.release_id AND a.friend_id = ss.friend_id
       LEFT JOIN track_spin_events tse ON tse.session_id = ss.id
       WHERE ${whereClauses.join(" AND ")}
-      GROUP BY ss.id
+      GROUP BY ss.id, a.title, a.artist, a.album_thumbnail
       ORDER BY ss.played_at DESC, ss.id DESC
       LIMIT ${limitRef}
       OFFSET ${offsetRef}

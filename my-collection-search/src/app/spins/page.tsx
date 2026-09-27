@@ -1,37 +1,29 @@
 "use client";
 
 import React, { Suspense } from "react";
-import NextLink from "next/link";
 import {
   Badge,
   Box,
-  Button,
   EmptyState,
   Flex,
   Grid,
   Heading,
   HStack,
-  Link,
   Spinner,
   Stack,
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { FiActivity, FiClock, FiDisc, FiTrash2 } from "react-icons/fi";
+import { FiActivity, FiClock, FiDisc } from "react-icons/fi";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import TrackResultStore from "@/components/TrackResultStore";
 import PageContainer from "@/components/layout/PageContainer";
+import SpinRow from "@/components/spins/SpinRow";
+import { groupSpinsByDay } from "@/components/spins/spinSummary";
 import { toaster } from "@/components/ui/toaster";
 import { useSpinMutations, useSpinsQuery, useSpinTopTracksQuery } from "@/hooks/useSpinsQuery";
 import { useUsername } from "@/providers/UsernameProvider";
 import type { Track } from "@/types/track";
-
-function formatPlayedAt(dateString: string): string {
-  return new Date(dateString).toLocaleString([], {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function buildTopTrackFallback(track: {
   track_id: string;
@@ -146,64 +138,25 @@ function SpinsPageContent() {
                 </EmptyState.Content>
               </EmptyState.Root>
             ) : (
-              <Stack gap={2}>
-                {spinsQuery.spins.map((item) => (
-                  <Flex
-                    key={item.session.id}
-                    align="center"
-                    gap={2}
-                    borderWidth="1px"
-                    borderRadius="md"
-                    px={3}
-                    py={2.5}
-                    minW={0}
-                  >
-                    <Box flex={1} minW={0}>
-                      <HStack gap={1.5} wrap="wrap" mb={0.5}>
-                        <Badge
-                          size="xs"
-                          colorPalette={item.derived.is_full_album_spin ? "green" : "blue"}
-                        >
-                          {item.derived.is_full_album_spin
-                            ? "Full album"
-                            : item.session.selection_mode === "sides"
-                              ? `${item.derived.selected_side_count} side${item.derived.selected_side_count === 1 ? "" : "s"}`
-                              : `${item.derived.track_count} track${item.derived.track_count === 1 ? "" : "s"}`}
-                        </Badge>
-                        {item.session.context_type && (
-                          <Badge size="xs" variant="outline">{item.session.context_type}</Badge>
-                        )}
-                        <Text fontSize="xs" color="fg.muted">
-                          {formatPlayedAt(item.session.played_at)}
-                        </Text>
-                      </HStack>
-                      <Text fontSize="xs" color="fg.muted" lineClamp={1}>
-                        {item.track_events[0] ? (
-                          <Link
-                            as={NextLink}
-                            href={`/albums/${encodeURIComponent(item.session.release_id)}?friend_id=${item.session.friend_id}`}
-                          >
-                            {item.track_events[0].album_snapshot}
-                          </Link>
-                        ) : item.session.release_id}
-                        {item.session.note && ` · ${item.session.note}`}
-                      </Text>
+              <Stack gap={4}>
+                {groupSpinsByDay(spinsQuery.spins).map((day) => (
+                  <Box key={day.key}>
+                    <Text fontSize="xs" fontWeight="semibold" color="fg.muted" mb={1.5}>
+                      {day.label}
+                    </Text>
+                    <Box borderWidth="1px" borderRadius="md">
+                      {day.items.map((item) => (
+                        <SpinRow
+                          key={item.session.id}
+                          item={item}
+                          onDelete={handleDeleteSpin}
+                          deletePending={deleteSpinPending}
+                          showAlbum
+                          timeOnly
+                        />
+                      ))}
                     </Box>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      colorPalette="red"
-                      loading={deleteSpinPending}
-                      onClick={() => handleDeleteSpin(item.session.id)}
-                      aria-label="Delete spin"
-                      flexShrink={0}
-                      minW="28px"
-                      h="28px"
-                      p={0}
-                    >
-                      <FiTrash2 />
-                    </Button>
-                  </Flex>
+                  </Box>
                 ))}
               </Stack>
             )}
