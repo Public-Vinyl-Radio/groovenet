@@ -98,6 +98,36 @@ describe("summarizeSpin", () => {
     expect(summary.hasMoreTracks).toBe(true);
   });
 
+  it("labels a sideless tracklist and a side with no recorded track", () => {
+    const summary = summarizeSpin(
+      spin({
+        selection_mode: "sides",
+        side_keys: ["TRACKLIST", "C"],
+        events: [event(0, "1", "Numbered", "TRACKLIST")],
+      })
+    );
+    expect(summary.headline).toBe("Tracklist, Side C");
+  });
+
+  it("falls back to the key when a side's position has no label", () => {
+    const summary = summarizeSpin(
+      spin({ selection_mode: "sides", side_keys: ["X"], events: [event(0, null, "Loose", "X")] })
+    );
+    expect(summary.headline).toBe("Side X");
+  });
+
+  it("names the tracks when a side spin has no side selections", () => {
+    const summary = summarizeSpin(
+      spin({ selection_mode: "sides", events: [event(0, "A1", "One")] })
+    );
+    expect(summary.headline).toBe("A1 · One");
+  });
+
+  it("fills in a missing title and position", () => {
+    const bare = { ...event(0, null, ""), position_snapshot: undefined, title_snapshot: undefined };
+    expect(summarizeSpin(spin({ events: [bare] })).headline).toBe("Unknown track");
+  });
+
   it("calls a full-album spin a full album", () => {
     const summary = summarizeSpin(
       spin({ selection_mode: "sides", side_keys: ["A"], full_album: true, events: [event(0, "A1", "One")] })
@@ -116,6 +146,12 @@ describe("describeProvenance", () => {
       label: "Auto",
       description: "Detected by the listener · 92% confidence",
     });
+  });
+
+  it("omits confidence when the listener didn't report one", () => {
+    expect(describeProvenance(spin({ provenance: "automatic" })).description).toBe(
+      "Detected by the listener"
+    );
   });
 
   it("marks hand-logged spins as manual", () => {
