@@ -361,15 +361,12 @@ export class SpinLoggingService {
           album_side_count: 0,
           track_count: sessionTrackEvents.length,
         },
-        // No albums row (the spin outlived it): the event snapshots still name it.
+        // albums.title is NOT NULL, so a null one means no albums row: the spin
+        // outlived its album, and the event snapshots still name it.
         album:
-          album_title == null && album_artist == null && album_thumbnail == null
+          album_title == null
             ? null
-            : {
-                title: album_title ?? null,
-                artist: album_artist ?? null,
-                thumbnail: album_thumbnail ?? null,
-              },
+            : { title: album_title, artist: album_artist, thumbnail: album_thumbnail },
       };
     });
   }
