@@ -7,7 +7,7 @@ dependencies = [
     "yt-dlp==2026.8.19",
     "gamdl==3.8.5",
     "requests==2.34.2",
-    "psycopg2-binary>=2.9.9,<2.10",
+    "psycopg2-binary>=2.9.13,<2.10",
     "groovenet-python-client",
 ]
 
@@ -16,7 +16,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-mock>=3.14",
-    "fakeredis>=2.37.1",
+    "fakeredis>=2.38.0",
 ]
 
 [tool.uv.sources]
