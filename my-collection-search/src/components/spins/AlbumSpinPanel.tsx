@@ -22,9 +22,15 @@ import {
   VStack,
   useBreakpointValue,
 } from "@chakra-ui/react";
-import { FiClock, FiDisc, FiTrash2 } from "react-icons/fi";
+import { FiClock, FiDisc } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
-import { useSpinsQuery, useSpinMutations } from "@/hooks/useSpinsQuery";
+import AlbumSpinRow from "@/components/spins/AlbumSpinRow";
+import { formatTrackLine } from "@/components/spins/spinSummary";
+import {
+  useSpinsQuery,
+  useSpinMutations,
+  useSpinTopTracksQuery,
+} from "@/hooks/useSpinsQuery";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   getAlbumPlayableStructure,
@@ -45,13 +51,6 @@ type TrackLookupEntry = ReturnType<typeof buildTrackLookup> extends Map<string, 
 function formatDateTimeLocalInput(date: Date): string {
   const offsetMs = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
-function formatPlayedAt(dateString: string): string {
-  return new Date(dateString).toLocaleString([], {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 function buildTrackLookup(structure?: AlbumPlayableStructureResponse) {
@@ -108,6 +107,14 @@ export default function AlbumSpinPanel({
     },
     { enabled: !!releaseId && !!friendId }
   );
+  const topTracksQuery = useSpinTopTracksQuery(
+    { friend_id: friendId, release_id: releaseId, limit: 3, offset: 0 },
+    { enabled: !!releaseId && !!friendId }
+  );
+  // Only worth a line once some track has been played more than once.
+  const mostPlayed = topTracksQuery.topTracks.some((track) => track.play_count > 1)
+    ? topTracksQuery.topTracks
+    : [];
   const { createSpin, deleteSpin, createSpinPending, deleteSpinPending } =
     useSpinMutations(friendId);
 
@@ -421,13 +428,28 @@ export default function AlbumSpinPanel({
           <FiDisc />
           <Text fontWeight="semibold" fontSize="sm">Vinyl spins</Text>
           <Text fontSize="sm" color="fg.muted" display={{ base: "none", md: "block" }}>
-            — Manual logging for physical LP plays only.
+            — Detected automatically or logged by hand.
           </Text>
         </HStack>
         <Button size="xs" variant="outline" onClick={() => setOpen(true)}>
           Log Spin
         </Button>
       </Flex>
+
+      {mostPlayed.length > 0 && (
+        <HStack gap={1.5} wrap="wrap" fontSize="xs">
+          <Text color="fg.muted">Most played:</Text>
+          {mostPlayed.map((track) => (
+            <Badge key={track.track_id} size="sm" variant="surface">
+              {formatTrackLine({
+                position: track.position_snapshot ?? null,
+                title: track.title_snapshot,
+              })}{" "}
+              ×{track.play_count}
+            </Badge>
+          ))}
+        </HStack>
+      )}
 
       <Box borderWidth="1px" borderRadius="md">
         {spinsQuery.isLoading ? (
@@ -442,54 +464,12 @@ export default function AlbumSpinPanel({
         ) : (
           <Stack gap={0}>
             {spinsQuery.spins.map((item) => (
-              <Flex
+              <AlbumSpinRow
                 key={item.session.id}
-                align="center"
-                gap={2}
-                px={3}
-                py={2}
-                borderBottomWidth="1px"
-                _last={{ borderBottomWidth: 0 }}
-                minW={0}
-              >
-                <HStack gap={1.5} flex="1" minW={0} wrap="wrap" align="center">
-                  <Badge
-                    size="xs"
-                    colorPalette={item.derived.is_full_album_spin ? "green" : "blue"}
-                  >
-                    {item.derived.is_full_album_spin
-                      ? "Full album"
-                      : item.session.selection_mode === "sides"
-                        ? `${item.derived.selected_side_count} side${item.derived.selected_side_count === 1 ? "" : "s"}`
-                        : `${item.derived.track_count} track${item.derived.track_count === 1 ? "" : "s"}`}
-                  </Badge>
-                  {item.session.context_type && (
-                    <Badge size="xs" variant="outline">{item.session.context_type}</Badge>
-                  )}
-                  <Text fontSize="xs" color="fg.muted">
-                    {formatPlayedAt(item.session.played_at)}
-                  </Text>
-                  {item.session.note && (
-                    <Text fontSize="xs" color="fg.muted" lineClamp={1} minW={0}>
-                      — {item.session.note}
-                    </Text>
-                  )}
-                </HStack>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  colorPalette="red"
-                  loading={deleteSpinPending}
-                  onClick={() => handleDeleteSpin(item.session.id)}
-                  aria-label="Delete spin"
-                  minW="28px"
-                  h="28px"
-                  p={0}
-                  flexShrink={0}
-                >
-                  <FiTrash2 />
-                </Button>
-              </Flex>
+                item={item}
+                onDelete={handleDeleteSpin}
+                deletePending={deleteSpinPending}
+              />
             ))}
           </Stack>
         )}
