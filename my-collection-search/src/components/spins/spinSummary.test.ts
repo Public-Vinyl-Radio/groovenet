@@ -151,6 +151,7 @@ describe("describeProvenance", () => {
     expect(describeProvenance(spin({ provenance: "automatic", confidence: 0.917 }))).toEqual({
       label: "Auto",
       description: "Detected by the listener · 92% confidence",
+      automatic: true,
     });
   });
 
@@ -158,6 +159,16 @@ describe("describeProvenance", () => {
     expect(describeProvenance(spin({ provenance: "automatic" })).description).toBe(
       "Detected by the listener"
     );
+  });
+
+  it("says when a detected spin was corrected by hand", () => {
+    const item = spin({ provenance: "automatic", confidence: 0.8 });
+    item.session.corrected_at = "2026-09-27T12:00:00.000Z";
+    expect(describeProvenance(item)).toEqual({
+      label: "Auto · corrected",
+      description: "Detected by the listener · 80% confidence · corrected by hand",
+      automatic: true,
+    });
   });
 
   it("marks hand-logged spins as manual", () => {

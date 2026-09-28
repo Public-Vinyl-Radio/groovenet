@@ -1,9 +1,43 @@
+import React from 'react';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Box, Stack } from '@chakra-ui/react';
 import SpinRow from '@/components/spins/SpinRow';
 import type { SpinListItem } from '@/components/spins/spinSummary';
+import { queryKeys } from '@/lib/queryKeys';
+import type { AlbumPlayableStructureResponse } from '@/services/internalApi/albums';
 
-const noop = () => {};
+// The edit dialog loads the album's sides; seed them so it opens with no API.
+const PLAYABLE_STRUCTURE = {
+  album: { release_id: '33416876', friend_id: 6, title: 'Algo-Ritmo (Hits 2004–2024)', artist: 'Mexican Institute Of Sound' },
+  sides: [
+    ['A', 'Side A', [['A1', 'Mexico'], ['A2', 'Yo Digo Baila'], ['A3', 'Mirando A Las Muchachas']]],
+    ['D', 'Side D', [['D1', 'Bolero'], ['D2', 'Tipo Raro'], ['D3', 'Cumbia'], ['D4', 'Se Baila Asi']]],
+  ].map(([side_key, side_label, tracks], ordinal) => ({
+    side_key: side_key as string,
+    side_label: side_label as string,
+    ordinal,
+    track_count: (tracks as string[][]).length,
+    tracks: (tracks as string[][]).map(([position, title]) => ({
+      track_id: `33416876-${position}`,
+      friend_id: 6,
+      position,
+      title,
+      artist: 'Mexican Institute Of Sound',
+    })),
+  })),
+} as unknown as AlbumPlayableStructureResponse;
+
+function SeededQueries({ children }: { children: React.ReactNode }) {
+  const [client] = React.useState(() => {
+    const seeded = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
+    });
+    seeded.setQueryData(queryKeys.albumPlayableStructure('33416876', 6), PLAYABLE_STRUCTURE);
+    return seeded;
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
 
 // Inline so the story needs no network.
 const SAMPLE_ART =
@@ -111,21 +145,27 @@ const noArtSpin: SpinListItem = {
   album: null,
 };
 
+const correctedSpin = spin(
+  5,
+  { confidence: 0.77, corrected_at: '2026-09-27T12:00:00.000Z', played_at: '2026-09-20T19:40:00.000Z' },
+  [event(0, 'D3', 'Cumbia')]
+);
+
 const meta: Meta<typeof SpinRow> = {
   title: 'Components/SpinRow',
   component: SpinRow,
   parameters: { layout: 'padded' },
   decorators: [
     (Story) => (
-      <Box maxW="900px" mx="auto" borderWidth="1px" borderRadius="md">
-        <Story />
-      </Box>
+      <SeededQueries>
+        <Box maxW="900px" mx="auto" borderWidth="1px" borderRadius="md">
+          <Story />
+        </Box>
+      </SeededQueries>
     ),
   ],
   args: {
     item: autoSpin,
-    onDelete: noop,
-    deletePending: false,
   },
 };
 
@@ -166,4 +206,9 @@ export const RecentSpins: Story = {
       <SpinRow {...args} item={noArtSpin} showAlbum timeOnly />
     </Stack>
   ),
+};
+
+export const Corrected: Story = {
+  name: 'Detected, then corrected by hand',
+  args: { item: correctedSpin },
 };

@@ -118,7 +118,5 @@ export function useSpinMutations(friendId?: number) {
     createSpinPending: createSpinMutation.isPending,
     updateSpinPending: updateSpinMutation.isPending,
     deleteSpinPending: deleteSpinMutation.isPending,
-    /** The spin being deleted right now, so only its row shows as busy. */
-    deletingSpinId: deleteSpinMutation.isPending ? deleteSpinMutation.variables : undefined,
   };
 }
