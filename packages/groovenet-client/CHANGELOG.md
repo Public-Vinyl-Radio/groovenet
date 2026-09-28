@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.4.0...groovenet-client-v2.5.0) (2026-09-28)
+
+
+### Features
+
+* **spins:** edit spins and move delete into an actions menu ([#341](https://github.com/Public-Vinyl-Radio/groovenet/issues/341)) ([8a1057d](https://github.com/Public-Vinyl-Radio/groovenet/commit/8a1057d29f256ba73cc6ec0b5e257830c68b486f))
+* **spins:** show what was played on recent spin cards ([#340](https://github.com/Public-Vinyl-Radio/groovenet/issues/340)) ([abb90de](https://github.com/Public-Vinyl-Radio/groovenet/commit/abb90de1b1f36c79946b28d0318a5a7016756775))
+
 ## [2.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.3.0...groovenet-client-v2.4.0) (2026-09-26)
 
 
