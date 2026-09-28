@@ -210,10 +210,16 @@ export interface SpinSession {
   friend_id: number;
   release_id: string;
   medium: "vinyl";
-  selection_mode: "sides" | "tracks";
+  selection_mode: "sides" | "tracks" | "automatic";
   played_at: string;
   note?: string | null;
   context_type?: string | null;
+  /** "automatic" when the listener detected the spin. */
+  provenance?: "manual" | "automatic";
+  source_id?: string | null;
+  confidence?: number | null;
+  /** When a detected spin was corrected by hand; null otherwise. */
+  corrected_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -285,6 +291,18 @@ export interface SpinSessionDetail {
   /** Present on list responses; null when the album is no longer in the collection. */
   album?: SpinAlbumSummary | null;
 }
+
+/** Edit a spin. A new selection (sides or tracks) replaces the old one. */
+export interface SpinUpdateInput {
+  friend_id: number;
+  played_at?: string;
+  note?: string | null;
+  context_type?: string | null;
+  side_keys?: string[];
+  track_refs?: SpinTrackRef[];
+}
+
+export type SpinUpdateResponse = SpinSessionDetail;
 
 export interface SpinCreateResponse {
   session: SpinSession;

@@ -3,8 +3,12 @@
 import React from "react";
 import NextLink from "next/link";
 import { Badge, Box, Button, Flex, HStack, Image, Link, Stack, Text } from "@chakra-ui/react";
-import { FiChevronDown, FiChevronUp, FiDisc, FiTrash2 } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiDisc } from "react-icons/fi";
+import { toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useSpinMutations } from "@/hooks/useSpinsQuery";
+import SpinActionsMenu from "./SpinActionsMenu";
+import SpinFormDialog from "./SpinFormDialog";
 import {
   describeProvenance,
   describeSpinAlbum,
@@ -15,8 +19,6 @@ import {
 
 type Props = {
   item: SpinListItem;
-  onDelete: (spinId: number) => void;
-  deletePending: boolean;
   /** Show the album's art, artist and title — for lists that span albums. */
   showAlbum?: boolean;
   /** Show only the time of day — for lists already grouped by day. */
@@ -63,16 +65,31 @@ function AlbumArt({ src, alt }: { src: string | null; alt: string }) {
 
 export default function SpinRow({
   item,
-  onDelete,
-  deletePending,
   showAlbum = false,
   timeOnly = false,
 }: Props) {
   const [expanded, setExpanded] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  // Each row has its own mutations, so only the spin being deleted shows busy.
+  const { deleteSpin, deleteSpinPending } = useSpinMutations(item.session.friend_id);
   const summary = summarizeSpin(item);
   const provenance = describeProvenance(item);
   const album = showAlbum ? describeSpinAlbum(item) : null;
   const albumHref = `/albums/${encodeURIComponent(item.session.release_id)}?friend_id=${item.session.friend_id}`;
+
+  const handleDelete = async () => {
+    try {
+      await deleteSpin(item.session.id);
+      toaster.create({ title: "Spin deleted", type: "success" });
+    } catch (error) {
+      toaster.create({
+        title: "Failed to delete spin",
+        description: error instanceof Error ? error.message : "Unknown error",
+        type: "error",
+      });
+      throw error;
+    }
+  };
 
   return (
     <Flex
@@ -102,7 +119,7 @@ export default function SpinRow({
             <Badge
               size="xs"
               variant="subtle"
-              colorPalette={provenance.label === "Auto" ? "purple" : "gray"}
+              colorPalette={provenance.automatic ? "purple" : "gray"}
             >
               {provenance.label}
             </Badge>
@@ -144,20 +161,19 @@ export default function SpinRow({
           </Box>
         )}
       </Stack>
-      <Button
-        size="xs"
-        variant="ghost"
-        colorPalette="red"
-        loading={deletePending}
-        onClick={() => onDelete(item.session.id)}
-        aria-label="Delete spin"
-        minW="28px"
-        h="28px"
-        p={0}
-        flexShrink={0}
-      >
-        <FiTrash2 />
-      </Button>
+      <SpinActionsMenu
+        label={summary.headline}
+        onEdit={() => setEditOpen(true)}
+        onDelete={handleDelete}
+        deleting={deleteSpinPending}
+      />
+      <SpinFormDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        releaseId={item.session.release_id}
+        friendId={item.session.friend_id}
+        spin={item}
+      />
     </Flex>
   );
 }

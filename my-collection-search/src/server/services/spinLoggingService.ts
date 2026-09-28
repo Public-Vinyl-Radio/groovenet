@@ -44,6 +44,15 @@ export type CreateSpinSessionInput = {
     }
 );
 
+export type UpdateSpinSessionInput = {
+  played_at?: string | Date;
+  note?: string | null;
+  context_type?: string | null;
+  /** A new selection replaces the old one; at most one of these. */
+  side_keys?: string[];
+  track_refs?: SpinTrackRef[];
+};
+
 export type SpinSessionDetail = {
   session: SpinSessionRow;
   selections: SpinSessionSelectionRow[];
@@ -97,6 +106,27 @@ function normalizeTrackEventRow<T extends { played_at: Date | string; created_at
     played_at: normalizeTimestamp(row.played_at),
     created_at: normalizeTimestamp(row.created_at),
   };
+}
+
+function toTrackEvents(
+  expandedTracks: ExpandedTrack[],
+  friendId: number,
+  releaseId: string,
+  playedAt: string | Date
+) {
+  return expandedTracks.map((expanded, ordinal) => ({
+    friend_id: friendId,
+    release_id: releaseId,
+    track_id: expanded.track.track_id,
+    played_at: playedAt,
+    ordinal,
+    side_key: expanded.side_key,
+    position_snapshot:
+      expanded.track.position == null ? null : String(expanded.track.position),
+    title_snapshot: expanded.track.title,
+    artist_snapshot: expanded.track.artist,
+    album_snapshot: expanded.track.album,
+  }));
 }
 
 function normalizeTopTrackRow<T extends { last_played_at: Date | string }>(
@@ -171,43 +201,6 @@ export class SpinLoggingService {
   }
 
   async createSpinSession(input: CreateSpinSessionInput): Promise<SpinSessionDetail> {
-    const album = await albumRepository.getAlbumByReleaseAndFriend(
-      input.release_id,
-      input.friend_id
-    );
-    if (!album) {
-      throw new Error("Album not found");
-    }
-
-    const albumTracks = await albumRepository.getTracksByReleaseAndFriend(
-      input.release_id,
-      input.friend_id
-    );
-    if (albumTracks.length === 0) {
-      throw new Error("Album has no tracks to log");
-    }
-
-    const orderedTracks = [...albumTracks].sort((a, b) =>
-      compareTrackPositions(a.position, b.position)
-    );
-    const normalizedSides = normalizeAlbumTrackSides(orderedTracks);
-
-    let selectionExpansion:
-      | ReturnType<SpinLoggingService["expandSideSelections"]>
-      | ReturnType<SpinLoggingService["expandTrackSelections"]>;
-
-    if (Array.isArray(input.side_keys)) {
-      selectionExpansion = this.expandSideSelections(input.side_keys, normalizedSides);
-    } else if (Array.isArray(input.track_refs)) {
-      selectionExpansion = this.expandTrackSelections(
-        input.track_refs,
-        orderedTracks,
-        normalizedSides
-      );
-    } else {
-      throw new Error("Provide exactly one of side_keys or track_refs");
-    }
-
     const {
       selectionMode,
       selections,
@@ -215,7 +208,7 @@ export class SpinLoggingService {
       selectedSideCount,
       albumSideCount,
       isFullAlbumSpin,
-    } = selectionExpansion;
+    } = await this.expandSelection(input.release_id, input.friend_id, input);
 
     const result = await withDbTransaction(async (client) => {
       const session = await spinSessionRepository.createSession(client, {
@@ -240,19 +233,7 @@ export class SpinLoggingService {
       const insertedTrackEvents = await trackSpinEventRepository.insertEvents(
         client,
         session.id,
-        expandedTracks.map((expanded, ordinal) => ({
-          friend_id: input.friend_id,
-          release_id: input.release_id,
-          track_id: expanded.track.track_id,
-          played_at: input.played_at,
-          ordinal,
-          side_key: expanded.side_key,
-          position_snapshot:
-            expanded.track.position == null ? null : String(expanded.track.position),
-          title_snapshot: expanded.track.title,
-          artist_snapshot: expanded.track.artist,
-          album_snapshot: expanded.track.album,
-        }))
+        toTrackEvents(expandedTracks, input.friend_id, input.release_id, input.played_at)
       );
 
       return {
@@ -371,6 +352,95 @@ export class SpinLoggingService {
     });
   }
 
+  /**
+   * Edit a spin. A new selection replaces the old selections and track events
+   * in the same transaction, since play counts are read from those events.
+   * A time-only change moves the events with it. Editing a spin the listener
+   * detected keeps its provenance and records the correction in corrected_at.
+   * Null when the spin is not the friend's.
+   */
+  async updateSpinSession(
+    sessionId: number,
+    friendId: number,
+    input: UpdateSpinSessionInput
+  ): Promise<SpinSessionDetail | null> {
+    const hasSelection =
+      Array.isArray(input.side_keys) || Array.isArray(input.track_refs);
+
+    const result = await withDbTransaction(async (client) => {
+      const existing = await spinSessionRepository.findSessionForUpdate(
+        client,
+        sessionId,
+        friendId
+      );
+      if (!existing) return null;
+
+      const expansion = hasSelection
+        ? await this.expandSelection(existing.release_id, friendId, input)
+        : null;
+      const playedAt = input.played_at ?? existing.played_at;
+
+      const session = await spinSessionRepository.updateSession(client, sessionId, {
+        selection_mode: expansion?.selectionMode,
+        played_at: input.played_at,
+        note: input.note,
+        context_type: input.context_type,
+        mark_corrected: existing.provenance === "automatic",
+      });
+
+      if (expansion) {
+        await spinSessionRepository.deleteSelections(client, sessionId);
+        await trackSpinEventRepository.deleteEventsBySessionId(client, sessionId);
+        const selections = await spinSessionRepository.insertSelections(
+          client,
+          sessionId,
+          expansion.selections
+        );
+        const trackEvents = await trackSpinEventRepository.insertEvents(
+          client,
+          sessionId,
+          toTrackEvents(expansion.expandedTracks, friendId, existing.release_id, playedAt)
+        );
+        return {
+          session,
+          selections,
+          track_events: trackEvents,
+          derived: {
+            is_full_album_spin: expansion.isFullAlbumSpin,
+            selected_side_count: expansion.selectedSideCount,
+            album_side_count: expansion.albumSideCount,
+            track_count: trackEvents.length,
+          },
+        };
+      }
+
+      const selections = await spinSessionRepository.listSelectionsBySessionIds([sessionId]);
+      const trackEvents =
+        input.played_at !== undefined
+          ? await trackSpinEventRepository.setPlayedAtForSession(client, sessionId, playedAt)
+          : await trackSpinEventRepository.listEventsBySessionIds([sessionId]);
+      return {
+        session,
+        selections,
+        track_events: trackEvents,
+        derived: {
+          is_full_album_spin: false,
+          selected_side_count: selections.filter((s) => s.selection_type === "side").length,
+          album_side_count: 0,
+          track_count: trackEvents.length,
+        },
+      };
+    });
+
+    if (!result) return null;
+    return {
+      session: normalizeSessionRow(result.session),
+      selections: result.selections.map(normalizeSelectionRow),
+      track_events: result.track_events.map(normalizeTrackEventRow),
+      derived: result.derived,
+    };
+  }
+
   async deleteSpinSession(
     sessionId: number,
     friendId: number
@@ -390,6 +460,46 @@ export class SpinLoggingService {
   }): Promise<SpinTopTrackSummary[]> {
     const rows = await trackSpinEventRepository.listTopTracks(filters);
     return rows.map(normalizeTopTrackRow);
+  }
+
+  /** Resolve a side or track selection against the album's tracks. */
+  private async expandSelection(
+    releaseId: string,
+    friendId: number,
+    selection: { side_keys?: string[]; track_refs?: SpinTrackRef[] }
+  ) {
+    const album = await albumRepository.getAlbumByReleaseAndFriend(
+      releaseId,
+      friendId
+    );
+    if (!album) {
+      throw new Error("Album not found");
+    }
+
+    const albumTracks = await albumRepository.getTracksByReleaseAndFriend(
+      releaseId,
+      friendId
+    );
+    if (albumTracks.length === 0) {
+      throw new Error("Album has no tracks to log");
+    }
+
+    const orderedTracks = [...albumTracks].sort((a, b) =>
+      compareTrackPositions(a.position, b.position)
+    );
+    const normalizedSides = normalizeAlbumTrackSides(orderedTracks);
+
+    if (Array.isArray(selection.side_keys)) {
+      return this.expandSideSelections(selection.side_keys, normalizedSides);
+    }
+    if (Array.isArray(selection.track_refs)) {
+      return this.expandTrackSelections(
+        selection.track_refs,
+        orderedTracks,
+        normalizedSides
+      );
+    }
+    throw new Error("Provide exactly one of side_keys or track_refs");
   }
 
   private expandSideSelections(

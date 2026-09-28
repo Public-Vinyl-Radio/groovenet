@@ -13,6 +13,9 @@ import {
   type SpinListResponse,
   type SpinTopTracksParams,
   type SpinTopTracksResponse,
+  type SpinUpdateParams,
+  type SpinUpdateResponse,
+  updateSpin,
 } from "@/services/internalApi/spins";
 
 type UseSpinsOptions = {
@@ -83,6 +86,20 @@ export function useSpinMutations(friendId?: number) {
     },
   });
 
+  const updateSpinMutation = useMutation<
+    SpinUpdateResponse,
+    Error,
+    { spinId: number; changes: Omit<SpinUpdateParams, "friend_id"> }
+  >({
+    mutationFn: async ({ spinId, changes }) => {
+      if (!friendId) throw new Error("friendId is required to edit a spin");
+      return await updateSpin(spinId, { ...changes, friend_id: friendId });
+    },
+    onSuccess: async () => {
+      await invalidateSpins();
+    },
+  });
+
   const deleteSpinMutation = useMutation({
     mutationFn: async (spinId: number) => {
       if (!friendId) throw new Error("friendId is required to delete a spin");
@@ -95,8 +112,11 @@ export function useSpinMutations(friendId?: number) {
 
   return {
     createSpin: (params: SpinCreateParams) => createSpinMutation.mutateAsync(params),
+    updateSpin: (spinId: number, changes: Omit<SpinUpdateParams, "friend_id">) =>
+      updateSpinMutation.mutateAsync({ spinId, changes }),
     deleteSpin: (spinId: number) => deleteSpinMutation.mutateAsync(spinId),
     createSpinPending: createSpinMutation.isPending,
+    updateSpinPending: updateSpinMutation.isPending,
     deleteSpinPending: deleteSpinMutation.isPending,
   };
 }

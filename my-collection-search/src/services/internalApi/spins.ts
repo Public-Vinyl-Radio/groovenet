@@ -7,6 +7,8 @@ import {
   spinListResponseSchema,
   spinTopTracksQuerySchema,
   spinTopTracksResponseSchema,
+  spinUpdateBodySchema,
+  spinUpdateResponseSchema,
 } from "@/api-contract/schemas";
 import { http } from "@/services/http";
 
@@ -17,6 +19,8 @@ export type SpinListResponse = z.infer<typeof spinListResponseSchema>;
 export type SpinTopTracksParams = z.infer<typeof spinTopTracksQuerySchema>;
 export type SpinTopTracksResponse = z.infer<typeof spinTopTracksResponseSchema>;
 export type SpinDeleteResponse = z.infer<typeof spinDeleteResponseSchema>;
+export type SpinUpdateParams = z.infer<typeof spinUpdateBodySchema>;
+export type SpinUpdateResponse = z.infer<typeof spinUpdateResponseSchema>;
 
 export async function listSpins(params: SpinListParams): Promise<SpinListResponse> {
   const searchParams = new URLSearchParams();
@@ -58,6 +62,17 @@ export async function listTopSpinTracks(
       cache: "no-store",
     }
   );
+}
+
+export async function updateSpin(
+  id: number,
+  params: SpinUpdateParams
+): Promise<SpinUpdateResponse> {
+  return await http<SpinUpdateResponse>(`/api/spins/${encodeURIComponent(String(id))}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
 }
 
 export async function deleteSpin(

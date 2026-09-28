@@ -20,8 +20,7 @@ import TrackResultStore from "@/components/TrackResultStore";
 import PageContainer from "@/components/layout/PageContainer";
 import SpinRow from "@/components/spins/SpinRow";
 import { groupSpinsByDay } from "@/components/spins/spinSummary";
-import { toaster } from "@/components/ui/toaster";
-import { useSpinMutations, useSpinsQuery, useSpinTopTracksQuery } from "@/hooks/useSpinsQuery";
+import { useSpinsQuery, useSpinTopTracksQuery } from "@/hooks/useSpinsQuery";
 import { useUsername } from "@/providers/UsernameProvider";
 import type { Track } from "@/types/track";
 
@@ -76,21 +75,6 @@ function SpinsPageContent() {
     { friend_id: selectedFriendId ?? 0, limit: 12, offset: 0 },
     { enabled: typeof selectedFriendId === "number" && selectedFriendId > 0 }
   );
-  const { deleteSpin, deleteSpinPending } = useSpinMutations(selectedFriendId ?? undefined);
-
-  const handleDeleteSpin = async (spinId: number) => {
-    try {
-      await deleteSpin(spinId);
-      toaster.create({ title: "Spin deleted", type: "success" });
-    } catch (error) {
-      toaster.create({
-        title: "Failed to delete spin",
-        description: error instanceof Error ? error.message : "Unknown error",
-        type: "error",
-      });
-    }
-  };
-
   if (!isHydrated || !selectedFriendId) {
     return (
       <PageContainer size="standard">
@@ -149,8 +133,6 @@ function SpinsPageContent() {
                         <SpinRow
                           key={item.session.id}
                           item={item}
-                          onDelete={handleDeleteSpin}
-                          deletePending={deleteSpinPending}
                           showAlbum
                           timeOnly
                         />

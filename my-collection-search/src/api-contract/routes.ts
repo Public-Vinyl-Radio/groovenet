@@ -92,6 +92,8 @@ import {
   spinTopTracksQuerySchema,
   spinTopTracksResponseSchema,
   spinSessionParamsSchema,
+  spinUpdateBodySchema,
+  spinUpdateResponseSchema,
   trackSearchGetQuerySchema,
   trackSearchGetResponseSchema,
   setDerivationCreateBodySchema,
@@ -5411,6 +5413,84 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
         "400": {
           description: "Invalid query",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "updateSpinSession",
+    method: "patch",
+    path: "/api/spins/{id}",
+    summary: "Edit a vinyl spin session",
+    tags: ["Spins"],
+    paramsSchema: spinSessionParamsSchema,
+    bodySchema: spinUpdateBodySchema,
+    successSchema: spinUpdateResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+      requestBody: {
+        required: true,
+        description:
+          "Change when a spin was played, its note or context, or what was played. A new selection (side_keys or track_refs) replaces the old one and its track events. Editing a spin the listener detected keeps its provenance and sets corrected_at.",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                friend_id: { type: "integer" },
+                played_at: { type: "string", format: "date-time" },
+                note: { type: ["string", "null"] },
+                context_type: { type: ["string", "null"] },
+                side_keys: { type: "array", items: { type: "string" }, minItems: 1 },
+                track_refs: {
+                  type: "array",
+                  minItems: 1,
+                  items: {
+                    type: "object",
+                    properties: {
+                      track_id: { type: "string" },
+                      friend_id: { type: "integer" },
+                    },
+                    required: ["track_id", "friend_id"],
+                  },
+                },
+              },
+              required: ["friend_id"],
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The edited spin session",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  session: { type: "object", additionalProperties: true },
+                  selections: { type: "array", items: { type: "object", additionalProperties: true } },
+                  track_events: { type: "array", items: { type: "object", additionalProperties: true } },
+                  derived: { type: "object", additionalProperties: true },
+                },
+                required: ["session", "selections", "track_events", "derived"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid request, or a selection that does not fit the album",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "Session or album not found",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {

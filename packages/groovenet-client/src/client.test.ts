@@ -467,6 +467,19 @@ describe("GroovenetClient spin endpoints", () => {
     });
   });
 
+  it("updateSpin patches a spin by id", async () => {
+    const client = clientReturning({ session: { id: 42 } });
+
+    await client.updateSpin(42, { friend_id: 1, track_refs: [{ track_id: "t1", friend_id: 1 }] });
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "PATCH",
+      url: "/spins/42",
+      data: { friend_id: 1, track_refs: [{ track_id: "t1", friend_id: 1 }] },
+      params: undefined,
+    });
+  });
+
   it("deleteSpin deletes by id scoped to a friend", async () => {
     const client = clientReturning({ success: true });
 

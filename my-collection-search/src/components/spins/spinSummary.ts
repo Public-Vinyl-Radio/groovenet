@@ -75,22 +75,23 @@ export function summarizeSpin(item: SpinListItem): SpinSummary {
 }
 
 export type SpinProvenance = {
-  label: "Auto" | "Manual";
+  label: "Auto" | "Auto · corrected" | "Manual";
   description: string;
+  automatic: boolean;
 };
 
 export function describeProvenance(item: SpinListItem): SpinProvenance {
   if (item.session.provenance === "automatic") {
     const confidence = item.session.confidence;
-    return {
-      label: "Auto",
-      description:
-        typeof confidence === "number"
-          ? `Detected by the listener · ${Math.round(confidence * 100)}% confidence`
-          : "Detected by the listener",
-    };
+    const detected =
+      typeof confidence === "number"
+        ? `Detected by the listener · ${Math.round(confidence * 100)}% confidence`
+        : "Detected by the listener";
+    return item.session.corrected_at
+      ? { label: "Auto · corrected", description: `${detected} · corrected by hand`, automatic: true }
+      : { label: "Auto", description: detected, automatic: true };
   }
-  return { label: "Manual", description: "Logged by hand" };
+  return { label: "Manual", description: "Logged by hand", automatic: false };
 }
 
 export type SpinAlbum = {
