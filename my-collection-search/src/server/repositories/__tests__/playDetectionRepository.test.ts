@@ -57,6 +57,7 @@ describe("PlayDetectionRepository lookups and retention", () => {
     await expect(repo().pruneExpired(7)).resolves.toBe(4);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/created_at < current_timestamp/);
+    expect(sql).toMatch(/NOT EXISTS \(\s*SELECT 1 FROM spin_sessions ss WHERE ss\.detection_id = pd\.id/);
     expect(params).toEqual([7]);
   });
 
