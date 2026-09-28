@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.4.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.4.0...groovenet-cli-v2.4.1) (2026-09-28)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^2.4.0 to ^2.5.0
+
 ## [2.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.3.0...groovenet-cli-v2.4.0) (2026-09-26)
 
 

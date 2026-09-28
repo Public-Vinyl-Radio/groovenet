@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.8](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.7...v0.2.8) (2026-09-28)
+
+
+### Features
+
+* **spins:** edit spins and move delete into an actions menu ([#341](https://github.com/Public-Vinyl-Radio/groovenet/issues/341)) ([8a1057d](https://github.com/Public-Vinyl-Radio/groovenet/commit/8a1057d29f256ba73cc6ec0b5e257830c68b486f))
+* **spins:** show what was played on album spin rows ([#337](https://github.com/Public-Vinyl-Radio/groovenet/issues/337)) ([82ddb48](https://github.com/Public-Vinyl-Radio/groovenet/commit/82ddb4857e64bee7a73a94491f377ffadf21ee30))
+* **spins:** show what was played on recent spin cards ([#340](https://github.com/Public-Vinyl-Radio/groovenet/issues/340)) ([abb90de](https://github.com/Public-Vinyl-Radio/groovenet/commit/abb90de1b1f36c79946b28d0318a5a7016756775))
+
+
+### Bug Fixes
+
+* **detections:** keep detections a spin points to when pruning ([#343](https://github.com/Public-Vinyl-Radio/groovenet/issues/343)) ([0298ed3](https://github.com/Public-Vinyl-Radio/groovenet/commit/0298ed3473d679a6ac27b7e638ecdb88bae61307))
+
 ## [0.2.7](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.6...v0.2.7) (2026-09-26)
 
 
