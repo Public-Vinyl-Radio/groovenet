@@ -97,6 +97,24 @@ export class TrackSpinEventRepository {
     return rows;
   }
 
+  async deleteEventsBySessionId(client: Queryable, sessionId: number): Promise<void> {
+    await client.query("DELETE FROM track_spin_events WHERE session_id = $1", [sessionId]);
+  }
+
+  /** Move a session's events with it when only its time is corrected. */
+  async setPlayedAtForSession(
+    client: Queryable,
+    sessionId: number,
+    playedAt: string | Date
+  ): Promise<TrackSpinEventRow[]> {
+    const { rows } = await client.query<TrackSpinEventRow>(
+      `UPDATE track_spin_events SET played_at = $2 WHERE session_id = $1
+       RETURNING *`,
+      [sessionId, playedAt]
+    );
+    return rows.sort((a, b) => a.ordinal - b.ordinal);
+  }
+
   async listEventsBySessionIds(sessionIds: number[]): Promise<TrackSpinEventRow[]> {
     if (sessionIds.length === 0) return [];
 

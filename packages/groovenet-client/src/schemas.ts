@@ -205,10 +205,14 @@ export const spinSessionSchema = z.object({
   friend_id: z.number().int(),
   release_id: z.string(),
   medium: z.literal("vinyl"),
-  selection_mode: z.enum(["sides", "tracks"]),
+  selection_mode: z.enum(["sides", "tracks", "automatic"]),
   played_at: z.string(),
   note: z.string().nullable().optional(),
   context_type: z.string().nullable().optional(),
+  provenance: z.enum(["manual", "automatic"]).optional(),
+  source_id: z.string().nullable().optional(),
+  confidence: z.number().nullable().optional(),
+  corrected_at: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -300,6 +304,36 @@ export const spinListItemSchema = z.object({
   derived: spinDerivedSchema,
   album: spinAlbumSummarySchema.nullable().optional(),
 });
+
+export const spinUpdateBodySchema = z
+  .object({
+    friend_id: intFromInputSchema,
+    played_at: z.string().min(1).optional(),
+    note: z.string().nullable().optional(),
+    context_type: z.string().nullable().optional(),
+    side_keys: z.array(z.string().min(1)).min(1).optional(),
+    track_refs: z.array(spinTrackRefSchema).min(1).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.side_keys && value.track_refs) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide at most one of side_keys or track_refs",
+      });
+    }
+    const changes = [
+      value.played_at,
+      value.note,
+      value.context_type,
+      value.side_keys,
+      value.track_refs,
+    ];
+    if (changes.every((change) => change === undefined)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Nothing to update" });
+    }
+  });
+
+export const spinUpdateResponseSchema = spinListItemSchema;
 
 export const spinListResponseSchema = z.object({
   items: z.array(spinListItemSchema),

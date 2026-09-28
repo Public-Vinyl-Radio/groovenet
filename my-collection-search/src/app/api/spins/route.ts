@@ -9,25 +9,7 @@ import {
   spinLoggingService,
   type CreateSpinSessionInput,
 } from "@/server/services/spinLoggingService";
-
-function getSpinCreateErrorStatus(message: string): number {
-  if (message === "Album not found") return 404;
-
-  const badRequestMessages = [
-    "Album has no tracks to log",
-    "At least one side must be selected",
-    "Duplicate side keys are not allowed",
-    "At least one track must be selected",
-    "Track friend_id must match the owning album friend_id",
-  ];
-
-  if (badRequestMessages.includes(message)) return 400;
-  if (message.startsWith("Invalid side key:")) return 400;
-  if (message.startsWith("Track does not belong to album:")) return 400;
-  if (message.startsWith("Duplicate track selection:")) return 400;
-
-  return 500;
-}
+import { getSpinErrorStatus } from "./spinErrorStatus";
 
 export async function GET(request: NextRequest) {
   try {
@@ -114,7 +96,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create spin session";
-    const status = getSpinCreateErrorStatus(message);
+    const status = getSpinErrorStatus(message);
 
     console.error("Error creating spin session:", error);
     return NextResponse.json({ error: message }, { status });

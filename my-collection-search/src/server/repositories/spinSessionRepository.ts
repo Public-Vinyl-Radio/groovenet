@@ -16,6 +16,7 @@ export type SpinSessionRow = {
   source_id: string | null;
   detection_id: string | null;
   confidence: number | null;
+  corrected_at: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -61,6 +62,15 @@ export type SpinSessionAlbumColumns = {
   album_title: string | null;
   album_artist: string | null;
   album_thumbnail: string | null;
+};
+
+export type UpdateSpinSessionInput = {
+  selection_mode?: SpinSessionRow["selection_mode"];
+  played_at?: string | Date;
+  note?: string | null;
+  context_type?: string | null;
+  /** Stamp corrected_at, for an edit to a spin the listener detected. */
+  mark_corrected?: boolean;
 };
 
 export type ListSpinSessionsFilters = {
@@ -230,6 +240,48 @@ export class SpinSessionRepository {
     );
 
     return rows;
+  }
+
+  /** The friend's session, locked for the rest of the transaction; null if not theirs. */
+  async findSessionForUpdate(
+    client: Queryable,
+    sessionId: number,
+    friendId: number
+  ): Promise<SpinSessionRow | null> {
+    const { rows } = await client.query<SpinSessionRow>(
+      "SELECT * FROM spin_sessions WHERE id = $1 AND friend_id = $2 FOR UPDATE",
+      [sessionId, friendId]
+    );
+    return rows[0] ?? null;
+  }
+
+  async updateSession(
+    client: Queryable,
+    sessionId: number,
+    input: UpdateSpinSessionInput
+  ): Promise<SpinSessionRow> {
+    const assignments = ["updated_at = NOW()"];
+    const params: Array<number | string | Date | null> = [sessionId];
+    const set = (column: string, value: string | Date | null) => {
+      params.push(value);
+      assignments.push(`${column} = $${params.length}`);
+    };
+
+    if (input.selection_mode !== undefined) set("selection_mode", input.selection_mode);
+    if (input.played_at !== undefined) set("played_at", input.played_at);
+    if (input.note !== undefined) set("note", input.note);
+    if (input.context_type !== undefined) set("context_type", input.context_type);
+    if (input.mark_corrected) assignments.push("corrected_at = NOW()");
+
+    const { rows } = await client.query<SpinSessionRow>(
+      `UPDATE spin_sessions SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`,
+      params
+    );
+    return rows[0];
+  }
+
+  async deleteSelections(client: Queryable, sessionId: number): Promise<void> {
+    await client.query("DELETE FROM spin_session_selections WHERE session_id = $1", [sessionId]);
   }
 
   async deleteSession(

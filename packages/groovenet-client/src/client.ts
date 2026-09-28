@@ -15,6 +15,8 @@ import type {
   SpinCreateInput,
   SpinCreateResponse,
   SpinDeleteResponse,
+  SpinUpdateInput,
+  SpinUpdateResponse,
   SpinListQuery,
   SpinListResponse,
   SpinTopTracksQuery,
@@ -275,6 +277,10 @@ export class GroovenetClient {
 
   async createSpin(input: SpinCreateInput): Promise<SpinCreateResponse> {
     return this.request<SpinCreateResponse>("POST", "/spins", input);
+  }
+
+  async updateSpin(id: number, input: SpinUpdateInput): Promise<SpinUpdateResponse> {
+    return this.request<SpinUpdateResponse>("PATCH", `/spins/${id}`, input);
   }
 
   async deleteSpin(id: number, friendId: number): Promise<SpinDeleteResponse> {
