@@ -205,14 +205,25 @@ export class PlayDetectionRepository {
     };
   }
 
-  /** Remove diagnostic data older than the configured retention period. */
+  /**
+   * Remove diagnostic data older than the configured retention period.
+   *
+   * Keeps any detection a spin still points to (#342). An automatic spin must
+   * keep its detection — spin_sessions_automatic_payload_check — so deleting
+   * one fails the whole statement, and nothing is pruned at all. It is also
+   * the link that tells a detected spin from a corrected one. That is one row
+   * per play, next to the no-match windows that make up most of the table.
+   */
   async pruneExpired(retentionDays = playDetectionRetentionDays()): Promise<number> {
     if (retentionDays === 0) return 0;
 
     const { rowCount } = await dbQuery(
       `
-      DELETE FROM play_detections
-      WHERE created_at < current_timestamp - ($1 * interval '1 day')
+      DELETE FROM play_detections pd
+      WHERE pd.created_at < current_timestamp - ($1 * interval '1 day')
+        AND NOT EXISTS (
+          SELECT 1 FROM spin_sessions ss WHERE ss.detection_id = pd.id
+        )
       `,
       [retentionDays]
     );

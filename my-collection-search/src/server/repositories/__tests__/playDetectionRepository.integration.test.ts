@@ -65,3 +65,75 @@ describe("play_detections schema (DB integration)", () => {
     expect(rows[0].count).toBe("0");
   });
 });
+
+describe("pruning play detections (DB integration)", () => {
+  const pruneSource = `play-detection-prune-${randomUUID()}`;
+  const pruneIngestId = randomUUID();
+  const username = `play-detection-prune-${randomUUID()}`;
+  const ids: Record<"played" | "stale" | "fresh", string> = { played: "", stale: "", fresh: "" };
+  let friendId = 0;
+
+  const detect = async (daysOld: number) => {
+    const row = await repo.create({
+      ingest_id: pruneIngestId, source_id: pruneSource, session_id: "s1",
+      track_id: null, friend_id: null, confidence: null, offset_seconds: null,
+      window_start_at: windowStart, fingerprint_type: "chromaprint", fingerprint_version: "1",
+    });
+    await dbQuery(
+      `UPDATE play_detections SET created_at = current_timestamp - ($2 * interval '1 day') WHERE id = $1`,
+      [row.id, daysOld]
+    );
+    return row.id;
+  };
+
+  beforeAll(async () => {
+    if (process.env.RUN_DB_TESTS !== "1") return;
+    await dbQuery(
+      `INSERT INTO audio_ingests (id, source_id, received_at) VALUES ($1, $2, current_timestamp)`,
+      [pruneIngestId, pruneSource]
+    );
+    const { rows } = await dbQuery<{ id: number }>(
+      `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
+      [username]
+    );
+    friendId = rows[0].id;
+
+    ids.played = await detect(40);
+    ids.stale = await detect(40);
+    ids.fresh = await detect(1);
+
+    // The detection that became a spin — automatic spins must keep theirs.
+    await dbQuery(
+      `INSERT INTO spin_sessions (
+         friend_id, release_id, medium, selection_mode, played_at,
+         provenance, source_id, detection_id, confidence
+       )
+       VALUES ($1, 'prune-release', 'vinyl', 'automatic', current_timestamp,
+               'automatic', $2, $3, 0.9)`,
+      [friendId, pruneSource, ids.played]
+    );
+  });
+
+  afterAll(async () => {
+    if (process.env.RUN_DB_TESTS !== "1") return;
+    // Spins go with the friend, before the detections they point at.
+    await dbQuery(`DELETE FROM friends WHERE id = $1`, [friendId]);
+    await dbQuery(`DELETE FROM audio_ingests WHERE id = $1`, [pruneIngestId]);
+  });
+
+  dbTest("keeps detections a spin points to, and prunes the rest past retention", async () => {
+    await expect(repo.pruneExpired(30)).resolves.toBeGreaterThanOrEqual(1);
+
+    const { rows } = await dbQuery<{ id: string }>(
+      `SELECT id FROM play_detections WHERE ingest_id = $1`,
+      [pruneIngestId]
+    );
+    expect(rows.map((row) => row.id).sort()).toEqual([ids.played, ids.fresh].sort());
+
+    const spin = await dbQuery<{ detection_id: string }>(
+      `SELECT detection_id FROM spin_sessions WHERE friend_id = $1`,
+      [friendId]
+    );
+    expect(spin.rows[0].detection_id).toBe(ids.played);
+  });
+});
