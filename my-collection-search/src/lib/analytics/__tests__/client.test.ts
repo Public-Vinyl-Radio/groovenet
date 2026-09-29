@@ -123,7 +123,9 @@ describe("client analytics", () => {
 
   it("reports opt-out only for DNT or GPC", async () => {
     const { browserOptedOut } = await loadClient();
-    expect(browserOptedOut(undefined)).toBe(false);
+    vi.stubGlobal("navigator", undefined);
+    expect(browserOptedOut()).toBe(false);
+    vi.unstubAllGlobals();
     expect(browserOptedOut({ doNotTrack: "0" } as Navigator)).toBe(false);
     expect(browserOptedOut({ doNotTrack: "1" } as Navigator)).toBe(true);
   });
