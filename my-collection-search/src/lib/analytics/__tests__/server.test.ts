@@ -1,4 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const posthogNode = vi.hoisted(() => ({
+  ctor: vi.fn(),
+  capture: vi.fn(),
+  identify: vi.fn(),
+  flush: vi.fn().mockResolvedValue(undefined),
+  shutdown: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("posthog-node", () => ({
+  PostHog: class {
+    capture = posthogNode.capture;
+    identify = posthogNode.identify;
+    flush = posthogNode.flush;
+    shutdown = posthogNode.shutdown;
+    constructor(...args: unknown[]) {
+      posthogNode.ctor(...args);
+    }
+  },
+}));
 import { analytics, setAnalyticsProvider } from "../server";
 import { MemoryAnalyticsProvider } from "../providers/memory";
 import { noopProvider } from "../providers/noop";
@@ -82,6 +102,103 @@ describe("server analytics", () => {
     await analytics.flush();
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
+  });
+});
+
+describe("server analytics — memory provider", () => {
+  it("forwards identify", () => {
+    const memory = new MemoryAnalyticsProvider();
+    setAnalyticsProvider(memory);
+    analytics.identify("user-1", { plan: "dj" });
+    expect(memory.identified).toEqual([{ distinctId: "user-1", traits: { plan: "dj" } }]);
+    setAnalyticsProvider(null);
+  });
+
+  it("swallows a failing flush", async () => {
+    resetWarnedForTests();
+    const memory = new MemoryAnalyticsProvider();
+    vi.spyOn(memory, "flush").mockRejectedValue(new Error("offline"));
+    setAnalyticsProvider(memory);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(analytics.flush()).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
+    setAnalyticsProvider(null);
+    vi.restoreAllMocks();
+  });
+});
+
+describe("server analytics — PostHog provider", () => {
+  beforeEach(async () => {
+    await analytics.shutdown();
+    setAnalyticsProvider(null);
+    resetWarnedForTests();
+    for (const fn of Object.values(posthogNode)) fn.mockClear();
+    vi.stubEnv("ANALYTICS_PROVIDER", "posthog");
+    vi.stubEnv("POSTHOG_KEY", "phc_x");
+    vi.stubEnv("POSTHOG_HOST", "https://eu.i.posthog.com");
+  });
+
+  afterEach(async () => {
+    await analytics.shutdown();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("is built from the env and sends each event immediately", () => {
+    analytics.track("friend_added", { friend_username: "dj", source: "api" });
+    expect(posthogNode.ctor).toHaveBeenCalledWith("phc_x", {
+      host: "https://eu.i.posthog.com",
+      flushAt: 1,
+      flushInterval: 0,
+    });
+    expect(posthogNode.capture).toHaveBeenCalledWith({
+      distinctId: "server",
+      event: "friend_added",
+      properties: { friend_username: "dj", source: "api" },
+    });
+  });
+
+  it("links the event to the browser's PostHog cookie", () => {
+    const request = new Request("http://localhost/", {
+      headers: { cookie: phCookie("phc_x", { distinct_id: "browser-1" }) },
+    });
+    analytics.track("friend_added", { friend_username: "dj", source: "api" }, { request });
+    expect(posthogNode.capture).toHaveBeenCalledWith(
+      expect.objectContaining({ distinctId: "browser-1" })
+    );
+  });
+
+  it("forwards identify and flush", async () => {
+    analytics.identify("user-1", { plan: "dj" });
+    await analytics.flush();
+    expect(posthogNode.identify).toHaveBeenCalledWith({
+      distinctId: "user-1",
+      properties: { plan: "dj" },
+    });
+    expect(posthogNode.flush).toHaveBeenCalledOnce();
+  });
+
+  it("shuts the client down and builds a fresh one afterwards", async () => {
+    analytics.track("friend_added", { friend_username: "a", source: "api" });
+    await analytics.shutdown();
+    expect(posthogNode.shutdown).toHaveBeenCalledOnce();
+    analytics.track("friend_added", { friend_username: "b", source: "api" });
+    expect(posthogNode.ctor).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to noop when the SDK fails to start", () => {
+    posthogNode.ctor.mockImplementationOnce(() => {
+      throw new Error("bad key");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() =>
+      analytics.track("friend_added", { friend_username: "dj", source: "api" })
+    ).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("PostHog init failed"),
+      expect.any(Error)
+    );
+    expect(posthogNode.capture).not.toHaveBeenCalled();
   });
 });
 
