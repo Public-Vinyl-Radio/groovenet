@@ -90,6 +90,24 @@
 - Mixed cache shapes: infinite queries have pages[], single-page has { hits } — handle both.
 - Keep patches narrow (avoid undefined) to prevent clobbering fields.
 
+## Analytics
+- Feature code calls `analytics.track(event, props)` from `@/lib/analytics/client`
+  (components, hooks) or `@/lib/analytics/server` (routes). ESLint rejects a direct
+  `posthog-js`/`posthog-node` import anywhere outside `src/lib/analytics/`.
+- New event: add it to `src/lib/analytics/events.ts` first — it is the catalogue of
+  everything collected, and `track` only accepts what it declares.
+- On the server, pass `{ request }` so the event joins the browser's PostHog person
+  (read from its `ph_<key>_posthog` cookie); without it the id is `"server"`.
+- `ANALYTICS_PROVIDER=none|posthog`, `POSTHOG_KEY`, `POSTHOG_HOST` are read at
+  runtime. The browser gets its config from the root layout (`AnalyticsInit`), not
+  from `NEXT_PUBLIC_` vars, because CI builds the image before any deploy config
+  exists. Do Not Track / Global Privacy Control turn client analytics off.
+- posthog-js posts to the same-origin `/ingest` proxy
+  (`src/app/ingest/[...path]/route.ts`), which returns 404 while analytics is off.
+- Tests: `setAnalyticsProvider(new MemoryAnalyticsProvider())` and assert on
+  `.events`; don't mock the SDK.
+- Unhandled errors go to Sentry only (`capture_exceptions: false`).
+
 ## Background work
 
 `src/instrumentation.ts` is where anything periodic starts, once per server

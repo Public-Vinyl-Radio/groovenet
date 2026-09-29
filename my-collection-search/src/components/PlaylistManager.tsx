@@ -26,7 +26,7 @@ import { createSetForPlaylist, importPlaylist, PlaylistTrackPayload } from "@/se
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
-import posthog from "posthog-js";
+import { analytics } from "@/lib/analytics/client";
 
 export default function PlaylistManager() {
   const router = useRouter();
@@ -124,8 +124,7 @@ export default function PlaylistManager() {
       notify({ title: `Imported '${name}'`, type: "success" });
       fetchPlaylists();
 
-      // PostHog: Track playlist import
-      posthog.capture("playlist_imported", {
+      analytics.track("playlist_imported", {
         playlist_name: name,
         track_count: tracks.length,
         import_format: "json",
@@ -152,8 +151,7 @@ export default function PlaylistManager() {
       notify({ title: `Imported '${pendingImport.name}'`, type: "success" });
       fetchPlaylists();
 
-      // PostHog: Track playlist import
-      posthog.capture("playlist_imported", {
+      analytics.track("playlist_imported", {
         playlist_name: pendingImport.name,
         track_count: tracks.length,
         import_format: "json",
@@ -274,7 +272,7 @@ export default function PlaylistManager() {
                 onPlay={async () => {
                   const tracks = await fetchTracksByIds(pl.tracks);
                   replacePlaylist(tracks, { autoplay: true, startIndex: 0 });
-                  posthog.capture("playback_started", {
+                  analytics.track("playback_started", {
                     playlist_id: pl.id,
                     playlist_name: pl.name,
                     track_count: pl.tracks.length,

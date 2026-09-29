@@ -43,7 +43,7 @@ import { useTrackStore } from "@/stores/trackStore";
 import { cleanSoundcloudUrl } from "@/lib/url";
 import { toaster } from "@/components/ui/toaster";
 import { resolveTrackMenuState, type TrackAudioActions } from "@/components/trackActionsMenuState";
-import posthog from "posthog-js";
+import { analytics } from "@/lib/analytics/client";
 
 export type { TrackAudioActions };
 
@@ -138,7 +138,7 @@ export default function TrackActionsMenu({ track, onOpenTrackDebug, hideEdit, au
         description: `Job ID: ${response.jobId}`,
         type: "success",
       });
-      posthog.capture("audio_fetch_queued", {
+      analytics.track("audio_fetch_queued", {
         track_id: track.track_id,
         has_apple_music: !!track.apple_music_url,
         has_youtube: !!track.youtube_url,

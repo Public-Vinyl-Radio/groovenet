@@ -6,6 +6,8 @@ import EmotionRegistry from "@/components/EmotionRegistry";
 import AppShell from "@/components/AppShell";
 import { Toaster } from "@/components/ui/toaster";
 import { developerToolsEnabled } from "@/lib/developerTools";
+import AnalyticsInit from "@/components/AnalyticsInit";
+import { getClientAnalyticsConfig } from "@/lib/analytics/config";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <AnalyticsInit config={getClientAnalyticsConfig()} />
         <EmotionRegistry>
           <ClientProviders>
             <Toaster />

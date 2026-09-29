@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { analytics } from "@/lib/analytics/server";
 import {
   playlistSchema,
   playlistCreateBodySchema,
@@ -31,20 +31,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     }
 
-    try {
-      const posthog = getPostHogClient();
-      posthog.capture({
-        distinctId: "server",
-        event: "playlist_deleted",
-        properties: {
-          playlist_id: id,
-          playlist_name: deletedPlaylist?.name,
-          source: "api",
-        },
-      });
-    } catch (posthogError) {
-      console.error("PostHog capture error:", posthogError);
-    }
+    analytics.track(
+      "playlist_deleted",
+      { playlist_id: id, playlist_name: deletedPlaylist?.name, source: "api" },
+      { request: req }
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -93,21 +84,16 @@ export async function POST(req: Request) {
       tracks,
     });
 
-    try {
-      const posthog = getPostHogClient();
-      posthog.capture({
-        distinctId: "server",
-        event: "playlist_created",
-        properties: {
-          playlist_id: playlist.id,
-          playlist_name: playlist.name,
-          track_count: playlist.tracks?.length ?? 0,
-          source: "api",
-        },
-      });
-    } catch (posthogError) {
-      console.error("PostHog capture error:", posthogError);
-    }
+    analytics.track(
+      "playlist_created",
+      {
+        playlist_id: playlist.id,
+        playlist_name: playlist.name,
+        track_count: playlist.tracks?.length ?? 0,
+        source: "api",
+      },
+      { request: req }
+    );
 
     const validated = playlistSchema.parse(normalizePlaylistCreatedAt(playlist));
     return NextResponse.json(validated, { status: 201 });

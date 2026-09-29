@@ -4,7 +4,7 @@ import type { Track } from "@/types/track";
 import { useTrackStore } from "@/stores/trackStore";
 import { exportPlaylistToPDF } from "@/lib/exportPlaylistPdf";
 import { getTrackDurationSeconds } from "@/lib/trackUtils";
-import posthog from "posthog-js";
+import { analytics } from "@/lib/analytics/client";
 
 /**
  * Hook for playlist export and utility actions
@@ -140,8 +140,7 @@ export function usePlaylistActions(playlistId?: number) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    // PostHog: Track playlist export
-    posthog.capture("playlist_exported", {
+    analytics.track("playlist_exported", {
       playlist_id: playlistId,
       track_count: tracks.length,
       export_format: "json",
@@ -175,8 +174,7 @@ export function usePlaylistActions(playlistId?: number) {
       filename: `${safeName || "playlist"}-${timestamp}.pdf`,
     });
 
-    // PostHog: Track playlist export
-    posthog.capture("playlist_exported", {
+    analytics.track("playlist_exported", {
       playlist_id: playlistId,
       track_count: tracks.length,
       export_format: "pdf",

@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Text, IconButton, Flex, Spinner } from "@chakra-ui/react";
 import { LuLayoutGrid, LuTable, LuListChecks } from "react-icons/lu";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
+import { analytics } from "@/lib/analytics/client";
 import TrackSelectionBar from "@/components/TrackSelectionBar";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
 import { useTrackStore } from "@/stores/trackStore";
@@ -230,9 +230,8 @@ const SearchResults: React.FC = () => {
           target: { value: debouncedValue },
         } as React.ChangeEvent<HTMLInputElement>);
 
-        // PostHog: Track search query execution
         if (debouncedValue.length > 0) {
-          posthog.capture("search_query_executed", {
+          analytics.track("search_query_executed", {
             query_length: debouncedValue.length,
             has_filters: activeFilterCount > 0,
             filter_count: activeFilterCount,

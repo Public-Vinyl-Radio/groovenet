@@ -15,7 +15,7 @@ import {
   keyToCamelot,
   TrackCompat,
 } from "@/lib/playlistOrder";
-import posthog from "posthog-js";
+import { analytics } from "@/lib/analytics/client";
 
 export type SortPositionChange = {
   previousPosition: number;
@@ -267,8 +267,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     updateTrackRefs(sortedTrackRefs);
     onModified?.(); // Mark as modified
 
-    // PostHog: Track playlist sorting
-    posthog.capture("playlist_sorted", {
+    analytics.track("playlist_sorted", {
       playlist_id: playlistId,
       track_count: tracks.length,
       sort_algorithm: "greedy",
@@ -316,8 +315,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
         updateTrackRefs(sortedTrackRefs);
         onModified?.(); // Mark as modified
 
-        // PostHog: Track playlist sorting
-        posthog.capture("playlist_sorted", {
+        analytics.track("playlist_sorted", {
           playlist_id: playlistId,
           track_count: sortedTracks.length,
           sort_algorithm: mode,
