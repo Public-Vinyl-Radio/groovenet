@@ -13,6 +13,22 @@ const eslintConfig = [...nextVitals, ...nextTs, {
     "react-hooks/immutability": "off",
   },
 }, {
+  // Analytics goes through src/lib/analytics (#338); only its providers may
+  // talk to a vendor SDK.
+  ignores: ["src/lib/analytics/**"],
+  rules: {
+    "no-restricted-imports": ["error", {
+      paths: ["posthog-js", "posthog-node"].map((name) => ({
+        name,
+        message: "Use @/lib/analytics/client or @/lib/analytics/server instead.",
+      })),
+      patterns: [{
+        group: ["posthog-js/*", "posthog-node/*"],
+        message: "Use @/lib/analytics/client or @/lib/analytics/server instead.",
+      }],
+    }],
+  },
+}, {
   ignores: [
     ".next/**",
     "node_modules/**",
