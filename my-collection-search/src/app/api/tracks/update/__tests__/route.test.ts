@@ -7,7 +7,6 @@ const {
   mockGetTrackEmbedding,
   mockGenerateIdentityEmbedding,
   mockGenerateAudioVibeEmbedding,
-  mockPostHogCapture,
   mockStartFingerprintRun,
 } = vi.hoisted(() => {
   return {
@@ -17,7 +16,6 @@ const {
     mockGetTrackEmbedding: vi.fn().mockResolvedValue([0.1, 0.2]),
     mockGenerateIdentityEmbedding: vi.fn().mockResolvedValue({ updated: true }),
     mockGenerateAudioVibeEmbedding: vi.fn().mockResolvedValue({ updated: true }),
-    mockPostHogCapture: vi.fn(),
     mockStartFingerprintRun: vi.fn().mockResolvedValue({ run_id: "run-1" }),
   };
 });
@@ -42,15 +40,16 @@ vi.mock("@/lib/audio-vibe-embedding", () => ({
   generateAndStoreAudioVibeEmbedding: mockGenerateAudioVibeEmbedding,
 }));
 
-vi.mock("@/lib/posthog-server", () => ({
-  getPostHogClient: () => ({ capture: mockPostHogCapture }),
-}));
-
 vi.mock("@/server/services/fingerprintIndexService", () => ({
   fingerprintIndexService: { startRun: mockStartFingerprintRun },
 }));
 
 import { PATCH } from "../../route";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+const analyticsEvents = new MemoryAnalyticsProvider();
+setAnalyticsProvider(analyticsEvents);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +89,7 @@ beforeEach(() => {
   mockGetTrackEmbedding.mockReset();
   mockGenerateIdentityEmbedding.mockReset();
   mockGenerateAudioVibeEmbedding.mockReset();
-  mockPostHogCapture.mockReset();
+  analyticsEvents.reset();
   mockStartFingerprintRun.mockReset();
 
   mockUpdateEmbedding.mockResolvedValue(undefined);
@@ -289,14 +288,17 @@ describe("PATCH /api/tracks — side-effect errors are swallowed", () => {
     expect(res.status).toBe(200);
   });
 
-  it("still returns 200 when PostHog capture throws", async () => {
+  it("still returns 200 when the analytics provider throws", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack());
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ star_rating: 5 }));
-    mockPostHogCapture.mockImplementationOnce(() => {
-      throw new Error("posthog fail");
+    const track = vi.spyOn(analyticsEvents, "track").mockImplementationOnce(() => {
+      throw new Error("analytics fail");
     });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const res = await PATCH(makeReq(PATCH_BODY));
     expect(res.status).toBe(200);
+    track.mockRestore();
+    warn.mockRestore();
   });
 });
 
@@ -360,15 +362,15 @@ describe("PATCH /api/tracks — fingerprint index trigger", () => {
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
-describe("PATCH /api/tracks — PostHog analytics", () => {
+describe("PATCH /api/tracks — analytics", () => {
   it("captures track_edited with changed fields excluding identifiers", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack());
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ star_rating: 5, notes: "hi" }));
     await PATCH(
       makeReq({ track_id: "t1", friend_id: 1, star_rating: 5, notes: "hi" })
     );
-    expect(mockPostHogCapture).toHaveBeenCalledOnce();
-    const arg = mockPostHogCapture.mock.calls[0][0];
+    expect(analyticsEvents.events).toHaveLength(1);
+    const arg = analyticsEvents.events[0];
     expect(arg.event).toBe("track_edited");
     expect(arg.properties.track_id).toBe("t1");
     expect(arg.properties.changed_fields).toEqual(

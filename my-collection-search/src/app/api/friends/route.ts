@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { TextEncoder } from "util";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { analytics } from "@/lib/analytics/server";
 import { friendService } from "@/server/services/friendService";
 
 export async function GET() {
@@ -28,19 +28,11 @@ export async function POST(request: Request) {
 
     await friendService.addFriend(username);
 
-    try {
-      const posthog = getPostHogClient();
-      posthog.capture({
-        distinctId: "server",
-        event: "friend_added",
-        properties: {
-          friend_username: username,
-          source: "api",
-        },
-      });
-    } catch (posthogError) {
-      console.error("PostHog capture error:", posthogError);
-    }
+    analytics.track(
+      "friend_added",
+      { friend_username: username, source: "api" },
+      { request }
+    );
 
     return NextResponse.json({ message: `Friend '${username}' added.` });
   } catch (error) {
@@ -70,19 +62,11 @@ export async function DELETE(request: Request) {
 
         await friendService.removeFriend(username, send);
 
-        try {
-          const posthog = getPostHogClient();
-          posthog.capture({
-            distinctId: "server",
-            event: "friend_removed",
-            properties: {
-              friend_username: username,
-              source: "api",
-            },
-          });
-        } catch (posthogError) {
-          console.error("PostHog capture error:", posthogError);
-        }
+        analytics.track(
+          "friend_removed",
+          { friend_username: username, source: "api" },
+          { request }
+        );
 
         send("DONE");
         controller.close();

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getTrackEmbedding } from "@/lib/track-embedding";
 import { generateAndStoreAudioVibeEmbedding } from "@/lib/audio-vibe-embedding";
 import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { analytics } from "@/lib/analytics/server";
 import {
   trackRepository,
   type UpdateTrackInput,
@@ -77,26 +77,20 @@ export async function PATCH(req: Request) {
       }
     }
 
-    try {
-      const posthog = getPostHogClient();
-      const changedFields = Object.keys(data).filter(
-        (key) => key !== "track_id" && key !== "friend_id"
-      );
-      posthog.capture({
-        distinctId: "server",
-        event: "track_edited",
-        properties: {
-          track_id: updated.track_id,
-          changed_fields: changedFields,
-          has_rating_change: "star_rating" in data,
-          has_notes_change: "notes" in data,
-          has_tags_change: "local_tags" in data,
-          source: "api",
-        },
-      });
-    } catch (posthogError) {
-      console.error("PostHog capture error:", posthogError);
-    }
+    analytics.track(
+      "track_edited",
+      {
+        track_id: updated.track_id,
+        changed_fields: Object.keys(data).filter(
+          (key) => key !== "track_id" && key !== "friend_id"
+        ),
+        has_rating_change: "star_rating" in data,
+        has_notes_change: "notes" in data,
+        has_tags_change: "local_tags" in data,
+        source: "api",
+      },
+      { request: req }
+    );
 
     return NextResponse.json(updated);
   } catch (error) {

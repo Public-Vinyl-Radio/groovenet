@@ -14,7 +14,7 @@ import {
   getCollectionPage,
   getReleaseDetails,
 } from "@/server/services/discogsApiClient";
-import { getPostHogClient } from "@/lib/posthog-server";
+import { analytics } from "@/lib/analytics/server";
 import { dbPool } from "@/lib/serverDb";
 import { cleanupDiscogsReleases } from "@/server/services/discogsCleanupService";
 
@@ -59,21 +59,11 @@ export async function GET(request: NextRequest) {
           )
         );
 
-        // PostHog: Track Discogs sync started (server-side)
-        try {
-          const posthog = getPostHogClient();
-          posthog.capture({
-            distinctId: "server",
-            event: "discogs_sync_started",
-            properties: {
-              username,
-              manifest_ids_count: manifestIds.length,
-              source: "api",
-            },
-          });
-        } catch (posthogError) {
-          console.error("PostHog capture error:", posthogError);
-        }
+        analytics.track(
+          "discogs_sync_started",
+          { username, manifest_ids_count: manifestIds.length, source: "api" },
+          { request }
+        );
 
         try {
           // Step 1: Collect all collection release IDs
