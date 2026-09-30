@@ -8,7 +8,7 @@ from ..audio_utils import ensure_local_audio_file, get_embedded_art_stream_index
 from ..config import logger
 from ..redis_utils import append_job_logs, update_job_status
 from ..subprocess_utils import run_subprocess
-from ..track_api import update_track_album_art_url
+from ..track_api import APP_HEADERS, update_track_album_art_url
 from ..types import JobData, JobResult
 
 
@@ -113,7 +113,7 @@ def extract_embedded_cover_art_album(job_data: JobData) -> JobResult:
         response = requests.post(
             endpoint,
             json=payload,
-            headers={'Content-Type': 'application/json'},
+            headers={'Content-Type': 'application/json', **APP_HEADERS},
             timeout=180,
         )
         if not response.ok:

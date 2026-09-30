@@ -361,6 +361,14 @@ export class RedisJobService {
     return this.parseJobHash(jobData);
   }
 
+  /**
+   * Claim the right to report a job's outcome. True only the first time, so a
+   * worker that retries its callback is not counted twice.
+   */
+  async markOutcomeReported(job_id: string): Promise<boolean> {
+    return (await this.redis.hsetnx(`job:${job_id}`, "outcome_reported", "1")) === 1;
+  }
+
   async getAllJobs(limit?: number): Promise<JobStatus[]> {
     const keys = await this.listJobKeys();
     const jobs: JobStatus[] = [];

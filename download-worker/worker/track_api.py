@@ -12,9 +12,35 @@ from .audio_utils import get_audio_metadata_year
 from .config import ESSENTIA_DATA_DIR, logger
 from .subprocess_utils import run_subprocess
 
+# Names the worker to the app, which tags the analytics events its calls cause
+# as pipeline work rather than as someone using the web app.
+APP_HEADERS = {"X-Groovenet-Client": "worker"}
+
 
 def get_groovenet_client() -> Client:
-    return Client(base_url=os.getenv("APP_URL", "http://app:3000"), timeout=30)
+    return Client(
+        base_url=os.getenv("APP_URL", "http://app:3000"),
+        timeout=30,
+        headers=APP_HEADERS,
+    )
+
+
+def report_job_outcome(job_id: str) -> None:
+    """Tell the app a job has ended, once its terminal status is in Redis.
+
+    The app reads the outcome from the job's record and counts it for
+    analytics, so there is no body. Best-effort: a lost report costs a data
+    point, never the job.
+    """
+    app_url = os.getenv("APP_URL", "http://app:3000")
+    try:
+        resp = requests.post(
+            f"{app_url}/api/jobs/{job_id}/outcome", headers=APP_HEADERS, timeout=10
+        )
+        if not resp.ok:
+            logger.warning(f"Job {job_id} outcome report failed: HTTP {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"Job {job_id} outcome report failed: {e}")
 
 
 def save_essentia_analysis_file(
@@ -107,7 +133,9 @@ def update_track_analysis(
         # an empty/non-JSON body — even though the update itself succeeded.
         # Here we only care about the status code.
         app_url = os.getenv("APP_URL", "http://app:3000")
-        resp = requests.patch(f"{app_url}/api/tracks", json=body.to_dict(), timeout=30)
+        resp = requests.patch(
+            f"{app_url}/api/tracks", json=body.to_dict(), headers=APP_HEADERS, timeout=30
+        )
         if not resp.ok:
             # 404 => track missing or soft-deleted. Surface it loudly so the job
             # fails instead of silently discarding the analysis.

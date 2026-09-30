@@ -87,6 +87,11 @@ describe("server analytics", () => {
       "mcp",
     ],
     [
+      "a worker calling back",
+      new Request("http://localhost/", { headers: { "X-Groovenet-Client": "worker" } }),
+      "pipeline",
+    ],
+    [
       "an unknown client",
       new Request("http://localhost/", { headers: { "X-Groovenet-Client": "curl" } }),
       "web",

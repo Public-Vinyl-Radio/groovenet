@@ -18,8 +18,8 @@ import { saveTrack, analyzeTrackAsync } from "@/services/internalApi/tracks";
 import { fetchAiPromptSettings } from "@/services/internalApi/settings";
 import type { TrackEditFormProps } from "@/components/track-edit/types";
 import EnrichmentTrackStep from "./EnrichmentTrackStep";
-
-type Phase = "setup" | "enriching" | "done";
+import { analytics } from "@/lib/analytics/client";
+import { useEnrichSessionEnd, type Phase } from "./useEnrichSessionEnd";
 
 function CurrentTrackStep({
   trackId,
@@ -132,6 +132,18 @@ export default function EnrichmentWizard() {
 
   const savedCount = Object.values(results).filter((r) => r.saved).length;
   const skippedCount = Object.values(results).filter((r) => r.skipped).length;
+  useEnrichSessionEnd(phase, queue.length, savedCount, skippedCount);
+
+  const startEnrichment = () => {
+    analytics.track("enrich_session_started", {
+      track_count: queue.length,
+      llm: enrichmentTypes.llm,
+      apple_music: enrichmentTypes.appleMusic,
+      youtube: enrichmentTypes.youtube,
+      fetch_audio: enrichmentTypes.fetchAudio,
+    });
+    setPhase("enriching");
+  };
 
   if (phase === "setup") {
     return (
@@ -239,7 +251,7 @@ export default function EnrichmentWizard() {
           </Button>
           <Button
             colorPalette="blue"
-            onClick={() => setPhase("enriching")}
+            onClick={startEnrichment}
             disabled={
               !enrichmentTypes.llm &&
               !enrichmentTypes.appleMusic &&

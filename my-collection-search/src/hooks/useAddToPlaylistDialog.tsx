@@ -11,9 +11,12 @@ import NamePlaylistDialog from "@/components/NamePlaylistDialog";
 import { analytics } from "@/lib/analytics/client";
 
 /**
- * Hook for managing add-to-playlist dialog workflow
+ * Hook for managing add-to-playlist dialog workflow. `onAdded` runs once the
+ * track is actually in a playlist, not when the dialog opens.
  */
-export function useAddToPlaylistDialog() {
+export function useAddToPlaylistDialog({
+  onAdded,
+}: { onAdded?: (track: Track) => void } = {}) {
   const queryClient = useQueryClient();
   const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = React.useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = React.useState(false);
@@ -64,6 +67,7 @@ export function useAddToPlaylistDialog() {
         playlist_id: playlist.id,
         is_new_playlist: false,
       });
+      onAdded?.(track);
       resetState();
     },
     onError: (error) => {
@@ -95,6 +99,7 @@ export function useAddToPlaylistDialog() {
         track_id: track.track_id,
         is_new_playlist: true,
       });
+      onAdded?.(track);
       resetState();
     },
     onError: (error) => {

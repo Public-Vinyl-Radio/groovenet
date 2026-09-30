@@ -66,6 +66,10 @@ class TestDownloadAudioRouting:
 # download_audio — failure paths
 # ---------------------------------------------------------------------------
 
+def assert_status(redis, job_id, status):
+    assert redis.hgetall(f"job:{job_id}")["status"] == status
+
+
 class TestDownloadAudioFailure:
     def _job(self, **kwargs):
         return {
@@ -94,6 +98,17 @@ class TestDownloadAudioFailure:
         download_audio(self._job(apple_music_url="https://music.apple.com/track"))
         logs = fake_redis.lrange("job:job-dl-fail:logs", 0, -1)
         assert len(logs) > 0
+
+    @patch("worker.jobs.download.download_with_gamdl", side_effect=Exception("auth failed"))
+    def test_gamdl_failure_reports_outcome_after_failing(self, mock_gamdl, fake_redis, reported_outcomes):
+        from worker.jobs.download import download_audio
+
+        # The app reads the outcome from Redis, so it must be there first.
+        reported_outcomes.side_effect = lambda job_id: (
+            assert_status(fake_redis, job_id, "failed")
+        )
+        download_audio(self._job(apple_music_url="https://music.apple.com/track"))
+        reported_outcomes.assert_called_once_with("job-dl-fail")
 
     def test_no_urls_at_all_returns_error(self, fake_redis):
         from worker.jobs.download import download_audio
@@ -138,6 +153,21 @@ class TestDownloadAudioSuccess:
         from worker.jobs.download import download_audio
         download_audio(self._job())
         assert fake_redis.hgetall("job:job-dl-ok")["status"] == "completed"
+
+    @patch("worker.jobs.download.os.makedirs")
+    @patch("worker.jobs.download.analyze_audio_file", return_value={"rhythm": {"bpm": 120}})
+    @patch("worker.jobs.download.patch_api_tracks.sync")
+    @patch("worker.jobs.download.cleanup_download_directory")
+    @patch("worker.jobs.download.shutil.move")
+    @patch("worker.jobs.download.download_with_gamdl", return_value="/app/downloads/track-ok.m4a")
+    def test_success_reports_outcome_after_completing(self, mock_gamdl, mock_move, mock_cleanup, mock_patch, mock_analyze, mock_makedirs, fake_redis, reported_outcomes):
+        from worker.jobs.download import download_audio
+
+        reported_outcomes.side_effect = lambda job_id: (
+            assert_status(fake_redis, job_id, "completed")
+        )
+        download_audio(self._job())
+        reported_outcomes.assert_called_once_with("job-dl-ok")
 
     @patch("worker.jobs.download.os.makedirs")
     @patch("worker.jobs.download.analyze_audio_file", side_effect=Exception("essentia down"))

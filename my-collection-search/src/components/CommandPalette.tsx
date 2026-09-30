@@ -12,6 +12,8 @@ import { importPlaylist } from "@/services/internalApi/playlists";
 import { searchTracks } from "@/services/internalApi/tracks";
 import type { Track } from "@/types/track";
 import { toaster } from "@/components/ui/toaster";
+import { analytics } from "@/lib/analytics/client";
+import type { AnalyticsEvents } from "@/lib/analytics/events";
 import styles from "./CommandPalette.module.css";
 
 type TrackHit = Track;
@@ -200,7 +202,11 @@ export default function CommandPalette() {
     }
   }, [playlist, router]);
 
+  const used = (command: AnalyticsEvents["command_palette_used"]["command"]) =>
+    analytics.track("command_palette_used", { command });
+
   const onNavigate = (href: string) => {
+    used("navigate");
     if (pathname === href) {
       close();
       return;
@@ -210,6 +216,7 @@ export default function CommandPalette() {
   };
 
   const onOpenTrack = (track: TrackHit) => {
+    used("open_track");
     router.push(
       `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`
     );
@@ -217,12 +224,14 @@ export default function CommandPalette() {
   };
 
   const onPlayTrack = (track: TrackHit) => {
+    used("play_track");
     replacePlaylist([track], { autoplay: true, startIndex: 0 });
     close();
   };
 
   const onOpenPlaylist = (id?: number) => {
     if (!id) return;
+    used("open_playlist");
     router.push(`/playlists/${id}`);
     close();
   };
@@ -273,6 +282,7 @@ export default function CommandPalette() {
             <Command.Item
               value="Play/Pause"
               onSelect={() => {
+                used("play_pause");
                 if (isPlaying) pause();
                 else play();
                 close();
@@ -289,6 +299,7 @@ export default function CommandPalette() {
             <Command.Item
               value="Next track"
               onSelect={() => {
+                used("next_track");
                 playNext();
                 close();
               }}
@@ -302,6 +313,7 @@ export default function CommandPalette() {
             <Command.Item
               value="Previous track"
               onSelect={() => {
+                used("previous_track");
                 playPrev();
                 close();
               }}
@@ -315,6 +327,7 @@ export default function CommandPalette() {
             <Command.Item
               value="Clear queue"
               onSelect={() => {
+                used("clear_queue");
                 clearQueue();
                 close();
               }}
@@ -325,6 +338,7 @@ export default function CommandPalette() {
             <Command.Item
               value="Create playlist from queue"
               onSelect={() => {
+                used("create_playlist_from_queue");
                 handleCreatePlaylistFromQueue();
                 close();
               }}

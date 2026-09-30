@@ -66,6 +66,15 @@ describe.skipIf(!RUN)("RedisJobService (Redis integration)", () => {
     expect(JSON.parse(queued[0])).toMatchObject({ job_id, track_id: "track-abc" });
   });
 
+  it("lets a job's outcome be reported once (hsetnx reply shape)", async () => {
+    const job_id = await service.createDownloadJob({ track_id: "track-abc", friend_id: 7 });
+
+    expect(await service.markOutcomeReported(job_id)).toBe(true);
+    expect(await service.markOutcomeReported(job_id)).toBe(false);
+    // The flag rides on the job hash without disturbing how it parses.
+    expect(await service.getJobStatus(job_id)).toMatchObject({ job_id, track_id: "track-abc" });
+  });
+
   it("lists jobs via scan + pipelined hgetall", async () => {
     const a = await service.createDownloadJob({ track_id: "t-a", friend_id: 1 });
     const b = await service.createDownloadJob({ track_id: "t-b", friend_id: 2 });

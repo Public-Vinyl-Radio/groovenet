@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Track } from "@/types/track";
 import TrackResult from "@/components/TrackResult";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
+import { analytics } from "@/lib/analytics/client";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSimilarTracks } from "@/hooks/useSimilarTracks";
 import { useSimilarVibeTracks } from "@/hooks/useSimilarVibeTracks";
@@ -170,14 +171,26 @@ export default function RelatedTracksSection({ track }: Props) {
         <Text color="fg.muted" fontSize="sm">No related tracks found.</Text>
       ) : (
         <>
-          {displayTracks.map((item) => (
+          {displayTracks.map((item, index) => (
             <TrackResult
               key={`${item.track_id}-${item.friend_id}`}
               track={item}
               playlistMode={true}
               showUsername={true}
               showRating={true}
-              buttons={<TrackActionsMenu track={item} />}
+              buttons={
+                <TrackActionsMenu
+                  track={item}
+                  onAction={(action) =>
+                    analytics.track("recommendation_acted_on", {
+                      track_id: item.track_id,
+                      action,
+                      rank: index + 1,
+                      sources: item._sources,
+                    })
+                  }
+                />
+              }
               footer={
                 <Flex gap={1} align="center">
                   {item._sources.includes("ai") && (

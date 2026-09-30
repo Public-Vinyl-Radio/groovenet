@@ -25,13 +25,15 @@ export type ServerTrackOptions = {
 export const CLIENT_HEADER = "x-groovenet-client";
 
 /**
- * Where a request came from. The CLI and MCP server name themselves; anything
- * else is the browser. With no request at all the app is acting on its own.
+ * Where a request came from. The CLI and MCP server name themselves, and a
+ * worker calling back is the pipeline; anything else is the browser. With no
+ * request at all the app is acting on its own.
  */
 export function sourceFromRequest(request: Request | undefined): EventSource {
   if (!request) return "pipeline";
   const client = request.headers.get(CLIENT_HEADER)?.trim().toLowerCase();
-  return client === "cli" || client === "mcp" ? client : "web";
+  if (client === "cli" || client === "mcp") return client;
+  return client === "worker" ? "pipeline" : "web";
 }
 
 let provider: AnalyticsProvider | null = null;
