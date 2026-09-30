@@ -281,11 +281,35 @@ function recordConfirmedPlay(sourceId: string, play: AggregatedPlay, spinId: num
 
 /** Turns confidently matched windows into one automatic spin per contiguous play. */
 export class PlayAggregationService {
+  /**
+   * The real plays still running at or after `since`, each with its true
+   * first window.
+   *
+   * Reading from `since` alone cut a play that straddled it: its end grouped
+   * as a play of its own, whose first window no spin pointed to, so every
+   * pass made another spin for it (aswitch, 2026-09-30). Reading one more
+   * lookback back lets that play group whole and find its existing spin.
+   * A play whose start still sits at the edge of that wider read may itself
+   * be cut, so it is left alone: running across both lookbacks, it was
+   * spun by an earlier pass.
+   */
+  private async playsSince(sourceId: string, since: Date | string, options: AggregationOptions): Promise<AggregatedPlay[]> {
+    const sinceMs = new Date(since).getTime();
+    const readFrom = sinceMs - aggregationLookbackMs();
+    const gapMs = (options.gapSeconds ?? DEFAULT_PLAY_GAP_SECONDS) * 1000;
+    const detections = await playDetectionRepository.listRecentBySource(sourceId, new Date(readFrom));
+    return groupDetections(detections, options).filter(
+      (p) =>
+        isRealPlay(p, options) &&
+        new Date(p.last.window_start_at!).getTime() >= sinceMs &&
+        new Date(p.first.window_start_at!).getTime() - readFrom > gapMs
+    );
+  }
+
   async aggregateSource(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<{ created: number; skipped: number }> {
-    const detections = await playDetectionRepository.listRecentBySource(sourceId, since);
     let created = 0;
     let skipped = 0;
-    for (const play of groupDetections(detections, options).filter((p) => isRealPlay(p, options))) {
+    for (const play of await this.playsSince(sourceId, since, options)) {
       if (await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id)) { skipped++; continue; }
       const spin = await spinLoggingService.createAutomaticSpinSession({
         detection_id: play.first.id, source_id: sourceId, track_id: play.first.track_id!,
@@ -303,9 +327,8 @@ export class PlayAggregationService {
    * silent backlog is visible without waiting on the next scheduled pass.
    */
   async countPending(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<number> {
-    const detections = await playDetectionRepository.listRecentBySource(sourceId, since);
     let pending = 0;
-    for (const play of groupDetections(detections, options).filter((p) => isRealPlay(p, options))) {
+    for (const play of await this.playsSince(sourceId, since, options)) {
       if (!(await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id))) pending++;
     }
     return pending;
