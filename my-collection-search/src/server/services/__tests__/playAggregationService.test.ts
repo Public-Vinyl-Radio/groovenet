@@ -203,14 +203,17 @@ describe("a play straddling since", () => {
     spins = new Map();
     findAutomaticSessionByDetectionId.mockImplementation(async (id: string) => spins.get(id) ?? null);
     createAutomaticSpinSession.mockImplementation(async (input: { detection_id: string }) => {
-      spins.set(input.detection_id, { id: spins.size + 1 });
+      const session = { id: spins.size + 1 };
+      spins.set(input.detection_id, session);
+      return { session };
     });
   });
 
   afterEach(() => {
     listRecentBySource.mockReset();
     findAutomaticSessionByDetectionId.mockReset();
-    createAutomaticSpinSession.mockReset();
+    // Back to the file-wide default the later tests rely on.
+    createAutomaticSpinSession.mockReset().mockResolvedValue({ session: { id: 501 } });
   });
 
   it("makes no second spin when a later pass's since falls partway through the play", async () => {
