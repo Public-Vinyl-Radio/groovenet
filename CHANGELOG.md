@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.8...v0.2.9) (2026-09-30)
+
+
+### Features
+
+* **analytics:** instrument spins, sets, recommendations and sync; IDs-only events ([#347](https://github.com/Public-Vinyl-Radio/groovenet/issues/347)) ([66ae6ca](https://github.com/Public-Vinyl-Radio/groovenet/commit/66ae6ca9a99cd774bb4c74efec7f59d6f3d6a22d))
+* **analytics:** report download outcomes and instrument enrich, palette and recommendations ([#348](https://github.com/Public-Vinyl-Radio/groovenet/issues/348)) ([ccf654d](https://github.com/Public-Vinyl-Radio/groovenet/commit/ccf654de72767e81303289209401939aab792b38))
+* **analytics:** wrap analytics behind a provider-agnostic module with an off switch ([#344](https://github.com/Public-Vinyl-Radio/groovenet/issues/344)) ([262d52b](https://github.com/Public-Vinyl-Radio/groovenet/commit/262d52b3d91042860806c78ba0bb55cdc3311931))
+
+
+### Bug Fixes
+
+* **spins:** stop the aggregation lookback splitting a play into duplicate spins ([#350](https://github.com/Public-Vinyl-Radio/groovenet/issues/350)) ([c7bcc35](https://github.com/Public-Vinyl-Radio/groovenet/commit/c7bcc350fb0b3e1f0c6b1f8706b4e2463b8513a4))
+
 ## [0.2.8](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.7...v0.2.8) (2026-09-28)
 
 

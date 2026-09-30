@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.5.0...groovenet-client-v2.6.0) (2026-09-30)
+
+
+### Features
+
+* **analytics:** instrument spins, sets, recommendations and sync; IDs-only events ([#347](https://github.com/Public-Vinyl-Radio/groovenet/issues/347)) ([66ae6ca](https://github.com/Public-Vinyl-Radio/groovenet/commit/66ae6ca9a99cd774bb4c74efec7f59d6f3d6a22d))
+
 ## [2.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.4.0...groovenet-client-v2.5.0) (2026-09-28)
 
 
