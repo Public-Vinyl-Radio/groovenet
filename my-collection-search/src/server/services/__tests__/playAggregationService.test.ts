@@ -178,6 +178,90 @@ describe("countPending", () => {
   });
 });
 
+// ─── a play cut by the lookback (aswitch, 2026-09-30) ────────────────────────
+//
+// Every pass reads from `since`. When that cut a play, its end grouped as a
+// play of its own whose first window no spin pointed to, and the pass made a
+// second spin for it: Hey Tia! got spin 85 at 03:12:30 and duplicate 95 at
+// 03:15:01, made an hour later.
+
+describe("a play straddling since", () => {
+  const T0 = Date.parse("2026-09-30T03:12:30Z");
+  const at = (s: number) => new Date(T0 + s * 1000).toISOString();
+  // Six minutes of Hey Tia!, a window every 15 s.
+  const heyTia = Array.from({ length: 24 }, (_, i) =>
+    detection({ id: `tia-${i}`, source_id: "aswitch", track_id: "hey-tia", window_start_at: at(i * 15), offset_seconds: 10 + i * 15 })
+  );
+  let spins: Map<string, { id: number }>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // What the SQL does: every window at or after `since`.
+    listRecentBySource.mockImplementation(async (_source: string, since: Date | string) =>
+      heyTia.filter((d) => new Date(d.window_start_at!).getTime() >= new Date(since).getTime())
+    );
+    spins = new Map();
+    findAutomaticSessionByDetectionId.mockImplementation(async (id: string) => spins.get(id) ?? null);
+    createAutomaticSpinSession.mockImplementation(async (input: { detection_id: string }) => {
+      spins.set(input.detection_id, { id: spins.size + 1 });
+    });
+  });
+
+  afterEach(() => {
+    listRecentBySource.mockReset();
+    findAutomaticSessionByDetectionId.mockReset();
+    createAutomaticSpinSession.mockReset();
+  });
+
+  it("makes no second spin when a later pass's since falls partway through the play", async () => {
+    const service = new PlayAggregationService();
+    expect(await service.aggregateSource("aswitch", at(-60))).toEqual({ created: 1, skipped: 0 });
+
+    // A pass whose cutoff leaves more than enough of the play for a spin.
+    const result = await service.aggregateSource("aswitch", at(151));
+
+    expect(result).toEqual({ created: 0, skipped: 1 });
+    expect(createAutomaticSpinSession).toHaveBeenCalledTimes(1);
+    expect(createAutomaticSpinSession).toHaveBeenCalledWith(
+      expect.objectContaining({ detection_id: "tia-0", played_at: at(0) })
+    );
+  });
+
+  it("does not count the cut play as pending", async () => {
+    const service = new PlayAggregationService();
+    await service.aggregateSource("aswitch", at(-60));
+    expect(await service.countPending("aswitch", at(151))).toBe(0);
+  });
+
+  it("still makes the one spin when the first pass to see the play starts partway through it", async () => {
+    const result = await new PlayAggregationService().aggregateSource("aswitch", at(151));
+    expect(result).toEqual({ created: 1, skipped: 0 });
+    expect(createAutomaticSpinSession).toHaveBeenCalledWith(expect.objectContaining({ detection_id: "tia-0" }));
+  });
+
+  it("leaves alone a play that ended before since", async () => {
+    const service = new PlayAggregationService();
+    expect(await service.countPending("aswitch", at(24 * 15))).toBe(0);
+    expect(await service.aggregateSource("aswitch", at(24 * 15))).toEqual({ created: 0, skipped: 0 });
+    expect(createAutomaticSpinSession).not.toHaveBeenCalled();
+  });
+
+  it("leaves alone a play the wider read may itself have cut", async () => {
+    // since an hour and a minute after the play began: the read starts a
+    // minute in, and the play runs on past since.
+    const long = Array.from({ length: 300 }, (_, i) =>
+      detection({ id: `long-${i}`, source_id: "aswitch", window_start_at: at(i * 15), offset_seconds: 10 + i * 15 })
+    );
+    listRecentBySource.mockImplementation(async (_source: string, since: Date | string) =>
+      long.filter((d) => new Date(d.window_start_at!).getTime() >= new Date(since).getTime())
+    );
+    const since = at(aggregationLookbackMs() / 1000 + 60);
+
+    expect(await new PlayAggregationService().countPending("aswitch", since)).toBe(0);
+    expect(await new PlayAggregationService().aggregateSource("aswitch", since)).toEqual({ created: 0, skipped: 0 });
+  });
+});
+
 // ─── scheduler (#304) ─────────────────────────────────────────────────────────
 //
 // Wiring, not grouping: `aggregateSource` was fully built and tested by #279
