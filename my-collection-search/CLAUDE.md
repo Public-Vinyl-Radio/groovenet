@@ -101,8 +101,12 @@
 - On the server, pass `{ request }` so the event joins the browser's PostHog person
   (read from its `ph_<key>_posthog` cookie); without it the id is `"server"`.
 - Server events never set `source` themselves: the entry point derives it from the
-  request's `X-Groovenet-Client` header (`cli`/`mcp`, sent by `@groovenet/client`),
-  `web` for any other request, `pipeline` when there is no request at all.
+  request's `X-Groovenet-Client` header (`cli`/`mcp`, sent by `@groovenet/client`;
+  `worker`, sent by download-worker, is `pipeline`), `web` for any other request,
+  `pipeline` when there is no request at all.
+- Download outcomes: download-worker POSTs `/api/jobs/{jobId}/outcome` (no body)
+  once a download job is terminal in Redis; the route reads the job and records
+  `track_download_completed`/`_failed`, once per job (`markOutcomeReported`).
 - `ANALYTICS_PROVIDER=none|posthog`, `POSTHOG_KEY`, `POSTHOG_HOST` are read at
   runtime. The browser gets its config from the root layout (`AnalyticsInit`), not
   from `NEXT_PUBLIC_` vars, because CI builds the image before any deploy config

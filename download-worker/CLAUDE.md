@@ -71,10 +71,19 @@ with no Apple entries is skipped with a warning rather than passed through.
 
 Audio quality is one of `best`, `high`, `standard`, `lossless`.
 
+## Talking to the app
+
+Every call to the app sends `X-Groovenet-Client: worker` (`APP_HEADERS` in
+`track_api.py`), so the analytics events it causes count as pipeline work, not
+as someone using the web app. When a download job ends, `report_job_outcome`
+POSTs `/api/jobs/{job_id}/outcome` with no body — the app reads the outcome from
+the job's Redis record, so it must be called after `update_job_status` writes the
+terminal status. Best-effort: a failed report is logged, never fails the job.
+
 ## Tests
 
 ```bash
-uv run --group dev pytest                     # 278 tests
+uv run --group dev pytest                     # 285 tests
 uv run --group dev pytest --cov=worker --cov-report=term-missing
 ```
 

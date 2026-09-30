@@ -1,4 +1,5 @@
 import subprocess
+from unittest.mock import MagicMock
 
 import fakeredis
 import pytest
@@ -15,6 +16,14 @@ def patch_redis(fake_redis, monkeypatch):
     """Replace the module-level redis_conn in every module that holds a reference."""
     monkeypatch.setattr("worker.redis_utils.redis_conn", fake_redis)
     monkeypatch.setattr("worker.main.redis_conn", fake_redis)
+
+
+@pytest.fixture(autouse=True)
+def reported_outcomes(monkeypatch):
+    """Stop download jobs calling the app when they end; tests can assert on it."""
+    mock = MagicMock()
+    monkeypatch.setattr("worker.jobs.download.report_job_outcome", mock)
+    return mock
 
 
 @pytest.fixture

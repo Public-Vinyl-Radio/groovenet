@@ -44,6 +44,7 @@ import { cleanSoundcloudUrl } from "@/lib/url";
 import { toaster } from "@/components/ui/toaster";
 import { resolveTrackMenuState, type TrackAudioActions } from "@/components/trackActionsMenuState";
 import { analytics } from "@/lib/analytics/client";
+import type { TrackMenuAction } from "@/lib/analytics/events";
 
 export type { TrackAudioActions };
 
@@ -54,13 +55,31 @@ type Props = {
   hideEdit?: boolean;
   /** Override the audio actions (used by the edit form). */
   audioActions?: TrackAudioActions;
+  /** Told when the track is played, queued or added to a playlist. */
+  onAction?: (action: TrackMenuAction) => void;
 };
 
 
-export default function TrackActionsMenu({ track, onOpenTrackDebug, hideEdit, audioActions }: Props) {
+export default function TrackActionsMenu({
+  track,
+  onOpenTrackDebug,
+  hideEdit,
+  audioActions,
+  onAction,
+}: Props) {
   const { appendToQueue, replacePlaylist } = usePlaylistPlayer();
+  const playTrack = () => {
+    replacePlaylist([track], { autoplay: true, startIndex: 0 });
+    onAction?.("played");
+  };
+  const queueTrack = () => {
+    appendToQueue(track);
+    onAction?.("queued");
+  };
   const editHref = `/tracks/${encodeURIComponent(track.track_id)}/edit?friend_id=${track.friend_id}`;
-  const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog();
+  const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog({
+    onAdded: () => onAction?.("added_to_playlist"),
+  });
   const queryClient = useQueryClient();
   const router = useRouter();
   const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
@@ -298,7 +317,7 @@ export default function TrackActionsMenu({ track, onOpenTrackDebug, hideEdit, au
                       <DrawerItem
                         icon={<FiPlay />}
                         label="Play"
-                        onClick={() => { replacePlaylist([track], { autoplay: true, startIndex: 0 }); setDrawerOpen(false); }}
+                        onClick={() => { playTrack(); setDrawerOpen(false); }}
                       />
                     )}
                     <DrawerItem
@@ -327,7 +346,7 @@ export default function TrackActionsMenu({ track, onOpenTrackDebug, hideEdit, au
                     <DrawerItem
                       icon={<FiPlusSquare />}
                       label="Add to Queue"
-                      onClick={() => { appendToQueue(track); setDrawerOpen(false); }}
+                      onClick={() => { queueTrack(); setDrawerOpen(false); }}
                     />
                     {drawerDivider}
                     {hasStreamingLinks && (
@@ -393,7 +412,7 @@ export default function TrackActionsMenu({ track, onOpenTrackDebug, hideEdit, au
           <Menu.Positioner>
             <Menu.Content>
               {hasAudio && (
-                <Menu.Item onSelect={() => replacePlaylist([track], { autoplay: true, startIndex: 0 })} value="play">
+                <Menu.Item onSelect={playTrack} value="play">
                   <FiPlay /> Play
                 </Menu.Item>
               )}
@@ -415,7 +434,7 @@ export default function TrackActionsMenu({ track, onOpenTrackDebug, hideEdit, au
               <Menu.Item onSelect={handleEnrich} value="enrich">
                 <FiZap /> Enrich Track
               </Menu.Item>
-              <Menu.Item onSelect={() => appendToQueue(track)} value="queue">
+              <Menu.Item onSelect={queueTrack} value="queue">
                 <FiPlusSquare /> Add to Queue
               </Menu.Item>
               {menuDivider}

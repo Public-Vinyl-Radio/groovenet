@@ -12,7 +12,7 @@ from ..audio_utils import cleanup_download_directory
 from ..config import logger
 from ..redis_utils import append_job_logs, update_job_status
 from ..subprocess_utils import run_subprocess
-from ..track_api import analyze_audio_file, get_groovenet_client
+from ..track_api import analyze_audio_file, get_groovenet_client, report_job_outcome
 from ..types import JobData, JobResult
 from .analyze import analyze_local_audio
 
@@ -396,6 +396,7 @@ def download_audio(job_data: JobData) -> JobResult:
             result['analysis_error'] = analysis_error
 
         update_job_status(job_id, 'completed', 100, result=result, analysis_error=analysis_error)
+        report_job_outcome(job_id)
         logger.info(f"Job {job_id} completed successfully")
         return result
 
@@ -407,4 +408,5 @@ def download_audio(job_data: JobData) -> JobResult:
         log_sink.append(traceback.format_exc())
         append_job_logs(job_id, log_sink)
         update_job_status(job_id, 'failed', 0, error=error_msg)
+        report_job_outcome(job_id)
         return {'success': False, 'error': error_msg, 'track_id': track_id, 'friend_id': friend_id}

@@ -2705,6 +2705,41 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "reportJobOutcome",
+    method: "post",
+    path: "/api/jobs/{jobId}/outcome",
+    summary: "download-worker announcing that a job has ended, for analytics",
+    tags: ["Jobs"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    // No body: the job's record in Redis is authoritative (#345).
+    openapi: {
+      parameters: buildPathParameters("/api/jobs/{jobId}/outcome"),
+      responses: {
+        "200": {
+          description: "Whether this call recorded the outcome",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  reported: {
+                    type: "boolean",
+                    description:
+                      "False for a job already reported, or one that downloaded nothing.",
+                    example: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        "404": jsonError("No such job"),
+        "409": jsonError("The job has not finished"),
+      },
+    },
+  },
+  {
     operationId: "streamJobEvents",
     method: "get",
     path: "/api/jobs/events",

@@ -11,12 +11,15 @@
  * Where a server event came from. Set by the server entry point, never by the
  * caller: `web` is a request without an `X-Groovenet-Client` header (the
  * browser), `cli` and `mcp` are `@groovenet/client` callers that name
- * themselves, and `pipeline` is work the app does on its own behalf, such as a
- * worker reporting back.
+ * themselves, and `pipeline` is work the app does on its own behalf — a
+ * background pass, or a worker (`X-Groovenet-Client: worker`) reporting back.
  */
 export type EventSource = "web" | "cli" | "mcp" | "pipeline";
 
 type ServerSource = { source: EventSource };
+
+/** What was done with a track from its actions menu, for events that care. */
+export type TrackMenuAction = "played" | "queued" | "added_to_playlist";
 
 export type AnalyticsEvents = {
   // ── Client ────────────────────────────────────────────────────────────────
@@ -55,6 +58,40 @@ export type AnalyticsEvents = {
     track_count: number;
     sort_algorithm: "greedy" | "genetic" | "cohesive_blocks";
   };
+  // A related track put to use from a track's page. `rank` is its 1-based
+  // place in the list; `sources` are the lists that suggested it.
+  recommendation_acted_on: {
+    track_id: string;
+    action: TrackMenuAction;
+    rank: number;
+    sources: ("ai" | "similar" | "vibe")[];
+  };
+  // `completed: false` is a session left before its last track.
+  enrich_session_started: {
+    track_count: number;
+    llm: boolean;
+    apple_music: boolean;
+    youtube: boolean;
+    fetch_audio: boolean;
+  };
+  enrich_session_completed: {
+    track_count: number;
+    tracks_saved: number;
+    tracks_skipped: number;
+    completed: boolean;
+  };
+  command_palette_used: {
+    command:
+      | "navigate"
+      | "play_pause"
+      | "next_track"
+      | "previous_track"
+      | "clear_queue"
+      | "create_playlist_from_queue"
+      | "open_playlist"
+      | "open_track"
+      | "play_track";
+  };
 
   // ── Server ────────────────────────────────────────────────────────────────
   playlist_created: ServerSource & {
@@ -77,6 +114,19 @@ export type AnalyticsEvents = {
     release_id: string;
     friend_id: number;
     track_count: number;
+  };
+  // One per download job, reported by the worker when the job ends. Over
+  // `album_download_queued` and `audio_fetch_queued`, the download success rate.
+  track_download_completed: ServerSource & {
+    track_id: string;
+    downloader: "gamdl" | "yt-dlp";
+    url_kind: "apple_music" | "youtube" | "soundcloud";
+    duration_ms: number | null;
+    analysis_ok: boolean;
+  };
+  track_download_failed: ServerSource & {
+    track_id: string;
+    duration_ms: number | null;
   };
   discogs_sync_started: ServerSource & {
     manifest_ids_count: number;
