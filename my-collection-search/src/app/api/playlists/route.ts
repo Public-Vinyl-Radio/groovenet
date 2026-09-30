@@ -31,11 +31,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     }
 
-    analytics.track(
-      "playlist_deleted",
-      { playlist_id: id, playlist_name: deletedPlaylist?.name, source: "api" },
-      { request: req }
-    );
+    analytics.track("playlist_deleted", { playlist_id: id }, { request: req });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -88,9 +84,7 @@ export async function POST(req: Request) {
       "playlist_created",
       {
         playlist_id: playlist.id,
-        playlist_name: playlist.name,
         track_count: playlist.tracks?.length ?? 0,
-        source: "api",
       },
       { request: req }
     );

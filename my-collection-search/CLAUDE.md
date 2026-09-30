@@ -96,8 +96,13 @@
   `posthog-js`/`posthog-node` import anywhere outside `src/lib/analytics/`.
 - New event: add it to `src/lib/analytics/events.ts` first — it is the catalogue of
   everything collected, and `track` only accepts what it declares.
+- **IDs only** (#345): properties are IDs, counts, enums and durations — never
+  names, usernames, notes or queries. The rule heads `events.ts`.
 - On the server, pass `{ request }` so the event joins the browser's PostHog person
   (read from its `ph_<key>_posthog` cookie); without it the id is `"server"`.
+- Server events never set `source` themselves: the entry point derives it from the
+  request's `X-Groovenet-Client` header (`cli`/`mcp`, sent by `@groovenet/client`),
+  `web` for any other request, `pipeline` when there is no request at all.
 - `ANALYTICS_PROVIDER=none|posthog`, `POSTHOG_KEY`, `POSTHOG_HOST` are read at
   runtime. The browser gets its config from the root layout (`AnalyticsInit`), not
   from `NEXT_PUBLIC_` vars, because CI builds the image before any deploy config

@@ -44,11 +44,11 @@ describe("server analytics", () => {
   });
 
   it("records typed events", () => {
-    analytics.track("friend_added", { friend_username: "dj", source: "api" });
+    analytics.track("playlist_deleted", { playlist_id: 7 });
     expect(memory.events).toEqual([
       {
-        event: "friend_added",
-        properties: { friend_username: "dj", source: "api" },
+        event: "playlist_deleted",
+        properties: { playlist_id: 7, source: "pipeline" },
         distinctId: undefined,
       },
     ]);
@@ -56,17 +56,58 @@ describe("server analytics", () => {
 
   it("rejects unknown events and wrong properties at compile time", () => {
     // @ts-expect-error unknown event name
-    analytics.track("frend_added", { friend_username: "dj", source: "api" });
+    analytics.track("playlist_delted", { playlist_id: 7 });
     // @ts-expect-error missing required property
-    analytics.track("friend_added", { source: "api" });
+    analytics.track("playlist_deleted", {});
     // @ts-expect-error wrong property type
-    analytics.track("friend_added", { friend_username: 1, source: "api" });
+    analytics.track("playlist_deleted", { playlist_id: "7" });
+    // @ts-expect-error source is set by the entry point, not the caller
+    analytics.track("playlist_deleted", { playlist_id: 7, source: "web" });
+    // @ts-expect-error an event with no properties still refuses extra ones
+    analytics.track("friend_added", { friend_username: "dj" });
+    // @ts-expect-error client events are not sent from the server
+    analytics.track("playlist_exported", {
+      playlist_id: 1,
+      track_count: 2,
+      export_format: "pdf",
+    });
+  });
+
+  it.each([
+    ["no request", undefined, "pipeline"],
+    ["a browser request", new Request("http://localhost/"), "web"],
+    [
+      "the CLI",
+      new Request("http://localhost/", { headers: { "X-Groovenet-Client": "cli" } }),
+      "cli",
+    ],
+    [
+      "the MCP server",
+      new Request("http://localhost/", { headers: { "X-Groovenet-Client": " MCP " } }),
+      "mcp",
+    ],
+    [
+      "an unknown client",
+      new Request("http://localhost/", { headers: { "X-Groovenet-Client": "curl" } }),
+      "web",
+    ],
+  ])("tags the source for %s", (_label, request, source) => {
+    analytics.track("friend_added", {}, { request });
+    expect(memory.events[0].properties).toEqual({ source });
+  });
+
+  it("prefers an explicit source", () => {
+    const request = new Request("http://localhost/", {
+      headers: { "X-Groovenet-Client": "cli" },
+    });
+    analytics.track("friend_added", {}, { request, source: "pipeline" });
+    expect(memory.events[0].properties).toEqual({ source: "pipeline" });
   });
 
   it("derives the distinct id from the request when the provider can", () => {
     memory.distinctIdFromRequest = (req) => req.headers.get("x-test-id") ?? undefined;
     const request = new Request("http://localhost/", { headers: { "x-test-id": "abc" } });
-    analytics.track("friend_added", { friend_username: "dj", source: "api" }, { request });
+    analytics.track("friend_added", {}, { request });
     expect(memory.events[0].distinctId).toBe("abc");
   });
 
@@ -74,7 +115,7 @@ describe("server analytics", () => {
     memory.distinctIdFromRequest = () => "from-request";
     analytics.track(
       "friend_added",
-      { friend_username: "dj", source: "api" },
+      {},
       { request: new Request("http://localhost/"), distinctId: "explicit" }
     );
     expect(memory.events[0].distinctId).toBe("explicit");
@@ -86,8 +127,8 @@ describe("server analytics", () => {
       throw new Error("boom");
     });
     expect(() => {
-      analytics.track("friend_added", { friend_username: "a", source: "api" });
-      analytics.track("friend_added", { friend_username: "b", source: "api" });
+      analytics.track("friend_added", {});
+      analytics.track("friend_added", {});
     }).not.toThrow();
     expect(warn).toHaveBeenCalledOnce();
   });
@@ -98,7 +139,7 @@ describe("server analytics", () => {
     vi.stubEnv("POSTHOG_KEY", "phc_x");
     const warn = vi.spyOn(console, "warn");
     const error = vi.spyOn(console, "error");
-    analytics.track("friend_added", { friend_username: "dj", source: "api" });
+    analytics.track("friend_added", {});
     await analytics.flush();
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
@@ -145,7 +186,7 @@ describe("server analytics — PostHog provider", () => {
   });
 
   it("is built from the env and sends each event immediately", () => {
-    analytics.track("friend_added", { friend_username: "dj", source: "api" });
+    analytics.track("friend_added", {});
     expect(posthogNode.ctor).toHaveBeenCalledWith("phc_x", {
       host: "https://eu.i.posthog.com",
       flushAt: 1,
@@ -154,7 +195,7 @@ describe("server analytics — PostHog provider", () => {
     expect(posthogNode.capture).toHaveBeenCalledWith({
       distinctId: "server",
       event: "friend_added",
-      properties: { friend_username: "dj", source: "api" },
+      properties: { source: "pipeline" },
     });
   });
 
@@ -162,7 +203,7 @@ describe("server analytics — PostHog provider", () => {
     const request = new Request("http://localhost/", {
       headers: { cookie: phCookie("phc_x", { distinct_id: "browser-1" }) },
     });
-    analytics.track("friend_added", { friend_username: "dj", source: "api" }, { request });
+    analytics.track("friend_added", {}, { request });
     expect(posthogNode.capture).toHaveBeenCalledWith(
       expect.objectContaining({ distinctId: "browser-1" })
     );
@@ -179,10 +220,10 @@ describe("server analytics — PostHog provider", () => {
   });
 
   it("shuts the client down and builds a fresh one afterwards", async () => {
-    analytics.track("friend_added", { friend_username: "a", source: "api" });
+    analytics.track("friend_added", {});
     await analytics.shutdown();
     expect(posthogNode.shutdown).toHaveBeenCalledOnce();
-    analytics.track("friend_added", { friend_username: "b", source: "api" });
+    analytics.track("friend_added", {});
     expect(posthogNode.ctor).toHaveBeenCalledTimes(2);
   });
 
@@ -192,7 +233,7 @@ describe("server analytics — PostHog provider", () => {
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(() =>
-      analytics.track("friend_added", { friend_username: "dj", source: "api" })
+      analytics.track("friend_added", {})
     ).not.toThrow();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("PostHog init failed"),

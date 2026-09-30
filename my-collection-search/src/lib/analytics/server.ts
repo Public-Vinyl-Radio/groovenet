@@ -2,7 +2,11 @@
 // client code: it pulls in posthog-node.
 
 import { readAnalyticsConfig } from "./config";
-import type { AnalyticsEventName, AnalyticsEvents } from "./events";
+import type {
+  EventSource,
+  ServerEventName,
+  ServerEventProperties,
+} from "./events";
 import { noopProvider } from "./providers/noop";
 import { createPosthogServerProvider } from "./providers/posthog-server";
 import { safely, safelyAsync } from "./safe";
@@ -13,7 +17,22 @@ export type ServerTrackOptions = {
   request?: Request;
   /** An explicit identity; wins over the one derived from `request`. */
   distinctId?: string;
+  /** An explicit source; wins over the one derived from `request`. */
+  source?: EventSource;
 };
+
+/** Sent by `@groovenet/client` to say which tool is calling. */
+export const CLIENT_HEADER = "x-groovenet-client";
+
+/**
+ * Where a request came from. The CLI and MCP server name themselves; anything
+ * else is the browser. With no request at all the app is acting on its own.
+ */
+export function sourceFromRequest(request: Request | undefined): EventSource {
+  if (!request) return "pipeline";
+  const client = request.headers.get(CLIENT_HEADER)?.trim().toLowerCase();
+  return client === "cli" || client === "mcp" ? client : "web";
+}
 
 let provider: AnalyticsProvider | null = null;
 
@@ -39,9 +58,9 @@ export function setAnalyticsProvider(next: AnalyticsProvider | null) {
 }
 
 export const analytics = {
-  track<E extends AnalyticsEventName>(
+  track<E extends ServerEventName>(
     event: E,
-    properties: AnalyticsEvents[E],
+    properties: ServerEventProperties<E>,
     options: ServerTrackOptions = {}
   ): void {
     safely(`track(${event})`, () => {
@@ -49,7 +68,8 @@ export const analytics = {
       const distinctId =
         options.distinctId ??
         (options.request ? p.distinctIdFromRequest?.(options.request) : undefined);
-      p.track(event, properties as AnalyticsProperties, distinctId);
+      const source = options.source ?? sourceFromRequest(options.request);
+      p.track(event, { ...properties, source } as AnalyticsProperties, distinctId);
     });
   },
 

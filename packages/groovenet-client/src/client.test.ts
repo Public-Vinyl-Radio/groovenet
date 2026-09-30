@@ -75,6 +75,18 @@ describe("GroovenetClient constructor", () => {
     });
   });
 
+  it("names the calling tool so the server can tag its analytics", () => {
+    new GroovenetClient({ baseUrl: "https://example.test", clientName: "mcp" });
+
+    expect(createMock).toHaveBeenCalledWith({
+      baseURL: "https://example.test",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Groovenet-Client": "mcp",
+      },
+    });
+  });
+
   it("attaches an https agent that skips TLS verification when insecureTls is set", () => {
     new GroovenetClient({ baseUrl: "https://example.test", insecureTls: true });
 

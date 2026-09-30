@@ -32,6 +32,11 @@ import {
   SetDerivationQueueError,
 } from "@/server/services/setDerivationService";
 import { NoFingerprintEngineError } from "@/server/services/fingerprintIndexService";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+const analyticsEvents = new MemoryAnalyticsProvider();
+setAnalyticsProvider(analyticsEvents);
 
 const SHA = "b".repeat(64);
 const shaParams = (sha256 = SHA) => ({ params: Promise.resolve({ sha256 }) });
@@ -44,6 +49,7 @@ const json = (body: unknown) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  analyticsEvents.reset();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -91,6 +97,20 @@ describe("/api/set-recordings/{sha256}", () => {
 
     recordingService.store.mockResolvedValueOnce({ recording, created: false });
     expect((await put()).status).toBe(200);
+  });
+
+  it("PUT reports a new recording, and not one the server already held", async () => {
+    recordingService.store.mockResolvedValueOnce({
+      recording: { ...recording, duration_seconds: 3600.5 },
+      created: true,
+    });
+    await put();
+    recordingService.store.mockResolvedValueOnce({ recording, created: false });
+    await put();
+
+    expect(analyticsEvents.events.map((e) => [e.event, e.properties])).toEqual([
+      ["set_recording_uploaded", { duration_seconds: 3600.5, size_bytes: 5, source: "web" }],
+    ]);
   });
 
   it("PUT decodes a percent-encoded filename, and keeps one that is not", async () => {
@@ -152,6 +172,18 @@ describe("POST /api/set-derivations", () => {
 
     derivationService.create.mockResolvedValueOnce({ derivation, reused: true });
     expect((await create({ recording_sha256: SHA })).status).toBe(200);
+  });
+
+  it("reports each run started, and whether it was reused", async () => {
+    derivationService.create.mockResolvedValueOnce({ derivation, reused: false });
+    await create({ recording_sha256: SHA });
+    derivationService.create.mockResolvedValueOnce({ derivation, reused: true });
+    await create({ recording_sha256: SHA });
+
+    expect(analyticsEvents.events.map((e) => e.properties)).toEqual([
+      { derivation_id: "d1", reused: false, source: "web" },
+      { derivation_id: "d1", reused: true, source: "web" },
+    ]);
   });
 
   it("validates the body", async () => {

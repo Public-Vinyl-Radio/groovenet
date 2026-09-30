@@ -14,7 +14,7 @@ const API_BASE = process.env.API_BASE || "http://localhost:3000/api";
 const API_KEY = process.env.API_KEY;
 const DEFAULT_FRIEND_ID = process.env.DEFAULT_FRIEND_ID ? parseInt(process.env.DEFAULT_FRIEND_ID, 10) : 1;
 
-const client = new GroovenetClient({ baseUrl: API_BASE, apiKey: API_KEY });
+const client = new GroovenetClient({ baseUrl: API_BASE, apiKey: API_KEY, clientName: "mcp" });
 
 // Define tool schemas
 const tools = [

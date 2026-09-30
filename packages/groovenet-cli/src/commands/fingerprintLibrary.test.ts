@@ -435,6 +435,7 @@ describe("makeClient()", () => {
       baseUrl: "https://groovenet.home.arpa/api",
       apiKey: "secret",
       insecureTls: true,
+      clientName: "cli",
     });
   });
 });

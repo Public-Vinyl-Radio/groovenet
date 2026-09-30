@@ -50,6 +50,12 @@ export interface GroovenetClientConfig {
   apiKey?: string;
   /** Skip TLS certificate verification (internal CA / self-signed hosts). */
   insecureTls?: boolean;
+  /**
+   * Which tool is calling, sent as `X-Groovenet-Client`. The server tags its
+   * analytics events with it, so CLI and agent traffic is told apart from the
+   * web app's.
+   */
+  clientName?: "cli" | "mcp";
 }
 
 export class GroovenetClient {
@@ -60,6 +66,7 @@ export class GroovenetClient {
       baseURL: config.baseUrl,
       headers: {
         "Content-Type": "application/json",
+        ...(config.clientName ? { "X-Groovenet-Client": config.clientName } : {}),
         ...(config.apiKey
           ? { Authorization: `Bearer ${config.apiKey}` }
           : {}),

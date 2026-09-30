@@ -17,6 +17,7 @@ export function makeClient(): GroovenetClient {
     baseUrl: cfg.api_base,
     apiKey: cfg.api_key,
     insecureTls: cfg.insecure_tls,
+    clientName: "cli",
   });
 }
 

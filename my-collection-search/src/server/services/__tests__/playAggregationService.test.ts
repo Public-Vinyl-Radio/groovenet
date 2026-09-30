@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { listRecentBySource, listActiveSourceIds, findAutomaticSessionByDetectionId, createAutomaticSpinSession } = vi.hoisted(() => ({
-  listRecentBySource: vi.fn(), listActiveSourceIds: vi.fn(), findAutomaticSessionByDetectionId: vi.fn(), createAutomaticSpinSession: vi.fn(),
+  listRecentBySource: vi.fn(), listActiveSourceIds: vi.fn(), findAutomaticSessionByDetectionId: vi.fn(),
+  createAutomaticSpinSession: vi.fn().mockResolvedValue({ session: { id: 501 } }),
 }));
 vi.mock("@/server/repositories/playDetectionRepository", () => ({ playDetectionRepository: { listRecentBySource, listActiveSourceIds } }));
 vi.mock("@/server/services/spinLoggingService", () => ({ spinLoggingService: { findAutomaticSessionByDetectionId, createAutomaticSpinSession } }));
@@ -17,6 +18,11 @@ import {
   startPlayAggregation,
 } from "../playAggregationService";
 import type { PlayDetectionRow } from "@/types/playDetection";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+const analyticsEvents = new MemoryAnalyticsProvider();
+setAnalyticsProvider(analyticsEvents);
 
 function detection(overrides: Partial<PlayDetectionRow> = {}): PlayDetectionRow {
   return {
@@ -76,6 +82,24 @@ describe("groupDetections", () => {
     const result = await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
     expect(result).toEqual({ created: 1, skipped: 1 });
     expect(createAutomaticSpinSession).toHaveBeenCalledWith(expect.objectContaining({ detection_id: "d2", source_id: "listener", track_id: "track-b" }));
+  });
+
+  it("reports each spin it makes as auto-detected, and not the ones it skips", async () => {
+    analyticsEvents.reset();
+    listRecentBySource.mockResolvedValue([
+      detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z", confidence: 0.95 }),
+      detection({ id: "d2", track_id: "track-b", window_start_at: "2026-09-20T12:00:30Z" }),
+      detection({ id: "d2b", track_id: "track-b", window_start_at: "2026-09-20T12:00:45Z" }),
+    ]);
+    findAutomaticSessionByDetectionId.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 1 });
+    await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
+    expect(analyticsEvents.events).toEqual([
+      {
+        event: "spin_auto_detected",
+        properties: { spin_id: 501, confidence: 0.95, windows: 2, source: "pipeline" },
+        distinctId: undefined,
+      },
+    ]);
   });
 
   it("logs each confirmed play with its capture-to-spin latency (#280)", async () => {

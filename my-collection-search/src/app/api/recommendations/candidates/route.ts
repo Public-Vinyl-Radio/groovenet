@@ -24,6 +24,7 @@ import {
   hasEmbeddings,
   hasEmbeddingsForSeedTracks,
 } from "@/lib/recommendation-candidate-retriever";
+import { analytics } from "@/lib/analytics/server";
 import {
   recommendationsQuerySchema,
   recommendationsBatchBodySchema,
@@ -99,6 +100,11 @@ export async function GET(request: NextRequest) {
       limitAudio,
       ivfflatProbes,
     });
+    analytics.track(
+      "recommendations_requested",
+      { mode, seed_count: 1, result_count: result.candidates.length },
+      { request }
+    );
 
     // Add embeddings info to response
     const response = {
@@ -170,6 +176,15 @@ export async function POST(request: NextRequest) {
       limitAudio: limit_audio,
       ivfflatProbes: ivfflat_probes,
     });
+    analytics.track(
+      "recommendations_requested",
+      {
+        mode: "combined",
+        seed_count: seedTracks.length,
+        result_count: result.candidates.length,
+      },
+      { request }
+    );
 
     const response = {
       ...result,

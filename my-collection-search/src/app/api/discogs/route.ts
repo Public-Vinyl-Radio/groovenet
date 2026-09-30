@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      const syncStartedAt = Date.now();
       try {
         createExportsDir();
 
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
 
         analytics.track(
           "discogs_sync_started",
-          { username, manifest_ids_count: manifestIds.length, source: "api" },
+          { manifest_ids_count: manifestIds.length },
           { request }
         );
 
@@ -356,6 +357,17 @@ export async function GET(request: NextRequest) {
               )
             );
           }
+
+          analytics.track(
+            "discogs_sync_completed",
+            {
+              new_releases: newReleases.length,
+              removed_releases: removedIds.length,
+              error_count: errors.length,
+              duration_ms: Date.now() - syncStartedAt,
+            },
+            { request }
+          );
 
           controller.enqueue(
             encoder.encode(`\n🎉 All operations complete!\n\n`)

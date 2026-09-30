@@ -87,7 +87,6 @@ export async function PATCH(req: Request) {
         has_rating_change: "star_rating" in data,
         has_notes_change: "notes" in data,
         has_tags_change: "local_tags" in data,
-        source: "api",
       },
       { request: req }
     );

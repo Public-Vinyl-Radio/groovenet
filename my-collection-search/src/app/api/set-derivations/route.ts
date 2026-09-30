@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { setDerivationCreateBodySchema } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import { NoFingerprintEngineError } from "@/server/services/fingerprintIndexService";
 import {
   SetDerivationNotFound,
@@ -26,6 +27,11 @@ export async function POST(req: Request) {
       );
     }
     const { derivation, reused } = await setDerivationService.create(parsed.data);
+    analytics.track(
+      "set_derivation_started",
+      { derivation_id: derivation.id, reused },
+      { request: req }
+    );
     // Never echo the windows: a reused run can carry hundreds of them.
     return NextResponse.json(
       { ...derivation, windows: undefined, reused },

@@ -4,7 +4,7 @@ import { printFriends, printSuccess, printError } from "../output.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
-  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls });
+  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls, clientName: "cli" });
 }
 
 export function addFriendsCommands(program: Command): void {

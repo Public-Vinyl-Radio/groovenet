@@ -62,7 +62,6 @@ export function useAddToPlaylistDialog() {
       analytics.track("track_added_to_playlist", {
         track_id: track.track_id,
         playlist_id: playlist.id,
-        playlist_name: playlist.name,
         is_new_playlist: false,
       });
       resetState();
@@ -94,7 +93,6 @@ export function useAddToPlaylistDialog() {
 
       analytics.track("track_added_to_playlist", {
         track_id: track.track_id,
-        playlist_name: name,
         is_new_playlist: true,
       });
       resetState();
