@@ -54,16 +54,15 @@ export async function POST(
       `Queued ${jobIds.length} download jobs for album ${releaseId}`
     );
 
-      analytics.track(
-        "album_download_queued",
-        {
-          release_id: releaseId,
-          friend_id: friendId,
-          track_count: jobIds.length,
-          source: "api",
-        },
-        { request }
-      );
+    analytics.track(
+      "album_download_queued",
+      {
+        release_id: releaseId,
+        friend_id: friendId,
+        track_count: jobIds.length,
+      },
+      { request }
+    );
 
     return NextResponse.json({
       success: true,

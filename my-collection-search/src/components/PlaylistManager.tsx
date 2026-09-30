@@ -125,7 +125,6 @@ export default function PlaylistManager() {
       fetchPlaylists();
 
       analytics.track("playlist_imported", {
-        playlist_name: name,
         track_count: tracks.length,
         import_format: "json",
       });
@@ -152,7 +151,6 @@ export default function PlaylistManager() {
       fetchPlaylists();
 
       analytics.track("playlist_imported", {
-        playlist_name: pendingImport.name,
         track_count: tracks.length,
         import_format: "json",
       });
@@ -274,7 +272,6 @@ export default function PlaylistManager() {
                   replacePlaylist(tracks, { autoplay: true, startIndex: 0 });
                   analytics.track("playback_started", {
                     playlist_id: pl.id,
-                    playlist_name: pl.name,
                     track_count: pl.tracks.length,
                     source: "playlist_manager",
                   });

@@ -28,11 +28,7 @@ export async function POST(request: Request) {
 
     await friendService.addFriend(username);
 
-    analytics.track(
-      "friend_added",
-      { friend_username: username, source: "api" },
-      { request }
-    );
+    analytics.track("friend_added", {}, { request });
 
     return NextResponse.json({ message: `Friend '${username}' added.` });
   } catch (error) {
@@ -62,11 +58,7 @@ export async function DELETE(request: Request) {
 
         await friendService.removeFriend(username, send);
 
-        analytics.track(
-          "friend_removed",
-          { friend_username: username, source: "api" },
-          { request }
-        );
+        analytics.track("friend_removed", {}, { request });
 
         send("DONE");
         controller.close();

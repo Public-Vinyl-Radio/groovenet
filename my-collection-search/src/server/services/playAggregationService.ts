@@ -1,3 +1,4 @@
+import { analytics } from "@/lib/analytics/server";
 import { logIngestEvent, msSince } from "@/lib/ingestLog";
 import { playDetectionRepository } from "@/server/repositories/playDetectionRepository";
 import { ingestMetricsService } from "@/server/services/ingestMetricsService";
@@ -255,8 +256,13 @@ type AggregationOptions = { confidenceFloor?: number; gapSeconds?: number; minWi
  * spin made by the periodic backstop, or from a listener's backlog, reports
  * the delay honestly rather than hiding it.
  */
-function recordConfirmedPlay(sourceId: string, play: AggregatedPlay): void {
+function recordConfirmedPlay(sourceId: string, play: AggregatedPlay, spinId: number): void {
   const latencyMs = msSince(play.last.window_start_at);
+  analytics.track("spin_auto_detected", {
+    spin_id: spinId,
+    confidence: play.confidence,
+    windows: play.windows,
+  });
   ingestMetricsService.playConfirmed(latencyMs);
   logIngestEvent("play.confirmed", {
     ingest_id: play.last.ingest_id,
@@ -281,12 +287,12 @@ export class PlayAggregationService {
     let skipped = 0;
     for (const play of groupDetections(detections, options).filter((p) => isRealPlay(p, options))) {
       if (await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id)) { skipped++; continue; }
-      await spinLoggingService.createAutomaticSpinSession({
+      const spin = await spinLoggingService.createAutomaticSpinSession({
         detection_id: play.first.id, source_id: sourceId, track_id: play.first.track_id!,
         friend_id: play.first.friend_id!, played_at: play.first.window_start_at!, confidence: play.confidence,
       });
       created++;
-      recordConfirmedPlay(sourceId, play);
+      recordConfirmedPlay(sourceId, play, spin.session.id);
     }
     return { created, skipped };
   }

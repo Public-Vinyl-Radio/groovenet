@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
+import { analytics } from "@/lib/analytics/server";
 import {
   RecordingRejected,
   isSha256,
@@ -83,6 +84,16 @@ export async function PUT(req: Request, { params }: Params) {
       req.body,
       filenameFrom(req)
     );
+    if (created) {
+      analytics.track(
+        "set_recording_uploaded",
+        {
+          duration_seconds: recording.duration_seconds ?? null,
+          size_bytes: Number(recording.size_bytes),
+        },
+        { request: req }
+      );
+    }
     return NextResponse.json(recording, { status: created ? 201 : 200 });
   } catch (error) {
     if (error instanceof RecordingRejected) {

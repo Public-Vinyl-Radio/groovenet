@@ -8,7 +8,7 @@ import { intOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
-  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls });
+  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls, clientName: "cli" });
 }
 
 function defaultFriendId(): number {

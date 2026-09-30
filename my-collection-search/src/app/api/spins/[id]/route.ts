@@ -6,8 +6,17 @@ import {
   spinUpdateBodySchema,
   spinUpdateResponseSchema,
 } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import { spinLoggingService } from "@/server/services/spinLoggingService";
 import { getSpinErrorStatus } from "../spinErrorStatus";
+
+/** What an edit touched; a new selection counts once, whichever form it took. */
+function changedSpinFields(changes: Record<string, unknown>): string[] {
+  const fields = Object.keys(changes)
+    .filter((key) => changes[key] !== undefined)
+    .map((key) => (key === "side_keys" || key === "track_refs" ? "selection" : key));
+  return [...new Set(fields)];
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -39,6 +48,16 @@ export async function PATCH(
     if (!updated) {
       return NextResponse.json({ error: "Spin session not found" }, { status: 404 });
     }
+
+    analytics.track(
+      "spin_edited",
+      {
+        spin_id: updated.session.id,
+        was_detected: updated.session.provenance === "automatic",
+        changed_fields: changedSpinFields(changes),
+      },
+      { request }
+    );
 
     return NextResponse.json(spinUpdateResponseSchema.parse(updated));
   } catch (error) {
@@ -83,6 +102,12 @@ export async function DELETE(
     if (!deleted) {
       return NextResponse.json({ error: "Spin session not found" }, { status: 404 });
     }
+
+    analytics.track(
+      "spin_deleted",
+      { spin_id: deleted.id, was_detected: deleted.provenance === "automatic" },
+      { request }
+    );
 
     return NextResponse.json(
       spinDeleteResponseSchema.parse({

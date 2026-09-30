@@ -463,7 +463,7 @@ describe("makeClient()", () => {
   it("builds a client from the stored config", () => {
     loadConfig.mockReturnValue({ api_base: "https://g/api", api_key: "k", insecure_tls: true });
     makeClient();
-    expect(GroovenetClientMock).toHaveBeenCalledWith({ baseUrl: "https://g/api", apiKey: "k", insecureTls: true });
+    expect(GroovenetClientMock).toHaveBeenCalledWith({ baseUrl: "https://g/api", apiKey: "k", insecureTls: true, clientName: "cli" });
   });
 });
 

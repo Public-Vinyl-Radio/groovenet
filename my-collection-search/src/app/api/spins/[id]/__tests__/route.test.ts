@@ -13,10 +13,16 @@ vi.mock("@/server/services/spinLoggingService", () => ({
 }));
 
 import { DELETE, PATCH } from "../route";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+const analyticsEvents = new MemoryAnalyticsProvider();
+setAnalyticsProvider(analyticsEvents);
 
 describe("DELETE /api/spins/{id}", () => {
   beforeEach(() => {
     mockDeleteSpinSession.mockReset();
+    analyticsEvents.reset();
   });
 
   it("returns 400 for invalid path params", async () => {
@@ -85,6 +91,41 @@ describe("DELETE /api/spins/{id}", () => {
     expect(body.session.id).toBe(10);
     expect(mockDeleteSpinSession).toHaveBeenCalledWith(10, 1);
   });
+
+  it("reports the delete, and whether the listener had detected the spin", async () => {
+    mockDeleteSpinSession.mockResolvedValueOnce({
+      id: 11,
+      friend_id: 1,
+      release_id: "rel-1",
+      medium: "vinyl",
+      selection_mode: "automatic",
+      played_at: "2026-06-24T02:00:00.000Z",
+      provenance: "automatic",
+      created_at: "2026-06-24T02:00:00.000Z",
+      updated_at: "2026-06-24T02:00:00.000Z",
+    });
+
+    await DELETE(
+      new Request("http://localhost/api/spins/11?friend_id=1", {
+        method: "DELETE",
+        headers: { "X-Groovenet-Client": "cli" },
+      }) as never,
+      { params: Promise.resolve({ id: "11" }) }
+    );
+
+    expect(analyticsEvents.events.map((e) => [e.event, e.properties])).toEqual([
+      ["spin_deleted", { spin_id: 11, was_detected: true, source: "cli" }],
+    ]);
+  });
+
+  it("reports nothing when there was no spin to delete", async () => {
+    mockDeleteSpinSession.mockResolvedValueOnce(null);
+    await DELETE(
+      new Request("http://localhost/api/spins/10?friend_id=1", { method: "DELETE" }) as never,
+      { params: Promise.resolve({ id: "10" }) }
+    );
+    expect(analyticsEvents.events).toEqual([]);
+  });
 });
 
 describe("PATCH /api/spins/{id}", () => {
@@ -117,6 +158,7 @@ describe("PATCH /api/spins/{id}", () => {
 
   beforeEach(() => {
     mockUpdateSpinSession.mockReset();
+    analyticsEvents.reset();
   });
 
   it("returns 400 for an invalid id", async () => {
@@ -158,6 +200,35 @@ describe("PATCH /api/spins/{id}", () => {
       note: null,
     });
     expect((await res.json()).session.corrected_at).toBe("2026-09-27T12:00:00.000Z");
+  });
+
+  it("reports the edit as a correction of a detected spin, naming what changed", async () => {
+    mockUpdateSpinSession.mockResolvedValueOnce(updated);
+
+    await patch("10", {
+      friend_id: 1,
+      track_refs: [{ track_id: "t1", friend_id: 1 }],
+      note: null,
+      played_at: "2026-09-20T21:35:00.000Z",
+    });
+
+    expect(analyticsEvents.events.map((e) => [e.event, e.properties])).toEqual([
+      [
+        "spin_edited",
+        {
+          spin_id: 10,
+          was_detected: true,
+          changed_fields: ["played_at", "note", "selection"],
+          source: "web",
+        },
+      ],
+    ]);
+  });
+
+  it("reports nothing for an edit that failed", async () => {
+    mockUpdateSpinSession.mockResolvedValueOnce(null);
+    await patch("10", { friend_id: 1, note: "x" });
+    expect(analyticsEvents.events).toEqual([]);
   });
 
   it("maps a selection that does not fit the album to 400", async () => {

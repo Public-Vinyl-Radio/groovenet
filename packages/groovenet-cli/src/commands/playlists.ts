@@ -4,7 +4,7 @@ import { printPlaylists, printTracks, printJson, printSuccess, printError } from
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
-  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls });
+  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls, clientName: "cli" });
 }
 
 export function addPlaylistsCommands(program: Command): void {

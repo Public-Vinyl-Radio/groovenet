@@ -1,3 +1,4 @@
+import { analytics } from "@/lib/analytics/server";
 import { getRedisConnection } from "@/lib/redis";
 import {
   setDerivationRepository,
@@ -180,13 +181,25 @@ export class SetDerivationService {
    * for a run already terminal is ignored, and the run returned as it stands.
    */
   async report(report: SetDerivationResultReport): Promise<SetDerivationRow> {
+    const windows = report.status === "processed" ? report.windows : [];
+    const durationSeconds = report.duration_seconds ?? null;
     const completed = await this.repository.complete(report.derivation_id, {
       status: report.status,
       error: report.status === "failed" ? report.error ?? "failed without a reason" : null,
-      duration_seconds: report.duration_seconds ?? null,
-      windows: report.status === "processed" ? report.windows : [],
+      duration_seconds: durationSeconds,
+      windows,
     });
-    if (completed) return completed;
+    if (completed) {
+      analytics.track("set_derivation_completed", {
+        derivation_id: report.derivation_id,
+        status: report.status,
+        window_count: windows.length,
+        matched_window_count: windows.filter((w) => w.candidates.length > 0).length,
+        play_count: derivePlays(windows).length,
+        duration_seconds: durationSeconds,
+      });
+      return completed;
+    }
     const existing = await this.repository.findById(report.derivation_id);
     if (!existing) throw new SetDerivationNotFound(`derivation ${report.derivation_id}`);
     return existing;

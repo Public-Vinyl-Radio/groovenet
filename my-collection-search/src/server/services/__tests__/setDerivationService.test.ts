@@ -7,6 +7,8 @@ import {
   stalledAfterMs,
 } from "../setDerivationService";
 import { NoFingerprintEngineError } from "../fingerprintIndexService";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
 import type { SetDerivationRepository } from "@/server/repositories/setDerivationRepository";
 import type {
   PlannedEntry,
@@ -205,10 +207,38 @@ describe("report", () => {
     expect(repository.complete.mock.calls[0][1].error).toBe("failed without a reason");
   });
 
-  it("ignores a late duplicate for a run already closed", async () => {
+  it("reports a closed run with its window and play counts", async () => {
+    const analyticsEvents = new MemoryAnalyticsProvider();
+    setAnalyticsProvider(analyticsEvents);
+    const silence = { start_seconds: 30, duration_seconds: 15, candidates: [] };
+    repository.complete.mockResolvedValue(row({ status: "processed" }));
+    await service.report({
+      derivation_id: "d1", status: "processed", duration_seconds: 45, windows: [...windows, silence],
+    });
+    repository.complete.mockResolvedValue(row({ status: "failed" }));
+    await service.report({ derivation_id: "d2", status: "failed", error: "moov atom not found", windows });
+    setAnalyticsProvider(null);
+
+    expect(analyticsEvents.events.map((e) => e.properties)).toEqual([
+      {
+        derivation_id: "d1", status: "processed", window_count: 3, matched_window_count: 2,
+        play_count: 1, duration_seconds: 45, source: "pipeline",
+      },
+      {
+        derivation_id: "d2", status: "failed", window_count: 0, matched_window_count: 0,
+        play_count: 0, duration_seconds: null, source: "pipeline",
+      },
+    ]);
+  });
+
+  it("ignores a late duplicate for a run already closed, and does not report it twice", async () => {
+    const analyticsEvents = new MemoryAnalyticsProvider();
+    setAnalyticsProvider(analyticsEvents);
     repository.complete.mockResolvedValue(null);
     repository.findById.mockResolvedValue(row({ status: "processed" }));
     expect((await service.report({ derivation_id: "d1", status: "failed", windows: [] })).status).toBe("processed");
+    setAnalyticsProvider(null);
+    expect(analyticsEvents.events).toEqual([]);
   });
 
   it("refuses an unknown run", async () => {
