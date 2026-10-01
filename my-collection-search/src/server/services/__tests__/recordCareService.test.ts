@@ -249,6 +249,30 @@ describe("RecordCareService", () => {
       expect(deleted?.deleted_at).toBe("2026-10-01T12:00:00.000Z");
     });
 
+    it("lists copies with timestamps as ISO strings", async () => {
+      mocks.listCopies.mockResolvedValue([copyRow({ last_cleaned_at: "2026-09-01 10:00:00+00" })]);
+
+      const copies = await service.listCopies(7, "rel");
+
+      expect(mocks.listCopies).toHaveBeenCalledWith(7, "rel");
+      expect(copies[0]).toMatchObject({
+        last_cleaned_at: "2026-09-01T10:00:00.000Z",
+        created_at: "2026-10-01T12:00:00.000Z",
+        deleted_at: null,
+      });
+    });
+
+    it("updates the friend's live copy under its lock", async () => {
+      mocks.findCopyForUpdate.mockResolvedValue(copyRow());
+      mocks.updateCopy.mockResolvedValue(copyRow({ label: "DJ copy" }));
+
+      const updated = await service.updateCopy(3, 7, { label: "DJ copy" });
+
+      expect(mocks.findCopyForUpdate).toHaveBeenCalledWith(client, 3, 7);
+      expect(mocks.updateCopy).toHaveBeenCalledWith(client, 3, { label: "DJ copy" });
+      expect(updated?.label).toBe("DJ copy");
+    });
+
     it("is null when updating or deleting a copy that is not the friend's", async () => {
       mocks.findCopyForUpdate.mockResolvedValue(null);
       await expect(service.updateCopy(3, 8, { label: "x" })).resolves.toBeNull();
@@ -279,6 +303,21 @@ describe("RecordCareService", () => {
         needs_sleeve: "poly-rice-paper-poly",
       });
       expect(result).toMatchObject({ overdue_days: 180, needs_sleeve_type: "poly-rice-paper-poly" });
+    });
+
+    it("returns care rows with last_cleaned_at as ISO strings", async () => {
+      mocks.listCare.mockResolvedValue({
+        items: [
+          { release_id: "rel", copy_id: 3, last_cleaned_at: NOW },
+          { release_id: "new", copy_id: null, last_cleaned_at: null },
+        ],
+        total: 2,
+      });
+
+      const { items, total } = await service.listCare({ friend_id: 7 });
+
+      expect(total).toBe(2);
+      expect(items.map((item) => item.last_cleaned_at)).toEqual(["2026-10-01T12:00:00.000Z", null]);
     });
 
     it("falls back to 365 days when the env var is missing or not a positive integer", async () => {

@@ -279,3 +279,70 @@ describe("GET /api/record-copies/care/summary", () => {
     });
   });
 });
+
+describe("record-copies error paths", () => {
+  const get = (url: string) => new Request(`http://localhost${url}`) as never;
+
+  it.each([
+    ["PATCH a non-numeric id", () =>
+      PATCH(jsonRequest("http://localhost/api/record-copies/x", "PATCH", { friend_id: 7, label: "a" }), idParams("x"))],
+    ["DELETE a non-numeric id", () =>
+      DELETE(new Request("http://localhost/api/record-copies/x?friend_id=7", { method: "DELETE" }) as never, idParams("x"))],
+    ["DELETE without friend_id", () =>
+      DELETE(new Request("http://localhost/api/record-copies/3", { method: "DELETE" }) as never, idParams("3"))],
+    ["list actions of a non-numeric id", () =>
+      GET_ACTIONS(get("/api/record-copies/x/actions?friend_id=7"), idParams("x"))],
+    ["list actions of an unknown type", () =>
+      GET_ACTIONS(get("/api/record-copies/3/actions?friend_id=7&action_type=played"), idParams("3"))],
+    ["summary with an unknown sleeve", () =>
+      GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7&needs_sleeve=rice-paper"))],
+    ["POST without a release", () =>
+      POST(jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7 }))],
+  ])("returns 400 for %s", async (_label, call) => {
+    const res = await call();
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 deleting a copy that is not the friend's", async () => {
+    service.deleteCopy.mockResolvedValue(null);
+    const res = await DELETE(
+      new Request("http://localhost/api/record-copies/3?friend_id=8", { method: "DELETE" }) as never,
+      idParams("3")
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it.each([
+    ["listing copies", () => service.listCopies, () => GET(get("/api/record-copies?friend_id=7"))],
+    ["updating a copy", () => service.updateCopy, () =>
+      PATCH(jsonRequest("http://localhost/api/record-copies/3", "PATCH", { friend_id: 7, label: "a" }), idParams("3"))],
+    ["deleting a copy", () => service.deleteCopy, () =>
+      DELETE(new Request("http://localhost/api/record-copies/3?friend_id=7", { method: "DELETE" }) as never, idParams("3"))],
+    ["listing actions", () => service.listActions, () =>
+      GET_ACTIONS(get("/api/record-copies/3/actions?friend_id=7"), idParams("3"))],
+    ["listing care", () => service.listCare, () => GET_CARE(get("/api/record-copies/care?friend_id=7"))],
+    ["summarising care", () => service.careSummary, () =>
+      GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7"))],
+  ])("returns 500 with the error's message when %s fails", async (_label, method, call) => {
+    method().mockRejectedValue(new Error("connection reset"));
+    const res = await call();
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("connection reset");
+  });
+
+  it.each([
+    ["creating", () => service.createCopy, () =>
+      POST(jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7, release_id: "rel" })),
+      "Failed to create record copy"],
+    ["listing", () => service.listCopies, () => GET(get("/api/record-copies?friend_id=7")),
+      "Failed to list record copies"],
+    ["summarising", () => service.careSummary, () =>
+      GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7")),
+      "Failed to summarise record care"],
+  ])("falls back to a generic message when %s throws a non-Error", async (_label, method, call, message) => {
+    method().mockRejectedValue("boom");
+    const res = await call();
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe(message);
+  });
+});

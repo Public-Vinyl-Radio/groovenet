@@ -148,3 +148,30 @@ describe("DELETE /api/record-actions/:id", () => {
     expect((await del("http://localhost/api/record-actions/11?friend_id=8")).status).toBe(404);
   });
 });
+
+describe("record-actions error paths", () => {
+  it("returns 400 voiding a non-numeric id", async () => {
+    const res = await DELETE(
+      new Request("http://localhost/api/record-actions/x?friend_id=7", { method: "DELETE" }) as never,
+      { params: Promise.resolve({ id: "x" }) }
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 500 when voiding fails", async () => {
+    service.voidAction.mockRejectedValue(new Error("connection reset"));
+    const res = await DELETE(
+      new Request("http://localhost/api/record-actions/11?friend_id=7", { method: "DELETE" }) as never,
+      { params: Promise.resolve({ id: "11" }) }
+    );
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("connection reset");
+  });
+
+  it("falls back to a generic message for a non-Error throw", async () => {
+    service.logAction.mockRejectedValue("boom");
+    const res = await post({ friend_id: 7, copy_id: 3, action_type: "cleaned" });
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("Failed to log record action");
+  });
+});

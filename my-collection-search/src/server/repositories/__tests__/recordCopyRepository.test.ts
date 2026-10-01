@@ -153,3 +153,99 @@ describe("RecordCopyRepository care views", () => {
     expect(params).toEqual([7, 90, "poly"]);
   });
 });
+
+describe("RecordCopyRepository reads and soft deletes", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("lists live copies, optionally of one release, default first", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+
+    await expect(repo.listCopies(7)).resolves.toEqual([{ id: 1 }]);
+    await repo.listCopies(7, "rel");
+
+    expect(dbQuery.mock.calls[0][0]).toContain("deleted_at IS NULL");
+    expect(dbQuery.mock.calls[0][0]).not.toContain("release_id = $2");
+    expect(dbQuery.mock.calls[0][1]).toEqual([7]);
+    expect(dbQuery.mock.calls[1][0]).toContain("AND release_id = $2");
+    expect(dbQuery.mock.calls[1][0]).toContain("ORDER BY release_id ASC, is_default DESC, id ASC");
+    expect(dbQuery.mock.calls[1][1]).toEqual([7, "rel"]);
+  });
+
+  it("finds the friend's copy whether or not it is deleted", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ id: 3 }] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(repo.findCopy(3, 7)).resolves.toEqual({ id: 3 });
+    await expect(repo.findCopy(3, 8)).resolves.toBeNull();
+    expect(dbQuery.mock.calls[0][0]).not.toContain("deleted_at");
+    expect(dbQuery.mock.calls[0][1]).toEqual([3, 7]);
+  });
+
+  it("counts the other live copies of the same release", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ count: 2 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const copy = { id: 3, friend_id: 7, release_id: "rel" } as never;
+
+    await expect(repo.countSiblings({ query }, copy)).resolves.toBe(2);
+    await expect(repo.countSiblings({ query }, copy)).resolves.toBe(0);
+    expect(query.mock.calls[0][0]).toContain("id <> $3 AND deleted_at IS NULL");
+    expect(query.mock.calls[0][1]).toEqual([7, "rel", 3]);
+  });
+
+  it("soft-deletes by stamping deleted_at", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 3 }] });
+
+    await expect(repo.softDeleteCopy({ query }, 3)).resolves.toEqual({ id: 3 });
+    expect(query.mock.calls[0][0]).toContain("SET deleted_at = NOW(), updated_at = NOW()");
+    expect(query.mock.calls[0][1]).toEqual([3]);
+  });
+
+  it("updates label and notes together", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 3 }] });
+
+    await repo.updateCopy({ query }, 3, { label: "DJ copy", notes: "Warped" });
+
+    expect(query.mock.calls[0][0]).toContain("label = $2, notes = $3");
+    expect(query.mock.calls[0][1]).toEqual([3, "DJ copy", "Warped"]);
+  });
+
+  it("groups the care scope by sleeve", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ sleeve_type: null, count: 4 }] });
+
+    await expect(repo.countBySleeveType(7)).resolves.toEqual([{ sleeve_type: null, count: 4 }]);
+    expect(dbQuery.mock.calls[0][0]).toContain("GROUP BY inner_sleeve_type");
+    expect(dbQuery.mock.calls[0][1]).toEqual([7]);
+  });
+
+  it("reports a zero total when the count returns no row", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(
+      repo.listCare({ friend_id: 7, overdue_days: 365, needs_sleeve: "poly" })
+    ).resolves.toEqual({ items: [], total: 0 });
+  });
+});
+
+describe("RecordCopyRepository.createCopy as the first copy", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns the claimed default without a second insert", async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [{ id: 5, is_default: true }] });
+
+    await expect(
+      repo.createCopy({ query }, { friend_id: 7, release_id: "rel", notes: "VG+" })
+    ).resolves.toEqual({ id: 5, is_default: true });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][1]).toEqual([7, "rel", null, "VG+"]);
+  });
+
+  it("updates only the label when only the label is given", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 3 }] });
+
+    await repo.updateCopy({ query }, 3, { label: "DJ copy" });
+
+    expect(query.mock.calls[0][0]).toContain("SET updated_at = NOW(), label = $2 WHERE id = $1");
+    expect(query.mock.calls[0][1]).toEqual([3, "DJ copy"]);
+  });
+});

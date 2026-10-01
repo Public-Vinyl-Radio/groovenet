@@ -65,3 +65,27 @@ describe("RecordActionRepository", () => {
     expect(query.mock.calls[0][0]).toContain("voided_at = COALESCE(voided_at, NOW())");
   });
 });
+
+describe("RecordActionRepository.findAction", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("finds the friend's action, voided or not", async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(repo.findAction({ query }, 1, 7)).resolves.toEqual({ id: 1 });
+    await expect(repo.findAction({ query }, 1, 8)).resolves.toBeNull();
+    expect(query.mock.calls[0][0]).not.toContain("voided_at");
+    expect(query.mock.calls[0][1]).toEqual([1, 7]);
+  });
+
+  it("stores empty details when none are given", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 2 }] });
+
+    await repo.insertAction(
+      { query },
+      { copy_id: 3, friend_id: 7, action_type: "repaired", occurred_at: "2026-09-30", notes: "Flattened" }
+    );
+
+    expect(query.mock.calls[0][1].slice(4)).toEqual(["Flattened", null, "{}"]);
+  });
+});
