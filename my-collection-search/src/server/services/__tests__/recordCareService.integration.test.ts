@@ -121,7 +121,7 @@ describe("cached care state", () => {
     });
     expect(live).toHaveLength(2);
     expect(all).toHaveLength(4);
-    expect(all.map((a) => a.occurred_at)).toEqual([
+    expect(all!.map((a) => a.occurred_at)).toEqual([
       iso("2026-09-01T00:00:00Z"),
       iso("2026-09-01T00:00:00Z"),
       iso("2026-02-01T00:00:00Z"),
