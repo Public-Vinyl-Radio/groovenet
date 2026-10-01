@@ -1137,3 +1137,135 @@ describe("setPlaylistTracks", () => {
     });
   });
 });
+
+describe("GroovenetClient record care endpoints", () => {
+  beforeEach(() => requestMock.mockReset());
+
+  const copy = { id: 3, friend_id: 1, release_id: "r1", is_default: true };
+  const action = { id: 11, copy_id: 3, action_type: "cleaned" };
+
+  it("listRecordCopies unwraps items", async () => {
+    const client = clientReturning({ items: [copy] });
+
+    await expect(client.listRecordCopies(1, "r1")).resolves.toEqual([copy]);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/record-copies",
+      data: undefined,
+      params: { friend_id: 1, release_id: "r1" },
+    });
+  });
+
+  it("createRecordCopy, updateRecordCopy and deleteRecordCopy unwrap the copy", async () => {
+    const client = clientReturning({ copy, success: true });
+
+    await expect(
+      client.createRecordCopy({ friend_id: 1, release_id: "r1", label: "Copy 2" })
+    ).resolves.toEqual(copy);
+    await expect(client.updateRecordCopy(3, { friend_id: 1, notes: "Warped" })).resolves.toEqual(
+      copy
+    );
+    await expect(client.deleteRecordCopy(3, 1)).resolves.toEqual(copy);
+
+    expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+      {
+        method: "POST",
+        url: "/record-copies",
+        data: { friend_id: 1, release_id: "r1", label: "Copy 2" },
+        params: undefined,
+      },
+      {
+        method: "PATCH",
+        url: "/record-copies/3",
+        data: { friend_id: 1, notes: "Warped" },
+        params: undefined,
+      },
+      { method: "DELETE", url: "/record-copies/3", data: undefined, params: { friend_id: 1 } },
+    ]);
+  });
+
+  it("listRecordActions defaults paging and forwards filters", async () => {
+    const client = clientReturning({ items: [action], limit: 50, offset: 0 });
+
+    await client.listRecordActions(3, { friend_id: 1, include_voided: true });
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/record-copies/3/actions",
+      data: undefined,
+      params: {
+        friend_id: 1,
+        action_type: undefined,
+        include_voided: true,
+        limit: 50,
+        offset: 0,
+      },
+    });
+  });
+
+  it("logRecordAction posts the action against a release", async () => {
+    const client = clientReturning({ action, copy });
+
+    await expect(
+      client.logRecordAction({
+        friend_id: 1,
+        release_id: "r1",
+        action_type: "sleeved",
+        sleeve_type: "poly-rice-paper-poly",
+      })
+    ).resolves.toEqual({ action, copy });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/record-actions",
+      data: {
+        friend_id: 1,
+        release_id: "r1",
+        action_type: "sleeved",
+        sleeve_type: "poly-rice-paper-poly",
+      },
+      params: undefined,
+    });
+  });
+
+  it("voidRecordAction drops the envelope's success flag", async () => {
+    const client = clientReturning({ success: true, action, copy });
+
+    await expect(client.voidRecordAction(11, 1)).resolves.toEqual({ action, copy });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "DELETE",
+      url: "/record-actions/11",
+      data: undefined,
+      params: { friend_id: 1 },
+    });
+  });
+
+  it("listRecordCare and getRecordCareSummary pass every filter through", async () => {
+    const client = clientReturning({});
+
+    await client.listRecordCare({ friend_id: 1, status: "overdue", overdue_days: 90 });
+    await client.getRecordCareSummary({ friend_id: 1, needs_sleeve: "poly" });
+
+    expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+      {
+        method: "GET",
+        url: "/record-copies/care",
+        data: undefined,
+        params: {
+          friend_id: 1,
+          status: "overdue",
+          overdue_days: 90,
+          needs_sleeve: undefined,
+          sleeve_type: undefined,
+          limit: 50,
+          offset: 0,
+        },
+      },
+      {
+        method: "GET",
+        url: "/record-copies/care/summary",
+        data: undefined,
+        params: { friend_id: 1, overdue_days: undefined, needs_sleeve: "poly" },
+      },
+    ]);
+  });
+});

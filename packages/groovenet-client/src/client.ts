@@ -43,6 +43,17 @@ import type {
   SetDerivationRequest,
   SetDerivationView,
   SetDerivationViewQuery,
+  RecordActionInput,
+  RecordActionListQuery,
+  RecordActionListResponse,
+  RecordActionResult,
+  RecordCareQuery,
+  RecordCareResponse,
+  RecordCareSummary,
+  RecordCareSummaryQuery,
+  RecordCopy,
+  RecordCopyCreateInput,
+  RecordCopyUpdateInput,
 } from "./types.js";
 
 export interface GroovenetClientConfig {
@@ -679,4 +690,107 @@ export class GroovenetClient {
     });
   }
 
+  // ── Record copies and care (#262) ──────────────────────────────────────────
+
+  /** A friend's live copies, optionally of one release. */
+  async listRecordCopies(friendId: number, releaseId?: string): Promise<RecordCopy[]> {
+    const { items } = await this.request<{ items: RecordCopy[] }>(
+      "GET",
+      "/record-copies",
+      undefined,
+      { friend_id: friendId, release_id: releaseId }
+    );
+    return items;
+  }
+
+  /** Add a copy of a release. The release's first copy becomes its default. */
+  async createRecordCopy(input: RecordCopyCreateInput): Promise<RecordCopy> {
+    const { copy } = await this.request<{ copy: RecordCopy }>("POST", "/record-copies", input);
+    return copy;
+  }
+
+  async updateRecordCopy(id: number, input: RecordCopyUpdateInput): Promise<RecordCopy> {
+    const { copy } = await this.request<{ copy: RecordCopy }>(
+      "PATCH",
+      `/record-copies/${id}`,
+      input
+    );
+    return copy;
+  }
+
+  /**
+   * Soft-delete a copy; its history stays. Refused for a default copy while
+   * the release has other copies.
+   */
+  async deleteRecordCopy(id: number, friendId: number): Promise<RecordCopy> {
+    const { copy } = await this.request<{ copy: RecordCopy }>(
+      "DELETE",
+      `/record-copies/${id}`,
+      undefined,
+      { friend_id: friendId }
+    );
+    return copy;
+  }
+
+  /** A copy's care history, newest first. */
+  async listRecordActions(
+    copyId: number,
+    query: RecordActionListQuery
+  ): Promise<RecordActionListResponse> {
+    return this.request<RecordActionListResponse>(
+      "GET",
+      `/record-copies/${copyId}/actions`,
+      undefined,
+      {
+        friend_id: query.friend_id,
+        action_type: query.action_type,
+        include_voided: query.include_voided,
+        limit: query.limit ?? 50,
+        offset: query.offset ?? 0,
+      }
+    );
+  }
+
+  /**
+   * Log a care action against a copy or a release. Returns the action and the
+   * copy's care state after it.
+   */
+  async logRecordAction(input: RecordActionInput): Promise<RecordActionResult> {
+    return this.request<RecordActionResult>("POST", "/record-actions", input);
+  }
+
+  /** Void a mistaken action. It stays in the history; care state is recomputed. */
+  async voidRecordAction(id: number, friendId: number): Promise<RecordActionResult> {
+    const { action, copy } = await this.request<RecordActionResult & { success: boolean }>(
+      "DELETE",
+      `/record-actions/${id}`,
+      undefined,
+      { friend_id: friendId }
+    );
+    return { action, copy };
+  }
+
+  /**
+   * Copies never cleaned, overdue, or not in the wanted sleeve. An album with
+   * no copy rows appears as its implicit default copy, `copy_id: null`.
+   */
+  async listRecordCare(query: RecordCareQuery): Promise<RecordCareResponse> {
+    return this.request<RecordCareResponse>("GET", "/record-copies/care", undefined, {
+      friend_id: query.friend_id,
+      status: query.status,
+      overdue_days: query.overdue_days,
+      needs_sleeve: query.needs_sleeve,
+      sleeve_type: query.sleeve_type,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
+    });
+  }
+
+  async getRecordCareSummary(query: RecordCareSummaryQuery): Promise<RecordCareSummary> {
+    return this.request<RecordCareSummary>("GET", "/record-copies/care/summary", undefined, {
+      friend_id: query.friend_id,
+      overdue_days: query.overdue_days,
+      needs_sleeve: query.needs_sleeve,
+    });
+  }
 }

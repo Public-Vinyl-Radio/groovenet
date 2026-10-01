@@ -99,6 +99,24 @@ import {
   setDerivationCreateBodySchema,
   setDerivationResultBodySchema,
   setDerivationViewQuerySchema,
+  recordActionCreateBodySchema,
+  recordActionListQuerySchema,
+  recordActionListResponseSchema,
+  recordActionMutationResponseSchema,
+  recordActionParamsSchema,
+  recordActionVoidResponseSchema,
+  recordCareQuerySchema,
+  recordCareResponseSchema,
+  recordCareSummaryQuerySchema,
+  recordCareSummaryResponseSchema,
+  recordCopyCreateBodySchema,
+  recordCopyDeleteResponseSchema,
+  recordCopyListQuerySchema,
+  recordCopyListResponseSchema,
+  recordCopyParamsSchema,
+  recordCopyResponseSchema,
+  recordCopyUpdateBodySchema,
+  recordFriendQuerySchema,
 } from "@/api-contract/schemas";
 
 export type HttpMethod = "get" | "head" | "post" | "patch" | "put" | "delete";
@@ -2180,6 +2198,555 @@ const setDerivationContracts: ApiContractRoute[] = [
         },
         "400": jsonError("Invalid result body"),
         "404": jsonError("No such derivation"),
+      },
+    },
+  },
+];
+
+// ─── Record copies and care actions (#262) ───────────────────────────────────
+
+const SLEEVE_TYPE_ENUM = ["original", "paper", "poly-rice-paper-poly", "poly"];
+const nullableSleeveType = { type: ["string", "null"], enum: [...SLEEVE_TYPE_ENUM, null] };
+const integerIdParam = { name: "id", in: "path", required: true, schema: { type: "integer" } };
+const friendIdQueryParam = {
+  name: "friend_id",
+  in: "query",
+  required: true,
+  schema: { type: "integer" },
+};
+const pagingParams = [
+  { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50 } },
+  { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+];
+const overdueDaysParam = {
+  name: "overdue_days",
+  in: "query",
+  required: false,
+  description: "Days since cleaning before a copy is overdue. Default RECORD_CLEANING_OVERDUE_DAYS (365).",
+  schema: { type: "integer", minimum: 1 },
+};
+const needsSleeveParam = {
+  name: "needs_sleeve",
+  in: "query",
+  required: false,
+  description: "The sleeve every copy should be in. Default poly-rice-paper-poly.",
+  schema: { type: "string", enum: SLEEVE_TYPE_ENUM },
+};
+
+const recordCopySchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: { type: "integer" },
+    friend_id: { type: "integer" },
+    release_id: { type: "string" },
+    is_default: {
+      type: "boolean",
+      description: "The copy an action logged against the release lands on",
+    },
+    label: { type: ["string", "null"], example: "DJ copy" },
+    notes: { type: ["string", "null"], example: "Light hairline on B2, plays through." },
+    inner_sleeve_type: {
+      ...nullableSleeveType,
+      description: "From the latest sleeved action; null when none is logged",
+    },
+    last_cleaned_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      description: "From the latest cleaned action; null when never cleaned",
+    },
+    deleted_at: { type: ["string", "null"], format: "date-time", example: null },
+    created_at: { type: "string", format: "date-time" },
+    updated_at: { type: "string", format: "date-time" },
+  },
+  required: [
+    "id", "friend_id", "release_id", "is_default", "label", "notes", "inner_sleeve_type",
+    "last_cleaned_at", "deleted_at", "created_at", "updated_at",
+  ],
+};
+
+const recordActionSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: { type: "integer" },
+    copy_id: { type: "integer" },
+    friend_id: { type: "integer" },
+    action_type: { type: "string", enum: ["cleaned", "sleeved", "inspected", "repaired"] },
+    occurred_at: { type: "string", format: "date-time" },
+    notes: { type: ["string", "null"], example: "Two passes, air dried overnight." },
+    sleeve_type: { ...nullableSleeveType, description: "Set only on a sleeved action" },
+    details: {
+      type: "object",
+      properties: {
+        method: {
+          type: "string",
+          enum: ["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"],
+        },
+      },
+      additionalProperties: false,
+    },
+    voided_at: { type: ["string", "null"], format: "date-time", example: null },
+    created_at: { type: "string", format: "date-time" },
+  },
+  required: [
+    "id", "copy_id", "friend_id", "action_type", "occurred_at", "notes", "sleeve_type",
+    "details", "voided_at", "created_at",
+  ],
+};
+
+const recordActionMutationSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: { action: recordActionSchemaObject, copy: recordCopySchemaObject },
+  required: ["action", "copy"],
+};
+
+const recordCareItemSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    friend_id: { type: "integer" },
+    release_id: { type: "string" },
+    album_title: { type: "string" },
+    album_artist: { type: "string" },
+    album_thumbnail: { type: ["string", "null"] },
+    copy_id: {
+      type: ["integer", "null"],
+      description: "Null for an album with no copy rows: its implicit default copy",
+    },
+    is_default: { type: "boolean" },
+    label: { type: ["string", "null"], example: null },
+    inner_sleeve_type: nullableSleeveType,
+    last_cleaned_at: { type: ["string", "null"], format: "date-time" },
+  },
+  required: [
+    "friend_id", "release_id", "album_title", "album_artist", "album_thumbnail", "copy_id",
+    "is_default", "label", "inner_sleeve_type", "last_cleaned_at",
+  ],
+};
+
+const recordCareContracts: ApiContractRoute[] = [
+  {
+    operationId: "listRecordCopies",
+    method: "get",
+    path: "/api/record-copies",
+    summary: "List a friend's physical record copies",
+    tags: ["Record Care"],
+    querySchema: recordCopyListQuerySchema,
+    successSchema: recordCopyListResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        { name: "release_id", in: "query", required: false, schema: { type: "string" } },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Live copies. A release with none has an implicit default copy, which is not listed.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { items: { type: "array", items: recordCopySchemaObject } },
+                required: ["items"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "createRecordCopy",
+    method: "post",
+    path: "/api/record-copies",
+    summary: "Add a physical copy of a release",
+    tags: ["Record Care"],
+    bodySchema: recordCopyCreateBodySchema,
+    successSchema: recordCopyResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                friend_id: { type: "integer" },
+                release_id: { type: "string" },
+                label: { type: ["string", "null"], maxLength: 100 },
+                notes: { type: ["string", "null"] },
+              },
+              required: ["friend_id", "release_id"],
+            },
+            example: { friend_id: 1, release_id: "rel_4471", label: "Copy 2" },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Created. The release's first copy becomes its default.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { copy: recordCopySchemaObject },
+                required: ["copy"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid payload"),
+        "404": jsonError("Album not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "updateRecordCopy",
+    method: "patch",
+    path: "/api/record-copies/{id}",
+    summary: "Change a copy's label or notes",
+    tags: ["Record Care"],
+    paramsSchema: recordCopyParamsSchema,
+    bodySchema: recordCopyUpdateBodySchema,
+    successSchema: recordCopyResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [integerIdParam],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              description:
+                "The sleeve is not set here: log a sleeved action, so it stays derivable from history.",
+              properties: {
+                friend_id: { type: "integer" },
+                label: { type: ["string", "null"], maxLength: 100 },
+                notes: { type: ["string", "null"] },
+              },
+              required: ["friend_id"],
+            },
+            example: { friend_id: 1, label: "DJ copy" },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Updated copy",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { copy: recordCopySchemaObject },
+                required: ["copy"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid id or payload"),
+        "404": jsonError("Record copy not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "deleteRecordCopy",
+    method: "delete",
+    path: "/api/record-copies/{id}",
+    summary: "Soft-delete a copy, keeping its history",
+    tags: ["Record Care"],
+    paramsSchema: recordCopyParamsSchema,
+    querySchema: recordFriendQuerySchema,
+    successSchema: recordCopyDeleteResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [integerIdParam, friendIdQueryParam],
+      responses: {
+        "200": {
+          description: "Deleted copy",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { success: { type: "boolean" }, copy: recordCopySchemaObject },
+                required: ["success", "copy"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid id or query"),
+        "404": jsonError("Record copy not found"),
+        "409": jsonError("The default copy cannot be deleted while the release has other copies"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "listRecordActions",
+    method: "get",
+    path: "/api/record-copies/{id}/actions",
+    summary: "A copy's care history, newest first",
+    tags: ["Record Care"],
+    paramsSchema: recordCopyParamsSchema,
+    querySchema: recordActionListQuerySchema,
+    successSchema: recordActionListResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        integerIdParam,
+        friendIdQueryParam,
+        {
+          name: "action_type",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["cleaned", "sleeved", "inspected", "repaired"] },
+        },
+        {
+          name: "include_voided",
+          in: "query",
+          required: false,
+          schema: { type: "boolean", default: false },
+        },
+        ...pagingParams,
+      ],
+      responses: {
+        "200": {
+          description: "Actions",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: recordActionSchemaObject },
+                  limit: { type: "integer" },
+                  offset: { type: "integer" },
+                },
+                required: ["items", "limit", "offset"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid id or query"),
+        "404": jsonError("Record copy not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "listRecordCare",
+    method: "get",
+    path: "/api/record-copies/care",
+    summary: "Copies never cleaned, overdue for cleaning, or not in the wanted sleeve",
+    tags: ["Record Care"],
+    querySchema: recordCareQuerySchema,
+    successSchema: recordCareResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          description: "Omit for every copy",
+          schema: { type: "string", enum: ["never_cleaned", "overdue", "needs_sleeve"] },
+        },
+        overdueDaysParam,
+        needsSleeveParam,
+        {
+          name: "sleeve_type",
+          in: "query",
+          required: false,
+          description: "Only copies in this sleeve; unknown for none logged",
+          schema: { type: "string", enum: [...SLEEVE_TYPE_ENUM, "unknown"] },
+        },
+        ...pagingParams,
+      ],
+      responses: {
+        "200": {
+          description:
+            "Copies, least recently cleaned first. An album with no copy rows appears once, as its implicit default copy (copy_id null).",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  items: { type: "array", items: recordCareItemSchemaObject },
+                  total: { type: "integer" },
+                  limit: { type: "integer" },
+                  offset: { type: "integer" },
+                  overdue_days: { type: "integer", example: 365 },
+                  needs_sleeve_type: { type: "string", enum: ["poly-rice-paper-poly", "original", "paper", "poly"] },
+                },
+                required: ["items", "total", "limit", "offset", "overdue_days", "needs_sleeve_type"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getRecordCareSummary",
+    method: "get",
+    path: "/api/record-copies/care/summary",
+    summary: "Counts of copies by care state and sleeve",
+    tags: ["Record Care"],
+    querySchema: recordCareSummaryQuerySchema,
+    successSchema: recordCareSummaryResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [friendIdQueryParam, overdueDaysParam, needsSleeveParam],
+      responses: {
+        "200": {
+          description: "Counts, with albums without copy rows counted as one copy each",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  total: { type: "integer", example: 812 },
+                  never_cleaned: { type: "integer", example: 640 },
+                  overdue: { type: "integer", example: 41 },
+                  needs_sleeve: { type: "integer", example: 755 },
+                  by_sleeve_type: {
+                    type: "object",
+                    properties: {
+                      original: { type: "integer", example: 30 },
+                      paper: { type: "integer", example: 12 },
+                      "poly-rice-paper-poly": { type: "integer", example: 57 },
+                      poly: { type: "integer", example: 8 },
+                      unknown: { type: "integer", example: 705 },
+                    },
+                    required: ["original", "paper", "poly-rice-paper-poly", "poly", "unknown"],
+                  },
+                  overdue_days: { type: "integer", example: 365 },
+                  needs_sleeve_type: { type: "string", enum: ["poly-rice-paper-poly", "original", "paper", "poly"] },
+                },
+                required: [
+                  "total", "never_cleaned", "overdue", "needs_sleeve", "by_sleeve_type",
+                  "overdue_days", "needs_sleeve_type",
+                ],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "logRecordAction",
+    method: "post",
+    path: "/api/record-actions",
+    summary: "Log a care action against a copy or a release",
+    tags: ["Record Care"],
+    bodySchema: recordActionCreateBodySchema,
+    successSchema: recordActionMutationResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              description:
+                "Exactly one of copy_id or release_id. A release_id lands on the release's default copy, created if it has none.",
+              properties: {
+                friend_id: { type: "integer" },
+                copy_id: { type: "integer" },
+                release_id: { type: "string" },
+                action_type: {
+                  type: "string",
+                  enum: ["cleaned", "sleeved", "inspected", "repaired"],
+                },
+                occurred_at: {
+                  type: "string",
+                  format: "date-time",
+                  description: "Default now. May be backdated.",
+                },
+                notes: { type: ["string", "null"] },
+                sleeve_type: {
+                  type: "string",
+                  enum: SLEEVE_TYPE_ENUM,
+                  description: "Required for sleeved, and only for sleeved",
+                },
+                details: {
+                  type: "object",
+                  properties: {
+                    method: {
+                      type: "string",
+                      enum: ["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"],
+                      description: "Only for cleaned",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              required: ["friend_id", "action_type"],
+            },
+            example: {
+              friend_id: 1,
+              release_id: "rel_4471",
+              action_type: "cleaned",
+              occurred_at: "2026-09-30T19:00:00.000Z",
+              notes: "Two passes, air dried overnight.",
+              details: { method: "ultrasonic" },
+            },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Logged, with the copy's updated care state",
+          content: { "application/json": { schema: recordActionMutationSchemaObject } },
+        },
+        "400": jsonError("Invalid payload"),
+        "404": jsonError("Album not found, or record copy not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "voidRecordAction",
+    method: "delete",
+    path: "/api/record-actions/{id}",
+    summary: "Void an action; it stays in the history",
+    tags: ["Record Care"],
+    paramsSchema: recordActionParamsSchema,
+    querySchema: recordFriendQuerySchema,
+    successSchema: recordActionVoidResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [integerIdParam, friendIdQueryParam],
+      responses: {
+        "200": {
+          description: "Voided, with the copy's recomputed care state. Voiding twice is a no-op.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  success: { type: "boolean" },
+                  action: recordActionSchemaObject,
+                  copy: recordCopySchemaObject,
+                },
+                required: ["success", "action", "copy"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid id or query"),
+        "404": jsonError("Record action not found"),
+        "500": jsonError("Server error"),
       },
     },
   },
@@ -5816,4 +6383,5 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...audioIngestContracts,
   ...setDerivationContracts,
   ...backupContracts,
+  ...recordCareContracts,
 ];
