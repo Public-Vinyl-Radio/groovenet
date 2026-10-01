@@ -30,6 +30,16 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["get", "/api/set-derivations/{id}"],
   ["post", "/api/set-derivations/{id}/claim"],
   ["post", "/api/set-derivations/{id}/result"],
+  // Record copies and care (#262).
+  ["get", "/api/record-copies"],
+  ["post", "/api/record-copies"],
+  ["patch", "/api/record-copies/{id}"],
+  ["delete", "/api/record-copies/{id}"],
+  ["get", "/api/record-copies/{id}/actions"],
+  ["get", "/api/record-copies/care"],
+  ["get", "/api/record-copies/care/summary"],
+  ["post", "/api/record-actions"],
+  ["delete", "/api/record-actions/{id}"],
 ];
 
 describe("OpenAPI contract coverage", () => {
@@ -42,7 +52,7 @@ describe("OpenAPI contract coverage", () => {
     expect(op?.summary ?? "").not.toMatch(/^Auto-discovered/);
   });
 
-  it("builds a valid 3.1.0 document with response content for each new path", () => {
+  it("builds a valid 3.1.0 document with a success response for each new path", () => {
     const doc = getOpenApiDocument();
     expect(doc.openapi).toBe("3.1.0");
     for (const [method, path] of CONTRACTED) {
@@ -50,7 +60,11 @@ describe("OpenAPI contract coverage", () => {
         method
       ];
       expect(op.responses, `${method} ${path} responses`).toBeTruthy();
-      expect(Object.keys(op.responses ?? {})).toContain("200");
+      const codes = Object.keys(op.responses ?? {});
+      expect(
+        codes.some((code) => code === "200" || code === "201"),
+        `${method} ${path} success`
+      ).toBe(true);
     }
   });
 });

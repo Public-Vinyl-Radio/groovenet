@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  CLEANING_METHODS,
+  RECORD_ACTION_TYPES,
+  RECORD_CARE_STATUSES,
+  SLEEVE_TYPES,
+} from "@/lib/recordCare";
 
 const toInt = (value: unknown): unknown => {
   if (typeof value === "number") return value;
@@ -1378,6 +1384,205 @@ export const spinDeleteQuerySchema = z.object({
 export const spinDeleteResponseSchema = z.object({
   success: z.boolean(),
   session: spinSessionSchema,
+});
+
+// ─── Record copies and care actions (#262) ────────────────────────────────────
+//
+// A release can stand for several physical copies; cleaning and sleeving
+// belong to one copy. A release with no copy rows has one implicit default
+// copy, made real by the first action logged against the release.
+
+const positiveIntFromInputSchema = z.preprocess(toInt, z.number().int().min(1));
+const timestampInputSchema = z
+  .string()
+  .min(1)
+  .refine((value) => !Number.isNaN(Date.parse(value)), "Must be a date-time");
+
+export const sleeveTypeSchema = z.enum(SLEEVE_TYPES);
+export const recordActionTypeSchema = z.enum(RECORD_ACTION_TYPES);
+export const cleaningMethodSchema = z.enum(CLEANING_METHODS);
+export const recordCareStatusSchema = z.enum(RECORD_CARE_STATUSES);
+
+export const recordCopySchema = z.object({
+  id: z.number().int(),
+  friend_id: z.number().int(),
+  release_id: z.string(),
+  is_default: z.boolean(),
+  label: z.string().nullable(),
+  notes: z.string().nullable(),
+  inner_sleeve_type: sleeveTypeSchema.nullable(),
+  last_cleaned_at: z.string().nullable(),
+  deleted_at: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const recordActionDetailsSchema = z
+  .object({ method: cleaningMethodSchema.optional() })
+  .strict();
+
+export const recordActionSchema = z.object({
+  id: z.number().int(),
+  copy_id: z.number().int(),
+  friend_id: z.number().int(),
+  action_type: recordActionTypeSchema,
+  occurred_at: z.string(),
+  notes: z.string().nullable(),
+  sleeve_type: sleeveTypeSchema.nullable(),
+  details: recordActionDetailsSchema,
+  voided_at: z.string().nullable(),
+  created_at: z.string(),
+});
+
+export const recordCopyParamsSchema = z.object({ id: intFromInputSchema });
+export const recordActionParamsSchema = z.object({ id: intFromInputSchema });
+export const recordFriendQuerySchema = z.object({ friend_id: intFromInputSchema });
+
+export const recordCopyListQuerySchema = z.object({
+  friend_id: intFromInputSchema,
+  release_id: z.string().min(1).optional(),
+});
+
+export const recordCopyListResponseSchema = z.object({
+  items: z.array(recordCopySchema),
+});
+
+export const recordCopyCreateBodySchema = z.object({
+  friend_id: intFromInputSchema,
+  release_id: z.string().min(1),
+  label: z.string().max(100).nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const recordCopyUpdateBodySchema = z
+  .object({
+    friend_id: intFromInputSchema,
+    label: z.string().max(100).nullable().optional(),
+    notes: z.string().nullable().optional(),
+  })
+  .refine((value) => value.label !== undefined || value.notes !== undefined, {
+    message: "Provide label or notes",
+  });
+
+export const recordCopyResponseSchema = z.object({ copy: recordCopySchema });
+
+export const recordCopyDeleteResponseSchema = z.object({
+  success: z.boolean(),
+  copy: recordCopySchema,
+});
+
+export const recordActionListQuerySchema = z.object({
+  friend_id: intFromInputSchema,
+  action_type: recordActionTypeSchema.optional(),
+  include_voided: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
+  limit: nonNegativeIntFromInputSchema.optional().default(50),
+  offset: nonNegativeIntFromInputSchema.optional().default(0),
+});
+
+export const recordActionListResponseSchema = z.object({
+  items: z.array(recordActionSchema),
+  limit: z.number().int(),
+  offset: z.number().int(),
+});
+
+export const recordActionCreateBodySchema = z
+  .object({
+    friend_id: intFromInputSchema,
+    copy_id: intFromInputSchema.optional(),
+    release_id: z.string().min(1).optional(),
+    action_type: recordActionTypeSchema,
+    occurred_at: timestampInputSchema.optional(),
+    notes: z.string().nullable().optional(),
+    sleeve_type: sleeveTypeSchema.optional(),
+    details: recordActionDetailsSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if ((value.copy_id === undefined) === (value.release_id === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide exactly one of copy_id or release_id",
+      });
+    }
+    if ((value.action_type === "sleeved") !== (value.sleeve_type !== undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sleeve_type"],
+        message: "sleeve_type is required for a sleeved action, and only for one",
+      });
+    }
+    if (value.details?.method !== undefined && value.action_type !== "cleaned") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["details", "method"],
+        message: "details.method is only for a cleaned action",
+      });
+    }
+  });
+
+export const recordActionMutationResponseSchema = z.object({
+  action: recordActionSchema,
+  copy: recordCopySchema,
+});
+
+export const recordActionVoidResponseSchema = recordActionMutationResponseSchema.extend({
+  success: z.boolean(),
+});
+
+export const recordCareQuerySchema = z.object({
+  friend_id: intFromInputSchema,
+  status: recordCareStatusSchema.optional(),
+  overdue_days: positiveIntFromInputSchema.optional(),
+  needs_sleeve: sleeveTypeSchema.optional(),
+  sleeve_type: z.union([sleeveTypeSchema, z.literal("unknown")]).optional(),
+  limit: nonNegativeIntFromInputSchema.optional().default(50),
+  offset: nonNegativeIntFromInputSchema.optional().default(0),
+});
+
+export const recordCareItemSchema = z.object({
+  friend_id: z.number().int(),
+  release_id: z.string(),
+  album_title: z.string(),
+  album_artist: z.string(),
+  album_thumbnail: z.string().nullable(),
+  copy_id: z.number().int().nullable(),
+  is_default: z.boolean(),
+  label: z.string().nullable(),
+  inner_sleeve_type: sleeveTypeSchema.nullable(),
+  last_cleaned_at: z.string().nullable(),
+});
+
+export const recordCareResponseSchema = z.object({
+  items: z.array(recordCareItemSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+  overdue_days: z.number().int(),
+  needs_sleeve_type: sleeveTypeSchema,
+});
+
+export const recordCareSummaryQuerySchema = z.object({
+  friend_id: intFromInputSchema,
+  overdue_days: positiveIntFromInputSchema.optional(),
+  needs_sleeve: sleeveTypeSchema.optional(),
+});
+
+export const recordCareSummaryResponseSchema = z.object({
+  total: z.number().int(),
+  never_cleaned: z.number().int(),
+  overdue: z.number().int(),
+  needs_sleeve: z.number().int(),
+  by_sleeve_type: z.object({
+    original: z.number().int(),
+    paper: z.number().int(),
+    "poly-rice-paper-poly": z.number().int(),
+    poly: z.number().int(),
+    unknown: z.number().int(),
+  }),
+  overdue_days: z.number().int(),
+  needs_sleeve_type: sleeveTypeSchema,
 });
 
 export const albumUpdateBodySchema = z
