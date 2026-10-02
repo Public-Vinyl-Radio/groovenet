@@ -3,7 +3,9 @@ import {
   recordCopyDefaultUpdateBodySchema,
   recordCopyResponseSchema,
 } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import { recordCareService } from "@/server/services/recordCareService";
+import { changedCopyFields } from "../changedCopyFields";
 import { errorMessage, getRecordCareErrorStatus } from "../recordCareErrorStatus";
 
 /**
@@ -22,6 +24,16 @@ export async function PATCH(request: NextRequest) {
 
     const { friend_id, release_id, ...changes } = parsedBody.data;
     const copy = await recordCareService.updateDefaultCopy(friend_id, release_id, changes);
+    analytics.track(
+      "record_copy_edited",
+      {
+        copy_id: copy.id,
+        release_id: copy.release_id,
+        is_default: true,
+        changed_fields: changedCopyFields(changes),
+      },
+      { request }
+    );
     return NextResponse.json(recordCopyResponseSchema.parse({ copy }));
   } catch (error) {
     const message = errorMessage(error, "Failed to update default record copy");

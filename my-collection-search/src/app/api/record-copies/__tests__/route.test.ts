@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const service = vi.hoisted(() => ({
   listCopies: vi.fn(),
@@ -22,6 +22,11 @@ import { GET as GET_ACTIONS } from "../[id]/actions/route";
 import { PATCH as PATCH_DEFAULT } from "../default/route";
 import { GET as GET_CARE } from "../care/route";
 import { GET as GET_SUMMARY } from "../care/summary/route";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+const analyticsEvents = new MemoryAnalyticsProvider();
+setAnalyticsProvider(analyticsEvents);
 
 const TS = "2026-10-01T12:00:00.000Z";
 
@@ -62,7 +67,10 @@ function jsonRequest(url: string, method: string, body: unknown) {
   }) as never;
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  analyticsEvents.reset();
+});
 
 describe("GET /api/record-copies", () => {
   it("requires friend_id", async () => {
@@ -393,5 +401,114 @@ describe("GET /api/record-copies implicit default", () => {
 
     expect(res.status).toBe(200);
     expect((await res.json()).items).toEqual([implicit]);
+  });
+});
+
+describe("GET /api/record-copies overdue threshold", () => {
+  const original = process.env.RECORD_CLEANING_OVERDUE_DAYS;
+  afterEach(() => {
+    process.env.RECORD_CLEANING_OVERDUE_DAYS = original;
+  });
+
+  it("reports RECORD_CLEANING_OVERDUE_DAYS alongside the copies", async () => {
+    process.env.RECORD_CLEANING_OVERDUE_DAYS = "180";
+    service.listCopies.mockResolvedValue([copy]);
+
+    const res = await GET(
+      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never
+    );
+
+    expect((await res.json()).overdue_days).toBe(180);
+  });
+});
+
+describe("record-copies analytics", () => {
+  const recorded = () => analyticsEvents.events.map((e) => [e.event, e.properties]);
+
+  it("reports an added copy by id", async () => {
+    service.createCopy.mockResolvedValue({ ...copy, id: 4, is_default: false, label: "Copy 2" });
+
+    await POST(
+      jsonRequest("http://localhost/api/record-copies", "POST", {
+        friend_id: 7,
+        release_id: "rel",
+        label: "Copy 2",
+      })
+    );
+
+    expect(recorded()).toEqual([
+      ["record_copy_added", { copy_id: 4, release_id: "rel", friend_id: 7, source: "web" }],
+    ]);
+  });
+
+  it("reports which fields an edit set, never their values", async () => {
+    service.updateCopy.mockResolvedValue({ ...copy, id: 4, is_default: false, notes: "VG+" });
+
+    await PATCH(
+      jsonRequest("http://localhost/api/record-copies/4", "PATCH", { friend_id: 7, notes: "VG+" }),
+      idParams("4")
+    );
+
+    expect(recorded()).toEqual([
+      [
+        "record_copy_edited",
+        { copy_id: 4, release_id: "rel", is_default: false, changed_fields: ["notes"], source: "web" },
+      ],
+    ]);
+  });
+
+  it("reports an edit to the default copy made by release", async () => {
+    service.updateDefaultCopy.mockResolvedValue({ ...copy, label: "DJ copy", notes: null });
+
+    await PATCH_DEFAULT(
+      jsonRequest("http://localhost/api/record-copies/default", "PATCH", {
+        friend_id: 7,
+        release_id: "rel",
+        label: "DJ copy",
+        notes: null,
+      })
+    );
+
+    expect(recorded()).toEqual([
+      [
+        "record_copy_edited",
+        {
+          copy_id: 3,
+          release_id: "rel",
+          is_default: true,
+          changed_fields: ["label", "notes"],
+          source: "web",
+        },
+      ],
+    ]);
+  });
+
+  it("reports a removed copy", async () => {
+    service.deleteCopy.mockResolvedValue({ ...copy, id: 4, deleted_at: TS });
+
+    await DELETE(
+      new Request("http://localhost/api/record-copies/4?friend_id=7", { method: "DELETE" }) as never,
+      idParams("4")
+    );
+
+    expect(recorded()).toEqual([
+      ["record_copy_removed", { copy_id: 4, release_id: "rel", source: "web" }],
+    ]);
+  });
+
+  it("reports nothing when the copy was not found", async () => {
+    service.updateCopy.mockResolvedValue(null);
+    service.deleteCopy.mockResolvedValue(null);
+
+    await PATCH(
+      jsonRequest("http://localhost/api/record-copies/4", "PATCH", { friend_id: 7, label: "x" }),
+      idParams("4")
+    );
+    await DELETE(
+      new Request("http://localhost/api/record-copies/4?friend_id=7", { method: "DELETE" }) as never,
+      idParams("4")
+    );
+
+    expect(analyticsEvents.events).toEqual([]);
   });
 });

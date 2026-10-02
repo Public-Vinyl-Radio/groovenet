@@ -7,6 +7,8 @@
 // queries or file names. To tell things apart, send the ID; the name stays in
 // Postgres. Every new event follows this rule.
 
+import type { CleaningMethod, RecordActionType, SleeveType } from "@/lib/recordCare";
+
 /**
  * Where a server event came from. Set by the server entry point, never by the
  * caller: `web` is a request without an `X-Groovenet-Client` header (the
@@ -154,6 +156,36 @@ export type AnalyticsEvents = {
     spin_id: number;
     confidence: number;
     windows: number;
+  };
+
+  // Record care (#262): physical copies and what was done to them. Labels and
+  // notes stay in Postgres; the action type, sleeve and method are enums.
+  record_copy_added: ServerSource & {
+    copy_id: number;
+    release_id: string;
+    friend_id: number;
+  };
+  record_copy_edited: ServerSource & {
+    copy_id: number;
+    release_id: string;
+    is_default: boolean;
+    changed_fields: ("label" | "notes")[];
+  };
+  record_copy_removed: ServerSource & {
+    copy_id: number;
+    release_id: string;
+  };
+  record_action_logged: ServerSource & {
+    action_id: number;
+    copy_id: number;
+    action_type: RecordActionType;
+    sleeve_type: SleeveType | null;
+    method: CleaningMethod | null;
+  };
+  record_action_voided: ServerSource & {
+    action_id: number;
+    copy_id: number;
+    action_type: RecordActionType;
   };
 
   recommendations_requested: ServerSource & {

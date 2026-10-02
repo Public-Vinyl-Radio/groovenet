@@ -27,6 +27,8 @@ import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
 import { useTracksByRelease, useTracksByReleaseHydrated } from "@/hooks/useTrack";
 import AlbumTrackItem from "@/components/AlbumTrackItem";
 import AlbumSpinPanel from "@/components/spins/AlbumSpinPanel";
+import AlbumRecordCarePanel from "@/components/records/AlbumRecordCarePanel";
+import RecordActionDialog from "@/components/records/RecordActionDialog";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import AlbumActionsMenu from "@/components/AlbumActionsMenu";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
@@ -80,6 +82,7 @@ function AlbumDetailContent() {
   const [rating, setRating] = React.useState(0);
   const [isDownloading, setIsDownloading] = React.useState(false);
   const [discogsRawModalOpen, setDiscogsRawModalOpen] = React.useState(false);
+  const [logCareOpen, setLogCareOpen] = React.useState(false);
 
   const mutedText = useColorModeValue("gray.600", "gray.400");
   const subtleText = useColorModeValue("gray.500", "gray.500");
@@ -386,6 +389,7 @@ function AlbumDetailContent() {
             onDownloadMissing={tracks.length > 0 ? handleDownloadAlbum : undefined}
             isDownloading={isDownloading}
             onEnrichAlbum={tracks.length > 0 ? handleEnrichAlbum : undefined}
+            onLogCare={() => setLogCareOpen(true)}
             discogsUrl={album.discogs_url}
             onViewRawDiscogs={() => setDiscogsRawModalOpen(true)}
             editAlbumHref={`/albums/${releaseId}/edit?friend_id=${friendId}`}
@@ -400,6 +404,17 @@ function AlbumDetailContent() {
           albumTitle={album.title}
         />
       </Box>
+
+      <Box mb={{ base: 4, md: 6 }}>
+        <AlbumRecordCarePanel releaseId={releaseId} friendId={friendId} albumTitle={album.title} />
+      </Box>
+      <RecordActionDialog
+        open={logCareOpen}
+        onOpenChange={setLogCareOpen}
+        releaseId={releaseId}
+        friendId={friendId}
+        albumTitle={album.title}
+      />
 
       {/* Track list */}
       <Box>

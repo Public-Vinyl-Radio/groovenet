@@ -3,6 +3,7 @@ import {
   recordActionCreateBodySchema,
   recordActionMutationResponseSchema,
 } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import {
   recordCareService,
   type LogRecordActionInput,
@@ -31,6 +32,17 @@ export async function POST(request: NextRequest) {
     const input: LogRecordActionInput =
       copy_id !== undefined ? { ...action, copy_id } : { ...action, release_id: release_id! };
     const result = await recordCareService.logAction(input);
+    analytics.track(
+      "record_action_logged",
+      {
+        action_id: result.action.id,
+        copy_id: result.action.copy_id,
+        action_type: result.action.action_type,
+        sleeve_type: result.action.sleeve_type,
+        method: result.action.details.method ?? null,
+      },
+      { request }
+    );
     return NextResponse.json(recordActionMutationResponseSchema.parse(result), {
       status: 201,
     });

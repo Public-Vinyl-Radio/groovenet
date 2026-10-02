@@ -1452,6 +1452,9 @@ export const recordCopyListItemSchema = recordCopySchema.extend({
 
 export const recordCopyListResponseSchema = z.object({
   items: z.array(recordCopyListItemSchema),
+  // Days since a cleaning before a copy is overdue, so a client can flag one
+  // without asking for the whole care summary.
+  overdue_days: z.number().int(),
 });
 
 export const recordCopyCreateBodySchema = z.object({

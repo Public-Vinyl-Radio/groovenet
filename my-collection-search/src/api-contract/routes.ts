@@ -2351,13 +2351,16 @@ const recordCareContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description:
-            "Live copies. With release_id, a release that has no copy rows lists its implicit default copy, with id, created_at and updated_at null.",
+            "Live copies. With release_id, a release that has no copy rows lists its implicit default copy, with id, created_at and updated_at null. overdue_days is the cleaning threshold (RECORD_CLEANING_OVERDUE_DAYS).",
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                properties: { items: { type: "array", items: recordCopyListItemSchemaObject } },
-                required: ["items"],
+                properties: {
+                  items: { type: "array", items: recordCopyListItemSchemaObject },
+                  overdue_days: { type: "integer" },
+                },
+                required: ["items", "overdue_days"],
               },
             },
           },

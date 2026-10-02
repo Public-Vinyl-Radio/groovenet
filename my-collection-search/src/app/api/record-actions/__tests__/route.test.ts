@@ -9,6 +9,11 @@ vi.mock("@/server/services/recordCareService", async (importOriginal) => ({
 
 import { POST } from "../route";
 import { DELETE } from "../[id]/route";
+import { setAnalyticsProvider } from "@/lib/analytics/server";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+const analyticsEvents = new MemoryAnalyticsProvider();
+setAnalyticsProvider(analyticsEvents);
 
 const TS = "2026-10-01T12:00:00.000Z";
 
@@ -49,7 +54,10 @@ function post(body: unknown) {
   );
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  analyticsEvents.reset();
+});
 
 describe("POST /api/record-actions", () => {
   it.each([
@@ -173,5 +181,76 @@ describe("record-actions error paths", () => {
     const res = await post({ friend_id: 7, copy_id: 3, action_type: "cleaned" });
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Failed to log record action");
+  });
+});
+
+describe("record-actions analytics", () => {
+  const recorded = () => analyticsEvents.events.map((e) => [e.event, e.properties]);
+
+  it("reports a logged sleeve change with its sleeve and no method", async () => {
+    service.logAction.mockResolvedValue({ action, copy });
+
+    await post({ friend_id: 7, release_id: "rel", action_type: "sleeved", sleeve_type: "poly-rice-paper-poly" });
+
+    expect(recorded()).toEqual([
+      [
+        "record_action_logged",
+        {
+          action_id: 11,
+          copy_id: 3,
+          action_type: "sleeved",
+          sleeve_type: "poly-rice-paper-poly",
+          method: null,
+          source: "web",
+        },
+      ],
+    ]);
+  });
+
+  it("reports a cleaning's method, never its notes", async () => {
+    const cleaned = {
+      ...action,
+      action_type: "cleaned",
+      sleeve_type: null,
+      notes: "two passes",
+      details: { method: "vacuum" },
+    };
+    service.logAction.mockResolvedValue({ action: cleaned, copy });
+
+    await post({
+      friend_id: 7,
+      copy_id: 3,
+      action_type: "cleaned",
+      notes: "two passes",
+      details: { method: "vacuum" },
+    });
+
+    expect(recorded()).toEqual([
+      [
+        "record_action_logged",
+        {
+          action_id: 11,
+          copy_id: 3,
+          action_type: "cleaned",
+          sleeve_type: null,
+          method: "vacuum",
+          source: "web",
+        },
+      ],
+    ]);
+  });
+
+  it("reports a voided action, and nothing for one not found", async () => {
+    service.voidAction.mockResolvedValueOnce({ action: { ...action, voided_at: TS }, copy });
+    service.voidAction.mockResolvedValueOnce(null);
+    const voidRequest = () =>
+      new Request("http://localhost/api/record-actions/11?friend_id=7", { method: "DELETE" }) as never;
+
+    await DELETE(voidRequest(), { params: Promise.resolve({ id: "11" }) });
+    await DELETE(voidRequest(), { params: Promise.resolve({ id: "11" }) });
+
+    expect(recorded()).toEqual([
+      ["record_action_voided", { action_id: 11, copy_id: 3, action_type: "sleeved", source: "web" }],
+    ]);
   });
 });

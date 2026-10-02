@@ -6,7 +6,9 @@ import {
   recordCopyUpdateBodySchema,
   recordFriendQuerySchema,
 } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import { recordCareService } from "@/server/services/recordCareService";
+import { changedCopyFields } from "../changedCopyFields";
 import { errorMessage, getRecordCareErrorStatus } from "../recordCareErrorStatus";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -34,6 +36,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (!copy) {
       return NextResponse.json({ error: "Record copy not found" }, { status: 404 });
     }
+    analytics.track(
+      "record_copy_edited",
+      {
+        copy_id: copy.id,
+        release_id: copy.release_id,
+        is_default: copy.is_default,
+        changed_fields: changedCopyFields(changes),
+      },
+      { request }
+    );
     return NextResponse.json(recordCopyResponseSchema.parse({ copy }));
   } catch (error) {
     const message = errorMessage(error, "Failed to update record copy");
@@ -70,6 +82,11 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!copy) {
       return NextResponse.json({ error: "Record copy not found" }, { status: 404 });
     }
+    analytics.track(
+      "record_copy_removed",
+      { copy_id: copy.id, release_id: copy.release_id },
+      { request }
+    );
     return NextResponse.json(recordCopyDeleteResponseSchema.parse({ success: true, copy }));
   } catch (error) {
     const message = errorMessage(error, "Failed to delete record copy");

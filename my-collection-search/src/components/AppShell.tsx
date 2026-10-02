@@ -18,7 +18,7 @@ import {
   CloseButton,
 } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FiChevronLeft, FiChevronRight, FiSearch, FiDisc, FiMoreHorizontal, FiCode } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiSearch, FiDisc, FiMoreHorizontal, FiCode, FiDroplet } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload } from "react-icons/lu";
 import {
@@ -42,6 +42,7 @@ const baseMenuItems = [
   { href: "/spins", label: "Spins" },
   { href: "/playlists", label: "Playlists" },
   { href: "/jobs", label: "Jobs" },
+  { href: "/chore", label: "Chores" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -52,6 +53,7 @@ function getItemIcon(href: string) {
   if (href === "/settings") return IoSettings;
   if (href === "/playlists") return TbPlaylist;
   if (href === "/jobs") return LuCloudDownload;
+  if (href === "/chore") return FiDroplet;
   if (href === "/developer") return FiCode;
   return IoBookSharp;
 }

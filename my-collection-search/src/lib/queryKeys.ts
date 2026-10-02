@@ -27,6 +27,16 @@ export const queryKeys = {
     offset?: number;
   }) => ["spins", "top-tracks", args] as const,
   spinTopTracksRoot: () => ["spins", "top-tracks"] as const,
+  // Record care (#262). One root, because any copy or action change can move
+  // a care list or the summary counts.
+  recordCareRoot: () => ["record-care"] as const,
+  recordCopies: (args: { friend_id: number; release_id: string }) =>
+    ["record-care", "copies", args] as const,
+  recordActions: (copyId: number, args: { friend_id: number; include_voided?: boolean }) =>
+    ["record-care", "actions", copyId, args] as const,
+  recordCare: (args: { friend_id: number; status?: string; limit?: number; offset?: number }) =>
+    ["record-care", "care", args] as const,
+  recordCareSummary: (args: { friend_id: number }) => ["record-care", "summary", args] as const,
   ingestStats: (args: { minutes?: number; source_id?: string }) =>
     ["vinyl", "stats", args] as const,
   recentDetections: (args: {
