@@ -97,15 +97,15 @@ export default function RecordCareList({ friendId, status }: Props) {
               flexShrink={0}
             />
             <Stack gap={0.5} flex={1} minW={0}>
-              <Link
-                as={NextLink}
-                href={`/albums/${encodeURIComponent(item.release_id)}?friend_id=${item.friend_id}`}
-                fontSize="sm"
-                fontWeight="semibold"
-                lineClamp={1}
-              >
-                {item.album_title}
-              </Link>
+              {/* Clamp the Text, not the Link: a clamped Link stretches and centres its title. */}
+              <Text fontSize="sm" fontWeight="semibold" lineClamp={1}>
+                <Link
+                  as={NextLink}
+                  href={`/albums/${encodeURIComponent(item.release_id)}?friend_id=${item.friend_id}`}
+                >
+                  {item.album_title}
+                </Link>
+              </Text>
               <Text fontSize="xs" color="fg.muted" lineClamp={1}>{item.album_artist}</Text>
               <HStack gap={1.5} wrap="wrap">
                 {item.label && <Badge size="sm" variant="outline">{item.label}</Badge>}
