@@ -5,7 +5,9 @@ import {
   recordCopyListResponseSchema,
   recordCopyResponseSchema,
 } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import { recordCareService } from "@/server/services/recordCareService";
+import { defaultOverdueDays } from "@/lib/recordCare";
 import { errorMessage, getRecordCareErrorStatus } from "./recordCareErrorStatus";
 
 export async function GET(request: NextRequest) {
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
       parsedQuery.data.friend_id,
       parsedQuery.data.release_id
     );
-    return NextResponse.json(recordCopyListResponseSchema.parse({ items }));
+    return NextResponse.json(recordCopyListResponseSchema.parse({ items, overdue_days: defaultOverdueDays() }));
   } catch (error) {
     console.error("Error listing record copies:", error);
     return NextResponse.json(
@@ -47,6 +49,11 @@ export async function POST(request: NextRequest) {
     }
 
     const copy = await recordCareService.createCopy(parsedBody.data);
+    analytics.track(
+      "record_copy_added",
+      { copy_id: copy.id, release_id: copy.release_id, friend_id: copy.friend_id },
+      { request }
+    );
     return NextResponse.json(recordCopyResponseSchema.parse({ copy }), { status: 201 });
   } catch (error) {
     const message = errorMessage(error, "Failed to create record copy");

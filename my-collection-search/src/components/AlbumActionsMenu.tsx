@@ -13,7 +13,7 @@ import {
   Icon,
   Text,
 } from "@chakra-ui/react";
-import { FiDownload, FiEdit, FiFileText, FiMoreVertical, FiPlay, FiZap } from "react-icons/fi";
+import { FiDownload, FiDroplet, FiEdit, FiFileText, FiMoreVertical, FiPlay, FiZap } from "react-icons/fi";
 import { SiDiscogs } from "react-icons/si";
 import NextLink from "next/link";
 import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
@@ -26,6 +26,8 @@ export interface AlbumActionsMenuProps {
   isDownloading?: boolean;
   onEnrichAlbum?: () => void;
   isEnriching?: boolean;
+  /** Log a cleaning, sleeve change, inspection or repair (#262). */
+  onLogCare?: () => void;
   discogsUrl?: string;
   onViewRawDiscogs?: () => void;
   editAlbumHref?: string;
@@ -40,6 +42,7 @@ export default function AlbumActionsMenu({
   isDownloading,
   onEnrichAlbum,
   isEnriching,
+  onLogCare,
   discogsUrl,
   onViewRawDiscogs,
   editAlbumHref,
@@ -47,7 +50,7 @@ export default function AlbumActionsMenu({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const close = () => setDrawerOpen(false);
 
-  const hasAlbumActions = !!onPlayAlbum || !!onDownloadMissing || !!onEnrichAlbum;
+  const hasAlbumActions = !!onPlayAlbum || !!onDownloadMissing || !!onEnrichAlbum || !!onLogCare;
   const hasDiscogs = !!discogsUrl || !!onViewRawDiscogs;
   const hasEdit = !!editAlbumHref;
 
@@ -97,6 +100,9 @@ export default function AlbumActionsMenu({
                             onClick={() => { onEnrichAlbum(); close(); }}
                           />
                         )}
+                        {onLogCare && (
+                          <DrawerItem icon={<FiDroplet />} label="Log Care..." onClick={() => { onLogCare(); close(); }} />
+                        )}
                         {(hasDiscogs || hasEdit) && drawerDivider}
                       </>
                     )}
@@ -145,6 +151,11 @@ export default function AlbumActionsMenu({
               {onEnrichAlbum && (
                 <Menu.Item value="enrich-album" onSelect={onEnrichAlbum} disabled={isEnriching}>
                   <FiZap /> {isEnriching ? "Opening Enrichment..." : "Enrich Album"}
+                </Menu.Item>
+              )}
+              {onLogCare && (
+                <Menu.Item value="log-care" onSelect={onLogCare}>
+                  <FiDroplet /> Log Care...
                 </Menu.Item>
               )}
               {hasAlbumActions && (hasDiscogs || hasEdit) && menuDivider}

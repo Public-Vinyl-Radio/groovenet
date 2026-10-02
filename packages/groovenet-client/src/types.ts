@@ -762,6 +762,17 @@ export interface RecordCopy {
   updated_at: string;
 }
 
+/**
+ * A copy as listed. Asked about one release that has no copy rows, the list
+ * holds its implicit default copy, with `id`, `created_at` and `updated_at`
+ * null; label it with `updateDefaultRecordCopy`, which makes it real.
+ */
+export type RecordCopyListItem = Omit<RecordCopy, "id" | "created_at" | "updated_at"> & {
+  id: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export interface RecordAction {
   id: number;
   copy_id: number;
@@ -777,6 +788,14 @@ export interface RecordAction {
 }
 
 export interface RecordCopyCreateInput {
+  friend_id: number;
+  release_id: string;
+  label?: string | null;
+  notes?: string | null;
+}
+
+/** Label or annotate a release's default copy, real or still implicit. */
+export interface RecordCopyDefaultUpdateInput {
   friend_id: number;
   release_id: string;
   label?: string | null;

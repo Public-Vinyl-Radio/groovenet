@@ -53,6 +53,8 @@ import type {
   RecordCareSummaryQuery,
   RecordCopy,
   RecordCopyCreateInput,
+  RecordCopyDefaultUpdateInput,
+  RecordCopyListItem,
   RecordCopyUpdateInput,
 } from "./types.js";
 
@@ -692,9 +694,12 @@ export class GroovenetClient {
 
   // ── Record copies and care (#262) ──────────────────────────────────────────
 
-  /** A friend's live copies, optionally of one release. */
-  async listRecordCopies(friendId: number, releaseId?: string): Promise<RecordCopy[]> {
-    const { items } = await this.request<{ items: RecordCopy[] }>(
+  /**
+   * A friend's live copies, optionally of one release. A release with no copy
+   * rows lists its implicit default copy, `id: null`.
+   */
+  async listRecordCopies(friendId: number, releaseId?: string): Promise<RecordCopyListItem[]> {
+    const { items } = await this.request<{ items: RecordCopyListItem[] }>(
       "GET",
       "/record-copies",
       undefined,
@@ -703,9 +708,22 @@ export class GroovenetClient {
     return items;
   }
 
-  /** Add a copy of a release. The release's first copy becomes its default. */
+  /**
+   * Add one more physical copy of a release. A release with no copy rows has
+   * its implicit default made real first, so this always adds a copy.
+   */
   async createRecordCopy(input: RecordCopyCreateInput): Promise<RecordCopy> {
     const { copy } = await this.request<{ copy: RecordCopy }>("POST", "/record-copies", input);
+    return copy;
+  }
+
+  /** Label or annotate a release's default copy, making it real if implicit. */
+  async updateDefaultRecordCopy(input: RecordCopyDefaultUpdateInput): Promise<RecordCopy> {
+    const { copy } = await this.request<{ copy: RecordCopy }>(
+      "PATCH",
+      "/record-copies/default",
+      input
+    );
     return copy;
   }
 

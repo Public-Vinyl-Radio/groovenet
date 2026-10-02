@@ -4,6 +4,7 @@ import {
   recordActionVoidResponseSchema,
   recordFriendQuerySchema,
 } from "@/api-contract/schemas";
+import { analytics } from "@/lib/analytics/server";
 import { recordCareService } from "@/server/services/recordCareService";
 import { errorMessage } from "../../record-copies/recordCareErrorStatus";
 
@@ -39,6 +40,15 @@ export async function DELETE(
     if (!result) {
       return NextResponse.json({ error: "Record action not found" }, { status: 404 });
     }
+    analytics.track(
+      "record_action_voided",
+      {
+        action_id: result.action.id,
+        copy_id: result.action.copy_id,
+        action_type: result.action.action_type,
+      },
+      { request }
+    );
     return NextResponse.json(recordActionVoidResponseSchema.parse({ success: true, ...result }));
   } catch (error) {
     console.error("Error voiding record action:", error);

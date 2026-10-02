@@ -18,6 +18,7 @@ import { Album } from "@/types/track";
 import { useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum } from "@/hooks/useAlbum";
 import AlbumActionsMenu from "@/components/AlbumActionsMenu";
+import RecordActionDialog from "@/components/records/RecordActionDialog";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
 import { getAlbumWithTracks } from "@/services/internalApi/albums";
 import { useRouter } from "next/navigation";
@@ -61,6 +62,7 @@ export default function AlbumResult({
   const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
   const router = useRouter();
   const [isEnriching, setIsEnriching] = useState(false);
+  const [logCareOpen, setLogCareOpen] = useState(false);
   const displayYear =
     resolvedAlbum?.year && resolvedAlbum.year !== "0" ? resolvedAlbum.year : "";
 
@@ -322,7 +324,18 @@ export default function AlbumResult({
             editAlbumHref={showEditFields ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}` : undefined}
             onEnrichAlbum={handleEnrichAlbum}
             isEnriching={isEnriching}
+            onLogCare={() => setLogCareOpen(true)}
           />
+          {/* Mounted only while open: a list holds many rows. */}
+          {logCareOpen && (
+            <RecordActionDialog
+              open
+              onOpenChange={setLogCareOpen}
+              releaseId={resolvedAlbum.release_id}
+              friendId={resolvedAlbum.friend_id}
+              albumTitle={resolvedAlbum.title}
+            />
+          )}
         </Flex>
       </Flex>
 

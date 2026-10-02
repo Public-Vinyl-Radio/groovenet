@@ -110,6 +110,7 @@ import {
   recordCareSummaryQuerySchema,
   recordCareSummaryResponseSchema,
   recordCopyCreateBodySchema,
+  recordCopyDefaultUpdateBodySchema,
   recordCopyDeleteResponseSchema,
   recordCopyListQuerySchema,
   recordCopyListResponseSchema,
@@ -2264,6 +2265,16 @@ const recordCopySchemaObject: Record<string, unknown> = {
   ],
 };
 
+const recordCopyListItemSchemaObject: Record<string, unknown> = {
+  ...recordCopySchemaObject,
+  properties: {
+    ...(recordCopySchemaObject.properties as Record<string, unknown>),
+    id: { type: ["integer", "null"], description: "Null for a release's implicit default copy" },
+    created_at: { type: ["string", "null"], format: "date-time" },
+    updated_at: { type: ["string", "null"], format: "date-time" },
+  },
+};
+
 const recordActionSchemaObject: Record<string, unknown> = {
   type: "object",
   properties: {
@@ -2340,13 +2351,16 @@ const recordCareContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description:
-            "Live copies. A release with none has an implicit default copy, which is not listed.",
+            "Live copies. With release_id, a release that has no copy rows lists its implicit default copy, with id, created_at and updated_at null. overdue_days is the cleaning threshold (RECORD_CLEANING_OVERDUE_DAYS).",
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                properties: { items: { type: "array", items: recordCopySchemaObject } },
-                required: ["items"],
+                properties: {
+                  items: { type: "array", items: recordCopyListItemSchemaObject },
+                  overdue_days: { type: "integer" },
+                },
+                required: ["items", "overdue_days"],
               },
             },
           },
@@ -2386,7 +2400,55 @@ const recordCareContracts: ApiContractRoute[] = [
       },
       responses: {
         "201": {
-          description: "Created. The release's first copy becomes its default.",
+          description:
+            "Created, as an extra copy. A release with no copy rows has its implicit default copy made real first, so this is always one copy more.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { copy: recordCopySchemaObject },
+                required: ["copy"],
+              },
+            },
+          },
+        },
+        "400": jsonError("Invalid payload"),
+        "404": jsonError("Album not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "updateDefaultRecordCopy",
+    method: "patch",
+    path: "/api/record-copies/default",
+    summary: "Label or annotate a release's default copy, making it real if implicit",
+    tags: ["Record Care"],
+    bodySchema: recordCopyDefaultUpdateBodySchema,
+    successSchema: recordCopyResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                friend_id: { type: "integer" },
+                release_id: { type: "string" },
+                label: { type: ["string", "null"], maxLength: 100 },
+                notes: { type: ["string", "null"] },
+              },
+              required: ["friend_id", "release_id"],
+            },
+            example: { friend_id: 1, release_id: "rel_4471", label: "DJ copy" },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The default copy, updated",
           content: {
             "application/json": {
               schema: {

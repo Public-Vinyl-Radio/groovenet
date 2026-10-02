@@ -1184,6 +1184,20 @@ describe("GroovenetClient record care endpoints", () => {
     ]);
   });
 
+  it("updateDefaultRecordCopy patches the default by release", async () => {
+    const client = clientReturning({ copy });
+
+    await expect(
+      client.updateDefaultRecordCopy({ friend_id: 1, release_id: "r1", label: "DJ copy" })
+    ).resolves.toEqual(copy);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "PATCH",
+      url: "/record-copies/default",
+      data: { friend_id: 1, release_id: "r1", label: "DJ copy" },
+      params: undefined,
+    });
+  });
+
   it("listRecordActions defaults paging and forwards filters", async () => {
     const client = clientReturning({ items: [action], limit: 50, offset: 0 });
 

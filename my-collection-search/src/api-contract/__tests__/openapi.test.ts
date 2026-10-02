@@ -33,6 +33,7 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   // Record copies and care (#262).
   ["get", "/api/record-copies"],
   ["post", "/api/record-copies"],
+  ["patch", "/api/record-copies/default"],
   ["patch", "/api/record-copies/{id}"],
   ["delete", "/api/record-copies/{id}"],
   ["get", "/api/record-copies/{id}/actions"],

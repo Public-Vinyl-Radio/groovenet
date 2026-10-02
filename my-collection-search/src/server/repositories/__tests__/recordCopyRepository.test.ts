@@ -38,17 +38,20 @@ describe("RecordCopyRepository default copies", () => {
     expect(query.mock.calls[1][0]).toMatch(/is_default AND deleted_at IS NULL/);
   });
 
-  it("makes a new copy the default only when the release has none", async () => {
-    const query = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 9, is_default: false }] });
+  it("inserts an extra copy, never the default", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 9, is_default: false }] });
 
-    await repo.createCopy({ query }, { friend_id: 7, release_id: "rel", label: "Copy 2" });
+    await expect(
+      repo.insertExtraCopy({ query }, { friend_id: 7, release_id: "rel", label: "Copy 2" })
+    ).resolves.toEqual({ id: 9, is_default: false });
 
-    expect(query.mock.calls[0][0]).toMatch(/VALUES \(\$1, \$2, \$3, \$4, true\)\s+ON CONFLICT/);
-    expect(query.mock.calls[1][0]).toMatch(/VALUES \(\$1, \$2, \$3, \$4, false\)/);
-    expect(query.mock.calls[1][1]).toEqual([7, "rel", "Copy 2", null]);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toMatch(/VALUES \(\$1, \$2, \$3, \$4, false\)/);
+    expect(query.mock.calls[0][0]).not.toContain("ON CONFLICT");
+    expect(query.mock.calls[0][1]).toEqual([7, "rel", "Copy 2", null]);
+
+    await repo.insertExtraCopy({ query }, { friend_id: 7, release_id: "rel", notes: "VG+" });
+    expect(query.mock.calls[1][1]).toEqual([7, "rel", null, "VG+"]);
   });
 });
 
@@ -227,18 +230,8 @@ describe("RecordCopyRepository reads and soft deletes", () => {
   });
 });
 
-describe("RecordCopyRepository.createCopy as the first copy", () => {
+describe("RecordCopyRepository.updateCopy", () => {
   beforeEach(() => vi.resetAllMocks());
-
-  it("returns the claimed default without a second insert", async () => {
-    const query = vi.fn().mockResolvedValueOnce({ rows: [{ id: 5, is_default: true }] });
-
-    await expect(
-      repo.createCopy({ query }, { friend_id: 7, release_id: "rel", notes: "VG+" })
-    ).resolves.toEqual({ id: 5, is_default: true });
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0][1]).toEqual([7, "rel", null, "VG+"]);
-  });
 
   it("updates only the label when only the label is given", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 3 }] });
