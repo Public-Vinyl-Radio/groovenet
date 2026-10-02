@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   findCopy: vi.fn(),
   findCopyForUpdate: vi.fn(),
   ensureDefaultCopy: vi.fn(),
-  createCopy: vi.fn(),
+  insertExtraCopy: vi.fn(),
   updateCopy: vi.fn(),
   countSiblings: vi.fn(),
   softDeleteCopy: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock("@/server/repositories/recordCopyRepository", () => ({
     findCopy: mocks.findCopy,
     findCopyForUpdate: mocks.findCopyForUpdate,
     ensureDefaultCopy: mocks.ensureDefaultCopy,
-    createCopy: mocks.createCopy,
+    insertExtraCopy: mocks.insertExtraCopy,
     updateCopy: mocks.updateCopy,
     countSiblings: mocks.countSiblings,
     softDeleteCopy: mocks.softDeleteCopy,
@@ -219,16 +219,83 @@ describe("RecordCareService", () => {
   });
 
   describe("copies", () => {
-    it("creates a copy only for a release in the collection", async () => {
-      mocks.createCopy.mockResolvedValue(copyRow({ label: "Copy 2", is_default: false }));
+    it("adds one more copy, making the implicit default real first", async () => {
+      const order: string[] = [];
+      mocks.ensureDefaultCopy.mockImplementation(async () => {
+        order.push("ensure default");
+        return copyRow();
+      });
+      mocks.insertExtraCopy.mockImplementation(async () => {
+        order.push("insert extra");
+        return copyRow({ id: 4, label: "Copy 2", is_default: false });
+      });
 
       const copy = await service.createCopy({ friend_id: 7, release_id: "rel", label: "Copy 2" });
-      expect(copy.label).toBe("Copy 2");
 
+      expect(order).toEqual(["ensure default", "insert extra"]);
+      expect(mocks.ensureDefaultCopy).toHaveBeenCalledWith(client, 7, "rel");
+      expect(mocks.insertExtraCopy).toHaveBeenCalledWith(client, {
+        friend_id: 7,
+        release_id: "rel",
+        label: "Copy 2",
+      });
+      expect(copy).toMatchObject({ id: 4, is_default: false, label: "Copy 2" });
+    });
+
+    it("creates a copy only for a release in the collection", async () => {
       mocks.getAlbumByReleaseAndFriend.mockResolvedValue(null);
       await expect(service.createCopy({ friend_id: 7, release_id: "gone" })).rejects.toThrow(
         ALBUM_NOT_FOUND
       );
+      expect(mocks.withDbTransaction).not.toHaveBeenCalled();
+    });
+
+    it("updates the default copy by release, making it real if implicit", async () => {
+      mocks.ensureDefaultCopy.mockResolvedValue(copyRow());
+      mocks.findCopyForUpdate.mockResolvedValue(copyRow());
+      mocks.updateCopy.mockResolvedValue(copyRow({ label: "DJ copy" }));
+
+      const copy = await service.updateDefaultCopy(7, "rel", { label: "DJ copy" });
+
+      expect(mocks.ensureDefaultCopy).toHaveBeenCalledWith(client, 7, "rel");
+      expect(mocks.findCopyForUpdate).toHaveBeenCalledWith(client, 3, 7);
+      expect(mocks.updateCopy).toHaveBeenCalledWith(client, 3, { label: "DJ copy" });
+      expect(copy.label).toBe("DJ copy");
+
+      mocks.getAlbumByReleaseAndFriend.mockResolvedValue(null);
+      await expect(service.updateDefaultCopy(7, "gone", { label: "x" })).rejects.toThrow(
+        ALBUM_NOT_FOUND
+      );
+    });
+
+    it("lists a release with no copy rows as its implicit default copy", async () => {
+      mocks.listCopies.mockResolvedValue([]);
+
+      await expect(service.listCopies(7, "rel")).resolves.toEqual([
+        {
+          id: null,
+          friend_id: 7,
+          release_id: "rel",
+          is_default: true,
+          label: null,
+          notes: null,
+          inner_sleeve_type: null,
+          last_cleaned_at: null,
+          deleted_at: null,
+          created_at: null,
+          updated_at: null,
+        },
+      ]);
+    });
+
+    it("lists nothing for a release outside the collection, or with no release named", async () => {
+      mocks.listCopies.mockResolvedValue([]);
+
+      await expect(service.listCopies(7)).resolves.toEqual([]);
+      expect(mocks.getAlbumByReleaseAndFriend).not.toHaveBeenCalled();
+
+      mocks.getAlbumByReleaseAndFriend.mockResolvedValue(null);
+      await expect(service.listCopies(7, "gone")).resolves.toEqual([]);
     });
 
     it("will not delete the default copy while the release has others", async () => {

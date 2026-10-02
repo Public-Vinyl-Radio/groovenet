@@ -36,6 +36,13 @@ export type RecordCopy = Omit<
   updated_at: string;
 };
 
+/** A copy as listed: a real one, or a release's implicit default (`id: null`). */
+export type RecordCopyListItem = Omit<RecordCopy, "id" | "created_at" | "updated_at"> & {
+  id: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export type RecordAction = Omit<RecordActionRow, "occurred_at" | "voided_at" | "created_at"> & {
   occurred_at: string;
   voided_at: string | null;
@@ -79,6 +86,22 @@ function normalizeCopy(row: RecordCopyRow): RecordCopy {
   };
 }
 
+function implicitDefaultCopy(friendId: number, releaseId: string): RecordCopyListItem {
+  return {
+    id: null,
+    friend_id: friendId,
+    release_id: releaseId,
+    is_default: true,
+    label: null,
+    notes: null,
+    inner_sleeve_type: null,
+    last_cleaned_at: null,
+    deleted_at: null,
+    created_at: null,
+    updated_at: null,
+  };
+}
+
 function normalizeAction(row: RecordActionRow): RecordAction {
   return {
     ...row,
@@ -93,12 +116,24 @@ function normalizeCareRow(row: RecordCareRow): RecordCareItem {
 }
 
 export class RecordCareService {
-  async listCopies(friendId: number, releaseId?: string): Promise<RecordCopy[]> {
+  /**
+   * The friend's live copies. Asked about one release that has no copy rows,
+   * returns its implicit default copy (`id: null`) — the copy every release in
+   * the collection has until something makes it real.
+   */
+  async listCopies(friendId: number, releaseId?: string): Promise<RecordCopyListItem[]> {
     const rows = await recordCopyRepository.listCopies(friendId, releaseId);
-    return rows.map(normalizeCopy);
+    if (rows.length > 0 || releaseId === undefined) return rows.map(normalizeCopy);
+
+    const album = await albumRepository.getAlbumByReleaseAndFriend(releaseId, friendId);
+    return album ? [implicitDefaultCopy(friendId, releaseId)] : [];
   }
 
-  /** Add a copy of a release in the friend's collection; its first becomes the default. */
+  /**
+   * Add one more physical copy of a release. A release with no copy rows has
+   * an implicit default copy, which is made real first, so the result is
+   * always one copy more than before. The new copy is never the default.
+   */
   async createCopy(input: {
     friend_id: number;
     release_id: string;
@@ -106,9 +141,32 @@ export class RecordCareService {
     notes?: string | null;
   }): Promise<RecordCopy> {
     await this.assertAlbumExists(input.release_id, input.friend_id);
-    const copy = await withDbTransaction((client) =>
-      recordCopyRepository.createCopy(client, input)
-    );
+    const copy = await withDbTransaction(async (client) => {
+      await recordCopyRepository.ensureDefaultCopy(client, input.friend_id, input.release_id);
+      return recordCopyRepository.insertExtraCopy(client, input);
+    });
+    return normalizeCopy(copy);
+  }
+
+  /**
+   * Label or annotate a release's default copy, making it real if it is still
+   * implicit — the copy-level twin of logging an action against a release.
+   */
+  async updateDefaultCopy(
+    friendId: number,
+    releaseId: string,
+    input: { label?: string | null; notes?: string | null }
+  ): Promise<RecordCopy> {
+    await this.assertAlbumExists(releaseId, friendId);
+    const copy = await withDbTransaction(async (client) => {
+      const defaultCopy = await recordCopyRepository.ensureDefaultCopy(
+        client,
+        friendId,
+        releaseId
+      );
+      await recordCopyRepository.findCopyForUpdate(client, defaultCopy.id, friendId);
+      return recordCopyRepository.updateCopy(client, defaultCopy.id, input);
+    });
     return normalizeCopy(copy);
   }
 

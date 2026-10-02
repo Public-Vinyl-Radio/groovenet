@@ -4,6 +4,7 @@ const service = vi.hoisted(() => ({
   listCopies: vi.fn(),
   createCopy: vi.fn(),
   updateCopy: vi.fn(),
+  updateDefaultCopy: vi.fn(),
   deleteCopy: vi.fn(),
   listActions: vi.fn(),
   listCare: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("@/server/services/recordCareService", async (importOriginal) => ({
 import { GET, POST } from "../route";
 import { DELETE, PATCH } from "../[id]/route";
 import { GET as GET_ACTIONS } from "../[id]/actions/route";
+import { PATCH as PATCH_DEFAULT } from "../default/route";
 import { GET as GET_CARE } from "../care/route";
 import { GET as GET_SUMMARY } from "../care/summary/route";
 
@@ -344,5 +346,52 @@ describe("record-copies error paths", () => {
     const res = await call();
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe(message);
+  });
+});
+
+describe("PATCH /api/record-copies/default", () => {
+  const patch = (body: unknown) =>
+    PATCH_DEFAULT(jsonRequest("http://localhost/api/record-copies/default", "PATCH", body));
+
+  it.each([
+    ["no release", { friend_id: 7, label: "DJ copy" }],
+    ["nothing to change", { friend_id: 7, release_id: "rel" }],
+  ])("returns 400 for %s", async (_label, body) => {
+    expect((await patch(body)).status).toBe(400);
+    expect(service.updateDefaultCopy).not.toHaveBeenCalled();
+  });
+
+  it("labels the release's default copy", async () => {
+    service.updateDefaultCopy.mockResolvedValue({ ...copy, label: "DJ copy" });
+
+    const res = await patch({ friend_id: 7, release_id: "rel", label: "DJ copy" });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).copy.label).toBe("DJ copy");
+    expect(service.updateDefaultCopy).toHaveBeenCalledWith(7, "rel", { label: "DJ copy" });
+  });
+
+  it.each([
+    [new Error("Album not found"), 404, "Album not found"],
+    ["boom", 500, "Failed to update default record copy"],
+  ])("maps %s to %i", async (thrown, status, message) => {
+    service.updateDefaultCopy.mockRejectedValue(thrown);
+    const res = await patch({ friend_id: 7, release_id: "rel", notes: "VG+" });
+    expect(res.status).toBe(status);
+    expect((await res.json()).error).toBe(message);
+  });
+});
+
+describe("GET /api/record-copies implicit default", () => {
+  it("returns a release's implicit default copy with a null id", async () => {
+    const implicit = { ...copy, id: null, created_at: null, updated_at: null, last_cleaned_at: null };
+    service.listCopies.mockResolvedValue([implicit]);
+
+    const res = await GET(
+      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).items).toEqual([implicit]);
   });
 });

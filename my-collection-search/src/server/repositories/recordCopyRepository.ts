@@ -171,31 +171,18 @@ export class RecordCopyRepository {
   }
 
   /**
-   * Add a copy. The release's first live copy becomes its default; any later
-   * one is an extra. The first insert claims the default slot or does nothing,
-   * so concurrent creates cannot both become the default.
+   * Add an extra copy. A release's implicit copy is its default, so adding one
+   * means one more physical copy: the caller makes the default real first
+   * (`ensureDefaultCopy`), in the same transaction.
    */
-  async createCopy(client: Queryable, input: CreateRecordCopyInput): Promise<RecordCopyRow> {
-    const params = [input.friend_id, input.release_id, input.label ?? null, input.notes ?? null];
-    const asDefault = await client.query<RecordCopyRow>(
-      `
-      INSERT INTO record_copies (friend_id, release_id, label, notes, is_default)
-      VALUES ($1, $2, $3, $4, true)
-      ON CONFLICT (friend_id, release_id) WHERE is_default AND deleted_at IS NULL
-      DO NOTHING
-      RETURNING *
-      `,
-      params
-    );
-    if (asDefault.rows[0]) return asDefault.rows[0];
-
+  async insertExtraCopy(client: Queryable, input: CreateRecordCopyInput): Promise<RecordCopyRow> {
     const { rows } = await client.query<RecordCopyRow>(
       `
       INSERT INTO record_copies (friend_id, release_id, label, notes, is_default)
       VALUES ($1, $2, $3, $4, false)
       RETURNING *
       `,
-      params
+      [input.friend_id, input.release_id, input.label ?? null, input.notes ?? null]
     );
     return rows[0];
   }

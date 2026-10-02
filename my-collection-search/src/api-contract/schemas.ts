@@ -1443,8 +1443,15 @@ export const recordCopyListQuerySchema = z.object({
   release_id: z.string().min(1).optional(),
 });
 
+// A real copy, or a release's implicit default copy (id null, never saved).
+export const recordCopyListItemSchema = recordCopySchema.extend({
+  id: z.number().int().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+
 export const recordCopyListResponseSchema = z.object({
-  items: z.array(recordCopySchema),
+  items: z.array(recordCopyListItemSchema),
 });
 
 export const recordCopyCreateBodySchema = z.object({
@@ -1457,6 +1464,17 @@ export const recordCopyCreateBodySchema = z.object({
 export const recordCopyUpdateBodySchema = z
   .object({
     friend_id: intFromInputSchema,
+    label: z.string().max(100).nullable().optional(),
+    notes: z.string().nullable().optional(),
+  })
+  .refine((value) => value.label !== undefined || value.notes !== undefined, {
+    message: "Provide label or notes",
+  });
+
+export const recordCopyDefaultUpdateBodySchema = z
+  .object({
+    friend_id: intFromInputSchema,
+    release_id: z.string().min(1),
     label: z.string().max(100).nullable().optional(),
     notes: z.string().nullable().optional(),
   })
