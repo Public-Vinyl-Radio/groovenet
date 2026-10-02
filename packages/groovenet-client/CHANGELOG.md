@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.6.0...groovenet-client-v2.7.0) (2026-10-02)
+
+
+### Features
+
+* **records:** record care UI — log care, copies on album detail, chores view ([#367](https://github.com/Public-Vinyl-Radio/groovenet/issues/367)) ([0909d8f](https://github.com/Public-Vinyl-Radio/groovenet/commit/0909d8fc8a13848caf4297b98b7cdc805242ca8d))
+* **records:** track physical copies and care actions ([#358](https://github.com/Public-Vinyl-Radio/groovenet/issues/358)) ([52f32fc](https://github.com/Public-Vinyl-Radio/groovenet/commit/52f32fcdd409c8a30c54392a1befb2df201af1a4))
+
 ## [2.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.5.0...groovenet-client-v2.6.0) (2026-09-30)
 
 

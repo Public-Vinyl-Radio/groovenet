@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.9...v0.2.10) (2026-10-02)
+
+
+### Features
+
+* **records:** record care UI — log care, copies on album detail, chores view ([#367](https://github.com/Public-Vinyl-Radio/groovenet/issues/367)) ([0909d8f](https://github.com/Public-Vinyl-Radio/groovenet/commit/0909d8fc8a13848caf4297b98b7cdc805242ca8d))
+* **records:** track physical copies and care actions ([#358](https://github.com/Public-Vinyl-Radio/groovenet/issues/358)) ([52f32fc](https://github.com/Public-Vinyl-Radio/groovenet/commit/52f32fcdd409c8a30c54392a1befb2df201af1a4))
+
+
+### Bug Fixes
+
+* **spins:** keep one play of a recording on two releases as one spin ([#366](https://github.com/Public-Vinyl-Radio/groovenet/issues/366)) ([ed314c6](https://github.com/Public-Vinyl-Radio/groovenet/commit/ed314c62acd414e3f97c02c35dd808ecbaf18e66))
+
 ## [0.2.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.8...v0.2.9) (2026-09-30)
 
 
