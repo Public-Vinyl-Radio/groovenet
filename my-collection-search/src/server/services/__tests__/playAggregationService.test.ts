@@ -517,3 +517,30 @@ describe("the 2026-09-25 evening (Bandalos Chinos on aswitch)", () => {
     expect(await new PlayAggregationService().countPending("aswitch", "2026-09-26T03:00:00Z")).toBe(2);
   });
 });
+
+describe("one recording on two releases (#349)", () => {
+  const at = (s: number) => new Date(Date.UTC(2026, 8, 30, 2, 44, 50) + s * 1000).toISOString();
+  const win = (id: string, s: number, track_id: string) =>
+    detection({ id, track_id, window_start_at: at(s), offset_seconds: s + 10, confidence: 0.94 });
+
+  it("alternating matches of the two releases are one play, attributed to the one it began on", () => {
+    const tracks = ["A3", "A3", "B6", "B6", "A3", "A3", "B6", "A3", "B6", "B6", "A3", "A3"];
+    const plays = groupDetections(tracks.map((t, i) => win(`d${i}`, 15 + i * 15, t)));
+    expect(plays).toHaveLength(1);
+    expect(plays[0].first.track_id).toBe("A3");
+    expect(plays[0].windows).toBe(tracks.length);
+  });
+
+  it("a different track that holds becomes its own play, from its first window", () => {
+    const tracks = ["A3", "A3", "A3", "B6", "B6", "B6", "B6", "B6"];
+    const plays = groupDetections(tracks.map((t, i) => win(`d${i}`, i * 15, t)));
+    expect(plays.map((p) => [p.first.track_id, p.windows])).toEqual([["A3", 3], ["B6", 5]]);
+    expect(plays[1].first.id).toBe("d3");
+  });
+
+  it("a short run of another track at the end is still a play of its own", () => {
+    const tracks = ["A3", "A3", "A3", "B6", "B6"];
+    const plays = groupDetections(tracks.map((t, i) => win(`d${i}`, i * 15, t)));
+    expect(plays.map((p) => [p.first.track_id, p.windows])).toEqual([["A3", 3], ["B6", 2]]);
+  });
+});
