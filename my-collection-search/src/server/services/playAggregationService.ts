@@ -134,6 +134,22 @@ export function groupWindows<T>(
   const agrees = (a: number | null, b: number | null) =>
     maxDriftSeconds == null || a == null || b == null || Math.abs(a - b) <= maxDriftSeconds;
 
+  // Windows of a *different* track inside the current play, held until we know
+  // whether the play moved on or only the matcher wavered between two releases
+  // of one recording (#349). Held by identity of the track they matched.
+  let alien: T[] = [];
+  const sameAs = (a: T, b: GroupableWindow) => {
+    const w = view(a);
+    return w.track_id === b.track_id && w.friend_id === b.friend_id;
+  };
+  // An alien run that never returned to the play was a play of its own.
+  const flushAlien = () => {
+    if (alien.length === 0) return;
+    const [head, ...rest] = alien;
+    alien = [];
+    begin(head, rest);
+  };
+
   for (const item of items) {
     const window = view(item);
     const { at, confidence } = window;
@@ -145,11 +161,42 @@ export function groupWindows<T>(
     const aligned = anchor(window);
     lastAt = at;
 
+    if (current && withinGap && !sameTrack) {
+      // The same recording on two releases matches near-identically, so the
+      // matcher alternates between them window to window. A play that really
+      // moved on stays on the new track; one that comes back was one play.
+      if (alien.length > 0 && sameAs(alien[0], window)) {
+        alien.push(item);
+        if (alien.length >= driftConfirmWindows) {
+          release(current);
+          const run = alien;
+          alien = [];
+          const [head, ...rest] = run;
+          begin(head, rest);
+          reference = run.map((w) => anchor(view(w))).find((a) => a != null) ?? null;
+        }
+        continue;
+      }
+      release(current);
+      flushAlien();
+      alien = [item];
+      continue;
+    }
+
     if (!current || !sameTrack || !withinGap) {
       release(current);
+      flushAlien();
       begin(item);
       reference = aligned;
       continue;
+    }
+
+    // Back on the play's track: whatever the other release matched meanwhile
+    // was this play.
+    if (alien.length > 0) {
+      release(current);
+      alien.forEach((w) => add(current, w));
+      alien = [];
     }
 
     if (agrees(aligned, reference)) {
@@ -178,6 +225,7 @@ export function groupWindows<T>(
     }
   }
   release(groups.at(-1));
+  flushAlien();
   return groups;
 }
 
