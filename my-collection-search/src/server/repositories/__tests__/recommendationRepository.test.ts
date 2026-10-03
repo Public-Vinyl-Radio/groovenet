@@ -121,6 +121,21 @@ describe("findIdentitySimilar()", () => {
     expect(params[3]).toBe(5);
     expect(params[4]).toBe(MODEL);
   });
+
+  it("rejects invalid dims without querying the similarity statement", async () => {
+    mockWithEmbedding([0.1], []);
+
+    await expect(
+      makeRepo().findIdentitySimilar({
+        seedTrackId: "t1",
+        seedFriendId: 1,
+        model: MODEL,
+        dims: 0,
+        limit: 5,
+        ivfflatProbes: 1,
+      })
+    ).rejects.toThrow("Invalid vector dims: 0");
+  });
 });
 
 // ─── findAudioSimilar ─────────────────────────────────────────────────────────

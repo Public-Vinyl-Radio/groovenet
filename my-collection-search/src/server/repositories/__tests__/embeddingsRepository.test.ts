@@ -430,6 +430,23 @@ describe("findSimilarIdentityTracks()", () => {
     expect(sql).not.toContain("a.country");
     expect(sql).not.toContain("LIKE");
   });
+
+  it.each([0, -1, 1.5, NaN])("rejects invalid dims (%s) without querying", async (dims) => {
+    const client = makeClient();
+
+    await expect(
+      makeRepo().findSimilarIdentityTracks(client as any, {
+        sourceEmbedding: [0.1],
+        sourceTrackId: "t1",
+        sourceFriendId: 1,
+        model: "text-embedding-3-small",
+        dims,
+        limit: 5,
+        filters: {},
+      })
+    ).rejects.toThrow(`Invalid vector dims: ${dims}`);
+    expect(client.query).not.toHaveBeenCalled();
+  });
 });
 
 // ─── findSimilarAudioVibeTracks ───────────────────────────────────────────────
