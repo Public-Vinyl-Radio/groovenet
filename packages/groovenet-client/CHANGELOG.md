@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.7.0...groovenet-client-v2.8.0) (2026-10-03)
+
+
+### Features
+
+* **embeddings:** backfill API, CLI and status ([#392](https://github.com/Public-Vinyl-Radio/groovenet/issues/392)) ([a7ff8f9](https://github.com/Public-Vinyl-Radio/groovenet/commit/a7ff8f9094f51b3677d1c57f0128830cded0c7be))
+* **spins:** log a playlist as spins ([#395](https://github.com/Public-Vinyl-Radio/groovenet/issues/395)) ([db091a1](https://github.com/Public-Vinyl-Radio/groovenet/commit/db091a184ffa4e453926a4753db1c44dd7f1e3bd))
+
 ## [2.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v2.6.0...groovenet-client-v2.7.0) (2026-10-02)
 
 

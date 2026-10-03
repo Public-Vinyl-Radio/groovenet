@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.5.1...groovenet-cli-v2.6.0) (2026-10-03)
+
+
+### Features
+
+* **embeddings:** backfill API, CLI and status ([#392](https://github.com/Public-Vinyl-Radio/groovenet/issues/392)) ([a7ff8f9](https://github.com/Public-Vinyl-Radio/groovenet/commit/a7ff8f9094f51b3677d1c57f0128830cded0c7be))
+* **records:** add CLI commands and MCP tools ([#391](https://github.com/Public-Vinyl-Radio/groovenet/issues/391)) ([a43a647](https://github.com/Public-Vinyl-Radio/groovenet/commit/a43a6475ef80b0001a235cd51cbee0d81e31aee5))
+* **spins:** log a playlist as spins ([#395](https://github.com/Public-Vinyl-Radio/groovenet/issues/395)) ([db091a1](https://github.com/Public-Vinyl-Radio/groovenet/commit/db091a184ffa4e453926a4753db1c44dd7f1e3bd))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^2.7.0 to ^2.8.0
+
 ## [2.5.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v2.5.0...groovenet-cli-v2.5.1) (2026-10-02)
 
 
