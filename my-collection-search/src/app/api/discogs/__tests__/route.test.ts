@@ -145,4 +145,12 @@ describe("GET /api/discogs — embeddings sync (#385)", () => {
     expect(body).toContain("⚠️  Failed to queue embeddings: redis down");
     expect(body).toContain("All operations complete");
   });
+
+  it("stringifies a non-Error rejection when reporting the failure", async () => {
+    embeddingSync.syncIdentityEmbeddings.mockRejectedValueOnce("redis down");
+
+    const body = await runSync();
+
+    expect(body).toContain("⚠️  Failed to queue embeddings: redis down");
+  });
 });

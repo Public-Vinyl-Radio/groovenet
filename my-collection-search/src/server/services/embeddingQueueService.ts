@@ -109,7 +109,6 @@ export class EmbeddingQueueService {
   }
 
   private async pushBack(jobs: QueuedJob[]): Promise<void> {
-    if (jobs.length === 0) return;
     const pipeline = this.redis.pipeline();
     for (const job of jobs) {
       pipeline.rpush(QUEUE_KEY, JSON.stringify(job));
