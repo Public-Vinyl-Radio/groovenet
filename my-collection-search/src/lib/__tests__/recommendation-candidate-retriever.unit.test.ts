@@ -33,6 +33,10 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
   },
 }));
 
+vi.mock("@/lib/embeddings/config", () => ({
+  getServingModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
+}));
+
 import {
   hasEmbeddings,
   hasEmbeddingsForSeedTracks,
@@ -87,12 +91,16 @@ describe("recommendation candidate retriever", () => {
     expect(findIdentitySimilar).toHaveBeenCalledWith({
       seedTrackId: "seed",
       seedFriendId: 9,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 200,
       ivfflatProbes: 10,
     });
     expect(findAudioSimilar).toHaveBeenCalledWith({
       seedTrackId: "seed",
       seedFriendId: 9,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 200,
       ivfflatProbes: 10,
     });
@@ -137,8 +145,20 @@ describe("recommendation candidate retriever", () => {
     ], { limitIdentity: 10, limitAudio: 15, ivfflatProbes: 7 });
 
     const seedTracks = [{ trackId: "seed-a", friendId: 1 }, { trackId: "seed-b", friendId: 2 }];
-    expect(findIdentitySimilarByCentroid).toHaveBeenCalledWith({ seedTracks, limit: 10, ivfflatProbes: 7 });
-    expect(findAudioSimilarByCentroid).toHaveBeenCalledWith({ seedTracks, limit: 15, ivfflatProbes: 7 });
+    expect(findIdentitySimilarByCentroid).toHaveBeenCalledWith({
+      seedTracks,
+      model: "text-embedding-3-small",
+      dims: 1536,
+      limit: 10,
+      ivfflatProbes: 7,
+    });
+    expect(findAudioSimilarByCentroid).toHaveBeenCalledWith({
+      seedTracks,
+      model: "text-embedding-3-small",
+      dims: 1536,
+      limit: 15,
+      ivfflatProbes: 7,
+    });
     expect(result).toMatchObject({ seedTrackId: "seed-a", seedFriendId: 1 });
     expect(result.candidates).toHaveLength(2);
   });

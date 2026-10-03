@@ -246,6 +246,35 @@ describe("countTracks()", () => {
   });
 });
 
+// ─── countEmbeddingsByModel ───────────────────────────────────────────────────
+
+describe("countEmbeddingsByModel()", () => {
+  it("groups by model and dims", async () => {
+    dbQuery.mockResolvedValue({
+      rows: [{ model: "text-embedding-3-small", dims: 1536, count: "10" }],
+    });
+
+    const result = await makeRepo().countEmbeddingsByModel("identity");
+
+    expect(result).toEqual([
+      { model: "text-embedding-3-small", dims: 1536, count: 10 },
+    ]);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("GROUP BY model, dims");
+    expect(params).toEqual(["identity"]);
+  });
+
+  it("scopes to one friend when given", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().countEmbeddingsByModel("audio_vibe", 7);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("friend_id = $2");
+    expect(params).toEqual(["audio_vibe", 7]);
+  });
+});
+
 // ─── setIvfflatProbes ─────────────────────────────────────────────────────────
 
 describe("setIvfflatProbes()", () => {
@@ -270,12 +299,18 @@ describe("findSourceEmbedding()", () => {
     const embedding = [0.1, 0.2, 0.3];
     client.query.mockResolvedValue({ rows: [{ embedding }] });
 
-    const result = await makeRepo().findSourceEmbedding(client as any, "t1", 1, "identity");
+    const result = await makeRepo().findSourceEmbedding(
+      client as any,
+      "t1",
+      1,
+      "identity",
+      "text-embedding-3-small"
+    );
 
     expect(result).toEqual(embedding);
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("track_embeddings"),
-      ["t1", 1, "identity"]
+      ["t1", 1, "identity", "text-embedding-3-small"]
     );
   });
 
@@ -283,7 +318,13 @@ describe("findSourceEmbedding()", () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });
 
-    const result = await makeRepo().findSourceEmbedding(client as any, "t1", 1, "audio_vibe");
+    const result = await makeRepo().findSourceEmbedding(
+      client as any,
+      "t1",
+      1,
+      "audio_vibe",
+      "text-embedding-3-small"
+    );
 
     expect(result).toBeNull();
   });
@@ -302,12 +343,34 @@ describe("findSimilarIdentityTracks()", () => {
       sourceEmbedding: [0.1],
       sourceTrackId: "t1",
       sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 5,
       filters: {},
     });
 
     expect(result[0].distance).toBe(0.45);
     expect(typeof result[0].distance).toBe("number");
+  });
+
+  it("filters by model and casts to the configured dims", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findSimilarIdentityTracks(client as any, {
+      sourceEmbedding: [0.1],
+      sourceTrackId: "t1",
+      sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      dims: 768,
+      limit: 5,
+      filters: {},
+    });
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("te.model = $4");
+    expect(sql).toContain("vector(768)");
+    expect(params).toContain("text-embedding-3-small");
   });
 
   it("includes country filter clause when filters.country is set", async () => {
@@ -318,6 +381,8 @@ describe("findSimilarIdentityTracks()", () => {
       sourceEmbedding: [0.1],
       sourceTrackId: "t1",
       sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 5,
       filters: { country: "DE" },
     });
@@ -335,6 +400,8 @@ describe("findSimilarIdentityTracks()", () => {
       sourceEmbedding: [0.1],
       sourceTrackId: "t1",
       sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 5,
       filters: { tags: ["techno", "dark"] },
     });
@@ -353,12 +420,14 @@ describe("findSimilarIdentityTracks()", () => {
       sourceEmbedding: [0.1],
       sourceTrackId: "t1",
       sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 5,
       filters: {},
     });
 
     const [sql] = client.query.mock.calls[0];
-    expect(sql).not.toContain("country");
+    expect(sql).not.toContain("a.country");
     expect(sql).not.toContain("LIKE");
   });
 });
@@ -376,6 +445,8 @@ describe("findSimilarAudioVibeTracks()", () => {
       sourceEmbedding: [0.1],
       sourceTrackId: "t1",
       sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 10,
     });
 
@@ -383,7 +454,7 @@ describe("findSimilarAudioVibeTracks()", () => {
     expect(typeof result[0].distance).toBe("number");
   });
 
-  it("passes all four params in the correct positions", async () => {
+  it("passes all five params in the correct positions", async () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });
     const embedding = [0.5];
@@ -392,11 +463,13 @@ describe("findSimilarAudioVibeTracks()", () => {
       sourceEmbedding: embedding,
       sourceTrackId: "t1",
       sourceFriendId: 3,
+      model: "text-embedding-3-small",
+      dims: 1536,
       limit: 20,
     });
 
     const [, params] = client.query.mock.calls[0];
-    expect(params).toEqual([embedding, "t1", 3, 20]);
+    expect(params).toEqual([embedding, "t1", 3, 20, "text-embedding-3-small"]);
   });
 });
 

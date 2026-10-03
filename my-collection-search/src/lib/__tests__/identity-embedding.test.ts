@@ -24,6 +24,18 @@ vi.mock("@/server/repositories/trackRepository", () => ({
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: { upsertTrackEmbedding, findEmbeddingSourceHash },
 }));
+// Identity's target model is read from the DB in real life (#386); stub it
+// to the pipeline's historical default so these tests don't need a real
+// connection, and route through the real OpenAI provider so the `openai`
+// mock above still captures the request shape.
+vi.mock("@/lib/embeddings/config", async () => {
+  const { createOpenAiEmbeddingProvider } = await import("@/lib/embeddings/openaiProvider");
+  return {
+    getTargetProvider: vi.fn(async () =>
+      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
+    ),
+  };
+});
 
 import {
   buildIdentityData,
@@ -300,11 +312,16 @@ describe("fetchTrackWithAlbum", () => {
 
 describe("generateIdentityEmbedding", () => {
   it("requests a text-embedding-3-small embedding and returns the vector", async () => {
-    await expect(generateIdentityEmbedding("Track: x")).resolves.toEqual(EMBEDDING);
+    await expect(generateIdentityEmbedding("Track: x")).resolves.toEqual({
+      embedding: EMBEDDING,
+      model: "text-embedding-3-small",
+      dims: 1536,
+    });
 
     expect(createEmbedding).toHaveBeenCalledWith({
       model: "text-embedding-3-small",
-      input: "Track: x",
+      input: ["Track: x"],
+      dimensions: 1536,
     });
   });
 
@@ -317,8 +334,16 @@ describe("generateIdentityEmbedding", () => {
 });
 
 describe("storeIdentityEmbedding", () => {
-  it("upserts with the identity type and default model and dims", async () => {
-    await storeIdentityEmbedding("test-123", 1, EMBEDDING, "hash-1", "Track: x");
+  it("upserts with the identity type and the given model and dims", async () => {
+    await storeIdentityEmbedding(
+      "test-123",
+      1,
+      EMBEDDING,
+      "hash-1",
+      "Track: x",
+      "text-embedding-3-small",
+      1536
+    );
 
     expect(upsertTrackEmbedding).toHaveBeenCalledWith({
       trackId: "test-123",
@@ -410,7 +435,8 @@ describe("generateAndStoreIdentityEmbedding", () => {
     const expectedText = buildIdentityText(buildIdentityData(mockTrack));
     expect(createEmbedding).toHaveBeenCalledWith({
       model: "text-embedding-3-small",
-      input: expectedText,
+      input: [expectedText],
+      dimensions: 1536,
     });
     expect(upsertTrackEmbedding).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -466,7 +492,7 @@ describe("getIdentityPreview", () => {
   it("previews exactly the text the pipeline embeds", async () => {
     const preview = await getIdentityPreview("test-123", 1);
     await generateAndStoreIdentityEmbedding("test-123", 1);
-    const embedded = createEmbedding.mock.calls[0][0].input as string;
+    const [embedded] = createEmbedding.mock.calls[0][0].input as string[];
 
     expect(preview.identityText).toBe(embedded);
   });

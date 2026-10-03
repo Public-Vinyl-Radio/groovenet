@@ -8,6 +8,18 @@ vi.mock("openai", () => ({
   },
 }));
 
+// identity's target model is read from the DB in real life (#386); stub it
+// to the pipeline's historical default and route through the real OpenAI
+// provider so the `openai` mock above still captures the request.
+vi.mock("@/lib/embeddings/config", async () => {
+  const { createOpenAiEmbeddingProvider } = await import("@/lib/embeddings/openaiProvider");
+  return {
+    getTargetProvider: vi.fn(async () =>
+      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
+    ),
+  };
+});
+
 import {
   checkEmbeddingProvider,
   resetEmbeddingHealthCache,

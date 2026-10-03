@@ -13,6 +13,7 @@ import {
   type RecommendationCandidateRow,
 } from "@/server/repositories/recommendationRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
+import { getServingModel } from "@/lib/embeddings/config";
 
 /**
  * Options for candidate retrieval
@@ -162,9 +163,12 @@ async function queryIdentitySimilar(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
+  const { model, dims } = await getServingModel("identity");
   const rows = await recommendationRepository.findIdentitySimilar({
     seedTrackId,
     seedFriendId,
+    model,
+    dims,
     limit,
     ivfflatProbes,
   });
@@ -181,8 +185,11 @@ async function queryIdentitySimilarByCentroid(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
+  const { model, dims } = await getServingModel("identity");
   return recommendationRepository.findIdentitySimilarByCentroid({
     seedTracks,
+    model,
+    dims,
     limit,
     ivfflatProbes,
   });
@@ -194,9 +201,12 @@ async function queryAudioSimilar(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
+  const { model, dims } = await getServingModel("audio_vibe");
   const rows = await recommendationRepository.findAudioSimilar({
     seedTrackId,
     seedFriendId,
+    model,
+    dims,
     limit,
     ivfflatProbes,
   });
@@ -213,8 +223,11 @@ async function queryAudioSimilarByCentroid(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
+  const { model, dims } = await getServingModel("audio_vibe");
   return recommendationRepository.findAudioSimilarByCentroid({
     seedTracks,
+    model,
+    dims,
     limit,
     ivfflatProbes,
   });

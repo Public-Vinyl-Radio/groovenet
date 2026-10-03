@@ -18,6 +18,22 @@ type SimilarVibeTrackRow = Omit<SimilarVibeTrack, "distance"> & {
   distance: string | number;
 };
 
+/**
+ * `dims` can't be bound as a query parameter (a type modifier must be a
+ * literal at parse time), so it's interpolated directly — safe here because
+ * every caller sources it from `embedding_model_settings`, never from
+ * request input. Casting to the serving model's fixed dimension makes the
+ * query's `<=>` expression match the partial expression index created for
+ * that `(embedding_type, model)` pair (#386); without it, the planner has no
+ * index whose expression matches and falls back to a sequential scan.
+ */
+function castVector(column: string, dims: number): string {
+  if (!Number.isInteger(dims) || dims <= 0) {
+    throw new Error(`Invalid vector dims: ${dims}`);
+  }
+  return `(${column}::vector(${dims}))`;
+}
+
 export class EmbeddingsRepository {
   /**
    * Candidate tracks for one embedding type (#388). `prompt` is the legacy
@@ -101,6 +117,34 @@ export class EmbeddingsRepository {
     return this.listTracksForBackfill({ ...options, type: "prompt" });
   }
 
+  /**
+   * Per-model row counts for one kind (#386) — the coverage readout an
+   * operator watches mid-switch to decide when the new model's set is
+   * complete enough to flip `serving_model` to it.
+   */
+  async countEmbeddingsByModel(
+    embeddingType: "identity" | "audio_vibe",
+    friendId?: number
+  ): Promise<Array<{ model: string; dims: number; count: number }>> {
+    const params: unknown[] = [embeddingType];
+    let where = "WHERE embedding_type = $1";
+    if (friendId !== undefined) {
+      params.push(friendId);
+      where += ` AND friend_id = $${params.length}`;
+    }
+    const result = await dbQuery<{ model: string; dims: number; count: string }>(
+      `
+      SELECT model, dims, COUNT(*)::int AS count
+      FROM track_embeddings
+      ${where}
+      GROUP BY model, dims
+      ORDER BY count DESC
+      `,
+      params
+    );
+    return result.rows.map((row) => ({ ...row, count: Number(row.count) }));
+  }
+
   /** For `/api/embeddings/status` — the denominator behind the missing counts. */
   async countTracks(friendId?: number): Promise<number> {
     const params: unknown[] = [];
@@ -122,20 +166,26 @@ export class EmbeddingsRepository {
     ]);
   }
 
+  /**
+   * `model` pins this to the serving model (#386) — mid-switch, a track may
+   * have rows for both the old and new model, and the one that's "serving"
+   * is the one similarity reads should use, not whichever is newest.
+   */
   async findSourceEmbedding(
     client: Queryable,
     trackId: string,
     friendId: number,
-    embeddingType: "identity" | "audio_vibe"
+    embeddingType: "identity" | "audio_vibe",
+    model: string
   ): Promise<unknown | null> {
     const result = await client.query<{ embedding: unknown }>(
       `
       SELECT embedding
       FROM track_embeddings
-      WHERE track_id = $1 AND friend_id = $2 AND embedding_type = $3
+      WHERE track_id = $1 AND friend_id = $2 AND embedding_type = $3 AND model = $4
       LIMIT 1
       `,
-      [trackId, friendId, embeddingType]
+      [trackId, friendId, embeddingType, model]
     );
     return result.rows[0]?.embedding ?? null;
   }
@@ -146,14 +196,18 @@ export class EmbeddingsRepository {
       sourceEmbedding: unknown;
       sourceTrackId: string;
       sourceFriendId: number;
+      model: string;
+      dims: number;
       limit: number;
       filters: SimilarityFilters;
     }
   ): Promise<SimilarIdentityTrack[]> {
-    const { sourceEmbedding, sourceTrackId, sourceFriendId, limit, filters } = params;
-    const queryParams: unknown[] = [sourceEmbedding, sourceTrackId, sourceFriendId];
+    const { sourceEmbedding, sourceTrackId, sourceFriendId, model, dims, limit, filters } =
+      params;
+    const vector = castVector("te.embedding", dims);
+    const queryParams: unknown[] = [sourceEmbedding, sourceTrackId, sourceFriendId, model];
     const filterClauses: string[] = [];
-    let idx = 4;
+    let idx = 5;
 
     if (filters.country) {
       filterClauses.push(`a.country = $${idx++}`);
@@ -192,14 +246,15 @@ export class EmbeddingsRepository {
         t.youtube_url,
         t.local_audio_url,
         te.identity_text,
-        te.embedding <=> $1 AS distance
+        ${vector} <=> $1::vector(${dims}) AS distance
       FROM track_embeddings te
       JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
       LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       WHERE te.embedding_type = 'identity'
+        AND te.model = $4
         AND NOT (te.track_id = $2 AND te.friend_id = $3)
         ${filterClauses.length > 0 ? `AND ${filterClauses.join(" AND ")}` : ""}
-      ORDER BY te.embedding <=> $1
+      ORDER BY ${vector} <=> $1::vector(${dims})
       LIMIT $${idx}
       `,
       queryParams
@@ -217,9 +272,12 @@ export class EmbeddingsRepository {
       sourceEmbedding: unknown;
       sourceTrackId: string;
       sourceFriendId: number;
+      model: string;
+      dims: number;
       limit: number;
     }
   ): Promise<SimilarVibeTrack[]> {
+    const vector = castVector("te.embedding", params.dims);
     const result = await client.query<SimilarVibeTrackRow>(
       `
       SELECT
@@ -249,15 +307,22 @@ export class EmbeddingsRepository {
         t.mood_relaxed,
         t.mood_aggressive,
         te.identity_text,
-        te.embedding <=> $1 AS distance
+        ${vector} <=> $1::vector(${params.dims}) AS distance
       FROM track_embeddings te
       JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
       WHERE te.embedding_type = 'audio_vibe'
+        AND te.model = $5
         AND NOT (te.track_id = $2 AND te.friend_id = $3)
-      ORDER BY te.embedding <=> $1
+      ORDER BY ${vector} <=> $1::vector(${params.dims})
       LIMIT $4
       `,
-      [params.sourceEmbedding, params.sourceTrackId, params.sourceFriendId, params.limit]
+      [
+        params.sourceEmbedding,
+        params.sourceTrackId,
+        params.sourceFriendId,
+        params.limit,
+        params.model,
+      ]
     );
 
     return result.rows.map((row) => ({
@@ -284,12 +349,11 @@ export class EmbeddingsRepository {
         track_id, friend_id, embedding_type, model, dims, embedding, source_hash, identity_text, template_version, updated_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
-      ON CONFLICT (track_id, friend_id, embedding_type)
+      ON CONFLICT (track_id, friend_id, embedding_type, model)
       DO UPDATE SET
         embedding = EXCLUDED.embedding,
         source_hash = EXCLUDED.source_hash,
         identity_text = EXCLUDED.identity_text,
-        model = EXCLUDED.model,
         dims = EXCLUDED.dims,
         template_version = EXCLUDED.template_version,
         updated_at = CURRENT_TIMESTAMP

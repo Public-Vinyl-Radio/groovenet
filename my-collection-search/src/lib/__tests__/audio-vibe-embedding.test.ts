@@ -27,6 +27,18 @@ vi.mock("@/server/repositories/trackRepository", () => ({
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: { upsertTrackEmbedding, findEmbeddingSourceHash },
 }));
+// audio_vibe's target model is read from the DB in real life (#386); stub it
+// to the pipeline's historical default so these tests don't need a real
+// connection, and route through the real OpenAI provider so the `openai`
+// mock above still captures the request shape.
+vi.mock("@/lib/embeddings/config", async () => {
+  const { createOpenAiEmbeddingProvider } = await import("@/lib/embeddings/openaiProvider");
+  return {
+    getTargetProvider: vi.fn(async () =>
+      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
+    ),
+  };
+});
 
 import {
   AUDIO_VIBE_TEMPLATE_VERSION,
@@ -305,7 +317,8 @@ describe("generateAndStoreAudioVibeEmbedding", () => {
     });
     expect(createEmbedding).toHaveBeenCalledWith({
       model: "text-embedding-3-small",
-      input: expect.stringContaining("BPM: 128"),
+      input: [expect.stringContaining("BPM: 128")],
+      dimensions: 1536,
     });
     expect(upsertTrackEmbedding).toHaveBeenCalledWith(expect.objectContaining({
       trackId: "test-123",

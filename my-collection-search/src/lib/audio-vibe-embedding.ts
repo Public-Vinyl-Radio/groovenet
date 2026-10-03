@@ -4,7 +4,6 @@
  * BPM, key, energy, mood, danceability.
  */
 
-import OpenAI from "openai";
 import crypto from "crypto";
 import {
   normalizeBpmRange,
@@ -25,10 +24,7 @@ import { Track } from "@/types/track";
 import { readEssentiaAnalysis } from "./essentia-storage";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "My API Key",
-});
+import { getTargetProvider } from "@/lib/embeddings/config";
 
 /** Bump when `buildAudioVibeText`'s shape changes (#382), so stale rows are findable. */
 export const AUDIO_VIBE_TEMPLATE_VERSION = 1;
@@ -224,19 +220,17 @@ export function computeAudioVibeHash(data: AudioVibeData): string {
 }
 
 /**
- * Generate OpenAI embedding for audio vibe text
+ * Generate an audio vibe embedding, using whichever model is currently
+ * configured as audio_vibe's target model (#386).
  */
 export async function generateAudioVibeEmbedding(
   vibeText: string
-): Promise<number[]> {
+): Promise<{ embedding: number[]; model: string; dims: number }> {
   console.log("Generating audio vibe embedding for:\n", vibeText);
 
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: vibeText,
-  });
-
-  return response.data[0].embedding;
+  const provider = await getTargetProvider("audio_vibe");
+  const [embedding] = await provider.embed([vibeText]);
+  return { embedding, model: provider.model, dims: provider.dims };
 }
 
 /**
@@ -248,8 +242,8 @@ export async function storeAudioVibeEmbedding(
   embedding: number[],
   sourceHash: string,
   vibeText: string,
-  model = "text-embedding-3-small",
-  dims = 1536
+  model: string,
+  dims: number
 ): Promise<void> {
   await embeddingsRepository.upsertTrackEmbedding({
     trackId: track_id,
@@ -337,7 +331,7 @@ export async function generateAndStoreAudioVibeEmbedding(
 
   // Generate embedding
   const vibeText = buildAudioVibeText(vibeData);
-  const embedding = await generateAudioVibeEmbedding(vibeText);
+  const { embedding, model, dims } = await generateAudioVibeEmbedding(vibeText);
 
   // Store in database
   await storeAudioVibeEmbedding(
@@ -345,7 +339,9 @@ export async function generateAndStoreAudioVibeEmbedding(
     friend_id,
     embedding,
     sourceHash,
-    vibeText
+    vibeText,
+    model,
+    dims
   );
 
   return { updated: true, reason: "Audio vibe embedding generated and stored" };

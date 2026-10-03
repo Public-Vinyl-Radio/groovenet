@@ -56,10 +56,26 @@ function normalizeRows(rows: RecommendationCandidateRowRaw[]): RecommendationCan
   return rows.map((row) => ({ ...row, distance: Number(row.distance) }));
 }
 
+/**
+ * `dims` can't be bound as a query parameter (a type modifier must be a
+ * literal at parse time), so it's interpolated directly — safe here because
+ * every caller sources it from `embedding_model_settings`, never from
+ * request input. See `embeddingsRepository.castVector` for the matching
+ * partial-index rationale.
+ */
+function castVector(column: string, dims: number): string {
+  if (!Number.isInteger(dims) || dims <= 0) {
+    throw new Error(`Invalid vector dims: ${dims}`);
+  }
+  return `(${column}::vector(${dims}))`;
+}
+
 export class RecommendationRepository {
   async findIdentitySimilar(params: {
     seedTrackId: string;
     seedFriendId: number;
+    model: string;
+    dims: number;
     limit: number;
     ivfflatProbes: number;
   }): Promise<RecommendationCandidateRow[]> {
@@ -70,8 +86,8 @@ export class RecommendationRepository {
 
       const embeddingResult = await client.query<{ embedding: unknown }>(
         `SELECT embedding FROM track_embeddings
-         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'identity'`,
-        [params.seedTrackId, params.seedFriendId]
+         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'identity' AND model = $3`,
+        [params.seedTrackId, params.seedFriendId, params.model]
       );
 
       if (embeddingResult.rows.length === 0) {
@@ -79,6 +95,7 @@ export class RecommendationRepository {
       }
 
       const seedEmbedding = embeddingResult.rows[0].embedding;
+      const vector = castVector("te.embedding", params.dims);
       const result = await client.query<RecommendationCandidateRowRaw>(
         `
         SELECT
@@ -100,15 +117,22 @@ export class RecommendationRepository {
           t.mood_aggressive,
           t.star_rating,
           t.album_thumbnail,
-          te.embedding <=> $1 AS distance
+          ${vector} <=> $1::vector(${params.dims}) AS distance
         FROM track_embeddings te
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         WHERE te.embedding_type = 'identity'
+          AND te.model = $5
           AND NOT (te.track_id = $2 AND te.friend_id = $3)
-        ORDER BY te.embedding <=> $1
+        ORDER BY ${vector} <=> $1::vector(${params.dims})
         LIMIT $4
         `,
-        [seedEmbedding, params.seedTrackId, params.seedFriendId, params.limit]
+        [
+          seedEmbedding,
+          params.seedTrackId,
+          params.seedFriendId,
+          params.limit,
+          params.model,
+        ]
       );
 
       return normalizeRows(result.rows);
@@ -118,6 +142,8 @@ export class RecommendationRepository {
   async findAudioSimilar(params: {
     seedTrackId: string;
     seedFriendId: number;
+    model: string;
+    dims: number;
     limit: number;
     ivfflatProbes: number;
   }): Promise<RecommendationCandidateRow[]> {
@@ -128,8 +154,8 @@ export class RecommendationRepository {
 
       const embeddingResult = await client.query<{ embedding: unknown }>(
         `SELECT embedding FROM track_embeddings
-         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'audio_vibe'`,
-        [params.seedTrackId, params.seedFriendId]
+         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'audio_vibe' AND model = $3`,
+        [params.seedTrackId, params.seedFriendId, params.model]
       );
 
       if (embeddingResult.rows.length === 0) {
@@ -137,6 +163,7 @@ export class RecommendationRepository {
       }
 
       const seedEmbedding = embeddingResult.rows[0].embedding;
+      const vector = castVector("te.embedding", params.dims);
       const result = await client.query<RecommendationCandidateRowRaw>(
         `
         SELECT
@@ -158,15 +185,22 @@ export class RecommendationRepository {
           t.mood_aggressive,
           t.star_rating,
           t.album_thumbnail,
-          te.embedding <=> $1 AS distance
+          ${vector} <=> $1::vector(${params.dims}) AS distance
         FROM track_embeddings te
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         WHERE te.embedding_type = 'audio_vibe'
+          AND te.model = $5
           AND NOT (te.track_id = $2 AND te.friend_id = $3)
-        ORDER BY te.embedding <=> $1
+        ORDER BY ${vector} <=> $1::vector(${params.dims})
         LIMIT $4
         `,
-        [seedEmbedding, params.seedTrackId, params.seedFriendId, params.limit]
+        [
+          seedEmbedding,
+          params.seedTrackId,
+          params.seedFriendId,
+          params.limit,
+          params.model,
+        ]
       );
 
       return normalizeRows(result.rows);
@@ -175,6 +209,8 @@ export class RecommendationRepository {
 
   async findIdentitySimilarByCentroid(params: {
     seedTracks: SeedTrackPair[];
+    model: string;
+    dims: number;
     limit: number;
     ivfflatProbes: number;
   }): Promise<RecommendationCandidateRow[]> {
@@ -188,6 +224,9 @@ export class RecommendationRepository {
       const { valuesClause, params: queryParams, limitParamIndex } = buildSeedValues(
         params.seedTracks
       );
+      const modelParamIndex = limitParamIndex + 1;
+      const vector = castVector("te.embedding", params.dims);
+      const seedVector = castVector("se.embedding", params.dims);
 
       const result = await client.query<RecommendationCandidateRowRaw>(
         `
@@ -200,7 +239,7 @@ export class RecommendationRepository {
           JOIN seeds s
             ON te.track_id = s.track_id
            AND te.friend_id = s.friend_id
-          WHERE te.embedding_type = 'identity'
+          WHERE te.embedding_type = 'identity' AND te.model = $${modelParamIndex}
         )
         SELECT
           t.track_id,
@@ -221,21 +260,22 @@ export class RecommendationRepository {
           t.mood_aggressive,
           t.star_rating,
           t.album_thumbnail,
-          te.embedding <=> se.embedding AS distance
+          ${vector} <=> ${seedVector} AS distance
         FROM track_embeddings te
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         CROSS JOIN seed_embedding se
         WHERE te.embedding_type = 'identity'
+          AND te.model = $${modelParamIndex}
           AND se.embedding IS NOT NULL
           AND NOT EXISTS (
             SELECT 1
             FROM seeds s
             WHERE s.track_id = te.track_id AND s.friend_id = te.friend_id
           )
-        ORDER BY te.embedding <=> se.embedding
+        ORDER BY ${vector} <=> ${seedVector}
         LIMIT $${limitParamIndex}
         `,
-        [...queryParams, params.limit]
+        [...queryParams, params.limit, params.model]
       );
 
       return normalizeRows(result.rows);
@@ -244,6 +284,8 @@ export class RecommendationRepository {
 
   async findAudioSimilarByCentroid(params: {
     seedTracks: SeedTrackPair[];
+    model: string;
+    dims: number;
     limit: number;
     ivfflatProbes: number;
   }): Promise<RecommendationCandidateRow[]> {
@@ -257,6 +299,9 @@ export class RecommendationRepository {
       const { valuesClause, params: queryParams, limitParamIndex } = buildSeedValues(
         params.seedTracks
       );
+      const modelParamIndex = limitParamIndex + 1;
+      const vector = castVector("te.embedding", params.dims);
+      const seedVector = castVector("se.embedding", params.dims);
 
       const result = await client.query<RecommendationCandidateRowRaw>(
         `
@@ -269,7 +314,7 @@ export class RecommendationRepository {
           JOIN seeds s
             ON te.track_id = s.track_id
            AND te.friend_id = s.friend_id
-          WHERE te.embedding_type = 'audio_vibe'
+          WHERE te.embedding_type = 'audio_vibe' AND te.model = $${modelParamIndex}
         )
         SELECT
           t.track_id,
@@ -290,21 +335,22 @@ export class RecommendationRepository {
           t.mood_aggressive,
           t.star_rating,
           t.album_thumbnail,
-          te.embedding <=> se.embedding AS distance
+          ${vector} <=> ${seedVector} AS distance
         FROM track_embeddings te
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         CROSS JOIN seed_embedding se
         WHERE te.embedding_type = 'audio_vibe'
+          AND te.model = $${modelParamIndex}
           AND se.embedding IS NOT NULL
           AND NOT EXISTS (
             SELECT 1
             FROM seeds s
             WHERE s.track_id = te.track_id AND s.friend_id = te.friend_id
           )
-        ORDER BY te.embedding <=> se.embedding
+        ORDER BY ${vector} <=> ${seedVector}
         LIMIT $${limitParamIndex}
         `,
-        [...queryParams, params.limit]
+        [...queryParams, params.limit, params.model]
       );
 
       return normalizeRows(result.rows);

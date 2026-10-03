@@ -1,12 +1,16 @@
-import OpenAI from "openai";
 import { Track } from "@/types/track";
 import { settingsRepository } from "@/server/repositories/settingsRepository";
+import { createOpenAiEmbeddingProvider } from "@/lib/embeddings/openaiProvider";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-    ? process.env.OPENAI_API_KEY
-    : "My API Key",
-});
+/**
+ * The legacy free-text "prompt" embedding (`tracks.embedding`). Out of scope
+ * for #386's multi-model storage/cutover — the column has no `model`/`dims`
+ * and isn't used in any `<=>` query (ga-service receives it verbatim, see
+ * the follow-up issue to move that onto `track_embeddings`) — so it stays
+ * pinned to one model, just routed through the shared provider interface
+ * instead of its own OpenAI client.
+ */
+const PROMPT_MODEL = "text-embedding-3-small";
 
 const DEFAULT_TEMPLATE = [
   "Title: {{title}}",
@@ -121,9 +125,7 @@ export async function getTrackEmbedding(track: Track): Promise<number[]> {
   const template = await getTemplateForFriend(track.friend_id);
   const prompt = buildTrackPrompt(track, template);
   console.log("Generating embedding for prompt:", prompt);
-  const embeddingRes = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: prompt,
-  });
-  return embeddingRes.data[0].embedding;
+  const provider = createOpenAiEmbeddingProvider(PROMPT_MODEL);
+  const [embedding] = await provider.embed([prompt]);
+  return embedding;
 }

@@ -34,6 +34,9 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
     findSimilarAudioVibeTracks: mockFindSimilarVibe,
   },
 }));
+vi.mock("@/lib/embeddings/config", () => ({
+  getServingModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
+}));
 
 import { applyEraFilter, embeddingsService } from "../embeddingsService";
 

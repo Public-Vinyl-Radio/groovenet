@@ -35,6 +35,9 @@ function mockWithNoEmbedding() {
 
 // ─── findIdentitySimilar ──────────────────────────────────────────────────────
 
+const MODEL = "text-embedding-3-small";
+const DIMS = 1536;
+
 describe("findIdentitySimilar()", () => {
   it("returns empty array when no embedding is found for the seed track", async () => {
     mockWithNoEmbedding();
@@ -42,6 +45,8 @@ describe("findIdentitySimilar()", () => {
     const result = await makeRepo().findIdentitySimilar({
       seedTrackId: "t1",
       seedFriendId: 1,
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -55,6 +60,8 @@ describe("findIdentitySimilar()", () => {
     await makeRepo().findIdentitySimilar({
       seedTrackId: "t1",
       seedFriendId: 1,
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 4,
     });
@@ -77,6 +84,8 @@ describe("findIdentitySimilar()", () => {
     const result = await makeRepo().findIdentitySimilar({
       seedTrackId: "t1",
       seedFriendId: 1,
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -85,28 +94,32 @@ describe("findIdentitySimilar()", () => {
     expect(typeof result[0].distance).toBe("number");
   });
 
-  it("queries with the correct embedding type and params", async () => {
+  it("queries with the correct embedding type, model and params", async () => {
     const embedding = [0.5, 0.6];
     mockWithEmbedding(embedding, []);
 
     await makeRepo().findIdentitySimilar({
       seedTrackId: "t1",
       seedFriendId: 2,
+      model: MODEL,
+      dims: DIMS,
       limit: 5,
       ivfflatProbes: 1,
     });
 
-    // Embedding lookup must filter by 'identity'
+    // Embedding lookup must filter by 'identity' and model
     expect(mockClient.query).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("identity"),
-      ["t1", 2]
+      ["t1", 2, MODEL]
     );
 
-    // Similarity query receives the embedding and limit
-    const [, params] = mockClient.query.mock.calls[2];
+    // Similarity query receives the embedding, limit and model
+    const [sql, params] = mockClient.query.mock.calls[2];
+    expect(sql).toContain("te.model = $5");
     expect(params[0]).toEqual(embedding);
     expect(params[3]).toBe(5);
+    expect(params[4]).toBe(MODEL);
   });
 });
 
@@ -119,6 +132,8 @@ describe("findAudioSimilar()", () => {
     const result = await makeRepo().findAudioSimilar({
       seedTrackId: "t1",
       seedFriendId: 1,
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -137,6 +152,8 @@ describe("findAudioSimilar()", () => {
     const result = await makeRepo().findAudioSimilar({
       seedTrackId: "t1",
       seedFriendId: 1,
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -145,12 +162,14 @@ describe("findAudioSimilar()", () => {
     expect(typeof result[0].distance).toBe("number");
   });
 
-  it("queries with audio_vibe embedding type", async () => {
+  it("queries with audio_vibe embedding type and model", async () => {
     mockWithEmbedding([0.1], []);
 
     await makeRepo().findAudioSimilar({
       seedTrackId: "t1",
       seedFriendId: 1,
+      model: MODEL,
+      dims: DIMS,
       limit: 5,
       ivfflatProbes: 2,
     });
@@ -158,7 +177,7 @@ describe("findAudioSimilar()", () => {
     expect(mockClient.query).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("audio_vibe"),
-      ["t1", 1]
+      ["t1", 1, MODEL]
     );
   });
 });
@@ -169,6 +188,8 @@ describe("findIdentitySimilarByCentroid()", () => {
   it("returns empty array without querying when seedTracks is empty", async () => {
     const result = await makeRepo().findIdentitySimilarByCentroid({
       seedTracks: [],
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -187,6 +208,8 @@ describe("findIdentitySimilarByCentroid()", () => {
         { trackId: "t1", friendId: 1 },
         { trackId: "t2", friendId: 2 },
       ],
+      model: MODEL,
+      dims: DIMS,
       limit: 5,
       ivfflatProbes: 3,
     });
@@ -202,6 +225,7 @@ describe("findIdentitySimilarByCentroid()", () => {
     expect(params).toContain("t1");
     expect(params).toContain("t2");
     expect(params).toContain(5);
+    expect(params).toContain(MODEL);
   });
 
   it("builds seed values with the correct $N placeholders", async () => {
@@ -214,6 +238,8 @@ describe("findIdentitySimilarByCentroid()", () => {
         { trackId: "tA", friendId: 10 },
         { trackId: "tB", friendId: 20 },
       ],
+      model: MODEL,
+      dims: DIMS,
       limit: 3,
       ivfflatProbes: 1,
     });
@@ -223,8 +249,9 @@ describe("findIdentitySimilarByCentroid()", () => {
     expect(sql).toContain("$2");
     expect(sql).toContain("$3");
     expect(sql).toContain("$4");
-    // limit is $5
+    // limit is $5, model is $6
     expect(sql).toContain("$5");
+    expect(sql).toContain("$6");
   });
 
   it("coerces distance from string to number", async () => {
@@ -239,6 +266,8 @@ describe("findIdentitySimilarByCentroid()", () => {
 
     const result = await makeRepo().findIdentitySimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -253,6 +282,8 @@ describe("findAudioSimilarByCentroid()", () => {
   it("returns empty array without querying when seedTracks is empty", async () => {
     const result = await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [],
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
@@ -261,19 +292,22 @@ describe("findAudioSimilarByCentroid()", () => {
     expect(withDbClient).not.toHaveBeenCalled();
   });
 
-  it("queries with audio_vibe embedding type", async () => {
+  it("queries with audio_vibe embedding type and model", async () => {
     mockClient.query
       .mockResolvedValueOnce(PROBE_ROW)
       .mockResolvedValueOnce({ rows: [] });
 
     await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
+      model: MODEL,
+      dims: DIMS,
       limit: 5,
       ivfflatProbes: 1,
     });
 
-    const [sql] = mockClient.query.mock.calls[1];
+    const [sql, params] = mockClient.query.mock.calls[1];
     expect(sql).toContain("audio_vibe");
+    expect(params).toContain(MODEL);
   });
 
   it("coerces distance from string to number", async () => {
@@ -288,6 +322,8 @@ describe("findAudioSimilarByCentroid()", () => {
 
     const result = await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
+      model: MODEL,
+      dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
     });
