@@ -2,6 +2,7 @@ import { withDbClient } from "@/lib/serverDb";
 import { getIdentityPreview } from "@/lib/identity-embedding";
 import { getAudioVibePreview } from "@/lib/audio-vibe-embedding";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
+import { getServingModel } from "@/lib/embeddings/config";
 import type {
   SimilarIdentityTrack,
   SimilarityFilters,
@@ -77,13 +78,15 @@ export class EmbeddingsService {
     count: number;
     tracks: SimilarIdentityTrack[];
   }> {
+    const { model, dims } = await getServingModel("identity");
     return withDbClient(async (client) => {
       await embeddingsRepository.setIvfflatProbes(client, params.ivfflatProbes);
       const sourceEmbedding = await embeddingsRepository.findSourceEmbedding(
         client,
         params.trackId,
         params.friendId,
-        "identity"
+        "identity",
+        model
       );
       if (!sourceEmbedding) {
         throw new Error("missing_identity_embedding");
@@ -93,6 +96,8 @@ export class EmbeddingsService {
         sourceEmbedding,
         sourceTrackId: params.trackId,
         sourceFriendId: params.friendId,
+        model,
+        dims,
         limit: params.limit * 2,
         filters: params.filters,
       });
@@ -122,13 +127,15 @@ export class EmbeddingsService {
     count: number;
     tracks: SimilarVibeTrack[];
   }> {
+    const { model, dims } = await getServingModel("audio_vibe");
     return withDbClient(async (client) => {
       await embeddingsRepository.setIvfflatProbes(client, params.ivfflatProbes);
       const sourceEmbedding = await embeddingsRepository.findSourceEmbedding(
         client,
         params.trackId,
         params.friendId,
-        "audio_vibe"
+        "audio_vibe",
+        model
       );
       if (!sourceEmbedding) {
         throw new Error("missing_audio_vibe_embedding");
@@ -138,6 +145,8 @@ export class EmbeddingsService {
         sourceEmbedding,
         sourceTrackId: params.trackId,
         sourceFriendId: params.friendId,
+        model,
+        dims,
         limit: params.limit,
       });
 

@@ -57,6 +57,9 @@ import {
   embeddingsBackfillRunSchema,
   embeddingsStatusQuerySchema,
   embeddingsStatusSchema,
+  embeddingModelSettingsListSchema,
+  embeddingModelSettingsSchema,
+  embeddingModelUpdateBodySchema,
   friendDeleteQuerySchema,
   friendMutationBodySchema,
   friendMutationResponseSchema,
@@ -1380,6 +1383,77 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
           content: {
             "application/json": { schema: { type: "object", additionalProperties: true } },
           },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const embeddingModelSettingsContracts: ApiContractRoute[] = [
+  {
+    operationId: "listEmbeddingModelSettings",
+    method: "get",
+    path: "/api/settings/embedding-model",
+    summary: "Target and serving model for identity/audio_vibe embeddings",
+    tags: ["Embeddings"],
+    successSchema: embeddingModelSettingsListSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "One row per kind",
+          content: {
+            "application/json": { schema: { type: "array", items: { type: "object", additionalProperties: true } } },
+          },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "updateEmbeddingModelSettings",
+    method: "patch",
+    path: "/api/settings/embedding-model",
+    summary: "Switch a kind's target or serving model (#386)",
+    tags: ["Embeddings"],
+    bodySchema: embeddingModelUpdateBodySchema,
+    successSchema: embeddingModelSettingsSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["embedding_type", "field", "model", "dims"],
+              properties: {
+                embedding_type: { type: "string", enum: ["identity", "audio_vibe"] },
+                field: { type: "string", enum: ["target", "serving"] },
+                model: { type: "string" },
+                dims: { type: "integer" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Updated row",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
+        },
+        "400": {
+          description: "Invalid body",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {
           description: "Server error",
@@ -6571,6 +6645,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...embeddingsBackfillContracts,
+  ...embeddingModelSettingsContracts,
   ...audioIngestContracts,
   ...setDerivationContracts,
   ...backupContracts,

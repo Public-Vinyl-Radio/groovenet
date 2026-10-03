@@ -1,5 +1,6 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { GamdlSettings, GamdlSettingsUpdate } from "@/types/gamdl";
+import type { EmbeddingModelKind, EmbeddingModelSettings } from "@/types/embeddings";
 
 const GAMDL_ALLOWED_FIELDS = [
   "audio_quality",
@@ -156,6 +157,60 @@ export class SettingsRepository {
       RETURNING *
       `,
       [friendId]
+    );
+    return rows[0] ?? null;
+  }
+
+  /** Global, not per-friend: the active model is an infra choice, not a user preference (#386). */
+  async findEmbeddingModelSettings(
+    embeddingType: EmbeddingModelKind
+  ): Promise<EmbeddingModelSettings | null> {
+    const { rows } = await dbQuery<EmbeddingModelSettings>(
+      "SELECT * FROM embedding_model_settings WHERE embedding_type = $1 LIMIT 1",
+      [embeddingType]
+    );
+    return rows[0] ?? null;
+  }
+
+  async listEmbeddingModelSettings(): Promise<EmbeddingModelSettings[]> {
+    const { rows } = await dbQuery<EmbeddingModelSettings>(
+      "SELECT * FROM embedding_model_settings ORDER BY embedding_type"
+    );
+    return rows;
+  }
+
+  /** What new embedding jobs embed with. Changing this alone doesn't move reads. */
+  async updateTargetModel(
+    embeddingType: EmbeddingModelKind,
+    model: string,
+    dims: number
+  ): Promise<EmbeddingModelSettings | null> {
+    const { rows } = await dbQuery<EmbeddingModelSettings>(
+      `
+      UPDATE embedding_model_settings
+      SET target_model = $2, target_dims = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE embedding_type = $1
+      RETURNING *
+      `,
+      [embeddingType, model, dims]
+    );
+    return rows[0] ?? null;
+  }
+
+  /** What similarity queries read. The cutover step of a model switch (#386). */
+  async updateServingModel(
+    embeddingType: EmbeddingModelKind,
+    model: string,
+    dims: number
+  ): Promise<EmbeddingModelSettings | null> {
+    const { rows } = await dbQuery<EmbeddingModelSettings>(
+      `
+      UPDATE embedding_model_settings
+      SET serving_model = $2, serving_dims = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE embedding_type = $1
+      RETURNING *
+      `,
+      [embeddingType, model, dims]
     );
     return rows[0] ?? null;
   }

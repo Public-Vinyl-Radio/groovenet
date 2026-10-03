@@ -1776,6 +1776,14 @@ export const embeddingsBackfillDryRunSchema = z.object({
   }),
 });
 
+const embeddingModelCoverageSchema = z.array(
+  z.object({
+    model: z.string(),
+    dims: z.number().int(),
+    count: z.number().int(),
+  })
+);
+
 export const embeddingsStatusSchema = z.object({
   total_tracks: z.number().int(),
   missing: z.object({
@@ -1783,10 +1791,43 @@ export const embeddingsStatusSchema = z.object({
     audio_vibe: z.number().int(),
     prompt: z.number().int(),
   }),
+  /** Row counts per model, for watching a switch's backfill reach coverage (#386). */
+  by_model: z.object({
+    identity: embeddingModelCoverageSchema,
+    audio_vibe: embeddingModelCoverageSchema,
+  }),
 });
 
 export const embeddingsStatusQuerySchema = z.object({
   friend_id: intFromInputSchema.optional(),
+});
+
+// ─── Embedding model settings (#386) ──────────────────────────────────────────
+
+/** Only these two kinds carry a model/dims pair — the legacy "prompt" column doesn't. */
+export const embeddingModelKindSchema = z.enum(["identity", "audio_vibe"]);
+
+export const embeddingModelSettingsSchema = z.object({
+  embedding_type: embeddingModelKindSchema,
+  target_model: z.string(),
+  target_dims: z.number().int(),
+  serving_model: z.string(),
+  serving_dims: z.number().int(),
+});
+
+export const embeddingModelSettingsListSchema = z.array(embeddingModelSettingsSchema);
+
+/**
+ * One field at a time, by design: `target` is "what new jobs embed with
+ * from now on" and `serving` is "what similarity queries read right now" —
+ * flipping both together is how a model switch would skip the coexistence
+ * step it's built for.
+ */
+export const embeddingModelUpdateBodySchema = z.object({
+  embedding_type: embeddingModelKindSchema,
+  field: z.enum(["target", "serving"]),
+  model: z.string().min(1),
+  dims: intFromInputSchema.pipe(z.number().positive()),
 });
 
 // ─── Audio ingest retention (#269) ────────────────────────────────────────────

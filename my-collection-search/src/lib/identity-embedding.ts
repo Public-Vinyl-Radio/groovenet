@@ -3,7 +3,6 @@
  * Generates deterministic, normalized embeddings for track identity.
  */
 
-import OpenAI from "openai";
 import crypto from "crypto";
 import {
   formatList,
@@ -20,10 +19,7 @@ import {
   type TrackWithAlbumMetadataRow,
 } from "@/server/repositories/trackRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "My API Key",
-});
+import { getTargetProvider } from "@/lib/embeddings/config";
 
 /** Bump when `buildIdentityText`'s shape changes (#382), so stale rows are findable. */
 export const IDENTITY_TEMPLATE_VERSION = 1;
@@ -154,19 +150,17 @@ export function computeSourceHash(data: IdentityData): string {
 }
 
 /**
- * Generate OpenAI embedding for identity text
+ * Generate an identity embedding, using whichever model is currently
+ * configured as identity's target model (#386).
  */
 export async function generateIdentityEmbedding(
   identityText: string
-): Promise<number[]> {
+): Promise<{ embedding: number[]; model: string; dims: number }> {
   console.log("Generating identity embedding for:\n", identityText);
 
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: identityText,
-  });
-
-  return response.data[0].embedding;
+  const provider = await getTargetProvider("identity");
+  const [embedding] = await provider.embed([identityText]);
+  return { embedding, model: provider.model, dims: provider.dims };
 }
 
 /**
@@ -178,8 +172,8 @@ export async function storeIdentityEmbedding(
   embedding: number[],
   sourceHash: string,
   identityText: string,
-  model = "text-embedding-3-small",
-  dims = 1536
+  model: string,
+  dims: number
 ): Promise<void> {
   await embeddingsRepository.upsertTrackEmbedding({
     trackId: track_id,
@@ -242,7 +236,7 @@ export async function generateAndStoreIdentityEmbedding(
 
   // Generate embedding
   const identityText = buildIdentityText(identityData);
-  const embedding = await generateIdentityEmbedding(identityText);
+  const { embedding, model, dims } = await generateIdentityEmbedding(identityText);
 
   // Store in database
   await storeIdentityEmbedding(
@@ -250,7 +244,9 @@ export async function generateAndStoreIdentityEmbedding(
     friend_id,
     embedding,
     sourceHash,
-    identityText
+    identityText,
+    model,
+    dims
   );
 
   return { updated: true, reason: "Embedding generated and stored" };

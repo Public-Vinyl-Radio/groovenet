@@ -1,16 +1,17 @@
-import OpenAI from "openai";
+import { getTargetProvider } from "@/lib/embeddings/config";
 
 const CACHE_MS = 60_000;
 
 let cached: { checkedAt: number; error: string | null } | null = null;
 
 /**
- * Probes the embedding provider with the same key and model the embedding
- * code uses, and throws with the provider's own message when it refuses —
- * an `invalid_organization` or revoked key otherwise only reaches a
- * console.error inside a PATCH, and tracks silently stay without embeddings.
- * The result is cached so the About page polling it costs one request a
- * minute.
+ * Probes the embedding provider with the same key and model identity's
+ * embedding code currently targets (#386), and throws with the provider's
+ * own message when it refuses — an `invalid_organization` or revoked key
+ * otherwise only reaches a console.error inside a PATCH, and tracks silently
+ * stay without embeddings. Both kinds share one OpenAI account/key today, so
+ * probing identity's target model is enough; the result is cached so the
+ * About page polling it costs one request a minute.
  */
 export async function checkEmbeddingProvider(): Promise<void> {
   if (!process.env.OPENAI_API_KEY) {
@@ -23,11 +24,8 @@ export async function checkEmbeddingProvider(): Promise<void> {
   }
 
   try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: "ping",
-    });
+    const provider = await getTargetProvider("identity");
+    await provider.embed(["ping"]);
     cached = { checkedAt: Date.now(), error: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

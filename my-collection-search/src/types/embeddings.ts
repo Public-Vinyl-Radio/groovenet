@@ -42,3 +42,14 @@ export type SimilarityFilters = {
 };
 
 export type EmbeddingTrackRef = Pick<Track, "track_id" | "friend_id">;
+
+/** The two embedding kinds that support multiple models side by side (#386). */
+export type EmbeddingModelKind = "identity" | "audio_vibe";
+
+export type EmbeddingModelSettings = {
+  embedding_type: EmbeddingModelKind;
+  target_model: string;
+  target_dims: number;
+  serving_model: string;
+  serving_dims: number;
+};

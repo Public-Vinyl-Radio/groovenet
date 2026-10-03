@@ -27,12 +27,12 @@ CREATE TABLE track_embeddings (
   embedding_type embedding_type_enum NOT NULL, -- 'identity', 'audio_vibe', 'dj_function'
   model VARCHAR(100) NOT NULL DEFAULT 'text-embedding-3-small',
   dims INTEGER NOT NULL DEFAULT 1536,
-  embedding VECTOR(1536) NOT NULL,
+  embedding VECTOR NOT NULL,  -- unconstrained (#386) — see "Multi-Model Embeddings" below
   source_hash VARCHAR(64) NOT NULL,
   identity_text TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (track_id, friend_id, embedding_type)
+  UNIQUE (track_id, friend_id, embedding_type, model)
 );
 
 -- Indexes
@@ -40,11 +40,14 @@ CREATE INDEX idx_track_embeddings_track_id ON track_embeddings(track_id);
 CREATE INDEX idx_track_embeddings_friend_id ON track_embeddings(friend_id);
 CREATE INDEX idx_track_embeddings_type ON track_embeddings(embedding_type);
 
--- Vector similarity index (ivfflat)
-CREATE INDEX idx_track_embeddings_vector_cosine
+-- One partial expression index per (embedding_type, model) pair in use —
+-- see "Multi-Model Embeddings" for why a single ivfflat index on the whole
+-- (unconstrained) column doesn't work.
+CREATE INDEX idx_track_embeddings_identity_openai_small
 ON track_embeddings
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
+USING ivfflat ((embedding::vector(1536)) vector_cosine_ops)
+WITH (lists = 100)
+WHERE embedding_type = 'identity' AND model = 'text-embedding-3-small';
 ```
 
 ### Code Structure
@@ -359,13 +362,84 @@ curl "http://localhost:3000/api/embeddings/similar?track_id=YOUR_TRACK_ID&friend
 
 ### Re-indexing After Bulk Inserts
 ```sql
--- Drop and recreate index with new lists value
-DROP INDEX idx_track_embeddings_vector_cosine;
-CREATE INDEX idx_track_embeddings_vector_cosine
+-- Drop and recreate one kind/model's index with a new lists value
+DROP INDEX idx_track_embeddings_identity_openai_small;
+CREATE INDEX idx_track_embeddings_identity_openai_small
 ON track_embeddings
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 316); -- Adjust based on row count
+USING ivfflat ((embedding::vector(1536)) vector_cosine_ops)
+WITH (lists = 316) -- Adjust based on row count
+WHERE embedding_type = 'identity' AND model = 'text-embedding-3-small';
 ```
+
+---
+
+## Multi-Model Embeddings (#386)
+
+Identity and audio_vibe embeddings aren't pinned to one model or vector size.
+Each row in `track_embeddings` records the `model`/`dims` it was generated
+with, and every similarity query filters to one model — vectors from
+different models are never compared, and a track can hold rows for two
+models at once while a switch is in progress.
+
+### Why the column is an unconstrained `vector`
+
+pgvector can't build an `ivfflat`/`hnsw` index directly on an unconstrained
+`vector` column (`column does not have dimensions`), but a **partial
+expression index** — cast to a fixed dimension, scoped to one
+`(embedding_type, model)` pair — works, because every row the partial
+predicate admits shares that dimension:
+
+```sql
+CREATE INDEX ... USING ivfflat ((embedding::vector(1536)) vector_cosine_ops)
+WITH (lists = 100)
+WHERE embedding_type = 'identity' AND model = 'text-embedding-3-small';
+```
+
+Adding a model that will be queried by ANN search means adding its own
+index this way, in a migration — there's no dynamic index creation.
+
+### Supported models
+
+Any OpenAI embedding model works through `createOpenAiEmbeddingProvider`
+(`src/lib/embeddings/openaiProvider.ts`); `dims` is optional and uses OpenAI's
+`dimensions` param to shorten a v3 model's vector. In active use today:
+
+| Model | dims | Notes |
+| --- | --- | --- |
+| `text-embedding-3-small` | 1536 | Default for both identity and audio_vibe |
+| `text-embedding-3-small` | 768 | Same model, OpenAI's `dimensions` param |
+
+### Switching a kind's model
+
+Two settings per kind (`identity`/`audio_vibe`) in `embedding_model_settings`,
+read/written through `src/lib/embeddings/config.ts` and
+`GET`/`PATCH /api/settings/embedding-model`:
+
+- **`target_model`/`target_dims`** — what new embedding jobs embed with.
+- **`serving_model`/`serving_dims`** — what similarity queries filter to.
+
+They default to the same value, so nothing changes until you touch them.
+To switch:
+
+1. `PATCH /api/settings/embedding-model` with
+   `{ "embedding_type": "identity", "field": "target", "model": "...", "dims": N }`.
+   New and re-embedded tracks now get rows under the new model; reads are
+   untouched because `serving_model` hasn't moved.
+2. Run a backfill for that kind with `force: true`
+   (`groovenet embeddings backfill --type identity --force`, or
+   `POST /api/embeddings/backfill`) to build the new model's full set.
+   `GET /api/embeddings/status` reports `by_model` — per-model row counts —
+   so you can watch coverage without guessing.
+3. Once coverage looks right, `PATCH .../embedding-model` again with
+   `field: "serving"` and the new model/dims. Reads switch over immediately;
+   nothing to migrate, since serving is just a filter value.
+4. The old model's rows are now unused but harmless. Clean them up with
+   `DELETE FROM track_embeddings WHERE embedding_type = $1 AND model = $2`
+   once you're confident you won't want to roll back.
+
+If the new `(embedding_type, model)` pair will be queried by ANN search at
+any real scale, add its partial index in the same migration that introduces
+it (see above) — without one, queries still work, just without the index.
 
 ---
 
@@ -389,7 +463,9 @@ The new system runs **in parallel** with the legacy system:
 - New `track_embeddings` table stores typed embeddings
 - No breaking changes to existing features
 
-**Future**: Deprecate `tracks.embedding` once all embedding types are implemented.
+**Future**: Deprecate `tracks.embedding` once all embedding types are
+implemented. The one remaining consumer is ga-service's genetic playlist
+optimizer, tracked in #393.
 
 ---
 
@@ -438,7 +514,7 @@ The new system runs **in parallel** with the legacy system:
 
 - **pgvector**: https://github.com/pgvector/pgvector
 - **OpenAI Embeddings**: https://platform.openai.com/docs/guides/embeddings
-- **Model**: `text-embedding-3-small` (1536 dimensions)
+- **Model**: `text-embedding-3-small` by default — see "Multi-Model Embeddings" above
 
 ## 🎨 UI Integration
 

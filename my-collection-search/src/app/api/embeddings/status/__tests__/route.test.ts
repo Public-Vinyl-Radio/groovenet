@@ -5,6 +5,7 @@ const repo = vi.hoisted(() => ({
   listTracksNeedingAudioVibeEmbeddings: vi.fn(),
   listTracksNeedingPromptEmbeddings: vi.fn(),
   countTracks: vi.fn(),
+  countEmbeddingsByModel: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
@@ -24,6 +25,7 @@ beforeEach(() => {
   repo.listTracksNeedingAudioVibeEmbeddings.mockResolvedValue([]);
   repo.listTracksNeedingPromptEmbeddings.mockResolvedValue([]);
   repo.countTracks.mockResolvedValue(0);
+  repo.countEmbeddingsByModel.mockResolvedValue([]);
 });
 
 describe("GET /api/embeddings/status", () => {
@@ -32,6 +34,9 @@ describe("GET /api/embeddings/status", () => {
     repo.listTracksNeedingAudioVibeEmbeddings.mockResolvedValue(refs(1));
     repo.listTracksNeedingPromptEmbeddings.mockResolvedValue(refs(2));
     repo.countTracks.mockResolvedValue(50);
+    repo.countEmbeddingsByModel.mockResolvedValue([
+      { model: "text-embedding-3-small", dims: 1536, count: 47 },
+    ]);
 
     const res = await GET(new Request("http://app/api/embeddings/status"));
 
@@ -39,6 +44,10 @@ describe("GET /api/embeddings/status", () => {
     expect(await res.json()).toEqual({
       total_tracks: 50,
       missing: { identity: 3, audio_vibe: 1, prompt: 2 },
+      by_model: {
+        identity: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],
+        audio_vibe: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],
+      },
     });
   });
 

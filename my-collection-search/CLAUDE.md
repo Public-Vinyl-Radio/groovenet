@@ -117,6 +117,28 @@
   `.events`; don't mock the SDK.
 - Unhandled errors go to Sentry only (`capture_exceptions: false`).
 
+## Embeddings
+
+- Identity and audio_vibe generation goes through `EmbeddingProvider`
+  (`src/lib/embeddings/provider.ts`, OpenAI implementation in
+  `openaiProvider.ts`) instead of each call site building its own OpenAI
+  client. The legacy free-text `tracks.embedding` ("prompt") column uses the
+  same interface for generation but stays pinned to one model — it's not
+  part of the multi-model system below.
+- **Multi-model + switching a model is documented in
+  `docs/IDENTITY_EMBEDDINGS.md`** ("Multi-Model Embeddings", #386): each
+  `track_embeddings` row records its `model`/`dims`, every similarity query
+  filters to one model, and a switch is two settings
+  (`target_model`/`serving_model` in `embedding_model_settings`, via
+  `src/lib/embeddings/config.ts` and `GET`/`PATCH
+  /api/settings/embedding-model`) so the new model's set builds alongside the
+  old one instead of overwriting it in place.
+- `track_embeddings.embedding` is an **unconstrained** `vector` column —
+  pgvector can't index it directly, so each `(embedding_type, model)` pair
+  gets its own partial expression index, added in the migration that
+  introduces that model. See the doc before adding a model that needs ANN
+  search at scale.
+
 ## Background work
 
 `src/instrumentation.ts` is where anything periodic starts, once per server
