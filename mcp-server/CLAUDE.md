@@ -23,7 +23,7 @@ claude mcp add --transport stdio --scope project groovenet \
 
 ## Tools
 
-20 tools, grouped:
+25 tools, grouped:
 
 - **tracks** — `search_tracks`, `get_track_details`, `update_track`,
   `get_missing_apple_music`
@@ -34,6 +34,9 @@ claude mcp add --transport stdio --scope project groovenet \
 - **discovery** — `get_recommendations`, `find_similar_identity`,
   `find_similar_vibe`
 - **external** — `search_apple_music`, `search_youtube`
+- **records** — `log_record_action`, `list_record_care`,
+  `get_record_care_summary`, `get_record_copies` (with history),
+  `void_record_action`
 
 ## Build
 

@@ -10,6 +10,7 @@ import { addFingerprintLibraryCommand } from "../commands/fingerprintLibrary.js"
 import { addEmbeddingsCommands } from "../commands/embeddings.js";
 import { addVinylCommands } from "../commands/vinyl.js";
 import { addSetsCommands } from "../commands/sets.js";
+import { addRecordsCommands } from "../commands/records.js";
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -31,6 +32,7 @@ addFingerprintLibraryCommand(program);
 addEmbeddingsCommands(program);
 addVinylCommands(program);
 addSetsCommands(program);
+addRecordsCommands(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(

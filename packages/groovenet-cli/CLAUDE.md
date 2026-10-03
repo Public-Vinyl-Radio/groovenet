@@ -26,6 +26,8 @@ friends             list | add
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
+records             clean | sleeve | log | copies (add | label | remove)
+                    history | void | care [--summary]
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -224,3 +226,13 @@ overwrites a track's metadata with values actually sent.
 
 Review is interactive only — it refuses without a TTY, and with `--json` or
 `--no-wait` on `derive`.
+
+## records
+
+Care actions and physical copies use the `@groovenet/client` record methods.
+`clean`, `sleeve` and `log` target a release's default copy unless `--copy` is
+given. `copies label <release> <label>` also creates the implicit default copy
+when needed; `--copy <id>` labels a specific copy after checking its release.
+`copies add <release>` adds another physical copy, and `copies remove <id>`
+soft-deletes one. `care` lists copies that need attention; `--summary` prints
+counts. Every subcommand supports `--friend-id` and `--json`.
