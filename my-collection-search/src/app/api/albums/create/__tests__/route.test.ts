@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const {
+  mockSyncEmbeddings,
   mockWithDbTransaction,
   mockGenReleaseId,
   mockGenTrackId,
@@ -10,6 +11,7 @@ const {
   mockGetUsername,
   mockInsertTrack,
 } = vi.hoisted(() => ({
+  mockSyncEmbeddings: vi.fn(),
   mockWithDbTransaction: vi.fn(),
   mockGenReleaseId: vi.fn(),
   mockGenTrackId: vi.fn(),
@@ -19,6 +21,9 @@ const {
   mockInsertTrack: vi.fn(),
 }));
 
+vi.mock("@/server/services/trackEmbeddingSyncService", () => ({
+  syncIdentityEmbeddings: mockSyncEmbeddings,
+}));
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: mockWithDbTransaction }));
 vi.mock("@/lib/localTrackHelpers", () => ({
   generateLocalReleaseId: mockGenReleaseId,
@@ -65,6 +70,7 @@ function makeReq(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockSyncEmbeddings.mockResolvedValue({ queued: 0 });
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockGenReleaseId.mockReturnValue("local-rel-1");
   mockGenTrackId.mockReturnValue("local-trk-1");
@@ -148,6 +154,24 @@ describe("POST /api/albums/create — success", () => {
     expect(body.tracks).toHaveLength(2);
     expect(mockUpsertAlbum).toHaveBeenCalledOnce();
     expect(mockInsertTrack).toHaveBeenCalledTimes(2);
+  });
+
+  it("generates identity embeddings for the created tracks once they are committed", async () => {
+    mockInsertTrack
+      .mockResolvedValueOnce({ track_id: "a", friend_id: 1 })
+      .mockResolvedValueOnce({ track_id: "b", friend_id: 1 });
+    await POST(
+      makeReq({
+        tracks: [
+          { title: "S1", artist: "A" },
+          { title: "S2", artist: "A" },
+        ],
+      })
+    );
+    expect(mockSyncEmbeddings).toHaveBeenCalledWith([
+      { track_id: "a", friend_id: 1 },
+      { track_id: "b", friend_id: 1 },
+    ]);
   });
 
   it("passes the generated release id into the album upsert", async () => {

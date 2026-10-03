@@ -37,6 +37,14 @@ export async function register() {
       "@/server/services/playAggregationService"
     );
     startPlayAggregation();
+
+    // Embedding generation is a queue, not an inline request-path call, so a
+    // provider outage retries instead of silently leaving tracks without
+    // embeddings (#385).
+    const { startEmbeddingQueueWorker } = await import(
+      "@/server/services/embeddingQueueService"
+    );
+    startEmbeddingQueueWorker();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

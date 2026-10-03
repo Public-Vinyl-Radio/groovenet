@@ -25,6 +25,9 @@ interface TrackStore {
   _preserveFields: Array<keyof TrackEntity>;
 }
 
+const isEmptyValue = (value: unknown): boolean =>
+  value === undefined || value === null || value === "";
+
 const createTrackKey = (trackId: string, friendId?: number): string => {
   return `${trackId}:${friendId || 'default'}`;
 };
@@ -107,6 +110,11 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
         if (existing) {
           const preserved: Partial<TrackEntity> = {};
           for (const f of get()._preserveFields) {
+            // An empty local value has nothing to protect: the server's value
+            // is the only information there is. Without this a track seeded
+            // before download/analysis never picks up its BPM, key or moods,
+            // because every later refetch is overwritten by the stale blank.
+            if (isEmptyValue(existing[f])) continue;
             // @ts-expect-error index by keyof Track
             preserved[f] = existing[f];
           }

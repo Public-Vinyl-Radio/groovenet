@@ -96,6 +96,12 @@ export class EmbeddingsRepository {
     return this.listTracksForBackfill({ ...options, type: "identity" });
   }
 
+  async listTracksNeedingAudioVibeEmbeddings(
+    options: BackfillOptions
+  ): Promise<EmbeddingTrackRef[]> {
+    return this.listTracksForBackfill({ ...options, type: "audio_vibe" });
+  }
+
   async setIvfflatProbes(client: Queryable, probes: number): Promise<void> {
     await client.query("SELECT set_config('ivfflat.probes', $1, false)", [
       String(probes),
@@ -255,14 +261,15 @@ export class EmbeddingsRepository {
     embedding: number[];
     sourceHash: string;
     identityText: string;
+    templateVersion?: number;
   }): Promise<void> {
     const pgVector = `[${params.embedding.join(",")}]`;
     await dbQuery(
       `
       INSERT INTO track_embeddings (
-        track_id, friend_id, embedding_type, model, dims, embedding, source_hash, identity_text, updated_at
+        track_id, friend_id, embedding_type, model, dims, embedding, source_hash, identity_text, template_version, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
       ON CONFLICT (track_id, friend_id, embedding_type)
       DO UPDATE SET
         embedding = EXCLUDED.embedding,
@@ -270,6 +277,7 @@ export class EmbeddingsRepository {
         identity_text = EXCLUDED.identity_text,
         model = EXCLUDED.model,
         dims = EXCLUDED.dims,
+        template_version = EXCLUDED.template_version,
         updated_at = CURRENT_TIMESTAMP
       `,
       [
@@ -281,6 +289,7 @@ export class EmbeddingsRepository {
         pgVector,
         params.sourceHash,
         params.identityText,
+        params.templateVersion ?? 1,
       ]
     );
   }

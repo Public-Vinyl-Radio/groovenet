@@ -14,6 +14,7 @@ export interface ServiceHealth {
   status: ServiceStatus;
   latencyMs: number | null;
   detail?: string;
+  meta?: Record<string, unknown>;
 }
 
 export interface StatusInfo {

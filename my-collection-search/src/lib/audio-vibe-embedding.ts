@@ -30,6 +30,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "My API Key",
 });
 
+/** Bump when `buildAudioVibeText`'s shape changes (#382), so stale rows are findable. */
+export const AUDIO_VIBE_TEMPLATE_VERSION = 1;
+
 /**
  * Essentia analysis structure (subset we care about)
  */
@@ -257,6 +260,7 @@ export async function storeAudioVibeEmbedding(
     embedding,
     sourceHash,
     identityText: vibeText,
+    templateVersion: AUDIO_VIBE_TEMPLATE_VERSION,
   });
 }
 

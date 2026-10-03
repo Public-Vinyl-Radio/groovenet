@@ -6,6 +6,7 @@ import { AlbumToUpsert, upsertAlbum } from '@/server/services/albumUpsertService
 import { Track } from '@/types/track';
 import { AlbumMetadata, TrackUpsertMetadata } from '@/types/albumMetadata';
 import { albumRepository } from '@/server/repositories/albumRepository';
+import { syncIdentityEmbeddings } from '@/server/services/trackEmbeddingSyncService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -174,6 +175,10 @@ export async function POST(request: NextRequest) {
       return { updatedAlbum, upsertedTracks, tracksToDelete };
       }
     );
+
+    // Album genres/styles/label feed every track's identity embedding, so
+    // refresh them now that the album and tracks are committed.
+    await syncIdentityEmbeddings(upsertedTracks);
 
       return NextResponse.json({
         album: updatedAlbum,

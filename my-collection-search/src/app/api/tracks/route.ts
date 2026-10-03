@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-import { getTrackEmbedding } from "@/lib/track-embedding";
-import { generateAndStoreAudioVibeEmbedding } from "@/lib/audio-vibe-embedding";
-import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
 import { analytics } from "@/lib/analytics/server";
 import {
   trackRepository,
@@ -10,6 +7,8 @@ import {
 import { computeEmbeddingUpdates } from "@/lib/trackEmbeddingDiff";
 import { shouldTriggerFingerprintIndex } from "@/lib/trackFingerprintTrigger";
 import { fingerprintIndexService } from "@/server/services/fingerprintIndexService";
+import { embeddingQueueService } from "@/server/services/embeddingQueueService";
+import type { EmbeddingJob } from "@/types/embeddingQueue";
 
 export async function PATCH(req: Request) {
   try {
@@ -26,33 +25,36 @@ export async function PATCH(req: Request) {
 
     const embeddingUpdates = computeEmbeddingUpdates(current, updated);
 
+    // Enqueue rather than generate inline (#385): an OpenAI outage retries
+    // in the background instead of silently leaving the track without an
+    // embedding, and the PATCH no longer waits on an external call.
+    const embeddingJobs: EmbeddingJob[] = [];
     if (embeddingUpdates.prompt) {
-      try {
-        const embedding = await getTrackEmbedding(updated);
-        await trackRepository.updateTrackEmbedding(
-          updated.track_id,
-          updated.friend_id,
-          embedding
-        );
-        updated.embedding = embedding;
-      } catch (embedError) {
-        console.error("Failed to update embedding:", embedError);
-      }
+      embeddingJobs.push({
+        track_id: updated.track_id,
+        friend_id: updated.friend_id,
+        kind: "prompt",
+      });
     }
-
     if (embeddingUpdates.identity) {
-      try {
-        await generateAndStoreIdentityEmbedding(updated.track_id, updated.friend_id);
-      } catch (identityError) {
-        console.error("Failed to update identity embedding:", identityError);
-      }
+      embeddingJobs.push({
+        track_id: updated.track_id,
+        friend_id: updated.friend_id,
+        kind: "identity",
+      });
     }
-
     if (embeddingUpdates.audioVibe) {
+      embeddingJobs.push({
+        track_id: updated.track_id,
+        friend_id: updated.friend_id,
+        kind: "audio_vibe",
+      });
+    }
+    if (embeddingJobs.length > 0) {
       try {
-        await generateAndStoreAudioVibeEmbedding(updated.track_id, updated.friend_id);
-      } catch (audioVibeError) {
-        console.error("Failed to update audio vibe embedding:", audioVibeError);
+        await embeddingQueueService.enqueue(embeddingJobs);
+      } catch (queueError) {
+        console.error("Failed to enqueue embedding jobs:", queueError);
       }
     }
 

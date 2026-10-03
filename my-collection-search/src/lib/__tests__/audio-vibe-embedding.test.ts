@@ -29,6 +29,7 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
 }));
 
 import {
+  AUDIO_VIBE_TEMPLATE_VERSION,
   buildAudioVibeData,
   buildAudioVibeText,
   computeAudioVibeHash,
@@ -256,6 +257,7 @@ describe("audio vibe embedding persistence", () => {
       embedding: [0.1, 0.2],
       sourceHash: "source-hash",
       identityText: "vibe text",
+      templateVersion: AUDIO_VIBE_TEMPLATE_VERSION,
     });
   });
 });

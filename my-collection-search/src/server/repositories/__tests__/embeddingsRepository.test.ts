@@ -116,6 +116,21 @@ describe("listTracksNeedingIdentityEmbeddings()", () => {
   });
 });
 
+// ─── listTracksNeedingAudioVibeEmbeddings ─────────────────────────────────────
+
+describe("listTracksNeedingAudioVibeEmbeddings()", () => {
+  it("delegates to listTracksForBackfill with type='audio_vibe'", async () => {
+    const rows = [{ track_id: "t1", friend_id: 1 }];
+    dbQuery.mockResolvedValue({ rows });
+
+    const result = await makeRepo().listTracksNeedingAudioVibeEmbeddings({ friend_id: 2 });
+
+    expect(result).toEqual(rows);
+    const [sql] = dbQuery.mock.calls[0];
+    expect(sql).toContain("audio_vibe");
+  });
+});
+
 // ─── setIvfflatProbes ─────────────────────────────────────────────────────────
 
 describe("setIvfflatProbes()", () => {
@@ -291,7 +306,7 @@ describe("upsertTrackEmbedding()", () => {
     expect(params[5]).toBe("[0.1,0.2,0.3]");
   });
 
-  it("passes all 8 params in the correct order", async () => {
+  it("passes all 9 params in the correct order, defaulting templateVersion to 1", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
     await makeRepo().upsertTrackEmbedding({
@@ -313,6 +328,26 @@ describe("upsertTrackEmbedding()", () => {
     expect(params[4]).toBe(512);
     expect(params[6]).toBe("hash1");
     expect(params[7]).toBe("text");
+    expect(params[8]).toBe(1);
+  });
+
+  it("passes an explicit templateVersion through", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().upsertTrackEmbedding({
+      trackId: "t1",
+      friendId: 1,
+      embeddingType: "identity",
+      model: "text-embedding-3-small",
+      dims: 3,
+      embedding: [0.1],
+      sourceHash: "abc123",
+      identityText: "text",
+      templateVersion: 2,
+    });
+
+    const [, params] = dbQuery.mock.calls[0];
+    expect(params[8]).toBe(2);
   });
 });
 

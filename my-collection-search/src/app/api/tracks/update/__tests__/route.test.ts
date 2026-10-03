@@ -1,43 +1,24 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const {
-  mockFindTrack,
-  mockUpdateTrack,
-  mockUpdateEmbedding,
-  mockGetTrackEmbedding,
-  mockGenerateIdentityEmbedding,
-  mockGenerateAudioVibeEmbedding,
-  mockStartFingerprintRun,
-} = vi.hoisted(() => {
-  return {
-    mockFindTrack: vi.fn(),
-    mockUpdateTrack: vi.fn(),
-    mockUpdateEmbedding: vi.fn().mockResolvedValue(undefined),
-    mockGetTrackEmbedding: vi.fn().mockResolvedValue([0.1, 0.2]),
-    mockGenerateIdentityEmbedding: vi.fn().mockResolvedValue({ updated: true }),
-    mockGenerateAudioVibeEmbedding: vi.fn().mockResolvedValue({ updated: true }),
-    mockStartFingerprintRun: vi.fn().mockResolvedValue({ run_id: "run-1" }),
-  };
-});
+const { mockFindTrack, mockUpdateTrack, mockEnqueue, mockStartFingerprintRun } =
+  vi.hoisted(() => {
+    return {
+      mockFindTrack: vi.fn(),
+      mockUpdateTrack: vi.fn(),
+      mockEnqueue: vi.fn().mockResolvedValue(undefined),
+      mockStartFingerprintRun: vi.fn().mockResolvedValue({ run_id: "run-1" }),
+    };
+  });
 
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: {
     findTrackByTrackIdAndFriendId: mockFindTrack,
     updateTrackFields: mockUpdateTrack,
-    updateTrackEmbedding: mockUpdateEmbedding,
   },
 }));
 
-vi.mock("@/lib/track-embedding", () => ({
-  getTrackEmbedding: mockGetTrackEmbedding,
-}));
-
-vi.mock("@/lib/identity-embedding", () => ({
-  generateAndStoreIdentityEmbedding: mockGenerateIdentityEmbedding,
-}));
-
-vi.mock("@/lib/audio-vibe-embedding", () => ({
-  generateAndStoreAudioVibeEmbedding: mockGenerateAudioVibeEmbedding,
+vi.mock("@/server/services/embeddingQueueService", () => ({
+  embeddingQueueService: { enqueue: mockEnqueue },
 }));
 
 vi.mock("@/server/services/fingerprintIndexService", () => ({
@@ -82,20 +63,23 @@ function baseTrack(overrides: Record<string, unknown> = {}) {
 
 const PATCH_BODY = { track_id: "t1", friend_id: 1 };
 
+/** Job kinds enqueued by the most recent `enqueue` call, order-independent. */
+function enqueuedKinds(): string[] {
+  if (mockEnqueue.mock.calls.length === 0) return [];
+  const jobs = mockEnqueue.mock.calls[mockEnqueue.mock.calls.length - 1][0] as Array<{
+    kind: string;
+  }>;
+  return jobs.map((job) => job.kind);
+}
+
 beforeEach(() => {
   mockFindTrack.mockReset();
   mockUpdateTrack.mockReset();
-  mockUpdateEmbedding.mockReset();
-  mockGetTrackEmbedding.mockReset();
-  mockGenerateIdentityEmbedding.mockReset();
-  mockGenerateAudioVibeEmbedding.mockReset();
+  mockEnqueue.mockReset();
   analyticsEvents.reset();
   mockStartFingerprintRun.mockReset();
 
-  mockUpdateEmbedding.mockResolvedValue(undefined);
-  mockGetTrackEmbedding.mockResolvedValue([0.1, 0.2]);
-  mockGenerateIdentityEmbedding.mockResolvedValue({ updated: true });
-  mockGenerateAudioVibeEmbedding.mockResolvedValue({ updated: true });
+  mockEnqueue.mockResolvedValue(undefined);
   mockStartFingerprintRun.mockResolvedValue({ run_id: "run-1" });
 });
 
@@ -114,103 +98,104 @@ describe("PATCH /api/tracks — track not found", () => {
 
 // ─── shouldUpdateEmbedding — scalar fields ────────────────────────────────────
 
-describe("PATCH /api/tracks — embedding update (scalar fields)", () => {
-  it("regenerates embedding when bpm changes", async () => {
+describe("PATCH /api/tracks — embedding queueing (scalar fields)", () => {
+  it("enqueues prompt and audio-vibe jobs when bpm changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ bpm: 120 }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ bpm: 130 }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
-    expect(mockUpdateEmbedding).toHaveBeenCalledOnce();
-    expect(mockGenerateAudioVibeEmbedding).toHaveBeenCalledOnce();
+    expect(mockEnqueue).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toEqual(
+      expect.arrayContaining(["prompt", "audio_vibe"])
+    );
   });
 
-  it("regenerates embedding when key changes", async () => {
+  it("enqueues a prompt job when key changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ key: "A minor" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ key: "C major" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toContain("prompt");
   });
 
-  it("regenerates embedding when notes changes", async () => {
+  it("enqueues a prompt job when notes changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "Great track" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toContain("prompt");
   });
 
-  it("regenerates embedding when danceability changes", async () => {
+  it("enqueues a prompt job when danceability changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ danceability: 0.5 }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ danceability: 0.9 }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toContain("prompt");
   });
 
-  it("does NOT regenerate embedding when only star_rating changes", async () => {
+  it("enqueues nothing when only star_rating changes", async () => {
     const current = baseTrack({ star_rating: 3 });
     const updated = baseTrack({ star_rating: 5 });
     mockFindTrack.mockResolvedValueOnce(current);
     mockUpdateTrack.mockResolvedValueOnce(updated);
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).not.toHaveBeenCalled();
-    expect(mockUpdateEmbedding).not.toHaveBeenCalled();
-    expect(mockGenerateIdentityEmbedding).not.toHaveBeenCalled();
-    expect(mockGenerateAudioVibeEmbedding).not.toHaveBeenCalled();
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  it("does NOT regenerate embedding when only title changes", async () => {
+  it("enqueues no prompt job when only title changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old Title" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New Title" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).not.toHaveBeenCalled();
+    // title is an identity field, not a prompt field — see next describe block,
+    // which asserts the identity job it does enqueue.
+    expect(enqueuedKinds()).not.toContain("prompt");
   });
 });
 
 describe("PATCH /api/tracks — track_embeddings updates", () => {
-  it("regenerates identity embedding when identity fields change", async () => {
+  it("enqueues an identity job when identity fields change", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old Title" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New Title" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGenerateIdentityEmbedding).toHaveBeenCalledWith("t1", 1);
-    expect(mockGenerateAudioVibeEmbedding).not.toHaveBeenCalled();
+    expect(mockEnqueue).toHaveBeenCalledWith([
+      { track_id: "t1", friend_id: 1, kind: "identity" },
+    ]);
   });
 
-  it("regenerates audio vibe embedding when audio fields change", async () => {
+  it("enqueues an audio-vibe job when audio fields change", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ mood_happy: 0.2 }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ mood_happy: 0.7 }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGenerateAudioVibeEmbedding).toHaveBeenCalledWith("t1", 1);
+    expect(enqueuedKinds()).toContain("audio_vibe");
   });
 });
 
 // ─── shouldUpdateEmbedding — array fields ─────────────────────────────────────
 
-describe("PATCH /api/tracks — embedding update (array fields)", () => {
-  it("regenerates embedding when styles array changes", async () => {
+describe("PATCH /api/tracks — embedding queueing (array fields)", () => {
+  it("enqueues a prompt job when styles array changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ styles: ["Deep House"] }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ styles: ["Tech House"] }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toContain("prompt");
   });
 
-  it("regenerates embedding when genres array changes", async () => {
+  it("enqueues a prompt job when genres array changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ genres: ["Electronic"] }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ genres: ["House"] }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toContain("prompt");
   });
 
-  it("does NOT regenerate embedding when array content is identical", async () => {
+  it("enqueues nothing when array content is identical", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ styles: ["Deep House", "Tech House"] }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ styles: ["Deep House", "Tech House"] }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).not.toHaveBeenCalled();
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  it("regenerates embedding when local_tags changes", async () => {
+  it("enqueues a prompt job when local_tags changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ local_tags: "crate1" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_tags: "crate1,crate2" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(mockGetTrackEmbedding).toHaveBeenCalledOnce();
+    expect(enqueuedKinds()).toContain("prompt");
   });
 });
 
@@ -239,51 +224,23 @@ describe("PATCH /api/tracks — response", () => {
 // ─── No-op change ─────────────────────────────────────────────────────────────
 
 describe("PATCH /api/tracks — no embedding-relevant change", () => {
-  it("regenerates nothing when current and updated are identical", async () => {
+  it("enqueues nothing when current and updated are identical", async () => {
     const track = baseTrack();
     mockFindTrack.mockResolvedValueOnce(track);
     mockUpdateTrack.mockResolvedValueOnce(baseTrack());
     const res = await PATCH(makeReq(PATCH_BODY));
     expect(res.status).toBe(200);
-    expect(mockGetTrackEmbedding).not.toHaveBeenCalled();
-    expect(mockUpdateEmbedding).not.toHaveBeenCalled();
-    expect(mockGenerateIdentityEmbedding).not.toHaveBeenCalled();
-    expect(mockGenerateAudioVibeEmbedding).not.toHaveBeenCalled();
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 });
 
 // ─── Error swallowing (side effects must not fail the request) ─────────────────
 
 describe("PATCH /api/tracks — side-effect errors are swallowed", () => {
-  it("still returns 200 when prompt embedding generation throws", async () => {
+  it("still returns 200 when enqueueing throws", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "changed" }));
-    mockGetTrackEmbedding.mockRejectedValueOnce(new Error("embed fail"));
-    const res = await PATCH(makeReq(PATCH_BODY));
-    expect(res.status).toBe(200);
-    expect(mockUpdateEmbedding).not.toHaveBeenCalled();
-  });
-
-  it("still returns 200 when updateTrackEmbedding throws", async () => {
-    mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
-    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "changed" }));
-    mockUpdateEmbedding.mockRejectedValueOnce(new Error("store fail"));
-    const res = await PATCH(makeReq(PATCH_BODY));
-    expect(res.status).toBe(200);
-  });
-
-  it("still returns 200 when identity embedding generation throws", async () => {
-    mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old" }));
-    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New" }));
-    mockGenerateIdentityEmbedding.mockRejectedValueOnce(new Error("identity fail"));
-    const res = await PATCH(makeReq(PATCH_BODY));
-    expect(res.status).toBe(200);
-  });
-
-  it("still returns 200 when audio vibe embedding generation throws", async () => {
-    mockFindTrack.mockResolvedValueOnce(baseTrack({ mood_happy: 0.2 }));
-    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ mood_happy: 0.9 }));
-    mockGenerateAudioVibeEmbedding.mockRejectedValueOnce(new Error("vibe fail"));
+    mockEnqueue.mockRejectedValueOnce(new Error("redis down"));
     const res = await PATCH(makeReq(PATCH_BODY));
     expect(res.status).toBe(200);
   });
