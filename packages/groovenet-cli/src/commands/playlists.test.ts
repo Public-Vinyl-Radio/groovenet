@@ -65,6 +65,39 @@ describe("playlists log-spins", () => {
     expect(mocks.printSuccess).toHaveBeenCalledWith("Logged 2 spins.");
   });
 
+  it("prints an idempotent rerun and a partial skip", async () => {
+    const program = new Command().exitOverride();
+    addPlaylistsCommands(program);
+    mocks.client.logPlaylistSpins.mockResolvedValueOnce({
+      playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00Z", created: 0, skipped: 2,
+    });
+    await program.parseAsync(["node", "test", "playlists", "log-spins", "9"]);
+    expect(mocks.printSuccess).toHaveBeenCalledWith("Already logged (2 spins skipped).");
+
+    mocks.client.logPlaylistSpins.mockResolvedValueOnce({
+      playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00Z", created: 1, skipped: 1,
+    });
+    await program.parseAsync(["node", "test", "playlists", "log-spins", "9"]);
+    expect(mocks.printSuccess).toHaveBeenCalledWith("Logged 1 spins; 1 already existed.");
+  });
+
+  it("rejects invalid timestamps before calling the API", async () => {
+    const program = new Command().exitOverride();
+    addPlaylistsCommands(program);
+    await program.parseAsync(["node", "test", "playlists", "log-spins", "9", "--at", "not-a-date"]);
+    expect(mocks.client.logPlaylistSpins).not.toHaveBeenCalled();
+    expect(mocks.printError).toHaveBeenCalledWith("Invalid timestamp: not-a-date");
+  });
+
+  it("prints non-Error API failures", async () => {
+    const program = new Command().exitOverride();
+    addPlaylistsCommands(program);
+    mocks.client.logPlaylistSpins.mockRejectedValueOnce("offline");
+    await program.parseAsync(["node", "test", "playlists", "log-spins", "9"]);
+    expect(mocks.printError).toHaveBeenCalledWith("offline");
+    expect(process.exitCode).toBe(1);
+  });
+
   it("rejects timestamp and performance together before calling the API", async () => {
     const program = new Command().exitOverride();
     addPlaylistsCommands(program);

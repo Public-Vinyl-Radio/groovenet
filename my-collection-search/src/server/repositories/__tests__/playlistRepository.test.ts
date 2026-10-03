@@ -127,6 +127,25 @@ describe("PlaylistRepository — reads", () => {
     const [sql] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/DELETE FROM playlists WHERE id = \$1 RETURNING/);
   });
+
+  it("lists playlist entries with the snapshots needed for spins", async () => {
+    const entry = { track_id: "t1", friend_id: 2, playlist_position: 0, release_id: "r1" };
+    dbQuery.mockResolvedValueOnce({ rows: [entry] });
+    await expect(repo().listSpinEntries(7)).resolves.toEqual([entry]);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringMatching(/LEFT JOIN tracks[\s\S]*ORDER BY pt\.position/), [7]);
+  });
+
+  it("finds the latest or a specified playlist performance", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ id: 4, performed_at: "2026-10-01" }] });
+    await expect(repo().findPerformance(7)).resolves.toMatchObject({ id: 4 });
+    expect(dbQuery.mock.calls[0][1]).toEqual([7]);
+    expect(dbQuery.mock.calls[0][0]).not.toContain("p.id = $2");
+
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(repo().findPerformance(7, 9)).resolves.toBeNull();
+    expect(dbQuery.mock.calls[1][0]).toContain("p.id = $2");
+    expect(dbQuery.mock.calls[1][1]).toEqual([7, 9]);
+  });
 });
 
 // ─── insertPlaylistTracks ─────────────────────────────────────────────────────

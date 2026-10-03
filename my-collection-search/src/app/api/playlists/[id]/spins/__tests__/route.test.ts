@@ -30,10 +30,26 @@ describe("POST /api/playlists/:id/spins", () => {
     expect(log).not.toHaveBeenCalled();
   });
 
-  it("maps missing playlists and absent timestamps to useful statuses", async () => {
-    log.mockRejectedValueOnce(new Error("Playlist not found"));
-    expect((await POST(request({}), context("9"))).status).toBe(404);
-    log.mockRejectedValueOnce(new Error("Playlist has no performance; provide performed_at"));
-    expect((await POST(request({}), context("9"))).status).toBe(400);
+  it("maps domain errors to useful statuses", async () => {
+    for (const message of ["Playlist not found", "Performance not found for playlist"]) {
+      log.mockRejectedValueOnce(new Error(message));
+      expect((await POST(request({}), context("9"))).status).toBe(404);
+    }
+    for (const message of [
+      "Playlist has no performance; provide performed_at",
+      "Set derivation is not ready for this playlist",
+      "Playlist changed since review",
+      "Playlist track is missing",
+    ]) {
+      log.mockRejectedValueOnce(new Error(message));
+      expect((await POST(request({}), context("9"))).status).toBe(400);
+    }
+  });
+
+  it("returns 500 for unexpected thrown values", async () => {
+    log.mockRejectedValueOnce("boom");
+    const response = await POST(request({}), context("9"));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Failed to log playlist spins" });
   });
 });

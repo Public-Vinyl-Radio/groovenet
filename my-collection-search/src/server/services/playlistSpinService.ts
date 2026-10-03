@@ -85,7 +85,7 @@ export class PlaylistSpinService {
       for (const entry of entries) {
         const offset = performance
           ? input.derivation_id
-            ? entry.offset_seconds ?? 0
+            ? entry.offset_seconds!
             : elapsed
           : 0;
         const playedAt = new Date(baseMs + offset * 1000).toISOString();

@@ -21,6 +21,25 @@ describe("SpinSessionRepository automatic sessions", () => {
     expect(query.mock.calls[0][1].slice(7, 11)).toEqual(["manual", null, null, null]);
   });
 
+  it("creates playlist sessions and treats conflicts as idempotent skips", async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const input = {
+      friend_id: 1,
+      release_id: "rel",
+      selection_mode: "playlist" as const,
+      played_at: "2026-10-01",
+      playlist_id: 7,
+      playlist_played_at: "2026-10-01",
+      playlist_position: 2,
+    };
+    await expect(repo.createPlaylistSession({ query }, input)).resolves.toEqual({ id: 3 });
+    await expect(repo.createPlaylistSession({ query }, input)).resolves.toBeNull();
+    expect(query.mock.calls[0][0]).toContain("ON CONFLICT DO NOTHING");
+    expect(query.mock.calls[0][1]).toEqual([1, "rel", "2026-10-01", 7, null, "2026-10-01", 2]);
+  });
+
   it("looks up the source detection to make a replay a no-op", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({ rows: [] });
     await expect(repo.findAutomaticSessionByDetectionId("d1")).resolves.toEqual({ id: 1 });

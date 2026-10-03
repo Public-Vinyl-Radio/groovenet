@@ -111,4 +111,79 @@ describe("PlaylistSpinService", () => {
     mocks.findPerformance.mockResolvedValue(null);
     await expect(service.log(9, {})).rejects.toThrow("provide performed_at");
   });
+
+  it("rejects missing playlists and conflicting time sources", async () => {
+    mocks.findPlaylist.mockResolvedValueOnce(null);
+    await expect(service.log(9, {})).rejects.toThrow("Playlist not found");
+    await expect(service.log(9, {
+      performed_at: "2026-10-01T20:00:00Z",
+      performance_id: 4,
+    })).rejects.toThrow("either performed_at or performance_id");
+  });
+
+  it("rejects a performance that does not belong to the playlist", async () => {
+    mocks.findPerformance.mockResolvedValue(null);
+    await expect(service.log(9, { performance_id: 99 })).rejects.toThrow(
+      "Performance not found for playlist"
+    );
+  });
+
+  it("logs derivation matches in play order", async () => {
+    mocks.view.mockResolvedValue({
+      derivation: { status: "processed" },
+      tracklist: [{ start_seconds: 10 }, { start_seconds: 200 }],
+      diff: {
+        played_as_planned: [
+          { play: 1, planned: { ...entries[1], index: 1 } },
+          { play: 0, planned: { ...entries[0], index: 0 } },
+        ],
+      },
+    });
+    await service.log(9, { derivation_id: "d1" });
+    expect(mocks.createSession).toHaveBeenNthCalledWith(1, expect.anything(), expect.objectContaining({
+      playlist_position: 0, played_at: "2026-10-01T20:00:10.000Z",
+    }));
+    expect(mocks.createSession).toHaveBeenNthCalledWith(2, expect.anything(), expect.objectContaining({
+      playlist_position: 1, played_at: "2026-10-01T20:03:20.000Z",
+    }));
+  });
+
+  it("rejects unfinished derivations and playlists changed since review", async () => {
+    mocks.view.mockResolvedValueOnce({ derivation: { status: "queued" }, diff: null });
+    await expect(service.log(9, { derivation_id: "d1" })).rejects.toThrow("not ready");
+
+    mocks.view.mockResolvedValueOnce({
+      derivation: { status: "processed" },
+      tracklist: [{ start_seconds: 1 }],
+      diff: {
+        played_as_planned: [{ play: 0, planned: { index: 0, track_id: "different", friend_id: 1 } }],
+      },
+    });
+    await expect(service.log(9, { derivation_id: "d2" })).rejects.toThrow(
+      "Playlist changed since the set derivation was reviewed"
+    );
+  });
+
+  it("rejects unresolved playlist entries", async () => {
+    mocks.listEntries.mockResolvedValue([{ ...entries[0], release_id: null }]);
+    await expect(service.log(9, {})).rejects.toThrow("missing or has no release");
+  });
+
+  it("handles nullable optional metadata and offsets", async () => {
+    mocks.findPerformance.mockResolvedValue({ id: 4, performed_at: new Date("2026-10-01T20:00:00Z") });
+    mocks.listEntries.mockResolvedValue([{
+      ...entries[0], album: null, duration_seconds: null,
+    }]);
+    mocks.view.mockResolvedValue({
+      derivation: { status: "processed" },
+      tracklist: [{}],
+      diff: {
+        played_as_planned: [{ play: 0, planned: { ...entries[0], index: 0 } }],
+      },
+    });
+    await service.log(9, { derivation_id: "d1" });
+    expect(mocks.insertEvents).toHaveBeenCalledWith(expect.anything(), 100, [
+      expect.objectContaining({ album_snapshot: "", played_at: "2026-10-01T20:00:00.000Z" }),
+    ]);
+  });
 });
