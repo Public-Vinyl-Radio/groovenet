@@ -78,14 +78,20 @@ function normalizeTimestamp(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-function normalizeSessionRow<T extends { played_at: Date | string; created_at: Date | string; updated_at: Date | string }>(
-  row: T
-): T & { played_at: string; created_at: string; updated_at: string } {
+function normalizeSessionRow<T extends {
+  played_at: Date | string;
+  created_at: Date | string;
+  updated_at: Date | string;
+  playlist_played_at?: Date | string | null;
+}>(row: T): T & { played_at: string; created_at: string; updated_at: string } {
   return {
     ...row,
     played_at: normalizeTimestamp(row.played_at),
     created_at: normalizeTimestamp(row.created_at),
     updated_at: normalizeTimestamp(row.updated_at),
+    ...(row.playlist_played_at != null
+      ? { playlist_played_at: normalizeTimestamp(row.playlist_played_at) }
+      : {}),
   };
 }
 

@@ -8,14 +8,18 @@ export type SpinSessionRow = {
   friend_id: number;
   release_id: string;
   medium: "vinyl";
-  selection_mode: "sides" | "tracks" | "automatic";
+  selection_mode: "sides" | "tracks" | "automatic" | "playlist";
   played_at: Date | string;
   note: string | null;
   context_type: string | null;
-  provenance: "manual" | "automatic";
+  provenance: "manual" | "automatic" | "playlist";
   source_id: string | null;
   detection_id: string | null;
   confidence: number | null;
+  playlist_id: number | null;
+  live_set_performance_id: number | null;
+  playlist_played_at: Date | string | null;
+  playlist_position: number | null;
   corrected_at: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
@@ -37,14 +41,18 @@ export type CreateSpinSessionInput = {
   friend_id: number;
   release_id: string;
   medium?: "vinyl";
-  selection_mode: "sides" | "tracks" | "automatic";
+  selection_mode: "sides" | "tracks" | "automatic" | "playlist";
   played_at: string | Date;
   note?: string | null;
   context_type?: string | null;
-  provenance?: "manual" | "automatic";
+  provenance?: "manual" | "automatic" | "playlist";
   source_id?: string | null;
   detection_id?: string | null;
   confidence?: number | null;
+  playlist_id?: number | null;
+  live_set_performance_id?: number | null;
+  playlist_played_at?: string | Date | null;
+  playlist_position?: number | null;
 };
 
 export type CreateSpinSessionSelectionInput = {
@@ -92,9 +100,10 @@ export class SpinSessionRepository {
       `
       INSERT INTO spin_sessions (
         friend_id, release_id, medium, selection_mode, played_at, note, context_type,
-        provenance, source_id, detection_id, confidence
+        provenance, source_id, detection_id, confidence, playlist_id,
+        live_set_performance_id, playlist_played_at, playlist_position
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
       `,
       [
@@ -109,10 +118,45 @@ export class SpinSessionRepository {
         input.source_id ?? null,
         input.detection_id ?? null,
         input.confidence ?? null,
+        input.playlist_id ?? null,
+        input.live_set_performance_id ?? null,
+        input.playlist_played_at ?? null,
+        input.playlist_position ?? null,
       ]
     );
 
     return rows[0];
+  }
+
+  /** Insert one playlist entry, or return null when this performance was logged already. */
+  async createPlaylistSession(
+    client: Queryable,
+    input: CreateSpinSessionInput & {
+      playlist_id: number;
+      playlist_played_at: string | Date;
+      playlist_position: number;
+    }
+  ): Promise<SpinSessionRow | null> {
+    const { rows } = await client.query<SpinSessionRow>(
+      `INSERT INTO spin_sessions (
+         friend_id, release_id, medium, selection_mode, played_at, note, context_type,
+         provenance, source_id, detection_id, confidence, playlist_id,
+         live_set_performance_id, playlist_played_at, playlist_position
+       ) VALUES ($1, $2, 'vinyl', 'playlist', $3, NULL, 'playlist',
+                 'playlist', NULL, NULL, NULL, $4, $5, $6, $7)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [
+        input.friend_id,
+        input.release_id,
+        input.played_at,
+        input.playlist_id,
+        input.live_set_performance_id ?? null,
+        input.playlist_played_at,
+        input.playlist_position,
+      ]
+    );
+    return rows[0] ?? null;
   }
 
   async findAutomaticSessionByDetectionId(detectionId: string): Promise<SpinSessionRow | null> {

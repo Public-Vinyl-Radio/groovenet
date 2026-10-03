@@ -82,6 +82,8 @@ import {
   playlistGeneticResponseSchema,
   playlistPatchBodySchema,
   playlistSchema,
+  playlistSpinsBodySchema,
+  playlistSpinsResponseSchema,
   queueAlbumDownloadsResponseSchema,
   recommendationsQuerySchema,
   recommendationsBatchBodySchema,
@@ -4393,6 +4395,41 @@ export const apiContractRoutes: ApiContractRoute[] = [
             "application/json": { schema: errorResponseSchemaObject },
           },
         },
+      },
+    },
+  },
+  {
+    operationId: "logPlaylistSpins",
+    method: "post",
+    path: "/api/playlists/{id}/spins",
+    summary: "Log every played playlist entry as a spin",
+    tags: ["Playlists", "Spins"],
+    paramsSchema: playlistDetailParamsSchema,
+    bodySchema: playlistSpinsBodySchema,
+    successSchema: playlistSpinsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                performed_at: { type: "string", format: "date-time", description: "Use when the playlist has no live-set performance" },
+                performance_id: { type: "integer", description: "A performance belonging to this playlist; latest performance is used by default" },
+                derivation_id: { type: "string", format: "uuid", description: "Use matched offsets and omit entries marked not played" },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "Playlist spins logged (or skipped when already present)", content: { "application/json": { schema: { type: "object", additionalProperties: true } } } },
+        "400": { description: "Invalid timestamp, derivation, or playlist contents", content: { "application/json": { schema: errorResponseSchemaObject } } },
+        "404": { description: "Playlist or performance not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
       },
     },
   },

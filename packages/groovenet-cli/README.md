@@ -25,6 +25,7 @@ groovenet config set api_key <token>   # if your instance requires auth
 groovenet tracks search "miles davis"     # search tracks
 groovenet albums search "kind of blue"    # browse albums
 groovenet playlists list                  # list playlists
+groovenet playlists log-spins 176         # log the latest performance as spins
 groovenet friends list                    # manage the friends system
 groovenet play <track-id>                 # play a track via MPD on the server
 groovenet fingerprint-library             # index reference audio for matching
@@ -50,6 +51,18 @@ Run `groovenet --help` (or `groovenet <command> --help`) for the full command re
 | `friends` | Manage the friends system |
 | `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays |
 | `sets` | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
+
+### playlists log-spins
+
+Creates one spin per playlist entry. It uses the playlist's latest live-set
+performance by default and is safe to re-run for the same performance.
+
+```bash
+groovenet playlists log-spins 176
+groovenet playlists log-spins 176 --performance 12
+groovenet playlists log-spins 176 --at 2026-10-01T20:00:00Z
+groovenet playlists log-spins 176 --derivation <derivation-id> # matched offsets; omit tracks not played
+```
 
 ### sets
 

@@ -210,14 +210,18 @@ export interface SpinSession {
   friend_id: number;
   release_id: string;
   medium: "vinyl";
-  selection_mode: "sides" | "tracks" | "automatic";
+  selection_mode: "sides" | "tracks" | "automatic" | "playlist";
   played_at: string;
   note?: string | null;
   context_type?: string | null;
   /** "automatic" when the listener detected the spin. */
-  provenance?: "manual" | "automatic";
+  provenance?: "manual" | "automatic" | "playlist";
   source_id?: string | null;
   confidence?: number | null;
+  playlist_id?: number | null;
+  live_set_performance_id?: number | null;
+  playlist_played_at?: string | null;
+  playlist_position?: number | null;
   /** When a detected spin was corrected by hand; null otherwise. */
   corrected_at?: string | null;
   created_at: string;
@@ -257,6 +261,20 @@ export interface SpinDerived {
   selected_side_count: number;
   album_side_count: number;
   track_count: number;
+}
+
+export interface PlaylistSpinsInput {
+  performed_at?: string;
+  performance_id?: number;
+  derivation_id?: string;
+}
+
+export interface PlaylistSpinsResult {
+  playlist_id: number;
+  performance_id: number | null;
+  performed_at: string;
+  created: number;
+  skipped: number;
 }
 
 export interface SpinCreateBodyBase {

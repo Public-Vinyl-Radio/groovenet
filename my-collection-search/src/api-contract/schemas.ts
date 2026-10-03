@@ -565,6 +565,29 @@ export const playlistDetailResponseSchema = z.object({
   tracks: z.array(playlistTrackRefSchema),
 });
 
+export const playlistSpinsBodySchema = z
+  .object({
+    performed_at: z.string().min(1).refine((value) => !Number.isNaN(Date.parse(value)), "Invalid timestamp").optional(),
+    performance_id: z.number().int().positive().optional(),
+    derivation_id: z.string().uuid().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.performed_at != null && value.performance_id != null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either performed_at or performance_id, not both",
+      });
+    }
+  });
+
+export const playlistSpinsResponseSchema = z.object({
+  playlist_id: z.number().int(),
+  performance_id: z.number().int().nullable(),
+  performed_at: z.string(),
+  created: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+
 export const playlistGeneticTrackSchema = z
   .object({
     track_id: z.string().min(1),
@@ -1177,13 +1200,17 @@ export const spinSessionSchema = z.object({
   friend_id: z.number().int(),
   release_id: z.string(),
   medium: z.literal("vinyl"),
-  selection_mode: z.enum(["sides", "tracks", "automatic"]),
+  selection_mode: z.enum(["sides", "tracks", "automatic", "playlist"]),
   played_at: z.string(),
   note: z.string().nullable().optional(),
   context_type: z.string().nullable().optional(),
-  provenance: z.enum(["manual", "automatic"]).optional(),
+  provenance: z.enum(["manual", "automatic", "playlist"]).optional(),
   source_id: z.string().nullable().optional(),
   confidence: z.number().nullable().optional(),
+  playlist_id: z.number().int().nullable().optional(),
+  live_set_performance_id: z.number().int().nullable().optional(),
+  playlist_played_at: z.string().nullable().optional(),
+  playlist_position: z.number().int().nullable().optional(),
   corrected_at: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),

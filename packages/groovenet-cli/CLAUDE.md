@@ -21,7 +21,7 @@ config              set | show
 tracks              search | show | update | missing-apple-music | deleted
                     restore | recommend | similar-identity | similar-vibe
 albums              list | show | update | download
-playlists           list | show | create | generate
+playlists           list | show | create | generate | log-spins
 friends             list | add
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
@@ -226,6 +226,14 @@ overwrites a track's metadata with values actually sent.
 
 Review is interactive only — it refuses without a TTY, and with `--json` or
 `--no-wait` on `derive`.
+
+## playlists log-spins
+
+Logs one playlist entry per spin, using the latest live-set performance by
+default. `--performance` chooses another performance, `--at` supplies a single
+timestamp for a playlist without one, and `--derivation` uses the matched set
+offsets while omitting planned entries that were not played. Re-running the
+same playlist/performance or playlist/timestamp is idempotent.
 
 ## records
 
