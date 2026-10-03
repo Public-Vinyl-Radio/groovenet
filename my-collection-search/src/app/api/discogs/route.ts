@@ -355,6 +355,13 @@ export async function GET(request: NextRequest) {
                     `Embeddings: ${embedded.generated} generated, ${embedded.unchanged} unchanged, ${embedded.failed} failed\n\n`
                   )
                 );
+                if (embedded.firstError) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `⚠️  Embedding generation is failing: ${embedded.firstError}\nCheck OPENAI_API_KEY (see About → status).\n\n`
+                    )
+                  );
+                }
               } catch (embeddingError) {
                 console.error("[Embedding Sync Error]", embeddingError);
                 controller.enqueue(

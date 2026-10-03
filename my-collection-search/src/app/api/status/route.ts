@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { dbQuery } from "@/lib/serverDb";
 import { getRedisConnection } from "@/lib/redis";
+import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
 
 // Server-side health fan-out for the About page. The browser can't reach the
 // internal docker hostnames (db, redis, essentia, ga-service), so we probe them
@@ -95,6 +96,7 @@ export async function GET() {
     }),
     timed("essentia", () => probeHttp(essentiaHealthUrl())),
     timed("ga-service", () => probeHttp(gaHealthUrl())),
+    timed("embeddings", checkEmbeddingProvider),
   ]);
 
   return NextResponse.json({ services, checkedAt: new Date().toISOString() });

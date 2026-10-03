@@ -43,7 +43,10 @@ export function useSearchResults({
   const limit = limitOverride ?? DEFAULT_LIMIT;
   const qc = useQueryClient();
   const { setTracks } = useTrackStore();
-  const populatedTrackIds = useRef(new Set<string>()); // Track which IDs we've already populated
+  // Last server object seeded per track. React Query's structural sharing keeps
+  // the reference of an unchanged hit, so a new reference means the server data
+  // moved (e.g. a download finished) and the store needs re-seeding.
+  const seededTracks = useRef(new Map<string, Track>());
   const { friend: ctxFriend } = useUsername();
   const selectedFriend = friend ?? ctxFriend;
   const friendId = selectedFriend?.id;
@@ -162,27 +165,26 @@ export function useSearchResults({
   );
   const estimatedResults = pages[0]?.estimatedTotalHits ?? 0;
 
-  // Populate Zustand store when results change - but only with new tracks
+  // Populate Zustand store when results change - only tracks that are new or
+  // whose server data changed. setTracks keeps local edits (rating, notes).
   useEffect(() => {
     if (results.length === 0) return;
 
-    // Filter to only new tracks that we haven't populated yet
-    const newTracks = results.filter(track => {
+    const changedTracks = results.filter((track) => {
       const key = `${track.track_id}:${track.friend_id || 'default'}`;
-      return !populatedTrackIds.current.has(key);
+      return seededTracks.current.get(key) !== track;
     });
 
-    if (newTracks.length > 0) {
-      console.log('🔍 useSearchResults calling setTracks with', newTracks.length, 'new tracks');
-      setTracks(newTracks);
+    if (changedTracks.length > 0) {
+      console.log('🔍 useSearchResults calling setTracks with', changedTracks.length, 'new or changed tracks');
+      setTracks(changedTracks);
 
-      // Mark these tracks as populated
-      newTracks.forEach(track => {
+      changedTracks.forEach((track) => {
         const key = `${track.track_id}:${track.friend_id || 'default'}`;
-        populatedTrackIds.current.add(key);
+        seededTracks.current.set(key, track);
       });
     }
-  }, [results, setTracks]); // Check on every results change, but only populate new ones
+  }, [results, setTracks]);
 
   // Return track info instead of full track objects to force components to read from store
   const trackInfo = results.map((track) => ({

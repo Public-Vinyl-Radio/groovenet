@@ -7,6 +7,8 @@ export type IdentityEmbeddingSyncResult = {
   generated: number;
   unchanged: number;
   failed: number;
+  /** Message of the first failure, e.g. an OpenAI key/organization rejection. */
+  firstError?: string;
 };
 
 /**
@@ -44,6 +46,10 @@ export async function syncIdentityEmbeddings(
         return;
       }
       result.failed += 1;
+      result.firstError ??=
+        outcome.reason instanceof Error
+          ? outcome.reason.message
+          : String(outcome.reason);
       const track = batch[index];
       console.error(
         `[Embeddings] Identity embedding failed for ${track.track_id}@${track.friend_id}:`,

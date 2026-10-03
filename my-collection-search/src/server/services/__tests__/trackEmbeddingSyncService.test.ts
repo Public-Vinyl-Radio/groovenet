@@ -38,7 +38,12 @@ describe("syncIdentityEmbeddings", () => {
 
     const result = await syncIdentityEmbeddings(refs(3));
 
-    expect(result).toEqual({ generated: 2, unchanged: 0, failed: 1 });
+    expect(result).toEqual({
+      generated: 2,
+      unchanged: 0,
+      failed: 1,
+      firstError: "embedding provider down",
+    });
     expect(mockGenerateIdentity).toHaveBeenCalledTimes(3);
   });
 

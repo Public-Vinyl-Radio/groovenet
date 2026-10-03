@@ -23,18 +23,18 @@ describe("trackStore.setTracks", () => {
     setTracks([
       track({
         local_audio_url: "/audio/t1.m4a",
-        bpm: 124,
+        bpm: "124",
         key: "A minor",
-        danceability: 1.2,
+        danceability: "1.2",
         mood_happy: 0.4,
       }),
     ]);
 
     expect(getTrack("t1", 1)).toMatchObject({
       local_audio_url: "/audio/t1.m4a",
-      bpm: 124,
+      bpm: "124",
       key: "A minor",
-      danceability: 1.2,
+      danceability: "1.2",
       mood_happy: 0.4,
     });
   });
@@ -42,9 +42,9 @@ describe("trackStore.setTracks", () => {
   it("treats null and empty string as empty too", () => {
     const { setTracks, getTrack } = useTrackStore.getState();
     setTracks([track({ bpm: null, key: "" })]);
-    setTracks([track({ bpm: 128, key: "C major" })]);
+    setTracks([track({ bpm: "128", key: "C major" })]);
 
-    expect(getTrack("t1", 1)).toMatchObject({ bpm: 128, key: "C major" });
+    expect(getTrack("t1", 1)).toMatchObject({ bpm: "128", key: "C major" });
   });
 
   it("still protects a local value from a stale seed", () => {
