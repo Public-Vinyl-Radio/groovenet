@@ -96,6 +96,8 @@ multi-minute decode never delays a live window.
 ## Working on this repo
 
 `just --list` is the command surface; prefer it over raw `docker compose`.
+For GitHub issue and PR work in this repo, use the `gh` CLI with network access;
+the sandbox cannot reach `api.github.com`.
 
 ```bash
 just bootstrap        # deps + pre-commit hook

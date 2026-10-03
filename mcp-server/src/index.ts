@@ -5,10 +5,11 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GroovenetClient, type Track } from "@groovenet/client";
+import { GroovenetClient, type Track, type RecordActionInput, type RecordCareStatus, type SleeveType, type CleaningMethod } from "@groovenet/client";
 import dotenv from "dotenv";
 
-dotenv.config();
+// Stdio is the MCP protocol channel; dotenv's startup banner must stay off it.
+dotenv.config({ quiet: true });
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000/api";
 const API_KEY = process.env.API_KEY;
@@ -268,6 +269,59 @@ const tools = [
       required: ["track_id", "friend_id"],
     },
   },
+  {
+    name: "log_record_action",
+    description: "Log a cleaning, sleeve change, inspection or repair for a physical record. Supply either release_id (uses its default copy) or copy_id. Sleeve type is required for sleeved actions; cleaning method applies only to cleaned actions.",
+    inputSchema: { type: "object", properties: {
+      release_id: { type: "string", description: "Discogs release ID; use this or copy_id" },
+      copy_id: { type: "integer", description: "Physical copy ID; use this or release_id" },
+      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
+      action_type: { type: "string", enum: ["cleaned", "sleeved", "inspected", "repaired"] },
+      occurred_at: { type: "string", description: "ISO timestamp; defaults to now" },
+      notes: { type: "string" },
+      sleeve_type: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly"] },
+      method: { type: "string", enum: ["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"] },
+    }, required: ["action_type"] },
+  },
+  {
+    name: "list_record_care",
+    description: "Find physical copies never cleaned, overdue for cleaning, or needing a specified inner sleeve. Albums with no logged copy appear as an implicit default copy.",
+    inputSchema: { type: "object", properties: {
+      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
+      status: { type: "string", enum: ["never_cleaned", "overdue", "needs_sleeve"] },
+      overdue_days: { type: "integer", minimum: 1, description: "Cleaning interval; defaults to server setting" },
+      needs_sleeve: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly"] },
+      sleeve_type: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly", "unknown"], description: "Filter by current sleeve; unknown means none logged" },
+      limit: { type: "integer", minimum: 1, maximum: 200 },
+      offset: { type: "integer", minimum: 0 },
+    } },
+  },
+  {
+    name: "get_record_care_summary",
+    description: "Count physical copies never cleaned, overdue, needing a sleeve, and by current sleeve type.",
+    inputSchema: { type: "object", properties: {
+      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
+      overdue_days: { type: "integer", minimum: 1 },
+      needs_sleeve: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly"] },
+    } },
+  },
+  {
+    name: "get_record_copies",
+    description: "List the physical copies of a release and their care histories, including the implicit default copy when no action has been logged.",
+    inputSchema: { type: "object", properties: {
+      release_id: { type: "string", description: "Discogs release ID" },
+      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
+      include_voided: { type: "boolean", description: "Include voided actions in each history" },
+    }, required: ["release_id"] },
+  },
+  {
+    name: "void_record_action",
+    description: "Void a mistaken record care action. It remains in history and the copy's care state is recalculated.",
+    inputSchema: { type: "object", properties: {
+      action_id: { type: "integer", description: "Action to void" },
+      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
+    }, required: ["action_id"] },
+  },
 ];
 
 interface ToolArgs {
@@ -311,6 +365,36 @@ interface ToolArgs {
   era?: string;
   country?: string;
   tags?: string;
+  // record care
+  copy_id?: number;
+  action_id?: number;
+  action_type?: RecordActionInput["action_type"];
+  occurred_at?: string;
+  sleeve_type?: SleeveType | "unknown";
+  method?: CleaningMethod;
+  status?: RecordCareStatus;
+  overdue_days?: number;
+  needs_sleeve?: SleeveType;
+  include_voided?: boolean;
+  offset?: number;
+}
+
+function jsonResult(value: unknown) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
+}
+
+async function recordHistory(copyId: number, friendId: number, includeVoided?: boolean) {
+  const history = [];
+  const pageSize = 200;
+  let offset = 0;
+  while (true) {
+    const page = await client.listRecordActions(copyId, {
+      friend_id: friendId, include_voided: includeVoided, limit: pageSize, offset,
+    });
+    history.push(...page.items);
+    if (page.items.length < pageSize) return history;
+    offset += pageSize;
+  }
 }
 
 function formatDuration(seconds: number): string {
@@ -319,6 +403,45 @@ function formatDuration(seconds: number): string {
 
 async function handleToolCall(name: string, args: ToolArgs) {
   switch (name) {
+    case "log_record_action": {
+      if ((args.release_id === undefined) === (args.copy_id === undefined)) {
+        throw new Error("Supply exactly one of release_id or copy_id");
+      }
+      if (args.action_type === "sleeved" && !args.sleeve_type) throw new Error("sleeve_type is required for a sleeved action");
+      if (args.action_type !== "sleeved" && args.sleeve_type) throw new Error("sleeve_type is only valid for a sleeved action");
+      if (args.action_type !== "cleaned" && args.method) throw new Error("method is only valid for a cleaned action");
+      const input = {
+        friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+        action_type: args.action_type!,
+        ...(args.copy_id !== undefined ? { copy_id: args.copy_id } : { release_id: args.release_id! }),
+        ...(args.occurred_at ? { occurred_at: args.occurred_at } : {}),
+        ...(args.notes ? { notes: args.notes } : {}),
+        ...(args.sleeve_type ? { sleeve_type: args.sleeve_type } : {}),
+        ...(args.method ? { details: { method: args.method } } : {}),
+      } as RecordActionInput;
+      return jsonResult(await client.logRecordAction(input));
+    }
+    case "list_record_care":
+      return jsonResult(await client.listRecordCare({
+        friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+        status: args.status, overdue_days: args.overdue_days, needs_sleeve: args.needs_sleeve,
+        sleeve_type: args.sleeve_type, limit: args.limit, offset: args.offset,
+      }));
+    case "get_record_care_summary":
+      return jsonResult(await client.getRecordCareSummary({
+        friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+        overdue_days: args.overdue_days, needs_sleeve: args.needs_sleeve,
+      }));
+    case "get_record_copies": {
+      const owner = args.friend_id ?? DEFAULT_FRIEND_ID;
+      const copies = await client.listRecordCopies(owner, args.release_id!);
+      return jsonResult(await Promise.all(copies.map(async (copy) => ({
+        ...copy,
+        history: copy.id === null ? [] : await recordHistory(copy.id, owner, args.include_voided),
+      }))));
+    }
+    case "void_record_action":
+      return jsonResult(await client.voidRecordAction(args.action_id!, args.friend_id ?? DEFAULT_FRIEND_ID));
     case "search_tracks": {
       const filters: Record<string, number | string> = {};
       if (args.bpm_min != null) filters.bpm_min = args.bpm_min;
