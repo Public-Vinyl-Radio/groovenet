@@ -12,6 +12,23 @@ export type PlaylistTrackRow = {
   position: number;
 };
 
+export type PlaylistSpinEntry = {
+  track_id: string;
+  friend_id: number;
+  playlist_position: number;
+  release_id: string | null;
+  duration_seconds: number | null;
+  track_position: string | null;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+};
+
+export type PlaylistPerformance = {
+  id: number;
+  performed_at: Date | string;
+};
+
 function normalizeStringArray(arr?: unknown): string[] | null {
   if (!arr) return null;
   if (Array.isArray(arr)) return arr.map(String);
@@ -199,6 +216,39 @@ export class PlaylistRepository {
       [playlistId]
     );
     return res.rows as Array<{ track_id: string; friend_id: number; position: number }>;
+  }
+
+  async listSpinEntries(playlistId: number): Promise<PlaylistSpinEntry[]> {
+    const { rows } = await dbQuery<PlaylistSpinEntry>(
+      `SELECT pt.track_id, pt.friend_id, pt.position AS playlist_position,
+              t.release_id, t.duration_seconds, t.position AS track_position,
+              t.title, t.artist, t.album
+       FROM playlist_tracks pt
+       LEFT JOIN tracks t ON t.track_id = pt.track_id AND t.friend_id = pt.friend_id
+       WHERE pt.playlist_id = $1
+       ORDER BY pt.position ASC`,
+      [playlistId]
+    );
+    return rows;
+  }
+
+  async findPerformance(
+    playlistId: number,
+    performanceId?: number
+  ): Promise<PlaylistPerformance | null> {
+    const params: number[] = [playlistId];
+    const performanceFilter = performanceId == null ? "" : "AND p.id = $2";
+    if (performanceId != null) params.push(performanceId);
+    const { rows } = await dbQuery<PlaylistPerformance>(
+      `SELECT p.id, p.performed_at
+       FROM live_set_performances p
+       JOIN live_sets s ON s.id = p.live_set_id
+       WHERE s.playlist_id = $1 ${performanceFilter}
+       ORDER BY p.performed_at DESC
+       LIMIT 1`,
+      params
+    );
+    return rows[0] ?? null;
   }
 
   async connect(): Promise<PoolClient> {

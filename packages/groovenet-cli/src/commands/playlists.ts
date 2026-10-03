@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
 import { printPlaylists, printTracks, printJson, printSuccess, printError } from "../output.js";
+import { boundedIntOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -75,6 +76,36 @@ export function addPlaylistsCommands(program: Command): void {
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
         process.exit(1);
+      }
+    });
+
+  playlists
+    .command("log-spins <id>")
+    .description("Log one spin for each played entry in a playlist")
+    .option("--at <timestamp>", "Timestamp to use when there is no live-set performance")
+    .option("--performance <id>", "Use a specific live-set performance", boundedIntOption(1))
+    .option("--derivation <id>", "Use set-derived offsets and omit entries not played")
+    .option("--json", "Output as JSON")
+    .action(async (id: string, opts: { at?: string; performance?: number; derivation?: string; json?: boolean }) => {
+      try {
+        if (opts.at && opts.performance != null) {
+          throw new Error("Provide either --at or --performance, not both.");
+        }
+        const performedAt = opts.at ? new Date(opts.at) : null;
+        if (performedAt && Number.isNaN(performedAt.getTime())) {
+          throw new Error(`Invalid timestamp: ${opts.at}`);
+        }
+        const result = await makeClient().logPlaylistSpins(id, {
+          ...(performedAt ? { performed_at: performedAt.toISOString() } : {}),
+          ...(opts.performance != null ? { performance_id: opts.performance } : {}),
+          ...(opts.derivation ? { derivation_id: opts.derivation } : {}),
+        });
+        if (opts.json) printJson(result);
+        else if (result.created === 0) printSuccess(`Already logged (${result.skipped} spins skipped).`);
+        else printSuccess(`Logged ${result.created} spins${result.skipped ? `; ${result.skipped} already existed` : ""}.`);
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exitCode = 1;
       }
     });
 

@@ -3,6 +3,8 @@ import { Agent as HttpsAgent } from "https";
 import type {
   Track,
   Playlist,
+  PlaylistSpinsInput,
+  PlaylistSpinsResult,
   LiveSet,
   Friend,
   Album,
@@ -368,6 +370,13 @@ export class GroovenetClient {
     tracks: Array<{ track_id: string; friend_id: number }>
   ): Promise<Playlist> {
     return this.request<Playlist>("PATCH", "/playlists", { id: playlistId, tracks });
+  }
+
+  async logPlaylistSpins(
+    playlistId: number | string,
+    input: PlaylistSpinsInput = {}
+  ): Promise<PlaylistSpinsResult> {
+    return this.request<PlaylistSpinsResult>("POST", `/playlists/${playlistId}/spins`, input);
   }
 
   async getLiveSet(playlistId: number | string): Promise<LiveSet> {

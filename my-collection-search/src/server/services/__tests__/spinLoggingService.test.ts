@@ -281,6 +281,7 @@ describe("SpinLoggingService", () => {
         context_type: null,
         created_at: "2026-06-23T20:16:00.000Z",
         updated_at: "2026-06-23T20:16:00.000Z",
+        playlist_played_at: new Date("2026-06-23T20:00:00.000Z"),
         track_event_count: 2,
         album_title: "Album",
         album_artist: "Artist",
@@ -331,6 +332,7 @@ describe("SpinLoggingService", () => {
       thumbnail: "https://img.example/rel-1.jpg",
     });
     expect(result[0].session).not.toHaveProperty("album_title");
+    expect(result[0].session.playlist_played_at).toBe("2026-06-23T20:00:00.000Z");
   });
 
   it("lists a session whose album row is gone with a null album", async () => {

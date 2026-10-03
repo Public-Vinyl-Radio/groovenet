@@ -12,13 +12,32 @@ describe("SpinSessionRepository automatic sessions", () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 1 }] });
     await repo.createSession({ query }, { friend_id: 1, release_id: "rel", selection_mode: "automatic", played_at: "2026-01-01", provenance: "automatic", source_id: "pi", detection_id: "d1", confidence: 0.9 });
     expect(query.mock.calls[0][0]).toMatch(/provenance, source_id, detection_id, confidence/);
-    expect(query.mock.calls[0][1].slice(-4)).toEqual(["automatic", "pi", "d1", 0.9]);
+    expect(query.mock.calls[0][1].slice(7, 11)).toEqual(["automatic", "pi", "d1", 0.9]);
   });
 
   it("keeps manual sessions manual when automatic metadata is absent", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 2 }] });
     await repo.createSession({ query }, { friend_id: 1, release_id: "rel", selection_mode: "tracks", played_at: "2026-01-01" });
-    expect(query.mock.calls[0][1].slice(-4)).toEqual(["manual", null, null, null]);
+    expect(query.mock.calls[0][1].slice(7, 11)).toEqual(["manual", null, null, null]);
+  });
+
+  it("creates playlist sessions and treats conflicts as idempotent skips", async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const input = {
+      friend_id: 1,
+      release_id: "rel",
+      selection_mode: "playlist" as const,
+      played_at: "2026-10-01",
+      playlist_id: 7,
+      playlist_played_at: "2026-10-01",
+      playlist_position: 2,
+    };
+    await expect(repo.createPlaylistSession({ query }, input)).resolves.toEqual({ id: 3 });
+    await expect(repo.createPlaylistSession({ query }, input)).resolves.toBeNull();
+    expect(query.mock.calls[0][0]).toContain("ON CONFLICT DO NOTHING");
+    expect(query.mock.calls[0][1]).toEqual([1, "rel", "2026-10-01", 7, null, "2026-10-01", 2]);
   });
 
   it("looks up the source detection to make a replay a no-op", async () => {

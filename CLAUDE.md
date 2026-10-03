@@ -110,6 +110,28 @@ just lint-all         # every pre-commit hook, as CI runs them
 Pre-commit runs file hygiene, ruff over the Python services, and ESLint over
 the web app. CI runs the same hooks, so `--no-verify` only defers the failure.
 
+### Coverage is a required PR check
+
+Passing tests is not enough: Codecov enforces **patch coverage** on changed
+executable lines. Before calling a PR ready, run coverage for every component
+touched, not only its normal test command:
+
+```bash
+npm run test:coverage --prefix my-collection-search
+npm --workspace @groovenet/client run test:coverage
+npm --workspace @groovenet/cli run test:coverage
+```
+
+Use the equivalent `pytest --cov` command from `.github/workflows/test.yml` for
+a changed Python service. Inspect the generated coverage report against the
+diff and add tests for uncovered success paths, error paths, conditionals and
+repository methods. A line reported as "partial" means not all branches were
+exercised and needs another case. Gated integration tests do not contribute to
+the standard coverage job unless that job explicitly runs them, so new code
+also needs unit coverage. After pushing, check the `codecov/patch` result with
+`gh pr checks`; do not describe the work as complete while that required check
+is failing.
+
 ## Conventions
 
 - **Conventional Commits**, squash-merged. The PR title becomes the commit, and

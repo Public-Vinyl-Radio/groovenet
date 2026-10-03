@@ -581,6 +581,19 @@ describe("GroovenetClient playlist endpoints", () => {
     });
   });
 
+  it("logs playlist spins with performance and derivation context", async () => {
+    const result = { playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00Z", created: 2, skipped: 0 };
+    const client = clientReturning(result);
+
+    await expect(client.logPlaylistSpins(9, { performance_id: 4, derivation_id: "d1" })).resolves.toBe(result);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/playlists/9/spins",
+      data: { performance_id: 4, derivation_id: "d1" },
+      params: undefined,
+    });
+  });
+
   it("createPlaylist defaults to an empty track list", async () => {
     const client = clientReturning({ id: 1, name: "Set" });
 
