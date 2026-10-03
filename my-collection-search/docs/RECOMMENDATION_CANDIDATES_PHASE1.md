@@ -427,8 +427,7 @@ my-collection-search/
 curl "http://localhost:3000/api/recommendations/candidates?track_id=123&friend_id=1"
 
 # If missing, run backfill
-npm run backfill-identity
-npm run backfill-audio-vibe
+groovenet embeddings backfill --type identity,audio_vibe
 ```
 
 ### Slow Queries

@@ -19,71 +19,64 @@ type SimilarVibeTrackRow = Omit<SimilarVibeTrack, "distance"> & {
 };
 
 export class EmbeddingsRepository {
+  /**
+   * Candidate tracks for one embedding type (#388). `prompt` is the legacy
+   * `tracks.embedding` column — no join, since it was never moved into
+   * `track_embeddings` — the other two join it to find rows with no row yet.
+   * `force` drops the "missing" check (and the join, since nothing needs it)
+   * but keeps the audio-vibe "has audio data" gate: forcing a re-embed of a
+   * track with no BPM/key/mood would just embed emptiness.
+   */
   async listTracksForBackfill(
     options: EmbeddingBackfillOptions
   ): Promise<EmbeddingTrackRef[]> {
-    const { type, friend_id, force, limit } = options;
-    const params: Array<number> = [];
-    let query = "";
+    const { type, friend_id, release_id, track_ids, force, limit } = options;
+    const params: unknown[] = [];
+    const clauses: string[] = [];
+    let from = "FROM tracks t";
 
-    if (force) {
-      if (type === "audio_vibe") {
-        query = `
-          SELECT track_id, friend_id
-          FROM tracks
-          WHERE (bpm IS NOT NULL OR key IS NOT NULL OR danceability IS NOT NULL
-                 OR mood_happy IS NOT NULL OR mood_sad IS NOT NULL
-                 OR mood_relaxed IS NOT NULL OR mood_aggressive IS NOT NULL)
-          ${friend_id ? "AND friend_id = $1" : ""}
-          ORDER BY friend_id, track_id
-          ${limit ? `LIMIT $${friend_id ? 2 : 1}` : ""}
-        `;
-      } else {
-        query = `
-          SELECT track_id, friend_id
-          FROM tracks
-          ${friend_id ? "WHERE friend_id = $1" : ""}
-          ORDER BY friend_id, track_id
-          ${limit ? `LIMIT $${friend_id ? 2 : 1}` : ""}
-        `;
-      }
+    if (!force && type !== "prompt") {
+      params.push(type);
+      from += `
+        LEFT JOIN track_embeddings te
+          ON t.track_id = te.track_id
+         AND t.friend_id = te.friend_id
+         AND te.embedding_type = $${params.length}`;
+      clauses.push("te.id IS NULL");
+    }
 
-      if (friend_id) params.push(friend_id);
-      if (limit) params.push(limit);
-    } else {
-      if (type === "audio_vibe") {
-        query = `
-          SELECT t.track_id, t.friend_id
-          FROM tracks t
-          LEFT JOIN track_embeddings te
-            ON t.track_id = te.track_id
-            AND t.friend_id = te.friend_id
-            AND te.embedding_type = 'audio_vibe'
-          WHERE te.id IS NULL
-            AND (t.bpm IS NOT NULL OR t.key IS NOT NULL OR t.danceability IS NOT NULL
-                 OR t.mood_happy IS NOT NULL OR t.mood_sad IS NOT NULL
-                 OR t.mood_relaxed IS NOT NULL OR t.mood_aggressive IS NOT NULL)
-          ${friend_id ? "AND t.friend_id = $1" : ""}
-          ORDER BY t.friend_id, t.track_id
-          ${limit ? `LIMIT $${friend_id ? 2 : 1}` : ""}
-        `;
-      } else {
-        query = `
-          SELECT t.track_id, t.friend_id
-          FROM tracks t
-          LEFT JOIN track_embeddings te
-            ON t.track_id = te.track_id
-            AND t.friend_id = te.friend_id
-            AND te.embedding_type = 'identity'
-          WHERE te.id IS NULL
-          ${friend_id ? "AND t.friend_id = $1" : ""}
-          ORDER BY t.friend_id, t.track_id
-          ${limit ? `LIMIT $${friend_id ? 2 : 1}` : ""}
-        `;
-      }
+    if (type === "audio_vibe") {
+      clauses.push(
+        "(t.bpm IS NOT NULL OR t.key IS NOT NULL OR t.danceability IS NOT NULL " +
+          "OR t.mood_happy IS NOT NULL OR t.mood_sad IS NOT NULL " +
+          "OR t.mood_relaxed IS NOT NULL OR t.mood_aggressive IS NOT NULL)"
+      );
+    } else if (type === "prompt" && !force) {
+      clauses.push("t.embedding IS NULL");
+    }
 
-      if (friend_id) params.push(friend_id);
-      if (limit) params.push(limit);
+    if (friend_id) {
+      params.push(friend_id);
+      clauses.push(`t.friend_id = $${params.length}`);
+    }
+    if (release_id) {
+      params.push(release_id);
+      clauses.push(`t.release_id = $${params.length}`);
+    }
+    if (track_ids && track_ids.length > 0) {
+      params.push(track_ids);
+      clauses.push(`t.track_id = ANY($${params.length})`);
+    }
+
+    let query = `
+      SELECT t.track_id, t.friend_id
+      ${from}
+      ${clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : ""}
+      ORDER BY t.friend_id, t.track_id
+    `;
+    if (limit) {
+      params.push(limit);
+      query += ` LIMIT $${params.length}`;
     }
 
     const result = await dbQuery<EmbeddingTrackRef>(query, params);
@@ -100,6 +93,27 @@ export class EmbeddingsRepository {
     options: BackfillOptions
   ): Promise<EmbeddingTrackRef[]> {
     return this.listTracksForBackfill({ ...options, type: "audio_vibe" });
+  }
+
+  async listTracksNeedingPromptEmbeddings(
+    options: BackfillOptions
+  ): Promise<EmbeddingTrackRef[]> {
+    return this.listTracksForBackfill({ ...options, type: "prompt" });
+  }
+
+  /** For `/api/embeddings/status` — the denominator behind the missing counts. */
+  async countTracks(friendId?: number): Promise<number> {
+    const params: unknown[] = [];
+    let where = "";
+    if (friendId !== undefined) {
+      params.push(friendId);
+      where = `WHERE friend_id = $${params.length}`;
+    }
+    const result = await dbQuery<{ count: string }>(
+      `SELECT COUNT(*)::int AS count FROM tracks ${where}`,
+      params
+    );
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   async setIvfflatProbes(client: Queryable, probes: number): Promise<void> {

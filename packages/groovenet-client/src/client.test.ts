@@ -930,6 +930,77 @@ describe("GroovenetClient fingerprint endpoints", () => {
   });
 });
 
+describe("GroovenetClient embeddings endpoints (#388)", () => {
+  it("starts a backfill run with defaults when called with no request", async () => {
+    const client = clientReturning({ run_id: "run-1", queued: 5 });
+
+    const run = await client.startEmbeddingBackfill();
+
+    expect((run as { run_id: string }).run_id).toBe("run-1");
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/embeddings/backfill",
+      data: {},
+      params: undefined,
+    });
+  });
+
+  it("forwards a narrowed backfill request", async () => {
+    const client = clientReturning({});
+
+    await client.startEmbeddingBackfill({
+      scope: "release",
+      release_id: "r9",
+      types: ["identity"],
+      dry_run: true,
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { scope: "release", release_id: "r9", types: ["identity"], dry_run: true },
+      })
+    );
+  });
+
+  it("reads a backfill run's progress", async () => {
+    const client = clientReturning({ run_id: "run-1", success: 3 });
+
+    const run = await client.getEmbeddingBackfillRun("run-1");
+
+    expect(run.success).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/embeddings/backfill/run-1",
+      data: undefined,
+      params: undefined,
+    });
+  });
+
+  it("escapes a run id", async () => {
+    const client = clientReturning({});
+
+    await client.getEmbeddingBackfillRun("run/../secrets");
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "/embeddings/backfill/run%2F..%2Fsecrets" })
+    );
+  });
+
+  it("reads embedding status, optionally for one friend", async () => {
+    const client = clientReturning({ total_tracks: 100, missing: { identity: 1 } });
+
+    const status = await client.getEmbeddingStatus(7);
+
+    expect(status.total_tracks).toBe(100);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/embeddings/status",
+      data: undefined,
+      params: { friend_id: 7 },
+    });
+  });
+});
+
 describe("GroovenetClient vinyl debug endpoints", () => {
   it("lists detections with defaults", async () => {
     const client = clientReturning({ detections: [], count: 0 });

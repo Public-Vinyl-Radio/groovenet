@@ -17,6 +17,9 @@ const mockPipeline = vi.hoisted(() => ({
   rpush: vi.fn(),
   ltrim: vi.fn(),
   zrem: vi.fn(),
+  hset: vi.fn(),
+  hincrby: vi.fn(),
+  expire: vi.fn(),
   exec: vi.fn(),
 }));
 
@@ -30,6 +33,8 @@ const mockRedis = vi.hoisted(() => ({
   zcard: vi.fn(),
   zrangebyscore: vi.fn(),
   zadd: vi.fn(),
+  hgetall: vi.fn(),
+  lrange: vi.fn(),
 }));
 
 const mockGenerateIdentity = vi.hoisted(() => vi.fn());
@@ -40,6 +45,7 @@ const mockUpdateTrackEmbedding = vi.hoisted(() => vi.fn());
 const mockCheckProvider = vi.hoisted(() => vi.fn());
 const mockListIdentity = vi.hoisted(() => vi.fn());
 const mockListAudioVibe = vi.hoisted(() => vi.fn());
+const mockListPrompt = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => mockRedis }));
 vi.mock("@/lib/identity-embedding", () => ({
@@ -61,6 +67,7 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: {
     listTracksNeedingIdentityEmbeddings: mockListIdentity,
     listTracksNeedingAudioVibeEmbeddings: mockListAudioVibe,
+    listTracksNeedingPromptEmbeddings: mockListPrompt,
   },
 }));
 vi.mock("@/server/services/embeddingHealthService", () => ({
@@ -84,6 +91,11 @@ beforeEach(() => {
   mockRedis.zrangebyscore.mockResolvedValue([]);
   mockRedis.llen.mockResolvedValue(0);
   mockRedis.zcard.mockResolvedValue(0);
+  mockRedis.hgetall.mockResolvedValue({});
+  mockRedis.lrange.mockResolvedValue([]);
+  mockListIdentity.mockResolvedValue([]);
+  mockListAudioVibe.mockResolvedValue([]);
+  mockListPrompt.mockResolvedValue([]);
   mockGenerateIdentity.mockResolvedValue({ updated: true, reason: "ok" });
   mockGenerateAudioVibe.mockResolvedValue({ updated: true, reason: "ok" });
   mockCheckProvider.mockResolvedValue(undefined);
@@ -138,7 +150,7 @@ describe("tick", () => {
     mockRedis.rpop.mockResolvedValueOnce(JSON.stringify(job())).mockResolvedValue(null);
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
-    expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1);
+    expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1, undefined);
     expect(mockRedis.zadd).not.toHaveBeenCalled();
     expect(mockPipeline.lpush).not.toHaveBeenCalledWith(
       "embedding_queue:failed",
@@ -152,7 +164,7 @@ describe("tick", () => {
       .mockResolvedValue(null);
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
-    expect(mockGenerateAudioVibe).toHaveBeenCalledWith("t1", 1);
+    expect(mockGenerateAudioVibe).toHaveBeenCalledWith("t1", 1, undefined);
   });
 
   it("runs a prompt job by fetching the track and writing tracks.embedding", async () => {
@@ -295,7 +307,7 @@ describe("tick — while paused", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
     expect(mockRedis.del).toHaveBeenCalledWith("embedding_queue:paused");
-    expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1);
+    expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1, undefined);
   });
 });
 
@@ -316,12 +328,13 @@ describe("tick — retry promotion", () => {
 // ─── sweepTick ────────────────────────────────────────────────────────────────
 
 describe("sweepTick", () => {
-  it("enqueues identity and audio_vibe jobs for whatever is missing", async () => {
+  it("enqueues identity, audio_vibe and prompt jobs for whatever is missing", async () => {
     mockListIdentity.mockResolvedValueOnce([{ track_id: "a", friend_id: 1 }]);
     mockListAudioVibe.mockResolvedValueOnce([{ track_id: "b", friend_id: 2 }]);
+    mockListPrompt.mockResolvedValueOnce([{ track_id: "c", friend_id: 3 }]);
     const service = new EmbeddingQueueService();
     const result = await service.sweepTick();
-    expect(result).toEqual({ queued: 2 });
+    expect(result).toEqual({ queued: 3 });
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
       JSON.stringify({ track_id: "a", friend_id: 1, kind: "identity" })
@@ -330,11 +343,13 @@ describe("sweepTick", () => {
       "embedding_queue",
       JSON.stringify({ track_id: "b", friend_id: 2, kind: "audio_vibe" })
     );
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue",
+      JSON.stringify({ track_id: "c", friend_id: 3, kind: "prompt" })
+    );
   });
 
   it("queues nothing — and a second run does no work — when nothing is missing", async () => {
-    mockListIdentity.mockResolvedValue([]);
-    mockListAudioVibe.mockResolvedValue([]);
     const service = new EmbeddingQueueService();
     expect(await service.sweepTick()).toEqual({ queued: 0 });
     expect(await service.sweepTick()).toEqual({ queued: 0 });
@@ -575,5 +590,184 @@ describe("startEmbeddingQueueWorker()", () => {
         "[embedding-queue] sweep queued 3 track(s) missing an embedding"
       )
     );
+  });
+});
+
+// ─── startBackfillRun / getBackfillRun (#388) ──────────────────────────────────
+
+describe("startBackfillRun", () => {
+  it("seeds the run hash with zeroed counters and the queued count", async () => {
+    const service = new EmbeddingQueueService();
+    const run = await service.startBackfillRun([job({ track_id: "a" }), job({ track_id: "b" })]);
+
+    expect(run).toMatchObject({
+      queued: 2,
+      success: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [],
+      complete: false,
+    });
+    expect(run.run_id).toMatch(/^[0-9a-f-]{36}$/);
+
+    expect(mockPipeline.hset).toHaveBeenCalledWith(
+      `embedding_backfill_run:${run.run_id}`,
+      expect.objectContaining({ run_id: run.run_id, queued: 2 })
+    );
+    expect(mockPipeline.expire).toHaveBeenCalledWith(
+      `embedding_backfill_run:${run.run_id}`,
+      86_400
+    );
+  });
+
+  it("is complete for an empty job list", async () => {
+    const service = new EmbeddingQueueService();
+    const run = await service.startBackfillRun([]);
+    expect(run).toMatchObject({ queued: 0, complete: true });
+  });
+
+  it("tags every enqueued job with the run_id", async () => {
+    const service = new EmbeddingQueueService();
+    const run = await service.startBackfillRun([job({ track_id: "a" })]);
+
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue",
+      JSON.stringify({ ...job({ track_id: "a" }), run_id: run.run_id })
+    );
+  });
+});
+
+describe("getBackfillRun", () => {
+  it("returns null when the run doesn't exist or has expired", async () => {
+    const service = new EmbeddingQueueService();
+    expect(await service.getBackfillRun("missing")).toBeNull();
+  });
+
+  it("parses counters and reports complete once every job has settled", async () => {
+    mockRedis.hgetall.mockResolvedValueOnce({
+      run_id: "run-1",
+      queued: "2",
+      success: "1",
+      skipped: "1",
+      failed: "0",
+      started_at: "100",
+      updated_at: "200",
+    });
+    const service = new EmbeddingQueueService();
+    const run = await service.getBackfillRun("run-1");
+
+    expect(run).toEqual({
+      run_id: "run-1",
+      queued: 2,
+      success: 1,
+      skipped: 1,
+      failed: 0,
+      errors: [],
+      started_at: 100,
+      updated_at: 200,
+      complete: true,
+    });
+  });
+
+  it("is not complete while jobs remain outstanding", async () => {
+    mockRedis.hgetall.mockResolvedValueOnce({
+      run_id: "run-1",
+      queued: "5",
+      success: "1",
+      skipped: "0",
+      failed: "0",
+      started_at: "100",
+      updated_at: "200",
+    });
+    const service = new EmbeddingQueueService();
+    const run = await service.getBackfillRun("run-1");
+    expect(run?.complete).toBe(false);
+  });
+
+  it("includes errors recorded against the run", async () => {
+    mockRedis.hgetall.mockResolvedValueOnce({
+      run_id: "run-1",
+      queued: "1",
+      success: "0",
+      skipped: "0",
+      failed: "1",
+      started_at: "100",
+      updated_at: "200",
+    });
+    mockRedis.lrange.mockResolvedValueOnce(["t1: rate limited"]);
+    const service = new EmbeddingQueueService();
+    const run = await service.getBackfillRun("run-1");
+    expect(run?.errors).toEqual(["t1: rate limited"]);
+  });
+});
+
+describe("tick — run progress tagging (#388)", () => {
+  it("bumps the run's success counter when a tagged job succeeds", async () => {
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ run_id: "run-1" })))
+      .mockResolvedValue(null);
+    mockGenerateIdentity.mockResolvedValueOnce({ updated: true, reason: "ok" });
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      "embedding_backfill_run:run-1",
+      "success",
+      1
+    );
+  });
+
+  it("bumps the run's skipped counter when a tagged job's source hash is unchanged", async () => {
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ run_id: "run-1" })))
+      .mockResolvedValue(null);
+    mockGenerateIdentity.mockResolvedValueOnce({
+      updated: false,
+      reason: "Source hash unchanged",
+    });
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      "embedding_backfill_run:run-1",
+      "skipped",
+      1
+    );
+  });
+
+  it("touches no run counters for a job with no run_id", async () => {
+    mockRedis.rpop.mockResolvedValueOnce(JSON.stringify(job())).mockResolvedValue(null);
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+    expect(mockPipeline.hincrby).not.toHaveBeenCalled();
+  });
+
+  it("bumps the run's failed counter and records the real error once attempts are exhausted", async () => {
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ run_id: "run-2", attempts: 4 })))
+      .mockResolvedValue(null);
+    mockGenerateIdentity.mockRejectedValueOnce(new Error("rate limited"));
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith(
+      "embedding_backfill_run:run-2",
+      "failed",
+      1
+    );
+    expect(mockPipeline.rpush).toHaveBeenCalledWith(
+      "embedding_backfill_run:run-2:errors",
+      "t1: rate limited"
+    );
+  });
+
+  it("does not bump a run's failed counter while a transient failure still has attempts left", async () => {
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ run_id: "run-3" })))
+      .mockResolvedValue(null);
+    mockGenerateIdentity.mockRejectedValueOnce(new Error("503"));
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+    expect(mockPipeline.hincrby).not.toHaveBeenCalled();
   });
 });

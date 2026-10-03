@@ -1,7 +1,9 @@
-export type EmbeddingType = "identity" | "audio_vibe";
+export type EmbeddingType = "identity" | "audio_vibe" | "prompt";
 
 export interface BackfillOptions {
   friend_id?: number;
+  release_id?: string;
+  track_ids?: string[];
   force?: boolean;
   limit?: number;
   batch_size?: number;

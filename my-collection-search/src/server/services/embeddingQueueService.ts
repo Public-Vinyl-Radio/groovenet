@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { getRedisConnection } from "@/lib/redis";
 import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
 import { generateAndStoreAudioVibeEmbedding } from "@/lib/audio-vibe-embedding";
@@ -6,6 +7,7 @@ import { trackRepository } from "@/server/repositories/trackRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
 import type {
+  EmbeddingBackfillRun,
   EmbeddingJob,
   EmbeddingQueueHealth,
 } from "@/types/embeddingQueue";
@@ -29,11 +31,18 @@ const RETRY_KEY = "embedding_retry";
 const FAILED_KEY = "embedding_queue:failed";
 const PAUSED_KEY = "embedding_queue:paused";
 const LAST_ERROR_KEY = "embedding_queue:last_error";
+const RUN_KEY_PREFIX = "embedding_backfill_run:";
 
 const MAX_FAILED_ENTRIES = 100;
 const MAX_ATTEMPTS = 5;
 const BASE_BACKOFF_MS = 30_000;
 const MAX_BACKOFF_MS = 30 * 60_000;
+/** Matches `fingerprintIndexService.RUN_TTL_SECONDS` — a day is plenty to poll a run. */
+const RUN_TTL_SECONDS = 86_400;
+
+function runKey(runId: string): string {
+  return `${RUN_KEY_PREFIX}${runId}`;
+}
 
 type QueuedJob = EmbeddingJob & { attempts?: number };
 
@@ -73,14 +82,13 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function runJob(job: EmbeddingJob): Promise<void> {
+/** `updated: false` means the generator skipped a track whose source hash was unchanged. */
+async function runJob(job: EmbeddingJob): Promise<{ updated: boolean }> {
   if (job.kind === "identity") {
-    await generateAndStoreIdentityEmbedding(job.track_id, job.friend_id);
-    return;
+    return generateAndStoreIdentityEmbedding(job.track_id, job.friend_id, job.force);
   }
   if (job.kind === "audio_vibe") {
-    await generateAndStoreAudioVibeEmbedding(job.track_id, job.friend_id);
-    return;
+    return generateAndStoreAudioVibeEmbedding(job.track_id, job.friend_id, job.force);
   }
 
   // "prompt": the legacy tracks.embedding column, keyed off settings-editable
@@ -94,6 +102,7 @@ async function runJob(job: EmbeddingJob): Promise<void> {
   }
   const embedding = await getTrackEmbedding(track);
   await trackRepository.updateTrackEmbedding(job.track_id, job.friend_id, embedding);
+  return { updated: true };
 }
 
 export class EmbeddingQueueService {
@@ -123,6 +132,24 @@ export class EmbeddingQueueService {
       JSON.stringify({ ...job, error: message, failedAt: Date.now() })
     );
     pipeline.ltrim(FAILED_KEY, 0, MAX_FAILED_ENTRIES - 1);
+    await pipeline.exec();
+
+    if (job.run_id) {
+      const key = runKey(job.run_id);
+      const runPipeline = this.redis.pipeline();
+      runPipeline.hset(key, "updated_at", Date.now());
+      runPipeline.hincrby(key, "failed", 1);
+      runPipeline.rpush(`${key}:errors`, `${job.track_id}: ${message}`);
+      await runPipeline.exec();
+    }
+  }
+
+  /** Bump a backfill run's success/skipped counter for one settled job. */
+  private async recordRunProgress(runId: string, updated: boolean): Promise<void> {
+    const key = runKey(runId);
+    const pipeline = this.redis.pipeline();
+    pipeline.hset(key, "updated_at", Date.now());
+    pipeline.hincrby(key, updated ? "success" : "skipped", 1);
     await pipeline.exec();
   }
 
@@ -155,12 +182,20 @@ export class EmbeddingQueueService {
     await pipeline.exec();
   }
 
-  private async scheduleRetry(job: QueuedJob, now: number): Promise<void> {
+  private async scheduleRetry(
+    job: QueuedJob,
+    now: number,
+    message: string
+  ): Promise<void> {
     const attempts = (job.attempts ?? 0) + 1;
     const retryJob: QueuedJob = { ...job, attempts };
 
     if (attempts >= MAX_ATTEMPTS) {
-      await this.recordFailure(retryJob, `Giving up after ${attempts} attempts`);
+      // `attempts` is already in the stored JSON, so the error field carries
+      // the real cause — useful on its own, and essential for a backfill
+      // run's error list, which would otherwise just say "gave up" for every
+      // track with no hint why.
+      await this.recordFailure(retryJob, message);
       return;
     }
 
@@ -203,7 +238,8 @@ export class EmbeddingQueueService {
     for (let i = 0; i < batch.length; i += 1) {
       const job = batch[i];
       try {
-        await runJob(job);
+        const { updated } = await runJob(job);
+        if (job.run_id) await this.recordRunProgress(job.run_id, updated);
       } catch (error) {
         const message = errorMessage(error);
         if (isAuthError(message)) {
@@ -214,31 +250,101 @@ export class EmbeddingQueueService {
           return;
         }
         await this.setLastError(message);
-        await this.scheduleRetry(job, now);
+        await this.scheduleRetry(job, now, message);
       }
     }
   }
 
   /**
    * Backstop for #385, same shape as `fingerprintBackfillService`'s missing
-   * pass: finds tracks with no identity/audio-vibe row at all and enqueues
-   * them. Covers lost Redis state and anything enqueued before the worker
-   * ever ran. Idempotent — a track already queued or already embedded is a
-   * no-op either way.
+   * pass: finds tracks with no identity/audio-vibe/prompt embedding at all
+   * and enqueues them. Covers lost Redis state and anything enqueued before
+   * the worker ever ran. Idempotent — a track already queued or already
+   * embedded is a no-op either way.
    */
   async sweepTick(): Promise<{ queued: number }> {
-    const [missingIdentity, missingAudioVibe] = await Promise.all([
+    const [missingIdentity, missingAudioVibe, missingPrompt] = await Promise.all([
       embeddingsRepository.listTracksNeedingIdentityEmbeddings({}),
       embeddingsRepository.listTracksNeedingAudioVibeEmbeddings({}),
+      embeddingsRepository.listTracksNeedingPromptEmbeddings({}),
     ]);
 
     const jobs: EmbeddingJob[] = [
       ...missingIdentity.map((t) => ({ ...t, kind: "identity" as const })),
       ...missingAudioVibe.map((t) => ({ ...t, kind: "audio_vibe" as const })),
+      ...missingPrompt.map((t) => ({ ...t, kind: "prompt" as const })),
     ];
 
     await this.enqueue(jobs);
     return { queued: jobs.length };
+  }
+
+  /**
+   * Start a trackable backfill run (#388): stamps every job with a fresh
+   * `run_id`, seeds its counters, enqueues, and returns immediately — the
+   * same "queue now, poll progress separately" shape as
+   * `fingerprintIndexService.startRun`. Reuses the plain `embedding_queue`,
+   * so a backfill gets the same retry/backoff/pause protection as any other
+   * job instead of a separate unretried code path.
+   */
+  async startBackfillRun(jobs: EmbeddingJob[]): Promise<EmbeddingBackfillRun> {
+    const runId = randomUUID();
+    const key = runKey(runId);
+    const now = Date.now();
+
+    const seedPipeline = this.redis.pipeline();
+    seedPipeline.hset(key, {
+      run_id: runId,
+      queued: jobs.length,
+      success: 0,
+      skipped: 0,
+      failed: 0,
+      started_at: now,
+      updated_at: now,
+    });
+    seedPipeline.expire(key, RUN_TTL_SECONDS);
+    await seedPipeline.exec();
+
+    await this.enqueue(jobs.map((job) => ({ ...job, run_id: runId })));
+
+    return {
+      run_id: runId,
+      queued: jobs.length,
+      success: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [],
+      started_at: now,
+      updated_at: now,
+      complete: jobs.length === 0,
+    };
+  }
+
+  /** Counters for one backfill run, as the queue worker has left them. */
+  async getBackfillRun(runId: string): Promise<EmbeddingBackfillRun | null> {
+    const key = runKey(runId);
+    const [stored, errors] = await Promise.all([
+      this.redis.hgetall(key),
+      this.redis.lrange(`${key}:errors`, 0, -1),
+    ]);
+    if (!stored || Object.keys(stored).length === 0) return null;
+
+    const queued = toInt(stored.queued);
+    const success = toInt(stored.success);
+    const skipped = toInt(stored.skipped);
+    const failed = toInt(stored.failed);
+
+    return {
+      run_id: stored.run_id ?? runId,
+      queued,
+      success,
+      skipped,
+      failed,
+      errors,
+      started_at: toInt(stored.started_at),
+      updated_at: toInt(stored.updated_at),
+      complete: success + skipped + failed >= queued,
+    };
   }
 
   async getQueueHealth(): Promise<EmbeddingQueueHealth> {
@@ -272,6 +378,11 @@ export class EmbeddingQueueService {
   async resetQueueState(): Promise<void> {
     await this.redis.del(QUEUE_KEY, RETRY_KEY, FAILED_KEY, PAUSED_KEY, LAST_ERROR_KEY);
   }
+}
+
+function toInt(value: string | undefined): number {
+  const parsed = parseInt(value ?? "0", 10);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export const embeddingQueueService = new EmbeddingQueueService();
