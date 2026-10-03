@@ -107,6 +107,9 @@ export function addRecordsCommands(program: Command): void {
     })());
 
   const copies = common(records.command("copies").description("List, add, label or remove copies"));
+  // Commander assigns duplicate option names to the parent `copies` command,
+  // even when they appear after a subcommand. Carry them into child actions.
+  const copyOptions = <T extends Common>(opts: T): T => ({ ...copies.opts<Common>(), ...opts });
   copies.argument("[release]").action(async (release: string | undefined, opts: Common) => handle(async () => {
     if (!release) throw new Error("A release ID is required. Use `records copies <release>`.");
     const result = await makeClient().listRecordCopies(friendId(opts), release);
@@ -117,6 +120,7 @@ export function addRecordsCommands(program: Command): void {
   common(copies.command("add <release>").description("Add another physical copy"))
     .option("--label <text>", "Copy label").option("--note <text>", "Copy notes")
     .action(async (release: string, opts: Common & { label?: string; note?: string }) => handle(async () => {
+      opts = copyOptions(opts);
       const result = await makeClient().createRecordCopy({ friend_id: friendId(opts), release_id: release, label: opts.label, notes: opts.note });
       if (opts.json) printJson(result); else console.log(`Added copy ${result.id} of ${release}.`);
     })());
@@ -124,6 +128,7 @@ export function addRecordsCommands(program: Command): void {
   common(copies.command("label <release> <label>").description("Label a copy; defaults to the release's default copy"))
     .option("--copy <id>", "Physical copy ID", positiveInt)
     .action(async (release: string, label: string, opts: Common & { copy?: number }) => handle(async () => {
+      opts = copyOptions(opts);
       const client = makeClient();
       if (opts.copy) {
         const copies = await client.listRecordCopies(friendId(opts), release);
@@ -139,6 +144,7 @@ export function addRecordsCommands(program: Command): void {
 
   common(copies.command("remove <id>").description("Soft-delete a physical copy"))
     .action(async (id: string, opts: Common) => handle(async () => {
+      opts = copyOptions(opts);
       const result = await makeClient().deleteRecordCopy(positiveInt(id), friendId(opts));
       if (opts.json) printJson(result); else console.log(`Removed copy ${result.id}.`);
     })());

@@ -57,6 +57,21 @@ describe("records commands", () => {
     expect(JSON.parse(raw.join(""))).toEqual({ action, copy });
   });
 
+  it("rejects an invalid care date before sending a request", async () => {
+    await expect(parse("clean", "123", "--at", "not-a-date")).rejects.toThrow();
+    expect(api.logRecordAction).not.toHaveBeenCalled();
+  });
+
+  it("prints ordinary and JSON confirmations for care actions", async () => {
+    await parse("clean", "123");
+    expect(output.join("\n")).toContain("Cleaned 123 (copy 7, action 9)");
+    await parse("sleeve", "123", "paper", "--json");
+    expect(JSON.parse(raw.join(""))).toEqual({ action, copy });
+    raw.length = 0;
+    await parse("log", "123", "inspected", "--json");
+    expect(JSON.parse(raw.join(""))).toEqual({ action, copy });
+  });
+
   it("logs sleeve and repair against a specified copy", async () => {
     await parse("sleeve", "123", "poly-rice-paper-poly", "--copy", "7", "--friend-id", "4");
     expect(api.listRecordCopies).toHaveBeenCalledWith(4, "123");
@@ -86,6 +101,31 @@ describe("records commands", () => {
     expect(api.deleteRecordCopy).toHaveBeenCalledWith(7, 2);
   });
 
+  it("shows an implicit copy and an empty copy list clearly", async () => {
+    api.listRecordCopies.mockResolvedValueOnce([{ ...copy, id: null, label: null, inner_sleeve_type: null, last_cleaned_at: null }]);
+    await parse("copies", "123");
+    expect(output.join("\n")).toContain("Default");
+    api.listRecordCopies.mockResolvedValueOnce([]);
+    await parse("copies", "123");
+    expect(output.at(-1)).toBe("No records found.");
+    output.length = 0;
+    await parse("copies");
+    expect(process.exitCode).toBe(1);
+    expect(api.listRecordCopies).toHaveBeenCalledTimes(2);
+  });
+
+  it("prints raw API responses for copy changes", async () => {
+    await parse("copies", "add", "123", "--note", "backup", "--friend-id", "4", "--json");
+    expect(api.createRecordCopy).toHaveBeenCalledWith({ friend_id: 4, release_id: "123", label: undefined, notes: "backup" });
+    expect(JSON.parse(raw.join(""))).toEqual(copy);
+    raw.length = 0;
+    await parse("copies", "label", "123", "Main", "--json");
+    expect(JSON.parse(raw.join(""))).toEqual(copy);
+    raw.length = 0;
+    await parse("copies", "remove", "7", "--json");
+    expect(JSON.parse(raw.join(""))).toEqual(copy);
+  });
+
   it("does not label a copy on a different release", async () => {
     api.listRecordCopies.mockResolvedValueOnce([]);
     await parse("copies", "label", "123", "Wrong", "--copy", "7");
@@ -100,12 +140,34 @@ describe("records commands", () => {
     expect(api.voidRecordAction).toHaveBeenCalledWith(9, 2);
   });
 
+  it("exposes action details and raw history for scripts", async () => {
+    const sleeved = { ...action, sleeve_type: "poly", notes: "fresh", voided_at: "2026-09-02T00:00:00.000Z" };
+    api.listRecordActions.mockResolvedValueOnce({ items: [sleeved], limit: 50, offset: 0 });
+    await parse("history", "7");
+    expect(output.join("\n")).toContain("fresh");
+    await parse("history", "7", "--json");
+    expect(JSON.parse(raw.join(""))).toMatchObject({ items: [action] });
+    raw.length = 0;
+    await parse("void", "9", "--json");
+    expect(JSON.parse(raw.join(""))).toEqual({ action, copy });
+  });
+
   it("passes care filters and keeps summary separate from the list", async () => {
     await parse("care", "--status", "needs_sleeve", "--needs-sleeve", "poly", "--overdue-days", "180");
     expect(api.listRecordCare).toHaveBeenCalledWith({ friend_id: 2, status: "needs_sleeve", needs_sleeve: "poly", overdue_days: 180, limit: 50, offset: 0 });
     await parse("care", "--summary", "--json");
     expect(api.getRecordCareSummary).toHaveBeenCalledWith({ friend_id: 2, overdue_days: undefined, needs_sleeve: undefined });
     expect(JSON.parse(raw.join(""))).toMatchObject({ never_cleaned: 1 });
+  });
+
+  it("prints a readable summary and preserves the complete care list as JSON", async () => {
+    await parse("care", "--summary");
+    expect(output.join("\n")).toContain("Never cleaned");
+    const care = { items: [{ release_id: "123", album_title: "Album", album_artist: "Artist", copy_id: null, inner_sleeve_type: null, last_cleaned_at: null }], total: 1 };
+    api.listRecordCare.mockResolvedValueOnce(care);
+    await parse("care", "--json");
+    expect(JSON.parse(raw.join(""))).toEqual(care);
+    expect(output.join("\n")).not.toContain("copy/copies found");
   });
 
   it("rejects an unsupported action without writing", async () => {
