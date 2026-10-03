@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const {
+  mockSyncEmbeddings,
   mockWithDbTransaction,
   mockGenTrackId,
   mockSaveAlbumCover,
@@ -12,6 +13,7 @@ const {
   mockDeleteTracks,
   mockUpsertTrack,
 } = vi.hoisted(() => ({
+  mockSyncEmbeddings: vi.fn(),
   mockWithDbTransaction: vi.fn(),
   mockGenTrackId: vi.fn(),
   mockSaveAlbumCover: vi.fn(),
@@ -23,6 +25,9 @@ const {
   mockUpsertTrack: vi.fn(),
 }));
 
+vi.mock("@/server/services/trackEmbeddingSyncService", () => ({
+  syncIdentityEmbeddings: mockSyncEmbeddings,
+}));
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: mockWithDbTransaction }));
 vi.mock("@/lib/localTrackHelpers", () => ({ generateLocalTrackId: mockGenTrackId }));
 vi.mock("@/lib/fileUpload", () => ({ saveAlbumCover: mockSaveAlbumCover }));
@@ -71,6 +76,7 @@ function makeReq(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockSyncEmbeddings.mockResolvedValue({ generated: 0, unchanged: 0, failed: 0 });
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockGenTrackId.mockReturnValue("local-trk-new");
   mockGetUsername.mockResolvedValue("alice");
@@ -155,6 +161,18 @@ describe("POST /api/albums/upsert — track reconciliation", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).deletedTracks).toBe(0);
     expect(mockDeleteTracks).not.toHaveBeenCalled();
+  });
+
+  it("refreshes identity embeddings for the upserted tracks", async () => {
+    mockUpsertTrack.mockImplementation(async (_c: unknown, row: unknown[]) => ({
+      track_id: row[0],
+      friend_id: row[1],
+    }));
+    const res = await POST(makeReq());
+    expect(res.status).toBe(200);
+    expect(mockSyncEmbeddings).toHaveBeenCalledWith([
+      { track_id: "t1", friend_id: 1 },
+    ]);
   });
 
   it("generates ids for new tracks that have no track_id", async () => {

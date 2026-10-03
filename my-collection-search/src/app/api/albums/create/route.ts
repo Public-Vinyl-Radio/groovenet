@@ -6,6 +6,7 @@ import { AlbumToUpsert, upsertAlbum } from '@/server/services/albumUpsertService
 import { Track } from '@/types/track';
 import { AlbumMetadata, TrackMetadata } from '@/types/albumMetadata';
 import { albumRepository } from '@/server/repositories/albumRepository';
+import { syncIdentityEmbeddings } from '@/server/services/trackEmbeddingSyncService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -147,6 +148,8 @@ export async function POST(request: NextRequest) {
 
       return { createdAlbum, createdTracks };
     });
+
+    await syncIdentityEmbeddings(createdTracks);
 
     return NextResponse.json({
       album: createdAlbum,

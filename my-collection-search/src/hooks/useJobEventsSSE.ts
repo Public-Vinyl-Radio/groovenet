@@ -17,6 +17,7 @@ interface JobCompletedEvent {
       rhythm?: { bpm?: number; danceability?: number };
       tonal?: { key_edma?: { key?: string; scale?: string } };
       metadata?: { audio_properties?: { length?: number } };
+      highlevel?: Record<string, { all?: Record<string, number> } | undefined>;
     };
   };
   timestamp: number;
@@ -86,6 +87,19 @@ export function useJobEventsSSE(enabled: boolean = true) {
           }
           if (analysis?.tonal?.key_edma?.key && analysis?.tonal?.key_edma?.scale) {
             updates.key = `${analysis.tonal.key_edma.key} ${analysis.tonal.key_edma.scale}`;
+          }
+          // Same extraction as download-worker's PATCH /api/tracks body.
+          const moods = [
+            ["mood_happy", "happy"],
+            ["mood_sad", "sad"],
+            ["mood_relaxed", "relaxed"],
+            ["mood_aggressive", "aggressive"],
+          ] as const;
+          for (const [field, label] of moods) {
+            const value = analysis?.highlevel?.[field]?.all?.[label];
+            if (typeof value === "number") {
+              updates[field] = Math.round(value * 1000) / 1000;
+            }
           }
 
           if (Object.keys(updates).length > 0) {

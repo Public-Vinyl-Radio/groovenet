@@ -340,6 +340,34 @@ export async function GET(request: NextRequest) {
                 // Continue even if album ingest fails
               }
 
+              // Step 7: Embeddings. Identity embeddings read album metadata,
+              // so they run after the album upsert, never at track upsert.
+              try {
+                const { syncIdentityEmbeddings } = await import(
+                  "@/server/services/trackEmbeddingSyncService"
+                );
+                controller.enqueue(
+                  encoder.encode(`\n--- Generating Embeddings ---\n\n`)
+                );
+                const embedded = await syncIdentityEmbeddings(upserted);
+                controller.enqueue(
+                  encoder.encode(
+                    `Embeddings: ${embedded.generated} generated, ${embedded.unchanged} unchanged, ${embedded.failed} failed\n\n`
+                  )
+                );
+              } catch (embeddingError) {
+                console.error("[Embedding Sync Error]", embeddingError);
+                controller.enqueue(
+                  encoder.encode(
+                    `⚠️  Embedding generation error: ${
+                      embeddingError instanceof Error
+                        ? embeddingError.message
+                        : String(embeddingError)
+                    }\n\n`
+                  )
+                );
+              }
+
               controller.enqueue(
                 encoder.encode(`\n✅ Auto-ingest complete!\n\n`)
               );
