@@ -7,6 +7,7 @@ import { addAlbumsCommands } from "../commands/albums.js";
 import { addPlaylistsCommands } from "../commands/playlists.js";
 import { addFriendsCommands } from "../commands/friends.js";
 import { addFingerprintLibraryCommand } from "../commands/fingerprintLibrary.js";
+import { addEmbeddingsCommands } from "../commands/embeddings.js";
 import { addVinylCommands } from "../commands/vinyl.js";
 import { addSetsCommands } from "../commands/sets.js";
 
@@ -27,6 +28,7 @@ addAlbumsCommands(program);
 addPlaylistsCommands(program);
 addFriendsCommands(program);
 addFingerprintLibraryCommand(program);
+addEmbeddingsCommands(program);
 addVinylCommands(program);
 addSetsCommands(program);
 

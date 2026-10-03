@@ -492,6 +492,46 @@ export interface FingerprintIndexRun {
   complete: boolean;
 }
 
+// ─── Embeddings backfill (#388) ───────────────────────────────────────────────
+
+export type EmbeddingJobKind = "identity" | "audio_vibe" | "prompt";
+export type EmbeddingBackfillScope = "missing" | "all" | "release" | "track";
+
+export interface EmbeddingBackfillRequest {
+  scope?: EmbeddingBackfillScope;
+  types?: EmbeddingJobKind[];
+  friend_id?: number;
+  release_id?: string;
+  track_ids?: string[];
+  limit?: number;
+  force?: boolean;
+  dry_run?: boolean;
+}
+
+/** Counters for one backfill run, same shape as `FingerprintIndexRun` minus the fingerprint fields. */
+export interface EmbeddingBackfillRun {
+  run_id: string;
+  queued: number;
+  success: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+  started_at: number;
+  updated_at: number;
+  complete: boolean;
+}
+
+export interface EmbeddingBackfillDryRun {
+  dry_run: true;
+  total: number;
+  by_type: Record<EmbeddingJobKind, number>;
+}
+
+export interface EmbeddingStatus {
+  total_tracks: number;
+  missing: Record<EmbeddingJobKind, number>;
+}
+
 // ─── Vinyl pipeline debug (#299) ──────────────────────────────────────────────
 
 export interface DetectionWindow {

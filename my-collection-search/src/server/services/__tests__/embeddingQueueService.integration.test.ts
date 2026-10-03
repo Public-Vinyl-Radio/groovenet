@@ -56,7 +56,7 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
 
     await service.tick(Date.now());
 
-    expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1);
+    expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1, undefined);
     expect(await redis.llen("embedding_queue")).toBe(0);
   });
 
@@ -116,5 +116,38 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
 
     const health = await service.getQueueHealth();
     expect(health.failedCount).toBe(5);
+  });
+
+  it("tracks a backfill run's progress through real HSET/HINCRBY as the queue drains (#388)", async () => {
+    mockGenerateIdentity
+      .mockResolvedValueOnce({ updated: true, reason: "ok" })
+      .mockResolvedValueOnce({ updated: false, reason: "Source hash unchanged" })
+      .mockRejectedValue(new Error("rate limited"));
+
+    const started = await service.startBackfillRun([
+      { track_id: "a", friend_id: 1, kind: "identity" },
+      { track_id: "b", friend_id: 1, kind: "identity" },
+      { track_id: "c", friend_id: 1, kind: "identity" },
+    ]);
+    expect(started.queued).toBe(3);
+    expect(started.complete).toBe(false);
+
+    // Drive the one failing job through every retry so the run reaches a
+    // terminal state, same backoff schedule as the plain-queue test above.
+    let now = Date.now();
+    for (let round = 0; round < 6; round += 1) {
+      await service.tick(now);
+      now += 31 * 60_000;
+    }
+
+    const finished = await service.getBackfillRun(started.run_id);
+    expect(finished).toMatchObject({
+      queued: 3,
+      success: 1,
+      skipped: 1,
+      failed: 1,
+      complete: true,
+    });
+    expect(finished?.errors).toEqual(["c: rate limited"]);
   });
 });

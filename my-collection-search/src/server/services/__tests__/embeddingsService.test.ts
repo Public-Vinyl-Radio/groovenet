@@ -3,20 +3,16 @@ import type { SimilarIdentityTrack } from "@/types/embeddings";
 
 const {
   mockWithDbClient,
-  mockGenerateIdentity,
   mockGetIdentityPreview,
   mockGetAudioVibePreview,
-  mockListNeeding,
   mockSetProbes,
   mockFindSource,
   mockFindSimilarIdentity,
   mockFindSimilarVibe,
 } = vi.hoisted(() => ({
   mockWithDbClient: vi.fn(),
-  mockGenerateIdentity: vi.fn(),
   mockGetIdentityPreview: vi.fn(),
   mockGetAudioVibePreview: vi.fn(),
-  mockListNeeding: vi.fn(),
   mockSetProbes: vi.fn(),
   mockFindSource: vi.fn(),
   mockFindSimilarIdentity: vi.fn(),
@@ -25,7 +21,6 @@ const {
 
 vi.mock("@/lib/serverDb", () => ({ withDbClient: mockWithDbClient }));
 vi.mock("@/lib/identity-embedding", () => ({
-  generateAndStoreIdentityEmbedding: mockGenerateIdentity,
   getIdentityPreview: mockGetIdentityPreview,
 }));
 vi.mock("@/lib/audio-vibe-embedding", () => ({
@@ -33,7 +28,6 @@ vi.mock("@/lib/audio-vibe-embedding", () => ({
 }));
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: {
-    listTracksNeedingIdentityEmbeddings: mockListNeeding,
     setIvfflatProbes: mockSetProbes,
     findSourceEmbedding: mockFindSource,
     findSimilarIdentityTracks: mockFindSimilarIdentity,
@@ -120,45 +114,6 @@ describe("EmbeddingsService.getPreview", () => {
     const res = await embeddingsService.getPreview("audio_vibe", "t1", 1);
     expect(res).toEqual({ type: "audio_vibe", text: "vibe-text", data: { b: 2 } });
     expect(mockGetIdentityPreview).not.toHaveBeenCalled();
-  });
-});
-
-// ─── backfillIdentity ───────────────────────────────────────────────────────
-
-describe("EmbeddingsService.backfillIdentity", () => {
-  it("returns zeros and does no work when nothing needs embeddings", async () => {
-    mockListNeeding.mockResolvedValueOnce([]);
-    const res = await embeddingsService.backfillIdentity({});
-    expect(res).toEqual({ total: 0, success: 0, skipped: 0, failed: [] });
-    expect(mockGenerateIdentity).not.toHaveBeenCalled();
-  });
-
-  it("aggregates success, skipped, and failed across a batch", async () => {
-    mockListNeeding.mockResolvedValueOnce([
-      { track_id: "t1", friend_id: 1 },
-      { track_id: "t2", friend_id: 1 },
-      { track_id: "t3", friend_id: 1 },
-    ]);
-    mockGenerateIdentity
-      .mockResolvedValueOnce({ updated: true }) // success
-      .mockResolvedValueOnce({ updated: false }) // skipped
-      .mockRejectedValueOnce(new Error("kaboom")); // failed
-    const res = await embeddingsService.backfillIdentity({ batch_size: 10 });
-    expect(res.total).toBe(3);
-    expect(res.success).toBe(1);
-    expect(res.skipped).toBe(1);
-    expect(res.failed).toEqual([{ track_id: "t3", friend_id: 1, error: "kaboom" }]);
-  });
-
-  it("processes all tracks across multiple batches and forwards force", async () => {
-    mockListNeeding.mockResolvedValueOnce(
-      Array.from({ length: 5 }, (_, i) => ({ track_id: `t${i}`, friend_id: 1 }))
-    );
-    mockGenerateIdentity.mockResolvedValue({ updated: true });
-    const res = await embeddingsService.backfillIdentity({ batch_size: 2, force: true });
-    expect(res.success).toBe(5);
-    expect(mockGenerateIdentity).toHaveBeenCalledTimes(5);
-    expect(mockGenerateIdentity).toHaveBeenCalledWith("t0", 1, true);
   });
 });
 

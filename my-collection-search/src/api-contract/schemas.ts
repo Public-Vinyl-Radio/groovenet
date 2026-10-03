@@ -1717,6 +1717,78 @@ export const fingerprintIndexRunSchema = z.object({
   complete: z.boolean(),
 });
 
+// ─── Embeddings backfill (#388) ───────────────────────────────────────────────
+
+const embeddingJobKindSchema = z.enum(["identity", "audio_vibe", "prompt"]);
+
+/**
+ * Which tracks to resolve. Exactly one of `track_ids`/`release_id` is
+ * required for their matching scope, same shape as the fingerprint index body.
+ */
+export const embeddingsBackfillBodySchema = z
+  .object({
+    scope: z.enum(["missing", "all", "release", "track"]).default("missing"),
+    types: z.array(embeddingJobKindSchema).min(1).optional(),
+    friend_id: intFromInputSchema.optional(),
+    release_id: z.string().min(1).optional(),
+    track_ids: z.array(z.string().min(1)).min(1).optional(),
+    limit: intFromInputSchema.optional(),
+    // Orthogonal to scope, like the fingerprint index body: even a `release`
+    // or `track` scope only fills what's missing by default, and `all`
+    // implies it regardless of what's passed here.
+    force: z.boolean().optional(),
+    dry_run: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === "track" && !value.track_ids?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "scope 'track' requires track_ids",
+      });
+    }
+    if (value.scope === "release" && !value.release_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "scope 'release' requires release_id",
+      });
+    }
+  });
+
+export const embeddingsBackfillRunSchema = z.object({
+  run_id: z.string(),
+  queued: z.number().int(),
+  success: z.number().int(),
+  skipped: z.number().int(),
+  failed: z.number().int(),
+  errors: z.array(z.string()),
+  started_at: z.number().int(),
+  updated_at: z.number().int(),
+  complete: z.boolean(),
+});
+
+export const embeddingsBackfillDryRunSchema = z.object({
+  dry_run: z.literal(true),
+  total: z.number().int(),
+  by_type: z.object({
+    identity: z.number().int(),
+    audio_vibe: z.number().int(),
+    prompt: z.number().int(),
+  }),
+});
+
+export const embeddingsStatusSchema = z.object({
+  total_tracks: z.number().int(),
+  missing: z.object({
+    identity: z.number().int(),
+    audio_vibe: z.number().int(),
+    prompt: z.number().int(),
+  }),
+});
+
+export const embeddingsStatusQuerySchema = z.object({
+  friend_id: intFromInputSchema.optional(),
+});
+
 // ─── Audio ingest retention (#269) ────────────────────────────────────────────
 
 export const ingestRetentionPolicySchema = z.object({

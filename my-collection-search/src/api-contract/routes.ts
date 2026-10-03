@@ -52,6 +52,11 @@ import {
   embeddingPromptSettingsPutBodySchema,
   embeddingPromptSettingsPutResponseSchema,
   embeddingPromptSettingsQuerySchema,
+  embeddingsBackfillBodySchema,
+  embeddingsBackfillDryRunSchema,
+  embeddingsBackfillRunSchema,
+  embeddingsStatusQuerySchema,
+  embeddingsStatusSchema,
   friendDeleteQuerySchema,
   friendMutationBodySchema,
   friendMutationResponseSchema,
@@ -1252,6 +1257,129 @@ const fingerprintContracts: ApiContractRoute[] = [
         "404": {
           description: "Run not found or expired",
           content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const embeddingsBackfillContracts: ApiContractRoute[] = [
+  {
+    operationId: "startEmbeddingBackfill",
+    method: "post",
+    path: "/api/embeddings/backfill",
+    summary: "Queue a backfill run for missing embeddings",
+    tags: ["Embeddings"],
+    bodySchema: embeddingsBackfillBodySchema,
+    successSchema: z.union([embeddingsBackfillRunSchema, embeddingsBackfillDryRunSchema]),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                scope: {
+                  type: "string",
+                  enum: ["missing", "all", "release", "track"],
+                },
+                types: {
+                  type: "array",
+                  items: { type: "string", enum: ["identity", "audio_vibe", "prompt"] },
+                },
+                friend_id: { type: "integer" },
+                release_id: { type: "string" },
+                track_ids: { type: "array", items: { type: "string" } },
+                limit: { type: "integer" },
+                force: { type: "boolean" },
+                dry_run: { type: "boolean" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Dry run: counts only, nothing enqueued",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
+        },
+        "202": {
+          description: "Run queued",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
+        },
+        "400": {
+          description: "Invalid scope",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getEmbeddingBackfillRun",
+    method: "get",
+    path: "/api/embeddings/backfill/{runId}",
+    summary: "Progress and summary for one embeddings backfill run",
+    tags: ["Embeddings"],
+    successSchema: embeddingsBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/embeddings/backfill/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getEmbeddingStatus",
+    method: "get",
+    path: "/api/embeddings/status",
+    summary: "Counts of tracks missing each embedding type",
+    tags: ["Embeddings"],
+    querySchema: embeddingsStatusQuerySchema,
+    successSchema: embeddingsStatusSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        {
+          name: "friend_id",
+          in: "query",
+          required: false,
+          schema: { type: "integer" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Missing-embedding counts",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
         },
         "500": {
           description: "Server error",
@@ -6442,6 +6570,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   },
   ...remainingTracksContracts,
   ...fingerprintContracts,
+  ...embeddingsBackfillContracts,
   ...audioIngestContracts,
   ...setDerivationContracts,
   ...backupContracts,

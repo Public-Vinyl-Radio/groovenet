@@ -58,7 +58,9 @@ src/
 │       ├── identity-normalization.test.ts
 │       └── identity-embedding.test.ts
 └── app/api/embeddings/
-    ├── backfill-identity/route.ts  # Backfill endpoint
+    ├── backfill/route.ts            # Backfill endpoint (#388)
+    ├── backfill/[runId]/route.ts    # Backfill run progress
+    ├── status/route.ts              # Missing-embedding counts
     ├── identity-preview/route.ts   # Preview endpoint (debugging)
     └── similar/route.ts             # Similarity query endpoint
 ```
@@ -126,31 +128,33 @@ A **SHA256 hash** of normalized identity data is computed to detect changes. Tra
 
 ### 1. Backfill Identity Embeddings
 
-**Command**: `npm run backfill-identity`
+**Command**: `groovenet embeddings backfill` (#388) — queues the work onto
+the same background embedding queue #385 built, so it gets retry/backoff and
+a pause on a bad key instead of failing outright. `groovenet embeddings status`
+reports counts without queuing anything.
 
 **Options**:
-- `--friend_id=N`: Limit to specific friend/user
-- `--force`: Force re-embedding even if hash unchanged
-- `--limit=N`: Limit number of tracks to process
-- `--batch_size=N`: Concurrency limit (default: 5)
-- `--help`, `-h`: Show help message
+- `--type identity`: Only the identity embedding (default: identity, audio_vibe and prompt)
+- `--friend-id N`: Limit to specific friend/user
+- `--force`: Force re-embedding even if the source hash is unchanged
+- `--release <id>` / `--track <ids>`: Narrow to one release or a comma-separated list of track ids
+- `--dry-run`: Report counts only, queue nothing
+- `--no-wait`: Queue and exit without waiting for it to finish
+- `--json`: Machine-readable output
 
 **Examples**:
 ```bash
-# Backfill all tracks without embeddings
-npm run backfill-identity
+# Backfill identity embeddings for all tracks without one
+groovenet embeddings backfill --type identity
 
 # Limit to specific friend
-npm run backfill-identity -- --friend_id=1
+groovenet embeddings backfill --type identity --friend-id 1
 
-# Test with first 10 tracks
-npm run backfill-identity -- --limit=10
+# Force re-embed one release
+groovenet embeddings backfill --type identity --release 38278164 --force
 
-# Force re-embed all tracks with larger batch size
-npm run backfill-identity -- --force --batch_size=10
-
-# Combine options
-npm run backfill-identity -- --friend_id=1 --limit=100 --batch_size=8
+# Just see the counts first
+groovenet embeddings backfill --type identity --dry-run
 ```
 
 **Output**:
@@ -315,14 +319,14 @@ npm run migrate up
 
 ### 2. Backfill Embeddings
 ```bash
-# Start with a small batch to test
-npm run backfill-identity -- --limit=10
+# See the counts first
+groovenet embeddings backfill --type identity --dry-run
 
-# Then backfill all
-npm run backfill-identity
+# Then queue it
+groovenet embeddings backfill --type identity
 
 # Or limit to specific friend
-npm run backfill-identity -- --friend_id=1
+groovenet embeddings backfill --type identity --friend-id 1
 ```
 
 ### 3. Query Similar Tracks

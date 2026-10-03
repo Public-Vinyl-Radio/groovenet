@@ -32,6 +32,10 @@ import type {
   RecommendationCandidatesQuery,
   FingerprintIndexRequest,
   FingerprintIndexRun,
+  EmbeddingBackfillRequest,
+  EmbeddingBackfillRun,
+  EmbeddingBackfillDryRun,
+  EmbeddingStatus,
   DetectionListResponse,
   DetectionQuery,
   IngestListResponse,
@@ -565,6 +569,41 @@ export class GroovenetClient {
       "GET",
       `/fingerprints/index/${encodeURIComponent(runId)}`
     );
+  }
+
+  // ── Embeddings (#388) ──────────────────────────────────────────────────────
+
+  /**
+   * Queue a backfill run for missing embeddings.
+   *
+   * Always enqueues onto the same background queue #385 built, so a backfill
+   * gets the same retry/backoff/pause protection as any other embedding job —
+   * returns as soon as the work is queued. Poll `getEmbeddingBackfillRun` for
+   * progress. `dry_run: true` reports counts and enqueues nothing.
+   */
+  async startEmbeddingBackfill(
+    request: EmbeddingBackfillRequest = {}
+  ): Promise<EmbeddingBackfillRun | EmbeddingBackfillDryRun> {
+    return this.request<EmbeddingBackfillRun | EmbeddingBackfillDryRun>(
+      "POST",
+      "/embeddings/backfill",
+      request
+    );
+  }
+
+  /** Progress and final counters for one backfill run. */
+  async getEmbeddingBackfillRun(runId: string): Promise<EmbeddingBackfillRun> {
+    return this.request<EmbeddingBackfillRun>(
+      "GET",
+      `/embeddings/backfill/${encodeURIComponent(runId)}`
+    );
+  }
+
+  /** How many tracks are missing each embedding type right now. */
+  async getEmbeddingStatus(friendId?: number): Promise<EmbeddingStatus> {
+    return this.request<EmbeddingStatus>("GET", "/embeddings/status", undefined, {
+      friend_id: friendId,
+    });
   }
 
   // ── Vinyl pipeline debug (#299) ────────────────────────────────────────────

@@ -1,17 +1,13 @@
 import { withDbClient } from "@/lib/serverDb";
-import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
 import { getIdentityPreview } from "@/lib/identity-embedding";
 import { getAudioVibePreview } from "@/lib/audio-vibe-embedding";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
-import type { BackfillOptions } from "@/types/backfill";
 import type {
-  EmbeddingTrackRef,
   SimilarIdentityTrack,
   SimilarityFilters,
   SimilarVibeTrack,
 } from "@/types/embeddings";
 
-type BackfillFailure = EmbeddingTrackRef & { error: string };
 export type EmbeddingPreviewType = "identity" | "audio_vibe";
 export type EmbeddingPreviewResult = {
   type: EmbeddingPreviewType;
@@ -45,37 +41,6 @@ export function applyEraFilter(
   });
 }
 
-async function processBackfillBatch(
-  tracks: EmbeddingTrackRef[],
-  force: boolean
-): Promise<{ success: number; skipped: number; failed: BackfillFailure[] }> {
-  const results = await Promise.allSettled(
-    tracks.map((track) =>
-      generateAndStoreIdentityEmbedding(track.track_id, track.friend_id, force)
-    )
-  );
-
-  let success = 0;
-  let skipped = 0;
-  const failed: BackfillFailure[] = [];
-
-  results.forEach((result, index) => {
-    const track = tracks[index];
-    if (result.status === "fulfilled") {
-      if (result.value.updated) success += 1;
-      else skipped += 1;
-      return;
-    }
-    failed.push({
-      track_id: track.track_id,
-      friend_id: track.friend_id,
-      error: result.reason?.message || String(result.reason),
-    });
-  });
-
-  return { success, skipped, failed };
-}
-
 export class EmbeddingsService {
   async getPreview(
     type: EmbeddingPreviewType,
@@ -97,33 +62,6 @@ export class EmbeddingsService {
       text: preview.vibeText,
       data: preview.vibeData,
     };
-  }
-
-  async backfillIdentity(options: BackfillOptions): Promise<{
-    total: number;
-    success: number;
-    skipped: number;
-    failed: BackfillFailure[];
-  }> {
-    const tracks = await embeddingsRepository.listTracksNeedingIdentityEmbeddings(options);
-    if (tracks.length === 0) {
-      return { total: 0, success: 0, skipped: 0, failed: [] };
-    }
-
-    const batchSize = options.batch_size ?? 5;
-    let success = 0;
-    let skipped = 0;
-    const failed: BackfillFailure[] = [];
-
-    for (let i = 0; i < tracks.length; i += batchSize) {
-      const batch = tracks.slice(i, i + batchSize);
-      const result = await processBackfillBatch(batch, options.force ?? false);
-      success += result.success;
-      skipped += result.skipped;
-      failed.push(...result.failed);
-    }
-
-    return { total: tracks.length, success, skipped, failed };
   }
 
   async findSimilarIdentity(params: {

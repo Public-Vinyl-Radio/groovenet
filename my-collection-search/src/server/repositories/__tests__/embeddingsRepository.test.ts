@@ -34,10 +34,11 @@ describe("listTracksForBackfill()", () => {
 
     await makeRepo().listTracksForBackfill({ type: "identity", force: false });
 
-    const [sql] = dbQuery.mock.calls[0];
+    const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("track_embeddings");
-    expect(sql).toContain("identity");
+    expect(sql).toContain("te.id IS NULL");
     expect(sql).not.toContain("bpm");
+    expect(params).toEqual(["identity"]);
   });
 
   it("force=false, type=audio_vibe: filters for tracks with audio features", async () => {
@@ -45,12 +46,24 @@ describe("listTracksForBackfill()", () => {
 
     await makeRepo().listTracksForBackfill({ type: "audio_vibe", force: false });
 
-    const [sql] = dbQuery.mock.calls[0];
-    expect(sql).toContain("audio_vibe");
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("track_embeddings");
     expect(sql).toContain("bpm");
+    expect(params).toEqual(["audio_vibe"]);
   });
 
-  it("force=true, type=identity: selects all tracks", async () => {
+  it("force=false, type=prompt: checks tracks.embedding directly, no join", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksForBackfill({ type: "prompt", force: false });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).not.toContain("track_embeddings");
+    expect(sql).toContain("t.embedding IS NULL");
+    expect(params).toEqual([]);
+  });
+
+  it("force=true, type=identity: selects all tracks, no params", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
     await makeRepo().listTracksForBackfill({ type: "identity", force: true });
@@ -61,43 +74,98 @@ describe("listTracksForBackfill()", () => {
     expect(params).toEqual([]);
   });
 
-  it("force=true, type=audio_vibe: filters for tracks with audio features", async () => {
+  it("force=true, type=audio_vibe: still filters for tracks with audio features", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
     await makeRepo().listTracksForBackfill({ type: "audio_vibe", force: true });
 
-    const [sql] = dbQuery.mock.calls[0];
+    const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("bpm");
     expect(sql).not.toContain("track_embeddings");
+    expect(params).toEqual([]);
+  });
+
+  it("force=true, type=prompt: selects every track, no params", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksForBackfill({ type: "prompt", force: true });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).not.toContain("t.embedding IS NULL");
+    expect(params).toEqual([]);
   });
 
   it("adds friend_id param when provided", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    await makeRepo().listTracksForBackfill({ type: "identity", friend_id: 7 });
+    await makeRepo().listTracksForBackfill({ type: "identity", force: true, friend_id: 7 });
 
     const [sql, params] = dbQuery.mock.calls[0];
-    expect(sql).toContain("friend_id");
-    expect(params).toContain(7);
+    expect(sql).toContain("t.friend_id");
+    expect(params).toEqual([7]);
+  });
+
+  it("adds a release_id param when provided", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksForBackfill({
+      type: "identity",
+      force: true,
+      release_id: "rel-1",
+    });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("t.release_id");
+    expect(params).toEqual(["rel-1"]);
+  });
+
+  it("adds a track_ids = ANY(...) param when provided", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksForBackfill({
+      type: "identity",
+      force: true,
+      track_ids: ["t1", "t2"],
+    });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("ANY(");
+    expect(params).toEqual([["t1", "t2"]]);
+  });
+
+  it("ignores an empty track_ids array", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksForBackfill({ type: "identity", force: true, track_ids: [] });
+
+    const [, params] = dbQuery.mock.calls[0];
+    expect(params).toEqual([]);
   });
 
   it("adds limit param when provided", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    await makeRepo().listTracksForBackfill({ type: "identity", limit: 50 });
+    await makeRepo().listTracksForBackfill({ type: "identity", force: true, limit: 50 });
 
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("LIMIT");
-    expect(params).toContain(50);
+    expect(params).toEqual([50]);
   });
 
-  it("adds both friend_id and limit params in the correct order", async () => {
+  it("orders params as type, friend_id, release_id, track_ids, limit", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    await makeRepo().listTracksForBackfill({ type: "identity", friend_id: 3, limit: 10, force: false });
+    await makeRepo().listTracksForBackfill({
+      type: "identity",
+      force: false,
+      friend_id: 3,
+      release_id: "rel-1",
+      track_ids: ["t1"],
+      limit: 10,
+    });
 
     const [, params] = dbQuery.mock.calls[0];
-    expect(params).toEqual([3, 10]);
+    expect(params).toEqual(["identity", 3, "rel-1", ["t1"], 10]);
   });
 });
 
@@ -111,8 +179,8 @@ describe("listTracksNeedingIdentityEmbeddings()", () => {
     const result = await makeRepo().listTracksNeedingIdentityEmbeddings({ friend_id: 2 });
 
     expect(result).toEqual(rows);
-    const [sql] = dbQuery.mock.calls[0];
-    expect(sql).toContain("identity");
+    const [, params] = dbQuery.mock.calls[0];
+    expect(params).toContain("identity");
   });
 });
 
@@ -126,8 +194,55 @@ describe("listTracksNeedingAudioVibeEmbeddings()", () => {
     const result = await makeRepo().listTracksNeedingAudioVibeEmbeddings({ friend_id: 2 });
 
     expect(result).toEqual(rows);
+    const [, params] = dbQuery.mock.calls[0];
+    expect(params).toContain("audio_vibe");
+  });
+});
+
+// ─── listTracksNeedingPromptEmbeddings ────────────────────────────────────────
+
+describe("listTracksNeedingPromptEmbeddings()", () => {
+  it("delegates to listTracksForBackfill with type='prompt'", async () => {
+    const rows = [{ track_id: "t1", friend_id: 1 }];
+    dbQuery.mockResolvedValue({ rows });
+
+    const result = await makeRepo().listTracksNeedingPromptEmbeddings({ friend_id: 2 });
+
+    expect(result).toEqual(rows);
     const [sql] = dbQuery.mock.calls[0];
-    expect(sql).toContain("audio_vibe");
+    expect(sql).toContain("t.embedding IS NULL");
+  });
+});
+
+// ─── countTracks ──────────────────────────────────────────────────────────────
+
+describe("countTracks()", () => {
+  it("returns the total with no friend filter", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: 42 }] });
+
+    const result = await makeRepo().countTracks();
+
+    expect(result).toBe(42);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).not.toContain("WHERE");
+    expect(params).toEqual([]);
+  });
+
+  it("scopes to one friend when given", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ count: 5 }] });
+
+    const result = await makeRepo().countTracks(7);
+
+    expect(result).toBe(5);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("friend_id = $1");
+    expect(params).toEqual([7]);
+  });
+
+  it("falls back to 0 when no row comes back", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    expect(await makeRepo().countTracks()).toBe(0);
   });
 });
 
