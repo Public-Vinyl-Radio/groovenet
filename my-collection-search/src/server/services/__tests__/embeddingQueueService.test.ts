@@ -1,5 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EmbeddingQueueService, isAuthError } from "../embeddingQueueService";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  EmbeddingQueueService,
+  embeddingQueueService,
+  isAuthError,
+  queueIntervalSeconds,
+  resetSweepClock,
+  startEmbeddingQueueWorker,
+  sweepIntervalMinutes,
+} from "../embeddingQueueService";
 import type { EmbeddingJob } from "@/types/embeddingQueue";
 
 // ─── mocks ────────────────────────────────────────────────────────────────────
@@ -203,6 +211,15 @@ describe("tick — transient failures", () => {
     );
   });
 
+  it("handles a non-Error rejection (a thrown string) the same as a transient failure", async () => {
+    mockRedis.rpop.mockResolvedValueOnce(JSON.stringify(job())).mockResolvedValue(null);
+    mockGenerateIdentity.mockRejectedValueOnce("socket hang up");
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+    const [, , member] = mockRedis.zadd.mock.calls[0];
+    expect(JSON.parse(member)).toMatchObject({ ...job(), attempts: 1 });
+  });
+
   it("does not pause the queue for a transient error", async () => {
     mockRedis.rpop.mockResolvedValueOnce(JSON.stringify(job())).mockResolvedValue(null);
     mockGenerateIdentity.mockRejectedValueOnce(new Error("ETIMEDOUT"));
@@ -376,6 +393,187 @@ describe("resetQueueState", () => {
       "embedding_queue:failed",
       "embedding_queue:paused",
       "embedding_queue:last_error"
+    );
+  });
+});
+
+// ─── runJob edge cases ────────────────────────────────────────────────────────
+
+describe("tick — runJob edge cases", () => {
+  it("treats a missing track on a prompt job as a retryable failure, not a crash", async () => {
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ kind: "prompt" })))
+      .mockResolvedValue(null);
+    mockFindTrackRaw.mockResolvedValueOnce(null);
+    const service = new EmbeddingQueueService();
+    await expect(service.tick(NOW)).resolves.toBeUndefined();
+    expect(mockRedis.zadd).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops an unparseable queue entry instead of throwing", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockRedis.rpop.mockResolvedValueOnce("not-json{{{").mockResolvedValue(null);
+    const service = new EmbeddingQueueService();
+    await expect(service.tick(NOW)).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[embedding-queue] dropping unparseable job:",
+      "not-json{{{",
+      expect.anything()
+    );
+    expect(mockGenerateIdentity).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+});
+
+describe("getQueueHealth — last_error fallback", () => {
+  it("falls back to the raw string when last_error isn't JSON", async () => {
+    mockRedis.get.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue:last_error" ? "not json" : null)
+    );
+    const service = new EmbeddingQueueService();
+    const health = await service.getQueueHealth();
+    expect(health.paused).toBe(false);
+    expect(health.lastError).toBe("not json");
+  });
+});
+
+// ─── interval helpers ─────────────────────────────────────────────────────────
+
+describe("interval helpers", () => {
+  afterEach(() => {
+    delete process.env.EMBEDDING_QUEUE_INTERVAL_SECONDS;
+    delete process.env.EMBEDDING_SWEEP_INTERVAL_MINUTES;
+  });
+
+  it("queueIntervalSeconds reads from the environment, defaulting to 10", () => {
+    expect(queueIntervalSeconds()).toBe(10);
+    process.env.EMBEDDING_QUEUE_INTERVAL_SECONDS = "5";
+    expect(queueIntervalSeconds()).toBe(5);
+    process.env.EMBEDDING_QUEUE_INTERVAL_SECONDS = "0";
+    expect(queueIntervalSeconds()).toBe(10);
+  });
+
+  it("sweepIntervalMinutes reads from the environment, defaulting to 30", () => {
+    expect(sweepIntervalMinutes()).toBe(30);
+    process.env.EMBEDDING_SWEEP_INTERVAL_MINUTES = "15";
+    expect(sweepIntervalMinutes()).toBe(15);
+    process.env.EMBEDDING_SWEEP_INTERVAL_MINUTES = "-1";
+    expect(sweepIntervalMinutes()).toBe(30);
+  });
+});
+
+// ─── startEmbeddingQueueWorker ────────────────────────────────────────────────
+
+// Captured before any spy replaces it.
+const timerImpl = globalThis.setInterval;
+
+describe("startEmbeddingQueueWorker()", () => {
+  const GUARD = "__groovenetEmbeddingQueueStarted";
+  let timers: ReturnType<typeof setInterval>[];
+
+  beforeEach(() => {
+    delete (globalThis as Record<string, unknown>)[GUARD];
+    resetSweepClock();
+    timers = [];
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    // Remember every timer registered so a stray interval can't keep this
+    // suite's event loop alive.
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((
+      fn: () => void,
+      ms: number
+    ) => {
+      const handle = timerImpl(fn, ms);
+      timers.push(handle);
+      return handle;
+    }) as typeof setInterval);
+  });
+
+  afterEach(() => {
+    for (const handle of timers) clearInterval(handle);
+    vi.restoreAllMocks();
+    delete (globalThis as Record<string, unknown>)[GUARD];
+  });
+
+  it("starts only once per process", () => {
+    startEmbeddingQueueWorker();
+    startEmbeddingQueueWorker();
+    expect(globalThis.setInterval).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers an interval at queueIntervalSeconds()", () => {
+    startEmbeddingQueueWorker();
+    expect(globalThis.setInterval).toHaveBeenCalledWith(expect.any(Function), 10_000);
+  });
+
+  it("ticks and sweeps on startup rather than waiting out the first interval", async () => {
+    const tickSpy = vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    const sweepSpy = vi
+      .spyOn(embeddingQueueService, "sweepTick")
+      .mockResolvedValue({ queued: 0 });
+
+    startEmbeddingQueueWorker();
+
+    await vi.waitFor(() => expect(tickSpy).toHaveBeenCalled());
+    await vi.waitFor(() => expect(sweepSpy).toHaveBeenCalled());
+  });
+
+  it("hands the timer a callback that ticks and sweeps again", async () => {
+    const tickSpy = vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0 });
+
+    startEmbeddingQueueWorker();
+    await vi.waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(1));
+
+    const registered = (globalThis.setInterval as unknown as {
+      mock: { calls: [() => void, number][] };
+    }).mock.calls[0][0];
+
+    registered();
+    await vi.waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(2));
+  });
+
+  it("logs and swallows a tick failure instead of crashing the interval", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(embeddingQueueService, "tick").mockRejectedValue(new Error("boom"));
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0 });
+
+    startEmbeddingQueueWorker();
+
+    await vi.waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[embedding-queue] tick failed:",
+        expect.any(Error)
+      )
+    );
+  });
+
+  it("logs and swallows a sweep failure", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    vi.spyOn(embeddingQueueService, "sweepTick").mockRejectedValue(new Error("db down"));
+
+    startEmbeddingQueueWorker();
+
+    await vi.waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[embedding-queue] sweep tick failed:",
+        expect.any(Error)
+      )
+    );
+  });
+
+  it("logs a count when the sweep finds missing embeddings", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 3 });
+
+    startEmbeddingQueueWorker();
+
+    await vi.waitFor(() =>
+      expect(logSpy).toHaveBeenCalledWith(
+        "[embedding-queue] sweep queued 3 track(s) missing an embedding"
+      )
     );
   });
 });

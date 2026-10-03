@@ -285,6 +285,11 @@ type GlobalWithWorker = typeof globalThis & {
 
 let lastSweepAtMs = 0;
 
+/** Exported for tests: the sweep's interval bookkeeping is module state. */
+export function resetSweepClock(): void {
+  lastSweepAtMs = 0;
+}
+
 async function sweepIfDue(now: number): Promise<void> {
   if (now - lastSweepAtMs < sweepIntervalMinutes() * 60_000) return;
   lastSweepAtMs = now;

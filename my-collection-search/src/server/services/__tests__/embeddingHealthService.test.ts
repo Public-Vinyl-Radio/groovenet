@@ -52,4 +52,16 @@ describe("checkEmbeddingProvider", () => {
     await expect(checkEmbeddingProvider()).rejects.toThrow(/invalid_organization/);
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
+
+  it("stringifies a non-Error rejection", async () => {
+    mockCreate.mockRejectedValueOnce("socket hang up");
+    await expect(checkEmbeddingProvider()).rejects.toThrow("socket hang up");
+  });
+
+  it("caches a success too, so a healthy repeated poll also makes one request", async () => {
+    mockCreate.mockResolvedValueOnce({ data: [{ embedding: [0] }] });
+    await expect(checkEmbeddingProvider()).resolves.toBeUndefined();
+    await expect(checkEmbeddingProvider()).resolves.toBeUndefined();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
 });
