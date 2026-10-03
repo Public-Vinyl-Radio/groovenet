@@ -342,31 +342,24 @@ export async function GET(request: NextRequest) {
 
               // Step 7: Embeddings. Identity embeddings read album metadata,
               // so they run after the album upsert, never at track upsert.
+              // Enqueued, not generated here (#385) — a provider outage no
+              // longer makes a sync wait on OpenAI; check About → status for
+              // embedding health instead of a per-sync error line.
               try {
                 const { syncIdentityEmbeddings } = await import(
                   "@/server/services/trackEmbeddingSyncService"
                 );
-                controller.enqueue(
-                  encoder.encode(`\n--- Generating Embeddings ---\n\n`)
-                );
                 const embedded = await syncIdentityEmbeddings(upserted);
                 controller.enqueue(
                   encoder.encode(
-                    `Embeddings: ${embedded.generated} generated, ${embedded.unchanged} unchanged, ${embedded.failed} failed\n\n`
+                    `Embeddings: ${embedded.queued} queued for background generation\n\n`
                   )
                 );
-                if (embedded.firstError) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `⚠️  Embedding generation is failing: ${embedded.firstError}\nCheck OPENAI_API_KEY (see About → status).\n\n`
-                    )
-                  );
-                }
               } catch (embeddingError) {
                 console.error("[Embedding Sync Error]", embeddingError);
                 controller.enqueue(
                   encoder.encode(
-                    `⚠️  Embedding generation error: ${
+                    `⚠️  Failed to queue embeddings: ${
                       embeddingError instanceof Error
                         ? embeddingError.message
                         : String(embeddingError)

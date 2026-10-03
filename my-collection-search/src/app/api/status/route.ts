@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/serverDb";
 import { getRedisConnection } from "@/lib/redis";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
+import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 
 // Server-side health fan-out for the About page. The browser can't reach the
 // internal docker hostnames (db, redis, essentia, ga-service), so we probe them
@@ -17,6 +18,7 @@ interface ServiceHealth {
   status: ServiceStatus;
   latencyMs: number | null;
   detail?: string;
+  meta?: Record<string, unknown>;
 }
 
 const TIMEOUT_MS = 3000;
@@ -84,6 +86,34 @@ async function probeHttp(url: string): Promise<void> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+// Distinct from the `embeddings` probe above: that one asks "can we reach
+// OpenAI right now," this one asks "is the queue itself stuck" (#385) —
+// paused on an auth error, or backed up with failures, independent of
+// whether this instant's probe happens to succeed.
+async function embeddingQueueHealth(): Promise<ServiceHealth> {
+  const start = Date.now();
+  try {
+    const health = await withTimeout(
+      embeddingQueueService.getQueueHealth(),
+      TIMEOUT_MS
+    );
+    return {
+      service: "embedding_queue",
+      status: health.paused ? "down" : "up",
+      latencyMs: Date.now() - start,
+      detail: health.lastError,
+      meta: { queueDepth: health.queueDepth, failedCount: health.failedCount },
+    };
+  } catch (err) {
+    return {
+      service: "embedding_queue",
+      status: "unknown",
+      latencyMs: Date.now() - start,
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
 export async function GET() {
   const services = await Promise.all([
     { service: "app", status: "up" as ServiceStatus, latencyMs: 0 },
@@ -97,6 +127,7 @@ export async function GET() {
     timed("essentia", () => probeHttp(essentiaHealthUrl())),
     timed("ga-service", () => probeHttp(gaHealthUrl())),
     timed("embeddings", checkEmbeddingProvider),
+    embeddingQueueHealth(),
   ]);
 
   return NextResponse.json({ services, checkedAt: new Date().toISOString() });

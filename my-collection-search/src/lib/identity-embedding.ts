@@ -25,6 +25,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "My API Key",
 });
 
+/** Bump when `buildIdentityText`'s shape changes (#382), so stale rows are findable. */
+export const IDENTITY_TEMPLATE_VERSION = 1;
+
 /**
  * Normalized identity data for embedding
  */
@@ -187,6 +190,7 @@ export async function storeIdentityEmbedding(
     embedding,
     sourceHash,
     identityText,
+    templateVersion: IDENTITY_TEMPLATE_VERSION,
   });
 }
 

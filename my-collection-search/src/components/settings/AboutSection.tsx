@@ -195,21 +195,28 @@ export default function AboutSection(): React.JSX.Element {
             <Spinner size="sm" />
           ) : (
             (status?.services ?? []).map((svc) => (
-              <Flex key={svc.service} justify="space-between" align="center" py={1.5}>
-                <Text fontSize="sm" fontWeight="medium">
-                  {svc.service}
-                </Text>
-                <Flex align="center" gap={2}>
-                  {svc.latencyMs != null && svc.status === "up" ? (
-                    <Text fontSize="xs" color="gray.400">
-                      {svc.latencyMs}ms
-                    </Text>
-                  ) : null}
-                  <Badge colorPalette={statusColor(svc.status)} variant="subtle">
-                    {svc.status}
-                  </Badge>
+              <Box key={svc.service} py={1.5}>
+                <Flex justify="space-between" align="center">
+                  <Text fontSize="sm" fontWeight="medium">
+                    {svc.service}
+                  </Text>
+                  <Flex align="center" gap={2}>
+                    {svc.latencyMs != null && svc.status === "up" ? (
+                      <Text fontSize="xs" color="gray.400">
+                        {svc.latencyMs}ms
+                      </Text>
+                    ) : null}
+                    <Badge colorPalette={statusColor(svc.status)} variant="subtle">
+                      {svc.status}
+                    </Badge>
+                  </Flex>
                 </Flex>
-              </Flex>
+                {svc.detail ? (
+                  <Text fontSize="xs" color="gray.400">
+                    {svc.detail}
+                  </Text>
+                ) : null}
+              </Box>
             ))
           )}
         </Box>

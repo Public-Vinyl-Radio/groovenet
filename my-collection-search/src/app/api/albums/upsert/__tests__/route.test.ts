@@ -76,7 +76,7 @@ function makeReq(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockSyncEmbeddings.mockResolvedValue({ generated: 0, unchanged: 0, failed: 0 });
+  mockSyncEmbeddings.mockResolvedValue({ queued: 0 });
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockGenTrackId.mockReturnValue("local-trk-new");
   mockGetUsername.mockResolvedValue("alice");

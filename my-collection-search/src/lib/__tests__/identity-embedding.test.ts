@@ -33,6 +33,7 @@ import {
   generateAndStoreIdentityEmbedding,
   generateIdentityEmbedding,
   getIdentityPreview,
+  IDENTITY_TEMPLATE_VERSION,
   needsEmbeddingUpdate,
   storeIdentityEmbedding,
 } from "../identity-embedding";
@@ -328,6 +329,7 @@ describe("storeIdentityEmbedding", () => {
       embedding: EMBEDDING,
       sourceHash: "hash-1",
       identityText: "Track: x",
+      templateVersion: IDENTITY_TEMPLATE_VERSION,
     });
   });
 

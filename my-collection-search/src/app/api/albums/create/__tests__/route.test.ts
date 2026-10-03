@@ -70,7 +70,7 @@ function makeReq(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockSyncEmbeddings.mockResolvedValue({ generated: 0, unchanged: 0, failed: 0 });
+  mockSyncEmbeddings.mockResolvedValue({ queued: 0 });
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockGenReleaseId.mockReturnValue("local-rel-1");
   mockGenTrackId.mockReturnValue("local-trk-1");
