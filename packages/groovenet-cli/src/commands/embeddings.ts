@@ -162,7 +162,7 @@ export async function runEmbeddingsBackfill(
   }
 
   if (!opts.json) {
-    io.log(chalk.bold(`Backfilling embeddings (${request.scope ?? "missing"})`));
+    io.log(chalk.bold(`Backfilling embeddings (${request.scope})`));
     io.log(chalk.gray(`  ${started.queued} queued`));
   }
 

@@ -62,4 +62,21 @@ describe("GET /api/embeddings/status", () => {
 
     expect(res.status).toBe(500);
   });
+
+  it("stringifies a non-Error rejection", async () => {
+    repo.countTracks.mockRejectedValue("db is gone");
+
+    const res = await GET(new Request("http://app/api/embeddings/status"));
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("db is gone");
+  });
+
+  it("falls back to a generic message for an empty Error message", async () => {
+    repo.countTracks.mockRejectedValue(new Error(""));
+
+    const res = await GET(new Request("http://app/api/embeddings/status"));
+
+    expect((await res.json()).error).toBe("Failed to read embeddings status");
+  });
 });

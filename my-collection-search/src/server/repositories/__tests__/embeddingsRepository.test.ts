@@ -238,6 +238,12 @@ describe("countTracks()", () => {
     expect(sql).toContain("friend_id = $1");
     expect(params).toEqual([7]);
   });
+
+  it("falls back to 0 when no row comes back", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    expect(await makeRepo().countTracks()).toBe(0);
+  });
 });
 
 // ─── setIvfflatProbes ─────────────────────────────────────────────────────────

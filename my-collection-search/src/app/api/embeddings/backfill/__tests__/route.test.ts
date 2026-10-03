@@ -156,11 +156,54 @@ describe("POST /api/embeddings/backfill", () => {
     expect(queue.startBackfillRun).not.toHaveBeenCalled();
   });
 
+  it("dry_run falls back to 0 for a type that wasn't requested at all", async () => {
+    repo.listTracksForBackfill.mockImplementation(async ({ type }: { type: string }) =>
+      type === "identity" ? refs("identity", 2) : []
+    );
+
+    const res = await POST(post({ types: ["identity"], dry_run: true }));
+
+    expect(await res.json()).toEqual({
+      dry_run: true,
+      total: 2,
+      by_type: { identity: 2, audio_vibe: 0, prompt: 0 },
+    });
+  });
+
+  it("dry_run falls back to 0 for identity too when it isn't requested", async () => {
+    repo.listTracksForBackfill.mockResolvedValue(refs("audio_vibe", 1));
+
+    const res = await POST(post({ types: ["audio_vibe"], dry_run: true }));
+
+    expect(await res.json()).toEqual({
+      dry_run: true,
+      total: 1,
+      by_type: { identity: 0, audio_vibe: 1, prompt: 0 },
+    });
+  });
+
   it("reports an unexpected failure as 500", async () => {
     repo.listTracksForBackfill.mockRejectedValue(new Error("db is gone"));
 
     const res = await POST(post({}));
 
     expect(res.status).toBe(500);
+  });
+
+  it("stringifies a non-Error rejection", async () => {
+    repo.listTracksForBackfill.mockRejectedValue("db is gone");
+
+    const res = await POST(post({}));
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("db is gone");
+  });
+
+  it("falls back to a generic message for an empty Error message", async () => {
+    repo.listTracksForBackfill.mockRejectedValue(new Error(""));
+
+    const res = await POST(post({}));
+
+    expect((await res.json()).error).toBe("Failed to start backfill run");
   });
 });

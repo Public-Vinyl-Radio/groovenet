@@ -322,6 +322,31 @@ describe("runEmbeddingsBackfill()", () => {
     expect(JSON.parse(writes.join(""))).toMatchObject({ success: 10, complete: true });
   });
 
+  it("--json still exits non-zero when jobs failed", async () => {
+    const client = clientFor({ queued: 1 }, { queued: 1, failed: 1, complete: true });
+    const { io } = recorder();
+
+    expect(await runEmbeddingsBackfill(client, { wait: true, json: true }, io)).toBe(1);
+  });
+
+  it("never reports the same failure twice across polls", async () => {
+    // The run hash carries every failure so far, so each poll repeats the
+    // ones already printed.
+    const client = clientFor(
+      { queued: 2 },
+      { queued: 2, failed: 1, errors: ["t1: rate limited"] },
+      { queued: 2, failed: 1, success: 1, complete: true, errors: ["t1: rate limited"] }
+    );
+    const { io, lines } = recorder();
+    vi.useFakeTimers();
+
+    const pending = runEmbeddingsBackfill(client, { wait: true, pollInterval: 1 }, io);
+    await vi.advanceTimersByTimeAsync(5);
+    await pending;
+
+    expect(lines.filter((l) => l.includes("t1: rate limited"))).toHaveLength(1);
+  });
+
   it("propagates a scope conflict rather than starting a run", async () => {
     const client = clientFor({});
     const { io } = recorder();
@@ -491,10 +516,38 @@ describe("addEmbeddingsCommands()", () => {
     expect(exit).toHaveBeenCalledWith(1);
   });
 
+  it("stringifies a non-Error rejection from the backfill command", async () => {
+    startEmbeddingBackfill.mockRejectedValue("redis is gone");
+    vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await parse("embeddings", "backfill", "--no-wait");
+
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("redis is gone"));
+  });
+
+  it("stringifies a non-Error rejection from the status command", async () => {
+    getEmbeddingStatus.mockRejectedValue("db is gone");
+    vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await parse("embeddings", "status");
+
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("db is gone"));
+  });
+
   it("runs the status subcommand", async () => {
     await parse("embeddings", "status");
 
     expect(getEmbeddingStatus).toHaveBeenCalledWith(undefined);
+  });
+
+  it("status reports an API failure on stderr and exits 1", async () => {
+    getEmbeddingStatus.mockRejectedValue(new Error("db is gone"));
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+
+    await parse("embeddings", "status");
+
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("db is gone"));
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
   it("status --friend-id narrows the lookup", async () => {

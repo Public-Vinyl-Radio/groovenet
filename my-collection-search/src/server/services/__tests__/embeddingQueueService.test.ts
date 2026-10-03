@@ -699,6 +699,22 @@ describe("getBackfillRun", () => {
     const run = await service.getBackfillRun("run-1");
     expect(run?.errors).toEqual(["t1: rate limited"]);
   });
+
+  it("falls back to the requested run id and zeroed counters for a sparse or malformed hash", async () => {
+    mockRedis.hgetall.mockResolvedValueOnce({ success: "not-a-number" });
+    const service = new EmbeddingQueueService();
+    const run = await service.getBackfillRun("run-9");
+
+    expect(run).toMatchObject({
+      run_id: "run-9",
+      queued: 0,
+      success: 0,
+      skipped: 0,
+      failed: 0,
+      started_at: 0,
+      updated_at: 0,
+    });
+  });
 });
 
 describe("tick — run progress tagging (#388)", () => {

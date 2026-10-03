@@ -55,4 +55,21 @@ describe("GET /api/embeddings/backfill/[runId]", () => {
 
     expect(res.status).toBe(500);
   });
+
+  it("stringifies a non-Error rejection", async () => {
+    queue.getBackfillRun.mockRejectedValue("redis is gone");
+
+    const res = await GET(request, { params: Promise.resolve({ runId: "run-1" }) });
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("redis is gone");
+  });
+
+  it("falls back to a generic message for an empty Error message", async () => {
+    queue.getBackfillRun.mockRejectedValue(new Error(""));
+
+    const res = await GET(request, { params: Promise.resolve({ runId: "run-1" }) });
+
+    expect((await res.json()).error).toBe("Failed to read backfill run");
+  });
 });
