@@ -1,6 +1,13 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
 const mockFindTracks = vi.hoisted(() => vi.fn());
+const mockFindEmbeddings = vi.hoisted(() => vi.fn());
+const mockServingModel = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/embeddings/config", () => ({ getServingModel: mockServingModel }));
+vi.mock("@/server/repositories/embeddingsRepository", () => ({
+  embeddingsRepository: { findEmbeddingsForTracks: mockFindEmbeddings },
+}));
 
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: {
@@ -26,7 +33,6 @@ function baseTrack(overrides: Record<string, unknown> = {}) {
     friend_id: 1,
     title: "Test Track",
     artist: "Test Artist",
-    embedding: null,
     ...overrides,
   };
 }
@@ -34,6 +40,10 @@ function baseTrack(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   mockFindTracks.mockReset();
   mockFindTracks.mockResolvedValue([]);
+  mockFindEmbeddings.mockReset();
+  mockFindEmbeddings.mockResolvedValue([]);
+  mockServingModel.mockReset();
+  mockServingModel.mockResolvedValue({ model: "vibe-model", dims: 3 });
 });
 
 // ─── Request parsing ──────────────────────────────────────────────────────────
@@ -67,113 +77,49 @@ describe("POST /api/tracks/batch — request handling", () => {
 
 // ─── Embedding normalization ──────────────────────────────────────────────────
 
-describe("POST /api/tracks/batch — embedding normalization", () => {
-  it("omits vector payload by default", async () => {
-    const embedding = [0.1, 0.2, 0.3];
-    mockFindTracks.mockResolvedValueOnce([baseTrack({ embedding, hasVectors: true })]);
-    const res = await POST(makeReq({ tracks: [{ track_id: "t1", friend_id: 1 }] }));
+describe("POST /api/tracks/batch — vectors", () => {
+  const refs = [{ track_id: "t1", friend_id: 1 }];
+
+  it("omits _vectors and skips the lookup by default", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack({ hasVectors: true })]);
+    const res = await POST(makeReq({ tracks: refs }));
     const [track] = await res.json();
     expect(track.hasVectors).toBe(true);
     expect(track._vectors).toBeUndefined();
-    expect(track.embedding).toBeUndefined();
+    expect(mockFindEmbeddings).not.toHaveBeenCalled();
   });
 
-  it("converts array embedding to _vectors.default when include_vectors is true", async () => {
-    const embedding = [0.1, 0.2, 0.3];
-    mockFindTracks.mockResolvedValueOnce([baseTrack({ embedding, hasVectors: true })]);
-    const res = await POST(
-      makeReq({
-        tracks: [{ track_id: "t1", friend_id: 1 }],
-        include_vectors: true,
-      })
-    );
+  it("attaches the serving-model audio_vibe vector when include_vectors is true", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack({ hasVectors: true })]);
+    mockFindEmbeddings.mockResolvedValueOnce([
+      { track_id: "t1", friend_id: 1, embedding: "[0.1,0.2,0.3]" },
+    ]);
+    const res = await POST(makeReq({ tracks: refs, include_vectors: true }));
     const [track] = await res.json();
-    expect(track.hasVectors).toBe(true);
     expect(track._vectors).toEqual({ default: [0.1, 0.2, 0.3] });
-    expect(track.embedding).toBeUndefined();
+    expect(mockFindEmbeddings).toHaveBeenCalledWith(
+      [{ trackId: "t1", friendId: 1 }],
+      "audio_vibe",
+      "vibe-model"
+    );
   });
 
-  it("parses JSON string embedding into _vectors.default when include_vectors is true", async () => {
-    const embedding = JSON.stringify([0.4, 0.5]);
-    mockFindTracks.mockResolvedValueOnce([baseTrack({ embedding, hasVectors: true })]);
-    const res = await POST(
-      makeReq({
-        tracks: [{ track_id: "t1", friend_id: 1 }],
-        include_vectors: true,
-      })
-    );
-    const [track] = await res.json();
-    expect(track.hasVectors).toBe(true);
-    expect(track._vectors).toEqual({ default: [0.4, 0.5] });
-    expect(track.embedding).toBeUndefined();
-  });
-
-  it("sets _vectors to undefined when embedding is null", async () => {
-    mockFindTracks.mockResolvedValueOnce([baseTrack({ embedding: null, hasVectors: false })]);
-    const res = await POST(
-      makeReq({
-        tracks: [{ track_id: "t1", friend_id: 1 }],
-        include_vectors: true,
-      })
-    );
-    const [track] = await res.json();
-    expect(track.hasVectors).toBe(false);
-    expect(track._vectors).toBeUndefined();
-  });
-
-  it("sets _vectors to undefined when embedding is absent", async () => {
-    const t = baseTrack();
-    delete (t as Record<string, unknown>).embedding;
-    mockFindTracks.mockResolvedValueOnce([t]);
-    const res = await POST(
-      makeReq({
-        tracks: [{ track_id: "t1", friend_id: 1 }],
-        include_vectors: true,
-      })
-    );
+  it("leaves _vectors off tracks with no stored vector", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack({ hasVectors: false })]);
+    const res = await POST(makeReq({ tracks: refs, include_vectors: true }));
     const [track] = await res.json();
     expect(track._vectors).toBeUndefined();
   });
 
-  it("sets _vectors to undefined when embedding is invalid JSON", async () => {
-    mockFindTracks.mockResolvedValueOnce([baseTrack({ embedding: "not-valid-json" })]);
-    const res = await POST(
-      makeReq({
-        tracks: [{ track_id: "t1", friend_id: 1 }],
-        include_vectors: true,
-      })
-    );
-    const [track] = await res.json();
-    expect(track._vectors).toBeUndefined();
-  });
-
-  it("preserves all other track fields after normalization", async () => {
-    mockFindTracks.mockResolvedValueOnce([
-      baseTrack({ embedding: [0.1], title: "My Song", artist: "Artist A", bpm: 128 }),
+  it("treats an unparseable vector as absent", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack()]);
+    mockFindEmbeddings.mockResolvedValueOnce([
+      { track_id: "t1", friend_id: 1, embedding: "not-json" },
     ]);
-    const res = await POST(
-      makeReq({
-        tracks: [{ track_id: "t1", friend_id: 1 }],
-        include_vectors: true,
-      })
-    );
+    const res = await POST(makeReq({ tracks: refs, include_vectors: true }));
+    expect(res.status).toBe(200);
     const [track] = await res.json();
-    expect(track.title).toBe("My Song");
-    expect(track.artist).toBe("Artist A");
-    expect(track.bpm).toBe(128);
-  });
-
-  it("omits repository-only fields from the response", async () => {
-    mockFindTracks.mockResolvedValueOnce([
-      {
-        ...baseTrack({ embedding: [0.1] }),
-        ord: 7,
-      },
-    ]);
-    const res = await POST(makeReq({ tracks: [{ track_id: "t1", friend_id: 1 }] }));
-    const [track] = await res.json();
-    expect(track.embedding).toBeUndefined();
-    expect(track.ord).toBeUndefined();
+    expect(track._vectors).toBeUndefined();
   });
 });
 

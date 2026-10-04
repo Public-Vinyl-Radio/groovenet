@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const repo = vi.hoisted(() => ({
   listTracksNeedingIdentityEmbeddings: vi.fn(),
   listTracksNeedingAudioVibeEmbeddings: vi.fn(),
-  listTracksNeedingPromptEmbeddings: vi.fn(),
   countTracks: vi.fn(),
   countEmbeddingsByModel: vi.fn(),
 }));
@@ -23,7 +22,6 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   repo.listTracksNeedingIdentityEmbeddings.mockResolvedValue([]);
   repo.listTracksNeedingAudioVibeEmbeddings.mockResolvedValue([]);
-  repo.listTracksNeedingPromptEmbeddings.mockResolvedValue([]);
   repo.countTracks.mockResolvedValue(0);
   repo.countEmbeddingsByModel.mockResolvedValue([]);
 });
@@ -32,7 +30,6 @@ describe("GET /api/embeddings/status", () => {
   it("reports missing counts per type and the track total", async () => {
     repo.listTracksNeedingIdentityEmbeddings.mockResolvedValue(refs(3));
     repo.listTracksNeedingAudioVibeEmbeddings.mockResolvedValue(refs(1));
-    repo.listTracksNeedingPromptEmbeddings.mockResolvedValue(refs(2));
     repo.countTracks.mockResolvedValue(50);
     repo.countEmbeddingsByModel.mockResolvedValue([
       { model: "text-embedding-3-small", dims: 1536, count: 47 },
@@ -43,7 +40,7 @@ describe("GET /api/embeddings/status", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       total_tracks: 50,
-      missing: { identity: 3, audio_vibe: 1, prompt: 2 },
+      missing: { identity: 3, audio_vibe: 1 },
       by_model: {
         identity: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],
         audio_vibe: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],

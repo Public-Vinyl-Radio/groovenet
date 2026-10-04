@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetDefaultPrompt, mockGetDefaultTemplate, mockInvalidateCache } = vi.hoisted(
-  () => ({
-    mockGetDefaultPrompt: vi.fn(() => "DEFAULT_PROMPT"),
-    mockGetDefaultTemplate: vi.fn(() => "DEFAULT_TEMPLATE"),
-    mockInvalidateCache: vi.fn(),
-  })
-);
+const { mockGetDefaultPrompt } = vi.hoisted(() => ({
+  mockGetDefaultPrompt: vi.fn(() => "DEFAULT_PROMPT"),
+}));
 
 const { mockFindById } = vi.hoisted(() => ({ mockFindById: vi.fn() }));
 
@@ -16,9 +12,6 @@ const repo = vi.hoisted(() => ({
   findAiPromptByFriendId: vi.fn(),
   deleteAiPrompt: vi.fn(),
   upsertAiPrompt: vi.fn(),
-  findEmbeddingTemplateByFriendId: vi.fn(),
-  deleteEmbeddingTemplate: vi.fn(),
-  upsertEmbeddingTemplate: vi.fn(),
   ensureGamdlSettings: vi.fn(),
   findGamdlSettingsByFriendId: vi.fn(),
   updateGamdlSettings: vi.fn(),
@@ -27,10 +20,6 @@ const repo = vi.hoisted(() => ({
 
 vi.mock("@/lib/serverPrompts", () => ({
   getDefaultTrackMetadataPrompt: mockGetDefaultPrompt,
-}));
-vi.mock("@/lib/track-embedding", () => ({
-  getDefaultTrackEmbeddingTemplate: mockGetDefaultTemplate,
-  invalidateTrackEmbeddingTemplateCache: mockInvalidateCache,
 }));
 vi.mock("@/server/repositories/friendRepository", () => ({
   friendRepository: { findById: mockFindById },
@@ -44,7 +33,6 @@ import { settingsService } from "../settingsService";
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetDefaultPrompt.mockReturnValue("DEFAULT_PROMPT");
-  mockGetDefaultTemplate.mockReturnValue("DEFAULT_TEMPLATE");
 });
 
 // ─── Default library ──────────────────────────────────────────────────────────
@@ -111,41 +99,6 @@ describe("SettingsService — AI prompt", () => {
     const res = await settingsService.updateAiPrompt(1, "  hello  ");
     expect(repo.upsertAiPrompt).toHaveBeenCalledWith(1, "hello");
     expect(res).toEqual({ prompt: "saved", isDefault: false });
-  });
-});
-
-// ─── Embedding template ────────────────────────────────────────────────────────
-
-describe("SettingsService — embedding template", () => {
-  it("returns default template when no friendId is given", async () => {
-    const res = await settingsService.getEmbeddingTemplate();
-    expect(res.isDefault).toBe(true);
-    expect(res.template).toBe("DEFAULT_TEMPLATE");
-  });
-
-  it("returns a stored template as non-default", async () => {
-    repo.findEmbeddingTemplateByFriendId.mockResolvedValueOnce("TPL");
-    const res = await settingsService.getEmbeddingTemplate(1);
-    expect(res).toEqual({
-      template: "TPL",
-      defaultTemplate: "DEFAULT_TEMPLATE",
-      isDefault: false,
-    });
-  });
-
-  it("deletes the override, invalidates cache, and returns default when blank", async () => {
-    const res = await settingsService.updateEmbeddingTemplate(2, "  ");
-    expect(repo.deleteEmbeddingTemplate).toHaveBeenCalledWith(2);
-    expect(mockInvalidateCache).toHaveBeenCalledWith(2);
-    expect(res).toEqual({ template: "DEFAULT_TEMPLATE", isDefault: true });
-  });
-
-  it("upserts a non-blank template and invalidates cache", async () => {
-    repo.upsertEmbeddingTemplate.mockResolvedValueOnce("saved-tpl");
-    const res = await settingsService.updateEmbeddingTemplate(2, " tpl ");
-    expect(repo.upsertEmbeddingTemplate).toHaveBeenCalledWith(2, "tpl");
-    expect(mockInvalidateCache).toHaveBeenCalledWith(2);
-    expect(res).toEqual({ template: "saved-tpl", isDefault: false });
   });
 });
 

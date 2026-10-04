@@ -453,49 +453,6 @@ describe("updateTrackFields()", () => {
   });
 });
 
-// ─── updateTrackEmbedding ─────────────────────────────────────────────────────
-
-describe("updateTrackEmbedding()", () => {
-  it("formats the embedding array as a pgvector string", async () => {
-    dbQuery.mockResolvedValue({ rows: [] });
-
-    await makeRepo().updateTrackEmbedding("t1", 1, [0.1, 0.2, 0.3]);
-
-    const [, params] = dbQuery.mock.calls[0];
-    expect(params[0]).toBe("[0.1,0.2,0.3]");
-    expect(params[1]).toBe("t1");
-    expect(params[2]).toBe(1);
-  });
-});
-
-// ─── findEmbeddingPromptTemplateByFriendId ────────────────────────────────────
-
-describe("findEmbeddingPromptTemplateByFriendId()", () => {
-  it("returns the template string when found", async () => {
-    dbQuery.mockResolvedValue({ rows: [{ prompt_template: "Template {{title}}" }] });
-
-    const result = await makeRepo().findEmbeddingPromptTemplateByFriendId(1);
-
-    expect(result).toBe("Template {{title}}");
-  });
-
-  it("returns null when not found", async () => {
-    dbQuery.mockResolvedValue({ rows: [] });
-
-    const result = await makeRepo().findEmbeddingPromptTemplateByFriendId(99);
-
-    expect(result).toBeNull();
-  });
-
-  it("returns null when the template value is not a string", async () => {
-    dbQuery.mockResolvedValue({ rows: [{ prompt_template: null }] });
-
-    const result = await makeRepo().findEmbeddingPromptTemplateByFriendId(1);
-
-    expect(result).toBeNull();
-  });
-});
-
 // ─── updateTrackAnalysisByTrackId ─────────────────────────────────────────────
 
 describe("updateTrackAnalysisByTrackId()", () => {
@@ -663,21 +620,6 @@ describe("updateTrackLocalAudioUrl()", () => {
       expect.stringContaining("local_audio_url"),
       ["/new/path.m4a", "t1", 1]
     );
-  });
-});
-
-// ─── updateTrackEmbeddingByTrackIdAndUsername ─────────────────────────────────
-
-describe("updateTrackEmbeddingByTrackIdAndUsername()", () => {
-  it("formats the embedding as a pgvector string", async () => {
-    dbQuery.mockResolvedValue({ rows: [] });
-
-    await makeRepo().updateTrackEmbeddingByTrackIdAndUsername("t1", "alice", [0.4, 0.5]);
-
-    const [, params] = dbQuery.mock.calls[0];
-    expect(params[0]).toBe("[0.4,0.5]");
-    expect(params[1]).toBe("t1");
-    expect(params[2]).toBe("alice");
   });
 });
 

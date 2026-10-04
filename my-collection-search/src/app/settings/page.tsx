@@ -13,7 +13,6 @@ import BackupStatusSection from "@/components/settings/BackupStatusSection";
 import BackupPolicySettingsSection from "@/components/settings/BackupPolicySettingsSection";
 import GamdlSettingsSection from "@/components/settings/GamdlSettingsSection";
 import AiPromptSettingsSection from "@/components/settings/AiPromptSettingsSection";
-import EmbeddingPromptSettingsSection from "@/components/settings/EmbeddingPromptSettingsSection";
 import DefaultLibrarySettingsSection from "@/components/settings/DefaultLibrarySettingsSection";
 import AboutSection from "@/components/settings/AboutSection";
 import PageContainer from "@/components/layout/PageContainer";
@@ -45,13 +44,8 @@ export default function SettingsPage() {
       {
         id: "ai",
         label: "AI Metadata",
-        description: "metadata prompt and embedding template",
-        content: (
-          <>
-            <AiPromptSettingsSection />
-            <EmbeddingPromptSettingsSection />
-          </>
-        ),
+        description: "metadata prompt",
+        content: <AiPromptSettingsSection />,
       },
       {
         id: "library",

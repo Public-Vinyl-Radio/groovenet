@@ -1,4 +1,4 @@
-export type EmbeddingJobKind = "identity" | "audio_vibe" | "prompt";
+export type EmbeddingJobKind = "identity" | "audio_vibe";
 
 export interface EmbeddingJob {
   track_id: string;

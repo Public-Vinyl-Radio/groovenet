@@ -104,8 +104,6 @@ export const queryKeys = {
     ["track", "audio-metadata", track_id, friend_id] as const,
   trackEssentia: (track_id: string, friend_id: number) =>
     ["track", "essentia", track_id, friend_id] as const,
-  trackEmbeddingPreview: (track_id: string, friend_id: number) =>
-    ["track", "embedding-preview", track_id, friend_id] as const,
   trackIdentityEmbeddingPreview: (track_id: string, friend_id: number) =>
     ["track", "identity-embedding-preview", track_id, friend_id] as const,
   trackAudioVibeEmbeddingPreview: (track_id: string, friend_id: number) =>

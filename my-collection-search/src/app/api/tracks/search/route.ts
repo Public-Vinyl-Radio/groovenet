@@ -10,12 +10,6 @@ type ParsedFilter = {
   params: unknown[];
 };
 
-const stripSearchOnlyFields = (row: Record<string, unknown>) => {
-  const rest = { ...row };
-  delete rest.embedding;
-  return rest;
-};
-
 export function parseTrackFilter(filter: string | undefined): ParsedFilter {
   if (!filter) return { where: [], params: [] };
 
@@ -119,6 +113,7 @@ async function searchTracksPg(params: {
         FROM track_embeddings te
         WHERE te.track_id = t.track_id
           AND te.friend_id = t.friend_id
+          AND te.embedding_type = 'audio_vibe'
           AND te.embedding IS NOT NULL
       ) AS "hasVectors"
     FROM tracks t
@@ -143,7 +138,7 @@ async function searchTracksPg(params: {
   );
 
   return {
-    hits: rows.map((row) => stripSearchOnlyFields(row as Record<string, unknown>)),
+    hits: rows,
     estimatedTotalHits: Number(countRows[0]?.total ?? 0),
     offset: params.offset,
     limit: params.limit,

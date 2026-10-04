@@ -48,10 +48,6 @@ import {
   fingerprintFileStatsBodySchema,
   fingerprintUpsertBodySchema,
   fingerprintUpsertResponseSchema,
-  embeddingPromptSettingsGetResponseSchema,
-  embeddingPromptSettingsPutBodySchema,
-  embeddingPromptSettingsPutResponseSchema,
-  embeddingPromptSettingsQuerySchema,
   embeddingsBackfillBodySchema,
   embeddingsBackfillDryRunSchema,
   embeddingsBackfillRunSchema,
@@ -275,23 +271,16 @@ const playlistGeneticRequestExample = {
       track_id: "trk_001",
       friend_id: 1,
       bpm: 122,
-      // A float array, as returned by /api/tracks/batch with include_vectors.
-      embedding: [0.0121, -0.0487, 0.0332],
     },
     {
       track_id: "trk_099",
       friend_id: 1,
       bpm: "124.5",
-      // The pgvector string form is accepted too.
-      embedding: "[0.0210,-0.0114,0.0655]",
     },
     {
       track_id: "trk_143",
       friend_id: 1,
       bpm: 126,
-      // /api/tracks/batch nests the vector here; genetic falls back to it
-      // when `embedding` is absent.
-      _vectors: { default: [0.0333, -0.0091, 0.0428] },
     },
   ],
   mode: "cohesive_blocks",
@@ -651,7 +640,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
               include_vectors: {
                 type: "boolean",
                 description:
-                  "When true, include normalized vector data in `_vectors.default`. Omitted by default to keep payloads small.",
+                  "When true, include each track's `audio_vibe` vector (at the serving model) in `_vectors.default`. Omitted by default to keep payloads small; tracks with no vector get no `_vectors`.",
               },
             },
             required: ["tracks"],
@@ -841,7 +830,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
         name: "type",
         in: "query",
         required: false,
-        schema: { type: "string", enum: ["prompt", "identity", "audio_vibe"], default: "prompt" },
+        schema: { type: "string", enum: ["identity", "audio_vibe"], default: "identity" },
       },
     ],
     responses: {
@@ -851,18 +840,6 @@ const remainingTracksContracts: ApiContractRoute[] = [
           "application/json": {
             schema: {
               oneOf: [
-                {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", enum: ["prompt"] },
-                    track_id: { type: "string" },
-                    friend_id: { type: "integer" },
-                    isDefaultTemplate: { type: "boolean" },
-                    template: { type: "string" },
-                    prompt: { type: "string" },
-                  },
-                  required: ["type", "track_id", "friend_id", "isDefaultTemplate", "template", "prompt"],
-                },
                 {
                   type: "object",
                   properties: {
@@ -1296,7 +1273,7 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
                 },
                 types: {
                   type: "array",
-                  items: { type: "string", enum: ["identity", "audio_vibe", "prompt"] },
+                  items: { type: "string", enum: ["identity", "audio_vibe"] },
                 },
                 friend_id: { type: "integer" },
                 release_id: { type: "string" },
@@ -4551,23 +4528,6 @@ export const apiContractRoutes: ApiContractRoute[] = [
                       track_id: { type: "string" },
                       friend_id: { type: "integer" },
                       bpm: { type: ["number", "string", "null"] },
-                      embedding: {
-                        description:
-                          "Track embedding, either a float array or the pgvector string form (\"[0.1,0.2]\"). Required for mode=genetic unless _vectors.default is supplied.",
-                        oneOf: [
-                          { type: "array", items: { type: "number" } },
-                          { type: "string" },
-                          { type: "null" },
-                        ],
-                      },
-                      _vectors: {
-                        type: "object",
-                        description:
-                          "Fallback embedding location, matching the shape /api/tracks/batch returns when include_vectors is set. Used only when `embedding` is absent.",
-                        properties: {
-                          default: { type: "array", items: { type: "number" } },
-                        },
-                      },
                     },
                     required: ["track_id"],
                     additionalProperties: true,
@@ -5108,113 +5068,6 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   isDefault: { type: "boolean" },
                 },
                 required: ["prompt", "isDefault"],
-              },
-            },
-          },
-        },
-        "400": {
-          description: "Invalid payload",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-        "500": {
-          description: "Server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-      },
-    },
-  },
-  {
-    operationId: "getEmbeddingPromptSettings",
-    method: "get",
-    path: "/api/settings/embedding-prompt",
-    summary: "Get track embedding prompt settings",
-    tags: ["Settings"],
-    querySchema: embeddingPromptSettingsQuerySchema,
-    successSchema: embeddingPromptSettingsGetResponseSchema,
-    errorSchema: apiErrorSchema,
-    openapi: {
-      parameters: [
-        {
-          name: "friend_id",
-          in: "query",
-          required: false,
-          schema: { type: "integer" },
-        },
-      ],
-      responses: {
-        "200": {
-          description: "Embedding prompt settings",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  template: { type: "string" },
-                  defaultTemplate: { type: "string" },
-                  isDefault: { type: "boolean" },
-                },
-                required: ["template", "defaultTemplate", "isDefault"],
-              },
-            },
-          },
-        },
-        "400": {
-          description: "Invalid query parameter",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-        "500": {
-          description: "Server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-      },
-    },
-  },
-  {
-    operationId: "updateEmbeddingPromptSettings",
-    method: "put",
-    path: "/api/settings/embedding-prompt",
-    summary: "Update track embedding prompt settings",
-    tags: ["Settings"],
-    bodySchema: embeddingPromptSettingsPutBodySchema,
-    successSchema: embeddingPromptSettingsPutResponseSchema,
-    errorSchema: apiErrorSchema,
-    openapi: {
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                friend_id: { type: "integer" },
-                template: { type: "string" },
-              },
-              required: ["friend_id"],
-              additionalProperties: false,
-            },
-          },
-        },
-      },
-      responses: {
-        "200": {
-          description: "Embedding prompt updated",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  template: { type: "string" },
-                  isDefault: { type: "boolean" },
-                },
-                required: ["template", "isDefault"],
               },
             },
           },

@@ -29,7 +29,6 @@ function track(overrides: Record<string, unknown> = {}) {
 describe("computeEmbeddingUpdates", () => {
   it("reports no changes when current and updated are identical", () => {
     expect(computeEmbeddingUpdates(track(), track())).toEqual({
-      prompt: false,
       identity: false,
       audioVibe: false,
     });
@@ -37,53 +36,51 @@ describe("computeEmbeddingUpdates", () => {
 
   it("ignores fields outside every set (e.g. star_rating)", () => {
     const plan = computeEmbeddingUpdates(track({ star_rating: 3 }), track({ star_rating: 5 }));
-    expect(plan).toEqual({ prompt: false, identity: false, audioVibe: false });
+    expect(plan).toEqual({ identity: false, audioVibe: false });
   });
 
-  // ─── prompt-only fields ───────────────────────────────────────────────────
-
-  it("flags prompt only when notes changes", () => {
+  it("ignores notes, which no embedding reads", () => {
     const plan = computeEmbeddingUpdates(track({ notes: "" }), track({ notes: "great" }));
-    expect(plan).toEqual({ prompt: true, identity: false, audioVibe: false });
+    expect(plan).toEqual({ identity: false, audioVibe: false });
   });
 
-  // ─── audio-vibe fields also live in prompt ────────────────────────────────
+  // ─── audio-vibe fields ────────────────────────────────────────────────────
 
-  it("flags prompt and audioVibe when bpm changes", () => {
+  it("flags audioVibe only when bpm changes", () => {
     const plan = computeEmbeddingUpdates(track({ bpm: 120 }), track({ bpm: 130 }));
-    expect(plan).toEqual({ prompt: true, identity: false, audioVibe: true });
+    expect(plan).toEqual({ identity: false, audioVibe: true });
   });
 
-  it("flags audioVibe only when mood_sad changes (not a prompt field)", () => {
+  it("flags audioVibe only when mood_sad changes", () => {
     const plan = computeEmbeddingUpdates(track({ mood_sad: 0.1 }), track({ mood_sad: 0.9 }));
-    expect(plan).toEqual({ prompt: false, identity: false, audioVibe: true });
+    expect(plan).toEqual({ identity: false, audioVibe: true });
   });
 
   // ─── identity-only fields ─────────────────────────────────────────────────
 
   it("flags identity only when title changes", () => {
     const plan = computeEmbeddingUpdates(track({ title: "Old" }), track({ title: "New" }));
-    expect(plan).toEqual({ prompt: false, identity: true, audioVibe: false });
+    expect(plan).toEqual({ identity: true, audioVibe: false });
   });
 
   it("flags identity only when composer changes", () => {
     const plan = computeEmbeddingUpdates(track({ composer: "A" }), track({ composer: "B" }));
-    expect(plan).toEqual({ prompt: false, identity: true, audioVibe: false });
+    expect(plan).toEqual({ identity: true, audioVibe: false });
   });
 
   // ─── shared fields ────────────────────────────────────────────────────────
 
-  it("flags prompt and identity when local_tags changes", () => {
+  it("flags identity when local_tags changes", () => {
     const plan = computeEmbeddingUpdates(track({ local_tags: "a" }), track({ local_tags: "a,b" }));
-    expect(plan).toEqual({ prompt: true, identity: true, audioVibe: false });
+    expect(plan).toEqual({ identity: true, audioVibe: false });
   });
 
-  it("flags prompt and identity when styles array content changes", () => {
+  it("flags identity when styles array content changes", () => {
     const plan = computeEmbeddingUpdates(
       track({ styles: ["Deep House"] }),
       track({ styles: ["Tech House"] })
     );
-    expect(plan).toEqual({ prompt: true, identity: true, audioVibe: false });
+    expect(plan).toEqual({ identity: true, audioVibe: false });
   });
 
   // ─── array comparison semantics ───────────────────────────────────────────
@@ -93,7 +90,6 @@ describe("computeEmbeddingUpdates", () => {
       track({ genres: ["A", "B"] }),
       track({ genres: ["A", "B"] })
     );
-    expect(plan.prompt).toBe(false);
     expect(plan.identity).toBe(false);
   });
 
@@ -102,7 +98,7 @@ describe("computeEmbeddingUpdates", () => {
       track({ genres: ["A", "B"] }),
       track({ genres: ["B", "A"] })
     );
-    expect(plan.prompt).toBe(true);
+    expect(plan.identity).toBe(true);
   });
 
   it("treats null/undefined array as empty (null → [] is not a change)", () => {
@@ -110,7 +106,6 @@ describe("computeEmbeddingUpdates", () => {
       track({ styles: null }),
       track({ styles: [] })
     );
-    expect(plan.prompt).toBe(false);
     expect(plan.identity).toBe(false);
   });
 
@@ -119,14 +114,13 @@ describe("computeEmbeddingUpdates", () => {
       track({ genres: [] }),
       track({ genres: ["House"] })
     );
-    expect(plan.prompt).toBe(true);
+    expect(plan.identity).toBe(true);
   });
 
   // ─── null current (track had no prior row) ────────────────────────────────
 
   it("handles a null current track without throwing", () => {
     const plan = computeEmbeddingUpdates(null, track());
-    expect(plan.prompt).toBe(true);
     expect(plan.identity).toBe(true);
     expect(plan.audioVibe).toBe(true);
   });

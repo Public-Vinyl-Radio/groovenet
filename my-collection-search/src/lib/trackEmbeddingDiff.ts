@@ -2,18 +2,6 @@ import type { TrackWithLibraryIdentifierRow } from "@/server/repositories/trackR
 
 type TrackField = keyof TrackWithLibraryIdentifierRow;
 
-// Fields that feed the free-text prompt embedding.
-const PROMPT_FIELDS: TrackField[] = [
-  "local_tags",
-  "styles",
-  "genres",
-  "bpm",
-  "key",
-  "danceability",
-  "mood_happy",
-  "notes",
-];
-
 // Fields that feed the identity embedding.
 const IDENTITY_FIELDS: TrackField[] = [
   "title",
@@ -67,7 +55,6 @@ function fieldsChanged(
 }
 
 export interface EmbeddingUpdatePlan {
-  prompt: boolean;
   identity: boolean;
   audioVibe: boolean;
 }
@@ -81,7 +68,6 @@ export function computeEmbeddingUpdates(
   updated: TrackLike
 ): EmbeddingUpdatePlan {
   return {
-    prompt: fieldsChanged(current, updated, PROMPT_FIELDS),
     identity: fieldsChanged(current, updated, IDENTITY_FIELDS),
     audioVibe: fieldsChanged(current, updated, AUDIO_VIBE_FIELDS),
   };

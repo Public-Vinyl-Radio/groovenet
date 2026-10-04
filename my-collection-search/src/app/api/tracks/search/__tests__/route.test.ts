@@ -111,14 +111,6 @@ describe("GET /api/tracks/search — behavior", () => {
     expect(typeof body.processingTimeMs).toBe("number");
   });
 
-  it("strips the embedding field from returned rows", async () => {
-    stubDb([{ track_id: "t1", embedding: [0.1, 0.2], hasVectors: true }], "1");
-    const res = await GET(req());
-    const [hit] = (await res.json()).hits;
-    expect(hit.embedding).toBeUndefined();
-    expect(hit.hasVectors).toBe(true);
-  });
-
   it("issues a text-search query only when q is present", async () => {
     stubDb([], "0");
     await GET(req("?q=jazz"));

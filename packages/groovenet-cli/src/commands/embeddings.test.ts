@@ -47,7 +47,7 @@ function dryRun(overrides: Partial<EmbeddingBackfillDryRun> = {}): EmbeddingBack
   return {
     dry_run: true,
     total: 4,
-    by_type: { identity: 3, audio_vibe: 1, prompt: 0 },
+    by_type: { identity: 3, audio_vibe: 1 },
     ...overrides,
   };
 }
@@ -79,11 +79,11 @@ describe("resolveBackfillRequest()", () => {
 
   it("carries --friend-id, --type and --force through", () => {
     expect(
-      resolveBackfillRequest({ all: true, friendId: 2, type: "identity,prompt", force: true })
+      resolveBackfillRequest({ all: true, friendId: 2, type: "identity,audio_vibe", force: true })
     ).toEqual({
       scope: "all",
       friend_id: 2,
-      types: ["identity", "prompt"],
+      types: ["identity", "audio_vibe"],
       force: true,
     });
   });
@@ -363,7 +363,7 @@ describe("runEmbeddingsBackfill()", () => {
 function status(overrides: Partial<EmbeddingStatus> = {}): EmbeddingStatus {
   return {
     total_tracks: 100,
-    missing: { identity: 0, audio_vibe: 2, prompt: 0 },
+    missing: { identity: 0, audio_vibe: 2 },
     ...overrides,
   };
 }

@@ -122,9 +122,9 @@
 - Identity and audio_vibe generation goes through `EmbeddingProvider`
   (`src/lib/embeddings/provider.ts`, OpenAI implementation in
   `openaiProvider.ts`) instead of each call site building its own OpenAI
-  client. The legacy free-text `tracks.embedding` ("prompt") column uses the
-  same interface for generation but stays pinned to one model — it's not
-  part of the multi-model system below.
+  client. The legacy free-text `tracks.embedding` ("prompt") column was
+  removed in #393; ga-service's genetic optimizer now reads `audio_vibe`
+  vectors from `track_embeddings` at the serving model.
 - **Multi-model + switching a model is documented in
   `docs/IDENTITY_EMBEDDINGS.md`** ("Multi-Model Embeddings", #386): each
   `track_embeddings` row records its `model`/`dims`, every similarity query
@@ -489,7 +489,7 @@ Tables
   - added_at timestamp default current_timestamp
 
 Extensions
-- pgvector (vector type) enabled for tracks.embedding
+- pgvector (vector type) enabled for track_embeddings.embedding
 
 Notes
 - The compound PK allows the same track_id to exist for multiple users.

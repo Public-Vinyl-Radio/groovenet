@@ -38,7 +38,6 @@ export type Track = {
   friend_id: number;
   release_id?: string;
   library_identifier?: string | null;
-  embedding?: string | number[] | null;
   _vectors?: { default?: number[] };
   hasVectors?: boolean;
 };
@@ -512,7 +511,7 @@ export interface FingerprintIndexRun {
 
 // ─── Embeddings backfill (#388) ───────────────────────────────────────────────
 
-export type EmbeddingJobKind = "identity" | "audio_vibe" | "prompt";
+export type EmbeddingJobKind = "identity" | "audio_vibe";
 export type EmbeddingBackfillScope = "missing" | "all" | "release" | "track";
 
 export interface EmbeddingBackfillRequest {
