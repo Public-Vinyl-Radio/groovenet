@@ -593,12 +593,6 @@ export const playlistGeneticTrackSchema = z
     track_id: z.string().min(1),
     friend_id: z.number().int().optional(),
     bpm: z.union([z.number(), z.string()]).nullable().optional(),
-    embedding: z.union([z.string(), z.array(z.number())]).nullable().optional(),
-    _vectors: z
-      .object({
-        default: z.array(z.number()).optional(),
-      })
-      .optional(),
   })
   .passthrough();
 
@@ -707,15 +701,6 @@ export const trackEssentiaResponseSchema = z.object({
   friend_id: z.number().int(),
   file_path: z.string(),
   data: z.unknown(),
-});
-
-export const trackEmbeddingPreviewResponseSchema = z.object({
-  type: z.literal("prompt").optional(),
-  track_id: z.string(),
-  friend_id: z.number().int(),
-  isDefaultTemplate: z.boolean(),
-  template: z.string(),
-  prompt: z.string(),
 });
 
 export const trackDeleteResponseSchema = z.object({
@@ -983,26 +968,6 @@ export const aiPromptSettingsGetResponseSchema = z.object({
 
 export const aiPromptSettingsPutResponseSchema = z.object({
   prompt: z.string(),
-  isDefault: z.boolean(),
-});
-
-export const embeddingPromptSettingsQuerySchema = z.object({
-  friend_id: intFromInputSchema.optional(),
-});
-
-export const embeddingPromptSettingsPutBodySchema = z.object({
-  friend_id: intFromInputSchema,
-  template: z.string().optional().default(""),
-});
-
-export const embeddingPromptSettingsGetResponseSchema = z.object({
-  template: z.string(),
-  defaultTemplate: z.string(),
-  isDefault: z.boolean(),
-});
-
-export const embeddingPromptSettingsPutResponseSchema = z.object({
-  template: z.string(),
   isDefault: z.boolean(),
 });
 
@@ -1746,7 +1711,7 @@ export const fingerprintIndexRunSchema = z.object({
 
 // ─── Embeddings backfill (#388) ───────────────────────────────────────────────
 
-const embeddingJobKindSchema = z.enum(["identity", "audio_vibe", "prompt"]);
+const embeddingJobKindSchema = z.enum(["identity", "audio_vibe"]);
 
 /**
  * Which tracks to resolve. Exactly one of `track_ids`/`release_id` is
@@ -1799,7 +1764,6 @@ export const embeddingsBackfillDryRunSchema = z.object({
   by_type: z.object({
     identity: z.number().int(),
     audio_vibe: z.number().int(),
-    prompt: z.number().int(),
   }),
 });
 
@@ -1816,7 +1780,6 @@ export const embeddingsStatusSchema = z.object({
   missing: z.object({
     identity: z.number().int(),
     audio_vibe: z.number().int(),
-    prompt: z.number().int(),
   }),
   /** Row counts per model, for watching a switch's backfill reach coverage (#386). */
   by_model: z.object({
@@ -1831,7 +1794,6 @@ export const embeddingsStatusQuerySchema = z.object({
 
 // ─── Embedding model settings (#386) ──────────────────────────────────────────
 
-/** Only these two kinds carry a model/dims pair — the legacy "prompt" column doesn't. */
 export const embeddingModelKindSchema = z.enum(["identity", "audio_vibe"]);
 
 export const embeddingModelSettingsSchema = z.object({

@@ -39,13 +39,9 @@ const mockRedis = vi.hoisted(() => ({
 
 const mockGenerateIdentity = vi.hoisted(() => vi.fn());
 const mockGenerateAudioVibe = vi.hoisted(() => vi.fn());
-const mockGetTrackEmbedding = vi.hoisted(() => vi.fn());
-const mockFindTrackRaw = vi.hoisted(() => vi.fn());
-const mockUpdateTrackEmbedding = vi.hoisted(() => vi.fn());
 const mockCheckProvider = vi.hoisted(() => vi.fn());
 const mockListIdentity = vi.hoisted(() => vi.fn());
 const mockListAudioVibe = vi.hoisted(() => vi.fn());
-const mockListPrompt = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => mockRedis }));
 vi.mock("@/lib/identity-embedding", () => ({
@@ -54,20 +50,10 @@ vi.mock("@/lib/identity-embedding", () => ({
 vi.mock("@/lib/audio-vibe-embedding", () => ({
   generateAndStoreAudioVibeEmbedding: mockGenerateAudioVibe,
 }));
-vi.mock("@/lib/track-embedding", () => ({
-  getTrackEmbedding: mockGetTrackEmbedding,
-}));
-vi.mock("@/server/repositories/trackRepository", () => ({
-  trackRepository: {
-    findTrackByTrackIdAndFriendIdRaw: mockFindTrackRaw,
-    updateTrackEmbedding: mockUpdateTrackEmbedding,
-  },
-}));
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: {
     listTracksNeedingIdentityEmbeddings: mockListIdentity,
     listTracksNeedingAudioVibeEmbeddings: mockListAudioVibe,
-    listTracksNeedingPromptEmbeddings: mockListPrompt,
   },
 }));
 vi.mock("@/server/services/embeddingHealthService", () => ({
@@ -95,7 +81,6 @@ beforeEach(() => {
   mockRedis.lrange.mockResolvedValue([]);
   mockListIdentity.mockResolvedValue([]);
   mockListAudioVibe.mockResolvedValue([]);
-  mockListPrompt.mockResolvedValue([]);
   mockGenerateIdentity.mockResolvedValue({ updated: true, reason: "ok" });
   mockGenerateAudioVibe.mockResolvedValue({ updated: true, reason: "ok" });
   mockCheckProvider.mockResolvedValue(undefined);
@@ -167,16 +152,15 @@ describe("tick", () => {
     expect(mockGenerateAudioVibe).toHaveBeenCalledWith("t1", 1, undefined);
   });
 
-  it("runs a prompt job by fetching the track and writing tracks.embedding", async () => {
+  it("drops a legacy prompt job left in Redis without retrying it", async () => {
     mockRedis.rpop
-      .mockResolvedValueOnce(JSON.stringify(job({ kind: "prompt" })))
+      .mockResolvedValueOnce(JSON.stringify(job({ kind: "prompt" as never })))
       .mockResolvedValue(null);
-    mockFindTrackRaw.mockResolvedValueOnce({ track_id: "t1", friend_id: 1 });
-    mockGetTrackEmbedding.mockResolvedValueOnce([0.1, 0.2]);
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
-    expect(mockGetTrackEmbedding).toHaveBeenCalled();
-    expect(mockUpdateTrackEmbedding).toHaveBeenCalledWith("t1", 1, [0.1, 0.2]);
+    expect(mockGenerateIdentity).not.toHaveBeenCalled();
+    expect(mockGenerateAudioVibe).not.toHaveBeenCalled();
+    expect(mockRedis.zadd).not.toHaveBeenCalled();
   });
 
   it("stops draining once the queue is empty", async () => {
@@ -328,13 +312,12 @@ describe("tick — retry promotion", () => {
 // ─── sweepTick ────────────────────────────────────────────────────────────────
 
 describe("sweepTick", () => {
-  it("enqueues identity, audio_vibe and prompt jobs for whatever is missing", async () => {
+  it("enqueues identity and audio_vibe jobs for whatever is missing", async () => {
     mockListIdentity.mockResolvedValueOnce([{ track_id: "a", friend_id: 1 }]);
     mockListAudioVibe.mockResolvedValueOnce([{ track_id: "b", friend_id: 2 }]);
-    mockListPrompt.mockResolvedValueOnce([{ track_id: "c", friend_id: 3 }]);
     const service = new EmbeddingQueueService();
     const result = await service.sweepTick();
-    expect(result).toEqual({ queued: 3 });
+    expect(result).toEqual({ queued: 2 });
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
       JSON.stringify({ track_id: "a", friend_id: 1, kind: "identity" })
@@ -342,10 +325,6 @@ describe("sweepTick", () => {
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
       JSON.stringify({ track_id: "b", friend_id: 2, kind: "audio_vibe" })
-    );
-    expect(mockPipeline.lpush).toHaveBeenCalledWith(
-      "embedding_queue",
-      JSON.stringify({ track_id: "c", friend_id: 3, kind: "prompt" })
     );
   });
 
@@ -415,16 +394,6 @@ describe("resetQueueState", () => {
 // ─── runJob edge cases ────────────────────────────────────────────────────────
 
 describe("tick — runJob edge cases", () => {
-  it("treats a missing track on a prompt job as a retryable failure, not a crash", async () => {
-    mockRedis.rpop
-      .mockResolvedValueOnce(JSON.stringify(job({ kind: "prompt" })))
-      .mockResolvedValue(null);
-    mockFindTrackRaw.mockResolvedValueOnce(null);
-    const service = new EmbeddingQueueService();
-    await expect(service.tick(NOW)).resolves.toBeUndefined();
-    expect(mockRedis.zadd).toHaveBeenCalledTimes(1);
-  });
-
   it("drops an unparseable queue entry instead of throwing", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockRedis.rpop.mockResolvedValueOnce("not-json{{{").mockResolvedValue(null);

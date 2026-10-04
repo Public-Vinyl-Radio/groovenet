@@ -66,37 +66,6 @@ export class SettingsRepository {
     ]);
   }
 
-  async findEmbeddingTemplateByFriendId(friendId: number): Promise<string | null> {
-    const { rows } = await dbQuery<{ prompt_template: string | null }>(
-      "SELECT prompt_template FROM embedding_prompt_settings WHERE friend_id = $1 LIMIT 1",
-      [friendId]
-    );
-    return typeof rows[0]?.prompt_template === "string"
-      ? rows[0].prompt_template
-      : null;
-  }
-
-  async upsertEmbeddingTemplate(friendId: number, template: string): Promise<string> {
-    const { rows } = await dbQuery<{ prompt_template: string }>(
-      `
-      INSERT INTO embedding_prompt_settings (friend_id, prompt_template, updated_at)
-      VALUES ($1, $2, current_timestamp)
-      ON CONFLICT (friend_id)
-      DO UPDATE SET prompt_template = EXCLUDED.prompt_template, updated_at = current_timestamp
-      RETURNING prompt_template
-      `,
-      [friendId, template]
-    );
-    return rows[0]?.prompt_template ?? template;
-  }
-
-  async deleteEmbeddingTemplate(friendId: number): Promise<void> {
-    await dbQuery(
-      "DELETE FROM embedding_prompt_settings WHERE friend_id = $1",
-      [friendId]
-    );
-  }
-
   async ensureGamdlSettings(friendId: number): Promise<void> {
     await dbQuery(
       `

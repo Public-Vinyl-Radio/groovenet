@@ -5,10 +5,8 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       tracks: Array<{ track_id: string; friend_id: number; position?: number }>;
-      include_vectors?: boolean;
     };
     const tracks = Array.isArray(body?.tracks) ? body.tracks : [];
-    const includeVectors = body?.include_vectors === true;
     if (tracks.length === 0) {
       return NextResponse.json([], { status: 200 });
     }
@@ -16,28 +14,10 @@ export async function POST(req: Request) {
     // Build a VALUES table of (track_id, friend_id, ord) to preserve order
     const rows = await trackRepository.findTracksByRefsPreservingOrder(tracks);
 
-    // Normalize embedding into _vectors.default
     const ordered = rows.map((t) => {
-      let embeddingArr: number[] | null = null;
-      if (t.embedding) {
-        if (Array.isArray(t.embedding)) embeddingArr = t.embedding as number[];
-        else if (typeof t.embedding === "string") {
-          try {
-            embeddingArr = JSON.parse(t.embedding) as number[];
-          } catch {
-            embeddingArr = null;
-          }
-        }
-      }
       const rest = { ...t } as Record<string, unknown>;
-      delete rest.embedding;
       delete rest.ord;
-      return includeVectors
-        ? {
-            ...rest,
-            _vectors: embeddingArr ? { default: embeddingArr } : undefined,
-          }
-        : rest;
+      return rest;
     });
     return NextResponse.json(ordered);
   } catch (error) {

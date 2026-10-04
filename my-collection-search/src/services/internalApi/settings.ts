@@ -14,10 +14,6 @@ import {
   defaultLibrarySettingsGetResponseSchema,
   defaultLibrarySettingsPutBodySchema,
   defaultLibrarySettingsPutResponseSchema,
-  embeddingPromptSettingsGetResponseSchema,
-  embeddingPromptSettingsPutBodySchema,
-  embeddingPromptSettingsPutResponseSchema,
-  embeddingPromptSettingsQuerySchema,
   gamdlConnectionTestResponseSchema,
   gamdlSettingsGetResponseSchema,
   gamdlSettingsPutBodySchema,
@@ -37,18 +33,6 @@ export type UpdateAiPromptSettingsBody = z.input<
 >;
 export type UpdateAiPromptSettingsResponse = z.infer<
   typeof aiPromptSettingsPutResponseSchema
->;
-export type EmbeddingPromptSettingsQuery = z.input<
-  typeof embeddingPromptSettingsQuerySchema
->;
-export type EmbeddingPromptSettingsResponse = z.infer<
-  typeof embeddingPromptSettingsGetResponseSchema
->;
-export type UpdateEmbeddingPromptSettingsBody = z.input<
-  typeof embeddingPromptSettingsPutBodySchema
->;
-export type UpdateEmbeddingPromptSettingsResponse = z.infer<
-  typeof embeddingPromptSettingsPutResponseSchema
 >;
 export type GamdlSettings = z.infer<typeof gamdlSettingsSchema>;
 export type GamdlSettingsResponse = z.infer<typeof gamdlSettingsGetResponseSchema>;
@@ -128,36 +112,6 @@ export async function updateAiPromptSettings(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-}
-
-export async function fetchEmbeddingPromptSettings(
-  query: EmbeddingPromptSettingsQuery = {}
-): Promise<EmbeddingPromptSettingsResponse> {
-  const params = new URLSearchParams();
-  if (typeof query.friend_id === "number") {
-    params.set("friend_id", String(query.friend_id));
-  }
-  const search = params.toString();
-  const path = search
-    ? `/api/settings/embedding-prompt?${search}`
-    : "/api/settings/embedding-prompt";
-  return await http<EmbeddingPromptSettingsResponse>(path, {
-    method: "GET",
-    cache: "no-store",
-  });
-}
-
-export async function updateEmbeddingPromptSettings(
-  body: UpdateEmbeddingPromptSettingsBody
-): Promise<UpdateEmbeddingPromptSettingsResponse> {
-  return await http<UpdateEmbeddingPromptSettingsResponse>(
-    "/api/settings/embedding-prompt",
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
-  );
 }
 
 export async function fetchGamdlSettings(

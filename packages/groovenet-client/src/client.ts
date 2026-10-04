@@ -193,13 +193,9 @@ export class GroovenetClient {
   }
 
   async batchGetTracks(
-    refs: { track_id: string; friend_id: number; position?: number }[],
-    options?: { include_vectors?: boolean }
+    refs: { track_id: string; friend_id: number; position?: number }[]
   ): Promise<Track[]> {
-    return this.request<Track[]>("POST", "/tracks/batch", {
-      tracks: refs,
-      ...(options?.include_vectors ? { include_vectors: true } : {}),
-    });
+    return this.request<Track[]>("POST", "/tracks/batch", { tracks: refs });
   }
 
   async listDeletedTracks(

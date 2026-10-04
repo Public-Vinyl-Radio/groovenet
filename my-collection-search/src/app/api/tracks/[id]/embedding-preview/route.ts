@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  buildTrackPrompt,
-  getDefaultTrackEmbeddingTemplate,
-} from "@/lib/track-embedding";
 import { embeddingsService } from "@/server/services/embeddingsService";
-import { trackRepository } from "@/server/repositories/trackRepository";
 
-type PreviewType = "prompt" | "identity" | "audio_vibe";
+type PreviewType = "identity" | "audio_vibe";
 const MISSING_AUDIO_ANALYSIS_ERROR = "Track missing audio analysis data";
 
 function parsePreviewType(value: string | null): PreviewType {
-  if (value === "identity" || value === "audio_vibe" || value === "prompt") {
-    return value;
-  }
-  return "prompt";
+  return value === "audio_vibe" ? "audio_vibe" : "identity";
 }
 
 export async function GET(
@@ -32,38 +24,12 @@ export async function GET(
       );
     }
 
-    if (previewType === "identity" || previewType === "audio_vibe") {
-      const preview = await embeddingsService.getPreview(
-        previewType,
-        trackId,
-        friendId
-      );
-      return NextResponse.json(preview);
-    }
-
-    const track = await trackRepository.findTrackByTrackIdAndFriendIdRaw(
+    const preview = await embeddingsService.getPreview(
+      previewType,
       trackId,
       friendId
     );
-    if (!track) {
-      return NextResponse.json({ error: "Track not found" }, { status: 404 });
-    }
-
-    const defaultTemplate = getDefaultTrackEmbeddingTemplate();
-    const template =
-      (await trackRepository.findEmbeddingPromptTemplateByFriendId(friendId)) ??
-      defaultTemplate;
-
-    const prompt = buildTrackPrompt(track, template);
-
-    return NextResponse.json({
-      type: "prompt",
-      track_id: trackId,
-      friend_id: friendId,
-      isDefaultTemplate: template === defaultTemplate,
-      template,
-      prompt,
-    });
+    return NextResponse.json(preview);
   } catch (error) {
     if (
       error instanceof Error &&

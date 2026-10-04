@@ -434,6 +434,7 @@ export class TrackRepository {
           FROM track_embeddings te
           WHERE te.track_id = t.track_id
             AND te.friend_id = t.friend_id
+            AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
         ) AS "hasVectors",
         v.ord
@@ -463,6 +464,7 @@ export class TrackRepository {
           FROM track_embeddings te
           WHERE te.track_id = t.track_id
             AND te.friend_id = t.friend_id
+            AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
         ) AS "hasVectors"
       FROM tracks t
@@ -489,6 +491,7 @@ export class TrackRepository {
           FROM track_embeddings te
           WHERE te.track_id = t.track_id
             AND te.friend_id = t.friend_id
+            AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
         ) AS "hasVectors"
       FROM tracks t
@@ -566,18 +569,6 @@ export class TrackRepository {
     return this.findTrackByTrackIdAndFriendId(track_id, friend_id);
   }
 
-  async updateTrackEmbedding(
-    trackId: string,
-    friendId: number,
-    embedding: number[]
-  ): Promise<void> {
-    const pgVector = `[${embedding.join(",")}]`;
-    await dbQuery(
-      "UPDATE tracks SET embedding = $1 WHERE track_id = $2 AND friend_id = $3",
-      [pgVector, trackId, friendId]
-    );
-  }
-
   async updateTrackLocalAudioUrl(
     trackId: string,
     friendId: number,
@@ -636,24 +627,6 @@ export class TrackRepository {
       [trackId, friendId]
     );
     return rows[0] ?? null;
-  }
-
-  async findEmbeddingPromptTemplateByFriendId(
-    friendId: number
-  ): Promise<string | null> {
-    const { rows } = await dbQuery<{ prompt_template: string | null }>(
-      `
-      SELECT prompt_template
-      FROM embedding_prompt_settings
-      WHERE friend_id = $1
-      LIMIT 1
-      `,
-      [friendId]
-    );
-
-    return typeof rows[0]?.prompt_template === "string"
-      ? rows[0].prompt_template
-      : null;
   }
 
   async findTracksByTrackId(trackId: string): Promise<Track[]> {
@@ -767,18 +740,6 @@ export class TrackRepository {
       WHERE track_id = $2 AND friend_id = $3
       `,
       [composer, trackId, friendId]
-    );
-  }
-
-  async updateTrackEmbeddingByTrackIdAndUsername(
-    trackId: string,
-    username: string,
-    embedding: number[]
-  ): Promise<void> {
-    const pgVector = `[${embedding.join(",")}]`;
-    await dbQuery(
-      "UPDATE tracks SET embedding = $1 WHERE track_id = $2 AND username = $3",
-      [pgVector, trackId, username]
     );
   }
 

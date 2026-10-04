@@ -8,7 +8,6 @@ import {
   fetchAudioVibeEmbeddingPreview,
   fetchIdentityEmbeddingPreview,
   fetchTrackAudioMetadata,
-  fetchTrackEmbeddingPreview,
   fetchTrackEssentiaData,
   fetchTrackPlaylists,
 } from "@/services/internalApi/tracks";
@@ -34,12 +33,6 @@ export function useTrackDetailQueries(trackId: string, friendId: number, enabled
     enabled: enabled && !!trackId,
   });
 
-  const embeddingPreviewQuery = useQuery({
-    queryKey: queryKeys.trackEmbeddingPreview(trackId, friendId),
-    queryFn: () => fetchTrackEmbeddingPreview(trackId, friendId),
-    enabled: enabled && !!trackId,
-  });
-
   const identityEmbeddingPreviewQuery = useQuery({
     queryKey: queryKeys.trackIdentityEmbeddingPreview(trackId, friendId),
     queryFn: () => fetchIdentityEmbeddingPreview(trackId, friendId),
@@ -61,7 +54,6 @@ export function useTrackDetailQueries(trackId: string, friendId: number, enabled
     playlistsQuery,
     audioMetadataQuery,
     essentiaQuery,
-    embeddingPreviewQuery,
     identityEmbeddingPreviewQuery,
     audioVibeEmbeddingPreviewQuery,
     extractCoverMutation,

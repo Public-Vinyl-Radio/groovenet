@@ -16,7 +16,6 @@ import {
   fetchSimilarVibeTracks,
   fetchTrackAudioMetadata,
   fetchTrackById,
-  fetchTrackEmbeddingPreview,
   fetchTrackEssentiaData,
   fetchTrackMetadata,
   fetchTrackPlaylists,
@@ -264,19 +263,9 @@ describe("single-track GET helpers", () => {
     expect(httpMock).toHaveBeenCalledWith("/api/tracks/t1/essentia?friend_id=2", GET_NO_STORE);
   });
 
-  it("fetchTrackEmbeddingPreview hits the embedding-preview route", async () => {
-    await fetchTrackEmbeddingPreview("t1", 2);
-
-    expect(httpMock).toHaveBeenCalledWith(
-      "/api/tracks/t1/embedding-preview?friend_id=2",
-      GET_NO_STORE
-    );
-  });
-
   it.each([
     ["fetchTrackAudioMetadata", () => fetchTrackAudioMetadata("a/b", 1)],
     ["fetchTrackEssentiaData", () => fetchTrackEssentiaData("a/b", 1)],
-    ["fetchTrackEmbeddingPreview", () => fetchTrackEmbeddingPreview("a/b", 1)],
   ])("%s encodes the track id", async (_name, call) => {
     await call();
 

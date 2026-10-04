@@ -36,9 +36,8 @@ function castVector(column: string, dims: number): string {
 
 export class EmbeddingsRepository {
   /**
-   * Candidate tracks for one embedding type (#388). `prompt` is the legacy
-   * `tracks.embedding` column — no join, since it was never moved into
-   * `track_embeddings` — the other two join it to find rows with no row yet.
+   * Candidate tracks for one embedding type (#388); joins `track_embeddings`
+   * to find tracks with no row yet.
    * `force` drops the "missing" check (and the join, since nothing needs it)
    * but keeps the audio-vibe "has audio data" gate: forcing a re-embed of a
    * track with no BPM/key/mood would just embed emptiness.
@@ -51,7 +50,7 @@ export class EmbeddingsRepository {
     const clauses: string[] = [];
     let from = "FROM tracks t";
 
-    if (!force && type !== "prompt") {
+    if (!force) {
       params.push(type);
       from += `
         LEFT JOIN track_embeddings te
@@ -67,8 +66,6 @@ export class EmbeddingsRepository {
           "OR t.mood_happy IS NOT NULL OR t.mood_sad IS NOT NULL " +
           "OR t.mood_relaxed IS NOT NULL OR t.mood_aggressive IS NOT NULL)"
       );
-    } else if (type === "prompt" && !force) {
-      clauses.push("t.embedding IS NULL");
     }
 
     if (friend_id) {
@@ -109,12 +106,6 @@ export class EmbeddingsRepository {
     options: BackfillOptions
   ): Promise<EmbeddingTrackRef[]> {
     return this.listTracksForBackfill({ ...options, type: "audio_vibe" });
-  }
-
-  async listTracksNeedingPromptEmbeddings(
-    options: BackfillOptions
-  ): Promise<EmbeddingTrackRef[]> {
-    return this.listTracksForBackfill({ ...options, type: "prompt" });
   }
 
   /**

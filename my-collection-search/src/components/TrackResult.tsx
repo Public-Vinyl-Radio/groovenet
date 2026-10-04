@@ -96,14 +96,7 @@ export default function TrackResult({
   const hasNotes = Boolean(track.notes?.trim());
 
   // Data quality indicators for playlist mode
-  const t = track as Track & { _vectors?: { default?: number[] }; embedding?: string | number[] | null };
-  const embeddingRaw = t._vectors?.default ?? t.embedding;
-  const hasEmbedding =
-    typeof track.hasVectors === "boolean"
-      ? track.hasVectors
-      : Array.isArray(embeddingRaw)
-      ? embeddingRaw.length > 0
-      : typeof embeddingRaw === "string" && embeddingRaw.length > 0;
+  const hasEmbedding = track.hasVectors === true;
   const bpmNum = typeof track.bpm === "number" ? track.bpm : parseFloat(track.bpm as string);
   const hasBpm = Number.isFinite(bpmNum) && bpmNum > 0;
   const hasDataIssue = playlistMode && (!hasEmbedding || !hasBpm);

@@ -99,35 +99,33 @@ describe("PATCH /api/tracks — track not found", () => {
 // ─── shouldUpdateEmbedding — scalar fields ────────────────────────────────────
 
 describe("PATCH /api/tracks — embedding queueing (scalar fields)", () => {
-  it("enqueues prompt and audio-vibe jobs when bpm changes", async () => {
+  it("enqueues an audio-vibe job when bpm changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ bpm: 120 }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ bpm: 130 }));
     await PATCH(makeReq(PATCH_BODY));
     expect(mockEnqueue).toHaveBeenCalledOnce();
-    expect(enqueuedKinds()).toEqual(
-      expect.arrayContaining(["prompt", "audio_vibe"])
-    );
+    expect(enqueuedKinds()).toEqual(["audio_vibe"]);
   });
 
-  it("enqueues a prompt job when key changes", async () => {
+  it("enqueues an audio-vibe job when key changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ key: "A minor" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ key: "C major" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toContain("prompt");
+    expect(enqueuedKinds()).toContain("audio_vibe");
   });
 
-  it("enqueues a prompt job when notes changes", async () => {
+  it("enqueues nothing when only notes changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "Great track" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toContain("prompt");
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  it("enqueues a prompt job when danceability changes", async () => {
+  it("enqueues an audio-vibe job when danceability changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ danceability: 0.5 }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ danceability: 0.9 }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toContain("prompt");
+    expect(enqueuedKinds()).toContain("audio_vibe");
   });
 
   it("enqueues nothing when only star_rating changes", async () => {
@@ -139,13 +137,11 @@ describe("PATCH /api/tracks — embedding queueing (scalar fields)", () => {
     expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  it("enqueues no prompt job when only title changes", async () => {
+  it("enqueues no audio-vibe job when only title changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old Title" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New Title" }));
     await PATCH(makeReq(PATCH_BODY));
-    // title is an identity field, not a prompt field — see next describe block,
-    // which asserts the identity job it does enqueue.
-    expect(enqueuedKinds()).not.toContain("prompt");
+    expect(enqueuedKinds()).toEqual(["identity"]);
   });
 });
 
@@ -170,18 +166,18 @@ describe("PATCH /api/tracks — track_embeddings updates", () => {
 // ─── shouldUpdateEmbedding — array fields ─────────────────────────────────────
 
 describe("PATCH /api/tracks — embedding queueing (array fields)", () => {
-  it("enqueues a prompt job when styles array changes", async () => {
+  it("enqueues an identity job when styles array changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ styles: ["Deep House"] }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ styles: ["Tech House"] }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toContain("prompt");
+    expect(enqueuedKinds()).toContain("identity");
   });
 
-  it("enqueues a prompt job when genres array changes", async () => {
+  it("enqueues an identity job when genres array changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ genres: ["Electronic"] }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ genres: ["House"] }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toContain("prompt");
+    expect(enqueuedKinds()).toContain("identity");
   });
 
   it("enqueues nothing when array content is identical", async () => {
@@ -191,11 +187,11 @@ describe("PATCH /api/tracks — embedding queueing (array fields)", () => {
     expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  it("enqueues a prompt job when local_tags changes", async () => {
+  it("enqueues an identity job when local_tags changes", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ local_tags: "crate1" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_tags: "crate1,crate2" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toContain("prompt");
+    expect(enqueuedKinds()).toContain("identity");
   });
 });
 
@@ -238,8 +234,8 @@ describe("PATCH /api/tracks — no embedding-relevant change", () => {
 
 describe("PATCH /api/tracks — side-effect errors are swallowed", () => {
   it("still returns 200 when enqueueing throws", async () => {
-    mockFindTrack.mockResolvedValueOnce(baseTrack({ notes: "" }));
-    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ notes: "changed" }));
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old" }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "changed" }));
     mockEnqueue.mockRejectedValueOnce(new Error("redis down"));
     const res = await PATCH(makeReq(PATCH_BODY));
     expect(res.status).toBe(200);

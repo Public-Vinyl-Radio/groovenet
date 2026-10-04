@@ -2,8 +2,6 @@ import { randomUUID } from "crypto";
 import { getRedisConnection } from "@/lib/redis";
 import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
 import { generateAndStoreAudioVibeEmbedding } from "@/lib/audio-vibe-embedding";
-import { getTrackEmbedding } from "@/lib/track-embedding";
-import { trackRepository } from "@/server/repositories/trackRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
 import type {
@@ -91,18 +89,9 @@ async function runJob(job: EmbeddingJob): Promise<{ updated: boolean }> {
     return generateAndStoreAudioVibeEmbedding(job.track_id, job.friend_id, job.force);
   }
 
-  // "prompt": the legacy tracks.embedding column, keyed off settings-editable
-  // free text rather than a source hash, so there's no "unchanged" skip here.
-  const track = await trackRepository.findTrackByTrackIdAndFriendIdRaw(
-    job.track_id,
-    job.friend_id
-  );
-  if (!track) {
-    throw new Error(`Track not found: ${job.track_id} (friend_id: ${job.friend_id})`);
-  }
-  const embedding = await getTrackEmbedding(track);
-  await trackRepository.updateTrackEmbedding(job.track_id, job.friend_id, embedding);
-  return { updated: true };
+  // A "prompt" job left in Redis from before the legacy column was removed
+  // (#393): nothing reads it any more, so drop it rather than retry forever.
+  return { updated: false };
 }
 
 export class EmbeddingQueueService {
@@ -257,22 +246,20 @@ export class EmbeddingQueueService {
 
   /**
    * Backstop for #385, same shape as `fingerprintBackfillService`'s missing
-   * pass: finds tracks with no identity/audio-vibe/prompt embedding at all
+   * pass: finds tracks with no identity/audio-vibe embedding at all
    * and enqueues them. Covers lost Redis state and anything enqueued before
    * the worker ever ran. Idempotent — a track already queued or already
    * embedded is a no-op either way.
    */
   async sweepTick(): Promise<{ queued: number }> {
-    const [missingIdentity, missingAudioVibe, missingPrompt] = await Promise.all([
+    const [missingIdentity, missingAudioVibe] = await Promise.all([
       embeddingsRepository.listTracksNeedingIdentityEmbeddings({}),
       embeddingsRepository.listTracksNeedingAudioVibeEmbeddings({}),
-      embeddingsRepository.listTracksNeedingPromptEmbeddings({}),
     ]);
 
     const jobs: EmbeddingJob[] = [
       ...missingIdentity.map((t) => ({ ...t, kind: "identity" as const })),
       ...missingAudioVibe.map((t) => ({ ...t, kind: "audio_vibe" as const })),
-      ...missingPrompt.map((t) => ({ ...t, kind: "prompt" as const })),
     ];
 
     await this.enqueue(jobs);

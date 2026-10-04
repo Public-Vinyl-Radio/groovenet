@@ -137,7 +137,7 @@ a pause on a bad key instead of failing outright. `groovenet embeddings status`
 reports counts without queuing anything.
 
 **Options**:
-- `--type identity`: Only the identity embedding (default: identity, audio_vibe and prompt)
+- `--type identity`: Only the identity embedding (default: identity and audio_vibe)
 - `--friend-id N`: Limit to specific friend/user
 - `--force`: Force re-embedding even if the source hash is unchanged
 - `--release <id>` / `--track <ids>`: Narrow to one release or a comma-separated list of track ids
@@ -445,10 +445,14 @@ it (see above) — without one, queries still work, just without the index.
 
 ## Integration with Existing System
 
-### Differences from Legacy `tracks.embedding`
+### Legacy `tracks.embedding` (removed)
 
-| Feature | Legacy (`tracks.embedding`) | New (`track_embeddings`) |
-|---------|----------------------------|---------------------------|
+The free-text "prompt" embedding on `tracks.embedding`, its per-friend
+`embedding_prompt_settings` template and the `prompt` job kind were removed in
+#393. Its last consumer, ga-service's genetic playlist optimizer, now takes the
+`audio_vibe` vector from `track_embeddings` at the serving model.
+
+---------|----------------------------|---------------------------|
 | Storage | Single column on `tracks` | Separate table |
 | Types | One embedding per track | Multiple types (identity, audio, DJ) |
 | Source tracking | No hash | SHA256 source hash |

@@ -29,13 +29,6 @@ export async function PATCH(req: Request) {
     // in the background instead of silently leaving the track without an
     // embedding, and the PATCH no longer waits on an external call.
     const embeddingJobs: EmbeddingJob[] = [];
-    if (embeddingUpdates.prompt) {
-      embeddingJobs.push({
-        track_id: updated.track_id,
-        friend_id: updated.friend_id,
-        kind: "prompt",
-      });
-    }
     if (embeddingUpdates.identity) {
       embeddingJobs.push({
         track_id: updated.track_id,

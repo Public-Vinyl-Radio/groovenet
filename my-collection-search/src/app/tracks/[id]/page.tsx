@@ -31,7 +31,6 @@ export default function TrackPage() {
     playlistsQuery,
     audioMetadataQuery,
     essentiaQuery,
-    embeddingPreviewQuery,
     identityEmbeddingPreviewQuery,
     audioVibeEmbeddingPreviewQuery,
     extractCoverMutation,
@@ -93,7 +92,6 @@ export default function TrackPage() {
                 onOpenChange={setDebugOpen}
                 audioMetadataQuery={audioMetadataQuery}
                 essentiaQuery={essentiaQuery}
-                embeddingPreviewQuery={embeddingPreviewQuery}
                 identityEmbeddingPreviewQuery={identityEmbeddingPreviewQuery}
                 audioVibeEmbeddingPreviewQuery={audioVibeEmbeddingPreviewQuery}
                 trackAudioCoverUrl={trackQuery.data.audio_file_album_art_url}

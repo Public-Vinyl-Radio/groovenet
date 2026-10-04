@@ -94,10 +94,6 @@ export const playlistGeneticBodySchema = z.object({
           track_id: z.string().min(1),
           friend_id: z.number().int().optional(),
           bpm: z.union([z.number(), z.string()]).nullable().optional(),
-          embedding: z
-            .union([z.string(), z.array(z.number())])
-            .nullable()
-            .optional(),
         })
         .passthrough()
     )

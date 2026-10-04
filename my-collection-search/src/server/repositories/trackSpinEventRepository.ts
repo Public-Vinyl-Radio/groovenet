@@ -186,6 +186,7 @@ export class TrackSpinEventRepository {
           FROM track_embeddings te
           WHERE te.track_id = aggregated.track_id
             AND te.friend_id = aggregated.friend_id
+            AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
         ) AS "hasVectors"
       FROM aggregated

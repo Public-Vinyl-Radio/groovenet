@@ -1,8 +1,4 @@
 import { getDefaultTrackMetadataPrompt } from "@/lib/serverPrompts";
-import {
-  getDefaultTrackEmbeddingTemplate,
-  invalidateTrackEmbeddingTemplateCache,
-} from "@/lib/track-embedding";
 import { friendRepository } from "@/server/repositories/friendRepository";
 import type { GamdlSettings, GamdlSettingsUpdate } from "@/types/gamdl";
 import { settingsRepository } from "@/server/repositories/settingsRepository";
@@ -56,45 +52,6 @@ export class SettingsService {
 
     const savedPrompt = await settingsRepository.upsertAiPrompt(friendId, prompt);
     return { prompt: savedPrompt, isDefault: false };
-  }
-
-  async getEmbeddingTemplate(friendId?: number): Promise<{
-    template: string;
-    defaultTemplate: string;
-    isDefault: boolean;
-  }> {
-    const defaultTemplate = getDefaultTrackEmbeddingTemplate();
-    if (!friendId) {
-      return { template: defaultTemplate, defaultTemplate, isDefault: true };
-    }
-
-    const template = await settingsRepository.findEmbeddingTemplateByFriendId(
-      friendId
-    );
-    if (template) {
-      return { template, defaultTemplate, isDefault: false };
-    }
-
-    return { template: defaultTemplate, defaultTemplate, isDefault: true };
-  }
-
-  async updateEmbeddingTemplate(friendId: number, templateRaw: string): Promise<{
-    template: string;
-    isDefault: boolean;
-  }> {
-    const template = templateRaw.trim();
-    if (!template) {
-      await settingsRepository.deleteEmbeddingTemplate(friendId);
-      invalidateTrackEmbeddingTemplateCache(friendId);
-      return { template: getDefaultTrackEmbeddingTemplate(), isDefault: true };
-    }
-
-    const savedTemplate = await settingsRepository.upsertEmbeddingTemplate(
-      friendId,
-      template
-    );
-    invalidateTrackEmbeddingTemplateCache(friendId);
-    return { template: savedTemplate, isDefault: false };
   }
 
   async getGamdlSettings(friendId: number): Promise<GamdlSettings> {

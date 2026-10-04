@@ -12,12 +12,10 @@ import type {
   AudioVibeEmbeddingPreviewResponse,
   IdentityEmbeddingPreviewResponse,
   TrackAudioMetadataResponse,
-  TrackEmbeddingPreviewResponse,
   TrackEssentiaResponse,
 } from "@/services/internalApi/tracks";
 import AudioMetadataSection from "./AudioMetadataSection";
 import EssentiaSection from "./EssentiaSection";
-import EmbeddingPreviewSection from "./EmbeddingPreviewSection";
 import IdentityEmbeddingSection from "./IdentityEmbeddingSection";
 import AudioVibeEmbeddingSection from "./AudioVibeEmbeddingSection";
 
@@ -26,7 +24,6 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   audioMetadataQuery: UseQueryResult<TrackAudioMetadataResponse, Error>;
   essentiaQuery: UseQueryResult<TrackEssentiaResponse, Error>;
-  embeddingPreviewQuery: UseQueryResult<TrackEmbeddingPreviewResponse, Error>;
   identityEmbeddingPreviewQuery: UseQueryResult<IdentityEmbeddingPreviewResponse, Error>;
   audioVibeEmbeddingPreviewQuery: UseQueryResult<AudioVibeEmbeddingPreviewResponse, Error>;
   trackAudioCoverUrl?: string | null;
@@ -39,7 +36,6 @@ export default function TrackDebugModal({
   onOpenChange,
   audioMetadataQuery,
   essentiaQuery,
-  embeddingPreviewQuery,
   identityEmbeddingPreviewQuery,
   audioVibeEmbeddingPreviewQuery,
   trackAudioCoverUrl,
@@ -68,7 +64,6 @@ export default function TrackDebugModal({
                   onExtractCover={onExtractCover}
                 />
                 <EssentiaSection query={essentiaQuery} />
-                <EmbeddingPreviewSection query={embeddingPreviewQuery} />
                 <IdentityEmbeddingSection query={identityEmbeddingPreviewQuery} />
                 <AudioVibeEmbeddingSection query={audioVibeEmbeddingPreviewQuery} />
               </VStack>

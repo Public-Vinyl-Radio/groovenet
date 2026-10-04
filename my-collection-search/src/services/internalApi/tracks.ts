@@ -15,7 +15,6 @@ import {
   identityEmbeddingDataSchema,
   identityEmbeddingPreviewResponseSchema,
   trackAudioMetadataResponseSchema,
-  trackEmbeddingPreviewResponseSchema,
   trackEssentiaResponseSchema,
   trackExtractEmbeddedCoverResponseSchema,
   trackPlaylistsResponseSchema,
@@ -32,9 +31,6 @@ export type TrackExtractEmbeddedCoverResponse = z.infer<
   typeof trackExtractEmbeddedCoverResponseSchema
 >;
 export type TrackEssentiaResponse = z.infer<typeof trackEssentiaResponseSchema>;
-export type TrackEmbeddingPreviewResponse = z.infer<
-  typeof trackEmbeddingPreviewResponseSchema
->;
 type EmbeddingPreviewResponse = z.infer<typeof embeddingPreviewResponseSchema>;
 
 export type IdentityEmbeddingData = z.infer<typeof identityEmbeddingDataSchema>;
@@ -263,19 +259,6 @@ export async function fetchTrackEssentiaData(
 ): Promise<TrackEssentiaResponse> {
   return await http<TrackEssentiaResponse>(
     `/api/tracks/${encodeURIComponent(trackId)}/essentia?friend_id=${friendId}`,
-    {
-      method: "GET",
-      cache: "no-store",
-    }
-  );
-}
-
-export async function fetchTrackEmbeddingPreview(
-  trackId: string,
-  friendId: number
-): Promise<TrackEmbeddingPreviewResponse> {
-  return await http<TrackEmbeddingPreviewResponse>(
-    `/api/tracks/${encodeURIComponent(trackId)}/embedding-preview?friend_id=${friendId}`,
     {
       method: "GET",
       cache: "no-store",

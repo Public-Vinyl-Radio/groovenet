@@ -4,7 +4,7 @@ import { embeddingsRepository } from "@/server/repositories/embeddingsRepository
 import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 import type { EmbeddingJob, EmbeddingJobKind } from "@/types/embeddingQueue";
 
-const ALL_TYPES: EmbeddingJobKind[] = ["identity", "audio_vibe", "prompt"];
+const ALL_TYPES: EmbeddingJobKind[] = ["identity", "audio_vibe"];
 
 async function resolveCandidates(
   body: ReturnType<typeof embeddingsBackfillBodySchema.parse>
@@ -67,11 +67,10 @@ export async function POST(req: Request) {
       const by_type = {
         identity: candidatesByType.identity?.length ?? 0,
         audio_vibe: candidatesByType.audio_vibe?.length ?? 0,
-        prompt: candidatesByType.prompt?.length ?? 0,
       };
       return NextResponse.json({
         dry_run: true as const,
-        total: by_type.identity + by_type.audio_vibe + by_type.prompt,
+        total: by_type.identity + by_type.audio_vibe,
         by_type,
       });
     }

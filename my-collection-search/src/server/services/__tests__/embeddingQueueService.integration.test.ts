@@ -17,13 +17,6 @@ vi.mock("@/lib/identity-embedding", () => ({
 vi.mock("@/lib/audio-vibe-embedding", () => ({
   generateAndStoreAudioVibeEmbedding: vi.fn(),
 }));
-vi.mock("@/lib/track-embedding", () => ({ getTrackEmbedding: vi.fn() }));
-vi.mock("@/server/repositories/trackRepository", () => ({
-  trackRepository: {
-    findTrackByTrackIdAndFriendIdRaw: vi.fn(),
-    updateTrackEmbedding: vi.fn(),
-  },
-}));
 vi.mock("@/server/services/embeddingHealthService", () => ({
   checkEmbeddingProvider: mockCheckProvider,
 }));
