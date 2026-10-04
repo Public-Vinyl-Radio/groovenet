@@ -38,6 +38,7 @@ export type Track = {
   friend_id: number;
   release_id?: string;
   library_identifier?: string | null;
+  _vectors?: { default?: number[] };
   hasVectors?: boolean;
 };
 

@@ -1,6 +1,13 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
 const mockFindTracks = vi.hoisted(() => vi.fn());
+const mockFindEmbeddings = vi.hoisted(() => vi.fn());
+const mockServingModel = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/embeddings/config", () => ({ getServingModel: mockServingModel }));
+vi.mock("@/server/repositories/embeddingsRepository", () => ({
+  embeddingsRepository: { findEmbeddingsForTracks: mockFindEmbeddings },
+}));
 
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: {
@@ -33,6 +40,10 @@ function baseTrack(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   mockFindTracks.mockReset();
   mockFindTracks.mockResolvedValue([]);
+  mockFindEmbeddings.mockReset();
+  mockFindEmbeddings.mockResolvedValue([]);
+  mockServingModel.mockReset();
+  mockServingModel.mockResolvedValue({ model: "vibe-model", dims: 3 });
 });
 
 // ─── Request parsing ──────────────────────────────────────────────────────────
@@ -66,14 +77,49 @@ describe("POST /api/tracks/batch — request handling", () => {
 
 // ─── Embedding normalization ──────────────────────────────────────────────────
 
-describe("POST /api/tracks/batch — vector flag", () => {
-  it("passes hasVectors through and never returns raw vectors", async () => {
+describe("POST /api/tracks/batch — vectors", () => {
+  const refs = [{ track_id: "t1", friend_id: 1 }];
+
+  it("omits _vectors and skips the lookup by default", async () => {
     mockFindTracks.mockResolvedValueOnce([baseTrack({ hasVectors: true })]);
-    const res = await POST(makeReq({ tracks: [{ track_id: "t1", friend_id: 1 }] }));
+    const res = await POST(makeReq({ tracks: refs }));
     const [track] = await res.json();
     expect(track.hasVectors).toBe(true);
     expect(track._vectors).toBeUndefined();
-    expect(track.embedding).toBeUndefined();
+    expect(mockFindEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("attaches the serving-model audio_vibe vector when include_vectors is true", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack({ hasVectors: true })]);
+    mockFindEmbeddings.mockResolvedValueOnce([
+      { track_id: "t1", friend_id: 1, embedding: "[0.1,0.2,0.3]" },
+    ]);
+    const res = await POST(makeReq({ tracks: refs, include_vectors: true }));
+    const [track] = await res.json();
+    expect(track._vectors).toEqual({ default: [0.1, 0.2, 0.3] });
+    expect(mockFindEmbeddings).toHaveBeenCalledWith(
+      [{ trackId: "t1", friendId: 1 }],
+      "audio_vibe",
+      "vibe-model"
+    );
+  });
+
+  it("leaves _vectors off tracks with no stored vector", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack({ hasVectors: false })]);
+    const res = await POST(makeReq({ tracks: refs, include_vectors: true }));
+    const [track] = await res.json();
+    expect(track._vectors).toBeUndefined();
+  });
+
+  it("treats an unparseable vector as absent", async () => {
+    mockFindTracks.mockResolvedValueOnce([baseTrack()]);
+    mockFindEmbeddings.mockResolvedValueOnce([
+      { track_id: "t1", friend_id: 1, embedding: "not-json" },
+    ]);
+    const res = await POST(makeReq({ tracks: refs, include_vectors: true }));
+    expect(res.status).toBe(200);
+    const [track] = await res.json();
+    expect(track._vectors).toBeUndefined();
   });
 });
 

@@ -249,7 +249,7 @@ describe("GroovenetClient track endpoints", () => {
     );
   });
 
-  it("batchGetTracks posts the refs", async () => {
+  it("batchGetTracks omits include_vectors by default", async () => {
     const client = clientReturning([]);
     const refs = [{ track_id: "t1", friend_id: 1 }];
 
@@ -261,6 +261,28 @@ describe("GroovenetClient track endpoints", () => {
       data: { tracks: refs },
       params: undefined,
     });
+  });
+
+  it("batchGetTracks includes include_vectors when requested", async () => {
+    const client = clientReturning([]);
+    const refs = [{ track_id: "t1", friend_id: 1 }];
+
+    await client.batchGetTracks(refs, { include_vectors: true });
+
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/tracks/batch",
+      data: { tracks: refs, include_vectors: true },
+      params: undefined,
+    });
+  });
+
+  it("batchGetTracks omits include_vectors when explicitly false", async () => {
+    const client = clientReturning([]);
+
+    await client.batchGetTracks([], { include_vectors: false });
+
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ data: { tracks: [] } }));
   });
 
   it("listDeletedTracks passes friend and paging params through", async () => {
