@@ -40,10 +40,10 @@
   "bugs": "https://github.com/Public-Vinyl-Radio/groovenet/issues",
   "dependencies": {
     "axios": "^1.20.0",
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.0",
     "typescript": "^7.0",
     "vitest": "^5.0.0"
