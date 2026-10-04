@@ -19,14 +19,15 @@ export function uniqueInputs(rows) {
   return texts;
 }
 
-export async function requestEmbeddings(texts, model, apiKey, fetchFn = fetch) {
+/** `dimensions` (optional) asks a text-embedding-3 model for a truncated vector (#382). */
+export async function requestEmbeddings(texts, model, apiKey, fetchFn = fetch, dimensions) {
   for (let attempt = 0; attempt < 6; attempt++) {
     let res;
     try {
       res = await fetchFn('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, input: texts }),
+        body: JSON.stringify(dimensions ? { model, input: texts, dimensions } : { model, input: texts }),
         signal: AbortSignal.timeout(120000),
       });
     } catch (err) {

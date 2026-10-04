@@ -124,23 +124,84 @@ Notes are out: #379 found raw (B) and cleaned (C) notes both lose to A overall.
 Scene queries were the only group where B/C (0.767) edged A, which is the gap a
 structured scene/region field from #380 would target.
 
-## Phase 1 candidates (next)
+## Phase 1: offline candidates
 
-All are built from fields the snapshot already has; #371 descriptors and #380
-structured research don't exist yet.
+Builders are in `variants.mjs` and are tested in `variants.test.mjs`. A reuses
+#379's builder, so it stays identical to the app's current text.
 
-- **A**: baseline, reusing the #379 vectors.
-- **A′**: A with Unicode-aware normalization (fold accents, keep `&` as `and`).
-  This isolates the bug fix.
-- **D**: descriptive text only. Drop title, album and label; keep genres,
-  styles, tags, era and country.
-- **E**: D plus tested mappings: country code → country and region words, era →
-  decade words, tag synonym merging.
-- **F**: E plus the identifier lines, to check whether similar-tracks quality
-  needs them.
-- **Model**: the best text on `text-embedding-3-large`, truncated to 1536 dims
-  and at its native 3072. Native 3072 is over pgvector's 2,000-dim index limit
-  for `vector`, so serving it would need `halfvec`.
+| Variant | Text |
+| --- | --- |
+| **A** | Current identity text, including the accent bug |
+| **A2** | A with `foldToken`: accents folded rather than deleted, `&` → `and`, every dash or hyphen → space, tags split on `, / ; \|` |
+| **D** | A2 without the title, artist, album and label lines: era, release country, genres, styles, tags |
+| **E** | D as one sentence (`descriptors. genres music from the 1970s.`), with no release country, because 229 of 409 albums are `US` pressings of non-US music |
+| **F** | E plus the title/artist, album and label lines |
 
-New top-10 hits outside the #379 pool get a fresh blinded review before their
-precision@10 is reported. Unjudged hits are never counted as irrelevant.
+Folding cuts distinct local tags from 2,186 to 1,683. D and E have only
+2,722 and 2,613 distinct texts for 4,000 tracks, because tracks on one album
+share every descriptive field. Their vectors tie, and ties rank by snapshot
+order, so the same-release-excluded playlist slice matters for them.
+
+### Reproduce
+
+All outputs are private, git-ignored and refuse to overwrite. `S` is the #379
+data directory.
+
+```bash
+node --test evaluations/382/*.test.mjs
+node evaluations/382/prepare.mjs --snapshot $S/379-friend-6.json --output eval-data/382-texts.json
+# Dry run first (prints the estimate), then add --execute
+op run --env-file=.env.tpl -- node evaluations/382/embed.mjs --texts eval-data/382-texts.json \
+  --output-dir eval-data/382-small --variants A,A2,D,E,F --reuse-dir $S/379-vectors --execute
+node evaluations/382/score.mjs --snapshot $S/379-friend-6.json --texts eval-data/382-texts.json \
+  --output eval-data/382-scores-small.json \
+  --run A:A:eval-data/382-small:$S/379-query-vectors.json   # …one --run per variant
+node evaluations/382/make-review.mjs --snapshot $S/379-friend-6.json --scores eval-data/382-scores-small.json \
+  --prior $S/379-review.json --output eval-data/382-review.json
+node evaluations/379/review.mjs --file eval-data/382-review.json      # blind human review
+node evaluations/382/score-judgments.mjs --review $S/379-review.json --review eval-data/382-review.json \
+  --scores eval-data/382-scores-small.json --output eval-data/382-precision.json
+```
+
+For another model, embed the queries with `embed.mjs --queries
+evaluations/379/queries.json --output FILE --model text-embedding-3-large
+--dims 1536`, and pass that file in the run's fourth field.
+
+### Cost
+
+`text-embedding-3-small`: 12,222 new texts and 3,997 reused from #379's A
+cache, **524,542 billed tokens (≈ $0.0105** at $0.02/M).
+
+### Results so far (`text-embedding-3-small`)
+
+A reproduces #379 exactly, both on the playlist proxy and on precision.
+
+Playlist proxy, using #379's 103 seeds:
+
+| Run | recall@10 | MRR | recall@10, other releases | MRR, other releases |
+| --- | --- | --- | --- | --- |
+| A | 0.00942 | 0.0881 | 0.01012 | 0.0959 |
+| A2 | 0.00918 | 0.0888 | 0.01012 | 0.0945 |
+| D | **0.01035** | 0.1012 | **0.01446** | **0.1249** |
+| E | 0.00935 | **0.1021** | 0.01375 | 0.1221 |
+| F | 0.00878 | 0.0826 | 0.01154 | 0.0923 |
+
+Without identifiers (D, E), MRR rises about 15% overall and about 30% once
+same-release matches are excluded, so album leakage doesn't explain the gain.
+Adding identifiers back (F) makes it the worst run. The proxy is noisy, so this
+points a direction rather than deciding it.
+
+Judged precision@10 with #379's 366 judgments only (before the new review):
+
+| Run | Relevant | Not relevant | Uncertain | Unjudged | Bounds |
+| --- | --- | --- | --- | --- | --- |
+| A | 184 | 55 | 1 | 0 | 0.7667–0.7708 |
+| A2 | 181 | 49 | 0 | 10 | 0.7542–0.7958 |
+| D | 64 | 6 | 0 | 170 | 0.2667–0.9750 |
+| E | 59 | 4 | 0 | 177 | 0.2458–0.9833 |
+| F | 92 | 11 | 0 | 137 | 0.3833–0.9542 |
+
+D, E and F mostly retrieve tracks that A/B/C never ranked. Their precision is
+undetermined until `eval-data/382-review.json` (347 new pooled pairs, blinded)
+is judged. A `text-embedding-3-large` comparison follows on the best text,
+once those judgments are in.
