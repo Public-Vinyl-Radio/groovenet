@@ -78,7 +78,7 @@ export class EmbeddingsService {
     count: number;
     tracks: SimilarIdentityTrack[];
   }> {
-    const { model, dims } = await getServingModel("identity");
+    const { model, dims, templateVersion } = await getServingModel("identity");
     return withDbClient(async (client) => {
       await embeddingsRepository.setIvfflatProbes(client, params.ivfflatProbes);
       const sourceEmbedding = await embeddingsRepository.findSourceEmbedding(
@@ -86,7 +86,8 @@ export class EmbeddingsService {
         params.trackId,
         params.friendId,
         "identity",
-        model
+        model,
+        templateVersion
       );
       if (!sourceEmbedding) {
         throw new Error("missing_identity_embedding");
@@ -97,6 +98,7 @@ export class EmbeddingsService {
         sourceTrackId: params.trackId,
         sourceFriendId: params.friendId,
         model,
+        templateVersion,
         dims,
         limit: params.limit * 2,
         filters: params.filters,
@@ -127,7 +129,7 @@ export class EmbeddingsService {
     count: number;
     tracks: SimilarVibeTrack[];
   }> {
-    const { model, dims } = await getServingModel("audio_vibe");
+    const { model, dims, templateVersion } = await getServingModel("audio_vibe");
     return withDbClient(async (client) => {
       await embeddingsRepository.setIvfflatProbes(client, params.ivfflatProbes);
       const sourceEmbedding = await embeddingsRepository.findSourceEmbedding(
@@ -135,7 +137,8 @@ export class EmbeddingsService {
         params.trackId,
         params.friendId,
         "audio_vibe",
-        model
+        model,
+        templateVersion
       );
       if (!sourceEmbedding) {
         throw new Error("missing_audio_vibe_embedding");
@@ -146,6 +149,7 @@ export class EmbeddingsService {
         sourceTrackId: params.trackId,
         sourceFriendId: params.friendId,
         model,
+        templateVersion,
         dims,
         limit: params.limit,
       });

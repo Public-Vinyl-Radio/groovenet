@@ -19,6 +19,7 @@ const ROW = {
   target_dims: 1536,
   serving_model: "text-embedding-3-small",
   serving_dims: 1536,
+  serving_template_version: 1,
 };
 
 describe("findEmbeddingModelSettings()", () => {
@@ -91,8 +92,20 @@ describe("updateServingModel()", () => {
 
     expect(result).toEqual(updated);
     const [sql, params] = dbQuery.mock.calls[0];
-    expect(sql).toContain("SET serving_model = $2, serving_dims = $3");
-    expect(params).toEqual(["identity", "text-embedding-3-small", 768]);
+    expect(sql).toContain("serving_model = $2");
+    expect(sql).toContain("serving_dims = $3");
+    // No version given: COALESCE keeps the one already served.
+    expect(sql).toContain("serving_template_version = COALESCE($4, serving_template_version)");
+    expect(params).toEqual(["identity", "text-embedding-3-small", 768, null]);
+  });
+
+  it("moves serving to a new template version when one is given (#407)", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ ...ROW, serving_template_version: 2 }] });
+
+    const result = await makeRepo().updateServingModel("identity", "text-embedding-3-small", 1536, 2);
+
+    expect(result?.serving_template_version).toBe(2);
+    expect(dbQuery.mock.calls[0][1]).toEqual(["identity", "text-embedding-3-small", 1536, 2]);
   });
 
   it("returns null when the kind has no row", async () => {

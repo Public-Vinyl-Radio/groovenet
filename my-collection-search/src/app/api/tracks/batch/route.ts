@@ -11,11 +11,12 @@ import { trackRepository } from "@/server/repositories/trackRepository";
 async function loadVectors(
   tracks: Array<{ track_id: string; friend_id: number }>
 ): Promise<Map<string, number[]>> {
-  const { model } = await getServingModel("audio_vibe");
+  const { model, templateVersion } = await getServingModel("audio_vibe");
   const rows = await embeddingsRepository.findEmbeddingsForTracks(
     tracks.map((t) => ({ trackId: t.track_id, friendId: t.friend_id })),
     "audio_vibe",
-    model
+    model,
+    templateVersion
   );
   const vectors = new Map<string, number[]>();
   for (const row of rows) {

@@ -27,6 +27,7 @@ vi.mock("../openaiProvider", () => ({ createOpenAiEmbeddingProvider }));
 
 import {
   getServingModel,
+  getTargetModel,
   getTargetProvider,
   invalidateEmbeddingModelCache,
   listEmbeddingModelSettings,
@@ -40,6 +41,7 @@ const IDENTITY_ROW = {
   target_dims: 1536,
   serving_model: "text-embedding-3-small",
   serving_dims: 1536,
+  serving_template_version: 2,
 };
 
 beforeEach(() => {
@@ -104,10 +106,11 @@ describe("getTargetProvider", () => {
 });
 
 describe("getServingModel", () => {
-  it("returns the kind's serving model and dims", async () => {
-    await expect(getServingModel("identity")).resolves.toEqual({
+  it("returns the kind's serving model, dims and template version", async () => {
+    await expect(getServingModel("identity")).resolves.toStrictEqual({
       model: "text-embedding-3-small",
       dims: 1536,
+      templateVersion: 2,
     });
   });
 });
@@ -138,6 +141,22 @@ describe("setTargetModel", () => {
   });
 });
 
+describe("getTargetModel", () => {
+  it("returns the kind's target model and dims without building a provider", async () => {
+    findEmbeddingModelSettings.mockResolvedValue({
+      ...IDENTITY_ROW,
+      target_model: "text-embedding-3-large",
+      target_dims: 1536,
+    });
+
+    await expect(getTargetModel("identity")).resolves.toStrictEqual({
+      model: "text-embedding-3-large",
+      dims: 1536,
+    });
+    expect(createOpenAiEmbeddingProvider).not.toHaveBeenCalled();
+  });
+});
+
 describe("setServingModel", () => {
   it("updates the serving model and invalidates the cache", async () => {
     const updated = { ...IDENTITY_ROW, serving_model: "text-embedding-3-small", serving_dims: 768 };
@@ -146,7 +165,20 @@ describe("setServingModel", () => {
     await expect(setServingModel("identity", "text-embedding-3-small", 768)).resolves.toEqual(
       updated
     );
-    expect(updateServingModel).toHaveBeenCalledWith("identity", "text-embedding-3-small", 768);
+    expect(updateServingModel).toHaveBeenCalledWith(
+      "identity",
+      "text-embedding-3-small",
+      768,
+      undefined
+    );
+  });
+
+  it("passes a template version through for a template cutover (#407)", async () => {
+    updateServingModel.mockResolvedValue({ ...IDENTITY_ROW, serving_template_version: 3 });
+
+    await setServingModel("identity", "text-embedding-3-small", 1536, 3);
+
+    expect(updateServingModel).toHaveBeenCalledWith("identity", "text-embedding-3-small", 1536, 3);
   });
 
   it("throws when the kind has no settings row", async () => {

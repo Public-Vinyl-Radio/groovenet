@@ -37,7 +37,8 @@ test('folded fields keep Discogs genres whole, drop DJ-function tags and sort', 
 test('each variant has its documented shape', () => {
   const v = variants(track, album);
   assert.match(v.A, /^Track: Song — Artist\nRelease: Album \(1970s\)/);
-  assert.match(v.A, /Tags: .*cumbia amaznica/, 'A reproduces the app bug');
+  // A follows the app's builder; since #407 the app folds accents too.
+  assert.match(v.A, /Tags: .*cumbia amazonica/, 'A tracks the app normalization');
   assert.match(v.A2, /Tags: cumbia amazonica, rock and roll, soul, trip hop$/);
   assert.doesNotMatch(v.D, /Song|Artist|Album|infopesa/);
   assert.match(v.D, /^Era: 1970s\nCountry: peru\n/);

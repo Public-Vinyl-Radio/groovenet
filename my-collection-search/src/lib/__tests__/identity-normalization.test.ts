@@ -17,8 +17,51 @@ describe("normalizeList", () => {
     expect(normalizeList(["House", "Techno", "house"])).toEqual(["house", "techno"]);
   });
 
-  it("handles string input and removes punctuation", () => {
-    expect(normalizeList("Drum & Bass")).toEqual(["drum bass"]);
+  it("handles string input, spelling & as and", () => {
+    expect(normalizeList("Drum & Bass")).toEqual(["drum and bass"]);
+  });
+
+  it("folds accents instead of deleting the letters (#407)", () => {
+    expect(normalizeList(["Cumbia Amazónica", "Salsa Romántica"])).toEqual([
+      "cumbia amazonica",
+      "salsa romantica",
+    ]);
+  });
+
+  it("treats every hyphen and dash as a space, so spellings merge", () => {
+    expect(normalizeList(["Trip-Hop", "trip hop", "Trip‑hop", "Trip—Hop"])).toEqual([
+      "trip hop",
+    ]);
+  });
+
+  it("splits free text on , / ; and |", () => {
+    expect(normalizeList("Soul / funk; Jazz|soul, Latin")).toEqual([
+      "soul",
+      "funk",
+      "jazz",
+      "latin",
+    ]);
+  });
+
+  it("unwraps a Postgres array literal", () => {
+    expect(normalizeList("{}")).toEqual([]);
+    expect(normalizeList('{"Trip hop",Dub}')).toEqual(["trip hop", "dub"]);
+  });
+
+  it("joins initials and contractions instead of splitting them", () => {
+    expect(normalizeList(["J.S. Bach", "Rock 'n' Roll", "Rock’n’Roll"])).toEqual([
+      "js bach",
+      "rock n roll",
+      "rocknroll",
+    ]);
+  });
+
+  it("keeps array items whole, so Discogs genres are not split", () => {
+    expect(normalizeList(["Folk, World, & Country"])).toEqual(["folk world and country"]);
+  });
+
+  it("drops non-string items and tokens that are only punctuation", () => {
+    expect(normalizeList(["--", "Dub", 3 as never])).toEqual(["dub"]);
   });
 
   it("handles null", () => {

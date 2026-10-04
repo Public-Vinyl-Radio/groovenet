@@ -57,15 +57,19 @@ src/
 ├── lib/
 │   ├── identity-normalization.ts   # Normalization utilities
 │   ├── identity-embedding.ts       # Identity embedding service
+│   ├── embeddings/
+│   │   ├── config.ts                # Target/serving model + template version
+│   │   └── templateVersions.ts      # Current template version per kind (#407)
 │   └── __tests__/
 │       ├── identity-normalization.test.ts
 │       └── identity-embedding.test.ts
-└── app/api/embeddings/
-    ├── backfill/route.ts            # Backfill endpoint (#388)
-    ├── backfill/[runId]/route.ts    # Backfill run progress
-    ├── status/route.ts              # Missing-embedding counts
-    ├── identity-preview/route.ts   # Preview endpoint (debugging)
-    └── similar/route.ts             # Similarity query endpoint
+└── app/api/
+    ├── embeddings/backfill/route.ts             # Backfill endpoint (#388)
+    ├── embeddings/backfill/[runId]/route.ts     # Backfill run progress
+    ├── embeddings/status/route.ts               # Missing counts, coverage per model/version
+    ├── settings/embedding-model/route.ts        # Target/serving switch
+    ├── tracks/[id]/embedding-preview/route.ts   # Preview endpoint (debugging)
+    └── recommendations/candidates/route.ts      # Similarity queries
 ```
 
 ---
@@ -105,7 +109,12 @@ Tags: melodic, atmospheric
 3. **Labels**: Max 3 labels (from album metadata)
 4. **Country**: From album metadata; fallback to `unknown-country`
 5. **Local Tags**: **Filter out DJ-function tags** (see below)
-6. **All text**: Lowercase, trimmed, deduplicated, punctuation-normalized
+6. **All text**: Accents folded (`amazónica` → `amazonica`), lowercased, `&` → `and`,
+   periods and apostrophes dropped (`J.S.` → `js`), every other run of
+   punctuation — hyphens and non-ASCII dashes included — collapsed to one space
+   (`Trip-Hop`, `trip hop` and `Trip‑hop` are one tag), then deduplicated.
+   Free-text tags split on `,` `/` `;` and `|`. Before template version 2
+   (#407) accented letters were deleted rather than folded.
 
 ### DJ-Function Tag Filter
 
@@ -118,12 +127,21 @@ These tags are **excluded** from identity embeddings (reserved for future DJ fun
 
 Only genre/style/scene descriptor tags are included in identity embeddings.
 
-### Source Hash
+### Source Hash and Template Version
 
-A **SHA256 hash** of normalized identity data is computed to detect changes. Tracks are re-embedded only if:
-- No embedding exists
-- Source hash has changed
-- Force update flag is set
+A **SHA256 hash** of normalized identity data detects a change in the track's
+*data*. A change to the *template* — the text built from that data, or how its
+inputs are normalized — is tracked separately by a template version per kind,
+in `src/lib/embeddings/templateVersions.ts`, stored on every row (#407).
+
+A track is (re-)embedded when:
+- it has no row at the kind's **target model** and the **current template version**;
+- its source hash differs from that row's; or
+- the force flag is set.
+
+A row under another model or an older template never counts, so the periodic
+sweep and a default backfill pick up a model switch or a template bump on
+their own.
 
 ---
 
@@ -193,87 +211,42 @@ Options: { batch_size: 5, friend_id: 1 }
 
 ## API Endpoints
 
-### 1. Identity Preview (Debugging)
+### 1. Embedding Preview (Debugging)
 
-**Endpoint**: `GET /api/embeddings/identity-preview`
+**Endpoint**: `GET /api/tracks/{track_id}/embedding-preview`
 
 **Query Params**:
-- `track_id` (required)
 - `friend_id` (required)
+- `type` (optional): `identity` (default) or `audio_vibe`
 
-**Example**:
+Returns the exact text the pipeline embeds for that track, and the normalized
+data it was built from. The text is never logged during generation.
+
 ```bash
-curl "http://localhost:3000/api/embeddings/identity-preview?track_id=12345&friend_id=1"
-```
-
-**Response**:
-```json
-{
-  "identityText": "Track: Windowlicker — Aphex Twin\nRelease: Windowlicker (1990s)\n...",
-  "identityData": {
-    "title": "Windowlicker",
-    "artist": "Aphex Twin",
-    "album": "Windowlicker",
-    "era": "1990s",
-    "country": "uk",
-    "labels": ["warp records"],
-    "genres": ["electronic"],
-    "styles": ["idm", "experimental"],
-    "tags": ["melodic", "atmospheric"]
-  }
-}
+curl "http://localhost:3000/api/tracks/12345/embedding-preview?friend_id=1&type=identity"
 ```
 
 ---
 
 ### 2. Find Similar Tracks
 
-**Endpoint**: `GET /api/embeddings/similar`
+**Endpoint**: `GET /api/recommendations/candidates` (or `POST` with several seed tracks)
 
 **Query Params**:
-- `track_id` (required): Source track
-- `friend_id` (required): Source track's friend_id
-- `limit` (optional, default 50): Max results
-- `era` (optional): Filter by era bucket (e.g., `1990s`)
-- `country` (optional): Filter by country (e.g., `uk`)
-- `tags` (optional): Comma-separated tags (match any)
-- `ivfflat_probes` (optional, default 10): Accuracy/speed tradeoff (higher = more accurate)
+- `track_id` (required): Seed track
+- `friend_id` (required): Seed track's friend_id
+- `mode` (optional, default `combined`): `combined`, `identity` or `audio`
+- `limit_identity` / `limit_audio` (optional, default 200)
+- `ivfflat_probes` (optional, default 10): Accuracy/speed tradeoff
 
-**Example**:
 ```bash
-# Find 20 similar tracks from the 1990s
-curl "http://localhost:3000/api/embeddings/similar?track_id=12345&friend_id=1&limit=20&era=1990s"
-
-# Find similar UK releases with specific tags
-curl "http://localhost:3000/api/embeddings/similar?track_id=12345&friend_id=1&country=uk&tags=melodic,atmospheric"
+curl "http://localhost:3000/api/recommendations/candidates?track_id=12345&friend_id=1&mode=identity&limit_identity=20"
 ```
 
-**Response**:
-```json
-{
-  "source_track_id": "12345",
-  "source_friend_id": 1,
-  "filters": {
-    "era": "1990s"
-  },
-  "count": 20,
-  "tracks": [
-    {
-      "track_id": "67890",
-      "friend_id": 1,
-      "title": "Similar Track",
-      "artist": "Another Artist",
-      "album": "Another Album",
-      "year": 1998,
-      "genres": ["electronic"],
-      "styles": ["idm"],
-      "local_tags": "melodic",
-      "distance": 0.15,
-      "identity_text": "Track: Similar Track — Another Artist\n..."
-    }
-  ]
-}
-```
+The typed client's `findSimilarIdentity` / `findSimilarVibe`, the CLI and the
+MCP `find_similar_identity` / `find_similar_vibe` tools all call this route.
+Every read is pinned to the kind's serving model *and* serving template
+version.
 
 **Distance Interpretation**:
 - **0.0 - 0.2**: Very similar (near-duplicates, remixes, same artist/style)
@@ -335,7 +308,7 @@ groovenet embeddings backfill --type identity --friend-id 1
 ### 3. Query Similar Tracks
 ```bash
 # Find similar tracks
-curl "http://localhost:3000/api/embeddings/similar?track_id=YOUR_TRACK_ID&friend_id=1&limit=20"
+curl "http://localhost:3000/api/recommendations/candidates?track_id=YOUR_TRACK_ID&friend_id=1&mode=identity&limit_identity=20"
 ```
 
 ---
@@ -425,11 +398,12 @@ To switch:
    `{ "embedding_type": "identity", "field": "target", "model": "...", "dims": N }`.
    New and re-embedded tracks now get rows under the new model; reads are
    untouched because `serving_model` hasn't moved.
-2. Run a backfill for that kind with `force: true`
-   (`groovenet embeddings backfill --type identity --force`, or
-   `POST /api/embeddings/backfill`) to build the new model's full set.
-   `GET /api/embeddings/status` reports `by_model` — per-model row counts —
-   so you can watch coverage without guessing.
+2. Run a backfill for that kind (`groovenet embeddings backfill --type identity`,
+   or `POST /api/embeddings/backfill`) to build the new model's full set. No
+   `force` needed: tracks without a row at the target model count as missing,
+   and the periodic sweep picks them up anyway (#407).
+   `GET /api/embeddings/status` reports `by_model` — row counts per model and
+   template version — so you can watch coverage without guessing.
 3. Once coverage looks right, `PATCH .../embedding-model` again with
    `field: "serving"` and the new model/dims. Reads switch over immediately;
    nothing to migrate, since serving is just a filter value.
@@ -440,6 +414,34 @@ To switch:
 If the new `(embedding_type, model)` pair will be queried by ANN search at
 any real scale, add its partial index in the same migration that introduces
 it (see above) — without one, queries still work, just without the index.
+
+### Changing the embedding text (template versions, #407)
+
+A template change is the same cutover with the target half done by deploying
+code. `track_embeddings`' unique key includes `template_version`, so rows from
+the old and new templates coexist and the served set is never overwritten
+mid-backfill; reads filter to `serving_template_version` in
+`embedding_model_settings`.
+
+1. Change the builder (or its normalization) and bump that kind's entry in
+   `src/lib/embeddings/templateVersions.ts`. Deploy.
+2. Every track now lacks a row at the new version, so the periodic sweep (or
+   a default backfill) re-embeds the whole kind with the new text. Watch
+   `GET /api/embeddings/status` until `by_model` shows the new
+   `template_version` covering the collection and `missing` reaches zero.
+   Until the cutover, reads keep using the old version; a track edited
+   meanwhile only gets a new-version row, so its served vector stays at the
+   old text until step 3.
+3. `PATCH /api/settings/embedding-model` with
+   `{ "embedding_type": "identity", "field": "serving", "model": "<serving model>", "dims": N, "template_version": 2 }`.
+   Omitting `template_version` on a serving PATCH keeps the current one.
+4. Once you won't roll back, delete the old version's rows:
+   `DELETE FROM track_embeddings WHERE embedding_type = $1 AND template_version < $2`.
+
+With both versions in the same partial ivfflat index, a query's candidates
+are filtered to one version after the index scan. At this collection's size
+the default 10 probes still return far more than any `limit`; if results ever
+come back short mid-transition, raise `ivfflat_probes` or finish the cutover.
 
 ---
 
@@ -510,7 +512,9 @@ optimizer, tracked in #393.
 **Solution**: Increase `ivfflat.probes` or rebuild index with higher `lists` value.
 
 ### Source Hash Not Updating
-**Solution**: Use `force=true` to bypass hash check.
+If the builder's text changed but the track data didn't, the hash can't see
+it: bump the kind's template version (see "Changing the embedding text").
+To re-embed one track regardless, use `force=true`.
 
 ---
 

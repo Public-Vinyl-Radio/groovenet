@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { dbQuery } from "@/lib/serverDb";
+import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 import type { BackfillOptions, EmbeddingBackfillOptions } from "@/types/backfill";
 import type {
   EmbeddingTrackRef,
@@ -36,8 +37,11 @@ function castVector(column: string, dims: number): string {
 
 export class EmbeddingsRepository {
   /**
-   * Candidate tracks for one embedding type (#388); joins `track_embeddings`
-   * to find tracks with no row yet.
+   * Candidate tracks for one embedding type (#388): tracks with no row at the
+   * kind's *target* model and the code's *current* template version (#407).
+   * A row from another model or an older template doesn't count, so a model
+   * switch or a template bump is picked up by the periodic sweep and a
+   * default backfill without forcing a re-embed of everything.
    * `force` drops the "missing" check (and the join, since nothing needs it)
    * but keeps the audio-vibe "has audio data" gate: forcing a re-embed of a
    * track with no BPM/key/mood would just embed emptiness.
@@ -51,12 +55,18 @@ export class EmbeddingsRepository {
     let from = "FROM tracks t";
 
     if (!force) {
-      params.push(type);
+      params.push(type, CURRENT_TEMPLATE_VERSIONS[type]);
+      const typeParam = `$${params.length - 1}`;
+      const versionParam = `$${params.length}`;
       from += `
+        LEFT JOIN embedding_model_settings ems
+          ON ems.embedding_type = ${typeParam}
         LEFT JOIN track_embeddings te
           ON t.track_id = te.track_id
          AND t.friend_id = te.friend_id
-         AND te.embedding_type = $${params.length}`;
+         AND te.embedding_type = ${typeParam}
+         AND te.model = ems.target_model
+         AND te.template_version = ${versionParam}`;
       clauses.push("te.id IS NULL");
     }
 
@@ -109,27 +119,32 @@ export class EmbeddingsRepository {
   }
 
   /**
-   * Per-model row counts for one kind (#386) — the coverage readout an
-   * operator watches mid-switch to decide when the new model's set is
-   * complete enough to flip `serving_model` to it.
+   * Row counts per model and template version for one kind (#386, #407) —
+   * the coverage readout an operator watches mid-switch to decide when the
+   * new set is complete enough to flip serving to it.
    */
   async countEmbeddingsByModel(
     embeddingType: "identity" | "audio_vibe",
     friendId?: number
-  ): Promise<Array<{ model: string; dims: number; count: number }>> {
+  ): Promise<Array<{ model: string; dims: number; template_version: number; count: number }>> {
     const params: unknown[] = [embeddingType];
     let where = "WHERE embedding_type = $1";
     if (friendId !== undefined) {
       params.push(friendId);
       where += ` AND friend_id = $${params.length}`;
     }
-    const result = await dbQuery<{ model: string; dims: number; count: string }>(
+    const result = await dbQuery<{
+      model: string;
+      dims: number;
+      template_version: number;
+      count: string;
+    }>(
       `
-      SELECT model, dims, COUNT(*)::int AS count
+      SELECT model, dims, template_version, COUNT(*)::int AS count
       FROM track_embeddings
       ${where}
-      GROUP BY model, dims
-      ORDER BY count DESC
+      GROUP BY model, dims, template_version
+      ORDER BY count DESC, template_version DESC
       `,
       params
     );
@@ -167,16 +182,18 @@ export class EmbeddingsRepository {
     trackId: string,
     friendId: number,
     embeddingType: "identity" | "audio_vibe",
-    model: string
+    model: string,
+    templateVersion: number
   ): Promise<unknown | null> {
     const result = await client.query<{ embedding: unknown }>(
       `
       SELECT embedding
       FROM track_embeddings
-      WHERE track_id = $1 AND friend_id = $2 AND embedding_type = $3 AND model = $4
+      WHERE track_id = $1 AND friend_id = $2 AND embedding_type = $3
+        AND model = $4 AND template_version = $5
       LIMIT 1
       `,
-      [trackId, friendId, embeddingType, model]
+      [trackId, friendId, embeddingType, model, templateVersion]
     );
     return result.rows[0]?.embedding ?? null;
   }
@@ -191,7 +208,8 @@ export class EmbeddingsRepository {
   async findEmbeddingsForTracks(
     tracks: Array<{ trackId: string; friendId: number }>,
     embeddingType: "identity" | "audio_vibe",
-    model: string
+    model: string,
+    templateVersion: number
   ): Promise<Array<{ track_id: string; friend_id: number; embedding: string }>> {
     if (tracks.length === 0) return [];
     const result = await dbQuery<{
@@ -204,13 +222,14 @@ export class EmbeddingsRepository {
       FROM track_embeddings te
       JOIN UNNEST($1::text[], $2::int[]) AS q(track_id, friend_id)
         ON te.track_id = q.track_id AND te.friend_id = q.friend_id
-      WHERE te.embedding_type = $3 AND te.model = $4
+      WHERE te.embedding_type = $3 AND te.model = $4 AND te.template_version = $5
       `,
       [
         tracks.map((t) => t.trackId),
         tracks.map((t) => t.friendId),
         embeddingType,
         model,
+        templateVersion,
       ]
     );
     return result.rows;
@@ -223,17 +242,24 @@ export class EmbeddingsRepository {
       sourceTrackId: string;
       sourceFriendId: number;
       model: string;
+      templateVersion: number;
       dims: number;
       limit: number;
       filters: SimilarityFilters;
     }
   ): Promise<SimilarIdentityTrack[]> {
-    const { sourceEmbedding, sourceTrackId, sourceFriendId, model, dims, limit, filters } =
+    const { sourceEmbedding, sourceTrackId, sourceFriendId, model, templateVersion, dims, limit, filters } =
       params;
     const vector = castVector("te.embedding", dims);
-    const queryParams: unknown[] = [sourceEmbedding, sourceTrackId, sourceFriendId, model];
+    const queryParams: unknown[] = [
+      sourceEmbedding,
+      sourceTrackId,
+      sourceFriendId,
+      model,
+      templateVersion,
+    ];
     const filterClauses: string[] = [];
-    let idx = 5;
+    let idx = 6;
 
     if (filters.country) {
       filterClauses.push(`a.country = $${idx++}`);
@@ -278,6 +304,7 @@ export class EmbeddingsRepository {
       LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       WHERE te.embedding_type = 'identity'
         AND te.model = $4
+        AND te.template_version = $5
         AND NOT (te.track_id = $2 AND te.friend_id = $3)
         ${filterClauses.length > 0 ? `AND ${filterClauses.join(" AND ")}` : ""}
       ORDER BY ${vector} <=> $1::vector(${dims})
@@ -299,6 +326,7 @@ export class EmbeddingsRepository {
       sourceTrackId: string;
       sourceFriendId: number;
       model: string;
+      templateVersion: number;
       dims: number;
       limit: number;
     }
@@ -338,6 +366,7 @@ export class EmbeddingsRepository {
       JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
       WHERE te.embedding_type = 'audio_vibe'
         AND te.model = $5
+        AND te.template_version = $6
         AND NOT (te.track_id = $2 AND te.friend_id = $3)
       ORDER BY ${vector} <=> $1::vector(${params.dims})
       LIMIT $4
@@ -348,6 +377,7 @@ export class EmbeddingsRepository {
         params.sourceFriendId,
         params.limit,
         params.model,
+        params.templateVersion,
       ]
     );
 
@@ -375,13 +405,12 @@ export class EmbeddingsRepository {
         track_id, friend_id, embedding_type, model, dims, embedding, source_hash, identity_text, template_version, updated_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
-      ON CONFLICT (track_id, friend_id, embedding_type, model)
+      ON CONFLICT (track_id, friend_id, embedding_type, model, template_version)
       DO UPDATE SET
         embedding = EXCLUDED.embedding,
         source_hash = EXCLUDED.source_hash,
         identity_text = EXCLUDED.identity_text,
         dims = EXCLUDED.dims,
-        template_version = EXCLUDED.template_version,
         updated_at = CURRENT_TIMESTAMP
       `,
       [
@@ -398,19 +427,27 @@ export class EmbeddingsRepository {
     );
   }
 
+  /**
+   * The source hash of the row at exactly this model and template version.
+   * Without both, a row from the other model or an older template could be
+   * read instead, and its matching hash would skip the re-embed (#407).
+   */
   async findEmbeddingSourceHash(
     trackId: string,
     friendId: number,
-    embeddingType: "identity" | "audio_vibe"
+    embeddingType: "identity" | "audio_vibe",
+    model: string,
+    templateVersion: number
   ): Promise<string | null> {
     const result = await dbQuery<{ source_hash: string | null }>(
       `
       SELECT source_hash
       FROM track_embeddings
       WHERE track_id = $1 AND friend_id = $2 AND embedding_type = $3
+        AND model = $4 AND template_version = $5
       LIMIT 1
       `,
-      [trackId, friendId, embeddingType]
+      [trackId, friendId, embeddingType, model, templateVersion]
     );
     return result.rows[0]?.source_hash ?? null;
   }

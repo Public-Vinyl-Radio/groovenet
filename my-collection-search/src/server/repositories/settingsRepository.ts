@@ -166,20 +166,27 @@ export class SettingsRepository {
     return rows[0] ?? null;
   }
 
-  /** What similarity queries read. The cutover step of a model switch (#386). */
+  /**
+   * What similarity queries read. The cutover step of a model switch (#386)
+   * or a template bump (#407); a null `templateVersion` keeps the current one.
+   */
   async updateServingModel(
     embeddingType: EmbeddingModelKind,
     model: string,
-    dims: number
+    dims: number,
+    templateVersion?: number
   ): Promise<EmbeddingModelSettings | null> {
     const { rows } = await dbQuery<EmbeddingModelSettings>(
       `
       UPDATE embedding_model_settings
-      SET serving_model = $2, serving_dims = $3, updated_at = CURRENT_TIMESTAMP
+      SET serving_model = $2,
+          serving_dims = $3,
+          serving_template_version = COALESCE($4, serving_template_version),
+          updated_at = CURRENT_TIMESTAMP
       WHERE embedding_type = $1
       RETURNING *
       `,
-      [embeddingType, model, dims]
+      [embeddingType, model, dims, templateVersion ?? null]
     );
     return rows[0] ?? null;
   }

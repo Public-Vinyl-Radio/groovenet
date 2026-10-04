@@ -75,6 +75,7 @@ export class RecommendationRepository {
     seedTrackId: string;
     seedFriendId: number;
     model: string;
+    templateVersion: number;
     dims: number;
     limit: number;
     ivfflatProbes: number;
@@ -86,8 +87,9 @@ export class RecommendationRepository {
 
       const embeddingResult = await client.query<{ embedding: unknown }>(
         `SELECT embedding FROM track_embeddings
-         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'identity' AND model = $3`,
-        [params.seedTrackId, params.seedFriendId, params.model]
+         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'identity'
+           AND model = $3 AND template_version = $4`,
+        [params.seedTrackId, params.seedFriendId, params.model, params.templateVersion]
       );
 
       if (embeddingResult.rows.length === 0) {
@@ -122,6 +124,7 @@ export class RecommendationRepository {
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         WHERE te.embedding_type = 'identity'
           AND te.model = $5
+          AND te.template_version = $6
           AND NOT (te.track_id = $2 AND te.friend_id = $3)
         ORDER BY ${vector} <=> $1::vector(${params.dims})
         LIMIT $4
@@ -132,6 +135,7 @@ export class RecommendationRepository {
           params.seedFriendId,
           params.limit,
           params.model,
+          params.templateVersion,
         ]
       );
 
@@ -143,6 +147,7 @@ export class RecommendationRepository {
     seedTrackId: string;
     seedFriendId: number;
     model: string;
+    templateVersion: number;
     dims: number;
     limit: number;
     ivfflatProbes: number;
@@ -154,8 +159,9 @@ export class RecommendationRepository {
 
       const embeddingResult = await client.query<{ embedding: unknown }>(
         `SELECT embedding FROM track_embeddings
-         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'audio_vibe' AND model = $3`,
-        [params.seedTrackId, params.seedFriendId, params.model]
+         WHERE track_id = $1 AND friend_id = $2 AND embedding_type = 'audio_vibe'
+           AND model = $3 AND template_version = $4`,
+        [params.seedTrackId, params.seedFriendId, params.model, params.templateVersion]
       );
 
       if (embeddingResult.rows.length === 0) {
@@ -190,6 +196,7 @@ export class RecommendationRepository {
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         WHERE te.embedding_type = 'audio_vibe'
           AND te.model = $5
+          AND te.template_version = $6
           AND NOT (te.track_id = $2 AND te.friend_id = $3)
         ORDER BY ${vector} <=> $1::vector(${params.dims})
         LIMIT $4
@@ -200,6 +207,7 @@ export class RecommendationRepository {
           params.seedFriendId,
           params.limit,
           params.model,
+          params.templateVersion,
         ]
       );
 
@@ -210,6 +218,7 @@ export class RecommendationRepository {
   async findIdentitySimilarByCentroid(params: {
     seedTracks: SeedTrackPair[];
     model: string;
+    templateVersion: number;
     dims: number;
     limit: number;
     ivfflatProbes: number;
@@ -239,7 +248,7 @@ export class RecommendationRepository {
           JOIN seeds s
             ON te.track_id = s.track_id
            AND te.friend_id = s.friend_id
-          WHERE te.embedding_type = 'identity' AND te.model = $${modelParamIndex}
+          WHERE te.embedding_type = 'identity' AND te.model = $${modelParamIndex} AND te.template_version = $${modelParamIndex + 1}
         )
         SELECT
           t.track_id,
@@ -265,7 +274,7 @@ export class RecommendationRepository {
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         CROSS JOIN seed_embedding se
         WHERE te.embedding_type = 'identity'
-          AND te.model = $${modelParamIndex}
+          AND te.model = $${modelParamIndex} AND te.template_version = $${modelParamIndex + 1}
           AND se.embedding IS NOT NULL
           AND NOT EXISTS (
             SELECT 1
@@ -275,7 +284,7 @@ export class RecommendationRepository {
         ORDER BY ${vector} <=> ${seedVector}
         LIMIT $${limitParamIndex}
         `,
-        [...queryParams, params.limit, params.model]
+        [...queryParams, params.limit, params.model, params.templateVersion]
       );
 
       return normalizeRows(result.rows);
@@ -285,6 +294,7 @@ export class RecommendationRepository {
   async findAudioSimilarByCentroid(params: {
     seedTracks: SeedTrackPair[];
     model: string;
+    templateVersion: number;
     dims: number;
     limit: number;
     ivfflatProbes: number;
@@ -314,7 +324,7 @@ export class RecommendationRepository {
           JOIN seeds s
             ON te.track_id = s.track_id
            AND te.friend_id = s.friend_id
-          WHERE te.embedding_type = 'audio_vibe' AND te.model = $${modelParamIndex}
+          WHERE te.embedding_type = 'audio_vibe' AND te.model = $${modelParamIndex} AND te.template_version = $${modelParamIndex + 1}
         )
         SELECT
           t.track_id,
@@ -340,7 +350,7 @@ export class RecommendationRepository {
         JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
         CROSS JOIN seed_embedding se
         WHERE te.embedding_type = 'audio_vibe'
-          AND te.model = $${modelParamIndex}
+          AND te.model = $${modelParamIndex} AND te.template_version = $${modelParamIndex + 1}
           AND se.embedding IS NOT NULL
           AND NOT EXISTS (
             SELECT 1
@@ -350,7 +360,7 @@ export class RecommendationRepository {
         ORDER BY ${vector} <=> ${seedVector}
         LIMIT $${limitParamIndex}
         `,
-        [...queryParams, params.limit, params.model]
+        [...queryParams, params.limit, params.model, params.templateVersion]
       );
 
       return normalizeRows(result.rows);

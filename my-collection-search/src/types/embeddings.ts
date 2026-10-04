@@ -52,4 +52,6 @@ export type EmbeddingModelSettings = {
   target_dims: number;
   serving_model: string;
   serving_dims: number;
+  /** Template version reads filter to; the target is the code's constant (#407). */
+  serving_template_version: number;
 };

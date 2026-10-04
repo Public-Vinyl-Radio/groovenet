@@ -31,11 +31,12 @@ export async function POST(req: Request) {
         ? [{ trackId: track.track_id, friendId: track.friend_id }]
         : []
     );
-    const { model } = await getServingModel("audio_vibe");
+    const { model, templateVersion } = await getServingModel("audio_vibe");
     const embeddingRows = await embeddingsRepository.findEmbeddingsForTracks(
       lookupRefs,
       "audio_vibe",
-      model
+      model,
+      templateVersion
     );
     const embeddingByTrack = new Map(
       embeddingRows.map((row) => [`${row.friend_id}:${row.track_id}`, row.embedding])

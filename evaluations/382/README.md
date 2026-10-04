@@ -126,6 +126,11 @@ structured scene/region field from #380 would target.
 
 ## Phase 1: offline candidates
 
+> **Reproducing A after #407.** A imports the app's normalization, which #407
+> fixed (identity template version 2). The A numbers below were measured with
+> template version 1, so to reproduce them exactly, check out the commit before
+> #407 merged. On later code, A's text matches A2's folding for tags.
+
 Builders are in `variants.mjs` and are tested in `variants.test.mjs`. A reuses
 #379's builder, so it stays identical to the app's current text.
 
