@@ -20,7 +20,7 @@ import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { FiFileText } from "react-icons/fi";
 import { keyToCamelot } from "@/lib/playlistOrder";
-import { explodeDisplayTags, getTrackDurationSeconds } from "@/lib/trackUtils";
+import { dedupeDisplayTags, explodeDisplayTags, getTrackDurationSeconds } from "@/lib/trackUtils";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
@@ -106,8 +106,8 @@ export default function TrackResult({
     saveTrack({ track_id: track.track_id, friend_id: track.friend_id, star_rating: value });
   };
 
-  const displayGenres = explodeDisplayTags(track.genres);
-  const displayStyles = explodeDisplayTags(track.styles);
+  const displayGenres = dedupeDisplayTags(track.genres);
+  const displayStyles = dedupeDisplayTags(track.styles);
   const displayLocalTags = explodeDisplayTags(track.local_tags);
 
   const artworkSize = { base: "60px", md: "68px", lg: "76px" };

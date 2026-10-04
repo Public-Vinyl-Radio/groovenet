@@ -14,7 +14,7 @@ import { keyToCamelot } from "@/lib/playlistOrder";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useTrack } from "@/hooks/useTrack";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
-import { explodeDisplayTags, getTrackDurationSeconds } from "@/lib/trackUtils";
+import { dedupeDisplayTags, getTrackDurationSeconds } from "@/lib/trackUtils";
 
 const PLACEHOLDER_SRC =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23374151' width='100' height='100'/%3E%3Ctext fill='%23ffffff' font-family='Arial' font-size='14' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle'%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E";
@@ -66,8 +66,8 @@ const TrackTableRow: React.FC<{
 
   if (!track) return null;
 
-  const genres = explodeDisplayTags(track.genres);
-  const styles = explodeDisplayTags(track.styles);
+  const genres = dedupeDisplayTags(track.genres);
+  const styles = dedupeDisplayTags(track.styles);
   const allGenres = [...genres, ...styles];
   const artworkSrc = track.audio_file_album_art_url || track.album_thumbnail || PLACEHOLDER_SRC;
   const trackHref = `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`;

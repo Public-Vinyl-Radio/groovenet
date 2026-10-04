@@ -3,6 +3,7 @@ import {
   parseDurationToSeconds,
   formatSeconds,
   getTrackDurationSeconds,
+  dedupeDisplayTags,
   explodeDisplayTags,
 } from "../trackUtils";
 
@@ -76,12 +77,11 @@ describe("getTrackDurationSeconds", () => {
 });
 
 describe("explodeDisplayTags", () => {
-  it("splits comma, slash, and middle-dot separated tags for display", () => {
+  it("splits comma and middle-dot separated local tags", () => {
     expect(
       explodeDisplayTags([
         "House, Deep House",
-        "psychedelic soul · cinematic funk · instrumental groove",
-        "Disco/Funk",
+        "psychedelic soul · cinematic funk • instrumental groove",
       ])
     ).toEqual([
       "House",
@@ -89,14 +89,38 @@ describe("explodeDisplayTags", () => {
       "psychedelic soul",
       "cinematic funk",
       "instrumental groove",
-      "Disco",
-      "Funk",
     ]);
   });
 
+  it("does not split on slashes", () => {
+    expect(explodeDisplayTags("Funk / Soul")).toEqual(["Funk / Soul"]);
+  });
+
   it("dedupes tags and ignores empty placeholders", () => {
-    expect(explodeDisplayTags(["House", "house, {}", "", null])).toEqual([
+    expect(explodeDisplayTags(["House", "house, {}", "", "{}", null])).toEqual([
       "House",
     ]);
+  });
+});
+
+describe("dedupeDisplayTags", () => {
+  it("keeps Discogs genres with slashes as one tag", () => {
+    expect(dedupeDisplayTags(["Funk / Soul"])).toEqual(["Funk / Soul"]);
+  });
+
+  it("keeps Discogs genres with commas as one tag", () => {
+    expect(dedupeDisplayTags(["Folk, World, & Country"])).toEqual([
+      "Folk, World, & Country",
+    ]);
+  });
+
+  it("dedupes case-insensitively and drops empty or {} values", () => {
+    expect(
+      dedupeDisplayTags(["Rock", "rock", " ", "{}", "", null, "Jazz"])
+    ).toEqual(["Rock", "Jazz"]);
+  });
+
+  it("returns an empty list for non-array, non-string input", () => {
+    expect(dedupeDisplayTags(undefined)).toEqual([]);
   });
 });
