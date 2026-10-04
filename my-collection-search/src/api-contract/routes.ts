@@ -68,6 +68,15 @@ import {
   gamdlSettingsPutBodySchema,
   gamdlSettingsPutResponseSchema,
   gamdlSettingsQuerySchema,
+  genreTreeResponseSchema,
+  genreCreateBodySchema,
+  genreUpdateBodySchema,
+  genreAliasBodySchema,
+  genreMergeBodySchema,
+  genreParamsSchema,
+  genreMutationResponseSchema,
+  genreAliasResponseSchema,
+  genreMergeResponseSchema,
   jobDetailsResponseSchema,
   jobsClearResponseSchema,
   jobsEventsSseResponseSchema,
@@ -3171,7 +3180,126 @@ const backupContracts: ApiContractRoute[] = [
   },
 ];
 
+export const genreTreeNodeSchemaObject = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    name: { type: "string" },
+    slug: { type: "string" },
+    parent_id: { type: ["string", "null"], format: "uuid" },
+    source: { type: "string", enum: ["discogs", "custom"] },
+    track_count: { type: "integer", minimum: 0, description: "Zero until track genre links are introduced" },
+    album_count: { type: "integer", minimum: 0, description: "Zero until track genre links are introduced" },
+    children: { type: "array", items: { $ref: "#/components/schemas/GenreTreeNode" } },
+  },
+  required: ["id", "name", "slug", "parent_id", "source", "track_count", "album_count", "children"],
+};
+
+const genreUuid = { type: "string", format: "uuid" };
+const genreName = { type: "string", minLength: 1 };
+const genreBodyObjects: Record<string, Record<string, unknown>> = {
+  createGenre: { type: "object", properties: { name: genreName, parent_id: genreUuid }, required: ["name", "parent_id"] },
+  updateGenre: { type: "object", properties: { name: genreName, parent_id: { type: ["string", "null"], format: "uuid" } }, anyOf: [{ required: ["name"] }, { required: ["parent_id"] }] },
+  addGenreAlias: { type: "object", properties: { alias: genreName }, required: ["alias"] },
+  mergeGenres: { type: "object", properties: { target_id: genreUuid }, required: ["target_id"] },
+};
+const genreResponseObjects: Record<string, Record<string, unknown>> = {
+  createGenre: { type: "object", properties: {
+    id: genreUuid, name: { type: "string" }, slug: { type: "string" },
+    parent_id: { type: ["string", "null"], format: "uuid" }, source: { type: "string", enum: ["discogs", "custom"] },
+  }, required: ["id", "name", "slug", "parent_id", "source"] },
+  addGenreAlias: { type: "object", properties: { success: { type: "boolean", const: true } }, required: ["success"] },
+  mergeGenres: { type: "object", properties: { success: { type: "boolean", const: true }, merged_genre_id: genreUuid, survivor_genre_id: genreUuid }, required: ["success", "merged_genre_id", "survivor_genre_id"] },
+};
+genreResponseObjects.updateGenre = genreResponseObjects.createGenre;
+
+const genreMutationContracts: ApiContractRoute[] = ([
+  {
+    operationId: "createGenre", method: "post", path: "/api/genres",
+    summary: "Create a custom genre under an existing parent",
+    bodySchema: genreCreateBodySchema, successSchema: genreMutationResponseSchema,
+  },
+  {
+    operationId: "updateGenre", method: "patch", path: "/api/genres/{id}",
+    summary: "Rename or re-parent a genre; null parent moves it to the root",
+    bodySchema: genreUpdateBodySchema, successSchema: genreMutationResponseSchema,
+  },
+  {
+    operationId: "addGenreAlias", method: "post", path: "/api/genres/{id}/aliases",
+    summary: "Add an alias without reassigning an existing alias",
+    bodySchema: genreAliasBodySchema, successSchema: genreAliasResponseSchema,
+  },
+  {
+    operationId: "mergeGenres", method: "post", path: "/api/genres/{id}/merge",
+    summary: "Merge a genre into a survivor, moving children and aliases",
+    bodySchema: genreMergeBodySchema, successSchema: genreMergeResponseSchema,
+  },
+] satisfies Array<Pick<ApiContractRoute, "operationId" | "method" | "path" | "summary" | "bodySchema" | "successSchema">>).map((operation): ApiContractRoute => {
+  const hasId = operation.path.includes("{id}");
+  const status = operation.operationId === "createGenre" || operation.operationId === "addGenreAlias" ? "201" : "200";
+  return {
+    ...operation, tags: ["Genres"], errorSchema: apiErrorSchema,
+    paramsSchema: hasId ? genreParamsSchema : undefined,
+    openapi: {
+      parameters: hasId ? [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }] : [],
+      requestBody: { required: true, content: { "application/json": {
+        schema: genreBodyObjects[operation.operationId],
+        example: operation.operationId === "createGenre" ? { name: "Cumbia Dub", parent_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47" }
+          : operation.operationId === "updateGenre" ? { name: "Cumbia Dub", parent_id: null }
+          : operation.operationId === "addGenreAlias" ? { alias: "Cumbia-Dub" }
+          : { target_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47" },
+      } } },
+      responses: {
+        [status]: { description: "Genre mutation succeeded", content: { "application/json": { schema: genreResponseObjects[operation.operationId] } } },
+        ...Object.fromEntries([
+          ["400", "Malformed request"], ["404", "Genre or parent not found"],
+          ["409", "Name, slug, alias or tree conflict"], ["500", "Server error"],
+        ].map(([code, description]) => [code, { description, content: { "application/json": { schema: errorResponseSchemaObject } } }])),
+      },
+    },
+  };
+});
+
 export const apiContractRoutes: ApiContractRoute[] = [
+  ...genreMutationContracts,
+  {
+    operationId: "listGenres",
+    method: "get",
+    path: "/api/genres",
+    summary: "Canonical genre taxonomy tree",
+    tags: ["Genres"],
+    successSchema: genreTreeResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Genre roots with recursively nested children",
+          content: {
+            "application/json": {
+              example: { genres: [{
+                id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin",
+                parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [],
+              }] },
+              schema: {
+                type: "object",
+                properties: {
+                  genres: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/GenreTreeNode" },
+                  },
+                },
+                required: ["genres"],
+              },
+            },
+          },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
   {
     operationId: "listFriends",
     method: "get",

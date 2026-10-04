@@ -7,6 +7,8 @@ import type {
   PlaylistSpinsResult,
   LiveSet,
   Friend,
+  GenreTreeResponse,
+  Genre, GenreCreateInput, GenreUpdateInput, GenreAliasResponse, GenreMergeResponse,
   Album,
   AlbumSearchQuery,
   AlbumSearchResponse,
@@ -406,7 +408,27 @@ export class GroovenetClient {
     return Object.values(raw);
   }
 
-  // ── Friends ─────────────────────────────────────────────────────────────────
+  // ── Genres / Friends ───────────────────────────────────────────────────────
+
+  async createGenre(input: GenreCreateInput): Promise<Genre> {
+    return this.request<Genre>("POST", "/genres", input);
+  }
+
+  async updateGenre(id: string, input: GenreUpdateInput): Promise<Genre> {
+    return this.request<Genre>("PATCH", `/genres/${encodeURIComponent(id)}`, input);
+  }
+
+  async addGenreAlias(id: string, alias: string): Promise<GenreAliasResponse> {
+    return this.request<GenreAliasResponse>("POST", `/genres/${encodeURIComponent(id)}/aliases`, { alias });
+  }
+
+  async mergeGenres(id: string, target_id: string): Promise<GenreMergeResponse> {
+    return this.request<GenreMergeResponse>("POST", `/genres/${encodeURIComponent(id)}/merge`, { target_id });
+  }
+
+  async getGenres(): Promise<GenreTreeResponse> {
+    return this.request<GenreTreeResponse>("GET", "/genres");
+  }
 
   async getFriends(): Promise<Friend[]> {
     const result = await this.request<{ friends?: string[]; results?: Friend[] }>(

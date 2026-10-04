@@ -2,6 +2,7 @@
 // Copied from my-collection-search/src/api-contract/schemas.ts — Next.js app is source of truth.
 
 import { z } from "zod";
+import type { GenreTreeNode } from "./types.js";
 
 const toInt = (value: unknown): unknown => {
   if (typeof value === "number") return value;
@@ -367,3 +368,28 @@ export const spinTopTracksResponseSchema = z.object({
   limit: z.number().int(),
   offset: z.number().int(),
 });
+
+export const genreSourceSchema = z.enum(["discogs", "custom"]);
+
+export const genreTreeNodeSchema: z.ZodType<GenreTreeNode> = z.lazy(() =>
+  z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    slug: z.string(),
+    parent_id: z.string().uuid().nullable(),
+    source: genreSourceSchema,
+    track_count: z.number().int().nonnegative(),
+    album_count: z.number().int().nonnegative(),
+    children: z.array(genreTreeNodeSchema),
+  })
+);
+
+export const genreTreeResponseSchema = z.object({ genres: z.array(genreTreeNodeSchema) });
+
+export const genreSchema = z.object({ id: z.string().uuid(), name: z.string(), slug: z.string(), parent_id: z.string().uuid().nullable(), source: genreSourceSchema });
+export const genreCreateInputSchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
+export const genreUpdateInputSchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });
+export const genreAliasResponseSchema = z.object({ success: z.literal(true) });
+export const genreMergeResponseSchema = z.object({ success: z.literal(true), merged_genre_id: z.string().uuid(), survivor_genre_id: z.string().uuid() });
+export const genreAliasInputSchema = z.object({ alias: z.string().trim().min(1) });
+export const genreMergeInputSchema = z.object({ target_id: z.string().uuid() });

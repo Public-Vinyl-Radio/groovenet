@@ -642,6 +642,21 @@ describe("GroovenetClient playlist endpoints", () => {
   });
 });
 
+describe("GroovenetClient genres", () => {
+  it("gets the canonical taxonomy tree", async () => {
+    const genres = [{ id: "genre-1", name: "Latin", children: [] }];
+    const client = clientReturning({ genres });
+
+    await expect(client.getGenres()).resolves.toEqual({ genres });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/genres",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
 describe("GroovenetClient friends", () => {
   it("getFriends prefers a `results` payload", async () => {
     const results = [{ id: 7, username: "dj" }];
@@ -1365,5 +1380,30 @@ describe("GroovenetClient record care endpoints", () => {
         params: { friend_id: 1, overdue_days: undefined, needs_sleeve: "poly" },
       },
     ]);
+  });
+});
+
+describe("genre administration", () => {
+  it("creates a custom genre", async () => {
+    const genre = { id: "g", name: "Dub", parent_id: "root", source: "custom", slug: "dub" };
+    const client = clientReturning(genre);
+    await expect(client.createGenre({ name: "Dub", parent_id: "root" })).resolves.toEqual(genre);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres", data: { name: "Dub", parent_id: "root" } }));
+  });
+  it("renames or moves a genre to root", async () => {
+    const client = clientReturning({});
+    await client.updateGenre("g/1", { name: "Dub", parent_id: null });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "PATCH", url: "/genres/g%2F1", data: { name: "Dub", parent_id: null } }));
+  });
+  it("adds an alias", async () => {
+    const client = clientReturning({ success: true });
+    await expect(client.addGenreAlias("g/1", "Dub music")).resolves.toEqual({ success: true });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/g%2F1/aliases", data: { alias: "Dub music" } }));
+  });
+  it("merges genres", async () => {
+    const result = { success: true, merged_genre_id: "g", survivor_genre_id: "target" };
+    const client = clientReturning(result);
+    await expect(client.mergeGenres("g/1", "target")).resolves.toEqual(result);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/g%2F1/merge", data: { target_id: "target" } }));
   });
 });

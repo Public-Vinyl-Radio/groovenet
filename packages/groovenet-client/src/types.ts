@@ -64,6 +64,35 @@ export interface Friend {
   username: string;
 }
 
+export type GenreSource = "discogs" | "custom";
+
+export interface Genre {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  source: GenreSource;
+}
+export interface GenreCreateInput { name: string; parent_id: string }
+export interface GenreUpdateInput { name?: string; parent_id?: string | null }
+export interface GenreAliasResponse { success: true }
+export interface GenreMergeResponse { success: true; merged_genre_id: string; survivor_genre_id: string }
+
+export interface GenreTreeNode {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  source: GenreSource;
+  track_count: number;
+  album_count: number;
+  children: GenreTreeNode[];
+}
+
+export interface GenreTreeResponse {
+  genres: GenreTreeNode[];
+}
+
 export interface Album {
   release_id: string;
   friend_id: number;
