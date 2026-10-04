@@ -33,6 +33,13 @@ records             clean | sleeve | log | copies (add | label | remove)
 **Every command takes `--json`.** Use it for anything programmatic — the default
 output is a formatted table with ANSI colour that is painful to parse.
 
+`groovenet embeddings export-eval --friend-id 6 --output eval-data/379-friend-6.json`
+exports the read-only metadata/notes, album context and playlist membership needed
+for #379. It makes no model calls and never overwrites an existing file. The
+snapshot contains private notes; `eval-data/` is ignored and output is mode 0600.
+This is a point-in-time *API pagination* export, not a database transaction;
+retry if pagination detects a changing collection.
+
 ## Layout
 
 ```

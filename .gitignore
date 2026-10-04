@@ -5,6 +5,8 @@ node_modules/
 packages/*/build/
 mcp-server/build/
 discogs_exports/
+# Private, read-only production snapshots for embedding evaluations (#379)
+eval-data/
 .env
 .env.*
 !.env.example

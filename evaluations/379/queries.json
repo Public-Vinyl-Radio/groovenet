@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "status": "approved_frozen",
+  "collection": "friend 6; see exported_at in the private evaluation snapshot",
+  "queries": [
+    {
+      "id": "q01",
+      "group": "scene",
+      "text": "Amazonian psychedelic cumbia with organ"
+    },
+    {
+      "id": "q02",
+      "group": "scene",
+      "text": "Cuban trova with acoustic guitar and warm vocals"
+    },
+    {
+      "id": "q03",
+      "group": "scene",
+      "text": "Peruvian chicha with surf guitar"
+    },
+    {
+      "id": "q04",
+      "group": "scene",
+      "text": "Nigerian Afrobeat with horns and polyrhythms"
+    },
+    {
+      "id": "q05",
+      "group": "scene",
+      "text": "Brazilian samba jazz with electric piano"
+    },
+    {
+      "id": "q06",
+      "group": "scene",
+      "text": "Ghanaian highlife with interlocking guitars"
+    },
+    {
+      "id": "q07",
+      "group": "style",
+      "text": "Afro-Cuban son montuno with brass and congas"
+    },
+    {
+      "id": "q08",
+      "group": "style",
+      "text": "Latin boogaloo and jazz funk"
+    },
+    {
+      "id": "q09",
+      "group": "style",
+      "text": "Psychedelic folk rock"
+    },
+    {
+      "id": "q10",
+      "group": "style",
+      "text": "Post-punk with prominent bass and dark vocals"
+    },
+    {
+      "id": "q11",
+      "group": "style",
+      "text": "Downtempo soul with a relaxed groove"
+    },
+    {
+      "id": "q12",
+      "group": "style",
+      "text": "New wave rock with synthesizers"
+    },
+    {
+      "id": "q13",
+      "group": "instrumentation",
+      "text": "Cumbia driven by electric organ"
+    },
+    {
+      "id": "q14",
+      "group": "instrumentation",
+      "text": "Instrumental funk with wah guitar"
+    },
+    {
+      "id": "q15",
+      "group": "instrumentation",
+      "text": "Salsa with piano montunos and call-and-response vocals"
+    },
+    {
+      "id": "q16",
+      "group": "instrumentation",
+      "text": "Psychedelic guitar with reverb and tropical percussion"
+    },
+    {
+      "id": "q17",
+      "group": "instrumentation",
+      "text": "Acoustic bolero with intimate vocals"
+    },
+    {
+      "id": "q18",
+      "group": "instrumentation",
+      "text": "Jazz funk with brass and electric keyboards"
+    },
+    {
+      "id": "q19",
+      "group": "crossover",
+      "text": "Afro-Caribbean music blending African and Latin rhythms"
+    },
+    {
+      "id": "q20",
+      "group": "crossover",
+      "text": "Cumbia mixed with psychedelic rock"
+    },
+    {
+      "id": "q21",
+      "group": "crossover",
+      "text": "Disco and Latin funk crossover"
+    },
+    {
+      "id": "q22",
+      "group": "crossover",
+      "text": "Cuban son with jazz influences"
+    },
+    {
+      "id": "q23",
+      "group": "crossover",
+      "text": "Surf rock with Middle Eastern or desert blues influences"
+    },
+    {
+      "id": "q24",
+      "group": "crossover",
+      "text": "Afrobeat blended with funk and jazz"
+    }
+  ]
+}

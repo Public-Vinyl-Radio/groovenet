@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadConfig = vi.hoisted(() => vi.fn());
 const GroovenetClientMock = vi.hoisted(() => vi.fn());
+const exportEval = vi.hoisted(() => vi.fn());
+
+vi.mock("./embeddingEvalExport.js", () => ({ exportEmbeddingEvalSnapshot: exportEval }));
 
 vi.mock("@groovenet/client", () => ({
   loadConfig,
@@ -432,6 +435,7 @@ describe("addEmbeddingsCommands()", () => {
     startEmbeddingBackfill.mockReset().mockResolvedValue(run({ run_id: "run-9", queued: 0 }));
     getEmbeddingBackfillRun.mockReset();
     getEmbeddingStatus.mockReset().mockResolvedValue(status());
+    exportEval.mockReset().mockResolvedValue({ tracks: 2, albums: 1, playlists: 1 });
     loadConfig.mockReturnValue({ api_base: "http://localhost:3000/api" });
     GroovenetClientMock.mockImplementation(function () {
       return { startEmbeddingBackfill, getEmbeddingBackfillRun, getEmbeddingStatus };
@@ -460,8 +464,31 @@ describe("addEmbeddingsCommands()", () => {
     const embeddings = program.commands.find((c) => c.name() === "embeddings");
     expect(embeddings).toBeDefined();
     expect(embeddings?.commands.map((c) => c.name())).toEqual(
-      expect.arrayContaining(["backfill", "status"])
+      expect.arrayContaining(["backfill", "status", "export-eval"])
     );
+  });
+
+  it("exports an evaluation snapshot and prints only counts", async () => {
+    await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json");
+    expect(exportEval).toHaveBeenCalledWith(expect.anything(), 6, "snapshot.json");
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Exported 2 tracks"));
+    await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json", "--json");
+    expect(console.log).toHaveBeenCalledWith(JSON.stringify({ output: "snapshot.json", tracks: 2, albums: 1, playlists: 1 }));
+  });
+
+  it("reports export errors without printing private data", async () => {
+    exportEval.mockRejectedValue(new Error("export failed"));
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json");
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("export failed"));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("stringifies non-Error export failures", async () => {
+    exportEval.mockRejectedValue("export failed");
+    vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json");
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("export failed"));
   });
 
   it("waits by default", async () => {
