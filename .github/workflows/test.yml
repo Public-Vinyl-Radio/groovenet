@@ -159,6 +159,9 @@ jobs:
       - name: Run CLI tests with coverage
         run: npm --workspace @groovenet/cli run test:coverage
 
+      - name: Test offline embedding evaluation harness (#379)
+        run: node --test evaluations/379/*.test.mjs
+
       - name: Upload CLI coverage to Codecov
         uses: codecov/codecov-action@v7
         env:

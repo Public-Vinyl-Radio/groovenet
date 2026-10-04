@@ -11,6 +11,7 @@ import chalk from "chalk";
 import { printError } from "../output.js";
 import { intOption } from "../options.js";
 import { makeClient } from "./fingerprintLibrary.js";
+import { exportEmbeddingEvalSnapshot } from "./embeddingEvalExport.js";
 
 /** Same IO-injection shape as `fingerprintLibrary.ts`, so output is assertable without a terminal. */
 export interface EmbeddingsIO {
@@ -235,7 +236,25 @@ export async function runEmbeddingsStatus(
 export function addEmbeddingsCommands(program: Command): void {
   const embeddings = program
     .command("embeddings")
-    .description("Embedding generation, backfill and status (#388)");
+    .description("Embedding backfill, status and offline evaluation export");
+
+  embeddings
+    .command("export-eval")
+    .description("Export a read-only snapshot for offline embedding evaluation (#379)")
+    .requiredOption("--friend-id <n>", "Friend whose collection to export", intOption)
+    .requiredOption("--output <path>", "New JSON file (never overwrites)")
+    .option("--json", "Output summary as JSON")
+    .action(async (opts: { friendId: number; output: string; json?: boolean }) => {
+      try {
+        const counts = await exportEmbeddingEvalSnapshot(makeClient(), opts.friendId, opts.output);
+        const summary = { output: opts.output, ...counts };
+        if (opts.json) console.log(JSON.stringify(summary));
+        else console.log(`Exported ${counts.tracks} tracks, ${counts.albums} albums and ${counts.playlists} playlists to ${opts.output}`);
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    });
 
   embeddings
     .command("backfill")
