@@ -240,3 +240,64 @@ E 3.00, F 3.25.
 - **Limitations:** one judge (the collection owner); 24 queries; one
   collection; the proxy is noisy; and the judge saw the playlist-proxy
   direction before reviewing (the review itself stayed blind per pair).
+
+### Model comparison (`text-embedding-3-large`, truncated to 1536 dims)
+
+A, D, E and F were embedded again on `text-embedding-3-large` with
+`dimensions: 1536`, so the vectors fit the existing `vector(1536)` partial
+ivfflat index pattern; native 3072 dims would exceed pgvector's 2,000-dim index
+limit for `vector`. Queries were re-embedded with the same model (202 tokens).
+The new pooled pairs got a third blind review: 284 pairs, 230 relevant, 54 not
+relevant, none unresolved; SHA-256
+`d92f9b364d3cf22a16a612726011dccf3f3451b017be7b200d037d537e2d1617`.
+
+| Run | Precision@10 | Scene | Style | Instr. | Crossover | Releases per top 10 | Playlist MRR, other releases |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A-large | 0.7833 | 0.750 | 0.733 | 0.767 | 0.883 | 4.42 | 0.1003 |
+| D-large | 0.8292 | 0.717 | 0.850 | 0.883 | 0.867 | 4.29 | 0.1101 |
+| E-large | **0.9000** | 0.883 | 0.950 | 0.833 | 0.933 | 3.33 | **0.1440** |
+| F-large | **0.9000** | 0.833 | 0.917 | 0.883 | 0.967 | 3.58 | 0.1229 |
+
+Same text, large vs small (paired per query, 95% bootstrap CI):
+
+| Comparison | Wins / losses / ties | Mean Δ | 95% CI |
+| --- | --- | --- | --- |
+| A-large vs A | 10 / 8 / 6 | +0.017 | −0.058 to +0.088 |
+| D-large vs D | 8 / 9 / 7 | −0.042 | −0.108 to +0.021 |
+| E-large vs E | 7 / 6 / 11 | +0.029 | −0.042 to +0.108 |
+| F-large vs F | 6 / 7 / 11 | +0.008 | −0.033 to +0.054 |
+| E-large vs A | 13 / 5 / 6 | +0.133 | +0.033 to +0.242 |
+| F-large vs A | 16 / 2 / 6 | +0.133 | +0.058 to +0.213 |
+
+**The model makes no measurable difference.** Every same-text comparison has a
+CI spanning zero, with deltas between −0.04 and +0.03. The gains over A come
+from the text, and `3-small` F (0.892–0.900) already matches E-large and F-large
+(0.900). `3-large` costs 6.5× per token and offers no benefit to justify the
+switch.
+
+Cost: 581,084 billed tokens for the four large-model texts (≈ $0.0755 at
+$0.13/M), plus 202 query tokens. **#382 total ≈ $0.086.** The character / 4
+estimate *under*-counted billed tokens by about 15–20% on both runs.
+
+## Recommendation
+
+1. **Stay on `text-embedding-3-small`.** No model change, so #386's switch is
+   not needed.
+2. **Ship the normalization fix (A2)** as a correctness change. It is neutral
+   on these metrics, but it stops accented tags being mangled for 18.8% of
+   tracks and removes duplicate tags such as `Trip-Hop` / `trip hop` /
+   `Trip‑hop`.
+3. **Use the F text (descriptors first, identifiers last) for
+   natural-language retrieval, as a new embedding type** rather than rewriting
+   `identity`. F is the only text whose query gain is consistent (16 / 2 / 6
+   against A, CI above zero), and a separate type avoids the template-version
+   staleness and overwrite gaps listed above. Leave `identity` serving "similar
+   tracks" for now. D and E look better on the playlist proxy, but that signal
+   is too noisy to justify rewriting the serving vectors.
+4. **Retrieval needs per-release diversification.** Descriptive texts put about
+   3–3.5 releases in each top 10. Cap results per release, or wait for
+   track-level descriptors (#371).
+5. **The query endpoint is follow-up work.** These are offline numbers;
+   `/api/tracks/search` is still lexical, and production still predates #393.
+   Shipping natural-language search needs a query-embedding route, a merge with
+   lexical results and filters, and query-cost controls.
