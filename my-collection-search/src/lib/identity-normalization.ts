@@ -37,14 +37,23 @@ const DJ_FUNCTION_TAGS = new Set([
 ]);
 
 /**
- * Normalize a single token: lowercase, trim, remove extra punctuation
+ * Normalize a single token: fold accents, lowercase, turn `&` into "and",
+ * drop periods and apostrophes, and turn every other run of punctuation
+ * (hyphens and non-ASCII dashes included) into one space.
+ *
+ * This used to keep only ASCII `\w`, which deleted accented letters rather
+ * than folding them (`amazónica` → `amaznica`), dropped `&`, and kept `-` but
+ * deleted `‑`, so `jazz-rock` and `jazz‑rock` stayed two tags (#382, #407).
  */
 function normalizeToken(token: string): string {
   return token
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "") // Strip the accents NFKD split off
     .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "") // Keep alphanumeric, space, hyphen
-    .replace(/\s+/g, " "); // Collapse multiple spaces
+    .replace(/&/g, " and ")
+    .replace(/[.'’]/g, "") // Join initials and contractions: "J.S." → "js"
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 /**
@@ -58,8 +67,9 @@ export function normalizeList(items: string[] | string | null | undefined): stri
   if (Array.isArray(items)) {
     arr = items;
   } else if (typeof items === "string") {
-    // Split on comma if it's a comma-separated string
-    arr = items.includes(",") ? items.split(",") : [items];
+    // Free text (local tags) separates values with `,` `/` `;` or `|`
+    // ("Soul / funk"), and sometimes arrives as a Postgres array literal.
+    arr = items.replace(/^\{(.*)\}$/s, "$1").split(/[,/;|]/);
   } else {
     return [];
   }

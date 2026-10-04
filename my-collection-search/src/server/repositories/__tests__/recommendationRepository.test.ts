@@ -36,6 +36,7 @@ function mockWithNoEmbedding() {
 // ─── findIdentitySimilar ──────────────────────────────────────────────────────
 
 const MODEL = "text-embedding-3-small";
+const VERSION = 2;
 const DIMS = 1536;
 
 describe("findIdentitySimilar()", () => {
@@ -46,6 +47,7 @@ describe("findIdentitySimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 1,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -61,6 +63,7 @@ describe("findIdentitySimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 1,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 4,
@@ -85,6 +88,7 @@ describe("findIdentitySimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 1,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -102,6 +106,7 @@ describe("findIdentitySimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 2,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 5,
       ivfflatProbes: 1,
@@ -110,16 +115,18 @@ describe("findIdentitySimilar()", () => {
     // Embedding lookup must filter by 'identity' and model
     expect(mockClient.query).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining("identity"),
-      ["t1", 2, MODEL]
+      expect.stringContaining("template_version = $4"),
+      ["t1", 2, MODEL, VERSION]
     );
 
-    // Similarity query receives the embedding, limit and model
+    // Similarity query receives the embedding, limit, model and template version
     const [sql, params] = mockClient.query.mock.calls[2];
     expect(sql).toContain("te.model = $5");
+    expect(sql).toContain("te.template_version = $6");
     expect(params[0]).toEqual(embedding);
     expect(params[3]).toBe(5);
     expect(params[4]).toBe(MODEL);
+    expect(params[5]).toBe(VERSION);
   });
 
   it("rejects invalid dims without querying the similarity statement", async () => {
@@ -130,6 +137,7 @@ describe("findIdentitySimilar()", () => {
         seedTrackId: "t1",
         seedFriendId: 1,
         model: MODEL,
+        templateVersion: VERSION,
         dims: 0,
         limit: 5,
         ivfflatProbes: 1,
@@ -148,6 +156,7 @@ describe("findAudioSimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 1,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -168,6 +177,7 @@ describe("findAudioSimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 1,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -184,6 +194,7 @@ describe("findAudioSimilar()", () => {
       seedTrackId: "t1",
       seedFriendId: 1,
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 5,
       ivfflatProbes: 2,
@@ -192,8 +203,11 @@ describe("findAudioSimilar()", () => {
     expect(mockClient.query).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("audio_vibe"),
-      ["t1", 1, MODEL]
+      ["t1", 1, MODEL, VERSION]
     );
+    const [sql, params] = mockClient.query.mock.calls[2];
+    expect(sql).toContain("te.template_version = $6");
+    expect(params[5]).toBe(VERSION);
   });
 });
 
@@ -204,6 +218,7 @@ describe("findIdentitySimilarByCentroid()", () => {
     const result = await makeRepo().findIdentitySimilarByCentroid({
       seedTracks: [],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -224,6 +239,7 @@ describe("findIdentitySimilarByCentroid()", () => {
         { trackId: "t2", friendId: 2 },
       ],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 5,
       ivfflatProbes: 3,
@@ -241,6 +257,9 @@ describe("findIdentitySimilarByCentroid()", () => {
     expect(params).toContain("t2");
     expect(params).toContain(5);
     expect(params).toContain(MODEL);
+    // Both the seed centroid and the candidates are pinned to the version.
+    expect(sql.match(/te\.template_version = \$7/g)).toHaveLength(2);
+    expect(params[6]).toBe(VERSION);
   });
 
   it("builds seed values with the correct $N placeholders", async () => {
@@ -254,6 +273,7 @@ describe("findIdentitySimilarByCentroid()", () => {
         { trackId: "tB", friendId: 20 },
       ],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 3,
       ivfflatProbes: 1,
@@ -282,6 +302,7 @@ describe("findIdentitySimilarByCentroid()", () => {
     const result = await makeRepo().findIdentitySimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -298,6 +319,7 @@ describe("findAudioSimilarByCentroid()", () => {
     const result = await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,
@@ -315,6 +337,7 @@ describe("findAudioSimilarByCentroid()", () => {
     await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 5,
       ivfflatProbes: 1,
@@ -323,6 +346,8 @@ describe("findAudioSimilarByCentroid()", () => {
     const [sql, params] = mockClient.query.mock.calls[1];
     expect(sql).toContain("audio_vibe");
     expect(params).toContain(MODEL);
+    expect(sql).toContain("te.template_version = $");
+    expect(params).toContain(VERSION);
   });
 
   it("coerces distance from string to number", async () => {
@@ -338,6 +363,7 @@ describe("findAudioSimilarByCentroid()", () => {
     const result = await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
       model: MODEL,
+      templateVersion: VERSION,
       dims: DIMS,
       limit: 10,
       ivfflatProbes: 1,

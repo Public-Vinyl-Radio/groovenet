@@ -24,10 +24,11 @@ import { Track } from "@/types/track";
 import { readEssentiaAnalysis } from "./essentia-storage";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
-import { getTargetProvider } from "@/lib/embeddings/config";
+import { getTargetModel, getTargetProvider } from "@/lib/embeddings/config";
+import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 
-/** Bump when `buildAudioVibeText`'s shape changes (#382), so stale rows are findable. */
-export const AUDIO_VIBE_TEMPLATE_VERSION = 1;
+/** Bump in `templateVersions.ts` when the audio-vibe text changes for the same track. */
+export const AUDIO_VIBE_TEMPLATE_VERSION = CURRENT_TEMPLATE_VERSIONS.audio_vibe;
 
 /**
  * Essentia analysis structure (subset we care about)
@@ -226,7 +227,6 @@ export function computeAudioVibeHash(data: AudioVibeData): string {
 export async function generateAudioVibeEmbedding(
   vibeText: string
 ): Promise<{ embedding: number[]; model: string; dims: number }> {
-  console.log("Generating audio vibe embedding for:\n", vibeText);
 
   const provider = await getTargetProvider("audio_vibe");
   const [embedding] = await provider.embed([vibeText]);
@@ -259,17 +259,21 @@ export async function storeAudioVibeEmbedding(
 }
 
 /**
- * Check if audio vibe embedding needs update (source hash changed)
+ * Check if audio vibe embedding needs update: no row yet at the target model
+ * and the current template version, or the track's data changed since.
  */
 export async function needsAudioVibeUpdate(
   track_id: string,
   friend_id: number,
   newSourceHash: string
 ): Promise<boolean> {
+  const { model } = await getTargetModel("audio_vibe");
   const sourceHash = await embeddingsRepository.findEmbeddingSourceHash(
     track_id,
     friend_id,
-    "audio_vibe"
+    "audio_vibe",
+    model,
+    AUDIO_VIBE_TEMPLATE_VERSION
   );
   if (!sourceHash) {
     return true; // No embedding exists

@@ -1771,17 +1771,19 @@ const embeddingModelCoverageSchema = z.array(
   z.object({
     model: z.string(),
     dims: z.number().int(),
+    template_version: z.number().int(),
     count: z.number().int(),
   })
 );
 
 export const embeddingsStatusSchema = z.object({
   total_tracks: z.number().int(),
+  /** Tracks with no row at the target model and current template version (#407). */
   missing: z.object({
     identity: z.number().int(),
     audio_vibe: z.number().int(),
   }),
-  /** Row counts per model, for watching a switch's backfill reach coverage (#386). */
+  /** Row counts per model and template version, for watching a switch's backfill reach coverage (#386, #407). */
   by_model: z.object({
     identity: embeddingModelCoverageSchema,
     audio_vibe: embeddingModelCoverageSchema,
@@ -1802,6 +1804,7 @@ export const embeddingModelSettingsSchema = z.object({
   target_dims: z.number().int(),
   serving_model: z.string(),
   serving_dims: z.number().int(),
+  serving_template_version: z.number().int(),
 });
 
 export const embeddingModelSettingsListSchema = z.array(embeddingModelSettingsSchema);
@@ -1812,12 +1815,23 @@ export const embeddingModelSettingsListSchema = z.array(embeddingModelSettingsSc
  * flipping both together is how a model switch would skip the coexistence
  * step it's built for.
  */
-export const embeddingModelUpdateBodySchema = z.object({
-  embedding_type: embeddingModelKindSchema,
-  field: z.enum(["target", "serving"]),
-  model: z.string().min(1),
-  dims: intFromInputSchema.pipe(z.number().positive()),
-});
+export const embeddingModelUpdateBodySchema = z
+  .object({
+    embedding_type: embeddingModelKindSchema,
+    field: z.enum(["target", "serving"]),
+    model: z.string().min(1),
+    dims: intFromInputSchema.pipe(z.number().positive()),
+    /**
+     * Serving only: the template version reads switch to once its backfill is
+     * complete (#407). Omit to keep the current one. Target needs none — new
+     * jobs always embed with the code's current template.
+     */
+    template_version: intFromInputSchema.pipe(z.number().int().positive()).optional(),
+  })
+  .refine((body) => body.field === "serving" || body.template_version === undefined, {
+    message: "template_version only applies to field: serving",
+    path: ["template_version"],
+  });
 
 // ─── Audio ingest retention (#269) ────────────────────────────────────────────
 

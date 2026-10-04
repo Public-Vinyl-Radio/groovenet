@@ -163,11 +163,12 @@ async function queryIdentitySimilar(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
-  const { model, dims } = await getServingModel("identity");
+  const { model, dims, templateVersion } = await getServingModel("identity");
   const rows = await recommendationRepository.findIdentitySimilar({
     seedTrackId,
     seedFriendId,
     model,
+    templateVersion,
     dims,
     limit,
     ivfflatProbes,
@@ -185,10 +186,11 @@ async function queryIdentitySimilarByCentroid(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
-  const { model, dims } = await getServingModel("identity");
+  const { model, dims, templateVersion } = await getServingModel("identity");
   return recommendationRepository.findIdentitySimilarByCentroid({
     seedTracks,
     model,
+    templateVersion,
     dims,
     limit,
     ivfflatProbes,
@@ -201,11 +203,12 @@ async function queryAudioSimilar(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
-  const { model, dims } = await getServingModel("audio_vibe");
+  const { model, dims, templateVersion } = await getServingModel("audio_vibe");
   const rows = await recommendationRepository.findAudioSimilar({
     seedTrackId,
     seedFriendId,
     model,
+    templateVersion,
     dims,
     limit,
     ivfflatProbes,
@@ -223,10 +226,11 @@ async function queryAudioSimilarByCentroid(
   limit: number,
   ivfflatProbes: number
 ): Promise<EmbeddingQueryResult[]> {
-  const { model, dims } = await getServingModel("audio_vibe");
+  const { model, dims, templateVersion } = await getServingModel("audio_vibe");
   return recommendationRepository.findAudioSimilarByCentroid({
     seedTracks,
     model,
+    templateVersion,
     dims,
     limit,
     ivfflatProbes,

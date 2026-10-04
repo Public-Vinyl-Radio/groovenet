@@ -19,10 +19,11 @@ import {
   type TrackWithAlbumMetadataRow,
 } from "@/server/repositories/trackRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
-import { getTargetProvider } from "@/lib/embeddings/config";
+import { getTargetModel, getTargetProvider } from "@/lib/embeddings/config";
+import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 
-/** Bump when `buildIdentityText`'s shape changes (#382), so stale rows are findable. */
-export const IDENTITY_TEMPLATE_VERSION = 1;
+/** Bump in `templateVersions.ts` when the identity text changes for the same track. */
+export const IDENTITY_TEMPLATE_VERSION = CURRENT_TEMPLATE_VERSIONS.identity;
 
 /**
  * Normalized identity data for embedding
@@ -156,8 +157,6 @@ export function computeSourceHash(data: IdentityData): string {
 export async function generateIdentityEmbedding(
   identityText: string
 ): Promise<{ embedding: number[]; model: string; dims: number }> {
-  console.log("Generating identity embedding for:\n", identityText);
-
   const provider = await getTargetProvider("identity");
   const [embedding] = await provider.embed([identityText]);
   return { embedding, model: provider.model, dims: provider.dims };
@@ -189,17 +188,21 @@ export async function storeIdentityEmbedding(
 }
 
 /**
- * Check if embedding needs update (source hash changed)
+ * Check if embedding needs update: no row yet at the target model and the
+ * current template version, or the track's data changed since that row.
  */
 export async function needsEmbeddingUpdate(
   track_id: string,
   friend_id: number,
   newSourceHash: string
 ): Promise<boolean> {
+  const { model } = await getTargetModel("identity");
   const sourceHash = await embeddingsRepository.findEmbeddingSourceHash(
     track_id,
     friend_id,
-    "identity"
+    "identity",
+    model,
+    IDENTITY_TEMPLATE_VERSION
   );
   if (!sourceHash) {
     return true; // No embedding exists

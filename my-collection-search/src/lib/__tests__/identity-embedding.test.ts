@@ -34,6 +34,7 @@ vi.mock("@/lib/embeddings/config", async () => {
     getTargetProvider: vi.fn(async () =>
       createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
     ),
+    getTargetModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
   };
 });
 
@@ -175,6 +176,19 @@ describe("buildIdentityData fallbacks", () => {
 });
 
 describe("buildIdentityText", () => {
+  it("folds accents and merges dash spellings in tags, at template version 2 (#407)", () => {
+    const text = buildIdentityText(
+      buildIdentityData({
+        ...mockTrack,
+        local_tags: "Cumbia Amazónica / Trip‑hop, trip-hop, Rock & Roll",
+      })
+    );
+
+    expect(text).toContain("Tags: cumbia amazonica, rock and roll, trip hop");
+    expect(text).not.toContain("amaznica");
+    expect(IDENTITY_TEMPLATE_VERSION).toBe(2);
+  });
+
   it("formats identity data into expected text", () => {
     const identityData = buildIdentityData(mockTrack);
     const expected = [
@@ -380,7 +394,15 @@ describe("needsEmbeddingUpdate", () => {
     findEmbeddingSourceHash.mockResolvedValue(null);
 
     await expect(needsEmbeddingUpdate("test-123", 1, "hash-1")).resolves.toBe(true);
-    expect(findEmbeddingSourceHash).toHaveBeenCalledWith("test-123", 1, "identity");
+    // Looked up at the target model and the current template version, so a
+    // row from another model or an older template never counts (#407).
+    expect(findEmbeddingSourceHash).toHaveBeenCalledWith(
+      "test-123",
+      1,
+      "identity",
+      "text-embedding-3-small",
+      IDENTITY_TEMPLATE_VERSION
+    );
   });
 
   it("returns true when the stored hash differs", async () => {

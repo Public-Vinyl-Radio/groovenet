@@ -37,6 +37,7 @@ vi.mock("@/lib/embeddings/config", async () => {
     getTargetProvider: vi.fn(async () =>
       createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
     ),
+    getTargetModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
   };
 });
 
@@ -257,7 +258,13 @@ describe("audio vibe embedding persistence", () => {
 
     await expect(needsAudioVibeUpdate("track", 4, "new-hash")).resolves.toBe(true);
     await expect(needsAudioVibeUpdate("track", 4, "same-hash")).resolves.toBe(false);
-    expect(findEmbeddingSourceHash).toHaveBeenCalledWith("track", 4, "audio_vibe");
+    expect(findEmbeddingSourceHash).toHaveBeenCalledWith(
+      "track",
+      4,
+      "audio_vibe",
+      "text-embedding-3-small",
+      AUDIO_VIBE_TEMPLATE_VERSION
+    );
 
     await storeAudioVibeEmbedding("track", 4, [0.1, 0.2], "source-hash", "vibe text", "custom-model", 2);
     expect(upsertTrackEmbedding).toHaveBeenCalledWith({

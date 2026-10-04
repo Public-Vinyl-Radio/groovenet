@@ -43,7 +43,7 @@ beforeEach(() => {
   mockFindEmbeddings.mockReset();
   mockFindEmbeddings.mockResolvedValue([]);
   mockServingModel.mockReset();
-  mockServingModel.mockResolvedValue({ model: "vibe-model", dims: 3 });
+  mockServingModel.mockResolvedValue({ model: "vibe-model", dims: 3, templateVersion: 4 });
 });
 
 // ─── Request parsing ──────────────────────────────────────────────────────────
@@ -100,7 +100,8 @@ describe("POST /api/tracks/batch — vectors", () => {
     expect(mockFindEmbeddings).toHaveBeenCalledWith(
       [{ trackId: "t1", friendId: 1 }],
       "audio_vibe",
-      "vibe-model"
+      "vibe-model",
+      4
     );
   });
 

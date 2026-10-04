@@ -46,7 +46,7 @@ beforeEach(() => {
   mockFetch.mockReset();
   getServingModel.mockReset();
   findEmbeddingsForTracks.mockReset();
-  getServingModel.mockResolvedValue({ model: "vibe-model", dims: 3 });
+  getServingModel.mockResolvedValue({ model: "vibe-model", dims: 3, templateVersion: 4 });
   // Default: every requested track has a stored audio_vibe vector
   findEmbeddingsForTracks.mockImplementation(
     async (refs: Array<{ trackId: string; friendId: number }>) =>
@@ -104,7 +104,8 @@ describe("POST /api/playlists/genetic — embedding lookup", () => {
     expect(findEmbeddingsForTracks).toHaveBeenCalledWith(
       [{ trackId: "track-1", friendId: 1 }],
       "audio_vibe",
-      "vibe-model"
+      "vibe-model",
+      4
     );
     const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(callBody.tracks[0].embedding).toBe("[0.1,0.2,0.3]");
@@ -147,7 +148,7 @@ describe("POST /api/playlists/genetic — embedding lookup", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.invalid[0].reason).toBe("missing_embedding");
-    expect(findEmbeddingsForTracks).toHaveBeenCalledWith([], "audio_vibe", "vibe-model");
+    expect(findEmbeddingsForTracks).toHaveBeenCalledWith([], "audio_vibe", "vibe-model", 4);
   });
 
   it("allows cohesive_blocks when the track has no stored vector", async () => {

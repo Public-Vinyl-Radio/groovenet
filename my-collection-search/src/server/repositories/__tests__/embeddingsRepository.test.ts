@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EmbeddingsRepository } from "../embeddingsRepository";
+import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 
 const dbQuery = vi.hoisted(() => vi.fn());
 
@@ -38,7 +39,19 @@ describe("listTracksForBackfill()", () => {
     expect(sql).toContain("track_embeddings");
     expect(sql).toContain("te.id IS NULL");
     expect(sql).not.toContain("bpm");
-    expect(params).toEqual(["identity"]);
+    expect(params).toEqual(["identity", CURRENT_TEMPLATE_VERSIONS.identity]);
+  });
+
+  it("force=false: only a row at the target model and current template counts (#407)", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksForBackfill({ type: "identity" });
+
+    const [sql] = dbQuery.mock.calls[0];
+    expect(sql).toContain("LEFT JOIN embedding_model_settings ems");
+    expect(sql).toContain("ems.embedding_type = $1");
+    expect(sql).toContain("te.model = ems.target_model");
+    expect(sql).toContain("te.template_version = $2");
   });
 
   it("force=false, type=audio_vibe: filters for tracks with audio features", async () => {
@@ -49,7 +62,7 @@ describe("listTracksForBackfill()", () => {
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("track_embeddings");
     expect(sql).toContain("bpm");
-    expect(params).toEqual(["audio_vibe"]);
+    expect(params).toEqual(["audio_vibe", CURRENT_TEMPLATE_VERSIONS.audio_vibe]);
   });
 
   it("force=true, type=identity: selects all tracks, no params", async () => {
@@ -131,7 +144,7 @@ describe("listTracksForBackfill()", () => {
     expect(params).toEqual([50]);
   });
 
-  it("orders params as type, friend_id, release_id, track_ids, limit", async () => {
+  it("orders params as type, template version, friend_id, release_id, track_ids, limit", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
     await makeRepo().listTracksForBackfill({
@@ -144,7 +157,14 @@ describe("listTracksForBackfill()", () => {
     });
 
     const [, params] = dbQuery.mock.calls[0];
-    expect(params).toEqual(["identity", 3, "rel-1", ["t1"], 10]);
+    expect(params).toEqual([
+      "identity",
+      CURRENT_TEMPLATE_VERSIONS.identity,
+      3,
+      "rel-1",
+      ["t1"],
+      10,
+    ]);
   });
 });
 
@@ -213,18 +233,18 @@ describe("countTracks()", () => {
 // ─── countEmbeddingsByModel ───────────────────────────────────────────────────
 
 describe("countEmbeddingsByModel()", () => {
-  it("groups by model and dims", async () => {
+  it("groups by model, dims and template version", async () => {
     dbQuery.mockResolvedValue({
-      rows: [{ model: "text-embedding-3-small", dims: 1536, count: "10" }],
+      rows: [{ model: "text-embedding-3-small", dims: 1536, template_version: 2, count: "10" }],
     });
 
     const result = await makeRepo().countEmbeddingsByModel("identity");
 
     expect(result).toEqual([
-      { model: "text-embedding-3-small", dims: 1536, count: 10 },
+      { model: "text-embedding-3-small", dims: 1536, template_version: 2, count: 10 },
     ]);
     const [sql, params] = dbQuery.mock.calls[0];
-    expect(sql).toContain("GROUP BY model, dims");
+    expect(sql).toContain("GROUP BY model, dims, template_version");
     expect(params).toEqual(["identity"]);
   });
 
@@ -268,13 +288,14 @@ describe("findSourceEmbedding()", () => {
       "t1",
       1,
       "identity",
-      "text-embedding-3-small"
+      "text-embedding-3-small",
+      2
     );
 
     expect(result).toEqual(embedding);
     expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("track_embeddings"),
-      ["t1", 1, "identity", "text-embedding-3-small"]
+      expect.stringContaining("template_version = $5"),
+      ["t1", 1, "identity", "text-embedding-3-small", 2]
     );
   });
 
@@ -287,7 +308,8 @@ describe("findSourceEmbedding()", () => {
       "t1",
       1,
       "audio_vibe",
-      "text-embedding-3-small"
+      "text-embedding-3-small",
+      1
     );
 
     expect(result).toBeNull();
@@ -308,6 +330,7 @@ describe("findSimilarIdentityTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 1,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 1536,
       limit: 5,
       filters: {},
@@ -326,6 +349,7 @@ describe("findSimilarIdentityTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 1,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 768,
       limit: 5,
       filters: {},
@@ -333,6 +357,7 @@ describe("findSimilarIdentityTracks()", () => {
 
     const [sql, params] = client.query.mock.calls[0];
     expect(sql).toContain("te.model = $4");
+    expect(sql).toContain("te.template_version = $5");
     expect(sql).toContain("vector(768)");
     expect(params).toContain("text-embedding-3-small");
   });
@@ -346,6 +371,7 @@ describe("findSimilarIdentityTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 1,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 1536,
       limit: 5,
       filters: { country: "DE" },
@@ -365,6 +391,7 @@ describe("findSimilarIdentityTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 1,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 1536,
       limit: 5,
       filters: { tags: ["techno", "dark"] },
@@ -385,6 +412,7 @@ describe("findSimilarIdentityTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 1,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 1536,
       limit: 5,
       filters: {},
@@ -404,6 +432,7 @@ describe("findSimilarIdentityTracks()", () => {
         sourceTrackId: "t1",
         sourceFriendId: 1,
         model: "text-embedding-3-small",
+        templateVersion: 2,
         dims,
         limit: 5,
         filters: {},
@@ -427,6 +456,7 @@ describe("findSimilarAudioVibeTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 1,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 1536,
       limit: 10,
     });
@@ -435,7 +465,7 @@ describe("findSimilarAudioVibeTracks()", () => {
     expect(typeof result[0].distance).toBe("number");
   });
 
-  it("passes all five params in the correct positions", async () => {
+  it("passes all six params in the correct positions", async () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });
     const embedding = [0.5];
@@ -445,12 +475,15 @@ describe("findSimilarAudioVibeTracks()", () => {
       sourceTrackId: "t1",
       sourceFriendId: 3,
       model: "text-embedding-3-small",
+      templateVersion: 2,
       dims: 1536,
       limit: 20,
     });
 
     const [, params] = client.query.mock.calls[0];
-    expect(params).toEqual([embedding, "t1", 3, 20, "text-embedding-3-small"]);
+    expect(params).toEqual([embedding, "t1", 3, 20, "text-embedding-3-small", 2]);
+    const [sql] = client.query.mock.calls[0];
+    expect(sql).toContain("te.template_version = $6");
   });
 });
 
@@ -515,8 +548,14 @@ describe("upsertTrackEmbedding()", () => {
       templateVersion: 2,
     });
 
-    const [, params] = dbQuery.mock.calls[0];
+    const [sql, params] = dbQuery.mock.calls[0];
     expect(params[8]).toBe(2);
+    // Each template version is its own row, so a re-embed under a new
+    // template never overwrites the one being served (#407).
+    expect(sql).toContain(
+      "ON CONFLICT (track_id, friend_id, embedding_type, model, template_version)"
+    );
+    expect(sql).not.toContain("template_version = EXCLUDED.template_version");
   });
 });
 
@@ -526,15 +565,32 @@ describe("findEmbeddingSourceHash()", () => {
   it("returns the source hash when found", async () => {
     dbQuery.mockResolvedValue({ rows: [{ source_hash: "abc123" }] });
 
-    const result = await makeRepo().findEmbeddingSourceHash("t1", 1, "identity");
+    const result = await makeRepo().findEmbeddingSourceHash(
+      "t1",
+      1,
+      "identity",
+      "text-embedding-3-small",
+      2
+    );
 
     expect(result).toBe("abc123");
+    // Pinned to model and template version: a row from another model or an
+    // older template must not satisfy the staleness check (#407).
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("model = $4 AND template_version = $5");
+    expect(params).toEqual(["t1", 1, "identity", "text-embedding-3-small", 2]);
   });
 
   it("returns null when not found", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    const result = await makeRepo().findEmbeddingSourceHash("t1", 1, "audio_vibe");
+    const result = await makeRepo().findEmbeddingSourceHash(
+      "t1",
+      1,
+      "audio_vibe",
+      "text-embedding-3-small",
+      1
+    );
 
     expect(result).toBeNull();
   });
@@ -586,13 +642,13 @@ describe("listEmbeddingTypesForTrackPairs()", () => {
 
 describe("findEmbeddingsForTracks()", () => {
   it("returns [] without querying when no tracks are given", async () => {
-    const result = await makeRepo().findEmbeddingsForTracks([], "audio_vibe", "m");
+    const result = await makeRepo().findEmbeddingsForTracks([], "audio_vibe", "m", 1);
 
     expect(result).toEqual([]);
     expect(dbQuery).not.toHaveBeenCalled();
   });
 
-  it("pins the query to the embedding type and model, batching ids as arrays", async () => {
+  it("pins the query to the embedding type, model and template version, batching ids as arrays", async () => {
     const rows = [{ track_id: "t1", friend_id: 1, embedding: "[0.1,0.2]" }];
     dbQuery.mockResolvedValue({ rows });
 
@@ -602,13 +658,14 @@ describe("findEmbeddingsForTracks()", () => {
         { trackId: "t2", friendId: 2 },
       ],
       "audio_vibe",
-      "vibe-model"
+      "vibe-model",
+      3
     );
 
     expect(result).toEqual(rows);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("te.embedding::text");
-    expect(sql).toContain("te.model = $4");
-    expect(params).toEqual([["t1", "t2"], [1, 2], "audio_vibe", "vibe-model"]);
+    expect(sql).toContain("te.model = $4 AND te.template_version = $5");
+    expect(params).toEqual([["t1", "t2"], [1, 2], "audio_vibe", "vibe-model", 3]);
   });
 });

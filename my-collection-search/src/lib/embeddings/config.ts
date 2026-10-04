@@ -44,12 +44,28 @@ export async function getTargetProvider(kind: EmbeddingModelKind): Promise<Embed
   return createOpenAiEmbeddingProvider(settings.target_model, settings.target_dims);
 }
 
-/** What identity/audio_vibe similarity queries should filter to right now. */
+/**
+ * What identity/audio_vibe similarity queries should filter to right now:
+ * the model and the template version, so a re-embed under either is never
+ * read until it is cut over (#386, #407).
+ */
 export async function getServingModel(
+  kind: EmbeddingModelKind
+): Promise<{ model: string; dims: number; templateVersion: number }> {
+  const settings = await getSettings(kind);
+  return {
+    model: settings.serving_model,
+    dims: settings.serving_dims,
+    templateVersion: settings.serving_template_version,
+  };
+}
+
+/** The model new jobs embed with, without building a provider. */
+export async function getTargetModel(
   kind: EmbeddingModelKind
 ): Promise<{ model: string; dims: number }> {
   const settings = await getSettings(kind);
-  return { model: settings.serving_model, dims: settings.serving_dims };
+  return { model: settings.target_model, dims: settings.target_dims };
 }
 
 export async function setTargetModel(
@@ -63,12 +79,19 @@ export async function setTargetModel(
   return updated;
 }
 
+/** Omitting `templateVersion` keeps the one currently served. */
 export async function setServingModel(
   kind: EmbeddingModelKind,
   model: string,
-  dims: number
+  dims: number,
+  templateVersion?: number
 ): Promise<EmbeddingModelSettings> {
-  const updated = await settingsRepository.updateServingModel(kind, model, dims);
+  const updated = await settingsRepository.updateServingModel(
+    kind,
+    model,
+    dims,
+    templateVersion
+  );
   if (!updated) throw new Error(`No embedding_model_settings row for "${kind}"`);
   invalidateEmbeddingModelCache(kind);
   return updated;
