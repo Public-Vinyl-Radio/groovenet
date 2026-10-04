@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServingModel } from "@/lib/embeddings/config";
+import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import {
   playlistGeneticBodySchema,
   playlistGeneticResponseSchema,
@@ -21,6 +23,24 @@ export async function POST(req: Request) {
     const mode = parsedBody.data.mode ?? "genetic";
     const invalid: Array<{ track_id?: string; reason: string }> = [];
 
+    // Vectors come from `track_embeddings` at the audio_vibe serving model,
+    // not from the request: the client's `Track.embedding` is the legacy
+    // prompt column (#393), and a single model keeps every vector in one space.
+    const lookupRefs = inputTracks.flatMap((track) =>
+      typeof track.friend_id === "number"
+        ? [{ trackId: track.track_id, friendId: track.friend_id }]
+        : []
+    );
+    const { model } = await getServingModel("audio_vibe");
+    const embeddingRows = await embeddingsRepository.findEmbeddingsForTracks(
+      lookupRefs,
+      "audio_vibe",
+      model
+    );
+    const embeddingByTrack = new Map(
+      embeddingRows.map((row) => [`${row.friend_id}:${row.track_id}`, row.embedding])
+    );
+
     const normalizedTracks = inputTracks
       .map((track: Record<string, unknown>) => {
         const bpmRaw = track.bpm;
@@ -31,18 +51,13 @@ export async function POST(req: Request) {
             ? Number.parseFloat(bpmRaw)
             : NaN;
 
-        const embeddingRaw =
-          track.embedding ??
-          (track as { _vectors?: { default?: unknown } })._vectors?.default;
-        const embedding =
-          Array.isArray(embeddingRaw) && embeddingRaw.length > 0
-            ? JSON.stringify(embeddingRaw)
-            : typeof embeddingRaw === "string"
-            ? embeddingRaw
-            : null;
-
         const trackId =
           typeof track.track_id === "string" ? track.track_id : undefined;
+
+        const embedding =
+          typeof track.friend_id === "number"
+            ? embeddingByTrack.get(`${track.friend_id}:${track.track_id}`)
+            : undefined;
 
         if (mode === "genetic" && !embedding) {
           invalid.push({ track_id: trackId, reason: "missing_embedding" });
@@ -56,7 +71,7 @@ export async function POST(req: Request) {
         return {
           ...track,
           bpm: Number.isFinite(bpm) ? bpm : undefined,
-          embedding: embedding ?? undefined,
+          embedding,
         };
       })
       .filter(Boolean);

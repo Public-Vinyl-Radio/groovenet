@@ -190,6 +190,41 @@ export class EmbeddingsRepository {
     return result.rows[0]?.embedding ?? null;
   }
 
+  /**
+   * Serving-model vectors for a batch of tracks, in pgvector text form
+   * (`[0.1,0.2,...]`) — the shape ga-service parses. Pinned to `model` for
+   * the same reason as `findSourceEmbedding`: mid-switch a track can have
+   * rows for two models, and mixing them in one optimisation would compare
+   * vectors from different spaces. Tracks with no row are simply absent.
+   */
+  async findEmbeddingsForTracks(
+    tracks: Array<{ trackId: string; friendId: number }>,
+    embeddingType: "identity" | "audio_vibe",
+    model: string
+  ): Promise<Array<{ track_id: string; friend_id: number; embedding: string }>> {
+    if (tracks.length === 0) return [];
+    const result = await dbQuery<{
+      track_id: string;
+      friend_id: number;
+      embedding: string;
+    }>(
+      `
+      SELECT te.track_id, te.friend_id, te.embedding::text AS embedding
+      FROM track_embeddings te
+      JOIN UNNEST($1::text[], $2::int[]) AS q(track_id, friend_id)
+        ON te.track_id = q.track_id AND te.friend_id = q.friend_id
+      WHERE te.embedding_type = $3 AND te.model = $4
+      `,
+      [
+        tracks.map((t) => t.trackId),
+        tracks.map((t) => t.friendId),
+        embeddingType,
+        model,
+      ]
+    );
+    return result.rows;
+  }
+
   async findSimilarIdentityTracks(
     client: Queryable,
     params: {

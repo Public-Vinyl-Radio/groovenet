@@ -617,3 +617,34 @@ describe("listEmbeddingTypesForTrackPairs()", () => {
     expect(params).toEqual(["t1", 1, "t2", 1]);
   });
 });
+
+// ─── findEmbeddingsForTracks ──────────────────────────────────────────────────
+
+describe("findEmbeddingsForTracks()", () => {
+  it("returns [] without querying when no tracks are given", async () => {
+    const result = await makeRepo().findEmbeddingsForTracks([], "audio_vibe", "m");
+
+    expect(result).toEqual([]);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("pins the query to the embedding type and model, batching ids as arrays", async () => {
+    const rows = [{ track_id: "t1", friend_id: 1, embedding: "[0.1,0.2]" }];
+    dbQuery.mockResolvedValue({ rows });
+
+    const result = await makeRepo().findEmbeddingsForTracks(
+      [
+        { trackId: "t1", friendId: 1 },
+        { trackId: "t2", friendId: 2 },
+      ],
+      "audio_vibe",
+      "vibe-model"
+    );
+
+    expect(result).toEqual(rows);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("te.embedding::text");
+    expect(sql).toContain("te.model = $4");
+    expect(params).toEqual([["t1", "t2"], [1, 2], "audio_vibe", "vibe-model"]);
+  });
+});
