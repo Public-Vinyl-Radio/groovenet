@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.10...v0.3.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **embeddings:** remove the legacy tracks.embedding prompt embedding ([#402](https://github.com/Public-Vinyl-Radio/groovenet/issues/402))
+
+### Features
+
+* **embeddings:** backfill API, CLI and status ([#392](https://github.com/Public-Vinyl-Radio/groovenet/issues/392)) ([a7ff8f9](https://github.com/Public-Vinyl-Radio/groovenet/commit/a7ff8f9094f51b3677d1c57f0128830cded0c7be))
+* **embeddings:** feed ga-service audio_vibe vectors from track_embeddings ([#401](https://github.com/Public-Vinyl-Radio/groovenet/issues/401)) ([2c8b6f9](https://github.com/Public-Vinyl-Radio/groovenet/commit/2c8b6f9b15da1c03552a5018e82bef63fd89802c))
+* **embeddings:** move generation onto a retryable background queue ([#389](https://github.com/Public-Vinyl-Radio/groovenet/issues/389)) ([c56af27](https://github.com/Public-Vinyl-Radio/groovenet/commit/c56af2797841691751000ec5cbf3298309dc06f9))
+* **embeddings:** provider interface and multi-model support for identity/audio_vibe ([#394](https://github.com/Public-Vinyl-Radio/groovenet/issues/394)) ([f492a5b](https://github.com/Public-Vinyl-Radio/groovenet/commit/f492a5beef06df0e4ce8e6474c95c2d5c0ddbcfa))
+* **embeddings:** remove the legacy tracks.embedding prompt embedding ([#402](https://github.com/Public-Vinyl-Radio/groovenet/issues/402)) ([079dc1b](https://github.com/Public-Vinyl-Radio/groovenet/commit/079dc1bf6973e1be7a65301689e461533327d868))
+* **records:** add CLI commands and MCP tools ([#391](https://github.com/Public-Vinyl-Radio/groovenet/issues/391)) ([a43a647](https://github.com/Public-Vinyl-Radio/groovenet/commit/a43a6475ef80b0001a235cd51cbee0d81e31aee5))
+* **spins:** log a playlist as spins ([#395](https://github.com/Public-Vinyl-Radio/groovenet/issues/395)) ([db091a1](https://github.com/Public-Vinyl-Radio/groovenet/commit/db091a184ffa4e453926a4753db1c44dd7f1e3bd))
+
+
+### Bug Fixes
+
+* **ui:** stop splitting Discogs genres like 'Funk / Soul' into two badges ([#403](https://github.com/Public-Vinyl-Radio/groovenet/issues/403)) ([0827ffb](https://github.com/Public-Vinyl-Radio/groovenet/commit/0827ffb22b6e374c357c0c21fe8c1161816abe31))
+
 ## [0.2.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.9...v0.2.10) (2026-10-02)
 
 
