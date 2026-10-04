@@ -1,4 +1,6 @@
-export type EmbeddingType = "identity" | "audio_vibe";
+import type { EmbeddingModelKind } from "@/types/embeddings";
+
+export type EmbeddingType = EmbeddingModelKind;
 
 export interface BackfillOptions {
   friend_id?: number;

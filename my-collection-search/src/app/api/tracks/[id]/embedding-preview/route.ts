@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { embeddingsService } from "@/server/services/embeddingsService";
+import {
+  embeddingsService,
+  type EmbeddingPreviewType,
+} from "@/server/services/embeddingsService";
 
-type PreviewType = "identity" | "audio_vibe";
 const MISSING_AUDIO_ANALYSIS_ERROR = "Track missing audio analysis data";
 
-function parsePreviewType(value: string | null): PreviewType {
-  return value === "audio_vibe" ? "audio_vibe" : "identity";
+function parsePreviewType(value: string | null): EmbeddingPreviewType {
+  return value === "audio_vibe" || value === "context" ? value : "identity";
 }
 
 export async function GET(

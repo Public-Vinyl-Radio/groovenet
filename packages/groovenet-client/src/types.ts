@@ -511,7 +511,8 @@ export interface FingerprintIndexRun {
 
 // ─── Embeddings backfill (#388) ───────────────────────────────────────────────
 
-export type EmbeddingJobKind = "identity" | "audio_vibe";
+/** `context` is the natural-language retrieval embedding (#408). */
+export type EmbeddingJobKind = "identity" | "audio_vibe" | "context";
 export type EmbeddingBackfillScope = "missing" | "all" | "release" | "track";
 
 export interface EmbeddingBackfillRequest {

@@ -1,6 +1,7 @@
 import { withDbClient } from "@/lib/serverDb";
 import { getIdentityPreview } from "@/lib/identity-embedding";
 import { getAudioVibePreview } from "@/lib/audio-vibe-embedding";
+import { getContextPreview } from "@/lib/context-embedding";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { getServingModel } from "@/lib/embeddings/config";
 import type {
@@ -9,7 +10,7 @@ import type {
   SimilarVibeTrack,
 } from "@/types/embeddings";
 
-export type EmbeddingPreviewType = "identity" | "audio_vibe";
+export type EmbeddingPreviewType = "identity" | "audio_vibe" | "context";
 export type EmbeddingPreviewResult = {
   type: EmbeddingPreviewType;
   text: string;
@@ -55,6 +56,11 @@ export class EmbeddingsService {
         text: preview.identityText,
         data: preview.identityData,
       };
+    }
+
+    if (type === "context") {
+      const preview = await getContextPreview(trackId, friendId);
+      return { type, text: preview.contextText, data: preview.contextData };
     }
 
     const preview = await getAudioVibePreview(trackId, friendId);

@@ -709,7 +709,7 @@ export const trackDeleteResponseSchema = z.object({
   friend_id: z.number().int(),
 });
 
-export const embeddingPreviewTypeSchema = z.enum(["identity", "audio_vibe"]);
+export const embeddingPreviewTypeSchema = z.enum(["identity", "audio_vibe", "context"]);
 
 export const identityEmbeddingDataSchema = z.object({
   title: z.string(),
@@ -752,9 +752,17 @@ export const embeddingAudioVibePreviewApiResponseSchema = z.object({
   data: audioVibeEmbeddingDataSchema,
 });
 
+/** Built from the same normalized data as identity, rendered for retrieval (#408). */
+export const embeddingContextPreviewApiResponseSchema = z.object({
+  type: z.literal("context"),
+  text: z.string(),
+  data: identityEmbeddingDataSchema,
+});
+
 export const embeddingPreviewResponseSchema = z.discriminatedUnion("type", [
   embeddingIdentityPreviewApiResponseSchema,
   embeddingAudioVibePreviewApiResponseSchema,
+  embeddingContextPreviewApiResponseSchema,
 ]);
 
 export const identityEmbeddingPreviewResponseSchema = z.object({
@@ -1711,7 +1719,7 @@ export const fingerprintIndexRunSchema = z.object({
 
 // ─── Embeddings backfill (#388) ───────────────────────────────────────────────
 
-const embeddingJobKindSchema = z.enum(["identity", "audio_vibe"]);
+const embeddingJobKindSchema = z.enum(["identity", "audio_vibe", "context"]);
 
 /**
  * Which tracks to resolve. Exactly one of `track_ids`/`release_id` is
@@ -1764,6 +1772,7 @@ export const embeddingsBackfillDryRunSchema = z.object({
   by_type: z.object({
     identity: z.number().int(),
     audio_vibe: z.number().int(),
+    context: z.number().int(),
   }),
 });
 
@@ -1782,11 +1791,13 @@ export const embeddingsStatusSchema = z.object({
   missing: z.object({
     identity: z.number().int(),
     audio_vibe: z.number().int(),
+    context: z.number().int(),
   }),
   /** Row counts per model and template version, for watching a switch's backfill reach coverage (#386, #407). */
   by_model: z.object({
     identity: embeddingModelCoverageSchema,
     audio_vibe: embeddingModelCoverageSchema,
+    context: embeddingModelCoverageSchema,
   }),
 });
 
@@ -1796,7 +1807,7 @@ export const embeddingsStatusQuerySchema = z.object({
 
 // ─── Embedding model settings (#386) ──────────────────────────────────────────
 
-export const embeddingModelKindSchema = z.enum(["identity", "audio_vibe"]);
+export const embeddingModelKindSchema = z.enum(["identity", "audio_vibe", "context"]);
 
 export const embeddingModelSettingsSchema = z.object({
   embedding_type: embeddingModelKindSchema,

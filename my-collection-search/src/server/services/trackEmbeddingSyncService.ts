@@ -6,7 +6,7 @@ export type IdentityEmbeddingSyncResult = {
 };
 
 /**
- * Enqueues identity embedding generation for tracks that were just created
+ * Enqueues identity and context embedding generation for tracks that were just created
  * or whose album metadata just changed (Discogs sync, album create/upsert).
  *
  * Identity embeddings read the track *and* its album (genres, styles, label,
@@ -21,12 +21,15 @@ export async function syncIdentityEmbeddings(
 ): Promise<IdentityEmbeddingSyncResult> {
   if (tracks.length === 0) return { queued: 0 };
 
+  // The context embedding (#408) reads exactly what identity reads.
   await embeddingQueueService.enqueue(
-    tracks.map((track) => ({
-      track_id: track.track_id,
-      friend_id: track.friend_id,
-      kind: "identity" as const,
-    }))
+    tracks.flatMap((track) =>
+      (["identity", "context"] as const).map((kind) => ({
+        track_id: track.track_id,
+        friend_id: track.friend_id,
+        kind,
+      }))
+    )
   );
 
   return { queued: tracks.length };

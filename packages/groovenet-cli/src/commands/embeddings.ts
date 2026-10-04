@@ -265,7 +265,7 @@ export function addEmbeddingsCommands(program: Command): void {
     .option("--track <ids>", "One or more track ids, comma-separated")
     .option(
       "--type <kinds>",
-      "identity, audio_vibe — comma-separated (default: both)"
+      "identity, audio_vibe, context — comma-separated (default: all)"
     )
     .option("--friend-id <n>", "Narrow to one friend's library", intOption)
     .option("--force", "Regenerate even when the source data is unchanged")

@@ -512,7 +512,7 @@ debug-reads-test:
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
   {{mise_exec}} npm run test:debug-reads --prefix {{app_dir}}
 
-# Run the template-versioned embedding queries (#407) against a throwaway pgvector db.
+# Run the template-versioned embedding queries (#407) and context retrieval (#408) against a throwaway pgvector db.
 embedding-versions-test:
   #!/usr/bin/env bash
   set -euo pipefail

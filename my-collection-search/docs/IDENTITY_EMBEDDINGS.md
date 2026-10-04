@@ -4,10 +4,13 @@
 
 This system implements "music identity" embeddings for tracks using OpenAI's `text-embedding-3-small` model and PostgreSQL's pgvector extension. Identity embeddings capture the musical essence of tracks based on metadata (genre, style, era, country, labels, tags) while **excluding** DJ-specific notes and function tags.
 
-This is the **first of 2-3 embedding types** planned for the system:
-1. **Identity** (implemented) — Musical identity based on metadata
-2. **Audio Vibe** (future) — Audio characteristics (BPM, key, mood, danceability)
-3. **DJ Function** (future) — DJ use-case and notes
+It is one of three embedding types, each with its own model settings and
+template version:
+1. **Identity**: musical identity from metadata. Serves similar tracks.
+2. **Audio Vibe**: a text rendering of measured audio features (BPM, key, mood,
+   danceability). Serves audio similarity and the playlist optimiser.
+3. **Context** (#408): the same metadata as identity, rendered for
+   natural-language retrieval. See [Context Embeddings](#context-embeddings-408).
 
 ---
 
@@ -442,6 +445,47 @@ With both versions in the same partial ivfflat index, a query's candidates
 are filtered to one version after the index scan. At this collection's size
 the default 10 probes still return far more than any `limit`; if results ever
 come back short mid-transition, raise `ivfflat_probes` or finish the cutover.
+
+---
+
+## Context Embeddings (#408)
+
+A `context` row is built from exactly the normalized data identity uses
+(`buildIdentityData`), but rendered descriptors-first:
+
+```
+chicha, cumbia, cumbia amazonica, psychedelic. latin music from the 1970s.
+Track: Song — Artist
+Release: Album
+Labels: discos fuentes, infopesa
+```
+
+On #382's frozen 24-query evaluation this text scored precision@10
+0.89–0.90 against 0.77 for the identity text, better on 16 queries and worse on
+2. It was the worst text on the playlist-mate proxy, though, so it sits beside
+`identity` rather than replacing it. Release country is left out, because it is
+the pressing's country rather than the music's origin.
+
+- **Generation**: `src/lib/context-embedding.ts`. Every place that queues an
+  identity job (track PATCH, upload, Discogs sync, the periodic sweep and
+  backfills) queues a `context` job too. Staleness uses the identity source hash
+  plus the `context` template version.
+- **Settings**: `embedding_model_settings` row `context`, seeded on
+  `text-embedding-3-small` / 1536 with its own partial ivfflat index.
+  Model switches and template cutovers work exactly as for identity.
+- **Retrieval**: `embeddingsRepository.findContextMatches` takes a query vector
+  and returns the nearest tracks at the serving model and template version:
+  - at most `perReleaseCap` per release, because context text is mostly
+    album-level and one matching album would otherwise fill the page;
+  - optional SQL filters for friend, `yearToEra` bucket, genre or style
+    (album first, case-insensitive) and BPM range;
+  - the vector scan over-fetches `candidatePool` rows (default
+    `max(limit × 10, 200)`) so the cap and filters still leave a full page.
+
+  No public route uses it yet; the search endpoint is #409.
+- **Preview**: `GET /api/tracks/{id}/embedding-preview?friend_id=1&type=context`.
+- **Backfill**: `groovenet embeddings backfill --type context`.
+  `GET /api/embeddings/status` reports `missing.context` and `by_model.context`.
 
 ---
 
