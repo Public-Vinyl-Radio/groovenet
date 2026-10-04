@@ -14,6 +14,7 @@ import {
   type TrackSearchResponse,
 } from "@/services/internalApi/tracks";
 import { useTrackStore } from "@/stores/trackStore";
+import type { TrackSearchMode } from "@/api-contract/schemas";
 
 interface UseSearchResultsOptions {
   friend?: Friend | null; // optional override; defaults to provider
@@ -25,6 +26,8 @@ interface UseSearchResultsOptions {
   limit?: number;
   // New: current page number (1-based) for page mode
   page?: number;
+  // Keyword, semantic or hybrid ranking (#409). Non-keyword modes return one page.
+  searchMode?: TrackSearchMode;
 }
 
 type SearchPage = TrackSearchResponse;
@@ -38,6 +41,7 @@ export function useSearchResults({
   mode = "infinite",
   limit: limitOverride,
   page,
+  searchMode = "lexical",
 }: UseSearchResultsOptions) {
   const [query, setQuery] = useState("");
   const limit = limitOverride ?? DEFAULT_LIMIT;
@@ -84,9 +88,11 @@ export function useSearchResults({
 
   // --- Tracks query (infinite or single page) ---
   const isInfinite = mode === "infinite";
+  // Keyword keys stay as they were, so existing cache predicates still match.
+  const searchModeKey = searchMode === "lexical" ? {} : { searchMode };
 
   const infiniteQuery = useInfiniteQuery<SearchPage, Error>({
-    queryKey: queryKeys.tracks({ q: query, filter: searchFilter, limit, mode }),
+    queryKey: queryKeys.tracks({ q: query, filter: searchFilter, limit, mode, ...searchModeKey }),
     enabled: enabled && isInfinite,
     refetchOnWindowFocus: false,
     queryFn: async (context): Promise<SearchPage> => {
@@ -97,6 +103,7 @@ export function useSearchResults({
         limit,
         offset: pageParam,
         filter: normalizedFilter,
+        mode: searchMode,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
       const scopedHits = scopeHits(res.hits ?? []);
@@ -124,6 +131,7 @@ export function useSearchResults({
       limit,
       mode,
       page: page ?? 1,
+      ...searchModeKey,
     }),
     enabled: enabled && !isInfinite,
     refetchOnWindowFocus: false,
@@ -135,6 +143,7 @@ export function useSearchResults({
         limit,
         offset,
         filter: normalizedFilter,
+        mode: searchMode,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
       const scopedHits = scopeHits(res.hits ?? []);

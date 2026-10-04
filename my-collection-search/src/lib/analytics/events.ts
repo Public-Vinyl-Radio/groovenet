@@ -38,6 +38,7 @@ export type AnalyticsEvents = {
     query_length: number;
     has_filters: boolean;
     filter_count: number;
+    search_mode?: "lexical" | "semantic" | "hybrid";
   };
   audio_fetch_queued: {
     track_id: string;

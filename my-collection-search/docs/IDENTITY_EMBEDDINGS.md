@@ -482,10 +482,46 @@ the pressing's country rather than the music's origin.
   - the vector scan over-fetches `candidatePool` rows (default
     `max(limit × 10, 200)`) so the cap and filters still leave a full page.
 
-  No public route uses it yet; the search endpoint is #409.
+  Soft-deleted tracks are never returned. The search route below is its caller.
 - **Preview**: `GET /api/tracks/{id}/embedding-preview?friend_id=1&type=context`.
 - **Backfill**: `groovenet embeddings backfill --type context`.
   `GET /api/embeddings/status` reports `missing.context` and `by_model.context`.
+
+### Natural-language search (#409)
+
+`GET /api/tracks/search?mode=semantic|hybrid` puts context retrieval behind the
+normal search endpoint. `lexical` stays the default and is unchanged. The web
+search bar has a Keyword / Hybrid / Semantic toggle (kept in the URL as
+`?mode=`), the CLI has `groovenet tracks search --mode`, and the MCP
+`search_tracks` tool takes `mode`.
+
+- **semantic** embeds `q` with the `context` serving model and ranks by cosine
+  distance, two tracks per release at most.
+- **hybrid** runs a 50-row lexical leg and a 50-row semantic leg in parallel
+  and merges them with reciprocal rank fusion (k = 60). Lexical hits whose
+  title, artist, album or artist + title *equal* the query come first, so a
+  known-item search can't lose to a vibe. The fused tail is capped per release
+  too. If the semantic leg fails (OpenAI, rate limit), the response is the
+  lexical results with `degraded: true`.
+- **One page.** Both modes need `offset=0` and `limit ≤ 50`, and report
+  `estimatedTotalHits` as the number returned, so infinite scroll stops. An
+  empty `q` lists lexically in every mode.
+- **Filters.** `friend_id` and the `filter` chips (`parseTrackFilterSpec`,
+  `src/lib/trackFilterSpec.ts`) apply inside the vector scan, not after it.
+  The scan runs in a transaction with `ivfflat.probes = 10` and
+  `ivfflat.iterative_scan = relaxed_order` (pgvector ≥ 0.8) set locally, so
+  filtered queries keep probing until the page fills, and no pooled
+  connection inherits the settings.
+- **Query embeddings** (`queryEmbeddingService.ts`) are cached in Redis under
+  `search:qembed:v1:<sha256(normalized query, model, dims)>` for 7 days. Cache
+  misses are rate-limited to 30 a minute per `friend_id` + client IP. That is
+  a guard against runaway loops, not security: the API has no auth. Every
+  Redis call times out after 250 ms, and a Redis failure means no cache and no
+  limit, never a failed search. Over the limit, `semantic` returns 429 with
+  `Retry-After`.
+- **Logs**: one JSON line per search (`component: "track-search"`) with mode,
+  cache hit, embed/vector/total ms and result counts. The query's length is
+  logged, never its text.
 
 ---
 

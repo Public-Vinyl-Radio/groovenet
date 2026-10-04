@@ -95,6 +95,7 @@ export const queryKeys = {
     limit?: number;
     mode?: string;
     page?: number;
+    searchMode?: string;
   }) => ["tracks", args] as const,
   trackById: (track_id: string, friend_id: number) =>
     ["track", "by-id", track_id, friend_id] as const,

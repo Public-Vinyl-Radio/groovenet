@@ -76,6 +76,21 @@ beforeAll(async () => {
       embedding: t.vector, sourceHash: "h", identityText: `context ${t.id}`, templateVersion: 1,
     });
   }
+  // An exact match that was soft-deleted must never be served (#409).
+  await dbQuery(
+    `INSERT INTO tracks (track_id, username, friend_id, title, artist, deleted_at)
+     VALUES ('deleted-1', $1, $2, 'deleted-1', 'A', now())`,
+    [USERNAME, friendId]
+  );
+  await embeddings.upsertTrackEmbedding({
+    trackId: "deleted-1", friendId, embeddingType: "context", model: MODEL, dims: 3,
+    embedding: [1, 0, 0], sourceHash: "h", identityText: "deleted", templateVersion: 1,
+  });
+  // Only cumbia-2 has audio, for the missing-audio chip.
+  await dbQuery(
+    `UPDATE tracks SET local_audio_url = '/audio/c2.m4a' WHERE track_id = 'cumbia-2' AND friend_id = $1`,
+    [friendId]
+  );
   // A closer match under an older template must never be served.
   await embeddings.upsertTrackEmbedding({
     trackId: "rock-1", friendId, embeddingType: "context", model: MODEL, dims: 3,
@@ -138,5 +153,20 @@ describe("context retrieval (integration)", () => {
   dbTest("other friends and other models are excluded", async () => {
     expect(await search({ filters: { friendId: friendId + 100000 } })).toEqual([]);
     expect(await search({ model: "some-other-model" })).toEqual([]);
+  });
+
+  dbTest("the search route's missing-field chips filter on the track", async () => {
+    expect(ids(await search({ perReleaseCap: 3, filters: { missing: ["local_audio"] } }))).toEqual([
+      "cumbia-1",
+      "cumbia-3",
+      "rock-1",
+      "no-year",
+    ]);
+    expect(ids(await search({ filters: { missing: ["bpm_or_key"] } }))).toEqual([
+      "cumbia-1",
+      "cumbia-2",
+      "rock-1",
+      "no-year",
+    ]);
   });
 });

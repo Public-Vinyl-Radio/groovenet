@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GroovenetClient, type Track, type RecordActionInput, type RecordCareStatus, type SleeveType, type CleaningMethod } from "@groovenet/client";
+import { GroovenetClient, type Track, type RecordActionInput, type RecordCareStatus, type SleeveType, type CleaningMethod, type TrackSearchMode } from "@groovenet/client";
 import dotenv from "dotenv";
 
 // Stdio is the MCP protocol channel; dotenv's startup banner must stay off it.
@@ -21,11 +21,16 @@ const client = new GroovenetClient({ baseUrl: API_BASE, apiKey: API_KEY, clientN
 const tools = [
   {
     name: "search_tracks",
-    description: "Search for tracks in your collection by title, artist, album, genre, or tags. Supports filtering by BPM range, key, and star rating.",
+    description: "Search for tracks in your collection by title, artist, album, genre, or tags — or, with mode 'semantic' or 'hybrid', by a natural-language description of the sound (e.g. 'dusty 70s cumbia with brass'). Supports filtering by BPM range, key, and star rating.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Search query (title, artist, album, genre, or tag)" },
+        query: { type: "string", description: "Search query (title, artist, album, genre, or tag), or a description of the music for semantic/hybrid mode" },
+        mode: {
+          type: "string",
+          enum: ["lexical", "semantic", "hybrid"],
+          description: "lexical (default) matches words; semantic matches meaning; hybrid fuses both, with exact title/artist/album matches first. Semantic and hybrid return at most 50 results.",
+        },
         bpm_min: { type: "number", description: "Minimum BPM" },
         bpm_max: { type: "number", description: "Maximum BPM" },
         key: { type: "string", description: "Musical key (e.g., 'A minor', 'C major')" },
@@ -327,6 +332,7 @@ const tools = [
 interface ToolArgs {
   // tracks
   query?: string;
+  mode?: TrackSearchMode;
   bpm_min?: number;
   bpm_max?: number;
   key?: string;
@@ -452,6 +458,7 @@ async function handleToolCall(name: string, args: ToolArgs) {
       const result = await client.searchTracks({
         query: args.query ?? "",
         limit: args.limit ?? 10,
+        mode: args.mode,
         filters: Object.keys(filters).length > 0 ? filters : undefined,
       });
 
@@ -468,7 +475,7 @@ async function handleToolCall(name: string, args: ToolArgs) {
       return {
         content: [{
           type: "text",
-          text: `Found ${result.tracks.length} tracks${result.estimatedTotalHits > result.tracks.length ? ` (${result.estimatedTotalHits} total)` : ""}:\n\n${list}`,
+          text: `Found ${result.tracks.length} tracks${result.estimatedTotalHits > result.tracks.length ? ` (${result.estimatedTotalHits} total)` : ""}${result.degraded ? " (semantic search unavailable; keyword results only)" : ""}:\n\n${list}`,
         }],
       };
     }

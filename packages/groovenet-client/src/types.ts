@@ -110,10 +110,18 @@ export interface AppleMusicResult {
   duration?: number;
 }
 
+export type TrackSearchMode = "lexical" | "semantic" | "hybrid";
+
 export interface TrackSearchQuery {
   query?: string;
   limit?: number;
   offset?: number;
+  /**
+   * `lexical` (default) matches words; `semantic` ranks by meaning (e.g.
+   * "dusty 70s cumbia with brass"); `hybrid` fuses both. Non-lexical modes
+   * return one page: offset 0, limit at most 50.
+   */
+  mode?: TrackSearchMode;
   filters?: {
     bpm_min?: number;
     bpm_max?: number;
@@ -129,6 +137,10 @@ export interface TrackSearchResponse {
   offset: number;
   limit: number;
   processingTimeMs: number;
+  /** The mode that ranked these tracks; absent for a plain lexical search. */
+  mode?: TrackSearchMode;
+  /** Hybrid fell back to lexical results because the semantic leg failed. */
+  degraded?: boolean;
 }
 
 export interface TrackUpdate {

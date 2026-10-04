@@ -23,6 +23,7 @@ import type {
   SpinListResponse,
   SpinTopTracksQuery,
   SpinTopTracksResponse,
+  TrackSearchMode,
   TrackSearchQuery,
   TrackSearchResponse,
   TrackUpdate,
@@ -133,6 +134,7 @@ export class GroovenetClient {
       limit: query.limit ?? 10,
       offset: query.offset ?? 0,
       friend_id: query.filters?.friend_id,
+      mode: query.mode && query.mode !== "lexical" ? query.mode : undefined,
     };
     const result = await this.request<{
       hits: Track[];
@@ -140,6 +142,8 @@ export class GroovenetClient {
       offset: number;
       limit: number;
       processingTimeMs: number;
+      mode?: TrackSearchMode;
+      degraded?: boolean;
     }>("GET", "/tracks/search", undefined, params);
 
     return {
@@ -148,6 +152,8 @@ export class GroovenetClient {
       offset: result.offset,
       limit: result.limit,
       processingTimeMs: result.processingTimeMs,
+      ...(result.mode ? { mode: result.mode } : {}),
+      ...(result.degraded ? { degraded: true } : {}),
     };
   }
 

@@ -4663,6 +4663,14 @@ export const apiContractRoutes: ApiContractRoute[] = [
             description: "SQL-style filter expression. Multiple conditions joined with ' AND '. Supported values: 'local_audio_url IS NULL' (missing audio), '(bpm IS NULL OR key IS NULL)' (missing metadata), 'apple_music_url IS NULL' (missing Apple Music), 'youtube_url IS NULL' (missing YouTube), 'soundcloud_url IS NULL' (missing SoundCloud), '(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)' (missing all streaming URLs).",
           },
         },
+        {
+          name: "mode",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["lexical", "semantic", "hybrid"], default: "lexical" },
+          description:
+            "'lexical' is full-text + trigram. 'semantic' ranks by the natural-language 'context' embedding of q; 'hybrid' fuses both with reciprocal rank fusion, exact title/artist/album matches first. Semantic and hybrid return a single page (offset 0, limit at most 50), at most two tracks per release, and honour friend_id and filter. With an empty q every mode lists lexically.",
+        },
       ],
       responses: {
         "200": {
@@ -4674,6 +4682,15 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 properties: {
                   ...(trackSearchResponseBase.properties as Record<string, unknown>),
                   hits: { type: "array", items: trackEntitySchemaObject },
+                  mode: {
+                    type: "string",
+                    enum: ["lexical", "semantic", "hybrid"],
+                    description: "The mode that ranked hits; omitted for a plain lexical request.",
+                  },
+                  degraded: {
+                    type: "boolean",
+                    description: "Hybrid fell back to lexical results because the semantic leg failed.",
+                  },
                 },
                 required: [...(trackSearchResponseBase.required as string[]), "hits"],
               },
@@ -4684,6 +4701,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 },
               },
             },
+          },
+        },
+        "429": {
+          description: "Too many semantic searches from this caller; see Retry-After",
+          content: {
+            "application/json": { schema: errorResponseSchemaObject },
           },
         },
         "500": {

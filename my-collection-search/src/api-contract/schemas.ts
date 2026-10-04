@@ -628,12 +628,21 @@ export const playlistGeneticValidationErrorSchema = z.object({
   invalid_count: z.number().int(),
 });
 
+export const trackSearchModeSchema = z.enum(["lexical", "semantic", "hybrid"]);
+export type TrackSearchMode = z.infer<typeof trackSearchModeSchema>;
+
 export const trackSearchGetQuerySchema = z.object({
   q: z.string().optional().default(""),
   limit: nonNegativeIntFromInputSchema.optional().default(20),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
   friend_id: intFromInputSchema.optional(),
   filter: z.string().optional(),
+  /**
+   * `lexical` (default) is full-text + trigram. `semantic` ranks by the
+   * `context` embedding; `hybrid` fuses both (#409). Both are one page:
+   * `offset` must be 0 and `limit` at most 50.
+   */
+  mode: trackSearchModeSchema.optional().default("lexical"),
 });
 
 const searchMetaSchema = z.object({
@@ -645,6 +654,10 @@ const searchMetaSchema = z.object({
 
 export const trackSearchGetResponseSchema = searchMetaSchema.extend({
   hits: z.array(z.unknown()),
+  /** The mode that ranked these hits; omitted for a plain lexical request. */
+  mode: trackSearchModeSchema.optional(),
+  /** Hybrid fell back to lexical alone because the semantic leg failed. */
+  degraded: z.boolean().optional(),
 });
 
 export const trackPlaylistCountRefSchema = z.object({
