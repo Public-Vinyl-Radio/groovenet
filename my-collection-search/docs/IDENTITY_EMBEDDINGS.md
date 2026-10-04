@@ -318,10 +318,27 @@ curl "http://localhost:3000/api/recommendations/candidates?track_id=YOUR_TRACK_I
 
 ## Performance Tuning
 
-### OpenAI Rate Limits
-- Free tier: ~3 requests/minute
-- Paid tier: ~3,000 requests/minute
-- Adjust `batch_size` accordingly (default: 5 concurrent)
+### Queue throughput and OpenAI rate limits
+
+Embedding jobs run on the app's background queue (`embeddingQueueService.ts`).
+Every `EMBEDDING_QUEUE_INTERVAL_SECONDS` (default 10) it takes up to
+`EMBEDDING_QUEUE_BATCH_SIZE` jobs (default 5) and embeds them one at a time,
+one OpenAI request each. Throughput is therefore about batch ÷ interval:
+
+| Batch size | Jobs/minute | 15,000 tracks, one kind |
+| --- | --- | --- |
+| 5 (default) | 30 | ~8 h |
+| 20 | 120 | ~2 h |
+| 30 | 180 | ~1 h 25 min |
+
+A template bump (#407) or a new kind (#408) queues every track at once, so raise
+the batch while that drains. All three settings are read at startup. In
+production they come from the box's `.env` (rendered from `.env.tpl`), so set
+the value there and redeploy. The timer doesn't wait for a slow tick, so keep
+batch × ~0.3 s per job under the interval or ticks overlap. Paid OpenAI tiers
+allow thousands of embedding requests a minute, so the queue, not OpenAI, is the
+limit. `EMBEDDING_SWEEP_INTERVAL_MINUTES` (default 30) is how often tracks
+still missing an embedding are re-queued.
 
 ### pgvector Index Tuning
 - **`lists` parameter**: Currently 100 (good for <100K tracks)
