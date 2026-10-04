@@ -45,6 +45,11 @@ Scoring in `optimizer.py` combines cosine similarity of embeddings with BPM
 compatibility; `score_transition` is the pairwise piece and `score_playlist`
 sums it over an ordering.
 
+`embedding` is the track's `audio_vibe` vector at the app's serving model,
+looked up from `track_embeddings` by the Next.js route (#393) — callers' own
+`embedding` fields are ignored. One model per request, so every vector shares a
+dimension; ga-service itself is dimension-agnostic.
+
 `embedding` arrives as a **string** (the pgvector text form) and is parsed by
 `_parse_embedding`. It is not a JSON array at this boundary.
 
