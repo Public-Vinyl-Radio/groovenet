@@ -747,6 +747,22 @@ describe("findContextMatches()", () => {
     expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 6, 1970, 1980, "Cumbia", 90, 110, 500, 2, 30]);
   });
 
+  it("excludes soft-deleted tracks and applies the missing-field chips on t", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findContextMatches(client as any, {
+      ...base,
+      filters: { missing: ["local_audio", "bpm_or_key"] },
+    });
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("t.deleted_at IS NULL");
+    expect(sql).toContain("AND t.local_audio_url IS NULL");
+    expect(sql).toContain("AND (t.bpm IS NULL OR t.key IS NULL)");
+    expect(params).toHaveLength(6);
+  });
+
   it("matches tracks with no usable year for the unknown era", async () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });

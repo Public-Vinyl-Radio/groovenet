@@ -1,4 +1,5 @@
 import type { Track } from "@/types/track";
+import type { TrackMissingFilter } from "@/lib/trackFilterSpec";
 
 export type SimilarTrackBase = Pick<
   Track,
@@ -55,6 +56,8 @@ export type ContextRetrievalFilters = {
   genre?: string;
   bpmMin?: number;
   bpmMax?: number;
+  /** The search route's "missing X" filter chips (#409). */
+  missing?: TrackMissingFilter[];
 };
 
 export type ContextMatch = Pick<

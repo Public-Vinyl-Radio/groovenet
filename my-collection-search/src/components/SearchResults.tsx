@@ -14,6 +14,11 @@ import { toaster } from "@/components/ui/toaster";
 import TrackResultStore from "@/components/TrackResultStore";
 import TrackTableViewWithLoader from "@/components/TrackTableViewWithLoader";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
+import SearchModeToggle, {
+  SEARCH_MODE_PLACEHOLDERS,
+  isTrackSearchMode,
+} from "@/components/search/SearchModeToggle";
+import type { TrackSearchMode } from "@/api-contract/schemas";
 import { useSearchResults } from "@/hooks/useSearchResults";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrack } from "@/hooks/useTrack";
@@ -68,6 +73,10 @@ const SearchResults: React.FC = () => {
 
   // Filter state - applied immediately (no modal)
   const [activeFilters, setActiveFilters] = React.useState<TracksFilter>(createEmptyFilters());
+  const [searchMode, setSearchMode] = React.useState<TrackSearchMode>(() => {
+    const fromUrl = searchParams?.get("mode");
+    return isTrackSearchMode(fromUrl) ? fromUrl : "lexical";
+  });
 
   // Build filter strings, combining with friend_id filter
   const searchFilters = React.useMemo(() => {
@@ -97,6 +106,7 @@ const SearchResults: React.FC = () => {
     limit: 20,
     friend: currentUserFriend,
     filter: searchFilters.length > 0 ? searchFilters : undefined,
+    searchMode,
   });
 
   // Selection state
@@ -235,12 +245,13 @@ const SearchResults: React.FC = () => {
             query_length: debouncedValue.length,
             has_filters: activeFilterCount > 0,
             filter_count: activeFilterCount,
+            search_mode: searchMode,
           });
         }
       }
     }, 300);
     return () => clearTimeout(handler);
-  }, [debouncedValue, onQueryChange, query, activeFilterCount]);
+  }, [debouncedValue, onQueryChange, query, activeFilterCount, searchMode]);
 
   // Hydrate query and filters from URL on first mount
   React.useEffect(() => {
@@ -271,6 +282,8 @@ const SearchResults: React.FC = () => {
     } else {
       params.delete("q");
     }
+    if (searchMode !== "lexical") params.set("mode", searchMode);
+    else params.delete("mode");
     const filterKeys: (keyof TracksFilter)[] = [
       "missingAudio", "missingMetadata", "missingAnyStreamingUrl",
       "missingAppleMusic", "missingYouTube", "missingSoundCloud",
@@ -283,7 +296,7 @@ const SearchResults: React.FC = () => {
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
     router.replace(newUrl);
-  }, [query, activeFilters, pathname, router, searchParamsString]);
+  }, [query, activeFilters, searchMode, pathname, router, searchParamsString]);
 
   return (
     <Box mb={'100px'}>
@@ -297,6 +310,10 @@ const SearchResults: React.FC = () => {
         query={debouncedValue}
         onQueryChange={setDebouncedValue}
         showLibrarySelect={false}
+        placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
+        mobileSecondaryControls={
+          <SearchModeToggle value={searchMode} onChange={setSearchMode} size="xs" />
+        }
         mobilePrimaryControl={
           <IconButton
             aria-label="Select tracks"
@@ -309,6 +326,7 @@ const SearchResults: React.FC = () => {
         }
         desktopControls={
           <>
+            <SearchModeToggle value={searchMode} onChange={setSearchMode} />
             <IconButton
               aria-label="Select tracks"
               size="sm"

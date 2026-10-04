@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { dbQuery } from "@/lib/serverDb";
 import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
+import { missingFilterClause } from "@/lib/trackFilterSpec";
 import type { BackfillOptions, EmbeddingBackfillOptions } from "@/types/backfill";
 import type {
   ContextMatch,
@@ -576,6 +577,7 @@ export class EmbeddingsRepository {
     }
     if (filters.bpmMin !== undefined) clauses.push(`t.bpm >= ${bind(filters.bpmMin)}`);
     if (filters.bpmMax !== undefined) clauses.push(`t.bpm <= ${bind(filters.bpmMax)}`);
+    for (const name of filters.missing ?? []) clauses.push(missingFilterClause(name, "t"));
 
     const result = await client.query<Omit<ContextMatch, "distance"> & { distance: string | number }>(
       `
@@ -593,6 +595,7 @@ export class EmbeddingsRepository {
         WHERE te.embedding_type = 'context'
           AND te.model = $2
           AND te.template_version = $3
+          AND t.deleted_at IS NULL
           ${clauses.map((c) => `AND ${c}`).join("\n          ")}
         ORDER BY ${vector} <=> $1::vector(${dims})
         LIMIT ${bind(candidatePool)}

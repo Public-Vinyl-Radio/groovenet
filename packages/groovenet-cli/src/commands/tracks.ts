@@ -9,7 +9,7 @@ import {
   printError,
 } from "../output.js";
 import chalk from "chalk";
-import { intOption } from "../options.js";
+import { intOption, searchModeOption, type SearchModeOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -27,11 +27,17 @@ export function addTracksCommands(program: Command): void {
     .option("--key <k>", "Musical key (e.g. 'A minor')")
     .option("--rating <n>", "Filter by star rating (0-5)", parseFloat)
     .option("--limit <n>", "Number of results", intOption, 20)
+    .option(
+      "--mode <mode>",
+      "lexical (match words, default), semantic (match meaning, e.g. \"dusty 70s cumbia with brass\") or hybrid (both); semantic and hybrid return up to 50 results",
+      searchModeOption
+    )
     .option("--json", "Output as JSON")
     .action(
       async (
         query: string,
         opts: {
+          mode?: SearchModeOption;
           bpmMin?: number;
           bpmMax?: number;
           key?: string;
@@ -51,6 +57,7 @@ export function addTracksCommands(program: Command): void {
           const result = await client.searchTracks({
             query,
             limit: opts.limit,
+            mode: opts.mode,
             filters: Object.keys(filters).length > 0 ? filters : undefined,
           });
 
@@ -64,6 +71,9 @@ export function addTracksCommands(program: Command): void {
                   : "")
             );
             printTracks(result.tracks, false);
+            if (result.degraded) {
+              console.error(chalk.yellow("Semantic search was unavailable; these are keyword results only."));
+            }
           }
         } catch (err: unknown) {
           printError(err instanceof Error ? err.message : String(err));

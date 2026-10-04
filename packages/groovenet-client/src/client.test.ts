@@ -177,6 +177,38 @@ describe("GroovenetClient.searchTracks", () => {
       params: { q: "", limit: 10, offset: 0, friend_id: 7 },
     });
   });
+
+  it("sends a semantic mode and returns the ranking mode and degraded flag", async () => {
+    const client = clientReturning({
+      hits: [],
+      estimatedTotalHits: 0,
+      offset: 0,
+      limit: 10,
+      processingTimeMs: 1,
+      mode: "hybrid",
+      degraded: true,
+    });
+
+    await expect(client.searchTracks({ query: "dusty cumbia", mode: "hybrid" })).resolves.toMatchObject({
+      mode: "hybrid",
+      degraded: true,
+    });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: { q: "dusty cumbia", limit: 10, offset: 0, friend_id: undefined, mode: "hybrid" },
+      })
+    );
+  });
+
+  it("leaves lexical mode implicit", async () => {
+    const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
+
+    const result = await client.searchTracks({ query: "blue", mode: "lexical" });
+
+    expect(result).not.toHaveProperty("mode");
+    expect(result).not.toHaveProperty("degraded");
+    expect(requestMock.mock.calls[0][0].params.mode).toBeUndefined();
+  });
 });
 
 describe("GroovenetClient track endpoints", () => {

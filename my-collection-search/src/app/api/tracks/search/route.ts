@@ -3,7 +3,17 @@ import { dbQuery } from "@/lib/serverDb";
 import {
   trackSearchGetQuerySchema,
   trackSearchGetResponseSchema,
+  type TrackSearchMode,
 } from "@/api-contract/schemas";
+import { missingFilterClause, parseTrackFilterSpec } from "@/lib/trackFilterSpec";
+import { QueryRateLimitError } from "@/server/services/queryEmbeddingService";
+import {
+  HYBRID_LEG_SIZE,
+  SEMANTIC_MAX_LIMIT,
+  fuseHybridResults,
+  semanticTrackSearch,
+  type TrackRow,
+} from "@/server/services/semanticTrackSearchService";
 
 type ParsedFilter = {
   where: string[];
@@ -11,44 +21,15 @@ type ParsedFilter = {
 };
 
 export function parseTrackFilter(filter: string | undefined): ParsedFilter {
-  if (!filter) return { where: [], params: [] };
-
+  const spec = parseTrackFilterSpec(filter);
   const where: string[] = [];
   const params: unknown[] = [];
 
-  const friendIdMatch = filter.match(/friend_id\s*=\s*(\d+)/i);
-  if (friendIdMatch) {
-    params.push(Number(friendIdMatch[1]));
+  if (spec.friendId !== undefined) {
+    params.push(spec.friendId);
     where.push(`friend_id = $${params.length}`);
   }
-
-  if (filter.includes("local_audio_url IS NULL")) {
-    where.push("local_audio_url IS NULL");
-  }
-
-  if (filter.includes("(bpm IS NULL OR key IS NULL)")) {
-    where.push("(bpm IS NULL OR key IS NULL)");
-  }
-
-  if (
-    filter.includes(
-      "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)"
-    )
-  ) {
-    where.push(
-      "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)"
-    );
-  }
-
-  if (filter.includes("apple_music_url IS NULL")) {
-    where.push("apple_music_url IS NULL");
-  }
-  if (filter.includes("youtube_url IS NULL")) {
-    where.push("youtube_url IS NULL");
-  }
-  if (filter.includes("soundcloud_url IS NULL")) {
-    where.push("soundcloud_url IS NULL");
-  }
+  where.push(...spec.missing.map((name) => missingFilterClause(name)));
 
   return { where, params };
 }
@@ -146,6 +127,100 @@ async function searchTracksPg(params: {
   };
 }
 
+type SearchMode = TrackSearchMode;
+
+/** Who a semantic search's rate limit counts against. The API has no auth, so this bounds runaway loops rather than enforcing anything. */
+function rateLimitCaller(request: NextRequest, friendId: number | undefined): string {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwarded || request.headers.get("x-real-ip") || "unknown";
+  return `friend:${friendId ?? "all"}:ip:${ip}`;
+}
+
+/** One line per non-lexical search. Never the query text: only its length. */
+function logSearch(fields: Record<string, string | number | boolean | undefined>) {
+  console.info(JSON.stringify({ component: "track-search", ...fields }));
+}
+
+async function searchByMeaning(
+  request: NextRequest,
+  params: {
+    q: string;
+    mode: Exclude<SearchMode, "lexical">;
+    limit: number;
+    filter: string | undefined;
+    friendId: number | undefined;
+    where: string[];
+    whereParams: unknown[];
+  }
+): Promise<{ hits: TrackRow[]; mode: SearchMode; startedAt: number; degraded?: boolean }> {
+  const startedAt = Date.now();
+  const spec = parseTrackFilterSpec(params.filter);
+  // Lexical ANDs both; two different friends can only match nothing.
+  if (
+    spec.friendId !== undefined &&
+    params.friendId !== undefined &&
+    spec.friendId !== params.friendId
+  ) {
+    return { hits: [], mode: params.mode, startedAt };
+  }
+  const friendId = params.friendId ?? spec.friendId;
+  const semanticParams = {
+    q: params.q,
+    limit: params.mode === "semantic" ? params.limit : HYBRID_LEG_SIZE,
+    friendId,
+    missing: spec.missing,
+    caller: rateLimitCaller(request, friendId),
+  };
+
+  if (params.mode === "semantic") {
+    const result = await semanticTrackSearch(semanticParams);
+    logSearch({
+      mode: "semantic",
+      query_length: params.q.length,
+      cache_hit: result.cacheHit,
+      embed_ms: result.embedMs,
+      vector_ms: result.vectorMs,
+      results: result.hits.length,
+      total_ms: Date.now() - startedAt,
+    });
+    return { hits: result.hits, mode: params.mode, startedAt };
+  }
+
+  const [lexical, semantic] = await Promise.all([
+    searchTracksPg({
+      q: params.q,
+      limit: HYBRID_LEG_SIZE,
+      offset: 0,
+      where: params.where,
+      whereParams: params.whereParams,
+    }),
+    semanticTrackSearch(semanticParams).catch((error: unknown) => error as Error),
+  ]);
+  const degraded = semantic instanceof Error;
+  if (degraded) {
+    console.warn("[search] hybrid fell back to lexical:", semantic.message);
+  }
+  const hits = fuseHybridResults({
+    q: params.q,
+    lexical: lexical.hits as TrackRow[],
+    semantic: degraded ? [] : semantic.hits,
+    limit: params.limit,
+  });
+  logSearch({
+    mode: "hybrid",
+    query_length: params.q.length,
+    degraded,
+    cache_hit: degraded ? undefined : semantic.cacheHit,
+    embed_ms: degraded ? undefined : semantic.embedMs,
+    vector_ms: degraded ? undefined : semantic.vectorMs,
+    lexical_results: lexical.hits.length,
+    semantic_results: degraded ? 0 : semantic.hits.length,
+    results: hits.length,
+    total_ms: Date.now() - startedAt,
+  });
+  return { hits, mode: params.mode, startedAt, ...(degraded ? { degraded } : {}) };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const parsedQuery = trackSearchGetQuerySchema.safeParse(
@@ -160,12 +235,45 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { q, limit, offset, filter, friend_id } = parsedQuery.data;
+    const { q, limit, offset, filter, friend_id, mode } = parsedQuery.data;
+    if (mode !== "lexical" && (offset > 0 || limit > SEMANTIC_MAX_LIMIT)) {
+      return NextResponse.json(
+        {
+          error: `mode=${mode} returns a single page: offset must be 0 and limit at most ${SEMANTIC_MAX_LIMIT}`,
+        },
+        { status: 400 }
+      );
+    }
     const parsedFilter = parseTrackFilter(filter);
     if (friend_id !== undefined) {
       parsedFilter.params.push(friend_id);
       parsedFilter.where.push(`friend_id = $${parsedFilter.params.length}`);
     }
+
+    // Without words there is no meaning to search; every mode lists the same way.
+    if (mode !== "lexical" && q.trim().length > 0) {
+      const result = await searchByMeaning(request, {
+        q: q.trim(),
+        mode,
+        limit,
+        filter,
+        friendId: friend_id,
+        where: parsedFilter.where,
+        whereParams: parsedFilter.params,
+      });
+      const validated = trackSearchGetResponseSchema.parse({
+        hits: result.hits,
+        // One page: the total is what came back, so clients don't ask for more.
+        estimatedTotalHits: result.hits.length,
+        offset: 0,
+        limit,
+        processingTimeMs: Date.now() - result.startedAt,
+        mode: result.mode,
+        ...(result.degraded ? { degraded: true } : {}),
+      });
+      return NextResponse.json(validated);
+    }
+
     const response = await searchTracksPg({
       q,
       limit,
@@ -173,9 +281,17 @@ export async function GET(request: NextRequest) {
       where: parsedFilter.where,
       whereParams: parsedFilter.params,
     });
-    const validated = trackSearchGetResponseSchema.parse(response);
+    const validated = trackSearchGetResponseSchema.parse(
+      mode === "lexical" ? response : { ...response, mode: "lexical" }
+    );
     return NextResponse.json(validated);
   } catch (error: any) {
+    if (error instanceof QueryRateLimitError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } }
+      );
+    }
     console.error("Search error:", error);
     return NextResponse.json(
       { error: error.message || "Search failed" },

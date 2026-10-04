@@ -444,6 +444,7 @@ export async function searchTracks(
   if (typeof query.limit === "number") params.set("limit", String(query.limit));
   if (typeof query.offset === "number") params.set("offset", String(query.offset));
   if (query.filter) params.set("filter", query.filter);
+  if (query.mode && query.mode !== "lexical") params.set("mode", query.mode);
 
   const search = params.toString();
   const path = search ? `/api/tracks/search?${search}` : "/api/tracks/search";

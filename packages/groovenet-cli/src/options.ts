@@ -34,3 +34,15 @@ export function boundedIntOption(min = 0) {
     return parsed;
   };
 }
+
+const SEARCH_MODES = ["lexical", "semantic", "hybrid"] as const;
+export type SearchModeOption = (typeof SEARCH_MODES)[number];
+
+/** `--mode` for track search: lexical (words), semantic (meaning) or hybrid. */
+export function searchModeOption(value: string): SearchModeOption {
+  const mode = value.toLowerCase();
+  if (!(SEARCH_MODES as readonly string[]).includes(mode)) {
+    throw new InvalidArgumentError(`expected one of: ${SEARCH_MODES.join(", ")}`);
+  }
+  return mode as SearchModeOption;
+}

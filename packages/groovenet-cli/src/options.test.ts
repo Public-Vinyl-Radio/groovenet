@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundedIntOption, intOption } from "./options.js";
+import { boundedIntOption, intOption, searchModeOption } from "./options.js";
 
 describe("intOption()", () => {
   it("parses base 10", () => {
@@ -45,5 +45,17 @@ describe("boundedIntOption()", () => {
 
   it("still rejects nonsense", () => {
     expect(() => boundedIntOption()("abc")).toThrow(/expected a number/);
+  });
+});
+
+describe("searchModeOption()", () => {
+  it("accepts the three modes, case-insensitively", () => {
+    expect(searchModeOption("lexical")).toBe("lexical");
+    expect(searchModeOption("Semantic")).toBe("semantic");
+    expect(searchModeOption("HYBRID")).toBe("hybrid");
+  });
+
+  it("rejects anything else", () => {
+    expect(() => searchModeOption("vibes")).toThrow(/lexical, semantic, hybrid/);
   });
 });

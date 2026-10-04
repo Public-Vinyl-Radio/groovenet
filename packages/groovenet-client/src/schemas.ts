@@ -71,11 +71,14 @@ export const trackEntitySchema = z
   })
   .passthrough();
 
+export const trackSearchModeSchema = z.enum(["lexical", "semantic", "hybrid"]);
+
 export const trackSearchGetQuerySchema = z.object({
   q: z.string().optional().default(""),
   limit: nonNegativeIntFromInputSchema.optional().default(20),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
   filter: z.string().optional(),
+  mode: trackSearchModeSchema.optional().default("lexical"),
 });
 
 export const trackSearchGetResponseSchema = z.object({
@@ -84,6 +87,8 @@ export const trackSearchGetResponseSchema = z.object({
   limit: z.number().int(),
   processingTimeMs: z.number().int(),
   hits: z.array(z.unknown()),
+  mode: trackSearchModeSchema.optional(),
+  degraded: z.boolean().optional(),
 });
 
 export const playlistGeneticBodySchema = z.object({

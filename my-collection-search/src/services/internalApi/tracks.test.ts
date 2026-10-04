@@ -675,6 +675,15 @@ describe("searchTracks", () => {
     expect(params.get("filter")).toBe("bpm > 100");
   });
 
+  it("sends a non-keyword search mode and leaves keyword implicit", async () => {
+    await searchTracks({ q: "dusty cumbia", mode: "hybrid" });
+    expect(calledParams().get("mode")).toBe("hybrid");
+
+    httpMock.mockClear();
+    await searchTracks({ q: "blue", mode: "lexical" });
+    expect(calledParams().has("mode")).toBe(false);
+  });
+
   it("includes a zero offset but omits an empty query", async () => {
     await searchTracks({ q: "", offset: 0 });
 
