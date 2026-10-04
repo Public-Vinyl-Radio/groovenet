@@ -191,17 +191,52 @@ same-release matches are excluded, so album leakage doesn't explain the gain.
 Adding identifiers back (F) makes it the worst run. The proxy is noisy, so this
 points a direction rather than deciding it.
 
-Judged precision@10 with #379's 366 judgments only (before the new review):
+Judged precision@10 merges #379's 366 judgments with 342 new blinded ones.
+The 382 review has 288 relevant, 54 not relevant and 5 left unjudged; review
+SHA-256 `c7f5f53b586de312e3c4363faa93325054a0494c3207bbed7b51fc7b8c294027`.
+Unjudged pairs widen the bounds; they are not counted as misses.
 
-| Run | Relevant | Not relevant | Uncertain | Unjudged | Bounds |
-| --- | --- | --- | --- | --- | --- |
-| A | 184 | 55 | 1 | 0 | 0.7667–0.7708 |
-| A2 | 181 | 49 | 0 | 10 | 0.7542–0.7958 |
-| D | 64 | 6 | 0 | 170 | 0.2667–0.9750 |
-| E | 59 | 4 | 0 | 177 | 0.2458–0.9833 |
-| F | 92 | 11 | 0 | 137 | 0.3833–0.9542 |
+| Run | Relevant | Not relevant | Unresolved | Precision@10 | Scene | Style | Instr. | Crossover |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A | 184 | 55 | 1 | 0.7667–0.7708 | 0.750 | 0.733 | 0.717 | 0.867 |
+| A2 | 187 | 53 | 0 | 0.7792 | 0.733 | 0.783 | 0.733 | 0.867 |
+| D | 208 | 30 | 2 | 0.8667–0.8750 | **0.883** | 0.867 | 0.817 | 0.900 |
+| E | 209 | 27 | 4 | 0.8708–0.8875 | 0.767 | **0.950** | 0.867 | 0.900 |
+| F | 214 | 24 | 2 | **0.8917–0.9000** | 0.783 | 0.933 | 0.867 | **0.983** |
 
-D, E and F mostly retrieve tracks that A/B/C never ranked. Their precision is
-undetermined until `eval-data/382-review.json` (347 new pooled pairs, blinded)
-is judged. A `text-embedding-3-large` comparison follows on the best text,
-once those judgments are in.
+Group columns are lower bounds. Paired per query against A, with a 95%
+bootstrap CI over queries on the mean precision difference:
+
+| Comparison | Wins / losses / ties | Mean Δ precision@10 | 95% CI |
+| --- | --- | --- | --- |
+| A2 vs A | 5 / 2 / 17 | +0.013 | −0.008 to +0.033 |
+| D vs A | 12 / 6 / 6 | +0.100 | −0.004 to +0.204 |
+| E vs A | 13 / 7 / 4 | +0.104 | −0.008 to +0.217 |
+| **F vs A** | **16 / 2 / 6** | **+0.125** | **+0.067 to +0.188** |
+| F vs E | 7 / 4 / 13 | +0.021 | −0.063 to +0.100 |
+
+Distinct releases per top 10, averaged over the queries: A 5.33, D 4.46,
+E 3.00, F 3.25.
+
+### Reading
+
+- **The normalization fix (A2) is safe but not, by itself, a measurable gain.**
+  It is still worth shipping as a correctness fix.
+- **Identifiers hurt the descriptive signal.** Every text that drops or
+  demotes title, artist, album and label beats A on queries by about 0.10–0.13.
+- **Only F's gain is consistent across queries.** D and E win big on some
+  queries (q04, q05, q18) and lose on others (q12, q14, q17), so their CIs
+  cross zero. F leads with descriptors but keeps identifiers as trailing
+  context, and loses only 2 of 24 queries to A.
+- **The two use cases disagree.** On the playlist proxy (similar tracks), F is
+  the worst run and D/E the best; on queries (natural-language retrieval), F is
+  the best. That supports a separate retrieval text rather than one identity
+  text serving both.
+- **Descriptive texts cluster by album.** Tracks on one release share every
+  descriptive field and therefore one vector, so a matching album can fill
+  several top-10 slots (E averages 3 releases per top 10). Precision rewards
+  that; a DJ browsing results may not. A serving design would need per-release
+  diversification, or a track-level field (#371) to break ties.
+- **Limitations:** one judge (the collection owner); 24 queries; one
+  collection; the proxy is noisy; and the judge saw the playlist-proxy
+  direction before reviewing (the review itself stayed blind per pair).
