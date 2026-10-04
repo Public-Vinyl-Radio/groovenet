@@ -1,4 +1,6 @@
-export type EmbeddingJobKind = "identity" | "audio_vibe";
+import type { EmbeddingModelKind } from "@/types/embeddings";
+
+export type EmbeddingJobKind = EmbeddingModelKind;
 
 export interface EmbeddingJob {
   track_id: string;

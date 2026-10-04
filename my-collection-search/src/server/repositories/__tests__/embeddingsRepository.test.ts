@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EmbeddingsRepository } from "../embeddingsRepository";
+import { EmbeddingsRepository, eraYearRange } from "../embeddingsRepository";
 import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 
 const dbQuery = vi.hoisted(() => vi.fn());
@@ -667,5 +667,108 @@ describe("findEmbeddingsForTracks()", () => {
     expect(sql).toContain("te.embedding::text");
     expect(sql).toContain("te.model = $4 AND te.template_version = $5");
     expect(params).toEqual([["t1", "t2"], [1, 2], "audio_vibe", "vibe-model", 3]);
+  });
+});
+
+// ─── context retrieval (#408) ─────────────────────────────────────────────────
+
+describe("listTracksNeedingContextEmbeddings()", () => {
+  it("delegates to listTracksForBackfill with type='context'", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listTracksNeedingContextEmbeddings({ friend_id: 2 });
+
+    const [, params] = dbQuery.mock.calls[0];
+    expect(params).toEqual(["context", CURRENT_TEMPLATE_VERSIONS.context, 2]);
+  });
+});
+
+describe("eraYearRange()", () => {
+  it.each([
+    ["1970s", [1970, 1980]],
+    ["2020s", [2020, 2030]],
+    ["1950s", [1950, 1960]],
+    ["pre-1950s", [1900, 1950]],
+    ["unknown-era", "unknown"],
+  ])("maps %s", (era, expected) => {
+    expect(eraYearRange(era)).toEqual(expected);
+  });
+
+  it.each(["1940s", "70s", "seventies", ""])("rejects %j", (era) => {
+    expect(() => eraYearRange(era)).toThrow("Invalid era filter");
+  });
+});
+
+describe("findContextMatches()", () => {
+  const base = {
+    queryEmbedding: [0.1, 0.2],
+    model: "context-model",
+    templateVersion: 1,
+    dims: 1536,
+    limit: 10,
+    perReleaseCap: 2,
+  };
+
+  it("pins kind, model and version, caps per release and coerces distance", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [{ track_id: "t1", distance: "0.25" }] });
+
+    const rows = await makeRepo().findContextMatches(client as any, base);
+
+    expect(rows[0].distance).toBe(0.25);
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("te.embedding_type = 'context'");
+    expect(sql).toContain("te.model = $2");
+    expect(sql).toContain("te.template_version = $3");
+    expect(sql).toContain("vector(1536)");
+    expect(sql).toContain("PARTITION BY friend_id, COALESCE(release_id, track_id)");
+    // vector, model, version, pool, cap, limit — pool defaults to max(limit × 10, 200).
+    expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 200, 2, 10]);
+  });
+
+  it("binds every filter after the fixed params", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findContextMatches(client as any, {
+      ...base,
+      limit: 30,
+      candidatePool: 500,
+      filters: { friendId: 6, era: "1970s", genre: "Cumbia", bpmMin: 90, bpmMax: 110 },
+    });
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("te.friend_id = $4");
+    expect(sql).toContain(">= $5");
+    expect(sql).toContain("< $6");
+    expect(sql).toContain("LOWER(g.name) = LOWER($7)");
+    expect(sql).toContain("t.bpm >= $8");
+    expect(sql).toContain("t.bpm <= $9");
+    expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 6, 1970, 1980, "Cumbia", 90, 110, 500, 2, 30]);
+  });
+
+  it("matches tracks with no usable year for the unknown era", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findContextMatches(client as any, { ...base, filters: { era: "unknown-era" } });
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("IS NULL OR");
+    expect(params).toHaveLength(6);
+  });
+
+  it.each([
+    [{ limit: 0 }, "Invalid limit"],
+    [{ perReleaseCap: 1.5 }, "Invalid perReleaseCap"],
+    [{ dims: 0 }, "Invalid vector dims"],
+    [{ filters: { era: "seventies" } }, "Invalid era filter"],
+  ])("rejects %j without querying", async (override, message) => {
+    const client = makeClient();
+
+    await expect(
+      makeRepo().findContextMatches(client as any, { ...base, ...override })
+    ).rejects.toThrow(message);
+    expect(client.query).not.toHaveBeenCalled();
   });
 });

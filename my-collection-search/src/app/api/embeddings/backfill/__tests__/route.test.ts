@@ -41,12 +41,12 @@ beforeEach(() => {
 });
 
 describe("POST /api/embeddings/backfill", () => {
-  it("defaults to scope=missing across both types with no body at all", async () => {
+  it("defaults to scope=missing across every type with no body at all", async () => {
     const res = await POST(post(undefined));
 
     expect(res.status).toBe(202);
-    expect(repo.listTracksForBackfill).toHaveBeenCalledTimes(2);
-    for (const type of ["identity", "audio_vibe"]) {
+    expect(repo.listTracksForBackfill).toHaveBeenCalledTimes(3);
+    for (const type of ["identity", "audio_vibe", "context"]) {
       expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
         expect.objectContaining({ type, force: false })
       );
@@ -142,6 +142,7 @@ describe("POST /api/embeddings/backfill", () => {
     repo.listTracksForBackfill.mockImplementation(async ({ type }: { type: string }) => {
       if (type === "identity") return refs("identity", 3);
       if (type === "audio_vibe") return refs("audio_vibe", 1);
+      if (type === "context") return refs("context", 2);
       return [];
     });
 
@@ -150,8 +151,8 @@ describe("POST /api/embeddings/backfill", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       dry_run: true,
-      total: 4,
-      by_type: { identity: 3, audio_vibe: 1 },
+      total: 6,
+      by_type: { identity: 3, audio_vibe: 1, context: 2 },
     });
     expect(queue.startBackfillRun).not.toHaveBeenCalled();
   });
@@ -166,7 +167,7 @@ describe("POST /api/embeddings/backfill", () => {
     expect(await res.json()).toEqual({
       dry_run: true,
       total: 2,
-      by_type: { identity: 2, audio_vibe: 0 },
+      by_type: { identity: 2, audio_vibe: 0, context: 0 },
     });
   });
 
@@ -178,7 +179,7 @@ describe("POST /api/embeddings/backfill", () => {
     expect(await res.json()).toEqual({
       dry_run: true,
       total: 1,
-      by_type: { identity: 0, audio_vibe: 1 },
+      by_type: { identity: 0, audio_vibe: 1, context: 0 },
     });
   });
 

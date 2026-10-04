@@ -11,4 +11,5 @@ export const CURRENT_TEMPLATE_VERSIONS: Record<EmbeddingModelKind, number> = {
   // 2: Unicode-aware normalization — accents folded, not deleted (#407).
   identity: 2,
   audio_vibe: 1,
+  context: 1,
 };

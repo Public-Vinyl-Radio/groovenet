@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { getRedisConnection } from "@/lib/redis";
 import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
 import { generateAndStoreAudioVibeEmbedding } from "@/lib/audio-vibe-embedding";
+import { generateAndStoreContextEmbedding } from "@/lib/context-embedding";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
 import type {
@@ -87,6 +88,9 @@ async function runJob(job: EmbeddingJob): Promise<{ updated: boolean }> {
   }
   if (job.kind === "audio_vibe") {
     return generateAndStoreAudioVibeEmbedding(job.track_id, job.friend_id, job.force);
+  }
+  if (job.kind === "context") {
+    return generateAndStoreContextEmbedding(job.track_id, job.friend_id, job.force);
   }
 
   // A "prompt" job left in Redis from before the legacy column was removed
@@ -246,20 +250,22 @@ export class EmbeddingQueueService {
 
   /**
    * Backstop for #385, same shape as `fingerprintBackfillService`'s missing
-   * pass: finds tracks with no identity/audio-vibe embedding at all
+   * pass: finds tracks missing an identity, audio-vibe or context embedding
    * and enqueues them. Covers lost Redis state and anything enqueued before
    * the worker ever ran. Idempotent — a track already queued or already
    * embedded is a no-op either way.
    */
   async sweepTick(): Promise<{ queued: number }> {
-    const [missingIdentity, missingAudioVibe] = await Promise.all([
+    const [missingIdentity, missingAudioVibe, missingContext] = await Promise.all([
       embeddingsRepository.listTracksNeedingIdentityEmbeddings({}),
       embeddingsRepository.listTracksNeedingAudioVibeEmbeddings({}),
+      embeddingsRepository.listTracksNeedingContextEmbeddings({}),
     ]);
 
     const jobs: EmbeddingJob[] = [
       ...missingIdentity.map((t) => ({ ...t, kind: "identity" as const })),
       ...missingAudioVibe.map((t) => ({ ...t, kind: "audio_vibe" as const })),
+      ...missingContext.map((t) => ({ ...t, kind: "context" as const })),
     ];
 
     await this.enqueue(jobs);

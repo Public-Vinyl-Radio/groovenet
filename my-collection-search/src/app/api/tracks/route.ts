@@ -30,11 +30,10 @@ export async function PATCH(req: Request) {
     // embedding, and the PATCH no longer waits on an external call.
     const embeddingJobs: EmbeddingJob[] = [];
     if (embeddingUpdates.identity) {
-      embeddingJobs.push({
-        track_id: updated.track_id,
-        friend_id: updated.friend_id,
-        kind: "identity",
-      });
+      // The context text (#408) is built from the same inputs as identity.
+      for (const kind of ["identity", "context"] as const) {
+        embeddingJobs.push({ track_id: updated.track_id, friend_id: updated.friend_id, kind });
+      }
     }
     if (embeddingUpdates.audioVibe) {
       embeddingJobs.push({

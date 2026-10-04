@@ -21,24 +21,35 @@ export async function GET(request: Request) {
     }
     const { friend_id } = parsed.data;
 
-    const [identity, audioVibe, totalTracks, identityByModel, audioVibeByModel] =
-      await Promise.all([
-        embeddingsRepository.listTracksNeedingIdentityEmbeddings({ friend_id }),
-        embeddingsRepository.listTracksNeedingAudioVibeEmbeddings({ friend_id }),
-        embeddingsRepository.countTracks(friend_id),
-        embeddingsRepository.countEmbeddingsByModel("identity", friend_id),
-        embeddingsRepository.countEmbeddingsByModel("audio_vibe", friend_id),
-      ]);
+    const [
+      identity,
+      audioVibe,
+      context,
+      totalTracks,
+      identityByModel,
+      audioVibeByModel,
+      contextByModel,
+    ] = await Promise.all([
+      embeddingsRepository.listTracksNeedingIdentityEmbeddings({ friend_id }),
+      embeddingsRepository.listTracksNeedingAudioVibeEmbeddings({ friend_id }),
+      embeddingsRepository.listTracksNeedingContextEmbeddings({ friend_id }),
+      embeddingsRepository.countTracks(friend_id),
+      embeddingsRepository.countEmbeddingsByModel("identity", friend_id),
+      embeddingsRepository.countEmbeddingsByModel("audio_vibe", friend_id),
+      embeddingsRepository.countEmbeddingsByModel("context", friend_id),
+    ]);
 
     return NextResponse.json({
       total_tracks: totalTracks,
       missing: {
         identity: identity.length,
         audio_vibe: audioVibe.length,
+        context: context.length,
       },
       by_model: {
         identity: identityByModel,
         audio_vibe: audioVibeByModel,
+        context: contextByModel,
       },
     });
   } catch (error) {

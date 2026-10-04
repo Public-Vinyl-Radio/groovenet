@@ -3,6 +3,9 @@ import { dbQuery } from "@/lib/serverDb";
 import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 import type { BackfillOptions, EmbeddingBackfillOptions } from "@/types/backfill";
 import type {
+  ContextMatch,
+  ContextRetrievalFilters,
+  EmbeddingModelKind,
   EmbeddingTrackRef,
   SimilarIdentityTrack,
   SimilarityFilters,
@@ -28,6 +31,20 @@ type SimilarVibeTrackRow = Omit<SimilarVibeTrack, "distance"> & {
  * that `(embedding_type, model)` pair (#386); without it, the planner has no
  * index whose expression matches and falls back to a sequential scan.
  */
+/**
+ * `[min, max)` years for a `yearToEra` bucket, or "unknown" for tracks with
+ * no usable year. Throws on anything else rather than silently matching
+ * nothing.
+ */
+export function eraYearRange(era: string): [number, number] | "unknown" {
+  if (era === "unknown-era") return "unknown";
+  if (era === "pre-1950s") return [1900, 1950];
+  const match = /^(\d{3})0s$/.exec(era);
+  const decade = match ? Number(match[1]) * 10 : NaN;
+  if (!(decade >= 1950)) throw new Error(`Invalid era filter: ${era}`);
+  return [decade, decade + 10];
+}
+
 function castVector(column: string, dims: number): string {
   if (!Number.isInteger(dims) || dims <= 0) {
     throw new Error(`Invalid vector dims: ${dims}`);
@@ -118,13 +135,19 @@ export class EmbeddingsRepository {
     return this.listTracksForBackfill({ ...options, type: "audio_vibe" });
   }
 
+  async listTracksNeedingContextEmbeddings(
+    options: BackfillOptions
+  ): Promise<EmbeddingTrackRef[]> {
+    return this.listTracksForBackfill({ ...options, type: "context" });
+  }
+
   /**
    * Row counts per model and template version for one kind (#386, #407) —
    * the coverage readout an operator watches mid-switch to decide when the
    * new set is complete enough to flip serving to it.
    */
   async countEmbeddingsByModel(
-    embeddingType: "identity" | "audio_vibe",
+    embeddingType: EmbeddingModelKind,
     friendId?: number
   ): Promise<Array<{ model: string; dims: number; template_version: number; count: number }>> {
     const params: unknown[] = [embeddingType];
@@ -181,7 +204,7 @@ export class EmbeddingsRepository {
     client: Queryable,
     trackId: string,
     friendId: number,
-    embeddingType: "identity" | "audio_vibe",
+    embeddingType: EmbeddingModelKind,
     model: string,
     templateVersion: number
   ): Promise<unknown | null> {
@@ -207,7 +230,7 @@ export class EmbeddingsRepository {
    */
   async findEmbeddingsForTracks(
     tracks: Array<{ trackId: string; friendId: number }>,
-    embeddingType: "identity" | "audio_vibe",
+    embeddingType: EmbeddingModelKind,
     model: string,
     templateVersion: number
   ): Promise<Array<{ track_id: string; friend_id: number; embedding: string }>> {
@@ -390,7 +413,7 @@ export class EmbeddingsRepository {
   async upsertTrackEmbedding(params: {
     trackId: string;
     friendId: number;
-    embeddingType: "identity" | "audio_vibe";
+    embeddingType: EmbeddingModelKind;
     model: string;
     dims: number;
     embedding: number[];
@@ -435,7 +458,7 @@ export class EmbeddingsRepository {
   async findEmbeddingSourceHash(
     trackId: string,
     friendId: number,
-    embeddingType: "identity" | "audio_vibe",
+    embeddingType: EmbeddingModelKind,
     model: string,
     templateVersion: number
   ): Promise<string | null> {
@@ -496,6 +519,102 @@ export class EmbeddingsRepository {
     );
 
     return result.rows.map((row) => row.embedding_type);
+  }
+
+
+  /**
+   * Natural-language retrieval over `context` embeddings (#408): the tracks
+   * nearest a query vector, at most `perReleaseCap` per release. Context text
+   * is mostly album-level, so without the cap one matching album fills the
+   * page (#382 saw ~3 releases per top 10). Filters run in SQL with the
+   * vector scan; the scan over-fetches `candidatePool` rows so the cap and
+   * filters still leave a full page.
+   */
+  async findContextMatches(
+    client: Queryable,
+    params: {
+      queryEmbedding: number[];
+      model: string;
+      templateVersion: number;
+      dims: number;
+      limit: number;
+      perReleaseCap: number;
+      candidatePool?: number;
+      filters?: ContextRetrievalFilters;
+    }
+  ): Promise<ContextMatch[]> {
+    const { model, templateVersion, dims, limit, perReleaseCap, filters = {} } = params;
+    for (const [name, value] of Object.entries({ limit, perReleaseCap })) {
+      if (!Number.isInteger(value) || value <= 0) throw new Error(`Invalid ${name}: ${value}`);
+    }
+    const candidatePool = params.candidatePool ?? Math.max(limit * 10, 200);
+    const vector = castVector("te.embedding", dims);
+    const values: unknown[] = [`[${params.queryEmbedding.join(",")}]`, model, templateVersion];
+    const clauses: string[] = [];
+    const bind = (value: unknown) => {
+      values.push(value);
+      return `$${values.length}`;
+    };
+    // Leading four digits of the free-text year column, or NULL.
+    const year = "NULLIF(SUBSTRING(t.year FROM '^[0-9]{4}'), '')::int";
+
+    if (filters.friendId !== undefined) clauses.push(`te.friend_id = ${bind(filters.friendId)}`);
+    if (filters.era) {
+      const range = eraYearRange(filters.era);
+      clauses.push(
+        range === "unknown"
+          ? `(${year} IS NULL OR ${year} < 1900)`
+          : `${year} >= ${bind(range[0])} AND ${year} < ${bind(range[1])}`
+      );
+    }
+    if (filters.genre) {
+      clauses.push(`EXISTS (
+        SELECT 1
+        FROM unnest(COALESCE(a.genres, t.genres, '{}') || COALESCE(a.styles, t.styles, '{}')) AS g(name)
+        WHERE LOWER(g.name) = LOWER(${bind(filters.genre)})
+      )`);
+    }
+    if (filters.bpmMin !== undefined) clauses.push(`t.bpm >= ${bind(filters.bpmMin)}`);
+    if (filters.bpmMax !== undefined) clauses.push(`t.bpm <= ${bind(filters.bpmMax)}`);
+
+    const result = await client.query<Omit<ContextMatch, "distance"> & { distance: string | number }>(
+      `
+      WITH candidates AS (
+        SELECT
+          t.track_id, t.friend_id, t.release_id, t.title, t.artist, t.album, t.year,
+          COALESCE(t.genres, '{}') AS genres,
+          COALESCE(t.styles, '{}') AS styles,
+          t.bpm, t.key, t.album_thumbnail,
+          te.identity_text AS context_text,
+          ${vector} <=> $1::vector(${dims}) AS distance
+        FROM track_embeddings te
+        JOIN tracks t ON te.track_id = t.track_id AND te.friend_id = t.friend_id
+        LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
+        WHERE te.embedding_type = 'context'
+          AND te.model = $2
+          AND te.template_version = $3
+          ${clauses.map((c) => `AND ${c}`).join("\n          ")}
+        ORDER BY ${vector} <=> $1::vector(${dims})
+        LIMIT ${bind(candidatePool)}
+      ),
+      ranked AS (
+        SELECT *, ROW_NUMBER() OVER (
+          PARTITION BY friend_id, COALESCE(release_id, track_id)
+          ORDER BY distance
+        ) AS release_rank
+        FROM candidates
+      )
+      SELECT track_id, friend_id, release_id, title, artist, album, year, genres, styles,
+             bpm, key, album_thumbnail, context_text, distance
+      FROM ranked
+      WHERE release_rank <= ${bind(perReleaseCap)}
+      ORDER BY distance, track_id
+      LIMIT ${bind(limit)}
+      `,
+      values
+    );
+
+    return result.rows.map((row) => ({ ...row, distance: Number(row.distance) }));
   }
 }
 

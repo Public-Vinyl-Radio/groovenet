@@ -830,7 +830,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
         name: "type",
         in: "query",
         required: false,
-        schema: { type: "string", enum: ["identity", "audio_vibe"], default: "identity" },
+        schema: { type: "string", enum: ["identity", "audio_vibe", "context"], default: "identity" },
       },
     ],
     responses: {
@@ -853,6 +853,15 @@ const remainingTracksContracts: ApiContractRoute[] = [
                   type: "object",
                   properties: {
                     type: { type: "string", enum: ["audio_vibe"] },
+                    text: { type: "string" },
+                    data: { type: "object", additionalProperties: true },
+                  },
+                  required: ["type", "text", "data"],
+                },
+                {
+                  type: "object",
+                  properties: {
+                    type: { type: "string", enum: ["context"] },
                     text: { type: "string" },
                     data: { type: "object", additionalProperties: true },
                   },
@@ -1273,7 +1282,7 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
                 },
                 types: {
                   type: "array",
-                  items: { type: "string", enum: ["identity", "audio_vibe"] },
+                  items: { type: "string", enum: ["identity", "audio_vibe", "context"] },
                 },
                 friend_id: { type: "integer" },
                 release_id: { type: "string" },
@@ -1377,7 +1386,7 @@ const embeddingModelSettingsContracts: ApiContractRoute[] = [
     operationId: "listEmbeddingModelSettings",
     method: "get",
     path: "/api/settings/embedding-model",
-    summary: "Target and serving model for identity/audio_vibe embeddings",
+    summary: "Target and serving model for identity, audio_vibe and context embeddings",
     tags: ["Embeddings"],
     successSchema: embeddingModelSettingsListSchema,
     errorSchema: apiErrorSchema,
@@ -1414,10 +1423,16 @@ const embeddingModelSettingsContracts: ApiContractRoute[] = [
               type: "object",
               required: ["embedding_type", "field", "model", "dims"],
               properties: {
-                embedding_type: { type: "string", enum: ["identity", "audio_vibe"] },
+                embedding_type: { type: "string", enum: ["identity", "audio_vibe", "context"] },
                 field: { type: "string", enum: ["target", "serving"] },
                 model: { type: "string" },
                 dims: { type: "integer" },
+                template_version: {
+                  type: "integer",
+                  minimum: 1,
+                  description:
+                    "Serving only: the template version reads switch to (#407). Omit to keep the current one.",
+                },
               },
             },
           },

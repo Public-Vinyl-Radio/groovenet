@@ -28,7 +28,7 @@ export const IDENTITY_TEMPLATE_VERSION = CURRENT_TEMPLATE_VERSIONS.identity;
 /**
  * Normalized identity data for embedding
  */
-interface IdentityData {
+export interface IdentityData {
   title: string;
   artist: string;
   album: string;

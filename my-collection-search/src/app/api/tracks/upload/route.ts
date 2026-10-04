@@ -52,6 +52,7 @@ async function processAudioFile(
       await embeddingQueueService.enqueue(
         rows.flatMap((row) => [
           { track_id: row.track_id, friend_id: row.friend_id, kind: "identity" as const },
+          { track_id: row.track_id, friend_id: row.friend_id, kind: "context" as const },
           { track_id: row.track_id, friend_id: row.friend_id, kind: "audio_vibe" as const },
         ])
       );

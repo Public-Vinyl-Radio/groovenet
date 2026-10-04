@@ -42,6 +42,8 @@ const mockGenerateAudioVibe = vi.hoisted(() => vi.fn());
 const mockCheckProvider = vi.hoisted(() => vi.fn());
 const mockListIdentity = vi.hoisted(() => vi.fn());
 const mockListAudioVibe = vi.hoisted(() => vi.fn());
+const mockGenerateContext = vi.hoisted(() => vi.fn());
+const mockListContext = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => mockRedis }));
 vi.mock("@/lib/identity-embedding", () => ({
@@ -50,10 +52,14 @@ vi.mock("@/lib/identity-embedding", () => ({
 vi.mock("@/lib/audio-vibe-embedding", () => ({
   generateAndStoreAudioVibeEmbedding: mockGenerateAudioVibe,
 }));
+vi.mock("@/lib/context-embedding", () => ({
+  generateAndStoreContextEmbedding: mockGenerateContext,
+}));
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: {
     listTracksNeedingIdentityEmbeddings: mockListIdentity,
     listTracksNeedingAudioVibeEmbeddings: mockListAudioVibe,
+    listTracksNeedingContextEmbeddings: mockListContext,
   },
 }));
 vi.mock("@/server/services/embeddingHealthService", () => ({
@@ -81,6 +87,8 @@ beforeEach(() => {
   mockRedis.lrange.mockResolvedValue([]);
   mockListIdentity.mockResolvedValue([]);
   mockListAudioVibe.mockResolvedValue([]);
+  mockListContext.mockResolvedValue([]);
+  mockGenerateContext.mockResolvedValue({ updated: true, reason: "ok" });
   mockGenerateIdentity.mockResolvedValue({ updated: true, reason: "ok" });
   mockGenerateAudioVibe.mockResolvedValue({ updated: true, reason: "ok" });
   mockCheckProvider.mockResolvedValue(undefined);
@@ -150,6 +158,16 @@ describe("tick", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
     expect(mockGenerateAudioVibe).toHaveBeenCalledWith("t1", 1, undefined);
+  });
+
+  it("runs a context job via generateAndStoreContextEmbedding (#408)", async () => {
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ kind: "context", force: true })))
+      .mockResolvedValue(null);
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+    expect(mockGenerateContext).toHaveBeenCalledWith("t1", 1, true);
+    expect(mockGenerateIdentity).not.toHaveBeenCalled();
   });
 
   it("drops a legacy prompt job left in Redis without retrying it", async () => {
@@ -312,12 +330,17 @@ describe("tick — retry promotion", () => {
 // ─── sweepTick ────────────────────────────────────────────────────────────────
 
 describe("sweepTick", () => {
-  it("enqueues identity and audio_vibe jobs for whatever is missing", async () => {
+  it("enqueues identity, audio_vibe and context jobs for whatever is missing", async () => {
     mockListIdentity.mockResolvedValueOnce([{ track_id: "a", friend_id: 1 }]);
     mockListAudioVibe.mockResolvedValueOnce([{ track_id: "b", friend_id: 2 }]);
+    mockListContext.mockResolvedValueOnce([{ track_id: "c", friend_id: 3 }]);
     const service = new EmbeddingQueueService();
     const result = await service.sweepTick();
-    expect(result).toEqual({ queued: 2 });
+    expect(result).toEqual({ queued: 3 });
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue",
+      JSON.stringify({ track_id: "c", friend_id: 3, kind: "context" })
+    );
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
       JSON.stringify({ track_id: "a", friend_id: 1, kind: "identity" })

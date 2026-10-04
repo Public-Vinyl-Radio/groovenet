@@ -43,8 +43,45 @@ export type SimilarityFilters = {
 
 export type EmbeddingTrackRef = Pick<Track, "track_id" | "friend_id">;
 
-/** The two embedding kinds that support multiple models side by side (#386). */
-export type EmbeddingModelKind = "identity" | "audio_vibe";
+/**
+ * Structured filters for context retrieval (#408), applied in SQL alongside
+ * the vector scan. `era` is a `yearToEra` bucket (`1970s`, `pre-1950s`,
+ * `unknown-era`); `genre` matches any album (else track) genre or style,
+ * case-insensitively.
+ */
+export type ContextRetrievalFilters = {
+  friendId?: number;
+  era?: string;
+  genre?: string;
+  bpmMin?: number;
+  bpmMax?: number;
+};
+
+export type ContextMatch = Pick<
+  Track,
+  | "track_id"
+  | "friend_id"
+  | "title"
+  | "artist"
+  | "album"
+  | "year"
+  | "genres"
+  | "styles"
+  | "bpm"
+  | "key"
+  | "album_thumbnail"
+> & {
+  release_id: string | null;
+  distance: number;
+  context_text: string;
+};
+
+/**
+ * Every embedding kind with model settings (#386): `identity` for similar
+ * tracks, `audio_vibe` for audio similarity, `context` for natural-language
+ * retrieval (#408).
+ */
+export type EmbeddingModelKind = "identity" | "audio_vibe" | "context";
 
 export type EmbeddingModelSettings = {
   embedding_type: EmbeddingModelKind;

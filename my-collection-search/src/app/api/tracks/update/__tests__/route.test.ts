@@ -141,17 +141,19 @@ describe("PATCH /api/tracks — embedding queueing (scalar fields)", () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old Title" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New Title" }));
     await PATCH(makeReq(PATCH_BODY));
-    expect(enqueuedKinds()).toEqual(["identity"]);
+    expect(enqueuedKinds()).toEqual(["identity", "context"]);
   });
 });
 
 describe("PATCH /api/tracks — track_embeddings updates", () => {
-  it("enqueues an identity job when identity fields change", async () => {
+  it("enqueues identity and context jobs when identity fields change", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ title: "Old Title" }));
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ title: "New Title" }));
     await PATCH(makeReq(PATCH_BODY));
+    // The context text (#408) is built from the same inputs as identity.
     expect(mockEnqueue).toHaveBeenCalledWith([
       { track_id: "t1", friend_id: 1, kind: "identity" },
+      { track_id: "t1", friend_id: 1, kind: "context" },
     ]);
   });
 

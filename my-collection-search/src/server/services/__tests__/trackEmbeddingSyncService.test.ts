@@ -19,13 +19,15 @@ beforeEach(() => {
 });
 
 describe("syncIdentityEmbeddings", () => {
-  it("enqueues an identity job per track and reports the count", async () => {
+  it("enqueues an identity and a context job per track and reports the track count", async () => {
     const result = await syncIdentityEmbeddings(refs(2));
 
     expect(result).toEqual({ queued: 2 });
     expect(mockEnqueue).toHaveBeenCalledWith([
       { track_id: "t0", friend_id: 1, kind: "identity" },
+      { track_id: "t0", friend_id: 1, kind: "context" },
       { track_id: "t1", friend_id: 1, kind: "identity" },
+      { track_id: "t1", friend_id: 1, kind: "context" },
     ]);
   });
 

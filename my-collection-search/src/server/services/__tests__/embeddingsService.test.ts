@@ -5,6 +5,7 @@ const {
   mockWithDbClient,
   mockGetIdentityPreview,
   mockGetAudioVibePreview,
+  mockGetContextPreview,
   mockSetProbes,
   mockFindSource,
   mockFindSimilarIdentity,
@@ -13,6 +14,7 @@ const {
   mockWithDbClient: vi.fn(),
   mockGetIdentityPreview: vi.fn(),
   mockGetAudioVibePreview: vi.fn(),
+  mockGetContextPreview: vi.fn(),
   mockSetProbes: vi.fn(),
   mockFindSource: vi.fn(),
   mockFindSimilarIdentity: vi.fn(),
@@ -25,6 +27,9 @@ vi.mock("@/lib/identity-embedding", () => ({
 }));
 vi.mock("@/lib/audio-vibe-embedding", () => ({
   getAudioVibePreview: mockGetAudioVibePreview,
+}));
+vi.mock("@/lib/context-embedding", () => ({
+  getContextPreview: mockGetContextPreview,
 }));
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: {
@@ -117,6 +122,16 @@ describe("EmbeddingsService.getPreview", () => {
     const res = await embeddingsService.getPreview("audio_vibe", "t1", 1);
     expect(res).toEqual({ type: "audio_vibe", text: "vibe-text", data: { b: 2 } });
     expect(mockGetIdentityPreview).not.toHaveBeenCalled();
+  });
+
+  it("returns context preview fields for type=context (#408)", async () => {
+    mockGetContextPreview.mockResolvedValueOnce({
+      contextText: "ctx-text",
+      contextData: { c: 3 },
+    });
+    const res = await embeddingsService.getPreview("context", "t1", 1);
+    expect(res).toEqual({ type: "context", text: "ctx-text", data: { c: 3 } });
+    expect(mockGetAudioVibePreview).not.toHaveBeenCalled();
   });
 });
 

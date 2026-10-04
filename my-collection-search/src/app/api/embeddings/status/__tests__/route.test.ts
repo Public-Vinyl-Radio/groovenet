@@ -5,6 +5,7 @@ const repo = vi.hoisted(() => ({
   listTracksNeedingAudioVibeEmbeddings: vi.fn(),
   countTracks: vi.fn(),
   countEmbeddingsByModel: vi.fn(),
+  listTracksNeedingContextEmbeddings: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
@@ -24,12 +25,14 @@ beforeEach(() => {
   repo.listTracksNeedingAudioVibeEmbeddings.mockResolvedValue([]);
   repo.countTracks.mockResolvedValue(0);
   repo.countEmbeddingsByModel.mockResolvedValue([]);
+  repo.listTracksNeedingContextEmbeddings.mockResolvedValue([]);
 });
 
 describe("GET /api/embeddings/status", () => {
   it("reports missing counts per type and the track total", async () => {
     repo.listTracksNeedingIdentityEmbeddings.mockResolvedValue(refs(3));
     repo.listTracksNeedingAudioVibeEmbeddings.mockResolvedValue(refs(1));
+    repo.listTracksNeedingContextEmbeddings.mockResolvedValue(refs(5));
     repo.countTracks.mockResolvedValue(50);
     repo.countEmbeddingsByModel.mockResolvedValue([
       { model: "text-embedding-3-small", dims: 1536, count: 47 },
@@ -40,18 +43,22 @@ describe("GET /api/embeddings/status", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       total_tracks: 50,
-      missing: { identity: 3, audio_vibe: 1 },
+      missing: { identity: 3, audio_vibe: 1, context: 5 },
       by_model: {
         identity: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],
         audio_vibe: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],
+        context: [{ model: "text-embedding-3-small", dims: 1536, count: 47 }],
       },
     });
+    expect(repo.listTracksNeedingContextEmbeddings).toHaveBeenCalledWith({ friend_id: undefined });
+    expect(repo.countEmbeddingsByModel).toHaveBeenCalledWith("context", undefined);
   });
 
   it("scopes to one friend when ?friend_id= is given", async () => {
     await GET(new Request("http://app/api/embeddings/status?friend_id=7"));
 
     expect(repo.listTracksNeedingIdentityEmbeddings).toHaveBeenCalledWith({ friend_id: 7 });
+    expect(repo.listTracksNeedingContextEmbeddings).toHaveBeenCalledWith({ friend_id: 7 });
     expect(repo.countTracks).toHaveBeenCalledWith(7);
   });
 
