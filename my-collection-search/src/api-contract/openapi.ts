@@ -1,4 +1,4 @@
-import { apiContractRoutes } from "@/api-contract/routes";
+import { apiContractRoutes, genreTreeNodeSchemaObject } from "@/api-contract/routes";
 import fs from "node:fs";
 import path from "node:path";
 import { exampleFromSchema } from "./exampleFromSchema";
@@ -192,7 +192,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
             "Defined for endpoints that use bearer auth. No current documented endpoint requires it.",
         },
       },
-      schemas: {},
+      schemas: { GenreTreeNode: genreTreeNodeSchemaObject },
     },
   };
 }

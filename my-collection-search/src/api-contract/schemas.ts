@@ -1833,6 +1833,41 @@ export const embeddingModelSettingsSchema = z.object({
 
 export const embeddingModelSettingsListSchema = z.array(embeddingModelSettingsSchema);
 
+// ─── Genre taxonomy (#370) ───────────────────────────────────────────────────
+
+export const genreSourceSchema = z.enum(["discogs", "custom"]);
+export type GenreTreeNode = {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  source: "discogs" | "custom";
+  track_count: number;
+  album_count: number;
+  children: GenreTreeNode[];
+};
+
+export const genreTreeNodeSchema: z.ZodType<GenreTreeNode> = z.lazy(() =>
+  z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    slug: z.string(),
+    parent_id: z.string().uuid().nullable(),
+    source: genreSourceSchema,
+    track_count: z.number().int().nonnegative(),
+    album_count: z.number().int().nonnegative(),
+    children: z.array(genreTreeNodeSchema),
+  })
+);
+
+export const genreTreeResponseSchema = z.object({ genres: z.array(genreTreeNodeSchema) });
+export const genreParamsSchema = z.object({ id: z.string().uuid() });
+export const genreCreateBodySchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
+export const genreUpdateBodySchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });
+export const genreAliasBodySchema = z.object({ alias: z.string().trim().min(1) });
+export const genreMergeBodySchema = z.object({ target_id: z.string().uuid() });
+export const genreMutationResponseSchema = z.object({ id: z.string().uuid(), name: z.string(), slug: z.string(), parent_id: z.string().uuid().nullable(), source: genreSourceSchema });
+
 /**
  * One field at a time, by design: `target` is "what new jobs embed with
  * from now on" and `serving` is "what similarity queries read right now" —
@@ -2119,3 +2154,6 @@ export const setDerivationViewQuerySchema = z.object({
   playlist_id: intFromInputSchema.optional(),
   live_set_id: intFromInputSchema.optional(),
 });
+
+export const genreAliasResponseSchema = z.object({ success: z.literal(true) });
+export const genreMergeResponseSchema = z.object({ success: z.literal(true), merged_genre_id: z.string().uuid(), survivor_genre_id: z.string().uuid() });
