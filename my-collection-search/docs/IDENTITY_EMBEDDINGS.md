@@ -361,6 +361,39 @@ stalled a 21.5k-track backfill.
   - Example: `SET ivfflat.probes = 20;`
 
 ### Re-indexing After Bulk Inserts
+
+An ivfflat index picks its `lists` centroids from the rows that exist **when it
+is built**, and keeps them. Rows added later are only assigned to the nearest
+existing centroid. The migration that adds a new embedding kind or model
+creates its index before any rows of that kind exist, so its centroids are
+trained on nothing. **Rebuild the index once its first backfill finishes**
+(`missing` at 0 in `GET /api/embeddings/status`). Do the same after deleting an
+old template version's rows.
+
+```bash
+docker compose -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml exec -T db \
+  psql -U djplaylist -d djplaylist \
+    -c "SET maintenance_work_mem = '256MB';" \
+    -c "REINDEX INDEX CONCURRENTLY idx_track_embeddings_context_openai_small;" \
+    -c "SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;"
+```
+
+- **Memory.** A 1536-dim, 100-list index over ~15k rows needs about 65 MB
+  to build. The default `maintenance_work_mem` is 64 MB and fails with "memory
+  required is 65 MB". The `SET` applies only to that psql session.
+- **`CONCURRENTLY`** keeps searches and writes running during the rebuild. A
+  failed attempt leaves an invalid `…_ccnew` copy that Postgres maintains on
+  every write but never reads. The last query lists any such copy; drop each
+  one with `DROP INDEX CONCURRENTLY …_ccnew;` before retrying. If a drop
+  waits, `pg_blocking_pids()` in `pg_stat_activity` names the transaction
+  holding it.
+- **Effect at today's size:** after the `context` backfill (#424), the rebuild
+  left every live result unchanged. Friend-filtered queries over a few
+  thousand tracks are scanned exactly or reach full recall at `probes = 10`.
+  It matters once a collection outgrows that, so do it anyway.
+
+To change `lists` for a larger collection, drop and recreate instead:
+
 ```sql
 -- Drop and recreate one kind/model's index with a new lists value
 DROP INDEX idx_track_embeddings_identity_openai_small;
@@ -495,7 +528,9 @@ the pressing's country rather than the music's origin.
   backfills) queues a `context` job too. Staleness uses the identity source hash
   plus the `context` template version.
 - **Settings**: `embedding_model_settings` row `context`, seeded on
-  `text-embedding-3-small` / 1536 with its own partial ivfflat index.
+  `text-embedding-3-small` / 1536 with its own partial ivfflat index. The
+  migration built that index before any rows existed, so it has to be
+  reindexed after the first backfill (see "Re-indexing After Bulk Inserts").
   Model switches and template cutovers work exactly as for identity.
 - **Retrieval**: `embeddingsRepository.findContextMatches` takes a query vector
   and returns the nearest tracks at the serving model and template version:
