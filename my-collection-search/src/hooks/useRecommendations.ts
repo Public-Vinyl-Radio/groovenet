@@ -6,6 +6,7 @@ import type { Track } from "@/types/track";
 import { useUsername } from "@/providers/UsernameProvider";
 import { fetchRecommendationCandidates } from "@/services/internalApi/recommendations";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
+import type { RecommendationScope } from "@/types/recommendations";
 
 export type TrackWithEmbedding = Track;
 
@@ -14,14 +15,44 @@ export type RecommendedTrack = Track & {
   _simAudio: number | null;
 };
 
+type Seed = { track_id: string; friend_id: number };
+
+/** Which library candidates may come from. Omitted scope: the library's saved setting. */
+export type RecommendationScopeOptions = {
+  scope?: RecommendationScope;
+  libraryFriendId?: number;
+};
+
+/**
+ * A seed is looked up in its own library: a playlist can hold tracks from
+ * several. The selected library only fills in for a track that has none.
+ */
+export function toSeeds(playlist: TrackWithEmbedding[], fallbackFriendId?: number): Seed[] {
+  const seeds = playlist
+    .map((track) => ({
+      track_id: track.track_id,
+      friend_id: track.friend_id ?? fallbackFriendId,
+    }))
+    .filter(
+      (track): track is Seed =>
+        typeof track.track_id === "string" && typeof track.friend_id === "number"
+    );
+  return Array.from(new Map(seeds.map((seed) => [`${seed.track_id}:${seed.friend_id}`, seed])).values());
+}
+
 async function fetchRecommendationsFromApi(
-  seeds: Array<{ track_id: string; friend_id: number }>,
-  limit: number
+  seeds: Seed[],
+  limit: number,
+  scopeOptions: RecommendationScopeOptions = {}
 ): Promise<RecommendedTrack[]> {
   const payload = await fetchRecommendationCandidates({
     tracks: seeds,
     limit_identity: limit,
     limit_audio: limit,
+    ...(scopeOptions.scope ? { scope: scopeOptions.scope } : {}),
+    ...(scopeOptions.libraryFriendId !== undefined
+      ? { library_friend_id: scopeOptions.libraryFriendId }
+      : {}),
   });
   const candidates = payload.candidates ?? [];
   if (candidates.length === 0) return [];
@@ -52,21 +83,11 @@ export function useRecommendations() {
 
   const getRecommendations = useCallback(
     async (k: number = 25, playlist: TrackWithEmbedding[] = []): Promise<RecommendedTrack[]> => {
-      const seeds = playlist
-        .map((track) => ({
-          track_id: track.track_id,
-          friend_id: selectedFriend?.id ?? track.friend_id,
-        }))
-        .filter(
-          (track): track is { track_id: string; friend_id: number } =>
-            typeof track.track_id === "string" && typeof track.friend_id === "number"
-        );
+      const seeds = toSeeds(playlist, selectedFriend?.id);
       if (seeds.length === 0) return [];
-      const dedupedSeeds = Array.from(
-        new Map(seeds.map((seed) => [`${seed.track_id}:${seed.friend_id}`, seed])).values()
-      );
       try {
-        return await fetchRecommendationsFromApi(dedupedSeeds, k);
+        // No explicit scope: the selected library's saved setting applies.
+        return await fetchRecommendationsFromApi(seeds, k, { libraryFriendId: selectedFriend?.id });
       } catch (err) {
         console.error("Error fetching recommendations:", err);
         return [];
@@ -80,35 +101,26 @@ export function useRecommendations() {
 
 export function useRecommendationsQuery(
   playlist: TrackWithEmbedding[] = [],
-  limit: number = 50
+  limit: number = 50,
+  scopeOptions: RecommendationScopeOptions & { enabled?: boolean } = {}
 ) {
   const { friend: selectedFriend } = useUsername();
-  const seeds = playlist
-    .map((track) => ({
-      track_id: track.track_id,
-      friend_id: selectedFriend?.id ?? track.friend_id,
-    }))
-    .filter(
-      (track): track is { track_id: string; friend_id: number } =>
-        typeof track.track_id === "string" && typeof track.friend_id === "number"
-    );
-  const dedupedSeeds = Array.from(
-    new Map(seeds.map((seed) => [`${seed.track_id}:${seed.friend_id}`, seed])).values()
-  );
+  const dedupedSeeds = toSeeds(playlist, selectedFriend?.id);
   const seedKey = dedupedSeeds.map((seed) => `${seed.track_id}:${seed.friend_id}`).sort();
+  const { scope, libraryFriendId = selectedFriend?.id, enabled = true } = scopeOptions;
 
   return useQuery({
-    queryKey: ["recommendations", { seeds: seedKey, limit }],
+    queryKey: ["recommendations", { seeds: seedKey, limit, scope, libraryFriendId }],
     queryFn: async (): Promise<RecommendedTrack[]> => {
       if (dedupedSeeds.length === 0) return [];
       try {
-        return await fetchRecommendationsFromApi(dedupedSeeds, limit);
+        return await fetchRecommendationsFromApi(dedupedSeeds, limit, { scope, libraryFriendId });
       } catch (err) {
         console.error("Error fetching recommendations:", err);
         return [];
       }
     },
-    enabled: dedupedSeeds.length > 0,
+    enabled: enabled && dedupedSeeds.length > 0,
     staleTime: 1000 * 60 * 5,
   });
 }

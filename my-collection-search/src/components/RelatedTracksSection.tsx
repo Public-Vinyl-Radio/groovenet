@@ -10,6 +10,8 @@ import { analytics } from "@/lib/analytics/client";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSimilarTracks } from "@/hooks/useSimilarTracks";
 import { useSimilarVibeTracks } from "@/hooks/useSimilarVibeTracks";
+import { useSuggestionScope } from "@/hooks/useSuggestionScope";
+import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { fetchTracksByIds, type TrackBatchRef } from "@/services/internalApi/tracks";
 
 type Props = {
@@ -41,16 +43,25 @@ export default function RelatedTracksSection({ track }: Props) {
   const [expanded, setExpanded] = useState(false);
   const initialCount = useBreakpointValue({ base: 3, md: 20 }) ?? 3;
 
-  const recQuery = useRecommendationsQuery([track], 60);
+  const suggestionScope = useSuggestionScope();
+  const { scope, libraryFriendId, ready } = suggestionScope;
+
+  const recQuery = useRecommendationsQuery([track], 60, { scope, libraryFriendId, enabled: ready });
   const similarQuery = useSimilarTracks({
     track_id: track.track_id,
     friend_id: track.friend_id,
     limit: 60,
+    scope,
+    library_friend_id: libraryFriendId,
+    enabled: ready,
   });
   const vibeQuery = useSimilarVibeTracks({
     track_id: track.track_id,
     friend_id: track.friend_id,
     limit: 60,
+    scope,
+    library_friend_id: libraryFriendId,
+    enabled: ready,
   });
 
   const merged = useMemo<MergedTrack[]>(() => {
@@ -141,7 +152,8 @@ export default function RelatedTracksSection({ track }: Props) {
   );
 
   const displayTracks = expanded ? resolved.slice(0, 60) : resolved.slice(0, initialCount);
-  const isLoading = recQuery.isLoading || similarQuery.isLoading || vibeQuery.isLoading;
+  // Disabled queries don't count as loading, so cover the wait for the saved scope too.
+  const isLoading = !ready || recQuery.isLoading || similarQuery.isLoading || vibeQuery.isLoading;
   const hasError = recQuery.error || similarQuery.error || vibeQuery.error;
 
   return (
@@ -153,11 +165,14 @@ export default function RelatedTracksSection({ track }: Props) {
             Combined from AI recommendations, similar tracks, and similar vibes
           </Text>
         </Box>
-        {!isLoading && !hasError && merged.length > 0 && (
-          <Text fontSize="xs" color="fg.muted" flexShrink={0}>
-            {displayTracks.length} of {merged.length}
-          </Text>
-        )}
+        <Flex align="center" gap={3} flexShrink={0}>
+          {!isLoading && !hasError && merged.length > 0 && (
+            <Text fontSize="xs" color="fg.muted">
+              {displayTracks.length} of {merged.length}
+            </Text>
+          )}
+          <SuggestionScopeToggle value={scope} onChange={suggestionScope.setScope} />
+        </Flex>
       </Flex>
 
       {isLoading ? (
@@ -168,7 +183,11 @@ export default function RelatedTracksSection({ track }: Props) {
       ) : hasError ? (
         <Text color="red.500" fontSize="sm">Could not load related tracks.</Text>
       ) : displayTracks.length === 0 ? (
-        <Text color="fg.muted" fontSize="sm">No related tracks found.</Text>
+        <Text color="fg.muted" fontSize="sm">
+          {scope === "library"
+            ? "No related tracks in this library. Try All libraries."
+            : "No related tracks found."}
+        </Text>
       ) : (
         <>
           {displayTracks.map((item, index) => (

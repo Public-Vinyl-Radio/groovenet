@@ -16,6 +16,8 @@ const repo = vi.hoisted(() => ({
   findGamdlSettingsByFriendId: vi.fn(),
   updateGamdlSettings: vi.fn(),
   resetGamdlSettings: vi.fn(),
+  findRecommendationScope: vi.fn(),
+  upsertRecommendationScope: vi.fn(),
 }));
 
 vi.mock("@/lib/serverPrompts", () => ({
@@ -54,6 +56,61 @@ describe("SettingsService — default library", () => {
     repo.upsertDefaultLibraryFriendId.mockResolvedValueOnce(3);
     await expect(settingsService.updateDefaultLibrary(3)).resolves.toEqual({ friend_id: 3 });
     expect(repo.upsertDefaultLibraryFriendId).toHaveBeenCalledWith(3);
+  });
+});
+
+// ─── Suggestion scope ─────────────────────────────────────────────────────────
+
+describe("SettingsService — suggestion scope", () => {
+  it("defaults a library that never chose to its own library", async () => {
+    repo.findRecommendationScope.mockResolvedValueOnce(null);
+    await expect(settingsService.getRecommendationSettings(4)).resolves.toEqual({
+      friend_id: 4,
+      scope: "library",
+      isDefault: true,
+    });
+  });
+
+  it("returns a saved choice", async () => {
+    repo.findRecommendationScope.mockResolvedValueOnce("all");
+    await expect(settingsService.getRecommendationSettings(4)).resolves.toEqual({
+      friend_id: 4,
+      scope: "all",
+      isDefault: false,
+    });
+  });
+
+  it("saves a choice for an existing library", async () => {
+    mockFindById.mockResolvedValueOnce({ id: 4, username: "dj" });
+    repo.upsertRecommendationScope.mockResolvedValueOnce("all");
+    await expect(settingsService.updateRecommendationSettings(4, "all")).resolves.toEqual({
+      friend_id: 4,
+      scope: "all",
+      isDefault: false,
+    });
+    expect(repo.upsertRecommendationScope).toHaveBeenCalledWith(4, "all");
+  });
+
+  it("refuses a library that doesn't exist", async () => {
+    mockFindById.mockResolvedValueOnce(null);
+    await expect(settingsService.updateRecommendationSettings(99, "all")).rejects.toThrow(/does not exist/);
+    expect(repo.upsertRecommendationScope).not.toHaveBeenCalled();
+  });
+
+  it("resolves a request's scope from the saved setting when it names none", async () => {
+    repo.findRecommendationScope.mockResolvedValueOnce(null);
+    await expect(settingsService.resolveRecommendationScope(4)).resolves.toEqual({ scope: "library", libraryFriendId: 4 });
+
+    repo.findRecommendationScope.mockResolvedValueOnce("all");
+    await expect(settingsService.resolveRecommendationScope(4)).resolves.toEqual({ scope: "all", libraryFriendId: null });
+  });
+
+  it("lets a request's own scope win without reading the setting", async () => {
+    await expect(settingsService.resolveRecommendationScope(4, "library")).resolves.toEqual({
+      scope: "library",
+      libraryFriendId: 4,
+    });
+    expect(repo.findRecommendationScope).not.toHaveBeenCalled();
   });
 });
 

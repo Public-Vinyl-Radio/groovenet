@@ -21,6 +21,8 @@ import {
   gamdlSettingsResetBodySchema,
   gamdlSettingsResetResponseSchema,
   gamdlSettingsSchema,
+  recommendationSettingsPutBodySchema,
+  recommendationSettingsResponseSchema,
 } from "@/api-contract/schemas";
 import { http } from "@/services/http";
 
@@ -108,6 +110,33 @@ export async function updateAiPromptSettings(
   body: UpdateAiPromptSettingsBody
 ): Promise<UpdateAiPromptSettingsResponse> {
   return await http<UpdateAiPromptSettingsResponse>("/api/settings/ai-prompt", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export type RecommendationSettingsResponse = z.infer<
+  typeof recommendationSettingsResponseSchema
+>;
+export type UpdateRecommendationSettingsBody = z.input<
+  typeof recommendationSettingsPutBodySchema
+>;
+
+/** Whether a library's suggestions stay in that library or search every library. */
+export async function fetchRecommendationSettings(
+  friendId: number
+): Promise<RecommendationSettingsResponse> {
+  return await http<RecommendationSettingsResponse>(
+    `/api/settings/recommendations?friend_id=${encodeURIComponent(String(friendId))}`,
+    { method: "GET", cache: "no-store" }
+  );
+}
+
+export async function updateRecommendationSettings(
+  body: UpdateRecommendationSettingsBody
+): Promise<RecommendationSettingsResponse> {
+  return await http<RecommendationSettingsResponse>("/api/settings/recommendations", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

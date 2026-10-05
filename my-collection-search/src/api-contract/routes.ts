@@ -5,6 +5,9 @@ import {
   aiPromptSettingsPutBodySchema,
   aiPromptSettingsPutResponseSchema,
   aiPromptSettingsQuerySchema,
+  recommendationSettingsPutBodySchema,
+  recommendationSettingsQuerySchema,
+  recommendationSettingsResponseSchema,
   albumCreateResponseSchema,
   albumDetailResponseSchema,
   albumDiscogsRawResponseSchema,
@@ -228,6 +231,16 @@ const trackEntitySchemaObject: Record<string, unknown> = {
   additionalProperties: true,
 };
 
+const recommendationSettingsSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    friend_id: { type: "integer" },
+    scope: { type: "string", enum: ["library", "all"] },
+    isDefault: { type: "boolean" },
+  },
+  required: ["friend_id", "scope", "isDefault"],
+};
+
 const recommendationCandidateSchemaObject: Record<string, unknown> = {
   type: "object",
   properties: {
@@ -326,6 +339,8 @@ const recommendationsExample = {
   seedTrackId: "trk_001",
   seedFriendId: 1,
   seedEmbeddings: { identity: true, audio: true },
+  scope: "library",
+  libraryFriendId: 1,
   candidates: [
     {
       trackId: "trk_910",
@@ -4903,6 +4918,21 @@ export const apiContractRoutes: ApiContractRoute[] = [
           schema: { type: "integer", minimum: 1, maximum: 1000, default: 10 },
           description: "pgvector ivfflat probes setting; higher is more accurate and slower.",
         },
+        {
+          name: "scope",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["library", "all"] },
+          description:
+            "`library` returns candidates only from `library_friend_id`'s library; `all` searches every library. Omitted, the library's saved setting applies (default `library`; see `/api/settings/recommendations`).",
+        },
+        {
+          name: "library_friend_id",
+          in: "query",
+          required: false,
+          schema: { type: "integer" },
+          description: "The library `scope=library` keeps to, and whose saved setting applies. Defaults to `friend_id`.",
+        },
       ],
       responses: {
         "200": {
@@ -4922,10 +4952,19 @@ export const apiContractRoutes: ApiContractRoute[] = [
                     },
                     required: ["identity", "audio"],
                   },
+                  scope: {
+                    type: "string",
+                    enum: ["library", "all"],
+                    description: "The scope these candidates came from, after applying the saved setting.",
+                  },
+                  libraryFriendId: {
+                    type: ["integer", "null"],
+                    description: "The library candidates were limited to; null when every library was searched.",
+                  },
                   candidates: { type: "array", items: recommendationCandidateSchemaObject },
                   stats: { type: "object", additionalProperties: true },
                 },
-                required: ["seedTrackId", "seedFriendId", "seedEmbeddings", "candidates", "stats"],
+                required: ["seedTrackId", "seedFriendId", "seedEmbeddings", "scope", "libraryFriendId", "candidates", "stats"],
                 additionalProperties: true,
               },
               examples: {
@@ -5013,6 +5052,16 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 limit_identity: { type: "integer", default: 200 },
                 limit_audio: { type: "integer", default: 200 },
                 ivfflat_probes: { type: "integer", default: 10 },
+                scope: {
+                  type: "string",
+                  enum: ["library", "all"],
+                  description:
+                    "`library` keeps candidates to `library_friend_id`'s library; `all` searches every library. Omitted, that library's saved setting applies.",
+                },
+                library_friend_id: {
+                  type: "integer",
+                  description: "Defaults to the first seed track's library.",
+                },
               },
               required: ["tracks"],
               additionalProperties: false,
@@ -5038,10 +5087,19 @@ export const apiContractRoutes: ApiContractRoute[] = [
                     },
                     required: ["identity", "audio"],
                   },
+                  scope: {
+                    type: "string",
+                    enum: ["library", "all"],
+                    description: "The scope these candidates came from, after applying the saved setting.",
+                  },
+                  libraryFriendId: {
+                    type: ["integer", "null"],
+                    description: "The library candidates were limited to; null when every library was searched.",
+                  },
                   candidates: { type: "array", items: recommendationCandidateSchemaObject },
                   stats: { type: "object", additionalProperties: true },
                 },
-                required: ["seedTrackId", "seedFriendId", "seedEmbeddings", "candidates", "stats"],
+                required: ["seedTrackId", "seedFriendId", "seedEmbeddings", "scope", "libraryFriendId", "candidates", "stats"],
                 additionalProperties: true,
               },
             },
@@ -5253,6 +5311,102 @@ export const apiContractRoutes: ApiContractRoute[] = [
           content: {
             "application/json": { schema: errorResponseSchemaObject },
           },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getRecommendationSettings",
+    method: "get",
+    path: "/api/settings/recommendations",
+    summary: "Get a library's track suggestion scope",
+    tags: ["Settings"],
+    querySchema: recommendationSettingsQuerySchema,
+    successSchema: recommendationSettingsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "friend_id", in: "query", required: true, schema: { type: "integer" } },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Where this library's suggestions come from: `library` (its own tracks) or `all` (every library). `isDefault` is true when it has never been set.",
+          content: {
+            "application/json": {
+              schema: recommendationSettingsSchemaObject,
+              examples: {
+                recommendationSettings: {
+                  summary: "Never set",
+                  value: { friend_id: 1, scope: "library", isDefault: true },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Missing or invalid friend_id",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "updateRecommendationSettings",
+    method: "put",
+    path: "/api/settings/recommendations",
+    summary: "Set a library's track suggestion scope",
+    tags: ["Settings"],
+    bodySchema: recommendationSettingsPutBodySchema,
+    successSchema: recommendationSettingsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                friend_id: { type: "integer" },
+                scope: { type: "string", enum: ["library", "all"] },
+              },
+              required: ["friend_id", "scope"],
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Saved",
+          content: {
+            "application/json": {
+              schema: recommendationSettingsSchemaObject,
+              examples: {
+                recommendationSettings: {
+                  summary: "Search every library",
+                  value: { friend_id: 1, scope: "all", isDefault: false },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid payload",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "No such library",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
       },
     },

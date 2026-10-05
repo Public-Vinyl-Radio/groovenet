@@ -9,6 +9,18 @@ const retriever = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/recommendation-candidate-retriever", () => retriever);
 
+// The real resolution rule, with the saved setting stubbed per test.
+const savedScope = vi.hoisted(() => ({ value: "library" as "library" | "all" }));
+const resolveScope = vi.hoisted(() =>
+  vi.fn(async (libraryFriendId: number, requested?: "library" | "all") => {
+    const scope = requested ?? savedScope.value;
+    return { scope, libraryFriendId: scope === "library" ? libraryFriendId : null };
+  })
+);
+vi.mock("@/server/services/settingsService", () => ({
+  settingsService: { resolveRecommendationScope: resolveScope },
+}));
+
 import { GET, POST } from "../route";
 import { setAnalyticsProvider } from "@/lib/analytics/server";
 import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
@@ -97,5 +109,73 @@ describe("/api/recommendations/candidates — analytics", () => {
     );
     expect(res.status).toBe(404);
     expect(analyticsEvents.events).toEqual([]);
+  });
+});
+
+describe("/api/recommendations/candidates — library scope", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    savedScope.value = "library";
+    retriever.hasEmbeddings.mockResolvedValue({ identity: true, audio: true });
+    retriever.hasEmbeddingsForSeedTracks.mockResolvedValue({ identity: true, audio: true });
+    retriever.retrieveCandidates.mockResolvedValue(result(1));
+    retriever.retrieveCandidatesForSeedTracks.mockResolvedValue(result(1));
+  });
+
+  const get = (query: string) =>
+    GET(new NextRequest(`http://localhost/api/recommendations/candidates?track_id=seed&friend_id=6&${query}`));
+  const post = (body: Record<string, unknown>) =>
+    POST(
+      new NextRequest("http://localhost/api/recommendations/candidates", {
+        method: "POST",
+        body: JSON.stringify({ tracks: [{ track_id: "a", friend_id: 6 }, { track_id: "b", friend_id: 9 }], ...body }),
+      })
+    );
+
+  it("keeps to the seed's library by default and says so", async () => {
+    const res = await get("");
+    expect(resolveScope).toHaveBeenCalledWith(6, undefined);
+    expect(retriever.retrieveCandidates).toHaveBeenCalledWith("seed", 6, expect.objectContaining({ libraryFriendId: 6 }));
+    expect(await res.json()).toMatchObject({ scope: "library", libraryFriendId: 6 });
+  });
+
+  it("follows a library's saved choice to search everything", async () => {
+    savedScope.value = "all";
+    const res = await get("library_friend_id=2");
+    expect(resolveScope).toHaveBeenCalledWith(2, undefined);
+    expect(retriever.retrieveCandidates).toHaveBeenCalledWith("seed", 6, expect.objectContaining({ libraryFriendId: undefined }));
+    expect(await res.json()).toMatchObject({ scope: "all", libraryFriendId: null });
+  });
+
+  it("lets the request override the saved setting, for the library it names", async () => {
+    savedScope.value = "all";
+    const res = await get("scope=library&library_friend_id=2");
+    expect(resolveScope).toHaveBeenCalledWith(2, "library");
+    expect(retriever.retrieveCandidates).toHaveBeenCalledWith("seed", 6, expect.objectContaining({ libraryFriendId: 2 }));
+    expect(await res.json()).toMatchObject({ scope: "library", libraryFriendId: 2 });
+  });
+
+  it("rejects an unknown scope", async () => {
+    expect((await get("scope=everyone")).status).toBe(400);
+    expect(retriever.retrieveCandidates).not.toHaveBeenCalled();
+  });
+
+  it("scopes a batch to the first seed's library unless told otherwise", async () => {
+    const res = await post({});
+    expect(resolveScope).toHaveBeenCalledWith(6, undefined);
+    expect(retriever.retrieveCandidatesForSeedTracks).toHaveBeenCalledWith(
+      [{ trackId: "a", friendId: 6 }, { trackId: "b", friendId: 9 }],
+      expect.objectContaining({ libraryFriendId: 6 })
+    );
+    expect(await res.json()).toMatchObject({ scope: "library", libraryFriendId: 6 });
+  });
+
+  it("takes a batch's scope and library from the body", async () => {
+    await post({ scope: "all", library_friend_id: 9 });
+    expect(resolveScope).toHaveBeenCalledWith(9, "all");
+    expect(retriever.retrieveCandidatesForSeedTracks).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ libraryFriendId: undefined })
+    );
   });
 });

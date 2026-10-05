@@ -2,6 +2,10 @@ import { getDefaultTrackMetadataPrompt } from "@/lib/serverPrompts";
 import { friendRepository } from "@/server/repositories/friendRepository";
 import type { GamdlSettings, GamdlSettingsUpdate } from "@/types/gamdl";
 import { settingsRepository } from "@/server/repositories/settingsRepository";
+import {
+  DEFAULT_RECOMMENDATION_SCOPE,
+  type RecommendationScope,
+} from "@/types/recommendations";
 
 export class SettingsService {
   async getDefaultLibrary(): Promise<{ friend_id: number | null }> {
@@ -52,6 +56,44 @@ export class SettingsService {
 
     const savedPrompt = await settingsRepository.upsertAiPrompt(friendId, prompt);
     return { prompt: savedPrompt, isDefault: false };
+  }
+
+  /** A library's suggestion scope; `isDefault` when it has never been set. */
+  async getRecommendationSettings(friendId: number): Promise<{
+    friend_id: number;
+    scope: RecommendationScope;
+    isDefault: boolean;
+  }> {
+    const scope = await settingsRepository.findRecommendationScope(friendId);
+    return {
+      friend_id: friendId,
+      scope: scope ?? DEFAULT_RECOMMENDATION_SCOPE,
+      isDefault: scope === null,
+    };
+  }
+
+  /**
+   * The scope a suggestion request runs with: the caller's choice when given,
+   * else the library's saved setting. `libraryFriendId` is null for `all`.
+   */
+  async resolveRecommendationScope(
+    libraryFriendId: number,
+    requested?: RecommendationScope
+  ): Promise<{ scope: RecommendationScope; libraryFriendId: number | null }> {
+    const scope = requested ?? (await this.getRecommendationSettings(libraryFriendId)).scope;
+    return { scope, libraryFriendId: scope === "library" ? libraryFriendId : null };
+  }
+
+  async updateRecommendationSettings(
+    friendId: number,
+    scope: RecommendationScope
+  ): Promise<{ friend_id: number; scope: RecommendationScope; isDefault: false }> {
+    const friend = await friendRepository.findById(friendId);
+    if (!friend) {
+      throw new Error(`Library ${friendId} does not exist`);
+    }
+    const saved = await settingsRepository.upsertRecommendationScope(friendId, scope);
+    return { friend_id: friendId, scope: saved, isDefault: false };
   }
 
   async getGamdlSettings(friendId: number): Promise<GamdlSettings> {

@@ -1,6 +1,7 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { GamdlSettings, GamdlSettingsUpdate } from "@/types/gamdl";
 import type { EmbeddingModelKind, EmbeddingModelSettings } from "@/types/embeddings";
+import type { RecommendationScope } from "@/types/recommendations";
 
 const GAMDL_ALLOWED_FIELDS = [
   "audio_quality",
@@ -64,6 +65,31 @@ export class SettingsRepository {
     await dbQuery("DELETE FROM ai_prompt_settings WHERE friend_id = $1", [
       friendId,
     ]);
+  }
+
+  async findRecommendationScope(friendId: number): Promise<RecommendationScope | null> {
+    const { rows } = await dbQuery<{ scope: RecommendationScope }>(
+      "SELECT scope FROM recommendation_settings WHERE friend_id = $1",
+      [friendId]
+    );
+    return rows[0]?.scope ?? null;
+  }
+
+  async upsertRecommendationScope(
+    friendId: number,
+    scope: RecommendationScope
+  ): Promise<RecommendationScope> {
+    const { rows } = await dbQuery<{ scope: RecommendationScope }>(
+      `
+      INSERT INTO recommendation_settings (friend_id, scope, updated_at)
+      VALUES ($1, $2, current_timestamp)
+      ON CONFLICT (friend_id)
+      DO UPDATE SET scope = EXCLUDED.scope, updated_at = current_timestamp
+      RETURNING scope
+      `,
+      [friendId, scope]
+    );
+    return rows[0]?.scope ?? scope;
   }
 
   async ensureGamdlSettings(friendId: number): Promise<void> {

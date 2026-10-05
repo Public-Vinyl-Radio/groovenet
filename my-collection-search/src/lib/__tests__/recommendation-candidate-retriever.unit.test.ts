@@ -132,6 +132,20 @@ describe("recommendation candidate retriever", () => {
     expect(findAudioSimilar).toHaveBeenCalledWith(expect.objectContaining({ limit: 30, ivfflatProbes: 4 }));
   });
 
+  it("hands the library scope to every similarity query", async () => {
+    findIdentitySimilar.mockResolvedValue([]);
+    findAudioSimilar.mockResolvedValue([]);
+    findIdentitySimilarByCentroid.mockResolvedValue([]);
+    findAudioSimilarByCentroid.mockResolvedValue([]);
+
+    await retrieveCandidates("seed", 9, { libraryFriendId: 6 });
+    await retrieveCandidatesForSeedTracks([{ trackId: "seed", friendId: 9 }], { libraryFriendId: 6 });
+
+    for (const query of [findIdentitySimilar, findAudioSimilar, findIdentitySimilarByCentroid, findAudioSimilarByCentroid]) {
+      expect(query).toHaveBeenCalledWith(expect.objectContaining({ libraryFriendId: 6 }));
+    }
+  });
+
   it("deduplicates valid seed tracks before querying centroids", async () => {
     findIdentitySimilarByCentroid.mockResolvedValue([makeRow({ track_id: "identity-only" })]);
     findAudioSimilarByCentroid.mockResolvedValue([makeRow({ track_id: "audio-only", friend_id: 2 })]);

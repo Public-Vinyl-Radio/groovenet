@@ -4,6 +4,8 @@ import { AppleMusicAISearchArgs } from "@/services/aiService";
 
 export const queryKeys = {
   defaultLibrary: () => ["settings", "default-library"] as const,
+  recommendationSettings: (friend_id: number) =>
+    ["settings", "recommendations", friend_id] as const,
   version: () => ["system", "version"] as const,
   status: () => ["system", "status"] as const,
   updateCheck: () => ["system", "update-check"] as const,

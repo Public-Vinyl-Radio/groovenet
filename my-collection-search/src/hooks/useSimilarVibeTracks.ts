@@ -19,6 +19,8 @@ export function useSimilarVibeTracks(options: UseSimilarVibeTracksOptions) {
       options.friend_id,
       options.limit,
       options.ivfflat_probes,
+      options.scope,
+      options.library_friend_id,
     ],
     queryFn: () => fetchSimilarVibeTracks(options),
     enabled: options.enabled !== false,

@@ -22,6 +22,8 @@ export function useSimilarTracks(options: SimilarTracksOptions) {
       options.era,
       options.country,
       options.tags,
+      options.scope,
+      options.library_friend_id,
     ],
     queryFn: () =>
       fetchSimilarTracks({

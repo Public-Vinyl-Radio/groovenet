@@ -5,6 +5,7 @@ import {
   RECORD_CARE_STATUSES,
   SLEEVE_TYPES,
 } from "@/lib/recordCare";
+import { RECOMMENDATION_SCOPES } from "@/types/recommendations";
 
 const toInt = (value: unknown): unknown => {
   if (typeof value === "number") return value;
@@ -836,6 +837,18 @@ export const bulkNotesResponseSchema = z
   })
   .passthrough();
 
+export const recommendationScopeSchema = z.enum(RECOMMENDATION_SCOPES);
+
+/**
+ * Where candidates may come from. `scope` omitted means the library's saved
+ * setting (default `library`); `library_friend_id` omitted means the seed's
+ * library (the first seed's, for a batch).
+ */
+const recommendationScopeParams = {
+  scope: recommendationScopeSchema.optional(),
+  library_friend_id: intFromInputSchema.optional(),
+};
+
 export const recommendationsQuerySchema = z.object({
   track_id: z.string().min(1),
   friend_id: intFromInputSchema,
@@ -843,6 +856,7 @@ export const recommendationsQuerySchema = z.object({
   limit_identity: intFromInputSchema.optional().default(200),
   limit_audio: intFromInputSchema.optional().default(200),
   ivfflat_probes: intFromInputSchema.optional().default(10),
+  ...recommendationScopeParams,
 });
 
 export const recommendationSeedTrackSchema = z.object({
@@ -855,6 +869,7 @@ export const recommendationsBatchBodySchema = z.object({
   limit_identity: intFromInputSchema.optional().default(200),
   limit_audio: intFromInputSchema.optional().default(200),
   ivfflat_probes: intFromInputSchema.optional().default(10),
+  ...recommendationScopeParams,
 });
 
 export const seedEmbeddingsSchema = z.object({
@@ -897,6 +912,10 @@ export const recommendationsResponseSchema = z.object({
   seedTrackId: z.string(),
   seedFriendId: z.number().int(),
   seedEmbeddings: seedEmbeddingsSchema,
+  /** The scope these candidates were drawn from, after applying the saved setting. */
+  scope: recommendationScopeSchema,
+  /** The library they were limited to; null when every library was searched. */
+  libraryFriendId: z.number().int().nullable(),
   candidates: z.array(recommendationCandidateSchema),
   stats: z.object({
     identityCount: z.number().int(),
@@ -1014,6 +1033,22 @@ export const aiPromptSettingsPutResponseSchema = z.object({
   isDefault: z.boolean(),
 });
 
+export const recommendationSettingsQuerySchema = z.object({
+  friend_id: intFromInputSchema,
+});
+
+export const recommendationSettingsPutBodySchema = z.object({
+  friend_id: intFromInputSchema,
+  scope: recommendationScopeSchema,
+});
+
+export const recommendationSettingsResponseSchema = z.object({
+  friend_id: z.number().int(),
+  scope: recommendationScopeSchema,
+  /** True when the library has never chosen, so `scope` is the default. */
+  isDefault: z.boolean(),
+});
+
 export const albumReleaseParamsSchema = z.object({
   releaseId: z.string().min(1),
 });
@@ -1069,6 +1104,7 @@ export const similarVibeQuerySchema = z.object({
   friend_id: intFromInputSchema,
   limit: intFromInputSchema.optional().default(50),
   ivfflat_probes: intFromInputSchema.optional().default(10),
+  ...recommendationScopeParams,
 });
 
 export const similarVibeTrackSchema = trackEntitySchema.extend({
@@ -1096,6 +1132,7 @@ export const similarIdentityQuerySchema = z.object({
   era: z.string().optional(),
   country: z.string().optional(),
   tags: z.string().optional(),
+  ...recommendationScopeParams,
 });
 
 export const similarIdentityFiltersSchema = z.object({

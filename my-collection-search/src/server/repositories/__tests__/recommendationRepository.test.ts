@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RecommendationRepository } from "../recommendationRepository";
 
 const mockClient = vi.hoisted(() => ({ query: vi.fn() }));
+// Each similarity query runs in its own transaction, so its ivfflat settings stay local.
 const withDbClient = vi.hoisted(() =>
   vi.fn((fn: (client: typeof mockClient) => unknown) => fn(mockClient))
 );
 
-vi.mock("@/lib/serverDb", () => ({ withDbClient }));
+vi.mock("@/lib/serverDb", () => ({ withDbTransaction: withDbClient }));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -143,6 +144,60 @@ describe("findIdentitySimilar()", () => {
         ivfflatProbes: 1,
       })
     ).rejects.toThrow("Invalid vector dims: 0");
+  });
+});
+
+// ─── library scope, soft deletes and scan settings ────────────────────────────
+
+describe("library scope", () => {
+  const base = { model: MODEL, templateVersion: VERSION, dims: DIMS, limit: 5, ivfflatProbes: 4 };
+
+  it("keeps the scan settings local to its transaction, iterative scan included", async () => {
+    mockWithEmbedding([0.1], []);
+    await makeRepo().findIdentitySimilar({ ...base, seedTrackId: "t1", seedFriendId: 1 });
+
+    const [sql, params] = mockClient.query.mock.calls[0];
+    expect(sql).toContain("set_config('ivfflat.probes', $1, true)");
+    expect(sql).toContain("set_config('ivfflat.iterative_scan', 'relaxed_order', true)");
+    expect(params).toEqual(["4"]);
+  });
+
+  it("searches every library when no library is given, but never deleted tracks", async () => {
+    mockWithEmbedding([0.1], []);
+    await makeRepo().findIdentitySimilar({ ...base, seedTrackId: "t1", seedFriendId: 1 });
+
+    const [sql, params] = mockClient.query.mock.calls[2];
+    expect(sql).toContain("t.deleted_at IS NULL");
+    expect(sql).not.toContain("t.friend_id = $");
+    expect(params).toHaveLength(6);
+    // Relaxed iterative scans can return near-ties out of order, so the rows are re-sorted.
+    expect(sql).toMatch(/\) candidates\s+ORDER BY distance/);
+  });
+
+  it("binds the library after the fixed params for one seed", async () => {
+    mockWithEmbedding([0.1], []);
+    await makeRepo().findAudioSimilar({ ...base, seedTrackId: "t1", seedFriendId: 9, libraryFriendId: 6 });
+
+    const [sql, params] = mockClient.query.mock.calls[2];
+    expect(sql).toContain("te.embedding_type = 'audio_vibe'");
+    expect(sql).toContain("AND t.friend_id = $7");
+    expect(params[6]).toBe(6);
+  });
+
+  it("binds the library after the model and version for a centroid", async () => {
+    mockClient.query.mockResolvedValueOnce(PROBE_ROW).mockResolvedValueOnce({ rows: [] });
+    await makeRepo().findAudioSimilarByCentroid({
+      ...base,
+      seedTracks: [{ trackId: "t1", friendId: 9 }],
+      libraryFriendId: 6,
+    });
+
+    const [sql, params] = mockClient.query.mock.calls[1];
+    // seed (2) + limit + model + version, then the library.
+    expect(sql).toContain("AND t.friend_id = $6");
+    expect(sql).toContain("t.deleted_at IS NULL");
+    expect(sql).toMatch(/\) candidates\s+ORDER BY distance/);
+    expect(params).toEqual(["t1", 9, 5, MODEL, VERSION, 6]);
   });
 });
 

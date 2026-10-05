@@ -411,6 +411,28 @@ describe("fetchAudioVibeEmbeddingPreview", () => {
   });
 });
 
+describe("similarity scope params", () => {
+  it("sends the scope and library to both similarity fetchers", async () => {
+    httpMock.mockResolvedValue({ candidates: [] });
+
+    await fetchSimilarVibeTracks({ track_id: "seed", friend_id: 1, scope: "library", library_friend_id: 6 });
+    expect(calledParams().get("scope")).toBe("library");
+    expect(calledParams().get("library_friend_id")).toBe("6");
+
+    httpMock.mockClear();
+    await fetchSimilarTracks({ track_id: "seed", friend_id: 1, scope: "all" });
+    expect(calledParams().get("scope")).toBe("all");
+    expect(calledParams().has("library_friend_id")).toBe(false);
+  });
+
+  it("leaves both out so the server applies the saved setting", async () => {
+    httpMock.mockResolvedValue({ candidates: [] });
+    await fetchSimilarTracks({ track_id: "seed", friend_id: 1 });
+    expect(calledParams().has("scope")).toBe(false);
+    expect(calledParams().has("library_friend_id")).toBe(false);
+  });
+});
+
 describe("fetchSimilarVibeTracks", () => {
   it("queries audio mode and maps candidates to tracks", async () => {
     httpMock.mockResolvedValue({ candidates: [candidate()] });
