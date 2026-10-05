@@ -747,6 +747,22 @@ describe("findContextMatches()", () => {
     expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 6, 1970, 1980, "Cumbia", 90, 110, 500, 2, 30]);
   });
 
+  it("binds key and minimum rating after BPM, on t (#412)", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findContextMatches(client as any, {
+      ...base,
+      filters: { friendId: 6, bpmMin: 90, key: "A minor", minStarRating: 4 },
+    });
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("t.bpm >= $5");
+    expect(sql).toContain("LOWER(t.key) = LOWER($6)");
+    expect(sql).toContain("t.star_rating >= $7");
+    expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 6, 90, "A minor", 4, 200, 2, 10]);
+  });
+
   it("excludes soft-deleted tracks and applies the missing-field chips on t", async () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });

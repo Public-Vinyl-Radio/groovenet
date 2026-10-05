@@ -2,7 +2,7 @@ import { withDbTransaction } from "@/lib/serverDb";
 import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { embedSearchQuery, normalizeQuery } from "@/server/services/queryEmbeddingService";
-import type { TrackMissingFilter } from "@/lib/trackFilterSpec";
+import type { TrackAttributeFilters, TrackMissingFilter } from "@/lib/trackFilterSpec";
 
 /**
  * Natural-language track search (#409): the `context` embedding (#408)
@@ -41,6 +41,8 @@ export async function semanticTrackSearch(params: {
   limit: number;
   friendId?: number;
   missing: TrackMissingFilter[];
+  /** BPM, key and rating (#412), applied inside the vector scan. */
+  attributes?: TrackAttributeFilters;
   caller: string;
 }): Promise<SemanticSearchResult> {
   const { model, dims, templateVersion } = await getServingModel("context");
@@ -69,7 +71,7 @@ export async function semanticTrackSearch(params: {
       dims,
       limit: params.limit,
       perReleaseCap: PER_RELEASE_CAP,
-      filters: { friendId: params.friendId, missing: params.missing },
+      filters: { ...params.attributes, friendId: params.friendId, missing: params.missing },
     });
     if (matches.length === 0) return [];
 

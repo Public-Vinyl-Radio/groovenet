@@ -136,6 +136,10 @@ export class GroovenetClient {
       limit: query.limit ?? 10,
       offset: query.offset ?? 0,
       friend_id: query.filters?.friend_id,
+      bpm_min: query.filters?.bpm_min,
+      bpm_max: query.filters?.bpm_max,
+      key: query.filters?.key,
+      star_rating: query.filters?.star_rating,
       mode: query.mode && query.mode !== "lexical" ? query.mode : undefined,
     };
     const result = await this.request<{

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingFilterClause, parseTrackFilterSpec } from "../trackFilterSpec";
+import { attributeFilterClauses, missingFilterClause, parseTrackFilterSpec } from "../trackFilterSpec";
 
 describe("parseTrackFilterSpec", () => {
   it("is empty for no filter", () => {
@@ -36,5 +36,41 @@ describe("missingFilterClause", () => {
       "(t.apple_music_url IS NULL AND t.youtube_url IS NULL AND t.soundcloud_url IS NULL)"
     );
     expect(missingFilterClause("apple_music_url", "t")).toBe("t.apple_music_url IS NULL");
+  });
+});
+
+describe("attributeFilterClauses", () => {
+  const binder = () => {
+    const values: unknown[] = [];
+    const bind = (value: unknown) => {
+      values.push(value);
+      return `$${values.length}`;
+    };
+    return { values, bind };
+  };
+
+  it("emits nothing for no filters", () => {
+    const { values, bind } = binder();
+    expect(attributeFilterClauses({}, bind)).toEqual([]);
+    expect(values).toEqual([]);
+  });
+
+  it("binds each set filter in order, qualified by the alias", () => {
+    const { values, bind } = binder();
+    expect(
+      attributeFilterClauses({ bpmMin: 120, bpmMax: 126, key: "A minor", minStarRating: 4 }, bind, "t")
+    ).toEqual([
+      "t.bpm >= $1",
+      "t.bpm <= $2",
+      "LOWER(t.key) = LOWER($3)",
+      "t.star_rating >= $4",
+    ]);
+    expect(values).toEqual([120, 126, "A minor", 4]);
+  });
+
+  it("keeps a zero, which is a real bound", () => {
+    const { values, bind } = binder();
+    expect(attributeFilterClauses({ minStarRating: 0 }, bind)).toEqual(["star_rating >= $1"]);
+    expect(values).toEqual([0]);
   });
 });

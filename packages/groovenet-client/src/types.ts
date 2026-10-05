@@ -152,9 +152,12 @@ export interface TrackSearchQuery {
    */
   mode?: TrackSearchMode;
   filters?: {
+    /** Inclusive BPM bounds. */
     bpm_min?: number;
     bpm_max?: number;
+    /** Exact musical key, case-insensitive, e.g. "A minor". */
     key?: string;
+    /** Minimum star rating, 0–5. */
     star_rating?: number;
     friend_id?: number;
   };

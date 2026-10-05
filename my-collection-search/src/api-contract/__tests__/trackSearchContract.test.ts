@@ -1,0 +1,21 @@
+import { describe, expect, it } from "vitest";
+import { trackSearchGetQuerySchema } from "../schemas";
+
+describe("trackSearchGetQuerySchema filters (#412)", () => {
+  it("parses query-string numbers, decimals included, and trims the key", () => {
+    expect(
+      trackSearchGetQuerySchema.parse({ bpm_min: "120", bpm_max: " 126.5 ", key: " A minor ", star_rating: "4" })
+    ).toMatchObject({ bpm_min: 120, bpm_max: 126.5, key: "A minor", star_rating: 4 });
+  });
+
+  it("accepts numbers that are already numbers", () => {
+    expect(trackSearchGetQuerySchema.parse({ bpm_min: 98 }).bpm_min).toBe(98);
+  });
+
+  it.each([{ bpm_min: "" }, { bpm_max: "fast" }, { bpm_min: "120abc" }, { star_rating: "6" }, { key: "" }])(
+    "rejects %j",
+    (input) => {
+      expect(trackSearchGetQuerySchema.safeParse(input).success).toBe(false);
+    }
+  );
+});

@@ -1,5 +1,5 @@
 import type { Track } from "@/types/track";
-import type { TrackMissingFilter } from "@/lib/trackFilterSpec";
+import type { TrackAttributeFilters, TrackMissingFilter } from "@/lib/trackFilterSpec";
 
 export type SimilarTrackBase = Pick<
   Track,
@@ -50,12 +50,10 @@ export type EmbeddingTrackRef = Pick<Track, "track_id" | "friend_id">;
  * `unknown-era`); `genre` matches any album (else track) genre or style,
  * case-insensitively.
  */
-export type ContextRetrievalFilters = {
+export type ContextRetrievalFilters = TrackAttributeFilters & {
   friendId?: number;
   era?: string;
   genre?: string;
-  bpmMin?: number;
-  bpmMax?: number;
   /** The search route's "missing X" filter chips (#409). */
   missing?: TrackMissingFilter[];
 };

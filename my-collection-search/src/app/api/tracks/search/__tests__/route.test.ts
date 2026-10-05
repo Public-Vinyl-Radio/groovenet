@@ -224,6 +224,7 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
       limit: 10,
       friendId: 1,
       missing: ["local_audio"],
+      attributes: {},
       caller: "friend:1:ip:unknown",
     });
     expect(mockDbQuery).not.toHaveBeenCalled();
@@ -337,5 +338,77 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
     const res = await GET(req("?mode=semantic&q=x"));
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("openai down");
+  });
+});
+
+// ─── GET — BPM, key and rating filters (#412) ───────────────────────────────
+
+describe("GET /api/tracks/search — attribute filters", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+  });
+
+  it("binds every filter into the lexical query and its count, after friend_id", async () => {
+    stubDb([], "0");
+    await GET(req("?q=house&friend_id=6&bpm_min=120.5&bpm_max=126&key=A%20minor&star_rating=4"));
+
+    const [dataSql, dataParams] = mockDbQuery.mock.calls[0];
+    expect(dataSql).toContain("bpm >= $2");
+    expect(dataSql).toContain("bpm <= $3");
+    expect(dataSql).toContain("LOWER(key) = LOWER($4)");
+    expect(dataSql).toContain("star_rating >= $5");
+    // friend + filters + q + limit + offset
+    expect(dataParams).toEqual([6, 120.5, 126, "A minor", 4, "house", 20, 0]);
+    const [countSql, countParams] = mockDbQuery.mock.calls[1];
+    expect(countSql).toContain("star_rating >= $5");
+    expect(countParams).toEqual([6, 120.5, 126, "A minor", 4, "house"]);
+  });
+
+  it("filters an empty-query listing too", async () => {
+    stubDb([], "0");
+    await GET(req("?key=%20Eb%20major%20"));
+    const [sql, params] = mockDbQuery.mock.calls[0];
+    expect(sql).toContain("LOWER(key) = LOWER($1)");
+    expect(params).toEqual(["Eb major", 20, 0]);
+  });
+
+  it("passes the filters to the semantic leg", async () => {
+    mockSemanticSearch.mockResolvedValue(semanticResult([]));
+    await GET(req("?mode=semantic&q=dub&bpm_min=70&star_rating=3"));
+    expect(mockSemanticSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ attributes: { bpmMin: 70, bpmMax: undefined, key: undefined, minStarRating: 3 } })
+    );
+  });
+
+  it("applies them to both hybrid legs", async () => {
+    stubDb([], "0");
+    mockSemanticSearch.mockResolvedValue(semanticResult([]));
+    await GET(req("?mode=hybrid&q=dub&bpm_max=90"));
+
+    const [lexSql, lexParams] = mockDbQuery.mock.calls[0];
+    expect(lexSql).toContain("bpm <= $1");
+    expect(lexParams).toEqual([90, "dub", 50, 0]);
+    expect(mockSemanticSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ attributes: expect.objectContaining({ bpmMax: 90 }) })
+    );
+  });
+
+  it.each([
+    ["?bpm_min=fast", "a non-numeric BPM"],
+    ["?bpm_min=120abc", "a partly numeric BPM"],
+    ["?star_rating=6", "a rating above 5"],
+    ["?star_rating=-1", "a negative rating"],
+    ["?key=%20%20", "a blank key"],
+  ])("returns 400 for %s (%s)", async (query) => {
+    const res = await GET(req(query));
+    expect(res.status).toBe(400);
+    expect(mockDbQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when bpm_min exceeds bpm_max", async () => {
+    const res = await GET(req("?bpm_min=130&bpm_max=120"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/bpm_min must not exceed bpm_max/);
+    expect(mockDbQuery).not.toHaveBeenCalled();
   });
 });

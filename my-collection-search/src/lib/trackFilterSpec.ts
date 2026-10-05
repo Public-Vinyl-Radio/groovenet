@@ -56,3 +56,33 @@ export function missingFilterClause(name: TrackMissingFilter, alias = ""): strin
       return `${col(name)} IS NULL`;
   }
 }
+
+/**
+ * Attribute filters on `/api/tracks/search` (#412), applied in SQL in every
+ * mode: in the lexical `WHERE` and inside the context vector scan.
+ */
+export type TrackAttributeFilters = {
+  bpmMin?: number;
+  bpmMax?: number;
+  /** Exact, case-insensitive: `A minor` matches `a minor`, not `Am`. */
+  key?: string;
+  /** At least this many stars. */
+  minStarRating?: number;
+};
+
+/** Clauses for the set filters, binding each value through `bind` (which returns its `$n`). */
+export function attributeFilterClauses(
+  filters: TrackAttributeFilters,
+  bind: (value: unknown) => string,
+  alias = ""
+): string[] {
+  const col = (column: string) => (alias ? `${alias}.${column}` : column);
+  const clauses: string[] = [];
+  if (filters.bpmMin !== undefined) clauses.push(`${col("bpm")} >= ${bind(filters.bpmMin)}`);
+  if (filters.bpmMax !== undefined) clauses.push(`${col("bpm")} <= ${bind(filters.bpmMax)}`);
+  if (filters.key !== undefined) clauses.push(`LOWER(${col("key")}) = LOWER(${bind(filters.key)})`);
+  if (filters.minStarRating !== undefined) {
+    clauses.push(`${col("star_rating")} >= ${bind(filters.minStarRating)}`);
+  }
+  return clauses;
+}
