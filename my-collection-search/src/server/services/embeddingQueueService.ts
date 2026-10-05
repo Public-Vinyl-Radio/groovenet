@@ -252,10 +252,23 @@ export class EmbeddingQueueService {
    * Backstop for #385, same shape as `fingerprintBackfillService`'s missing
    * pass: finds tracks missing an identity, audio-vibe or context embedding
    * and enqueues them. Covers lost Redis state and anything enqueued before
-   * the worker ever ran. Idempotent — a track already queued or already
-   * embedded is a no-op either way.
+   * the worker ever ran.
+   *
+   * Skips while any job is still queued or waiting to retry (#419). Every
+   * missing track is already among them, and `enqueue` doesn't dedupe, so a
+   * sweep during a big backfill used to add another copy of the whole
+   * backlog. The no-op copies took the batch slots, and the queue grew faster
+   * than it drained. A lost job is picked up by the first sweep after the
+   * queue empties.
    */
-  async sweepTick(): Promise<{ queued: number }> {
+  async sweepTick(): Promise<{ queued: number; pending: number }> {
+    const [queued, retrying] = await Promise.all([
+      this.redis.llen(QUEUE_KEY),
+      this.redis.zcard(RETRY_KEY),
+    ]);
+    const pending = queued + retrying;
+    if (pending > 0) return { queued: 0, pending };
+
     const [missingIdentity, missingAudioVibe, missingContext] = await Promise.all([
       embeddingsRepository.listTracksNeedingIdentityEmbeddings({}),
       embeddingsRepository.listTracksNeedingAudioVibeEmbeddings({}),
@@ -269,7 +282,7 @@ export class EmbeddingQueueService {
     ];
 
     await this.enqueue(jobs);
-    return { queued: jobs.length };
+    return { queued: jobs.length, pending: 0 };
   }
 
   /**
@@ -398,8 +411,10 @@ async function sweepIfDue(now: number): Promise<void> {
   lastSweepAtMs = now;
 
   try {
-    const { queued } = await embeddingQueueService.sweepTick();
-    if (queued > 0) {
+    const { queued, pending } = await embeddingQueueService.sweepTick();
+    if (pending > 0) {
+      console.log(`[embedding-queue] sweep skipped: ${pending} job(s) still pending`);
+    } else if (queued > 0) {
       console.log(`[embedding-queue] sweep queued ${queued} track(s) missing an embedding`);
     }
   } catch (error) {
