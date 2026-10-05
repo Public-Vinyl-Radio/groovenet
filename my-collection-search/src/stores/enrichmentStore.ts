@@ -30,7 +30,9 @@ interface EnrichmentStore {
 
 export const useEnrichmentStore = create<EnrichmentStore>((set) => ({
   queue: [],
-  enrichmentTypes: { llm: true, appleMusic: true, youtube: true, fetchAudio: false },
+  // AI metadata is opt-in (#380): it runs a web-search model call per track
+  // (about $0.02), and #379 found its notes make search worse, not better.
+  enrichmentTypes: { llm: false, appleMusic: true, youtube: true, fetchAudio: false },
   results: {},
   setQueue: (queue) => set({ queue, results: {} }),
   setEnrichmentTypes: (types) =>
