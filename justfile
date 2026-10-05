@@ -425,8 +425,12 @@ migrate-test:
   docker run -d --name "$name" \
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
+  # Probe over TCP. On first start the image runs initdb against a temporary
+  # server that listens on the socket only, then restarts; a socket probe can
+  # pass in that window and the first client gets "Connection terminated
+  # unexpectedly". The same applies to every *-test recipe below.
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist" \
@@ -444,7 +448,7 @@ genres-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -464,7 +468,7 @@ fingerprint-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -484,7 +488,7 @@ ingest-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -504,7 +508,7 @@ set-derivation-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -524,7 +528,7 @@ debug-reads-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -544,7 +548,7 @@ embedding-versions-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -564,7 +568,7 @@ play-detections-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -584,7 +588,7 @@ spin-sessions-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
@@ -604,7 +608,7 @@ record-care-test:
     -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
     -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
   for i in $(seq 1 60); do
-    docker exec "$name" pg_isready -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
     sleep 1
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
