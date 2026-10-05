@@ -16,6 +16,16 @@ const toInt = (value: unknown): unknown => {
 };
 
 export const intFromInputSchema = z.preprocess(toInt, z.number().int());
+
+/** A query-string number, decimals allowed; anything not wholly numeric fails. */
+const toNumber = (value: unknown): unknown => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return value;
+};
+const numberFromInputSchema = z.preprocess(toNumber, z.number());
 export const nonNegativeIntFromInputSchema = z.preprocess(
   toInt,
   z.number().int().min(0)
@@ -643,6 +653,13 @@ export const trackSearchGetQuerySchema = z.object({
    * `offset` must be 0 and `limit` at most 50.
    */
   mode: trackSearchModeSchema.optional().default("lexical"),
+  /** Attribute filters (#412), applied in every mode. */
+  bpm_min: numberFromInputSchema.optional(),
+  bpm_max: numberFromInputSchema.optional(),
+  /** Exact musical key, case-insensitive, e.g. `A minor`. */
+  key: z.string().trim().min(1).optional(),
+  /** Minimum star rating. */
+  star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
 });
 
 const searchMetaSchema = z.object({

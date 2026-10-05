@@ -523,8 +523,12 @@ search bar has a Keyword / Hybrid / Semantic toggle (kept in the URL as
 - **One page.** Both modes need `offset=0` and `limit ≤ 50`, and report
   `estimatedTotalHits` as the number returned, so infinite scroll stops. An
   empty `q` lists lexically in every mode.
-- **Filters.** `friend_id` and the `filter` chips (`parseTrackFilterSpec`,
-  `src/lib/trackFilterSpec.ts`) apply inside the vector scan, not after it.
+- **Filters.** `friend_id`, the `filter` chips (`parseTrackFilterSpec`) and
+  the attribute params `bpm_min`, `bpm_max` (inclusive), `key` (exact,
+  case-insensitive) and `star_rating` (a minimum) (#412,
+  `attributeFilterClauses`, both in `src/lib/trackFilterSpec.ts`) apply in
+  every mode. In semantic and hybrid they run inside the vector scan, not
+  after it.
   The scan runs in a transaction with `ivfflat.probes = 10` and
   `ivfflat.iterative_scan = relaxed_order` (pgvector ≥ 0.8) set locally, so
   filtered queries keep probing until the page fills, and no pooled

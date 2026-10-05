@@ -200,6 +200,27 @@ describe("GroovenetClient.searchTracks", () => {
     );
   });
 
+  it("forwards BPM, key and rating filters as query params (#412)", async () => {
+    const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
+
+    await client.searchTracks({
+      query: "house",
+      filters: { friend_id: 6, bpm_min: 120, bpm_max: 126.5, key: "A minor", star_rating: 4 },
+    });
+
+    expect(requestMock.mock.calls[0][0].params).toEqual({
+      q: "house",
+      limit: 10,
+      offset: 0,
+      friend_id: 6,
+      bpm_min: 120,
+      bpm_max: 126.5,
+      key: "A minor",
+      star_rating: 4,
+      mode: undefined,
+    });
+  });
+
   it("leaves lexical mode implicit", async () => {
     const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
 

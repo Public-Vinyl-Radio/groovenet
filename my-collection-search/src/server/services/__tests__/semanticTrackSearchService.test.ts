@@ -57,7 +57,11 @@ describe("semanticTrackSearch", () => {
       { track_id: "gone", friend_id: 1 },
     ]);
 
-    const result = await semanticTrackSearch({ ...params, missing: ["local_audio"] });
+    const result = await semanticTrackSearch({
+      ...params,
+      missing: ["local_audio"],
+      attributes: { bpmMin: 90, key: "A minor" },
+    });
 
     expect(embedSearchQuery).toHaveBeenCalledWith({
       query: "dusty cumbia",
@@ -76,7 +80,7 @@ describe("semanticTrackSearch", () => {
       dims: 3,
       limit: 5,
       perReleaseCap: PER_RELEASE_CAP,
-      filters: { friendId: 1, missing: ["local_audio"] },
+      filters: { bpmMin: 90, key: "A minor", friendId: 1, missing: ["local_audio"] },
     });
     const [hydrateSql, hydrateParams] = client.query.mock.calls[1];
     expect(hydrateSql).toContain('AS "hasVectors"');

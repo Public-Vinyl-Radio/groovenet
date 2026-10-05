@@ -22,10 +22,10 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("search <query>")
     .description("Search your collection")
-    .option("--bpm-min <n>", "Minimum BPM", parseFloat)
-    .option("--bpm-max <n>", "Maximum BPM", parseFloat)
-    .option("--key <k>", "Musical key (e.g. 'A minor')")
-    .option("--rating <n>", "Filter by star rating (0-5)", parseFloat)
+    .option("--bpm-min <n>", "Minimum BPM, inclusive", parseFloat)
+    .option("--bpm-max <n>", "Maximum BPM, inclusive", parseFloat)
+    .option("--key <k>", "Exact musical key, case-insensitive (e.g. 'A minor')")
+    .option("--rating <n>", "Minimum star rating (0-5)", intOption)
     .option("--limit <n>", "Number of results", intOption, 20)
     .option(
       "--mode <mode>",

@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { dbQuery } from "@/lib/serverDb";
 import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
-import { missingFilterClause } from "@/lib/trackFilterSpec";
+import { attributeFilterClauses, missingFilterClause } from "@/lib/trackFilterSpec";
 import type { BackfillOptions, EmbeddingBackfillOptions } from "@/types/backfill";
 import type {
   ContextMatch,
@@ -575,8 +575,7 @@ export class EmbeddingsRepository {
         WHERE LOWER(g.name) = LOWER(${bind(filters.genre)})
       )`);
     }
-    if (filters.bpmMin !== undefined) clauses.push(`t.bpm >= ${bind(filters.bpmMin)}`);
-    if (filters.bpmMax !== undefined) clauses.push(`t.bpm <= ${bind(filters.bpmMax)}`);
+    clauses.push(...attributeFilterClauses(filters, bind, "t"));
     for (const name of filters.missing ?? []) clauses.push(missingFilterClause(name, "t"));
 
     const result = await client.query<Omit<ContextMatch, "distance"> & { distance: string | number }>(

@@ -14,6 +14,16 @@ const toInt = (value: unknown): unknown => {
 };
 
 export const intFromInputSchema = z.preprocess(toInt, z.number().int());
+
+/** A query-string number, decimals allowed; anything not wholly numeric fails. */
+const toNumber = (value: unknown): unknown => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return value;
+};
+const numberFromInputSchema = z.preprocess(toNumber, z.number());
 export const nonNegativeIntFromInputSchema = z.preprocess(
   toInt,
   z.number().int().min(0)
@@ -80,6 +90,10 @@ export const trackSearchGetQuerySchema = z.object({
   offset: nonNegativeIntFromInputSchema.optional().default(0),
   filter: z.string().optional(),
   mode: trackSearchModeSchema.optional().default("lexical"),
+  bpm_min: numberFromInputSchema.optional(),
+  bpm_max: numberFromInputSchema.optional(),
+  key: z.string().trim().min(1).optional(),
+  star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
 });
 
 export const trackSearchGetResponseSchema = z.object({

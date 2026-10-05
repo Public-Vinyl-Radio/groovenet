@@ -80,3 +80,20 @@ describe("tracks search --mode", () => {
     expect(mocks.client.searchTracks).not.toHaveBeenCalled();
   });
 });
+
+describe("tracks search filters (#412)", () => {
+  it("forwards BPM, key and minimum rating", async () => {
+    await run("house", "--bpm-min", "120", "--bpm-max", "126.5", "--key", "A minor", "--rating", "4");
+    expect(mocks.client.searchTracks).toHaveBeenCalledWith({
+      query: "house",
+      limit: 20,
+      mode: undefined,
+      filters: { bpm_min: 120, bpm_max: 126.5, key: "A minor", star_rating: 4 },
+    });
+  });
+
+  it("rejects a non-numeric rating before calling the API", async () => {
+    await expect(run("x", "--rating", "abc")).rejects.toThrow(/expected a number/);
+    expect(mocks.client.searchTracks).not.toHaveBeenCalled();
+  });
+});

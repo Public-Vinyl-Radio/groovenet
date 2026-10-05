@@ -5,7 +5,12 @@ import {
   trackSearchGetResponseSchema,
   type TrackSearchMode,
 } from "@/api-contract/schemas";
-import { missingFilterClause, parseTrackFilterSpec } from "@/lib/trackFilterSpec";
+import {
+  attributeFilterClauses,
+  missingFilterClause,
+  parseTrackFilterSpec,
+  type TrackAttributeFilters,
+} from "@/lib/trackFilterSpec";
 import { QueryRateLimitError } from "@/server/services/queryEmbeddingService";
 import {
   HYBRID_LEG_SIZE,
@@ -149,6 +154,7 @@ async function searchByMeaning(
     limit: number;
     filter: string | undefined;
     friendId: number | undefined;
+    attributes: TrackAttributeFilters;
     where: string[];
     whereParams: unknown[];
   }
@@ -169,6 +175,7 @@ async function searchByMeaning(
     limit: params.mode === "semantic" ? params.limit : HYBRID_LEG_SIZE,
     friendId,
     missing: spec.missing,
+    attributes: params.attributes,
     caller: rateLimitCaller(request, friendId),
   };
 
@@ -235,7 +242,17 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { q, limit, offset, filter, friend_id, mode } = parsedQuery.data;
+    const { q, limit, offset, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating } =
+      parsedQuery.data;
+    if (bpm_min !== undefined && bpm_max !== undefined && bpm_min > bpm_max) {
+      return NextResponse.json({ error: "bpm_min must not exceed bpm_max" }, { status: 400 });
+    }
+    const attributes: TrackAttributeFilters = {
+      bpmMin: bpm_min,
+      bpmMax: bpm_max,
+      key,
+      minStarRating: star_rating,
+    };
     if (mode !== "lexical" && (offset > 0 || limit > SEMANTIC_MAX_LIMIT)) {
       return NextResponse.json(
         {
@@ -249,6 +266,12 @@ export async function GET(request: NextRequest) {
       parsedFilter.params.push(friend_id);
       parsedFilter.where.push(`friend_id = $${parsedFilter.params.length}`);
     }
+    parsedFilter.where.push(
+      ...attributeFilterClauses(attributes, (value) => {
+        parsedFilter.params.push(value);
+        return `$${parsedFilter.params.length}`;
+      })
+    );
 
     // Without words there is no meaning to search; every mode lists the same way.
     if (mode !== "lexical" && q.trim().length > 0) {
@@ -258,6 +281,7 @@ export async function GET(request: NextRequest) {
         limit,
         filter,
         friendId: friend_id,
+        attributes,
         where: parsedFilter.where,
         whereParams: parsedFilter.params,
       });
