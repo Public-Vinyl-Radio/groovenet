@@ -137,7 +137,9 @@
   pgvector can't index it directly, so each `(embedding_type, model)` pair
   gets its own partial expression index, added in the migration that
   introduces that model. See the doc before adding a model that needs ANN
-  search at scale.
+  search at scale. That migration builds the ivfflat index on an empty set,
+  so it has to be rebuilt once the first backfill finishes ("Re-indexing
+  After Bulk Inserts" in `docs/IDENTITY_EMBEDDINGS.md`).
 
 ## Background work
 
