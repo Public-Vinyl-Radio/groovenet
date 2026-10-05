@@ -159,8 +159,8 @@ jobs:
       - name: Run CLI tests with coverage
         run: npm --workspace @groovenet/cli run test:coverage
 
-      - name: Test embedding evaluation harnesses (#379, #382, #409)
-        run: node --test evaluations/379/*.test.mjs evaluations/382/*.test.mjs evaluations/409/*.test.mjs
+      - name: Test embedding evaluation harnesses (#379, #382, #409, #424)
+        run: node --test evaluations/379/*.test.mjs evaluations/382/*.test.mjs evaluations/409/*.test.mjs evaluations/424/*.test.mjs
 
       - name: Upload CLI coverage to Codecov
         uses: codecov/codecov-action@v7

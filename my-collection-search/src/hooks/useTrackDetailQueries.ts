@@ -6,6 +6,7 @@ import { useTrackByIdQuery } from "@/hooks/useTrackByIdQuery";
 import {
   extractEmbeddedCover,
   fetchAudioVibeEmbeddingPreview,
+  fetchContextEmbeddingPreview,
   fetchIdentityEmbeddingPreview,
   fetchTrackAudioMetadata,
   fetchTrackEssentiaData,
@@ -39,6 +40,12 @@ export function useTrackDetailQueries(trackId: string, friendId: number, enabled
     enabled: enabled && !!trackId,
   });
 
+  const contextEmbeddingPreviewQuery = useQuery({
+    queryKey: queryKeys.trackContextEmbeddingPreview(trackId, friendId),
+    queryFn: () => fetchContextEmbeddingPreview(trackId, friendId),
+    enabled: enabled && !!trackId,
+  });
+
   const audioVibeEmbeddingPreviewQuery = useQuery({
     queryKey: queryKeys.trackAudioVibeEmbeddingPreview(trackId, friendId),
     queryFn: () => fetchAudioVibeEmbeddingPreview(trackId, friendId),
@@ -55,6 +62,7 @@ export function useTrackDetailQueries(trackId: string, friendId: number, enabled
     audioMetadataQuery,
     essentiaQuery,
     identityEmbeddingPreviewQuery,
+    contextEmbeddingPreviewQuery,
     audioVibeEmbeddingPreviewQuery,
     extractCoverMutation,
   };

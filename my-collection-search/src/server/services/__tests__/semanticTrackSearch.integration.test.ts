@@ -30,6 +30,7 @@ const TRACKS = [
   { id: "near", release: "r-a", vector: [1, 0, 0], audio: null },
   { id: "near-2", release: "r-a", vector: [0.99, 0.1, 0], audio: "/audio/n2.m4a" },
   { id: "near-3", release: "r-a", vector: [0.98, 0.2, 0], audio: null },
+  { id: "near-4", release: "r-a", vector: [0.97, 0.3, 0], audio: null },
   { id: "far", release: "r-b", vector: [0, 1, 0], audio: null },
 ];
 
@@ -69,10 +70,10 @@ afterAll(async () => {
 const base = () => ({ q: "q", limit: 10, friendId, missing: [], caller: "test" });
 
 describe("semanticTrackSearch (integration)", () => {
-  dbTest("returns full track rows in distance order, two per release", async () => {
+  dbTest("returns full track rows in distance order, three per release", async () => {
     const { hits } = await semanticTrackSearch(base());
 
-    expect(hits.map((h) => h.track_id)).toEqual(["near", "near-2", "far"]);
+    expect(hits.map((h) => h.track_id)).toEqual(["near", "near-2", "near-3", "far"]);
     expect(hits[0]).toMatchObject({
       friend_id: friendId,
       title: "near",
@@ -84,7 +85,7 @@ describe("semanticTrackSearch (integration)", () => {
 
   dbTest("applies the missing-audio chip inside the vector scan", async () => {
     const { hits } = await semanticTrackSearch({ ...base(), missing: ["local_audio"] });
-    expect(hits.map((h) => h.track_id)).toEqual(["near", "near-3", "far"]);
+    expect(hits.map((h) => h.track_id)).toEqual(["near", "near-3", "near-4", "far"]);
   });
 
   dbTest("keeps the scan settings to its own transaction", async () => {

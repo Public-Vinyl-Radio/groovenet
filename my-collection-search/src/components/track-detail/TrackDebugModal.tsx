@@ -10,6 +10,7 @@ import {
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import type {
   AudioVibeEmbeddingPreviewResponse,
+  ContextEmbeddingPreviewResponse,
   IdentityEmbeddingPreviewResponse,
   TrackAudioMetadataResponse,
   TrackEssentiaResponse,
@@ -18,6 +19,7 @@ import AudioMetadataSection from "./AudioMetadataSection";
 import EssentiaSection from "./EssentiaSection";
 import IdentityEmbeddingSection from "./IdentityEmbeddingSection";
 import AudioVibeEmbeddingSection from "./AudioVibeEmbeddingSection";
+import ContextEmbeddingSection from "./ContextEmbeddingSection";
 
 type Props = {
   open: boolean;
@@ -25,6 +27,7 @@ type Props = {
   audioMetadataQuery: UseQueryResult<TrackAudioMetadataResponse, Error>;
   essentiaQuery: UseQueryResult<TrackEssentiaResponse, Error>;
   identityEmbeddingPreviewQuery: UseQueryResult<IdentityEmbeddingPreviewResponse, Error>;
+  contextEmbeddingPreviewQuery: UseQueryResult<ContextEmbeddingPreviewResponse, Error>;
   audioVibeEmbeddingPreviewQuery: UseQueryResult<AudioVibeEmbeddingPreviewResponse, Error>;
   trackAudioCoverUrl?: string | null;
   extractCoverMutation: UseMutationResult<string | null, Error, void, unknown>;
@@ -37,6 +40,7 @@ export default function TrackDebugModal({
   audioMetadataQuery,
   essentiaQuery,
   identityEmbeddingPreviewQuery,
+  contextEmbeddingPreviewQuery,
   audioVibeEmbeddingPreviewQuery,
   trackAudioCoverUrl,
   extractCoverMutation,
@@ -65,6 +69,7 @@ export default function TrackDebugModal({
                 />
                 <EssentiaSection query={essentiaQuery} />
                 <IdentityEmbeddingSection query={identityEmbeddingPreviewQuery} />
+                <ContextEmbeddingSection query={contextEmbeddingPreviewQuery} />
                 <AudioVibeEmbeddingSection query={audioVibeEmbeddingPreviewQuery} />
               </VStack>
             </Dialog.Body>

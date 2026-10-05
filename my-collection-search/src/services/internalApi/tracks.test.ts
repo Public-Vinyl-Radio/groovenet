@@ -10,6 +10,7 @@ import {
   analyzeTrackAsync,
   extractEmbeddedCover,
   fetchAudioVibeEmbeddingPreview,
+  fetchContextEmbeddingPreview,
   fetchIdentityEmbeddingPreview,
   fetchPlaylistCounts,
   fetchSimilarTracks,
@@ -316,6 +317,23 @@ describe("extractEmbeddedCover", () => {
     httpMock.mockResolvedValue(payload);
 
     await expect(extractEmbeddedCover("t1", 2)).resolves.toBe("");
+  });
+});
+
+describe("fetchContextEmbeddingPreview", () => {
+  it("requests the context type and reshapes it into contextText and contextData", async () => {
+    httpMock.mockResolvedValue({ type: "context", text: "idm. electronic music from the 1990s.", data: IDENTITY_DATA });
+
+    await expect(fetchContextEmbeddingPreview("t 1", 2)).resolves.toEqual({
+      contextText: "idm. electronic music from the 1990s.",
+      contextData: IDENTITY_DATA,
+    });
+    expect(calledUrl()).toBe("/api/tracks/t%201/embedding-preview?friend_id=2&type=context");
+  });
+
+  it("rejects another type's payload", async () => {
+    httpMock.mockResolvedValue({ type: "identity", text: "x", data: IDENTITY_DATA });
+    await expect(fetchContextEmbeddingPreview("t1", 2)).rejects.toThrow();
   });
 });
 

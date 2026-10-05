@@ -169,12 +169,17 @@ describe("fuseHybridResults", () => {
         sameRelease("x1"),
         sameRelease("x2"),
         sameRelease("x3"),
+        sameRelease("x4"),
         row("solo", { release_id: null }),
       ],
       semantic: [],
       limit: 10,
     });
-    expect(fused.map((r) => r.track_id)).toEqual(["a1", "a2", "a3", "x1", "x2", "solo"]);
+    expect(fused.map((r) => r.track_id)).toEqual(["a1", "a2", "a3", "x1", "x2", "x3", "solo"]);
+  });
+
+  it("caps at three per release, the setting #424 chose", () => {
+    expect(PER_RELEASE_CAP).toBe(3);
   });
 
   it("treats the same track id under two friends as two tracks", () => {

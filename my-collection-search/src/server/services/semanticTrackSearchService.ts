@@ -13,8 +13,14 @@ import type { TrackAttributeFilters, TrackMissingFilter } from "@/lib/trackFilte
 export const SEMANTIC_MAX_LIMIT = 50;
 /** How many results each leg contributes to a hybrid fusion. */
 export const HYBRID_LEG_SIZE = 50;
-/** At most this many tracks from one release, as #382 measured. */
-export const PER_RELEASE_CAP = 2;
+/**
+ * At most this many tracks from one release. Descriptive text is mostly
+ * album-level, so without a cap one album fills the page. #424 measured the
+ * cost on the frozen queries: 3 beat 2 on 10 queries and lost none (P@10
+ * 0.854 vs 0.800), at about 5 releases per top 10 instead of 6. No cap
+ * (0.900) wasn't reliably better than 3, and showed about 3 releases.
+ */
+export const PER_RELEASE_CAP = 3;
 /** The usual reciprocal rank fusion constant. */
 export const RRF_K = 60;
 /**
