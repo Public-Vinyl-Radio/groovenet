@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { up, down } from "../../../migrations/1791000000000_add_genre_taxonomy.js";
+import { up, down } from "../../../migrations/1791300000000_add_genre_taxonomy.js";
 import { genreAliasSeed, genreSeed, genreStyleSeed } from "./taxonomySeed";
 
 const migration = () => ({
