@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { addGenreAlias, createGenre, mergeGenres, updateGenre } from "../genreAdminService";
-import { up } from "../../../../migrations/1791000000000_add_genre_taxonomy.js";
+import { up } from "../../../../migrations/1791300000000_add_genre_taxonomy.js";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 afterAll(async () => { if (process.env.RUN_DB_TESTS === "1") await dbPool.end(); });
