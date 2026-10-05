@@ -340,6 +340,13 @@ allow thousands of embedding requests a minute, so the queue, not OpenAI, is the
 limit. `EMBEDDING_SWEEP_INTERVAL_MINUTES` (default 30) is how often tracks
 still missing an embedding are re-queued.
 
+The sweep is a backstop for lost jobs, not a second scheduler. It does nothing
+while any job is queued or waiting to retry (#419), and the next sweep after the
+queue empties catches anything lost. `enqueue` doesn't dedupe, so before this
+every sweep and every restart added another copy of the whole backlog. In
+production that grew the queue to 281k jobs, mostly no-op duplicates, and
+stalled a 21.5k-track backfill.
+
 ### pgvector Index Tuning
 - **`lists` parameter**: Currently 100 (good for <100K tracks)
   - Rule of thumb: `sqrt(total_rows)`

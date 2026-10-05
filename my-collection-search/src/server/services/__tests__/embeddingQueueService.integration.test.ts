@@ -10,6 +10,7 @@ import { EmbeddingQueueService } from "../embeddingQueueService";
 
 const mockGenerateIdentity = vi.hoisted(() => vi.fn());
 const mockCheckProvider = vi.hoisted(() => vi.fn());
+const mockListIdentity = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/identity-embedding", () => ({
   generateAndStoreIdentityEmbedding: mockGenerateIdentity,
@@ -19,6 +20,14 @@ vi.mock("@/lib/audio-vibe-embedding", () => ({
 }));
 vi.mock("@/server/services/embeddingHealthService", () => ({
   checkEmbeddingProvider: mockCheckProvider,
+}));
+// The sweep's "what's missing" queries are Postgres; only its Redis side is under test here.
+vi.mock("@/server/repositories/embeddingsRepository", () => ({
+  embeddingsRepository: {
+    listTracksNeedingIdentityEmbeddings: mockListIdentity,
+    listTracksNeedingAudioVibeEmbeddings: vi.fn(async () => []),
+    listTracksNeedingContextEmbeddings: vi.fn(async () => []),
+  },
 }));
 
 const RUN = process.env.RUN_REDIS_TESTS === "1";
@@ -36,11 +45,37 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
     service = new EmbeddingQueueService();
     mockGenerateIdentity.mockReset().mockResolvedValue({ updated: true, reason: "ok" });
     mockCheckProvider.mockReset().mockResolvedValue(undefined);
+    mockListIdentity.mockReset().mockResolvedValue([]);
   });
 
   afterAll(async () => {
     await redis.flushdb();
     disconnectRedis();
+  });
+
+  it("repeated sweeps over a backlog queue it once, and the next sweep after it drains finds the rest (#419)", async () => {
+    const missing = Array.from({ length: 50 }, (_, i) => ({ track_id: `t${i}`, friend_id: 1 }));
+    mockListIdentity.mockResolvedValue(missing);
+
+    expect(await service.sweepTick()).toEqual({ queued: 50, pending: 0 });
+    // A restart and two more sweep intervals while the backlog is still there.
+    for (let i = 0; i < 3; i++) {
+      expect(await service.sweepTick()).toEqual({ queued: 0, pending: 50 });
+    }
+    expect(await redis.llen("embedding_queue")).toBe(50);
+
+    // A job waiting to retry also holds the sweep off.
+    await redis.del("embedding_queue");
+    await redis.zadd("embedding_retry", Date.now() + 60_000, JSON.stringify({ track_id: "t0", friend_id: 1, kind: "identity" }));
+    expect(await service.sweepTick()).toEqual({ queued: 0, pending: 1 });
+
+    // Drained, with one track lost along the way: the next sweep picks it up.
+    await redis.del("embedding_retry");
+    mockListIdentity.mockResolvedValue([missing[7]]);
+    expect(await service.sweepTick()).toEqual({ queued: 1, pending: 0 });
+    expect(await redis.lrange("embedding_queue", 0, -1)).toEqual([
+      JSON.stringify({ track_id: "t7", friend_id: 1, kind: "identity" }),
+    ]);
   });
 
   it("enqueues and drains a job through a real list (LPUSH/RPOP)", async () => {

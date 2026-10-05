@@ -330,13 +330,18 @@ describe("tick — retry promotion", () => {
 // ─── sweepTick ────────────────────────────────────────────────────────────────
 
 describe("sweepTick", () => {
+  beforeEach(() => {
+    mockRedis.llen.mockResolvedValue(0);
+    mockRedis.zcard.mockResolvedValue(0);
+  });
+
   it("enqueues identity, audio_vibe and context jobs for whatever is missing", async () => {
     mockListIdentity.mockResolvedValueOnce([{ track_id: "a", friend_id: 1 }]);
     mockListAudioVibe.mockResolvedValueOnce([{ track_id: "b", friend_id: 2 }]);
     mockListContext.mockResolvedValueOnce([{ track_id: "c", friend_id: 3 }]);
     const service = new EmbeddingQueueService();
     const result = await service.sweepTick();
-    expect(result).toEqual({ queued: 3 });
+    expect(result).toEqual({ queued: 3, pending: 0 });
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
       JSON.stringify({ track_id: "c", friend_id: 3, kind: "context" })
@@ -353,8 +358,25 @@ describe("sweepTick", () => {
 
   it("queues nothing — and a second run does no work — when nothing is missing", async () => {
     const service = new EmbeddingQueueService();
-    expect(await service.sweepTick()).toEqual({ queued: 0 });
-    expect(await service.sweepTick()).toEqual({ queued: 0 });
+    expect(await service.sweepTick()).toEqual({ queued: 0, pending: 0 });
+    expect(await service.sweepTick()).toEqual({ queued: 0, pending: 0 });
+    expect(mockRedis.pipeline).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["queued", 4, 0],
+    ["waiting to retry", 0, 2],
+  ])("skips without looking for missing tracks while jobs are %s (#419)", async (_label, queued, retrying) => {
+    mockRedis.llen.mockResolvedValue(queued);
+    mockRedis.zcard.mockResolvedValue(retrying);
+    const service = new EmbeddingQueueService();
+
+    expect(await service.sweepTick()).toEqual({ queued: 0, pending: queued + retrying });
+
+    expect(mockRedis.llen).toHaveBeenCalledWith("embedding_queue");
+    expect(mockRedis.zcard).toHaveBeenCalledWith("embedding_retry");
+    expect(mockListIdentity).not.toHaveBeenCalled();
+    expect(mockListContext).not.toHaveBeenCalled();
     expect(mockRedis.pipeline).not.toHaveBeenCalled();
   });
 });
@@ -517,7 +539,7 @@ describe("startEmbeddingQueueWorker()", () => {
     const tickSpy = vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
     const sweepSpy = vi
       .spyOn(embeddingQueueService, "sweepTick")
-      .mockResolvedValue({ queued: 0 });
+      .mockResolvedValue({ queued: 0, pending: 0 });
 
     startEmbeddingQueueWorker();
 
@@ -527,7 +549,7 @@ describe("startEmbeddingQueueWorker()", () => {
 
   it("hands the timer a callback that ticks and sweeps again", async () => {
     const tickSpy = vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
-    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0 });
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0, pending: 0 });
 
     startEmbeddingQueueWorker();
     await vi.waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(1));
@@ -543,7 +565,7 @@ describe("startEmbeddingQueueWorker()", () => {
   it("logs and swallows a tick failure instead of crashing the interval", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(embeddingQueueService, "tick").mockRejectedValue(new Error("boom"));
-    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0 });
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0, pending: 0 });
 
     startEmbeddingQueueWorker();
 
@@ -570,10 +592,23 @@ describe("startEmbeddingQueueWorker()", () => {
     );
   });
 
+  it("logs a skipped sweep with the pending count, not a queued one", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0, pending: 21472 });
+
+    startEmbeddingQueueWorker();
+
+    await vi.waitFor(() =>
+      expect(logSpy).toHaveBeenCalledWith("[embedding-queue] sweep skipped: 21472 job(s) still pending")
+    );
+    expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining("sweep queued"));
+  });
+
   it("logs a count when the sweep finds missing embeddings", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
-    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 3 });
+    vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 3, pending: 0 });
 
     startEmbeddingQueueWorker();
 
