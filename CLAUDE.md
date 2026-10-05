@@ -107,6 +107,11 @@ just test             # web + packages
 just lint-all         # every pre-commit hook, as CI runs them
 ```
 
+Parallel tasks run in git worktrees, each with its own compose stack via
+`just worktree-up`. With [herdr](https://herdr.dev), `just herdr` attaches to
+the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
+worktree workspace off `main` and starts its stack.
+
 Pre-commit runs file hygiene, ruff over the Python services, and ESLint over
 the web app. CI runs the same hooks, so `--no-verify` only defers the failure.
 

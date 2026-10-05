@@ -148,6 +148,16 @@ worktree-seed *args:
 worktree-install-caddy *args:
   ./scripts/worktree/install-caddy-host.sh {{args}}
 
+# Launch or attach to the herdr session for this repo (https://herdr.dev)
+herdr:
+  @command -v herdr >/dev/null 2>&1 || { echo "herdr is not installed: https://herdr.dev"; exit 1; }
+  @if [[ "${HERDR_ENV:-}" == 1 ]]; then echo "Already inside herdr; use 'just herdr-task <branch>' for a new task."; exit 1; fi
+  herdr --session "${HERDR_SESSION:-groovenet}"
+
+# New task in herdr: worktree + workspace for <branch>, with its own compose stack
+herdr-task branch *args:
+  ./scripts/worktree/herdr-task.sh {{branch}} {{args}}
+
 compose-prod: check-compose
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml -f docker-compose.prod.yml up
 
