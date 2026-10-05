@@ -154,7 +154,7 @@ herdr:
   @if [[ "${HERDR_ENV:-}" == 1 ]]; then echo "Already inside herdr; use 'just herdr-task <branch>' for a new task."; exit 1; fi
   herdr --session "${HERDR_SESSION:-groovenet}"
 
-# New task in herdr: worktree + workspace for <branch>, with its own compose stack
+# New task in herdr: worktree + workspace for <branch>, bootstrapped, with its own compose stack
 herdr-task branch *args:
   ./scripts/worktree/herdr-task.sh {{branch}} {{args}}
 
