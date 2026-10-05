@@ -4797,7 +4797,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           required: false,
           schema: { type: "string", enum: ["lexical", "semantic", "hybrid"], default: "lexical" },
           description:
-            "'lexical' is full-text + trigram. 'semantic' ranks by the natural-language 'context' embedding of q; 'hybrid' fuses both with reciprocal rank fusion, exact title/artist/album matches first. Semantic and hybrid return a single page (offset 0, limit at most 50), at most two tracks per release, and honour friend_id and filter. With an empty q every mode lists lexically.",
+            "'lexical' is full-text + trigram. 'semantic' ranks by the natural-language 'context' embedding of q; 'hybrid' fuses both with reciprocal rank fusion, exact title/artist/album matches first. Semantic and hybrid return a single page (offset 0, limit at most 50), at most three tracks per release, and honour friend_id and filter. With an empty q every mode lists lexically.",
         },
         { name: "bpm_min", in: "query", required: false, schema: { type: "number" }, description: "Minimum BPM, inclusive. Applied in every mode." },
         { name: "bpm_max", in: "query", required: false, schema: { type: "number" }, description: "Maximum BPM, inclusive. Must not be below bpm_min." },

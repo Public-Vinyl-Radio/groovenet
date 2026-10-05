@@ -107,6 +107,8 @@ export const queryKeys = {
     ["track", "essentia", track_id, friend_id] as const,
   trackIdentityEmbeddingPreview: (track_id: string, friend_id: number) =>
     ["track", "identity-embedding-preview", track_id, friend_id] as const,
+  trackContextEmbeddingPreview: (track_id: string, friend_id: number) =>
+    ["track", "context-embedding-preview", track_id, friend_id] as const,
   trackAudioVibeEmbeddingPreview: (track_id: string, friend_id: number) =>
     ["track", "audio-vibe-embedding-preview", track_id, friend_id] as const,
   // Root key helpers for prefix matching (invalidate/setQueriesData with exact:false)

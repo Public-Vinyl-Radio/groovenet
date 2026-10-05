@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { lstat, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
+import { styleText } from 'node:util';
 
 const VALID = new Set([null, 'relevant', 'not_relevant', 'uncertain']);
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -34,20 +35,69 @@ export function progress(items) {
   return counts;
 }
 
-export function display(item, index, total, counts) {
+const identity = (text) => text;
+
+/** No colour: tests, pipes, NO_COLOR. */
+export const PLAIN = { query: identity, title: identity, dim: identity, key: identity, notice: identity,
+  judgment: (_judgment, text) => text };
+
+const JUDGMENT_COLORS = { relevant: 'green', not_relevant: 'red', uncertain: 'yellow' };
+
+/**
+ * Terminal colours via `util.styleText`, which drops them for NO_COLOR, a
+ * dumb terminal or redirected output. Deliberately no highlighting of query
+ * words in the track fields: it would nudge a blind judgment toward relevant.
+ */
+export function terminalStyle(style = styleText) {
+  return {
+    query: (text) => style(['bold', 'cyan'], text),
+    title: (text) => style('bold', text),
+    dim: (text) => style('dim', text),
+    key: (text) => style(['bold', 'magenta'], text),
+    notice: (text) => style(['bold', 'yellow'], text),
+    judgment: (judgment, text) => style(JUDGMENT_COLORS[judgment] ?? 'gray', text),
+  };
+}
+
+export function progressBar(done, total, width = 24) {
+  const filled = total ? Math.round((done / total) * width) : 0;
+  return `[${'#'.repeat(filled)}${'-'.repeat(width - filled)}]`;
+}
+
+/** Where an item sits within its query: `{ position, count, first }`. */
+export function queryContext(items, index) {
+  const id = items[index].query.id;
+  const siblings = items.map((item, i) => (item.query.id === id ? i : -1)).filter((i) => i >= 0);
+  return { position: siblings.indexOf(index) + 1, count: siblings.length, first: siblings[0] === index };
+}
+
+export function display(item, index, total, counts, style = PLAIN, context) {
   const { query, candidate: c } = item;
+  const s = style;
+  const reviewed = counts.relevant + counts.not_relevant + counts.uncertain;
+  const tally = [
+    s.judgment('relevant', `${counts.relevant} relevant`),
+    s.judgment('not_relevant', `${counts.not_relevant} not relevant`),
+    s.judgment('uncertain', `${counts.uncertain} uncertain`),
+    s.dim(`${counts.unreviewed} remaining`),
+  ].join(' · ');
+  const judgment = c.judgment ?? 'unreviewed';
   return [
-    `#379 blind review — ${index + 1}/${total} | ${counts.relevant + counts.not_relevant + counts.uncertain} reviewed, ${counts.unreviewed} remaining`,
-    `Query ${query.id}: ${query.text}`,
-    `Track: ${c.title} — ${c.artist}`,
+    `#379 blind review — ${index + 1}/${total} | ${reviewed} reviewed, ${counts.unreviewed} remaining`,
+    `${s.dim(progressBar(reviewed, total))} ${tally}`,
+    '',
+    ...(context?.first ? [s.notice(`── New query ${'─'.repeat(40)}`)] : []),
+    `Query ${query.id}: ${s.query(query.text)}${context ? s.dim(`  (pair ${context.position} of ${context.count})`) : ''}`,
+    '',
+    `Track: ${s.title(c.title)} — ${c.artist}`,
     `Album: ${c.album}${c.year ? ` (${c.year})` : ''}`,
     `Styles: ${(c.styles ?? []).join(', ') || '—'}`,
     `Genres: ${(c.genres ?? []).join(', ') || '—'}`,
-    `Reference: ${c.friend_id}:${c.track_id}`,
-    `Current judgment: ${c.judgment ?? 'unreviewed'}${c.reason ? ` | Reason: ${c.reason}` : ''}`,
+    s.dim(`Reference: ${c.friend_id}:${c.track_id}`),
+    `Current judgment: ${s.judgment(c.judgment, judgment)}${c.reason ? ` | Reason: ${c.reason}` : ''}`,
     '',
-    '[r] relevant  [n] not relevant  [u] uncertain (reason required)',
-    '[s] skip/next  [b] back  [j NUMBER] jump  [e] edit reason  [q] save & quit',
+    `${s.key('[r]')} relevant  ${s.key('[n]')} not relevant  ${s.key('[u]')} uncertain (reason required)`,
+    `${s.key('[s]')} skip/next  ${s.key('[b]')} back  ${s.key('[j NUMBER]')} jump  ${s.key('[e]')} edit reason  ${s.key('[q]')} save & quit`,
   ].join('\n');
 }
 
@@ -88,7 +138,7 @@ export async function openReview(file) {
 }
 
 /** ask/log are injected so the full review loop can be exercised without a TTY. */
-export async function runReview(file, { ask, log }, startAt) {
+export async function runReview(file, { ask, log, style = PLAIN, clear }, startAt) {
   const session = await openReview(file);
   const { items } = session;
   let index = startAt === undefined ? items.findIndex(({ candidate }) => candidate.judgment == null) : startAt - 1;
@@ -97,8 +147,12 @@ export async function runReview(file, { ask, log }, startAt) {
     return { ...progress(items), backup: null };
   }
   if (!Number.isInteger(index) || index < 0 || index >= items.length) throw new Error(`--start must be between 1 and ${items.length}`);
+  let shown = -1;
   for (;;) {
-    log(display(items[index], index, items.length, progress(items)));
+    // Clear only on moving to another pair, so a warning stays above the redraw.
+    if (index !== shown) clear?.();
+    shown = index;
+    log(display(items[index], index, items.length, progress(items), style, queryContext(items, index)));
     const command = (await ask('Choice: ')).trim().toLowerCase();
     if (command === 'q') break;
     if (command === 'b') { index = Math.max(0, index - 1); continue; }
@@ -142,7 +196,12 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   } else {
     const rl = createInterface({ input: stdin, output: stdout });
     try {
-      const summary = await runReview(file, { ask: (question) => rl.question(question), log: (text) => console.log(`\n${text}\n`) }, startAt);
+      const summary = await runReview(file, {
+        ask: (question) => rl.question(question),
+        log: (text) => console.log(`\n${text}\n`),
+        style: terminalStyle(),
+        clear: () => console.clear(),
+      }, startAt);
       console.log(`Saved: ${summary.relevant} relevant, ${summary.not_relevant} not relevant, ${summary.uncertain} uncertain; ${summary.unreviewed} remaining.`);
       if (summary.backup) console.log(`Initial file backed up at ${summary.backup}`);
     } catch (err) { console.error(err.message); process.exitCode = 1; }

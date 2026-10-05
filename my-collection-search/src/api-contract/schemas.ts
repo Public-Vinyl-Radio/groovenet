@@ -800,6 +800,11 @@ export const identityEmbeddingPreviewResponseSchema = z.object({
   identityData: identityEmbeddingDataSchema,
 });
 
+export const contextEmbeddingPreviewResponseSchema = z.object({
+  contextText: z.string(),
+  contextData: identityEmbeddingDataSchema,
+});
+
 export const audioVibeEmbeddingPreviewResponseSchema = z.object({
   vibeText: z.string(),
   vibeData: audioVibeEmbeddingDataSchema,

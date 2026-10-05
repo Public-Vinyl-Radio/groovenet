@@ -32,6 +32,7 @@ export default function TrackPage() {
     audioMetadataQuery,
     essentiaQuery,
     identityEmbeddingPreviewQuery,
+    contextEmbeddingPreviewQuery,
     audioVibeEmbeddingPreviewQuery,
     extractCoverMutation,
   } = useTrackDetailQueries(trackId, friendId, hasValidFriendId);
@@ -93,6 +94,7 @@ export default function TrackPage() {
                 audioMetadataQuery={audioMetadataQuery}
                 essentiaQuery={essentiaQuery}
                 identityEmbeddingPreviewQuery={identityEmbeddingPreviewQuery}
+                contextEmbeddingPreviewQuery={contextEmbeddingPreviewQuery}
                 audioVibeEmbeddingPreviewQuery={audioVibeEmbeddingPreviewQuery}
                 trackAudioCoverUrl={trackQuery.data.audio_file_album_art_url}
                 extractCoverMutation={extractCoverMutation}

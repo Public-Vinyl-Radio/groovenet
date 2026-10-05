@@ -555,7 +555,10 @@ search bar has a Keyword / Hybrid / Semantic toggle (kept in the URL as
 `search_tracks` tool takes `mode`.
 
 - **semantic** embeds `q` with the `context` serving model and ranks by cosine
-  distance, two tracks per release at most.
+  distance, three tracks per release at most. #424 chose 3: on the frozen
+  queries it beat 2 on 10 queries and lost none (P@10 0.854 vs 0.800), at
+  about 5 releases per top 10 instead of 6. No cap scored 0.900, not reliably
+  better than 3, with about 3 releases per top 10.
 - **hybrid** runs a 50-row lexical leg and a 50-row semantic leg in parallel
   and merges them with reciprocal rank fusion (k = 60). Lexical hits whose
   title, artist, album or artist + title *equal* the query come first, so a

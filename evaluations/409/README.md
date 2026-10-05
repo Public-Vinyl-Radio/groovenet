@@ -10,7 +10,7 @@ the top 10 against the same blind judgments.
 
 - The collection has changed since the snapshot.
 - The index is approximate (ivfflat, `probes = 10`).
-- Live results are capped at two per release.
+- Live results are capped per release: 2 when #409 shipped, 3 since #424.
 
 Tracks that no review has judged widen the bounds and are never counted as
 misses. Empty slots in a top 10 do count as misses.

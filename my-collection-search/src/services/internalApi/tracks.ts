@@ -9,6 +9,8 @@ import {
   recommendationsResponseSchema,
   audioVibeEmbeddingDataSchema,
   audioVibeEmbeddingPreviewResponseSchema,
+  contextEmbeddingPreviewResponseSchema,
+  embeddingContextPreviewApiResponseSchema,
   embeddingAudioVibePreviewApiResponseSchema,
   embeddingIdentityPreviewApiResponseSchema,
   embeddingPreviewResponseSchema,
@@ -38,6 +40,10 @@ export type IdentityEmbeddingPreviewResponse = z.infer<
   typeof identityEmbeddingPreviewResponseSchema
 >;
 export type AudioVibeEmbeddingData = z.infer<typeof audioVibeEmbeddingDataSchema>;
+export type ContextEmbeddingPreviewResponse = z.infer<
+  typeof contextEmbeddingPreviewResponseSchema
+>;
+
 export type AudioVibeEmbeddingPreviewResponse = z.infer<
   typeof audioVibeEmbeddingPreviewResponseSchema
 >;
@@ -281,6 +287,25 @@ export async function fetchIdentityEmbeddingPreview(
   return identityEmbeddingPreviewResponseSchema.parse({
     identityText: parsed.text,
     identityData: parsed.data,
+  });
+}
+
+/** The natural-language search text (#408), as the builder renders it from the track now. */
+export async function fetchContextEmbeddingPreview(
+  trackId: string,
+  friendId: number
+): Promise<ContextEmbeddingPreviewResponse> {
+  const preview = await http<EmbeddingPreviewResponse>(
+    `/api/tracks/${encodeURIComponent(trackId)}/embedding-preview?friend_id=${friendId}&type=context`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
+  const parsed = embeddingContextPreviewApiResponseSchema.parse(preview);
+  return contextEmbeddingPreviewResponseSchema.parse({
+    contextText: parsed.text,
+    contextData: parsed.data,
   });
 }
 
