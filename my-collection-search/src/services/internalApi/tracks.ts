@@ -327,6 +327,17 @@ export async function fetchAudioVibeEmbeddingPreview(
   });
 }
 
+/** Suggestion scope: omitted, the server uses the library's saved setting. */
+function setScopeParams(
+  params: URLSearchParams,
+  options: { scope?: "library" | "all"; library_friend_id?: unknown }
+): void {
+  if (options.scope) params.set("scope", options.scope);
+  if (options.library_friend_id !== undefined) {
+    params.set("library_friend_id", String(options.library_friend_id));
+  }
+}
+
 export async function fetchSimilarVibeTracks(
   options: SimilarVibeTracksOptions
 ): Promise<SimilarVibeTracksResponse> {
@@ -342,6 +353,7 @@ export async function fetchSimilarVibeTracks(
   if (typeof options.ivfflat_probes === "number") {
     params.set("ivfflat_probes", String(options.ivfflat_probes));
   }
+  setScopeParams(params, options);
 
   const data = await http<z.infer<typeof recommendationsResponseSchema>>(
     `/api/recommendations/candidates?${params.toString()}`,
@@ -399,6 +411,7 @@ export async function fetchSimilarTracks(
   if (typeof options.ivfflat_probes === "number") {
     params.set("ivfflat_probes", String(options.ivfflat_probes));
   }
+  setScopeParams(params, options);
   const data = await http<z.infer<typeof recommendationsResponseSchema>>(
     `/api/recommendations/candidates?${params.toString()}`,
     { method: "GET", cache: "no-store" }

@@ -22,6 +22,27 @@ const ROW = {
   serving_template_version: 1,
 };
 
+describe("recommendation scope", () => {
+  it("reads a library's saved scope, or null when it has none", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ scope: "all" }] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(makeRepo().findRecommendationScope(4)).resolves.toBe("all");
+    await expect(makeRepo().findRecommendationScope(5)).resolves.toBeNull();
+    expect(dbQuery.mock.calls[0]).toEqual([expect.stringContaining("FROM recommendation_settings WHERE friend_id = $1"), [4]]);
+  });
+
+  it("upserts a library's scope", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ scope: "library" }] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(makeRepo().upsertRecommendationScope(4, "library")).resolves.toBe("library");
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("ON CONFLICT (friend_id)");
+    expect(params).toEqual([4, "library"]);
+    // Falls back to what was asked for if the driver returns no row.
+    await expect(makeRepo().upsertRecommendationScope(4, "all")).resolves.toBe("all");
+  });
+});
+
 describe("findEmbeddingModelSettings()", () => {
   it("returns the row for the given kind", async () => {
     dbQuery.mockResolvedValue({ rows: [ROW] });

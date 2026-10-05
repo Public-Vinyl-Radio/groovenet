@@ -14,6 +14,7 @@ import BackupPolicySettingsSection from "@/components/settings/BackupPolicySetti
 import GamdlSettingsSection from "@/components/settings/GamdlSettingsSection";
 import AiPromptSettingsSection from "@/components/settings/AiPromptSettingsSection";
 import DefaultLibrarySettingsSection from "@/components/settings/DefaultLibrarySettingsSection";
+import SuggestionScopeSettingsSection from "@/components/settings/SuggestionScopeSettingsSection";
 import AboutSection from "@/components/settings/AboutSection";
 import PageContainer from "@/components/layout/PageContainer";
 import DiscogsSyncDialog from "@/components/settings/dialogs/DiscogsSyncDialog";
@@ -33,7 +34,12 @@ export default function SettingsPage() {
         id: "defaults",
         label: "Defaults",
         description: "global library selection and app-wide scope",
-        content: <DefaultLibrarySettingsSection />,
+        content: (
+          <>
+            <DefaultLibrarySettingsSection />
+            <SuggestionScopeSettingsSection />
+          </>
+        ),
       },
       {
         id: "downloads",

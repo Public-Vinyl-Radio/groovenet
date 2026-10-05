@@ -2,12 +2,14 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Badge, Box, Button, Flex, Menu } from "@chakra-ui/react";
+import { Badge, Box, Button, Flex, Menu, Text } from "@chakra-ui/react";
 import TrackResultStore from "@/components/TrackResultStore";
 import type { Track } from "@/types/track";
 import { FiEdit, FiMoreVertical, FiPlus, FiPlusSquare } from "react-icons/fi";
 import { useRecommendationsQuery, type RecommendedTrack } from "@/hooks/useRecommendations";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { useSuggestionScope } from "@/hooks/useSuggestionScope";
+import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 
 export interface PlaylistRecommendationsProps {
   playlist: Track[];
@@ -20,13 +22,26 @@ export default function PlaylistRecommendations({
   limit = 50,
   onAddToPlaylist,
 }: PlaylistRecommendationsProps) {
-  const { data: recs = [] } = useRecommendationsQuery(playlist, limit);
+  const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
+  const { data: recs = [], isLoading } = useRecommendationsQuery(playlist, limit, {
+    scope,
+    libraryFriendId,
+    enabled: ready,
+  });
   const { appendToQueue } = usePlaylistPlayer();
-
-  if (recs.length === 0) return null;
 
   return (
     <Box mt={0}>
+      <Flex justify="flex-end" mb={3}>
+        <SuggestionScopeToggle value={scope} onChange={setScope} />
+      </Flex>
+      {!ready || isLoading ? null : recs.length === 0 ? (
+        <Text color="fg.muted" fontSize="sm">
+          {scope === "library"
+            ? "No suggestions in this library. Try All libraries."
+            : "No suggestions found."}
+        </Text>
+      ) : null}
       <Box display="flex" flexDirection="column" gap={2}>
         {recs.map((rec: RecommendedTrack, i: number) => (
           <TrackResultStore

@@ -36,6 +36,9 @@ export interface RetrieveCandidatesOptions {
 
   /** IVFFlat probes for accuracy/speed tradeoff (default: 10) */
   ivfflatProbes?: number;
+
+  /** Only candidates from this library; omitted, every library is searched. */
+  libraryFriendId?: number;
 }
 
 export interface SeedTrackRef {
@@ -161,7 +164,8 @@ async function queryIdentitySimilar(
   seedTrackId: string,
   seedFriendId: number,
   limit: number,
-  ivfflatProbes: number
+  ivfflatProbes: number,
+  libraryFriendId?: number
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("identity");
   const rows = await recommendationRepository.findIdentitySimilar({
@@ -172,6 +176,7 @@ async function queryIdentitySimilar(
     dims,
     limit,
     ivfflatProbes,
+    libraryFriendId,
   });
   if (rows.length === 0) {
     console.warn(
@@ -184,7 +189,8 @@ async function queryIdentitySimilar(
 async function queryIdentitySimilarByCentroid(
   seedTracks: SeedTrackRef[],
   limit: number,
-  ivfflatProbes: number
+  ivfflatProbes: number,
+  libraryFriendId?: number
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("identity");
   return recommendationRepository.findIdentitySimilarByCentroid({
@@ -194,6 +200,7 @@ async function queryIdentitySimilarByCentroid(
     dims,
     limit,
     ivfflatProbes,
+    libraryFriendId,
   });
 }
 
@@ -201,7 +208,8 @@ async function queryAudioSimilar(
   seedTrackId: string,
   seedFriendId: number,
   limit: number,
-  ivfflatProbes: number
+  ivfflatProbes: number,
+  libraryFriendId?: number
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("audio_vibe");
   const rows = await recommendationRepository.findAudioSimilar({
@@ -212,6 +220,7 @@ async function queryAudioSimilar(
     dims,
     limit,
     ivfflatProbes,
+    libraryFriendId,
   });
   if (rows.length === 0) {
     console.warn(
@@ -224,7 +233,8 @@ async function queryAudioSimilar(
 async function queryAudioSimilarByCentroid(
   seedTracks: SeedTrackRef[],
   limit: number,
-  ivfflatProbes: number
+  ivfflatProbes: number,
+  libraryFriendId?: number
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("audio_vibe");
   return recommendationRepository.findAudioSimilarByCentroid({
@@ -234,6 +244,7 @@ async function queryAudioSimilarByCentroid(
     dims,
     limit,
     ivfflatProbes,
+    libraryFriendId,
   });
 }
 
@@ -284,6 +295,7 @@ export async function retrieveCandidates(
     limitIdentity = 200,
     limitAudio = 200,
     ivfflatProbes = 10,
+    libraryFriendId,
   } = options;
 
   console.log(`[RecommendationCandidateRetriever] Retrieving candidates for track ${seedTrackId}`);
@@ -295,7 +307,8 @@ export async function retrieveCandidates(
     seedTrackId,
     seedFriendId,
     limitIdentity,
-    ivfflatProbes
+    ivfflatProbes,
+    libraryFriendId
   );
   const identityTime = Date.now() - identityStartTime;
   console.log(`[RecommendationCandidateRetriever] Identity query returned ${identityResults.length} tracks in ${identityTime}ms`);
@@ -306,7 +319,8 @@ export async function retrieveCandidates(
     seedTrackId,
     seedFriendId,
     limitAudio,
-    ivfflatProbes
+    ivfflatProbes,
+    libraryFriendId
   );
   const audioTime = Date.now() - audioStartTime;
   console.log(`[RecommendationCandidateRetriever] Audio query returned ${audioResults.length} tracks in ${audioTime}ms`);
@@ -391,13 +405,14 @@ export async function retrieveCandidatesForSeedTracks(
   }
 
   const startTime = Date.now();
-  const { limitIdentity = 200, limitAudio = 200, ivfflatProbes = 10 } = options;
+  const { limitIdentity = 200, limitAudio = 200, ivfflatProbes = 10, libraryFriendId } = options;
 
   const identityStartTime = Date.now();
   const identityResults = await queryIdentitySimilarByCentroid(
     dedupedSeedTracks,
     limitIdentity,
-    ivfflatProbes
+    ivfflatProbes,
+    libraryFriendId
   );
   const identityTime = Date.now() - identityStartTime;
 
@@ -405,7 +420,8 @@ export async function retrieveCandidatesForSeedTracks(
   const audioResults = await queryAudioSimilarByCentroid(
     dedupedSeedTracks,
     limitAudio,
-    ivfflatProbes
+    ivfflatProbes,
+    libraryFriendId
   );
   const audioTime = Date.now() - audioStartTime;
 

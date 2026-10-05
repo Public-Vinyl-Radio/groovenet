@@ -12,6 +12,9 @@
  * - limit_identity (optional, default 200): Max identity candidates
  * - limit_audio (optional, default 200): Max audio vibe candidates
  * - ivfflat_probes (optional, default 10): Accuracy/speed tradeoff
+ * - scope (optional): library | all; omitted, the library's saved setting
+ * - library_friend_id (optional): the library `scope=library` keeps to;
+ *   defaults to the seed's library
  *
  * Example:
  * GET /api/recommendations/candidates?track_id=123&friend_id=1&limit_identity=300&limit_audio=150
@@ -25,6 +28,7 @@ import {
   hasEmbeddingsForSeedTracks,
 } from "@/lib/recommendation-candidate-retriever";
 import { analytics } from "@/lib/analytics/server";
+import { settingsService } from "@/server/services/settingsService";
 import {
   recommendationsQuerySchema,
   recommendationsBatchBodySchema,
@@ -53,6 +57,8 @@ export async function GET(request: NextRequest) {
       limit_identity,
       limit_audio,
       ivfflat_probes,
+      scope: requestedScope,
+      library_friend_id,
     } =
       parsedQuery.data;
     const friendIdNum = friend_id;
@@ -94,11 +100,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { scope, libraryFriendId } = await settingsService.resolveRecommendationScope(
+      library_friend_id ?? friendIdNum,
+      requestedScope
+    );
+
     // Retrieve candidates
     const result = await retrieveCandidates(track_id, friendIdNum, {
       limitIdentity,
       limitAudio,
       ivfflatProbes,
+      libraryFriendId: libraryFriendId ?? undefined,
     });
     analytics.track(
       "recommendations_requested",
@@ -110,6 +122,8 @@ export async function GET(request: NextRequest) {
     const response = {
       ...result,
       seedEmbeddings: embeddings,
+      scope,
+      libraryFriendId,
     };
     const validated = recommendationsResponseSchema.parse(response);
     return NextResponse.json(validated);
@@ -139,7 +153,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { tracks, limit_identity, limit_audio, ivfflat_probes } = parsedBody.data;
+    const {
+      tracks,
+      limit_identity,
+      limit_audio,
+      ivfflat_probes,
+      scope: requestedScope,
+      library_friend_id,
+    } = parsedBody.data;
 
     if (limit_identity < 1 || limit_identity > 1000) {
       return NextResponse.json(
@@ -171,10 +192,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { scope, libraryFriendId } = await settingsService.resolveRecommendationScope(
+      library_friend_id ?? seedTracks[0].friendId,
+      requestedScope
+    );
+
     const result = await retrieveCandidatesForSeedTracks(seedTracks, {
       limitIdentity: limit_identity,
       limitAudio: limit_audio,
       ivfflatProbes: ivfflat_probes,
+      libraryFriendId: libraryFriendId ?? undefined,
     });
     analytics.track(
       "recommendations_requested",
@@ -189,6 +216,8 @@ export async function POST(request: NextRequest) {
     const response = {
       ...result,
       seedEmbeddings: embeddings,
+      scope,
+      libraryFriendId,
     };
     const validated = recommendationsResponseSchema.parse(response);
     return NextResponse.json(validated);
