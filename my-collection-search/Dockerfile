@@ -101,5 +101,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends postgresql-client-15
-COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/scripts ./scripts
+# Migrations run without the Next.js source tree. Copy their runtime inputs
+# directly so this target does not depend on an application build.
+COPY migrations ./migrations
+COPY scripts ./scripts
+COPY src/server/genres/taxonomySeed.js ./src/server/genres/taxonomySeed.js
+
+# Verify every migration can load in the deployed image before publishing it.
+# Database-only tests on the checkout cannot detect missing image dependencies.
+RUN node --input-type=module -e "import { readdir } from 'node:fs/promises'; for (const file of await readdir('./migrations')) { if (file.endsWith('.js')) await import('./migrations/' + file); }"
