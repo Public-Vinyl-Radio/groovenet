@@ -169,7 +169,7 @@ export default function EnrichmentWizard() {
                   AI Metadata
                 </Text>
                 <Text fontSize="xs" color="fg.muted">
-                  Genre and notes from a web search per track (about $0.02 each). Off by default.
+                  Genres from your taxonomy, descriptors and notes, from a web search per track (about $0.02 each). Off by default.
                 </Text>
               </Box>
               <Checkbox.Root

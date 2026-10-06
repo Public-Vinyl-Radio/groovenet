@@ -1,5 +1,21 @@
 import OpenAI from "openai";
 import { getTrackMetadataPromptForFriend } from "@/lib/serverPrompts";
+import type { TrackGenre } from "@/types/track";
+import { genreRepository } from "@/server/repositories/genreRepository";
+import {
+  normalizeDescriptors,
+  trackGenreRepository,
+} from "@/server/repositories/trackGenreRepository";
+import { trackRepository } from "@/server/repositories/trackRepository";
+import {
+  albumContextLines,
+  genreEnumNames,
+  MAX_SUGGESTED_DESCRIPTORS,
+  MAX_SUGGESTED_GENRES,
+  resolveSuggestedGenres,
+  toGenreChoices,
+  type AlbumGenreContext,
+} from "@/server/genres/enrichmentGenres";
 
 let _openai: OpenAI | undefined;
 function getOpenAI(): OpenAI {
@@ -17,33 +33,69 @@ Non-negotiable rules:
 - Use cautious wording unless facts are verifiable.
 - Avoid generic hype language (e.g., "peak-time", "pulsating beat", "driven energy") unless explicitly supported.
 - Keep "notes" concise (1-3 sentences), practical for DJs, and evidence-aware.
-- If information is uncertain after checking available context, set uncertain fields to empty strings and explain uncertainty briefly in notes.
+- If information is uncertain after checking available context, leave uncertain fields empty and explain uncertainty briefly in notes.
 - If multiple artists could match the same name/title combination, treat the result as ambiguous.
 - Do not claim nationality, era, or scene unless the exact artist-track match is clear.
 `.trim();
 
-const metadataSchema = {
-  type: "json_schema" as const,
-  name: "track_metadata",
-  schema: {
-    type: "object",
-    properties: {
-      genre: { type: "string" },
-      notes: { type: "string" },
-      needs_search: { type: "boolean" },
-      artist_match_confidence: { type: "string", enum: ["high", "low"] },
+const GENRE_RULES = `
+Genre rules:
+- "genres": up to ${MAX_SUGGESTED_GENRES} entries, only from the allowed list, naming what this track is. Usually one.
+- Prefer a narrower genre than the album's Discogs genres and styles when the evidence supports it; repeat an album style only when it is the best fit for this track.
+- When the album's other tracks already use a genre that fits, reuse it rather than a near-synonym.
+- Moods, eras, scenes and other description words go in "descriptors" (0-${MAX_SUGGESTED_DESCRIPTORS} short lowercase words or phrases), never in genres.
+- If no allowed genre fits, leave "genres" empty and describe the track with descriptors.
+`.trim();
+
+/**
+ * The structured output, with track genres constrained to the taxonomy (#374):
+ * the model can only name a genre that exists, so enrichment never invents
+ * one. New genres come through the taxonomy's own admin and review flow.
+ */
+function buildMetadataSchema(genreNames: string[]) {
+  return {
+    type: "json_schema" as const,
+    name: "track_metadata",
+    schema: {
+      type: "object",
+      properties: {
+        genres: {
+          type: "array",
+          items: genreNames.length > 0 ? { type: "string", enum: genreNames } : { type: "string" },
+          maxItems: genreNames.length > 0 ? MAX_SUGGESTED_GENRES : 0,
+        },
+        descriptors: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: MAX_SUGGESTED_DESCRIPTORS,
+        },
+        notes: { type: "string" },
+        needs_search: { type: "boolean" },
+        artist_match_confidence: { type: "string", enum: ["high", "low"] },
+      },
+      required: ["genres", "descriptors", "notes", "needs_search", "artist_match_confidence"],
+      additionalProperties: false,
     },
-    required: ["genre", "notes", "needs_search", "artist_match_confidence"],
-    additionalProperties: false,
-  },
-  strict: true,
-};
+    strict: true,
+  };
+}
+
+type MetadataSchema = ReturnType<typeof buildMetadataSchema>;
 
 type MetadataResult = {
-  genre: string;
+  genres: string[];
+  descriptors: string[];
   notes: string;
   needs_search: boolean;
   artist_match_confidence: "high" | "low";
+};
+
+export type TrackMetadataSuggestion = {
+  /** Taxonomy genres only: anything else the model returns is dropped. */
+  genres: TrackGenre[];
+  /** Normalised, at most MAX_SUGGESTED_DESCRIPTORS. */
+  descriptors: string[];
+  notes: string;
 };
 
 export class TrackMetadataError extends Error {
@@ -81,7 +133,8 @@ function parseMetadataFromResponse(
       if (parsed && typeof parsed === "object") {
         const maybe = parsed as Partial<MetadataResult>;
         if (
-          typeof maybe.genre === "string" &&
+          Array.isArray(maybe.genres) &&
+          Array.isArray(maybe.descriptors) &&
           typeof maybe.notes === "string" &&
           typeof maybe.needs_search === "boolean" &&
           (maybe.artist_match_confidence === "high" ||
@@ -113,6 +166,7 @@ function parseMetadataFromResponse(
 async function fetchMetadata(
   systemPrompt: string,
   prompt: string,
+  schema: MetadataSchema,
   useSearch: boolean
 ): Promise<MetadataResult> {
   const model = useSearch ? SEARCH_MODEL : PRIMARY_MODEL;
@@ -122,7 +176,7 @@ async function fetchMetadata(
     input: [
       {
         role: "system" as const,
-        content: `${systemPrompt}\n\n${HARD_GUARDRAILS}`,
+        content: `${systemPrompt}\n\n${HARD_GUARDRAILS}\n\n${GENRE_RULES}`,
       },
       { role: "user" as const, content: prompt },
     ],
@@ -132,8 +186,8 @@ async function fetchMetadata(
           tool_choice: "required" as const,
         }
       : {}),
-    text: { format: metadataSchema },
-    max_output_tokens: 200,
+    text: { format: schema },
+    max_output_tokens: 300,
   };
 
   try {
@@ -164,10 +218,34 @@ async function fetchMetadata(
   }
 }
 
+/**
+ * The album's Discogs genres and styles and the genres its other tracks
+ * already carry, so the model picks a track genre narrower than the album's
+ * rather than repeating it. Empty for a track with no album or no styles.
+ */
+async function loadAlbumGenreContext(
+  trackId: string | undefined,
+  friendId: number | undefined
+): Promise<AlbumGenreContext> {
+  const empty: AlbumGenreContext = { albumGenres: [], albumStyles: [], releaseGenres: [] };
+  if (!trackId || friendId === undefined) return empty;
+
+  const track = await trackRepository.findTrackWithAlbumMetadata(trackId, friendId);
+  if (!track) return empty;
+  return {
+    albumGenres: track.album_genres ?? track.genres ?? [],
+    albumStyles: track.album_styles ?? track.styles ?? [],
+    releaseGenres: track.release_id
+      ? await trackGenreRepository.listReleaseGenreCounts(track.release_id, friendId, trackId)
+      : [],
+  };
+}
+
 export async function generateTrackMetadata(args: {
   prompt: string;
   friendId?: number;
-}): Promise<{ genre: string; notes: string }> {
+  trackId?: string;
+}): Promise<TrackMetadataSuggestion> {
   if (!process.env.OPENAI_API_KEY) {
     throw new TrackMetadataError("Missing OPENAI_API_KEY env variable", 500);
   }
@@ -175,18 +253,25 @@ export async function generateTrackMetadata(args: {
     throw new TrackMetadataError("Missing or invalid prompt", 400);
   }
 
-  const systemPrompt = await getTrackMetadataPromptForFriend(args.friendId);
+  const [systemPrompt, genreRows, context] = await Promise.all([
+    getTrackMetadataPromptForFriend(args.friendId),
+    genreRepository.listFlat(),
+    loadAlbumGenreContext(args.trackId, args.friendId),
+  ]);
+  const choices = toGenreChoices(genreRows);
+  const schema = buildMetadataSchema(genreEnumNames(choices, context));
+  const prompt = [args.prompt.trim(), ...albumContextLines(context)].join("\n");
 
   let result: MetadataResult;
   try {
     // Prefer search-backed metadata first to avoid generic hallucinated descriptions.
-    result = await fetchMetadata(systemPrompt, args.prompt.trim(), true);
+    result = await fetchMetadata(systemPrompt, prompt, schema, true);
   } catch (error) {
     console.warn(
       "[track-metadata] search-backed pass failed, retrying without search:",
       error
     );
-    result = await fetchMetadata(systemPrompt, args.prompt.trim(), false);
+    result = await fetchMetadata(systemPrompt, prompt, schema, false);
   }
 
   if (result.needs_search) {
@@ -195,11 +280,19 @@ export async function generateTrackMetadata(args: {
 
   if (result.artist_match_confidence !== "high") {
     return {
-      genre: "",
+      genres: [],
+      descriptors: [],
       notes:
         "Could not confidently identify the exact artist/recording from available context. Add album/year or a source URL and retry.",
     };
   }
 
-  return { notes: result.notes, genre: result.genre };
+  const descriptors = Array.isArray(result.descriptors)
+    ? result.descriptors.filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    genres: resolveSuggestedGenres(result.genres, choices),
+    descriptors: normalizeDescriptors(descriptors).slice(0, MAX_SUGGESTED_DESCRIPTORS),
+    notes: typeof result.notes === "string" ? result.notes : "",
+  };
 }

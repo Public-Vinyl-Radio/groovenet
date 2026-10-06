@@ -95,14 +95,22 @@ export const discogsDeleteReleasesResponseSchema = z.object({
 export const providerTrackMetadataBodySchema = z.object({
   prompt: z.string().min(1),
   friend_id: intFromInputSchema.optional(),
+  track_id: z.string().min(1).optional(),
 });
 
-export const providerTrackMetadataResponseSchema = z
-  .object({
-    genre: z.string().optional(),
-    notes: z.string().optional(),
-  })
-  .passthrough();
+export const trackGenreSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  parent_id: z.string().uuid().nullable(),
+  parent_name: z.string().nullable(),
+});
+
+export const providerTrackMetadataResponseSchema = z.object({
+  genres: z.array(trackGenreSchema),
+  descriptors: z.array(z.string()),
+  notes: z.string(),
+});
 
 export const providerYouTubeMusicSearchBodySchema = z.object({
   title: z.string().optional(),

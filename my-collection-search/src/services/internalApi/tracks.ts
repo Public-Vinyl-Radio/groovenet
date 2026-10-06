@@ -23,7 +23,7 @@ import {
   trackPlaylistMembershipSchema,
 } from "@/api-contract/schemas";
 import { http } from "@/services/http";
-import type { Track } from "@/types/track";
+import type { Track, TrackGenre } from "@/types/track";
 import type { TrackEditFormProps } from "@/components/track-edit/types";
 
 export type TrackPlaylistMembership = z.infer<typeof trackPlaylistMembershipSchema>;
@@ -122,11 +122,13 @@ export type UploadTrackAudioResponse = {
   analysis: AnalyzeResponse;
   [k: string]: unknown;
 };
-export type TrackMetadataArgs = { prompt: string; friend_id?: number };
-export type TrackMetadataResponse = { genre?: string; notes?: string } & Record<
-  string,
-  unknown
->;
+export type TrackMetadataArgs = { prompt: string; friend_id?: number; track_id?: string };
+export type TrackMetadataResponse = {
+  /** Taxonomy genres only (#374). */
+  genres: TrackGenre[];
+  descriptors: string[];
+  notes: string;
+};
 
 export async function fetchTracksByIds(
   tracks: TrackBatchRef[],

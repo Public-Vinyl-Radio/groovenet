@@ -46,3 +46,13 @@ describe("GenreRepository", () => {
     expect(sql).toContain("WHERE t.deleted_at IS NULL");
   });
 });
+
+describe("GenreRepository.listFlat", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns the rows parent-keyed, without building the tree", async () => {
+    const rows = [row({ id: "cumbia", parent_id: "latin" })];
+    dbQuery.mockResolvedValue({ rows });
+    await expect(new GenreRepository().listFlat()).resolves.toEqual(rows);
+  });
+});

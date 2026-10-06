@@ -6,10 +6,11 @@ import {
 
 export async function POST(req: Request) {
   try {
-    const { prompt, friend_id } = await req.json();
+    const { prompt, friend_id, track_id } = await req.json();
     const result = await generateTrackMetadata({
       prompt,
       friendId: typeof friend_id === "number" ? friend_id : undefined,
+      trackId: typeof track_id === "string" && track_id ? track_id : undefined,
     });
     return NextResponse.json(result);
   } catch (error) {

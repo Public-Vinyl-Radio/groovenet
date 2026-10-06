@@ -138,6 +138,23 @@ describe("track genre links", () => {
     expect(findNode(await genreRepository.listTree(), target.id)).toMatchObject({ track_count: 2, album_count: 1 });
   });
 
+  dbTest("counts the genres on a release's other live tracks (#374)", async () => {
+    const cumbia = await genreId("Cumbia");
+    const salsa = await genreId("Salsa");
+    await trackGenreRepository.replaceTrackGenres("tg-1", friendId, [cumbia, salsa], "enrichment");
+    await trackGenreRepository.replaceTrackGenres("tg-2", friendId, [cumbia], "manual");
+
+    expect(await trackGenreRepository.listReleaseGenreCounts("r-1", friendId, "tg-2")).toEqual([
+      { name: "Cumbia", track_count: 1 },
+      { name: "Salsa", track_count: 1 },
+    ]);
+    expect(await trackGenreRepository.listReleaseGenreCounts("r-1", friendId, "none")).toEqual([
+      { name: "Cumbia", track_count: 2 },
+      { name: "Salsa", track_count: 1 },
+    ]);
+    expect(await trackGenreRepository.listReleaseGenreCounts("r-2", friendId, "none")).toEqual([]);
+  });
+
   dbTest("a linked genre cannot be deleted outright", async () => {
     const cumbia = await genreId("Cumbia");
     await trackGenreRepository.replaceTrackGenres("tg-2", friendId, [cumbia], "manual");

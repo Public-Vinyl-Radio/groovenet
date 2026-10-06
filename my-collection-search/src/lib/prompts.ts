@@ -51,7 +51,7 @@ export function buildTrackMetadataPrompt(
 
   return (
     `${preamble}\n` +
-    `Return a JSON object with the fields: genre, notes, needs_search, artist_match_confidence.\n` +
+    `Return a JSON object with the fields: genres, descriptors, notes, needs_search, artist_match_confidence.\n` +
     `${metadataLines.join("\n")}`
   );
 }

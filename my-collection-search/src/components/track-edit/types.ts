@@ -16,6 +16,10 @@ export interface TrackEditFormProps {
   track_genres?: TrackGenre[];
   /** PATCH input: replaces the track's genres. Sent only when they changed. */
   genres?: string[];
+  /** PATCH input: who chose `genres`, recorded on the links it adds. */
+  genre_source?: "manual" | "enrichment";
+  /** Mood and description words, kept out of genres (#371). */
+  descriptors?: string[];
   notes?: string | undefined | null;
   bpm?: number | null;
   key?: string | undefined | null;

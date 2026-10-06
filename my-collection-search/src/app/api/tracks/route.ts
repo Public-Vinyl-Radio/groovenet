@@ -7,6 +7,7 @@ import {
 import {
   normalizeDescriptors,
   trackGenreRepository,
+  type TrackGenreSource,
 } from "@/server/repositories/trackGenreRepository";
 import { computeEmbeddingUpdates } from "@/lib/trackEmbeddingDiff";
 import { shouldTriggerFingerprintIndex } from "@/lib/trackFingerprintTrigger";
@@ -19,9 +20,19 @@ export async function PATCH(req: Request) {
     const body = (await req.json()) as UpdateTrackInput & {
       genres?: unknown;
       descriptors?: unknown;
+      genre_source?: unknown;
     };
-    const { genres, descriptors, ...fields } = body;
+    const { genres, descriptors, genre_source, ...fields } = body;
     const data: UpdateTrackInput = fields;
+
+    // Who chose these genres: the enrichment wizard says so (#374), and the
+    // reconciliation flow writes its links itself, never through here.
+    if (genre_source !== undefined && !isPatchGenreSource(genre_source)) {
+      return NextResponse.json(
+        { error: "genre_source must be 'manual' or 'enrichment'" },
+        { status: 400 }
+      );
+    }
 
     if (descriptors !== undefined) {
       if (!isStringArray(descriptors)) {
@@ -70,7 +81,7 @@ export async function PATCH(req: Request) {
         data.track_id,
         data.friend_id,
         genreIds,
-        "manual"
+        genre_source ?? "manual"
       );
     }
 
@@ -133,7 +144,7 @@ export async function PATCH(req: Request) {
       {
         track_id: updated.track_id,
         changed_fields: Object.keys(body).filter(
-          (key) => key !== "track_id" && key !== "friend_id"
+          (key) => key !== "track_id" && key !== "friend_id" && key !== "genre_source"
         ),
         has_rating_change: "star_rating" in data,
         has_notes_change: "notes" in data,
@@ -150,6 +161,10 @@ export async function PATCH(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function isPatchGenreSource(value: unknown): value is Exclude<TrackGenreSource, "reconciliation"> {
+  return value === "manual" || value === "enrichment";
 }
 
 function isStringArray(value: unknown): value is string[] {
