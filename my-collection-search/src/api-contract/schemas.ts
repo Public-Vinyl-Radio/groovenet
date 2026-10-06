@@ -650,6 +650,14 @@ export const playlistGeneticValidationErrorSchema = z.object({
 export const trackSearchModeSchema = z.enum(["lexical", "semantic", "hybrid"]);
 export type TrackSearchMode = z.infer<typeof trackSearchModeSchema>;
 
+/** A repeatable `genre` query parameter: one value, or several. */
+const genreQueryParamSchema = z
+  .preprocess(
+    (value) => (typeof value === "string" ? [value] : value),
+    z.array(z.string().trim().min(1)).max(20)
+  )
+  .optional();
+
 export const trackSearchGetQuerySchema = z.object({
   q: z.string().optional().default(""),
   limit: nonNegativeIntFromInputSchema.optional().default(20),
@@ -669,6 +677,8 @@ export const trackSearchGetQuerySchema = z.object({
   key: z.string().trim().min(1).optional(),
   /** Minimum star rating. */
   star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
+  /** Genre slugs, ids or names (#375), ORed, each including its subgenres. */
+  genre: genreQueryParamSchema,
 });
 
 const searchMetaSchema = z.object({
@@ -1204,6 +1214,7 @@ export const albumSearchQuerySchema = z.object({
   missing_library_identifier: z.boolean().optional(),
   missing_local_cover_art_url: z.boolean().optional(),
   missing_audio: z.boolean().optional(),
+  genre: genreQueryParamSchema,
 });
 
 export const albumSearchResponseSchema = z.object({

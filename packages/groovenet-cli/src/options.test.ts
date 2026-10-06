@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundedIntOption, intOption, searchModeOption } from "./options.js";
+import { boundedIntOption, collectOption, intOption, searchModeOption } from "./options.js";
 
 describe("intOption()", () => {
   it("parses base 10", () => {
@@ -57,5 +57,12 @@ describe("searchModeOption()", () => {
 
   it("rejects anything else", () => {
     expect(() => searchModeOption("vibes")).toThrow(/lexical, semantic, hybrid/);
+  });
+});
+
+describe("collectOption()", () => {
+  it("starts a list and appends to it", () => {
+    expect(collectOption("a", undefined)).toEqual(["a"]);
+    expect(collectOption("b", ["a"])).toEqual(["a", "b"]);
   });
 });

@@ -303,6 +303,12 @@ export interface TrackSearchQuery {
     /** Minimum star rating, 0–5. */
     star_rating?: number;
     friend_id?: number;
+    /**
+     * Genre slugs, ids or names, ORed; each includes its subgenres. A track
+     * matches on its own genres, or its album's Discogs genres and styles
+     * when it has none. An unknown genre is an error.
+     */
+    genre?: string[];
   };
 }
 
@@ -347,6 +353,11 @@ export interface AlbumSearchQuery {
   offset?: number;
   friend_id?: number;
   sort?: string;
+  /**
+   * Genre slugs, ids or names, ORed; each includes its subgenres. An album
+   * matches on its Discogs genres and styles, or on any of its tracks' genres.
+   */
+  genre?: string[];
 }
 
 export interface AlbumSearchResponse {

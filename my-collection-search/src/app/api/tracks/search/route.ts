@@ -20,6 +20,7 @@ import {
   type TrackRow,
 } from "@/server/services/semanticTrackSearchService";
 import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
 
 type ParsedFilter = {
   where: string[];
@@ -119,7 +120,7 @@ async function searchTracksPg(params: {
   const { rows: countRows } = await dbQuery<{ total: string }>(
     `
     SELECT COUNT(*)::text AS total
-    FROM tracks
+    FROM tracks t
     ${countWhereSql}
     `,
     countParams
@@ -232,9 +233,13 @@ async function searchByMeaning(
 
 export async function GET(request: NextRequest) {
   try {
-    const parsedQuery = trackSearchGetQuerySchema.safeParse(
-      Object.fromEntries(request.nextUrl.searchParams.entries())
-    );
+    const searchParams = request.nextUrl.searchParams;
+    // `genre` repeats; Object.fromEntries would keep only the last one.
+    const genres = searchParams.getAll("genre");
+    const parsedQuery = trackSearchGetQuerySchema.safeParse({
+      ...Object.fromEntries(searchParams.entries()),
+      ...(genres.length > 0 ? { genre: genres } : {}),
+    });
     if (!parsedQuery.success) {
       return NextResponse.json(
         {
@@ -244,7 +249,7 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { q, limit, offset, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating } =
+    const { q, limit, offset, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating, genre } =
       parsedQuery.data;
     if (bpm_min !== undefined && bpm_max !== undefined && bpm_min > bpm_max) {
       return NextResponse.json({ error: "bpm_min must not exceed bpm_max" }, { status: 400 });
@@ -255,6 +260,11 @@ export async function GET(request: NextRequest) {
       key,
       minStarRating: star_rating,
     };
+    const genreResolution = await resolveGenreFilter(genre ?? []);
+    if (genreResolution.unknown) {
+      return NextResponse.json(unknownGenresError(genreResolution.unknown), { status: 400 });
+    }
+    if (genreResolution.filter) attributes.genreFilter = genreResolution.filter;
     if (mode !== "lexical" && (offset > 0 || limit > SEMANTIC_MAX_LIMIT)) {
       return NextResponse.json(
         {
@@ -269,10 +279,14 @@ export async function GET(request: NextRequest) {
       parsedFilter.where.push(`friend_id = $${parsedFilter.params.length}`);
     }
     parsedFilter.where.push(
-      ...attributeFilterClauses(attributes, (value) => {
-        parsedFilter.params.push(value);
-        return `$${parsedFilter.params.length}`;
-      })
+      ...attributeFilterClauses(
+        attributes,
+        (value) => {
+          parsedFilter.params.push(value);
+          return `$${parsedFilter.params.length}`;
+        },
+        "t"
+      )
     );
 
     // Without words there is no meaning to search; every mode lists the same way.

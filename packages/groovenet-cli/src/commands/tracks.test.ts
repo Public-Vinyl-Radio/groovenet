@@ -97,3 +97,15 @@ describe("tracks search filters (#412)", () => {
     expect(mocks.client.searchTracks).not.toHaveBeenCalled();
   });
 });
+
+describe("tracks search --genre (#375)", () => {
+  it("collects repeated genres and allows no query", async () => {
+    await run("--genre", "cumbia", "--genre", "salsa");
+    expect(mocks.client.searchTracks).toHaveBeenCalledWith({
+      query: "",
+      limit: 20,
+      mode: undefined,
+      filters: { genre: ["cumbia", "salsa"] },
+    });
+  });
+});

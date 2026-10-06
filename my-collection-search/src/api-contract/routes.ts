@@ -5321,6 +5321,16 @@ export const apiContractRoutes: ApiContractRoute[] = [
         { name: "bpm_max", in: "query", required: false, schema: { type: "number" }, description: "Maximum BPM, inclusive. Must not be below bpm_min." },
         { name: "key", in: "query", required: false, schema: { type: "string" }, description: "Exact musical key, case-insensitive (e.g. 'A minor'). Enharmonic spellings are not merged." },
         { name: "star_rating", in: "query", required: false, schema: { type: "integer", minimum: 0, maximum: 5 }, description: "Minimum star rating." },
+        {
+          name: "genre",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          schema: { type: "array", items: { type: "string" }, maxItems: 20 },
+          description:
+            "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres, so 'latin' finds 'cumbia'. A track with genres of its own matches on those; one without falls back to its album's Discogs genres and styles. Applied in every mode. An unknown genre is a 400."
+        },
       ],
       responses: {
         "200": {
@@ -6203,6 +6213,16 @@ export const apiContractRoutes: ApiContractRoute[] = [
         { name: "missing_library_identifier", in: "query", required: false, schema: { type: "integer", enum: [1], description: "Filter albums missing a library identifier" } },
         { name: "missing_local_cover_art_url", in: "query", required: false, schema: { type: "integer", enum: [1], description: "Filter albums missing local cover art" } },
         { name: "missing_audio", in: "query", required: false, schema: { type: "integer", enum: [1], description: "Filter albums with at least one track missing local audio" } },
+        {
+          name: "genre",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          schema: { type: "array", items: { type: "string" }, maxItems: 20 },
+          description:
+            "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres. An album matches on its own Discogs genres and styles, or on any of its tracks' genres. An unknown genre is a 400."
+        },
       ],
       responses: {
         "200": {

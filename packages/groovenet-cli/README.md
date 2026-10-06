@@ -23,6 +23,7 @@ groovenet config set api_key <token>   # if your instance requires auth
 
 ```bash
 groovenet tracks search "miles davis"     # search tracks
+groovenet tracks search --genre latin     # Latin and every subgenre (cumbia, salsa, …)
 groovenet albums search "kind of blue"    # browse albums
 groovenet playlists list                  # list playlists
 groovenet playlists log-spins 176         # log the latest performance as spins

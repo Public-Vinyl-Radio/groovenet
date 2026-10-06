@@ -4,7 +4,7 @@ import type { Album } from "@groovenet/client";
 import Table from "cli-table3";
 import chalk from "chalk";
 import { printJson, printSuccess, printError, printTracks } from "../output.js";
-import { intOption } from "../options.js";
+import { collectOption, intOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -60,6 +60,11 @@ export function addAlbumsCommands(program: Command): void {
     .option("--limit <n>", "Number of results", intOption, 20)
     .option("--offset <n>", "Offset", intOption, 0)
     .option("--friend-id <n>", "Friend ID", intOption)
+    .option(
+      "--genre <genre>",
+      "Genre slug or name, including its subgenres; repeat for several (any of them)",
+      collectOption
+    )
     .option("--json", "Output as JSON")
     .action(
       async (
@@ -69,6 +74,7 @@ export function addAlbumsCommands(program: Command): void {
           limit: number;
           offset: number;
           friendId?: number;
+          genre?: string[];
           json?: boolean;
         }
       ) => {
@@ -80,6 +86,7 @@ export function addAlbumsCommands(program: Command): void {
             limit: opts.limit,
             offset: opts.offset,
             friend_id: opts.friendId,
+            genre: opts.genre,
           });
           if (opts.json) {
             printJson(result);

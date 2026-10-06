@@ -3,11 +3,17 @@ import { NextRequest } from "next/server";
 
 const mockDbQuery = vi.hoisted(() => vi.fn());
 const mockSemanticSearch = vi.hoisted(() => vi.fn());
+const mockResolveGenreFilter = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/serverDb", () => ({ dbQuery: mockDbQuery }));
 vi.mock("@/server/services/semanticTrackSearchService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/services/semanticTrackSearchService")>()),
   semanticTrackSearch: mockSemanticSearch,
+}));
+
+vi.mock("@/server/genres/genreFilter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/genres/genreFilter")>()),
+  resolveGenreFilter: mockResolveGenreFilter,
 }));
 
 import { GET, parseTrackFilter } from "../route";
@@ -29,6 +35,7 @@ function stubDb(rows: unknown[] = [], total = "0") {
 beforeEach(() => {
   mockDbQuery.mockReset();
   mockSemanticSearch.mockReset();
+  mockResolveGenreFilter.mockReset().mockResolvedValue({ filter: undefined });
 });
 
 // ─── parseTrackFilter (pure) ────────────────────────────────────────────────
@@ -353,14 +360,14 @@ describe("GET /api/tracks/search — attribute filters", () => {
     await GET(req("?q=house&friend_id=6&bpm_min=120.5&bpm_max=126&key=A%20minor&star_rating=4"));
 
     const [dataSql, dataParams] = mockDbQuery.mock.calls[0];
-    expect(dataSql).toContain("bpm >= $2");
-    expect(dataSql).toContain("bpm <= $3");
-    expect(dataSql).toContain("LOWER(key) = LOWER($4)");
-    expect(dataSql).toContain("star_rating >= $5");
+    expect(dataSql).toContain("t.bpm >= $2");
+    expect(dataSql).toContain("t.bpm <= $3");
+    expect(dataSql).toContain("LOWER(t.key) = LOWER($4)");
+    expect(dataSql).toContain("t.star_rating >= $5");
     // friend + filters + q + limit + offset
     expect(dataParams).toEqual([6, 120.5, 126, "A minor", 4, "house", 20, 0]);
     const [countSql, countParams] = mockDbQuery.mock.calls[1];
-    expect(countSql).toContain("star_rating >= $5");
+    expect(countSql).toContain("t.star_rating >= $5");
     expect(countParams).toEqual([6, 120.5, 126, "A minor", 4, "house"]);
   });
 
@@ -368,7 +375,7 @@ describe("GET /api/tracks/search — attribute filters", () => {
     stubDb([], "0");
     await GET(req("?key=%20Eb%20major%20"));
     const [sql, params] = mockDbQuery.mock.calls[0];
-    expect(sql).toContain("LOWER(key) = LOWER($1)");
+    expect(sql).toContain("LOWER(t.key) = LOWER($1)");
     expect(params).toEqual(["Eb major", 20, 0]);
   });
 
@@ -410,5 +417,60 @@ describe("GET /api/tracks/search — attribute filters", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/bpm_min must not exceed bpm_max/);
     expect(mockDbQuery).not.toHaveBeenCalled();
+  });
+});
+
+// ─── GET — genre filter (#375) ──────────────────────────────────────────────
+
+describe("GET /api/tracks/search — genre filter", () => {
+  const filter = { ids: ["id-latin", "id-cumbia"], keys: ["cumbia", "latin"] };
+
+  beforeEach(() => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+  });
+
+  it("resolves every repeated genre and binds it into the query and its count", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter });
+    stubDb([], "0");
+    await GET(req("?genre=latin&genre=Salsa&friend_id=6"));
+
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["latin", "Salsa"]);
+    const [dataSql, dataParams] = mockDbQuery.mock.calls[0];
+    expect(dataSql).toContain("tg.genre_id = ANY($2::uuid[])");
+    expect(dataParams).toEqual([6, filter.ids, filter.keys, 20, 0]);
+    const [countSql, countParams] = mockDbQuery.mock.calls[1];
+    expect(countSql).toContain("FROM tracks t");
+    expect(countSql).toContain("tg.track_id = t.track_id");
+    expect(countParams).toEqual([6, filter.ids, filter.keys]);
+  });
+
+  it("passes the resolved filter to the semantic leg", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter });
+    mockSemanticSearch.mockResolvedValue(semanticResult([]));
+    await GET(req("?mode=semantic&q=dub&genre=latin"));
+    expect(mockSemanticSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ attributes: expect.objectContaining({ genreFilter: filter }) })
+    );
+  });
+
+  it("rejects an unknown genre with 400 and names it", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ unknown: ["cumbiaa"] });
+    const res = await GET(req("?genre=cumbiaa"));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Unknown genre: cumbiaa", unknown: ["cumbiaa"] });
+    expect(mockDbQuery).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than 20 genres", async () => {
+    const res = await GET(req("?" + Array.from({ length: 21 }, (_, i) => `genre=g${i}`).join("&")));
+    expect(res.status).toBe(400);
+    expect(mockResolveGenreFilter).not.toHaveBeenCalled();
+  });
+
+  it("adds no genre clause without a genre", async () => {
+    stubDb([], "0");
+    await GET(req("?q=dub"));
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith([]);
+    expect(mockDbQuery.mock.calls[0][0]).not.toContain("tg.genre_id = ANY");
   });
 });

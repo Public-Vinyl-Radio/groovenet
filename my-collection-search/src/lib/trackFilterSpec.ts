@@ -68,6 +68,8 @@ export type TrackAttributeFilters = {
   key?: string;
   /** At least this many stars. */
   minStarRating?: number;
+  /** Any of these genres or their subgenres (#375). */
+  genreFilter?: GenreFilter;
 };
 
 /** Clauses for the set filters, binding each value through `bind` (which returns its `$n`). */
@@ -84,5 +86,81 @@ export function attributeFilterClauses(
   if (filters.minStarRating !== undefined) {
     clauses.push(`${col("star_rating")} >= ${bind(filters.minStarRating)}`);
   }
+  if (filters.genreFilter !== undefined) {
+    // The genre subqueries correlate with the outer row, so they need its alias.
+    if (!alias) throw new Error("A genre filter needs the tracks alias");
+    clauses.push(trackGenreFilterClause(filters.genreFilter, bind, alias));
+  }
   return clauses;
+}
+
+/**
+ * A genre filter (#375), already resolved: the requested genres and every
+ * genre beneath them, so filtering on `Latin` also finds `Cumbia`.
+ */
+export type GenreFilter = {
+  /** Taxonomy ids, matched against a track's own genre links. */
+  ids: string[];
+  /** Their normalised names and aliases, matched against raw Discogs values. */
+  keys: string[];
+};
+
+/** Whether `discogs` (an expression yielding text[]) holds a value spelled like one of `keysRef`. */
+function discogsGenreMatchSql(discogs: string, keysRef: string): string {
+  return `EXISTS (
+    SELECT 1 FROM unnest(${discogs}) AS discogs_genre(name)
+    WHERE genre_normalize(discogs_genre.name) = ANY(${keysRef}::text[])
+  )`;
+}
+
+/**
+ * Track match for a genre filter. A track with genres of its own matches only
+ * on those; one without falls back to its album's Discogs genres and styles
+ * (copied onto the track row), so a reconciled `Cumbia` track on a `Salsa`
+ * album is found by `cumbia`, not `salsa`. `alias` is the `tracks` alias.
+ */
+export function trackGenreFilterClause(
+  filter: GenreFilter,
+  bind: (value: unknown) => string,
+  alias: string
+): string {
+  const ownGenres = `FROM track_genres tg
+      WHERE tg.track_id = ${alias}.track_id AND tg.friend_id = ${alias}.friend_id`;
+  return `(
+    EXISTS (SELECT 1 ${ownGenres} AND tg.genre_id = ANY(${bind(filter.ids)}::uuid[]))
+    OR (
+      NOT EXISTS (SELECT 1 ${ownGenres})
+      AND ${discogsGenreMatchSql(
+        `COALESCE(${alias}.genres, '{}') || COALESCE(${alias}.styles, '{}')`,
+        bind(filter.keys)
+      )}
+    )
+  )`;
+}
+
+/**
+ * Album match for a genre filter: the album's own Discogs genres and styles,
+ * or any live track on it linked to one of the genres. `alias` is the
+ * `albums` alias.
+ */
+export function albumGenreFilterClause(
+  filter: GenreFilter,
+  bind: (value: unknown) => string,
+  alias: string
+): string {
+  return `(
+    ${discogsGenreMatchSql(
+      `COALESCE(${alias}.genres, '{}') || COALESCE(${alias}.styles, '{}')`,
+      bind(filter.keys)
+    )}
+    OR EXISTS (
+      SELECT 1
+      FROM tracks gt
+      JOIN track_genres tg ON tg.track_id = gt.track_id AND tg.friend_id = gt.friend_id
+      WHERE gt.release_id = ${alias}.release_id
+        AND gt.friend_id = ${alias}.friend_id
+        AND gt.deleted_at IS NULL
+        AND tg.genre_id = ANY(${bind(filter.ids)}::uuid[])
+    )
+  )`;
 }

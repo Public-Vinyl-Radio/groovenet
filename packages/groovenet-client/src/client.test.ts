@@ -59,6 +59,7 @@ describe("GroovenetClient constructor", () => {
 
     expect(createMock).toHaveBeenCalledWith({
       baseURL: "https://example.test/api",
+      paramsSerializer: { indexes: null },
       headers: { "Content-Type": "application/json" },
     });
   });
@@ -68,6 +69,7 @@ describe("GroovenetClient constructor", () => {
 
     expect(createMock).toHaveBeenCalledWith({
       baseURL: "https://example.test",
+      paramsSerializer: { indexes: null },
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer secret",
@@ -80,6 +82,7 @@ describe("GroovenetClient constructor", () => {
 
     expect(createMock).toHaveBeenCalledWith({
       baseURL: "https://example.test",
+      paramsSerializer: { indexes: null },
       headers: {
         "Content-Type": "application/json",
         "X-Groovenet-Client": "mcp",
@@ -219,6 +222,17 @@ describe("GroovenetClient.searchTracks", () => {
       star_rating: 4,
       mode: undefined,
     });
+  });
+
+  it("sends genres as a repeated param, and no param for none (#375)", async () => {
+    const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
+
+    await client.searchTracks({ filters: { genre: ["latin", "jazz"] } });
+    await client.searchTracks({ filters: { genre: [] } });
+
+    expect(requestMock.mock.calls[0][0].params.genre).toEqual(["latin", "jazz"]);
+    expect(requestMock.mock.calls[1][0].params.genre).toBeUndefined();
+    expect(createMock.mock.calls[0][0]).toMatchObject({ paramsSerializer: { indexes: null } });
   });
 
   it("leaves lexical mode implicit", async () => {
@@ -399,6 +413,14 @@ describe("GroovenetClient album endpoints", () => {
         params: { q: "kind of blue", limit: 5, offset: 10, sort: "title:asc", friend_id: 3 },
       })
     );
+  });
+
+  it("searchAlbums forwards genres (#375)", async () => {
+    const client = clientReturning({ albums: [], total: 0 });
+
+    await client.searchAlbums({ genre: ["cumbia"] });
+
+    expect(requestMock.mock.calls[0][0].params.genre).toEqual(["cumbia"]);
   });
 
   it("searchAlbums omits friend_id when it is null", async () => {
