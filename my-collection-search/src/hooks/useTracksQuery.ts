@@ -34,6 +34,7 @@ export function useTracksQuery() {
         artist: form.artist,
         album: form.album,
         local_tags: form.local_tags,
+        track_genres: form.track_genres,
         notes: form.notes,
         bpm: form.bpm != null ? String(form.bpm) : undefined,
         key: form.key,

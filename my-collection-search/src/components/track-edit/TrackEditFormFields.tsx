@@ -4,13 +4,16 @@ import React from "react";
 import { Box, Button, Flex, Stack, Text, RatingGroup } from "@chakra-ui/react";
 import LabeledInput from "@/components/form/LabeledInput";
 import LabeledTextarea from "@/components/form/LabeledTextarea";
+import GenrePicker from "@/components/GenrePicker";
 import type { TrackEditFormState } from "@/components/track-edit/types";
+import type { TrackGenre } from "@/types/track";
 
 type TrackEditFormFieldsProps = {
   values: TrackEditFormState;
   loading: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onStarRatingChange: (rating: number) => void;
+  onGenresChange: (genres: TrackGenre[]) => void;
   showSubmitButton?: boolean;
   submitButtonDisplay?: { base?: string; md?: string };
 };
@@ -20,6 +23,7 @@ export default function TrackEditFormFields({
   loading,
   onChange,
   onStarRatingChange,
+  onGenresChange,
   showSubmitButton = true,
   submitButtonDisplay = { base: "inline-flex", md: "inline-flex" },
 }: TrackEditFormFieldsProps) {
@@ -87,11 +91,11 @@ export default function TrackEditFormFields({
             />
           </Box>
         </Flex>
-        <LabeledInput
-          label="Genre (comma separated)"
-          name="local_tags"
-          value={values.local_tags}
-          onChange={onChange}
+        <GenrePicker
+          value={values.track_genres}
+          onChange={onGenresChange}
+          legacyTags={values.local_tags}
+          disabled={loading}
         />
         <LabeledTextarea
           label="Notes"

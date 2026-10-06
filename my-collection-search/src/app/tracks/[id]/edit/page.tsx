@@ -19,7 +19,12 @@ import LabeledInput from "@/components/form/LabeledInput";
 import LabeledTextarea from "@/components/form/LabeledTextarea";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrackEditAudioActions } from "@/components/track-edit/useTrackEditAudioActions";
-import { toTrackEditFormState, type TrackEditFormProps } from "@/components/track-edit/types";
+import {
+  genreChanges,
+  toTrackEditFormState,
+  type TrackEditFormProps,
+} from "@/components/track-edit/types";
+import GenrePicker from "@/components/GenrePicker";
 import { useTrackByIdQuery } from "@/hooks/useTrackByIdQuery";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { cleanSoundcloudUrl } from "@/lib/url";
@@ -89,6 +94,7 @@ export default function TrackEditPage() {
         danceability: Number(form.danceability) || null,
         duration_seconds: Number(form.duration_seconds) || null,
         friend_id: form.friend_id,
+        ...genreChanges(track?.track_genres, form.track_genres),
       };
       await handleSave(cleanForm);
     } finally {
@@ -234,11 +240,11 @@ export default function TrackEditPage() {
                   onChange={handleChange}
                   rows={5}
                 />
-                <LabeledInput
-                  label="Genre tags (comma separated)"
-                  name="local_tags"
-                  value={form.local_tags}
-                  onChange={handleChange}
+                <GenrePicker
+                  value={form.track_genres}
+                  onChange={(track_genres) => setForm((prev) => ({ ...prev, track_genres }))}
+                  legacyTags={form.local_tags}
+                  disabled={saving}
                 />
               </Stack>
             </SectionCard>

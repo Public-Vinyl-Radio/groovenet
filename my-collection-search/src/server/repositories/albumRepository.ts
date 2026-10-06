@@ -1,6 +1,7 @@
 import type { Album, Track } from "@/types/track";
 import { dbQuery } from "@/lib/serverDb";
 import type { PoolClient } from "pg";
+import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 type Queryable = Pick<PoolClient, "query">;
 
@@ -116,11 +117,11 @@ export class AlbumRepository {
   ): Promise<Track[]> {
     const { rows } = await dbQuery<Track>(
       `
-      SELECT *
-      FROM tracks
-      WHERE release_id = $1 AND friend_id = $2
-        AND deleted_at IS NULL
-      ORDER BY position
+      SELECT t.*, ${trackGenresSelectSql("t")}
+      FROM tracks t
+      WHERE t.release_id = $1 AND t.friend_id = $2
+        AND t.deleted_at IS NULL
+      ORDER BY t.position
       `,
       [releaseId, friendId]
     );
@@ -299,7 +300,7 @@ export class AlbumRepository {
   ): Promise<Track[]> {
     const { rows } = await dbQuery<Track>(
       `
-      SELECT t.*, a.library_identifier
+      SELECT t.*, a.library_identifier, ${trackGenresSelectSql("t")}
       FROM tracks t
       LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       WHERE t.release_id = $1 AND t.friend_id = $2
