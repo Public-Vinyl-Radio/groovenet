@@ -322,27 +322,32 @@ curl "http://localhost:3000/api/recommendations/candidates?track_id=YOUR_TRACK_I
 
 Embedding jobs run on the app's background queue (`embeddingQueueService.ts`).
 Every `EMBEDDING_QUEUE_INTERVAL_SECONDS` (default 10) it takes up to
-`EMBEDDING_QUEUE_BATCH_SIZE` jobs (default 5) and embeds them one at a time,
-one OpenAI request each. Throughput is therefore about batch ÷ interval:
+`EMBEDDING_QUEUE_BATCH_SIZE` jobs (default 100). It skips unchanged sources,
+groups the rest by kind and target model, and sends each group in one OpenAI
+request. Theoretical throughput is batch ÷ interval:
 
 | Batch size | Jobs/minute | 15,000 tracks, one kind |
 | --- | --- | --- |
-| 5 (default) | 30 | ~8 h |
-| 20 | 120 | ~2 h |
-| 30 | 180 | ~1 h 25 min |
+| 50 | 300 | ~50 min |
+| 100 (default) | 600 | ~25 min |
 
-A template bump (#407) or a new kind (#408) queues every track at once, so raise
-the batch while that drains. All three settings are read at startup. In
-production they come from the box's `.env` (rendered from `.env.tpl`), so set
-the value there and redeploy. The timer doesn't wait for a slow tick, so keep
-batch × ~0.3 s per job under the interval or ticks overlap. Paid OpenAI tiers
-allow thousands of embedding requests a minute, so the queue, not OpenAI, is the
-limit. `EMBEDDING_SWEEP_INTERVAL_MINUTES` (default 30) is how often tracks
-still missing an embedding are re-queued.
+These are ceilings, not measured drain times: database work, provider latency,
+and rate limits can reduce throughput. A 20,000-job backfill needs about 33
+minutes at the default ceiling. The worker skips a scheduled tick if the prior
+one is still running. 429s use per-job backoff. All three settings are read at
+startup. In production they come from the box's `.env` (rendered from
+`.env.tpl`), so change the value there and redeploy.
+
+Track edits and uploads run ahead of Discogs sync and album create/upsert jobs;
+both run ahead of backfills and sweeps. This keeps a new edit responsive during
+a full-library re-embed or an initial Discogs import.
+`EMBEDDING_SWEEP_INTERVAL_MINUTES` (default 30) controls how often tracks still
+missing an embedding are re-queued.
 
 The sweep is a backstop for lost jobs, not a second scheduler. It does nothing
 while any job is queued or waiting to retry (#419), and the next sweep after the
-queue empties catches anything lost. `enqueue` doesn't dedupe, so before this
+queue empties catches anything lost. The sweep waits for an active tick to finish.
+`enqueue` doesn't dedupe, so before this
 every sweep and every restart added another copy of the whole backlog. In
 production that grew the queue to 281k jobs, mostly no-op duplicates, and
 stalled a 21.5k-track backfill.

@@ -29,7 +29,8 @@ export async function syncIdentityEmbeddings(
         friend_id: track.friend_id,
         kind,
       }))
-    )
+    ),
+    "sync"
   );
 
   return { queued: tracks.length };

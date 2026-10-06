@@ -1,10 +1,8 @@
 import { randomUUID } from "crypto";
 import { getRedisConnection } from "@/lib/redis";
-import { generateAndStoreIdentityEmbedding } from "@/lib/identity-embedding";
-import { generateAndStoreAudioVibeEmbedding } from "@/lib/audio-vibe-embedding";
-import { generateAndStoreContextEmbedding } from "@/lib/context-embedding";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
+import { runEmbeddingBatch } from "@/server/services/embeddingBatchService";
 import type {
   EmbeddingBackfillRun,
   EmbeddingJob,
@@ -25,7 +23,15 @@ import type {
  * the weight of a tracked-job system like `redisJobService`.
  */
 
-const QUEUE_KEY = "embedding_queue";
+const QUEUE_KEY = "embedding_queue"; // Existing bulk list; preserve jobs across deploys.
+const INTERACTIVE_KEY = "embedding_queue:interactive";
+const SYNC_KEY = "embedding_queue:sync";
+const QUEUE_KEYS = [INTERACTIVE_KEY, SYNC_KEY, QUEUE_KEY] as const;
+export type EmbeddingQueuePriority = "interactive" | "sync" | "bulk";
+
+function queueKey(priority: EmbeddingQueuePriority): string {
+  return priority === "interactive" ? INTERACTIVE_KEY : priority === "sync" ? SYNC_KEY : QUEUE_KEY;
+}
 const RETRY_KEY = "embedding_retry";
 const FAILED_KEY = "embedding_queue:failed";
 const PAUSED_KEY = "embedding_queue:paused";
@@ -43,7 +49,7 @@ function runKey(runId: string): string {
   return `${RUN_KEY_PREFIX}${runId}`;
 }
 
-type QueuedJob = EmbeddingJob & { attempts?: number };
+type QueuedJob = EmbeddingJob & { attempts?: number; priority: EmbeddingQueuePriority };
 
 function positiveNumber(raw: string | undefined, fallback: number): number {
   const parsed = Number(raw);
@@ -55,7 +61,7 @@ export function queueIntervalSeconds(): number {
 }
 
 export function queueBatchSize(): number {
-  return positiveNumber(process.env.EMBEDDING_QUEUE_BATCH_SIZE, 5);
+  return positiveNumber(process.env.EMBEDDING_QUEUE_BATCH_SIZE, 100);
 }
 
 export function sweepIntervalMinutes(): number {
@@ -81,39 +87,24 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** `updated: false` means the generator skipped a track whose source hash was unchanged. */
-async function runJob(job: EmbeddingJob): Promise<{ updated: boolean }> {
-  if (job.kind === "identity") {
-    return generateAndStoreIdentityEmbedding(job.track_id, job.friend_id, job.force);
-  }
-  if (job.kind === "audio_vibe") {
-    return generateAndStoreAudioVibeEmbedding(job.track_id, job.friend_id, job.force);
-  }
-  if (job.kind === "context") {
-    return generateAndStoreContextEmbedding(job.track_id, job.friend_id, job.force);
-  }
-
-  // A "prompt" job left in Redis from before the legacy column was removed
-  // (#393): nothing reads it any more, so drop it rather than retry forever.
-  return { updated: false };
-}
-
 export class EmbeddingQueueService {
   private redis = getRedisConnection();
 
-  async enqueue(jobs: EmbeddingJob[]): Promise<void> {
+  async enqueue(jobs: EmbeddingJob[], priority: EmbeddingQueuePriority = "interactive"): Promise<void> {
     if (jobs.length === 0) return;
     const pipeline = this.redis.pipeline();
     for (const job of jobs) {
-      pipeline.lpush(QUEUE_KEY, JSON.stringify(job));
+      pipeline.lpush(queueKey(priority), JSON.stringify(job));
     }
     await pipeline.exec();
   }
 
   private async pushBack(jobs: QueuedJob[]): Promise<void> {
     const pipeline = this.redis.pipeline();
-    for (const job of jobs) {
-      pipeline.rpush(QUEUE_KEY, JSON.stringify(job));
+    // LPUSH/RPOP is FIFO. Restore popped jobs in reverse order so an auth
+    // pause resumes them in the same order as before the failed tick.
+    for (const job of [...jobs].reverse()) {
+      pipeline.rpush(queueKey(job.priority), JSON.stringify(job));
     }
     await pipeline.exec();
   }
@@ -169,7 +160,12 @@ export class EmbeddingQueueService {
 
     const pipeline = this.redis.pipeline();
     for (const member of due) {
-      pipeline.rpush(QUEUE_KEY, member);
+      try {
+        const job = JSON.parse(member) as Partial<QueuedJob>;
+        pipeline.rpush(queueKey(job.priority ?? "bulk"), member);
+      } catch {
+        pipeline.rpush(QUEUE_KEY, member);
+      }
     }
     pipeline.zrem(RETRY_KEY, ...due);
     await pipeline.exec();
@@ -219,33 +215,46 @@ export class EmbeddingQueueService {
 
     const batch: QueuedJob[] = [];
     for (let i = 0; i < queueBatchSize(); i += 1) {
-      const raw = await this.redis.rpop(QUEUE_KEY);
+      let raw: string | null = null;
+      let priority: EmbeddingQueuePriority = "bulk";
+      for (const candidate of ["interactive", "sync", "bulk"] as const) {
+        raw = await this.redis.rpop(queueKey(candidate));
+        if (raw) {
+          priority = candidate;
+          break;
+        }
+      }
       if (!raw) break;
       try {
-        batch.push(JSON.parse(raw) as QueuedJob);
+        batch.push({ ...(JSON.parse(raw) as EmbeddingJob & { attempts?: number }), priority });
       } catch (error) {
         console.error("[embedding-queue] dropping unparseable job:", raw, error);
       }
     }
 
+    const results = await runEmbeddingBatch(batch);
+    const requeue: QueuedJob[] = [];
+    let authError: string | null = null;
     for (let i = 0; i < batch.length; i += 1) {
       const job = batch[i];
-      try {
-        const { updated } = await runJob(job);
-        if (job.run_id) await this.recordRunProgress(job.run_id, updated);
-      } catch (error) {
-        const message = errorMessage(error);
+      const result = results[i];
+      if (result.pending) {
+        requeue.push(job);
+      } else if (result.error !== undefined) {
+        const message = errorMessage(result.error);
         if (isAuthError(message)) {
-          await this.pause(message);
-          // The queue is paused now — put this job and everything still
-          // unprocessed this tick back, untouched, for when it resumes.
-          await this.pushBack(batch.slice(i));
-          return;
+          authError = message;
+          requeue.push(job);
+        } else {
+          await this.setLastError(message);
+          await this.scheduleRetry(job, now, message);
         }
-        await this.setLastError(message);
-        await this.scheduleRetry(job, now, message);
+      } else if (job.run_id) {
+        await this.recordRunProgress(job.run_id, result.updated);
       }
     }
+    if (authError) await this.pause(authError);
+    if (requeue.length > 0) await this.pushBack(requeue);
   }
 
   /**
@@ -262,11 +271,11 @@ export class EmbeddingQueueService {
    * queue empties.
    */
   async sweepTick(): Promise<{ queued: number; pending: number }> {
-    const [queued, retrying] = await Promise.all([
-      this.redis.llen(QUEUE_KEY),
+    const [queueLengths, retrying] = await Promise.all([
+      Promise.all(QUEUE_KEYS.map((key) => this.redis.llen(key))),
       this.redis.zcard(RETRY_KEY),
     ]);
-    const pending = queued + retrying;
+    const pending = queueLengths.reduce((sum, count) => sum + count, 0) + retrying;
     if (pending > 0) return { queued: 0, pending };
 
     const [missingIdentity, missingAudioVibe, missingContext] = await Promise.all([
@@ -281,7 +290,7 @@ export class EmbeddingQueueService {
       ...missingContext.map((t) => ({ ...t, kind: "context" as const })),
     ];
 
-    await this.enqueue(jobs);
+    await this.enqueue(jobs, "bulk");
     return { queued: jobs.length, pending: 0 };
   }
 
@@ -311,7 +320,7 @@ export class EmbeddingQueueService {
     seedPipeline.expire(key, RUN_TTL_SECONDS);
     await seedPipeline.exec();
 
-    await this.enqueue(jobs.map((job) => ({ ...job, run_id: runId })));
+    await this.enqueue(jobs.map((job) => ({ ...job, run_id: runId })), "bulk");
 
     return {
       run_id: runId,
@@ -354,9 +363,9 @@ export class EmbeddingQueueService {
   }
 
   async getQueueHealth(): Promise<EmbeddingQueueHealth> {
-    const [queueLen, retryLen, failedLen, pausedError, lastErrorRaw] =
+    const [queueLengths, retryLen, failedLen, pausedError, lastErrorRaw] =
       await Promise.all([
-        this.redis.llen(QUEUE_KEY),
+        Promise.all(QUEUE_KEYS.map((key) => this.redis.llen(key))),
         this.redis.zcard(RETRY_KEY),
         this.redis.llen(FAILED_KEY),
         this.redis.get(PAUSED_KEY),
@@ -373,7 +382,7 @@ export class EmbeddingQueueService {
     }
 
     return {
-      queueDepth: queueLen + retryLen,
+      queueDepth: queueLengths.reduce((sum, count) => sum + count, 0) + retryLen,
       failedCount: failedLen,
       paused: !!pausedError,
       lastError: pausedError ?? lastError,
@@ -382,7 +391,7 @@ export class EmbeddingQueueService {
 
   /** Test helper: wipe all queue state. */
   async resetQueueState(): Promise<void> {
-    await this.redis.del(QUEUE_KEY, RETRY_KEY, FAILED_KEY, PAUSED_KEY, LAST_ERROR_KEY);
+    await this.redis.del(...QUEUE_KEYS, RETRY_KEY, FAILED_KEY, PAUSED_KEY, LAST_ERROR_KEY);
   }
 }
 
@@ -427,13 +436,22 @@ export function startEmbeddingQueueWorker(): void {
   const g = globalThis as GlobalWithWorker;
   if (g[GLOBAL_WORKER_KEY]) return;
   g[GLOBAL_WORKER_KEY] = true;
+  let tickInFlight = false;
 
   const run = () => {
+    if (tickInFlight) return;
+    tickInFlight = true;
     const now = Date.now();
-    void embeddingQueueService
-      .tick(now)
-      .catch((error) => console.error("[embedding-queue] tick failed:", error));
-    void sweepIfDue(now);
+    void (async () => {
+      try {
+        await embeddingQueueService.tick(now);
+      } catch (error) {
+        console.error("[embedding-queue] tick failed:", error);
+      }
+      // The sweep must see committed embeddings, not an emptied list whose
+      // popped jobs are still waiting for the provider or database.
+      await sweepIfDue(now);
+    })().finally(() => { tickInFlight = false; });
   };
 
   run();
