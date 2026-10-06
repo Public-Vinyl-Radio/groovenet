@@ -184,6 +184,33 @@ describe("PATCH /api/tracks — genres and descriptors", () => {
     expect(res.status).toBe(400);
     expect(mockUpdateTrack).not.toHaveBeenCalled();
   });
+
+  it("records genres from the enrichment wizard with their source (#374)", async () => {
+    mockResolveGenres.mockResolvedValueOnce({ ids: [CUMBIA], unknown: [] });
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+
+    const res = await PATCH(
+      makeReq({ ...PATCH_BODY, genres: [CUMBIA], genre_source: "enrichment" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockReplaceGenres).toHaveBeenCalledWith("t1", 1, [CUMBIA], "enrichment");
+    // A source is not a column, and not a change to report.
+    expect(mockUpdateTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 1 });
+    const [event] = analyticsEvents.events;
+    expect(event.properties).toMatchObject({ changed_fields: ["genres"] });
+  });
+
+  it.each([["reconciliation"], ["ai"], [1]])(
+    "rejects genre_source %j before writing anything",
+    async (genre_source) => {
+      const res = await PATCH(makeReq({ ...PATCH_BODY, genres: [CUMBIA], genre_source }));
+      expect(res.status).toBe(400);
+      expect(mockResolveGenres).not.toHaveBeenCalled();
+      expect(mockUpdateTrack).not.toHaveBeenCalled();
+    }
+  );
 });
 
 // ─── shouldUpdateEmbedding — scalar fields ────────────────────────────────────

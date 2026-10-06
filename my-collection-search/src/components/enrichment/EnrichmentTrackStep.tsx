@@ -11,13 +11,15 @@ import {
   Badge,
   Image,
   Separator,
+  TagsInput,
 } from "@chakra-ui/react";
 import { Checkbox } from "@chakra-ui/react";
-import type { Track, YoutubeVideo } from "@/types/track";
+import type { Track, TrackGenre, YoutubeVideo } from "@/types/track";
 import type { AppleMusicResult } from "@/types/apple";
 import type { DiscogsLookupVideo } from "@/types/discogs";
 import type { EnrichmentTypes } from "@/stores/enrichmentStore";
-import type { TrackEditFormProps } from "@/components/track-edit/types";
+import { genreChanges, type TrackEditFormProps } from "@/components/track-edit/types";
+import GenrePicker from "@/components/GenrePicker";
 import { buildTrackMetadataPrompt } from "@/lib/prompts";
 import { useTrackMetadataMutation } from "@/hooks/useTrackMetadataMutation";
 import { useYouTubeMusicSearchMutation } from "@/hooks/useYouTubeMusicSearchMutation";
@@ -42,10 +44,10 @@ export default function EnrichmentTrackStep({
   const { mutateAsync: fetchMetadata } = useTrackMetadataMutation();
   const { mutateAsync: searchYouTube } = useYouTubeMusicSearchMutation();
 
-  // LLM state
-  const [llmGenre, setLlmGenre] = useState(
-    typeof track.local_tags === "string" ? track.local_tags : ""
-  );
+  // LLM state. Genres are taxonomy links and descriptors free text (#374);
+  // the AI's suggestion replaces whatever the track had, for review.
+  const [llmGenres, setLlmGenres] = useState<TrackGenre[]>(track.track_genres ?? []);
+  const [llmDescriptors, setLlmDescriptors] = useState<string[]>(track.descriptors ?? []);
   const [llmNotes, setLlmNotes] = useState(track.notes ?? "");
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError, setLlmError] = useState<string | null>(null);
@@ -98,9 +100,14 @@ export default function EnrichmentTrackStep({
           },
           aiPrompt
         );
-        const data = await fetchMetadata({ prompt, friend_id: track.friend_id });
-        if (data.genre) setLlmGenre(data.genre as string);
-        if (data.notes) setLlmNotes(data.notes as string);
+        const data = await fetchMetadata({
+          prompt,
+          friend_id: track.friend_id,
+          track_id: track.track_id,
+        });
+        if (data.genres.length > 0) setLlmGenres(data.genres);
+        if (data.descriptors.length > 0) setLlmDescriptors(data.descriptors);
+        if (data.notes) setLlmNotes(data.notes);
         setLlmFetched(true);
       } catch {
         setLlmError("Failed to fetch AI metadata");
@@ -179,7 +186,16 @@ export default function EnrichmentTrackStep({
     try {
       const changes: Partial<TrackEditFormProps> = {};
       if (enrichmentTypes.llm && llmInclude) {
-        if (llmGenre) changes.local_tags = llmGenre;
+        // local_tags is no longer written: it stays the raw original that
+        // reconciliation (#372) maps onto the taxonomy.
+        const genreUpdate = genreChanges(track.track_genres, llmGenres);
+        if (genreUpdate.genres) {
+          changes.genres = genreUpdate.genres;
+          changes.genre_source = "enrichment";
+        }
+        if (descriptorsChanged(track.descriptors ?? [], llmDescriptors)) {
+          changes.descriptors = llmDescriptors;
+        }
         if (llmNotes) changes.notes = llmNotes;
       }
       if (enrichmentTypes.appleMusic && appleMusicInclude && selectedAppleUrl) {
@@ -267,18 +283,28 @@ export default function EnrichmentTrackStep({
             </Button>
           ) : (
             <Flex direction="column" gap={3} opacity={llmInclude ? 1 : 0.4}>
-              <Box>
-                <Text fontSize="xs" color="fg.muted" mb={1}>
-                  Genre / Tags
-                </Text>
-                <Input
-                  size="sm"
-                  value={llmGenre}
-                  onChange={(e) => setLlmGenre(e.target.value)}
-                  placeholder="e.g. dub, reggae, electronic"
-                  disabled={!llmInclude}
-                />
-              </Box>
+              <GenrePicker
+                value={llmGenres}
+                onChange={setLlmGenres}
+                legacyTags={track.local_tags}
+                disabled={!llmInclude}
+              />
+              <TagsInput.Root
+                size="sm"
+                value={llmDescriptors}
+                onValueChange={(details) => setLlmDescriptors(details.value)}
+                disabled={!llmInclude}
+                addOnPaste
+              >
+                <TagsInput.Label fontSize="xs" color="fg.muted" fontWeight="normal">
+                  Descriptors
+                </TagsInput.Label>
+                <TagsInput.Control>
+                  <TagsInput.Items />
+                  <TagsInput.Input placeholder="Mood or description, e.g. uplifting" />
+                </TagsInput.Control>
+                <TagsInput.HiddenInput />
+              </TagsInput.Root>
               <Box>
                 <Text fontSize="xs" color="fg.muted" mb={1}>
                   Notes
@@ -542,4 +568,8 @@ export default function EnrichmentTrackStep({
       </Flex>
     </Flex>
   );
+}
+
+function descriptorsChanged(before: string[], after: string[]): boolean {
+  return before.length !== after.length || before.some((value, i) => value !== after[i]);
 }

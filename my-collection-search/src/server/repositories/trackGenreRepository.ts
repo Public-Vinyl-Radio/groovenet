@@ -39,6 +39,8 @@ export function normalizeDescriptors(values: string[]): string[] {
   return [...new Set(values.map(normalizeGenreName).filter(Boolean))];
 }
 
+export type ReleaseGenreCount = { name: string; track_count: number };
+
 export class TrackGenreRepository {
   /**
    * Resolves genre ids or names to taxonomy ids. Names go through the shared
@@ -79,6 +81,33 @@ export class TrackGenreRepository {
       else if (!resolved.includes(genreId)) resolved.push(genreId);
     }
     return { ids: resolved, unknown };
+  }
+
+  /**
+   * The genres linked to a release's other live tracks, most used first: what
+   * the rest of the album has already been called, for enrichment to reuse.
+   */
+  async listReleaseGenreCounts(
+    releaseId: string,
+    friendId: number,
+    excludeTrackId: string,
+    limit = 5
+  ): Promise<ReleaseGenreCount[]> {
+    const { rows } = await dbQuery<ReleaseGenreCount>(
+      `
+      SELECT g.name, COUNT(*)::integer AS track_count
+      FROM track_genres tg
+      JOIN tracks t ON t.track_id = tg.track_id AND t.friend_id = tg.friend_id
+      JOIN genres g ON g.id = tg.genre_id
+      WHERE t.release_id = $1 AND t.friend_id = $2 AND t.track_id <> $3
+        AND t.deleted_at IS NULL
+      GROUP BY g.name
+      ORDER BY track_count DESC, g.name ASC
+      LIMIT $4
+      `,
+      [releaseId, friendId, excludeTrackId, limit]
+    );
+    return rows;
   }
 
   /**

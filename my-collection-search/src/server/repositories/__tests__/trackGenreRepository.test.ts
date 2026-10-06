@@ -108,3 +108,22 @@ describe("TrackGenreRepository.replaceTrackGenres", () => {
     expect(clientQuery).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("TrackGenreRepository.listReleaseGenreCounts", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("counts the release's other live tracks' genres, most used first", async () => {
+    const counts = [{ name: "Cumbia", track_count: 3 }];
+    dbQuery.mockResolvedValue({ rows: counts });
+
+    await expect(
+      new TrackGenreRepository().listReleaseGenreCounts("r1", 6, "t1")
+    ).resolves.toEqual(counts);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("t.track_id <> $3");
+    expect(sql).toContain("t.deleted_at IS NULL");
+    expect(sql).toContain("ORDER BY track_count DESC");
+    expect(params).toEqual(["r1", 6, "t1", 5]);
+  });
+});

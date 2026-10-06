@@ -207,6 +207,18 @@ const trackSearchResponseBase: Record<string, unknown> = {
   additionalProperties: true,
 };
 
+const trackGenreSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    name: { type: "string" },
+    slug: { type: "string" },
+    parent_id: { type: ["string", "null"], format: "uuid" },
+    parent_name: { type: ["string", "null"] },
+  },
+  required: ["id", "name", "slug", "parent_id", "parent_name"],
+};
+
 const trackEntitySchemaObject: Record<string, unknown> = {
   type: "object",
   properties: {
@@ -226,17 +238,7 @@ const trackEntitySchemaObject: Record<string, unknown> = {
     track_genres: {
       type: "array",
       description: "Track-level DJ genres, linked to the genre taxonomy.",
-      items: {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid" },
-          name: { type: "string" },
-          slug: { type: "string" },
-          parent_id: { type: ["string", "null"], format: "uuid" },
-          parent_name: { type: ["string", "null"] },
-        },
-        required: ["id", "name", "slug", "parent_id", "parent_name"],
-      },
+      items: trackGenreSchemaObject,
     },
     descriptors: {
       type: "array",
@@ -562,6 +564,13 @@ const remainingTracksContracts: ApiContractRoute[] = [
                 type: "array",
                 description: "Replaces the track's descriptors: free text, normalised and de-duplicated.",
                 items: { type: "string" },
+              },
+              genre_source: {
+                type: "string",
+                enum: ["manual", "enrichment"],
+                default: "manual",
+                description:
+                  "Recorded on genre links this update adds. Links the track already has keep their original source.",
               },
             },
             required: ["track_id", "friend_id"],
@@ -5674,6 +5683,11 @@ export const apiContractRoutes: ApiContractRoute[] = [
               properties: {
                 prompt: { type: "string" },
                 friend_id: { type: "integer" },
+                track_id: {
+                  type: "string",
+                  description:
+                    "The track being enriched. Adds its album's Discogs genres and styles, and the genres its other tracks use, to the prompt.",
+                },
               },
               required: ["prompt"],
               additionalProperties: false,
@@ -5689,10 +5703,20 @@ export const apiContractRoutes: ApiContractRoute[] = [
               schema: {
                 type: "object",
                 properties: {
-                  genre: { type: "string" },
+                  genres: {
+                    type: "array",
+                    description:
+                      "Up to 3 suggested track genres. Always taxonomy entries: the model chooses from an enum of the taxonomy, and anything else is dropped.",
+                    items: trackGenreSchemaObject,
+                  },
+                  descriptors: {
+                    type: "array",
+                    description: "Up to 3 normalised mood or description words.",
+                    items: { type: "string" },
+                  },
                   notes: { type: "string" },
                 },
-                additionalProperties: true,
+                required: ["genres", "descriptors", "notes"],
               },
             },
           },

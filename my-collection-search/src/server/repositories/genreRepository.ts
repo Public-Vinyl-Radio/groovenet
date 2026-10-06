@@ -37,6 +37,11 @@ export function buildGenreTree(rows: GenreRow[]): GenreTreeNode[] {
 
 export class GenreRepository {
   async listTree(): Promise<GenreTreeNode[]> {
+    return buildGenreTree(await this.listFlat());
+  }
+
+  /** Every taxonomy genre with its usage counts, parent-keyed, by name. */
+  async listFlat(): Promise<GenreRow[]> {
     // Direct links only: a parent's count does not include its subgenres'.
     // Albums are those with at least one live track linked to the genre.
     const { rows } = await dbQuery<GenreRow>(`
@@ -62,7 +67,7 @@ export class GenreRepository {
       ) c ON c.genre_id = g.id
       ORDER BY g.name ASC
     `);
-    return buildGenreTree(rows);
+    return rows;
   }
 }
 
