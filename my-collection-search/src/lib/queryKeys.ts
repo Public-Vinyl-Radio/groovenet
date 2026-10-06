@@ -99,7 +99,11 @@ export const queryKeys = {
     mode?: string;
     page?: number;
     searchMode?: string;
+    genre?: string[];
   }) => ["tracks", args] as const,
+  /** Under "genres", so a taxonomy edit refreshes the counts too. */
+  trackGenreFacets: (args: { q?: string; filter?: string }) =>
+    ["genres", "track-facets", args] as const,
   trackById: (track_id: string, friend_id: number) =>
     ["track", "by-id", track_id, friend_id] as const,
   trackPlaylists: (track_id: string, friend_id: number) =>

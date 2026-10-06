@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbQuery } from "@/lib/serverDb";
 import {
-  trackSearchGetQuerySchema,
   trackSearchGetResponseSchema,
   type TrackSearchMode,
 } from "@/api-contract/schemas";
+import { parseTrackFilterSpec, type TrackAttributeFilters } from "@/lib/trackFilterSpec";
 import {
-  attributeFilterClauses,
-  missingFilterClause,
-  parseTrackFilterSpec,
-  type TrackAttributeFilters,
-} from "@/lib/trackFilterSpec";
+  buildTrackSearchWhere,
+  lexicalMatchClause,
+  parseTrackSearchParams,
+} from "@/server/services/trackSearchWhere";
 import { QueryRateLimitError } from "@/server/services/queryEmbeddingService";
 import {
   HYBRID_LEG_SIZE,
@@ -22,24 +21,7 @@ import {
 import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
 
-type ParsedFilter = {
-  where: string[];
-  params: unknown[];
-};
-
-export function parseTrackFilter(filter: string | undefined): ParsedFilter {
-  const spec = parseTrackFilterSpec(filter);
-  const where: string[] = [];
-  const params: unknown[] = [];
-
-  if (spec.friendId !== undefined) {
-    params.push(spec.friendId);
-    where.push(`friend_id = $${params.length}`);
-  }
-  where.push(...spec.missing.map((name) => missingFilterClause(name)));
-
-  return { where, params };
-}
+export { parseTrackFilter } from "@/server/services/trackSearchWhere";
 
 async function searchTracksPg(params: {
   q: string;
@@ -66,14 +48,7 @@ async function searchTracksPg(params: {
   const whereClauses = [...params.where, "deleted_at IS NULL"];
 
   if (queryText.length > 0 && queryParamRef) {
-    whereClauses.push(
-      `(
-        to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(artist, '') || ' ' || coalesce(album, '')) @@ plainto_tsquery('simple', ${queryParamRef})
-        OR similarity(coalesce(title, ''), ${queryParamRef}) > 0.15
-        OR similarity(coalesce(artist, ''), ${queryParamRef}) > 0.15
-        OR similarity(coalesce(album, ''), ${queryParamRef}) > 0.15
-      )`
-    );
+    whereClauses.push(lexicalMatchClause(queryParamRef));
   }
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
@@ -233,13 +208,7 @@ async function searchByMeaning(
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    // `genre` repeats; Object.fromEntries would keep only the last one.
-    const genres = searchParams.getAll("genre");
-    const parsedQuery = trackSearchGetQuerySchema.safeParse({
-      ...Object.fromEntries(searchParams.entries()),
-      ...(genres.length > 0 ? { genre: genres } : {}),
-    });
+    const parsedQuery = parseTrackSearchParams(request.nextUrl.searchParams);
     if (!parsedQuery.success) {
       return NextResponse.json(
         {
@@ -273,21 +242,7 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    const parsedFilter = parseTrackFilter(filter);
-    if (friend_id !== undefined) {
-      parsedFilter.params.push(friend_id);
-      parsedFilter.where.push(`friend_id = $${parsedFilter.params.length}`);
-    }
-    parsedFilter.where.push(
-      ...attributeFilterClauses(
-        attributes,
-        (value) => {
-          parsedFilter.params.push(value);
-          return `$${parsedFilter.params.length}`;
-        },
-        "t"
-      )
-    );
+    const parsedFilter = buildTrackSearchWhere({ filter, friendId: friend_id, attributes });
 
     // Without words there is no meaning to search; every mode lists the same way.
     if (mode !== "lexical" && q.trim().length > 0) {

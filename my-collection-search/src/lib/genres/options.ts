@@ -65,3 +65,20 @@ export function genreSelectionChanged(before: TrackGenre[], after: TrackGenre[])
   const ids = new Set(before.map((genre) => genre.id));
   return after.some((genre) => !ids.has(genre.id));
 }
+
+/**
+ * The genres a search filter offers (#375). With counts for the current
+ * search, each option carries its count, so ranking puts the biggest first,
+ * and genres that would return nothing are left out. Without counts — albums,
+ * or a semantic search — every genre is offered as it is.
+ */
+export function genreFilterOptions(
+  options: GenreOption[],
+  counts?: ReadonlyMap<string, number>
+): GenreOption[] {
+  if (!counts) return options;
+  return options.flatMap((option) => {
+    const count = counts.get(option.id) ?? 0;
+    return count > 0 ? [{ ...option, track_count: count }] : [];
+  });
+}

@@ -21,6 +21,7 @@ import {
   trackExtractEmbeddedCoverResponseSchema,
   trackPlaylistsResponseSchema,
   trackPlaylistMembershipSchema,
+  type TrackGenreFacetsResponse,
 } from "@/api-contract/schemas";
 import { http } from "@/services/http";
 import type { Track, TrackGenre } from "@/types/track";
@@ -91,7 +92,11 @@ export type SimilarVibeTracksResponse = {
 type RecommendationCandidate =
   z.infer<typeof recommendationsResponseSchema>["candidates"][number];
 
-export type TrackSearchQuery = z.input<typeof trackSearchGetQuerySchema>;
+// `genre` is preprocessed in the schema, so its input type would be `unknown`.
+export type TrackSearchQuery = Omit<z.input<typeof trackSearchGetQuerySchema>, "genre"> & {
+  /** Genre slugs (#375); any of them matches, each with its subgenres. */
+  genre?: string[];
+};
 type TrackSearchApiResponse = z.infer<typeof trackSearchGetResponseSchema>;
 export type TrackSearchResponse = Omit<TrackSearchApiResponse, "hits"> & {
   hits: Track[];
@@ -485,6 +490,7 @@ export async function searchTracks(
   if (typeof query.offset === "number") params.set("offset", String(query.offset));
   if (query.filter) params.set("filter", query.filter);
   if (query.mode && query.mode !== "lexical") params.set("mode", query.mode);
+  for (const genre of query.genre ?? []) params.append("genre", genre);
 
   const search = params.toString();
   const path = search ? `/api/tracks/search?${search}` : "/api/tracks/search";
@@ -492,6 +498,24 @@ export async function searchTracks(
     method: "GET",
     cache: "no-store",
   });
+}
+
+/**
+ * Per-genre track counts for a keyword search (#375): what each genre would
+ * return if added to `q` and `filter`. Subgenres are included.
+ */
+export async function fetchTrackGenreFacets(query: {
+  q?: string;
+  filter?: string;
+}): Promise<TrackGenreFacetsResponse> {
+  const params = new URLSearchParams();
+  if (query.q) params.set("q", query.q);
+  if (query.filter) params.set("filter", query.filter);
+  const search = params.toString();
+  return await http<TrackGenreFacetsResponse>(
+    search ? `/api/tracks/search/facets?${search}` : "/api/tracks/search/facets",
+    { method: "GET", cache: "no-store" }
+  );
 }
 
 export async function fetchPlaylistCounts(

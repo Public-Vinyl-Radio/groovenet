@@ -1,0 +1,109 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import { Combobox, Portal, Text, createListCollection } from "@chakra-ui/react";
+import type { FilterChip } from "@/components/FilterChips";
+import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
+import {
+  filterGenreOptions,
+  genreFilterOptions,
+  type GenreOption,
+} from "@/lib/genres/options";
+
+const CHIP_PREFIX = "genre:";
+
+/** Filter chips for the chosen genre slugs, named from the taxonomy once it loads. */
+export function genreFilterChips(selected: string[], genres: GenreOption[]): FilterChip[] {
+  const names = new Map(genres.map((genre) => [genre.slug, genre.name]));
+  return selected.map((slug) => ({
+    key: `${CHIP_PREFIX}${slug}`,
+    label: names.get(slug) ?? slug,
+    active: true,
+  }));
+}
+
+/** The slug a genre chip's key stands for, or null for any other chip. */
+export function genreSlugFromChipKey(key: string): string | null {
+  return key.startsWith(CHIP_PREFIX) ? key.slice(CHIP_PREFIX.length) : null;
+}
+
+type GenreFilterProps = {
+  /** Slugs already filtered on; they are not offered again. */
+  selected: string[];
+  onAdd: (slug: string) => void;
+  /** Tracks per genre id for the current search; omit to show no counts. */
+  counts?: ReadonlyMap<string, number>;
+};
+
+/**
+ * Type-ahead over the genre taxonomy for search filters (#375). A pick is
+ * handed to `onAdd` and the box cleared; the chosen genres show as chips
+ * beside it, which own removal.
+ */
+export default function GenreFilter({ selected, onAdd, counts }: GenreFilterProps) {
+  const { genres, isLoading, isError } = useGenreTaxonomyQuery();
+  const [input, setInput] = useState("");
+
+  const collection = useMemo(() => {
+    const selectedIds = new Set(
+      genres.filter((genre) => selected.includes(genre.slug)).map((genre) => genre.id)
+    );
+    return createListCollection<GenreOption>({
+      items: filterGenreOptions(genreFilterOptions(genres, counts), input, selectedIds),
+      itemToString: (genre) => genre.name,
+      itemToValue: (genre) => genre.id,
+    });
+  }, [genres, counts, input, selected]);
+
+  return (
+    <Combobox.Root
+      collection={collection}
+      inputValue={input}
+      onInputValueChange={(details) => setInput(details.inputValue)}
+      value={[]}
+      onValueChange={(details) => details.items.forEach((genre) => onAdd(genre.slug))}
+      selectionBehavior="clear"
+      openOnClick
+      size="sm"
+      width="160px"
+      flexShrink={0}
+    >
+      <Combobox.Control>
+        <Combobox.Input
+          aria-label="Filter by genre"
+          placeholder={isLoading ? "Loading…" : "Genre"}
+          borderRadius="full"
+          fontSize="16px"
+        />
+        <Combobox.IndicatorGroup>
+          <Combobox.Trigger />
+        </Combobox.IndicatorGroup>
+      </Combobox.Control>
+      {/* In a portal: the chip row scrolls sideways and would clip the list. */}
+      <Portal>
+        <Combobox.Positioner>
+          <Combobox.Content minW="240px">
+            <Combobox.Empty>
+              {isError ? "Couldn't load genres" : "No matching genre"}
+            </Combobox.Empty>
+            {collection.items.map((genre) => (
+              <Combobox.Item key={genre.id} item={genre}>
+                <Combobox.ItemText>
+                  {genre.name}
+                  {genre.parent_name && (
+                    <Text as="span" color="fg.muted" fontSize="xs"> · {genre.parent_name}</Text>
+                  )}
+                </Combobox.ItemText>
+                {counts && (
+                  <Text as="span" color="fg.muted" fontSize="xs">
+                    {genre.track_count}
+                  </Text>
+                )}
+              </Combobox.Item>
+            ))}
+          </Combobox.Content>
+        </Combobox.Positioner>
+      </Portal>
+    </Combobox.Root>
+  );
+}

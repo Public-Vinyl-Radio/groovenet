@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { GET } from "@/app/api/tracks/search/route";
+import { GET as GET_FACETS } from "@/app/api/tracks/search/facets/route";
 import { AlbumApiService } from "@/server/services/albumApiService";
 import { resolveGenreFilter } from "./genreFilter";
 
@@ -62,6 +63,21 @@ async function searchTracks(query: string) {
     ids: (body.hits as { track_id: string }[]).map((h) => h.track_id).sort(),
     total: body.estimatedTotalHits as number,
   };
+}
+
+/** Facet counts by genre name, for readable assertions. */
+async function facets(query = "") {
+  const res = await GET_FACETS(
+    new NextRequest(`http://localhost/api/tracks/search/facets?friend_id=${friendId}&${query}`)
+  );
+  expect(res.status).toBe(200);
+  const { genres } = (await res.json()) as { genres: { id: string; track_count: number }[] };
+  const { rows } = await dbQuery<{ id: string; name: string }>(
+    "SELECT id::text, name FROM genres WHERE id = ANY($1::uuid[])",
+    [genres.map((g) => g.id)]
+  );
+  const names = new Map(rows.map((r) => [r.id, r.name]));
+  return { genres, byName: Object.fromEntries(genres.map((g) => [names.get(g.id), g.track_count])) };
 }
 
 async function searchAlbums(...genres: string[]) {
@@ -186,5 +202,33 @@ describe("genre filter (integration)", () => {
       "gf-rock-lp",
       "gf-salsa-lp",
     ]);
+  });
+
+  dbTest("facets count each track once per genre, ancestors included", async () => {
+    const { byName } = await facets();
+    // gf-3's own Salsa link hides its album's Rock; the deleted track counts nowhere.
+    expect(byName).toEqual({
+      Latin: 5,
+      Cumbia: 2,
+      Salsa: 2,
+      Bossanova: 1,
+      Jazz: 1,
+      "Bossa Nova": 1,
+    });
+  });
+
+  dbTest("a facet's count is what filtering on that genre returns", async () => {
+    for (const query of ["", "bpm_min=120", "q=gf-1"]) {
+      const { genres } = await facets(query);
+      expect(genres.length).toBeGreaterThan(0);
+      for (const genre of genres) {
+        const result = await searchTracks(`genre=${genre.id}${query ? `&${query}` : ""}`);
+        expect(result.total).toBe(genre.track_count);
+      }
+    }
+  });
+
+  dbTest("facets follow the other filters and ignore genre", async () => {
+    expect((await facets("bpm_min=120&genre=jazz")).byName).toEqual({ Latin: 2, Cumbia: 1, Salsa: 1 });
   });
 });

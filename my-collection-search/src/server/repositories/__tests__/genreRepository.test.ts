@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildGenreTree, GenreRepository, type GenreRow } from "../genreRepository";
 
 const dbQuery = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/serverDb", () => ({ dbQuery }));
+const clientQuery = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/serverDb", () => ({
+  dbQuery,
+  withDbTransaction: (fn: (client: { query: typeof clientQuery }) => unknown) => fn({ query: clientQuery }),
+}));
 
 const row = (overrides: Partial<GenreRow>): GenreRow => ({
   id: "id",
@@ -88,5 +92,26 @@ describe("GenreRepository genre filter lookups (#375)", () => {
   it("is an empty filter when no genre exists", async () => {
     dbQuery.mockResolvedValue({ rows: [{ ids: null, keys: null }] });
     await expect(new GenreRepository().expandToFilter([])).resolves.toEqual({ ids: [], keys: [] });
+  });
+});
+
+describe("GenreRepository.trackFacets (#375)", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("counts distinct tracks per genre and ancestor over the given clauses", async () => {
+    clientQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "id-latin", track_count: 2 }] });
+
+    const result = await new GenreRepository().trackFacets(["friend_id = $1"], [6]);
+
+    expect(result).toEqual([{ id: "id-latin", track_count: 2 }]);
+    expect(clientQuery.mock.calls[0][0]).toContain("set_config('jit', 'off', true)");
+    const [sql, params] = clientQuery.mock.calls[1];
+    expect(sql).toContain("WHERE friend_id = $1 AND t.deleted_at IS NULL");
+    expect(sql).toContain("JOIN genre_keys k ON k.key = genre_normalize(d.name)");
+    expect(sql).toContain("JOIN genres g ON g.id = l.parent_id");
+    expect(sql).toContain("COUNT(DISTINCT (tg.track_id, tg.friend_id))");
+    expect(params).toEqual([6]);
   });
 });

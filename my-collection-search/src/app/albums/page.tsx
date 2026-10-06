@@ -14,6 +14,8 @@ import AlbumSearchResults from "@/components/AlbumSearchResults";
 import PageContainer from "@/components/layout/PageContainer";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import FilterChips from "@/components/FilterChips";
+import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "@/components/GenreFilter";
+import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useUsername } from "@/providers/UsernameProvider";
 
 function AlbumsPageContent() {
@@ -35,6 +37,9 @@ function AlbumsPageContent() {
   const missingLibraryIdentifier = searchParams.get("missing_library_identifier") === "1";
   const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
   const missingAudio = searchParams.get("missing_audio") === "1";
+  // Genre slugs (#375); no counts here, by design.
+  const genres = searchParams.getAll("genre");
+  const { genres: taxonomy } = useGenreTaxonomyQuery();
 
   const buildParams = (overrides: Record<string, string | null> = {}) => {
     const params = new URLSearchParams();
@@ -45,6 +50,7 @@ function AlbumsPageContent() {
     if (missingLibraryIdentifier) params.set("missing_library_identifier", "1");
     if (missingLocalCoverArtUrl) params.set("missing_local_cover_art_url", "1");
     if (missingAudio) params.set("missing_audio", "1");
+    genres.forEach((slug) => params.append("genre", slug));
     return params;
   };
 
@@ -55,7 +61,19 @@ function AlbumsPageContent() {
     router.push(`/albums?${buildParams({ sort: newSort }).toString()}`);
   };
 
+  const setGenres = (next: string[]) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("genre");
+    next.forEach((slug) => params.append("genre", slug));
+    router.replace(`/albums?${params.toString()}`);
+  };
+
   const handleAlbumFilterToggle = (key: string) => {
+    const genreSlug = genreSlugFromChipKey(key);
+    if (genreSlug !== null) {
+      setGenres(genres.filter((slug) => slug !== genreSlug));
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     if (key === "missingIdentifier") {
       if (!missingLibraryIdentifier) {
@@ -169,7 +187,14 @@ function AlbumsPageContent() {
         />
 
         <FilterChips
+          leading={
+            <GenreFilter
+              selected={genres}
+              onAdd={(slug) => setGenres([...genres, slug])}
+            />
+          }
           chips={[
+            ...genreFilterChips(genres, taxonomy),
             { key: "missingIdentifier", label: "Missing identifier", active: missingLibraryIdentifier },
             {
               key: "missingLocalCoverArtUrl",
@@ -179,11 +204,12 @@ function AlbumsPageContent() {
             { key: "missingAudio", label: "Missing audio", active: missingAudio },
           ]}
           onToggle={handleAlbumFilterToggle}
-          onClearAll={missingLibraryIdentifier || missingLocalCoverArtUrl || missingAudio ? () => {
+          onClearAll={missingLibraryIdentifier || missingLocalCoverArtUrl || missingAudio || genres.length > 0 ? () => {
             const params = new URLSearchParams(searchParams.toString());
             params.delete("missing_library_identifier");
             params.delete("missing_local_cover_art_url");
             params.delete("missing_audio");
+            params.delete("genre");
             router.replace(`/albums?${params.toString()}`);
           } : undefined}
         />

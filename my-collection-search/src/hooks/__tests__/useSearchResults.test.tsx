@@ -87,3 +87,27 @@ describe("useSearchResults searchMode", () => {
     for (const [, args] of trackKeys()) expect(args).not.toHaveProperty("searchMode");
   });
 });
+
+describe("useSearchResults genres (#375)", () => {
+  it("sends the genres and keys the cache by them", async () => {
+    renderSearch({ genres: ["cumbia"] });
+
+    await waitFor(() =>
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ genre: ["cumbia"] }))
+    );
+    expect(trackKeys()[0][1]).toMatchObject({ genre: ["cumbia"] });
+  });
+
+  it("sends them in page mode too", async () => {
+    renderSearch({ genres: ["salsa"], mode: "page" });
+    await waitFor(() =>
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ genre: ["salsa"] }))
+    );
+  });
+
+  it("leaves the cache key as it was without genres", async () => {
+    renderSearch({ genres: [] });
+    await waitFor(() => expect(searchTracks).toHaveBeenCalled());
+    expect(trackKeys()[0][1]).not.toHaveProperty("genre");
+  });
+});
