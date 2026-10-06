@@ -1,6 +1,7 @@
 // Centralized TanStack Query keys
 
 import { AppleMusicAISearchArgs } from "@/services/aiService";
+import type { TrackAttributeFilters } from "@/lib/trackFilters";
 
 export const queryKeys = {
   defaultLibrary: () => ["settings", "default-library"] as const,
@@ -100,9 +101,10 @@ export const queryKeys = {
     page?: number;
     searchMode?: string;
     genre?: string[];
+    attributes?: TrackAttributeFilters;
   }) => ["tracks", args] as const,
   /** Under "genres", so a taxonomy edit refreshes the counts too. */
-  trackGenreFacets: (args: { q?: string; filter?: string }) =>
+  trackGenreFacets: (args: { q?: string; filter?: string; attributes?: TrackAttributeFilters }) =>
     ["genres", "track-facets", args] as const,
   trackById: (track_id: string, friend_id: number) =>
     ["track", "by-id", track_id, friend_id] as const,

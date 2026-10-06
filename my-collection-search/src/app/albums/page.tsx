@@ -15,8 +15,18 @@ import PageContainer from "@/components/layout/PageContainer";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import FilterChips from "@/components/FilterChips";
 import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "@/components/GenreFilter";
+import MissingFilter, { MissingChecklist } from "@/components/MissingFilter";
+import FilterSheet, { FilterSheetSection } from "@/components/FilterSheet";
+import type { MissingFilterOption } from "@/lib/trackFilters";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useUsername } from "@/providers/UsernameProvider";
+
+/** The album missing checks; each key is its URL parameter, as before #447. */
+const ALBUM_MISSING_OPTIONS: MissingFilterOption[] = [
+  { key: "missing_library_identifier", label: "Library identifier", chipLabel: "Missing identifier" },
+  { key: "missing_local_cover_art_url", label: "Local cover", chipLabel: "Missing local cover" },
+  { key: "missing_audio", label: "Audio", chipLabel: "Missing audio" },
+];
 
 function AlbumsPageContent() {
   const searchParams = useSearchParams();
@@ -34,9 +44,12 @@ function AlbumsPageContent() {
     if (saved === "card" || saved === "table") setViewMode(saved);
   }, []);
 
-  const missingLibraryIdentifier = searchParams.get("missing_library_identifier") === "1";
-  const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
-  const missingAudio = searchParams.get("missing_audio") === "1";
+  const missing: Record<string, boolean> = Object.fromEntries(
+    ALBUM_MISSING_OPTIONS.map(({ key }) => [key, searchParams.get(key) === "1"])
+  );
+  const missingChips = ALBUM_MISSING_OPTIONS.filter(({ key }) => missing[key]).map(
+    ({ key, chipLabel }) => ({ key, label: chipLabel, active: true })
+  );
   // Genre slugs (#375); no counts here, by design.
   const genres = searchParams.getAll("genre");
   const { genres: taxonomy } = useGenreTaxonomyQuery();
@@ -47,12 +60,20 @@ function AlbumsPageContent() {
     const effectiveSort = overrides.sort !== undefined ? overrides.sort : sort;
     if (effectiveQuery) params.set("q", effectiveQuery);
     if (effectiveSort && effectiveSort !== "created_at:desc") params.set("sort", effectiveSort);
-    if (missingLibraryIdentifier) params.set("missing_library_identifier", "1");
-    if (missingLocalCoverArtUrl) params.set("missing_local_cover_art_url", "1");
-    if (missingAudio) params.set("missing_audio", "1");
+    ALBUM_MISSING_OPTIONS.forEach(({ key }) => {
+      if (missing[key]) params.set(key, "1");
+    });
     genres.forEach((slug) => params.append("genre", slug));
     return params;
   };
+
+  const clearAll = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    ALBUM_MISSING_OPTIONS.forEach(({ key }) => params.delete(key));
+    params.delete("genre");
+    router.replace(`/albums?${params.toString()}`);
+  };
+  const filterCount = missingChips.length + genres.length;
 
   const handleSearch = () => router.push(`/albums?${buildParams().toString()}`);
 
@@ -68,6 +89,8 @@ function AlbumsPageContent() {
     router.replace(`/albums?${params.toString()}`);
   };
 
+  const addGenre = (slug: string) => setGenres([...genres, slug]);
+
   const handleAlbumFilterToggle = (key: string) => {
     const genreSlug = genreSlugFromChipKey(key);
     if (genreSlug !== null) {
@@ -75,27 +98,8 @@ function AlbumsPageContent() {
       return;
     }
     const params = new URLSearchParams(searchParams.toString());
-    if (key === "missingIdentifier") {
-      if (!missingLibraryIdentifier) {
-        params.set("missing_library_identifier", "1");
-      } else {
-        params.delete("missing_library_identifier");
-      }
-    }
-    if (key === "missingLocalCoverArtUrl") {
-      if (!missingLocalCoverArtUrl) {
-        params.set("missing_local_cover_art_url", "1");
-      } else {
-        params.delete("missing_local_cover_art_url");
-      }
-    }
-    if (key === "missingAudio") {
-      if (!missingAudio) {
-        params.set("missing_audio", "1");
-      } else {
-        params.delete("missing_audio");
-      }
-    }
+    if (missing[key]) params.delete(key);
+    else params.set(key, "1");
     router.replace(`/albums?${params.toString()}`);
   };
 
@@ -153,6 +157,22 @@ function AlbumsPageContent() {
           }
           mobilePrimaryControl={
             <Flex gap={1} align="center" flexShrink={0}>
+              <FilterSheet count={filterCount} onClearAll={filterCount > 0 ? clearAll : undefined}>
+                <FilterSheetSection title="Genre">
+                  <GenreFilter
+                    selected={genres}
+                    onAdd={addGenre}
+                    inSheet
+                  />
+                </FilterSheetSection>
+                <FilterSheetSection title="Missing">
+                  <MissingChecklist
+                    options={ALBUM_MISSING_OPTIONS}
+                    active={missing}
+                    onToggle={handleAlbumFilterToggle}
+                  />
+                </FilterSheetSection>
+              </FilterSheet>
               <Menu.Root>
                 <Menu.Trigger asChild>
                   <IconButton aria-label="Sort" size="sm" variant="ghost">
@@ -188,30 +208,21 @@ function AlbumsPageContent() {
 
         <FilterChips
           leading={
-            <GenreFilter
-              selected={genres}
-              onAdd={(slug) => setGenres([...genres, slug])}
-            />
+            <>
+              <GenreFilter
+                selected={genres}
+                onAdd={addGenre}
+              />
+              <MissingFilter
+                options={ALBUM_MISSING_OPTIONS}
+                active={missing}
+                onToggle={handleAlbumFilterToggle}
+              />
+            </>
           }
-          chips={[
-            ...genreFilterChips(genres, taxonomy),
-            { key: "missingIdentifier", label: "Missing identifier", active: missingLibraryIdentifier },
-            {
-              key: "missingLocalCoverArtUrl",
-              label: "Missing local cover",
-              active: missingLocalCoverArtUrl,
-            },
-            { key: "missingAudio", label: "Missing audio", active: missingAudio },
-          ]}
+          chips={[...genreFilterChips(genres, taxonomy), ...missingChips]}
           onToggle={handleAlbumFilterToggle}
-          onClearAll={missingLibraryIdentifier || missingLocalCoverArtUrl || missingAudio || genres.length > 0 ? () => {
-            const params = new URLSearchParams(searchParams.toString());
-            params.delete("missing_library_identifier");
-            params.delete("missing_local_cover_art_url");
-            params.delete("missing_audio");
-            params.delete("genre");
-            router.replace(`/albums?${params.toString()}`);
-          } : undefined}
+          onClearAll={filterCount > 0 ? clearAll : undefined}
         />
 
         {/* Album Results */}

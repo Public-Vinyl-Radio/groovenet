@@ -33,6 +33,11 @@ type GenreFilterProps = {
   onAdd: (slug: string) => void;
   /** Tracks per genre id for the current search; omit to show no counts. */
   counts?: ReadonlyMap<string, number>;
+  /**
+   * Fill the width and keep the list in place, for the phone filter sheet:
+   * a list portalled out of the sheet would sit outside its focus trap.
+   */
+  inSheet?: boolean;
 };
 
 /**
@@ -40,7 +45,7 @@ type GenreFilterProps = {
  * handed to `onAdd` and the box cleared; the chosen genres show as chips
  * beside it, which own removal.
  */
-export default function GenreFilter({ selected, onAdd, counts }: GenreFilterProps) {
+export default function GenreFilter({ selected, onAdd, counts, inSheet = false }: GenreFilterProps) {
   const { genres, isLoading, isError } = useGenreTaxonomyQuery();
   const [input, setInput] = useState("");
 
@@ -65,7 +70,7 @@ export default function GenreFilter({ selected, onAdd, counts }: GenreFilterProp
       selectionBehavior="clear"
       openOnClick
       size="sm"
-      width="160px"
+      width={inSheet ? "full" : "160px"}
       flexShrink={0}
     >
       <Combobox.Control>
@@ -79,8 +84,8 @@ export default function GenreFilter({ selected, onAdd, counts }: GenreFilterProp
           <Combobox.Trigger />
         </Combobox.IndicatorGroup>
       </Combobox.Control>
-      {/* In a portal: the chip row scrolls sideways and would clip the list. */}
-      <Portal>
+      {/* In a portal, so the filter row never clips the list. */}
+      <Portal disabled={inSheet}>
         <Combobox.Positioner>
           <Combobox.Content minW="240px">
             <Combobox.Empty>

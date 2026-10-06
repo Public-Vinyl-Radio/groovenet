@@ -26,6 +26,7 @@ import {
 import { http } from "@/services/http";
 import type { Track, TrackGenre } from "@/types/track";
 import type { TrackEditFormProps } from "@/components/track-edit/types";
+import type { TrackAttributeFilters } from "@/lib/trackFilters";
 
 export type TrackPlaylistMembership = z.infer<typeof trackPlaylistMembershipSchema>;
 type TrackPlaylistsApiResponse = z.infer<typeof trackPlaylistsResponseSchema>;
@@ -92,11 +93,16 @@ export type SimilarVibeTracksResponse = {
 type RecommendationCandidate =
   z.infer<typeof recommendationsResponseSchema>["candidates"][number];
 
-// `genre` is preprocessed in the schema, so its input type would be `unknown`.
-export type TrackSearchQuery = Omit<z.input<typeof trackSearchGetQuerySchema>, "genre"> & {
-  /** Genre slugs (#375); any of them matches, each with its subgenres. */
-  genre?: string[];
-};
+// `genre` and the attributes are preprocessed in the schema, so their input
+// types would be `unknown`.
+export type TrackSearchQuery = Omit<
+  z.input<typeof trackSearchGetQuerySchema>,
+  "genre" | keyof TrackAttributeFilters
+> &
+  TrackAttributeFilters & {
+    /** Genre slugs (#375); any of them matches, each with its subgenres. */
+    genre?: string[];
+  };
 type TrackSearchApiResponse = z.infer<typeof trackSearchGetResponseSchema>;
 export type TrackSearchResponse = Omit<TrackSearchApiResponse, "hits"> & {
   hits: Track[];
@@ -481,6 +487,14 @@ export async function fetchSimilarTracks(
   };
 }
 
+/** BPM range, key and minimum rating (#412), for search and its genre counts. */
+function setAttributeParams(params: URLSearchParams, attributes: TrackAttributeFilters) {
+  if (attributes.bpm_min !== undefined) params.set("bpm_min", String(attributes.bpm_min));
+  if (attributes.bpm_max !== undefined) params.set("bpm_max", String(attributes.bpm_max));
+  if (attributes.key) params.set("key", attributes.key);
+  if (attributes.star_rating !== undefined) params.set("star_rating", String(attributes.star_rating));
+}
+
 export async function searchTracks(
   query: TrackSearchQuery
 ): Promise<TrackSearchResponse> {
@@ -490,6 +504,7 @@ export async function searchTracks(
   if (typeof query.offset === "number") params.set("offset", String(query.offset));
   if (query.filter) params.set("filter", query.filter);
   if (query.mode && query.mode !== "lexical") params.set("mode", query.mode);
+  setAttributeParams(params, query);
   for (const genre of query.genre ?? []) params.append("genre", genre);
 
   const search = params.toString();
@@ -504,13 +519,13 @@ export async function searchTracks(
  * Per-genre track counts for a keyword search (#375): what each genre would
  * return if added to `q` and `filter`. Subgenres are included.
  */
-export async function fetchTrackGenreFacets(query: {
-  q?: string;
-  filter?: string;
-}): Promise<TrackGenreFacetsResponse> {
+export async function fetchTrackGenreFacets(
+  query: { q?: string; filter?: string } & TrackAttributeFilters
+): Promise<TrackGenreFacetsResponse> {
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
   if (query.filter) params.set("filter", query.filter);
+  setAttributeParams(params, query);
   const search = params.toString();
   return await http<TrackGenreFacetsResponse>(
     search ? `/api/tracks/search/facets?${search}` : "/api/tracks/search/facets",

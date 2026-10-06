@@ -30,6 +30,18 @@ describe("useTrackGenreFacets", () => {
     expect(fetchTrackGenreFacets).toHaveBeenCalledWith({ q: "dub", filter: "friend_id = 6" });
   });
 
+  it("counts within the BPM, key and rating filters (#447)", async () => {
+    render({ q: "", attributes: { bpm_min: 120, key: "A minor" }, enabled: true });
+    await waitFor(() =>
+      expect(fetchTrackGenreFacets).toHaveBeenCalledWith({
+        q: "",
+        filter: undefined,
+        bpm_min: 120,
+        key: "A minor",
+      })
+    );
+  });
+
   it("fetches nothing and has no counts while disabled", () => {
     const { result } = render({ q: "dub", enabled: false });
     expect(result.current.counts).toBeUndefined();
