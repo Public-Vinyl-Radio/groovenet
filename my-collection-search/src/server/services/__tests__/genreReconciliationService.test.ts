@@ -137,8 +137,9 @@ describe("executeRun", () => {
     mapValuesWithAi
       .mockResolvedValueOnce({ drafts: [draft("chicha")], usage: { input_tokens: 10, output_tokens: 5, cost_usd: 0.01 } })
       .mockRejectedValueOnce(Object.assign(new Error("Model output incomplete"), { usage: { input_tokens: 3, output_tokens: 1, cost_usd: 0.001 } }));
-    await executeRun("run", { ...defaultRunOptions, limit: 4 });
+    await executeRun("run", { ...defaultRunOptions, limit: 4, friend_id: 6 });
 
+    expect(repo.listLocalTagTracks).toHaveBeenCalledWith(undefined, 6);
     expect(repo.refreshProposalStats).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ value_normalized: "chicha", track_count: 2 })]));
     expect(repo.upsertProposals).toHaveBeenNthCalledWith(1, [expect.objectContaining({ value_normalized: "cumbia", method: "exact" })], "run");
     expect(repo.upsertProposals).toHaveBeenNthCalledWith(2, [expect.objectContaining({ value_normalized: "chicha" })], "run");
@@ -285,10 +286,11 @@ describe("applyProposals", () => {
       proposal({ id: "p4", value_normalized: "noise", action: "drop", target_genres: [] }),
       proposal({ id: "p5", value_normalized: "unused", target_genres: [{ id: "a", name: "A", parent_name: null }, { id: "b", name: "B", parent_name: null }] }),
     ]);
-    const summary = await applyProposals(["p1"]);
+    const summary = await applyProposals(["p1"], 6);
 
     expect(query.mock.calls[0][0]).toContain("LOCK TABLE genres, genre_aliases");
     expect(repo.listApprovedProposals).toHaveBeenCalledWith(expect.anything(), ["p1"]);
+    expect(repo.listLocalTagTracks).toHaveBeenCalledWith(expect.anything(), 6);
     expect(created).toBe(true);
     expect(summary).toEqual({
       proposals_applied: 5, tracks_linked: 4, descriptors_added: 1, aliases_added: 2, genres_created: 1, skipped: [],
@@ -375,6 +377,8 @@ describe("getCoverage", () => {
     repo.listLocalTagTracks.mockResolvedValue([]);
     repo.listTrackGenreState.mockResolvedValue({ linked: new Set(), described: new Set() });
     repo.listProposalStates.mockResolvedValue(new Map());
-    expect((await getCoverage()).values.exact_share).toBe(0);
+    expect((await getCoverage(6)).values.exact_share).toBe(0);
+    expect(repo.listLocalTagTracks).toHaveBeenCalledWith(undefined, 6);
+    expect(repo.listTrackGenreState).toHaveBeenCalledWith(6);
   });
 });

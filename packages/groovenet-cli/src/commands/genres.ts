@@ -1,4 +1,5 @@
 import { Command, InvalidArgumentError } from "commander";
+import { loadConfig } from "@groovenet/client";
 import type {
   GroovenetClient,
   GenreProposal,
@@ -27,7 +28,28 @@ export type ReconcileClient = Pick<
   "startGenreReconciliation" | "getGenreReconciliationRun" | "getGenreReconciliationCoverage"
 >;
 
-export interface ReconcileOptions {
+/** Which friend's tracks a command covers. */
+export interface FriendScopeOptions {
+  friendId?: number;
+  allFriends?: boolean;
+}
+
+/**
+ * `--friend-id`, else the configured `default_friend_id`, else everyone.
+ * `--all-friends` always means everyone; giving both is an error.
+ */
+export function resolveFriendId(
+  opts: FriendScopeOptions,
+  defaultFriendId: number | undefined = loadConfig().default_friend_id
+): number | undefined {
+  if (opts.allFriends && opts.friendId !== undefined) {
+    throw new Error("Choose --friend-id or --all-friends, not both");
+  }
+  if (opts.allFriends) return undefined;
+  return opts.friendId ?? defaultFriendId;
+}
+
+export interface ReconcileOptions extends FriendScopeOptions {
   ai?: boolean;
   newGenreMinTracks?: number;
   limit?: number;
@@ -37,8 +59,9 @@ export interface ReconcileOptions {
   json?: boolean;
 }
 
-export function toRequest(opts: ReconcileOptions): GenreReconciliationRequest {
+export function toRequest(opts: ReconcileOptions, friendId?: number): GenreReconciliationRequest {
   const request: GenreReconciliationRequest = {};
+  if (friendId !== undefined) request.friend_id = friendId;
   if (opts.ai === false) request.ai = false;
   if (opts.newGenreMinTracks !== undefined) request.new_genre_min_tracks = opts.newGenreMinTracks;
   if (opts.limit !== undefined) request.limit = opts.limit;
@@ -73,10 +96,12 @@ export function formatRunSummary(run: GenreReconciliationRun): string[] {
   return lines;
 }
 
-export function formatCoverage(coverage: GenreReconciliationCoverage): string[] {
+const scopeLabel = (friendId?: number) => (friendId === undefined ? "all friends" : `friend ${friendId}`);
+
+export function formatCoverage(coverage: GenreReconciliationCoverage, friendId?: number): string[] {
   const { tracks, values } = coverage;
   return [
-    chalk.bold("Coverage"),
+    chalk.bold("Coverage") + chalk.gray(` — ${scopeLabel(friendId)}`),
     `  exact matches  ${values.exact}/${values.distinct} values (${percent(values.exact_share)})`,
     `  proposals      ${values.by_status.pending} pending, ${values.by_status.accepted} accepted, ` +
       `${values.by_status.edited} edited, ${values.by_status.rejected} rejected`,
@@ -108,7 +133,8 @@ export async function runReconcile(
   opts: ReconcileOptions,
   io: GenresIO = consoleIO
 ): Promise<number> {
-  const started = await client.startGenreReconciliation(toRequest(opts));
+  const friendId = resolveFriendId(opts);
+  const started = await client.startGenreReconciliation(toRequest(opts, friendId));
 
   if (opts.wait === false) {
     if (opts.json) io.write(JSON.stringify(started, null, 2) + "\n");
@@ -116,14 +142,16 @@ export async function runReconcile(
     return 0;
   }
 
-  if (!opts.json) io.log(chalk.bold("Reconciling local_tags") + chalk.gray(` — run ${started.id}`));
+  if (!opts.json) {
+    io.log(chalk.bold("Reconciling local_tags") + chalk.gray(` — ${scopeLabel(friendId)}, run ${started.id}`));
+  }
   const finished = await waitForReconciliation(client, started.id, {
     pollIntervalMs: opts.pollInterval ?? 2000,
     onProgress: (run) => {
       if (!opts.json && run.ai_batches > 0) io.write(`\r${formatRunProgress(run)}`);
     },
   });
-  const coverage = await client.getGenreReconciliationCoverage();
+  const coverage = await client.getGenreReconciliationCoverage(friendId);
   const failed = finished.status === "failed" ? 1 : 0;
 
   if (opts.json) {
@@ -132,7 +160,7 @@ export async function runReconcile(
   }
   io.write("\r\x1b[2K");
   for (const line of formatRunSummary(finished)) io.log(line);
-  for (const line of formatCoverage(coverage)) io.log(line);
+  for (const line of formatCoverage(coverage, friendId)) io.log(line);
   return failed;
 }
 
@@ -197,12 +225,13 @@ export async function runProposals(
 
 export async function runCoverage(
   client: Pick<GroovenetClient, "getGenreReconciliationCoverage">,
-  opts: { json?: boolean },
+  opts: FriendScopeOptions & { json?: boolean },
   io: GenresIO = consoleIO
 ): Promise<number> {
-  const coverage = await client.getGenreReconciliationCoverage();
+  const friendId = resolveFriendId(opts);
+  const coverage = await client.getGenreReconciliationCoverage(friendId);
   if (opts.json) io.write(JSON.stringify(coverage, null, 2) + "\n");
-  else for (const line of formatCoverage(coverage)) io.log(line);
+  else for (const line of formatCoverage(coverage, friendId)) io.log(line);
   return 0;
 }
 
@@ -225,6 +254,8 @@ export function addGenresCommands(program: Command): void {
     .option("--new-genre-min-tracks <n>", "Fewest tracks before AI may propose a new genre", boundedIntOption(1))
     .option("--limit <n>", "Most values to send to the model this run", boundedIntOption(1))
     .option("--refresh", "Re-ask the model for values with a pending AI proposal")
+    .option("--friend-id <n>", "Only this friend's tracks (defaults to config default_friend_id)", boundedIntOption(1))
+    .option("--all-friends", "Every friend's tracks")
     .option("--no-wait", "Start the run and exit")
     .option("--poll-interval <ms>", "How often to poll progress", intOption, 2000)
     .option("--json", "Output as JSON")
@@ -244,6 +275,8 @@ export function addGenresCommands(program: Command): void {
   genres
     .command("coverage")
     .description("How much of the local_tags backlog is reconciled")
+    .option("--friend-id <n>", "Only this friend's tracks (defaults to config default_friend_id)", boundedIntOption(1))
+    .option("--all-friends", "Every friend's tracks")
     .option("--json", "Output as JSON")
-    .action((opts: { json?: boolean }) => action(() => runCoverage(makeClient(), opts)));
+    .action((opts: FriendScopeOptions & { json?: boolean }) => action(() => runCoverage(makeClient(), opts)));
 }

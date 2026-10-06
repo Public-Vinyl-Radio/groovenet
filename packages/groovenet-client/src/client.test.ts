@@ -1474,7 +1474,9 @@ describe("genre reconciliation", () => {
     await client.getGenreReconciliationRun("r/1");
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/runs/r%2F1" }));
     await client.getGenreReconciliationCoverage();
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/coverage" }));
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/coverage", params: undefined }));
+    await client.getGenreReconciliationCoverage(6);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: { friend_id: 6 } }));
   });
   it("lists proposals with filters as query parameters", async () => {
     const client = clientReturning({ proposals: [], total: 0 });
@@ -1494,5 +1496,7 @@ describe("genre reconciliation", () => {
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/proposals/apply", data: {} }));
     await client.applyGenreProposals(["p"]);
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { ids: ["p"] } }));
+    await client.applyGenreProposals(undefined, 6);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { friend_id: 6 } }));
   });
 });

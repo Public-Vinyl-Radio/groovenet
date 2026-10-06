@@ -21,6 +21,7 @@ import {
   formatRunProgress,
   formatRunSummary,
   renderProposals,
+  resolveFriendId,
   runCoverage,
   runProposals,
   runReconcile,
@@ -35,7 +36,7 @@ function run(overrides: Partial<GenreReconciliationRun> = {}): GenreReconciliati
   return {
     id: "run-1",
     status: "running",
-    options: { ai: true, new_genre_min_tracks: 5, limit: null, refresh: false },
+    options: { ai: true, new_genre_min_tracks: 5, limit: null, refresh: false, friend_id: null },
     model: "gpt-5-mini",
     distinct_values: 100,
     exact_matches: 20,
@@ -100,13 +101,33 @@ function captureIO(): GenresIO & { lines: string[]; written: string } {
   return io;
 }
 
+// Commands read default_friend_id from config unless a test says otherwise.
+beforeEach(() => {
+  loadConfig.mockReturnValue({ api_base: "http://localhost:3000/api" });
+});
+
 describe("toRequest()", () => {
   it("sends only what was asked for", () => {
     expect(toRequest({})).toEqual({});
     expect(toRequest({ ai: true })).toEqual({});
-    expect(toRequest({ ai: false, newGenreMinTracks: 3, limit: 50, refresh: true })).toEqual({
-      ai: false, new_genre_min_tracks: 3, limit: 50, refresh: true,
+    expect(toRequest({ ai: false, newGenreMinTracks: 3, limit: 50, refresh: true }, 6)).toEqual({
+      ai: false, new_genre_min_tracks: 3, limit: 50, refresh: true, friend_id: 6,
     });
+  });
+});
+
+describe("resolveFriendId()", () => {
+  it("prefers --friend-id, then the configured default, else everyone", () => {
+    expect(resolveFriendId({ friendId: 2 }, 6)).toBe(2);
+    expect(resolveFriendId({}, 6)).toBe(6);
+    expect(resolveFriendId({}, undefined)).toBeUndefined();
+    expect(resolveFriendId({ allFriends: true }, 6)).toBeUndefined();
+  });
+
+  it("reads the default from config, and refuses both flags", () => {
+    loadConfig.mockReturnValue({ default_friend_id: 6 });
+    expect(resolveFriendId({})).toBe(6);
+    expect(() => resolveFriendId({ friendId: 2, allFriends: true }, 6)).toThrow("not both");
   });
 });
 
@@ -142,6 +163,8 @@ describe("formatting", () => {
 
   it("reports coverage with the exact-match share", () => {
     const lines = formatCoverage(coverage).map(strip);
+    expect(lines[0]).toBe("Coverage — all friends");
+    expect(strip(formatCoverage(coverage, 6)[0])).toBe("Coverage — friend 6");
     expect(lines[1]).toBe("  exact matches  2/8 values (25.0%)");
     expect(lines[2]).toBe("  proposals      3 pending, 2 accepted, 1 edited, 0 rejected");
     expect(lines[3]).toContain("4 with genres, 1 descriptors only, 1 no genre, 4 unresolved — of 10");
@@ -196,12 +219,14 @@ describe("runReconcile()", () => {
   it("starts, polls, and prints the summary and coverage", async () => {
     const c = client();
     const io = captureIO();
+    loadConfig.mockReturnValue({ default_friend_id: 6 });
     await expect(runReconcile(c, { limit: 10, pollInterval: 1 }, io)).resolves.toBe(0);
-    expect(c.startGenreReconciliation).toHaveBeenCalledWith({ limit: 10 });
+    expect(c.startGenreReconciliation).toHaveBeenCalledWith({ limit: 10, friend_id: 6 });
+    expect(c.getGenreReconciliationCoverage).toHaveBeenCalledWith(6);
     expect(io.written).toContain("mapping  70/70 values");
-    expect(io.lines[0]).toBe("Reconciling local_tags — run run-1");
+    expect(io.lines[0]).toBe("Reconciling local_tags — friend 6, run run-1");
     expect(io.lines).toContain("  = 20 exact matches");
-    expect(io.lines).toContain("Coverage");
+    expect(io.lines).toContain("Coverage — friend 6");
   });
 
   it("exits 1 when the run failed, also with --json", async () => {
@@ -241,7 +266,9 @@ describe("runProposals() and runCoverage()", () => {
     const getGenreReconciliationCoverage = vi.fn().mockResolvedValue(coverage);
     const io = captureIO();
     await runCoverage({ getGenreReconciliationCoverage }, {}, io);
-    expect(io.lines[0]).toBe("Coverage");
+    expect(io.lines[0]).toBe("Coverage — all friends");
+    await runCoverage({ getGenreReconciliationCoverage }, { friendId: 2 }, captureIO());
+    expect(getGenreReconciliationCoverage).toHaveBeenLastCalledWith(2);
     const json = captureIO();
     await runCoverage({ getGenreReconciliationCoverage }, { json: true }, json);
     expect(JSON.parse(json.written)).toEqual(coverage);
@@ -302,6 +329,16 @@ describe("addGenresCommands()", () => {
   it("coverage prints the report", async () => {
     await parse("coverage", "--json");
     expect(methods.getGenreReconciliationCoverage).toHaveBeenCalled();
+  });
+
+  it("scopes to the configured friend unless told otherwise", async () => {
+    loadConfig.mockReturnValue({ api_base: "http://localhost:3000/api", default_friend_id: 6 });
+    await parse("reconcile", "--no-wait");
+    expect(methods.startGenreReconciliation).toHaveBeenLastCalledWith({ friend_id: 6 });
+    await parse("reconcile", "--all-friends", "--no-wait");
+    expect(methods.startGenreReconciliation).toHaveBeenLastCalledWith({});
+    await parse("coverage", "--friend-id", "2");
+    expect(methods.getGenreReconciliationCoverage).toHaveBeenLastCalledWith(2);
   });
 
   it("reports API errors and exits 1", async () => {

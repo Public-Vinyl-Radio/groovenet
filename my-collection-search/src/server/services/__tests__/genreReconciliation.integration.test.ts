@@ -16,6 +16,7 @@ import { mergeGenres } from "../genreAdminService";
 // throughout; the model step is covered by unit tests.
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const USERNAME = "genre-reconciliation-test";
+const OTHER = "genre-reconciliation-other";
 let friendId: number;
 
 async function genreId(name: string): Promise<string> {
@@ -31,10 +32,10 @@ async function proposalFor(value: string) {
 async function cleanup() {
   await dbQuery("DELETE FROM genre_reconciliation_proposals");
   await dbQuery("DELETE FROM genre_reconciliation_runs");
-  await dbQuery("DELETE FROM tracks WHERE username = $1", [USERNAME]);
+  await dbQuery("DELETE FROM tracks WHERE username = ANY($1)", [[USERNAME, OTHER]]);
   await dbQuery("DELETE FROM genre_aliases WHERE source = 'reconciliation' OR alias_normalized LIKE 'recon test %'");
   await dbQuery("DELETE FROM genres WHERE name LIKE 'Recon Test %'");
-  await dbQuery("DELETE FROM friends WHERE username = $1", [USERNAME]);
+  await dbQuery("DELETE FROM friends WHERE username = ANY($1)", [[USERNAME, OTHER]]);
 }
 
 beforeAll(async () => {
@@ -170,5 +171,39 @@ describe("local_tags reconciliation", () => {
     const after = await proposalFor("cumbia");
     expect(after.target_genre_ids).toEqual([await genreId("Cumbia")]);
     expect((await proposalFor("recon test psych")).created_genre_id).toBe(await genreId("Cumbia"));
+  });
+
+  dbTest("scopes a run, an apply and coverage to one friend", async () => {
+    const { rows } = await dbQuery<{ id: number }>(
+      "INSERT INTO friends (username) VALUES ($1) RETURNING id",
+      [OTHER]
+    );
+    const otherId = rows[0].id;
+    await dbQuery(
+      `INSERT INTO tracks (track_id, username, friend_id, title, artist, local_tags)
+       VALUES ('rc-other', $1, $2, 'Title', 'Artist', 'Cumbia · Recon Other Only')`,
+      [OTHER, otherId]
+    );
+
+    const options = { ...defaultRunOptions, ai: false, friend_id: friendId };
+    const run = (await repo.createRun(options, null))!;
+    await executeRun(run.id, options);
+    expect(await repo.getRun(run.id)).toMatchObject({ distinct_values: 5, options: { friend_id: friendId } });
+    // The other friend's value is neither proposed nor counted.
+    expect(await proposalFor("recon other only")).toBeUndefined();
+    expect((await proposalFor("cumbia")).track_count).toBe(2);
+
+    await applyProposals(undefined, friendId);
+    const { rows: otherLinks } = await dbQuery("SELECT 1 FROM track_genres WHERE track_id = 'rc-other'");
+    expect(otherLinks).toEqual([]);
+
+    expect((await getCoverage(otherId)).tracks).toEqual({
+      with_local_tags: 1, with_genres: 0, descriptors_only: 0, no_genre: 0, unresolved: 1,
+    });
+    expect((await getCoverage(friendId)).tracks.with_local_tags).toBe(5);
+
+    await applyProposals(undefined, otherId);
+    const { rows: linked } = await dbQuery("SELECT 1 FROM track_genres WHERE track_id = 'rc-other'");
+    expect(linked).toHaveLength(1);
   });
 });

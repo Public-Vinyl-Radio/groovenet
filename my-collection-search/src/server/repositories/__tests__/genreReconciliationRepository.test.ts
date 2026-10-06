@@ -11,16 +11,18 @@ beforeEach(() => {
   dbQuery.mockReset().mockResolvedValue({ rows: [], rowCount: 0 });
 });
 
-const options = { ai: true, new_genre_min_tracks: 5, limit: null, refresh: false };
+const options = { ai: true, new_genre_min_tracks: 5, limit: null, refresh: false, friend_id: null };
 
 describe("genreReconciliationRepository", () => {
   it("lists live tagged tracks through the pool or a transaction client", async () => {
     dbQuery.mockResolvedValue({ rows: [{ track_id: "1" }] });
     await expect(repo.listLocalTagTracks()).resolves.toEqual([{ track_id: "1" }]);
     expect(dbQuery.mock.calls[0][0]).toContain("t.deleted_at IS NULL");
+    expect(dbQuery.mock.calls[0][1]).toEqual([null]);
 
     const client = { query: vi.fn().mockResolvedValue({ rows: [{ track_id: "2" }] }) };
-    await expect(repo.listLocalTagTracks(client as never)).resolves.toEqual([{ track_id: "2" }]);
+    await expect(repo.listLocalTagTracks(client as never, 6)).resolves.toEqual([{ track_id: "2" }]);
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("t.friend_id = $1"), [6]);
   });
 
   it("lists the taxonomy with parent names", async () => {
@@ -125,8 +127,11 @@ describe("genreReconciliationRepository", () => {
     dbQuery
       .mockResolvedValueOnce({ rows: [{ key: "1:6" }] })
       .mockResolvedValueOnce({ rows: [{ key: "2:6" }] });
-    const state = await repo.listTrackGenreState();
+    const state = await repo.listTrackGenreState(6);
     expect([...state.linked]).toEqual(["1:6"]);
     expect([...state.described]).toEqual(["2:6"]);
+    expect(dbQuery.mock.calls.map(([, params]) => params)).toEqual([[6], [6]]);
+    await repo.listTrackGenreState();
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
   });
 });

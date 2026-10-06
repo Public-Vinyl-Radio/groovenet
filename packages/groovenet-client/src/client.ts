@@ -456,8 +456,12 @@ export class GroovenetClient {
     return this.request<GenreReconciliationRun>("GET", `/genres/reconciliation/runs/${encodeURIComponent(id)}`);
   }
 
-  async getGenreReconciliationCoverage(): Promise<GenreReconciliationCoverage> {
-    return this.request<GenreReconciliationCoverage>("GET", "/genres/reconciliation/coverage");
+  /** Coverage for one friend's tracks, or everyone's when `friendId` is omitted. */
+  async getGenreReconciliationCoverage(friendId?: number): Promise<GenreReconciliationCoverage> {
+    return this.request<GenreReconciliationCoverage>(
+      "GET", "/genres/reconciliation/coverage", undefined,
+      friendId === undefined ? undefined : { friend_id: friendId }
+    );
   }
 
   async listGenreProposals(query: GenreProposalQuery = {}): Promise<GenreProposalListResponse> {
@@ -468,9 +472,15 @@ export class GroovenetClient {
     return this.request<GenreProposal>("PATCH", `/genres/proposals/${encodeURIComponent(id)}`, update);
   }
 
-  /** Apply accepted and edited proposals: all of them, or just `ids`. */
-  async applyGenreProposals(ids?: string[]): Promise<GenreProposalApplyResult> {
-    return this.request<GenreProposalApplyResult>("POST", "/genres/proposals/apply", ids ? { ids } : {});
+  /**
+   * Apply accepted and edited proposals: all of them, or just `ids`; to every
+   * friend's tracks, or just `friendId`'s.
+   */
+  async applyGenreProposals(ids?: string[], friendId?: number): Promise<GenreProposalApplyResult> {
+    return this.request<GenreProposalApplyResult>("POST", "/genres/proposals/apply", {
+      ...(ids ? { ids } : {}),
+      ...(friendId === undefined ? {} : { friend_id: friendId }),
+    });
   }
 
   async getFriends(): Promise<Friend[]> {

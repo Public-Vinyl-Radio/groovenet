@@ -14,6 +14,8 @@ export type ReconciliationRunOptions = {
   limit: number | null;
   /** Re-ask the model for values whose pending proposal came from it. */
   refresh: boolean;
+  /** Only this friend's tracks; null for every friend. */
+  friend_id: number | null;
 };
 
 export type ReconciliationRun = {
@@ -120,18 +122,21 @@ const PROPOSAL_SELECT = `
 
 export class GenreReconciliationRepository {
   /**
-   * Every live track with `local_tags`, with its album's styles as AI context
-   * (the album's Discogs styles, falling back to the track's own copy, then
-   * genres when there are no styles at all).
+   * Every live track with `local_tags` (one friend's, or everyone's), with its
+   * album's styles as AI context (the album's Discogs styles, falling back to
+   * the track's own copy, then genres when there are no styles at all).
    */
-  async listLocalTagTracks(client?: PoolClient): Promise<LocalTagTrack[]> {
+  async listLocalTagTracks(client?: PoolClient, friendId: number | null = null): Promise<LocalTagTrack[]> {
     const sql = `
       SELECT t.track_id, t.friend_id, t.local_tags,
         COALESCE(NULLIF(a.styles, '{}'), NULLIF(t.styles, '{}'), NULLIF(a.genres, '{}'), t.genres, '{}') AS styles
       FROM tracks t
       LEFT JOIN albums a ON a.release_id = t.release_id AND a.friend_id = t.friend_id
-      WHERE t.deleted_at IS NULL AND NULLIF(btrim(t.local_tags), '') IS NOT NULL`;
-    const { rows } = client ? await client.query<LocalTagTrack>(sql) : await dbQuery<LocalTagTrack>(sql);
+      WHERE t.deleted_at IS NULL AND NULLIF(btrim(t.local_tags), '') IS NOT NULL
+        AND ($1::integer IS NULL OR t.friend_id = $1)`;
+    const { rows } = client
+      ? await client.query<LocalTagTrack>(sql, [friendId])
+      : await dbQuery<LocalTagTrack>(sql, [friendId]);
     return rows;
   }
 
@@ -205,7 +210,9 @@ export class GenreReconciliationRepository {
 
   /**
    * Refreshes examples and counts for values a run did not re-propose, and
-   * zeroes the count of values no track uses any more.
+   * zeroes the count of values no track in the run's scope uses. Counts so
+   * always describe the latest run's scope: after a one-friend run, another
+   * friend's values read 0 until a run that includes them.
    */
   async refreshProposalStats(stats: ProposalStats[]): Promise<void> {
     await dbQuery(
@@ -331,12 +338,18 @@ export class GenreReconciliationRepository {
     return rows;
   }
 
-  /** Every track with a taxonomy link, and every track with descriptors. */
-  async listTrackGenreState(): Promise<{ linked: Set<string>; described: Set<string> }> {
+  /** Tracks with a taxonomy link, and tracks with descriptors (one friend's, or everyone's). */
+  async listTrackGenreState(friendId: number | null = null): Promise<{ linked: Set<string>; described: Set<string> }> {
     const [linked, described] = await Promise.all([
-      dbQuery<{ key: string }>("SELECT DISTINCT track_id || ':' || friend_id AS key FROM track_genres"),
       dbQuery<{ key: string }>(
-        "SELECT track_id || ':' || friend_id AS key FROM tracks WHERE cardinality(descriptors) > 0"
+        `SELECT DISTINCT track_id || ':' || friend_id AS key FROM track_genres
+         WHERE $1::integer IS NULL OR friend_id = $1`,
+        [friendId]
+      ),
+      dbQuery<{ key: string }>(
+        `SELECT track_id || ':' || friend_id AS key FROM tracks
+         WHERE cardinality(descriptors) > 0 AND ($1::integer IS NULL OR friend_id = $1)`,
+        [friendId]
       ),
     ]);
     return {

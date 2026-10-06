@@ -49,6 +49,7 @@ export const defaultRunOptions: ReconciliationRunOptions = {
   new_genre_min_tracks: 5,
   limit: null,
   refresh: false,
+  friend_id: null,
 };
 
 /** Statuses a run leaves alone: a person has decided. */
@@ -125,7 +126,7 @@ export async function startRun(input: Partial<ReconciliationRunOptions>): Promis
 
 export async function executeRun(runId: string, options: ReconciliationRunOptions): Promise<void> {
   try {
-    const values = collectLocalTagValues(await repo.listLocalTagTracks());
+    const values = collectLocalTagValues(await repo.listLocalTagTracks(undefined, options.friend_id));
     const existing = await repo.listProposalStates();
     const exactIds = await repo.resolveExactValues(values.map((value) => value.value_normalized));
     const plan = planRun(values, existing, exactIds, options);
@@ -272,12 +273,14 @@ const genreSlug = (name: string) =>
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 /**
- * Applies accepted and edited proposals, all of them or just `ids`. Safe to
- * repeat: links and aliases are inserted with ON CONFLICT DO NOTHING and a
- * created genre is reused, so a second apply only picks up tracks tagged since.
- * Links are added, never replaced, so manual and enrichment genres survive.
+ * Applies accepted and edited proposals, all of them or just `ids`, to every
+ * friend's tracks or just `friendId`'s. Safe to repeat: links and aliases are
+ * inserted with ON CONFLICT DO NOTHING and a created genre is reused, so a
+ * second apply only picks up tracks tagged since. Links are added, never
+ * replaced, so manual and enrichment genres survive. Aliases and created
+ * genres are global whatever the scope, like the taxonomy.
  */
-export async function applyProposals(ids?: string[]): Promise<ApplySummary> {
+export async function applyProposals(ids?: string[], friendId: number | null = null): Promise<ApplySummary> {
   return withDbTransaction(async (client) => {
     // Same lock order as genreAdminService.mergeGenres, so the two serialise.
     await client.query("LOCK TABLE genres, genre_aliases IN SHARE ROW EXCLUSIVE MODE");
@@ -285,7 +288,7 @@ export async function applyProposals(ids?: string[]): Promise<ApplySummary> {
 
     const proposals = await repo.listApprovedProposals(client, ids);
     const tracksByValue = new Map<string, Array<{ track_id: string; friend_id: number }>>();
-    for (const track of await repo.listLocalTagTracks(client)) {
+    for (const track of await repo.listLocalTagTracks(client, friendId)) {
       for (const value of localTagValues(track.local_tags)) {
         const list = tracksByValue.get(value) ?? [];
         list.push({ track_id: track.track_id, friend_id: track.friend_id });
@@ -432,15 +435,15 @@ export type Coverage = {
 };
 
 /**
- * How far reconciliation has got. Every track with `local_tags` lands in one
- * bucket: it has a taxonomy genre; failing that, descriptors; failing that,
- * every one of its values was reviewed as `drop` (explicitly no genre); or it
- * is still unresolved.
+ * How far reconciliation has got, for one friend or everyone. Every track
+ * with `local_tags` lands in one bucket: it has a taxonomy genre; failing
+ * that, descriptors; failing that, every one of its values was reviewed as
+ * `drop` (explicitly no genre); or it is still unresolved.
  */
-export async function getCoverage(): Promise<Coverage> {
+export async function getCoverage(friendId: number | null = null): Promise<Coverage> {
   const [tracks, { linked, described }, proposals] = await Promise.all([
-    repo.listLocalTagTracks(),
-    repo.listTrackGenreState(),
+    repo.listLocalTagTracks(undefined, friendId),
+    repo.listTrackGenreState(friendId),
     repo.listProposalStates(),
   ]);
 
