@@ -92,7 +92,14 @@ groovenet genres reconcile --no-ai            # exact matches only, free
 groovenet genres reconcile --limit 200        # cap the values sent to the model
 groovenet genres proposals --status pending --method ai
 groovenet genres coverage                     # how much of the backlog is done
+groovenet genres reconcile --all-friends      # every library, not just yours
 ```
+
+`reconcile` and `coverage` cover one friend's tracks: `--friend-id`, else
+`default_friend_id` from config, else everyone; `--all-friends` forces everyone.
+Proposals stay global (one per spelling, like aliases), but a scoped run only
+proposes values from that friend's tracks, and their `track_count` reflects the
+latest run's scope.
 
 A run only proposes; nothing touches a track until a proposal is accepted and
 applied (`PATCH /api/genres/proposals/{id}`, `POST /api/genres/proposals/apply`).

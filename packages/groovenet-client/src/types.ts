@@ -113,12 +113,14 @@ export interface GenreReconciliationRequest {
   limit?: number | null;
   /** Re-ask the model for values with a pending AI proposal. */
   refresh?: boolean;
+  /** Only this friend's tracks; omit or null for every friend. */
+  friend_id?: number | null;
 }
 
 export interface GenreReconciliationRun {
   id: string;
   status: "running" | "completed" | "failed";
-  options: { ai: boolean; new_genre_min_tracks: number; limit: number | null; refresh: boolean };
+  options: { ai: boolean; new_genre_min_tracks: number; limit: number | null; refresh: boolean; friend_id: number | null };
   model: string | null;
   distinct_values: number;
   exact_matches: number;

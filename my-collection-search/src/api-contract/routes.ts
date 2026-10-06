@@ -83,6 +83,7 @@ import {
   genreReconciliationRunBodySchema,
   genreReconciliationRunSchema,
   genreReconciliationCoverageSchema,
+  genreReconciliationCoverageQuerySchema,
   genreProposalListQuerySchema,
   genreProposalListResponseSchema,
   genreProposalUpdateBodySchema,
@@ -3374,8 +3375,9 @@ const genreReconciliationRunSchemaObject: Record<string, unknown> = {
       properties: {
         ai: { type: "boolean" }, new_genre_min_tracks: integer,
         limit: { type: ["integer", "null"] }, refresh: { type: "boolean" },
+        friend_id: { type: ["integer", "null"], description: "The run's scope; null for every friend" },
       },
-      required: ["ai", "new_genre_min_tracks", "limit", "refresh"],
+      required: ["ai", "new_genre_min_tracks", "limit", "refresh", "friend_id"],
     },
     model: nullableString,
     distinct_values: { ...integer, description: "Distinct normalised local_tags values" },
@@ -3490,6 +3492,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
             new_genre_min_tracks: { type: "integer", minimum: 1, default: 5, description: "Fewest tracks a value needs before the model may propose a new genre for it" },
             limit: { type: ["integer", "null"], minimum: 1, description: "Most values sent to the model this run" },
             refresh: { type: "boolean", default: false, description: "Re-ask the model for values with a pending AI proposal" },
+            friend_id: { type: ["integer", "null"], minimum: 1, description: "Only this friend's tracks; omit or null for every friend. Proposals stay global, but their track counts then describe this scope." },
           },
           additionalProperties: false,
         } } },
@@ -3529,11 +3532,16 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     path: "/api/genres/reconciliation/coverage",
     summary: "How much of the local_tags backlog is reconciled, and the exact-match share",
     tags: ["Genre Reconciliation"],
+    querySchema: genreReconciliationCoverageQuerySchema,
     successSchema: genreReconciliationCoverageSchema,
     errorSchema: apiErrorSchema,
     openapi: {
+      parameters: [
+        { name: "friend_id", in: "query", required: false, description: "Only this friend's tracks", schema: { type: "integer", minimum: 1 } },
+      ],
       responses: {
         "200": { description: "Coverage", content: { "application/json": { schema: genreReconciliationCoverageSchemaObject } } },
+        "400": reconciliationError("Invalid friend_id"),
       },
     },
   },
@@ -3618,7 +3626,10 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         required: false,
         content: { "application/json": { schema: {
           type: "object",
-          properties: { ids: { type: "array", minItems: 1, items: genreUuid, description: "Only these proposals; all accepted and edited ones when omitted" } },
+          properties: {
+            ids: { type: "array", minItems: 1, items: genreUuid, description: "Only these proposals; all accepted and edited ones when omitted" },
+            friend_id: { type: "integer", minimum: 1, description: "Only link this friend's tracks; aliases and created genres are global either way" },
+          },
           additionalProperties: false,
         } } },
       },

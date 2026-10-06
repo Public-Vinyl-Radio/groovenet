@@ -2243,6 +2243,7 @@ export const genreReconciliationRunBodySchema = z
     new_genre_min_tracks: z.number().int().min(1).optional(),
     limit: z.number().int().min(1).nullable().optional(),
     refresh: z.boolean().optional(),
+    friend_id: z.number().int().min(1).nullable().optional(),
   })
   .strict();
 
@@ -2254,6 +2255,8 @@ export const genreReconciliationRunSchema = z.object({
     new_genre_min_tracks: z.number().int(),
     limit: z.number().int().nullable(),
     refresh: z.boolean(),
+    // Runs from before the friend scope have no friend_id: they covered everyone.
+    friend_id: z.number().int().nullable().default(null),
   }),
   model: z.string().nullable(),
   distinct_values: z.number().int(),
@@ -2320,8 +2323,15 @@ export const genreProposalUpdateBodySchema = z
   });
 
 export const genreProposalApplyBodySchema = z
-  .object({ ids: z.array(z.string().uuid()).min(1).optional() })
+  .object({
+    ids: z.array(z.string().uuid()).min(1).optional(),
+    friend_id: z.number().int().min(1).optional(),
+  })
   .strict();
+
+export const genreReconciliationCoverageQuerySchema = z.object({
+  friend_id: intFromInputSchema.pipe(z.number().int().min(1)).optional(),
+});
 
 export const genreProposalApplyResponseSchema = z.object({
   proposals_applied: z.number().int(),

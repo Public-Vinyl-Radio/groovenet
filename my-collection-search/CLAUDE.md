@@ -155,6 +155,10 @@ POST /api/genres/proposals/apply       accepted → track_genres + descriptors +
 - **One proposal per normalised value**, global like the taxonomy, so one
   decision covers every track and friend using that spelling.
   `src/lib/genres/localTags.ts` splits on `,` `·` `•`, never `/` (#369).
+- **Scope is per run, apply and coverage** (`friend_id`, null for everyone).
+  Proposals, aliases and created genres stay global; a scoped run only
+  proposes values from that friend's tracks, `track_count` describes the
+  latest run's scope, and a scoped apply only links that friend's tracks.
 - **A run never overwrites a review.** Reviewed rows keep their decision and
   only refresh their counts; a pending AI proposal is kept unless `refresh`, so
   a re-run doesn't pay twice. An exact match always replaces a pending one.

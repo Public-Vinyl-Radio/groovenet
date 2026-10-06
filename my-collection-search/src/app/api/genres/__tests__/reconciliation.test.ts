@@ -64,14 +64,15 @@ describe("POST /api/genres/reconciliation/runs", () => {
     service.startRun.mockResolvedValue(run);
     const response = await startRun(req());
     expect(response.status).toBe(202);
-    expect(await response.json()).toMatchObject({ id, started_at: now.toISOString() });
+    // `run` predates the friend scope: its options have no friend_id.
+    expect(await response.json()).toMatchObject({ id, started_at: now.toISOString(), options: { friend_id: null } });
     expect(service.startRun).toHaveBeenCalledWith({});
   });
 
   it("passes options and validates them", async () => {
     service.startRun.mockResolvedValue(run);
-    await startRun(req(JSON.stringify({ ai: false, limit: 10 })));
-    expect(service.startRun).toHaveBeenCalledWith({ ai: false, limit: 10 });
+    await startRun(req(JSON.stringify({ ai: false, limit: 10, friend_id: 6 })));
+    expect(service.startRun).toHaveBeenCalledWith({ ai: false, limit: 10, friend_id: 6 });
     expect((await startRun(req(JSON.stringify({ limit: 0 })))).status).toBe(400);
     expect((await startRun(req(JSON.stringify({ bogus: true })))).status).toBe(400);
     expect((await startRun(req("{"))).status).toBe(400);
@@ -107,11 +108,22 @@ describe("GET /api/genres/reconciliation/runs/{id}", () => {
 });
 
 describe("GET /api/genres/reconciliation/coverage", () => {
-  it("returns coverage or a 500", async () => {
-    service.getCoverage.mockResolvedValueOnce(coverage).mockRejectedValueOnce(new Error("x"));
-    const ok = await getCoverage();
+  const coverageReq = (query = "") => new NextRequest(`http://localhost/api/genres/reconciliation/coverage${query}`);
+
+  it("returns coverage for everyone or one friend, or a 500", async () => {
+    service.getCoverage.mockResolvedValue(coverage);
+    const ok = await getCoverage(coverageReq());
     expect(await ok.json()).toEqual(coverage);
-    expect((await getCoverage()).status).toBe(500);
+    expect(service.getCoverage).toHaveBeenCalledWith(null);
+    await getCoverage(coverageReq("?friend_id=6"));
+    expect(service.getCoverage).toHaveBeenLastCalledWith(6);
+    service.getCoverage.mockRejectedValueOnce(new Error("x"));
+    expect((await getCoverage(coverageReq())).status).toBe(500);
+  });
+
+  it("rejects a bad friend_id", async () => {
+    expect((await getCoverage(coverageReq("?friend_id=0"))).status).toBe(400);
+    expect(service.getCoverage).not.toHaveBeenCalled();
   });
 });
 
@@ -155,9 +167,9 @@ describe("POST /api/genres/proposals/apply", () => {
   it("applies all approved proposals, or the ones named", async () => {
     service.applyProposals.mockResolvedValue(summary);
     expect(await (await applyProposals(req())).json()).toEqual(summary);
-    expect(service.applyProposals).toHaveBeenCalledWith(undefined);
-    await applyProposals(req(JSON.stringify({ ids: [id] })));
-    expect(service.applyProposals).toHaveBeenLastCalledWith([id]);
+    expect(service.applyProposals).toHaveBeenCalledWith(undefined, null);
+    await applyProposals(req(JSON.stringify({ ids: [id], friend_id: 6 })));
+    expect(service.applyProposals).toHaveBeenLastCalledWith([id], 6);
   });
 
   it("rejects bad ids and reports failures", async () => {
