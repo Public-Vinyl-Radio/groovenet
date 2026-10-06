@@ -28,7 +28,7 @@ describe("syncIdentityEmbeddings", () => {
       { track_id: "t0", friend_id: 1, kind: "context" },
       { track_id: "t1", friend_id: 1, kind: "identity" },
       { track_id: "t1", friend_id: 1, kind: "context" },
-    ]);
+    ], "sync");
   });
 
   it("does nothing for an empty list", async () => {
