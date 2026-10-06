@@ -201,6 +201,17 @@ describe("SearchResults following a navigation (#376)", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
+  it("takes the search mode and query from the URL it navigated to", async () => {
+    const { rerender } = renderWithProviders(<SearchResults />);
+
+    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&genre=cumbia");
+    rerender(<SearchResults />);
+
+    await waitFor(() => expect(lastSearchMode()).toBe("semantic"));
+    expect(lastGenres()).toEqual(["cumbia"]);
+    expect(mocks.setQuery).toHaveBeenCalledWith("dub");
+  });
+
   it("doesn't mistake its own write landing for a navigation", async () => {
     const { user, rerender } = renderWithProviders(<SearchResults />);
     await user.click(screen.getByRole("button", { name: "Missing audio" }));
