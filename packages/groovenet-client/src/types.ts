@@ -98,6 +98,114 @@ export interface GenreTreeResponse {
   genres: GenreTreeNode[];
 }
 
+// ── Genre reconciliation (#372) ─────────────────────────────────────────────
+
+export type GenreProposalAction = "map" | "new_genre" | "descriptor" | "drop";
+export type GenreProposalMethod = "exact" | "ai" | "manual";
+export type GenreProposalStatus = "pending" | "accepted" | "rejected" | "edited";
+
+export interface GenreReconciliationRequest {
+  /** false proposes exact matches only. Default true. */
+  ai?: boolean;
+  /** Fewest tracks a value needs before the model may propose a new genre. Default 5. */
+  new_genre_min_tracks?: number;
+  /** Most values sent to the model this run. */
+  limit?: number | null;
+  /** Re-ask the model for values with a pending AI proposal. */
+  refresh?: boolean;
+}
+
+export interface GenreReconciliationRun {
+  id: string;
+  status: "running" | "completed" | "failed";
+  options: { ai: boolean; new_genre_min_tracks: number; limit: number | null; refresh: boolean };
+  model: string | null;
+  distinct_values: number;
+  exact_matches: number;
+  kept: number;
+  ai_pending: number;
+  ai_proposed: number;
+  ai_failed: number;
+  ai_batches: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  error: string | null;
+  started_at: string;
+  updated_at: string;
+  finished_at: string | null;
+}
+
+export interface GenreProposal {
+  id: string;
+  value_normalized: string;
+  raw_examples: string[];
+  track_count: number;
+  action: GenreProposalAction;
+  target_genre_ids: string[];
+  target_genres: Array<{ id: string; name: string; parent_name: string | null }>;
+  proposed_genre_name: string | null;
+  proposed_parent_id: string | null;
+  proposed_parent_name: string | null;
+  confidence: number | null;
+  method: GenreProposalMethod;
+  status: GenreProposalStatus;
+  run_id: string | null;
+  created_genre_id: string | null;
+  applied_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GenreProposalQuery {
+  status?: GenreProposalStatus;
+  action?: GenreProposalAction;
+  method?: GenreProposalMethod;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GenreProposalListResponse {
+  proposals: GenreProposal[];
+  total: number;
+}
+
+export interface GenreProposalUpdate {
+  status?: GenreProposalStatus;
+  action?: GenreProposalAction;
+  /** Genre ids, or names resolved through the taxonomy. */
+  target_genres?: string[];
+  proposed_genre_name?: string | null;
+  proposed_parent_id?: string | null;
+}
+
+export interface GenreProposalApplyResult {
+  proposals_applied: number;
+  tracks_linked: number;
+  descriptors_added: number;
+  aliases_added: number;
+  genres_created: number;
+  skipped: Array<{ id: string; value: string; reason: string }>;
+}
+
+export interface GenreReconciliationCoverage {
+  tracks: {
+    with_local_tags: number;
+    with_genres: number;
+    descriptors_only: number;
+    no_genre: number;
+    unresolved: number;
+  };
+  values: {
+    distinct: number;
+    proposed: number;
+    exact: number;
+    exact_share: number;
+    by_status: Record<GenreProposalStatus, number>;
+    by_action: Record<GenreProposalAction, number>;
+  };
+}
+
 export interface Album {
   release_id: string;
   friend_id: number;

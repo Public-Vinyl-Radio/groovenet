@@ -9,6 +9,9 @@ import type {
   Friend,
   GenreTreeResponse,
   Genre, GenreCreateInput, GenreUpdateInput, GenreAliasResponse, GenreMergeResponse,
+  GenreReconciliationRequest, GenreReconciliationRun, GenreReconciliationCoverage,
+  GenreProposal, GenreProposalQuery, GenreProposalListResponse, GenreProposalUpdate,
+  GenreProposalApplyResult,
   Album,
   AlbumSearchQuery,
   AlbumSearchResponse,
@@ -438,6 +441,36 @@ export class GroovenetClient {
 
   async getGenres(): Promise<GenreTreeResponse> {
     return this.request<GenreTreeResponse>("GET", "/genres");
+  }
+
+  /**
+   * Start a local_tags reconciliation run. Returns once the run exists, not
+   * when it finishes: poll `getGenreReconciliationRun` until it is no longer
+   * `running`. Fails with a 409 while another run is in progress.
+   */
+  async startGenreReconciliation(request: GenreReconciliationRequest = {}): Promise<GenreReconciliationRun> {
+    return this.request<GenreReconciliationRun>("POST", "/genres/reconciliation/runs", request);
+  }
+
+  async getGenreReconciliationRun(id: string): Promise<GenreReconciliationRun> {
+    return this.request<GenreReconciliationRun>("GET", `/genres/reconciliation/runs/${encodeURIComponent(id)}`);
+  }
+
+  async getGenreReconciliationCoverage(): Promise<GenreReconciliationCoverage> {
+    return this.request<GenreReconciliationCoverage>("GET", "/genres/reconciliation/coverage");
+  }
+
+  async listGenreProposals(query: GenreProposalQuery = {}): Promise<GenreProposalListResponse> {
+    return this.request<GenreProposalListResponse>("GET", "/genres/proposals", undefined, { ...query });
+  }
+
+  async updateGenreProposal(id: string, update: GenreProposalUpdate): Promise<GenreProposal> {
+    return this.request<GenreProposal>("PATCH", `/genres/proposals/${encodeURIComponent(id)}`, update);
+  }
+
+  /** Apply accepted and edited proposals: all of them, or just `ids`. */
+  async applyGenreProposals(ids?: string[]): Promise<GenreProposalApplyResult> {
+    return this.request<GenreProposalApplyResult>("POST", "/genres/proposals/apply", ids ? { ids } : {});
   }
 
   async getFriends(): Promise<Friend[]> {

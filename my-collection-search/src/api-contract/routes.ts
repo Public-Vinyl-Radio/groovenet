@@ -80,6 +80,15 @@ import {
   genreMutationResponseSchema,
   genreAliasResponseSchema,
   genreMergeResponseSchema,
+  genreReconciliationRunBodySchema,
+  genreReconciliationRunSchema,
+  genreReconciliationCoverageSchema,
+  genreProposalListQuerySchema,
+  genreProposalListResponseSchema,
+  genreProposalUpdateBodySchema,
+  genreProposalSchema,
+  genreProposalApplyBodySchema,
+  genreProposalApplyResponseSchema,
   jobDetailsResponseSchema,
   jobsClearResponseSchema,
   jobsEventsSseResponseSchema,
@@ -3336,8 +3345,296 @@ const genreMutationContracts: ApiContractRoute[] = ([
   };
 });
 
+// ─── Genre reconciliation (#372) ─────────────────────────────────────────────
+
+const proposalActionEnum = { type: "string", enum: ["map", "new_genre", "descriptor", "drop"] };
+const proposalMethodEnum = { type: "string", enum: ["exact", "ai", "manual"] };
+const proposalStatusEnum = { type: "string", enum: ["pending", "accepted", "rejected", "edited"] };
+const nullableUuid = { type: ["string", "null"], format: "uuid" };
+const nullableString = { type: ["string", "null"] };
+const dateTime = { type: "string", format: "date-time" };
+const integer = { type: "integer" };
+
+const genreReconciliationRunSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: genreUuid,
+    status: { type: "string", enum: ["running", "completed", "failed"] },
+    options: {
+      type: "object",
+      properties: {
+        ai: { type: "boolean" }, new_genre_min_tracks: integer,
+        limit: { type: ["integer", "null"] }, refresh: { type: "boolean" },
+      },
+      required: ["ai", "new_genre_min_tracks", "limit", "refresh"],
+    },
+    model: nullableString,
+    distinct_values: { ...integer, description: "Distinct normalised local_tags values" },
+    exact_matches: { ...integer, description: "Values proposed by exact taxonomy name or alias match" },
+    kept: { ...integer, description: "Values whose reviewed or pending proposal was kept" },
+    ai_pending: { ...integer, description: "Values left for a later run (AI off, or over `limit`)" },
+    ai_proposed: integer,
+    ai_failed: integer,
+    ai_batches: integer,
+    input_tokens: integer,
+    output_tokens: integer,
+    cost_usd: { type: "number" },
+    error: nullableString,
+    started_at: dateTime,
+    updated_at: dateTime,
+    finished_at: { type: ["string", "null"], format: "date-time" },
+  },
+  required: [
+    "id", "status", "options", "model", "distinct_values", "exact_matches", "kept", "ai_pending",
+    "ai_proposed", "ai_failed", "ai_batches", "input_tokens", "output_tokens", "cost_usd", "error",
+    "started_at", "updated_at", "finished_at",
+  ],
+};
+
+const genreProposalSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: genreUuid,
+    value_normalized: { type: "string" },
+    raw_examples: { type: "array", items: { type: "string" } },
+    track_count: integer,
+    action: proposalActionEnum,
+    target_genre_ids: { type: "array", items: genreUuid },
+    target_genres: {
+      type: "array",
+      description: "Target genres that still exist, in order",
+      items: {
+        type: "object",
+        properties: { id: genreUuid, name: { type: "string" }, parent_name: nullableString },
+        required: ["id", "name", "parent_name"],
+      },
+    },
+    proposed_genre_name: { ...nullableString, description: "For new_genre: the genre to create" },
+    proposed_parent_id: nullableUuid,
+    proposed_parent_name: nullableString,
+    confidence: { type: ["number", "null"], minimum: 0, maximum: 1 },
+    method: proposalMethodEnum,
+    status: proposalStatusEnum,
+    run_id: nullableUuid,
+    created_genre_id: nullableUuid,
+    applied_at: { type: ["string", "null"], format: "date-time" },
+    created_at: dateTime,
+    updated_at: dateTime,
+  },
+  required: [
+    "id", "value_normalized", "raw_examples", "track_count", "action", "target_genre_ids",
+    "target_genres", "proposed_genre_name", "proposed_parent_id", "proposed_parent_name",
+    "confidence", "method", "status", "run_id", "created_genre_id", "applied_at", "created_at", "updated_at",
+  ],
+};
+
+const countsObject = (keys: string[]) => ({
+  type: "object",
+  properties: Object.fromEntries(keys.map((key) => [key, integer])),
+  required: keys,
+});
+
+const genreReconciliationCoverageSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    tracks: {
+      ...countsObject(["with_local_tags", "with_genres", "descriptors_only", "no_genre", "unresolved"]),
+      description: "Every track with local_tags is in exactly one of the last four buckets",
+    },
+    values: {
+      type: "object",
+      properties: {
+        distinct: integer, proposed: integer, exact: integer,
+        exact_share: { type: "number", minimum: 0, maximum: 1 },
+        by_status: countsObject(["pending", "accepted", "rejected", "edited"]),
+        by_action: countsObject(["map", "new_genre", "descriptor", "drop"]),
+      },
+      required: ["distinct", "proposed", "exact", "exact_share", "by_status", "by_action"],
+    },
+  },
+  required: ["tracks", "values"],
+};
+
+const reconciliationError = (description: string) => ({
+  description,
+  content: { "application/json": { schema: errorResponseSchemaObject } },
+});
+const reconciliationIdParam = { name: "id", in: "path", required: true, schema: genreUuid };
+
+const genreReconciliationContracts: ApiContractRoute[] = [
+  {
+    operationId: "startGenreReconciliation",
+    method: "post",
+    path: "/api/genres/reconciliation/runs",
+    summary: "Propose taxonomy mappings for local_tags values, in the background",
+    tags: ["Genre Reconciliation"],
+    bodySchema: genreReconciliationRunBodySchema,
+    successSchema: genreReconciliationRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: { "application/json": { schema: {
+          type: "object",
+          properties: {
+            ai: { type: "boolean", default: true, description: "false proposes exact matches only" },
+            new_genre_min_tracks: { type: "integer", minimum: 1, default: 5, description: "Fewest tracks a value needs before the model may propose a new genre for it" },
+            limit: { type: ["integer", "null"], minimum: 1, description: "Most values sent to the model this run" },
+            refresh: { type: "boolean", default: false, description: "Re-ask the model for values with a pending AI proposal" },
+          },
+          additionalProperties: false,
+        } } },
+      },
+      responses: {
+        "202": { description: "Started; poll GET /api/genres/reconciliation/runs/{id}", content: { "application/json": { schema: genreReconciliationRunSchemaObject } } },
+        "400": reconciliationError("Invalid request"),
+        "409": {
+          description: "A run is already in progress; it is returned as `run`",
+          content: { "application/json": { schema: { type: "object", properties: { error: { type: "string" }, run: genreReconciliationRunSchemaObject }, required: ["error", "run"] } } },
+        },
+        "503": reconciliationError("AI requested but OPENAI_API_KEY is not set"),
+      },
+    },
+  },
+  {
+    operationId: "getGenreReconciliationRun",
+    method: "get",
+    path: "/api/genres/reconciliation/runs/{id}",
+    summary: "A reconciliation run's progress, counts and AI cost",
+    tags: ["Genre Reconciliation"],
+    paramsSchema: genreParamsSchema,
+    successSchema: genreReconciliationRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [reconciliationIdParam],
+      responses: {
+        "200": { description: "The run", content: { "application/json": { schema: genreReconciliationRunSchemaObject } } },
+        "400": reconciliationError("Invalid run ID"),
+        "404": reconciliationError("No such run"),
+      },
+    },
+  },
+  {
+    operationId: "getGenreReconciliationCoverage",
+    method: "get",
+    path: "/api/genres/reconciliation/coverage",
+    summary: "How much of the local_tags backlog is reconciled, and the exact-match share",
+    tags: ["Genre Reconciliation"],
+    successSchema: genreReconciliationCoverageSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": { description: "Coverage", content: { "application/json": { schema: genreReconciliationCoverageSchemaObject } } },
+      },
+    },
+  },
+  {
+    operationId: "listGenreProposals",
+    method: "get",
+    path: "/api/genres/proposals",
+    summary: "Reconciliation proposals, most-used values first",
+    tags: ["Genre Reconciliation"],
+    querySchema: genreProposalListQuerySchema,
+    successSchema: genreProposalListResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "status", in: "query", required: false, schema: proposalStatusEnum },
+        { name: "action", in: "query", required: false, schema: proposalActionEnum },
+        { name: "method", in: "query", required: false, schema: proposalMethodEnum },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 500, default: 50 } },
+        { name: "offset", in: "query", required: false, schema: { type: "integer", minimum: 0, default: 0 } },
+      ],
+      responses: {
+        "200": {
+          description: "A page of proposals and the total matching",
+          content: { "application/json": { schema: {
+            type: "object",
+            properties: { proposals: { type: "array", items: genreProposalSchemaObject }, total: integer },
+            required: ["proposals", "total"],
+          } } },
+        },
+        "400": reconciliationError("Invalid filter"),
+      },
+    },
+  },
+  {
+    operationId: "updateGenreProposal",
+    method: "patch",
+    path: "/api/genres/proposals/{id}",
+    summary: "Accept, reject or edit a reconciliation proposal",
+    tags: ["Genre Reconciliation"],
+    paramsSchema: genreParamsSchema,
+    bodySchema: genreProposalUpdateBodySchema,
+    successSchema: genreProposalSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [reconciliationIdParam],
+      requestBody: {
+        required: true,
+        content: { "application/json": {
+          schema: {
+            type: "object",
+            description: "Changing action, target_genres or the proposed genre marks the proposal `edited` (method `manual`), which apply treats like `accepted`.",
+            properties: {
+              status: proposalStatusEnum,
+              action: proposalActionEnum,
+              target_genres: { type: "array", maxItems: 10, items: { type: "string", minLength: 1 }, description: "Genre ids, or names resolved through the taxonomy's names and aliases" },
+              proposed_genre_name: nullableString,
+              proposed_parent_id: nullableUuid,
+            },
+            additionalProperties: false,
+          },
+          example: { action: "map", target_genres: ["Cumbia"] },
+        } },
+      },
+      responses: {
+        "200": { description: "The updated proposal", content: { "application/json": { schema: genreProposalSchemaObject } } },
+        "400": reconciliationError("Invalid change, an unknown genre, or an incomplete map/new_genre proposal"),
+        "404": reconciliationError("No such proposal"),
+      },
+    },
+  },
+  {
+    operationId: "applyGenreProposals",
+    method: "post",
+    path: "/api/genres/proposals/apply",
+    summary: "Write accepted and edited proposals to track genres, descriptors and aliases",
+    tags: ["Genre Reconciliation"],
+    bodySchema: genreProposalApplyBodySchema,
+    successSchema: genreProposalApplyResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: { "application/json": { schema: {
+          type: "object",
+          properties: { ids: { type: "array", minItems: 1, items: genreUuid, description: "Only these proposals; all accepted and edited ones when omitted" } },
+          additionalProperties: false,
+        } } },
+      },
+      responses: {
+        "200": {
+          description: "What was written. Repeatable: a second apply adds only what is new.",
+          content: { "application/json": { schema: {
+            type: "object",
+            properties: {
+              proposals_applied: integer, tracks_linked: integer, descriptors_added: integer,
+              aliases_added: integer, genres_created: integer,
+              skipped: { type: "array", items: { type: "object", properties: { id: genreUuid, value: { type: "string" }, reason: { type: "string" } }, required: ["id", "value", "reason"] } },
+            },
+            required: ["proposals_applied", "tracks_linked", "descriptors_added", "aliases_added", "genres_created", "skipped"],
+          } } },
+        },
+        "400": reconciliationError("Invalid request"),
+      },
+    },
+  },
+];
+
 export const apiContractRoutes: ApiContractRoute[] = [
   ...genreMutationContracts,
+  ...genreReconciliationContracts,
   {
     operationId: "listGenres",
     method: "get",

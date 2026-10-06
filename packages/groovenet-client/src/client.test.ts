@@ -1460,3 +1460,39 @@ describe("genre administration", () => {
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/g%2F1/merge", data: { target_id: "target" } }));
   });
 });
+
+describe("genre reconciliation", () => {
+  it("starts a run with options, or with none", async () => {
+    const client = clientReturning({ id: "run" });
+    await expect(client.startGenreReconciliation({ ai: false, limit: 10 })).resolves.toEqual({ id: "run" });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/reconciliation/runs", data: { ai: false, limit: 10 } }));
+    await client.startGenreReconciliation();
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: {} }));
+  });
+  it("reads a run and the coverage report", async () => {
+    const client = clientReturning({});
+    await client.getGenreReconciliationRun("r/1");
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/runs/r%2F1" }));
+    await client.getGenreReconciliationCoverage();
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/coverage" }));
+  });
+  it("lists proposals with filters as query parameters", async () => {
+    const client = clientReturning({ proposals: [], total: 0 });
+    await expect(client.listGenreProposals({ status: "pending", limit: 5 })).resolves.toEqual({ proposals: [], total: 0 });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/proposals", params: { status: "pending", limit: 5 } }));
+    await client.listGenreProposals();
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: {} }));
+  });
+  it("updates a proposal", async () => {
+    const client = clientReturning({ id: "p" });
+    await client.updateGenreProposal("p/1", { status: "accepted" });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "PATCH", url: "/genres/proposals/p%2F1", data: { status: "accepted" } }));
+  });
+  it("applies all approved proposals, or only the ones named", async () => {
+    const client = clientReturning({ proposals_applied: 1 });
+    await client.applyGenreProposals();
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/proposals/apply", data: {} }));
+    await client.applyGenreProposals(["p"]);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { ids: ["p"] } }));
+  });
+});

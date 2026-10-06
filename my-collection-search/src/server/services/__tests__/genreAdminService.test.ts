@@ -116,6 +116,7 @@ describe("genre administration", () => {
     expect(query).toHaveBeenCalledWith("LOCK TABLE track_genres IN SHARE ROW EXCLUSIVE MODE");
     expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO track_genres"), ["target", "source"]);
     expect(query).toHaveBeenCalledWith("DELETE FROM track_genres WHERE genre_id=$1", ["source"]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE genre_reconciliation_proposals"), ["target", "source"]);
     expect(query).toHaveBeenLastCalledWith("DELETE FROM genres WHERE id=$1", ["source"]);
   });
   it("rejects self-merges", async () => {

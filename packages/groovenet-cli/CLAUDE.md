@@ -28,6 +28,7 @@ vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
 records             clean | sleeve | log | copies (add | label | remove)
                     history | void | care [--summary]
+genres              reconcile | proposals | coverage
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -77,6 +78,27 @@ The four counters in the summary are `indexed` / `skipped` / `failed` /
 only part of the library is indexable at all, and the run reports how much.
 
 Exit code is 1 if any track failed, so it composes in a script.
+
+## genres
+
+Reconciling free-text `local_tags` onto the genre taxonomy (#372). Like
+`fingerprint-library`, the CLI only starts the run and polls it: the app splits
+and normalises the values, proposes exact taxonomy matches, and sends the rest
+to the model in batches, so the OpenAI key stays on the server.
+
+```bash
+groovenet genres reconcile                    # exact matches, then AI
+groovenet genres reconcile --no-ai            # exact matches only, free
+groovenet genres reconcile --limit 200        # cap the values sent to the model
+groovenet genres proposals --status pending --method ai
+groovenet genres coverage                     # how much of the backlog is done
+```
+
+A run only proposes; nothing touches a track until a proposal is accepted and
+applied (`PATCH /api/genres/proposals/{id}`, `POST /api/genres/proposals/apply`).
+Re-running is cheap: reviewed proposals are kept, and a pending AI proposal is
+not re-sent unless `--refresh`. Exit code is 1 if the run failed. The fast
+keyboard-driven review is #373.
 
 ## vinyl
 

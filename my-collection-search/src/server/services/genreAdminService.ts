@@ -148,6 +148,20 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
       [targetId, sourceId]
     );
     await client.query("DELETE FROM track_genres WHERE genre_id=$1", [sourceId]);
+    // Reconciliation proposals (#372) point at genres by id too; the uuid[]
+    // has no foreign key, so retarget it here, keeping order and dropping a
+    // duplicate when a proposal already named the survivor.
+    await client.query(
+      `UPDATE genre_reconciliation_proposals SET
+         target_genre_ids = ARRAY(
+           SELECT u.id FROM unnest(array_replace(target_genre_ids, $2::uuid, $1::uuid)) WITH ORDINALITY AS u(id, ord)
+           GROUP BY u.id ORDER BY min(u.ord)
+         ),
+         proposed_parent_id = CASE WHEN proposed_parent_id=$2 THEN $1 ELSE proposed_parent_id END,
+         created_genre_id = CASE WHEN created_genre_id=$2 THEN $1 ELSE created_genre_id END
+       WHERE $2 = ANY(target_genre_ids) OR proposed_parent_id=$2 OR created_genre_id=$2`,
+      [targetId, sourceId]
+    );
     await client.query("DELETE FROM genres WHERE id=$1", [sourceId]);
   });
 }
