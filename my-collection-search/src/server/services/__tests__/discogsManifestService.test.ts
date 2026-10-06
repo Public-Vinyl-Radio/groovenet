@@ -304,6 +304,11 @@ describe("deleteRelease()", () => {
 // ─── extractTracksFromAlbum ───────────────────────────────────────────────────
 
 describe("extractTracksFromAlbum()", () => {
+  it("leaves local tags null for newly imported tracks", () => {
+    const tracks = mod.extractTracksFromAlbum(makeAlbum(), "owner");
+    expect(tracks.map((track) => track.local_tags)).toEqual([null, null]);
+  });
+
   it("maps basic fields from the album", () => {
     const tracks = mod.extractTracksFromAlbum(makeAlbum(), "owner");
     expect(tracks).toHaveLength(2);

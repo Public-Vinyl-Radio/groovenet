@@ -11,7 +11,7 @@ const LOCAL_TAG_SEPARATORS = /[,·•]/;
 
 /**
  * A Postgres array literal stored as text: `{}`, `{Cumbia,Salsa}`,
- * `{"Funk / Soul"}`. The Discogs import writes `local_tags: []` into the text
+ * `{"Funk / Soul"}`. Older Discogs imports wrote `local_tags: []` into the text
  * column, which Postgres stores as `{}` — 174 of friend 6's tracks in prod.
  */
 const ARRAY_LITERAL = /^\s*\{(.*)\}\s*$/s;
