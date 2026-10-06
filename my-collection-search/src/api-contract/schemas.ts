@@ -2224,3 +2224,131 @@ export const setDerivationViewQuerySchema = z.object({
 
 export const genreAliasResponseSchema = z.object({ success: z.literal(true) });
 export const genreMergeResponseSchema = z.object({ success: z.literal(true), merged_genre_id: z.string().uuid(), survivor_genre_id: z.string().uuid() });
+
+// ─── Genre reconciliation (#372) ─────────────────────────────────────────────
+
+/** A timestamptz column: pg hands back a Date; the wire carries ISO 8601. */
+const timestampSchema = z.preprocess(
+  (value) => (value instanceof Date ? value.toISOString() : value),
+  z.string()
+);
+
+export const genreProposalActionSchema = z.enum(["map", "new_genre", "descriptor", "drop"]);
+export const genreProposalMethodSchema = z.enum(["exact", "ai", "manual"]);
+export const genreProposalStatusSchema = z.enum(["pending", "accepted", "rejected", "edited"]);
+
+export const genreReconciliationRunBodySchema = z
+  .object({
+    ai: z.boolean().optional(),
+    new_genre_min_tracks: z.number().int().min(1).optional(),
+    limit: z.number().int().min(1).nullable().optional(),
+    refresh: z.boolean().optional(),
+  })
+  .strict();
+
+export const genreReconciliationRunSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["running", "completed", "failed"]),
+  options: z.object({
+    ai: z.boolean(),
+    new_genre_min_tracks: z.number().int(),
+    limit: z.number().int().nullable(),
+    refresh: z.boolean(),
+  }),
+  model: z.string().nullable(),
+  distinct_values: z.number().int(),
+  exact_matches: z.number().int(),
+  kept: z.number().int(),
+  ai_pending: z.number().int(),
+  ai_proposed: z.number().int(),
+  ai_failed: z.number().int(),
+  ai_batches: z.number().int(),
+  input_tokens: z.number().int(),
+  output_tokens: z.number().int(),
+  cost_usd: z.number(),
+  error: z.string().nullable(),
+  started_at: timestampSchema,
+  updated_at: timestampSchema,
+  finished_at: timestampSchema.nullable(),
+});
+
+export const genreProposalSchema = z.object({
+  id: z.string().uuid(),
+  value_normalized: z.string(),
+  raw_examples: z.array(z.string()),
+  track_count: z.number().int(),
+  action: genreProposalActionSchema,
+  target_genre_ids: z.array(z.string().uuid()),
+  target_genres: z.array(z.object({ id: z.string().uuid(), name: z.string(), parent_name: z.string().nullable() })),
+  proposed_genre_name: z.string().nullable(),
+  proposed_parent_id: z.string().uuid().nullable(),
+  proposed_parent_name: z.string().nullable(),
+  confidence: z.number().nullable(),
+  method: genreProposalMethodSchema,
+  status: genreProposalStatusSchema,
+  run_id: z.string().uuid().nullable(),
+  created_genre_id: z.string().uuid().nullable(),
+  applied_at: timestampSchema.nullable(),
+  created_at: timestampSchema,
+  updated_at: timestampSchema,
+});
+
+export const genreProposalListQuerySchema = z.object({
+  status: genreProposalStatusSchema.optional(),
+  action: genreProposalActionSchema.optional(),
+  method: genreProposalMethodSchema.optional(),
+  limit: intFromInputSchema.pipe(z.number().int().min(1).max(500)).optional(),
+  offset: intFromInputSchema.pipe(z.number().int().min(0)).optional(),
+});
+
+export const genreProposalListResponseSchema = z.object({
+  proposals: z.array(genreProposalSchema),
+  total: z.number().int(),
+});
+
+export const genreProposalUpdateBodySchema = z
+  .object({
+    status: genreProposalStatusSchema.optional(),
+    action: genreProposalActionSchema.optional(),
+    target_genres: z.array(z.string().trim().min(1)).max(10).optional(),
+    proposed_genre_name: z.string().nullable().optional(),
+    proposed_parent_id: z.string().uuid().nullable().optional(),
+  })
+  .strict()
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: "Nothing to update",
+  });
+
+export const genreProposalApplyBodySchema = z
+  .object({ ids: z.array(z.string().uuid()).min(1).optional() })
+  .strict();
+
+export const genreProposalApplyResponseSchema = z.object({
+  proposals_applied: z.number().int(),
+  tracks_linked: z.number().int(),
+  descriptors_added: z.number().int(),
+  aliases_added: z.number().int(),
+  genres_created: z.number().int(),
+  skipped: z.array(z.object({ id: z.string().uuid(), value: z.string(), reason: z.string() })),
+});
+
+const countsOf = <T extends string>(keys: readonly [T, ...T[]]) =>
+  z.object(Object.fromEntries(keys.map((key) => [key, z.number().int()])) as Record<T, z.ZodNumber>);
+
+export const genreReconciliationCoverageSchema = z.object({
+  tracks: z.object({
+    with_local_tags: z.number().int(),
+    with_genres: z.number().int(),
+    descriptors_only: z.number().int(),
+    no_genre: z.number().int(),
+    unresolved: z.number().int(),
+  }),
+  values: z.object({
+    distinct: z.number().int(),
+    proposed: z.number().int(),
+    exact: z.number().int(),
+    exact_share: z.number(),
+    by_status: countsOf(genreProposalStatusSchema.options),
+    by_action: countsOf(genreProposalActionSchema.options),
+  }),
+});

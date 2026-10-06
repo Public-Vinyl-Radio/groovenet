@@ -11,6 +11,7 @@ import { addEmbeddingsCommands } from "../commands/embeddings.js";
 import { addVinylCommands } from "../commands/vinyl.js";
 import { addSetsCommands } from "../commands/sets.js";
 import { addRecordsCommands } from "../commands/records.js";
+import { addGenresCommands } from "../commands/genres.js";
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -33,6 +34,7 @@ addEmbeddingsCommands(program);
 addVinylCommands(program);
 addSetsCommands(program);
 addRecordsCommands(program);
+addGenresCommands(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(

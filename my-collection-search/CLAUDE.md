@@ -141,6 +141,39 @@
   so it has to be rebuilt once the first backfill finishes ("Re-indexing
   After Bulk Inserts" in `docs/IDENTITY_EMBEDDINGS.md`).
 
+## Genre reconciliation
+
+Turns free-text `local_tags` into taxonomy links (#372, epic #368). Three
+steps, each separate on purpose:
+
+```
+POST /api/genres/reconciliation/runs   split → normalise → exact → batched AI → proposals
+PATCH /api/genres/proposals/{id}       a person accepts, rejects or edits
+POST /api/genres/proposals/apply       accepted → track_genres + descriptors + genre_aliases
+```
+
+- **One proposal per normalised value**, global like the taxonomy, so one
+  decision covers every track and friend using that spelling.
+  `src/lib/genres/localTags.ts` splits on `,` `·` `•`, never `/` (#369).
+- **A run never overwrites a review.** Reviewed rows keep their decision and
+  only refresh their counts; a pending AI proposal is kept unless `refresh`, so
+  a re-run doesn't pay twice. An exact match always replaces a pending one.
+- **The run is in-process and in the background**, like nothing else here: the
+  POST returns 202 and `executeRun` carries on. A partial unique index allows
+  one `running` run; a run with no heartbeat for 15 minutes (a restart) is
+  written off by the next start.
+- **The model only proposes.** The taxonomy is a JSON-schema enum, every name
+  is resolved again server-side, and a `new_genre` for a value on fewer than
+  `new_genre_min_tracks` tracks becomes a map to its parent.
+- **Apply is additive and repeatable.** Links are inserted, never replaced,
+  with `source = 'reconciliation'`; `local_tags` is untouched; an alias is
+  added only for a one-to-one mapping. Merging a genre rewrites proposals'
+  `target_genre_ids` (a `uuid[]`, so no foreign key does it).
+- Cost per run is logged and stored on the run row, priced from
+  `GENRE_RECONCILIATION_*_USD_PER_MTOK`.
+
+`just genres-test` runs it against real Postgres.
+
 ## Background work
 
 `src/instrumentation.ts` is where anything periodic starts, once per server
