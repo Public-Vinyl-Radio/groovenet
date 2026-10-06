@@ -248,6 +248,13 @@ describe("generateTrackMetadata — genres from the taxonomy", () => {
     expect(res.descriptors).toEqual(["uplifting", "dark", "hypnotic"]);
   });
 
+  it("honours low confidence from a pre-parsed object", async () => {
+    mockCreate.mockResolvedValueOnce(parsedContent({ ...META, artist_match_confidence: "low" }));
+    const res = await generateTrackMetadata({ prompt: "p" });
+    expect(res.genres).toEqual([]);
+    expect(res.notes).toMatch(/could not confidently identify/i);
+  });
+
   it("reads the text instead when a pre-parsed object lacks the new fields", async () => {
     mockCreate.mockResolvedValueOnce({
       output: [
