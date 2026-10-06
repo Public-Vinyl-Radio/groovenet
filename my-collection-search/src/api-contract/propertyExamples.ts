@@ -58,6 +58,8 @@ const BY_NAME: Record<string, Candidates> = {
   era: "1990s",
   notes: "Warm pad intro, easy to blend out of.",
   local_tags: "melodic, warm",
+  slug: "psychedelic-cumbia",
+  parent_name: "Latin",
   position: "A1",
   side_label: "Side A",
   duration: ["5:30", 213],

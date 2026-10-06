@@ -137,7 +137,17 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
        VALUES ($1,$2,'manual') ON CONFLICT DO NOTHING`,
       [normalizeGenreName(source.name), targetId]
     );
-    // #371 will add movement of track_genres links here once that table exists.
+    // Move track links to the survivor. A track linked to both keeps its
+    // existing survivor link; the source's duplicate goes with the source.
+    // The lock stops a concurrent track save linking the source in between.
+    await client.query("LOCK TABLE track_genres IN SHARE ROW EXCLUSIVE MODE");
+    await client.query(
+      `INSERT INTO track_genres (track_id, friend_id, genre_id, source, created_at)
+       SELECT track_id, friend_id, $1, source, created_at FROM track_genres WHERE genre_id=$2
+       ON CONFLICT DO NOTHING`,
+      [targetId, sourceId]
+    );
+    await client.query("DELETE FROM track_genres WHERE genre_id=$1", [sourceId]);
     await client.query("DELETE FROM genres WHERE id=$1", [sourceId]);
   });
 }

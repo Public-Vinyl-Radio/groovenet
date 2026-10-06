@@ -113,6 +113,9 @@ describe("genre administration", () => {
     expect(query).toHaveBeenCalledWith("UPDATE genres SET parent_id=$1 WHERE parent_id=$2", ["target", "source"]);
     expect(query).toHaveBeenCalledWith("UPDATE genre_aliases SET genre_id=$1 WHERE genre_id=$2", ["target", "source"]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("VALUES ($1,$2,'manual')"), ["post-punk", "target"]);
+    expect(query).toHaveBeenCalledWith("LOCK TABLE track_genres IN SHARE ROW EXCLUSIVE MODE");
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO track_genres"), ["target", "source"]);
+    expect(query).toHaveBeenCalledWith("DELETE FROM track_genres WHERE genre_id=$1", ["source"]);
     expect(query).toHaveBeenLastCalledWith("DELETE FROM genres WHERE id=$1", ["source"]);
   });
   it("rejects self-merges", async () => {

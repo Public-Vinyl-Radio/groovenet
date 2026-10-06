@@ -19,6 +19,7 @@ import {
   semanticTrackSearch,
   type TrackRow,
 } from "@/server/services/semanticTrackSearchService";
+import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 type ParsedFilter = {
   where: string[];
@@ -102,6 +103,7 @@ async function searchTracksPg(params: {
           AND te.embedding_type = 'audio_vibe'
           AND te.embedding IS NOT NULL
       ) AS "hasVectors"
+      , ${trackGenresSelectSql("t")}
     FROM tracks t
     ${whereSql}
     ORDER BY ${orderBySql}

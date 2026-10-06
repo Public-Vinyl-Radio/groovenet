@@ -3,6 +3,7 @@ import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { embedSearchQuery, normalizeQuery } from "@/server/services/queryEmbeddingService";
 import type { TrackAttributeFilters, TrackMissingFilter } from "@/lib/trackFilterSpec";
+import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 /**
  * Natural-language track search (#409): the `context` embedding (#408)
@@ -93,6 +94,7 @@ export async function semanticTrackSearch(params: {
             AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
         ) AS "hasVectors"
+        , ${trackGenresSelectSql("t")}
       FROM tracks t
       JOIN unnest($1::text[], $2::int[]) AS m(track_id, friend_id)
         ON t.track_id = m.track_id AND t.friend_id = m.friend_id
