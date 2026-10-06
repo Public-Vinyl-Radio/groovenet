@@ -56,6 +56,10 @@ describe("prompts and schema", () => {
     expect(prompt).toContain("Latin > Cumbia");
     expect(prompt).toContain("\nLatin\n");
     expect(prompt).toContain("at least 7 tracks");
+    // #372 first prod batch: 24 of 40 proposals were new genres, several of
+    // them an existing genre reworded or with a modifier.
+    expect(prompt).toContain('"Colombian Cumbia" is "Cumbia Colombiana"');
+    expect(prompt).toContain("A genre plus a modifier is that genre");
   });
 
   it("tells the model which values may become new genres", () => {

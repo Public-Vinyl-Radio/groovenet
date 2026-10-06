@@ -15,6 +15,13 @@ describe("splitLocalTags", () => {
     expect(splitLocalTags("Funk / Soul")).toEqual(["Funk / Soul"]);
   });
 
+  it("reads a Postgres array literal stored as text, including the empty one", () => {
+    expect(splitLocalTags("{}")).toEqual([]);
+    expect(splitLocalTags(" { } ")).toEqual([]);
+    expect(splitLocalTags("{Cumbia,Salsa}")).toEqual(["Cumbia", "Salsa"]);
+    expect(splitLocalTags('{"Funk / Soul", "Psychedelic Cumbia"}')).toEqual(["Funk / Soul", "Psychedelic Cumbia"]);
+  });
+
   it("drops blanks and handles empty input", () => {
     expect(splitLocalTags(" , · Cumbia Colombiana ,, ")).toEqual(["Cumbia Colombiana"]);
     expect(splitLocalTags("")).toEqual([]);

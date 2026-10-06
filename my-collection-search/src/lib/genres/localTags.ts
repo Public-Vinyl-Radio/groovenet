@@ -9,12 +9,21 @@ import { normalizeGenreName } from "./normalization";
  */
 const LOCAL_TAG_SEPARATORS = /[,·•]/;
 
+/**
+ * A Postgres array literal stored as text: `{}`, `{Cumbia,Salsa}`,
+ * `{"Funk / Soul"}`. The Discogs import writes `local_tags: []` into the text
+ * column, which Postgres stores as `{}` — 174 of friend 6's tracks in prod.
+ */
+const ARRAY_LITERAL = /^\s*\{(.*)\}\s*$/s;
+
 /** Breaks one `local_tags` string into its raw values, trimmed, blanks dropped. */
 export function splitLocalTags(localTags: string | null | undefined): string[] {
   if (!localTags) return [];
-  return localTags
+  const literal = ARRAY_LITERAL.exec(localTags);
+  const text = literal ? literal[1] : localTags;
+  return text
     .split(LOCAL_TAG_SEPARATORS)
-    .map((value) => value.trim())
+    .map((value) => (literal ? value.trim().replace(/^"(.*)"$/s, "$1") : value).trim())
     .filter(Boolean);
 }
 

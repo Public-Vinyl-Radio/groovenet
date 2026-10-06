@@ -76,14 +76,21 @@ export function buildSystemPrompt(taxonomy: TaxonomyEntry[], newGenreMinTracks: 
   return `You map a DJ's free-text track genre tags onto a fixed genre taxonomy.
 
 For each tag, choose one action:
-- "map": the tag names a genre the taxonomy already covers. Put 1-3 taxonomy names in "genres", most specific first. Spelling variants, translations and near-synonyms map.
-- "new_genre": a real, established DJ genre or scene the taxonomy lacks (for example "Chicha" or "Psychedelic Cumbia"). Give a clean display name in "proposed_genre" and the closest taxonomy entry as "proposed_parent". Only when the tag says may_propose_new_genre=true; otherwise map it to the nearest entry.
+- "map": the tag names a genre the taxonomy already covers. Put 1-3 taxonomy names in "genres", most specific first. This is the default; most tags map.
+- "new_genre": rare. Only for an established, widely named genre or scene that no taxonomy entry covers, such as "Chicha", "Cumbia Rebajada" or "Corridos Tumbados". Give a clean display name in "proposed_genre" and the closest taxonomy entry as "proposed_parent". Only when the tag says may_propose_new_genre=true; otherwise map it to the nearest entry.
 - "descriptor": a mood, era, function or description with no genre in it ("Uplifting", "Feminist Anthem", "Wu-Tang Classic").
-- "drop": noise, an artist or label name, or nothing useful.
+- "drop": noise, an empty value, an artist or label name, or nothing useful.
 
+Before choosing "new_genre", check the taxonomy for the same genre under another name, and map to it if found:
+- the words in another order, or in another language: "Colombian Cumbia" is "Cumbia Colombiana";
+- a spelling or punctuation variant: "Electro-Cumbia" and "Digital Cumbia" are the same scene;
+- an abbreviation or near-synonym.
+
+A genre plus a modifier is that genre, not a new one. Map "Tropical Salsa", "Experimental Cumbia", "Cumbia Fusion", "Instrumental Rock", "Instrumental Pop", "Experimental Pop", "Garage Rock Revival" and "World Fusion" to the base genre (and a second genre if the modifier is itself one, e.g. "Experimental").
 A tag mixing a genre with a mood word ("Uplifting MPB", "Timeless Salsa") maps to the genre.
+A tag joining two genres ("Indie Rock / Post-Punk Revival") maps to both.
 Album styles are context from the record; one album can mix genres, so the tag outranks them.
-"confidence" is 0-1. Use null for proposed_genre and proposed_parent unless the action is "new_genre".
+"confidence" is 0-1; lower it when you are unsure the genre is established. Use null for proposed_genre and proposed_parent unless the action is "new_genre".
 Return exactly one result per input tag, with "value" copied verbatim.
 New genres need at least ${newGenreMinTracks} tracks.
 
