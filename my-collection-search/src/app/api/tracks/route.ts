@@ -4,6 +4,10 @@ import {
   trackRepository,
   type UpdateTrackInput,
 } from "@/server/repositories/trackRepository";
+import {
+  normalizeDescriptors,
+  trackGenreRepository,
+} from "@/server/repositories/trackGenreRepository";
 import { computeEmbeddingUpdates } from "@/lib/trackEmbeddingDiff";
 import { shouldTriggerFingerprintIndex } from "@/lib/trackFingerprintTrigger";
 import { fingerprintIndexService } from "@/server/services/fingerprintIndexService";
@@ -12,12 +16,65 @@ import type { EmbeddingJob } from "@/types/embeddingQueue";
 
 export async function PATCH(req: Request) {
   try {
-    const data = (await req.json()) as UpdateTrackInput;
+    const body = (await req.json()) as UpdateTrackInput & {
+      genres?: unknown;
+      descriptors?: unknown;
+    };
+    const { genres, descriptors, ...fields } = body;
+    const data: UpdateTrackInput = fields;
+
+    if (descriptors !== undefined) {
+      if (!isStringArray(descriptors)) {
+        return NextResponse.json(
+          { error: "descriptors must be an array of strings" },
+          { status: 400 }
+        );
+      }
+      data.descriptors = normalizeDescriptors(descriptors);
+    }
+
+    // Track genres are taxonomy links (#371): every entry is a genre id or a
+    // name that resolves through an alias. Resolve before writing anything,
+    // so an unknown name fails the whole update instead of creating a genre.
+    let genreIds: string[] | undefined;
+    if (genres !== undefined) {
+      if (!isStringArray(genres)) {
+        return NextResponse.json(
+          { error: "genres must be an array of genre ids or names" },
+          { status: 400 }
+        );
+      }
+      const resolved = await trackGenreRepository.resolveGenreRefs(genres);
+      if (resolved.unknown.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Unknown genre: ${resolved.unknown.join(", ")}`,
+            unknown_genres: resolved.unknown,
+          },
+          { status: 400 }
+        );
+      }
+      genreIds = resolved.ids;
+    }
+
     const current = await trackRepository.findTrackByTrackIdAndFriendId(
       data.track_id,
       data.friend_id
     );
 
+    if (genreIds !== undefined) {
+      if (!current) {
+        return NextResponse.json({ error: "Track not found" }, { status: 404 });
+      }
+      await trackGenreRepository.replaceTrackGenres(
+        data.track_id,
+        data.friend_id,
+        genreIds,
+        "manual"
+      );
+    }
+
+    // Re-reads the track, so the response carries the genres just written.
     const updated = await trackRepository.updateTrackFields(data);
     if (!updated) {
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
@@ -75,7 +132,7 @@ export async function PATCH(req: Request) {
       "track_edited",
       {
         track_id: updated.track_id,
-        changed_fields: Object.keys(data).filter(
+        changed_fields: Object.keys(body).filter(
           (key) => key !== "track_id" && key !== "friend_id"
         ),
         has_rating_change: "star_rating" in data,
@@ -93,4 +150,8 @@ export async function PATCH(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }

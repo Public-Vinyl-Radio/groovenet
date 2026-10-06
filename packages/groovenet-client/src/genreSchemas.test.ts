@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { genreSchema, genreTreeResponseSchema, genreCreateInputSchema, genreUpdateInputSchema, genreAliasInputSchema, genreMergeInputSchema, genreAliasResponseSchema, genreMergeResponseSchema } from "./schemas.js";
+import { trackEntitySchema, genreSchema, genreTreeResponseSchema, genreCreateInputSchema, genreUpdateInputSchema, genreAliasInputSchema, genreMergeInputSchema, genreAliasResponseSchema, genreMergeResponseSchema } from "./schemas.js";
 
 const id = "6df3a956-f05c-4ef2-a218-0813d0ca7c47";
 const genre = { id, name: "Latin", slug: "latin", parent_id: null, source: "discogs" };
@@ -24,5 +24,11 @@ describe("genre wire schemas", () => {
     expect(genreAliasInputSchema.safeParse({ alias: " " }).success).toBe(false);
     expect(genreMergeInputSchema.parse({ target_id: id }).target_id).toBe(id);
     expect(genreMergeInputSchema.safeParse({ target_id: "invalid" }).success).toBe(false);
+  });
+  it("accepts a track carrying its taxonomy genres and descriptors", () => {
+    const trackGenre = { id, name: "Cumbia", slug: "cumbia", parent_id: id, parent_name: "Latin" };
+    const track = { track_id: "t1", friend_id: 1, title: "T", artist: "A", album: "B", track_genres: [trackGenre], descriptors: ["uplifting"] };
+    expect(trackEntitySchema.parse(track)).toMatchObject({ track_genres: [trackGenre], descriptors: ["uplifting"] });
+    expect(trackEntitySchema.safeParse({ ...track, track_genres: [{ ...trackGenre, id: "x" }] }).success).toBe(false);
   });
 });

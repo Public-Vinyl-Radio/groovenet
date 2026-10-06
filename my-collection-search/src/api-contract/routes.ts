@@ -223,6 +223,26 @@ const trackEntitySchemaObject: Record<string, unknown> = {
     key: { type: ["string", "null"] },
     notes: { type: ["string", "null"] },
     local_tags: { type: ["string", "null"] },
+    track_genres: {
+      type: "array",
+      description: "Track-level DJ genres, linked to the genre taxonomy.",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          slug: { type: "string" },
+          parent_id: { type: ["string", "null"], format: "uuid" },
+          parent_name: { type: ["string", "null"] },
+        },
+        required: ["id", "name", "slug", "parent_id", "parent_name"],
+      },
+    },
+    descriptors: {
+      type: "array",
+      description: "Normalised mood and description words that are not genres.",
+      items: { type: "string" },
+    },
     local_audio_url: { type: ["string", "null"] },
     audio_file_album_art_url: { type: ["string", "null"] },
     library_identifier: { type: ["string", "null"] },
@@ -532,6 +552,17 @@ const remainingTracksContracts: ApiContractRoute[] = [
             properties: {
               track_id: { type: "string" },
               friend_id: { type: "integer" },
+              genres: {
+                type: "array",
+                description:
+                  "Replaces the track's genres. Each entry is a genre id, or a name resolved through the taxonomy's names and aliases. An unknown name fails the whole update with 400; it never creates a genre.",
+                items: { type: "string" },
+              },
+              descriptors: {
+                type: "array",
+                description: "Replaces the track's descriptors: free text, normalised and de-duplicated.",
+                items: { type: "string" },
+              },
             },
             required: ["track_id", "friend_id"],
             additionalProperties: true,
@@ -545,6 +576,21 @@ const remainingTracksContracts: ApiContractRoute[] = [
         content: {
           "application/json": {
             schema: trackEntitySchemaObject,
+          },
+        },
+      },
+      "400": {
+        description: "Malformed genres or descriptors, or an unknown genre name",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: { type: "string" },
+                unknown_genres: { type: "array", items: { type: "string" } },
+              },
+              required: ["error"],
+            },
           },
         },
       },

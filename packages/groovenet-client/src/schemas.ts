@@ -66,6 +66,15 @@ export const playlistTrackInputSchema = z
 
 export type PlaylistTrackInput = z.infer<typeof playlistTrackInputSchema>;
 
+/** A taxonomy genre linked to a track (#371). */
+export const trackGenreSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  parent_id: z.string().uuid().nullable(),
+  parent_name: z.string().nullable(),
+});
+
 export const trackEntitySchema = z
   .object({
     track_id: z.string(),
@@ -79,6 +88,8 @@ export const trackEntitySchema = z
     position: z.union([z.string(), z.number()]).optional(),
     release_id: z.string().nullable().optional(),
     library_identifier: z.string().nullable().optional(),
+    track_genres: z.array(trackGenreSchema).optional(),
+    descriptors: z.array(z.string()).optional(),
   })
   .passthrough();
 

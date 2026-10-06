@@ -20,7 +20,12 @@ export type Track = {
   spotify_url?: string;
   soundcloud_url?: string;
   album_thumbnail?: string;
+  /** Raw free-text genres; superseded by track_genres once reconciled (#371). */
   local_tags?: string | undefined;
+  /** Track-level DJ genres: links to the canonical taxonomy (#371). */
+  track_genres?: TrackGenre[];
+  /** Normalised mood and description words, kept out of genres (#371). */
+  descriptors?: string[];
   composer?: string | undefined | null;
   bpm?: string | undefined | null;
   key?: string | undefined | null;
@@ -175,10 +180,23 @@ export interface TrackSearchResponse {
   degraded?: boolean;
 }
 
+/** A taxonomy genre as linked to a track, with its parent for display. */
+export type TrackGenre = {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  parent_name: string | null;
+};
+
 export interface TrackUpdate {
   star_rating?: number;
   notes?: string;
   local_tags?: string;
+  /** Replaces the track's genres: genre ids, or names resolved via aliases. Unknown names fail with 400. */
+  genres?: string[];
+  /** Replaces the track's descriptors (free text, normalised server-side). */
+  descriptors?: string[];
   apple_music_url?: string;
   spotify_url?: string;
   youtube_url?: string;

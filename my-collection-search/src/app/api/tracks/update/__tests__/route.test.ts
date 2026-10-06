@@ -1,8 +1,17 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const { mockFindTrack, mockUpdateTrack, mockEnqueue, mockStartFingerprintRun } =
+const {
+  mockFindTrack,
+  mockUpdateTrack,
+  mockEnqueue,
+  mockStartFingerprintRun,
+  mockResolveGenres,
+  mockReplaceGenres,
+} =
   vi.hoisted(() => {
     return {
+      mockResolveGenres: vi.fn(),
+      mockReplaceGenres: vi.fn().mockResolvedValue(undefined),
       mockFindTrack: vi.fn(),
       mockUpdateTrack: vi.fn(),
       mockEnqueue: vi.fn().mockResolvedValue(undefined),
@@ -14,6 +23,14 @@ vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: {
     findTrackByTrackIdAndFriendId: mockFindTrack,
     updateTrackFields: mockUpdateTrack,
+  },
+}));
+
+vi.mock("@/server/repositories/trackGenreRepository", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/repositories/trackGenreRepository")>()),
+  trackGenreRepository: {
+    resolveGenreRefs: mockResolveGenres,
+    replaceTrackGenres: mockReplaceGenres,
   },
 }));
 
@@ -78,6 +95,8 @@ beforeEach(() => {
   mockEnqueue.mockReset();
   analyticsEvents.reset();
   mockStartFingerprintRun.mockReset();
+  mockResolveGenres.mockReset();
+  mockReplaceGenres.mockReset();
 
   mockEnqueue.mockResolvedValue(undefined);
   mockStartFingerprintRun.mockResolvedValue({ run_id: "run-1" });
@@ -93,6 +112,77 @@ describe("PATCH /api/tracks — track not found", () => {
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toMatch(/not found/i);
+  });
+});
+
+// ─── Track genres and descriptors (#371) ──────────────────────────────────────
+
+describe("PATCH /api/tracks — genres and descriptors", () => {
+  const CUMBIA = "2b7c1f3e-8f4a-4d6b-9c1e-0a1b2c3d4e5f";
+
+  it("resolves genres, replaces the links and returns the re-read track", async () => {
+    mockResolveGenres.mockResolvedValueOnce({ ids: [CUMBIA], unknown: [] });
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    const genres = [{ id: CUMBIA, name: "Psychedelic Cumbia" }];
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ track_genres: genres }));
+
+    const res = await PATCH(makeReq({ ...PATCH_BODY, genres: ["psychedelic cumbia"] }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).track_genres).toEqual(genres);
+    expect(mockResolveGenres).toHaveBeenCalledWith(["psychedelic cumbia"]);
+    expect(mockReplaceGenres).toHaveBeenCalledWith("t1", 1, [CUMBIA], "manual");
+    // Genres are not a column: they must not reach the field update.
+    expect(mockUpdateTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 1 });
+    const [event] = analyticsEvents.events;
+    expect(event.properties).toMatchObject({ changed_fields: ["genres"] });
+  });
+
+  it("rejects an unknown genre name before writing anything", async () => {
+    mockResolveGenres.mockResolvedValueOnce({ ids: [], unknown: ["Feminist Anthem"] });
+
+    const res = await PATCH(makeReq({ ...PATCH_BODY, genres: ["Feminist Anthem"], notes: "x" }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "Unknown genre: Feminist Anthem",
+      unknown_genres: ["Feminist Anthem"],
+    });
+    expect(mockReplaceGenres).not.toHaveBeenCalled();
+    expect(mockUpdateTrack).not.toHaveBeenCalled();
+  });
+
+  it.each([["Cumbia"], [[1]], [null]])("rejects malformed genres %j", async (genres) => {
+    const res = await PATCH(makeReq({ ...PATCH_BODY, genres }));
+    expect(res.status).toBe(400);
+    expect(mockResolveGenres).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for genres on a missing track without writing links", async () => {
+    mockResolveGenres.mockResolvedValueOnce({ ids: [CUMBIA], unknown: [] });
+    mockFindTrack.mockResolvedValueOnce(null);
+
+    const res = await PATCH(makeReq({ ...PATCH_BODY, genres: [CUMBIA] }));
+
+    expect(res.status).toBe(404);
+    expect(mockReplaceGenres).not.toHaveBeenCalled();
+  });
+
+  it("normalises descriptors into the field update", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ descriptors: ["uplifting"] }));
+
+    const res = await PATCH(makeReq({ ...PATCH_BODY, descriptors: ["Uplifting", "uplifting "] }));
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateTrack).toHaveBeenCalledWith({ ...PATCH_BODY, descriptors: ["uplifting"] });
+    expect(mockResolveGenres).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed descriptors", async () => {
+    const res = await PATCH(makeReq({ ...PATCH_BODY, descriptors: "uplifting" }));
+    expect(res.status).toBe(400);
+    expect(mockUpdateTrack).not.toHaveBeenCalled();
   });
 });
 

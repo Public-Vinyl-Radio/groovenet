@@ -1,5 +1,6 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { DiscogsTrack, Track } from "@/types/track";
+import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 export type TrackLocalAudioRow = Pick<
   Track,
@@ -49,6 +50,7 @@ type UpdatableTrackFields = Partial<
     | "mood_relaxed"
     | "mood_aggressive"
     | "star_rating"
+    | "descriptors"
   >
 >;
 
@@ -116,6 +118,7 @@ const UPDATABLE_COLUMNS = {
   mood_relaxed: "mood_relaxed",
   mood_aggressive: "mood_aggressive",
   star_rating: "star_rating",
+  descriptors: "descriptors",
 } as const;
 
 export class TrackRepository {
@@ -437,6 +440,7 @@ export class TrackRepository {
             AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
         ) AS "hasVectors",
+        ${trackGenresSelectSql("t")},
         v.ord
       FROM (VALUES ${values.join(",")}) AS v(track_id, friend_id, ord)
       JOIN tracks t
@@ -466,7 +470,8 @@ export class TrackRepository {
             AND te.friend_id = t.friend_id
             AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
-        ) AS "hasVectors"
+        ) AS "hasVectors",
+        ${trackGenresSelectSql("t")}
       FROM tracks t
       LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       WHERE t.track_id = $1 AND t.friend_id = $2
@@ -493,7 +498,8 @@ export class TrackRepository {
             AND te.friend_id = t.friend_id
             AND te.embedding_type = 'audio_vibe'
             AND te.embedding IS NOT NULL
-        ) AS "hasVectors"
+        ) AS "hasVectors",
+        ${trackGenresSelectSql("t")}
       FROM tracks t
       LEFT JOIN albums a
         ON t.release_id = a.release_id AND t.friend_id = a.friend_id

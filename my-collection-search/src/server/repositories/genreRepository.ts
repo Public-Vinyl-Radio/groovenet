@@ -37,20 +37,30 @@ export function buildGenreTree(rows: GenreRow[]): GenreTreeNode[] {
 
 export class GenreRepository {
   async listTree(): Promise<GenreTreeNode[]> {
-    // #371 introduces track_genres and #375 adds album/track filtering. Until
-    // then taxonomy entries deliberately report zero links rather than trying
-    // to infer DJ-facing genres from the broad Discogs arrays on tracks.
+    // Direct links only: a parent's count does not include its subgenres'.
+    // Albums are those with at least one live track linked to the genre.
     const { rows } = await dbQuery<GenreRow>(`
       SELECT
-        id,
-        name,
-        slug,
-        parent_id,
-        source,
-        0::integer AS track_count,
-        0::integer AS album_count
-      FROM genres
-      ORDER BY name ASC
+        g.id,
+        g.name,
+        g.slug,
+        g.parent_id,
+        g.source,
+        COALESCE(c.track_count, 0)::integer AS track_count,
+        COALESCE(c.album_count, 0)::integer AS album_count
+      FROM genres g
+      LEFT JOIN (
+        SELECT
+          tg.genre_id,
+          COUNT(*) AS track_count,
+          COUNT(DISTINCT (t.release_id, t.friend_id))
+            FILTER (WHERE t.release_id IS NOT NULL) AS album_count
+        FROM track_genres tg
+        JOIN tracks t ON t.track_id = tg.track_id AND t.friend_id = tg.friend_id
+        WHERE t.deleted_at IS NULL
+        GROUP BY tg.genre_id
+      ) c ON c.genre_id = g.id
+      ORDER BY g.name ASC
     `);
     return buildGenreTree(rows);
   }

@@ -35,12 +35,14 @@ describe("buildGenreTree", () => {
 describe("GenreRepository", () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it("reads the taxonomy without inferring track genres from legacy arrays", async () => {
-    dbQuery.mockResolvedValue({ rows: [row({ id: "latin" })] });
+  it("counts live tracks and their albums from track genre links", async () => {
+    dbQuery.mockResolvedValue({ rows: [row({ id: "latin", track_count: 3, album_count: 2 })] });
 
     await expect(new GenreRepository().listTree()).resolves.toEqual([
-      expect.objectContaining({ id: "latin", track_count: 0, album_count: 0 }),
+      expect.objectContaining({ id: "latin", track_count: 3, album_count: 2 }),
     ]);
-    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("0::integer AS track_count"));
+    const [sql] = dbQuery.mock.calls[0];
+    expect(sql).toContain("FROM track_genres tg");
+    expect(sql).toContain("WHERE t.deleted_at IS NULL");
   });
 });
