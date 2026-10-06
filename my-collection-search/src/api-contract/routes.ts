@@ -3489,7 +3489,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
           type: "object",
           properties: {
             ai: { type: "boolean", default: true, description: "false proposes exact matches only" },
-            new_genre_min_tracks: { type: "integer", minimum: 1, default: 5, description: "Fewest tracks a value needs before the model may propose a new genre for it" },
+            new_genre_min_tracks: { type: "integer", minimum: 1, default: 10, description: "Fewest tracks a value needs before the model may propose a new genre for it" },
             limit: { type: ["integer", "null"], minimum: 1, description: "Most values sent to the model this run" },
             refresh: { type: "boolean", default: false, description: "Re-ask the model for values with a pending AI proposal" },
             friend_id: { type: ["integer", "null"], minimum: 1, description: "Only this friend's tracks; omit or null for every friend. Proposals stay global, but their track counts then describe this scope." },

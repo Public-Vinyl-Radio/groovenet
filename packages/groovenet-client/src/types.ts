@@ -107,7 +107,7 @@ export type GenreProposalStatus = "pending" | "accepted" | "rejected" | "edited"
 export interface GenreReconciliationRequest {
   /** false proposes exact matches only. Default true. */
   ai?: boolean;
-  /** Fewest tracks a value needs before the model may propose a new genre. Default 5. */
+  /** Fewest tracks a value needs before the model may propose a new genre. Default 10. */
   new_genre_min_tracks?: number;
   /** Most values sent to the model this run. */
   limit?: number | null;

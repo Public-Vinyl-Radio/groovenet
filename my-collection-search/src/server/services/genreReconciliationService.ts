@@ -46,7 +46,7 @@ export class GenreReconciliationError extends Error {
 
 export const defaultRunOptions: ReconciliationRunOptions = {
   ai: true,
-  new_genre_min_tracks: 5,
+  new_genre_min_tracks: 10,
   limit: null,
   refresh: false,
   friend_id: null,
