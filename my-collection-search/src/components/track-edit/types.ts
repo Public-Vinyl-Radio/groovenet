@@ -1,3 +1,6 @@
+import type { TrackGenre } from "@/types/track";
+import { genreSelectionChanged } from "@/lib/genres/options";
+
 export interface TrackEditFormProps {
   track_id: string;
   isrc?: string;
@@ -9,6 +12,10 @@ export interface TrackEditFormProps {
   discogs_url?: string;
   release_id?: string;
   local_tags?: string | undefined;
+  /** The track's taxonomy genres as loaded or edited (#371). */
+  track_genres?: TrackGenre[];
+  /** PATCH input: replaces the track's genres. Sent only when they changed. */
+  genres?: string[];
   notes?: string | undefined | null;
   bpm?: number | null;
   key?: string | undefined | null;
@@ -28,6 +35,7 @@ export type TrackEditFormState = {
   title: string;
   artist: string;
   local_tags: string;
+  track_genres: TrackGenre[];
   notes: string;
   bpm: string;
   key: string;
@@ -53,6 +61,7 @@ export function toTrackEditFormState(
     title: track?.title || "",
     artist: track?.artist || "",
     local_tags: (track?.local_tags as string | undefined) || "",
+    track_genres: track?.track_genres ?? [],
     notes: (track?.notes as string | undefined) || "",
     bpm: (track?.bpm as string | undefined) || "",
     key: (track?.key as string | undefined) || "",
@@ -64,4 +73,17 @@ export function toTrackEditFormState(
     duration_seconds: track?.duration_seconds || undefined,
     friend_id: track?.friend_id,
   };
+}
+
+/**
+ * The `genres` PATCH field when the selection differs from what was loaded,
+ * else nothing. Sending only changes means a save from a form that never saw
+ * the track's genres (an older cached track, say) cannot wipe them.
+ */
+export function genreChanges(
+  loaded: TrackGenre[] | undefined,
+  edited: TrackGenre[]
+): Pick<TrackEditFormProps, "genres"> {
+  if (!genreSelectionChanged(loaded ?? [], edited)) return {};
+  return { genres: edited.map((genre) => genre.id) };
 }

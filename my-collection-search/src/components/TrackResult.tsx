@@ -20,7 +20,7 @@ import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { FiFileText } from "react-icons/fi";
 import { keyToCamelot } from "@/lib/playlistOrder";
-import { dedupeDisplayTags, explodeDisplayTags, getTrackDurationSeconds } from "@/lib/trackUtils";
+import { dedupeDisplayTags, getTrackDurationSeconds, trackGenreLabels } from "@/lib/trackUtils";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
@@ -54,6 +54,8 @@ export type TrackResultProps = {
   onToggleSelect?: () => void;
   // Playlist mode: compact artwork, data-issue indicator, no minimize
   playlistMode?: boolean;
+  /** In playlist mode, also badge the track's DJ genres (#371). */
+  showTrackGenres?: boolean;
   sortPositionChange?: SortPositionChange;
 };
 
@@ -71,6 +73,7 @@ export default function TrackResult({
   isSelected,
   onToggleSelect,
   playlistMode = false,
+  showTrackGenres = false,
   sortPositionChange,
 }: TrackResultProps) {
   const [imageError, setImageError] = React.useState(false);
@@ -108,7 +111,7 @@ export default function TrackResult({
 
   const displayGenres = dedupeDisplayTags(track.genres);
   const displayStyles = dedupeDisplayTags(track.styles);
-  const displayLocalTags = explodeDisplayTags(track.local_tags);
+  const displayLocalTags = trackGenreLabels(track);
 
   const artworkSize = { base: "60px", md: "68px", lg: "76px" };
 
@@ -565,6 +568,17 @@ export default function TrackResult({
           </Box>
         )}
       </Flex>
+
+      {/* The track's DJ genres, on screens that opt in (search). */}
+      {showTrackGenres && displayLocalTags.length > 0 && (
+        <Flex gap={1.5} flexWrap="wrap" mt={0.5} data-testid="track-genres">
+          {displayLocalTags.map((tag) => (
+            <Badge key={tag} size="sm" variant="solid">
+              {tag}
+            </Badge>
+          ))}
+        </Flex>
+      )}
 
       {footer && <Box mt={1}>{footer}</Box>}
     </Flex>

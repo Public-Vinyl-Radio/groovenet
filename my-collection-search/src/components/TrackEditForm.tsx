@@ -19,6 +19,7 @@ import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
 import {
   toTrackEditFormState,
+  genreChanges,
   type TrackEditFormProps,
 } from "@/components/track-edit/types";
 
@@ -84,6 +85,7 @@ export default function TrackEditForm({
         danceability: Number(form.danceability) || null,
         duration_seconds: Number(form.duration_seconds) || null,
         friend_id: form.friend_id,
+        ...genreChanges(track?.track_genres, form.track_genres),
       };
       await Promise.resolve(onSave(cleanForm));
     } finally {
@@ -138,6 +140,9 @@ export default function TrackEditForm({
                     loading={loading}
                     onChange={handleChange}
                     onStarRatingChange={handleStarRating}
+                    onGenresChange={(track_genres) =>
+                      setForm((prev) => ({ ...prev, track_genres }))
+                    }
                     submitButtonDisplay={{ base: "none", md: "inline-flex" }}
                   />
 

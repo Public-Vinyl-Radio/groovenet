@@ -58,6 +58,7 @@ export default function TrackEditDialog({
       artist: data.artist,
       album: data.album,
       local_tags: data.local_tags,
+      track_genres: data.track_genres,
       notes: data.notes,
       bpm: toNumberOrNull(data.bpm),
       key: data.key,

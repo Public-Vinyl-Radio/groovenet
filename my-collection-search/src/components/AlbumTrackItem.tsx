@@ -17,7 +17,7 @@ import { FiFileText, FiPlay } from "react-icons/fi";
 import { Track } from "@/types/track";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { getTrackDurationSeconds } from "@/lib/trackUtils";
+import { getTrackDurationSeconds, trackGenreLabels } from "@/lib/trackUtils";
 import { useColorModeValue } from "@/components/ui/color-mode";
 import TrackPlaylistUsage from "@/components/TrackPlaylistUsage";
 
@@ -49,6 +49,7 @@ export default function AlbumTrackItem({
   const { replacePlaylist } = usePlaylistPlayer();
   const trackHref = `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`;
   const hasNotes = Boolean(track.notes?.trim());
+  const genreLabels = trackGenreLabels(track);
   const positionLabel = String(track.position ?? "").trim();
   const rowHoverBg = useColorModeValue("gray.50", "gray.800");
   const positionBg = useColorModeValue("gray.100", "gray.700");
@@ -172,22 +173,13 @@ export default function AlbumTrackItem({
           </Box>
         </Flex>
 
-        {(((typeof track.local_tags === "string" &&
-          track.local_tags !== "{}" &&
-          track.local_tags !== "") ||
-          (Array.isArray(track.local_tags) && track.local_tags.length > 0)) ||
-          hasNotes) && (
+        {(genreLabels.length > 0 || hasNotes) && (
           <Flex gap={1} flexWrap="wrap" alignItems="center">
-            {((typeof track.local_tags === "string" &&
-              track.local_tags !== "{}" &&
-              track.local_tags !== "") ||
-              (Array.isArray(track.local_tags) && track.local_tags.length > 0)) && (
-              <Badge size="xs" variant="solid">
-                {Array.isArray(track.local_tags)
-                  ? track.local_tags.join(", ")
-                  : track.local_tags}
+            {genreLabels.map((genre) => (
+              <Badge key={genre} size="xs" variant="solid">
+                {genre}
               </Badge>
-            )}
+            ))}
             {hasNotes && (
               <Popover.Root>
                 <Popover.Trigger asChild>

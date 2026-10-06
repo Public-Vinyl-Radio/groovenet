@@ -76,3 +76,18 @@ export function dedupeDisplayTags(values: unknown): string[] {
 export function explodeDisplayTags(values: unknown): string[] {
   return collectDisplayTags(values, (value) => value.split(/\s*[,·•]\s*/g));
 }
+
+/**
+ * The DJ-facing genres to badge on a track: its taxonomy genres (#371) once
+ * it has any, otherwise its free-text `local_tags` until reconciliation maps
+ * them. Never both: a reconciled track's raw tags are its history.
+ */
+export function trackGenreLabels(track: {
+  track_genres?: { name: string }[];
+  local_tags?: unknown;
+}): string[] {
+  if (track.track_genres && track.track_genres.length > 0) {
+    return dedupeDisplayTags(track.track_genres.map((genre) => genre.name));
+  }
+  return explodeDisplayTags(track.local_tags);
+}

@@ -19,7 +19,7 @@ import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { dedupeDisplayTags, explodeDisplayTags, getTrackDurationSeconds } from "@/lib/trackUtils";
+import { dedupeDisplayTags, getTrackDurationSeconds, trackGenreLabels } from "@/lib/trackUtils";
 
 function formatSeconds(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -82,7 +82,7 @@ export default function TrackResultCompact({
   const genres = dedupeDisplayTags(track.genres);
   const styles = dedupeDisplayTags(track.styles);
   const allGenres = [...genres, ...styles];
-  const localTags = explodeDisplayTags(track.local_tags);
+  const localTags = trackGenreLabels(track);
 
   // Collect technical details
   const details: Array<{ icon: string; value: string | number }> = [];
