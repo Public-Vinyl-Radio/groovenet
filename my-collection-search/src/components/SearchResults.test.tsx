@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   useSearchResults: vi.fn(),
   onQueryChange: vi.fn(),
+  setQuery: vi.fn(),
   track: vi.fn(),
   query: "",
   useTrackGenreFacets: vi.fn(),
@@ -62,6 +63,7 @@ beforeEach(() => {
   mocks.useSearchResults.mockImplementation(() => ({
     query: mocks.query,
     onQueryChange: mocks.onQueryChange,
+    setQuery: mocks.setQuery,
     estimatedResults: 0,
     trackInfo: [],
     playlistCounts: {},
@@ -179,5 +181,45 @@ describe("SearchResults genre filter (#375)", () => {
     mocks.searchParams = null as unknown as URLSearchParams;
     renderWithProviders(<SearchResults />);
     expect(lastGenres()).toEqual([]);
+  });
+});
+
+describe("SearchResults following a navigation (#376)", () => {
+  it("replaces the search with the URL a genre badge navigated to", async () => {
+    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&missingAudio=1&genre=salsa");
+    const { rerender } = renderWithProviders(<SearchResults />);
+    mocks.replace.mockClear();
+
+    mocks.searchParams = new URLSearchParams("genre=cumbia");
+    rerender(<SearchResults />);
+
+    await waitFor(() => expect(lastGenres()).toEqual(["cumbia"]));
+    expect(lastSearchMode()).toBe("lexical");
+    expect(mocks.setQuery).toHaveBeenCalledWith("");
+    expect(screen.queryByText(/2 filters active/)).toBeNull();
+    // Nothing writes the old search back over the badge's URL.
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("doesn't mistake its own write landing for a navigation", async () => {
+    const { user, rerender } = renderWithProviders(<SearchResults />);
+    await user.click(screen.getByRole("button", { name: "Missing audio" }));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+
+    mocks.searchParams = new URLSearchParams("missingAudio=1");
+    rerender(<SearchResults />);
+
+    expect(mocks.setQuery).not.toHaveBeenCalled();
+    expect(screen.getByText(/1 filter active/)).toBeTruthy();
+  });
+
+  it("keeps a change made while its last write is still on the way", async () => {
+    const { user } = renderWithProviders(<SearchResults />);
+    await user.click(screen.getByRole("button", { name: "Missing audio" }));
+    // The URL hasn't caught up yet when the next chip is toggled.
+    await user.click(screen.getByRole("button", { name: "Missing metadata" }));
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&missingMetadata=1"));
+    expect(mocks.setQuery).not.toHaveBeenCalled();
   });
 });

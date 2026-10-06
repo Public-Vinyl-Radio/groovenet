@@ -13,6 +13,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
 import {
   TrackPlaylistsSection,
+  TrackGenresSection,
   TrackDebugModal,
 } from "@/components/track-detail";
 
@@ -83,6 +84,8 @@ export default function TrackPage() {
                   />,
                 ]}
               />
+
+              <TrackGenresSection trackId={trackId} friendId={friendId} fallbackTrack={trackQuery.data} />
 
               <RelatedTracksSection track={trackQuery.data} />
 

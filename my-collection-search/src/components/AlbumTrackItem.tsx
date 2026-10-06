@@ -17,7 +17,10 @@ import { FiFileText, FiPlay } from "react-icons/fi";
 import { Track } from "@/types/track";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { getTrackDurationSeconds, trackGenreLabels } from "@/lib/trackUtils";
+import { getTrackDurationSeconds } from "@/lib/trackUtils";
+import { trackGenreBadges } from "@/lib/genres/links";
+import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
+import { GenreBadgeList } from "./GenreBadge";
 import { useColorModeValue } from "@/components/ui/color-mode";
 import TrackPlaylistUsage from "@/components/TrackPlaylistUsage";
 
@@ -49,7 +52,8 @@ export default function AlbumTrackItem({
   const { replacePlaylist } = usePlaylistPlayer();
   const trackHref = `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`;
   const hasNotes = Boolean(track.notes?.trim());
-  const genreLabels = trackGenreLabels(track);
+  const genreLookup = useGenreLookup();
+  const genreLabels = trackGenreBadges(track, genreLookup);
   const positionLabel = String(track.position ?? "").trim();
   const rowHoverBg = useColorModeValue("gray.50", "gray.800");
   const positionBg = useColorModeValue("gray.100", "gray.700");
@@ -175,11 +179,7 @@ export default function AlbumTrackItem({
 
         {(genreLabels.length > 0 || hasNotes) && (
           <Flex gap={1} flexWrap="wrap" alignItems="center">
-            {genreLabels.map((genre) => (
-              <Badge key={genre} size="xs" variant="solid">
-                {genre}
-              </Badge>
-            ))}
+            <GenreBadgeList items={genreLabels} kind="track" scope="tracks" size="xs" />
             {hasNotes && (
               <Popover.Root>
                 <Popover.Trigger asChild>

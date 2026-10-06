@@ -11,6 +11,8 @@ export type GenreRow = {
   source: GenreSource;
   track_count: number;
   album_count: number;
+  /** Normalised alias keys, so a client can match raw Discogs spellings (#376). */
+  aliases: string[];
 };
 
 /** How many tracks a genre filter would return, subgenres included (#375). */
@@ -56,7 +58,8 @@ export class GenreRepository {
         g.parent_id,
         g.source,
         COALESCE(c.track_count, 0)::integer AS track_count,
-        COALESCE(c.album_count, 0)::integer AS album_count
+        COALESCE(c.album_count, 0)::integer AS album_count,
+        COALESCE(a.aliases, '{}') AS aliases
       FROM genres g
       LEFT JOIN (
         SELECT
@@ -69,6 +72,11 @@ export class GenreRepository {
         WHERE t.deleted_at IS NULL
         GROUP BY tg.genre_id
       ) c ON c.genre_id = g.id
+      LEFT JOIN (
+        SELECT genre_id, array_agg(alias_normalized ORDER BY alias_normalized) AS aliases
+        FROM genre_aliases
+        GROUP BY genre_id
+      ) a ON a.genre_id = g.id
       ORDER BY g.name ASC
     `);
     return rows;

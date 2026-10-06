@@ -91,6 +91,8 @@ export interface GenreTreeNode {
   source: GenreSource;
   track_count: number;
   album_count: number;
+  /** Normalised alias keys that resolve to this genre. */
+  aliases?: string[];
   children: GenreTreeNode[];
 }
 

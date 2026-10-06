@@ -19,7 +19,10 @@ import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { dedupeDisplayTags, getTrackDurationSeconds, trackGenreLabels } from "@/lib/trackUtils";
+import { getTrackDurationSeconds } from "@/lib/trackUtils";
+import { discogsGenreBadges, trackGenreBadges } from "@/lib/genres/links";
+import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
+import GenreBadge from "./GenreBadge";
 
 function formatSeconds(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -79,10 +82,11 @@ export default function TrackResultCompact({
     track._semanticScore !== undefined ? track._semanticScore * 100 : undefined;
 
   // Collect all genres and styles
-  const genres = dedupeDisplayTags(track.genres);
-  const styles = dedupeDisplayTags(track.styles);
+  const genreLookup = useGenreLookup();
+  const genres = discogsGenreBadges(track.genres, genreLookup);
+  const styles = discogsGenreBadges(track.styles, genreLookup);
   const allGenres = [...genres, ...styles];
-  const localTags = trackGenreLabels(track);
+  const localTags = trackGenreBadges(track, genreLookup);
 
   // Collect technical details
   const details: Array<{ icon: string; value: string | number }> = [];
@@ -373,9 +377,13 @@ export default function TrackResultCompact({
           <Flex gap={2} alignItems="center" flexWrap="wrap">
             {showGenres &&
               allGenres.slice(0, 4).map((genre, idx) => (
-                <Badge key={idx} size="xs" variant={idx < genres.length ? "surface" : "outline"}>
-                  {genre}
-                </Badge>
+                <GenreBadge
+                  key={idx}
+                  item={genre}
+                  kind={idx < genres.length ? "discogs-genre" : "discogs-style"}
+                  scope="tracks"
+                  size="xs"
+                />
               ))}
             {showGenres && allGenres.length > 4 && (
               <Badge size="xs" variant="subtle">
@@ -385,14 +393,14 @@ export default function TrackResultCompact({
 
             {showGenres &&
               localTags.map((tag) => (
-                <Badge
-                  key={tag}
+                <GenreBadge
+                  key={tag.label}
+                  item={tag}
+                  kind="track"
+                  scope="tracks"
                   size="xs"
-                  variant="solid"
                   colorPalette="blue"
-                >
-                  {tag}
-                </Badge>
+                />
               ))}
 
             {showLinks && (

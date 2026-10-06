@@ -49,6 +49,9 @@ import {
 } from "@/services/internalApi/albums";
 import { fetchPlaylistCounts } from "@/services/internalApi/tracks";
 import { queryKeys } from "@/lib/queryKeys";
+import { discogsGenreBadges } from "@/lib/genres/links";
+import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
+import { GenreBadgeList } from "@/components/GenreBadge";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
 
 function formatDate(dateString?: string): string {
@@ -86,6 +89,7 @@ function AlbumDetailContent() {
 
   const mutedText = useColorModeValue("gray.600", "gray.400");
   const subtleText = useColorModeValue("gray.500", "gray.500");
+  const genreLookup = useGenreLookup();
   const sideHeaderBg = useColorModeValue("gray.100", "gray.800");
   const sideHeaderAccent = useColorModeValue("gray.400", "gray.600");
   const album = albumFromStore;
@@ -327,20 +331,20 @@ function AlbumDetailContent() {
             {album.country && <Text display={{ base: "none", md: "block" }}>{album.country}</Text>}
           </Flex>
 
-          {(album.genres || album.styles) && (
+          {(album.genres?.length || album.styles?.length) ? (
             <Flex gap={1} flexWrap="wrap" display={{ base: "none", md: "flex" }}>
-              {album.genres?.map((genre) => (
-                <Badge key={genre} colorScheme="blue" size="sm">
-                  {genre}
-                </Badge>
-              ))}
-              {album.styles?.map((style) => (
-                <Badge key={style} colorScheme="purple" size="sm">
-                  {style}
-                </Badge>
-              ))}
+              <GenreBadgeList
+                items={discogsGenreBadges(album.genres, genreLookup)}
+                kind="discogs-genre"
+                scope="albums"
+              />
+              <GenreBadgeList
+                items={discogsGenreBadges(album.styles, genreLookup)}
+                kind="discogs-style"
+                scope="albums"
+              />
             </Flex>
-          )}
+          ) : null}
 
           <Flex gap={2} fontSize="xs" color={subtleText} flexWrap="wrap" alignItems="center">
             {album.track_count && <Text>{album.track_count} tracks</Text>}

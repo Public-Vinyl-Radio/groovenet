@@ -3,6 +3,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
+import { queryKeys } from "@/lib/queryKeys";
 
 // Only the record-care wiring is under test; everything else is stubbed.
 vi.mock("next/navigation", () => ({
@@ -14,8 +15,14 @@ vi.mock("@/hooks/useAlbumsQuery", () => ({
   useAlbumDetailQuery: () => ({ error: null }),
   useUpdateAlbumMutation: () => ({ mutateAsync: vi.fn() }),
 }));
+const album = vi.hoisted(() => ({
+  current: { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 0 } as Record<
+    string,
+    unknown
+  >,
+}));
 vi.mock("@/hooks/useAlbum", () => ({
-  useAlbum: () => ({ release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 0 }),
+  useAlbum: () => album.current,
   useAlbumHydrated: () => true,
 }));
 vi.mock("@/hooks/useTrack", () => ({
@@ -60,5 +67,37 @@ describe("album page record care", () => {
 
     await user.click(screen.getByRole("button", { name: "Close care" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Log care" })).toBeNull());
+  });
+});
+
+describe("album page genre badges", () => {
+  const base = { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 0 };
+  const taxonomy = [
+    { id: "e", name: "Electronic", slug: "electronic", parent_id: null, source: "discogs", track_count: 0, album_count: 0,
+      aliases: ["trip-hop"], children: [] },
+  ];
+
+  afterEach(() => {
+    album.current = base;
+  });
+
+  it("links Discogs genres and styles the taxonomy knows to album search", async () => {
+    album.current = { ...base, genres: ["Electronic"], styles: ["Trip Hop", "Trip-Hop"] };
+    const { queryClient } = renderWithProviders(<AlbumDetailPage />);
+    queryClient.setQueryData(queryKeys.genreTree(), taxonomy);
+
+    const link = await screen.findByRole("link", { name: "Search albums in Electronic", hidden: true });
+    expect(link.getAttribute("href")).toBe("/albums?genre=electronic");
+    expect(
+      (await screen.findByRole("link", { name: "Search albums in Trip-Hop", hidden: true })).getAttribute("href")
+    ).toBe("/albums?genre=electronic");
+    expect(screen.getByText("Trip Hop").closest("a")).toBeNull();
+  });
+
+  it("shows styles alone when the album has no Discogs genres", async () => {
+    album.current = { ...base, genres: [], styles: ["Dub"] };
+    renderWithProviders(<AlbumDetailPage />);
+
+    expect(await screen.findByText("Dub")).toBeTruthy();
   });
 });

@@ -416,6 +416,7 @@ export const genreTreeNodeSchema: z.ZodType<GenreTreeNode> = z.lazy(() =>
     source: genreSourceSchema,
     track_count: z.number().int().nonnegative(),
     album_count: z.number().int().nonnegative(),
+    aliases: z.array(z.string()).optional(),
     children: z.array(genreTreeNodeSchema),
   })
 );

@@ -65,6 +65,18 @@ const TrackResultItem: React.FC<{
 };
 
 
+/** The "missing X" filters a search URL carries. */
+function filtersFromParams(params: URLSearchParams): TracksFilter {
+  return {
+    missingAudio: params.get("missingAudio") === "1",
+    missingMetadata: params.get("missingMetadata") === "1",
+    missingAnyStreamingUrl: params.get("missingAnyStreamingUrl") === "1",
+    missingAppleMusic: params.get("missingAppleMusic") === "1",
+    missingYouTube: params.get("missingYouTube") === "1",
+    missingSoundCloud: params.get("missingSoundCloud") === "1",
+  };
+}
+
 const SearchResults: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -98,6 +110,7 @@ const SearchResults: React.FC = () => {
 
   const {
     query,
+    setQuery,
     onQueryChange,
     estimatedResults,
     trackInfo,
@@ -284,23 +297,35 @@ const SearchResults: React.FC = () => {
     if (urlQ && urlQ !== debouncedValue) {
       setDebouncedValue(urlQ);
     }
-    const fromUrl: TracksFilter = {
-      missingAudio: searchParams?.get("missingAudio") === "1",
-      missingMetadata: searchParams?.get("missingMetadata") === "1",
-      missingAnyStreamingUrl: searchParams?.get("missingAnyStreamingUrl") === "1",
-      missingAppleMusic: searchParams?.get("missingAppleMusic") === "1",
-      missingYouTube: searchParams?.get("missingYouTube") === "1",
-      missingSoundCloud: searchParams?.get("missingSoundCloud") === "1",
-    };
+    const fromUrl = filtersFromParams(new URLSearchParams(searchParamsString));
     if (Object.values(fromUrl).some(Boolean)) {
       setActiveFilters(fromUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A URL change this page didn't write arrived by navigation — a genre badge
+  // in the results (#376) — and replaces the search. `replace` lands later, so
+  // the page's own writes are remembered until they show up.
+  const seenUrlRef = React.useRef(searchParamsString);
+  const pendingUrlsRef = React.useRef(new Set<string>());
+
   // Keep URL in sync when query or filters change
   React.useEffect(() => {
     if (!pathname) return;
+    const urlChanged = searchParamsString !== seenUrlRef.current;
+    seenUrlRef.current = searchParamsString;
+    if (urlChanged && !pendingUrlsRef.current.delete(searchParamsString)) {
+      const fromUrl = new URLSearchParams(searchParamsString);
+      const urlQ = fromUrl.get("q") ?? "";
+      const urlMode = fromUrl.get("mode");
+      setQuery(urlQ);
+      setDebouncedValue(urlQ);
+      setGenres(fromUrl.getAll("genre"));
+      setSearchMode(isTrackSearchMode(urlMode) ? urlMode : "lexical");
+      setActiveFilters(filtersFromParams(fromUrl));
+      return;
+    }
     const params = new URLSearchParams(searchParamsString);
     if (query && query.length > 0) {
       params.set("q", query);
@@ -322,8 +347,9 @@ const SearchResults: React.FC = () => {
     const nextQueryString = params.toString();
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
+    pendingUrlsRef.current.add(nextQueryString);
     router.replace(newUrl);
-  }, [query, activeFilters, genres, searchMode, pathname, router, searchParamsString]);
+  }, [query, setQuery, activeFilters, genres, searchMode, pathname, router, searchParamsString]);
 
   return (
     <Box mb={'100px'}>
