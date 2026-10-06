@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +25,11 @@ vi.mock("@/components/AlbumSearchResults", () => ({ default: () => null }));
 
 import AlbumsPage from "../page";
 
+/** The phone filter sheet: jsdom renders the phone layout, so it's the one in reach. */
+const openFilters = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
+  await user.click(screen.getByRole("button", { name: /^Filters/ }));
+  return screen.findByRole("dialog", { name: "Filters" });
+};
 const genreNode = (id: string, name: string, parent_id: string | null = null) => ({
   id,
   name,
@@ -51,6 +56,7 @@ describe("albums page genre filter (#375)", () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     await waitFor(() => expect(mocks.fetchGenreTree).toHaveBeenCalled());
 
+    await openFilters(user);
     await user.click(screen.getByRole("combobox", { name: "Filter by genre" }));
     const option = await screen.findByRole("option", { name: /Jazz/ });
     expect(option.textContent).toBe("Jazz");
@@ -80,10 +86,64 @@ describe("albums page genre filter (#375)", () => {
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/albums?q=blue&genre=jazz"));
   });
 
-  it("still toggles the other chips beside genres", async () => {
+});
+
+describe("albums page missing filter (#447)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.fetchGenreTree.mockResolvedValue([]);
+  });
+
+  it("turns a check on from the filter sheet, keeping its URL parameter", async () => {
     mocks.searchParams = new URLSearchParams("genre=jazz");
     const { user } = renderWithProviders(<AlbumsPage />);
-    await user.click(screen.getByRole("button", { name: "Missing audio" }));
+
+    const sheet = await openFilters(user);
+    const boxes = within(sheet).getAllByRole("checkbox");
+    expect(boxes.map((box) => box.closest("label")?.textContent)).toEqual([
+      "Library identifier",
+      "Local cover",
+      "Audio",
+    ]);
+    await user.click(within(sheet).getByRole("checkbox", { name: "Audio" }));
+
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=jazz&missing_audio=1");
+  });
+
+  it("shows checks from old links as chips, which remove them", async () => {
+    mocks.searchParams = new URLSearchParams("missing_library_identifier=1&missing_local_cover_art_url=1");
+    const { user } = renderWithProviders(<AlbumsPage />);
+    expect(screen.getByRole("button", { name: "Filters, 2 on" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Missing audio/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Missing identifier/ }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?missing_local_cover_art_url=1");
+  });
+
+  it("clears every check with Clear all, and keeps them on a new search", async () => {
+    mocks.searchParams = new URLSearchParams("missing_audio=1&missing_local_cover_art_url=1");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const input = screen.getAllByRole("textbox", { hidden: true })[0];
+    await user.type(input, "blue{Enter}");
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith(
+        "/albums?q=blue&missing_local_cover_art_url=1&missing_audio=1"
+      )
+    );
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?");
+  });
+
+  it("clears every filter from the sheet's Clear all", async () => {
+    mocks.searchParams = new URLSearchParams("q=blue&missing_audio=1&genre=jazz");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const sheet = await openFilters(user);
+    await user.click(within(sheet).getByRole("button", { name: "Clear all" }));
+
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?q=blue");
   });
 });

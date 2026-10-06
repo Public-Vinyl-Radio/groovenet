@@ -66,7 +66,7 @@ export const AllActive: Story = {
 };
 
 export const ManyChips: Story = {
-  name: 'Many chips (overflow scroll)',
+  name: 'Many chips (wraps)',
   args: {
     chips: genreFilters.map((c, i) => ({ ...c, active: i === 0 })),
     onToggle: () => {},

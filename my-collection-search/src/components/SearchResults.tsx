@@ -24,9 +24,25 @@ import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrack } from "@/hooks/useTrack";
 import FilterChips from "@/components/FilterChips";
 import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "@/components/GenreFilter";
+import MissingFilter, { MissingChecklist } from "@/components/MissingFilter";
+import AttributeFilter, { AttributeFields } from "@/components/AttributeFilter";
+import FilterSheet, { FilterSheetSection } from "@/components/FilterSheet";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
-import { TracksFilter, buildSearchFilters, createEmptyFilters, getActiveFilterCount } from "@/lib/trackFilters";
+import {
+  TRACK_MISSING_OPTIONS,
+  type TrackAttributeFilters,
+  type TracksFilter,
+  attributeFilterChips,
+  attributeFiltersFromParams,
+  buildSearchFilters,
+  createEmptyFilters,
+  getActiveFilterCount,
+  removeAttributeChip,
+  toggleTracksFilter,
+  tracksFilterFromParams,
+  writeTrackFiltersToParams,
+} from "@/lib/trackFilters";
 import { useUsername } from "@/providers/UsernameProvider";
 
 const TrackResultItem: React.FC<{
@@ -77,6 +93,10 @@ const SearchResults: React.FC = () => {
 
   // Filter state - applied immediately (no modal)
   const [activeFilters, setActiveFilters] = React.useState<TracksFilter>(createEmptyFilters());
+  // BPM range, key and minimum rating (#412), linkable as `?bpm_min=120&key=A+minor`.
+  const [attributes, setAttributes] = React.useState<TrackAttributeFilters>(() =>
+    attributeFiltersFromParams(searchParams)
+  );
   // Genre slugs (#375), linkable as `?genre=cumbia&genre=salsa`.
   const [genres, setGenres] = React.useState<string[]>(() => searchParams?.getAll("genre") ?? []);
   const [searchMode, setSearchMode] = React.useState<TrackSearchMode>(() => {
@@ -114,6 +134,7 @@ const SearchResults: React.FC = () => {
     filter: searchFilters.length > 0 ? searchFilters : undefined,
     searchMode,
     genres,
+    attributes,
   });
 
   // Counts only for keyword search: semantic and hybrid return one ranked page.
@@ -121,6 +142,7 @@ const SearchResults: React.FC = () => {
   const { counts: genreCounts } = useTrackGenreFacets({
     q: query,
     filter: searchFilters.join(" AND "),
+    attributes,
     enabled: isHydrated && !!currentUserFriend && searchMode === "lexical",
   });
   // The picker never offers a genre already chosen, so a pick is always new.
@@ -223,17 +245,22 @@ const SearchResults: React.FC = () => {
       setGenres((prev) => prev.filter((slug) => slug !== genreSlug));
       return;
     }
-    setActiveFilters((prev) => ({
-      ...prev,
-      [key]: !prev[key as keyof TracksFilter],
-    }));
-  }, []);
+    const withoutAttribute = removeAttributeChip(attributes, key);
+    if (withoutAttribute !== null) {
+      setAttributes(withoutAttribute);
+      return;
+    }
+    setActiveFilters((prev) => toggleTracksFilter(prev, key as keyof TracksFilter));
+  }, [attributes]);
 
   const handleClearAllFilters = React.useCallback(() => {
     setActiveFilters(createEmptyFilters());
     setGenres([]);
+    setAttributes({});
   }, []);
-  const activeFilterCount = getActiveFilterCount(activeFilters) + genres.length;
+  const attributeChips = attributeFilterChips(attributes);
+  const activeFilterCount =
+    getActiveFilterCount(activeFilters) + genres.length + attributeChips.length;
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const bottomSentinelRef = React.useRef<HTMLDivElement>(null);
@@ -284,14 +311,7 @@ const SearchResults: React.FC = () => {
     if (urlQ && urlQ !== debouncedValue) {
       setDebouncedValue(urlQ);
     }
-    const fromUrl: TracksFilter = {
-      missingAudio: searchParams?.get("missingAudio") === "1",
-      missingMetadata: searchParams?.get("missingMetadata") === "1",
-      missingAnyStreamingUrl: searchParams?.get("missingAnyStreamingUrl") === "1",
-      missingAppleMusic: searchParams?.get("missingAppleMusic") === "1",
-      missingYouTube: searchParams?.get("missingYouTube") === "1",
-      missingSoundCloud: searchParams?.get("missingSoundCloud") === "1",
-    };
+    const fromUrl = tracksFilterFromParams(searchParams);
     if (Object.values(fromUrl).some(Boolean)) {
       setActiveFilters(fromUrl);
     }
@@ -309,21 +329,14 @@ const SearchResults: React.FC = () => {
     }
     if (searchMode !== "lexical") params.set("mode", searchMode);
     else params.delete("mode");
-    const filterKeys: (keyof TracksFilter)[] = [
-      "missingAudio", "missingMetadata", "missingAnyStreamingUrl",
-      "missingAppleMusic", "missingYouTube", "missingSoundCloud",
-    ];
-    filterKeys.forEach((key) => {
-      if (activeFilters[key]) params.set(key, "1");
-      else params.delete(key);
-    });
+    writeTrackFiltersToParams(params, activeFilters, attributes);
     params.delete("genre");
     genres.forEach((slug) => params.append("genre", slug));
     const nextQueryString = params.toString();
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
     router.replace(newUrl);
-  }, [query, activeFilters, genres, searchMode, pathname, router, searchParamsString]);
+  }, [query, activeFilters, attributes, genres, searchMode, pathname, router, searchParamsString]);
 
   return (
     <Box mb={'100px'}>
@@ -339,7 +352,27 @@ const SearchResults: React.FC = () => {
         showLibrarySelect={false}
         placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
         mobileSecondaryControls={
-          <SearchModeToggle value={searchMode} onChange={setSearchMode} size="xs" />
+          <>
+            <SearchModeToggle value={searchMode} onChange={setSearchMode} size="xs" />
+            <FilterSheet
+              count={activeFilterCount}
+              onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
+            >
+              <FilterSheetSection title="Genre">
+                <GenreFilter selected={genres} onAdd={addGenre} counts={genreCounts} inSheet />
+              </FilterSheetSection>
+              <FilterSheetSection title="Missing">
+                <MissingChecklist
+                  options={TRACK_MISSING_OPTIONS}
+                  active={activeFilters}
+                  onToggle={handleFilterToggle}
+                />
+              </FilterSheetSection>
+              <FilterSheetSection title="BPM, key and rating">
+                <AttributeFields value={attributes} onChange={setAttributes} />
+              </FilterSheetSection>
+            </FilterSheet>
+          </>
         }
         mobilePrimaryControl={
           <IconButton
@@ -382,22 +415,29 @@ const SearchResults: React.FC = () => {
         }
       />
 
-      <Box mt={3}>
-        <FilterChips
-          leading={<GenreFilter selected={genres} onAdd={addGenre} counts={genreCounts} />}
-          chips={[
-            ...genreFilterChips(genres, taxonomy),
-            { key: "missingAudio", label: "Missing audio", active: !!activeFilters.missingAudio },
-            { key: "missingMetadata", label: "Missing metadata", active: !!activeFilters.missingMetadata },
-            { key: "missingAnyStreamingUrl", label: "No streaming URL", active: !!activeFilters.missingAnyStreamingUrl },
-            { key: "missingAppleMusic", label: "No Apple Music", active: !!activeFilters.missingAppleMusic },
-            { key: "missingYouTube", label: "No YouTube", active: !!activeFilters.missingYouTube },
-            { key: "missingSoundCloud", label: "No SoundCloud", active: !!activeFilters.missingSoundCloud },
-          ]}
-          onToggle={handleFilterToggle}
-          onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
-        />
-      </Box>
+      <FilterChips
+        mt={3}
+        leading={
+          <>
+            <GenreFilter selected={genres} onAdd={addGenre} counts={genreCounts} />
+            <MissingFilter
+              options={TRACK_MISSING_OPTIONS}
+              active={activeFilters}
+              onToggle={handleFilterToggle}
+            />
+            <AttributeFilter value={attributes} onChange={setAttributes} />
+          </>
+        }
+        chips={[
+          ...genreFilterChips(genres, taxonomy),
+          ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
+            ({ key, chipLabel }) => ({ key, label: chipLabel, active: true })
+          ),
+          ...attributeChips,
+        ]}
+        onToggle={handleFilterToggle}
+        onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
+      />
 
       {initialLoading ? (
         <Box mt={8}>
