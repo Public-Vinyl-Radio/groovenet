@@ -205,7 +205,7 @@ export function extractTracksFromAlbum(
       bpm: null,
       key: null,
       notes: null,
-      local_tags: [],
+      local_tags: null,
       apple_music_url: tr.apple_music_url || null,
       youtube_url: tr.youtube_url || null,
       soundcloud_url: tr.soundcloud_url || null,

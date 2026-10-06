@@ -138,7 +138,7 @@ export interface DiscogsTrack {
   bpm: number | null;
   key: string | null;
   notes: string | null;
-  local_tags: string[];
+  local_tags: string | null;
   apple_music_url: string | null;
   local_audio_url: string | null;
   username: string;
