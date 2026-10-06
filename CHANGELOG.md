@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.3.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.0...v0.3.1) (2026-10-06)
+
+
+### Features
+
+* **cli:** groovenet genres review for fast reconciliation decisions ([#442](https://github.com/Public-Vinyl-Radio/groovenet/issues/442)) ([4c2205b](https://github.com/Public-Vinyl-Radio/groovenet/commit/4c2205b1d5ff5eb34281d470299912c5777d1760))
+* **embeddings:** add a context embedding for natural-language retrieval ([#411](https://github.com/Public-Vinyl-Radio/groovenet/issues/411)) ([805820b](https://github.com/Public-Vinyl-Radio/groovenet/commit/805820b4aa6b91cf4717e05727dcbe2ee248b4bd))
+* **embeddings:** evaluate AI track notes for semantic retrieval ([#404](https://github.com/Public-Vinyl-Radio/groovenet/issues/404)) ([4b4ba62](https://github.com/Public-Vinyl-Radio/groovenet/commit/4b4ba62b21f1fd5a0b32883d60b26ddb829fde93))
+* **embeddings:** evaluate candidate embedding texts and models ([#382](https://github.com/Public-Vinyl-Radio/groovenet/issues/382)) ([#406](https://github.com/Public-Vinyl-Radio/groovenet/issues/406)) ([c897c77](https://github.com/Public-Vinyl-Radio/groovenet/commit/c897c773632ca2e16e5d6b77bd4709653a1f3907))
+* **enrich:** constrain AI genre suggestions to the taxonomy ([#437](https://github.com/Public-Vinyl-Radio/groovenet/issues/437)) ([1d1c2e1](https://github.com/Public-Vinyl-Radio/groovenet/commit/1d1c2e1ef57313882308e35d546d32090a9a5b72))
+* **enrichment:** default AI metadata off in the enrichment wizard ([#426](https://github.com/Public-Vinyl-Radio/groovenet/issues/426)) ([9aab91b](https://github.com/Public-Vinyl-Radio/groovenet/commit/9aab91bb33e14080be5e4eb549792feecebb5fca))
+* **genres:** add canonical taxonomy and admin API ([#414](https://github.com/Public-Vinyl-Radio/groovenet/issues/414)) ([2a72ae6](https://github.com/Public-Vinyl-Radio/groovenet/commit/2a72ae6f9a3f1fa7ff75b0d31b55d6a26d5bde43))
+* **genres:** clickable genre badges ([#376](https://github.com/Public-Vinyl-Radio/groovenet/issues/376)) ([#453](https://github.com/Public-Vinyl-Radio/groovenet/issues/453)) ([fc4c2c2](https://github.com/Public-Vinyl-Radio/groovenet/commit/fc4c2c2e557ecf87842f6859a9c6e4fc6e759fd2))
+* **genres:** pick track genres from the taxonomy, and badge them ([#432](https://github.com/Public-Vinyl-Radio/groovenet/issues/432)) ([41f7511](https://github.com/Public-Vinyl-Radio/groovenet/commit/41f751180dfdffc9fcad8a0db4759a756830c051))
+* **genres:** reconcile local_tags onto the taxonomy via reviewed proposals ([#438](https://github.com/Public-Vinyl-Radio/groovenet/issues/438)) ([a8e658f](https://github.com/Public-Vinyl-Radio/groovenet/commit/a8e658f356b780bb4514c46301d3de849e7eff33))
+* **genres:** scope local_tags reconciliation to one friend ([#439](https://github.com/Public-Vinyl-Radio/groovenet/issues/439)) ([dd19ee6](https://github.com/Public-Vinyl-Radio/groovenet/commit/dd19ee6627e3472cc74d29ea11a4e6d9c440078b))
+* **genres:** store track genres as taxonomy links, with descriptors ([#431](https://github.com/Public-Vinyl-Radio/groovenet/issues/431)) ([1454744](https://github.com/Public-Vinyl-Radio/groovenet/commit/14547442fbbe130d7b757efdcb15fdeb1555cefb))
+* **search:** cap natural-language results at 3 per release ([#424](https://github.com/Public-Vinyl-Radio/groovenet/issues/424)) ([#427](https://github.com/Public-Vinyl-Radio/groovenet/issues/427)) ([923ea08](https://github.com/Public-Vinyl-Radio/groovenet/commit/923ea082ca87eb2409bc3ee39f41690f51f046c9))
+* **search:** filter tracks and albums by genre, including subgenres ([#375](https://github.com/Public-Vinyl-Radio/groovenet/issues/375)) ([#444](https://github.com/Public-Vinyl-Radio/groovenet/issues/444)) ([1f18c6f](https://github.com/Public-Vinyl-Radio/groovenet/commit/1f18c6f926627374fe89b555be3f6b1ddec7fc51))
+* **search:** genre filter in the search and albums UI, with genre counts ([#375](https://github.com/Public-Vinyl-Radio/groovenet/issues/375)) ([#446](https://github.com/Public-Vinyl-Radio/groovenet/issues/446)) ([0e974f8](https://github.com/Public-Vinyl-Radio/groovenet/commit/0e974f88b956a526f857607e512fd9e5e195d26b))
+* **search:** group the missing-data filters into a dropdown, and add BPM/key/rating controls ([#447](https://github.com/Public-Vinyl-Radio/groovenet/issues/447)) ([#449](https://github.com/Public-Vinyl-Radio/groovenet/issues/449)) ([82136ff](https://github.com/Public-Vinyl-Radio/groovenet/commit/82136ff7591e29d34ab1b67d61a7f7682717737a))
+* **search:** natural-language track search over context embeddings ([#413](https://github.com/Public-Vinyl-Radio/groovenet/issues/413)) ([11eaa54](https://github.com/Public-Vinyl-Radio/groovenet/commit/11eaa54d5f5110ee4ccbfcbeef391e222d06fa31))
+
+
+### Bug Fixes
+
+* **dev:** run the app as the checkout owner on Linux bind mounts ([#430](https://github.com/Public-Vinyl-Radio/groovenet/issues/430)) ([19bf8ac](https://github.com/Public-Vinyl-Radio/groovenet/commit/19bf8ac14858288d9e23303cb2a11415ad182057))
+* **discogs:** store empty imported local tags as null ([#445](https://github.com/Public-Vinyl-Radio/groovenet/issues/445)) ([d58bfb2](https://github.com/Public-Vinyl-Radio/groovenet/commit/d58bfb21c136b7fc697991edd33935cec18595c7))
+* **embeddings:** skip the periodic sweep while embedding jobs are pending ([#420](https://github.com/Public-Vinyl-Radio/groovenet/issues/420)) ([9218762](https://github.com/Public-Vinyl-Radio/groovenet/commit/921876223546be0231c9108333f43f8bc1340d0a))
+* **embeddings:** version embedding templates and fix identity accent normalization ([#410](https://github.com/Public-Vinyl-Radio/groovenet/issues/410)) ([1b41408](https://github.com/Public-Vinyl-Radio/groovenet/commit/1b41408faf174765ddfa6a93a1518b830329717f))
+* **genres:** fewer new-genre proposals, and skip empty array local_tags ([#441](https://github.com/Public-Vinyl-Radio/groovenet/issues/441)) ([3d8db71](https://github.com/Public-Vinyl-Radio/groovenet/commit/3d8db7187713cb7f908c06c8ea65db45f6613bb6))
+* **genres:** map local_tags to the most specific genre, and match spelling variants ([#443](https://github.com/Public-Vinyl-Radio/groovenet/issues/443)) ([b9d8f1a](https://github.com/Public-Vinyl-Radio/groovenet/commit/b9d8f1a2e1cfda5d239c1eeb383022b5e6b5faa7))
+* **genres:** require a third of an album's tagged tracks to match a genre ([#448](https://github.com/Public-Vinyl-Radio/groovenet/issues/448)) ([#454](https://github.com/Public-Vinyl-Radio/groovenet/issues/454)) ([5fe2d77](https://github.com/Public-Vinyl-Radio/groovenet/commit/5fe2d7761e4aa6334ef72e4c2c767a8426ffe32d))
+* **migrations:** include genre seed in migrator image ([#417](https://github.com/Public-Vinyl-Radio/groovenet/issues/417)) ([e236c41](https://github.com/Public-Vinyl-Radio/groovenet/commit/e236c4142141327f0dbc39b98b6e69b13b6f9940))
+* **migrations:** reorder genre taxonomy migration after embedding migrations ([#418](https://github.com/Public-Vinyl-Radio/groovenet/issues/418)) ([d126f36](https://github.com/Public-Vinyl-Radio/groovenet/commit/d126f366c7e5f83f8dd622b4d512f7d161d34fbb))
+* **recommendations:** keep track suggestions to the selected library ([#428](https://github.com/Public-Vinyl-Radio/groovenet/issues/428)) ([bacee27](https://github.com/Public-Vinyl-Radio/groovenet/commit/bacee272558e8adbf5ffba2740d6d24303cf8cc5))
+* **search:** apply BPM, key and rating filters in every search mode ([#422](https://github.com/Public-Vinyl-Radio/groovenet/issues/422)) ([96a05e3](https://github.com/Public-Vinyl-Radio/groovenet/commit/96a05e3db201d0a12c839d71eb6a28d11b49f86e))
+* **test:** probe throwaway Postgres over TCP before running tests ([#423](https://github.com/Public-Vinyl-Radio/groovenet/issues/423)) ([bcb0830](https://github.com/Public-Vinyl-Radio/groovenet/commit/bcb0830c835eeb84c28651468314696deb398c4a))
+
+
+### Performance Improvements
+
+* **embeddings:** batch queue jobs and prioritize interactive work ([#452](https://github.com/Public-Vinyl-Radio/groovenet/issues/452)) ([9073940](https://github.com/Public-Vinyl-Radio/groovenet/commit/907394002253588c95cc9ffac6b0374f835478b9))
+
 ## [0.3.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.2.10...v0.3.0) (2026-10-04)
 
 
