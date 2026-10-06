@@ -2300,6 +2300,7 @@ export const genreProposalListQuerySchema = z.object({
   status: genreProposalStatusSchema.optional(),
   action: genreProposalActionSchema.optional(),
   method: genreProposalMethodSchema.optional(),
+  min_tracks: intFromInputSchema.pipe(z.number().int().min(0)).optional(),
   limit: intFromInputSchema.pipe(z.number().int().min(1).max(500)).optional(),
   offset: intFromInputSchema.pipe(z.number().int().min(0)).optional(),
 });
@@ -2309,18 +2310,73 @@ export const genreProposalListResponseSchema = z.object({
   total: z.number().int(),
 });
 
+const genreProposalChangeFields = {
+  status: genreProposalStatusSchema.optional(),
+  action: genreProposalActionSchema.optional(),
+  target_genres: z.array(z.string().trim().min(1)).max(10).optional(),
+  proposed_genre_name: z.string().nullable().optional(),
+  proposed_parent_id: z.string().uuid().nullable().optional(),
+};
+const hasChange = (value: Record<string, unknown>) =>
+  Object.entries(value).some(([key, field]) => key !== "id" && field !== undefined);
+
 export const genreProposalUpdateBodySchema = z
-  .object({
-    status: genreProposalStatusSchema.optional(),
-    action: genreProposalActionSchema.optional(),
-    target_genres: z.array(z.string().trim().min(1)).max(10).optional(),
-    proposed_genre_name: z.string().nullable().optional(),
-    proposed_parent_id: z.string().uuid().nullable().optional(),
-  })
+  .object(genreProposalChangeFields)
   .strict()
-  .refine((value) => Object.values(value).some((field) => field !== undefined), {
-    message: "Nothing to update",
-  });
+  .refine(hasChange, { message: "Nothing to update" });
+
+export const genreProposalDecisionsBodySchema = z
+  .object({
+    decisions: z
+      .array(
+        z
+          .object({ id: z.string().uuid(), ...genreProposalChangeFields })
+          .strict()
+          .refine(hasChange, { message: "Nothing to update" })
+      )
+      .min(1)
+      .max(500),
+  })
+  .strict();
+
+export const genreProposalSnapshotSchema = z.object({
+  id: z.string().uuid(),
+  status: genreProposalStatusSchema,
+  action: genreProposalActionSchema,
+  target_genre_ids: z.array(z.string().uuid()),
+  proposed_genre_name: z.string().nullable(),
+  proposed_parent_id: z.string().uuid().nullable(),
+  method: genreProposalMethodSchema,
+});
+
+export const genreProposalDecisionsResponseSchema = z.object({
+  proposals: z.array(genreProposalSchema),
+  previous: z.array(genreProposalSnapshotSchema),
+});
+
+export const genreProposalRestoreBodySchema = z
+  .object({ snapshots: z.array(genreProposalSnapshotSchema.strict()).min(1).max(500) })
+  .strict();
+
+export const genreProposalRestoreResponseSchema = z.object({ restored: z.number().int() });
+
+export const genreProposalTracksQuerySchema = z.object({
+  friend_id: intFromInputSchema.pipe(z.number().int().min(1)).optional(),
+  limit: intFromInputSchema.pipe(z.number().int().min(1).max(20)).optional(),
+});
+
+export const genreProposalTracksResponseSchema = z.object({
+  tracks: z.array(
+    z.object({
+      track_id: z.string(),
+      friend_id: z.number().int(),
+      title: z.string(),
+      artist: z.string(),
+      album: z.string().nullable(),
+      styles: z.array(z.string()),
+    })
+  ),
+});
 
 export const genreProposalApplyBodySchema = z
   .object({

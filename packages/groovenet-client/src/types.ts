@@ -163,6 +163,8 @@ export interface GenreProposalQuery {
   status?: GenreProposalStatus;
   action?: GenreProposalAction;
   method?: GenreProposalMethod;
+  /** Only values on at least this many tracks, as counted by the latest run. */
+  min_tracks?: number;
   limit?: number;
   offset?: number;
 }
@@ -179,6 +181,32 @@ export interface GenreProposalUpdate {
   target_genres?: string[];
   proposed_genre_name?: string | null;
   proposed_parent_id?: string | null;
+}
+
+export interface GenreProposalDecision extends GenreProposalUpdate {
+  id: string;
+}
+
+/** A proposal's reviewable state, as undo restores it. */
+export type GenreProposalSnapshot = Pick<
+  GenreProposal,
+  "id" | "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id" | "method"
+>;
+
+export interface GenreProposalDecisionResult {
+  /** Each proposal after the decision, in request order. */
+  proposals: GenreProposal[];
+  /** Each proposal before it; pass to restoreGenreProposals to undo. */
+  previous: GenreProposalSnapshot[];
+}
+
+export interface GenreProposalTrack {
+  track_id: string;
+  friend_id: number;
+  title: string;
+  artist: string;
+  album: string | null;
+  styles: string[];
 }
 
 export interface GenreProposalApplyResult {

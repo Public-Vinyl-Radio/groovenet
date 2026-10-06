@@ -28,7 +28,7 @@ vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
 records             clean | sleeve | log | copies (add | label | remove)
                     history | void | care [--summary]
-genres              reconcile | proposals | coverage
+genres              reconcile | review | apply | proposals | coverage
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -102,10 +102,36 @@ proposes values from that friend's tracks, and their `track_count` reflects the
 latest run's scope.
 
 A run only proposes; nothing touches a track until a proposal is accepted and
-applied (`PATCH /api/genres/proposals/{id}`, `POST /api/genres/proposals/apply`).
-Re-running is cheap: reviewed proposals are kept, and a pending AI proposal is
-not re-sent unless `--refresh`. Exit code is 1 if the run failed. The fast
-keyboard-driven review is #373.
+applied. Re-running is cheap: reviewed proposals are kept, and a pending AI
+proposal is not re-sent unless `--refresh`. Exit code is 1 if the run failed.
+
+### Review (#373)
+
+```bash
+groovenet genres review --auto-accept-exact   # exact matches first, then the rest
+groovenet genres review --method ai --min-tracks 5
+groovenet genres apply                        # asks first; --yes in a script
+```
+
+Pending proposals are grouped by what they would do (every value mapping to
+Cumbia is one question), biggest group first, with a few example tracks.
+Single keys: `a` accept, `x` split into single values, `r` remap (fuzzy search
+over the taxonomy), `n` new genre (then pick its parent), `d` descriptor, `k`
+drop, `s` skip, `u` undo, `q` quit. Ctrl-C is `q`.
+
+- **Decisions are written as you go**, through `POST
+  /api/genres/proposals/decisions` (one transaction per group), so quitting
+  loses nothing and the next review starts with what is still pending.
+- **Undo restores exactly**: the decisions response carries each proposal's
+  previous state, and `u` sends it back to `/proposals/restore`, a whole group
+  at a time.
+- **Nothing touches tracks until apply**, offered once at the end of a session
+  and confirmed, or `genres apply` later.
+
+`genresReview.ts` keeps the logic testable: `groupProposals`, `searchTaxonomy`
+and `decisionsFor` are pure, and `runReview` takes its key reader and line
+reader as arguments. `rawKeyReader` is the only part that touches the TTY.
+Review refuses to run without a terminal.
 
 ## vinyl
 

@@ -90,6 +90,12 @@ import {
   genreProposalSchema,
   genreProposalApplyBodySchema,
   genreProposalApplyResponseSchema,
+  genreProposalDecisionsBodySchema,
+  genreProposalDecisionsResponseSchema,
+  genreProposalRestoreBodySchema,
+  genreProposalRestoreResponseSchema,
+  genreProposalTracksQuerySchema,
+  genreProposalTracksResponseSchema,
   jobDetailsResponseSchema,
   jobsClearResponseSchema,
   jobsEventsSseResponseSchema,
@@ -3439,6 +3445,17 @@ const genreProposalSchemaObject: Record<string, unknown> = {
   ],
 };
 
+const genreProposalSnapshotSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    id: genreUuid, status: proposalStatusEnum, action: proposalActionEnum,
+    target_genre_ids: { type: "array", items: genreUuid },
+    proposed_genre_name: nullableString, proposed_parent_id: nullableUuid, method: proposalMethodEnum,
+  },
+  required: ["id", "status", "action", "target_genre_ids", "proposed_genre_name", "proposed_parent_id", "method"],
+  additionalProperties: false,
+};
+
 const countsObject = (keys: string[]) => ({
   type: "object",
   properties: Object.fromEntries(keys.map((key) => [key, integer])),
@@ -3559,6 +3576,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         { name: "status", in: "query", required: false, schema: proposalStatusEnum },
         { name: "action", in: "query", required: false, schema: proposalActionEnum },
         { name: "method", in: "query", required: false, schema: proposalMethodEnum },
+        { name: "min_tracks", in: "query", required: false, description: "Only values on at least this many tracks, as counted by the latest run", schema: { type: "integer", minimum: 0 } },
         { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 500, default: 50 } },
         { name: "offset", in: "query", required: false, schema: { type: "integer", minimum: 0, default: 0 } },
       ],
@@ -3647,6 +3665,128 @@ const genreReconciliationContracts: ApiContractRoute[] = [
           } } },
         },
         "400": reconciliationError("Invalid request"),
+      },
+    },
+  },
+  {
+    operationId: "decideGenreProposals",
+    method: "post",
+    path: "/api/genres/proposals/decisions",
+    summary: "Record several review decisions in one transaction",
+    tags: ["Genre Reconciliation"],
+    bodySchema: genreProposalDecisionsBodySchema,
+    successSchema: genreProposalDecisionsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: { "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              decisions: {
+                type: "array", minItems: 1, maxItems: 500,
+                description: "Each is a PATCH /api/genres/proposals/{id} body plus the id. All or none are written.",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: genreUuid, status: proposalStatusEnum, action: proposalActionEnum,
+                    target_genres: { type: "array", maxItems: 10, items: { type: "string", minLength: 1 } },
+                    proposed_genre_name: nullableString, proposed_parent_id: nullableUuid,
+                  },
+                  required: ["id"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["decisions"],
+            additionalProperties: false,
+          },
+          example: { decisions: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", status: "accepted" }] },
+        } },
+      },
+      responses: {
+        "200": {
+          description: "Each proposal after the decision, and its state before for undo",
+          content: { "application/json": { schema: {
+            type: "object",
+            properties: {
+              proposals: { type: "array", items: genreProposalSchemaObject },
+              previous: { type: "array", items: genreProposalSnapshotSchemaObject },
+            },
+            required: ["proposals", "previous"],
+          } } },
+        },
+        "400": reconciliationError("Invalid decision, an unknown genre, or an incomplete map/new_genre proposal; nothing written"),
+        "404": reconciliationError("A proposal does not exist; nothing written"),
+      },
+    },
+  },
+  {
+    operationId: "restoreGenreProposals",
+    method: "post",
+    path: "/api/genres/proposals/restore",
+    summary: "Undo review decisions by restoring proposal snapshots",
+    tags: ["Genre Reconciliation"],
+    bodySchema: genreProposalRestoreBodySchema,
+    successSchema: genreProposalRestoreResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: {
+          type: "object",
+          properties: { snapshots: { type: "array", minItems: 1, maxItems: 500, items: genreProposalSnapshotSchemaObject, description: "`previous` from a decisions response" } },
+          required: ["snapshots"],
+          additionalProperties: false,
+        } } },
+      },
+      responses: {
+        "200": { description: "How many proposals still existed and were restored", content: { "application/json": { schema: { type: "object", properties: { restored: integer }, required: ["restored"] } } } },
+        "400": reconciliationError("Invalid snapshots"),
+      },
+    },
+  },
+  {
+    operationId: "listGenreProposalTracks",
+    method: "get",
+    path: "/api/genres/proposals/{id}/tracks",
+    summary: "A few tracks tagged with a proposal's value, for review",
+    tags: ["Genre Reconciliation"],
+    paramsSchema: genreParamsSchema,
+    querySchema: genreProposalTracksQuerySchema,
+    successSchema: genreProposalTracksResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        reconciliationIdParam,
+        { name: "friend_id", in: "query", required: false, description: "Only this friend's tracks", schema: { type: "integer", minimum: 1 } },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 20, default: 3 } },
+      ],
+      responses: {
+        "200": {
+          description: "Tracks whose local_tags contain the value",
+          content: { "application/json": { schema: {
+            type: "object",
+            properties: {
+              tracks: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    track_id: { type: "string" }, friend_id: integer, title: { type: "string" },
+                    artist: { type: "string" }, album: nullableString,
+                    styles: { type: "array", items: { type: "string" }, description: "The album's Discogs styles" },
+                  },
+                  required: ["track_id", "friend_id", "title", "artist", "album", "styles"],
+                },
+              },
+            },
+            required: ["tracks"],
+          } } },
+        },
+        "400": reconciliationError("Invalid ID or query"),
+        "404": reconciliationError("No such proposal"),
       },
     },
   },

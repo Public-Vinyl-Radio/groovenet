@@ -22,8 +22,10 @@ import {
   formatRunSummary,
   renderProposals,
   resolveFriendId,
+  runApply,
   runCoverage,
   runProposals,
+  runReviewCommand,
   runReconcile,
   toRequest,
   waitForReconciliation,
@@ -275,12 +277,62 @@ describe("runProposals() and runCoverage()", () => {
   });
 });
 
+const applied = { proposals_applied: 1, tracks_linked: 2, descriptors_added: 0, aliases_added: 0, genres_created: 0, skipped: [] };
+
+describe("runApply()", () => {
+  it("asks first, and applies to the resolved friend on y", async () => {
+    loadConfig.mockReturnValue({ default_friend_id: 6 });
+    const applyGenreProposals = vi.fn().mockResolvedValue(applied);
+    const readKey = vi.fn().mockResolvedValue("y");
+    const out = captureIO();
+    await expect(runApply({ applyGenreProposals }, {}, readKey, true, out)).resolves.toBe(0);
+    expect(readKey).toHaveBeenCalledWith("Apply all approved proposals to friend 6's tracks? [y/N] ");
+    expect(applyGenreProposals).toHaveBeenCalledWith(undefined, 6);
+    expect(out.lines[0]).toContain("1 proposals applied");
+  });
+
+  it("applies nothing on any other answer", async () => {
+    const applyGenreProposals = vi.fn();
+    const out = captureIO();
+    await runApply({ applyGenreProposals }, { allFriends: true }, vi.fn().mockResolvedValue("n"), true, out);
+    expect(applyGenreProposals).not.toHaveBeenCalled();
+    expect(out.lines).toEqual(["Nothing applied."]);
+  });
+
+  it("needs --yes without a terminal, and prints JSON when asked", async () => {
+    const applyGenreProposals = vi.fn().mockResolvedValue(applied);
+    await expect(runApply({ applyGenreProposals }, {}, vi.fn(), false)).rejects.toThrow("pass --yes");
+    const out = captureIO();
+    await runApply({ applyGenreProposals }, { yes: true, json: true, friendId: 2 }, vi.fn(), false, out);
+    expect(applyGenreProposals).toHaveBeenCalledWith(undefined, 2);
+    expect(JSON.parse(out.written)).toEqual(applied);
+  });
+});
+
+describe("runReviewCommand()", () => {
+  it("refuses without a terminal", async () => {
+    await expect(runReviewCommand({} as never, {}, false)).rejects.toThrow("Review is interactive");
+  });
+
+  it("starts a review scoped to the resolved friend", async () => {
+    loadConfig.mockReturnValue({ default_friend_id: 6 });
+    const client = {
+      listGenreProposals: vi.fn().mockResolvedValue({ proposals: [], total: 0 }),
+    };
+    const out = captureIO();
+    await expect(runReviewCommand(client as never, { minTracks: 3 }, true, vi.fn(), vi.fn(), out)).resolves.toBe(0);
+    expect(client.listGenreProposals).toHaveBeenCalledWith({ status: "pending", min_tracks: 3, limit: 500, offset: 0 });
+    expect(out.lines).toContain("No pending proposals to review.");
+  });
+});
+
 describe("addGenresCommands()", () => {
   const methods = {
     startGenreReconciliation: vi.fn(),
     getGenreReconciliationRun: vi.fn(),
     getGenreReconciliationCoverage: vi.fn(),
     listGenreProposals: vi.fn(),
+    applyGenreProposals: vi.fn(),
   };
 
   beforeEach(() => {
@@ -324,6 +376,20 @@ describe("addGenresCommands()", () => {
       status: "accepted", method: "exact", action: "map", limit: 50, offset: 0,
     });
     await expect(parse("proposals", "--status", "done")).rejects.toThrow(/expected one of/);
+  });
+
+  it("review and apply refuse to run without a terminal", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    await parse("review", "--method", "ai", "--min-tracks", "2", "--auto-accept-exact", "--examples", "1");
+    await parse("apply");
+    expect(exit).toHaveBeenCalledTimes(2);
+    expect(methods.applyGenreProposals).not.toHaveBeenCalled();
+  });
+
+  it("apply --yes applies without asking", async () => {
+    methods.applyGenreProposals.mockResolvedValue(applied);
+    await parse("apply", "--yes", "--all-friends");
+    expect(methods.applyGenreProposals).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it("coverage prints the report", async () => {

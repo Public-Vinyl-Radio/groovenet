@@ -12,6 +12,7 @@ import type {
   GenreReconciliationRequest, GenreReconciliationRun, GenreReconciliationCoverage,
   GenreProposal, GenreProposalQuery, GenreProposalListResponse, GenreProposalUpdate,
   GenreProposalApplyResult,
+  GenreProposalDecision, GenreProposalDecisionResult, GenreProposalSnapshot, GenreProposalTrack,
   Album,
   AlbumSearchQuery,
   AlbumSearchResponse,
@@ -470,6 +471,30 @@ export class GroovenetClient {
 
   async updateGenreProposal(id: string, update: GenreProposalUpdate): Promise<GenreProposal> {
     return this.request<GenreProposal>("PATCH", `/genres/proposals/${encodeURIComponent(id)}`, update);
+  }
+
+  /**
+   * Record several review decisions in one transaction: all are written or
+   * none. `previous` in the result undoes them through restoreGenreProposals.
+   */
+  async decideGenreProposals(decisions: GenreProposalDecision[]): Promise<GenreProposalDecisionResult> {
+    return this.request<GenreProposalDecisionResult>("POST", "/genres/proposals/decisions", { decisions });
+  }
+
+  /** Undo: write proposals back as a decision's `previous` describes them. */
+  async restoreGenreProposals(snapshots: GenreProposalSnapshot[]): Promise<{ restored: number }> {
+    return this.request<{ restored: number }>("POST", "/genres/proposals/restore", { snapshots });
+  }
+
+  /** A few tracks tagged with a proposal's value, for review. */
+  async getGenreProposalTracks(
+    id: string,
+    query: { friend_id?: number; limit?: number } = {}
+  ): Promise<GenreProposalTrack[]> {
+    const result = await this.request<{ tracks: GenreProposalTrack[] }>(
+      "GET", `/genres/proposals/${encodeURIComponent(id)}/tracks`, undefined, { ...query }
+    );
+    return result.tracks;
   }
 
   /**

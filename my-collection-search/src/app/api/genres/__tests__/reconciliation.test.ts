@@ -7,6 +7,9 @@ const service = vi.hoisted(() => ({
   getCoverage: vi.fn(),
   updateProposal: vi.fn(),
   applyProposals: vi.fn(),
+  decideProposals: vi.fn(),
+  restoreProposals: vi.fn(),
+  getProposalTracks: vi.fn(),
 }));
 const listProposals = vi.hoisted(() => vi.fn());
 vi.mock("@/server/services/genreReconciliationService", async (original) => ({
@@ -24,6 +27,9 @@ import { GET as getCoverage } from "../reconciliation/coverage/route";
 import { GET as listProposalsRoute } from "../proposals/route";
 import { PATCH as updateProposal } from "../proposals/[id]/route";
 import { POST as applyProposals } from "../proposals/apply/route";
+import { POST as decide } from "../proposals/decisions/route";
+import { POST as restore } from "../proposals/restore/route";
+import { GET as proposalTracks } from "../proposals/[id]/tracks/route";
 
 const id = "6df3a956-f05c-4ef2-a218-0813d0ca7c47";
 const now = new Date("2026-10-05T00:00:00.000Z");
@@ -176,5 +182,67 @@ describe("POST /api/genres/proposals/apply", () => {
     expect((await applyProposals(req(JSON.stringify({ ids: ["bad"] })))).status).toBe(400);
     service.applyProposals.mockRejectedValue(new Error("x"));
     expect((await applyProposals(req())).status).toBe(500);
+  });
+});
+
+const snapshot = {
+  id, status: "pending", action: "map", target_genre_ids: [id],
+  proposed_genre_name: null, proposed_parent_id: null, method: "ai",
+};
+
+describe("POST /api/genres/proposals/decisions", () => {
+  it("records a batch and returns before and after", async () => {
+    service.decideProposals.mockResolvedValue({ proposals: [proposal], previous: [snapshot] });
+    const response = await decide(req(JSON.stringify({ decisions: [{ id, status: "accepted" }] })));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ proposals: [{ id }], previous: [snapshot] });
+    expect(service.decideProposals).toHaveBeenCalledWith([{ id, status: "accepted" }]);
+  });
+
+  it("rejects empty batches, empty decisions and unknown fields", async () => {
+    for (const body of [{ decisions: [] }, { decisions: [{ id }] }, { decisions: [{ id, status: "accepted", bogus: 1 }] }, {}]) {
+      expect((await decide(req(JSON.stringify(body)))).status).toBe(400);
+    }
+    expect(service.decideProposals).not.toHaveBeenCalled();
+  });
+
+  it("maps service errors", async () => {
+    service.decideProposals.mockRejectedValue(new GenreReconciliationError("Proposal not found: x", 404));
+    expect((await decide(req(JSON.stringify({ decisions: [{ id, status: "accepted" }] })))).status).toBe(404);
+  });
+});
+
+describe("POST /api/genres/proposals/restore", () => {
+  it("restores snapshots", async () => {
+    service.restoreProposals.mockResolvedValue({ restored: 1 });
+    const response = await restore(req(JSON.stringify({ snapshots: [snapshot] })));
+    expect(await response.json()).toEqual({ restored: 1 });
+    expect(service.restoreProposals).toHaveBeenCalledWith([snapshot]);
+  });
+
+  it("rejects partial snapshots and maps errors", async () => {
+    expect((await restore(req(JSON.stringify({ snapshots: [{ id }] })))).status).toBe(400);
+    service.restoreProposals.mockRejectedValue(new Error("x"));
+    expect((await restore(req(JSON.stringify({ snapshots: [snapshot] })))).status).toBe(500);
+  });
+});
+
+describe("GET /api/genres/proposals/{id}/tracks", () => {
+  const tracksReq = (query = "") => new NextRequest(`http://localhost/api/genres/proposals/${id}/tracks${query}`);
+  const track = { track_id: "1", friend_id: 6, title: "T", artist: "A", album: null, styles: ["Cumbia"] };
+
+  it("returns example tracks, defaulting to three for everyone", async () => {
+    service.getProposalTracks.mockResolvedValue([track]);
+    expect(await (await proposalTracks(tracksReq(), ctx())).json()).toEqual({ tracks: [track] });
+    expect(service.getProposalTracks).toHaveBeenCalledWith(id, null, 3);
+    await proposalTracks(tracksReq("?friend_id=6&limit=5"), ctx());
+    expect(service.getProposalTracks).toHaveBeenLastCalledWith(id, 6, 5);
+  });
+
+  it("validates the id and query, and maps errors", async () => {
+    expect((await proposalTracks(tracksReq(), ctx("bad"))).status).toBe(400);
+    expect((await proposalTracks(tracksReq("?limit=21"), ctx())).status).toBe(400);
+    service.getProposalTracks.mockRejectedValue(new GenreReconciliationError("Proposal not found", 404));
+    expect((await proposalTracks(tracksReq(), ctx())).status).toBe(404);
   });
 });
