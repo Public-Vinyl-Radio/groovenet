@@ -13,6 +13,7 @@ import {
   type ProposalStatus,
   type ReconciliationRun,
   type ReconciliationRunOptions,
+  type ExactMatch,
 } from "@/server/repositories/genreReconciliationRepository";
 import { trackGenreRepository } from "@/server/repositories/trackGenreRepository";
 import {
@@ -70,14 +71,15 @@ export type RunPlan = {
  *
  * - Reviewed values keep their decision.
  * - An exact match always wins over a pending proposal; aliases added since the
- *   last run are how the backlog shrinks.
+ *   last run are how the backlog shrinks. A loose match (spaces and hyphens
+ *   ignored) is still an exact proposal, at confidence 0.95.
  * - A pending AI or manual proposal is kept unless `refresh`, so a re-run does
  *   not pay for the same answer twice.
  */
 export function planRun(
   values: LocalTagValue[],
   existing: Map<string, { status: ProposalStatus; method: string }>,
-  exactIds: Map<string, string>,
+  exactIds: Map<string, ExactMatch>,
   options: Pick<ReconciliationRunOptions, "refresh">
 ): RunPlan {
   const plan: RunPlan = { exact: [], kept: [], forAi: [] };
@@ -87,17 +89,17 @@ export function planRun(
       plan.kept.push(value);
       continue;
     }
-    const exactId = exactIds.get(value.value_normalized);
-    if (exactId) {
+    const exact = exactIds.get(value.value_normalized);
+    if (exact) {
       plan.exact.push({
         value_normalized: value.value_normalized,
         raw_examples: value.raw_examples,
         track_count: value.track_count,
         action: "map",
-        target_genre_ids: [exactId],
+        target_genre_ids: [exact.genre_id],
         proposed_genre_name: null,
         proposed_parent_id: null,
-        confidence: 1,
+        confidence: exact.loose ? 0.95 : 1,
         method: "exact",
       });
     } else if (current && current.method !== "exact" && !options.refresh) {

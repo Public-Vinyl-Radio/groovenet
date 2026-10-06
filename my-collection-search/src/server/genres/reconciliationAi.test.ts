@@ -60,6 +60,10 @@ describe("prompts and schema", () => {
     // them an existing genre reworded or with a modifier.
     expect(prompt).toContain('"Colombian Cumbia" is "Cumbia Colombiana"');
     expect(prompt).toContain("A genre plus a modifier is that genre");
+    // The second prod batch then mapped most tags to a top-level category.
+    expect(prompt).toContain("MOST SPECIFIC taxonomy entry");
+    expect(prompt).toContain('"Blues-Rock" is Blues Rock');
+    expect(prompt).toContain("A named scene is not a modifier");
   });
 
   it("tells the model which values may become new genres", () => {
@@ -117,6 +121,36 @@ describe("toProposalDrafts", () => {
       mapping({ value: "cumbia rebajada", action: "new_genre", proposed_genre: null }),
     ], taxonomy, 5);
     expect(drafts).toEqual([expect.objectContaining({ value_normalized: "asdf", action: "drop", confidence: 0 })]);
+  });
+});
+
+describe("toProposalDrafts: answers that settle for a category", () => {
+  const values = [value("colombian cumbia", 13), value("latin rock", 65), value("cumbia sonidera", 18)];
+
+  it("halves the confidence of a root-only map when the tag names a child genre", () => {
+    const [broad, fine] = toProposalDrafts(values, [
+      mapping({ value: "colombian cumbia", action: "map", genres: ["Latin"], confidence: 0.9 }),
+      mapping({ value: "latin rock", action: "map", genres: ["Latin"], confidence: 0.9 }),
+    ], taxonomy, 5);
+    expect(broad).toMatchObject({ value_normalized: "colombian cumbia", confidence: 0.45 });
+    // "latin rock" names no child genre, so Latin is as specific as it gets.
+    expect(fine).toMatchObject({ value_normalized: "latin rock", confidence: 0.9 });
+  });
+
+  it("does the same for a new genre placed under a root", () => {
+    const [underRoot] = toProposalDrafts(values, [
+      mapping({ value: "cumbia sonidera", action: "new_genre", proposed_genre: "Cumbia Sonidera", proposed_parent: "Latin", confidence: 0.9 }),
+    ], taxonomy, 5);
+    expect(underRoot).toMatchObject({ action: "new_genre", proposed_parent_id: "latin", confidence: 0.45 });
+    const [underChild] = toProposalDrafts(values, [
+      mapping({ value: "cumbia sonidera", action: "new_genre", proposed_genre: "Cumbia Sonidera", proposed_parent: "Cumbia", confidence: 0.9 }),
+    ], taxonomy, 5);
+    expect(underChild.confidence).toBe(0.9);
+  });
+
+  it("leaves descriptors and drops alone", () => {
+    const [d] = toProposalDrafts(values, [mapping({ value: "colombian cumbia", action: "descriptor", confidence: 0.8 })], taxonomy, 5);
+    expect(d.confidence).toBe(0.8);
   });
 });
 
