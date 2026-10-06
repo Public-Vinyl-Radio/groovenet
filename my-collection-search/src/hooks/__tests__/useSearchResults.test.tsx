@@ -111,3 +111,29 @@ describe("useSearchResults genres (#375)", () => {
     expect(trackKeys()[0][1]).not.toHaveProperty("genre");
   });
 });
+
+describe("useSearchResults attribute filters (#447)", () => {
+  const attributes = { bpm_min: 120, bpm_max: 126, key: "A minor", star_rating: 4 };
+
+  it("sends the attributes and keys the cache by them", async () => {
+    renderSearch({ attributes });
+    await waitFor(() =>
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining(attributes))
+    );
+    expect(trackKeys()[0][1]).toMatchObject({ attributes });
+  });
+
+  it("sends them in page mode too", async () => {
+    renderSearch({ attributes: { key: "C major" }, mode: "page" });
+    await waitFor(() =>
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ key: "C major" }))
+    );
+    expect(trackKeys()[0][1]).toMatchObject({ attributes: { key: "C major" } });
+  });
+
+  it("leaves the cache key as it was with no attribute set", async () => {
+    renderSearch({ attributes: { bpm_min: undefined } });
+    await waitFor(() => expect(searchTracks).toHaveBeenCalled());
+    expect(trackKeys()[0][1]).not.toHaveProperty("attributes");
+  });
+});

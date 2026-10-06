@@ -12,6 +12,20 @@ const mockGenerateIdentity = vi.hoisted(() => vi.fn());
 const mockCheckProvider = vi.hoisted(() => vi.fn());
 const mockListIdentity = vi.hoisted(() => vi.fn());
 
+vi.mock("@/server/services/embeddingBatchService", () => ({
+  runEmbeddingBatch: async (jobs: { track_id: string; friend_id: number; kind: string }[]) => {
+    const results = [];
+    for (const job of jobs) {
+      try {
+        results.push(await mockGenerateIdentity(job.track_id, job.friend_id, undefined));
+      } catch (error) {
+        results.push({ updated: false, error });
+      }
+    }
+    return results;
+  },
+}));
+
 vi.mock("@/lib/identity-embedding", () => ({
   generateAndStoreIdentityEmbedding: mockGenerateIdentity,
 }));
@@ -80,12 +94,20 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
 
   it("enqueues and drains a job through a real list (LPUSH/RPOP)", async () => {
     await service.enqueue([{ track_id: "t1", friend_id: 1, kind: "identity" }]);
-    expect(await redis.llen("embedding_queue")).toBe(1);
+    expect(await redis.llen("embedding_queue:interactive")).toBe(1);
 
     await service.tick(Date.now());
 
     expect(mockGenerateIdentity).toHaveBeenCalledWith("t1", 1, undefined);
-    expect(await redis.llen("embedding_queue")).toBe(0);
+    expect(await redis.llen("embedding_queue:interactive")).toBe(0);
+  });
+
+  it("drains a fresh edit before an older sync and backfill job", async () => {
+    await service.enqueue([{ track_id: "bulk", friend_id: 1, kind: "identity" }], "bulk");
+    await service.enqueue([{ track_id: "sync", friend_id: 1, kind: "identity" }], "sync");
+    await service.enqueue([{ track_id: "edit", friend_id: 1, kind: "identity" }]);
+    await service.tick(Date.now());
+    expect(mockGenerateIdentity.mock.calls.map(([id]) => id)).toEqual(["edit", "sync", "bulk"]);
   });
 
   it("schedules a transient failure into the real sorted set and promotes it once due", async () => {
@@ -96,7 +118,7 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
     await service.tick(start);
 
     expect(await redis.zcard("embedding_retry")).toBe(1);
-    expect(await redis.llen("embedding_queue")).toBe(0);
+    expect(await redis.llen("embedding_queue:interactive")).toBe(0);
 
     // Not due yet.
     await service.tick(start + 1_000);
@@ -118,7 +140,7 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
     expect(health.paused).toBe(true);
     expect(health.lastError).toBe("invalid_organization");
     // The job went back onto the queue, untouched.
-    expect(await redis.llen("embedding_queue")).toBe(1);
+    expect(await redis.llen("embedding_queue:interactive")).toBe(1);
 
     mockCheckProvider.mockResolvedValueOnce(undefined);
     await service.tick(Date.now());

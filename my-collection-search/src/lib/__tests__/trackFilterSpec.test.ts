@@ -106,7 +106,7 @@ describe("genre filter clauses (#375)", () => {
     expect(sql).toContain("genre_normalize(discogs_genre.name) = ANY($2::text[])");
   });
 
-  it("matches an album on its Discogs values or any live track's genres", () => {
+  it("matches an album on its Discogs values or a third of its tagged live tracks", () => {
     const { values, bind } = binder();
     const sql = albumGenreFilterClause(filter, bind, "a");
     expect(values).toEqual([filter.keys, filter.ids]);
@@ -115,6 +115,12 @@ describe("genre filter clauses (#375)", () => {
     expect(sql).toContain("gt.release_id = a.release_id");
     expect(sql).toContain("gt.deleted_at IS NULL");
     expect(sql).toContain("tg.genre_id = ANY($2::uuid[])");
+    // The inner join leaves untagged tracks out of the share.
+    expect(sql).toContain("JOIN track_genres tg");
+    const matching =
+      "count(DISTINCT gt.track_id) FILTER (WHERE tg.genre_id = ANY($2::uuid[]))";
+    expect(sql).toContain(`HAVING ${matching} > 0`);
+    expect(sql).toContain(`${matching} * 3 >= count(DISTINCT gt.track_id) * 1`);
   });
 
   it("is emitted with the other attribute filters, after them", () => {

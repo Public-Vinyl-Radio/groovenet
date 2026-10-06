@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
@@ -40,7 +40,14 @@ import SearchResults from "./SearchResults";
 const searchInput = () => screen.getAllByRole("textbox", { hidden: true })[0] as HTMLInputElement;
 const lastSearchMode = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].searchMode;
 const lastGenres = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].genres;
+const lastAttributes = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].attributes;
+const lastFilter = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].filter;
 const lastFacets = () => mocks.useTrackGenreFacets.mock.calls.at(-1)?.[0];
+/** The phone filter sheet: jsdom renders the phone layout, so it's the one in reach. */
+const openFilters = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
+  await user.click(screen.getByRole("button", { name: /^Filters/ }));
+  return screen.findByRole("dialog", { name: "Filters" });
+};
 const genreNode = (id: string, name: string, parent_id: string | null = null) => ({
   id,
   name,
@@ -144,6 +151,7 @@ describe("SearchResults genre filter (#375)", () => {
     const { user } = renderWithProviders(<SearchResults />);
     await waitFor(() => expect(mocks.fetchGenreTree).toHaveBeenCalled());
 
+    await openFilters(user);
     await user.click(screen.getByRole("combobox", { name: "Filter by genre" }));
     await user.click(await screen.findByRole("option", { name: /Salsa/ }));
 
@@ -165,17 +173,12 @@ describe("SearchResults genre filter (#375)", () => {
 
   it("counts genres for keyword search over the same filters, and not otherwise", async () => {
     const { user } = renderWithProviders(<SearchResults />);
-    expect(lastFacets()).toEqual({ q: "", filter: "friend_id = 1", enabled: true });
+    expect(lastFacets()).toEqual({ q: "", filter: "friend_id = 1", attributes: {}, enabled: true });
 
     await user.click(screen.getAllByText("Semantic")[0]);
     await waitFor(() => expect(lastFacets().enabled).toBe(false));
   });
 
-  it("still toggles the other chips beside genres", async () => {
-    const { user } = renderWithProviders(<SearchResults />);
-    await user.click(screen.getByRole("button", { name: "Missing audio" }));
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
-  });
 
   it("starts with no genres when there are no search params", () => {
     mocks.searchParams = null as unknown as URLSearchParams;
@@ -184,9 +187,87 @@ describe("SearchResults genre filter (#375)", () => {
   });
 });
 
+describe("SearchResults missing and attribute filters (#447)", () => {
+  it("still applies old missing*=1 links, as chips", async () => {
+    mocks.searchParams = new URLSearchParams("missingYouTube=1&missingAudio=1");
+    renderWithProviders(<SearchResults />);
+
+    await waitFor(() =>
+      expect(lastFilter()).toEqual(["local_audio_url IS NULL", "youtube_url IS NULL", "friend_id = 1"])
+    );
+    expect(screen.getByRole("button", { name: /Missing audio/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /No YouTube/ })).toBeTruthy();
+    expect(screen.getByText(/2 filters active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Filters, 2 on" })).toBeTruthy();
+  });
+
+  it("turns a check on from the filter sheet, and off from its chip", async () => {
+    const { user } = renderWithProviders(<SearchResults />);
+    expect(screen.queryByRole("button", { name: /Missing audio/ })).toBeNull();
+
+    await openFilters(user);
+    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+    await user.click(screen.getByRole("button", { name: "Done" }));
+
+    await user.click(await screen.findByRole("button", { name: /Missing audio/ }));
+    await waitFor(() => expect(lastFilter()).toEqual(["friend_id = 1"]));
+  });
+
+  it("reads BPM, key and rating from the URL, searches and counts by them, and shows chips", async () => {
+    mocks.searchParams = new URLSearchParams("bpm_min=120&bpm_max=126&key=A+minor&star_rating=4");
+    renderWithProviders(<SearchResults />);
+
+    const attributes = { bpm_min: 120, bpm_max: 126, key: "A minor", star_rating: 4 };
+    expect(lastAttributes()).toEqual(attributes);
+    expect(lastFacets().attributes).toEqual(attributes);
+    for (const label of ["120–126 BPM", "8A · A minor", "★4+"]) {
+      expect(screen.getByRole("button", { name: new RegExp(label) })).toBeTruthy();
+    }
+    expect(screen.getByText(/3 filters active/)).toBeTruthy();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("removes an attribute from its chip, and Clear all drops everything", async () => {
+    mocks.searchParams = new URLSearchParams("key=A+minor&star_rating=4&missingAudio=1&genre=salsa");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    await user.click(screen.getByRole("button", { name: /A minor/ }));
+    await waitFor(() => expect(lastAttributes()).toEqual({ star_rating: 4 }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/?star_rating=4&missingAudio=1&genre=salsa");
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(lastAttributes()).toEqual({}));
+    expect(lastGenres()).toEqual([]);
+    expect(lastFilter()).toEqual(["friend_id = 1"]);
+    expect(mocks.replace).toHaveBeenLastCalledWith("/");
+  });
+
+  it("sets a minimum rating from the filter sheet and records it in the URL", async () => {
+    const { user } = renderWithProviders(<SearchResults />);
+
+    await openFilters(user);
+    await user.click(screen.getByRole("button", { name: "4 stars and up" }));
+
+    await waitFor(() => expect(lastAttributes()).toEqual({ star_rating: 4 }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/?star_rating=4");
+  });
+
+  it("clears everything from the sheet's Clear all", async () => {
+    mocks.searchParams = new URLSearchParams("key=A+minor&missingAudio=1");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    const sheet = await openFilters(user);
+    await user.click(within(sheet).getByRole("button", { name: "Clear all" }));
+
+    await waitFor(() => expect(lastAttributes()).toEqual({}));
+    expect(lastFilter()).toEqual(["friend_id = 1"]);
+  });
+});
+
 describe("SearchResults following a navigation (#376)", () => {
   it("replaces the search with the URL a genre badge navigated to", async () => {
-    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&missingAudio=1&genre=salsa");
+    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&missingAudio=1&star_rating=4&genre=salsa");
     const { rerender } = renderWithProviders(<SearchResults />);
     mocks.replace.mockClear();
 
@@ -194,9 +275,11 @@ describe("SearchResults following a navigation (#376)", () => {
     rerender(<SearchResults />);
 
     await waitFor(() => expect(lastGenres()).toEqual(["cumbia"]));
+    expect(lastAttributes()).toEqual({});
+    expect(lastFilter()).toEqual(["friend_id = 1"]);
     expect(lastSearchMode()).toBe("lexical");
     expect(mocks.setQuery).toHaveBeenCalledWith("");
-    expect(screen.queryByText(/2 filters active/)).toBeNull();
+    expect(screen.getByText(/1 filter active/)).toBeTruthy();
     // Nothing writes the old search back over the badge's URL.
     expect(mocks.replace).not.toHaveBeenCalled();
   });
@@ -214,7 +297,8 @@ describe("SearchResults following a navigation (#376)", () => {
 
   it("doesn't mistake its own write landing for a navigation", async () => {
     const { user, rerender } = renderWithProviders(<SearchResults />);
-    await user.click(screen.getByRole("button", { name: "Missing audio" }));
+    await openFilters(user);
+    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
     await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
 
     mocks.searchParams = new URLSearchParams("missingAudio=1");
@@ -226,11 +310,13 @@ describe("SearchResults following a navigation (#376)", () => {
 
   it("keeps a change made while its last write is still on the way", async () => {
     const { user } = renderWithProviders(<SearchResults />);
-    await user.click(screen.getByRole("button", { name: "Missing audio" }));
-    // The URL hasn't caught up yet when the next chip is toggled.
-    await user.click(screen.getByRole("button", { name: "Missing metadata" }));
+    await openFilters(user);
+    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    // The URL hasn't caught up yet when the next filter is set.
+    await user.click(screen.getByRole("button", { name: "4 stars and up" }));
 
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&missingMetadata=1"));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&star_rating=4"));
+    expect(lastAttributes()).toEqual({ star_rating: 4 });
     expect(mocks.setQuery).not.toHaveBeenCalled();
   });
 });

@@ -738,6 +738,15 @@ describe("searchTracks", () => {
     expect(params.get("offset")).toBe("0");
   });
 
+  it("sends the BPM range, key and rating (#412)", async () => {
+    await searchTracks({ bpm_min: 98.5, bpm_max: 104, key: "F# minor", star_rating: 0 });
+    const params = calledParams();
+    expect(params.get("bpm_min")).toBe("98.5");
+    expect(params.get("bpm_max")).toBe("104");
+    expect(params.get("key")).toBe("F# minor");
+    expect(params.get("star_rating")).toBe("0");
+  });
+
   it("includes a zero limit", async () => {
     await searchTracks({ limit: 0 });
 
@@ -780,6 +789,15 @@ describe("fetchTrackGenreFacets (#375)", () => {
     expect(params.get("q")).toBe("dub");
     expect(params.get("filter")).toBe("friend_id = 6");
     expect(init).toEqual(GET_NO_STORE);
+  });
+
+  it("sends the BPM, key and rating filters, so counts follow them (#447)", async () => {
+    await fetchTrackGenreFacets({ bpm_min: 120, bpm_max: 126, key: "A minor", star_rating: 4 });
+    const params = calledParams();
+    expect(params.get("bpm_min")).toBe("120");
+    expect(params.get("bpm_max")).toBe("126");
+    expect(params.get("key")).toBe("A minor");
+    expect(params.get("star_rating")).toBe("4");
   });
 
   it("sends no query string with nothing to filter", async () => {

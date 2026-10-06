@@ -15,6 +15,7 @@ import {
 } from "@/services/internalApi/tracks";
 import { useTrackStore } from "@/stores/trackStore";
 import type { TrackSearchMode } from "@/api-contract/schemas";
+import type { TrackAttributeFilters } from "@/lib/trackFilters";
 
 interface UseSearchResultsOptions {
   friend?: Friend | null; // optional override; defaults to provider
@@ -30,6 +31,8 @@ interface UseSearchResultsOptions {
   searchMode?: TrackSearchMode;
   // Genre slugs (#375); any of them matches, each with its subgenres.
   genres?: string[];
+  // BPM range, key and minimum rating (#412), applied in every mode.
+  attributes?: TrackAttributeFilters;
 }
 
 type SearchPage = TrackSearchResponse;
@@ -45,6 +48,7 @@ export function useSearchResults({
   page,
   searchMode = "lexical",
   genres,
+  attributes,
 }: UseSearchResultsOptions) {
   const [query, setQuery] = useState("");
   const limit = limitOverride ?? DEFAULT_LIMIT;
@@ -94,6 +98,8 @@ export function useSearchResults({
   // Keyword keys stay as they were, so existing cache predicates still match.
   const searchModeKey = searchMode === "lexical" ? {} : { searchMode };
   const genreKey = genres && genres.length > 0 ? { genre: genres } : {};
+  const attributeKey =
+    attributes && Object.values(attributes).some((v) => v !== undefined) ? { attributes } : {};
 
   const infiniteQuery = useInfiniteQuery<SearchPage, Error>({
     queryKey: queryKeys.tracks({
@@ -103,6 +109,7 @@ export function useSearchResults({
       mode,
       ...searchModeKey,
       ...genreKey,
+      ...attributeKey,
     }),
     enabled: enabled && isInfinite,
     refetchOnWindowFocus: false,
@@ -116,6 +123,7 @@ export function useSearchResults({
         filter: normalizedFilter,
         mode: searchMode,
         genre: genres,
+        ...attributes,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
       const scopedHits = scopeHits(res.hits ?? []);
@@ -145,6 +153,7 @@ export function useSearchResults({
       page: page ?? 1,
       ...searchModeKey,
       ...genreKey,
+      ...attributeKey,
     }),
     enabled: enabled && !isInfinite,
     refetchOnWindowFocus: false,
@@ -158,6 +167,7 @@ export function useSearchResults({
         filter: normalizedFilter,
         mode: searchMode,
         genre: genres,
+        ...attributes,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
       const scopedHits = scopeHits(res.hits ?? []);
