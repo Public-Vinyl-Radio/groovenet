@@ -1,10 +1,11 @@
 // API endpoint for searching and listing albums using PostgreSQL
 // Supports sorting by created_at, date_added, year, title, album_rating
-// Example: /api/albums?q=jazz&sort=created_at:desc&friend_id=1&limit=20&offset=0
+// Example: /api/albums?q=jazz&sort=created_at:desc&friend_id=1&limit=20&offset=0&genre=latin
 import { NextRequest, NextResponse } from "next/server";
 import { albumApiService } from "@/server/services/albumApiService";
 import { withDbTransaction } from "@/lib/serverDb";
 import { albumRepository } from "@/server/repositories/albumRepository";
+import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
 
 interface AlbumUpdateRequest {
   release_id: string;
@@ -36,6 +37,11 @@ export async function GET(request: NextRequest) {
     const missingLocalCoverArtUrl =
       searchParams.get("missing_local_cover_art_url") === "1";
     const missingAudio = searchParams.get("missing_audio") === "1";
+    // Repeatable; each value is a slug, id or name, and includes its subgenres.
+    const genreResolution = await resolveGenreFilter(searchParams.getAll("genre"));
+    if (genreResolution.unknown) {
+      return NextResponse.json(unknownGenresError(genreResolution.unknown), { status: 400 });
+    }
 
     const response = await albumApiService.searchAlbums({
       q,
@@ -46,6 +52,7 @@ export async function GET(request: NextRequest) {
       missingLibraryIdentifier: missingLibraryIdentifier || undefined,
       missingLocalCoverArtUrl: missingLocalCoverArtUrl || undefined,
       missingAudio: missingAudio || undefined,
+      genreFilter: genreResolution.filter,
     });
     return NextResponse.json(response);
   } catch (error) {

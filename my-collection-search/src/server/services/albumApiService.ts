@@ -1,6 +1,7 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { Album, Track } from "@/types/track";
 import { albumRepository } from "@/server/repositories/albumRepository";
+import { albumGenreFilterClause, type GenreFilter } from "@/lib/trackFilterSpec";
 
 type AlbumSearchHit = Record<string, unknown>;
 
@@ -14,6 +15,7 @@ export class AlbumApiService {
     missingLibraryIdentifier?: boolean;
     missingLocalCoverArtUrl?: boolean;
     missingAudio?: boolean;
+    genreFilter?: GenreFilter;
   }): Promise<{
     hits: AlbumSearchHit[];
     estimatedTotalHits: number;
@@ -61,6 +63,19 @@ export class AlbumApiService {
               AND btrim(t.audio_file_album_art_url) <> ''
           )
         )`
+      );
+    }
+
+    if (params.genreFilter) {
+      whereClauses.push(
+        albumGenreFilterClause(
+          params.genreFilter,
+          (value) => {
+            sqlParams.push(value);
+            return `$${sqlParams.length}`;
+          },
+          "a"
+        )
       );
     }
 

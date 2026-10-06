@@ -8,6 +8,12 @@ const { mockSearchAlbums, mockWithDbTransaction, mockUpdateAlbumFields, mockGetT
     mockUpdateAlbumFields: vi.fn(),
     mockGetTracks: vi.fn(),
   }));
+const mockResolveGenreFilter = vi.hoisted(() => vi.fn());
+
+vi.mock("@/server/genres/genreFilter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/genres/genreFilter")>()),
+  resolveGenreFilter: mockResolveGenreFilter,
+}));
 
 vi.mock("@/server/services/albumApiService", () => ({
   albumApiService: { searchAlbums: mockSearchAlbums },
@@ -45,6 +51,7 @@ beforeEach(() => {
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockUpdateAlbumFields.mockResolvedValue({ release_id: "r1" });
   mockGetTracks.mockResolvedValue([]);
+  mockResolveGenreFilter.mockResolvedValue({ filter: undefined });
 });
 
 // ─── GET ────────────────────────────────────────────────────────────────────
@@ -194,5 +201,27 @@ describe("PATCH /api/albums — behavior", () => {
     const res = await PATCH(patchReq({ release_id: "r1", friend_id: 1, album_rating: 3 }));
     expect(res.status).toBe(500);
     expect((await res.json()).message).toBe("db exploded");
+  });
+});
+
+// ─── GET — genre filter (#375) ──────────────────────────────────────────────
+
+describe("GET /api/albums — genre filter", () => {
+
+  it("resolves every repeated genre and passes the filter to the search", async () => {
+    const filter = { ids: ["id-latin"], keys: ["latin"] };
+    mockResolveGenreFilter.mockResolvedValue({ filter });
+    const res = await GET(getReq("?genre=latin&genre=salsa"));
+    expect(res.status).toBe(200);
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["latin", "salsa"]);
+    expect(mockSearchAlbums).toHaveBeenCalledWith(expect.objectContaining({ genreFilter: filter }));
+  });
+
+  it("rejects an unknown genre with 400 and names it", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ unknown: ["nope"] });
+    const res = await GET(getReq("?genre=nope"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).unknown).toEqual(["nope"]);
+    expect(mockSearchAlbums).not.toHaveBeenCalled();
   });
 });

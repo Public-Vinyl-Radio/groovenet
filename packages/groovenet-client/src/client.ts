@@ -90,6 +90,8 @@ export class GroovenetClient {
   constructor(config: GroovenetClientConfig) {
     this.http = axios.create({
       baseURL: config.baseUrl,
+      // Arrays repeat the key (`genre=a&genre=b`), as the API reads them, not `genre[]=`.
+      paramsSerializer: { indexes: null },
       headers: {
         "Content-Type": "application/json",
         ...(config.clientName ? { "X-Groovenet-Client": config.clientName } : {}),
@@ -107,7 +109,7 @@ export class GroovenetClient {
     method: string,
     path: string,
     data?: unknown,
-    params?: Record<string, string | number | boolean | undefined>
+    params?: Record<string, string | number | boolean | string[] | undefined>
   ): Promise<T> {
     return (await this.send<T>({ method, url: path, data, params })).data;
   }
@@ -135,7 +137,7 @@ export class GroovenetClient {
   // ── Tracks ─────────────────────────────────────────────────────────────────
 
   async searchTracks(query: TrackSearchQuery): Promise<TrackSearchResponse> {
-    const params: Record<string, string | number | undefined> = {
+    const params: Record<string, string | number | string[] | undefined> = {
       q: query.query ?? "",
       limit: query.limit ?? 10,
       offset: query.offset ?? 0,
@@ -144,6 +146,7 @@ export class GroovenetClient {
       bpm_max: query.filters?.bpm_max,
       key: query.filters?.key,
       star_rating: query.filters?.star_rating,
+      genre: query.filters?.genre?.length ? query.filters.genre : undefined,
       mode: query.mode && query.mode !== "lexical" ? query.mode : undefined,
     };
     const result = await this.request<{
@@ -250,13 +253,14 @@ export class GroovenetClient {
   // ── Albums ──────────────────────────────────────────────────────────────────
 
   async searchAlbums(query: AlbumSearchQuery = {}): Promise<AlbumSearchResponse> {
-    const params: Record<string, string | number> = {
+    const params: Record<string, string | number | string[]> = {
       q: query.q ?? "",
       limit: query.limit ?? 20,
       offset: query.offset ?? 0,
       sort: query.sort ?? "created_at:desc",
     };
     if (query.friend_id != null) params.friend_id = query.friend_id;
+    if (query.genre?.length) params.genre = query.genre;
     return this.request<AlbumSearchResponse>("GET", "/albums", undefined, params);
   }
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { attributeFilterClauses, missingFilterClause, parseTrackFilterSpec } from "../trackFilterSpec";
+import {
+  albumGenreFilterClause,
+  attributeFilterClauses,
+  missingFilterClause,
+  parseTrackFilterSpec,
+  trackGenreFilterClause,
+} from "../trackFilterSpec";
 
 describe("parseTrackFilterSpec", () => {
   it("is empty for no filter", () => {
@@ -72,5 +78,57 @@ describe("attributeFilterClauses", () => {
     const { values, bind } = binder();
     expect(attributeFilterClauses({ minStarRating: 0 }, bind)).toEqual(["star_rating >= $1"]);
     expect(values).toEqual([0]);
+  });
+});
+
+describe("genre filter clauses (#375)", () => {
+  const filter = { ids: ["id-latin", "id-cumbia"], keys: ["cumbia", "latin"] };
+  const binder = () => {
+    const values: unknown[] = [];
+    return {
+      values,
+      bind: (value: unknown) => {
+        values.push(value);
+        return `$${values.length}`;
+      },
+    };
+  };
+
+  it("matches a track on its own genres, else on its Discogs genres and styles", () => {
+    const { values, bind } = binder();
+    const sql = trackGenreFilterClause(filter, bind, "t");
+    expect(values).toEqual([filter.ids, filter.keys]);
+    expect(sql).toContain("tg.track_id = t.track_id AND tg.friend_id = t.friend_id");
+    expect(sql).toContain("tg.genre_id = ANY($1::uuid[])");
+    // The Discogs fallback applies only to a track with no genre links at all.
+    expect(sql).toMatch(/OR \(\s*NOT EXISTS \(SELECT 1 FROM track_genres tg/);
+    expect(sql).toContain("unnest(COALESCE(t.genres, '{}') || COALESCE(t.styles, '{}'))");
+    expect(sql).toContain("genre_normalize(discogs_genre.name) = ANY($2::text[])");
+  });
+
+  it("matches an album on its Discogs values or any live track's genres", () => {
+    const { values, bind } = binder();
+    const sql = albumGenreFilterClause(filter, bind, "a");
+    expect(values).toEqual([filter.keys, filter.ids]);
+    expect(sql).toContain("unnest(COALESCE(a.genres, '{}') || COALESCE(a.styles, '{}'))");
+    expect(sql).toContain("genre_normalize(discogs_genre.name) = ANY($1::text[])");
+    expect(sql).toContain("gt.release_id = a.release_id");
+    expect(sql).toContain("gt.deleted_at IS NULL");
+    expect(sql).toContain("tg.genre_id = ANY($2::uuid[])");
+  });
+
+  it("is emitted with the other attribute filters, after them", () => {
+    const { values, bind } = binder();
+    const clauses = attributeFilterClauses({ bpmMin: 120, genreFilter: filter }, bind, "t");
+    expect(clauses).toHaveLength(2);
+    expect(clauses[0]).toBe("t.bpm >= $1");
+    expect(clauses[1]).toContain("tg.genre_id = ANY($2::uuid[])");
+    expect(values).toEqual([120, filter.ids, filter.keys]);
+  });
+
+  it("needs the tracks alias, since its subqueries correlate with the row", () => {
+    expect(() => attributeFilterClauses({ genreFilter: filter }, () => "$1")).toThrow(
+      "needs the tracks alias"
+    );
   });
 });

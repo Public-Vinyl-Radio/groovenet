@@ -46,3 +46,8 @@ export function searchModeOption(value: string): SearchModeOption {
   }
   return mode as SearchModeOption;
 }
+
+/** A repeatable option: `--genre a --genre b` collects `["a", "b"]`. */
+export function collectOption(value: string, previous: string[] | undefined): string[] {
+  return [...(previous ?? []), value];
+}

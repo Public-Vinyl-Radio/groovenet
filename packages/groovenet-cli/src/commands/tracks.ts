@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
-import type { SimilarTrack, RecommendationCandidate } from "@groovenet/client";
+import type { SimilarTrack, RecommendationCandidate, TrackSearchQuery } from "@groovenet/client";
 import {
   printTracks,
   printTrack,
@@ -9,7 +9,7 @@ import {
   printError,
 } from "../output.js";
 import chalk from "chalk";
-import { intOption, searchModeOption, type SearchModeOption } from "../options.js";
+import { collectOption, intOption, searchModeOption, type SearchModeOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -20,12 +20,17 @@ export function addTracksCommands(program: Command): void {
   const tracks = program.command("tracks").description("Search and manage tracks");
 
   tracks
-    .command("search <query>")
+    .command("search [query]")
     .description("Search your collection")
     .option("--bpm-min <n>", "Minimum BPM, inclusive", parseFloat)
     .option("--bpm-max <n>", "Maximum BPM, inclusive", parseFloat)
     .option("--key <k>", "Exact musical key, case-insensitive (e.g. 'A minor')")
     .option("--rating <n>", "Minimum star rating (0-5)", intOption)
+    .option(
+      "--genre <genre>",
+      "Genre slug or name, including its subgenres; repeat for several (any of them)",
+      collectOption
+    )
     .option("--limit <n>", "Number of results", intOption, 20)
     .option(
       "--mode <mode>",
@@ -35,27 +40,29 @@ export function addTracksCommands(program: Command): void {
     .option("--json", "Output as JSON")
     .action(
       async (
-        query: string,
+        query: string | undefined,
         opts: {
           mode?: SearchModeOption;
           bpmMin?: number;
           bpmMax?: number;
           key?: string;
           rating?: number;
+          genre?: string[];
           limit: number;
           json?: boolean;
         }
       ) => {
         try {
           const client = makeClient();
-          const filters: Record<string, number | string> = {};
+          const filters: NonNullable<TrackSearchQuery["filters"]> = {};
           if (opts.bpmMin != null) filters.bpm_min = opts.bpmMin;
           if (opts.bpmMax != null) filters.bpm_max = opts.bpmMax;
           if (opts.key) filters.key = opts.key;
           if (opts.rating != null) filters.star_rating = opts.rating;
+          if (opts.genre) filters.genre = opts.genre;
 
           const result = await client.searchTracks({
-            query,
+            query: query ?? "",
             limit: opts.limit,
             mode: opts.mode,
             filters: Object.keys(filters).length > 0 ? filters : undefined,

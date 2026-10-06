@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GroovenetClient, type Track, type RecordActionInput, type RecordCareStatus, type SleeveType, type CleaningMethod, type TrackSearchMode } from "@groovenet/client";
+import { GroovenetClient, type Track, type RecordActionInput, type RecordCareStatus, type SleeveType, type CleaningMethod, type TrackSearchMode, type TrackSearchQuery } from "@groovenet/client";
 import dotenv from "dotenv";
 
 // Stdio is the MCP protocol channel; dotenv's startup banner must stay off it.
@@ -21,7 +21,7 @@ const client = new GroovenetClient({ baseUrl: API_BASE, apiKey: API_KEY, clientN
 const tools = [
   {
     name: "search_tracks",
-    description: "Search for tracks in your collection by title, artist, album, genre, or tags — or, with mode 'semantic' or 'hybrid', by a natural-language description of the sound (e.g. 'dusty 70s cumbia with brass'). Supports filtering by BPM range, key, and star rating.",
+    description: "Search for tracks in your collection by title, artist, album, genre, or tags — or, with mode 'semantic' or 'hybrid', by a natural-language description of the sound (e.g. 'dusty 70s cumbia with brass'). Supports filtering by genre (including subgenres), BPM range, key, and star rating. The query may be empty to list by filters alone.",
     inputSchema: {
       type: "object",
       properties: {
@@ -35,9 +35,13 @@ const tools = [
         bpm_max: { type: "number", description: "Maximum BPM, inclusive" },
         key: { type: "string", description: "Exact musical key, case-insensitive (e.g., 'A minor', 'C major')" },
         star_rating: { type: "number", description: "Minimum star rating (0-5)" },
+        genre: {
+          type: "array",
+          items: { type: "string" },
+          description: "Genre slugs or names (e.g. 'cumbia', 'latin'); any of them matches, and each includes its subgenres. A track matches on its own genres, or its album's Discogs genres and styles when it has none. An unknown genre is an error.",
+        },
         limit: { type: "number", description: "Number of results to return", default: 10 },
       },
-      required: ["query"],
     },
   },
   {
@@ -95,6 +99,11 @@ const tools = [
         },
         limit: { type: "number", description: "Number of results to return", default: 20 },
         friend_id: { type: "number", description: "Filter by friend ID" },
+        genre: {
+          type: "array",
+          items: { type: "string" },
+          description: "Genre slugs or names; any of them matches, and each includes its subgenres. An album matches on its Discogs genres and styles, or on any of its tracks' genres.",
+        },
       },
     },
   },
@@ -337,6 +346,7 @@ interface ToolArgs {
   bpm_max?: number;
   key?: string;
   star_rating?: number;
+  genre?: string[];
   limit?: number;
   track_id?: string;
   username?: string;
@@ -449,11 +459,12 @@ async function handleToolCall(name: string, args: ToolArgs) {
     case "void_record_action":
       return jsonResult(await client.voidRecordAction(args.action_id!, args.friend_id ?? DEFAULT_FRIEND_ID));
     case "search_tracks": {
-      const filters: Record<string, number | string> = {};
+      const filters: NonNullable<TrackSearchQuery["filters"]> = {};
       if (args.bpm_min != null) filters.bpm_min = args.bpm_min;
       if (args.bpm_max != null) filters.bpm_max = args.bpm_max;
       if (args.key) filters.key = args.key;
       if (args.star_rating != null) filters.star_rating = args.star_rating;
+      if (args.genre?.length) filters.genre = args.genre;
 
       const result = await client.searchTracks({
         query: args.query ?? "",
@@ -562,6 +573,7 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
         sort: args.sort,
         limit: args.limit ?? 20,
         friend_id: args.friend_id,
+        genre: args.genre,
       });
 
       if (!result.hits || result.hits.length === 0) {

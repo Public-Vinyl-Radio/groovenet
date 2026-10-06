@@ -41,8 +41,8 @@ take `--friend-id` to override it.
 ### Tracks
 
 ```bash
-groovenet tracks search <query> [--bpm-min N] [--bpm-max N] [--key K]
-                                [--rating N] [--limit N] [--json]
+groovenet tracks search [query] [--bpm-min N] [--bpm-max N] [--key K]
+                                [--rating N] [--genre G ...] [--limit N] [--json]
 groovenet tracks show <track-id> [--friend-id N] [--json]
 groovenet tracks update <track-id> [--rating N] [--notes TEXT] [--tags a,b]
                                    [--apple-url U] [--youtube-url U]
@@ -89,7 +89,8 @@ seed fails, try a neighbouring track rather than reporting the feature broken.
 ### Albums
 
 ```bash
-groovenet albums list [query] [--sort S] [--limit N] [--offset N] [--json]
+groovenet albums list [query] [--sort S] [--limit N] [--offset N]
+                      [--genre G ...] [--json]
 groovenet albums show <release-id> [--json]
 groovenet albums update <release-id> [--rating N] [--notes TEXT]
                                      [--price N] [--condition "VG+"]

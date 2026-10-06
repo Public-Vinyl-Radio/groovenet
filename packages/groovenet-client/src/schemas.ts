@@ -105,6 +105,12 @@ export const trackSearchGetQuerySchema = z.object({
   bpm_max: numberFromInputSchema.optional(),
   key: z.string().trim().min(1).optional(),
   star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
+  genre: z
+    .preprocess(
+      (value) => (typeof value === "string" ? [value] : value),
+      z.array(z.string().trim().min(1)).max(20)
+    )
+    .optional(),
 });
 
 export const trackSearchGetResponseSchema = z.object({

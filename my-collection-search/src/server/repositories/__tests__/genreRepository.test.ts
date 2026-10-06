@@ -56,3 +56,37 @@ describe("GenreRepository.listFlat", () => {
     await expect(new GenreRepository().listFlat()).resolves.toEqual(rows);
   });
 });
+
+describe("GenreRepository genre filter lookups (#375)", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("maps the slugs that exist to their ids", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ slug: "cumbia", id: "id-cumbia" }] });
+    const result = await new GenreRepository().findIdsBySlug(["cumbia", "nope"]);
+    expect(result).toEqual(new Map([["cumbia", "id-cumbia"]]));
+    expect(dbQuery.mock.calls[0][1]).toEqual([["cumbia", "nope"]]);
+  });
+
+  it("does not query for no slugs", async () => {
+    await expect(new GenreRepository().findIdsBySlug([])).resolves.toEqual(new Map());
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("expands to descendants with their names and aliases", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ ids: ["a", "b"], keys: ["cumbia", "latin"] }] });
+    await expect(new GenreRepository().expandToFilter(["a"])).resolves.toEqual({
+      ids: ["a", "b"],
+      keys: ["cumbia", "latin"],
+    });
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("WITH RECURSIVE tree");
+    expect(sql).toContain("JOIN tree ON g.parent_id = tree.id");
+    expect(sql).toContain("FROM genre_aliases a");
+    expect(params).toEqual([["a"]]);
+  });
+
+  it("is an empty filter when no genre exists", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ ids: null, keys: null }] });
+    await expect(new GenreRepository().expandToFilter([])).resolves.toEqual({ ids: [], keys: [] });
+  });
+});

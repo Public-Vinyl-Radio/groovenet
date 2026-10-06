@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { dbQuery, dbPool, withDbClient } from "@/lib/serverDb";
 import { EmbeddingsRepository } from "../embeddingsRepository";
 import { SettingsRepository } from "../settingsRepository";
+import { GenreRepository } from "../genreRepository";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const embeddings = new EmbeddingsRepository();
@@ -92,6 +93,20 @@ beforeAll(async () => {
   // Only cumbia-2 has audio, for the missing-audio chip.
   await dbQuery(
     `UPDATE tracks SET local_audio_url = '/audio/c2.m4a' WHERE track_id = 'cumbia-2' AND friend_id = $1`,
+    [friendId]
+  );
+  // Album import copies Discogs values onto tracks; the genre filter (#375) reads that copy.
+  await dbQuery(
+    `UPDATE tracks t SET genres = a.genres, styles = a.styles
+     FROM albums a WHERE a.release_id = t.release_id AND a.friend_id = t.friend_id AND t.friend_id = $1`,
+    [friendId]
+  );
+  // rock-1 is reconciled to Cumbia; cumbia-3 to Salsa, despite its album's Cumbia style.
+  await dbQuery(
+    `INSERT INTO track_genres (track_id, friend_id, genre_id, source)
+     SELECT v.track_id, $1, g.id, 'manual'
+     FROM (VALUES ('rock-1', 'Cumbia'), ('cumbia-3', 'Salsa')) AS v(track_id, genre)
+     JOIN genres g ON g.name = v.genre`,
     [friendId]
   );
   // A closer match under an older template must never be served.
@@ -180,5 +195,22 @@ describe("context retrieval (integration)", () => {
       "rock-1",
       "no-year",
     ]);
+  });
+
+  dbTest("a resolved genre filter matches own genres, else the Discogs copy (#375)", async () => {
+    const genres = new GenreRepository();
+    const idOf = async (name: string) =>
+      (await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = $1", [name])).rows[0].id;
+
+    const cumbia = await genres.expandToFilter([await idOf("Cumbia")]);
+    expect(ids(await search({ perReleaseCap: 3, filters: { genreFilter: cumbia } }))).toEqual([
+      "cumbia-1",
+      "cumbia-2",
+      "rock-1",
+    ]);
+    const latin = await genres.expandToFilter([await idOf("Latin")]);
+    expect(
+      ids(await search({ perReleaseCap: 3, filters: { genreFilter: latin, bpmMin: 100 } }))
+    ).toEqual(["cumbia-2", "cumbia-3", "rock-1"]);
   });
 });

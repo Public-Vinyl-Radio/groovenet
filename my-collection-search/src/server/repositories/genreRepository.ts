@@ -1,4 +1,5 @@
 import { dbQuery } from "@/lib/serverDb";
+import type { GenreFilter } from "@/lib/trackFilterSpec";
 
 export type GenreSource = "discogs" | "custom";
 
@@ -68,6 +69,41 @@ export class GenreRepository {
       ORDER BY g.name ASC
     `);
     return rows;
+  }
+
+  /** Taxonomy ids by slug, for the slugs that exist. */
+  async findIdsBySlug(slugs: string[]): Promise<Map<string, string>> {
+    if (slugs.length === 0) return new Map();
+    const { rows } = await dbQuery<{ slug: string; id: string }>(
+      "SELECT slug, id::text AS id FROM genres WHERE slug = ANY($1::text[])",
+      [slugs]
+    );
+    return new Map(rows.map((row) => [row.slug, row.id]));
+  }
+
+  /**
+   * A genre filter for `genreIds`: those genres and every genre beneath them,
+   * with the normalised names and aliases that raw Discogs values match on.
+   */
+  async expandToFilter(genreIds: string[]): Promise<GenreFilter> {
+    const { rows } = await dbQuery<{ ids: string[] | null; keys: string[] | null }>(
+      `
+      WITH RECURSIVE tree AS (
+        SELECT id FROM genres WHERE id = ANY($1::uuid[])
+        UNION
+        SELECT g.id FROM genres g JOIN tree ON g.parent_id = tree.id
+      )
+      SELECT
+        (SELECT array_agg(id::text ORDER BY id) FROM tree) AS ids,
+        (SELECT array_agg(key ORDER BY key) FROM (
+          SELECT g.normalized_name AS key FROM genres g WHERE g.id IN (SELECT id FROM tree)
+          UNION
+          SELECT a.alias_normalized FROM genre_aliases a WHERE a.genre_id IN (SELECT id FROM tree)
+        ) keys) AS keys
+      `,
+      [genreIds]
+    );
+    return { ids: rows[0]?.ids ?? [], keys: rows[0]?.keys ?? [] };
   }
 }
 
