@@ -51,12 +51,18 @@ export default function GenrePicker({
     [genres, input, selectedIds]
   );
 
-  const add = (id: string | undefined) => {
-    const genre = genres.find((option) => option.id === id);
-    if (!genre || selectedIds.has(genre.id)) return;
-    const { id: genreId, name, slug, parent_id, parent_name } = genre;
-    onChange([...value, { id: genreId, name, slug, parent_id, parent_name }]);
-  };
+  // Chosen genres are left out of the options, so a pick is always new.
+  const add = (picked: GenreOption[]) =>
+    onChange([
+      ...value,
+      ...picked.map(({ id, name, slug, parent_id, parent_name }) => ({
+        id,
+        name,
+        slug,
+        parent_id,
+        parent_name,
+      })),
+    ]);
 
   const remove = (id: string) => onChange(value.filter((genre) => genre.id !== id));
 
@@ -71,7 +77,7 @@ export default function GenrePicker({
         // Each pick is added to `value` and the box cleared, rather than the
         // combobox holding the selection, so chips own removal.
         value={[]}
-        onValueChange={(details) => add(details.value[0])}
+        onValueChange={(details) => add(details.items)}
         selectionBehavior="clear"
         openOnClick
         disabled={disabled}

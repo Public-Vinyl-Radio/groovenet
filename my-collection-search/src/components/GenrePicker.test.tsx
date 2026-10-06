@@ -23,7 +23,7 @@ const node = (id: string, name: string, parent_id: string | null, children: Genr
 });
 
 const TREE = [
-  node("latin", "Latin", null, [node("cumbia", "Cumbia", "latin"), node("salsa", "Salsa", "latin")]),
+  node("latin", "Latin", null, [node("cumbia", "Cumbia", "latin"), { ...node("salsa", "Salsa", "latin"), track_count: 12 }]),
 ];
 const CUMBIA: TrackGenre = { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" };
 
@@ -64,11 +64,14 @@ describe("GenrePicker", () => {
 
     const input = screen.getByRole("combobox");
     await user.type(input, "sal");
+    // Genres already in use show how many tracks carry them.
+    expect(await screen.findByRole("option", { name: /Salsa.*12/ })).toBeTruthy();
     await user.click(await screen.findByRole("option", { name: /Salsa/ }));
 
     expect(onChange).toHaveBeenLastCalledWith([
       { id: "salsa", name: "Salsa", slug: "salsa", parent_id: "latin", parent_name: "Latin" },
     ]);
+    expect(onChange).toHaveBeenCalledOnce();
     expect((input as HTMLInputElement).value).toBe("");
   });
 
