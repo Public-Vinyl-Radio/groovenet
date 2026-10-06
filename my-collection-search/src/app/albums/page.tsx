@@ -39,6 +39,12 @@ function AlbumsPageContent() {
   );
   const [viewMode, setViewMode] = React.useState<"card" | "table">("card");
 
+  // A genre badge (#376) navigates here with a new URL; the inputs follow it.
+  const urlQuery = searchParams.get("q") || "";
+  const urlSort = searchParams.get("sort") || "created_at:desc";
+  React.useEffect(() => setQuery(urlQuery), [urlQuery]);
+  React.useEffect(() => setSort(urlSort), [urlSort]);
+
   React.useEffect(() => {
     const saved = localStorage.getItem("albumViewMode");
     if (saved === "card" || saved === "table") setViewMode(saved);

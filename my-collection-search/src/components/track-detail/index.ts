@@ -5,3 +5,4 @@ export { default as ContextEmbeddingSection } from "./ContextEmbeddingSection";
 export { default as AudioVibeEmbeddingSection } from "./AudioVibeEmbeddingSection";
 export { default as TrackPlaylistsSection } from "./TrackPlaylistsSection";
 export { default as TrackDebugModal } from "./TrackDebugModal";
+export { default as TrackGenresSection } from "./TrackGenresSection";

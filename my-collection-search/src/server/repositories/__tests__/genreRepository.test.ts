@@ -16,6 +16,7 @@ const row = (overrides: Partial<GenreRow>): GenreRow => ({
   source: "discogs",
   track_count: 0,
   album_count: 0,
+  aliases: [],
   ...overrides,
 });
 

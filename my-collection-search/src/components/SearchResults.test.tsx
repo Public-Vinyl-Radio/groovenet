@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   useSearchResults: vi.fn(),
   onQueryChange: vi.fn(),
+  setQuery: vi.fn(),
   track: vi.fn(),
   query: "",
   useTrackGenreFacets: vi.fn(),
@@ -69,6 +70,7 @@ beforeEach(() => {
   mocks.useSearchResults.mockImplementation(() => ({
     query: mocks.query,
     onQueryChange: mocks.onQueryChange,
+    setQuery: mocks.setQuery,
     estimatedResults: 0,
     trackInfo: [],
     playlistCounts: {},
@@ -260,5 +262,61 @@ describe("SearchResults missing and attribute filters (#447)", () => {
 
     await waitFor(() => expect(lastAttributes()).toEqual({}));
     expect(lastFilter()).toEqual(["friend_id = 1"]);
+  });
+});
+
+describe("SearchResults following a navigation (#376)", () => {
+  it("replaces the search with the URL a genre badge navigated to", async () => {
+    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&missingAudio=1&star_rating=4&genre=salsa");
+    const { rerender } = renderWithProviders(<SearchResults />);
+    mocks.replace.mockClear();
+
+    mocks.searchParams = new URLSearchParams("genre=cumbia");
+    rerender(<SearchResults />);
+
+    await waitFor(() => expect(lastGenres()).toEqual(["cumbia"]));
+    expect(lastAttributes()).toEqual({});
+    expect(lastFilter()).toEqual(["friend_id = 1"]);
+    expect(lastSearchMode()).toBe("lexical");
+    expect(mocks.setQuery).toHaveBeenCalledWith("");
+    expect(screen.getByText(/1 filter active/)).toBeTruthy();
+    // Nothing writes the old search back over the badge's URL.
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("takes the search mode and query from the URL it navigated to", async () => {
+    const { rerender } = renderWithProviders(<SearchResults />);
+
+    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&genre=cumbia");
+    rerender(<SearchResults />);
+
+    await waitFor(() => expect(lastSearchMode()).toBe("semantic"));
+    expect(lastGenres()).toEqual(["cumbia"]);
+    expect(mocks.setQuery).toHaveBeenCalledWith("dub");
+  });
+
+  it("doesn't mistake its own write landing for a navigation", async () => {
+    const { user, rerender } = renderWithProviders(<SearchResults />);
+    await openFilters(user);
+    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+
+    mocks.searchParams = new URLSearchParams("missingAudio=1");
+    rerender(<SearchResults />);
+
+    expect(mocks.setQuery).not.toHaveBeenCalled();
+    expect(screen.getByText(/1 filter active/)).toBeTruthy();
+  });
+
+  it("keeps a change made while its last write is still on the way", async () => {
+    const { user } = renderWithProviders(<SearchResults />);
+    await openFilters(user);
+    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    // The URL hasn't caught up yet when the next filter is set.
+    await user.click(screen.getByRole("button", { name: "4 stars and up" }));
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&star_rating=4"));
+    expect(lastAttributes()).toEqual({ star_rating: 4 });
+    expect(mocks.setQuery).not.toHaveBeenCalled();
   });
 });

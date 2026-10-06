@@ -5,7 +5,6 @@ import {
   getTrackDurationSeconds,
   dedupeDisplayTags,
   explodeDisplayTags,
-  trackGenreLabels,
 } from "../trackUtils";
 
 describe("parseDurationToSeconds", () => {
@@ -123,21 +122,5 @@ describe("dedupeDisplayTags", () => {
 
   it("returns an empty list for non-array, non-string input", () => {
     expect(dedupeDisplayTags(undefined)).toEqual([]);
-  });
-});
-
-describe("trackGenreLabels", () => {
-  it("badges taxonomy genres once a track has any, ignoring its raw tags", () => {
-    expect(
-      trackGenreLabels({
-        track_genres: [{ name: "Cumbia" }, { name: "Chicha" }],
-        local_tags: "Psychedelic Cumbia, Uplifting",
-      })
-    ).toEqual(["Cumbia", "Chicha"]);
-  });
-
-  it("falls back to the split raw tags for a track not yet reconciled", () => {
-    expect(trackGenreLabels({ track_genres: [], local_tags: "Salsa · Boogaloo" })).toEqual(["Salsa", "Boogaloo"]);
-    expect(trackGenreLabels({ local_tags: "{}" })).toEqual([]);
   });
 });

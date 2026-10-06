@@ -25,6 +25,7 @@ vi.mock("@/components/TrackActionsMenu", () => ({ default: () => null }));
 vi.mock("@/components/RelatedTracksSection", () => ({ default: () => null }));
 vi.mock("@/components/track-detail", () => ({
   TrackPlaylistsSection: () => null,
+  TrackGenresSection: () => null,
   TrackDebugModal: (props: unknown) => {
     modalProps(props);
     return null;

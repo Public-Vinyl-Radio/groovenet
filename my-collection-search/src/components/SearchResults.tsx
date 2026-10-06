@@ -80,7 +80,6 @@ const TrackResultItem: React.FC<{
   return trackResult;
 };
 
-
 const SearchResults: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -118,6 +117,7 @@ const SearchResults: React.FC = () => {
 
   const {
     query,
+    setQuery,
     onQueryChange,
     estimatedResults,
     trackInfo,
@@ -318,9 +318,29 @@ const SearchResults: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A URL change this page didn't write arrived by navigation — a genre badge
+  // in the results (#376) — and replaces the search. `replace` lands later, so
+  // the page's own writes are remembered until they show up.
+  const seenUrlRef = React.useRef(searchParamsString);
+  const pendingUrlsRef = React.useRef(new Set<string>());
+
   // Keep URL in sync when query or filters change
   React.useEffect(() => {
     if (!pathname) return;
+    const urlChanged = searchParamsString !== seenUrlRef.current;
+    seenUrlRef.current = searchParamsString;
+    if (urlChanged && !pendingUrlsRef.current.delete(searchParamsString)) {
+      const fromUrl = new URLSearchParams(searchParamsString);
+      const urlQ = fromUrl.get("q") ?? "";
+      const urlMode = fromUrl.get("mode");
+      setQuery(urlQ);
+      setDebouncedValue(urlQ);
+      setGenres(fromUrl.getAll("genre"));
+      setSearchMode(isTrackSearchMode(urlMode) ? urlMode : "lexical");
+      setActiveFilters(tracksFilterFromParams(fromUrl));
+      setAttributes(attributeFiltersFromParams(fromUrl));
+      return;
+    }
     const params = new URLSearchParams(searchParamsString);
     if (query && query.length > 0) {
       params.set("q", query);
@@ -335,8 +355,9 @@ const SearchResults: React.FC = () => {
     const nextQueryString = params.toString();
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
+    pendingUrlsRef.current.add(nextQueryString);
     router.replace(newUrl);
-  }, [query, activeFilters, attributes, genres, searchMode, pathname, router, searchParamsString]);
+  }, [query, setQuery, activeFilters, attributes, genres, searchMode, pathname, router, searchParamsString]);
 
   return (
     <Box mb={'100px'}>

@@ -19,9 +19,9 @@ const choice = (name: string, track_count = 0): GenreChoice => ({
 describe("toGenreChoices", () => {
   it("carries each genre's parent name, and null for a missing parent", () => {
     const rows = [
-      { id: "latin", name: "Latin", slug: "latin", parent_id: null, source: "discogs" as const, track_count: 1, album_count: 1 },
-      { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", source: "discogs" as const, track_count: 5, album_count: 2 },
-      { id: "orphan", name: "Orphan", slug: "orphan", parent_id: "gone", source: "custom" as const, track_count: 0, album_count: 0 },
+      { id: "latin", name: "Latin", slug: "latin", parent_id: null, source: "discogs" as const, track_count: 1, album_count: 1, aliases: [] },
+      { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", source: "discogs" as const, track_count: 5, album_count: 2, aliases: [] },
+      { id: "orphan", name: "Orphan", slug: "orphan", parent_id: "gone", source: "custom" as const, track_count: 0, album_count: 0, aliases: [] },
     ];
     expect(toGenreChoices(rows)).toEqual([
       { id: "latin", name: "Latin", slug: "latin", parent_id: null, parent_name: null, track_count: 1 },

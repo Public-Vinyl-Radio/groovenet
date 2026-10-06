@@ -3292,6 +3292,11 @@ export const genreTreeNodeSchemaObject = {
     source: { type: "string", enum: ["discogs", "custom"] },
     track_count: { type: "integer", minimum: 0, description: "Zero until track genre links are introduced" },
     album_count: { type: "integer", minimum: 0, description: "Zero until track genre links are introduced" },
+    aliases: {
+      type: "array",
+      items: { type: "string" },
+      description: "Normalised alias keys that resolve to this genre, for matching raw Discogs spellings",
+    },
     children: { type: "array", items: { $ref: "#/components/schemas/GenreTreeNode" } },
   },
   required: ["id", "name", "slug", "parent_id", "source", "track_count", "album_count", "children"],

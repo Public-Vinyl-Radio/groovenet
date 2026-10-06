@@ -138,6 +138,16 @@ describe("track genre links", () => {
     expect(findNode(await genreRepository.listTree(), target.id)).toMatchObject({ track_count: 2, album_count: 1 });
   });
 
+  dbTest("lists each genre's normalised aliases on the tree, and none for a genre without (#376)", async () => {
+    const cumbia = await genreId("Cumbia");
+    await addGenreAlias(cumbia, "Track Genre Test Cumbia Colombiana");
+
+    const tree = await genreRepository.listTree();
+    expect(findNode(tree, cumbia)?.aliases).toContain("track genre test cumbia colombiana");
+    const bare = await createGenre("Track Genre Test Bare", cumbia);
+    expect(findNode(await genreRepository.listTree(), bare.id)?.aliases).toEqual([]);
+  });
+
   dbTest("counts the genres on a release's other live tracks (#374)", async () => {
     const cumbia = await genreId("Cumbia");
     const salsa = await genreId("Salsa");

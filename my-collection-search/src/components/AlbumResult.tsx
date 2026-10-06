@@ -10,7 +10,6 @@ import {
   Button,
   Icon,
   RatingGroup,
-  Badge,
 } from "@chakra-ui/react";
 import { useColorModeValue } from "@/components/ui/color-mode";
 import { SiDiscogs } from "react-icons/si";
@@ -23,6 +22,9 @@ import { useEnrichmentStore } from "@/stores/enrichmentStore";
 import { getAlbumWithTracks } from "@/services/internalApi/albums";
 import { useRouter } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
+import { discogsGenreBadges } from "@/lib/genres/links";
+import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
+import { GenreBadgeList } from "@/components/GenreBadge";
 
 function formatDate(dateString?: string): string {
   if (!dateString) return "";
@@ -59,6 +61,7 @@ export default function AlbumResult({
   const subtleText = useColorModeValue("gray.500", "gray.400");
 
   const updateMutation = useUpdateAlbumMutation();
+  const genreLookup = useGenreLookup();
   const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
   const router = useRouter();
   const [isEnriching, setIsEnriching] = useState(false);
@@ -163,8 +166,8 @@ export default function AlbumResult({
     );
   }
 
-  const displayGenres = resolvedAlbum.genres ?? [];
-  const displayStyles = resolvedAlbum.styles ?? [];
+  const displayGenres = discogsGenreBadges(resolvedAlbum.genres, genreLookup);
+  const displayStyles = discogsGenreBadges(resolvedAlbum.styles, genreLookup);
 
   return (
     <Box
@@ -296,16 +299,8 @@ export default function AlbumResult({
 
           {(displayGenres.length > 0 || displayStyles.length > 0) && (
             <Flex gap={2} flexWrap="wrap" display={{ base: "none", md: "flex" }} mt={0.5}>
-              {displayGenres.map((genre) => (
-                <Badge key={genre} size="sm" variant="surface">
-                  {genre}
-                </Badge>
-              ))}
-              {displayStyles.map((style) => (
-                <Badge key={style} size="sm" variant="outline">
-                  {style}
-                </Badge>
-              ))}
+              <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" />
+              <GenreBadgeList items={displayStyles} kind="discogs-style" scope="albums" />
             </Flex>
           )}
         </Flex>
