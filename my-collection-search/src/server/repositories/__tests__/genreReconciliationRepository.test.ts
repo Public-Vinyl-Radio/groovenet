@@ -134,4 +134,42 @@ describe("genreReconciliationRepository", () => {
     await repo.listTrackGenreState();
     expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
   });
+
+  it("filters proposals by minimum track count", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ total: 0 }] });
+    await repo.listProposals({ status: "pending", min_tracks: 5, limit: 10, offset: 0 });
+    expect(dbQuery.mock.calls[0][0]).toContain("WHERE p.status = $1 AND p.track_count >= $2");
+    expect(dbQuery.mock.calls[0][1]).toEqual(["pending", 5, 10, 0]);
+  });
+
+  it("locks and updates a proposal inside a transaction", async () => {
+    const client = { query: vi.fn().mockResolvedValueOnce({ rows: [{ id: "p" }] }).mockResolvedValueOnce({ rowCount: 1 }) };
+    await expect(repo.getProposal("p", client as never)).resolves.toEqual({ id: "p" });
+    expect(client.query.mock.calls[0][0]).toContain("FOR UPDATE OF p");
+    await expect(repo.updateProposal("p", { status: "accepted" }, client as never)).resolves.toBe(true);
+    expect(client.query).toHaveBeenLastCalledWith(expect.stringContaining("SET status = $2"), ["p", "accepted"]);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("restores snapshots verbatim, skipping an empty list", async () => {
+    const client = { query: vi.fn().mockResolvedValueOnce({ rowCount: 2 }).mockResolvedValueOnce({}) };
+    await expect(repo.restoreProposals(client as never, [])).resolves.toBe(0);
+    expect(client.query).not.toHaveBeenCalled();
+    const snapshot = { id: "p", status: "pending" as const, action: "map" as const, target_genre_ids: ["g"], proposed_genre_name: null, proposed_parent_id: null, method: "ai" as const };
+    await expect(repo.restoreProposals(client as never, [snapshot, snapshot])).resolves.toBe(2);
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("jsonb_to_recordset"), [JSON.stringify([snapshot, snapshot])]);
+    await expect(repo.restoreProposals(client as never, [snapshot])).resolves.toBe(0);
+  });
+
+  it("finds example tracks whose split tags really hold the value", async () => {
+    dbQuery.mockResolvedValue({ rows: [
+      { track_id: "1", friend_id: 6, title: "A", artist: "X", album: null, styles: [], local_tags: "Salsa · Boogaloo" },
+      { track_id: "2", friend_id: 6, title: "B", artist: "Y", album: null, styles: [], local_tags: "Salsa Romántica" },
+      { track_id: "3", friend_id: 6, title: "C", artist: "Z", album: null, styles: [], local_tags: "salsa" },
+    ] });
+    const tracks = await repo.listProposalTracks({ value_normalized: "salsa", raw_examples: ["Salsa", "50%_off\\"] }, 6, 1);
+    expect(tracks).toEqual([{ track_id: "1", friend_id: 6, title: "A", artist: "X", album: null, styles: [] }]);
+    expect(dbQuery.mock.calls[0][1]).toEqual([6, ["%salsa%", "%Salsa%", "%50\\%\\_off\\\\%"]]);
+  });
+
 });

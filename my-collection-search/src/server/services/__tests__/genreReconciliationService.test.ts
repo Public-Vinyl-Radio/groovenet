@@ -15,6 +15,8 @@ const repo = vi.hoisted(() => ({
   finishRun: vi.fn(),
   getProposal: vi.fn(),
   updateProposal: vi.fn(),
+  restoreProposals: vi.fn(),
+  listProposalTracks: vi.fn(),
   listApprovedProposals: vi.fn(),
   listTrackGenreState: vi.fn(),
 }));
@@ -33,7 +35,10 @@ vi.mock("@/lib/serverDb", () => ({ withDbTransaction: async (fn: (c: unknown) =>
 
 import {
   applyProposals,
+  decideProposals,
   defaultRunOptions,
+  getProposalTracks,
+  restoreProposals,
   executeRun,
   getCoverage,
   getRun,
@@ -201,33 +206,33 @@ describe("updateProposal", () => {
 
   it("accepts or rejects as proposed", async () => {
     await updateProposal("p1", { status: "accepted" });
-    expect(repo.updateProposal).toHaveBeenCalledWith("p1", { status: "accepted" });
+    expect(repo.updateProposal).toHaveBeenCalledWith("p1", { status: "accepted" }, expect.anything());
   });
 
   it("marks a changed proposal edited and manual, resolving genre names", async () => {
     resolveGenreRefs.mockResolvedValue({ ids: ["g2"], unknown: [] });
     await updateProposal("p1", { target_genres: ["Salsa"], status: "accepted" });
-    expect(repo.updateProposal).toHaveBeenCalledWith("p1", { target_genre_ids: ["g2"], method: "manual", status: "edited" });
+    expect(repo.updateProposal).toHaveBeenCalledWith("p1", { target_genre_ids: ["g2"], method: "manual", status: "edited" }, expect.anything());
   });
 
   it("lets an edit be parked as pending or rejected", async () => {
     await updateProposal("p1", { action: "drop", status: "rejected" });
-    expect(repo.updateProposal).toHaveBeenCalledWith("p1", { action: "drop", method: "manual", status: "rejected" });
+    expect(repo.updateProposal).toHaveBeenCalledWith("p1", { action: "drop", method: "manual", status: "rejected" }, expect.anything());
   });
 
   it("edits a new genre, trimming the name", async () => {
     await updateProposal("p1", { action: "new_genre", proposed_genre_name: " Chicha ", proposed_parent_id: "g1" });
-    expect(repo.updateProposal).toHaveBeenCalledWith("p1", expect.objectContaining({ proposed_genre_name: "Chicha", proposed_parent_id: "g1", status: "edited" }));
+    expect(repo.updateProposal).toHaveBeenCalledWith("p1", expect.objectContaining({ proposed_genre_name: "Chicha", proposed_parent_id: "g1", status: "edited" }), expect.anything());
   });
 
   it("touches nothing but the timestamp when given nothing", async () => {
     await updateProposal("p1", {});
-    expect(repo.updateProposal).toHaveBeenCalledWith("p1", {});
+    expect(repo.updateProposal).toHaveBeenCalledWith("p1", {}, expect.anything());
   });
 
   it("clears a proposed genre name with null", async () => {
     await updateProposal("p1", { proposed_genre_name: null });
-    expect(repo.updateProposal).toHaveBeenCalledWith("p1", expect.objectContaining({ proposed_genre_name: null, status: "edited" }));
+    expect(repo.updateProposal).toHaveBeenCalledWith("p1", expect.objectContaining({ proposed_genre_name: null, status: "edited" }), expect.anything());
   });
 
   it("rejects unknown genres and incomplete proposals", async () => {
@@ -380,5 +385,69 @@ describe("getCoverage", () => {
     expect((await getCoverage(6)).values.exact_share).toBe(0);
     expect(repo.listLocalTagTracks).toHaveBeenCalledWith(undefined, 6);
     expect(repo.listTrackGenreState).toHaveBeenCalledWith(6);
+  });
+});
+
+describe("decideProposals", () => {
+  beforeEach(() => {
+    repo.getProposal.mockImplementation(async (id: string) => proposal({ id, status: "pending", method: "ai" }));
+    repo.updateProposal.mockResolvedValue(true);
+  });
+
+  it("writes every decision in one transaction and returns before and after", async () => {
+    resolveGenreRefs.mockResolvedValue({ ids: ["g2"], unknown: [] });
+    const result = await decideProposals([
+      { id: "a", status: "accepted" },
+      { id: "b", target_genres: ["Salsa"] },
+    ]);
+    expect(resolveGenreRefs).toHaveBeenCalledTimes(1);
+    expect(repo.getProposal).toHaveBeenCalledWith("a", expect.objectContaining({ query }));
+    expect(repo.updateProposal).toHaveBeenNthCalledWith(1, "a", { status: "accepted" }, expect.anything());
+    expect(repo.updateProposal).toHaveBeenNthCalledWith(2, "b", { target_genre_ids: ["g2"], method: "manual", status: "edited" }, expect.anything());
+    expect(result.proposals.map((p) => p.id)).toEqual(["a", "b"]);
+    expect(result.previous).toEqual([
+      { id: "a", status: "pending", action: "map", target_genre_ids: ["g1"], proposed_genre_name: null, proposed_parent_id: null, method: "ai" },
+      expect.objectContaining({ id: "b", status: "pending" }),
+    ]);
+  });
+
+  it("writes nothing when a genre name is unknown", async () => {
+    resolveGenreRefs.mockResolvedValue({ ids: [], unknown: ["Nope"] });
+    await expect(decideProposals([{ id: "a", status: "accepted" }, { id: "b", target_genres: ["Nope"] }]))
+      .rejects.toMatchObject({ status: 400 });
+    expect(repo.getProposal).not.toHaveBeenCalled();
+  });
+
+  it("names the missing proposal in a batch", async () => {
+    repo.getProposal.mockResolvedValueOnce(proposal()).mockResolvedValueOnce(proposal()).mockResolvedValueOnce(null);
+    await expect(decideProposals([{ id: "a", status: "accepted" }, { id: "gone", status: "accepted" }]))
+      .rejects.toThrow("Proposal not found: gone");
+  });
+});
+
+describe("restoreProposals", () => {
+  const snapshot = { id: "a", status: "pending" as const, action: "map" as const, target_genre_ids: ["g1"], proposed_genre_name: null, proposed_parent_id: null, method: "ai" as const };
+
+  it("restores snapshots in a transaction", async () => {
+    repo.restoreProposals.mockResolvedValue(1);
+    await expect(restoreProposals([snapshot])).resolves.toEqual({ restored: 1 });
+    expect(repo.restoreProposals).toHaveBeenCalledWith(expect.objectContaining({ query }), [snapshot]);
+  });
+
+  it("turns a missing parent into a 400, and passes other errors on", async () => {
+    repo.restoreProposals.mockRejectedValueOnce(Object.assign(new Error("fk"), { code: "23503" }));
+    await expect(restoreProposals([snapshot])).rejects.toMatchObject({ status: 400 });
+    repo.restoreProposals.mockRejectedValueOnce(new Error("boom"));
+    await expect(restoreProposals([snapshot])).rejects.toThrow("boom");
+  });
+});
+
+describe("getProposalTracks", () => {
+  it("lists a proposal's example tracks, or 404s", async () => {
+    repo.getProposal.mockResolvedValueOnce(proposal()).mockResolvedValueOnce(null);
+    repo.listProposalTracks.mockResolvedValue([{ track_id: "1" }]);
+    await expect(getProposalTracks("p1", 6, 3)).resolves.toEqual([{ track_id: "1" }]);
+    expect(repo.listProposalTracks).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), 6, 3);
+    await expect(getProposalTracks("gone", null, 3)).rejects.toMatchObject({ status: 404 });
   });
 });

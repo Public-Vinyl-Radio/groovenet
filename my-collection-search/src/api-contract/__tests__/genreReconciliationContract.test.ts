@@ -10,6 +10,7 @@ describe("genre reconciliation contracts", () => {
     expect(operations.map((route) => route.operationId)).toEqual([
       "startGenreReconciliation", "getGenreReconciliationRun", "getGenreReconciliationCoverage",
       "listGenreProposals", "updateGenreProposal", "applyGenreProposals",
+      "decideGenreProposals", "restoreGenreProposals", "listGenreProposalTracks",
     ]);
   });
 

@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { dbQuery } from "@/lib/serverDb";
-import type { LocalTagTrack } from "@/lib/genres/localTags";
+import { localTagValues, type LocalTagTrack } from "@/lib/genres/localTags";
 
 export type ProposalAction = "map" | "new_genre" | "descriptor" | "drop";
 export type ProposalMethod = "exact" | "ai" | "manual";
@@ -89,6 +89,8 @@ export type ProposalFilter = {
   status?: ProposalStatus;
   action?: ProposalAction;
   method?: ProposalMethod;
+  /** Only values on at least this many tracks (as of the latest run). */
+  min_tracks?: number;
   limit: number;
   offset: number;
 };
@@ -96,6 +98,21 @@ export type ProposalFilter = {
 export type ProposalPatch = Partial<
   Pick<Proposal, "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id">
 > & { method?: ProposalMethod };
+
+/** The reviewable state of a proposal, as undo restores it. */
+export type ProposalSnapshot = Pick<
+  Proposal,
+  "id" | "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id" | "method"
+>;
+
+export type ProposalTrack = {
+  track_id: string;
+  friend_id: number;
+  title: string;
+  artist: string;
+  album: string | null;
+  styles: string[];
+};
 
 export type TaxonomyEntry = { id: string; name: string; normalized_name: string; parent_name: string | null };
 
@@ -293,6 +310,10 @@ export class GenreReconciliationRepository {
       params.push(filter[column]);
       conditions.push(`p.${column} = $${params.length}`);
     }
+    if (filter.min_tracks !== undefined) {
+      params.push(filter.min_tracks);
+      conditions.push(`p.track_count >= $${params.length}`);
+    }
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const [{ rows }, count] = await Promise.all([
       dbQuery<Proposal>(
@@ -309,21 +330,76 @@ export class GenreReconciliationRepository {
     return { proposals: rows, total: count.rows[0].total };
   }
 
-  async getProposal(id: string): Promise<Proposal | null> {
-    const { rows } = await dbQuery<Proposal>(`${PROPOSAL_SELECT} WHERE p.id = $1`, [id]);
+  /** With a transaction client, the row is locked until it commits. */
+  async getProposal(id: string, client?: PoolClient): Promise<Proposal | null> {
+    const { rows } = client
+      ? await client.query<Proposal>(`${PROPOSAL_SELECT} WHERE p.id = $1 FOR UPDATE OF p`, [id])
+      : await dbQuery<Proposal>(`${PROPOSAL_SELECT} WHERE p.id = $1`, [id]);
     return rows[0] ?? null;
   }
 
-  async updateProposal(id: string, patch: ProposalPatch): Promise<boolean> {
+  async updateProposal(id: string, patch: ProposalPatch, client?: PoolClient): Promise<boolean> {
     const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
     const sets = entries.map(([column], i) =>
       column === "target_genre_ids" ? `${column} = $${i + 2}::uuid[]` : `${column} = $${i + 2}`
     );
-    const { rowCount } = await dbQuery(
-      `UPDATE genre_reconciliation_proposals SET ${[...sets, "updated_at = now()"].join(", ")} WHERE id = $1`,
-      [id, ...entries.map(([, value]) => value)]
-    );
+    const sql = `UPDATE genre_reconciliation_proposals SET ${[...sets, "updated_at = now()"].join(", ")} WHERE id = $1`;
+    const params = [id, ...entries.map(([, value]) => value)];
+    const { rowCount } = client ? await client.query(sql, params) : await dbQuery(sql, params);
     return (rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Puts proposals back exactly as `snapshots` describe them: undo for a
+   * review decision. Returns how many still existed.
+   */
+  async restoreProposals(client: PoolClient, snapshots: ProposalSnapshot[]): Promise<number> {
+    if (snapshots.length === 0) return 0;
+    const { rowCount } = await client.query(
+      `UPDATE genre_reconciliation_proposals p SET
+         status = s.status, action = s.action, target_genre_ids = s.target_genre_ids,
+         proposed_genre_name = s.proposed_genre_name, proposed_parent_id = s.proposed_parent_id,
+         method = s.method, updated_at = now()
+       FROM jsonb_to_recordset($1::jsonb) AS s(
+         id uuid, status text, action text, target_genre_ids uuid[],
+         proposed_genre_name text, proposed_parent_id uuid, method text
+       )
+       WHERE p.id = s.id`,
+      [JSON.stringify(snapshots)]
+    );
+    return rowCount ?? 0;
+  }
+
+  /**
+   * A few live tracks tagged with the proposal's value, for review. Postgres
+   * narrows by the raw spellings; the shared splitter then keeps only tracks
+   * whose tags really contain the value, so `salsa` does not match
+   * `Salsa Romántica`.
+   */
+  async listProposalTracks(
+    proposal: Pick<Proposal, "value_normalized" | "raw_examples">,
+    friendId: number | null,
+    limit: number
+  ): Promise<ProposalTrack[]> {
+    const escape = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const patterns = [...new Set([proposal.value_normalized, ...proposal.raw_examples])]
+      .map((spelling) => `%${escape(spelling)}%`);
+    const { rows } = await dbQuery<ProposalTrack & { local_tags: string }>(
+      `SELECT t.track_id, t.friend_id, t.title, t.artist, t.album, t.local_tags,
+         COALESCE(NULLIF(a.styles, '{}'), NULLIF(t.styles, '{}'), '{}') AS styles
+       FROM tracks t
+       LEFT JOIN albums a ON a.release_id = t.release_id AND a.friend_id = t.friend_id
+       WHERE t.deleted_at IS NULL
+         AND ($1::integer IS NULL OR t.friend_id = $1)
+         AND t.local_tags ILIKE ANY($2::text[])
+       ORDER BY t.artist, t.title
+       LIMIT 200`,
+      [friendId, patterns]
+    );
+    return rows
+      .filter((row) => localTagValues(row.local_tags).includes(proposal.value_normalized))
+      .slice(0, limit)
+      .map(({ local_tags: _tags, ...track }) => track);
   }
 
   /** Accepted or edited proposals to apply: all of them, or just `ids`. */

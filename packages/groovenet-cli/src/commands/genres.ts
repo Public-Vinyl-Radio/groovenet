@@ -13,6 +13,14 @@ import Table from "cli-table3";
 import { printError } from "../output.js";
 import { boundedIntOption, intOption } from "../options.js";
 import { consoleIO, makeClient, type FingerprintLibraryIO } from "./fingerprintLibrary.js";
+import { readlineAsk } from "./setsReview.js";
+import {
+  formatApplySummary,
+  rawKeyReader,
+  runReview,
+  type KeyReader,
+  type ReviewClient,
+} from "./genresReview.js";
 
 /**
  * `groovenet genres` — reconciling free-text local_tags onto the taxonomy
@@ -235,6 +243,58 @@ export async function runCoverage(
   return 0;
 }
 
+export interface ApplyOptions extends FriendScopeOptions {
+  yes?: boolean;
+  json?: boolean;
+}
+
+/**
+ * `genres apply`: writes every accepted and edited proposal to tracks. Asks
+ * first unless `--yes`, and refuses to guess without a terminal to ask on.
+ */
+export async function runApply(
+  client: Pick<GroovenetClient, "applyGenreProposals">,
+  opts: ApplyOptions,
+  readKey: KeyReader,
+  isTTY: boolean,
+  io: GenresIO = consoleIO
+): Promise<number> {
+  const friendId = resolveFriendId(opts);
+  if (!opts.yes) {
+    if (!isTTY) throw new Error("Applying writes track genres: pass --yes to apply without a terminal");
+    const answer = await readKey(`Apply all approved proposals to ${scopeLabel(friendId)}'s tracks? [y/N] `);
+    if (answer !== "y") {
+      io.log(chalk.gray("Nothing applied."));
+      return 0;
+    }
+  }
+  const result = await client.applyGenreProposals(undefined, friendId);
+  if (opts.json) io.write(JSON.stringify(result, null, 2) + "\n");
+  else for (const line of formatApplySummary(result)) io.log(line);
+  return 0;
+}
+
+export interface ReviewCommandOptions extends FriendScopeOptions {
+  minTracks?: number;
+  method?: "ai" | "exact";
+  autoAcceptExact?: boolean;
+  examples?: number;
+}
+
+/** Review is interactive only: a terminal, single keys, no JSON. */
+export async function runReviewCommand(
+  client: ReviewClient,
+  opts: ReviewCommandOptions,
+  isTTY: boolean,
+  readKey: KeyReader = rawKeyReader(),
+  ask = readlineAsk(),
+  io: GenresIO = consoleIO
+): Promise<number> {
+  if (!isTTY) throw new Error("Review is interactive: run it in a terminal");
+  const { allFriends: _all, friendId: _friend, ...rest } = opts;
+  return runReview(client, { ...rest, friendId: resolveFriendId(opts) }, readKey, ask, io);
+}
+
 async function action(run: () => Promise<number>): Promise<void> {
   try {
     process.exitCode = await run();
@@ -271,6 +331,30 @@ export function addGenresCommands(program: Command): void {
     .option("--offset <n>", "Skip this many", boundedIntOption(0), 0)
     .option("--json", "Output as JSON")
     .action((opts: GenreProposalQuery & { json?: boolean }) => action(() => runProposals(makeClient(), opts)));
+
+  genres
+    .command("review")
+    .description("Accept, remap or drop proposals, a group at a time, with single keys")
+    .option("--friend-id <n>", "Only this friend's tracks (defaults to config default_friend_id)", boundedIntOption(1))
+    .option("--all-friends", "Every friend's tracks")
+    .option("--min-tracks <n>", "Only values on at least this many tracks", boundedIntOption(0), 1)
+    .option("--method <method>", "ai | exact", enumOption(["ai", "exact"] as const))
+    .option("--auto-accept-exact", "Accept every pending exact match before reviewing")
+    .option("--examples <n>", "Example tracks shown per group", boundedIntOption(0), 3)
+    .action((opts: ReviewCommandOptions) =>
+      action(() => runReviewCommand(makeClient(), opts, Boolean(process.stdin.isTTY)))
+    );
+
+  genres
+    .command("apply")
+    .description("Write accepted and edited proposals to track genres, descriptors and aliases")
+    .option("--friend-id <n>", "Only this friend's tracks (defaults to config default_friend_id)", boundedIntOption(1))
+    .option("--all-friends", "Every friend's tracks")
+    .option("--yes", "Apply without asking")
+    .option("--json", "Output as JSON")
+    .action((opts: ApplyOptions) =>
+      action(() => runApply(makeClient(), opts, rawKeyReader(), Boolean(process.stdin.isTTY)))
+    );
 
   genres
     .command("coverage")

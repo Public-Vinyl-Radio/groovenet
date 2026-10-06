@@ -4,8 +4,11 @@ import { genreReconciliationRepository as repo } from "@/server/repositories/gen
 import {
   applyProposals,
   defaultRunOptions,
+  decideProposals,
   executeRun,
   getCoverage,
+  getProposalTracks,
+  restoreProposals,
   updateProposal,
 } from "../genreReconciliationService";
 import { mergeGenres } from "../genreAdminService";
@@ -206,4 +209,31 @@ describe("local_tags reconciliation", () => {
     const { rows: linked } = await dbQuery("SELECT 1 FROM track_genres WHERE track_id = 'rc-other'");
     expect(linked).toHaveLength(1);
   });
+
+  dbTest("decides in one transaction, undoes exactly, and finds example tracks", async () => {
+    const uplifting = await proposalFor("uplifting");
+    expect(uplifting).toMatchObject({ status: "accepted", action: "descriptor", method: "ai" });
+
+    // A missing id rolls back the whole batch.
+    await expect(decideProposals([
+      { id: uplifting.id, action: "drop" },
+      { id: "00000000-0000-4000-8000-000000000000", status: "accepted" },
+    ])).rejects.toMatchObject({ status: 404 });
+    expect(await proposalFor("uplifting")).toMatchObject({ action: "descriptor", status: "accepted" });
+
+    const { previous } = await decideProposals([{ id: uplifting.id, action: "drop" }]);
+    expect(await proposalFor("uplifting")).toMatchObject({ action: "drop", status: "edited", method: "manual" });
+    expect(await restoreProposals(previous)).toEqual({ restored: 1 });
+    expect(await proposalFor("uplifting")).toMatchObject({ action: "descriptor", status: "accepted", method: "ai" });
+
+    // rc-other (another friend) also says Cumbia; rc-3's tags hold no "cumbia".
+    const tracks = await getProposalTracks((await proposalFor("cumbia")).id, friendId, 5);
+    expect(tracks.map((t) => t.track_id)).toEqual(["rc-1", "rc-2"]);
+    expect(tracks[0]).toMatchObject({ title: "Title", artist: "Artist", styles: ["Cumbia"] });
+
+    const { proposals } = await repo.listProposals({ min_tracks: 2, limit: 50, offset: 0 });
+    expect(proposals.every((p) => p.track_count >= 2)).toBe(true);
+    expect(proposals.map((p) => p.value_normalized)).toContain("cumbia");
+  });
+
 });

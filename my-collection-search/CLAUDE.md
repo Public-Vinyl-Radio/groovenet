@@ -152,6 +152,11 @@ PATCH /api/genres/proposals/{id}       a person accepts, rejects or edits
 POST /api/genres/proposals/apply       accepted → track_genres + descriptors + genre_aliases
 ```
 
+Review (`groovenet genres review`, #373) uses `POST
+/api/genres/proposals/decisions` to decide a group in one transaction (all or
+none), `POST /api/genres/proposals/restore` to undo with the snapshots that
+returned, and `GET /api/genres/proposals/{id}/tracks` for examples.
+
 - **One proposal per normalised value**, global like the taxonomy, so one
   decision covers every track and friend using that spelling.
   `src/lib/genres/localTags.ts` splits on `,` `·` `•`, never `/` (#369).

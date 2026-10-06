@@ -1500,3 +1500,25 @@ describe("genre reconciliation", () => {
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { friend_id: 6 } }));
   });
 });
+
+describe("genre proposal review", () => {
+  it("records decisions as one batch", async () => {
+    const result = { proposals: [], previous: [] };
+    const client = clientReturning(result);
+    await expect(client.decideGenreProposals([{ id: "p", status: "accepted" }])).resolves.toEqual(result);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/proposals/decisions", data: { decisions: [{ id: "p", status: "accepted" }] } }));
+  });
+  it("restores snapshots", async () => {
+    const client = clientReturning({ restored: 1 });
+    const snapshot = { id: "p", status: "pending" as const, action: "map" as const, target_genre_ids: [], proposed_genre_name: null, proposed_parent_id: null, method: "ai" as const };
+    await expect(client.restoreGenreProposals([snapshot])).resolves.toEqual({ restored: 1 });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ url: "/genres/proposals/restore", data: { snapshots: [snapshot] } }));
+  });
+  it("unwraps a proposal's example tracks", async () => {
+    const client = clientReturning({ tracks: [{ track_id: "1" }] });
+    await expect(client.getGenreProposalTracks("p/1", { friend_id: 6, limit: 3 })).resolves.toEqual([{ track_id: "1" }]);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/proposals/p%2F1/tracks", params: { friend_id: 6, limit: 3 } }));
+    await client.getGenreProposalTracks("p");
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: {} }));
+  });
+});

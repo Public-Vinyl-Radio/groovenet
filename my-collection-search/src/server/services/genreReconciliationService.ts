@@ -8,6 +8,8 @@ import {
   type ProposalAction,
   type ProposalDraft,
   type ProposalPatch,
+  type ProposalSnapshot,
+  type ProposalTrack,
   type ProposalStatus,
   type ReconciliationRun,
   type ReconciliationRunOptions,
@@ -210,20 +212,28 @@ export type ProposalUpdate = {
   proposed_parent_id?: string | null;
 };
 
-/**
- * Records a review decision. Changing what the proposal does marks it
- * `edited` (and `manual`), which apply treats like `accepted`.
- */
-export async function updateProposal(id: string, input: ProposalUpdate): Promise<Proposal> {
-  const current = await repo.getProposal(id);
-  if (!current) throw new GenreReconciliationError("Proposal not found", 404);
+export type ProposalDecision = ProposalUpdate & { id: string };
 
+export type DecisionResult = {
+  /** Each proposal after the decision, in request order. */
+  proposals: Proposal[];
+  /** Each proposal before it, for undo through restoreProposals. */
+  previous: ProposalSnapshot[];
+};
+
+const snapshotOf = (p: Proposal): ProposalSnapshot => ({
+  id: p.id, status: p.status, action: p.action, target_genre_ids: p.target_genre_ids,
+  proposed_genre_name: p.proposed_genre_name, proposed_parent_id: p.proposed_parent_id, method: p.method,
+});
+
+/**
+ * The patch one decision makes. Changing what the proposal does marks it
+ * `edited` (and `manual`), which apply treats like `accepted`; a change can
+ * still be parked as `pending` or `rejected`.
+ */
+function patchFor(current: Proposal, input: ProposalUpdate, targetIds: string[] | undefined): ProposalPatch {
   const patch: ProposalPatch = {};
-  if (input.target_genres !== undefined) {
-    const { ids, unknown } = await trackGenreRepository.resolveGenreRefs(input.target_genres);
-    if (unknown.length) throw new GenreReconciliationError(`Unknown genres: ${unknown.join(", ")}`, 400);
-    patch.target_genre_ids = ids;
-  }
+  if (targetIds !== undefined) patch.target_genre_ids = targetIds;
   if (input.action !== undefined) patch.action = input.action;
   if (input.proposed_genre_name !== undefined) patch.proposed_genre_name = input.proposed_genre_name?.trim() || null;
   if (input.proposed_parent_id !== undefined) patch.proposed_parent_id = input.proposed_parent_id;
@@ -246,17 +256,76 @@ export async function updateProposal(id: string, input: ProposalUpdate): Promise
   } else if (input.status !== undefined) {
     patch.status = input.status;
   }
+  return patch;
+}
+
+const isForeignKeyError = (error: unknown) =>
+  typeof error === "object" && error !== null && "code" in error && error.code === "23503";
+
+/**
+ * Records review decisions, all or none: one transaction, so accepting a
+ * group of values is one request and one undo. Genre names resolve before the
+ * transaction opens; an unknown one fails the whole batch.
+ */
+export async function decideProposals(decisions: ProposalDecision[]): Promise<DecisionResult> {
+  const targetIds = new Map<number, string[]>();
+  for (const [i, decision] of decisions.entries()) {
+    if (decision.target_genres === undefined) continue;
+    const { ids, unknown } = await trackGenreRepository.resolveGenreRefs(decision.target_genres);
+    if (unknown.length) throw new GenreReconciliationError(`Unknown genres: ${unknown.join(", ")}`, 400);
+    targetIds.set(i, ids);
+  }
 
   try {
-    await repo.updateProposal(id, patch);
+    return await withDbTransaction(async (client) => {
+      const result: DecisionResult = { proposals: [], previous: [] };
+      for (const [i, decision] of decisions.entries()) {
+        const current = await repo.getProposal(decision.id, client);
+        if (!current) throw new GenreReconciliationError(`Proposal not found: ${decision.id}`, 404);
+        await repo.updateProposal(decision.id, patchFor(current, decision, targetIds.get(i)), client);
+        result.previous.push(snapshotOf(current));
+        result.proposals.push((await repo.getProposal(decision.id, client))!);
+      }
+      return result;
+    });
   } catch (error) {
     // proposed_parent_id is a foreign key: an unknown parent is the caller's.
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "23503") {
-      throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
+    if (isForeignKeyError(error)) throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
+    throw error;
+  }
+}
+
+/** Records one review decision; see decideProposals. */
+export async function updateProposal(id: string, input: ProposalUpdate): Promise<Proposal> {
+  try {
+    return (await decideProposals([{ ...input, id }])).proposals[0];
+  } catch (error) {
+    if (error instanceof GenreReconciliationError && error.status === 404) {
+      throw new GenreReconciliationError("Proposal not found", 404);
     }
     throw error;
   }
-  return (await repo.getProposal(id))!;
+}
+
+/** Undo: puts proposals back as decideProposals reported them before. */
+export async function restoreProposals(snapshots: ProposalSnapshot[]): Promise<{ restored: number }> {
+  try {
+    return { restored: await withDbTransaction((client) => repo.restoreProposals(client, snapshots)) };
+  } catch (error) {
+    if (isForeignKeyError(error)) throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
+    throw error;
+  }
+}
+
+/** A few tracks tagged with the proposal's value, so a reviewer needs no lookup. */
+export async function getProposalTracks(
+  id: string,
+  friendId: number | null,
+  limit: number
+): Promise<ProposalTrack[]> {
+  const proposal = await repo.getProposal(id);
+  if (!proposal) throw new GenreReconciliationError("Proposal not found", 404);
+  return repo.listProposalTracks(proposal, friendId, limit);
 }
 
 export type ApplySummary = {
