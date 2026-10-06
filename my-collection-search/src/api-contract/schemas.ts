@@ -1939,6 +1939,12 @@ export const genreTreeNodeSchema: z.ZodType<GenreTreeNode> = z.lazy(() =>
 );
 
 export const genreTreeResponseSchema = z.object({ genres: z.array(genreTreeNodeSchema) });
+
+/** Per-genre track counts for the current search, subgenres included (#375). */
+export const trackGenreFacetsResponseSchema = z.object({
+  genres: z.array(z.object({ id: z.string(), track_count: z.number().int() })),
+});
+export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
 export const genreParamsSchema = z.object({ id: z.string().uuid() });
 export const genreCreateBodySchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
 export const genreUpdateBodySchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });

@@ -72,6 +72,7 @@ import {
   gamdlSettingsPutResponseSchema,
   gamdlSettingsQuerySchema,
   genreTreeResponseSchema,
+  trackGenreFacetsResponseSchema,
   genreCreateBodySchema,
   genreUpdateBodySchema,
   genreAliasBodySchema,
@@ -3792,6 +3793,45 @@ const genreReconciliationContracts: ApiContractRoute[] = [
   },
 ];
 
+/** `/api/tracks/search`'s query parameters, shared with its genre facets. */
+const trackSearchParameters: Record<string, unknown>[] = [
+  { name: "q", in: "query", required: false, schema: { type: "string" } },
+  { name: "limit", in: "query", required: false, schema: { type: "integer", default: 20 } },
+  { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+  { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
+  {
+    name: "filter",
+    in: "query",
+    required: false,
+    schema: {
+      type: "string",
+      description: "SQL-style filter expression. Multiple conditions joined with ' AND '. Supported values: 'local_audio_url IS NULL' (missing audio), '(bpm IS NULL OR key IS NULL)' (missing metadata), 'apple_music_url IS NULL' (missing Apple Music), 'youtube_url IS NULL' (missing YouTube), 'soundcloud_url IS NULL' (missing SoundCloud), '(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)' (missing all streaming URLs).",
+    },
+  },
+  {
+    name: "mode",
+    in: "query",
+    required: false,
+    schema: { type: "string", enum: ["lexical", "semantic", "hybrid"], default: "lexical" },
+    description:
+      "'lexical' is full-text + trigram. 'semantic' ranks by the natural-language 'context' embedding of q; 'hybrid' fuses both with reciprocal rank fusion, exact title/artist/album matches first. Semantic and hybrid return a single page (offset 0, limit at most 50), at most three tracks per release, and honour friend_id and filter. With an empty q every mode lists lexically.",
+  },
+  { name: "bpm_min", in: "query", required: false, schema: { type: "number" }, description: "Minimum BPM, inclusive. Applied in every mode." },
+  { name: "bpm_max", in: "query", required: false, schema: { type: "number" }, description: "Maximum BPM, inclusive. Must not be below bpm_min." },
+  { name: "key", in: "query", required: false, schema: { type: "string" }, description: "Exact musical key, case-insensitive (e.g. 'A minor'). Enharmonic spellings are not merged." },
+  { name: "star_rating", in: "query", required: false, schema: { type: "integer", minimum: 0, maximum: 5 }, description: "Minimum star rating." },
+  {
+    name: "genre",
+    in: "query",
+    required: false,
+    style: "form",
+    explode: true,
+    schema: { type: "array", items: { type: "string" }, maxItems: 20 },
+    description:
+      "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres, so 'latin' finds 'cumbia'. A track with genres of its own matches on those; one without falls back to its album's Discogs genres and styles. Applied in every mode. An unknown genre is a 400."
+  },
+];
+
 export const apiContractRoutes: ApiContractRoute[] = [
   ...genreMutationContracts,
   ...genreReconciliationContracts,
@@ -5286,6 +5326,57 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "searchTrackGenreFacets",
+    method: "get",
+    path: "/api/tracks/search/facets",
+    summary: "Genre counts for a keyword track search",
+    tags: ["Tracks"],
+    querySchema: trackSearchGetQuerySchema,
+    successSchema: trackGenreFacetsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: trackSearchParameters.filter(
+        (parameter) => !["limit", "offset", "genre"].includes(parameter.name as string)
+      ),
+      responses: {
+        "200": {
+          description:
+            "Per genre, the tracks adding that genre to the search would return: subgenres included, each track once, largest first. Takes /api/tracks/search's parameters; `genre`, `limit` and `offset` are ignored, so picking a genre leaves the others' counts in view. Genres with no tracks are omitted. Keyword search only: semantic or hybrid with words is a 400.",
+          content: {
+            "application/json": {
+              example: { genres: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", track_count: 113 }] },
+              schema: {
+                type: "object",
+                properties: {
+                  genres: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string", format: "uuid" },
+                        track_count: { type: "integer" },
+                      },
+                      required: ["id", "track_count"],
+                    },
+                  },
+                },
+                required: ["genres"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid parameters, or a semantic/hybrid query",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
     operationId: "searchTracksQuery",
     method: "get",
     path: "/api/tracks/search",
@@ -5295,43 +5386,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     successSchema: trackSearchGetResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
-      parameters: [
-        { name: "q", in: "query", required: false, schema: { type: "string" } },
-        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 20 } },
-        { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
-        { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
-        {
-          name: "filter",
-          in: "query",
-          required: false,
-          schema: {
-            type: "string",
-            description: "SQL-style filter expression. Multiple conditions joined with ' AND '. Supported values: 'local_audio_url IS NULL' (missing audio), '(bpm IS NULL OR key IS NULL)' (missing metadata), 'apple_music_url IS NULL' (missing Apple Music), 'youtube_url IS NULL' (missing YouTube), 'soundcloud_url IS NULL' (missing SoundCloud), '(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)' (missing all streaming URLs).",
-          },
-        },
-        {
-          name: "mode",
-          in: "query",
-          required: false,
-          schema: { type: "string", enum: ["lexical", "semantic", "hybrid"], default: "lexical" },
-          description:
-            "'lexical' is full-text + trigram. 'semantic' ranks by the natural-language 'context' embedding of q; 'hybrid' fuses both with reciprocal rank fusion, exact title/artist/album matches first. Semantic and hybrid return a single page (offset 0, limit at most 50), at most three tracks per release, and honour friend_id and filter. With an empty q every mode lists lexically.",
-        },
-        { name: "bpm_min", in: "query", required: false, schema: { type: "number" }, description: "Minimum BPM, inclusive. Applied in every mode." },
-        { name: "bpm_max", in: "query", required: false, schema: { type: "number" }, description: "Maximum BPM, inclusive. Must not be below bpm_min." },
-        { name: "key", in: "query", required: false, schema: { type: "string" }, description: "Exact musical key, case-insensitive (e.g. 'A minor'). Enharmonic spellings are not merged." },
-        { name: "star_rating", in: "query", required: false, schema: { type: "integer", minimum: 0, maximum: 5 }, description: "Minimum star rating." },
-        {
-          name: "genre",
-          in: "query",
-          required: false,
-          style: "form",
-          explode: true,
-          schema: { type: "array", items: { type: "string" }, maxItems: 20 },
-          description:
-            "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres, so 'latin' finds 'cumbia'. A track with genres of its own matches on those; one without falls back to its album's Discogs genres and styles. Applied in every mode. An unknown genre is a 400."
-        },
-      ],
+      parameters: trackSearchParameters,
       responses: {
         "200": {
           description: "Search results",

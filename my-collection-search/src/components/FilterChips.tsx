@@ -14,9 +14,11 @@ interface FilterChipsProps {
   chips: FilterChip[];
   onToggle: (key: string) => void;
   onClearAll?: () => void;
+  /** A control shown before the chips, such as the genre filter. */
+  leading?: React.ReactNode;
 }
 
-export default function FilterChips({ chips, onToggle, onClearAll }: FilterChipsProps) {
+export default function FilterChips({ chips, onToggle, onClearAll, leading }: FilterChipsProps) {
   const anyActive = chips.some((c) => c.active);
 
   return (
@@ -28,6 +30,7 @@ export default function FilterChips({ chips, onToggle, onClearAll }: FilterChips
       pb={1}
       className="hide-scrollbar"
     >
+      {leading}
       {chips.map((chip) => (
         <Button
           key={chip.key}

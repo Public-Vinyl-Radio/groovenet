@@ -28,6 +28,8 @@ interface UseSearchResultsOptions {
   page?: number;
   // Keyword, semantic or hybrid ranking (#409). Non-keyword modes return one page.
   searchMode?: TrackSearchMode;
+  // Genre slugs (#375); any of them matches, each with its subgenres.
+  genres?: string[];
 }
 
 type SearchPage = TrackSearchResponse;
@@ -42,6 +44,7 @@ export function useSearchResults({
   limit: limitOverride,
   page,
   searchMode = "lexical",
+  genres,
 }: UseSearchResultsOptions) {
   const [query, setQuery] = useState("");
   const limit = limitOverride ?? DEFAULT_LIMIT;
@@ -90,9 +93,17 @@ export function useSearchResults({
   const isInfinite = mode === "infinite";
   // Keyword keys stay as they were, so existing cache predicates still match.
   const searchModeKey = searchMode === "lexical" ? {} : { searchMode };
+  const genreKey = genres && genres.length > 0 ? { genre: genres } : {};
 
   const infiniteQuery = useInfiniteQuery<SearchPage, Error>({
-    queryKey: queryKeys.tracks({ q: query, filter: searchFilter, limit, mode, ...searchModeKey }),
+    queryKey: queryKeys.tracks({
+      q: query,
+      filter: searchFilter,
+      limit,
+      mode,
+      ...searchModeKey,
+      ...genreKey,
+    }),
     enabled: enabled && isInfinite,
     refetchOnWindowFocus: false,
     queryFn: async (context): Promise<SearchPage> => {
@@ -104,6 +115,7 @@ export function useSearchResults({
         offset: pageParam,
         filter: normalizedFilter,
         mode: searchMode,
+        genre: genres,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
       const scopedHits = scopeHits(res.hits ?? []);
@@ -132,6 +144,7 @@ export function useSearchResults({
       mode,
       page: page ?? 1,
       ...searchModeKey,
+      ...genreKey,
     }),
     enabled: enabled && !isInfinite,
     refetchOnWindowFocus: false,
@@ -144,6 +157,7 @@ export function useSearchResults({
         offset,
         filter: normalizedFilter,
         mode: searchMode,
+        genre: genres,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
       const scopedHits = scopeHits(res.hits ?? []);

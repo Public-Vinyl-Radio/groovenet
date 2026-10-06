@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { GenreTreeNode } from "@/api-contract/schemas";
-import { filterGenreOptions, flattenGenreTree, genreSelectionChanged, type GenreOption } from "./options";
+import {
+  filterGenreOptions,
+  flattenGenreTree,
+  genreFilterOptions,
+  genreSelectionChanged,
+  type GenreOption,
+} from "./options";
 
 const node = (id: string, name: string, children: GenreTreeNode[] = [], track_count = 0): GenreTreeNode => ({
   id,
@@ -76,5 +82,21 @@ describe("genreSelectionChanged", () => {
     expect(genreSelectionChanged([a], [a, b])).toBe(true);
     expect(genreSelectionChanged([a, b], [a])).toBe(true);
     expect(genreSelectionChanged([a], [b])).toBe(true);
+  });
+});
+
+describe("genreFilterOptions (#375)", () => {
+  const options = [option("latin", "Latin", 9), option("cumbia", "Cumbia", 4), option("jazz", "Jazz", 2)];
+
+  it("carries the search's counts and drops genres with none", () => {
+    const counts = new Map([["latin", 3], ["cumbia", 1]]);
+    expect(genreFilterOptions(options, counts)).toEqual([
+      { ...options[0], track_count: 3 },
+      { ...options[1], track_count: 1 },
+    ]);
+  });
+
+  it("offers every genre unchanged without counts", () => {
+    expect(genreFilterOptions(options)).toBe(options);
   });
 });

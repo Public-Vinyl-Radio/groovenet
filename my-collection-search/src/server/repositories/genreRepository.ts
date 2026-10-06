@@ -1,4 +1,4 @@
-import { dbQuery } from "@/lib/serverDb";
+import { dbQuery, withDbTransaction } from "@/lib/serverDb";
 import type { GenreFilter } from "@/lib/trackFilterSpec";
 
 export type GenreSource = "discogs" | "custom";
@@ -12,6 +12,9 @@ export type GenreRow = {
   track_count: number;
   album_count: number;
 };
+
+/** How many tracks a genre filter would return, subgenres included (#375). */
+export type GenreFacet = { id: string; track_count: number };
 
 export type GenreTreeNode = GenreRow & { children: GenreTreeNode[] };
 
@@ -104,6 +107,61 @@ export class GenreRepository {
       [genreIds]
     );
     return { ids: rows[0]?.ids ?? [], keys: rows[0]?.keys ?? [] };
+  }
+
+  /**
+   * Per-genre track counts over the tracks `where` selects (clauses over
+   * `tracks t`). Each track counts under the genres the filter matches it on —
+   * its own links, else its Discogs genres and styles through names and
+   * aliases — and under every ancestor of those, once. So a genre's count is
+   * exactly what adding it as a filter would return.
+   */
+  async trackFacets(where: string[], params: unknown[]): Promise<GenreFacet[]> {
+    return withDbTransaction(async (client) => {
+      // Postgres JIT-compiles this plan for ~200 ms to save a few: measured
+      // at 290 ms with JIT and 55 ms without, over one friend's 3.8k tracks.
+      // Transaction-local, so a pooled connection never carries it onward.
+      await client.query("SELECT set_config('jit', 'off', true)");
+      const { rows } = await client.query<GenreFacet>(
+      `
+      WITH RECURSIVE matched AS (
+        SELECT t.track_id, t.friend_id, t.genres, t.styles
+        FROM tracks t
+        WHERE ${[...where, "t.deleted_at IS NULL"].join(" AND ")}
+      ),
+      genre_keys AS (
+        SELECT normalized_name AS key, id AS genre_id FROM genres
+        UNION
+        SELECT alias_normalized, genre_id FROM genre_aliases
+      ),
+      track_genre AS (
+        SELECT m.track_id, m.friend_id, tg.genre_id
+        FROM matched m
+        JOIN track_genres tg ON tg.track_id = m.track_id AND tg.friend_id = m.friend_id
+        UNION
+        SELECT m.track_id, m.friend_id, k.genre_id
+        FROM matched m
+        CROSS JOIN LATERAL unnest(COALESCE(m.genres, '{}') || COALESCE(m.styles, '{}')) AS d(name)
+        JOIN genre_keys k ON k.key = genre_normalize(d.name)
+        WHERE NOT EXISTS (
+          SELECT 1 FROM track_genres tg WHERE tg.track_id = m.track_id AND tg.friend_id = m.friend_id
+        )
+      ),
+      lineage AS (
+        SELECT id AS genre_id, id AS ancestor_id, parent_id FROM genres
+        UNION
+        SELECT l.genre_id, g.id, g.parent_id FROM lineage l JOIN genres g ON g.id = l.parent_id
+      )
+      SELECT l.ancestor_id::text AS id, COUNT(DISTINCT (tg.track_id, tg.friend_id))::integer AS track_count
+      FROM track_genre tg
+      JOIN lineage l ON l.genre_id = tg.genre_id
+      GROUP BY l.ancestor_id
+      ORDER BY track_count DESC, id
+      `,
+        params
+      );
+      return rows;
+    });
   }
 }
 

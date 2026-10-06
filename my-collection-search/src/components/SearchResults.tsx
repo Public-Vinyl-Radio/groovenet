@@ -23,6 +23,9 @@ import { useSearchResults } from "@/hooks/useSearchResults";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrack } from "@/hooks/useTrack";
 import FilterChips from "@/components/FilterChips";
+import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "@/components/GenreFilter";
+import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
+import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
 import { TracksFilter, buildSearchFilters, createEmptyFilters, getActiveFilterCount } from "@/lib/trackFilters";
 import { useUsername } from "@/providers/UsernameProvider";
 
@@ -74,6 +77,8 @@ const SearchResults: React.FC = () => {
 
   // Filter state - applied immediately (no modal)
   const [activeFilters, setActiveFilters] = React.useState<TracksFilter>(createEmptyFilters());
+  // Genre slugs (#375), linkable as `?genre=cumbia&genre=salsa`.
+  const [genres, setGenres] = React.useState<string[]>(() => searchParams?.getAll("genre") ?? []);
   const [searchMode, setSearchMode] = React.useState<TrackSearchMode>(() => {
     const fromUrl = searchParams?.get("mode");
     return isTrackSearchMode(fromUrl) ? fromUrl : "lexical";
@@ -108,7 +113,20 @@ const SearchResults: React.FC = () => {
     friend: currentUserFriend,
     filter: searchFilters.length > 0 ? searchFilters : undefined,
     searchMode,
+    genres,
   });
+
+  // Counts only for keyword search: semantic and hybrid return one ranked page.
+  const { genres: taxonomy } = useGenreTaxonomyQuery();
+  const { counts: genreCounts } = useTrackGenreFacets({
+    q: query,
+    filter: searchFilters.join(" AND "),
+    enabled: isHydrated && !!currentUserFriend && searchMode === "lexical",
+  });
+  // The picker never offers a genre already chosen, so a pick is always new.
+  const addGenre = React.useCallback((slug: string) => {
+    setGenres((prev) => [...prev, slug]);
+  }, []);
 
   // Selection state
   const [selectedTracks, setSelectedTracks] = React.useState<Set<string>>(new Set());
@@ -200,6 +218,11 @@ const SearchResults: React.FC = () => {
   };
 
   const handleFilterToggle = React.useCallback((key: string) => {
+    const genreSlug = genreSlugFromChipKey(key);
+    if (genreSlug !== null) {
+      setGenres((prev) => prev.filter((slug) => slug !== genreSlug));
+      return;
+    }
     setActiveFilters((prev) => ({
       ...prev,
       [key]: !prev[key as keyof TracksFilter],
@@ -208,8 +231,9 @@ const SearchResults: React.FC = () => {
 
   const handleClearAllFilters = React.useCallback(() => {
     setActiveFilters(createEmptyFilters());
+    setGenres([]);
   }, []);
-  const activeFilterCount = getActiveFilterCount(activeFilters);
+  const activeFilterCount = getActiveFilterCount(activeFilters) + genres.length;
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const bottomSentinelRef = React.useRef<HTMLDivElement>(null);
@@ -293,11 +317,13 @@ const SearchResults: React.FC = () => {
       if (activeFilters[key]) params.set(key, "1");
       else params.delete(key);
     });
+    params.delete("genre");
+    genres.forEach((slug) => params.append("genre", slug));
     const nextQueryString = params.toString();
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
     router.replace(newUrl);
-  }, [query, activeFilters, searchMode, pathname, router, searchParamsString]);
+  }, [query, activeFilters, genres, searchMode, pathname, router, searchParamsString]);
 
   return (
     <Box mb={'100px'}>
@@ -358,7 +384,9 @@ const SearchResults: React.FC = () => {
 
       <Box mt={3}>
         <FilterChips
+          leading={<GenreFilter selected={genres} onAdd={addGenre} counts={genreCounts} />}
           chips={[
+            ...genreFilterChips(genres, taxonomy),
             { key: "missingAudio", label: "Missing audio", active: !!activeFilters.missingAudio },
             { key: "missingMetadata", label: "Missing metadata", active: !!activeFilters.missingMetadata },
             { key: "missingAnyStreamingUrl", label: "No streaming URL", active: !!activeFilters.missingAnyStreamingUrl },

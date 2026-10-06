@@ -24,6 +24,7 @@ import {
   fixTrackDuration,
   saveTrack,
   searchTracks,
+  fetchTrackGenreFacets,
   softDeleteTrack,
   uploadTrackAudio,
 } from "./tracks";
@@ -699,6 +700,11 @@ describe("fetchSimilarTracks", () => {
 });
 
 describe("searchTracks", () => {
+  it("repeats genre for each slug (#375)", async () => {
+    await searchTracks({ genre: ["cumbia", "salsa"] });
+    expect(calledParams().getAll("genre")).toEqual(["cumbia", "salsa"]);
+  });
+
   it("omits the query string entirely when nothing is set", async () => {
     await searchTracks({});
 
@@ -762,5 +768,22 @@ describe("fetchPlaylistCounts", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ track_refs: refs }),
     });
+  });
+});
+
+describe("fetchTrackGenreFacets (#375)", () => {
+  it("asks for counts with the words and filter", async () => {
+    await fetchTrackGenreFacets({ q: "dub", filter: "friend_id = 6" });
+    const [path, init] = httpMock.mock.calls.at(-1)!;
+    const params = new URLSearchParams(String(path).split("?")[1]);
+    expect(String(path)).toMatch(/^\/api\/tracks\/search\/facets\?/);
+    expect(params.get("q")).toBe("dub");
+    expect(params.get("filter")).toBe("friend_id = 6");
+    expect(init).toEqual(GET_NO_STORE);
+  });
+
+  it("sends no query string with nothing to filter", async () => {
+    await fetchTrackGenreFacets({});
+    expect(httpMock).toHaveBeenLastCalledWith("/api/tracks/search/facets", GET_NO_STORE);
   });
 });

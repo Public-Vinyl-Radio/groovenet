@@ -21,6 +21,7 @@ export default function AlbumSearchResults({
   const missingLibraryIdentifier = searchParams.get("missing_library_identifier") === "1";
   const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
   const missingAudio = searchParams.get("missing_audio") === "1";
+  const genres = searchParams.getAll("genre");
 
   const { data, albumRefs, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useAlbumsInfiniteQuery({
@@ -31,6 +32,7 @@ export default function AlbumSearchResults({
       missing_library_identifier: missingLibraryIdentifier || undefined,
       missing_local_cover_art_url: missingLocalCoverArtUrl || undefined,
       missing_audio: missingAudio || undefined,
+      ...(genres.length > 0 ? { genre: genres } : {}),
     });
   const albumsFromStore = useAlbumsByRefs(albumRefs);
   const albumsFromQuery = data?.pages.flatMap((page) => page.hits) || [];
