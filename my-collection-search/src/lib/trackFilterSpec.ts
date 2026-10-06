@@ -139,20 +139,32 @@ export function trackGenreFilterClause(
 }
 
 /**
+ * The share of an album's genre-tagged tracks that must carry the genre for
+ * the album to match on them (#448): one Cumbia track among ten shouldn't
+ * make the whole album Cumbia. As a fraction, so the SQL stays in integers.
+ */
+const ALBUM_TRACK_SHARE = { numerator: 1, denominator: 3 };
+
+/**
  * Album match for a genre filter: the album's own Discogs genres and styles,
- * or any live track on it linked to one of the genres. `alias` is the
- * `albums` alias.
+ * or at least `ALBUM_TRACK_SHARE` of its live tracks with genre links linked
+ * to one of the genres. Tracks with no links don't count either way. `alias`
+ * is the `albums` alias.
  */
 export function albumGenreFilterClause(
   filter: GenreFilter,
   bind: (value: unknown) => string,
   alias: string
 ): string {
+  const discogs = discogsGenreMatchSql(
+    `COALESCE(${alias}.genres, '{}') || COALESCE(${alias}.styles, '{}')`,
+    bind(filter.keys)
+  );
+  // DISTINCT: a track linked to two of the genres still counts once.
+  const matching = `count(DISTINCT gt.track_id) FILTER (WHERE tg.genre_id = ANY(${bind(filter.ids)}::uuid[]))`;
+  const tagged = "count(DISTINCT gt.track_id)";
   return `(
-    ${discogsGenreMatchSql(
-      `COALESCE(${alias}.genres, '{}') || COALESCE(${alias}.styles, '{}')`,
-      bind(filter.keys)
-    )}
+    ${discogs}
     OR EXISTS (
       SELECT 1
       FROM tracks gt
@@ -160,7 +172,8 @@ export function albumGenreFilterClause(
       WHERE gt.release_id = ${alias}.release_id
         AND gt.friend_id = ${alias}.friend_id
         AND gt.deleted_at IS NULL
-        AND tg.genre_id = ANY(${bind(filter.ids)}::uuid[])
+      HAVING ${matching} > 0
+        AND ${matching} * ${ALBUM_TRACK_SHARE.denominator} >= ${tagged} * ${ALBUM_TRACK_SHARE.numerator}
     )
   )`;
 }
