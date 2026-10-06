@@ -80,13 +80,22 @@ describe("planRun", () => {
     ["now exact", { status: "pending" as const, method: "ai" }],
   ]);
   const values = ["accepted", "rejected", "pending ai", "pending exact", "now exact", "new"].map((v) => value(v));
-  const exact = new Map([["now exact", "g1"], ["accepted", "g2"]]);
+  const exact = new Map([
+    ["now exact", { genre_id: "g1", loose: false }],
+    ["accepted", { genre_id: "g2", loose: false }],
+    ["new loose", { genre_id: "g3", loose: true }],
+  ]);
 
   it("keeps reviewed and pending AI proposals, proposes exact matches, sends the rest", () => {
     const plan = planRun(values, existing, exact, { refresh: false });
     expect(plan.kept.map((v) => v.value_normalized)).toEqual(["accepted", "rejected", "pending ai"]);
     expect(plan.exact).toEqual([expect.objectContaining({ value_normalized: "now exact", target_genre_ids: ["g1"], confidence: 1, method: "exact" })]);
     expect(plan.forAi.map((v) => v.value_normalized)).toEqual(["pending exact", "new"]);
+  });
+
+  it("proposes a loose match as exact, a little less sure", () => {
+    const plan = planRun([value("new loose")], new Map(), exact, { refresh: false });
+    expect(plan.exact).toEqual([expect.objectContaining({ target_genre_ids: ["g3"], confidence: 0.95, method: "exact" })]);
   });
 
   it("re-sends pending AI proposals when refreshing", () => {
@@ -134,7 +143,7 @@ describe("executeRun", () => {
       { track_id: "2", friend_id: 1, local_tags: "Chicha, Noise, Rare", styles: [] },
     ]);
     repo.listProposalStates.mockResolvedValue(new Map());
-    repo.resolveExactValues.mockResolvedValue(new Map([["cumbia", "g1"]]));
+    repo.resolveExactValues.mockResolvedValue(new Map([["cumbia", { genre_id: "g1", loose: false }]]));
     repo.listTaxonomy.mockResolvedValue([]);
   });
 

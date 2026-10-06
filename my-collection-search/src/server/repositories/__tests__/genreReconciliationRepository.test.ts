@@ -31,9 +31,17 @@ describe("genreReconciliationRepository", () => {
   });
 
   it("resolves exact values to genre ids", async () => {
-    dbQuery.mockResolvedValue({ rows: [{ value: "cumbia", genre_id: "g" }] });
-    await expect(repo.resolveExactValues(["cumbia", "nope"])).resolves.toEqual(new Map([["cumbia", "g"]]));
-    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("unnest($1::text[])"), [["cumbia", "nope"]]);
+    dbQuery.mockResolvedValue({ rows: [
+      { value: "cumbia", genre_id: "g", loose: false },
+      { value: "blues-rock", genre_id: "b", loose: true },
+    ] });
+    await expect(repo.resolveExactValues(["cumbia", "blues-rock", "nope"])).resolves.toEqual(new Map([
+      ["cumbia", { genre_id: "g", loose: false }],
+      ["blues-rock", { genre_id: "b", loose: true }],
+    ]));
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("HAVING count(DISTINCT k.genre_id) = 1");
+    expect(params).toEqual([["cumbia", "blues-rock", "nope"]]);
   });
 
   it("maps proposal states by value", async () => {

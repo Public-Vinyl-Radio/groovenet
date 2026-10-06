@@ -114,6 +114,8 @@ export type ProposalTrack = {
   styles: string[];
 };
 
+export type ExactMatch = { genre_id: string; loose: boolean };
+
 export type TaxonomyEntry = { id: string; name: string; normalized_name: string; parent_name: string | null };
 
 const RUN_COLUMNS = `
@@ -169,17 +171,43 @@ export class GenreReconciliationRepository {
    * Values (already normalised) that are a taxonomy name or alias, with the
    * genre each resolves to. A canonical name wins over an alias spelled the
    * same way, as in trackGenreRepository.resolveGenreRefs.
+   *
+   * A value with no exact match may still match loosely: the same once
+   * spaces and hyphens are removed, so `blues-rock` is Blues Rock and
+   * `synth pop` is Synth-pop. Only when that points at exactly one genre;
+   * `loose` says which kind of match it was.
    */
-  async resolveExactValues(values: string[]): Promise<Map<string, string>> {
-    const { rows } = await dbQuery<{ value: string; genre_id: string }>(
-      `SELECT v.value, COALESCE(g.id, a.genre_id)::text AS genre_id
-       FROM unnest($1::text[]) AS v(value)
-       LEFT JOIN genres g ON g.normalized_name = v.value
-       LEFT JOIN genre_aliases a ON a.alias_normalized = v.value
-       WHERE g.id IS NOT NULL OR a.genre_id IS NOT NULL`,
+  async resolveExactValues(values: string[]): Promise<Map<string, ExactMatch>> {
+    const { rows } = await dbQuery<{ value: string; genre_id: string; loose: boolean }>(
+      `WITH v AS (
+         SELECT DISTINCT value, regexp_replace(value, '[[:space:]-]+', '', 'g') AS loose_key
+         FROM unnest($1::text[]) AS value
+       ),
+       exact AS (
+         SELECT v.value, COALESCE(g.id, a.genre_id) AS genre_id
+         FROM v
+         LEFT JOIN genres g ON g.normalized_name = v.value
+         LEFT JOIN genre_aliases a ON a.alias_normalized = v.value
+         WHERE g.id IS NOT NULL OR a.genre_id IS NOT NULL
+       ),
+       keys AS (
+         SELECT regexp_replace(normalized_name, '[[:space:]-]+', '', 'g') AS loose_key, id AS genre_id FROM genres
+         UNION ALL
+         SELECT regexp_replace(alias_normalized, '[[:space:]-]+', '', 'g'), genre_id FROM genre_aliases
+       ),
+       loose AS (
+         SELECT v.value, (array_agg(DISTINCT k.genre_id))[1] AS genre_id
+         FROM v JOIN keys k ON k.loose_key = v.loose_key
+         WHERE NOT EXISTS (SELECT 1 FROM exact e WHERE e.value = v.value)
+         GROUP BY v.value
+         HAVING count(DISTINCT k.genre_id) = 1
+       )
+       SELECT value, genre_id::text AS genre_id, false AS loose FROM exact
+       UNION ALL
+       SELECT value, genre_id::text, true FROM loose`,
       [values]
     );
-    return new Map(rows.map((row) => [row.value, row.genre_id]));
+    return new Map(rows.map((row) => [row.value, { genre_id: row.genre_id, loose: row.loose }]));
   }
 
   async listProposalStates():Promise<Map<string, { status: ProposalStatus; method: ProposalMethod; action: ProposalAction }>> {

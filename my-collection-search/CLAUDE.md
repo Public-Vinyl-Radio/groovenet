@@ -171,6 +171,10 @@ returned, and `GET /api/genres/proposals/{id}/tracks` for examples.
   POST returns 202 and `executeRun` carries on. A partial unique index allows
   one `running` run; a run with no heartbeat for 15 minutes (a restart) is
   written off by the next start.
+- **Exact matching is also loose**: a value that equals a name or alias once
+  spaces and hyphens are dropped (`blues-rock`, `synth pop`) is an exact
+  proposal at confidence 0.95, when that points at exactly one genre. Cheaper
+  and more reliable than asking the model.
 - **The model only proposes.** The taxonomy is a JSON-schema enum, every name
   is resolved again server-side, and a `new_genre` for a value on fewer than
   `new_genre_min_tracks` tracks becomes a map to its parent.

@@ -77,7 +77,7 @@ export function buildSystemPrompt(taxonomy: TaxonomyEntry[], newGenreMinTracks: 
 
 For each tag, choose one action:
 - "map": the tag names a genre the taxonomy already covers. Put 1-3 taxonomy names in "genres", most specific first. This is the default; most tags map.
-- "new_genre": rare. Only for an established, widely named genre or scene that no taxonomy entry covers, such as "Chicha", "Cumbia Rebajada" or "Corridos Tumbados". Give a clean display name in "proposed_genre" and the closest taxonomy entry as "proposed_parent". Only when the tag says may_propose_new_genre=true; otherwise map it to the nearest entry.
+- "new_genre": rare. Only for an established, widely named genre or scene that no taxonomy entry covers, such as "Chicha", "Cumbia Rebajada" or "Corridos Tumbados". Give a clean display name in "proposed_genre" and, as "proposed_parent", the most specific taxonomy entry it belongs under (Cumbia Sonidera goes under Cumbia, not Latin). Only when the tag says may_propose_new_genre=true; otherwise map it to the nearest entry.
 - "descriptor": a mood, era, function or description with no genre in it ("Uplifting", "Feminist Anthem", "Wu-Tang Classic").
 - "drop": noise, an empty value, an artist or label name, or nothing useful.
 
@@ -86,7 +86,13 @@ Before choosing "new_genre", check the taxonomy for the same genre under another
 - a spelling or punctuation variant: "Electro-Cumbia" and "Digital Cumbia" are the same scene;
 - an abbreviation or near-synonym.
 
-A genre plus a modifier is that genre, not a new one. Map "Tropical Salsa", "Experimental Cumbia", "Cumbia Fusion", "Instrumental Rock", "Instrumental Pop", "Experimental Pop", "Garage Rock Revival" and "World Fusion" to the base genre (and a second genre if the modifier is itself one, e.g. "Experimental").
+Always answer with the MOST SPECIFIC taxonomy entry that fits. Never answer with only a top-level category (Rock, Latin, Pop, Jazz, Electronic, Hip Hop, Funk / Soul, …) when one of its children fits. The tag is usually already close to a child's name:
+- "Blues-Rock" is Blues Rock, "Progressive Rock" is Prog Rock, "Jazz Fusion" is Fusion, "Conscious Hip-Hop" is Conscious, "Psychedelic Soul" is Psychedelic + Soul — not Rock, Jazz, Hip Hop or Funk / Soul.
+
+A genre plus a modifier is that genre, not a new one: drop the modifier and map to the specific genre that remains, not to its category.
+- "Tropical Salsa" is Salsa (not Latin); "Experimental Cumbia" and "Cumbia Fusion" are Cumbia (not Latin); "Garage Rock Revival" is Garage Rock; "Instrumental Rock" is Rock only because Rock is the genre that remains.
+- Add a second genre when the modifier is itself one, e.g. "Experimental Pop" is Pop + Experimental.
+- A named scene is not a modifier: "Salsa Romántica", "Cumbia Andina" and "Cumbia Sonidera" are established styles of their own, so they can be new genres under Salsa or Cumbia.
 A tag mixing a genre with a mood word ("Uplifting MPB", "Timeless Salsa") maps to the genre.
 A tag joining two genres ("Indie Rock / Post-Punk Revival") maps to both.
 Album styles are context from the record; one album can mix genres, so the tag outranks them.
@@ -110,10 +116,18 @@ export function buildUserPrompt(batch: LocalTagValue[], newGenreMinTracks: numbe
   );
 }
 
+/** A name as space-padded words, so word containment is a substring test. */
+const asWords = (value: string) =>
+  ` ${normalizeGenreName(value).replace(/[-/]+/g, " ").replace(/\s+/g, " ").trim()} `;
+
 /**
  * Turns the model's answers into proposals, trusting nothing: names resolve
  * through the taxonomy, a new genre below the track threshold becomes a map to
  * its parent, and a value the batch did not contain is ignored.
+ *
+ * An answer that settles for a top-level category (Rock, Latin) although a
+ * more specific genre is named in the tag itself ("colombian cumbia" →
+ * Latin) keeps half its confidence, so review puts it in doubt.
  */
 export function toProposalDrafts(
   batch: LocalTagValue[],
@@ -125,6 +139,9 @@ export function toProposalDrafts(
   const resolve = (name: string | null) => (name ? byName.get(normalizeGenreName(name)) : undefined);
   const byValue = new Map(batch.map((value) => [value.value_normalized, value]));
   const drafts = new Map<string, ProposalDraft>();
+  const roots = new Set(taxonomy.filter((g) => g.parent_name === null).map((g) => g.id));
+  const childWords = taxonomy.filter((g) => g.parent_name !== null).map((g) => asWords(g.normalized_name));
+  const namesAChild = (value: string) => childWords.some((child) => asWords(value).includes(child));
 
   for (const mapping of mappings) {
     const value = byValue.get(normalizeGenreName(mapping.value));
@@ -151,6 +168,11 @@ export function toProposalDrafts(
     }
     if (action === "map" && targets.length === 0) continue;
     if (action !== "new_genre") proposedName = null;
+
+    const tooBroad = action === "map"
+      ? targets.every((id) => roots.has(id))
+      : action === "new_genre" && parentId !== null && roots.has(parentId);
+    if (tooBroad && namesAChild(value.value_normalized)) confidence *= 0.5;
 
     drafts.set(value.value_normalized, {
       value_normalized: value.value_normalized,

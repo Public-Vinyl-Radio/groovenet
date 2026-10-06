@@ -236,4 +236,17 @@ describe("local_tags reconciliation", () => {
     expect(proposals.map((p) => p.value_normalized)).toContain("cumbia");
   });
 
+  dbTest("matches spelling variants loosely, against the seeded taxonomy", async () => {
+    const matches = await repo.resolveExactValues(["blues-rock", "synth pop", "prog rock", "zzz recon nothing"]);
+    const nameOf = async (value: string) => {
+      const match = matches.get(value);
+      if (!match) return undefined;
+      const { rows } = await dbQuery<{ name: string }>("SELECT name FROM genres WHERE id = $1", [match.genre_id]);
+      return { name: rows[0].name, loose: match.loose };
+    };
+    expect(await nameOf("blues-rock")).toEqual({ name: "Blues Rock", loose: true });
+    expect(await nameOf("synth pop")).toEqual({ name: "Synth-pop", loose: true });
+    expect(await nameOf("prog rock")).toEqual({ name: "Prog Rock", loose: false });
+    expect(matches.has("zzz recon nothing")).toBe(false);
+  });
 });
