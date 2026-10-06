@@ -45,10 +45,67 @@ const TRACKS: Fixture[] = [
   { id: "gf-5", release: "gf-jazz-lp", genres: ["Jazz"], styles: ["Bossanova"], linked: [], bpm: null },
 ];
 
+/**
+ * Albums for the track share rule (#448), under a friend of their own so they
+ * don't move the counts above. Each track is listed by its genre links; `[]`
+ * is an untagged track. All have Rock on Discogs unless `styles` says more.
+ */
+const SHARE_USERNAME = "genre-share-test";
+let shareFriendId = 0;
+const repeat = (n: number, links: string[]) => Array.from({ length: n }, () => links);
+const SHARE_ALBUMS: { release: string; styles: string[]; tracks: string[][] }[] = [
+  // One Cumbia track of ten: a Cumbia track, not a Cumbia album.
+  { release: "gs-one-lp", styles: ["Punk"], tracks: [["Cumbia"], ...repeat(9, ["Rock"])] },
+  // Four of ten tagged; the ten untagged would make it four of twenty.
+  {
+    release: "gs-four-lp",
+    styles: ["Punk"],
+    tracks: [...repeat(4, ["Cumbia"]), ...repeat(6, ["Rock"]), ...repeat(10, [])],
+  },
+  // One of ten again, but Cumbia on Discogs.
+  { release: "gs-style-lp", styles: ["Cumbia"], tracks: [["Cumbia"], ...repeat(9, ["Rock"])] },
+  // Nothing tagged: no share to meet.
+  { release: "gs-bare-lp", styles: ["Punk"], tracks: repeat(3, []) },
+  // One track with two Latin links among five: one of five, not two of six.
+  {
+    release: "gs-double-lp",
+    styles: ["Punk"],
+    tracks: [["Salsa", "Cumbia"], ...repeat(4, ["Rock"])],
+  },
+];
+
 async function cleanup() {
-  await dbQuery("DELETE FROM tracks WHERE username = $1", [USERNAME]);
-  await dbQuery("DELETE FROM albums WHERE release_id LIKE 'gf-%'");
-  await dbQuery("DELETE FROM friends WHERE username = $1", [USERNAME]);
+  await dbQuery("DELETE FROM tracks WHERE username = ANY($1)", [[USERNAME, SHARE_USERNAME]]);
+  await dbQuery("DELETE FROM albums WHERE release_id LIKE 'gf-%' OR release_id LIKE 'gs-%'");
+  await dbQuery("DELETE FROM friends WHERE username = ANY($1)", [[USERNAME, SHARE_USERNAME]]);
+}
+
+async function seedShareAlbums() {
+  const { rows } = await dbQuery<{ id: number }>(
+    "INSERT INTO friends (username) VALUES ($1) RETURNING id",
+    [SHARE_USERNAME]
+  );
+  shareFriendId = rows[0].id;
+  for (const album of SHARE_ALBUMS) {
+    await dbQuery(
+      `INSERT INTO albums (release_id, friend_id, title, artist, genres, styles)
+       VALUES ($1, $2, $1, 'Artist', ARRAY['Rock'], $3)`,
+      [album.release, shareFriendId, album.styles]
+    );
+    for (const [i, links] of album.tracks.entries()) {
+      const trackId = `${album.release}-${i}`;
+      await dbQuery(
+        `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id, genres, styles)
+         VALUES ($1, $2, $3, $1, 'Artist', $4, ARRAY['Rock'], $5)`,
+        [trackId, SHARE_USERNAME, shareFriendId, album.release, album.styles]
+      );
+      await dbQuery(
+        `INSERT INTO track_genres (track_id, friend_id, genre_id, source)
+         SELECT $1, $2, id, 'manual' FROM genres WHERE name = ANY($3)`,
+        [trackId, shareFriendId, links]
+      );
+    }
+  }
 }
 
 async function searchTracks(query: string) {
@@ -81,12 +138,16 @@ async function facets(query = "") {
 }
 
 async function searchAlbums(...genres: string[]) {
+  return searchAlbumsFor(friendId, genres);
+}
+
+async function searchAlbumsFor(friend: number, genres: string[]) {
   const resolution = await resolveGenreFilter(genres);
   const result = await new AlbumApiService().searchAlbums({
     q: "",
     limit: 50,
     offset: 0,
-    friendId: String(friendId),
+    friendId: String(friend),
     sort: "title:asc",
     genreFilter: resolution.filter,
   });
@@ -138,6 +199,7 @@ beforeAll(async () => {
      SELECT 'gf-gone', $1, id, 'manual' FROM genres WHERE name = 'Salsa'`,
     [friendId]
   );
+  await seedShareAlbums();
 });
 
 afterAll(async () => {
@@ -191,7 +253,7 @@ describe("genre filter (integration)", () => {
     expect(result.body.unknown).toEqual(["not-a-genre"]);
   });
 
-  dbTest("an album matches on its Discogs values or any live track's genres", async () => {
+  dbTest("an album matches on its Discogs values or its live tracks' genres", async () => {
     // gf-rock-lp only through gf-3's link; gf-gone-lp's only link is on a deleted track.
     expect(await searchAlbums("salsa")).toEqual(["gf-rock-lp", "gf-salsa-lp"]);
     // gf-salsa-lp through gf-1's link; gf-odd-lp through its Cumbia style.
@@ -202,6 +264,14 @@ describe("genre filter (integration)", () => {
       "gf-rock-lp",
       "gf-salsa-lp",
     ]);
+  });
+
+  dbTest("an album matches on its tracks only when a third of the tagged ones carry the genre", async () => {
+    // gs-one-lp: 1 of 10. gs-four-lp: 4 of 10, untagged tracks aside.
+    // gs-style-lp: 1 of 10, but Cumbia on Discogs. gs-bare-lp: nothing tagged.
+    expect(await searchAlbumsFor(shareFriendId, ["cumbia"])).toEqual(["gs-four-lp", "gs-style-lp"]);
+    // gs-double-lp's Salsa + Cumbia track counts once: 1 of 5.
+    expect(await searchAlbumsFor(shareFriendId, ["latin"])).toEqual(["gs-four-lp", "gs-style-lp"]);
   });
 
   dbTest("facets count each track once per genre, ancestors included", async () => {
