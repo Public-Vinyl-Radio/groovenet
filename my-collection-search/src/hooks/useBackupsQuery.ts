@@ -2,7 +2,11 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import { backupDatabase, fetchBackups } from "@/services/internalApi/backup";
+import {
+  backupDatabase,
+  deleteBackup,
+  fetchBackups,
+} from "@/services/internalApi/backup";
 
 export function useBackupsQuery() {
   const qc = useQueryClient();
@@ -10,7 +14,7 @@ export function useBackupsQuery() {
     queryKey: queryKeys.backups(),
     queryFn: async () => {
       const data = await fetchBackups();
-      return data.files;
+      return data.backups;
     },
   });
 
@@ -19,10 +23,16 @@ export function useBackupsQuery() {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.backups() }),
   });
 
+  const removeBackup = useMutation({
+    mutationFn: (filename: string) => deleteBackup(filename),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.backups() }),
+  });
+
   return {
     backups,
     backupsLoading: isLoading,
     addBackup,
     addBackupLoading: addBackup.isPending,
+    removeBackup,
   };
 }

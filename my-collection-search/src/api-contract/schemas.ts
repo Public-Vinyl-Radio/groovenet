@@ -347,6 +347,8 @@ export const defaultLibrarySettingsPutResponseSchema = z.object({
 
 export const backupCreateResponseSchema = z.object({
   message: z.string(),
+  filename: z.string(),
+  format: z.literal("custom"),
 });
 
 export const backupCreateCustomResponseSchema = z.object({

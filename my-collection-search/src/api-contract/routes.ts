@@ -3118,13 +3118,27 @@ const backupContracts: ApiContractRoute[] = [
     openapi: {
       responses: {
         "200": {
-          description: "Backup filenames, newest first",
+          description: "Backup files, newest first",
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                properties: { files: { type: "array", items: { type: "string" } } },
-                required: ["files"],
+                properties: {
+                  files: { type: "array", items: { type: "string" } },
+                  backups: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        filename: { type: "string" },
+                        size_bytes: { type: "integer" },
+                        modified_at: { type: "string", format: "date-time" },
+                      },
+                      required: ["filename", "size_bytes", "modified_at"],
+                    },
+                  },
+                },
+                required: ["files", "backups"],
               },
             },
           },
@@ -3171,6 +3185,44 @@ const backupContracts: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "deleteBackup",
+    method: "delete",
+    path: "/api/backups/{filename}",
+    summary: "Delete a database backup file",
+    tags: ["Backups"],
+    successSchema: z.unknown(),
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/backups/{filename}"),
+      responses: {
+        "200": {
+          description: "Backup deleted",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { deleted: { type: "string" } },
+                required: ["deleted"],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid filename",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "Backup file not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
     operationId: "restoreDatabase",
     method: "post",
     path: "/api/restore",
@@ -3179,9 +3231,24 @@ const backupContracts: ApiContractRoute[] = [
     successSchema: z.unknown(),
     errorSchema: apiErrorSchema,
     openapi: {
+      parameters: [
+        {
+          name: "filename",
+          in: "query",
+          required: false,
+          description:
+            "Original filename of a raw-body upload; its extension selects pg_restore (.dump, .backup) or psql (.sql).",
+          schema: { type: "string" },
+        },
+      ],
       requestBody: {
         required: true,
+        description:
+          "Prefer the raw file with ?filename=, which streams to disk. A multipart upload is buffered in server memory.",
         content: {
+          "application/octet-stream": {
+            schema: { type: "string", format: "binary" },
+          },
           "multipart/form-data": {
             schema: {
               type: "object",
@@ -4773,7 +4840,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     operationId: "createDatabaseBackup",
     method: "post",
     path: "/api/backup",
-    summary: "Create database backup (plain SQL format)",
+    summary: "Create database backup (pg_dump custom format)",
     tags: ["Backup"],
     successSchema: backupCreateResponseSchema,
     errorSchema: apiErrorSchema,
@@ -4787,16 +4854,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 type: "object",
                 properties: {
                   message: { type: "string" },
+                  filename: { type: "string" },
+                  format: { type: "string", enum: ["custom"] },
                 },
-                required: ["message"],
+                required: ["message", "filename", "format"],
               },
             },
-          },
-        },
-        "404": {
-          description: "Database file not found (file-copy fallback)",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
           },
         },
         "500": {
@@ -4812,7 +4875,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     operationId: "createDatabaseBackupCustom",
     method: "post",
     path: "/api/backup-custom",
-    summary: "Create database backup (pg_dump custom format)",
+    summary: "Create database backup (deprecated alias of /api/backup)",
     tags: ["Backup"],
     successSchema: backupCreateCustomResponseSchema,
     errorSchema: apiErrorSchema,

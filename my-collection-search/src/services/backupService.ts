@@ -5,11 +5,15 @@ export type RestoreDatabaseResponse = {
   [k: string]: unknown;
 };
 
+// Sent as the raw request body so the server can stream it to disk; a
+// multipart upload is buffered whole in server memory (#459).
 export async function restoreDatabase(file: File): Promise<RestoreDatabaseResponse> {
-  const formData = new FormData();
-  formData.append("file", file);
-  return await http<RestoreDatabaseResponse>("/api/restore", {
-    method: "POST",
-    body: formData,
-  });
+  return await http<RestoreDatabaseResponse>(
+    `/api/restore?filename=${encodeURIComponent(file.name)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: file,
+    }
+  );
 }

@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { backupPolicyService } from "@/server/services/backupPolicyService";
 import { backupStatusService } from "@/server/services/backupStatusService";
+import { createBackup } from "@/server/services/databaseBackupService";
 import type {
   BackupPolicy,
   BackupRetentionPreset,
@@ -154,49 +155,6 @@ function requiredEnvConfigured(): { ok: boolean; missing: string[] } {
   return { ok: missing.length === 0, missing };
 }
 
-async function createDatabaseDump(): Promise<string> {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not configured");
-  }
-
-  const pg = new URL(databaseUrl);
-  const dumpsDir = path.resolve(process.cwd(), "dumps");
-  fs.mkdirSync(dumpsDir, { recursive: true });
-
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const dumpPath = path.join(dumpsDir, `pg-backup-${stamp}.dump`);
-
-  const args = [
-    "-h",
-    pg.hostname,
-    "-p",
-    pg.port || "5432",
-    "-U",
-    decodeURIComponent(pg.username),
-    "-F",
-    "c",
-    "--no-acl",
-    "-n",
-    "public",
-    "-d",
-    pg.pathname.replace(/^\//, ""),
-  ];
-
-  const { stdout } = await execFileAsync("/usr/lib/postgresql/16/bin/pg_dump", args, {
-    env: {
-      ...process.env,
-      PGPASSWORD: decodeURIComponent(pg.password),
-    },
-    encoding: "buffer",
-    maxBuffer: 1024 * 1024 * 512,
-  });
-
-  fs.writeFileSync(dumpPath, stdout);
-
-  return dumpPath;
-}
-
 function collectBackupPaths(policy: BackupPolicy): string[] {
   const paths: string[] = [];
 
@@ -319,6 +277,7 @@ export async function runBackupNow(
 
   g[GLOBAL_BACKUP_RUNNING_KEY] = true;
   let releaseRunLock: (() => void) | null = null;
+  let resticDumpPath: string | null = null;
   try {
     releaseRunLock = acquireBackupRunLock();
     if (!releaseRunLock) {
@@ -353,7 +312,9 @@ export async function runBackupNow(
     }
 
     if (policy.include_database) {
-      await createDatabaseDump();
+      // restic snapshots the dumps directory; the dump is removed afterwards so
+      // runs don't pile up on local disk.
+      resticDumpPath = (await createBackup({ prefix: "pg-backup-restic" })).path;
     }
 
     const backupPaths = collectBackupPaths(policy);
@@ -401,6 +362,9 @@ export async function runBackupNow(
       error: error instanceof Error ? error.message : String(error),
     });
   } finally {
+    if (resticDumpPath) {
+      fs.rmSync(resticDumpPath, { force: true });
+    }
     releaseRunLock?.();
     g[GLOBAL_BACKUP_RUNNING_KEY] = false;
   }

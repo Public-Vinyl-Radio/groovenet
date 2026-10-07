@@ -1,21 +1,23 @@
-import fs from "fs";
-import os from "os";
-import path from "path";
-import { execSync } from "child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { dbQuery } from "@/lib/serverDb";
+import {
+  pgConnectionArgs,
+  pgEnv,
+  resolvePgConnection,
+  runCommand,
+} from "@/server/services/databaseBackupService";
 
-type RestorePgConfig = {
-  db: string;
-  user: string;
-  pass: string;
-  host: string;
-  port: string;
-};
+type BackupType = "schema+data" | "data-only";
+type FileType = "sql" | "dump";
 
 type RestoreResult = {
   message: string;
-  backupType: "schema+data" | "data-only";
-  fileType: "sql" | "dump";
+  backupType: BackupType;
+  fileType: FileType;
   reindex: {
     albumsIndexed: number;
     tracksIndexed: number;
@@ -23,68 +25,49 @@ type RestoreResult = {
   };
 };
 
-function parsePgUrl(pgUrl: string) {
-  try {
-    const url = new URL(pgUrl);
-    return {
-      user: url.username,
-      pass: url.password,
-      host: url.hostname,
-      port: url.port || "5432",
-      db: url.pathname.replace(/^\//, ""),
-    };
-  } catch {
-    return {};
-  }
-}
-
-function getPgConfig(): RestorePgConfig {
-  const fromUrl = process.env.DATABASE_URL
-    ? parsePgUrl(process.env.DATABASE_URL)
-    : {};
-  return {
-    db: String(fromUrl.db || process.env.POSTGRES_DB || "mydb"),
-    user: String(fromUrl.user || process.env.POSTGRES_USER || "myuser"),
-    pass: String(fromUrl.pass || process.env.POSTGRES_PASSWORD || "mypassword"),
-    host: String(fromUrl.host || process.env.POSTGRES_HOST || "db"),
-    port: String(fromUrl.port || process.env.POSTGRES_PORT || "5432"),
-  };
-}
-
-function runShell(cmd: string, pass: string): void {
-  execSync(cmd, {
-    stdio: "pipe",
-    env: { ...process.env, PGPASSWORD: pass },
-  });
-}
+const SCHEMA_MARKERS = ["CREATE TABLE", "CREATE SCHEMA", "ALTER TABLE"];
+const MARKER_OVERLAP = Math.max(...SCHEMA_MARKERS.map((marker) => marker.length));
 
 function quoteIdentifier(value: string): string {
   return `"${value.replace(/"/g, "\"\"")}"`;
 }
 
-export function classifyBackup(fileName: string, content: Buffer): {
-  fileType: "sql" | "dump";
-  backupType: "schema+data" | "data-only";
-} {
+export function backupFileType(fileName: string): FileType {
   const ext = path.extname(fileName).toLowerCase();
-  if (ext === ".dump" || ext === ".backup") {
-    return { fileType: "dump", backupType: "schema+data" };
+  return ext === ".dump" || ext === ".backup" ? "dump" : "sql";
+}
+
+/**
+ * Whether a plain SQL backup carries schema. Scans the file in chunks rather
+ * than reading it whole: a dump can exceed V8's maximum string length (#459).
+ * pg_dump writes schema before data, so a schema-bearing file returns early.
+ */
+export async function sqlBackupHasSchema(filePath: string): Promise<boolean> {
+  let carry = "";
+  for await (const chunk of fs.createReadStream(filePath, { encoding: "utf8" })) {
+    const text = carry + (chunk as string);
+    if (SCHEMA_MARKERS.some((marker) => text.includes(marker))) return true;
+    carry = text.slice(-MARKER_OVERLAP);
   }
-  const text = content.toString("utf8");
-  const hasSchema =
-    text.includes("CREATE TABLE") ||
-    text.includes("CREATE SCHEMA") ||
-    text.includes("ALTER TABLE");
+  return false;
+}
+
+export async function classifyBackupFile(
+  fileName: string,
+  filePath: string
+): Promise<{ fileType: FileType; backupType: BackupType }> {
+  const fileType = backupFileType(fileName);
+  if (fileType === "dump") return { fileType, backupType: "schema+data" };
   return {
-    fileType: "sql",
-    backupType: hasSchema ? "schema+data" : "data-only",
+    fileType,
+    backupType: (await sqlBackupHasSchema(filePath)) ? "schema+data" : "data-only",
   };
 }
 
 export function buildRestorePrepSql(
-  backupType: "schema+data" | "data-only",
+  backupType: BackupType,
   pgUser: string
-): string | null {
+): string {
   if (backupType === "data-only") {
     return `
 DO $$
@@ -131,23 +114,91 @@ GRANT ALL ON SCHEMA public TO public;
 `.trim();
 }
 
-// The prep step has already recreated public, so the dump's own CREATE SCHEMA
-// would fail under ON_ERROR_STOP.
-export function tolerateExistingPublicSchema(sqlContent: string): string {
-  return sqlContent.replace(
-    /^CREATE SCHEMA public;$/m,
-    "CREATE SCHEMA IF NOT EXISTS public;"
-  );
+/**
+ * Drop the `SCHEMA - public` entry from a `pg_restore -l` listing. A `-n public`
+ * archive carries one, so restoring it would either recreate the schema the
+ * prep step already rebuilt, or with `--clean` try to drop it, which fails
+ * because the vector and pg_trgm extensions live in it (#459). The listing is
+ * one line per archive entry, so it is small enough to read whole.
+ */
+export function withoutPublicSchemaEntry(list: string): string {
+  return list
+    .split("\n")
+    .filter((line) => !/^\d+;\s+\d+\s+\d+\s+SCHEMA\s+-\s+public\s/.test(line))
+    .join("\n");
 }
 
-function removePgMigrationsData(sqlContent: string): string {
-  const withoutCopy = sqlContent.replace(
-    /COPY\s+public\.pgmigrations\s+\([^)]+\)\s+FROM\s+stdin;[\s\S]*?\\\.\s*$/gm,
-    "-- COPY pgmigrations skipped"
-  );
-  return withoutCopy.replace(
-    /^INSERT INTO\s+public\.pgmigrations[\s\S]*?;$/gm,
-    "-- INSERT pgmigrations skipped"
+/**
+ * A stateful per-line filter for plain SQL backups, applied while streaming.
+ * Returns the line to write, or null to drop it. COPY data blocks pass through
+ * untouched, so a row can never be mistaken for a statement.
+ *
+ * - schema+data: the prep step has already recreated public, so the dump's own
+ *   CREATE SCHEMA would fail under ON_ERROR_STOP; make it idempotent.
+ * - data-only: migrations run separately, so drop the pgmigrations rows.
+ */
+export function createRestoreLineFilter(
+  backupType: BackupType
+): (line: string) => string | null {
+  let state: "statement" | "copy" | "skip-copy" | "skip-insert" = "statement";
+
+  return (line) => {
+    if (state === "copy" || state === "skip-copy") {
+      const skipping = state === "skip-copy";
+      if (line === "\\.") state = "statement";
+      return skipping ? null : line;
+    }
+    if (state === "skip-insert") {
+      if (line.trimEnd().endsWith(";")) state = "statement";
+      return null;
+    }
+
+    if (backupType === "data-only") {
+      if (/^COPY\s+public\.pgmigrations\s/.test(line)) {
+        state = "skip-copy";
+        return "-- COPY pgmigrations skipped";
+      }
+      if (/^INSERT INTO\s+public\.pgmigrations\b/.test(line)) {
+        if (!line.trimEnd().endsWith(";")) state = "skip-insert";
+        return "-- INSERT pgmigrations skipped";
+      }
+    } else if (line === "CREATE SCHEMA public;") {
+      return "CREATE SCHEMA IF NOT EXISTS public;";
+    }
+
+    if (/^COPY\s.*\sFROM stdin;$/.test(line)) state = "copy";
+    return line;
+  };
+}
+
+/**
+ * Stream `inputPath` through the line filter into `outputPath`. A `pipeline`,
+ * not a write/drain loop: an errored write stream never emits `drain`, and
+ * pipeline tears every stage down instead of hanging.
+ */
+async function filterSqlFile(
+  inputPath: string,
+  outputPath: string,
+  backupType: BackupType
+): Promise<void> {
+  const filter = createRestoreLineFilter(backupType);
+  await pipeline(
+    fs.createReadStream(inputPath, { encoding: "utf8" }),
+    async function* (source: AsyncIterable<string>) {
+      let pending = "";
+      for await (const chunk of source) {
+        const lines = (pending + chunk).split("\n");
+        // split() always returns at least one element: the unfinished line.
+        pending = lines.pop() as string;
+        const kept = lines.map(filter).filter((line) => line !== null);
+        if (kept.length > 0) yield `${kept.join("\n")}\n`;
+      }
+      if (pending) {
+        const last = filter(pending);
+        if (last !== null) yield `${last}\n`;
+      }
+    },
+    fs.createWriteStream(outputPath, { encoding: "utf8" })
   );
 }
 
@@ -175,55 +226,71 @@ async function reindexSearch(): Promise<{
   }
 }
 
-export async function restoreDatabaseFromUpload(file: File): Promise<RestoreResult> {
-  const restoreDir = fs.mkdtempSync(path.join(os.tmpdir(), "groovenet-restore-"));
+/**
+ * Restore from a backup file already on disk. Every step streams from disk or
+ * runs as a child process, so neither the file size nor the restore time is
+ * bounded by Node's memory or blocks the event loop.
+ */
+export async function restoreDatabaseFromFile(
+  filePath: string,
+  fileName: string
+): Promise<RestoreResult> {
+  const { fileType, backupType } = await classifyBackupFile(fileName, filePath);
+  const pg = resolvePgConnection();
+  const env = pgEnv(pg);
+  const workDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "groovenet-restore-work-"));
 
-  const content = Buffer.from(await file.arrayBuffer());
-  const { fileType, backupType } = classifyBackup(file.name, content);
   try {
-    const restorePath = path.join(
-      restoreDir,
-      fileType === "dump" ? "restore.dump" : "restore.sql"
-    );
-    fs.writeFileSync(restorePath, content);
-
-    const pg = getPgConfig();
-
     if (backupType === "data-only") {
-      runShell("npm run migrate up", pg.pass);
+      await runCommand("npm", ["run", "migrate", "up"], { env });
     }
 
-    const prepSql =
-      fileType === "dump" && backupType === "schema+data"
-        ? null
-        : buildRestorePrepSql(backupType, pg.user);
-    if (prepSql) {
-      const cleanPath = path.join(restoreDir, "restore-clean.sql");
-      fs.writeFileSync(cleanPath, `${prepSql}\n`);
-      runShell(
-        `psql -U ${pg.user} -h ${pg.host} -p ${pg.port} -d ${pg.db} -v ON_ERROR_STOP=1 -f '${cleanPath}'`,
-        pg.pass
-      );
-    }
+    const cleanPath = path.join(workDir, "restore-clean.sql");
+    await fs.promises.writeFile(cleanPath, `${buildRestorePrepSql(backupType, pg.user)}\n`);
+    await runCommand(
+      "psql",
+      [...pgConnectionArgs(pg), "-v", "ON_ERROR_STOP=1", "-f", cleanPath],
+      { env }
+    );
 
     if (fileType === "dump") {
-      runShell(
-        `pg_restore -U ${pg.user} -h ${pg.host} -p ${pg.port} -d ${pg.db} --single-transaction --clean --if-exists --no-owner --no-acl '${restorePath}'`,
-        pg.pass
+      // Restore into the public schema the prep step just rebuilt, skipping the
+      // archive's own entry for it (see withoutPublicSchemaEntry).
+      const listPath = path.join(workDir, "restore.list");
+      await runCommand("pg_restore", ["-l", "-f", listPath, filePath], { env });
+      const filteredListPath = path.join(workDir, "restore-filtered.list");
+      await fs.promises.writeFile(
+        filteredListPath,
+        withoutPublicSchemaEntry(await fs.promises.readFile(listPath, "utf8"))
+      );
+      await runCommand(
+        "pg_restore",
+        [
+          ...pgConnectionArgs(pg),
+          "--single-transaction",
+          "--no-owner",
+          "--no-acl",
+          "-L",
+          filteredListPath,
+          filePath,
+        ],
+        { env }
       );
     } else {
-      const sqlContent = fs.readFileSync(restorePath, "utf8");
-      const filteredPath = path.join(restoreDir, "restore-filtered.sql");
-      // Only strip pgmigrations for data-only backups — migrations run separately for those.
-      // For schema+data backups, pgmigrations is in the dump and must be restored as-is.
-      const finalContent =
-        backupType === "data-only"
-          ? removePgMigrationsData(sqlContent)
-          : tolerateExistingPublicSchema(sqlContent);
-      fs.writeFileSync(filteredPath, finalContent);
-      runShell(
-        `psql -U ${pg.user} -h ${pg.host} -p ${pg.port} -d ${pg.db} --single-transaction -v ON_ERROR_STOP=1 -q -f '${filteredPath}'`,
-        pg.pass
+      const filteredPath = path.join(workDir, "restore-filtered.sql");
+      await filterSqlFile(filePath, filteredPath, backupType);
+      await runCommand(
+        "psql",
+        [
+          ...pgConnectionArgs(pg),
+          "--single-transaction",
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-q",
+          "-f",
+          filteredPath,
+        ],
+        { env }
       );
     }
 
@@ -235,6 +302,27 @@ export async function restoreDatabaseFromUpload(file: File): Promise<RestoreResu
       reindex,
     };
   } finally {
-    fs.rmSync(restoreDir, { recursive: true, force: true });
+    await fs.promises.rm(workDir, { recursive: true, force: true });
+  }
+}
+
+/** Stream an uploaded backup to a temp file, then restore from it. */
+export async function restoreDatabaseFromStream(
+  body: ReadableStream<Uint8Array>,
+  fileName: string
+): Promise<RestoreResult> {
+  const uploadDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "groovenet-restore-"));
+  try {
+    const uploadPath = path.join(
+      uploadDir,
+      backupFileType(fileName) === "dump" ? "restore.dump" : "restore.sql"
+    );
+    await pipeline(
+      Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]),
+      fs.createWriteStream(uploadPath)
+    );
+    return await restoreDatabaseFromFile(uploadPath, fileName);
+  } finally {
+    await fs.promises.rm(uploadDir, { recursive: true, force: true });
   }
 }
