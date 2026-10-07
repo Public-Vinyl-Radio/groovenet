@@ -12,6 +12,7 @@ export const queryKeys = {
   updateCheck: () => ["system", "update-check"] as const,
   playlists: () => ["playlists"] as const,
   genreTree: () => ["genres", "tree"] as const,
+  genrePage: (slug: string, friend_id?: number) => ["genres", "page", slug, friend_id ?? null] as const,
   friends: () => ["friends"] as const,
   backups: () => ["backups"] as const,
   spins: (args: {

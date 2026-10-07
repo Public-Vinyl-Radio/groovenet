@@ -106,7 +106,7 @@ export type GenreFilter = {
 };
 
 /** Whether `discogs` (an expression yielding text[]) holds a value spelled like one of `keysRef`. */
-function discogsGenreMatchSql(discogs: string, keysRef: string): string {
+export function discogsGenreMatchSql(discogs: string, keysRef: string): string {
   return `EXISTS (
     SELECT 1 FROM unnest(${discogs}) AS discogs_genre(name)
     WHERE genre_normalize(discogs_genre.name) = ANY(${keysRef}::text[])

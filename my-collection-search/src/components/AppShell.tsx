@@ -20,7 +20,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { FiChevronLeft, FiChevronRight, FiSearch, FiDisc, FiMoreHorizontal, FiCode, FiDroplet } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
-import { LuCloudDownload } from "react-icons/lu";
+import { LuCloudDownload, LuTags } from "react-icons/lu";
 import {
   IoBookSharp,
   IoMusicalNotes,
@@ -39,6 +39,7 @@ import {
 const baseMenuItems = [
   { href: "/", label: "Tracks" },
   { href: "/albums", label: "Albums" },
+  { href: "/genres", label: "Genres" },
   { href: "/spins", label: "Spins" },
   { href: "/playlists", label: "Playlists" },
   { href: "/jobs", label: "Jobs" },
@@ -49,6 +50,7 @@ const baseMenuItems = [
 function getItemIcon(href: string) {
   if (href === "/") return IoMusicalNotes;
   if (href === "/albums") return IoAlbums;
+  if (href === "/genres") return LuTags;
   if (href === "/spins") return FiDisc;
   if (href === "/settings") return IoSettings;
   if (href === "/playlists") return TbPlaylist;

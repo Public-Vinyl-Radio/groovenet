@@ -463,7 +463,7 @@ genres-test:
   done
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
-  RUN_DB_TESTS=1 {{mise_exec}} npm test --prefix {{app_dir}} -- --no-file-parallelism src/server/services/__tests__/genreAdminService.integration.test.ts src/server/repositories/__tests__/trackGenreRepository.integration.test.ts src/server/services/__tests__/genreReconciliation.integration.test.ts src/server/genres/genreFilter.integration.test.ts
+  RUN_DB_TESTS=1 {{mise_exec}} npm test --prefix {{app_dir}} -- --no-file-parallelism src/server/services/__tests__/genreAdminService.integration.test.ts src/server/repositories/__tests__/trackGenreRepository.integration.test.ts src/server/services/__tests__/genreReconciliation.integration.test.ts src/server/genres/genreFilter.integration.test.ts src/server/services/__tests__/genrePage.integration.test.ts
 
 # Run the fingerprint schema integration tests against a throwaway pgvector db.
 fingerprint-test:
