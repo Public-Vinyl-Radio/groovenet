@@ -20,7 +20,7 @@ function statusColor(status: BackupStatus["status"]): string {
   return "orange";
 }
 
-function formatBytes(value: number | null): string {
+export function formatBytes(value: number | null): string {
   if (value === null) return "Unavailable";
   const units = ["B", "KiB", "MiB", "GiB", "TiB"];
   let amount = value;

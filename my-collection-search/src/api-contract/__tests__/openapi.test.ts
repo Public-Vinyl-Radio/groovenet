@@ -16,6 +16,7 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["get", "/api/tracks/deleted"],
   ["get", "/api/backups"],
   ["get", "/api/backups/{filename}"],
+  ["delete", "/api/backups/{filename}"],
   ["post", "/api/restore"],
   ["post", "/api/settings/backup/run"],
   ["get", "/api/health/backup"],
