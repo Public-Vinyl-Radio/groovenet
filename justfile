@@ -154,9 +154,12 @@ herdr:
   @if [[ "${HERDR_ENV:-}" == 1 ]]; then echo "Already inside herdr; use 'just herdr-task <branch>' for a new task."; exit 1; fi
   herdr --session "${HERDR_SESSION:-groovenet}"
 
-# New task in herdr: worktree + workspace for <branch>, bootstrapped, with its own compose stack
+# New task in herdr: worktree + workspace for <branch>, bootstrapped, with its own compose stack.
+# [positional-arguments] keeps each arg as its own shell word (e.g. --prompt "multi word text"),
+# since plain {{args}} interpolation would re-split it on whitespace.
+[positional-arguments]
 herdr-task branch *args:
-  ./scripts/worktree/herdr-task.sh {{branch}} {{args}}
+  ./scripts/worktree/herdr-task.sh "$1" "${@:2}"
 
 compose-prod: check-compose
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml -f docker-compose.prod.yml up
