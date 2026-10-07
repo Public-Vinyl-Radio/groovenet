@@ -72,6 +72,8 @@ import {
   gamdlSettingsPutResponseSchema,
   gamdlSettingsQuerySchema,
   genreTreeResponseSchema,
+  genrePageQuerySchema,
+  genrePageResponseSchema,
   trackGenreFacetsResponseSchema,
   genreCreateBodySchema,
   genreUpdateBodySchema,
@@ -3370,6 +3372,70 @@ export const genreTreeNodeSchemaObject = {
 };
 
 const genreUuid = { type: "string", format: "uuid" };
+
+const genrePageRefObject = {
+  type: "object",
+  properties: {
+    id: genreUuid,
+    name: { type: "string" },
+    slug: { type: "string" },
+    track_count: { type: "integer", minimum: 0, description: "Tracks the genre filter returns, subgenres included" },
+  },
+  required: ["id", "name", "slug", "track_count"],
+};
+const genrePageSchemaObject = {
+  type: "object",
+  properties: {
+    genre: {
+      type: "object",
+      properties: {
+        id: genreUuid,
+        name: { type: "string" },
+        slug: { type: "string" },
+        parent_id: { type: ["string", "null"], format: "uuid" },
+        source: { type: "string", enum: ["discogs", "custom"] },
+        aliases: { type: "array", items: { type: "string" } },
+      },
+      required: ["id", "name", "slug", "parent_id", "source", "aliases"],
+    },
+    ancestors: {
+      type: "array",
+      description: "Root first, ending with the parent",
+      items: {
+        type: "object",
+        properties: { id: genreUuid, name: { type: "string" }, slug: { type: "string" } },
+        required: ["id", "name", "slug"],
+      },
+    },
+    children: { type: "array", items: genrePageRefObject },
+    related: {
+      type: "array",
+      description: "Siblings under the same parent that the collection uses",
+      items: genrePageRefObject,
+    },
+    counts: {
+      type: "object",
+      properties: {
+        tracks: { type: "integer", minimum: 0, description: "Tracks linked to this genre itself" },
+        albums: { type: "integer", minimum: 0, description: "Albums whose Discogs genres or styles name this genre" },
+        tracks_total: { type: "integer", minimum: 0, description: "Tracks the genre filter returns" },
+        albums_total: { type: "integer", minimum: 0, description: "Albums the genre filter returns" },
+      },
+      required: ["tracks", "albums", "tracks_total", "albums_total"],
+    },
+    top_tracks: {
+      type: "array",
+      description: "Most played first, then most recently added",
+      items: { type: "object", properties: { play_count: { type: "integer", minimum: 0 } }, required: ["play_count"] },
+    },
+    top_albums: {
+      type: "array",
+      description: "Most played first, then most recently added",
+      items: { type: "object", properties: { play_count: { type: "integer", minimum: 0 } }, required: ["play_count"] },
+    },
+  },
+  required: ["genre", "ancestors", "children", "related", "counts", "top_tracks", "top_albums"],
+};
 const genreName = { type: "string", minLength: 1 };
 const genreBodyObjects: Record<string, Record<string, unknown>> = {
   createGenre: { type: "object", properties: { name: genreName, parent_id: genreUuid }, required: ["name", "parent_id"] },
@@ -3937,6 +4003,75 @@ export const apiContractRoutes: ApiContractRoute[] = [
               },
             },
           },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getGenre",
+    method: "get",
+    path: "/api/genres/{id}",
+    summary: "One genre's page: lineage, subgenres, counts and top tracks and albums",
+    tags: ["Genres"],
+    querySchema: genrePageQuerySchema,
+    successSchema: genrePageResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          description: "Genre slug or id",
+          schema: { type: "string" },
+        },
+        {
+          name: "friend_id",
+          in: "query",
+          required: false,
+          description: "Scope counts and lists to one collection",
+          schema: { type: "integer" },
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "The genre. Counts and lists use the search genre filter, so they match what searching the genre returns",
+          content: {
+            "application/json": {
+              schema: genrePageSchemaObject,
+              example: {
+                genre: {
+                  id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia",
+                  parent_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", source: "discogs", aliases: ["cumbia colombiana"],
+                },
+                ancestors: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin" }],
+                children: [],
+                related: [{ id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253 }],
+                counts: { tracks: 412, albums: 108, tracks_total: 1029, albums_total: 108 },
+                top_tracks: [{
+                  track_id: "33415451-A1", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
+                  album: "La Danza De Los Mirlos", play_count: 4,
+                }],
+                top_albums: [{
+                  release_id: "33415451", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
+                  play_count: 12,
+                }],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Invalid friend_id",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "No genre has that slug or id",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {
           description: "Server error",

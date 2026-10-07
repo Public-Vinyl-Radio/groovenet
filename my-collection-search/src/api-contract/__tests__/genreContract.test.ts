@@ -7,7 +7,7 @@ const operations = apiContractRoutes.filter((route) => route.tags.includes("Genr
 describe("genre contracts", () => {
   it("registers every taxonomy operation explicitly", () => {
     expect(operations.map((route) => route.operationId)).toEqual([
-      "createGenre", "updateGenre", "addGenreAlias", "mergeGenres", "listGenres",
+      "createGenre", "updateGenre", "addGenreAlias", "mergeGenres", "listGenres", "getGenre",
     ]);
   });
   it.each(operations.filter((route) => route.bodySchema))("validates the documented request example for $operationId", (route) => {

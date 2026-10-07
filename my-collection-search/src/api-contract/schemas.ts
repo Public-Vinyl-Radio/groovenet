@@ -1950,6 +1950,43 @@ export const trackGenreFacetsResponseSchema = z.object({
   genres: z.array(z.object({ id: z.string(), track_count: z.number().int() })),
 });
 export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
+
+/** A genre as the genre page links to it (#376), with its track count, subgenres included. */
+export const genrePageRefSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  track_count: z.number().int().nonnegative(),
+});
+export type GenrePageRef = z.infer<typeof genrePageRefSchema>;
+
+export const genrePageQuerySchema = z.object({ friend_id: intFromInputSchema.optional() });
+
+/** `GET /api/genres/{id}`: one genre's place in the taxonomy and in the collection (#376). */
+export const genrePageResponseSchema = z.object({
+  genre: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    slug: z.string(),
+    parent_id: z.string().uuid().nullable(),
+    source: genreSourceSchema,
+    aliases: z.array(z.string()),
+  }),
+  /** Root first, ending with the genre's parent. */
+  ancestors: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })),
+  children: z.array(genrePageRefSchema),
+  /** Siblings under the same parent that the collection uses, until similar genres (#377) exist. */
+  related: z.array(genrePageRefSchema),
+  counts: z.object({
+    tracks: z.number().int().nonnegative(),
+    albums: z.number().int().nonnegative(),
+    tracks_total: z.number().int().nonnegative(),
+    albums_total: z.number().int().nonnegative(),
+  }),
+  top_tracks: z.array(trackEntitySchema.extend({ play_count: z.number().int().nonnegative() })),
+  top_albums: z.array(albumEntitySchema.extend({ play_count: z.number().int().nonnegative() })),
+});
+export type GenrePageResponse = z.infer<typeof genrePageResponseSchema>;
 export const genreParamsSchema = z.object({ id: z.string().uuid() });
 export const genreCreateBodySchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
 export const genreUpdateBodySchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });
