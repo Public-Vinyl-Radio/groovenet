@@ -278,6 +278,14 @@ jobs:
           packages: ffmpeg libchromaprint1
           version: 1.0
 
+      # A timed-out attempt can leave ~/cache-apt-pkgs holding a partial
+      # download (it's a plain staging dir, not the GitHub Actions cache, so
+      # nothing else clears it) — wipe it so the retry does a real fresh
+      # install instead of restoring an incomplete package set.
+      - name: Clear apt staging dir before retry
+        if: steps.apt-install.outcome == 'failure'
+        run: rm -rf ~/cache-apt-pkgs
+
       - name: Install ffmpeg and libchromaprint (retry)
         if: steps.apt-install.outcome == 'failure'
         uses: awalsh128/cache-apt-pkgs-action@v1
