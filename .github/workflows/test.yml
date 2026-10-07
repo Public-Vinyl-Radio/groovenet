@@ -294,6 +294,13 @@ jobs:
           packages: ffmpeg libchromaprint1
           version: 1.0
 
+      # The action restores package files without running their postinst
+      # scripts, so the dynamic linker's cache never gets refreshed with the
+      # new libraries — ffmpeg fails to find libblas.so.3 at runtime even
+      # though it's on disk until this runs.
+      - name: Refresh shared library cache
+        run: sudo ldconfig
+
       - name: Verify ffmpeg and libchromaprint are available
         run: |
           ffmpeg -version
