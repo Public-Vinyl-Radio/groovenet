@@ -269,6 +269,10 @@ jobs:
       # mirror gets a second attempt before we give up, and both attempts are
       # time-boxed so a hung apt-get fails the job instead of the step eating
       # GitHub's 6-hour default (#462).
+      # execute_install_scripts runs each package's postinst, same as a real
+      # apt-get install — libblas3 needs it to register its libblas.so.3
+      # alternative, which otherwise never gets created and fails ffmpeg at
+      # runtime even though the restored files are all on disk.
       - name: Install ffmpeg and libchromaprint
         id: apt-install
         uses: awalsh128/cache-apt-pkgs-action@v1
@@ -277,6 +281,7 @@ jobs:
         with:
           packages: ffmpeg libchromaprint1
           version: 1.0
+          execute_install_scripts: true
 
       # A timed-out attempt can leave ~/cache-apt-pkgs holding a partial
       # download (it's a plain staging dir, not the GitHub Actions cache, so
@@ -293,13 +298,7 @@ jobs:
         with:
           packages: ffmpeg libchromaprint1
           version: 1.0
-
-      # The action restores package files without running their postinst
-      # scripts, so the dynamic linker's cache never gets refreshed with the
-      # new libraries — ffmpeg fails to find libblas.so.3 at runtime even
-      # though it's on disk until this runs.
-      - name: Refresh shared library cache
-        run: sudo ldconfig
+          execute_install_scripts: true
 
       - name: Verify ffmpeg and libchromaprint are available
         run: |
