@@ -16,6 +16,7 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     defaults:
@@ -39,6 +40,7 @@ jobs:
 
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
     # Node 26's experimental server-side Web Storage shadows jsdom's
@@ -108,6 +110,7 @@ jobs:
 
   client-coverage:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
 
@@ -137,6 +140,7 @@ jobs:
 
   cli-coverage:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -174,6 +178,7 @@ jobs:
 
   download-worker-coverage:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     defaults:
@@ -205,6 +210,7 @@ jobs:
 
   ga-service-coverage:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     defaults:
@@ -236,6 +242,7 @@ jobs:
 
   fingerprint-service-coverage:
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     permissions:
       contents: read
     defaults:
@@ -258,10 +265,40 @@ jobs:
       # libchromaprint is not optional at all: `pyacoustid` imports fine
       # without it and only raises when asked to fingerprint, so a missing
       # library would surface as every matcher test erroring at once.
+      # Cached across runs so a healthy mirror is only hit once; a flaky
+      # mirror gets a second attempt before we give up, and both attempts are
+      # time-boxed so a hung apt-get fails the job instead of the step eating
+      # GitHub's 6-hour default (#462).
+      # execute_install_scripts runs each package's postinst, same as a real
+      # apt-get install — libblas3 needs it to register its libblas.so.3
+      # alternative, which otherwise never gets created and fails ffmpeg at
+      # runtime even though the restored files are all on disk.
       - name: Install ffmpeg and libchromaprint
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg libchromaprint1
+        id: apt-install
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          packages: ffmpeg libchromaprint1
+          version: 1.0
+          execute_install_scripts: true
+
+      # A timed-out attempt can leave ~/cache-apt-pkgs holding a partial
+      # download (it's a plain staging dir, not the GitHub Actions cache, so
+      # nothing else clears it) — wipe it so the retry does a real fresh
+      # install instead of restoring an incomplete package set.
+      - name: Clear apt staging dir before retry
+        if: steps.apt-install.outcome == 'failure'
+        run: rm -rf ~/cache-apt-pkgs
+
+      - name: Install ffmpeg and libchromaprint (retry)
+        if: steps.apt-install.outcome == 'failure'
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        timeout-minutes: 10
+        with:
+          packages: ffmpeg libchromaprint1
+          version: 1.0
+          execute_install_scripts: true
 
       - name: Verify ffmpeg and libchromaprint are available
         run: |
@@ -283,6 +320,7 @@ jobs:
 
   migrate-test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     defaults:
@@ -328,6 +366,7 @@ jobs:
 
   redis-test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     defaults:
