@@ -200,4 +200,42 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
     });
     expect(finished?.errors).toEqual(["c: rate limited"]);
   });
+
+  it("finds a still-running backfill run via real SCAN, excluding its :errors key (#451)", async () => {
+    mockGenerateIdentity.mockResolvedValueOnce({ updated: true, reason: "ok" }).mockRejectedValue(new Error("rate limited"));
+
+    const started = await service.startBackfillRun([
+      { track_id: "a", friend_id: 1, kind: "identity" },
+      { track_id: "b", friend_id: 1, kind: "identity" },
+    ]);
+    await service.tick(Date.now()); // settles "a"; "b" goes to retry, still "active"
+
+    const active = await service.listActiveBackfillRuns();
+    expect(active).toEqual([
+      expect.objectContaining({ run_id: started.run_id, queued: 2, success: 1 }),
+    ]);
+  });
+
+  it("re-enqueues a failed job via real LREM and drops it from the failed list (#451)", async () => {
+    mockGenerateIdentity.mockRejectedValue(new Error("permanently broken"));
+    await service.enqueue([{ track_id: "t0", friend_id: 1, kind: "identity" }]);
+
+    let now = Date.now();
+    for (let round = 0; round < 6; round += 1) {
+      await service.tick(now);
+      now += 31 * 60_000;
+    }
+    const [failed] = await service.getFailedJobs();
+    expect(failed.track_id).toBe("t0");
+
+    mockGenerateIdentity.mockResolvedValueOnce({ updated: true, reason: "ok" });
+    const result = await service.retryFailedJobs([failed.id]);
+
+    expect(result).toEqual({ retried: [failed.id], not_found: [] });
+    expect(await redis.llen("embedding_queue:failed")).toBe(0);
+    expect(await redis.llen("embedding_queue:interactive")).toBe(1);
+
+    await service.tick(Date.now());
+    expect(mockGenerateIdentity).toHaveBeenLastCalledWith("t0", 1, undefined);
+  });
 });

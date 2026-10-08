@@ -20,6 +20,7 @@ import {
   NativeSelectRoot,
   NativeSelectField,
   Tabs,
+  Separator,
 } from "@chakra-ui/react";
 import { LuInfo, LuRefreshCw, LuTrash2 } from "react-icons/lu";
 import { useJobsQuery } from "@/hooks/useJobsQuery";
@@ -29,6 +30,7 @@ import TrackResultStore from "@/components/TrackResultStore";
 import type { Track } from "@/types/track";
 import type { JobInfo } from "@/types/jobs";
 import PageContainer from "@/components/layout/PageContainer";
+import EmbeddingQueueSection from "@/components/jobs/EmbeddingQueueSection";
 
 export default function JobsPage() {
   const [stateFilter, setStateFilter] = React.useState<
@@ -265,7 +267,7 @@ export default function JobsPage() {
       <Stack gap={{ base: 3, md: 6 }}>
         <Flex direction="column" gap={2}>
           <Flex justify="space-between" align="center" gap={2}>
-            <Heading size={{ base: "md", md: "lg" }}>Job Queue</Heading>
+            <Heading size={{ base: "md", md: "lg" }}>Downloads</Heading>
             <Flex gap={2} align="center">
               <NativeSelectRoot size="sm" width={{ base: "130px", md: "180px" }}>
                 <NativeSelectField
@@ -488,6 +490,10 @@ export default function JobsPage() {
             </Flex>
           </VStack>
         )}
+
+        <Separator />
+        <EmbeddingQueueSection />
+
         <Dialog.Root
           open={!!detailsJob}
           onOpenChange={(details) => {

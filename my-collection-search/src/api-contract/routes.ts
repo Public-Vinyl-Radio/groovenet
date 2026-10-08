@@ -56,6 +56,9 @@ import {
   embeddingsBackfillRunSchema,
   embeddingsStatusQuerySchema,
   embeddingsStatusSchema,
+  embeddingQueueStatusSchema,
+  embeddingQueueRetryBodySchema,
+  embeddingQueueRetryResponseSchema,
   embeddingModelSettingsListSchema,
   embeddingModelSettingsSchema,
   embeddingModelUpdateBodySchema,
@@ -1469,6 +1472,74 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
           content: {
             "application/json": { schema: { type: "object", additionalProperties: true } },
           },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const embeddingsQueueContracts: ApiContractRoute[] = [
+  {
+    operationId: "getEmbeddingQueueStatus",
+    method: "get",
+    path: "/api/embeddings/queue",
+    summary: "Embedding queue depth, failures and backfill runs (#451)",
+    tags: ["Embeddings"],
+    successSchema: embeddingQueueStatusSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Lane depths, retry/paused/failed state, drain rate and ETA, kind breakdown and active backfill runs",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "retryFailedEmbeddingJobs",
+    method: "post",
+    path: "/api/embeddings/queue/retry",
+    summary: "Re-enqueue selected entries from the embedding failed list",
+    tags: ["Embeddings"],
+    bodySchema: embeddingQueueRetryBodySchema,
+    successSchema: embeddingQueueRetryResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                ids: { type: "array", items: { type: "string" } },
+              },
+              required: ["ids"],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Retried ids and any that were no longer in the failed list",
+          content: {
+            "application/json": { schema: { type: "object", additionalProperties: true } },
+          },
+        },
+        "400": {
+          description: "Invalid body",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {
           description: "Server error",
@@ -7655,6 +7726,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...embeddingsBackfillContracts,
+  ...embeddingsQueueContracts,
   ...embeddingModelSettingsContracts,
   ...audioIngestContracts,
   ...setDerivationContracts,
