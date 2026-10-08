@@ -35,4 +35,16 @@ describe("useGenrePageQuery", () => {
     expect(result.current.fetchStatus).toBe("idle");
     expect(fetchGenrePage).not.toHaveBeenCalled();
   });
+
+  it("does not retry a failed genre page request", async () => {
+    fetchGenrePage.mockRejectedValue(new Error("Failed to load genre"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: 3, retryDelay: 0 } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useGenrePageQuery("cumbia", 6), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(fetchGenrePage).toHaveBeenCalledTimes(1);
+  });
 });

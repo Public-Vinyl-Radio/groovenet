@@ -11,5 +11,6 @@ export function useGenrePageQuery(slug: string, friendId: number | undefined) {
     queryFn: () => fetchGenrePage(slug, friendId),
     enabled: Boolean(slug) && friendId !== undefined,
     staleTime: 60_000,
+    retry: false,
   });
 }

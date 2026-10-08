@@ -14,6 +14,7 @@ vi.mock("@/server/repositories/genreRepository", () => ({ genreRepository }));
 vi.mock("@/server/repositories/genrePageRepository", () => ({ genrePageRepository }));
 
 import { getGenrePage } from "../genrePageService";
+import { genrePageResponseSchema } from "@/api-contract/schemas";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const row = (n: number, name: string, parent: number | null, aliases: string[] = []) => ({
@@ -113,6 +114,30 @@ describe("getGenrePage", () => {
 
     expect(page?.top_tracks[0]).toMatchObject({ track_id: "t1", date_added: "2026-01-02T00:00:00.000Z" });
     expect(page?.top_albums[0]).toMatchObject({ release_id: "r1", date_added: "2026-01-01" });
+  });
+
+  it("validates a genre page when top albums have nullable database fields", async () => {
+    genrePageRepository.topAlbums.mockResolvedValue([{
+      release_id: "r1",
+      friend_id: 6,
+      title: "Album",
+      artist: "Artist",
+      year: null,
+      genres: null,
+      styles: null,
+      album_thumbnail: null,
+      date_added: null,
+      date_changed: null,
+      track_count: 1,
+      album_rating: null,
+      album_notes: null,
+      purchase_price: null,
+      condition: null,
+      play_count: 0,
+    }]);
+
+    const page = await getGenrePage("cumbia", 6);
+    expect(() => genrePageResponseSchema.parse(page)).not.toThrow();
   });
 
   it("counts a genre the collection doesn't use as zero", async () => {

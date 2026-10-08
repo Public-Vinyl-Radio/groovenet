@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { trackEntitySchema, genreSchema, genreTreeResponseSchema, genreCreateInputSchema, genreUpdateInputSchema, genreAliasInputSchema, genreMergeInputSchema, genreAliasResponseSchema, genreMergeResponseSchema } from "./schemas.js";
+import { trackEntitySchema, albumEntitySchema, genreSchema, genreTreeResponseSchema, genreCreateInputSchema, genreUpdateInputSchema, genreAliasInputSchema, genreMergeInputSchema, genreAliasResponseSchema, genreMergeResponseSchema } from "./schemas.js";
 
 const id = "6df3a956-f05c-4ef2-a218-0813d0ca7c47";
 const genre = { id, name: "Latin", slug: "latin", parent_id: null, source: "discogs" };
@@ -30,5 +30,12 @@ describe("genre wire schemas", () => {
     const track = { track_id: "t1", friend_id: 1, title: "T", artist: "A", album: "B", track_genres: [trackGenre], descriptors: ["uplifting"] };
     expect(trackEntitySchema.parse(track)).toMatchObject({ track_genres: [trackGenre], descriptors: ["uplifting"] });
     expect(trackEntitySchema.safeParse({ ...track, track_genres: [{ ...trackGenre, id: "x" }] }).success).toBe(false);
+  });
+  it("accepts nullable album metadata from the database", () => {
+    expect(albumEntitySchema.parse({
+      release_id: "r1", friend_id: 1, title: "Album", artist: "Artist", track_count: 1,
+      year: null, genres: null, styles: null, album_thumbnail: null,
+      date_added: null, date_changed: null,
+    })).toMatchObject({ date_added: null, date_changed: null });
   });
 });
