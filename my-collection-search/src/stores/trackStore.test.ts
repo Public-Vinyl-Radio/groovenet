@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTrackStore, type TrackEntity } from "./trackStore";
 
 const track = (overrides: Partial<TrackEntity> = {}): TrackEntity =>
@@ -58,5 +58,81 @@ describe("trackStore.setTracks", () => {
       star_rating: 4,
       notes: "peak-time",
     });
+  });
+
+  it("keeps the existing hasVectors when an incoming track omits the key entirely (#468)", () => {
+    const { setTracks, getTrack } = useTrackStore.getState();
+    setTracks([track({ hasVectors: true })]);
+
+    // e.g. album detail, which doesn't select hasVectors at all.
+    const withoutKey = track();
+    expect("hasVectors" in withoutKey).toBe(false);
+    setTracks([withoutKey]);
+
+    expect(getTrack("t1", 1)?.hasVectors).toBe(true);
+  });
+
+  it("lets an incoming false win over an existing true — the key is present", () => {
+    const { setTracks, getTrack } = useTrackStore.getState();
+    setTracks([track({ hasVectors: true })]);
+    setTracks([track({ hasVectors: false })]);
+
+    expect(getTrack("t1", 1)?.hasVectors).toBe(false);
+  });
+});
+
+describe("trackStore.setTrack", () => {
+  it("keeps the existing hasVectors when the incoming track omits the key (#468)", () => {
+    const { setTrack, getTrack } = useTrackStore.getState();
+    setTrack(track({ hasVectors: true }));
+
+    const withoutKey = track();
+    expect("hasVectors" in withoutKey).toBe(false);
+    setTrack(withoutKey);
+
+    expect(getTrack("t1", 1)?.hasVectors).toBe(true);
+  });
+
+  it("overwrites hasVectors when the incoming track carries the key", () => {
+    const { setTrack, getTrack } = useTrackStore.getState();
+    setTrack(track({ hasVectors: true }));
+    setTrack(track({ hasVectors: false }));
+
+    expect(getTrack("t1", 1)?.hasVectors).toBe(false);
+  });
+});
+
+describe("trackStore.updateTrack", () => {
+  it("keeps the existing hasVectors when updates omit the key", () => {
+    const { setTrack, updateTrack, getTrack } = useTrackStore.getState();
+    setTrack(track({ hasVectors: true }));
+    updateTrack("t1", 1, { star_rating: 5 });
+
+    expect(getTrack("t1", 1)?.hasVectors).toBe(true);
+  });
+});
+
+describe("trackStore debug logging", () => {
+  const prevFlag = process.env.NEXT_PUBLIC_DEBUG_STORE;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_DEBUG_STORE = "1";
+    vi.spyOn(console, "groupCollapsed").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "groupEnd").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_DEBUG_STORE = prevFlag;
+    vi.restoreAllMocks();
+  });
+
+  it("logs the merged track on setTrack, setTracks and updateTrack without throwing", () => {
+    const { setTrack, setTracks, updateTrack } = useTrackStore.getState();
+
+    expect(() => setTrack(track({ hasVectors: true }))).not.toThrow();
+    expect(() => setTracks([track({ star_rating: 2 })])).not.toThrow();
+    expect(() => updateTrack("t1", 1, { star_rating: 5 })).not.toThrow();
+    expect(console.groupCollapsed).toHaveBeenCalled();
   });
 });

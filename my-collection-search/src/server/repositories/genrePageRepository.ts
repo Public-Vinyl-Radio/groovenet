@@ -5,7 +5,7 @@ import {
   trackGenreFilterClause,
   type GenreFilter,
 } from "@/lib/trackFilterSpec";
-import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 export type GenrePageCounts = {
   /** Live tracks linked to this genre itself. */
@@ -82,7 +82,7 @@ export class GenrePageRepository {
 
     const { rows } = await dbQuery<GenrePageTrackRow>(
       `
-      SELECT t.*, ${trackGenresSelectSql("t")}, COALESCE(p.play_count, 0)::integer AS play_count
+      SELECT t.*, ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}, COALESCE(p.play_count, 0)::integer AS play_count
       FROM tracks t
       LEFT JOIN (
         SELECT track_id, friend_id, COUNT(*) AS play_count

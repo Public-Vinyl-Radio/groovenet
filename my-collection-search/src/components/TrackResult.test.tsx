@@ -20,6 +20,27 @@ const track = {
   track_genres: [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null }],
 } as Track;
 
+describe("TrackResult 'No embedding' badge (#468)", () => {
+  it("shows no badge when hasVectors is undefined — unknown, not missing", () => {
+    const { hasVectors, ...rest } = track;
+    renderWithProviders(<TrackResult track={rest as Track} playlistMode />);
+
+    expect(screen.queryByText("No embedding")).toBeNull();
+  });
+
+  it("shows the badge only when hasVectors is explicitly false", () => {
+    renderWithProviders(<TrackResult track={{ ...track, hasVectors: false }} playlistMode />);
+
+    expect(screen.getByText("No embedding")).toBeTruthy();
+  });
+
+  it("shows no badge when hasVectors is true", () => {
+    renderWithProviders(<TrackResult track={{ ...track, hasVectors: true }} playlistMode />);
+
+    expect(screen.queryByText("No embedding")).toBeNull();
+  });
+});
+
 describe("TrackResult genre badges in playlist mode", () => {
   it("badges the track's genres when the screen opts in, as search does", () => {
     renderWithProviders(<TrackResult track={track} playlistMode showTrackGenres />);

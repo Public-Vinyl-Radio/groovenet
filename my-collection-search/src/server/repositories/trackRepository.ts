@@ -1,6 +1,6 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { DiscogsTrack, Track } from "@/types/track";
-import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 export type TrackLocalAudioRow = Pick<
   Track,
@@ -432,14 +432,7 @@ export class TrackRepository {
       SELECT
         t.*,
         COALESCE(a.library_identifier, t.library_identifier) AS library_identifier,
-        EXISTS (
-          SELECT 1
-          FROM track_embeddings te
-          WHERE te.track_id = t.track_id
-            AND te.friend_id = t.friend_id
-            AND te.embedding_type = 'audio_vibe'
-            AND te.embedding IS NOT NULL
-        ) AS "hasVectors",
+        ${hasVectorsSelectSql("t")},
         ${trackGenresSelectSql("t")},
         v.ord
       FROM (VALUES ${values.join(",")}) AS v(track_id, friend_id, ord)
@@ -463,14 +456,7 @@ export class TrackRepository {
       SELECT
         t.*,
         a.library_identifier,
-        EXISTS (
-          SELECT 1
-          FROM track_embeddings te
-          WHERE te.track_id = t.track_id
-            AND te.friend_id = t.friend_id
-            AND te.embedding_type = 'audio_vibe'
-            AND te.embedding IS NOT NULL
-        ) AS "hasVectors",
+        ${hasVectorsSelectSql("t")},
         ${trackGenresSelectSql("t")}
       FROM tracks t
       LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
@@ -491,14 +477,7 @@ export class TrackRepository {
       SELECT
         t.*,
         COALESCE(a.library_identifier, t.library_identifier) AS library_identifier,
-        EXISTS (
-          SELECT 1
-          FROM track_embeddings te
-          WHERE te.track_id = t.track_id
-            AND te.friend_id = t.friend_id
-            AND te.embedding_type = 'audio_vibe'
-            AND te.embedding IS NOT NULL
-        ) AS "hasVectors",
+        ${hasVectorsSelectSql("t")},
         ${trackGenresSelectSql("t")}
       FROM tracks t
       LEFT JOIN albums a

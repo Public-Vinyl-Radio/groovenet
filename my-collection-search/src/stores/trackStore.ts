@@ -28,6 +28,29 @@ interface TrackStore {
 const isEmptyValue = (value: unknown): boolean =>
   value === undefined || value === null || value === "";
 
+// Fields the server derives and some endpoints omit from their response
+// entirely (album detail used to leave out `hasVectors`; a fallback built
+// from a narrow row, like the spins top-tracks shape, always leaves out
+// `genres`). Unlike `_preserveFields`, a key *present* with any value —
+// including `false` or `[]` — always wins; only a genuinely absent key
+// falls back to what the store already has.
+const SPARSE_SERVER_FIELDS: Array<keyof TrackEntity> = ['hasVectors', 'genres'];
+
+function withSparseFieldFallback<T extends Partial<TrackEntity>>(
+  incoming: T,
+  existing: TrackEntity | undefined
+): T {
+  if (!existing) return incoming;
+  let result: T | undefined;
+  for (const field of SPARSE_SERVER_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(incoming, field)) continue;
+    if (!Object.prototype.hasOwnProperty.call(existing, field)) continue;
+    if (!result) result = { ...incoming };
+    (result as Record<string, unknown>)[field] = existing[field];
+  }
+  return result ?? incoming;
+}
+
 const createTrackKey = (trackId: string, friendId?: number): string => {
   return `${trackId}:${friendId || 'default'}`;
 };
@@ -77,16 +100,17 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
     set((state) => {
       const key = createTrackKey(track.track_id, track.friend_id);
       const prev = state.tracks.get(key);
+      const nextTrack = withSparseFieldFallback(track, prev);
       const newTracks = new Map(state.tracks);
-      newTracks.set(key, track);
+      newTracks.set(key, nextTrack);
 
       if (isStoreDebugEnabled()) {
         storeLog('setTrack', [
           ['key', key],
           ['friend_id', track.friend_id],
           ['prev', prev],
-          ['next', track],
-          ['diff', diffObjectKeys(prev as unknown as Record<string, unknown>, track as unknown as Record<string, unknown>)],
+          ['next', nextTrack],
+          ['diff', diffObjectKeys(prev as unknown as Record<string, unknown>, nextTrack as unknown as Record<string, unknown>)],
         ]);
       }
       return {
@@ -105,6 +129,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
         const friendId = track.friend_id;
         const key = createTrackKey(track.track_id, friendId);
         const existing = state.tracks.get(key);
+        const incoming = withSparseFieldFallback(track, existing);
         // Merge strategy: preserve selected fields from existing to avoid stale seeds clobbering local updates
         let nextValue: TrackEntity;
         if (existing) {
@@ -118,7 +143,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
             // @ts-expect-error index by keyof Track
             preserved[f] = existing[f];
           }
-          nextValue = { ...track, ...preserved } as TrackEntity;
+          nextValue = { ...incoming, ...preserved } as TrackEntity;
           // If nothing actually changed after merge, skip write
           const diff = diffObjectKeys(existing as unknown as Record<string, unknown>, nextValue as unknown as Record<string, unknown>);
           const changed = Object.keys(diff).length > 0;
@@ -138,14 +163,14 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
           }
         } else {
           // New entry
-          newTracks.set(key, track);
+          newTracks.set(key, incoming);
 
           hasChanges = true;
           if (isStoreDebugEnabled()) {
             storeLog('setTracks:item:new', [
               ['key', key],
               ['friendId', friendId],
-              ['next', track],
+              ['next', incoming],
             ]);
           }
         }
@@ -195,7 +220,8 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
       }
 
       const newTracks = new Map(state.tracks);
-      const updatedTrack = { ...existingTrack, ...updates };
+      const mergedUpdates = withSparseFieldFallback(updates, existingTrack);
+      const updatedTrack = { ...existingTrack, ...mergedUpdates };
       newTracks.set(key, updatedTrack);
 
       if (isStoreDebugEnabled()) {

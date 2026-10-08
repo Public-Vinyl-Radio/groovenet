@@ -18,7 +18,7 @@ import {
   semanticTrackSearch,
   type TrackRow,
 } from "@/server/services/semanticTrackSearchService";
-import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
 
 export { parseTrackFilter } from "@/server/services/trackSearchWhere";
@@ -71,14 +71,7 @@ async function searchTracksPg(params: {
   const { rows } = await dbQuery(
     `
     SELECT t.*
-      , EXISTS (
-        SELECT 1
-        FROM track_embeddings te
-        WHERE te.track_id = t.track_id
-          AND te.friend_id = t.friend_id
-          AND te.embedding_type = 'audio_vibe'
-          AND te.embedding IS NOT NULL
-      ) AS "hasVectors"
+      , ${hasVectorsSelectSql("t")}
       , ${trackGenresSelectSql("t")}
     FROM tracks t
     ${whereSql}
