@@ -47,3 +47,11 @@ RESTIC_REPOSITORY=op://Homelab/groovenet/RESTIC_REPOSITORY
 RESTIC_PASSWORD=op://Homelab/groovenet/RESTIC_PASSWORD
 B2_ACCOUNT_ID=op://Homelab/groovenet/B2_ACCOUNT_ID
 B2_ACCOUNT_KEY=op://Homelab/groovenet/B2_ACCOUNT_KEY
+
+# Live now-playing over MQTT (#465); see .env.example for what each setting does.
+MQTT_URL=mqtt://192.168.2.91:1883
+MQTT_USERNAME=op://Homelab/MQTT/username
+MQTT_PASSWORD=op://Homelab/MQTT/password
+MQTT_TOPIC_PREFIX=groovenet/now_playing
+NOW_PLAYING_CLEAR_SECONDS=60
+MQTT_HA_DISCOVERY=true
