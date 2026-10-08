@@ -117,6 +117,15 @@ describe("getGenrePage", () => {
   });
 
   it("validates a genre page when top albums have nullable database fields", async () => {
+    genrePageRepository.topTracks.mockResolvedValue([{
+      track_id: "t1",
+      friend_id: 6,
+      title: "Track",
+      artist: "Artist",
+      album: "Album",
+      play_count: 0,
+      date_added: null,
+    }]);
     genrePageRepository.topAlbums.mockResolvedValue([{
       release_id: "r1",
       friend_id: 6,
