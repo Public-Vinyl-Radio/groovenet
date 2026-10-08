@@ -7,6 +7,9 @@ APP_DIR="${APP_DIR:-$REPO_ROOT/my-collection-search}"
 WORKTREE_STATE_DIR="${WORKTREE_STATE_DIR:-$REPO_ROOT/.worktree}"
 _main_worktree() { git -C "$REPO_ROOT" worktree list --porcelain | awk '/^worktree /{print $2; exit}'; }
 REPO_NAME="${REPO_NAME:-$(basename "$(_main_worktree)")}"
+# The branch for REPO_ROOT, captured once so every slug/project lookup below
+# agrees even if something checks out a different ref mid-script.
+CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 SEED_ROOT="${SEED_ROOT:-$HOME/.supacode/worktree-seeds/$REPO_NAME}"
 SEED_LATEST_DIR="${SEED_LATEST_DIR:-$SEED_ROOT/latest}"
 CADDY_WORKTREE_DIR="${CADDY_WORKTREE_DIR:-$HOME/.config/caddy/worktrees}"
@@ -40,41 +43,61 @@ sanitize_slug() {
     | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
 }
 
+# worktree_branch_name, worktree_slug and compose_project_name all take an
+# explicit (path, branch) pair rather than reading REPO_ROOT/HEAD themselves,
+# so setup/teardown (operating on the current worktree) and gc.sh (operating
+# on every worktree git knows about) can't drift apart.
+
 worktree_branch_name() {
-  local branch
-  branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  local path="$1" branch="$2"
   if [[ -z "$branch" || "$branch" == "HEAD" ]]; then
-    branch="$(basename "$REPO_ROOT")"
+    branch="$(basename "$path")"
   fi
   printf '%s' "$branch"
 }
 
 worktree_slug() {
+  local path="$1" branch="$2"
   local branch_slug path_hash
-  branch_slug="$(sanitize_slug "$(worktree_branch_name)")"
+  branch_slug="$(sanitize_slug "$(worktree_branch_name "$path" "$branch")")"
   branch_slug="${branch_slug:0:32}"
   [[ -n "$branch_slug" ]] || branch_slug="worktree"
-  path_hash="$(printf '%s' "$REPO_ROOT" | shasum | cut -c1-6)"
+  path_hash="$(printf '%s' "$path" | shasum | cut -c1-6)"
   printf '%s-%s' "$branch_slug" "$path_hash"
 }
 
 compose_project_name() {
+  local path="$1" branch="$2"
   local slug project
-  slug="$(worktree_slug)"
+  slug="$(worktree_slug "$path" "$branch")"
   project="dj-${slug}"
   printf '%s' "${project:0:55}"
 }
 
+# worktree_list_entries prints one "<path>\t<branch>" line per worktree known
+# to git (main checkout plus every linked worktree), branch empty for a
+# detached HEAD. Used by gc.sh to compute every live slug/project in one pass.
+worktree_list_entries() {
+  local repo_root="${1:-$REPO_ROOT}"
+  git -C "$repo_root" worktree list --porcelain | awk '
+    /^worktree / { path = substr($0, 10) }
+    /^branch /   { branch = substr($0, 8); sub("^refs/heads/", "", branch) }
+    /^detached$/ { branch = "" }
+    /^$/         { if (path != "") print path "\t" branch; path = ""; branch = "" }
+    END          { if (path != "") print path "\t" branch }
+  '
+}
+
 worktree_host() {
-  printf '%s.%s' "$(worktree_slug)" "$CADDY_HOST_SUFFIX"
+  printf '%s.%s' "$(worktree_slug "$REPO_ROOT" "$CURRENT_BRANCH")" "$CADDY_HOST_SUFFIX"
 }
 
 worktree_env_file() {
-  printf '%s/%s.env' "$WORKTREE_STATE_DIR" "$(worktree_slug)"
+  printf '%s/%s.env' "$WORKTREE_STATE_DIR" "$(worktree_slug "$REPO_ROOT" "$CURRENT_BRANCH")"
 }
 
 caddy_fragment_file() {
-  printf '%s/%s.caddy' "$CADDY_WORKTREE_DIR" "$(worktree_slug)"
+  printf '%s/%s.caddy' "$CADDY_WORKTREE_DIR" "$(worktree_slug "$REPO_ROOT" "$CURRENT_BRANCH")"
 }
 
 seed_bundle_dir() {
@@ -127,8 +150,8 @@ ensure_worktree_env() {
     return 0
   fi
 
-  slug="$(worktree_slug)"
-  project="$(compose_project_name)"
+  slug="$(worktree_slug "$REPO_ROOT" "$CURRENT_BRANCH")"
+  project="$(compose_project_name "$REPO_ROOT" "$CURRENT_BRANCH")"
   host="$(worktree_host)"
   port="$(find_free_port)"
 

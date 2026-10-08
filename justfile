@@ -148,6 +148,10 @@ worktree-seed *args:
 worktree-install-caddy *args:
   ./scripts/worktree/install-caddy-host.sh {{args}}
 
+# Clean up compose stacks and Caddy fragments left behind by deleted worktrees. Dry run by default; pass --apply to remove them.
+worktree-gc *args:
+  ./scripts/worktree/gc.sh {{args}}
+
 # Launch or attach to the herdr session for this repo (https://herdr.dev)
 herdr:
   @command -v herdr >/dev/null 2>&1 || { echo "herdr is not installed: https://herdr.dev"; exit 1; }
@@ -160,6 +164,10 @@ herdr:
 [positional-arguments]
 herdr-task branch *args:
   ./scripts/worktree/herdr-task.sh "$1" "${@:2}"
+
+# Finish a herdr worktree task: tear down its stack, then remove the herdr workspace. Run from a pane inside that workspace.
+herdr-done *args:
+  ./scripts/worktree/herdr-done.sh {{args}}
 
 compose-prod: check-compose
   {{buildkit_env}} {{op_env}} {{compose_cmd}} -f docker-compose.yml -f docker-compose.prod.yml up
