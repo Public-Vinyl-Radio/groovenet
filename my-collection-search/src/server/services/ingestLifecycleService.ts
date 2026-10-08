@@ -7,6 +7,7 @@ import {
 } from "@/server/repositories/audioIngestRepository";
 import { playDetectionRepository } from "@/server/repositories/playDetectionRepository";
 import { ingestDir } from "@/server/services/ingestSweeperService";
+import { nowPlayingTrackerService } from "@/server/services/nowPlayingTrackerService";
 import {
   aggregationLookbackMs,
   playAggregationService,
@@ -223,6 +224,7 @@ export class IngestLifecycleService {
         confidence: null,
         offset_seconds: null,
       });
+      this.updateNowPlaying(ingest, report, windowStart);
       return;
     }
 
@@ -235,6 +237,28 @@ export class IngestLifecycleService {
         offset_seconds: candidate.offset_seconds,
       });
     }
+    this.updateNowPlaying(ingest, report, windowStart);
+  }
+
+  /**
+   * Feed the live now-playing tracker (#465) with this window's top
+   * candidate, same as `logTerminal` does for the log line. Fire-and-forget:
+   * a display update must never slow or fail ingest, so this is neither
+   * awaited here nor allowed to throw — `observe` swallows and logs its own
+   * errors, and this `catch` is only a backstop.
+   */
+  private updateNowPlaying(ingest: AudioIngestRow, report: IngestResultReport, windowStart: Date | string | null): void {
+    const top = report.candidates[0] ?? null;
+    const window = {
+      at: windowStart ? new Date(windowStart).getTime() : null,
+      track_id: top?.track_id ?? null,
+      friend_id: top?.friend_id ?? null,
+      confidence: top?.confidence ?? null,
+      offset_seconds: top?.offset_seconds ?? null,
+    };
+    nowPlayingTrackerService.observe(ingest.source_id, window).catch((error) => {
+      console.error(`[now-playing] observe failed for ${ingest.source_id}:`, error);
+    });
   }
 
   /**

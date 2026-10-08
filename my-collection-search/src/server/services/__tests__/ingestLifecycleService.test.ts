@@ -17,6 +17,7 @@ const ingests = vi.hoisted(() => ({
 }));
 const detections = vi.hoisted(() => ({ create: vi.fn() }));
 const aggregation = vi.hoisted(() => ({ aggregateSource: vi.fn() }));
+const nowPlaying = vi.hoisted(() => ({ observe: vi.fn() }));
 
 vi.mock("@/server/repositories/audioIngestRepository", () => ({
   audioIngestRepository: ingests,
@@ -27,6 +28,9 @@ vi.mock("@/server/repositories/playDetectionRepository", () => ({
 vi.mock("@/server/services/playAggregationService", () => ({
   playAggregationService: aggregation,
   aggregationLookbackMs: () => 60 * 60_000,
+}));
+vi.mock("@/server/services/nowPlayingTrackerService", () => ({
+  nowPlayingTrackerService: nowPlaying,
 }));
 
 import {
@@ -95,6 +99,7 @@ beforeEach(() => {
   ingests.listStale.mockResolvedValue([]);
   detections.create.mockResolvedValue({});
   aggregation.aggregateSource.mockResolvedValue({ created: 0, skipped: 0 });
+  nowPlaying.observe.mockResolvedValue(undefined);
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
@@ -330,6 +335,66 @@ describe("report()", () => {
       "processed",
       ["received", "processing"],
       null
+    );
+  });
+
+  it("feeds the now-playing tracker with the top candidate (#465)", async () => {
+    await service.report(
+      report({
+        candidates: [
+          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
+          { track_id: "t2", friend_id: 1, confidence: 0.4, offset_seconds: 3 },
+        ],
+      })
+    );
+
+    expect(nowPlaying.observe).toHaveBeenCalledTimes(1);
+    expect(nowPlaying.observe).toHaveBeenCalledWith("living-room-vinyl", {
+      at: new Date("2026-09-20T18:42:10.000Z").getTime(),
+      track_id: "t1",
+      friend_id: 1,
+      confidence: 0.94,
+      offset_seconds: 12.4,
+    });
+  });
+
+  it("feeds the now-playing tracker a no-match placeholder when nothing matched", async () => {
+    await service.report(report({ candidates: [] }));
+
+    expect(nowPlaying.observe).toHaveBeenCalledWith("living-room-vinyl", {
+      at: new Date("2026-09-20T18:42:10.000Z").getTime(),
+      track_id: null,
+      friend_id: null,
+      confidence: null,
+      offset_seconds: null,
+    });
+  });
+
+  it("never awaits the now-playing tracker, and logs if it rejects", async () => {
+    let reject!: (error: Error) => void;
+    nowPlaying.observe.mockReturnValueOnce(
+      new Promise((_resolve, rej) => {
+        reject = rej;
+      })
+    );
+
+    const result = await service.report(
+      report({
+        candidates: [
+          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
+        ],
+      })
+    );
+
+    // report() already resolved without waiting on the still-pending observe call.
+    expect(result.status).toBe("processed");
+
+    reject(new Error("mqtt broker down"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("[now-playing] observe failed"),
+      expect.any(Error)
     );
   });
 

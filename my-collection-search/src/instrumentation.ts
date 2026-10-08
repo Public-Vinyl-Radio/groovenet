@@ -45,6 +45,15 @@ export async function register() {
       "@/server/services/embeddingQueueService"
     );
     startEmbeddingQueueWorker();
+
+    // Opens the MQTT connection (a no-op without MQTT_URL) and starts the
+    // silence/clear sweep for the now-playing state machine (#465). The
+    // fast path — `ingestLifecycleService.recordDetections` feeding
+    // `nowPlayingTrackerService.observe()` — needs no startup of its own.
+    const { startNowPlayingTracker } = await import(
+      "@/server/services/nowPlayingTrackerService"
+    );
+    startNowPlayingTracker();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {
