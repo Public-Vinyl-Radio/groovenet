@@ -249,28 +249,43 @@ export function groupDetections(
   detections: PlayDetectionRow[],
   options: { confidenceFloor?: number; gapSeconds?: number } = {}
 ): AggregatedPlay[] {
-  return groupWindows(
-    detections,
-    (d) => ({ at: timestamp(d), track_id: d.track_id, friend_id: d.friend_id, confidence: d.confidence }),
-    options
-  ).map(({ first, last, confidence, members }) => ({
+  const view = (d: PlayDetectionRow) => ({
+    at: timestamp(d),
+    track_id: d.track_id,
+    friend_id: d.friend_id,
+    confidence: d.confidence,
+    offset_seconds: d.offset_seconds,
+  });
+  return groupWindows(detections, view, options).map(({ first, last, confidence, members }) => ({
     first,
     last,
     confidence,
     windows: members.length,
-    rate: medianRate(members),
+    rate: windowRate(members, view),
   }));
 }
 
-function medianRate(members: PlayDetectionRow[]): number | null {
-  // A 0 offset is where the matcher clamps a window that began before the
-  // track did: it says nothing about position, so it is left out.
-  const known = members.filter((d) => (d.offset_seconds ?? 0) > 0 && timestamp(d) != null);
+/**
+ * Median seconds of track per second of clock across consecutive members with
+ * a known position; null with fewer than two. Shared by the batch grouping
+ * here and the live now-playing tracker (#465), so both judge "is this really
+ * advancing" the same way.
+ *
+ * The median, so one window that matched a repeat cannot sink a long play. A 0
+ * offset is where the matcher clamps a window that began before the track
+ * did: it says nothing about position, so it is left out.
+ */
+export function windowRate<T>(members: T[], view: (item: T) => GroupableWindow): number | null {
+  const known = members
+    .map(view)
+    .filter((w) => (w.offset_seconds ?? 0) > 0 && w.at != null) as Array<
+    GroupableWindow & { at: number; offset_seconds: number }
+  >;
   const rates: number[] = [];
   for (let i = 1; i < known.length; i++) {
-    const seconds = ((timestamp(known[i]) as number) - (timestamp(known[i - 1]) as number)) / 1000;
+    const seconds = (known[i].at - known[i - 1].at) / 1000;
     if (seconds > 0) {
-      rates.push(((known[i].offset_seconds as number) - (known[i - 1].offset_seconds as number)) / seconds);
+      rates.push((known[i].offset_seconds - known[i - 1].offset_seconds) / seconds);
     }
   }
   if (rates.length === 0) return null;

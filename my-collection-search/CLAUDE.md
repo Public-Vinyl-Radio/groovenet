@@ -444,6 +444,79 @@ Two things to keep if you touch it:
   the other writable volumes before dropping to `nextjs`; a new volume the app
   writes to needs adding there too.
 
+## Now playing (MQTT)
+
+The display-facing sibling of audio ingest (#465): what shairport-sync's
+`publish_parsed`/`publish_cover` does for AirPlay, but for whatever one
+listener hears off the mixer's rec output — a blend between decks, or a
+digital source played through the mixer. `playAggregationService`'s spin is
+accurate but arrives only once a play is aggregated, too late for a display;
+this path watches the same per-window detections live, as
+`ingestLifecycleService.recordDetections` records them, through
+`nowPlayingTrackerService.observe()`.
+
+```
+idle ──(1 confident match)──▶ candidate ──(PLAY_MIN_WINDOWS consistent)──▶ playing
+playing ──(different track confirmed)──▶ playing (new track)
+playing ──(silence for PLAY_AGGREGATION_GAP_SECONDS)──▶ stopped
+stopped ──(NOW_PLAYING_CLEAR_SECONDS)──▶ idle (display clears)
+stopped ──(same or new track confirmed)──▶ playing
+```
+
+It reuses `isRealPlay` and `windowRate` from `playAggregationService` rather
+than re-deriving the confidence floor / minimum-windows / rate rule — a stray
+window at a track boundary is exactly as harmless here as it is for a spin.
+`stopped`/`idle` are wall-clock timeouts, swept every 15s by
+`nowPlayingTrackerService.tick()`, so they fire even if the listener goes
+completely silent and sends nothing further. State lives in memory, per
+`source_id`; a restart just costs the next confirmation.
+
+`nowPlayingPublisherService` turns a state/track change into retained MQTT
+topics under `MQTT_TOPIC_PREFIX` (default `groovenet/now_playing`), one set
+per `<source_id>`: `state`, `title`, `artist`, `album`, `position`, `cover`
+(a ~240px baseline JPEG), `cover_url`, and `json` (everything, plus
+`offset_seconds` + `observed_at` so a display can draw a progress bar locally
+without per-second messages). Published **only on state or track changes,
+never per window** — an e-ink panel's refresh is slow and wears the panel.
+Off entirely unless `MQTT_URL` is set; a broker that is down or unreachable
+never slows or fails ingest — every publish call swallows and logs its own
+error, and reconnection is `mqtt`'s own default behaviour. Home Assistant MQTT
+discovery (`homeassistant/sensor/groovenet_now_playing_<source_id>/config`) is
+published once per source unless `MQTT_HA_DISCOVERY=false`.
+
+AirPlay and vinyl stay separate topics — groovenet never subscribes to
+shairport. Merge them in Home Assistant with a template sensor that prefers
+AirPlay while it is playing, otherwise shows whichever of the two most
+recently went `playing`:
+
+```yaml
+template:
+  - sensor:
+      - name: "Now playing"
+        state: >
+          {% if states('sensor.aswitch_shairport') == 'playing' %}
+            {{ state_attr('sensor.aswitch_shairport', 'title') }} — {{ state_attr('sensor.aswitch_shairport', 'artist') }}
+          {% elif states('sensor.groovenet_now_playing_living_room_vinyl') in ['playing', 'candidate'] %}
+            {{ state_attr('sensor.groovenet_now_playing_living_room_vinyl', 'title') }} — {{ state_attr('sensor.groovenet_now_playing_living_room_vinyl', 'artist') }}
+          {% else %}
+            Nothing playing
+          {% endif %}
+        attributes:
+          source: >
+            {% if states('sensor.aswitch_shairport') == 'playing' %}
+              airplay
+            {% elif states('sensor.groovenet_now_playing_living_room_vinyl') in ['playing', 'candidate'] %}
+              vinyl
+            {% else %}
+              none
+            {% endif %}
+```
+
+Out of scope for #465 (tracked as follow-ups): a `/now-playing` SSE kiosk
+page, a grayscale/dithered cover for e-ink, a single merged AirPlay+vinyl
+topic published by groovenet itself, and multiple simultaneous sources — the
+topic layout already carries `<source_id>` for when that lands.
+
 ## API reference
 
 **Do not hand-maintain endpoint lists here.** The OpenAPI spec is generated from
