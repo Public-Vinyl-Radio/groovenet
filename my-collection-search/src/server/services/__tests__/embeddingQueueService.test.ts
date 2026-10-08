@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   EmbeddingQueueService,
@@ -16,6 +17,7 @@ const mockPipeline = vi.hoisted(() => ({
   lpush: vi.fn(),
   rpush: vi.fn(),
   ltrim: vi.fn(),
+  lrem: vi.fn(),
   zrem: vi.fn(),
   hset: vi.fn(),
   hincrby: vi.fn(),
@@ -35,6 +37,7 @@ const mockRedis = vi.hoisted(() => ({
   zadd: vi.fn(),
   hgetall: vi.fn(),
   lrange: vi.fn(),
+  scan: vi.fn(),
 }));
 
 const mockGenerateIdentity = vi.hoisted(() => vi.fn());
@@ -88,6 +91,7 @@ beforeEach(() => {
   mockRedis.zcard.mockResolvedValue(0);
   mockRedis.hgetall.mockResolvedValue({});
   mockRedis.lrange.mockResolvedValue([]);
+  mockRedis.scan.mockResolvedValue(["0", []]);
   mockListIdentity.mockResolvedValue([]);
   mockListAudioVibe.mockResolvedValue([]);
   mockListContext.mockResolvedValue([]);
@@ -903,5 +907,452 @@ describe("tick — run progress tagging (#388)", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
     expect(mockPipeline.hincrby).not.toHaveBeenCalled();
+  });
+});
+
+// ─── tick: console.error on failure/pause (#451) ───────────────────────────────
+
+describe("tick — logs failures and pauses (#451)", () => {
+  it("console.errors a job failure with the track and kind", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockRedis.rpop
+      .mockResolvedValueOnce(JSON.stringify(job({ track_id: "t9", kind: "audio_vibe" })))
+      .mockResolvedValue(null);
+    mockGenerateAudioVibe.mockRejectedValueOnce(new Error("503 Service Unavailable"));
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[embedding-queue] job failed (track t9, kind audio_vibe):",
+      "503 Service Unavailable"
+    );
+  });
+
+  it("console.errors when an auth failure pauses the queue", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockRedis.rpop.mockResolvedValueOnce(JSON.stringify(job())).mockResolvedValue(null);
+    mockGenerateIdentity.mockRejectedValueOnce(new Error("invalid_organization"));
+    const service = new EmbeddingQueueService();
+    await service.tick(NOW);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[embedding-queue] pausing queue: invalid_organization"
+    );
+  });
+});
+
+// ─── sampleKindCounts / getQueueStatus — by_kind (#451) ────────────────────────
+
+describe("getQueueStatus — by_kind", () => {
+  it("counts kinds sampled from the head of each lane", async () => {
+    const entries: Record<string, string[]> = {
+      "embedding_queue:interactive": [JSON.stringify(job({ kind: "identity" }))],
+      "embedding_queue:sync": [JSON.stringify(job({ kind: "context" }))],
+      "embedding_queue": [
+        JSON.stringify(job({ kind: "audio_vibe" })),
+        JSON.stringify(job({ kind: "audio_vibe" })),
+      ],
+    };
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve((entries[key] ?? []).length)
+    );
+    mockRedis.lrange.mockImplementation((key: string) =>
+      Promise.resolve(entries[key] ?? [])
+    );
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    expect(status.by_kind).toEqual({ identity: 1, audio_vibe: 2, context: 1 });
+    expect(status.by_kind_sampled).toBe(false);
+  });
+
+  it("flags by_kind_sampled when a lane is longer than the sample", async () => {
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue" ? 5_000 : 0)
+    );
+    mockRedis.lrange.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue" ? [JSON.stringify(job())] : [])
+    );
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    expect(status.by_kind_sampled).toBe(true);
+  });
+
+  it("drops an unparseable entry from the sample instead of throwing", async () => {
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue" ? 1 : 0)
+    );
+    mockRedis.lrange.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue" ? ["not-json"] : [])
+    );
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    expect(status.by_kind).toEqual({ identity: 0, audio_vibe: 0, context: 0 });
+  });
+});
+
+// ─── getQueueStatus — lanes, retrying, drain rate and ETA (#451) ───────────────
+
+describe("getQueueStatus", () => {
+  afterEach(() => {
+    delete process.env.EMBEDDING_QUEUE_INTERVAL_SECONDS;
+    delete process.env.EMBEDDING_QUEUE_BATCH_SIZE;
+  });
+
+  it("reports lane depths and retrying separately", async () => {
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve(
+        key === "embedding_queue:interactive" ? 2 :
+        key === "embedding_queue:sync" ? 3 :
+        key === "embedding_queue" ? 4 : 0
+      )
+    );
+    mockRedis.zcard.mockResolvedValue(5);
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    expect(status.lanes).toEqual({ interactive: 2, sync: 3, bulk: 4 });
+    expect(status.retrying).toBe(5);
+  });
+
+  it("computes drain rate and ETA from the configured interval and batch size", async () => {
+    process.env.EMBEDDING_QUEUE_INTERVAL_SECONDS = "10";
+    process.env.EMBEDDING_QUEUE_BATCH_SIZE = "100";
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue" ? 1000 : 0)
+    );
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    // 100 jobs / 10s = 600/min; 1000 backlog / 600 per-min => 100s.
+    expect(status.drain_rate_per_minute).toBe(600);
+    expect(status.eta_seconds).toBe(100);
+  });
+
+  it("reports an ETA of 0 for an empty backlog", async () => {
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+    expect(status.eta_seconds).toBe(0);
+  });
+
+  it("reports a null ETA and zero drain rate while paused", async () => {
+    mockRedis.get.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null)
+    );
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue" ? 10 : 0)
+    );
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    expect(status.paused).toBe(true);
+    expect(status.pause_reason).toBe("invalid_organization");
+    expect(status.drain_rate_per_minute).toBe(0);
+    expect(status.eta_seconds).toBeNull();
+  });
+
+  it("carries failed_count and the failed list through from getQueueHealth/getFailedJobs", async () => {
+    mockRedis.llen.mockImplementation((key: string) =>
+      Promise.resolve(key === "embedding_queue:failed" ? 2 : 0)
+    );
+    mockRedis.lrange.mockImplementation((key: string) =>
+      Promise.resolve(
+        key === "embedding_queue:failed"
+          ? [JSON.stringify({ ...job(), attempts: 5, error: "boom", failedAt: 123 })]
+          : []
+      )
+    );
+
+    const service = new EmbeddingQueueService();
+    const status = await service.getQueueStatus();
+
+    expect(status.failed_count).toBe(2);
+    expect(status.failed).toEqual([
+      expect.objectContaining({ track_id: "t1", attempts: 5, error: "boom", failed_at: 123 }),
+    ]);
+  });
+});
+
+// ─── listActiveBackfillRuns (#451) ─────────────────────────────────────────────
+
+describe("listActiveBackfillRuns", () => {
+  it("returns nothing when no run keys exist", async () => {
+    mockRedis.scan.mockResolvedValueOnce(["0", []]);
+    const service = new EmbeddingQueueService();
+    expect(await service.listActiveBackfillRuns()).toEqual([]);
+  });
+
+  it("skips a scanned key whose hash is gone by the time it's read (expired between SCAN and HGETALL)", async () => {
+    mockRedis.scan.mockResolvedValueOnce(["0", ["embedding_backfill_run:gone"]]);
+    mockRedis.hgetall.mockResolvedValueOnce({});
+    const service = new EmbeddingQueueService();
+    expect(await service.listActiveBackfillRuns()).toEqual([]);
+  });
+
+  it("falls back to the run_id encoded in the key when the hash doesn't store one", async () => {
+    mockRedis.scan.mockResolvedValueOnce(["0", ["embedding_backfill_run:run-7"]]);
+    mockRedis.hgetall.mockResolvedValueOnce({
+      queued: "4",
+      success: "1",
+      skipped: "0",
+      failed: "0",
+      started_at: "1",
+      updated_at: "1",
+    });
+    const service = new EmbeddingQueueService();
+    const [run] = await service.listActiveBackfillRuns();
+    expect(run.run_id).toBe("run-7");
+  });
+
+  it("excludes a run whose counters already add up to queued", async () => {
+    mockRedis.scan.mockResolvedValueOnce(["0", ["embedding_backfill_run:done"]]);
+    mockRedis.hgetall.mockResolvedValueOnce({
+      run_id: "done",
+      queued: "2",
+      success: "2",
+      skipped: "0",
+      failed: "0",
+      started_at: "1",
+      updated_at: "2",
+    });
+    const service = new EmbeddingQueueService();
+    expect(await service.listActiveBackfillRuns()).toEqual([]);
+  });
+
+  it("includes a still-running run and excludes its :errors key from the scan", async () => {
+    mockRedis.scan.mockResolvedValueOnce([
+      "0",
+      ["embedding_backfill_run:run-1", "embedding_backfill_run:run-1:errors"],
+    ]);
+    mockRedis.hgetall.mockResolvedValueOnce({
+      run_id: "run-1",
+      queued: "10",
+      success: "3",
+      skipped: "1",
+      failed: "0",
+      started_at: "100",
+      updated_at: "200",
+    });
+    const service = new EmbeddingQueueService();
+    const runs = await service.listActiveBackfillRuns();
+
+    expect(runs).toEqual([
+      { run_id: "run-1", queued: 10, success: 3, skipped: 1, failed: 0, started_at: 100, updated_at: 200 },
+    ]);
+    expect(mockRedis.hgetall).toHaveBeenCalledTimes(1);
+  });
+
+  it("paginates through multiple SCAN cursors", async () => {
+    mockRedis.scan
+      .mockResolvedValueOnce(["17", ["embedding_backfill_run:a"]])
+      .mockResolvedValueOnce(["0", ["embedding_backfill_run:b"]]);
+    mockRedis.hgetall
+      .mockResolvedValueOnce({ run_id: "a", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "1", updated_at: "1" })
+      .mockResolvedValueOnce({ run_id: "b", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "2", updated_at: "2" });
+
+    const service = new EmbeddingQueueService();
+    const runs = await service.listActiveBackfillRuns();
+
+    expect(runs.map((r) => r.run_id)).toEqual(["b", "a"]); // newest (highest started_at) first
+  });
+
+  it("caps the result at the given limit, newest first", async () => {
+    mockRedis.scan.mockResolvedValueOnce([
+      "0",
+      ["embedding_backfill_run:a", "embedding_backfill_run:b", "embedding_backfill_run:c"],
+    ]);
+    mockRedis.hgetall
+      .mockResolvedValueOnce({ run_id: "a", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "1", updated_at: "1" })
+      .mockResolvedValueOnce({ run_id: "b", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "3", updated_at: "1" })
+      .mockResolvedValueOnce({ run_id: "c", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "2", updated_at: "1" });
+
+    const service = new EmbeddingQueueService();
+    const runs = await service.listActiveBackfillRuns(2);
+
+    expect(runs.map((r) => r.run_id)).toEqual(["b", "c"]);
+  });
+});
+
+// ─── getFailedJobs / retryFailedJobs (#451) ────────────────────────────────────
+
+describe("getFailedJobs", () => {
+  it("returns an empty list when nothing has failed", async () => {
+    const service = new EmbeddingQueueService();
+    expect(await service.getFailedJobs()).toEqual([]);
+  });
+
+  it("maps a stored failure, with a stable id derived from its content", async () => {
+    const raw = JSON.stringify({ ...job({ track_id: "t1" }), attempts: 5, error: "rate limited", failedAt: 999 });
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+
+    const service = new EmbeddingQueueService();
+    const [failed] = await service.getFailedJobs();
+
+    expect(failed).toMatchObject({
+      track_id: "t1",
+      friend_id: 1,
+      kind: "identity",
+      attempts: 5,
+      error: "rate limited",
+      failed_at: 999,
+    });
+    expect(failed.id).toMatch(/^[0-9a-f]{12}$/);
+
+    // Same content, same id, every time — the id has to survive a round trip.
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const [failedAgain] = await service.getFailedJobs();
+    expect(failedAgain.id).toBe(failed.id);
+  });
+
+  it("drops an unparseable entry instead of throwing", async () => {
+    mockRedis.lrange.mockResolvedValueOnce(["not-json"]);
+    const service = new EmbeddingQueueService();
+    expect(await service.getFailedJobs()).toEqual([]);
+  });
+
+  it("defaults attempts to 0 when the stored entry doesn't carry one", async () => {
+    const raw = JSON.stringify({ track_id: "t1", friend_id: 1, kind: "identity", error: "boom", failedAt: 1 });
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const service = new EmbeddingQueueService();
+    const [failed] = await service.getFailedJobs();
+    expect(failed.attempts).toBe(0);
+  });
+
+  it("respects a custom limit", async () => {
+    const service = new EmbeddingQueueService();
+    await service.getFailedJobs(10);
+    expect(mockRedis.lrange).toHaveBeenCalledWith("embedding_queue:failed", 0, 9);
+  });
+});
+
+describe("retryFailedJobs", () => {
+  it("does nothing for an empty id list", async () => {
+    const service = new EmbeddingQueueService();
+    const result = await service.retryFailedJobs([]);
+    expect(result).toEqual({ retried: [], not_found: [] });
+    expect(mockRedis.lrange).not.toHaveBeenCalled();
+  });
+
+  it("re-enqueues a matched entry with attempts reset and removes it from the failed list", async () => {
+    const raw = JSON.stringify({
+      ...job({ track_id: "t1", kind: "context" }),
+      priority: "bulk",
+      attempts: 5,
+      error: "rate limited",
+      failedAt: 999,
+    });
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const service = new EmbeddingQueueService();
+    const id = (await service.getFailedJobs())[0].id;
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+
+    const result = await service.retryFailedJobs([id]);
+
+    expect(result).toEqual({ retried: [id], not_found: [] });
+    expect(mockPipeline.lrem).toHaveBeenCalledWith("embedding_queue:failed", 1, raw);
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue",
+      JSON.stringify({ track_id: "t1", friend_id: 1, kind: "context", priority: "bulk", attempts: 0 })
+    );
+  });
+
+  it("carries run_id and force through to the re-enqueued job", async () => {
+    const raw = JSON.stringify({
+      ...job({ track_id: "t1", run_id: "run-1", force: true }),
+      priority: "interactive",
+      attempts: 5,
+      error: "boom",
+      failedAt: 1,
+    });
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const service = new EmbeddingQueueService();
+    const id = (await service.getFailedJobs())[0].id;
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+
+    await service.retryFailedJobs([id]);
+
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue:interactive",
+      JSON.stringify({
+        track_id: "t1",
+        friend_id: 1,
+        kind: "identity",
+        priority: "interactive",
+        attempts: 0,
+        run_id: "run-1",
+        force: true,
+      })
+    );
+  });
+
+  it("reports an id with no matching entry as not_found and touches no pipeline", async () => {
+    mockRedis.lrange.mockResolvedValueOnce([]);
+    const service = new EmbeddingQueueService();
+    const result = await service.retryFailedJobs(["missing-id"]);
+
+    expect(result).toEqual({ retried: [], not_found: ["missing-id"] });
+    expect(mockRedis.pipeline).not.toHaveBeenCalled();
+  });
+
+  it("drops a malformed failed entry it can't parse, without crashing the retry", async () => {
+    const raw = "not-json{{{";
+    const id = createHash("sha1").update(raw).digest("hex").slice(0, 12);
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const service = new EmbeddingQueueService();
+
+    const result = await service.retryFailedJobs([id]);
+
+    expect(result).toEqual({ retried: [], not_found: [id] });
+    expect(mockRedis.pipeline).not.toHaveBeenCalled();
+  });
+
+  it("treats a stored entry that parses to a falsy value (`null`) the same as unparseable", async () => {
+    const raw = "null";
+    const id = createHash("sha1").update(raw).digest("hex").slice(0, 12);
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const service = new EmbeddingQueueService();
+
+    const result = await service.retryFailedJobs([id]);
+
+    expect(result).toEqual({ retried: [], not_found: [id] });
+    expect(mockRedis.pipeline).not.toHaveBeenCalled();
+  });
+
+  it("defaults the re-enqueued priority to interactive when the stored entry has none", async () => {
+    const raw = JSON.stringify({ track_id: "t1", friend_id: 1, kind: "identity", attempts: 5, error: "boom", failedAt: 1 });
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+    const service = new EmbeddingQueueService();
+    const id = (await service.getFailedJobs())[0].id;
+    mockRedis.lrange.mockResolvedValueOnce([raw]);
+
+    await service.retryFailedJobs([id]);
+
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue:interactive",
+      JSON.stringify({ track_id: "t1", friend_id: 1, kind: "identity", priority: "interactive", attempts: 0 })
+    );
+  });
+
+  it("skips a failed entry that isn't in the requested id set while still retrying the match beside it", async () => {
+    const wantedRaw = JSON.stringify({ ...job({ track_id: "wanted" }), priority: "bulk", attempts: 5, error: "boom", failedAt: 1 });
+    const otherRaw = JSON.stringify({ ...job({ track_id: "other" }), priority: "bulk", attempts: 5, error: "boom", failedAt: 2 });
+    mockRedis.lrange.mockResolvedValueOnce([wantedRaw, otherRaw]);
+    const service = new EmbeddingQueueService();
+    const wantedId = createHash("sha1").update(wantedRaw).digest("hex").slice(0, 12);
+    mockRedis.lrange.mockResolvedValueOnce([wantedRaw, otherRaw]);
+
+    const result = await service.retryFailedJobs([wantedId]);
+
+    expect(result).toEqual({ retried: [wantedId], not_found: [] });
+    expect(mockPipeline.lrem).toHaveBeenCalledTimes(1);
+    expect(mockPipeline.lrem).toHaveBeenCalledWith("embedding_queue:failed", 1, wantedRaw);
   });
 });

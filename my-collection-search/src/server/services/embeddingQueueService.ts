@@ -1,12 +1,18 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { getRedisConnection } from "@/lib/redis";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
 import { runEmbeddingBatch } from "@/server/services/embeddingBatchService";
 import type {
   EmbeddingBackfillRun,
+  EmbeddingBackfillRunSummary,
+  EmbeddingFailedJob,
   EmbeddingJob,
+  EmbeddingJobKind,
   EmbeddingQueueHealth,
+  EmbeddingQueueKindCounts,
+  EmbeddingQueueLaneDepths,
+  EmbeddingQueueStatus,
 } from "@/types/embeddingQueue";
 
 /**
@@ -44,9 +50,23 @@ const BASE_BACKOFF_MS = 30_000;
 const MAX_BACKOFF_MS = 30 * 60_000;
 /** Matches `fingerprintIndexService.RUN_TTL_SECONDS` — a day is plenty to poll a run. */
 const RUN_TTL_SECONDS = 86_400;
+/**
+ * Head-of-list sample size for the #451 "counts by kind" breakdown. A bulk
+ * re-embed can leave 20k+ jobs on `embedding_queue`; LRANGE-ing all of them on
+ * every `/jobs` poll would cost more than the dashboard is worth, so this
+ * samples the head of each lane instead and says so (`by_kind_sampled`).
+ */
+const KIND_SAMPLE_SIZE = 500;
+/** Cap on how many backfill runs #451's queue view reports as "active" at once. */
+const MAX_ACTIVE_RUNS = 20;
 
 function runKey(runId: string): string {
   return `${RUN_KEY_PREFIX}${runId}`;
+}
+
+/** Stable id for a failed-queue entry, derived from its stored JSON — there's no row to key off. */
+function failedJobId(raw: string): string {
+  return createHash("sha1").update(raw).digest("hex").slice(0, 12);
 }
 
 type QueuedJob = EmbeddingJob & { attempts?: number; priority: EmbeddingQueuePriority };
@@ -242,6 +262,12 @@ export class EmbeddingQueueService {
         requeue.push(job);
       } else if (result.error !== undefined) {
         const message = errorMessage(result.error);
+        // Previously only written to Redis (`last_error`/`failed`), so a run
+        // of failures never showed up in the app's own logs (#451).
+        console.error(
+          `[embedding-queue] job failed (track ${job.track_id}, kind ${job.kind}):`,
+          message
+        );
         if (isAuthError(message)) {
           authError = message;
           requeue.push(job);
@@ -253,7 +279,10 @@ export class EmbeddingQueueService {
         await this.recordRunProgress(job.run_id, result.updated);
       }
     }
-    if (authError) await this.pause(authError);
+    if (authError) {
+      console.error(`[embedding-queue] pausing queue: ${authError}`);
+      await this.pause(authError);
+    }
     if (requeue.length > 0) await this.pushBack(requeue);
   }
 
@@ -362,10 +391,18 @@ export class EmbeddingQueueService {
     };
   }
 
+  /** Depth of each priority lane, in the order `tick()` drains them. */
+  private async laneDepths(): Promise<EmbeddingQueueLaneDepths> {
+    const [interactive, sync, bulk] = await Promise.all(
+      QUEUE_KEYS.map((key) => this.redis.llen(key))
+    );
+    return { interactive, sync, bulk };
+  }
+
   async getQueueHealth(): Promise<EmbeddingQueueHealth> {
-    const [queueLengths, retryLen, failedLen, pausedError, lastErrorRaw] =
+    const [lanes, retryLen, failedLen, pausedError, lastErrorRaw] =
       await Promise.all([
-        Promise.all(QUEUE_KEYS.map((key) => this.redis.llen(key))),
+        this.laneDepths(),
         this.redis.zcard(RETRY_KEY),
         this.redis.llen(FAILED_KEY),
         this.redis.get(PAUSED_KEY),
@@ -382,10 +419,219 @@ export class EmbeddingQueueService {
     }
 
     return {
-      queueDepth: queueLengths.reduce((sum, count) => sum + count, 0) + retryLen,
+      queueDepth: lanes.interactive + lanes.sync + lanes.bulk + retryLen,
       failedCount: failedLen,
       paused: !!pausedError,
       lastError: pausedError ?? lastError,
+    };
+  }
+
+  /**
+   * Counts by job kind, sampled from the head of each lane (#451) rather than
+   * LRANGE-ing the whole list — see `KIND_SAMPLE_SIZE`. `by_kind_sampled` is
+   * true whenever any lane is longer than the sample, so the UI can say "of
+   * the first 500" instead of implying an exact count.
+   */
+  private async sampleKindCounts(): Promise<{
+    counts: EmbeddingQueueKindCounts;
+    sampled: boolean;
+  }> {
+    const counts: EmbeddingQueueKindCounts = { identity: 0, audio_vibe: 0, context: 0 };
+    let sampled = false;
+
+    const perLane = await Promise.all(
+      QUEUE_KEYS.map(async (key) => {
+        const [len, entries] = await Promise.all([
+          this.redis.llen(key),
+          this.redis.lrange(key, 0, KIND_SAMPLE_SIZE - 1),
+        ]);
+        return { len, entries };
+      })
+    );
+
+    for (const { len, entries } of perLane) {
+      if (len > entries.length) sampled = true;
+      for (const raw of entries) {
+        try {
+          const kind = (JSON.parse(raw) as Partial<EmbeddingJob>).kind;
+          if (kind && kind in counts) counts[kind as EmbeddingJobKind] += 1;
+        } catch {
+          // An unparseable entry is `tick()`'s problem to drop, not this sample's.
+        }
+      }
+    }
+
+    return { counts, sampled };
+  }
+
+  private async scanRunKeys(): Promise<string[]> {
+    const keys: string[] = [];
+    let cursor = "0";
+    do {
+      const [nextCursor, batch] = await this.redis.scan(
+        cursor,
+        "MATCH",
+        `${RUN_KEY_PREFIX}*`,
+        "COUNT",
+        1000
+      );
+      cursor = nextCursor;
+      keys.push(...batch.filter((key) => !key.endsWith(":errors")));
+    } while (cursor !== "0");
+    return keys;
+  }
+
+  /** Backfill runs (#388) still in progress, newest first, for #451's queue view. */
+  async listActiveBackfillRuns(limit: number = MAX_ACTIVE_RUNS): Promise<EmbeddingBackfillRunSummary[]> {
+    const keys = await this.scanRunKeys();
+    if (keys.length === 0) return [];
+
+    const stored = await Promise.all(keys.map((key) => this.redis.hgetall(key)));
+    const runs: EmbeddingBackfillRunSummary[] = [];
+    stored.forEach((hash, i) => {
+      if (!hash || Object.keys(hash).length === 0) return;
+      const queued = toInt(hash.queued);
+      const success = toInt(hash.success);
+      const skipped = toInt(hash.skipped);
+      const failed = toInt(hash.failed);
+      if (success + skipped + failed >= queued) return; // complete — not "active"
+
+      runs.push({
+        run_id: hash.run_id ?? keys[i].slice(RUN_KEY_PREFIX.length),
+        queued,
+        success,
+        skipped,
+        failed,
+        started_at: toInt(hash.started_at),
+        updated_at: toInt(hash.updated_at),
+      });
+    });
+
+    return runs.sort((a, b) => b.started_at - a.started_at).slice(0, limit);
+  }
+
+  /** The `embedding_queue:failed` list (#451), each entry given a stable id for the retry action. */
+  async getFailedJobs(limit: number = MAX_FAILED_ENTRIES): Promise<EmbeddingFailedJob[]> {
+    const raws = await this.redis.lrange(FAILED_KEY, 0, limit - 1);
+    const jobs: EmbeddingFailedJob[] = [];
+    for (const raw of raws) {
+      try {
+        const parsed = JSON.parse(raw) as QueuedJob & { error: string; failedAt: number };
+        jobs.push({
+          id: failedJobId(raw),
+          track_id: parsed.track_id,
+          friend_id: parsed.friend_id,
+          kind: parsed.kind,
+          run_id: parsed.run_id,
+          attempts: parsed.attempts ?? 0,
+          error: parsed.error,
+          failed_at: parsed.failedAt,
+        });
+      } catch {
+        // Drop an unparseable entry rather than let it break the whole list.
+      }
+    }
+    return jobs;
+  }
+
+  /**
+   * Re-enqueue the failed entries matching `ids` and drop them from the
+   * failed list. Attempts reset to 0 — they already spent `MAX_ATTEMPTS`
+   * getting here, so a fresh attempt budget is the point of asking for a
+   * retry. Looks the entry up by re-reading the failed list rather than
+   * trusting a client-supplied job body, so retry can't be used to inject an
+   * arbitrary job.
+   */
+  async retryFailedJobs(ids: string[]): Promise<{ retried: string[]; not_found: string[] }> {
+    if (ids.length === 0) return { retried: [], not_found: [] };
+    const wanted = new Set(ids);
+    const raws = await this.redis.lrange(FAILED_KEY, 0, MAX_FAILED_ENTRIES - 1);
+
+    const matches: { id: string; raw: string; retryJob: EmbeddingJob & { priority: EmbeddingQueuePriority; attempts: number } }[] = [];
+    for (const raw of raws) {
+      const id = failedJobId(raw);
+      if (!wanted.has(id)) continue;
+
+      let parsed: (QueuedJob & { error?: string; failedAt?: number }) | null = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        continue;
+      }
+      if (!parsed) continue;
+
+      const retryJob: EmbeddingJob & { priority: EmbeddingQueuePriority; attempts: number } = {
+        track_id: parsed.track_id,
+        friend_id: parsed.friend_id,
+        kind: parsed.kind,
+        priority: parsed.priority ?? "interactive",
+        attempts: 0,
+      };
+      if (parsed.run_id) retryJob.run_id = parsed.run_id;
+      if (parsed.force) retryJob.force = parsed.force;
+
+      matches.push({ id, raw, retryJob });
+    }
+
+    if (matches.length > 0) {
+      const pipeline = this.redis.pipeline();
+      for (const { raw, retryJob } of matches) {
+        pipeline.lrem(FAILED_KEY, 1, raw);
+        pipeline.lpush(queueKey(retryJob.priority), JSON.stringify(retryJob));
+      }
+      await pipeline.exec();
+    }
+
+    const retried = matches.map((m) => m.id);
+    const retriedSet = new Set(retried);
+    return { retried, not_found: ids.filter((id) => !retriedSet.has(id)) };
+  }
+
+  /**
+   * Everything #451's `/jobs` Embeddings section shows, in one call — lane
+   * depths, retry/failed/pause state, an approximate drain rate and ETA from
+   * the configured interval and batch size, the kind breakdown, active
+   * backfill runs and the failed list itself.
+   */
+  async getQueueStatus(): Promise<EmbeddingQueueStatus> {
+    const [health, lanes, kindSample, activeRuns, failed] = await Promise.all([
+      this.getQueueHealth(),
+      this.laneDepths(),
+      this.sampleKindCounts(),
+      this.listActiveBackfillRuns(),
+      this.getFailedJobs(),
+    ]);
+
+    const intervalSeconds = queueIntervalSeconds();
+    const batchSize = queueBatchSize();
+    const drainRatePerMinute = health.paused ? 0 : (batchSize / intervalSeconds) * 60;
+    const laneTotal = lanes.interactive + lanes.sync + lanes.bulk;
+    const retrying = Math.max(0, health.queueDepth - laneTotal);
+    const totalBacklog = laneTotal + retrying;
+    let etaSeconds: number | null;
+    if (totalBacklog === 0) {
+      etaSeconds = 0;
+    } else if (drainRatePerMinute <= 0) {
+      etaSeconds = null;
+    } else {
+      etaSeconds = Math.ceil((totalBacklog / drainRatePerMinute) * 60);
+    }
+
+    return {
+      lanes,
+      retrying,
+      failed_count: health.failedCount,
+      paused: health.paused,
+      pause_reason: health.paused ? health.lastError : undefined,
+      last_error: health.lastError,
+      interval_seconds: intervalSeconds,
+      batch_size: batchSize,
+      drain_rate_per_minute: drainRatePerMinute,
+      eta_seconds: etaSeconds,
+      by_kind: kindSample.counts,
+      by_kind_sampled: kindSample.sampled,
+      active_backfill_runs: activeRuns,
+      failed,
     };
   }
 

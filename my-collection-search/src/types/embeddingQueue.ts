@@ -41,3 +41,60 @@ export interface EmbeddingBackfillRun {
   updated_at: number;
   complete: boolean;
 }
+
+/** A still-running backfill run, as it shows up in the `/jobs` queue view (#451). */
+export interface EmbeddingBackfillRunSummary {
+  run_id: string;
+  queued: number;
+  success: number;
+  skipped: number;
+  failed: number;
+  started_at: number;
+  updated_at: number;
+}
+
+/** Depth of each priority lane (#450) the worker drains, in that drain order. */
+export interface EmbeddingQueueLaneDepths {
+  interactive: number;
+  sync: number;
+  bulk: number;
+}
+
+export type EmbeddingQueueKindCounts = Record<EmbeddingJobKind, number>;
+
+/** One entry from `embedding_queue:failed` (#451), with a stable `id` for the retry action. */
+export interface EmbeddingFailedJob {
+  id: string;
+  track_id: string;
+  friend_id: number;
+  kind: EmbeddingJobKind;
+  run_id?: string;
+  attempts: number;
+  error: string;
+  failed_at: number;
+}
+
+/**
+ * Full queue picture for `/jobs` (#451): what #385/#388/#450 already track in
+ * Redis, surfaced without anyone needing `redis-cli` to answer "why doesn't
+ * this track have embeddings yet."
+ */
+export interface EmbeddingQueueStatus {
+  lanes: EmbeddingQueueLaneDepths;
+  retrying: number;
+  failed_count: number;
+  paused: boolean;
+  pause_reason?: string;
+  last_error?: string;
+  interval_seconds: number;
+  batch_size: number;
+  /** Jobs/minute while actively draining; 0 while paused. */
+  drain_rate_per_minute: number;
+  /** Null while paused (nothing draining) or when the backlog is empty, in which case it's 0. */
+  eta_seconds: number | null;
+  by_kind: EmbeddingQueueKindCounts;
+  /** True when a lane was longer than the sample taken to build `by_kind`. */
+  by_kind_sampled: boolean;
+  active_backfill_runs: EmbeddingBackfillRunSummary[];
+  failed: EmbeddingFailedJob[];
+}

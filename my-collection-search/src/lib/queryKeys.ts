@@ -15,6 +15,7 @@ export const queryKeys = {
   genrePage: (slug: string, friend_id?: number) => ["genres", "page", slug, friend_id ?? null] as const,
   friends: () => ["friends"] as const,
   backups: () => ["backups"] as const,
+  embeddingQueue: () => ["embeddings", "queue"] as const,
   spins: (args: {
     friend_id: number;
     release_id?: string;

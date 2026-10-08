@@ -1898,6 +1898,67 @@ export const embeddingsStatusQuerySchema = z.object({
   friend_id: intFromInputSchema.optional(),
 });
 
+// ─── Embeddings queue status (#451) ───────────────────────────────────────────
+
+export const embeddingQueueLaneDepthsSchema = z.object({
+  interactive: z.number().int(),
+  sync: z.number().int(),
+  bulk: z.number().int(),
+});
+
+export const embeddingQueueKindCountsSchema = z.object({
+  identity: z.number().int(),
+  audio_vibe: z.number().int(),
+  context: z.number().int(),
+});
+
+export const embeddingQueueActiveRunSchema = z.object({
+  run_id: z.string(),
+  queued: z.number().int(),
+  success: z.number().int(),
+  skipped: z.number().int(),
+  failed: z.number().int(),
+  started_at: z.number().int(),
+  updated_at: z.number().int(),
+});
+
+export const embeddingQueueFailedJobSchema = z.object({
+  id: z.string(),
+  track_id: z.string(),
+  friend_id: z.number().int(),
+  kind: embeddingJobKindSchema,
+  run_id: z.string().optional(),
+  attempts: z.number().int(),
+  error: z.string(),
+  failed_at: z.number().int(),
+});
+
+export const embeddingQueueStatusSchema = z.object({
+  lanes: embeddingQueueLaneDepthsSchema,
+  retrying: z.number().int(),
+  failed_count: z.number().int(),
+  paused: z.boolean(),
+  pause_reason: z.string().optional(),
+  last_error: z.string().optional(),
+  interval_seconds: z.number().int(),
+  batch_size: z.number().int(),
+  drain_rate_per_minute: z.number(),
+  eta_seconds: z.number().int().nullable(),
+  by_kind: embeddingQueueKindCountsSchema,
+  by_kind_sampled: z.boolean(),
+  active_backfill_runs: z.array(embeddingQueueActiveRunSchema),
+  failed: z.array(embeddingQueueFailedJobSchema),
+});
+
+export const embeddingQueueRetryBodySchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+});
+
+export const embeddingQueueRetryResponseSchema = z.object({
+  retried: z.array(z.string()),
+  not_found: z.array(z.string()),
+});
+
 // ─── Embedding model settings (#386) ──────────────────────────────────────────
 
 export const embeddingModelKindSchema = z.enum(["identity", "audio_vibe", "context"]);
