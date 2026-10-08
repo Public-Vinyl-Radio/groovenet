@@ -126,6 +126,15 @@ describe("getTracksByReleaseAndFriend()", () => {
     expect(result).toEqual(rows);
     expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("tracks"), ["r1", 1]);
   });
+
+  it("includes hasVectors, so album detail doesn't shadow a track's real embedding state (#468)", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().getTracksByReleaseAndFriend("r1", 1);
+
+    const [sql] = dbQuery.mock.calls[0];
+    expect(sql).toContain('AS "hasVectors"');
+  });
 });
 
 // ─── getFriendUsernameById ────────────────────────────────────────────────────

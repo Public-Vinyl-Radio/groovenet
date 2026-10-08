@@ -55,7 +55,9 @@ export default function PlaylistTrackItem({
     track.audio_file_album_art_url ||
     track.album_thumbnail ||
     "/images/placeholder-artwork.png";
-  const hasEmbedding = track.hasVectors === true;
+  // `hasVectors === undefined` means the endpoint didn't report it, not
+  // that the track lacks an embedding.
+  const missingEmbedding = track.hasVectors === false;
 
   const bpmNum =
     typeof track.bpm === "number"
@@ -64,7 +66,7 @@ export default function PlaylistTrackItem({
       ? Number.parseFloat(track.bpm)
       : NaN;
   const hasBpm = Number.isFinite(bpmNum) && bpmNum > 0;
-  const hasDataIssue = !hasEmbedding || !hasBpm;
+  const hasDataIssue = missingEmbedding || !hasBpm;
 
   return (
     <>
@@ -191,7 +193,7 @@ export default function PlaylistTrackItem({
             alignItems="center"
             flexWrap="wrap"
           >
-            {!hasEmbedding && (
+            {missingEmbedding && (
               <Badge colorPalette="red" size={{ base: "xs", md: "sm" }}>
                 No embedding
               </Badge>

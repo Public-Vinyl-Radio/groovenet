@@ -3497,7 +3497,17 @@ const genrePageSchemaObject = {
     top_tracks: {
       type: "array",
       description: "Most played first, then most recently added",
-      items: { type: "object", properties: { play_count: { type: "integer", minimum: 0 } }, required: ["play_count"] },
+      items: {
+        type: "object",
+        properties: {
+          play_count: { type: "integer", minimum: 0 },
+          hasVectors: {
+            type: "boolean",
+            description: "Has an audio_vibe embedding; absent means the server didn't report it",
+          },
+        },
+        required: ["play_count"],
+      },
     },
     top_albums: {
       type: "array",
@@ -4126,7 +4136,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 counts: { tracks: 412, albums: 108, tracks_total: 1029, albums_total: 108 },
                 top_tracks: [{
                   track_id: "33415451-A1", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
-                  album: "La Danza De Los Mirlos", play_count: 4,
+                  album: "La Danza De Los Mirlos", play_count: 4, hasVectors: true,
                 }],
                 top_albums: [{
                   release_id: "33415451", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
@@ -6700,7 +6710,31 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 type: "object",
                 properties: {
                   album: { type: "object", additionalProperties: true },
-                  tracks: { type: "array", items: { type: "object", additionalProperties: true } },
+                  tracks: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        track_id: { type: "string" },
+                        friend_id: { type: "integer" },
+                        title: { type: "string" },
+                        artist: { type: "string" },
+                        album: { type: "string" },
+                        year: { type: ["string", "number", "null"] },
+                        duration: { type: "string" },
+                        duration_seconds: { type: ["number", "null"] },
+                        position: { type: ["string", "number"] },
+                        release_id: { type: ["string", "null"] },
+                        library_identifier: { type: ["string", "null"] },
+                        hasVectors: {
+                          type: "boolean",
+                          description: "Has an audio_vibe embedding; absent means the server didn't report it",
+                        },
+                      },
+                      required: ["track_id", "friend_id", "title", "artist", "album"],
+                      additionalProperties: true,
+                    },
+                  },
                 },
                 required: ["album", "tracks"],
               },

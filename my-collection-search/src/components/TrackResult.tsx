@@ -101,11 +101,12 @@ export default function TrackResult({
   const trackHref = `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`;
   const hasNotes = Boolean(track.notes?.trim());
 
-  // Data quality indicators for playlist mode
-  const hasEmbedding = track.hasVectors === true;
+  // Data quality indicators for playlist mode. `hasVectors === undefined`
+  // means the endpoint didn't report it, not that the track lacks one.
+  const missingEmbedding = track.hasVectors === false;
   const bpmNum = typeof track.bpm === "number" ? track.bpm : parseFloat(track.bpm as string);
   const hasBpm = Number.isFinite(bpmNum) && bpmNum > 0;
-  const hasDataIssue = playlistMode && (!hasEmbedding || !hasBpm);
+  const hasDataIssue = playlistMode && (missingEmbedding || !hasBpm);
 
   const handleRatingChange = (value: number) => {
     setLocalRating(value);
@@ -176,7 +177,7 @@ export default function TrackResult({
   // --- Details row (shared) ---
   const detailsRow = showDetails && (
     <Flex gap={3} fontSize="xs" flexWrap="wrap" alignItems="center" color="gray.500" mt={0.5}>
-      {playlistMode && !hasEmbedding && (
+      {playlistMode && missingEmbedding && (
         <Badge colorPalette="red" size="sm">No embedding</Badge>
       )}
       {playlistMode && !hasBpm && (
@@ -507,7 +508,7 @@ export default function TrackResult({
             ))}
           </RatingGroup.Root>
         )}
-        {!hasEmbedding && (
+        {missingEmbedding && (
           <Badge colorPalette="red" size="sm" flexShrink={0}>No embedding</Badge>
         )}
         {!hasBpm && (

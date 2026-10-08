@@ -1,5 +1,6 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { Queryable } from "@/server/repositories/spinSessionRepository";
+import { hasVectorsSelectSql } from "@/server/repositories/trackGenreRepository";
 
 export type TrackSpinEventRow = {
   id: number;
@@ -181,14 +182,7 @@ export class TrackSpinEventRepository {
         t.key,
         t.star_rating,
         COALESCE(a.library_identifier, t.library_identifier) AS library_identifier,
-        EXISTS (
-          SELECT 1
-          FROM track_embeddings te
-          WHERE te.track_id = aggregated.track_id
-            AND te.friend_id = aggregated.friend_id
-            AND te.embedding_type = 'audio_vibe'
-            AND te.embedding IS NOT NULL
-        ) AS "hasVectors"
+        ${hasVectorsSelectSql("aggregated")}
       FROM aggregated
       INNER JOIN LATERAL (
         SELECT

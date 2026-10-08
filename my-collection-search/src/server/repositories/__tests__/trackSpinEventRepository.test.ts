@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/serverDb", () => ({ dbQuery: vi.fn() }));
+const dbQuery = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/serverDb", () => ({ dbQuery }));
 import { TrackSpinEventRepository } from "../trackSpinEventRepository";
 
 describe("TrackSpinEventRepository edits", () => {
@@ -25,5 +26,31 @@ describe("TrackSpinEventRepository edits", () => {
     expect(query.mock.calls[0][0]).toMatch(/UPDATE track_spin_events SET played_at = \$2 WHERE session_id = \$1/);
     expect(query.mock.calls[0][1]).toEqual([7, "2026-09-20T20:00:00.000Z"]);
     expect(rows.map((row) => row.ordinal)).toEqual([0, 1]);
+  });
+});
+
+describe("TrackSpinEventRepository.listTopTracks", () => {
+  const repo = new TrackSpinEventRepository();
+
+  it("includes hasVectors, correlated on the aggregated row (#468)", async () => {
+    dbQuery.mockReset().mockResolvedValue({ rows: [] });
+
+    await repo.listTopTracks({ friend_id: 6, limit: 12, offset: 0 });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain('AS "hasVectors"');
+    expect(sql).toContain("te.track_id = aggregated.track_id");
+    expect(sql).toContain("te.friend_id = aggregated.friend_id");
+    expect(params).toEqual([6, 12, 0]);
+  });
+
+  it("scopes to a release when given one", async () => {
+    dbQuery.mockReset().mockResolvedValue({ rows: [] });
+
+    await repo.listTopTracks({ friend_id: 6, release_id: "r1", limit: 5, offset: 10 });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("tse.release_id = $2");
+    expect(params).toEqual([6, "r1", 5, 10]);
   });
 });

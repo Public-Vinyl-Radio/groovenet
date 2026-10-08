@@ -1230,7 +1230,7 @@ export const albumSearchResponseSchema = z.object({
 
 export const albumDetailResponseSchema = z.object({
   album: z.object({}).passthrough(),
-  tracks: z.array(z.object({}).passthrough()),
+  tracks: z.array(trackEntitySchema),
 });
 
 export const albumPlayableStructureTrackSchema = z

@@ -31,6 +31,26 @@ export function trackGenresSelectSql(alias = "t"): string {
 }
 
 /**
+ * Select-list expression giving a track row whether it has an audio_vibe
+ * embedding, as `hasVectors`. `alias` is the table carrying `track_id` and
+ * `friend_id` in the surrounding query — usually the `tracks` alias, but a
+ * query built on an aggregate (e.g. spins) can point it at that instead.
+ * Shared so every track list that feeds the client store agrees on the
+ * field (#468) — a query that forgets it leaves `hasVectors` absent, which
+ * the client treats as "unknown", not "false".
+ */
+export function hasVectorsSelectSql(alias = "t"): string {
+  return `EXISTS (
+    SELECT 1
+    FROM track_embeddings te
+    WHERE te.track_id = ${alias}.track_id
+      AND te.friend_id = ${alias}.friend_id
+      AND te.embedding_type = 'audio_vibe'
+      AND te.embedding IS NOT NULL
+  ) AS "hasVectors"`;
+}
+
+/**
  * Normalises free-text descriptors: the genre spelling fold, then de-duplicated
  * with blanks dropped. Descriptors are deliberately not checked against the
  * taxonomy; they hold the mood words that genres must not.

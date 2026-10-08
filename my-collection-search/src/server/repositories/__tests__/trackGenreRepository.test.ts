@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  hasVectorsSelectSql,
   normalizeDescriptors,
   trackGenresSelectSql,
   TrackGenreRepository,
@@ -27,6 +28,20 @@ describe("trackGenresSelectSql", () => {
 
   it("defaults to the conventional t alias", () => {
     expect(trackGenresSelectSql()).toContain("= t.track_id");
+  });
+});
+
+describe("hasVectorsSelectSql", () => {
+  it("correlates on the given alias and checks the audio_vibe embedding", () => {
+    const sql = hasVectorsSelectSql("agg");
+    expect(sql).toContain("te.track_id = agg.track_id");
+    expect(sql).toContain("te.friend_id = agg.friend_id");
+    expect(sql).toContain("embedding_type = 'audio_vibe'");
+    expect(sql).toContain('AS "hasVectors"');
+  });
+
+  it("defaults to the conventional t alias", () => {
+    expect(hasVectorsSelectSql()).toContain("te.track_id = t.track_id");
   });
 });
 

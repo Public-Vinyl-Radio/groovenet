@@ -46,6 +46,13 @@ describe("GenrePageRepository", () => {
     expect(lastCall()[1]).toEqual([["g1", "g2"], ["cumbia", "chicha"], 5]);
   });
 
+  it("includes hasVectors, so top tracks don't show a false 'No embedding' badge on a fresh load (#468)", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await repo.topTracks(filter, 6, 10);
+
+    expect(lastCall()[0]).toContain('AS "hasVectors"');
+  });
+
   it("lists albums by plays of their tracks, then newest, scoped and limited", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
     expect(await repo.topAlbums(filter, 6, 8)).toEqual([]);

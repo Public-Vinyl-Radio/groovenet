@@ -1,7 +1,7 @@
 import type { Album, Track } from "@/types/track";
 import { dbQuery } from "@/lib/serverDb";
 import type { PoolClient } from "pg";
-import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 
 type Queryable = Pick<PoolClient, "query">;
 
@@ -117,7 +117,7 @@ export class AlbumRepository {
   ): Promise<Track[]> {
     const { rows } = await dbQuery<Track>(
       `
-      SELECT t.*, ${trackGenresSelectSql("t")}
+      SELECT t.*, ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}
       FROM tracks t
       WHERE t.release_id = $1 AND t.friend_id = $2
         AND t.deleted_at IS NULL
