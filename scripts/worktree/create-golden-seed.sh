@@ -87,7 +87,7 @@ cat >"$bundle_dir/manifest.json" <<EOF
   "created_at": "$stamp",
   "compose_project": "$project_name",
   "repo_root": "$REPO_ROOT",
-  "git_branch": "$(worktree_branch_name)",
+  "git_branch": "$(worktree_branch_name "$REPO_ROOT" "$CURRENT_BRANCH")",
   "git_commit": "$(git -C "$REPO_ROOT" rev-parse HEAD)",
   "include_audio": $INCLUDE_AUDIO
 }

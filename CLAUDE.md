@@ -111,6 +111,16 @@ Parallel tasks run in git worktrees, each with its own compose stack via
 `just worktree-up`. With [herdr](https://herdr.dev), `just herdr` attaches to
 the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
 worktree workspace off `main`, runs `just bootstrap` and starts its stack.
+When the task is done, run `just herdr-done` from a pane inside that
+workspace to tear down the stack and remove the workspace in one step (it
+refuses on uncommitted or unpushed changes unless `--force`, and can delete
+the branch with `--delete-branch` once its PR has merged).
+
+Removing a worktree by hand (`herdr worktree remove`, `git worktree remove`)
+leaves its compose stack and Caddy fragment behind — `herdr-done` cleans up
+the one it's running in, but anything removed another way needs
+`just worktree-gc`. It's a dry run by default; pass `--apply` to actually
+remove the stacks and fragments it finds.
 
 Pre-commit runs file hygiene, ruff over the Python services, and ESLint over
 the web app. CI runs the same hooks, so `--no-verify` only defers the failure.
