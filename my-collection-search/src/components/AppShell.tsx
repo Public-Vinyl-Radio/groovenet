@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import NextLink from "next/link";
 import {
   Box,
@@ -143,7 +143,9 @@ export default function AppShell({
   return (
     <Flex minH="100vh" bg="bg">
       <PullToRefreshIndicator distance={distance} refreshing={refreshing} />
-      <CommandPalette />
+      <Suspense fallback={null}>
+        <CommandPalette />
+      </Suspense>
       {/* Desktop sidebar */}
       <Box
         display={{ base: "none", md: "block" }}
