@@ -64,6 +64,36 @@ export const PlaylistModeWithIssues: Story = {
   },
 };
 
+export const PlaylistModeWithTrackGenres: Story = {
+  name: 'Playlist mode — track genres (#470)',
+  args: {
+    track: {
+      ...sampleTrack,
+      track_genres: [
+        { id: 'cumbia', name: 'Cumbia', slug: 'cumbia', parent_id: null, parent_name: null },
+        { id: 'chicha', name: 'Chicha', slug: 'chicha', parent_id: 'cumbia', parent_name: 'Cumbia' },
+      ],
+    },
+    playlistMode: true,
+  },
+};
+
+export const PlaylistModeWithDiscogsFallback: Story = {
+  name: 'Playlist mode — Discogs style fallback, unreconciled track (#470)',
+  args: {
+    track: { ...sampleTrack, track_genres: [], local_tags: '', styles: ['Bossa Nova', 'Latin Jazz'] },
+    playlistMode: true,
+  },
+};
+
+export const PlaylistModeWithNoGenres: Story = {
+  name: 'Playlist mode — no genres at all (#470)',
+  args: {
+    track: { ...sampleTrack, track_genres: [], local_tags: '', styles: [] },
+    playlistMode: true,
+  },
+};
+
 export const WithPlaylistCount: Story = {
   name: 'With playlist count badge',
   args: {

@@ -70,7 +70,6 @@ const TrackResultItem: React.FC<{
       buttons={[<TrackActionsMenu key="menu" track={track} />]}
       compact={compact}
       playlistMode={playlistMode}
-      showTrackGenres
       showUsername={showUsername}
       isSelected={isSelected}
       onToggleSelect={onToggleSelect}

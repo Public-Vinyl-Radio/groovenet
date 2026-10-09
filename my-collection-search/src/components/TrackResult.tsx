@@ -21,9 +21,9 @@ import { FaPlay } from "react-icons/fa";
 import { FiFileText } from "react-icons/fi";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import { getTrackDurationSeconds } from "@/lib/trackUtils";
-import { discogsGenreBadges, trackGenreBadges } from "@/lib/genres/links";
+import { primaryGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
-import { GenreBadgeList } from "./GenreBadge";
+import { GenreBadgeRow } from "./GenreBadge";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
@@ -57,8 +57,6 @@ export type TrackResultProps = {
   onToggleSelect?: () => void;
   // Playlist mode: compact artwork, data-issue indicator, no minimize
   playlistMode?: boolean;
-  /** In playlist mode, also badge the track's DJ genres (#371). */
-  showTrackGenres?: boolean;
   sortPositionChange?: SortPositionChange;
 };
 
@@ -76,7 +74,6 @@ export default function TrackResult({
   isSelected,
   onToggleSelect,
   playlistMode = false,
-  showTrackGenres = false,
   sortPositionChange,
 }: TrackResultProps) {
   const [imageError, setImageError] = React.useState(false);
@@ -114,9 +111,7 @@ export default function TrackResult({
   };
 
   const genreLookup = useGenreLookup();
-  const displayGenres = discogsGenreBadges(track.genres, genreLookup);
-  const displayStyles = discogsGenreBadges(track.styles, genreLookup);
-  const displayLocalTags = trackGenreBadges(track, genreLookup);
+  const genreBadges = primaryGenreBadges(track, genreLookup);
 
   const artworkSize = { base: "60px", md: "68px", lg: "76px" };
 
@@ -391,16 +386,16 @@ export default function TrackResult({
 
       {detailsRow}
 
-      {/* Genres/Styles/Tags — desktop only, non-playlist mode */}
-      {!playlistMode && showGenres &&
-        (displayGenres.length > 0 ||
-          displayStyles.length > 0 ||
-          displayLocalTags.length > 0) && (
-        <Flex gap={2} flexWrap="wrap" display={{ base: "none", md: "flex" }} mt={0.5}>
-          <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="tracks" />
-          <GenreBadgeList items={displayStyles} kind="discogs-style" scope="tracks" />
-          <GenreBadgeList items={displayLocalTags} kind="track" scope="tracks" />
-        </Flex>
+      {/* The track's DJ genres, falling back to Discogs styles (#470). */}
+      {showGenres && (
+        <Box mt={0.5}>
+          <GenreBadgeRow
+            items={genreBadges.items}
+            kind={genreBadges.kind}
+            scope="tracks"
+            data-testid="track-genres"
+          />
+        </Box>
       )}
     </Flex>
   );
@@ -566,11 +561,16 @@ export default function TrackResult({
         )}
       </Flex>
 
-      {/* The track's DJ genres, on screens that opt in (search). */}
-      {showTrackGenres && displayLocalTags.length > 0 && (
-        <Flex gap={1.5} flexWrap="wrap" mt={0.5} data-testid="track-genres">
-          <GenreBadgeList items={displayLocalTags} kind="track" scope="tracks" />
-        </Flex>
+      {/* The track's DJ genres, falling back to Discogs styles (#470). */}
+      {showGenres && (
+        <Box mt={0.5}>
+          <GenreBadgeRow
+            items={genreBadges.items}
+            kind={genreBadges.kind}
+            scope="tracks"
+            data-testid="track-genres"
+          />
+        </Box>
       )}
 
       {footer && <Box mt={1}>{footer}</Box>}

@@ -72,3 +72,22 @@ export function trackGenreBadges(
     slug: lookup.get(normalizeGenreName(label)) ?? null,
   }));
 }
+
+/** The genre badges a track-list row shows (#470): its DJ genres when it has
+ * any, otherwise the album's Discogs styles, so an unreconciled track still
+ * shows something. Styled differently from `kind`, as the track detail
+ * page's Genres panel distinguishes "Track" from "Album (Discogs)". */
+export type PrimaryGenreBadges = { items: GenreBadgeItem[]; kind: "track" | "discogs-style" };
+
+export function primaryGenreBadges(
+  track: {
+    track_genres?: { name: string; slug: string }[];
+    local_tags?: unknown;
+    styles?: unknown;
+  },
+  lookup: GenreLookup
+): PrimaryGenreBadges {
+  const trackGenres = trackGenreBadges(track, lookup);
+  if (trackGenres.length > 0) return { items: trackGenres, kind: "track" };
+  return { items: discogsGenreBadges(track.styles, lookup), kind: "discogs-style" };
+}

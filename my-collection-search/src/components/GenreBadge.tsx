@@ -2,7 +2,7 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Badge, type BadgeProps } from "@chakra-ui/react";
+import { Badge, Box, Flex, type BadgeProps } from "@chakra-ui/react";
 import { genreSearchHref, type GenreBadgeItem, type GenreSearchScope } from "@/lib/genres/links";
 
 /**
@@ -78,5 +78,53 @@ export function GenreBadgeList({
         <GenreBadge key={`${badge.kind}:${item.label}`} item={item} {...badge} />
       ))}
     </>
+  );
+}
+
+export type GenreBadgeRowProps = {
+  items: GenreBadgeItem[];
+  kind: GenreBadgeKind;
+  scope: GenreSearchScope;
+  /** Badges kept on the one-line mobile row before folding the rest into "+N" (#470). */
+  mobileLimit?: number;
+  "data-testid"?: string;
+};
+
+/**
+ * A track's genre badges (#470): wraps freely on desktop, but folds down to
+ * one line on mobile — the first `mobileLimit` badges plus a "+N" badge for
+ * the rest — so a long genre list doesn't make every card tall.
+ */
+export function GenreBadgeRow({
+  items,
+  kind,
+  scope,
+  mobileLimit = 3,
+  "data-testid": testId,
+}: GenreBadgeRowProps) {
+  if (items.length === 0) return null;
+  const overflow = Math.max(0, items.length - mobileLimit);
+  const mobileItems = overflow > 0 ? items.slice(0, mobileLimit) : items;
+
+  return (
+    <Box data-testid={testId}>
+      <Flex gap={1.5} flexWrap="wrap" display={{ base: "none", md: "flex" }}>
+        <GenreBadgeList items={items} kind={kind} scope={scope} />
+      </Flex>
+      <Flex
+        gap={1.5}
+        flexWrap="nowrap"
+        overflow="hidden"
+        alignItems="center"
+        display={{ base: "flex", md: "none" }}
+      >
+        <GenreBadgeList items={mobileItems} kind={kind} scope={scope} />
+        {overflow > 0 && (
+          <Badge size="sm" variant="subtle" colorPalette="gray" flexShrink={0}>
+            +{overflow}
+          </Badge>
+        )}
+      </Flex>
+    </Box>
   );
 }

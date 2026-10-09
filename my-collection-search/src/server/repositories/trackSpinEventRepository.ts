@@ -1,6 +1,7 @@
 import { dbQuery } from "@/lib/serverDb";
 import type { Queryable } from "@/server/repositories/spinSessionRepository";
-import { hasVectorsSelectSql } from "@/server/repositories/trackGenreRepository";
+import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import type { TrackGenre } from "@/types/track";
 
 export type TrackSpinEventRow = {
   id: number;
@@ -35,8 +36,10 @@ export type TopTrackSpinEventRow = {
   bpm?: number | string | null;
   key?: string | null;
   star_rating?: number | null;
+  styles?: string[];
   library_identifier?: string | null;
   hasVectors?: boolean;
+  track_genres?: TrackGenre[];
 };
 
 export type CreateTrackSpinEventInput = {
@@ -181,8 +184,10 @@ export class TrackSpinEventRepository {
         t.bpm,
         t.key,
         t.star_rating,
+        COALESCE(t.styles, '{}') AS styles,
         COALESCE(a.library_identifier, t.library_identifier) AS library_identifier,
-        ${hasVectorsSelectSql("aggregated")}
+        ${hasVectorsSelectSql("aggregated")},
+        ${trackGenresSelectSql("aggregated")}
       FROM aggregated
       INNER JOIN LATERAL (
         SELECT

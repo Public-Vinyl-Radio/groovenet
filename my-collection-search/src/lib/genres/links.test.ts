@@ -4,6 +4,7 @@ import {
   buildGenreLookup,
   discogsGenreBadges,
   genreSearchHref,
+  primaryGenreBadges,
   trackGenreBadges,
 } from "./links";
 
@@ -106,5 +107,35 @@ describe("trackGenreBadges", () => {
       { label: "Feminist Anthem", slug: null },
     ]);
     expect(trackGenreBadges({ local_tags: "{}" }, lookup)).toEqual([]);
+  });
+});
+
+describe("primaryGenreBadges", () => {
+  it("prefers the track's DJ genres, kind 'track'", () => {
+    expect(
+      primaryGenreBadges(
+        { track_genres: [{ name: "Cumbia", slug: "cumbia" }], styles: ["Latin"] },
+        lookup
+      )
+    ).toEqual({ items: [{ label: "Cumbia", slug: "cumbia" }], kind: "track" });
+  });
+
+  it("falls back to raw local_tags, still kind 'track', ahead of Discogs styles", () => {
+    expect(
+      primaryGenreBadges({ track_genres: [], local_tags: "Cumbia", styles: ["Latin"] }, lookup)
+    ).toEqual({ items: [{ label: "Cumbia", slug: "cumbia" }], kind: "track" });
+  });
+
+  it("falls back to the album's Discogs styles, kind 'discogs-style', when the track has none", () => {
+    expect(
+      primaryGenreBadges({ track_genres: [], local_tags: "", styles: ["Bossa Nova"] }, lookup)
+    ).toEqual({ items: [{ label: "Bossa Nova", slug: "bossa-nova" }], kind: "discogs-style" });
+  });
+
+  it("is empty when the track has neither DJ genres nor Discogs styles", () => {
+    expect(primaryGenreBadges({ track_genres: [], local_tags: "" }, lookup)).toEqual({
+      items: [],
+      kind: "discogs-style",
+    });
   });
 });
