@@ -11,12 +11,14 @@ export function usePlayerControlsController() {
     isPlaying,
     currentTrackIndex,
     currentTrack,
+    finishedTrack,
     seek,
     play: browserPlay,
     pause: browserPause,
     playNext,
     playPrev,
     clearQueue,
+    restoreQueue,
     playlist,
     volume,
     setVolume,
@@ -25,10 +27,8 @@ export function usePlayerControlsController() {
     showAirPlayPicker,
   } = usePlaylistPlayer();
 
-  const currentArtwork =
-    currentTrack?.audio_file_album_art_url ||
-    currentTrack?.album_thumbnail ||
-    "/images/placeholder-artwork.png";
+  const isQueueFinished = currentTrackIndex === null && finishedTrack !== null;
+  const displayTrack = currentTrack ?? finishedTrack;
 
   const safeLen = playlist.length;
   const safeIndex = currentTrackIndex;
@@ -72,9 +72,37 @@ export function usePlayerControlsController() {
     clearQueue();
   }, [browserPause, clearQueue]);
 
+  const handleDismissPlayer = useCallback(() => {
+    const snapshot = {
+      playlist: playlist.slice(),
+      currentTrackIndex,
+      isPlaying,
+      finishedTrack,
+    };
+    browserPause();
+    clearQueue();
+    toaster.create({
+      title: "Queue cleared",
+      type: "info",
+      action: {
+        label: "Undo",
+        onClick: () => restoreQueue(snapshot),
+      },
+    });
+  }, [
+    playlist,
+    currentTrackIndex,
+    isPlaying,
+    finishedTrack,
+    browserPause,
+    clearQueue,
+    restoreQueue,
+  ]);
+
   return {
     isPlaying,
-    currentTrack,
+    currentTrack: displayTrack,
+    isQueueFinished,
     playlist,
     volume,
     setVolume,
@@ -82,7 +110,6 @@ export function usePlayerControlsController() {
     isAirPlayActive,
     playNext,
     playPrev,
-    currentArtwork,
     safeLen,
     canPrev,
     canNext,
@@ -92,5 +119,6 @@ export function usePlayerControlsController() {
     handleSeek,
     handleAirPlayClick,
     handleClosePlayer,
+    handleDismissPlayer,
   };
 }

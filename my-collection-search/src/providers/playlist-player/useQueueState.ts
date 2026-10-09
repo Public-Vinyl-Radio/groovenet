@@ -15,6 +15,13 @@ type UseQueueStateArgs = {
   onPauseImmediate?: () => void;
 };
 
+export type QueueSnapshot = {
+  playlist: Track[];
+  currentTrackIndex: number | null;
+  isPlaying: boolean;
+  finishedTrack: Track | null;
+};
+
 export function adjustCurrentIndexAfterMove(
   currentIdx: number | null,
   fromIndex: number,
@@ -107,10 +114,12 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [plVersion, setPlVersion] = useState(0);
+  const [finishedTrack, setFinishedTrack] = useState<Track | null>(null);
 
   const play = useCallback(() => {
     const pl = playlistRef.current;
     if (!pl.length) return;
+    setFinishedTrack(null);
     setIsPlaying(true);
     setCurrentTrackIndex((idx) => (idx === null || idx >= pl.length ? 0 : idx));
   }, []);
@@ -121,6 +130,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
   }, [onPauseImmediate]);
 
   const stop = useCallback(() => {
+    setFinishedTrack(null);
     setIsPlaying(false);
     setCurrentTrackIndex(null);
   }, []);
@@ -134,6 +144,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
         return idx + 1;
       }
       setIsPlaying(false);
+      setFinishedTrack(pl[idx]);
       return null;
     });
   }, []);
@@ -153,6 +164,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
   const playTrack = useCallback((index: number) => {
     const pl = playlistRef.current;
     if (index >= 0 && index < pl.length) {
+      setFinishedTrack(null);
       setCurrentTrackIndex(index);
       setIsPlaying(true);
     }
@@ -170,6 +182,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
       playlistRef.current = Array.isArray(next) ? next.slice() : [];
       setPlaylist(playlistRef.current);
       setPlVersion((v) => v + 1);
+      setFinishedTrack(null);
 
       let newIndex: number | null = null;
       const pl = playlistRef.current;
@@ -209,6 +222,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
     playlistRef.current = [...playlistRef.current, ...toAdd];
     setPlaylist(playlistRef.current);
     setPlVersion((v) => v + 1);
+    setFinishedTrack(null);
   }, []);
 
   const enqueueNext = useCallback(
@@ -236,6 +250,16 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
     setPlVersion((v) => v + 1);
     setCurrentTrackIndex(null);
     setIsPlaying(false);
+    setFinishedTrack(null);
+  }, []);
+
+  const restoreQueue = useCallback((snapshot: QueueSnapshot) => {
+    playlistRef.current = snapshot.playlist.slice();
+    setPlaylist(playlistRef.current);
+    setPlVersion((v) => v + 1);
+    setCurrentTrackIndex(snapshot.currentTrackIndex);
+    setIsPlaying(snapshot.isPlaying);
+    setFinishedTrack(snapshot.finishedTrack);
   }, []);
 
   const moveTrackInQueue = useCallback((fromIndex: number, toIndex: number) => {
@@ -271,6 +295,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
     playlistRef.current = result.nextPlaylist;
     setPlaylist(result.nextPlaylist);
     setPlVersion((v) => v + 1);
+    setFinishedTrack(null);
     if (result.shouldStop) {
       setIsPlaying(false);
     }
@@ -281,6 +306,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
   useEffect(() => {
     if (currentTrackIndex !== null && playlistRef.current[currentTrackIndex]) {
       setCurrentTrack(playlistRef.current[currentTrackIndex]);
+      setFinishedTrack(null);
     } else {
       setCurrentTrack(null);
     }
@@ -293,6 +319,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
     currentTrackIndex,
     isPlaying,
     plVersion,
+    finishedTrack,
     setPlaylist,
     setCurrentTrackIndex,
     setIsPlaying,
@@ -307,6 +334,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
     appendToQueue,
     enqueueNext,
     clearQueue,
+    restoreQueue,
     moveTrackInQueue,
     removeFromQueue,
   };

@@ -26,6 +26,7 @@ export default function PlayerControls({
   const {
     isPlaying,
     currentTrack,
+    isQueueFinished,
     volume,
     setVolume,
     isAirPlayAvailable,
@@ -41,6 +42,7 @@ export default function PlayerControls({
     handleSeek,
     handleAirPlayClick,
     handleClosePlayer,
+    handleDismissPlayer,
   } = usePlayerControlsController();
 
   return (
@@ -52,6 +54,7 @@ export default function PlayerControls({
       showVolumeControls={showVolumeControls}
       isPlaying={isPlaying}
       currentTrack={currentTrack}
+      isQueueFinished={isQueueFinished}
       safeLen={safeLen}
       canPrev={canPrev}
       canNext={canNext}
@@ -67,6 +70,7 @@ export default function PlayerControls({
       onPause={handlePause}
       onSeek={handleSeek}
       onClosePlayer={handleClosePlayer}
+      onDismissPlayer={handleDismissPlayer}
     />
   );
 }

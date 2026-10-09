@@ -51,6 +51,8 @@ interface PlayerControlsViewProps {
   onPause: () => void;
   onSeek: (time: number) => Promise<void>;
   onClosePlayer: () => void;
+  onDismissPlayer?: () => void;
+  isQueueFinished?: boolean;
 }
 
 export default function PlayerControlsView({
@@ -76,11 +78,25 @@ export default function PlayerControlsView({
   onPause,
   onSeek,
   onClosePlayer,
+  onDismissPlayer,
+  isQueueFinished = false,
 }: PlayerControlsViewProps) {
   const currentArtwork =
-    currentTrack?.audio_file_album_art_url ||
-    currentTrack?.album_thumbnail ||
-    "/images/placeholder-artwork.png";
+    currentTrack?.audio_file_album_art_url || currentTrack?.album_thumbnail;
+
+  const primaryText = isQueueFinished
+    ? "Queue finished"
+    : currentTrack
+      ? currentTrack.title
+      : "No track playing";
+
+  const secondaryText = isQueueFinished
+    ? currentTrack
+      ? `${currentTrack.title} — ${currentTrack.artist}`
+      : "—"
+    : currentTrack
+      ? currentTrack.artist
+      : "—";
 
   if (compact) {
     return (
@@ -121,10 +137,10 @@ export default function PlayerControlsView({
               lineClamp={1}
               maxW="100%"
             >
-              {currentTrack ? currentTrack.title : "No track playing"}
+              {primaryText}
             </Text>
             <Text color="fg.muted" fontSize="11px" lineClamp={1} maxW="100%">
-              {currentTrack ? currentTrack.artist : "—"}
+              {secondaryText}
             </Text>
           </VStack>
 
@@ -180,6 +196,22 @@ export default function PlayerControlsView({
             >
               <FiSkipForward />
             </IconButton>
+
+            <IconButton
+              aria-label="Close player"
+              size="sm"
+              minW="44px"
+              h="44px"
+              borderRadius="full"
+              variant="ghost"
+              color="fg.muted"
+              onClick={(event) => {
+                event.stopPropagation();
+                (onDismissPlayer ?? onClosePlayer)();
+              }}
+            >
+              <FiX />
+            </IconButton>
           </HStack>
         </Flex>
       </Box>
@@ -220,11 +252,13 @@ export default function PlayerControlsView({
               fontWeight="semibold"
               fontSize={{ base: "sm", md: "md" }}
               maxW="40vw"
+              lineClamp={1}
+              title={primaryText}
             >
-              {currentTrack ? currentTrack.title : "No track playing"}
+              {primaryText}
             </Text>
-            <Text color="fg.muted" fontSize="xs" maxW="40vw">
-              {currentTrack ? (
+            <Text color="fg.muted" fontSize="xs" maxW="40vw" lineClamp={1} title={secondaryText}>
+              {!isQueueFinished && currentTrack ? (
                 <ArtistLink
                   artist={currentTrack.artist}
                   friendId={currentTrack.friend_id}
@@ -232,7 +266,7 @@ export default function PlayerControlsView({
                   {currentTrack.artist}
                 </ArtistLink>
               ) : (
-                "—"
+                secondaryText
               )}
             </Text>
           </VStack>
