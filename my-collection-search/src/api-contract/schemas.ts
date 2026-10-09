@@ -1092,12 +1092,12 @@ export const albumEntitySchema = z
     title: z.string(),
     artist: z.string(),
     year: z.union([z.string(), z.number()]).nullable().optional(),
-    genres: z.array(z.string()).optional(),
-    styles: z.array(z.string()).optional(),
+    genres: z.array(z.string()).nullable().optional(),
+    styles: z.array(z.string()).nullable().optional(),
     album_thumbnail: z.string().nullable().optional(),
     track_count: z.number().int().optional(),
-    date_added: z.string().optional(),
-    date_changed: z.string().optional(),
+    date_added: z.string().nullable().optional(),
+    date_changed: z.string().nullable().optional(),
     library_identifier: z.string().nullable().optional(),
   })
   .passthrough();
