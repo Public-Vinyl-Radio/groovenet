@@ -29,7 +29,11 @@ import {
 } from "react-icons/io5";
 import { usePathname } from "next/navigation";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCommandPalette } from "@/providers/CommandPaletteProvider";
+import PullToRefreshIndicator from "@/components/PullToRefreshIndicator";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useStandaloneMode } from "@/hooks/useStandaloneMode";
 import CommandPalette from "@/components/CommandPalette";
 import {
   getMobileBottomOverlayOffset,
@@ -83,6 +87,9 @@ export default function AppShell({
 }) {
   const CONTENT_MAX_W = "1360px";
   const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const standalone = useStandaloneMode();
+  const { distance, refreshing } = usePullToRefresh(standalone);
   const { playlistLength } = usePlaylistPlayer();
   const mobileDrawerBottomPadding = "80px";
   const mobileContentBottomPadding = getMobileBottomOverlayOffset(playlistLength);
@@ -104,6 +111,17 @@ export default function AppShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { setPaletteOpen } = useCommandPalette();
 
+  React.useEffect(() => {
+    if (!standalone) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void queryClient.invalidateQueries();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [queryClient, standalone]);
+
   // Keep initial render deterministic across SSR/CSR; hydrate from storage after mount.
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -124,6 +142,7 @@ export default function AppShell({
 
   return (
     <Flex minH="100vh" bg="bg">
+      <PullToRefreshIndicator distance={distance} refreshing={refreshing} />
       <CommandPalette />
       {/* Desktop sidebar */}
       <Box
