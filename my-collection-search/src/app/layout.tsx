@@ -18,6 +18,14 @@ export const metadata: Metadata = {
     template: "%s · GrooveNet",
   },
   description: "Browse, search, and manage your DJ track collection.",
+  appleWebApp: {
+    capable: true,
+    title: "GrooveNet",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 // Let Next.js inject viewport meta into <head>
