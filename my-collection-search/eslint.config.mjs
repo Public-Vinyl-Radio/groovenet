@@ -11,6 +11,11 @@ const eslintConfig = [...nextVitals, ...nextTs, {
     // New React hook safety rules are useful but too disruptive as an immediate baseline.
     "react-hooks/set-state-in-effect": "off",
     "react-hooks/immutability": "off",
+    // Chakra v3 ignores colorScheme (renamed to colorPalette); catch it before it ships (#482).
+    "no-restricted-syntax": ["error", {
+      selector: "JSXAttribute[name.name='colorScheme']",
+      message: "Chakra v3 has no `colorScheme` prop; use `colorPalette` instead.",
+    }],
   },
 }, {
   // Analytics goes through src/lib/analytics (#338); only its providers may

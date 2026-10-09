@@ -70,7 +70,7 @@ export default function DatabaseBackups() {
                     download
                     style={{ textDecoration: "none" }}
                   >
-                    <Button colorScheme="blue" size="xs" aria-label={`Download ${backup.filename}`}>
+                    <Button colorPalette="blue" size="xs" aria-label={`Download ${backup.filename}`}>
                       <FiDownload />
                     </Button>
                   </a>
@@ -92,7 +92,7 @@ export default function DatabaseBackups() {
               mt={3}
               size="sm"
               variant="ghost"
-              colorScheme="blue"
+              colorPalette="blue"
               onClick={() => setShowAllBackups((v) => !v)}
               alignSelf="flex-start"
             >

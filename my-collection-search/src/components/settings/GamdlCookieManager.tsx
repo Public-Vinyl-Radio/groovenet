@@ -107,7 +107,7 @@ export default function GamdlCookieManager() {
         <Flex justify="space-between" align="flex-start">
           <Box>
             <Heading size="md">Apple Music Cookie File</Heading>
-            <Text color="gray.500" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               Upload your Apple Music cookies to enable gamdl downloads
             </Text>
           </Box>
@@ -174,12 +174,12 @@ export default function GamdlCookieManager() {
                     <LuCheck />
                   </Icon>
                   <Text fontWeight="medium">Cookie file active</Text>
-                  <Badge colorScheme={cookieInfo.isValid ? "green" : "red"} variant="subtle">
+                  <Badge colorPalette={cookieInfo.isValid ? "green" : "red"} variant="subtle">
                     {cookieInfo.isValid ? "Valid" : "Invalid"}
                   </Badge>
                 </HStack>
 
-                <Box fontSize="sm" color="gray.600">
+                <Box fontSize="sm" color="fg.muted">
                   <Text><strong>File:</strong> {cookieInfo.filename}</Text>
                   <Text><strong>Size:</strong> {formatFileSize(cookieInfo.size)}</Text>
                   <Text><strong>Last Modified:</strong> {formatDate(cookieInfo.lastModified?.toString())}</Text>
@@ -205,7 +205,7 @@ export default function GamdlCookieManager() {
                 {cookieInfo.domains && cookieInfo.domains.length > 0 && (
                   <Box>
                     <Text fontSize="sm" fontWeight="medium" mb={1}>Domains ({cookieInfo.domains.length}):</Text>
-                    <Text fontSize="xs" color="gray.500">
+                    <Text fontSize="xs" color="fg.muted">
                       {cookieInfo.domains.slice(0, 5).join(", ")}
                       {cookieInfo.domains.length > 5 && ` and ${cookieInfo.domains.length - 5} more...`}
                     </Text>

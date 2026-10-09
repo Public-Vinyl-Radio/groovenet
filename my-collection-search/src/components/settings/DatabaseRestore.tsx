@@ -89,7 +89,7 @@ const DatabaseRestore: React.FC = () => {
           <FileUpload.List />
         </FileUpload.Root>
         <Button
-          colorScheme="red"
+          colorPalette="red"
           onClick={handleRestore}
           disabled={!restoreFile || isRestoring}
           loading={isRestoring}

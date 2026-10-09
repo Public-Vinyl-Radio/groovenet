@@ -36,7 +36,7 @@ export default function SuggestionScopeSettingsSection(): React.JSX.Element {
       <Heading size="lg" mb={2}>
         Track Suggestions
       </Heading>
-      <Text color="gray.600" mb={4}>
+      <Text color="fg.muted" mb={4}>
         Where related tracks, similar tracks and playlist suggestions come from for this library.
         Each suggestions list can still be switched for that view.
       </Text>
@@ -55,7 +55,7 @@ export default function SuggestionScopeSettingsSection(): React.JSX.Element {
             onChange={(scope) => save(friend.id, scope)}
           />
           {update.isPending ? <Spinner size="sm" /> : null}
-          <Text fontSize="sm" color="gray.500">
+          <Text fontSize="sm" color="fg.muted">
             {settings.data?.isDefault ? "Default for every library." : `Saved for ${friend.username}.`}
           </Text>
         </Flex>

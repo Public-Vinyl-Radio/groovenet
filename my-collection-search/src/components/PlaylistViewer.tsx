@@ -615,7 +615,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           {hasUnsavedChanges && playlistId && (
             <Button
               size="sm"
-              colorScheme="blue"
+              colorPalette="blue"
               display={{ base: "none", md: "inline-flex" }}
               onClick={saveExisting}
             >
@@ -950,7 +950,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
                   Reordered tracks won&apos;t persist until you save.
                 </Text>
               </Box>
-              <Button size="sm" colorScheme="orange" onClick={saveExisting}>
+              <Button size="sm" colorPalette="orange" onClick={saveExisting}>
                 Save
               </Button>
             </Flex>
