@@ -163,6 +163,70 @@ describe("PlayerControlsView — queue finished state", () => {
     const title = screen.getByText("Queue finished");
     expect(title.getAttribute("title")).toBe("Queue finished");
   });
+
+  it("falls back to '—' when the finished state has no track data to show", () => {
+    renderWithProviders(
+      <PlayerControlsView
+        {...baseProps}
+        compact
+        isQueueFinished
+        currentTrack={null}
+        canNext={false}
+        canPrev={false}
+      />
+    );
+
+    expect(screen.getByText("Queue finished")).toBeTruthy();
+    expect(screen.getByText("—")).toBeTruthy();
+  });
+});
+
+describe("PlayerControlsView — no current track (not finished)", () => {
+  it("shows 'No track playing' / '—' placeholders, compact", () => {
+    renderWithProviders(
+      <PlayerControlsView
+        {...baseProps}
+        compact
+        currentTrack={null}
+        safeLen={0}
+        canPrev={false}
+        canNext={false}
+      />
+    );
+
+    expect(screen.getByText("No track playing")).toBeTruthy();
+    expect(screen.getByText("—")).toBeTruthy();
+  });
+
+  it("shows 'No track playing' / '—' placeholders in the full layout, and links the artist when a track is present", () => {
+    renderWithProviders(
+      <PlaylistPlayerProvider>
+        <PlayerControlsView
+          {...baseProps}
+          compact={false}
+          currentTrack={null}
+          safeLen={0}
+          canPrev={false}
+          canNext={false}
+        />
+      </PlaylistPlayerProvider>
+    );
+
+    expect(screen.getByText("No track playing")).toBeTruthy();
+    expect(screen.getByText("—")).toBeTruthy();
+  });
+
+  it("links the artist in the full layout when a track is current and the queue hasn't finished", () => {
+    renderWithProviders(
+      <PlaylistPlayerProvider>
+        <PlayerControlsView {...baseProps} compact={false} />
+      </PlaylistPlayerProvider>
+    );
+
+    expect(
+      screen.getByRole("link", { name: sampleTrack.artist, hidden: true })
+    ).toBeTruthy();
+  });
 });
 
 describe("PlayerControlsView — no artwork", () => {

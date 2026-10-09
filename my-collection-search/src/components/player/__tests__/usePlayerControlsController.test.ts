@@ -49,6 +49,42 @@ function makeTrack(id: string): Track {
   } as Track;
 }
 
+describe("usePlayerControlsController — isQueueFinished", () => {
+  beforeEach(() => {
+    playlistPlayerState.currentTrack = null;
+    playlistPlayerState.finishedTrack = null;
+    playlistPlayerState.currentTrackIndex = 1;
+  });
+
+  it("is false while a track is current, even with a stale finishedTrack", () => {
+    playlistPlayerState.currentTrackIndex = 1;
+    playlistPlayerState.finishedTrack = makeTrack("stale");
+
+    const { result } = renderHook(() => usePlayerControlsController());
+
+    expect(result.current.isQueueFinished).toBe(false);
+  });
+
+  it("is false once the index is null but nothing has finished yet", () => {
+    playlistPlayerState.currentTrackIndex = null;
+    playlistPlayerState.finishedTrack = null;
+
+    const { result } = renderHook(() => usePlayerControlsController());
+
+    expect(result.current.isQueueFinished).toBe(false);
+  });
+
+  it("is true once the index is null and a track finished, and displays it", () => {
+    playlistPlayerState.currentTrackIndex = null;
+    playlistPlayerState.finishedTrack = makeTrack("d");
+
+    const { result } = renderHook(() => usePlayerControlsController());
+
+    expect(result.current.isQueueFinished).toBe(true);
+    expect(result.current.currentTrack?.track_id).toBe("d");
+  });
+});
+
 describe("usePlayerControlsController — handleDismissPlayer", () => {
   beforeEach(() => {
     createMock.mockClear();
