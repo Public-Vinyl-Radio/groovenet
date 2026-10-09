@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Box } from '@chakra-ui/react';
 import { FiVolume2, FiVolumeX } from 'react-icons/fi';
 import PlayerControlsView from '@/components/player/PlayerControlsView';
-import { sampleTrack } from './fixtures/track';
+import { sampleTrack, trackLongTitle, trackNoArtwork } from './fixtures/track';
 
 const noop = () => {};
 const noopAsync = async () => {};
@@ -29,6 +29,7 @@ const baseArgs = {
   onPause: noop,
   onSeek: noopAsync,
   onClosePlayer: noop,
+  onDismissPlayer: noop,
 };
 
 const meta: Meta<typeof PlayerControlsView> = {
@@ -108,19 +109,41 @@ export const NoTrack: Story = {
   },
 };
 
+export const LongTitle: Story = {
+  name: 'Long title (truncates, no wrap)',
+  args: {
+    currentTrack: trackLongTitle,
+    isPlaying: true,
+  },
+};
+
+export const QueueFinished: Story = {
+  name: 'Queue finished',
+  args: {
+    isQueueFinished: true,
+    currentTrack: sampleTrack,
+    isPlaying: false,
+    canPrev: false,
+    canNext: false,
+    safeLen: 3,
+  },
+};
+
+const compactDecorator: Meta<typeof PlayerControlsView>['decorators'] = [
+  (Story) => (
+    <Box maxW="400px" mx="auto" borderWidth="1px" borderRadius="md" p={3}>
+      <Story />
+    </Box>
+  ),
+];
+
 export const Compact: Story = {
   name: 'Compact (mobile drawer)',
   args: {
     compact: true,
     isPlaying: false,
   },
-  decorators: [
-    (Story) => (
-      <Box maxW="400px" mx="auto" borderWidth="1px" borderRadius="md" p={3}>
-        <Story />
-      </Box>
-    ),
-  ],
+  decorators: compactDecorator,
 };
 
 export const CompactPlaying: Story = {
@@ -130,11 +153,53 @@ export const CompactPlaying: Story = {
     isPlaying: true,
     canNext: true,
   },
-  decorators: [
-    (Story) => (
-      <Box maxW="400px" mx="auto" borderWidth="1px" borderRadius="md" p={3}>
-        <Story />
-      </Box>
-    ),
-  ],
+  decorators: compactDecorator,
+};
+
+export const CompactNoTrack: Story = {
+  name: 'Compact — no track',
+  args: {
+    compact: true,
+    currentTrack: null,
+    isPlaying: false,
+    safeLen: 0,
+    canPrev: false,
+    canNext: false,
+  },
+  decorators: compactDecorator,
+};
+
+export const CompactQueueFinished: Story = {
+  name: 'Compact — queue finished',
+  args: {
+    compact: true,
+    isQueueFinished: true,
+    currentTrack: sampleTrack,
+    isPlaying: false,
+    canPrev: false,
+    canNext: false,
+    safeLen: 3,
+  },
+  decorators: compactDecorator,
+};
+
+export const CompactNoArtwork: Story = {
+  name: 'Compact — no artwork',
+  args: {
+    compact: true,
+    currentTrack: trackNoArtwork,
+    isPlaying: false,
+  },
+  decorators: compactDecorator,
+};
+
+export const CompactLongTitle: Story = {
+  name: 'Compact — long title',
+  args: {
+    compact: true,
+    currentTrack: trackLongTitle,
+    isPlaying: true,
+    canNext: true,
+  },
+  decorators: compactDecorator,
 };

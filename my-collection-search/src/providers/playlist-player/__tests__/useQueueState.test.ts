@@ -148,6 +148,28 @@ describe("playNext()", () => {
 
     expect(result.current.currentTrackIndex).toBeNull();
   });
+
+  it("records the last-played track as finishedTrack when the queue ends", () => {
+    const { result } = makeHook(tracks);
+
+    act(() => { result.current.playTrack(tracks.length - 1); });
+    act(() => { result.current.playNext(); });
+
+    expect(result.current.finishedTrack?.track_id).toBe("d");
+    expect(result.current.currentTrack).toBeNull();
+  });
+
+  it("clears finishedTrack once play() restarts the queue from the top", () => {
+    const { result } = makeHook(tracks);
+
+    act(() => { result.current.playTrack(tracks.length - 1); });
+    act(() => { result.current.playNext(); });
+    act(() => { result.current.play(); });
+
+    expect(result.current.finishedTrack).toBeNull();
+    expect(result.current.currentTrackIndex).toBe(0);
+    expect(result.current.isPlaying).toBe(true);
+  });
 });
 
 describe("playPrev()", () => {
@@ -358,6 +380,61 @@ describe("clearQueue()", () => {
     expect(result.current.isPlaying).toBe(false);
     expect(result.current.currentTrackIndex).toBeNull();
     expect(result.current.currentTrack).toBeNull();
+  });
+
+  it("clears finishedTrack so a freshly queued track isn't shown as finished", () => {
+    const { result } = makeHook(tracks);
+
+    act(() => { result.current.playTrack(tracks.length - 1); });
+    act(() => { result.current.playNext(); }); // queue finishes
+    act(() => { result.current.clearQueue(); });
+
+    expect(result.current.finishedTrack).toBeNull();
+  });
+});
+
+// ─── restoreQueue ─────────────────────────────────────────────────────────────
+
+describe("restoreQueue()", () => {
+  it("restores the playlist, index, playing state and finishedTrack from a snapshot", () => {
+    const { result } = makeHook(tracks);
+
+    act(() => { result.current.playTrack(1); });
+    const snapshot = {
+      playlist: result.current.playlist,
+      currentTrackIndex: result.current.currentTrackIndex,
+      isPlaying: result.current.isPlaying,
+      finishedTrack: result.current.finishedTrack,
+    };
+
+    act(() => { result.current.clearQueue(); });
+    expect(result.current.playlist).toEqual([]);
+
+    act(() => { result.current.restoreQueue(snapshot); });
+
+    expect(result.current.playlist).toEqual(tracks);
+    expect(result.current.currentTrackIndex).toBe(1);
+    expect(result.current.isPlaying).toBe(true);
+    expect(result.current.currentTrack?.track_id).toBe("b");
+  });
+
+  it("restores a finished-queue snapshot back into the finished state", () => {
+    const { result } = makeHook(tracks);
+
+    act(() => { result.current.playTrack(tracks.length - 1); });
+    act(() => { result.current.playNext(); }); // queue finishes
+    const snapshot = {
+      playlist: result.current.playlist,
+      currentTrackIndex: result.current.currentTrackIndex,
+      isPlaying: result.current.isPlaying,
+      finishedTrack: result.current.finishedTrack,
+    };
+
+    act(() => { result.current.clearQueue(); });
+    act(() => { result.current.restoreQueue(snapshot); });
+
+    expect(result.current.currentTrackIndex).toBeNull();
+    expect(result.current.finishedTrack?.track_id).toBe("d");
   });
 });
 

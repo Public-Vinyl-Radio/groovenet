@@ -12,6 +12,7 @@ import type { Track } from "@/types/track";
 import {
   useQueueState,
   type ReplacePlaylistOptions,
+  type QueueSnapshot,
 } from "@/providers/playlist-player/useQueueState";
 import { useAudioEngine } from "@/providers/playlist-player/useAudioEngine";
 import { usePlaybackPersistence } from "@/providers/playlist-player/usePlaybackPersistence";
@@ -25,6 +26,7 @@ type PlaylistPlayerContextValue = {
   isPlaying: boolean;
   currentTrackIndex: number | null;
   currentTrack: Track | null;
+  finishedTrack: Track | null;
   playlist: Track[];
   playlistLength: number;
   // Playback position
@@ -41,6 +43,7 @@ type PlaylistPlayerContextValue = {
   appendToQueue: (items: Track[] | Track) => void;
   enqueueNext: (items: Track[] | Track) => void;
   clearQueue: () => void;
+  restoreQueue: (snapshot: QueueSnapshot) => void;
   moveTrackInQueue: (fromIndex: number, toIndex: number) => void;
   removeFromQueue: (index: number) => void;
 
@@ -87,6 +90,7 @@ export function PlaylistPlayerProvider({
     currentTrackIndex,
     isPlaying,
     plVersion,
+    finishedTrack,
     setPlaylist,
     setCurrentTrackIndex,
     setIsPlaying,
@@ -101,6 +105,7 @@ export function PlaylistPlayerProvider({
     appendToQueue,
     enqueueNext,
     clearQueue,
+    restoreQueue,
     moveTrackInQueue,
     removeFromQueue,
   } = useQueueState({
@@ -164,6 +169,7 @@ export function PlaylistPlayerProvider({
       isPlaying,
       currentTrackIndex,
       currentTrack, // use state here
+      finishedTrack,
       playlist,
       playlistLength: playlist.length,
       seek,
@@ -179,6 +185,7 @@ export function PlaylistPlayerProvider({
       appendToQueue,
       enqueueNext,
       clearQueue,
+      restoreQueue,
       moveTrackInQueue,
       removeFromQueue,
 
@@ -194,6 +201,7 @@ export function PlaylistPlayerProvider({
     isPlaying,
     currentTrackIndex,
     currentTrack,
+    finishedTrack,
     playlist,
     plVersion,
     seek,
@@ -207,6 +215,7 @@ export function PlaylistPlayerProvider({
     appendToQueue,
     enqueueNext,
     clearQueue,
+    restoreQueue,
     moveTrackInQueue,
     removeFromQueue,
     volume,
