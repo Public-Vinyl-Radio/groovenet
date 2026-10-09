@@ -14,7 +14,10 @@ afterEach(() => {
       value: originalMatchMedia,
     });
   } else {
-    delete (window as Window & { matchMedia?: typeof window.matchMedia }).matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: undefined,
+    });
   }
   Object.defineProperty(window.navigator, "standalone", {
     configurable: true,
