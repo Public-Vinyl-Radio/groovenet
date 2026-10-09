@@ -295,11 +295,12 @@ export default function CommandPalette() {
     }
   };
 
+  const trimmedQuery = query.trim();
+
+  // Only reachable once the Search group has rendered, which requires a query.
   const onSearchTracksQuery = () => {
-    const q = query.trim();
-    if (!q) return;
     used("search_tracks_query");
-    const params = new URLSearchParams({ q });
+    const params = new URLSearchParams({ q: trimmedQuery });
     const urlMode = searchParams?.get("mode");
     params.set("mode", isTrackSearchMode(urlMode) ? urlMode : "hybrid");
     router.push(`/?${params.toString()}`);
@@ -307,10 +308,8 @@ export default function CommandPalette() {
   };
 
   const onSearchAlbumsQuery = () => {
-    const q = query.trim();
-    if (!q) return;
     used("search_albums_query");
-    router.push(`/albums?q=${encodeURIComponent(q)}`);
+    router.push(`/albums?q=${encodeURIComponent(trimmedQuery)}`);
     close();
   };
 
@@ -320,8 +319,6 @@ export default function CommandPalette() {
     router.push(`/playlists/${id}`);
     close();
   };
-
-  const trimmedQuery = query.trim();
 
   return (
     <Command.Dialog

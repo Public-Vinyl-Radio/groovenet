@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   searchAlbums: vi.fn(),
   getAlbumWithTracks: vi.fn(),
   replacePlaylist: vi.fn(),
+  friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -26,7 +27,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
-  useUsername: () => ({ friend: { id: 1, username: "dj" } }),
+  useUsername: () => ({ friend: mocks.friend }),
 }));
 vi.mock("@/hooks/usePlaylistsQuery", () => ({
   usePlaylistsQuery: () => ({ playlists: [] }),
@@ -82,6 +83,7 @@ const GENRE_TREE: GenreTreeNode[] = [
       }),
     ],
   }),
+  node({ name: "Jazz", slug: "jazz", track_count: 7 }),
 ];
 
 const track = (overrides: Partial<Track> = {}): Track =>
@@ -108,6 +110,7 @@ describe("CommandPalette (#472)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.searchParams = new URLSearchParams();
+    mocks.friend = { id: 1, username: "dj" };
     mocks.fetchGenreTree.mockResolvedValue(GENRE_TREE);
     mocks.searchTracks.mockResolvedValue({ hits: [] });
     mocks.searchAlbums.mockResolvedValue({ hits: [] });
@@ -232,5 +235,86 @@ describe("CommandPalette (#472)", () => {
     await user.click(await screen.findByText('Search albums for "dusty cumbia"'));
     expect(mocks.push).toHaveBeenCalledWith("/albums?q=dusty%20cumbia");
     expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "search_albums_query" });
+  });
+
+  it("shows a top-level genre's meta line without a breadcrumb", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "jazz");
+    await screen.findByText("Jazz");
+    expect(screen.getAllByText("Open Genre · Jazz · 7 tracks").length).toBeGreaterThan(0);
+  });
+
+  it("clears stale track results once the query is cleared", async () => {
+    // The Tracks group (unlike Genres/Albums) isn't gated on the query being
+    // non-empty, so this only passes if the debounced search actually resets
+    // trackHits — not just because the query went blank.
+    mocks.searchTracks.mockResolvedValue({ hits: [track()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    const input = screen.getByPlaceholderText(/Search tracks, albums, genres/);
+
+    await user.type(input, "only shallow");
+    await screen.findByText("Only Shallow");
+
+    await user.clear(input);
+    await waitFor(() => expect(screen.queryByText("Only Shallow")).toBeNull());
+  });
+
+  it("searches without a friend filter when no friend is selected", async () => {
+    mocks.friend = null;
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "loveless");
+    await screen.findByText("Loveless");
+
+    expect(mocks.searchTracks).toHaveBeenCalledWith(
+      expect.not.objectContaining({ filter: expect.anything() })
+    );
+    expect(mocks.searchAlbums).toHaveBeenCalledWith(
+      expect.not.objectContaining({ friend_id: expect.anything() })
+    );
+  });
+
+  it("falls back to empty results when the track search fails", async () => {
+    mocks.searchTracks.mockRejectedValue(new Error("down"));
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "loveless");
+    expect(await screen.findByText("Loveless")).toBeTruthy();
+  });
+
+  it("ignores a track search that resolves after the query has already changed", async () => {
+    let resolveFirst: ((value: { hits: Track[] }) => void) | undefined;
+    mocks.searchTracks.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveFirst = resolve; })
+    );
+    mocks.searchAlbums.mockResolvedValue({ hits: [] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    const input = screen.getByPlaceholderText(/Search tracks, albums, genres/);
+
+    await user.type(input, "first");
+    await waitFor(() => expect(mocks.searchTracks).toHaveBeenCalledTimes(1));
+
+    mocks.searchTracks.mockResolvedValue({ hits: [] });
+    await user.clear(input);
+    await user.type(input, "second");
+    await waitFor(() => expect(mocks.searchTracks).toHaveBeenCalledTimes(2));
+
+    // The first request's debounce window has already been torn down, so its
+    // late resolution must not resurrect a stale hit.
+    resolveFirst?.({ hits: [track()] });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByText("Only Shallow")).toBeNull();
+  });
+
+  it("falls back to empty results when the album search fails", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [track()] });
+    mocks.searchAlbums.mockRejectedValue(new Error("down"));
+    const { user } = renderWithProviders(<CommandPalette />);
+
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "only shallow");
+    expect(await screen.findByText("Only Shallow")).toBeTruthy();
+    expect(screen.queryByText("Loveless")).toBeNull();
   });
 });
