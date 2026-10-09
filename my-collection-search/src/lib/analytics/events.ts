@@ -93,7 +93,14 @@ export type AnalyticsEvents = {
       | "create_playlist_from_queue"
       | "open_playlist"
       | "open_track"
-      | "play_track";
+      | "play_track"
+      | "open_genre"
+      | "search_genre_tracks"
+      | "search_genre_albums"
+      | "open_album"
+      | "play_album"
+      | "search_tracks_query"
+      | "search_albums_query";
   };
 
   // ── Server ────────────────────────────────────────────────────────────────
