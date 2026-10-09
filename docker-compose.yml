@@ -64,6 +64,7 @@ services:
   db:
     image: pgvector/pgvector:pg15
     restart: always
+    command: ["postgres", "-c", "maintenance_work_mem=256MB"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-djplaylist}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
