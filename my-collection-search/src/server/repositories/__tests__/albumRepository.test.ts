@@ -510,3 +510,78 @@ describe("listOrphanedAlbums()", () => {
     expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("LEFT JOIN tracks"));
   });
 });
+
+// ─── Album artwork (#494) ─────────────────────────────────────────────────────
+
+describe("upsertAlbumRecord() Discogs art", () => {
+  it("records a remote thumbnail as the Discogs art and keeps it when an upload replaces it", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [makeAlbum()] });
+
+    await makeRepo().upsertAlbumRecord(client as never, makeAlbum() as never);
+
+    const [sql] = client.query.mock.calls[0];
+    expect(sql).toContain("CASE WHEN $8::text ~ '^https?://' THEN $8::text END");
+    expect(sql).toContain("discogs_art_url = COALESCE(EXCLUDED.discogs_art_url, albums.discogs_art_url)");
+  });
+});
+
+describe("getAlbumArtwork()", () => {
+  it("returns the artwork columns, or null", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ release_id: "r1" }] });
+    expect(await makeRepo().getAlbumArtwork("r1", 7)).toEqual({ release_id: "r1" });
+    expect(dbQuery.mock.calls[0][0]).toContain("album_art_source");
+    expect(dbQuery.mock.calls[0][1]).toEqual(["r1", 7]);
+
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+    expect(await makeRepo().getAlbumArtwork("r1", 7)).toBeNull();
+  });
+});
+
+describe("setAlbumDisplayArt()", () => {
+  it("updates the album and its tracks in one statement", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().setAlbumDisplayArt("r1", 7, "/uploads/album-covers/a.jpg", "apple_music");
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("UPDATE albums");
+    expect(sql).toContain("UPDATE tracks");
+    expect(params).toEqual(["/uploads/album-covers/a.jpg", "apple_music", "r1", 7]);
+  });
+});
+
+describe("setAppleMusicArtUrl()", () => {
+  it("stores the extracted cover", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().setAppleMusicArtUrl("r1", 7, "/uploads/album-covers/a.jpg");
+    expect(dbQuery.mock.calls[0][1]).toEqual(["/uploads/album-covers/a.jpg", "r1", 7]);
+  });
+});
+
+describe("recordArtMatch()", () => {
+  it("stores the verdict and distance", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().recordArtMatch("r1", 7, "mismatch", 23);
+    expect(dbQuery.mock.calls[0][0]).toContain("art_matched_at = current_timestamp");
+    expect(dbQuery.mock.calls[0][1]).toEqual(["mismatch", 23, "r1", 7]);
+  });
+});
+
+describe("listArtworkReview()", () => {
+  it("lists flagged albums nobody has chosen art for, optionally for one friend", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().listArtworkReview(null, 50);
+    let [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("art_match_status IN ('mismatch', 'no_reference')");
+    expect(sql).toContain("album_art_source IS NULL");
+    expect(sql).not.toContain("friend_id = $2");
+    expect(params).toEqual([50]);
+
+    await makeRepo().listArtworkReview(7, 10);
+    [sql, params] = dbQuery.mock.calls[1];
+    expect(sql).toContain("AND friend_id = $2");
+    expect(params).toEqual([10, 7]);
+  });
+});

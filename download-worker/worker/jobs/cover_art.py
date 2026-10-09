@@ -1,6 +1,7 @@
 import os
 import time
 import traceback
+from urllib.parse import quote
 
 import requests
 
@@ -101,9 +102,13 @@ def extract_embedded_cover_art_album(job_data: JobData) -> JobResult:
         if not release_id:
             raise Exception("Missing release_id for extract-cover-art-album job")
 
+        # The app extracts the embedded (Apple Music) cover and applies it only
+        # when it perceptually matches the album's Discogs art; anything else is
+        # flagged for manual review rather than silently replacing the cover.
         app_url = os.getenv('APP_URL', 'http://app:3000')
-        endpoint = f"{app_url}/api/albums/extract-cover-art-from-audio"
-        payload = {"release_id": release_id, "friend_id": friend_id}
+        endpoint = (
+            f"{app_url}/api/albums/{quote(str(release_id), safe='')}/artwork/match"
+        )
 
         update_job_status(job_id, 'processing', 60)
         log_sink.append(f"POST {endpoint}")
@@ -112,8 +117,8 @@ def extract_embedded_cover_art_album(job_data: JobData) -> JobResult:
 
         response = requests.post(
             endpoint,
-            json=payload,
-            headers={'Content-Type': 'application/json', **APP_HEADERS},
+            params={"friend_id": friend_id},
+            headers=APP_HEADERS,
             timeout=180,
         )
         if not response.ok:

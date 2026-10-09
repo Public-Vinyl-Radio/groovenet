@@ -18,6 +18,7 @@ import {
   FiCode,
   FiDownload,
   FiEdit,
+  FiImage,
   FiMoreVertical,
   FiPlay,
   FiPlus,
@@ -51,6 +52,8 @@ export type { TrackAudioActions };
 type Props = {
   track: Track;
   onOpenTrackDebug?: () => void;
+  /** Preview, restore or upload the cover art of the track's album (#494). */
+  onChangeArtwork?: () => void;
   /** Hide the "Edit Track" item (e.g. when already on the edit page). */
   hideEdit?: boolean;
   /** Override the audio actions (used by the edit form). */
@@ -63,6 +66,7 @@ type Props = {
 export default function TrackActionsMenu({
   track,
   onOpenTrackDebug,
+  onChangeArtwork,
   hideEdit,
   audioActions,
   onAction,
@@ -328,6 +332,16 @@ export default function TrackActionsMenu({
                     {!hideEdit && (
                       <DrawerItem icon={<FiEdit />} label="Edit Track" href={editHref} />
                     )}
+                    {onChangeArtwork && (
+                      <DrawerItem
+                        icon={<FiImage />}
+                        label="Cover Art..."
+                        onClick={() => {
+                          onChangeArtwork();
+                          setDrawerOpen(false);
+                        }}
+                      />
+                    )}
                     {onOpenTrackDebug && (
                       <DrawerItem
                         icon={<FiCode />}
@@ -424,6 +438,11 @@ export default function TrackActionsMenu({
                   <NextLink href={editHref}>
                     <FiEdit /> Edit Track
                   </NextLink>
+                </Menu.Item>
+              )}
+              {onChangeArtwork && (
+                <Menu.Item onSelect={onChangeArtwork} value="cover-art">
+                  <FiImage /> Cover Art...
                 </Menu.Item>
               )}
               {onOpenTrackDebug && (

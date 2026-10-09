@@ -189,4 +189,10 @@ export interface Album {
   created_at?: string;
   updated_at?: string;
   library_identifier?: string | null; // Alphanumeric library ID (e.g., LP001) for physical organization
+  // Artwork provenance (#494); the displayed cover is still audio_file_album_art_url || album_thumbnail.
+  album_art_source?: "discogs" | "apple_music" | "upload" | null;
+  discogs_art_url?: string | null;
+  apple_music_art_url?: string | null;
+  art_match_status?: "matched" | "mismatch" | "no_reference" | "no_candidate" | null;
+  art_match_distance?: number | null;
 }

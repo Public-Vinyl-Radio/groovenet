@@ -6,6 +6,7 @@ import { AlbumToUpsert, upsertAlbum } from '@/server/services/albumUpsertService
 import { Track } from '@/types/track';
 import { AlbumMetadata, TrackUpsertMetadata } from '@/types/albumMetadata';
 import { albumRepository } from '@/server/repositories/albumRepository';
+import { albumArtworkService } from '@/server/services/albumArtworkService';
 import { syncIdentityEmbeddings } from '@/server/services/trackEmbeddingSyncService';
 
 export async function POST(request: NextRequest) {
@@ -179,6 +180,15 @@ export async function POST(request: NextRequest) {
     // Album genres/styles/label feed every track's identity embedding, so
     // refresh them now that the album and tracks are committed.
     await syncIdentityEmbeddings(upsertedTracks);
+
+    // An upload has to become the displayed art, or an existing Apple Music
+    // cover (which views prefer over album_thumbnail) would keep hiding it.
+    if (albumThumbnail) {
+      await albumArtworkService.useUploadedCover(releaseId, friendId, albumThumbnail);
+      updatedAlbum.audio_file_album_art_url = albumThumbnail;
+      updatedAlbum.album_art_source = 'upload';
+      for (const track of upsertedTracks) track.audio_file_album_art_url = albumThumbnail;
+    }
 
       return NextResponse.json({
         album: updatedAlbum,

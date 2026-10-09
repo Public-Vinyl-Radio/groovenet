@@ -8,7 +8,7 @@ import {
   IconButton,
   Menu,
 } from "@chakra-ui/react";
-import { LuArrowUpDown } from "react-icons/lu";
+import { LuArrowUpDown, LuImage } from "react-icons/lu";
 import { useSearchParams, useRouter } from "next/navigation";
 import AlbumSearchResults from "@/components/AlbumSearchResults";
 import PageContainer from "@/components/layout/PageContainer";
@@ -156,6 +156,15 @@ function AlbumsPageContent() {
                   </Menu.Content>
                 </Menu.Positioner>
               </Menu.Root>
+              <IconButton
+                aria-label="Album artwork review"
+                title="Album artwork review"
+                size="sm"
+                variant="ghost"
+                onClick={() => router.push("/albums/artwork")}
+              >
+                <LuImage />
+              </IconButton>
               <Button variant="outline" flexShrink={0} onClick={() => router.push("/albums/add")}>
                 + Add Album
               </Button>
@@ -208,6 +217,14 @@ function AlbumsPageContent() {
                   </Menu.Content>
                 </Menu.Positioner>
               </Menu.Root>
+              <IconButton
+                aria-label="Album artwork review"
+                size="sm"
+                variant="ghost"
+                onClick={() => router.push("/albums/artwork")}
+              >
+                <LuImage />
+              </IconButton>
             </Flex>
           }
         />

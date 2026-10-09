@@ -36,6 +36,12 @@ export const queryKeys = {
   // Record care (#262). One root, because any copy or action change can move
   // a care list or the summary counts.
   recordCareRoot: () => ["record-care"] as const,
+  // Album artwork (#494).
+  albumArtwork: (release_id: string, friend_id: number) =>
+    ["album-artwork", release_id, friend_id] as const,
+  albumArtworkReview: (friend_id?: number) =>
+    ["album-artwork", "review", friend_id ?? null] as const,
+  albumArtworkReviewRoot: () => ["album-artwork", "review"] as const,
   recordCopies: (args: { friend_id: number; release_id: string }) =>
     ["record-care", "copies", args] as const,
   recordActions: (copyId: number, args: { friend_id: number; include_voided?: boolean }) =>

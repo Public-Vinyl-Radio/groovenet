@@ -98,6 +98,30 @@ export class TrackAudioMetadataService {
     return JSON.parse(stdout);
   }
 
+  /** Decodes an attached-picture stream to PNG bytes, without touching disk. */
+  async extractAttachedPic(filePath: string, streamIndex: number): Promise<Buffer> {
+    const { stdout } = await execFileAsync(
+      "ffmpeg",
+      [
+        "-v",
+        "error",
+        "-i",
+        filePath,
+        "-map",
+        `0:${streamIndex}`,
+        "-frames:v",
+        "1",
+        "-f",
+        "image2pipe",
+        "-c:v",
+        "png",
+        "pipe:1",
+      ],
+      { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 }
+    );
+    return stdout;
+  }
+
   getAttachedPicStream(probe: unknown): AttachedPicStream | null {
     const streams =
       probe &&

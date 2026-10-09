@@ -311,23 +311,32 @@ export class TrackRepository {
     return rows;
   }
 
+  /**
+   * Albums the bulk artwork matcher (#494) should look at: art never chosen by
+   * anyone (album_art_source IS NULL), never matched before, and with at least
+   * one downloaded track to pull embedded Apple Music art from. One row per
+   * album; track_id is any downloaded track on it.
+   */
   async findCoverArtBackfillCandidates(
     friendId: number | null
   ): Promise<CoverArtBackfillCandidateRow[]> {
     const query = `
       SELECT
-        MIN(track_id) AS track_id,
-        friend_id,
-        release_id::text AS release_id,
+        MIN(t.track_id) AS track_id,
+        t.friend_id,
+        t.release_id::text AS release_id,
         COUNT(*) AS missing_tracks
-      FROM tracks
-      WHERE local_audio_url IS NOT NULL
-        AND local_audio_url <> ''
-        AND (audio_file_album_art_url IS NULL OR audio_file_album_art_url = '')
-        AND release_id IS NOT NULL
-        AND release_id::text <> ''
-        ${friendId !== null ? "AND friend_id = $1" : ""}
-      GROUP BY friend_id, release_id::text
+      FROM tracks t
+      JOIN albums a
+        ON a.release_id::text = t.release_id::text
+       AND a.friend_id = t.friend_id
+      WHERE t.local_audio_url IS NOT NULL
+        AND t.local_audio_url <> ''
+        AND t.deleted_at IS NULL
+        AND a.album_art_source IS NULL
+        AND a.art_match_status IS NULL
+        ${friendId !== null ? "AND t.friend_id = $1" : ""}
+      GROUP BY t.friend_id, t.release_id::text
     `;
 
     const { rows } = await dbQuery<CoverArtBackfillCandidateRow>(

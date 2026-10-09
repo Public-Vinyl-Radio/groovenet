@@ -6,6 +6,7 @@ import { AlbumToUpsert, upsertAlbum } from '@/server/services/albumUpsertService
 import { Track } from '@/types/track';
 import { AlbumMetadata, TrackMetadata } from '@/types/albumMetadata';
 import { albumRepository } from '@/server/repositories/albumRepository';
+import { albumArtworkService } from '@/server/services/albumArtworkService';
 import { syncIdentityEmbeddings } from '@/server/services/trackEmbeddingSyncService';
 
 export async function POST(request: NextRequest) {
@@ -150,6 +151,13 @@ export async function POST(request: NextRequest) {
     });
 
     await syncIdentityEmbeddings(createdTracks);
+
+    if (albumThumbnail) {
+      await albumArtworkService.useUploadedCover(releaseId, friendId, albumThumbnail);
+      createdAlbum.audio_file_album_art_url = albumThumbnail;
+      createdAlbum.album_art_source = 'upload';
+      for (const track of createdTracks) track.audio_file_album_art_url = albumThumbnail;
+    }
 
     return NextResponse.json({
       album: createdAlbum,

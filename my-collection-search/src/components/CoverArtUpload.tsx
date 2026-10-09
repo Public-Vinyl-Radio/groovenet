@@ -8,9 +8,14 @@ interface CoverArtUploadProps {
   value: File | null;
   onChange: (file: File | null) => void;
   preview?: string;
+  label?: string;
 }
 
-export default function CoverArtUpload({ onChange, preview }: CoverArtUploadProps) {
+export default function CoverArtUpload({
+  onChange,
+  preview,
+  label = "Album Cover (Optional)",
+}: CoverArtUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(preview || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +99,7 @@ export default function CoverArtUpload({ onChange, preview }: CoverArtUploadProp
   return (
     <Box>
       <Text mb={2} fontSize="sm" fontWeight="medium">
-        Album Cover (Optional)
+        {label}
       </Text>
 
       {previewUrl ? (

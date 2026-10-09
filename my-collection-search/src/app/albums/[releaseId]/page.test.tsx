@@ -51,6 +51,15 @@ vi.mock("@/components/records/RecordActionDialog", () => ({
     ) : null,
 }));
 
+vi.mock("@/components/AlbumArtworkDialog", () => ({
+  default: (props: { open: boolean; releaseId: string; onOpenChange: (open: boolean) => void }) =>
+    props.open ? (
+      <div role="dialog" aria-label="Cover art">
+        <button onClick={() => props.onOpenChange(false)}>Close art</button>
+      </div>
+    ) : null,
+}));
+
 import AlbumDetailPage from "./page";
 
 afterEach(() => vi.clearAllMocks());
@@ -99,5 +108,34 @@ describe("album page genre badges", () => {
     renderWithProviders(<AlbumDetailPage />);
 
     expect(await screen.findByText("Dub")).toBeTruthy();
+  });
+});
+
+describe("album page cover art (#494)", () => {
+  it("opens the artwork dialog from the album menu and from the cover itself", async () => {
+    album.current = {
+      release_id: "rel",
+      friend_id: 7,
+      title: "Blue Lines",
+      artist: "Massive Attack",
+      track_count: 0,
+      album_thumbnail: "https://i.discogs.com/a.jpg",
+      audio_file_album_art_url: "/uploads/album-covers/apple.jpg",
+    };
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+
+    const cover = await screen.findByRole("button", { name: "Change cover art" });
+    expect((cover.querySelector("img") as HTMLImageElement).getAttribute("src")).toBe(
+      "/uploads/album-covers/apple.jpg"
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await user.click(await screen.findByRole("button", { name: /Cover Art/ }));
+    expect(await screen.findByRole("dialog", { name: "Cover art" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Close art" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Cover art" })).toBeNull());
+
+    await user.click(cover);
+    expect(await screen.findByRole("dialog", { name: "Cover art" })).toBeTruthy();
   });
 });
