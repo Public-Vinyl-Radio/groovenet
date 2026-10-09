@@ -288,7 +288,7 @@ export default function PlayerControlsView({
               aria-label="Pause"
               size="sm"
               variant="solid"
-              colorScheme="red"
+              colorPalette="red"
               onClick={onPause}
             >
               <FiPause />
@@ -298,7 +298,7 @@ export default function PlayerControlsView({
               aria-label="Play"
               size="sm"
               variant="solid"
-              colorScheme="green"
+              colorPalette="green"
               onClick={onPlay}
               disabled={safeLen === 0}
             >

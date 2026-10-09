@@ -16,7 +16,7 @@ export default function GamdlSettingsSection(): React.JSX.Element {
     <Box>
       <Box mb={6} mt={4}>
         <Heading size="lg" mb={2}>Gamdl Settings</Heading>
-        <Text color="gray.500">
+        <Text color="fg.muted">
           Configure Apple Music downloads using gamdl
         </Text>
       </Box>

@@ -296,7 +296,7 @@ function EditAlbumContent() {
           </Button>
           <Button
             onClick={handleSave}
-            colorScheme="blue"
+            colorPalette="blue"
             loading={updateMutation.isPending}
           >
             Save Changes
@@ -347,7 +347,7 @@ function EditAlbumContent() {
               </Button>
               <Button
                 onClick={handleSave}
-                colorScheme="blue"
+                colorPalette="blue"
                 loading={updateMutation.isPending}
                 flex={1}
                 fontWeight="semibold"

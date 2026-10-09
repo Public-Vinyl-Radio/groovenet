@@ -120,7 +120,7 @@ export default function CoverArtUpload({ onChange, preview }: CoverArtUploadProp
             <Button size="sm" onClick={handleClick} variant="outline">
               Change Image
             </Button>
-            <Button size="sm" onClick={handleClear} variant="outline" colorScheme="red">
+            <Button size="sm" onClick={handleClear} variant="outline" colorPalette="red">
               Remove
             </Button>
           </Flex>

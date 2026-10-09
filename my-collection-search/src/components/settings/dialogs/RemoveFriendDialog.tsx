@@ -42,14 +42,14 @@ export default function RemoveFriendDialog() {
               ref={scrollerRef}
               maxH="350px"
               overflowY="auto"
-              bg="gray.50"
+              bg="bg.subtle"
               p={2}
               borderRadius="md"
               fontFamily="mono"
               fontSize="sm"
             >
               {removeFriend.lines.length === 0 && (
-                <Text color="gray.400">Waiting for removal output...</Text>
+                <Text color="fg.muted">Waiting for removal output...</Text>
               )}
               {removeFriend.lines.map((line, i) => (
                 <Text key={i} whiteSpace="pre-wrap">
