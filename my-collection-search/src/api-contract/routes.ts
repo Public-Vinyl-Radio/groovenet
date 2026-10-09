@@ -158,6 +158,14 @@ import {
   recordCopyResponseSchema,
   recordCopyUpdateBodySchema,
   recordFriendQuerySchema,
+  albumAppleMusicArtPreviewSchema,
+  albumArtMatchResultSchema,
+  albumArtworkApplyBodySchema,
+  albumArtworkBackfillBodySchema,
+  albumArtworkBackfillResponseSchema,
+  albumArtworkReviewQuerySchema,
+  albumArtworkReviewResponseSchema,
+  albumArtworkStateSchema,
 } from "@/api-contract/schemas";
 
 export type HttpMethod = "get" | "head" | "post" | "patch" | "put" | "delete";
@@ -4051,6 +4059,305 @@ const trackSearchParameters: Record<string, unknown>[] = [
   },
 ];
 
+// ─── Album artwork (#494) ────────────────────────────────────────────────────
+
+const albumArtSourceSchemaObject = {
+  type: ["string", "null"],
+  enum: ["discogs", "apple_music", "upload", null],
+};
+const albumArtMatchStatusValues = ["matched", "mismatch", "no_reference", "no_candidate"];
+
+const albumArtworkStateSchemaObject: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    release_id: { type: "string" },
+    friend_id: { type: "integer" },
+    current_url: { type: ["string", "null"] },
+    source: albumArtSourceSchemaObject,
+    discogs_art_url: { type: ["string", "null"] },
+    apple_music_art_url: { type: ["string", "null"] },
+    art_match_status: { type: ["string", "null"], enum: [...albumArtMatchStatusValues, null] },
+    art_match_distance: { type: ["integer", "null"] },
+    has_local_audio: { type: "boolean" },
+  },
+  required: [
+    "release_id",
+    "friend_id",
+    "current_url",
+    "source",
+    "discogs_art_url",
+    "apple_music_art_url",
+    "art_match_status",
+    "art_match_distance",
+    "has_local_audio",
+  ],
+};
+
+const albumArtworkPathParams = [
+  { name: "releaseId", in: "path", required: true, schema: { type: "string" } },
+  { name: "friend_id", in: "query", required: true, schema: { type: "integer" } },
+];
+
+const jsonOk = (description: string, schema: Record<string, unknown>) => ({
+  description,
+  content: { "application/json": { schema } },
+});
+
+const albumArtworkContracts: ApiContractRoute[] = [
+  {
+    operationId: "getAlbumArtwork",
+    method: "get",
+    path: "/api/albums/{releaseId}/artwork",
+    summary: "Get an album's artwork and where it came from",
+    tags: ["Albums"],
+    paramsSchema: albumReleaseParamsSchema,
+    querySchema: albumFriendQuerySchema,
+    successSchema: albumArtworkStateSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: albumArtworkPathParams,
+      responses: {
+        "200": jsonOk(
+          "current_url is what views display. source is null until art is chosen (by a person or the bulk matcher).",
+          albumArtworkStateSchemaObject
+        ),
+        "400": jsonError("Missing friend_id"),
+        "404": jsonError("Album not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "applyAlbumArtwork",
+    method: "put",
+    path: "/api/albums/{releaseId}/artwork",
+    summary: "Use the Apple Music art, or restore the Discogs art",
+    tags: ["Albums"],
+    paramsSchema: albumReleaseParamsSchema,
+    querySchema: albumFriendQuerySchema,
+    bodySchema: albumArtworkApplyBodySchema,
+    successSchema: albumArtworkStateSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: albumArtworkPathParams,
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: { source: { type: "string", enum: ["apple_music", "discogs"] } },
+              required: ["source"],
+            },
+            example: { source: "discogs" },
+          },
+        },
+      },
+      responses: {
+        "200": jsonOk(
+          "Applied to the album and its tracks. The image is cached locally under /uploads/album-covers.",
+          albumArtworkStateSchemaObject
+        ),
+        "400": jsonError("Invalid source"),
+        "404": jsonError("Album not found, no embedded art, or no Discogs art to restore"),
+        "502": jsonError("Discogs artwork could not be downloaded"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "previewAlbumAppleMusicArtwork",
+    method: "post",
+    path: "/api/albums/{releaseId}/artwork/preview",
+    summary: "Extract the Apple Music art for preview, without applying it",
+    tags: ["Albums"],
+    paramsSchema: albumReleaseParamsSchema,
+    querySchema: albumFriendQuerySchema,
+    successSchema: albumAppleMusicArtPreviewSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: albumArtworkPathParams,
+      responses: {
+        "200": jsonOk("The embedded cover, cached locally, at full size", {
+          type: "object",
+          properties: {
+            url: { type: "string" },
+            width: { type: "integer" },
+            height: { type: "integer" },
+            track_id: { type: "string" },
+          },
+          required: ["url", "width", "height", "track_id"],
+        }),
+        "400": jsonError("Missing friend_id"),
+        "404": jsonError("Album not found, or no downloaded track has embedded art"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "uploadAlbumArtwork",
+    method: "post",
+    path: "/api/albums/{releaseId}/artwork/upload",
+    summary: "Upload cover art for an album",
+    tags: ["Albums"],
+    paramsSchema: albumReleaseParamsSchema,
+    querySchema: albumFriendQuerySchema,
+    successSchema: albumArtworkStateSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: albumArtworkPathParams,
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: { cover_art: { type: "string", format: "binary" } },
+              required: ["cover_art"],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": jsonOk("Uploaded and applied", albumArtworkStateSchemaObject),
+        "400": jsonError("Missing, too large or unsupported image"),
+        "404": jsonError("Album not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "matchAlbumArtwork",
+    method: "post",
+    path: "/api/albums/{releaseId}/artwork/match",
+    summary: "Apply the Apple Music art only if it matches the Discogs art",
+    tags: ["Albums"],
+    paramsSchema: albumReleaseParamsSchema,
+    querySchema: albumFriendQuerySchema,
+    successSchema: albumArtMatchResultSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: albumArtworkPathParams,
+      responses: {
+        "200": jsonOk(
+          "One album's step of the bulk matcher (called by download-worker). Covers are compared by perceptual hash; matched applies the Apple Music art, anything else is flagged for review.",
+          {
+            type: "object",
+            properties: {
+              release_id: { type: "string" },
+              friend_id: { type: "integer" },
+              status: { type: "string", enum: albumArtMatchStatusValues },
+              distance: { type: ["integer", "null"] },
+              applied: { type: "boolean" },
+              apple_music_art_url: { type: ["string", "null"] },
+            },
+            required: ["release_id", "friend_id", "status", "distance", "applied", "apple_music_art_url"],
+          }
+        ),
+        "404": jsonError("Album not found"),
+        "502": jsonError("Discogs artwork could not be downloaded"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "queueAlbumArtworkBackfill",
+    method: "post",
+    path: "/api/albums/artwork/backfill",
+    summary: "Queue bulk artwork matching",
+    tags: ["Albums"],
+    bodySchema: albumArtworkBackfillBodySchema,
+    successSchema: albumArtworkBackfillResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: { friend_id: { type: ["integer", "null"] } },
+            },
+            example: { friend_id: 1 },
+          },
+        },
+      },
+      responses: {
+        "200": jsonOk(
+          "One job per album with downloaded audio whose art nobody has chosen and that has not been matched before",
+          {
+            type: "object",
+            properties: {
+              queued: { type: "integer" },
+              queuedAlbums: { type: "integer" },
+              tracksImpacted: { type: "integer" },
+              jobIds: { type: "array", items: { type: "string" } },
+              errors: { type: "array", items: { type: "object", additionalProperties: true } },
+            },
+            required: ["queued", "queuedAlbums", "tracksImpacted", "jobIds", "errors"],
+          }
+        ),
+        "400": jsonError("Invalid friend_id"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "listAlbumArtworkReview",
+    method: "get",
+    path: "/api/albums/artwork/review",
+    summary: "List albums the artwork matcher flagged for review",
+    tags: ["Albums"],
+    querySchema: albumArtworkReviewQuerySchema,
+    successSchema: albumArtworkReviewResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50, maximum: 200 } },
+      ],
+      responses: {
+        "200": jsonOk("Albums whose Apple Music art differs from, or had no, Discogs art", {
+          type: "object",
+          properties: {
+            albums: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  release_id: { type: "string" },
+                  friend_id: { type: "integer" },
+                  title: { type: "string" },
+                  artist: { type: "string" },
+                  current_url: { type: ["string", "null"] },
+                  discogs_art_url: { type: ["string", "null"] },
+                  apple_music_art_url: { type: ["string", "null"] },
+                  art_match_status: { type: "string", enum: albumArtMatchStatusValues },
+                  art_match_distance: { type: ["integer", "null"] },
+                },
+                required: [
+                  "release_id",
+                  "friend_id",
+                  "title",
+                  "artist",
+                  "current_url",
+                  "discogs_art_url",
+                  "apple_music_art_url",
+                  "art_match_status",
+                  "art_match_distance",
+                ],
+              },
+            },
+          },
+          required: ["albums"],
+        }),
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+];
+
 export const apiContractRoutes: ApiContractRoute[] = [
   ...genreMutationContracts,
   ...genreReconciliationContracts,
@@ -7766,4 +8073,5 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...setDerivationContracts,
   ...backupContracts,
   ...recordCareContracts,
+  ...albumArtworkContracts,
 ];

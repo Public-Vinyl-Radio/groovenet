@@ -189,6 +189,17 @@ describe("findCoverArtBackfillCandidates()", () => {
     expect(params).toEqual([]);
   });
 
+  it("only picks albums whose art nobody has chosen or matched (#494)", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findCoverArtBackfillCandidates(null);
+
+    const [sql] = dbQuery.mock.calls[0];
+    expect(sql).toContain("a.album_art_source IS NULL");
+    expect(sql).toContain("a.art_match_status IS NULL");
+    expect(sql).toContain("t.deleted_at IS NULL");
+  });
+
   it("passes [friendId] when a friendId is provided", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 

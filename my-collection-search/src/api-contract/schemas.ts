@@ -1233,6 +1233,89 @@ export const albumDetailResponseSchema = z.object({
   tracks: z.array(trackEntitySchema),
 });
 
+// ─── Album artwork (#494) ────────────────────────────────────────────────────
+
+export const albumArtSourceSchema = z.enum(["discogs", "apple_music", "upload"]);
+
+export const albumArtMatchStatusSchema = z.enum([
+  "matched",
+  "mismatch",
+  "no_reference",
+  "no_candidate",
+]);
+
+export const albumArtworkStateSchema = z.object({
+  release_id: z.string(),
+  friend_id: z.number().int(),
+  current_url: z.string().nullable(),
+  source: albumArtSourceSchema.nullable(),
+  discogs_art_url: z.string().nullable(),
+  apple_music_art_url: z.string().nullable(),
+  art_match_status: albumArtMatchStatusSchema.nullable(),
+  art_match_distance: z.number().int().nullable(),
+  has_local_audio: z.boolean(),
+});
+
+export const albumArtworkApplyBodySchema = z.object({
+  source: z.enum(["apple_music", "discogs"]),
+});
+
+export const albumAppleMusicArtPreviewSchema = z.object({
+  url: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  track_id: z.string(),
+});
+
+export const albumArtMatchResultSchema = z.object({
+  release_id: z.string(),
+  friend_id: z.number().int(),
+  status: albumArtMatchStatusSchema,
+  distance: z.number().int().nullable(),
+  applied: z.boolean(),
+  apple_music_art_url: z.string().nullable(),
+});
+
+export const albumArtworkBackfillBodySchema = z.object({
+  friend_id: z.number().int().positive().nullable().optional(),
+});
+
+export const albumArtworkBackfillResponseSchema = z.object({
+  queued: z.number().int(),
+  queuedAlbums: z.number().int(),
+  tracksImpacted: z.number().int(),
+  jobIds: z.array(z.string()),
+  errors: z.array(
+    z.object({
+      track_id: z.string(),
+      friend_id: z.number().int(),
+      release_id: z.string().nullable().optional(),
+      error: z.string(),
+    })
+  ),
+});
+
+export const albumArtworkReviewQuerySchema = z.object({
+  friend_id: intFromInputSchema.optional(),
+  limit: z.preprocess(toInt, z.number().int().min(1).max(200)).optional().default(50),
+});
+
+export const albumArtworkReviewItemSchema = z.object({
+  release_id: z.string(),
+  friend_id: z.number().int(),
+  title: z.string(),
+  artist: z.string(),
+  current_url: z.string().nullable(),
+  discogs_art_url: z.string().nullable(),
+  apple_music_art_url: z.string().nullable(),
+  art_match_status: albumArtMatchStatusSchema,
+  art_match_distance: z.number().int().nullable(),
+});
+
+export const albumArtworkReviewResponseSchema = z.object({
+  albums: z.array(albumArtworkReviewItemSchema),
+});
+
 export const albumPlayableStructureTrackSchema = z
   .object({
     track_id: z.string(),

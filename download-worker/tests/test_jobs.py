@@ -164,11 +164,17 @@ class TestExtractEmbeddedCoverArtAlbum:
 
     @patch("worker.jobs.cover_art.requests.post")
     def test_success_path(self, mock_post, fake_redis):
-        mock_post.return_value = MagicMock(ok=True, json=lambda: {"extracted": 5})
+        mock_post.return_value = MagicMock(
+            ok=True, json=lambda: {"status": "matched", "applied": True, "distance": 4}
+        )
         from worker.jobs.cover_art import extract_embedded_cover_art_album
-        result = extract_embedded_cover_art_album(self._job())
+        result = extract_embedded_cover_art_album(self._job(release_id="rel/99"))
         assert result["success"] is True
-        assert result["extracted"] == 5
+        assert result["status"] == "matched"
+        assert result["applied"] is True
+        args, kwargs = mock_post.call_args
+        assert args[0].endswith("/api/albums/rel%2F99/artwork/match")
+        assert kwargs["params"] == {"friend_id": 4}
 
     def test_missing_release_id_fails(self, fake_redis):
         job = {"track_id": "t", "friend_id": 1, "job_id": "job-album-cover-2"}

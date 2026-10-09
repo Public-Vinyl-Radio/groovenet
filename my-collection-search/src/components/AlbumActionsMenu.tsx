@@ -13,7 +13,7 @@ import {
   Icon,
   Text,
 } from "@chakra-ui/react";
-import { FiDownload, FiDroplet, FiEdit, FiFileText, FiMoreVertical, FiPlay, FiZap } from "react-icons/fi";
+import { FiDownload, FiDroplet, FiEdit, FiFileText, FiImage, FiMoreVertical, FiPlay, FiZap } from "react-icons/fi";
 import { SiDiscogs } from "react-icons/si";
 import NextLink from "next/link";
 import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
@@ -28,6 +28,8 @@ export interface AlbumActionsMenuProps {
   isEnriching?: boolean;
   /** Log a cleaning, sleeve change, inspection or repair (#262). */
   onLogCare?: () => void;
+  /** Preview, restore or upload the album's cover art (#494). */
+  onChangeArtwork?: () => void;
   discogsUrl?: string;
   onViewRawDiscogs?: () => void;
   editAlbumHref?: string;
@@ -43,6 +45,7 @@ export default function AlbumActionsMenu({
   onEnrichAlbum,
   isEnriching,
   onLogCare,
+  onChangeArtwork,
   discogsUrl,
   onViewRawDiscogs,
   editAlbumHref,
@@ -50,7 +53,8 @@ export default function AlbumActionsMenu({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const close = () => setDrawerOpen(false);
 
-  const hasAlbumActions = !!onPlayAlbum || !!onDownloadMissing || !!onEnrichAlbum || !!onLogCare;
+  const hasAlbumActions =
+    !!onPlayAlbum || !!onDownloadMissing || !!onEnrichAlbum || !!onLogCare || !!onChangeArtwork;
   const hasDiscogs = !!discogsUrl || !!onViewRawDiscogs;
   const hasEdit = !!editAlbumHref;
 
@@ -102,6 +106,9 @@ export default function AlbumActionsMenu({
                         )}
                         {onLogCare && (
                           <DrawerItem icon={<FiDroplet />} label="Log Care..." onClick={() => { onLogCare(); close(); }} />
+                        )}
+                        {onChangeArtwork && (
+                          <DrawerItem icon={<FiImage />} label="Cover Art..." onClick={() => { onChangeArtwork(); close(); }} />
                         )}
                         {(hasDiscogs || hasEdit) && drawerDivider}
                       </>
@@ -156,6 +163,11 @@ export default function AlbumActionsMenu({
               {onLogCare && (
                 <Menu.Item value="log-care" onSelect={onLogCare}>
                   <FiDroplet /> Log Care...
+                </Menu.Item>
+              )}
+              {onChangeArtwork && (
+                <Menu.Item value="cover-art" onSelect={onChangeArtwork}>
+                  <FiImage /> Cover Art...
                 </Menu.Item>
               )}
               {hasAlbumActions && (hasDiscogs || hasEdit) && menuDivider}

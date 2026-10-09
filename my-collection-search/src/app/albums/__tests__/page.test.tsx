@@ -147,3 +147,22 @@ describe("albums page missing filter (#447)", () => {
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?q=blue");
   });
 });
+
+describe("albums page artwork review link (#494)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.fetchGenreTree.mockResolvedValue([]);
+  });
+
+  it("opens artwork review from the phone and desktop controls", async () => {
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const links = await screen.findAllByRole("button", { name: "Album artwork review", hidden: true });
+    expect(links).toHaveLength(2);
+    for (const link of links) await user.click(link);
+
+    expect(mocks.push).toHaveBeenCalledTimes(2);
+    expect(mocks.push).toHaveBeenCalledWith("/albums/artwork");
+  });
+});

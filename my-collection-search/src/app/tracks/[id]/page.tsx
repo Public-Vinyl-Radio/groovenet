@@ -8,6 +8,7 @@ import { useTrackStore } from "@/stores/trackStore";
 import { useAlbumStore } from "@/stores/albumStore";
 import TrackResultStore from "@/components/TrackResultStore";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
+import AlbumArtworkDialog from "@/components/AlbumArtworkDialog";
 import RelatedTracksSection from "@/components/RelatedTracksSection";
 import PageContainer from "@/components/layout/PageContainer";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
@@ -26,6 +27,7 @@ export default function TrackPage() {
   const friendId = Number(friendIdRaw);
   const hasValidFriendId = Number.isFinite(friendId) && friendId > 0;
   const [debugOpen, setDebugOpen] = useState(false);
+  const [artworkOpen, setArtworkOpen] = useState(false);
 
   const {
     trackQuery,
@@ -81,6 +83,9 @@ export default function TrackPage() {
                     key="menu"
                     track={trackQuery.data}
                     onOpenTrackDebug={() => setDebugOpen(true)}
+                    onChangeArtwork={
+                      trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined
+                    }
                   />,
                 ]}
               />
@@ -90,6 +95,16 @@ export default function TrackPage() {
               <RelatedTracksSection track={trackQuery.data} />
 
               <TrackPlaylistsSection query={playlistsQuery} />
+
+              {trackQuery.data.release_id && (
+                <AlbumArtworkDialog
+                  open={artworkOpen}
+                  onOpenChange={setArtworkOpen}
+                  releaseId={trackQuery.data.release_id}
+                  friendId={friendId}
+                  albumTitle={trackQuery.data.album}
+                />
+              )}
 
               <TrackDebugModal
                 open={debugOpen}

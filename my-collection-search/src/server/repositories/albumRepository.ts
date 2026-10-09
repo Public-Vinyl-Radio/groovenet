@@ -38,6 +38,28 @@ export type AlbumUpsertInput = Pick<
   | "library_identifier"
 >;
 
+export type AlbumArtSource = "discogs" | "apple_music" | "upload";
+
+export type AlbumArtMatchStatus = "matched" | "mismatch" | "no_reference" | "no_candidate";
+
+export type AlbumArtworkRow = Pick<
+  Album,
+  "release_id" | "friend_id" | "title" | "artist" | "album_thumbnail"
+> & {
+  audio_file_album_art_url: string | null;
+  album_art_source: AlbumArtSource | null;
+  discogs_art_url: string | null;
+  apple_music_art_url: string | null;
+  art_match_status: AlbumArtMatchStatus | null;
+  art_match_distance: number | null;
+};
+
+const ALBUM_ARTWORK_COLUMNS = `
+  release_id, friend_id, title, artist, album_thumbnail,
+  audio_file_album_art_url, album_art_source, discogs_art_url,
+  apple_music_art_url, art_match_status, art_match_distance
+`;
+
 export class AlbumRepository {
   async getFriendUsernamesByIds(friendIds: number[]): Promise<Map<number, string>> {
     const usernameByFriendId = new Map<number, string>();
@@ -178,9 +200,14 @@ export class AlbumRepository {
         release_id, friend_id, title, artist, year, genres, styles,
         album_thumbnail, discogs_url, date_added, date_changed,
         track_count, label, catalog_number, country, format,
-        album_notes, album_rating, purchase_price, condition, library_identifier
+        album_notes, album_rating, purchase_price, condition, library_identifier,
+        discogs_art_url
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21,
+        CASE WHEN $8::text ~ '^https?://' THEN $8::text END
+      )
       ON CONFLICT (release_id, friend_id)
       DO UPDATE SET
         title = EXCLUDED.title,
@@ -189,6 +216,7 @@ export class AlbumRepository {
         genres = EXCLUDED.genres,
         styles = EXCLUDED.styles,
         album_thumbnail = EXCLUDED.album_thumbnail,
+        discogs_art_url = COALESCE(EXCLUDED.discogs_art_url, albums.discogs_art_url),
         discogs_url = EXCLUDED.discogs_url,
         date_added = EXCLUDED.date_added,
         date_changed = EXCLUDED.date_changed,
@@ -475,6 +503,106 @@ export class AlbumRepository {
       `UPDATE albums SET audio_file_album_art_url = $1 WHERE release_id = $2 AND friend_id = $3`,
       [publicUrl, releaseId, friendId]
     );
+  }
+
+  async getAlbumArtwork(
+    releaseId: string,
+    friendId: number
+  ): Promise<AlbumArtworkRow | null> {
+    const { rows } = await dbQuery<AlbumArtworkRow>(
+      `SELECT ${ALBUM_ARTWORK_COLUMNS} FROM albums WHERE release_id = $1 AND friend_id = $2`,
+      [releaseId, friendId]
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Makes `url` the album's displayed cover, on the album and every track on
+   * it, and records where it came from. One statement, so the album and its
+   * tracks never disagree.
+   */
+  async setAlbumDisplayArt(
+    releaseId: string,
+    friendId: number,
+    url: string,
+    source: AlbumArtSource
+  ): Promise<void> {
+    await dbQuery(
+      `
+      WITH updated_album AS (
+        UPDATE albums
+        SET audio_file_album_art_url = $1,
+            album_art_source = $2,
+            updated_at = current_timestamp
+        WHERE release_id = $3 AND friend_id = $4
+        RETURNING release_id
+      )
+      UPDATE tracks
+      SET audio_file_album_art_url = $1
+      WHERE friend_id = $4
+        AND release_id::text = $3::text
+      `,
+      [url, source, releaseId, friendId]
+    );
+  }
+
+  async setAppleMusicArtUrl(
+    releaseId: string,
+    friendId: number,
+    url: string
+  ): Promise<void> {
+    await dbQuery(
+      `UPDATE albums SET apple_music_art_url = $1 WHERE release_id = $2 AND friend_id = $3`,
+      [url, releaseId, friendId]
+    );
+  }
+
+  async recordArtMatch(
+    releaseId: string,
+    friendId: number,
+    status: AlbumArtMatchStatus,
+    distance: number | null
+  ): Promise<void> {
+    await dbQuery(
+      `
+      UPDATE albums
+      SET art_match_status = $1,
+          art_match_distance = $2,
+          art_matched_at = current_timestamp
+      WHERE release_id = $3 AND friend_id = $4
+      `,
+      [status, distance, releaseId, friendId]
+    );
+  }
+
+  /**
+   * Albums the bulk matcher could not settle on its own — the Apple Music art
+   * looked different from the Discogs art, or there was no Discogs art to
+   * compare with — and that nobody has chosen art for since.
+   */
+  async listArtworkReview(
+    friendId: number | null,
+    limit: number
+  ): Promise<AlbumArtworkRow[]> {
+    const params: unknown[] = [limit];
+    let friendFilter = "";
+    if (friendId !== null) {
+      params.push(friendId);
+      friendFilter = "AND friend_id = $2";
+    }
+    const { rows } = await dbQuery<AlbumArtworkRow>(
+      `
+      SELECT ${ALBUM_ARTWORK_COLUMNS}
+      FROM albums
+      WHERE art_match_status IN ('mismatch', 'no_reference')
+        AND album_art_source IS NULL
+        ${friendFilter}
+      ORDER BY art_matched_at DESC NULLS LAST, release_id
+      LIMIT $1
+      `,
+      params
+    );
+    return rows;
   }
 
   async getTracksForReleaseWithAudio(

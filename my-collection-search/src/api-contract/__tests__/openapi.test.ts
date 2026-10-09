@@ -42,6 +42,14 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["get", "/api/record-copies/care/summary"],
   ["post", "/api/record-actions"],
   ["delete", "/api/record-actions/{id}"],
+  // Album artwork (#494).
+  ["get", "/api/albums/{releaseId}/artwork"],
+  ["put", "/api/albums/{releaseId}/artwork"],
+  ["post", "/api/albums/{releaseId}/artwork/preview"],
+  ["post", "/api/albums/{releaseId}/artwork/upload"],
+  ["post", "/api/albums/{releaseId}/artwork/match"],
+  ["post", "/api/albums/artwork/backfill"],
+  ["get", "/api/albums/artwork/review"],
 ];
 
 describe("OpenAPI contract coverage", () => {

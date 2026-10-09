@@ -31,6 +31,10 @@ vi.mock("@/server/services/trackEmbeddingSyncService", () => ({
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: mockWithDbTransaction }));
 vi.mock("@/lib/localTrackHelpers", () => ({ generateLocalTrackId: mockGenTrackId }));
 vi.mock("@/lib/fileUpload", () => ({ saveAlbumCover: mockSaveAlbumCover }));
+const mockUseUploadedCover = vi.hoisted(() => vi.fn());
+vi.mock("@/server/services/albumArtworkService", () => ({
+  albumArtworkService: { useUploadedCover: mockUseUploadedCover },
+}));
 vi.mock("@/server/services/albumUpsertService", () => ({ upsertAlbum: mockUpsertAlbum }));
 vi.mock("@/server/repositories/albumRepository", () => ({
   albumRepository: {
@@ -190,6 +194,26 @@ describe("POST /api/albums/upsert — track reconciliation", () => {
 // ─── Error handling ─────────────────────────────────────────────────────────────
 
 describe("POST /api/albums/upsert — error handling", () => {
+  it("makes an uploaded cover the displayed art over any Apple Music art (#494)", async () => {
+    mockSaveAlbumCover.mockResolvedValueOnce("/uploads/album-covers/u.jpg");
+    const cover = new File(["img"], "cover.jpg", { type: "image/jpeg" });
+
+    const res = await POST(makeReq({ cover_art: cover }));
+    const body = await res.json();
+
+    expect(mockUseUploadedCover).toHaveBeenCalledWith("r1", 1, "/uploads/album-covers/u.jpg");
+    expect(body.album).toMatchObject({
+      audio_file_album_art_url: "/uploads/album-covers/u.jpg",
+      album_art_source: "upload",
+    });
+    expect(body.tracks[0].audio_file_album_art_url).toBe("/uploads/album-covers/u.jpg");
+  });
+
+  it("leaves the art alone without an upload", async () => {
+    await POST(makeReq());
+    expect(mockUseUploadedCover).not.toHaveBeenCalled();
+  });
+
   it("returns 500 when the transaction throws", async () => {
     mockWithDbTransaction.mockRejectedValueOnce(new Error("tx failed"));
     const res = await POST(makeReq());

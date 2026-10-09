@@ -31,6 +31,7 @@ import AlbumRecordCarePanel from "@/components/records/AlbumRecordCarePanel";
 import RecordActionDialog from "@/components/records/RecordActionDialog";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import AlbumActionsMenu from "@/components/AlbumActionsMenu";
+import AlbumArtworkDialog from "@/components/AlbumArtworkDialog";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { toaster } from "@/components/ui/toaster";
 import { useColorModeValue } from "@/components/ui/color-mode";
@@ -86,6 +87,7 @@ function AlbumDetailContent() {
   const [isDownloading, setIsDownloading] = React.useState(false);
   const [discogsRawModalOpen, setDiscogsRawModalOpen] = React.useState(false);
   const [logCareOpen, setLogCareOpen] = React.useState(false);
+  const [artworkOpen, setArtworkOpen] = React.useState(false);
 
   const mutedText = useColorModeValue("gray.600", "gray.400");
   const subtleText = useColorModeValue("gray.500", "gray.500");
@@ -236,6 +238,7 @@ function AlbumDetailContent() {
   }
 
   const albumArtwork =
+    album.audio_file_album_art_url ||
     tracks.find((t) => t.audio_file_album_art_url)?.audio_file_album_art_url ||
     album.album_thumbnail;
 
@@ -255,6 +258,10 @@ function AlbumDetailContent() {
       >
         {albumArtwork && (
           <Box
+            as="button"
+            aria-label="Change cover art"
+            onClick={() => setArtworkOpen(true)}
+            cursor="pointer"
             flexShrink={0}
             width={{ base: "90px", md: "130px" }}
             height={{ base: "90px", md: "130px" }}
@@ -394,6 +401,7 @@ function AlbumDetailContent() {
             isDownloading={isDownloading}
             onEnrichAlbum={tracks.length > 0 ? handleEnrichAlbum : undefined}
             onLogCare={() => setLogCareOpen(true)}
+            onChangeArtwork={() => setArtworkOpen(true)}
             discogsUrl={album.discogs_url}
             onViewRawDiscogs={() => setDiscogsRawModalOpen(true)}
             editAlbumHref={`/albums/${releaseId}/edit?friend_id=${friendId}`}
@@ -415,6 +423,13 @@ function AlbumDetailContent() {
       <RecordActionDialog
         open={logCareOpen}
         onOpenChange={setLogCareOpen}
+        releaseId={releaseId}
+        friendId={friendId}
+        albumTitle={album.title}
+      />
+      <AlbumArtworkDialog
+        open={artworkOpen}
+        onOpenChange={setArtworkOpen}
         releaseId={releaseId}
         friendId={friendId}
         albumTitle={album.title}

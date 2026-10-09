@@ -21,7 +21,8 @@ worker/
   jobs/
     download.py      gamdl + yt-dlp, the bulk of the logic
     analyze.py       analyse an already-local file
-    cover_art.py     extract embedded art (track and album)
+    cover_art.py     extract embedded art (track); the album job asks the app
+                     to match it against the Discogs cover (#494)
     duration.py      fix a wrong duration
 ```
 
