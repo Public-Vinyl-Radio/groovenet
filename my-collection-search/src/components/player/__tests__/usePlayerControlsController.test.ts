@@ -13,7 +13,7 @@ const clearQueue = vi.fn();
 const restoreQueue = vi.fn();
 const playlistPlayerState = {
   isPlaying: true,
-  currentTrackIndex: 1,
+  currentTrackIndex: 1 as number | null,
   currentTrack: null as Track | null,
   finishedTrack: null as Track | null,
   seek: vi.fn(),
