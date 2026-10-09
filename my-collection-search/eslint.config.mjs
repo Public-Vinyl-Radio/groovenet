@@ -11,6 +11,10 @@ const eslintConfig = [...nextVitals, ...nextTs, {
     // New React hook safety rules are useful but too disruptive as an immediate baseline.
     "react-hooks/set-state-in-effect": "off",
     "react-hooks/immutability": "off",
+    // `const { field, ...rest } = obj` to omit a field is an established
+    // pattern here (e.g. dropping local_tags before returning a track);
+    // the unused destructured sibling isn't a real unused variable.
+    "@typescript-eslint/no-unused-vars": ["warn", { ignoreRestSiblings: true }],
   },
 }, {
   // Analytics goes through src/lib/analytics (#338); only its providers may
