@@ -75,7 +75,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
       <Heading size="md" mb={2}>
         Remote Backup Policy
       </Heading>
-      <Text color="gray.600" mb={4}>
+      <Text color="fg.muted" mb={4}>
         Configures file-based backup policy in <code>config/backup-policy.yml</code>.
         Secrets such as restic password and B2 keys remain server-side.
       </Text>
@@ -251,13 +251,13 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
           </Flex>
 
           <Flex mt={4} gap={2} align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }}>
-            <Button colorScheme="blue" onClick={save} loading={saving}>
+            <Button colorPalette="blue" onClick={save} loading={saving}>
               Save Policy
             </Button>
             <Button variant="outline" onClick={() => void load()} disabled={saving}>
               Reload
             </Button>
-            <Text fontSize="xs" color="gray.500" ml={{ base: 0, md: 1 }}>
+            <Text fontSize="xs" color="fg.muted" ml={{ base: 0, md: 1 }}>
               Updated: {new Date(policy.updated_at).toLocaleString()}
             </Text>
           </Flex>

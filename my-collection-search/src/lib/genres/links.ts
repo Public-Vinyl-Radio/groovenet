@@ -1,5 +1,6 @@
 import type { GenreTreeNode } from "@/api-contract/schemas";
 import { normalizeGenreName } from "@/lib/genres/normalization";
+import type { GenreOption } from "@/lib/genres/options";
 import { dedupeDisplayTags, explodeDisplayTags } from "@/lib/trackUtils";
 
 /** Normalised taxonomy name or alias → genre slug. */
@@ -39,6 +40,57 @@ export function buildGenreLookup(nodes: GenreTreeNode[]): GenreLookup {
 export function genreSearchHref(slug: string, scope: GenreSearchScope): string {
   const query = `genre=${encodeURIComponent(slug)}`;
   return scope === "albums" ? `/albums?${query}` : `/?${query}`;
+}
+
+/** Name/alias keys, with spaces and hyphens dropped, so "post punk", "post-punk"
+ * and "postpunk" all condense to the same comparison key. */
+const condenseGenreKey = (value: string): string =>
+  normalizeGenreName(value).replace(/[\s-]+/g, "");
+
+/**
+ * Genres to offer the command palette (#472) for what has been typed: a
+ * prefix or substring match on the taxonomy's own name/alias lookup, so
+ * aliases and hyphen/space variants resolve the same way they do everywhere
+ * else. Genres with no tracks are left out unless nothing else matches.
+ */
+export function matchGenresForPalette(
+  lookup: GenreLookup,
+  options: readonly GenreOption[],
+  query: string,
+  limit = 5
+): GenreOption[] {
+  const q = condenseGenreKey(query);
+  if (!q) return [];
+
+  const bySlug = new Map(options.map((option) => [option.slug, option]));
+  const bestRank = new Map<string, number>();
+  for (const [key, slug] of lookup) {
+    const condensed = condenseGenreKey(key);
+    let rank: number;
+    if (condensed.startsWith(q)) rank = 0;
+    else if (condensed.includes(q)) rank = 1;
+    else continue;
+    const current = bestRank.get(slug);
+    if (current === undefined || rank < current) bestRank.set(slug, rank);
+  }
+
+  const matches = Array.from(bestRank.entries()).flatMap(([slug, rank]) => {
+    const option = bySlug.get(slug);
+    return option ? [{ option, rank }] : [];
+  });
+
+  const withTracks = matches.filter(({ option }) => option.track_count > 0);
+  const pool = withTracks.length > 0 ? withTracks : matches;
+
+  return pool
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        b.option.track_count - a.option.track_count ||
+        a.option.name.localeCompare(b.option.name)
+    )
+    .slice(0, limit)
+    .map(({ option }) => option);
 }
 
 /** Discogs genres or styles, each linked when the taxonomy knows its spelling. */

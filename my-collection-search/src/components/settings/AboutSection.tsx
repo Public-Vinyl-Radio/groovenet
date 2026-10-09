@@ -51,7 +51,7 @@ function InfoRow({
 }): React.JSX.Element {
   return (
     <Flex justify="space-between" gap={4} py={1.5}>
-      <Text color="gray.500" fontSize="sm">
+      <Text color="fg.muted" fontSize="sm">
         {label}
       </Text>
       <Box fontSize="sm" fontWeight="medium" textAlign="right" wordBreak="break-all">
@@ -81,14 +81,14 @@ export default function AboutSection(): React.JSX.Element {
           <Heading size="lg" lineHeight={1.1}>
             GrooveNet
           </Heading>
-          <Text color="gray.500" fontSize="sm">
+          <Text color="fg.muted" fontSize="sm">
             Vinyl collection management for DJs
           </Text>
         </Box>
       </Flex>
 
       {/* Description (from CLAUDE.md) */}
-      <Text color="gray.600" mb={6} maxW="60ch">
+      <Text color="fg.muted" mb={6} maxW="60ch">
         A multi-service vinyl collection manager that combines a Next.js web app
         with Python microservices for audio analysis, downloads, and AI-powered
         playlist generation. Built for DJs to manage their Discogs collections
@@ -117,7 +117,8 @@ export default function AboutSection(): React.JSX.Element {
                 href={update.releaseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                color="blue.500"
+                colorPalette="blue"
+                color="colorPalette.fg"
                 fontSize="sm"
                 fontWeight="medium"
               >
@@ -145,7 +146,8 @@ export default function AboutSection(): React.JSX.Element {
                     href={`${REPO_URL}/commit/${version.gitSha}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    color="blue.500"
+                    colorPalette="blue"
+                    color="colorPalette.fg"
                   >
                     {version.gitSha}
                   </Link>
@@ -169,11 +171,11 @@ export default function AboutSection(): React.JSX.Element {
                     {update.latest} available
                   </Text>
                 ) : !update.comparable ? (
-                  <Text as="span" color="gray.400">
+                  <Text as="span" color="fg.muted">
                     n/a (dev build)
                   </Text>
                 ) : update.error ? (
-                  <Text as="span" color="gray.400">
+                  <Text as="span" color="fg.muted">
                     unavailable
                   </Text>
                 ) : (
@@ -202,7 +204,7 @@ export default function AboutSection(): React.JSX.Element {
                   </Text>
                   <Flex align="center" gap={2}>
                     {svc.latencyMs != null && svc.status === "up" ? (
-                      <Text fontSize="xs" color="gray.400">
+                      <Text fontSize="xs" color="fg.muted">
                         {svc.latencyMs}ms
                       </Text>
                     ) : null}
@@ -212,7 +214,7 @@ export default function AboutSection(): React.JSX.Element {
                   </Flex>
                 </Flex>
                 {svc.detail ? (
-                  <Text fontSize="xs" color="gray.400">
+                  <Text fontSize="xs" color="fg.muted">
                     {svc.detail}
                   </Text>
                 ) : null}
@@ -229,7 +231,7 @@ export default function AboutSection(): React.JSX.Element {
         </Heading>
         <Flex direction="column" gap={1}>
           {TECH_STACK.map((item) => (
-            <Text key={item} fontSize="sm" color="gray.600">
+            <Text key={item} fontSize="sm" color="fg.muted">
               {item}
             </Text>
           ))}
@@ -245,7 +247,8 @@ export default function AboutSection(): React.JSX.Element {
           href={REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          color="blue.500"
+          colorPalette="blue"
+          color="colorPalette.fg"
           fontSize="sm"
         >
           GitHub — Public-Vinyl-Radio/groovenet

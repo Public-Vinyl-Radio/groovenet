@@ -108,7 +108,7 @@ export default function AiPromptSettingsSection(): React.JSX.Element {
       <Heading size="lg" mb={2}>
         AI Metadata Prompt
       </Heading>
-      <Text color="gray.600" mb={4}>
+      <Text color="fg.muted" mb={4}>
         Customize the system prompt used for track metadata generation. This is
         stored per library.
       </Text>
@@ -116,7 +116,7 @@ export default function AiPromptSettingsSection(): React.JSX.Element {
       <Flex gap={3} align="center" mb={4} flexWrap="wrap">
         {loading && <Spinner size="sm" />}
         {isDefault ? (
-          <Text fontSize="sm" color="gray.500">
+          <Text fontSize="sm" color="fg.muted">
             Using default prompt
           </Text>
         ) : (
@@ -135,7 +135,7 @@ export default function AiPromptSettingsSection(): React.JSX.Element {
       />
 
       <Flex gap={2} mt={3}>
-        <Button colorScheme="blue" onClick={handleSave} loading={saving}>
+        <Button colorPalette="blue" onClick={handleSave} loading={saving}>
           Save Prompt
         </Button>
         <Button variant="outline" onClick={handleReset} disabled={saving}>

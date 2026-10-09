@@ -1,7 +1,8 @@
 // app/(pages)/settings/page.tsx
 "use client";
-import { useMemo, useState } from "react";
-import { Box, Button, Flex, Heading, Text } from "@chakra-ui/react";
+import { Suspense, useMemo } from "react";
+import { Box, Flex, Heading, Spinner, Tabs, Text } from "@chakra-ui/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { SettingsDialogsProvider } from "@/providers/SettingsDialogProvider";
 import { SyncStreamsProvider } from "@/providers/SyncStreamsProvider";
@@ -27,7 +28,13 @@ type SettingsSection = {
   content: React.ReactNode;
 };
 
-export default function SettingsPage() {
+const SECTION_PARAM = "section";
+
+function SettingsPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const sections: SettingsSection[] = useMemo(
     () => [
       {
@@ -82,8 +89,19 @@ export default function SettingsPage() {
     []
   );
 
-  const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id ?? "downloads");
+  // The URL is the source of truth, so a reload or a shared link lands on the
+  // same section; an unknown or missing value falls back to the first one.
+  const requestedSectionId = searchParams.get(SECTION_PARAM);
+  const activeSectionId = sections.some((section) => section.id === requestedSectionId)
+    ? (requestedSectionId as string)
+    : sections[0].id;
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0];
+
+  const setActiveSectionId = (id: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(SECTION_PARAM, id);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   return (
     <SettingsDialogsProvider>
@@ -91,114 +109,95 @@ export default function SettingsPage() {
         <PageContainer size="wide">
           <Box mb="120px">
             <Flex
-              align={{ base: "flex-start", md: "center" }}
+              direction={{ base: "column", sm: "row" }}
+              align={{ base: "flex-start", sm: "center" }}
               justify="space-between"
               gap={4}
               mb={4}
             >
-              <Box>
-                <Heading size={{ base: "lg", md: "xl" }} mb={{ base: 1, md: 1 }}>
+              <Box flex="1" minW={0}>
+                <Heading size={{ base: "lg", md: "xl" }} mb={1}>
                   Settings
                 </Heading>
-                <Text color="gray.600" display={{ base: "block", md: "block" }} fontSize={{ base: "sm", md: "md" }}>
+                <Text color="fg.muted" fontSize={{ base: "sm", md: "md" }}>
                   Configure GrooveNET by area, without the long one-page scroll.
                 </Text>
               </Box>
-              <Box minW={{ base: "auto", md: "220px" }}>
+              <Box flexShrink={0} minW={{ base: "auto", md: "220px" }}>
                 <ActionsGrid showTitle={false} />
               </Box>
             </Flex>
 
-            <Box display={{ base: "block", md: "none" }} mb={4}>
-              <Text fontSize="xs" fontWeight="semibold" letterSpacing="wide" textTransform="uppercase" color="gray.500" mb={2}>
-                Section
-              </Text>
-              <select
-                value={activeSectionId}
-                onChange={(e) => setActiveSectionId(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "var(--chakra-sizes-12)",
-                  padding: "0 var(--chakra-spacing-4)",
-                  borderRadius: "var(--chakra-radii-lg)",
-                  borderWidth: "1px",
-                  borderStyle: "solid",
-                  borderColor: "var(--chakra-colors-border)",
-                  backgroundColor: "var(--chakra-colors-bg)",
-                  color: "inherit",
-                  fontSize: "1rem",
-                }}
-              >
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.label}
-                  </option>
-                ))}
-              </select>
-            </Box>
-
-            <Flex gap={6} align="start">
-              <Box
-                display={{ base: "none", md: "block" }}
-                w="260px"
-                flexShrink={0}
-                position="sticky"
-                top="20px"
-              >
-                <Box borderWidth={1} borderRadius="lg" p={3}>
-                  {sections.map((section) => {
-                    const isActive = section.id === activeSectionId;
-                    return (
-                      <Button
-                        key={section.id}
-                        variant={isActive ? "solid" : "ghost"}
-                        colorScheme={isActive ? "blue" : undefined}
-                        justifyContent="start"
-                        h="auto"
-                        py={3}
-                        px={3}
-                        mb={2}
-                        w="full"
-                        minW={0}
-                        whiteSpace="normal"
-                        onClick={() => setActiveSectionId(section.id)}
-                      >
-                        <Box textAlign="left" w="full" minW={0}>
-                          <Text fontWeight="semibold" whiteSpace="normal">
-                            {section.label}
-                          </Text>
-                          <Text
-                            fontSize="xs"
-                            color={isActive ? "blue.100" : "gray.500"}
-                            whiteSpace="normal"
-                            overflowWrap="anywhere"
-                          >
-                            {section.description}
-                          </Text>
-                        </Box>
-                      </Button>
-                    );
-                  })}
-                </Box>
+            <Tabs.Root
+              value={activeSectionId}
+              onValueChange={(details) => setActiveSectionId(details.value)}
+              variant="line"
+            >
+              <Box display={{ base: "block", md: "none" }} mb={4}>
+                <Text
+                  fontSize="xs"
+                  fontWeight="semibold"
+                  letterSpacing="wide"
+                  textTransform="uppercase"
+                  color="fg.muted"
+                  mb={2}
+                >
+                  Section
+                </Text>
+                <select
+                  value={activeSectionId}
+                  onChange={(e) => setActiveSectionId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: "var(--chakra-sizes-12)",
+                    padding: "0 var(--chakra-spacing-4)",
+                    borderRadius: "var(--chakra-radii-lg)",
+                    borderWidth: "1px",
+                    borderStyle: "solid",
+                    borderColor: "var(--chakra-colors-border)",
+                    backgroundColor: "var(--chakra-colors-bg)",
+                    color: "inherit",
+                    fontSize: "1rem",
+                  }}
+                >
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.label}
+                    </option>
+                  ))}
+                </select>
               </Box>
 
+              <Tabs.List
+                display={{ base: "none", md: "flex" }}
+                overflowX="auto"
+                mb={4}
+              >
+                {sections.map((section) => (
+                  <Tabs.Trigger key={section.id} value={section.id} flexShrink={0} whiteSpace="nowrap">
+                    {section.label}
+                  </Tabs.Trigger>
+                ))}
+                <Tabs.Indicator />
+              </Tabs.List>
+
               <Box
-                flex={1}
-                minW={0}
                 borderWidth={{ base: 0, md: 1 }}
                 borderRadius={{ base: "none", md: "lg" }}
                 p={{ base: 0, md: 6 }}
                 bg="bg"
               >
-                <Heading size="lg" mb={1} display={{ base: "none", md: "block" }}>
-                  {activeSection.label}
-                </Heading>
-                <Text color="gray.500" mb={4} display={{ base: "none", md: "block" }}>
-                  {activeSection.description}
-                </Text>
-                {activeSection.content}
+                <Tabs.Content value={activeSection.id}>
+                  <Heading size="lg" mb={1}>
+                    {activeSection.label}
+                  </Heading>
+                  <Text color="fg.muted" mb={4}>
+                    {activeSection.description}
+                  </Text>
+                  {activeSection.content}
+                </Tabs.Content>
               </Box>
-            </Flex>
+            </Tabs.Root>
           </Box>
         </PageContainer>
 
@@ -207,5 +206,13 @@ export default function SettingsPage() {
         <RemoveFriendDialog />
       </SyncStreamsProvider>
     </SettingsDialogsProvider>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }

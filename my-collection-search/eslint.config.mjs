@@ -15,6 +15,11 @@ const eslintConfig = [...nextVitals, ...nextTs, {
     // pattern here (e.g. dropping local_tags before returning a track);
     // the unused destructured sibling isn't a real unused variable.
     "@typescript-eslint/no-unused-vars": ["warn", { ignoreRestSiblings: true }],
+    // Chakra v3 ignores colorScheme (renamed to colorPalette); catch it before it ships (#482).
+    "no-restricted-syntax": ["error", {
+      selector: "JSXAttribute[name.name='colorScheme']",
+      message: "Chakra v3 has no `colorScheme` prop; use `colorPalette` instead.",
+    }],
   },
 }, {
   // Analytics goes through src/lib/analytics (#338); only its providers may

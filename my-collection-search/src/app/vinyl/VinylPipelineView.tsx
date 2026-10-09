@@ -259,7 +259,7 @@ export default function VinylPipelineView() {
               <Box>
                 {s.ingests.failures.map((f) => (
                   <Flex key={f.error} gap={2} fontSize="sm" color="red.500">
-                    <Badge colorScheme="red" variant="subtle">{f.count}×</Badge>
+                    <Badge colorPalette="red" variant="subtle">{f.count}×</Badge>
                     <Text>{f.error}</Text>
                   </Flex>
                 ))}

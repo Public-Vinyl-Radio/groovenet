@@ -17,7 +17,7 @@ export default function DefaultLibrarySettingsSection(): React.JSX.Element {
       <Heading size="lg" mb={2}>
         Default Library
       </Heading>
-      <Text color="gray.600" mb={4}>
+      <Text color="fg.muted" mb={4}>
         Choose the library used by tracks, albums, and spins across sessions.
       </Text>
 
@@ -36,7 +36,7 @@ export default function DefaultLibrarySettingsSection(): React.JSX.Element {
           />
         </Box>
         {isSaving ? <Spinner size="sm" /> : null}
-        <Text fontSize="sm" color="gray.500">
+        <Text fontSize="sm" color="fg.muted">
           This library becomes the default everywhere except playlists.
         </Text>
       </Flex>

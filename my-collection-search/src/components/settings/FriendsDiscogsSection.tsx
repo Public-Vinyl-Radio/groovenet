@@ -10,6 +10,7 @@ import {
   VStack,
   Input,
   Button,
+  IconButton,
   Skeleton,
   Dialog,
 } from "@chakra-ui/react";
@@ -27,6 +28,7 @@ import ManifestVerificationDialog from "@/components/settings/dialogs/ManifestVe
 import RemovedReleasesDialog from "@/components/settings/dialogs/RemovedReleasesDialog";
 import type { VerificationResult } from "@/services/internalApi/discogs";
 import { toaster } from "@/components/ui/toaster";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function FriendsDiscogsSection() {
   const [newFriend, setNewFriend] = useState("");
@@ -193,7 +195,7 @@ export default function FriendsDiscogsSection() {
           }}
         />
         <Button
-          colorScheme="green"
+          colorPalette="green"
           onClick={startAddFriend}
           disabled={!newFriend.trim() || disableAdd}
           loading={addFriendPending}
@@ -214,7 +216,7 @@ export default function FriendsDiscogsSection() {
             </HStack>
           ))
         ) : friends.length === 0 ? (
-          <Text color="gray.400">No friends added yet.</Text>
+          <Text color="fg.muted">No friends added yet.</Text>
         ) : (
           friends.map((friend) => (
             <HStack
@@ -224,29 +226,34 @@ export default function FriendsDiscogsSection() {
             >
               <Text fontWeight="medium">{friend.username}</Text>
               <HStack justifyContent="flex-end" flexGrow={1}>
-                <Button
-                  size="xs"
-                  colorScheme="blue"
-                  onClick={() => handleSyncClick(friend.username)}
-                  loading={
-                    discogsSync.isPending || verifyManifests.isPending
-                  }
-                  disabled={
-                    discogsSync.isPending || verifyManifests.isPending
-                  }
-                  title="Sync Discogs"
-                >
-                  <FiRefreshCcw />
-                </Button>
-                <Button
-                  size="xs"
-                  colorPalette="red"
-                  onClick={() => handleRemoveFriendClick(friend.username)}
-                  title="Remove friend"
-                  disabled={removeFriendPending}
-                >
-                  <FiTrash />
-                </Button>
+                <Tooltip content="Sync collection">
+                  <IconButton
+                    aria-label="Sync collection"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => handleSyncClick(friend.username)}
+                    loading={
+                      discogsSync.isPending || verifyManifests.isPending
+                    }
+                    disabled={
+                      discogsSync.isPending || verifyManifests.isPending
+                    }
+                  >
+                    <FiRefreshCcw />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content="Remove friend">
+                  <IconButton
+                    aria-label="Remove friend"
+                    size="xs"
+                    variant="ghost"
+                    colorPalette="red"
+                    onClick={() => handleRemoveFriendClick(friend.username)}
+                    disabled={removeFriendPending}
+                  >
+                    <FiTrash />
+                  </IconButton>
+                </Tooltip>
               </HStack>
             </HStack>
           ))
@@ -288,7 +295,7 @@ export default function FriendsDiscogsSection() {
               <Text>
                 Are you sure you want to remove <strong>{friendToRemove}</strong>?
               </Text>
-              <Text mt={2} color="gray.600" fontSize="sm">
+              <Text mt={2} color="fg.muted" fontSize="sm">
                 This will delete all tracks and albums associated with this friend from your library.
               </Text>
             </Dialog.Body>
@@ -300,7 +307,7 @@ export default function FriendsDiscogsSection() {
                 Cancel
               </Button>
               <Button
-                colorScheme="red"
+                colorPalette="red"
                 onClick={handleConfirmRemove}
                 ml={3}
               >

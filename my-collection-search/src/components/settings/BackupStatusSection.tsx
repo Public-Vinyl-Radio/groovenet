@@ -93,12 +93,12 @@ export default function BackupStatusSection(): React.JSX.Element {
           <Heading size="md" mb={2}>
             Remote Backup Status
           </Heading>
-          <Text color="gray.600">
+          <Text color="fg.muted">
             Persists the last backup run result and the most recent snapshot summary.
           </Text>
         </Box>
         <Flex gap={2}>
-          <Button colorScheme="blue" size="sm" onClick={runNow} loading={running}>
+          <Button colorPalette="blue" size="sm" onClick={runNow} loading={running}>
             Run Remote Backup
           </Button>
           <Button
@@ -116,12 +116,12 @@ export default function BackupStatusSection(): React.JSX.Element {
       {loading ? (
         <Spinner size="sm" />
       ) : !status ? (
-        <Text color="gray.600">No remote backup status has been recorded yet.</Text>
+        <Text color="fg.muted">No remote backup status has been recorded yet.</Text>
       ) : (
         <Flex direction="column" gap={3}>
           <Flex align="center" gap={2} wrap="wrap">
             <Badge colorPalette={statusColor(status.status)}>{status.status}</Badge>
-            <Text fontSize="sm" color="gray.600">
+            <Text fontSize="sm" color="fg.muted">
               Reason: {status.reason}
             </Text>
           </Flex>
@@ -129,7 +129,7 @@ export default function BackupStatusSection(): React.JSX.Element {
           <Text fontSize="sm">
             Last attempt: {formatTimestamp(status.finished_at)}
           </Text>
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color="fg.muted">
             Recorded: {formatTimestamp(status.stored_at)}
           </Text>
 
@@ -150,7 +150,7 @@ export default function BackupStatusSection(): React.JSX.Element {
               Included Paths
             </Text>
             {status.backed_up_paths.length === 0 ? (
-              <Text fontSize="sm" color="gray.600">
+              <Text fontSize="sm" color="fg.muted">
                 No paths were backed up in the last run.
               </Text>
             ) : (
@@ -169,7 +169,7 @@ export default function BackupStatusSection(): React.JSX.Element {
               Latest Snapshot
             </Text>
             {!status.snapshot ? (
-              <Text fontSize="sm" color="gray.600">
+              <Text fontSize="sm" color="fg.muted">
                 No snapshot summary is available yet.
               </Text>
             ) : (
@@ -191,7 +191,7 @@ export default function BackupStatusSection(): React.JSX.Element {
               Backup Storage
             </Text>
             {!metrics ? (
-              <Text fontSize="sm" color="gray.600">Loading repository metrics…</Text>
+              <Text fontSize="sm" color="fg.muted">Loading repository metrics…</Text>
             ) : (
               <Flex direction="column" gap={1}>
                 <Text fontSize="sm">Local selected sources: {formatBytes(metrics.local_source_bytes)}</Text>

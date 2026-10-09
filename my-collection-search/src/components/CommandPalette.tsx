@@ -3,20 +3,26 @@
 import React from "react";
 import { Command } from "cmdk";
 import * as RadixDialog from "@radix-ui/react-dialog";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useUsername } from "@/providers/UsernameProvider";
 import { usePlaylistsQuery } from "@/hooks/usePlaylistsQuery";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useCommandPalette } from "@/providers/CommandPaletteProvider";
+import { useGenreTaxonomyQuery, useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { importPlaylist } from "@/services/internalApi/playlists";
 import { searchTracks } from "@/services/internalApi/tracks";
-import type { Track } from "@/types/track";
+import { searchAlbums, getAlbumWithTracks } from "@/services/internalApi/albums";
+import { matchGenresForPalette, genreSearchHref } from "@/lib/genres/links";
+import type { GenreOption } from "@/lib/genres/options";
+import { isTrackSearchMode } from "@/components/search/SearchModeToggle";
+import type { Album, Track } from "@/types/track";
 import { toaster } from "@/components/ui/toaster";
 import { analytics } from "@/lib/analytics/client";
 import type { AnalyticsEvents } from "@/lib/analytics/events";
 import styles from "./CommandPalette.module.css";
 
 type TrackHit = Track;
+type AlbumHit = Album;
 
 const NAV_ITEMS = [
   { href: "/", label: "Tracks" },
@@ -43,8 +49,11 @@ const isInteractiveTarget = (el: EventTarget | null): boolean => {
 export default function CommandPalette() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { friend } = useUsername();
   const { playlists } = usePlaylistsQuery({ enabled: true });
+  const { genres: genreOptions } = useGenreTaxonomyQuery();
+  const genreLookup = useGenreLookup();
   const {
     playlist,
     playlistLength,
@@ -61,6 +70,7 @@ export default function CommandPalette() {
 
   const [query, setQuery] = React.useState("");
   const [trackHits, setTrackHits] = React.useState<TrackHit[]>([]);
+  const [albumHits, setAlbumHits] = React.useState<AlbumHit[]>([]);
   const [loadingTracks, setLoadingTracks] = React.useState(false);
 
   const close = React.useCallback(() => {
@@ -123,27 +133,35 @@ export default function CommandPalette() {
       const q = query.trim();
       if (q.length === 0) {
         setTrackHits([]);
+        setAlbumHits([]);
         return;
       }
       setLoadingTracks(true);
-      try {
-        const params: Parameters<typeof searchTracks>[0] = {
-          q,
-          limit: 8,
-          offset: 0,
-        };
-        if (friend?.id) {
-          params.filter = `friend_id = ${friend.id}`;
-        }
-        const res = await searchTracks(params);
-        if (cancelled) return;
-        setTrackHits(res.hits ?? []);
-      } catch (err) {
-        console.error("Command palette track search error:", err);
-        if (!cancelled) setTrackHits([]);
-      } finally {
-        if (!cancelled) setLoadingTracks(false);
+      const trackParams: Parameters<typeof searchTracks>[0] = {
+        q,
+        limit: 8,
+        offset: 0,
+      };
+      if (friend?.id) {
+        trackParams.filter = `friend_id = ${friend.id}`;
       }
+      const albumParams: Parameters<typeof searchAlbums>[0] = { q, limit: 5 };
+      if (friend?.id) albumParams.friend_id = friend.id;
+
+      const [trackResult, albumResult] = await Promise.all([
+        searchTracks(trackParams).catch((err) => {
+          console.error("Command palette track search error:", err);
+          return null;
+        }),
+        searchAlbums(albumParams).catch((err) => {
+          console.error("Command palette album search error:", err);
+          return null;
+        }),
+      ]);
+      if (cancelled) return;
+      setTrackHits(trackResult?.hits ?? []);
+      setAlbumHits(albumResult?.hits ?? []);
+      setLoadingTracks(false);
     };
 
     const handle = setTimeout(run, 180);
@@ -152,6 +170,11 @@ export default function CommandPalette() {
       clearTimeout(handle);
     };
   }, [open, query, friend?.id]);
+
+  const genreMatches = React.useMemo<GenreOption[]>(
+    () => matchGenresForPalette(genreLookup, genreOptions, query),
+    [genreLookup, genreOptions, query]
+  );
 
   const filteredPlaylists = React.useMemo(() => {
     const playlistItems = Array.isArray(playlists) ? playlists : [];
@@ -230,6 +253,66 @@ export default function CommandPalette() {
     close();
   };
 
+  const onOpenGenre = (genre: GenreOption) => {
+    used("open_genre");
+    router.push(`/genres/${encodeURIComponent(genre.slug)}`);
+    close();
+  };
+
+  const onSearchGenreTracks = (genre: GenreOption) => {
+    used("search_genre_tracks");
+    router.push(genreSearchHref(genre.slug, "tracks"));
+    close();
+  };
+
+  const onSearchGenreAlbums = (genre: GenreOption) => {
+    used("search_genre_albums");
+    router.push(genreSearchHref(genre.slug, "albums"));
+    close();
+  };
+
+  const onOpenAlbum = (album: AlbumHit) => {
+    used("open_album");
+    router.push(
+      `/albums/${encodeURIComponent(album.release_id)}?friend_id=${album.friend_id}`
+    );
+    close();
+  };
+
+  const onPlayAlbum = async (album: AlbumHit) => {
+    used("play_album");
+    close();
+    try {
+      const { tracks } = await getAlbumWithTracks(album.release_id, album.friend_id);
+      if (tracks.length === 0) {
+        toaster.create({ title: "Album has no tracks", type: "info" });
+        return;
+      }
+      replacePlaylist(tracks, { autoplay: true, startIndex: 0 });
+    } catch (err) {
+      console.error("Failed to play album:", err);
+      toaster.create({ title: "Failed to play album", type: "error" });
+    }
+  };
+
+  const trimmedQuery = query.trim();
+
+  // Only reachable once the Search group has rendered, which requires a query.
+  const onSearchTracksQuery = () => {
+    used("search_tracks_query");
+    const params = new URLSearchParams({ q: trimmedQuery });
+    const urlMode = searchParams?.get("mode");
+    params.set("mode", isTrackSearchMode(urlMode) ? urlMode : "hybrid");
+    router.push(`/?${params.toString()}`);
+    close();
+  };
+
+  const onSearchAlbumsQuery = () => {
+    used("search_albums_query");
+    router.push(`/albums?q=${encodeURIComponent(trimmedQuery)}`);
+    close();
+  };
+
   const onOpenPlaylist = (id?: number) => {
     if (!id) return;
     used("open_playlist");
@@ -251,7 +334,7 @@ export default function CommandPalette() {
       <Command className={styles.command}>
         <Command.Input
           autoFocus
-          placeholder="Search tracks, playlists, or actions…"
+          placeholder="Search tracks, albums, genres, playlists, or actions…"
           value={query}
           onValueChange={setQuery}
           className={styles.input}
@@ -376,6 +459,101 @@ export default function CommandPalette() {
             ))}
           </Command.Group>
 
+          {trimmedQuery.length > 0 && genreMatches.length > 0 && (
+            <>
+              <Command.Separator className={styles.separator} />
+              <Command.Group heading="Genres" className={styles.group}>
+                {genreMatches.map((genre) => {
+                  const breadcrumb = genre.parent_name
+                    ? `${genre.parent_name} › ${genre.name}`
+                    : genre.name;
+                  return (
+                    <React.Fragment key={`genre-${genre.id}`}>
+                      <Command.Item
+                        value={`${trimmedQuery} open genre ${genre.name}`}
+                        onSelect={() => onOpenGenre(genre)}
+                        className={styles.item}
+                      >
+                        <div className={styles.itemLabel}>
+                          <span className={styles.itemTitle}>{genre.name}</span>
+                          <span className={styles.itemMeta}>
+                            Open Genre · {breadcrumb} · {genre.track_count} tracks
+                          </span>
+                        </div>
+                      </Command.Item>
+                      <Command.Item
+                        value={`${trimmedQuery} search tracks in genre ${genre.name}`}
+                        onSelect={() => onSearchGenreTracks(genre)}
+                        className={styles.item}
+                      >
+                        <div className={styles.itemLabel}>
+                          <span className={styles.itemTitle}>
+                            Search Tracks in {genre.name}
+                          </span>
+                          <span className={styles.itemMeta}>
+                            {breadcrumb} · {genre.track_count} tracks
+                          </span>
+                        </div>
+                      </Command.Item>
+                      <Command.Item
+                        value={`${trimmedQuery} search albums in genre ${genre.name}`}
+                        onSelect={() => onSearchGenreAlbums(genre)}
+                        className={styles.item}
+                      >
+                        <div className={styles.itemLabel}>
+                          <span className={styles.itemTitle}>
+                            Search Albums in {genre.name}
+                          </span>
+                          <span className={styles.itemMeta}>
+                            {breadcrumb} · {genre.track_count} tracks
+                          </span>
+                        </div>
+                      </Command.Item>
+                    </React.Fragment>
+                  );
+                })}
+              </Command.Group>
+            </>
+          )}
+
+          {trimmedQuery.length > 0 && albumHits.length > 0 && (
+            <>
+              <Command.Separator className={styles.separator} />
+              <Command.Group heading="Albums" className={styles.group}>
+                {albumHits.map((album) => (
+                  <React.Fragment key={`al-${album.release_id}-${album.friend_id}`}>
+                    <Command.Item
+                      value={`${trimmedQuery} open ${album.title} ${album.artist}`}
+                      onSelect={() => onOpenAlbum(album)}
+                      className={styles.item}
+                    >
+                      <div className={styles.itemLabel}>
+                        <span className={styles.itemTitle}>{album.title}</span>
+                        <span className={styles.itemMeta}>
+                          Open Album · {album.artist}
+                        </span>
+                      </div>
+                    </Command.Item>
+                    <Command.Item
+                      value={`${trimmedQuery} play ${album.title} ${album.artist}`}
+                      onSelect={() => onPlayAlbum(album)}
+                      className={styles.item}
+                    >
+                      <div className={styles.itemLabel}>
+                        <span className={styles.itemTitle}>
+                          Play: {album.title}
+                        </span>
+                        <span className={styles.itemMeta}>
+                          Play Now · {album.artist}
+                        </span>
+                      </div>
+                    </Command.Item>
+                  </React.Fragment>
+                ))}
+              </Command.Group>
+            </>
+          )}
+
           <Command.Separator className={styles.separator} />
 
           <Command.Group heading="Tracks" className={styles.group}>
@@ -412,6 +590,32 @@ export default function CommandPalette() {
               </React.Fragment>
             ))}
           </Command.Group>
+
+          {trimmedQuery.length > 0 && (
+            <>
+              <Command.Separator className={styles.separator} />
+              <Command.Group heading="Search" className={styles.group}>
+                <Command.Item
+                  value={`${trimmedQuery} search tracks for ${trimmedQuery}`}
+                  onSelect={onSearchTracksQuery}
+                  className={styles.item}
+                >
+                  <span className={styles.itemTitle}>
+                    Search tracks for &quot;{trimmedQuery}&quot;
+                  </span>
+                </Command.Item>
+                <Command.Item
+                  value={`${trimmedQuery} search albums for ${trimmedQuery}`}
+                  onSelect={onSearchAlbumsQuery}
+                  className={styles.item}
+                >
+                  <span className={styles.itemTitle}>
+                    Search albums for &quot;{trimmedQuery}&quot;
+                  </span>
+                </Command.Item>
+              </Command.Group>
+            </>
+          )}
         </Command.List>
 
         <div className={styles.footer}>

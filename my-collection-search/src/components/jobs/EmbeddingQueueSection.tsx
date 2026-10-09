@@ -144,7 +144,7 @@ export default function EmbeddingQueueSection({
         <Card.Root borderColor="red.400" borderWidth="1px">
           <Card.Body py={3}>
             <Flex gap={2} align="center" flexWrap="wrap">
-              <Badge colorScheme="red" variant="solid">Paused</Badge>
+              <Badge colorPalette="red" variant="solid">Paused</Badge>
               <Text fontSize="sm" color="red.600">{data.pause_reason}</Text>
             </Flex>
           </Card.Body>
@@ -213,7 +213,7 @@ export default function EmbeddingQueueSection({
               <Heading size="sm">Failed jobs ({failed.length})</Heading>
               <Button
                 size="sm"
-                colorScheme="red"
+                colorPalette="red"
                 variant="outline"
                 disabled={selected.size === 0 || retryMutation.isPending}
                 loading={retryMutation.isPending}

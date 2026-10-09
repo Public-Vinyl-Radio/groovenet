@@ -88,7 +88,7 @@ export default function GamdlTestConnection() {
         <Flex justify="space-between" align="flex-start">
           <Box>
             <Heading size="md">Test Gamdl Connection</Heading>
-            <Text color="gray.500" fontSize="sm">
+            <Text color="fg.muted" fontSize="sm">
               Verify that gamdl is properly configured and working
             </Text>
           </Box>
@@ -132,7 +132,7 @@ export default function GamdlTestConnection() {
                         <HStack>
                           {getStatusIcon(lastResult.details.gamdl_available)}
                           <Text>Gamdl executable available</Text>
-                          <Badge colorScheme={getStatusColor(lastResult.details.gamdl_available)} variant="subtle">
+                          <Badge colorPalette={getStatusColor(lastResult.details.gamdl_available)} variant="subtle">
                             {lastResult.details.gamdl_available ? "Found" : "Missing"}
                           </Badge>
                         </HStack>
@@ -142,7 +142,7 @@ export default function GamdlTestConnection() {
                         <HStack>
                           {getStatusIcon(lastResult.details.cookie_file_exists)}
                           <Text>Cookie file exists</Text>
-                          <Badge colorScheme={getStatusColor(lastResult.details.cookie_file_exists)} variant="subtle">
+                          <Badge colorPalette={getStatusColor(lastResult.details.cookie_file_exists)} variant="subtle">
                             {lastResult.details.cookie_file_exists ? "Found" : "Missing"}
                           </Badge>
                         </HStack>
@@ -153,7 +153,7 @@ export default function GamdlTestConnection() {
                           <HStack>
                             {getStatusIcon(lastResult.details.cookie_file_valid)}
                             <Text>Cookie file valid</Text>
-                            <Badge colorScheme={getStatusColor(lastResult.details.cookie_file_valid)} variant="subtle">
+                            <Badge colorPalette={getStatusColor(lastResult.details.cookie_file_valid)} variant="subtle">
                               {lastResult.details.cookie_file_valid ? "Valid" : "Invalid"}
                             </Badge>
                           </HStack>
@@ -165,7 +165,7 @@ export default function GamdlTestConnection() {
                           <HStack>
                             {getStatusIcon(lastResult.details.test_download_success)}
                             <Text>Test download</Text>
-                            <Badge colorScheme={getStatusColor(lastResult.details.test_download_success)} variant="subtle">
+                            <Badge colorPalette={getStatusColor(lastResult.details.test_download_success)} variant="subtle">
                               {lastResult.details.test_download_success ? "Success" : "Failed"}
                             </Badge>
                           </HStack>
@@ -199,7 +199,7 @@ export default function GamdlTestConnection() {
 
           {!lastResult && (
             <Box textAlign="center" py={4}>
-              <Text color="gray.500">
+              <Text color="fg.muted">
                 Click &quot;Test Connection&quot; to verify your gamdl setup
               </Text>
             </Box>

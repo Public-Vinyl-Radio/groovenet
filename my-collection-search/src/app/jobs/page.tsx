@@ -82,7 +82,7 @@ export default function JobsPage() {
   const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
 
   const getStateBadge = (state: string) => {
-    const colorScheme =
+    const colorPalette =
       {
         waiting: "blue",
         active: "orange",
@@ -91,7 +91,7 @@ export default function JobsPage() {
       }[state] || "gray";
 
     return (
-      <Badge colorScheme={colorScheme} variant="subtle">
+      <Badge colorPalette={colorPalette} variant="subtle">
         {state.charAt(0).toUpperCase() + state.slice(1)}
       </Badge>
     );
@@ -295,7 +295,7 @@ export default function JobsPage() {
                 onClick={() => clearJobsMutation.mutate()}
                 loading={clearJobsMutation.isPending}
                 variant="outline"
-                colorScheme="red"
+                colorPalette="red"
                 disabled={summary.total === 0}
                 aria-label="Clear all jobs"
                 size="sm"
@@ -414,7 +414,7 @@ export default function JobsPage() {
                       <Flex gap={2} flexWrap="wrap" alignItems="center">
                         <Badge variant="outline">{job.queue}</Badge>
                         <Badge variant="outline">{job.name || "unknown-job"}</Badge>
-                        <Badge colorScheme={downloaderInfo.color} variant="solid" size="sm">
+                        <Badge colorPalette={downloaderInfo.color} variant="solid" size="sm">
                           {downloaderInfo.name}
                         </Badge>
                         <Text fontSize="sm" color="gray.600">
@@ -436,7 +436,7 @@ export default function JobsPage() {
 
                       {job.state === "active" ? (
                         <Box>
-                          <Progress.Root value={job.progress} size="sm" colorScheme="blue" mb={1}>
+                          <Progress.Root value={job.progress} size="sm" colorPalette="blue" mb={1}>
                             <Progress.Track>
                               <Progress.Range />
                             </Progress.Track>
