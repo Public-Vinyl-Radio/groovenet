@@ -3,7 +3,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import GenreBadge, { GenreBadgeList } from "./GenreBadge";
+import GenreBadge, { GenreBadgeList, GenreBadgeRow } from "./GenreBadge";
 
 describe("GenreBadge", () => {
   it("links a taxonomy genre to track search filtered by its slug", () => {
@@ -73,5 +73,52 @@ describe("GenreBadgeList", () => {
 
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.getByText("Chicha")).toBeTruthy();
+  });
+});
+
+describe("GenreBadgeRow (#470)", () => {
+  it("renders nothing for an empty list", () => {
+    const { container } = renderWithProviders(
+      <GenreBadgeRow items={[]} kind="track" scope="tracks" data-testid="row" />
+    );
+
+    expect(container.querySelector('[data-testid="row"]')).toBeNull();
+  });
+
+  it("shows every badge once when within the mobile limit", () => {
+    renderWithProviders(
+      <GenreBadgeRow
+        items={[
+          { label: "Cumbia", slug: "cumbia" },
+          { label: "Chicha", slug: null },
+        ]}
+        kind="track"
+        scope="tracks"
+        data-testid="row"
+      />
+    );
+
+    expect(screen.queryByText(/^\+\d+$/)).toBeNull();
+    expect(screen.getAllByText("Cumbia").length).toBeGreaterThan(0);
+  });
+
+  it("folds badges past the mobile limit into a +N badge", () => {
+    renderWithProviders(
+      <GenreBadgeRow
+        items={[
+          { label: "Cumbia", slug: "cumbia" },
+          { label: "Chicha", slug: null },
+          { label: "Salsa", slug: null },
+          { label: "Merengue", slug: null },
+        ]}
+        kind="track"
+        scope="tracks"
+        mobileLimit={3}
+      />
+    );
+
+    expect(screen.getAllByText("+1").length).toBeGreaterThan(0);
+    // The desktop row still shows every badge, unfolded.
+    expect(screen.getAllByText("Merengue").length).toBeGreaterThan(0);
   });
 });

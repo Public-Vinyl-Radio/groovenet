@@ -423,6 +423,25 @@ describe("findSimilarIdentityTracks()", () => {
     expect(sql).not.toContain("LIKE");
   });
 
+  it("selects the track's taxonomy genres, so Related/Similar lists can badge them (#470)", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findSimilarIdentityTracks(client as any, {
+      sourceEmbedding: [0.1],
+      sourceTrackId: "t1",
+      sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      templateVersion: 2,
+      dims: 1536,
+      limit: 5,
+      filters: {},
+    });
+
+    const [sql] = client.query.mock.calls[0];
+    expect(sql).toContain("AS track_genres");
+  });
+
   it.each([0, -1, 1.5, NaN])("rejects invalid dims (%s) without querying", async (dims) => {
     const client = makeClient();
 
@@ -484,6 +503,24 @@ describe("findSimilarAudioVibeTracks()", () => {
     expect(params).toEqual([embedding, "t1", 3, 20, "text-embedding-3-small", 2]);
     const [sql] = client.query.mock.calls[0];
     expect(sql).toContain("te.template_version = $6");
+  });
+
+  it("selects the track's taxonomy genres, so Vibe lists can badge them (#470)", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [] });
+
+    await makeRepo().findSimilarAudioVibeTracks(client as any, {
+      sourceEmbedding: [0.1],
+      sourceTrackId: "t1",
+      sourceFriendId: 1,
+      model: "text-embedding-3-small",
+      templateVersion: 2,
+      dims: 1536,
+      limit: 10,
+    });
+
+    const [sql] = client.query.mock.calls[0];
+    expect(sql).toContain("AS track_genres");
   });
 });
 

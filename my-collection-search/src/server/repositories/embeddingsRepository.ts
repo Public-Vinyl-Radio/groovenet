@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { dbQuery } from "@/lib/serverDb";
 import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 import { attributeFilterClauses, missingFilterClause } from "@/lib/trackFilterSpec";
+import { trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 import type { BackfillOptions, EmbeddingBackfillOptions } from "@/types/backfill";
 import type {
   ContextMatch,
@@ -310,6 +311,7 @@ export class EmbeddingsRepository {
         COALESCE(t.genres, '{}') AS genres,
         COALESCE(t.styles, '{}') AS styles,
         COALESCE(t.local_tags, '') AS local_tags,
+        ${trackGenresSelectSql("t")},
         t.album_thumbnail,
         t.audio_file_album_art_url,
         t.bpm,
@@ -368,6 +370,7 @@ export class EmbeddingsRepository {
         COALESCE(t.genres, '{}') AS genres,
         COALESCE(t.styles, '{}') AS styles,
         COALESCE(t.local_tags, '') AS local_tags,
+        ${trackGenresSelectSql("t")},
         t.album_thumbnail,
         t.audio_file_album_art_url,
         t.bpm,

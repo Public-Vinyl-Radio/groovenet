@@ -53,4 +53,16 @@ describe("TrackSpinEventRepository.listTopTracks", () => {
     expect(sql).toContain("tse.release_id = $2");
     expect(params).toEqual([6, "r1", 5, 10]);
   });
+
+  it("includes track_genres and styles, correlated on the aggregated row (#470)", async () => {
+    dbQuery.mockReset().mockResolvedValue({ rows: [] });
+
+    await repo.listTopTracks({ friend_id: 6, limit: 12, offset: 0 });
+
+    const [sql] = dbQuery.mock.calls[0];
+    expect(sql).toContain("AS track_genres");
+    expect(sql).toContain("tg.track_id = aggregated.track_id");
+    expect(sql).toContain("tg.friend_id = aggregated.friend_id");
+    expect(sql).toContain("COALESCE(t.styles, '{}') AS styles");
+  });
 });

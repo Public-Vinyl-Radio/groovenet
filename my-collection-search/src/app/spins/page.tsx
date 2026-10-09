@@ -36,8 +36,10 @@ function buildTopTrackFallback(track: {
   bpm?: number | string | null;
   key?: string | null;
   star_rating?: number | null;
+  styles?: string[];
   library_identifier?: string | null;
   hasVectors?: boolean;
+  track_genres?: Track["track_genres"];
 }): Track {
   return {
     id: 0,
@@ -58,8 +60,10 @@ function buildTopTrackFallback(track: {
       typeof track.bpm === "number" ? String(track.bpm) : track.bpm ?? undefined,
     key: track.key ?? undefined,
     star_rating: track.star_rating ?? undefined,
+    styles: track.styles,
     library_identifier: track.library_identifier ?? undefined,
     hasVectors: track.hasVectors,
+    track_genres: track.track_genres,
   };
 }
 

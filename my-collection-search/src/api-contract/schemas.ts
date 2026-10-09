@@ -1431,8 +1431,10 @@ export const spinTopTrackItemSchema = z.object({
   bpm: z.union([z.number(), z.string()]).nullable().optional(),
   key: z.string().nullable().optional(),
   star_rating: z.number().nullable().optional(),
+  styles: z.array(z.string()).optional(),
   library_identifier: z.string().nullable().optional(),
   hasVectors: z.boolean().optional(),
+  track_genres: z.array(trackGenreSchema).optional(),
 });
 
 export const spinTopTracksResponseSchema = z.object({

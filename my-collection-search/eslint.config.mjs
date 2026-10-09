@@ -11,6 +11,10 @@ const eslintConfig = [...nextVitals, ...nextTs, {
     // New React hook safety rules are useful but too disruptive as an immediate baseline.
     "react-hooks/set-state-in-effect": "off",
     "react-hooks/immutability": "off",
+    // `const { field, ...rest } = obj` to omit a field is an established
+    // pattern here (e.g. dropping local_tags before returning a track);
+    // the unused destructured sibling isn't a real unused variable.
+    "@typescript-eslint/no-unused-vars": ["warn", { ignoreRestSiblings: true }],
     // Chakra v3 ignores colorScheme (renamed to colorPalette); catch it before it ships (#482).
     "no-restricted-syntax": ["error", {
       selector: "JSXAttribute[name.name='colorScheme']",

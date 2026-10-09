@@ -12,6 +12,7 @@ export type SimilarTrackBase = Pick<
   | "genres"
   | "styles"
   | "local_tags"
+  | "track_genres"
   | "album_thumbnail"
   | "audio_file_album_art_url"
   | "bpm"
