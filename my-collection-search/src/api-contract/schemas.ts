@@ -2106,6 +2106,21 @@ export const genrePageRefSchema = z.object({
 });
 export type GenrePageRef = z.infer<typeof genrePageRefSchema>;
 
+/** What produced a similar-genre score (#377): a taxonomy relation, co-occurrence, or both. */
+export const genreSimilaritySignalsSchema = z.object({
+  taxonomy: z.enum(["sibling", "parent", "child"]).optional(),
+  npmi: z.number().min(-1).max(1).optional(),
+  shared_albums: z.number().int().nonnegative().optional(),
+});
+export type GenreSimilaritySignals = z.infer<typeof genreSimilaritySignalsSchema>;
+
+/** A related genre (#377): stored similarity when it exists, else the sibling stand-in it falls back to. */
+export const genreRelatedRefSchema = genrePageRefSchema.extend({
+  score: z.number().optional(),
+  signals: genreSimilaritySignalsSchema.optional(),
+});
+export type GenreRelatedRef = z.infer<typeof genreRelatedRefSchema>;
+
 export const genrePageQuerySchema = z.object({ friend_id: intFromInputSchema.optional() });
 
 /** `GET /api/genres/{id}`: one genre's place in the taxonomy and in the collection (#376). */
@@ -2121,8 +2136,8 @@ export const genrePageResponseSchema = z.object({
   /** Root first, ending with the genre's parent. */
   ancestors: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })),
   children: z.array(genrePageRefSchema),
-  /** Siblings under the same parent that the collection uses, until similar genres (#377) exist. */
-  related: z.array(genrePageRefSchema),
+  /** From the genre_similarity table (#377), falling back to taxonomy siblings when it has no rows yet. */
+  related: z.array(genreRelatedRefSchema),
   counts: z.object({
     tracks: z.number().int().nonnegative(),
     albums: z.number().int().nonnegative(),
@@ -2133,6 +2148,14 @@ export const genrePageResponseSchema = z.object({
   top_albums: z.array(albumEntitySchema.extend({ play_count: z.number().int().nonnegative() })),
 });
 export type GenrePageResponse = z.infer<typeof genrePageResponseSchema>;
+
+/** `GET /api/genres/{id}/similar` (#377): the same ranking `related` reads on the genre page, standalone. */
+export const genreSimilarResponseSchema = z.object({
+  genre: genrePageRefSchema,
+  related: z.array(genreRelatedRefSchema),
+});
+export type GenreSimilarResponse = z.infer<typeof genreSimilarResponseSchema>;
+
 export const genreParamsSchema = z.object({ id: z.string().uuid() });
 export const genreCreateBodySchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
 export const genreUpdateBodySchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });

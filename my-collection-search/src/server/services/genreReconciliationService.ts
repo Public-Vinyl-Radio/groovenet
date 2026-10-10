@@ -22,6 +22,7 @@ import {
   mapValuesWithAi,
   type AiUsage,
 } from "@/server/genres/reconciliationAi";
+import { triggerGenreSimilarityRefresh } from "@/server/services/genreSimilarityService";
 
 /**
  * Reconciles free-text `local_tags` onto the genre taxonomy (#372).
@@ -352,7 +353,7 @@ const genreSlug = (name: string) =>
  * genres are global whatever the scope, like the taxonomy.
  */
 export async function applyProposals(ids?: string[], friendId: number | null = null): Promise<ApplySummary> {
-  return withDbTransaction(async (client) => {
+  const summary = await withDbTransaction(async (client) => {
     // Same lock order as genreAdminService.mergeGenres, so the two serialise.
     await client.query("LOCK TABLE genres, genre_aliases IN SHARE ROW EXCLUSIVE MODE");
     await client.query("LOCK TABLE track_genres IN SHARE ROW EXCLUSIVE MODE");
@@ -386,6 +387,9 @@ export async function applyProposals(ids?: string[], friendId: number | null = n
     }
     return summary;
   });
+  // After commit: new track_genres links change collection co-occurrence (#377).
+  if (summary.tracks_linked > 0) triggerGenreSimilarityRefresh();
+  return summary;
 }
 
 /** Applies one proposal, or returns why it could not be. */

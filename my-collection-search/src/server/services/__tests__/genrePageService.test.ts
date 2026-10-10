@@ -10,8 +10,10 @@ const genrePageRepository = vi.hoisted(() => ({
   topTracks: vi.fn(),
   topAlbums: vi.fn(),
 }));
+const genreSimilarityRepository = vi.hoisted(() => ({ topForGenre: vi.fn() }));
 vi.mock("@/server/repositories/genreRepository", () => ({ genreRepository }));
 vi.mock("@/server/repositories/genrePageRepository", () => ({ genrePageRepository }));
+vi.mock("@/server/repositories/genreSimilarityRepository", () => ({ genreSimilarityRepository }));
 
 import { getGenrePage } from "../genrePageService";
 import { genrePageResponseSchema } from "@/api-contract/schemas";
@@ -55,6 +57,7 @@ describe("getGenrePage", () => {
     genrePageRepository.counts.mockResolvedValue({ tracks: 25, albums: 4, albums_total: 9 });
     genrePageRepository.topTracks.mockResolvedValue([{ track_id: "t1", play_count: 3, date_added: new Date("2026-01-02T00:00:00Z") }]);
     genrePageRepository.topAlbums.mockResolvedValue([{ release_id: "r1", play_count: 0, date_added: "2026-01-01" }]);
+    genreSimilarityRepository.topForGenre.mockResolvedValue([]);
   });
 
   it("returns null for a genre that doesn't exist", async () => {
@@ -147,6 +150,20 @@ describe("getGenrePage", () => {
 
     const page = await getGenrePage("cumbia", 6);
     expect(() => genrePageResponseSchema.parse(page)).not.toThrow();
+  });
+
+  it("reads related genres from the similarity table when it has rows for the genre", async () => {
+    genreSimilarityRepository.topForGenre.mockResolvedValue([
+      { related_genre_id: uuid(8), score: 1.4, signals: { npmi: 0.4, shared_albums: 5 } },
+      { related_genre_id: uuid(999), score: 1.1, signals: {} }, // Deleted since the table was last recomputed.
+    ]);
+
+    const page = await getGenrePage("cumbia");
+
+    expect(genreSimilarityRepository.topForGenre).toHaveBeenCalledWith(uuid(2), 12);
+    expect(page?.related).toEqual([
+      { id: uuid(8), name: "Rock", slug: "rock", track_count: 0, score: 1.4, signals: { npmi: 0.4, shared_albums: 5 } },
+    ]);
   });
 
   it("counts a genre the collection doesn't use as zero", async () => {

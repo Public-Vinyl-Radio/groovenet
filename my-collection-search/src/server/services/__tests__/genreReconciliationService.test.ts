@@ -23,6 +23,7 @@ const repo = vi.hoisted(() => ({
 const resolveGenreRefs = vi.hoisted(() => vi.fn());
 const mapValuesWithAi = vi.hoisted(() => vi.fn());
 const query = vi.hoisted(() => vi.fn());
+const triggerGenreSimilarityRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/repositories/genreReconciliationRepository", () => ({ genreReconciliationRepository: repo }));
 vi.mock("@/server/repositories/trackGenreRepository", () => ({ trackGenreRepository: { resolveGenreRefs } }));
@@ -32,6 +33,7 @@ vi.mock("@/server/genres/reconciliationAi", () => ({
   mapValuesWithAi,
 }));
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: async (fn: (c: unknown) => unknown) => fn({ query }) }));
+vi.mock("@/server/services/genreSimilarityService", () => ({ triggerGenreSimilarityRefresh }));
 
 import {
   applyProposals,
@@ -313,6 +315,8 @@ describe("applyProposals", () => {
     expect(linkCalls[0][1]).toEqual([["1"], [1], ["g1"]]);
     expect(linkCalls[1][1]).toEqual([["1", "2"], [1, 1], ["new-genre"]]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("SET applied_at = now()"), ["p2", "new-genre"]);
+    // After commit: new track_genres links change collection co-occurrence (#377).
+    expect(triggerGenreSimilarityRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("reuses a genre it created before, or one that now exists", async () => {
@@ -354,6 +358,7 @@ describe("applyProposals", () => {
       proposal({ id: "p3", value_normalized: "uplifting", action: "descriptor", target_genres: [] }),
     ]);
     expect(await applyProposals()).toMatchObject({ tracks_linked: 0, aliases_added: 0, descriptors_added: 0, proposals_applied: 2 });
+    expect(triggerGenreSimilarityRefresh).not.toHaveBeenCalled();
   });
 });
 
