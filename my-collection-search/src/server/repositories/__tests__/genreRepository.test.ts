@@ -96,6 +96,23 @@ describe("GenreRepository genre filter lookups (#375)", () => {
   });
 });
 
+describe("GenreRepository.findRefsByIds (#485)", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("names the genres for a set of ids", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: "id-porro", name: "Porro", slug: "porro" }] });
+    await expect(new GenreRepository().findRefsByIds(["id-porro"])).resolves.toEqual([
+      { id: "id-porro", name: "Porro", slug: "porro" },
+    ]);
+    expect(dbQuery.mock.calls[0][1]).toEqual([["id-porro"]]);
+  });
+
+  it("does not query for no ids", async () => {
+    await expect(new GenreRepository().findRefsByIds([])).resolves.toEqual([]);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+});
+
 describe("GenreRepository.trackFacets (#375)", () => {
   beforeEach(() => vi.resetAllMocks());
 

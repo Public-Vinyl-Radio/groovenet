@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Combobox, Portal, Text, createListCollection } from "@chakra-ui/react";
+import { Combobox, Portal, Switch, Text, createListCollection } from "@chakra-ui/react";
 import type { FilterChip } from "@/components/FilterChips";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
+import type { GenreFilterRef } from "@/lib/trackFilterSpec";
 import {
   filterGenreOptions,
   genreFilterOptions,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/genres/options";
 
 const CHIP_PREFIX = "genre:";
+const SIMILAR_CHIP_PREFIX = "similar:";
 
 /** Filter chips for the chosen genre slugs, named from the taxonomy once it loads. */
 export function genreFilterChips(selected: string[], genres: GenreOption[]): FilterChip[] {
@@ -25,6 +27,45 @@ export function genreFilterChips(selected: string[], genres: GenreOption[]): Fil
 /** The slug a genre chip's key stands for, or null for any other chip. */
 export function genreSlugFromChipKey(key: string): string | null {
   return key.startsWith(CHIP_PREFIX) ? key.slice(CHIP_PREFIX.length) : null;
+}
+
+/**
+ * Removable chips for the genres "Include similar" added (#485), e.g.
+ * "+ Chicha, Porro, Digital Cumbia". Removing one excludes that id from the
+ * widening (via `similarGenreIdFromChipKey`), rather than removing a seed.
+ */
+export function addedGenreChips(added: GenreFilterRef[]): FilterChip[] {
+  return added.map((genre) => ({
+    key: `${SIMILAR_CHIP_PREFIX}${genre.id}`,
+    label: genre.name,
+    active: true,
+  }));
+}
+
+/** The related-genre id a similar-genre chip's key stands for, or null for any other chip. */
+export function similarGenreIdFromChipKey(key: string): string | null {
+  return key.startsWith(SIMILAR_CHIP_PREFIX) ? key.slice(SIMILAR_CHIP_PREFIX.length) : null;
+}
+
+/** The "Include similar" toggle (#485): widens the active genre filter to its top related genres. */
+export function IncludeSimilarToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Switch.Root
+      checked={checked}
+      onCheckedChange={(details) => onChange(details.checked)}
+      size="sm"
+    >
+      <Switch.HiddenInput />
+      <Switch.Control />
+      <Switch.Label>Include similar</Switch.Label>
+    </Switch.Root>
+  );
 }
 
 type GenreFilterProps = {

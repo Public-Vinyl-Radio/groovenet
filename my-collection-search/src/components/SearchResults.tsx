@@ -23,7 +23,13 @@ import { useSearchResults } from "@/hooks/useSearchResults";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrack } from "@/hooks/useTrack";
 import FilterChips from "@/components/FilterChips";
-import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "@/components/GenreFilter";
+import GenreFilter, {
+  addedGenreChips,
+  genreFilterChips,
+  genreSlugFromChipKey,
+  IncludeSimilarToggle,
+  similarGenreIdFromChipKey,
+} from "@/components/GenreFilter";
 import MissingFilter, { MissingChecklist } from "@/components/MissingFilter";
 import AttributeFilter, { AttributeFields } from "@/components/AttributeFilter";
 import FilterSheet, { FilterSheetSection } from "@/components/FilterSheet";
@@ -97,6 +103,14 @@ const SearchResults: React.FC = () => {
   );
   // Genre slugs (#375), linkable as `?genre=cumbia&genre=salsa`.
   const [genres, setGenres] = React.useState<string[]>(() => searchParams?.getAll("genre") ?? []);
+  // "Include similar" (#485), linkable as `?genre=cumbia&similar=1`.
+  const [includeSimilar, setIncludeSimilar] = React.useState<boolean>(
+    () => searchParams?.get("similar") === "1"
+  );
+  // Related-genre ids removed from the widened set; kept out on reload too.
+  const [similarExclude, setSimilarExclude] = React.useState<string[]>(
+    () => searchParams?.getAll("similar_exclude") ?? []
+  );
   const [searchMode, setSearchMode] = React.useState<TrackSearchMode>(() => {
     const fromUrl = searchParams?.get("mode");
     return isTrackSearchMode(fromUrl) ? fromUrl : "lexical";
@@ -125,6 +139,7 @@ const SearchResults: React.FC = () => {
     loadMore,
     initialLoading,
     loadingMore,
+    addedGenres,
   } = useSearchResults({
     enabled: isHydrated && !!currentUserFriend,
     mode: "infinite",
@@ -134,6 +149,8 @@ const SearchResults: React.FC = () => {
     searchMode,
     genres,
     attributes,
+    includeSimilar,
+    similarExclude,
   });
 
   // Counts only for keyword search: semantic and hybrid return one ranked page.
@@ -244,6 +261,11 @@ const SearchResults: React.FC = () => {
       setGenres((prev) => prev.filter((slug) => slug !== genreSlug));
       return;
     }
+    const similarGenreId = similarGenreIdFromChipKey(key);
+    if (similarGenreId !== null) {
+      setSimilarExclude((prev) => [...prev, similarGenreId]);
+      return;
+    }
     const withoutAttribute = removeAttributeChip(attributes, key);
     if (withoutAttribute !== null) {
       setAttributes(withoutAttribute);
@@ -255,6 +277,8 @@ const SearchResults: React.FC = () => {
   const handleClearAllFilters = React.useCallback(() => {
     setActiveFilters(createEmptyFilters());
     setGenres([]);
+    setIncludeSimilar(false);
+    setSimilarExclude([]);
     setAttributes({});
   }, []);
   const attributeChips = attributeFilterChips(attributes);
@@ -335,6 +359,8 @@ const SearchResults: React.FC = () => {
       setQuery(urlQ);
       setDebouncedValue(urlQ);
       setGenres(fromUrl.getAll("genre"));
+      setIncludeSimilar(fromUrl.get("similar") === "1");
+      setSimilarExclude(fromUrl.getAll("similar_exclude"));
       setSearchMode(isTrackSearchMode(urlMode) ? urlMode : "lexical");
       setActiveFilters(tracksFilterFromParams(fromUrl));
       setAttributes(attributeFiltersFromParams(fromUrl));
@@ -351,12 +377,28 @@ const SearchResults: React.FC = () => {
     writeTrackFiltersToParams(params, activeFilters, attributes);
     params.delete("genre");
     genres.forEach((slug) => params.append("genre", slug));
+    if (includeSimilar) params.set("similar", "1");
+    else params.delete("similar");
+    params.delete("similar_exclude");
+    similarExclude.forEach((id) => params.append("similar_exclude", id));
     const nextQueryString = params.toString();
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
     pendingUrlsRef.current.add(nextQueryString);
     router.replace(newUrl);
-  }, [query, setQuery, activeFilters, attributes, genres, searchMode, pathname, router, searchParamsString]);
+  }, [
+    query,
+    setQuery,
+    activeFilters,
+    attributes,
+    genres,
+    includeSimilar,
+    similarExclude,
+    searchMode,
+    pathname,
+    router,
+    searchParamsString,
+  ]);
 
   return (
     <Box mb={'100px'}>
@@ -380,6 +422,9 @@ const SearchResults: React.FC = () => {
             >
               <FilterSheetSection title="Genre">
                 <GenreFilter selected={genres} onAdd={addGenre} counts={genreCounts} inSheet />
+                {genres.length > 0 && (
+                  <IncludeSimilarToggle checked={includeSimilar} onChange={setIncludeSimilar} />
+                )}
               </FilterSheetSection>
               <FilterSheetSection title="Missing">
                 <MissingChecklist
@@ -440,6 +485,9 @@ const SearchResults: React.FC = () => {
         leading={
           <>
             <GenreFilter selected={genres} onAdd={addGenre} counts={genreCounts} />
+            {genres.length > 0 && (
+              <IncludeSimilarToggle checked={includeSimilar} onChange={setIncludeSimilar} />
+            )}
             <MissingFilter
               options={TRACK_MISSING_OPTIONS}
               active={activeFilters}
@@ -450,6 +498,7 @@ const SearchResults: React.FC = () => {
         }
         chips={[
           ...genreFilterChips(genres, taxonomy),
+          ...addedGenreChips(addedGenres),
           ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
             ({ key, chipLabel }) => ({ key, label: chipLabel, active: true })
           ),

@@ -38,7 +38,14 @@ export async function GET(request: NextRequest) {
       searchParams.get("missing_local_cover_art_url") === "1";
     const missingAudio = searchParams.get("missing_audio") === "1";
     // Repeatable; each value is a slug, id or name, and includes its subgenres.
-    const genreResolution = await resolveGenreFilter(searchParams.getAll("genre"));
+    const includeSimilar = searchParams.get("include_similar") === "1";
+    const similarLimitRaw = searchParams.get("similar_limit");
+    const similarLimit = similarLimitRaw ? Number(similarLimitRaw) : undefined;
+    const genreResolution = await resolveGenreFilter(searchParams.getAll("genre"), {
+      includeSimilar,
+      similarLimit,
+      excludeSimilarIds: searchParams.getAll("similar_exclude"),
+    });
     if (genreResolution.unknown) {
       return NextResponse.json(unknownGenresError(genreResolution.unknown), { status: 400 });
     }
@@ -54,7 +61,10 @@ export async function GET(request: NextRequest) {
       missingAudio: missingAudio || undefined,
       genreFilter: genreResolution.filter,
     });
-    return NextResponse.json(response);
+    const addedGenres = genreResolution.added ?? [];
+    return NextResponse.json(
+      addedGenres.length > 0 ? { ...response, added_genres: addedGenres } : response
+    );
   } catch (error) {
     console.error("Error searching albums:", error);
     return NextResponse.json(

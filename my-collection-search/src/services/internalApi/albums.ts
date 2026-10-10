@@ -29,10 +29,16 @@ export type CreateAlbumResponse = Omit<CreateAlbumApiResponse, "album" | "tracks
   album: Album;
   tracks: Track[];
 };
-// `genre` is preprocessed in the schema, so its input type would be `unknown`.
-export type AlbumSearchParams = Omit<z.input<typeof albumSearchQuerySchema>, "genre"> & {
+// `genre` and `similar_exclude` are preprocessed in the schema, so their
+// input types would be `unknown`.
+export type AlbumSearchParams = Omit<
+  z.input<typeof albumSearchQuerySchema>,
+  "genre" | "similar_exclude"
+> & {
   /** Genre slugs (#375); any of them matches, each with its subgenres. */
   genre?: string[];
+  /** Related-genre ids already removed by the caller (#485); never re-added. */
+  similar_exclude?: string[];
 };
 export type AlbumSearchApiResponse = z.infer<typeof albumSearchResponseSchema>;
 export type AlbumSearchResponse = Omit<AlbumSearchApiResponse, "hits"> & {
@@ -109,6 +115,11 @@ export async function searchAlbums(
     searchParams.append("missing_local_cover_art_url", "1");
   }
   for (const genre of params.genre ?? []) searchParams.append("genre", genre);
+  if (params.include_similar) searchParams.append("include_similar", "1");
+  if (typeof params.similar_limit === "number") {
+    searchParams.append("similar_limit", String(params.similar_limit));
+  }
+  for (const id of params.similar_exclude ?? []) searchParams.append("similar_exclude", id);
 
   const query = searchParams.toString();
   const path = query ? `/api/albums?${query}` : "/api/albums";

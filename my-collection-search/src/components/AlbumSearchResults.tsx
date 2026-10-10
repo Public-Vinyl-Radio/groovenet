@@ -5,13 +5,17 @@ import { useAlbumsInfiniteQuery } from "@/hooks/useAlbumsQuery";
 import { useAlbumsByRefs } from "@/hooks/useAlbum";
 import AlbumResult from "./AlbumResult";
 import { useSearchParams } from "next/navigation";
+import type { GenreFilterRef } from "@/lib/trackFilterSpec";
 
 export default function AlbumSearchResults({
   viewMode = "card",
   friendId,
+  onAddedGenresChange,
 }: {
   viewMode?: "card" | "table";
   friendId: number;
+  /** Genres `include_similar` added (#485), reported up for the page to show as chips. */
+  onAddedGenresChange?: (genres: GenreFilterRef[]) => void;
 }) {
   const searchParams = useSearchParams();
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -22,6 +26,8 @@ export default function AlbumSearchResults({
   const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
   const missingAudio = searchParams.get("missing_audio") === "1";
   const genres = searchParams.getAll("genre");
+  const includeSimilar = searchParams.get("similar") === "1";
+  const similarExclude = searchParams.getAll("similar_exclude");
 
   const { data, albumRefs, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useAlbumsInfiniteQuery({
@@ -33,7 +39,16 @@ export default function AlbumSearchResults({
       missing_local_cover_art_url: missingLocalCoverArtUrl || undefined,
       missing_audio: missingAudio || undefined,
       ...(genres.length > 0 ? { genre: genres } : {}),
+      ...(includeSimilar ? { include_similar: true } : {}),
+      ...(similarExclude.length > 0 ? { similar_exclude: similarExclude } : {}),
     });
+
+  const addedGenres = data?.pages[0]?.added_genres ?? [];
+  useEffect(() => {
+    onAddedGenresChange?.(addedGenres);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(addedGenres)]);
+
   const albumsFromStore = useAlbumsByRefs(albumRefs);
   const albumsFromQuery = data?.pages.flatMap((page) => page.hits) || [];
   const albums =

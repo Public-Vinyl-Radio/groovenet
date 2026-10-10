@@ -1,5 +1,5 @@
 import { dbQuery, withDbTransaction } from "@/lib/serverDb";
-import type { GenreFilter } from "@/lib/trackFilterSpec";
+import type { GenreFilter, GenreFilterRef } from "@/lib/trackFilterSpec";
 
 export type GenreSource = "discogs" | "custom";
 
@@ -115,6 +115,16 @@ export class GenreRepository {
       [genreIds]
     );
     return { ids: rows[0]?.ids ?? [], keys: rows[0]?.keys ?? [] };
+  }
+
+  /** Name/slug for a set of genre ids (#485), for naming the genres a widened filter added. */
+  async findRefsByIds(ids: string[]): Promise<GenreFilterRef[]> {
+    if (ids.length === 0) return [];
+    const { rows } = await dbQuery<GenreFilterRef>(
+      "SELECT id::text AS id, name, slug FROM genres WHERE id = ANY($1::uuid[])",
+      [ids]
+    );
+    return rows;
   }
 
   /**

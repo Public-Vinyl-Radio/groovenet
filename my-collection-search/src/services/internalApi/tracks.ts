@@ -6,6 +6,7 @@ import {
   trackPlaylistCountsResponseSchema,
   trackSearchGetQuerySchema,
   trackSearchGetResponseSchema,
+  genreFilterRefSchema,
   recommendationsResponseSchema,
   audioVibeEmbeddingDataSchema,
   audioVibeEmbeddingPreviewResponseSchema,
@@ -93,20 +94,23 @@ export type SimilarVibeTracksResponse = {
 type RecommendationCandidate =
   z.infer<typeof recommendationsResponseSchema>["candidates"][number];
 
-// `genre` and the attributes are preprocessed in the schema, so their input
-// types would be `unknown`.
+// `genre`, `similar_exclude` and the attributes are preprocessed in the
+// schema, so their input types would be `unknown`.
 export type TrackSearchQuery = Omit<
   z.input<typeof trackSearchGetQuerySchema>,
-  "genre" | keyof TrackAttributeFilters
+  "genre" | "similar_exclude" | keyof TrackAttributeFilters
 > &
   TrackAttributeFilters & {
     /** Genre slugs (#375); any of them matches, each with its subgenres. */
     genre?: string[];
+    /** Related-genre ids already removed by the caller (#485); never re-added. */
+    similar_exclude?: string[];
   };
 type TrackSearchApiResponse = z.infer<typeof trackSearchGetResponseSchema>;
 export type TrackSearchResponse = Omit<TrackSearchApiResponse, "hits"> & {
   hits: Track[];
 };
+export type AddedGenreRef = z.infer<typeof genreFilterRefSchema>;
 export type AnalyzeArgs = {
   track_id: string;
   friend_id: number;
@@ -506,6 +510,9 @@ export async function searchTracks(
   if (query.mode && query.mode !== "lexical") params.set("mode", query.mode);
   setAttributeParams(params, query);
   for (const genre of query.genre ?? []) params.append("genre", genre);
+  if (query.include_similar) params.set("include_similar", "1");
+  if (typeof query.similar_limit === "number") params.set("similar_limit", String(query.similar_limit));
+  for (const id of query.similar_exclude ?? []) params.append("similar_exclude", id);
 
   const search = params.toString();
   const path = search ? `/api/tracks/search?${search}` : "/api/tracks/search";

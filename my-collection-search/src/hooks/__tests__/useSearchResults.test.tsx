@@ -137,3 +137,53 @@ describe("useSearchResults attribute filters (#447)", () => {
     expect(trackKeys()[0][1]).not.toHaveProperty("attributes");
   });
 });
+
+describe("useSearchResults includeSimilar (#485)", () => {
+  it("sends include_similar, similar_limit and similar_exclude, and keys the cache by them", async () => {
+    renderSearch({
+      genres: ["cumbia"],
+      includeSimilar: true,
+      similarLimit: 3,
+      similarExclude: ["id-porro"],
+    });
+
+    await waitFor(() =>
+      expect(searchTracks).toHaveBeenCalledWith(
+        expect.objectContaining({ include_similar: true, similar_limit: 3, similar_exclude: ["id-porro"] })
+      )
+    );
+    expect(trackKeys()[0][1]).toMatchObject({
+      includeSimilar: true,
+      similarLimit: 3,
+      similarExclude: ["id-porro"],
+    });
+  });
+
+  it("leaves the cache key as it was when off", async () => {
+    renderSearch({ genres: ["cumbia"], includeSimilar: false });
+    await waitFor(() => expect(searchTracks).toHaveBeenCalled());
+    expect(trackKeys()[0][1]).not.toHaveProperty("includeSimilar");
+  });
+
+  it("surfaces the genres the server added", async () => {
+    searchTracks.mockResolvedValue({
+      hits: [{ track_id: "t1", friend_id: 1 }],
+      estimatedTotalHits: 1,
+      offset: 0,
+      limit: 20,
+      processingTimeMs: 1,
+      added_genres: [{ id: "id-porro", name: "Porro", slug: "porro" }],
+    });
+    const { result } = renderSearch({ genres: ["cumbia"], includeSimilar: true });
+
+    await waitFor(() =>
+      expect(result.current.addedGenres).toEqual([{ id: "id-porro", name: "Porro", slug: "porro" }])
+    );
+  });
+
+  it("is an empty list when the server added nothing", async () => {
+    const { result } = renderSearch({ genres: ["cumbia"] });
+    await waitFor(() => expect(searchTracks).toHaveBeenCalled());
+    expect(result.current.addedGenres).toEqual([]);
+  });
+});

@@ -3481,6 +3481,16 @@ const genreRelatedRefObject = {
   },
   required: ["id", "name", "slug", "track_count"],
 };
+/** A genre `include_similar` added (#485): no track_count, since a search response isn't the genre page. */
+const genreFilterRefObject = {
+  type: "object",
+  properties: {
+    id: genreUuid,
+    name: { type: "string" },
+    slug: { type: "string" },
+  },
+  required: ["id", "name", "slug"],
+};
 const genrePageSchemaObject = {
   type: "object",
   properties: {
@@ -4075,6 +4085,31 @@ const trackSearchParameters: Record<string, unknown>[] = [
     schema: { type: "array", items: { type: "string" }, maxItems: 20 },
     description:
       "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres, so 'latin' finds 'cumbia'. A track with genres of its own matches on those; one without falls back to its album's Discogs genres and styles. Applied in every mode. An unknown genre is a 400."
+  },
+  {
+    name: "include_similar",
+    in: "query",
+    required: false,
+    schema: { type: "integer", enum: [0, 1], default: 0 },
+    description:
+      "Widen genre to each seed genre's top related genres from genre_similarity (#485), each expanded to its own subgenres too. The genres this added are named in the response's added_genres. Off by default: results are unchanged unless set.",
+  },
+  {
+    name: "similar_limit",
+    in: "query",
+    required: false,
+    schema: { type: "integer", minimum: 1 },
+    description: "Per-seed cap on related genres pulled in when include_similar is set. Defaults to 5.",
+  },
+  {
+    name: "similar_exclude",
+    in: "query",
+    required: false,
+    style: "form",
+    explode: true,
+    schema: { type: "array", items: { type: "string", format: "uuid" }, maxItems: 20 },
+    description:
+      "Related-genre ids to leave out of the widening even though include_similar is set — how the UI drops one of the added_genres chips.",
   },
 ];
 
@@ -5998,7 +6033,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: trackSearchParameters.filter(
-        (parameter) => !["limit", "offset", "genre"].includes(parameter.name as string)
+        (parameter) =>
+          !["limit", "offset", "genre", "include_similar", "similar_limit", "similar_exclude"].includes(
+            parameter.name as string
+          )
       ),
       responses: {
         "200": {
@@ -6067,6 +6105,11 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   degraded: {
                     type: "boolean",
                     description: "Hybrid fell back to lexical results because the semantic leg failed.",
+                  },
+                  added_genres: {
+                    type: "array",
+                    items: genreFilterRefObject,
+                    description: "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
                   },
                 },
                 required: [...(trackSearchResponseBase.required as string[]), "hits"],
@@ -6940,6 +6983,31 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description:
             "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres. An album matches on its own Discogs genres and styles, or on any of its tracks' genres. An unknown genre is a 400."
         },
+        {
+          name: "include_similar",
+          in: "query",
+          required: false,
+          schema: { type: "integer", enum: [0, 1], default: 0 },
+          description:
+            "Widen genre to each seed genre's top related genres from genre_similarity (#485), each expanded to its own subgenres too. The genres this added are named in the response's added_genres. Off by default: results are unchanged unless set.",
+        },
+        {
+          name: "similar_limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1 },
+          description: "Per-seed cap on related genres pulled in when include_similar is set. Defaults to 5.",
+        },
+        {
+          name: "similar_exclude",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          schema: { type: "array", items: { type: "string", format: "uuid" }, maxItems: 20 },
+          description:
+            "Related-genre ids to leave out of the widening even though include_similar is set — how the UI drops one of the added_genres chips.",
+        },
       ],
       responses: {
         "200": {
@@ -6955,6 +7023,11 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   limit: { type: "integer" },
                   query: { type: "string" },
                   sort: { type: "string" },
+                  added_genres: {
+                    type: "array",
+                    items: genreFilterRefObject,
+                    description: "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
+                  },
                 },
                 required: ["hits", "estimatedTotalHits", "offset", "limit", "query", "sort"],
               },

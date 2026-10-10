@@ -253,6 +253,73 @@ describe("genre filter (integration)", () => {
     expect(result.body.unknown).toEqual(["not-a-genre"]);
   });
 
+  describe("include_similar (#485)", () => {
+    // The real taxonomy already has `genre_similarity` rows for these genres
+    // from other integration suites' merges and reparents (#377 recomputes
+    // on every one, fire-and-forget). Each test clears Salsa's/Jazz's own
+    // rows first so it controls exactly what `topForGenre` sees, regardless
+    // of that background noise.
+    async function soleSimilarRow(genreId: string, relatedId: string, score: number) {
+      await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [genreId]);
+      await dbQuery(
+        "INSERT INTO genre_similarity (genre_id, related_genre_id, score, signals) VALUES ($1, $2, $3, '{}'::jsonb)",
+        [genreId, relatedId, score]
+      );
+    }
+
+    dbTest("widens to a stored related genre and its descendants, naming what it added", async () => {
+      const { rows } = await dbQuery<{ id: string; name: string; slug: string }>(
+        "SELECT id, name, slug FROM genres WHERE name = ANY($1)",
+        [["Salsa", "Bossa Nova"]]
+      );
+      const salsa = rows.find((r) => r.name === "Salsa")!;
+      const bossaNova = rows.find((r) => r.name === "Bossa Nova")!;
+      await soleSimilarRow(salsa.id, bossaNova.id, 0.5);
+      try {
+        // Off by default: unchanged from plain genre=salsa.
+        expect((await searchTracks("genre=salsa")).ids).toEqual(["gf-2", "gf-3"]);
+
+        // On: gf-5 joins through its album's Discogs 'Bossanova' style.
+        const widened = await searchTracks("genre=salsa&include_similar=1");
+        expect(widened.ids).toEqual(["gf-2", "gf-3", "gf-5"]);
+        expect(widened.body.added_genres).toEqual([
+          { id: bossaNova.id, name: "Bossa Nova", slug: bossaNova.slug },
+        ]);
+      } finally {
+        await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [salsa.id]);
+      }
+    });
+
+    dbTest("a removed similar genre stays out when similar_exclude names it", async () => {
+      const { rows } = await dbQuery<{ id: string; name: string }>(
+        "SELECT id, name FROM genres WHERE name = ANY($1)",
+        [["Salsa", "Bossa Nova"]]
+      );
+      const salsa = rows.find((r) => r.name === "Salsa")!;
+      const bossaNova = rows.find((r) => r.name === "Bossa Nova")!;
+      await soleSimilarRow(salsa.id, bossaNova.id, 0.5);
+      try {
+        const result = await searchTracks(
+          `genre=salsa&include_similar=1&similar_exclude=${bossaNova.id}`
+        );
+        expect(result.ids).toEqual(["gf-2", "gf-3"]);
+        expect(result.body.added_genres).toBeUndefined();
+      } finally {
+        await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [salsa.id]);
+      }
+    });
+
+    dbTest("never falls back to taxonomy siblings when the table has no rows for the seed", async () => {
+      const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = 'Jazz'");
+      const jazzId = rows[0].id;
+      await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [jazzId]);
+
+      const result = await searchTracks("genre=jazz&include_similar=1");
+      expect(result.ids).toEqual(["gf-5"]);
+      expect(result.body.added_genres).toBeUndefined();
+    });
+  });
+
   dbTest("an album matches on its Discogs values or its live tracks' genres", async () => {
     // gf-rock-lp only through gf-3's link; gf-gone-lp's only link is on a deleted track.
     expect(await searchAlbums("salsa")).toEqual(["gf-rock-lp", "gf-salsa-lp"]);

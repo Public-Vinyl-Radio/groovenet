@@ -32,6 +32,11 @@ export const nonNegativeIntFromInputSchema = z.preprocess(
   z.number().int().min(0)
 );
 
+/** A query-string flag: `1`/`true` is on, anything else (including absent) is off. */
+const toBooleanFlag = (value: unknown): unknown =>
+  typeof value === "string" ? value === "1" || value.toLowerCase() === "true" : value;
+const booleanFlagSchema = z.preprocess(toBooleanFlag, z.boolean());
+
 export const apiErrorSchema = z
   .object({
     error: z.string(),
@@ -660,6 +665,14 @@ const genreQueryParamSchema = z
   )
   .optional();
 
+/** A genre a widened filter added (#485): the removable "+ Chicha, Porro" chip. */
+export const genreFilterRefSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+});
+export type GenreFilterRefDto = z.infer<typeof genreFilterRefSchema>;
+
 export const trackSearchGetQuerySchema = z.object({
   q: z.string().optional().default(""),
   limit: nonNegativeIntFromInputSchema.optional().default(20),
@@ -681,6 +694,12 @@ export const trackSearchGetQuerySchema = z.object({
   star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
   /** Genre slugs, ids or names (#375), ORed, each including its subgenres. */
   genre: genreQueryParamSchema,
+  /** Widen `genre` to each seed's top related genres from `genre_similarity` (#485). */
+  include_similar: booleanFlagSchema.optional().default(false),
+  /** Per-seed cap on related genres pulled in when `include_similar` is on; defaults server-side. */
+  similar_limit: nonNegativeIntFromInputSchema.optional(),
+  /** Related-genre ids the UI has removed from the widened set; kept out on this and later requests. */
+  similar_exclude: genreQueryParamSchema,
 });
 
 const searchMetaSchema = z.object({
@@ -692,6 +711,8 @@ const searchMetaSchema = z.object({
 
 export const trackSearchGetResponseSchema = searchMetaSchema.extend({
   hits: z.array(z.unknown()),
+  /** Genres `include_similar` added beyond the plain `genre` filter (#485). */
+  added_genres: z.array(genreFilterRefSchema).optional(),
   /** The mode that ranked these hits; omitted for a plain lexical request. */
   mode: trackSearchModeSchema.optional(),
   /** Hybrid fell back to lexical alone because the semantic leg failed. */
@@ -1217,6 +1238,12 @@ export const albumSearchQuerySchema = z.object({
   missing_local_cover_art_url: z.boolean().optional(),
   missing_audio: z.boolean().optional(),
   genre: genreQueryParamSchema,
+  /** Widen `genre` to each seed's top related genres from `genre_similarity` (#485). */
+  include_similar: z.boolean().optional(),
+  /** Per-seed cap on related genres pulled in when `include_similar` is on; defaults server-side. */
+  similar_limit: nonNegativeIntFromInputSchema.optional(),
+  /** Related-genre ids the UI has removed from the widened set; kept out on this and later requests. */
+  similar_exclude: genreQueryParamSchema,
 });
 
 export const albumSearchResponseSchema = z.object({
@@ -1226,6 +1253,8 @@ export const albumSearchResponseSchema = z.object({
   limit: z.number().int(),
   query: z.string(),
   sort: z.string(),
+  /** Genres `include_similar` added beyond the plain `genre` filter (#485). */
+  added_genres: z.array(genreFilterRefSchema).optional(),
 });
 
 export const albumDetailResponseSchema = z.object({

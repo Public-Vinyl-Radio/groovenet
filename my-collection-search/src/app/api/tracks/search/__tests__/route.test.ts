@@ -434,7 +434,11 @@ describe("GET /api/tracks/search — genre filter", () => {
     stubDb([], "0");
     await GET(req("?genre=latin&genre=Salsa&friend_id=6"));
 
-    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["latin", "Salsa"]);
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["latin", "Salsa"], {
+      includeSimilar: false,
+      similarLimit: undefined,
+      excludeSimilarIds: undefined,
+    });
     const [dataSql, dataParams] = mockDbQuery.mock.calls[0];
     expect(dataSql).toContain("tg.genre_id = ANY($2::uuid[])");
     expect(dataParams).toEqual([6, filter.ids, filter.keys, 20, 0]);
@@ -470,7 +474,75 @@ describe("GET /api/tracks/search — genre filter", () => {
   it("adds no genre clause without a genre", async () => {
     stubDb([], "0");
     await GET(req("?q=dub"));
-    expect(mockResolveGenreFilter).toHaveBeenCalledWith([]);
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith([], {
+      includeSimilar: false,
+      similarLimit: undefined,
+      excludeSimilarIds: undefined,
+    });
     expect(mockDbQuery.mock.calls[0][0]).not.toContain("tg.genre_id = ANY");
+  });
+});
+
+// ─── GET — include_similar (#485) ───────────────────────────────────────────
+
+const PORRO_ID = "11111111-1111-1111-1111-111111111111";
+
+describe("GET /api/tracks/search — include_similar", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+  });
+
+  it("passes include_similar, similar_limit and similar_exclude through to resolveGenreFilter", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    stubDb([], "0");
+    await GET(req(`?genre=cumbia&include_similar=1&similar_limit=3&similar_exclude=${PORRO_ID}`));
+
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["cumbia"], {
+      includeSimilar: true,
+      similarLimit: 3,
+      excludeSimilarIds: [PORRO_ID],
+    });
+  });
+
+  it("is off by default", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    stubDb([], "0");
+    await GET(req("?genre=cumbia"));
+
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["cumbia"], {
+      includeSimilar: false,
+      similarLimit: undefined,
+      excludeSimilarIds: undefined,
+    });
+  });
+
+  it("names the added genres in the response", async () => {
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia", PORRO_ID], keys: ["cumbia", "porro"] },
+      added: [{ id: PORRO_ID, name: "Porro", slug: "porro" }],
+    });
+    stubDb([], "0");
+    const res = await GET(req("?genre=cumbia&include_similar=1"));
+    const body = await res.json();
+    expect(body.added_genres).toEqual([{ id: PORRO_ID, name: "Porro", slug: "porro" }]);
+  });
+
+  it("omits added_genres when widening added nothing", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    stubDb([], "0");
+    const res = await GET(req("?genre=cumbia&include_similar=1"));
+    const body = await res.json();
+    expect(body.added_genres).toBeUndefined();
+  });
+
+  it("names the added genres in the semantic leg's response too", async () => {
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia", PORRO_ID], keys: ["cumbia", "porro"] },
+      added: [{ id: PORRO_ID, name: "Porro", slug: "porro" }],
+    });
+    mockSemanticSearch.mockResolvedValue(semanticResult([]));
+    const res = await GET(req("?mode=semantic&q=dub&genre=cumbia&include_similar=1"));
+    const body = await res.json();
+    expect(body.added_genres).toEqual([{ id: PORRO_ID, name: "Porro", slug: "porro" }]);
   });
 });
