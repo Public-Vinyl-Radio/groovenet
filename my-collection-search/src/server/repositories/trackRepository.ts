@@ -58,6 +58,7 @@ export type UpdateTrackInput = TrackRef & UpdatableTrackFields;
 
 export type TrackWithLibraryIdentifierRow = Track & {
   library_identifier?: string | null;
+  album_label?: string | null;
   hasVectors?: boolean;
 };
 
@@ -465,6 +466,7 @@ export class TrackRepository {
       SELECT
         t.*,
         a.library_identifier,
+        a.label AS album_label,
         ${hasVectorsSelectSql("t")},
         ${trackGenresSelectSql("t")}
       FROM tracks t

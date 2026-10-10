@@ -334,13 +334,18 @@ describe("findTracksByRefsPreservingOrder()", () => {
 // ─── findTrackByTrackIdAndFriendId ────────────────────────────────────────────
 
 describe("findTrackByTrackIdAndFriendId()", () => {
-  it("returns the track when found", async () => {
-    const track = makeTrack();
+  it("returns the track with its album label when found", async () => {
+    const track = { ...makeTrack(), album_label: "Rham!" };
     dbQuery.mockResolvedValue({ rows: [track] });
 
     const result = await makeRepo().findTrackByTrackIdAndFriendId("t1", 1);
 
     expect(result).toEqual(track);
+    expect(result?.album_label).toBe("Rham!");
+    expect(dbQuery).toHaveBeenCalledWith(
+      expect.stringContaining("a.label AS album_label"),
+      ["t1", 1]
+    );
   });
 
   it("returns null when not found", async () => {
