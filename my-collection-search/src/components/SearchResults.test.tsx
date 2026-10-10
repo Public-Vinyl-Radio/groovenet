@@ -42,6 +42,8 @@ const lastSearchMode = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].searc
 const lastGenres = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].genres;
 const lastAttributes = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].attributes;
 const lastFilter = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].filter;
+const lastIncludeSimilar = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].includeSimilar;
+const lastSimilarExclude = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].similarExclude;
 const lastFacets = () => mocks.useTrackGenreFacets.mock.calls.at(-1)?.[0];
 /** The phone filter sheet: jsdom renders the phone layout, so it's the one in reach. */
 const openFilters = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
@@ -78,6 +80,7 @@ beforeEach(() => {
     loadMore: vi.fn(),
     initialLoading: false,
     loadingMore: false,
+    addedGenres: [],
   }));
 });
 
@@ -184,6 +187,74 @@ describe("SearchResults genre filter (#375)", () => {
     mocks.searchParams = null as unknown as URLSearchParams;
     renderWithProviders(<SearchResults />);
     expect(lastGenres()).toEqual([]);
+  });
+});
+
+describe("SearchResults include_similar (#485)", () => {
+  it("reads similar=1 from the URL and shows the toggle checked", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
+    renderWithProviders(<SearchResults />);
+
+    expect(lastIncludeSimilar()).toBe(true);
+    expect(
+      (screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0] as HTMLInputElement)
+        .checked
+    ).toBe(true);
+  });
+
+  it("hides the toggle without an active genre", () => {
+    renderWithProviders(<SearchResults />);
+    expect(screen.queryByRole("checkbox", { name: "Include similar", hidden: true })).toBeNull();
+  });
+
+  it("turns the toggle on and records it in the URL", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    await user.click(screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0]);
+
+    await waitFor(() => expect(lastIncludeSimilar()).toBe(true));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/?genre=cumbia&similar=1");
+  });
+
+  it("names the genres include_similar added as removable chips", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
+    mocks.useSearchResults.mockImplementation(() => ({
+      query: mocks.query,
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
+      estimatedResults: 0,
+      trackInfo: [],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: vi.fn(),
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [{ id: "id-porro", name: "Porro", slug: "porro" }],
+    }));
+    const { user } = renderWithProviders(<SearchResults />);
+
+    const chip = await screen.findByRole("button", { name: /Porro/ });
+    await user.click(chip);
+
+    await waitFor(() => expect(lastSimilarExclude()).toEqual(["id-porro"]));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/?similar=1&genre=cumbia&similar_exclude=id-porro");
+  });
+
+  it("reads similar_exclude from the URL", () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1&similar_exclude=id-porro");
+    renderWithProviders(<SearchResults />);
+    expect(lastSimilarExclude()).toEqual(["id-porro"]);
+  });
+
+  it("clears the toggle and exclusions from Clear all", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1&similar_exclude=id-porro");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    await user.click(await screen.findByRole("button", { name: "Clear all" }));
+
+    await waitFor(() => expect(lastIncludeSimilar()).toBe(false));
+    expect(lastSimilarExclude()).toEqual([]);
   });
 });
 

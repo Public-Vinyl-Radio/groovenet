@@ -11,6 +11,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import {
   fetchPlaylistCounts,
   searchTracks,
+  type AddedGenreRef,
   type TrackSearchResponse,
 } from "@/services/internalApi/tracks";
 import { useTrackStore } from "@/stores/trackStore";
@@ -33,6 +34,11 @@ interface UseSearchResultsOptions {
   genres?: string[];
   // BPM range, key and minimum rating (#412), applied in every mode.
   attributes?: TrackAttributeFilters;
+  // Widen `genres` to their top related genres from genre_similarity (#485).
+  includeSimilar?: boolean;
+  similarLimit?: number;
+  // Related-genre ids the UI has removed from the widened set (#485).
+  similarExclude?: string[];
 }
 
 type SearchPage = TrackSearchResponse;
@@ -49,6 +55,9 @@ export function useSearchResults({
   searchMode = "lexical",
   genres,
   attributes,
+  includeSimilar,
+  similarLimit,
+  similarExclude,
 }: UseSearchResultsOptions) {
   const [query, setQuery] = useState("");
   const limit = limitOverride ?? DEFAULT_LIMIT;
@@ -100,6 +109,9 @@ export function useSearchResults({
   const genreKey = genres && genres.length > 0 ? { genre: genres } : {};
   const attributeKey =
     attributes && Object.values(attributes).some((v) => v !== undefined) ? { attributes } : {};
+  const similarKey = includeSimilar
+    ? { includeSimilar, similarLimit, similarExclude: similarExclude ?? [] }
+    : {};
 
   const infiniteQuery = useInfiniteQuery<SearchPage, Error>({
     queryKey: queryKeys.tracks({
@@ -110,6 +122,7 @@ export function useSearchResults({
       ...searchModeKey,
       ...genreKey,
       ...attributeKey,
+      ...similarKey,
     }),
     enabled: enabled && isInfinite,
     refetchOnWindowFocus: false,
@@ -123,6 +136,9 @@ export function useSearchResults({
         filter: normalizedFilter,
         mode: searchMode,
         genre: genres,
+        include_similar: includeSimilar,
+        similar_limit: similarLimit,
+        similar_exclude: similarExclude,
         ...attributes,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
@@ -133,6 +149,7 @@ export function useSearchResults({
         offset: pageParam,
         limit,
         processingTimeMs: res.processingTimeMs ?? 0,
+        added_genres: res.added_genres,
       };
     },
     getNextPageParam: (last: SearchPage) => {
@@ -154,6 +171,7 @@ export function useSearchResults({
       ...searchModeKey,
       ...genreKey,
       ...attributeKey,
+      ...similarKey,
     }),
     enabled: enabled && !isInfinite,
     refetchOnWindowFocus: false,
@@ -167,6 +185,9 @@ export function useSearchResults({
         filter: normalizedFilter,
         mode: searchMode,
         genre: genres,
+        include_similar: includeSimilar,
+        similar_limit: similarLimit,
+        similar_exclude: similarExclude,
         ...attributes,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
@@ -175,6 +196,7 @@ export function useSearchResults({
         hits: scopedHits,
         estimatedTotalHits: res.estimatedTotalHits || 0,
         offset,
+        added_genres: res.added_genres,
         limit,
         processingTimeMs: res.processingTimeMs ?? 0,
       };
@@ -197,6 +219,8 @@ export function useSearchResults({
     [pages, scopeHits]
   );
   const estimatedResults = pages[0]?.estimatedTotalHits ?? 0;
+  // Genres `includeSimilar` added beyond the plain genre filter (#485).
+  const addedGenres: AddedGenreRef[] = pages[0]?.added_genres ?? [];
 
   // Populate Zustand store when results change - only tracks that are new or
   // whose server data changed. setTracks keeps local edits (rating, notes).
@@ -298,6 +322,7 @@ export function useSearchResults({
     results, // Keep this for backward compatibility
     trackInfo, // New: track info for components to read from store
     playlistCounts: countsQuery.data ?? {},
+    addedGenres,
 
     // status
     hasMore,

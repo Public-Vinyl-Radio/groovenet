@@ -210,10 +210,14 @@ describe("GET /api/albums — genre filter", () => {
 
   it("resolves every repeated genre and passes the filter to the search", async () => {
     const filter = { ids: ["id-latin"], keys: ["latin"] };
-    mockResolveGenreFilter.mockResolvedValue({ filter });
+    mockResolveGenreFilter.mockResolvedValue({ filter, added: [] });
     const res = await GET(getReq("?genre=latin&genre=salsa"));
     expect(res.status).toBe(200);
-    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["latin", "salsa"]);
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["latin", "salsa"], {
+      includeSimilar: false,
+      similarLimit: undefined,
+      excludeSimilarIds: [],
+    });
     expect(mockSearchAlbums).toHaveBeenCalledWith(expect.objectContaining({ genreFilter: filter }));
   });
 
@@ -223,5 +227,51 @@ describe("GET /api/albums — genre filter", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).unknown).toEqual(["nope"]);
     expect(mockSearchAlbums).not.toHaveBeenCalled();
+  });
+});
+
+// ─── GET — include_similar (#485) ───────────────────────────────────────────
+
+describe("GET /api/albums — include_similar", () => {
+  const PORRO_ID = "11111111-1111-1111-1111-111111111111";
+
+  it("passes include_similar, similar_limit and similar_exclude through to resolveGenreFilter", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    await GET(getReq(`?genre=cumbia&include_similar=1&similar_limit=3&similar_exclude=${PORRO_ID}`));
+
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["cumbia"], {
+      includeSimilar: true,
+      similarLimit: 3,
+      excludeSimilarIds: [PORRO_ID],
+    });
+  });
+
+  it("is off by default", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    await GET(getReq("?genre=cumbia"));
+
+    expect(mockResolveGenreFilter).toHaveBeenCalledWith(["cumbia"], {
+      includeSimilar: false,
+      similarLimit: undefined,
+      excludeSimilarIds: [],
+    });
+  });
+
+  it("names the added genres in the response", async () => {
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia", PORRO_ID], keys: ["cumbia", "porro"] },
+      added: [{ id: PORRO_ID, name: "Porro", slug: "porro" }],
+    });
+    mockSearchAlbums.mockResolvedValueOnce({ albums: [], total: 0 });
+    const res = await GET(getReq("?genre=cumbia&include_similar=1"));
+    const body = await res.json();
+    expect(body.added_genres).toEqual([{ id: PORRO_ID, name: "Porro", slug: "porro" }]);
+  });
+
+  it("omits added_genres when widening added nothing", async () => {
+    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    const res = await GET(getReq("?genre=cumbia&include_similar=1"));
+    const body = await res.json();
+    expect(body.added_genres).toBeUndefined();
   });
 });

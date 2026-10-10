@@ -14,7 +14,14 @@ import AlbumSearchResults from "@/components/AlbumSearchResults";
 import PageContainer from "@/components/layout/PageContainer";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import FilterChips from "@/components/FilterChips";
-import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "@/components/GenreFilter";
+import GenreFilter, {
+  addedGenreChips,
+  genreFilterChips,
+  genreSlugFromChipKey,
+  IncludeSimilarToggle,
+  similarGenreIdFromChipKey,
+} from "@/components/GenreFilter";
+import type { GenreFilterRef } from "@/lib/trackFilterSpec";
 import MissingFilter, { MissingChecklist } from "@/components/MissingFilter";
 import FilterSheet, { FilterSheetSection } from "@/components/FilterSheet";
 import type { MissingFilterOption } from "@/lib/trackFilters";
@@ -58,6 +65,10 @@ function AlbumsPageContent() {
   );
   // Genre slugs (#375); no counts here, by design.
   const genres = searchParams.getAll("genre");
+  // "Include similar" (#485), linkable as `?genre=cumbia&similar=1`.
+  const includeSimilar = searchParams.get("similar") === "1";
+  const similarExclude = searchParams.getAll("similar_exclude");
+  const [addedGenres, setAddedGenres] = React.useState<GenreFilterRef[]>([]);
   const { genres: taxonomy } = useGenreTaxonomyQuery();
 
   const buildParams = (overrides: Record<string, string | null> = {}) => {
@@ -70,6 +81,8 @@ function AlbumsPageContent() {
       if (missing[key]) params.set(key, "1");
     });
     genres.forEach((slug) => params.append("genre", slug));
+    if (includeSimilar) params.set("similar", "1");
+    similarExclude.forEach((id) => params.append("similar_exclude", id));
     return params;
   };
 
@@ -77,6 +90,8 @@ function AlbumsPageContent() {
     const params = new URLSearchParams(searchParams.toString());
     ALBUM_MISSING_OPTIONS.forEach(({ key }) => params.delete(key));
     params.delete("genre");
+    params.delete("similar");
+    params.delete("similar_exclude");
     router.replace(`/albums?${params.toString()}`);
   };
   const filterCount = missingChips.length + genres.length;
@@ -97,10 +112,24 @@ function AlbumsPageContent() {
 
   const addGenre = (slug: string) => setGenres([...genres, slug]);
 
+  const setIncludeSimilar = (checked: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (checked) params.set("similar", "1");
+    else params.delete("similar");
+    router.replace(`/albums?${params.toString()}`);
+  };
+
   const handleAlbumFilterToggle = (key: string) => {
     const genreSlug = genreSlugFromChipKey(key);
     if (genreSlug !== null) {
       setGenres(genres.filter((slug) => slug !== genreSlug));
+      return;
+    }
+    const similarGenreId = similarGenreIdFromChipKey(key);
+    if (similarGenreId !== null) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.append("similar_exclude", similarGenreId);
+      router.replace(`/albums?${params.toString()}`);
       return;
     }
     const params = new URLSearchParams(searchParams.toString());
@@ -179,6 +208,9 @@ function AlbumsPageContent() {
                     onAdd={addGenre}
                     inSheet
                   />
+                  {genres.length > 0 && (
+                    <IncludeSimilarToggle checked={includeSimilar} onChange={setIncludeSimilar} />
+                  )}
                 </FilterSheetSection>
                 <FilterSheetSection title="Missing">
                   <MissingChecklist
@@ -236,6 +268,9 @@ function AlbumsPageContent() {
                 selected={genres}
                 onAdd={addGenre}
               />
+              {genres.length > 0 && (
+                <IncludeSimilarToggle checked={includeSimilar} onChange={setIncludeSimilar} />
+              )}
               <MissingFilter
                 options={ALBUM_MISSING_OPTIONS}
                 active={missing}
@@ -243,7 +278,7 @@ function AlbumsPageContent() {
               />
             </>
           }
-          chips={[...genreFilterChips(genres, taxonomy), ...missingChips]}
+          chips={[...genreFilterChips(genres, taxonomy), ...addedGenreChips(addedGenres), ...missingChips]}
           onToggle={handleAlbumFilterToggle}
           onClearAll={filterCount > 0 ? clearAll : undefined}
         />
@@ -259,6 +294,7 @@ function AlbumsPageContent() {
           <AlbumSearchResults
             viewMode={viewMode}
             friendId={currentUserFriend.id}
+            onAddedGenresChange={setAddedGenres}
           />
         </Suspense>
           </>

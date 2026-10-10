@@ -105,6 +105,13 @@ export type GenreFilter = {
   keys: string[];
 };
 
+/** A genre a widened filter added (#485), named for the UI's removable chip. */
+export type GenreFilterRef = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 /** Whether `discogs` (an expression yielding text[]) holds a value spelled like one of `keysRef`. */
 export function discogsGenreMatchSql(discogs: string, keysRef: string): string {
   return `EXISTS (

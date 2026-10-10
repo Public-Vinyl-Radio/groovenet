@@ -738,6 +738,29 @@ describe("searchTracks", () => {
     expect(params.get("offset")).toBe("0");
   });
 
+  it("sends include_similar, similar_limit and similar_exclude when set (#485)", async () => {
+    await searchTracks({
+      genre: ["cumbia"],
+      include_similar: true,
+      similar_limit: 3,
+      similar_exclude: ["id-porro", "id-chicha"],
+    });
+
+    const params = calledParams();
+    expect(params.get("include_similar")).toBe("1");
+    expect(params.get("similar_limit")).toBe("3");
+    expect(params.getAll("similar_exclude")).toEqual(["id-porro", "id-chicha"]);
+  });
+
+  it("omits include_similar, similar_limit and similar_exclude when unset", async () => {
+    await searchTracks({ genre: ["cumbia"] });
+
+    const params = calledParams();
+    expect(params.has("include_similar")).toBe(false);
+    expect(params.has("similar_limit")).toBe(false);
+    expect(params.has("similar_exclude")).toBe(false);
+  });
+
   it("sends the BPM range, key and rating (#412)", async () => {
     await searchTracks({ bpm_min: 98.5, bpm_max: 104, key: "F# minor", star_rating: 0 });
     const params = calledParams();

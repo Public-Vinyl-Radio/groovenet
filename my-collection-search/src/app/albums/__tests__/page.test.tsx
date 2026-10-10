@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   searchParams: new URLSearchParams(),
   fetchGenreTree: vi.fn(),
+  addedGenres: [] as { id: string; name: string; slug: string }[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -20,8 +21,19 @@ vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: { id: 1, username: "dj" }, isHydrated: true }),
 }));
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGenreTree }));
-// The results list has its own tests; here only the controls matter.
-vi.mock("@/components/AlbumSearchResults", () => ({ default: () => null }));
+// The results list has its own tests; here only the controls matter. It still
+// reports added_genres (#485) up, the way the real component does.
+function StubAlbumSearchResults({
+  onAddedGenresChange,
+}: {
+  onAddedGenresChange?: (g: typeof mocks.addedGenres) => void;
+}) {
+  React.useEffect(() => {
+    onAddedGenresChange?.(mocks.addedGenres);
+  }, [onAddedGenresChange]);
+  return null;
+}
+vi.mock("@/components/AlbumSearchResults", () => ({ default: StubAlbumSearchResults }));
 
 import AlbumsPage from "../page";
 
@@ -102,6 +114,7 @@ describe("albums page missing filter (#447)", () => {
     const sheet = await openFilters(user);
     const boxes = within(sheet).getAllByRole("checkbox");
     expect(boxes.map((box) => box.closest("label")?.textContent)).toEqual([
+      "Include similar",
       "Library identifier",
       "Local cover",
       "Audio",
@@ -145,6 +158,67 @@ describe("albums page missing filter (#447)", () => {
     await user.click(within(sheet).getByRole("button", { name: "Clear all" }));
 
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?q=blue");
+  });
+});
+
+describe("albums page include_similar (#485)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.addedGenres = [];
+    mocks.fetchGenreTree.mockResolvedValue([]);
+  });
+
+  it("hides the toggle without an active genre", () => {
+    renderWithProviders(<AlbumsPage />);
+    expect(screen.queryByRole("checkbox", { name: "Include similar", hidden: true })).toBeNull();
+  });
+
+  it("reads similar=1 from the URL and shows the toggle checked", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
+    renderWithProviders(<AlbumsPage />);
+    expect(
+      (screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0] as HTMLInputElement)
+        .checked
+    ).toBe(true);
+  });
+
+  it("turns the toggle on and records it in the URL", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    await user.click(screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0]);
+
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia&similar=1");
+  });
+
+  it("turns the toggle off and drops it from the URL", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    await user.click(screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0]);
+
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia");
+  });
+
+  it("names the genres include_similar added as removable chips, excluding them on removal", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
+    mocks.addedGenres = [{ id: "id-porro", name: "Porro", slug: "porro" }];
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const chip = await screen.findByRole("button", { name: /Porro/ });
+    await user.click(chip);
+
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia&similar=1&similar_exclude=id-porro");
+  });
+
+  it("clears the toggle and exclusions from Clear all", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1&similar_exclude=id-porro");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?");
   });
 });
 

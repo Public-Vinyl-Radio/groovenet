@@ -8,7 +8,13 @@ import type { GenreTreeNode } from "@/api-contract/schemas";
 const fetchGenreTree = vi.hoisted(() => vi.fn());
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree }));
 
-import GenreFilter, { genreFilterChips, genreSlugFromChipKey } from "./GenreFilter";
+import GenreFilter, {
+  addedGenreChips,
+  genreFilterChips,
+  genreSlugFromChipKey,
+  IncludeSimilarToggle,
+  similarGenreIdFromChipKey,
+} from "./GenreFilter";
 
 const node = (id: string, name: string, children: GenreTreeNode[] = []): GenreTreeNode => ({
   id,
@@ -73,5 +79,41 @@ describe("genre filter chips", () => {
   it("reads a slug only from a genre chip's key", () => {
     expect(genreSlugFromChipKey("genre:salsa")).toBe("salsa");
     expect(genreSlugFromChipKey("missingAudio")).toBeNull();
+  });
+});
+
+describe("added genre chips (#485)", () => {
+  it("names chips from the widened genres, keyed by id", () => {
+    const added = [
+      { id: "id-porro", name: "Porro", slug: "porro" },
+      { id: "id-chicha", name: "Chicha", slug: "chicha" },
+    ];
+    expect(addedGenreChips(added)).toEqual([
+      { key: "similar:id-porro", label: "Porro", active: true },
+      { key: "similar:id-chicha", label: "Chicha", active: true },
+    ]);
+  });
+
+  it("reads a related-genre id only from a similar chip's key", () => {
+    expect(similarGenreIdFromChipKey("similar:id-porro")).toBe("id-porro");
+    expect(similarGenreIdFromChipKey("genre:cumbia")).toBeNull();
+  });
+});
+
+describe("IncludeSimilarToggle", () => {
+  it("reflects checked and reports a change", async () => {
+    const onChange = vi.fn();
+    const { user } = renderWithProviders(<IncludeSimilarToggle checked={false} onChange={onChange} />);
+    const toggle = screen.getByRole("checkbox", { name: "Include similar" });
+    expect((toggle as HTMLInputElement).checked).toBe(false);
+    await user.click(toggle);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("is checked when on", () => {
+    renderWithProviders(<IncludeSimilarToggle checked onChange={vi.fn()} />);
+    expect(
+      (screen.getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked
+    ).toBe(true);
   });
 });
