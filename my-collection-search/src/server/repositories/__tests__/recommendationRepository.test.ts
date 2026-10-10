@@ -81,7 +81,7 @@ describe("findIdentitySimilar()", () => {
     mockWithEmbedding([0.1], [
       { track_id: "t2", friend_id: 1, distance: "0.25", title: "Track", artist: "Artist",
         album: "Album", year: null, bpm: null, key: null, genres: [], styles: [],
-        local_tags: "", danceability: null, mood_happy: null, mood_sad: null,
+        local_tags: "", track_genre_ids: [], danceability: null, mood_happy: null, mood_sad: null,
         mood_relaxed: null, mood_aggressive: null, star_rating: null, album_thumbnail: null },
     ]);
 
@@ -224,7 +224,7 @@ describe("findAudioSimilar()", () => {
     mockWithEmbedding([0.3], [
       { track_id: "t2", friend_id: 1, distance: "0.88", title: "T", artist: "A",
         album: "B", year: null, bpm: 128, key: "Am", genres: [], styles: [],
-        local_tags: "", danceability: 0.9, mood_happy: 0.5, mood_sad: 0.1,
+        local_tags: "", track_genre_ids: [], danceability: 0.9, mood_happy: 0.5, mood_sad: 0.1,
         mood_relaxed: 0.3, mood_aggressive: 0.2, star_rating: 4, album_thumbnail: null },
     ]);
 
@@ -350,7 +350,7 @@ describe("findIdentitySimilarByCentroid()", () => {
       .mockResolvedValueOnce({
         rows: [{ track_id: "t3", friend_id: 1, distance: "0.33", title: "T", artist: "A",
           album: "B", year: null, bpm: null, key: null, genres: [], styles: [],
-          local_tags: "", danceability: null, mood_happy: null, mood_sad: null,
+          local_tags: "", track_genre_ids: [], danceability: null, mood_happy: null, mood_sad: null,
           mood_relaxed: null, mood_aggressive: null, star_rating: null, album_thumbnail: null }],
       });
 
@@ -411,7 +411,7 @@ describe("findAudioSimilarByCentroid()", () => {
       .mockResolvedValueOnce({
         rows: [{ track_id: "t2", friend_id: 1, distance: "0.77", title: "T", artist: "A",
           album: "B", year: null, bpm: null, key: null, genres: [], styles: [],
-          local_tags: "", danceability: null, mood_happy: null, mood_sad: null,
+          local_tags: "", track_genre_ids: [], danceability: null, mood_happy: null, mood_sad: null,
           mood_relaxed: null, mood_aggressive: null, star_rating: null, album_thumbnail: null }],
       });
 

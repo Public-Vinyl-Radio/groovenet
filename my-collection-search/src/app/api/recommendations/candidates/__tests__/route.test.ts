@@ -34,7 +34,7 @@ const candidate = (trackId: string) => ({
   simIdentity: 0.9,
   simAudio: null,
   metadata: {
-    title: "T", artist: "A", album: "B", year: "1999", genres: [], styles: [], tags: [],
+    title: "T", artist: "A", album: "B", year: "1999", genres: [], styles: [], tags: [], genreRefs: [],
     bpm: null, key: null, keyConfidence: null, tempoConfidence: null, eraBucket: null,
     energy: null, danceability: null, starRating: null, albumThumbnail: null,
     moodHappy: null, moodSad: null, moodRelaxed: null, moodAggressive: null,

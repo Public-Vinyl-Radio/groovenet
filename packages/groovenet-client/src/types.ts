@@ -646,6 +646,7 @@ export interface RecommendationCandidate {
     danceability?: number | null;
     energy?: number | null;
     tags: string[];
+    genreRefs: Array<{ id: string; parentId: string | null }>;
     styles: string[];
     genres: string[];
     starRating?: number | null;

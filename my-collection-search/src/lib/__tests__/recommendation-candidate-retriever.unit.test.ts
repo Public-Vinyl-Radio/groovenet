@@ -58,6 +58,7 @@ function makeRow(overrides: Partial<RecommendationCandidateRow> = {}): Recommend
     genres: ["Electronic"],
     styles: ["House"],
     local_tags: "house, peak time, ",
+    track_genre_ids: [{ id: "house-id", parent_id: "electronic-id" }],
     danceability: 0.7,
     mood_happy: 0.1,
     mood_sad: 0.2,
@@ -115,6 +116,7 @@ describe("recommendation candidate retriever", () => {
     expect(shared?.metadata).toMatchObject({
       eraBucket: "1990s",
       tags: ["house", "peak time"],
+      genreRefs: [{ id: "house-id", parentId: "electronic-id" }],
       energy: 0.5,
       albumThumbnail: "https://example.test/cover.jpg",
     });

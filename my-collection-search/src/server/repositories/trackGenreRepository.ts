@@ -31,6 +31,39 @@ export function trackGenresSelectSql(alias = "t"): string {
 }
 
 /**
+ * Select-list expression giving a track row its taxonomy genre ids, each
+ * with its immediate parent id, as `track_genre_ids` (never null) — ids, not
+ * the raw `local_tags`/`styles` strings scoring code used to compare (#486).
+ * Combines the track's direct `track_genres` links with its Discogs `styles`
+ * resolved onto the taxonomy by name or alias, the same way `genre_normalize`
+ * resolves a release's genres/styles for genre similarity — styles are a
+ * secondary signal here, folded in only once they resolve to a real id, never
+ * compared as raw strings. The parent id is enough to make overlap
+ * hierarchy-aware (a seed in a genre and a candidate in its child both carry
+ * that parent) without a second round trip. `alias` is the `tracks` alias in
+ * the surrounding query.
+ */
+export function trackGenreIdsSelectSql(alias = "t"): string {
+  return `COALESCE((
+    SELECT json_agg(DISTINCT jsonb_build_object('id', g.id, 'parent_id', g.parent_id))
+    FROM (
+      SELECT tg.genre_id
+      FROM track_genres tg
+      WHERE tg.track_id = ${alias}.track_id AND tg.friend_id = ${alias}.friend_id
+      UNION
+      SELECT k.genre_id
+      FROM unnest(COALESCE(${alias}.styles, '{}'::text[])) AS d(name)
+      JOIN (
+        SELECT normalized_name AS key, id AS genre_id FROM genres
+        UNION
+        SELECT alias_normalized, genre_id FROM genre_aliases
+      ) k ON k.key = genre_normalize(d.name)
+    ) linked
+    JOIN genres g ON g.id = linked.genre_id
+  ), '[]'::json) AS track_genre_ids`;
+}
+
+/**
  * Select-list expression giving a track row whether it has an audio_vibe
  * embedding, as `hasVectors`. `alias` is the table carrying `track_id` and
  * `friend_id` in the surrounding query — usually the `tracks` alias, but a

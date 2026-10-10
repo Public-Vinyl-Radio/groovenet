@@ -931,6 +931,7 @@ export const recommendationCandidateSchema = z.object({
       tempoConfidence: z.number().nullable(),
       eraBucket: z.string().nullable(),
       tags: z.array(z.string()),
+      genreRefs: z.array(z.object({ id: z.string(), parentId: z.string().nullable() })),
       styles: z.array(z.string()),
       energy: z.number().nullable(),
       danceability: z.number().nullable(),
