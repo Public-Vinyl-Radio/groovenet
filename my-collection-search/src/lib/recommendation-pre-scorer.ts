@@ -8,7 +8,7 @@
  * Phase 3 will implement final weighted scoring.
  */
 
-import { CandidateTrack } from "./recommendation-candidate-retriever";
+import { CandidateTrack, GenreRef } from "./recommendation-candidate-retriever";
 import { getCamelotCode } from "./audio-vibe-normalization";
 
 /**
@@ -50,8 +50,8 @@ export interface SeedTrack {
   keyConfidence?: number | null;
   tempoConfidence?: number | null;
   eraBucket: string | null;
-  tags: string[];
-  styles: string[];
+  /** Taxonomy genres (direct links plus styles resolved onto the taxonomy), for scoring. */
+  genres: GenreRef[];
   energy: number | null;
   danceability: number | null;
 }
@@ -230,20 +230,36 @@ export function calculateJaccardOverlap(arr1: string[], arr2: string[]): number 
 }
 
 /**
- * Calculate tag/style overlap bonus
+ * Expand each genre to itself plus its immediate parent id, so a seed in a
+ * parent genre and a candidate in one of its children (or vice versa) show
+ * up as overlapping rather than disjoint (#486) — cheap, since each track's
+ * own `track_genres` rows already carry that parent id.
  */
-export function calculateTagBonus(
-  seedTags: string[],
-  seedStyles: string[],
-  candTags: string[],
-  candStyles: string[]
-): number {
-  const seedCombined = [...seedTags, ...seedStyles];
-  const candCombined = [...candTags, ...candStyles];
+function expandWithParent(genres: GenreRef[]): string[] {
+  const ids: string[] = [];
+  for (const genre of genres) {
+    ids.push(genre.id);
+    if (genre.parentId) ids.push(genre.parentId);
+  }
+  return ids;
+}
 
-  const overlap = calculateJaccardOverlap(seedCombined, candCombined);
+/**
+ * Jaccard overlap of two tracks' taxonomy genres (direct links plus styles
+ * already resolved onto the taxonomy), hierarchy-aware via `expandWithParent`.
+ * Replaces comparing raw `local_tags`/`styles` strings (#486): spelling
+ * variants and aliases resolve to the same id upstream, so they no longer
+ * understate overlap.
+ */
+export function calculateGenreOverlap(seedGenres: GenreRef[], candidateGenres: GenreRef[]): number {
+  return calculateJaccardOverlap(expandWithParent(seedGenres), expandWithParent(candidateGenres));
+}
 
-  return 0.08 * overlap;
+/**
+ * Calculate genre overlap bonus
+ */
+export function calculateTagBonus(seedGenres: GenreRef[], candidateGenres: GenreRef[]): number {
+  return 0.08 * calculateGenreOverlap(seedGenres, candidateGenres);
 }
 
 /**
@@ -340,12 +356,9 @@ function shouldRejectCandidate(
       return true;
     }
 
-    // Reject if no tag/style overlap
-    const tagOverlap = calculateJaccardOverlap(
-      [...seed.tags, ...seed.styles],
-      [...candidate.metadata.tags, ...candidate.metadata.styles]
-    );
-    if (tagOverlap === 0) {
+    // Reject if no genre overlap
+    const genreOverlap = calculateGenreOverlap(seed.genres, candidate.metadata.genreRefs);
+    if (genreOverlap === 0) {
       return true;
     }
   }
@@ -418,12 +431,7 @@ export function applyConstraintsAndBonuses(
       candidate.metadata.keyConfidence
     );
 
-    const tagBonus = calculateTagBonus(
-      seed.tags,
-      seed.styles,
-      candidate.metadata.tags,
-      candidate.metadata.styles
-    );
+    const tagBonus = calculateTagBonus(seed.genres, candidate.metadata.genreRefs);
 
     const eraBonus = calculateEraBonus(
       seed.eraBucket,

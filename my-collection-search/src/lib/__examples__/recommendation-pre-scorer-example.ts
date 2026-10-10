@@ -33,8 +33,10 @@ async function basicExample() {
     bpm: 128,
     key: "C Major",
     eraBucket: "1990s",
-    tags: ["house", "techno"],
-    styles: ["progressive"],
+    genres: [
+      { id: "house-genre-id", parentId: "electronic-genre-id" },
+      { id: "techno-genre-id", parentId: "electronic-genre-id" },
+    ],
     energy: 0.7,
     danceability: 0.8,
   };
@@ -79,8 +81,10 @@ async function compareModes() {
     bpm: 128,
     key: "C Major",
     eraBucket: "1990s",
-    tags: ["house", "techno"],
-    styles: ["progressive"],
+    genres: [
+      { id: "house-genre-id", parentId: "electronic-genre-id" },
+      { id: "techno-genre-id", parentId: "electronic-genre-id" },
+    ],
     energy: 0.7,
     danceability: 0.8,
   };
@@ -119,8 +123,10 @@ async function sortByBonusExample() {
     bpm: 128,
     key: "C Major",
     eraBucket: "1990s",
-    tags: ["house", "techno"],
-    styles: ["progressive"],
+    genres: [
+      { id: "house-genre-id", parentId: "electronic-genre-id" },
+      { id: "techno-genre-id", parentId: "electronic-genre-id" },
+    ],
     energy: 0.7,
     danceability: 0.8,
   };
@@ -167,8 +173,10 @@ async function filterByBonusExample() {
     bpm: 128,
     key: "C Major",
     eraBucket: "1990s",
-    tags: ["house", "techno"],
-    styles: ["progressive"],
+    genres: [
+      { id: "house-genre-id", parentId: "electronic-genre-id" },
+      { id: "techno-genre-id", parentId: "electronic-genre-id" },
+    ],
     energy: 0.7,
     danceability: 0.8,
   };
@@ -221,8 +229,10 @@ async function combineScoresExample() {
     bpm: 128,
     key: "C Major",
     eraBucket: "1990s",
-    tags: ["house", "techno"],
-    styles: ["progressive"],
+    genres: [
+      { id: "house-genre-id", parentId: "electronic-genre-id" },
+      { id: "techno-genre-id", parentId: "electronic-genre-id" },
+    ],
     energy: 0.7,
     danceability: 0.8,
   };

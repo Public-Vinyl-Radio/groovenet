@@ -3,6 +3,7 @@ import {
   calculateBpmBonus,
   calculateKeyBonus,
   calculateTagBonus,
+  calculateGenreOverlap,
   calculateEraBonus,
   calculateEnergyPenalty,
   calculateCamelotDistance,
@@ -11,7 +12,13 @@ import {
   applyConstraintsAndBonuses,
   type SeedTrack,
 } from "../recommendation-pre-scorer";
-import type { CandidateTrack } from "../recommendation-candidate-retriever";
+import type { CandidateTrack, GenreRef } from "../recommendation-candidate-retriever";
+
+const HOUSE: GenreRef = { id: "house", parentId: "electronic" };
+const TECHNO: GenreRef = { id: "techno", parentId: "electronic" };
+const PROGRESSIVE: GenreRef = { id: "progressive-house", parentId: "house" };
+const TRANCE: GenreRef = { id: "trance", parentId: "electronic" };
+const SALSA: GenreRef = { id: "salsa", parentId: "latin" };
 
 describe("calculateBpmBonus", () => {
   it.each([
@@ -86,13 +93,41 @@ describe("calculateJaccardOverlap", () => {
   });
 });
 
+describe("calculateGenreOverlap", () => {
+  it("returns 1 for identical genre sets", () => {
+    expect(calculateGenreOverlap([HOUSE], [HOUSE])).toBeCloseTo(1, 3);
+  });
+
+  it("returns 0 for genres from unrelated taxonomy branches", () => {
+    expect(calculateGenreOverlap([HOUSE], [SALSA])).toBe(0);
+  });
+
+  it("returns 0 for two empty genre lists", () => {
+    expect(calculateGenreOverlap([], [])).toBe(0);
+  });
+
+  it("treats a genre and its child as overlapping, not disjoint (#486)", () => {
+    // PROGRESSIVE's parent is house; its own id never appears on the seed side.
+    expect(calculateGenreOverlap([HOUSE], [PROGRESSIVE])).toBeGreaterThan(0);
+  });
+
+  it("gives a parent/child pair partial credit, short of a direct match", () => {
+    const parentChild = calculateGenreOverlap([HOUSE], [PROGRESSIVE]);
+    const directMatch = calculateGenreOverlap([HOUSE], [HOUSE]);
+    expect(parentChild).toBeLessThan(directMatch);
+  });
+
+  it("gives siblings under the same parent partial credit via the shared parent", () => {
+    // HOUSE and TECHNO are both children of "electronic".
+    expect(calculateGenreOverlap([HOUSE], [TECHNO])).toBeGreaterThan(0);
+  });
+});
+
 describe("calculateTagBonus", () => {
-  it("computes 0.08 * jaccard overlap of combined tags+styles", () => {
-    // Combined1: {house, techno, progressive}, Combined2: {house, progressive, trance}
-    // Intersection: 2, Union: 4, Jaccard: 0.5, Bonus: 0.08 * 0.5 = 0.04
-    expect(
-      calculateTagBonus(["house", "techno"], ["progressive"], ["house"], ["progressive", "trance"])
-    ).toBeCloseTo(0.04, 3);
+  it("computes 0.08 * the hierarchy-aware genre-id jaccard overlap", () => {
+    // Seed expands to {house, electronic, techno}; candidate to {house, electronic, trance}.
+    // Intersection: 2 (house, electronic), Union: 4, Jaccard: 0.5, Bonus: 0.08 * 0.5 = 0.04
+    expect(calculateTagBonus([HOUSE, TECHNO], [HOUSE, TRANCE])).toBeCloseTo(0.04, 3);
   });
 });
 
@@ -148,8 +183,7 @@ function makeSeed(overrides: Partial<SeedTrack> = {}): SeedTrack {
     bpm: 128,
     key: "C Major",
     eraBucket: "1990s",
-    tags: ["house", "techno"],
-    styles: ["progressive"],
+    genres: [HOUSE, TECHNO],
     energy: 0.7,
     danceability: 0.8,
     ...overrides,
@@ -171,7 +205,8 @@ function makeCandidate(
       keyConfidence: 1.0,
       tempoConfidence: 1.0,
       eraBucket: "1990s",
-      tags: ["house"],
+      tags: [],
+      genreRefs: [HOUSE],
       styles: ["progressive"],
       energy: 0.75,
       danceability: 0.8,
@@ -199,7 +234,7 @@ describe("applyConstraintsAndBonuses — strict mode", () => {
       makeCandidate("good"),
       makeCandidate("bad-bpm", { bpm: 133 }), // Δ=5, rejected
       makeCandidate("bad-key", { key: "F# Major" }), // distance > 1, rejected
-      makeCandidate("bad-tag", { tags: [], styles: ["trance"] }), // no overlap, rejected
+      makeCandidate("bad-tag", { genreRefs: [SALSA] }), // unrelated taxonomy branch, no overlap, rejected
     ];
 
     const scored = applyConstraintsAndBonuses(seed, candidates, "strict");
@@ -209,7 +244,7 @@ describe("applyConstraintsAndBonuses — strict mode", () => {
 });
 
 describe("applyConstraintsAndBonuses — mixable mode", () => {
-  const seed = makeSeed({ tags: [], styles: [] });
+  const seed = makeSeed({ genres: [] });
 
   it("accepts wider BPM range than strict", () => {
     const candidates = [
@@ -223,7 +258,7 @@ describe("applyConstraintsAndBonuses — mixable mode", () => {
 });
 
 describe("applyConstraintsAndBonuses — blend mode", () => {
-  const seed = makeSeed({ tags: [], styles: [] });
+  const seed = makeSeed({ genres: [] });
 
   it("accepts the widest BPM range", () => {
     const candidates = [
@@ -243,8 +278,7 @@ describe("applyConstraintsAndBonuses — bonus computation", () => {
       bpm: 128,
       key: "C Major",
       eraBucket: "1990s",
-      tags: ["house", "techno"],
-      styles: ["progressive"],
+      genreRefs: [HOUSE, TECHNO],
       energy: 0.7,
     });
 

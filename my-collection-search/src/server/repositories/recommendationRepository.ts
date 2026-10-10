@@ -1,9 +1,15 @@
 import type { PoolClient } from "pg";
 import { withDbTransaction } from "@/lib/serverDb";
+import { trackGenreIdsSelectSql } from "@/server/repositories/trackGenreRepository";
 
 export type SeedTrackPair = {
   trackId: string;
   friendId: number;
+};
+
+export type RecommendationCandidateGenreRef = {
+  id: string;
+  parent_id: string | null;
 };
 
 export type RecommendationCandidateRow = {
@@ -18,7 +24,15 @@ export type RecommendationCandidateRow = {
   key: string | null;
   genres: string[];
   styles: string[];
+  /**
+   * Free-text mood/genre descriptors (#368's baseline: spelling variants and
+   * moods mixed together) — kept for the identity-search tag filter
+   * (`fetchSimilarTracks`'s `tags` option), which matches mood words like
+   * "warm" that have no taxonomy id. Genre-overlap scoring uses
+   * `track_genre_ids` instead (#486), never this.
+   */
   local_tags: string;
+  track_genre_ids: RecommendationCandidateGenreRef[];
   danceability: number | null;
   mood_happy: number | null;
   mood_sad: number | null;
@@ -59,6 +73,7 @@ const CANDIDATE_COLUMNS = `
           t.genres,
           t.styles,
           t.local_tags,
+          ${trackGenreIdsSelectSql("t")},
           t.danceability,
           t.mood_happy,
           t.mood_sad,

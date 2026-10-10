@@ -47,6 +47,17 @@ export interface SeedTrackRef {
 }
 
 /**
+ * A taxonomy genre id with its immediate parent, carried alongside a track so
+ * genre-overlap scoring can compare by id and treat a parent/child pair as
+ * related (#486), instead of the raw `local_tags`/`styles` strings it used to
+ * compare.
+ */
+export interface GenreRef {
+  id: string;
+  parentId: string | null;
+}
+
+/**
  * Candidate track with similarity scores and metadata
  */
 export interface CandidateTrackMetadata {
@@ -55,7 +66,15 @@ export interface CandidateTrackMetadata {
   keyConfidence: number | null;
   tempoConfidence: number | null;
   eraBucket: string | null;
+  /**
+   * Free-text local_tags, split on commas — mood words and genre spellings
+   * mixed together (#368's baseline). Kept for the identity-search tag
+   * filter, which matches mood words like "warm" that have no taxonomy id;
+   * genre-overlap scoring uses `genreRefs` instead (#486), never this.
+   */
   tags: string[];
+  /** Taxonomy genres (direct track_genres links plus styles resolved onto the taxonomy), for genre-overlap scoring. */
+  genreRefs: GenreRef[];
   styles: string[];
   energy: number | null;
   danceability: number | null;
@@ -259,6 +278,7 @@ function buildCandidateMetadata(row: EmbeddingQueryResult): CandidateTrackMetada
     tempoConfidence: null, // Not available in current schema
     eraBucket: computeEraBucket(row.year),
     tags: parseTags(row.local_tags),
+    genreRefs: (row.track_genre_ids || []).map((g) => ({ id: g.id, parentId: g.parent_id })),
     styles: row.styles || [],
     energy: calculateEnergy(row.danceability, row.mood_aggressive),
     danceability: row.danceability,

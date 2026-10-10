@@ -89,6 +89,7 @@ describe("RecommendationCandidateRetriever (DB integration)", () => {
       expect(typeof c.metadata.artist).toBe("string");
       expect(typeof c.metadata.album).toBe("string");
       expect(Array.isArray(c.metadata.tags)).toBe(true);
+      expect(Array.isArray(c.metadata.genreRefs)).toBe(true);
       expect(Array.isArray(c.metadata.styles)).toBe(true);
       expect(Array.isArray(c.metadata.genres)).toBe(true);
       if (c.metadata.bpm !== null) {

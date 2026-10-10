@@ -3,6 +3,7 @@ import {
   hasVectorsSelectSql,
   normalizeDescriptors,
   trackGenresSelectSql,
+  trackGenreIdsSelectSql,
   TrackGenreRepository,
 } from "../trackGenreRepository";
 
@@ -28,6 +29,29 @@ describe("trackGenresSelectSql", () => {
 
   it("defaults to the conventional t alias", () => {
     expect(trackGenresSelectSql()).toContain("= t.track_id");
+  });
+});
+
+describe("trackGenreIdsSelectSql", () => {
+  it("correlates on the given tracks alias and never yields null", () => {
+    const sql = trackGenreIdsSelectSql("tr");
+    expect(sql).toContain("tg.track_id = tr.track_id AND tg.friend_id = tr.friend_id");
+    expect(sql).toContain("'[]'::json) AS track_genre_ids");
+  });
+
+  it("defaults to the conventional t alias", () => {
+    expect(trackGenreIdsSelectSql()).toContain("= t.track_id");
+  });
+
+  it("resolves the alias's styles through genre_normalize, not raw strings", () => {
+    const sql = trackGenreIdsSelectSql("tr");
+    expect(sql).toContain("unnest(COALESCE(tr.styles, '{}'::text[]))");
+    expect(sql).toContain("genre_normalize(d.name)");
+  });
+
+  it("returns each genre's id with its immediate parent id, for hierarchy-aware overlap", () => {
+    const sql = trackGenreIdsSelectSql();
+    expect(sql).toContain("jsonb_build_object('id', g.id, 'parent_id', g.parent_id)");
   });
 });
 

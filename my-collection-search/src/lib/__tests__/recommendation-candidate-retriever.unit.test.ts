@@ -58,6 +58,7 @@ function makeRow(overrides: Partial<RecommendationCandidateRow> = {}): Recommend
     genres: ["Electronic"],
     styles: ["House"],
     local_tags: "house, peak time, ",
+    track_genre_ids: [{ id: "house-id", parent_id: "electronic-id" }],
     danceability: 0.7,
     mood_happy: 0.1,
     mood_sad: 0.2,
@@ -83,7 +84,14 @@ describe("recommendation candidate retriever", () => {
     ]);
     findAudioSimilar.mockResolvedValue([
       makeRow({ track_id: "shared", distance: 0.8 }),
-      makeRow({ track_id: "audio-only", friend_id: 3, distance: 1.5, danceability: null, mood_aggressive: null }),
+      makeRow({
+        track_id: "audio-only",
+        friend_id: 3,
+        distance: 1.5,
+        danceability: null,
+        mood_aggressive: null,
+        track_genre_ids: undefined,
+      }),
     ]);
 
     const result = await retrieveCandidates("seed", 9);
@@ -115,11 +123,13 @@ describe("recommendation candidate retriever", () => {
     expect(shared?.metadata).toMatchObject({
       eraBucket: "1990s",
       tags: ["house", "peak time"],
+      genreRefs: [{ id: "house-id", parentId: "electronic-id" }],
       energy: 0.5,
       albumThumbnail: "https://example.test/cover.jpg",
     });
     expect(result.candidates.find((candidate) => candidate.trackId === "identity-only")?.metadata.eraBucket).toBeNull();
     expect(result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.energy).toBeNull();
+    expect(result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.genreRefs).toEqual([]);
   });
 
   it("passes custom limits and IVFFlat probes to both queries", async () => {

@@ -38,6 +38,7 @@ function candidate(overrides: Partial<RecommendationCandidate> = {}): Recommenda
       moodRelaxed: 0.3,
       moodAggressive: 0.4,
       tags: [],
+      genreRefs: [],
       styles: [],
       genres: [],
     },

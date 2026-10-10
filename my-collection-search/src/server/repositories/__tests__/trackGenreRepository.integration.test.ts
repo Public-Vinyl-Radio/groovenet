@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
-import { trackGenreRepository } from "../trackGenreRepository";
+import { trackGenreRepository, trackGenreIdsSelectSql } from "../trackGenreRepository";
 import { genreRepository, type GenreTreeNode } from "../genreRepository";
 import { trackRepository } from "../trackRepository";
 import { addGenreAlias, createGenre, mergeGenres } from "@/server/services/genreAdminService";
@@ -169,5 +169,43 @@ describe("track genre links", () => {
     const cumbia = await genreId("Cumbia");
     await trackGenreRepository.replaceTrackGenres("tg-2", friendId, [cumbia], "manual");
     await expect(dbQuery("DELETE FROM genres WHERE id = $1", [cumbia])).rejects.toMatchObject({ code: "23503" });
+  });
+
+  dbTest(
+    "trackGenreIdsSelectSql combines track_genres with styles resolved onto the taxonomy, each with its parent (#486)",
+    async () => {
+      const latin = await genreId("Latin");
+      const cumbia = await genreId("Cumbia");
+      const salsa = await genreId("Salsa");
+      await trackGenreRepository.replaceTrackGenres("tg-1", friendId, [cumbia], "manual");
+      await dbQuery("UPDATE tracks SET styles = $1 WHERE track_id = 'tg-1' AND friend_id = $2", [
+        ["SALSA"],
+        friendId,
+      ]);
+
+      const { rows } = await dbQuery<{
+        track_genre_ids: Array<{ id: string; parent_id: string | null }>;
+      }>(`SELECT ${trackGenreIdsSelectSql("t")} FROM tracks t WHERE t.track_id = 'tg-1' AND t.friend_id = $1`, [
+        friendId,
+      ]);
+
+      const byId = new Map(rows[0].track_genre_ids.map((g) => [g.id, g.parent_id]));
+      expect([...byId.keys()].sort()).toEqual([cumbia, salsa].sort());
+      expect(byId.get(cumbia)).toBe(latin);
+      expect(byId.get(salsa)).toBe(latin);
+    }
+  );
+
+  dbTest("trackGenreIdsSelectSql never yields null for a track with no genres or styles (#486)", async () => {
+    // tg-3 picked up a link from an earlier test's merge; this test only cares
+    // about the no-genres-and-no-styles shape, so it clears both first.
+    await trackGenreRepository.replaceTrackGenres("tg-3", friendId, [], "manual");
+    await dbQuery("UPDATE tracks SET styles = NULL WHERE track_id = 'tg-3' AND friend_id = $1", [friendId]);
+
+    const { rows } = await dbQuery<{ track_genre_ids: unknown[] }>(
+      `SELECT ${trackGenreIdsSelectSql("t")} FROM tracks t WHERE t.track_id = 'tg-3' AND t.friend_id = $1`,
+      [friendId]
+    );
+    expect(rows[0].track_genre_ids).toEqual([]);
   });
 });
