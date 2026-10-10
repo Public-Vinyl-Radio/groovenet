@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.2...v0.3.3) (2026-10-10)
+
+
+### Features
+
+* **genres:** similar genres from taxonomy and album co-occurrence ([#377](https://github.com/Public-Vinyl-Radio/groovenet/issues/377)) ([#499](https://github.com/Public-Vinyl-Radio/groovenet/issues/499)) ([9ee9e94](https://github.com/Public-Vinyl-Radio/groovenet/commit/9ee9e946844ff6bab260ca89e611bb68ecd4c275))
+* **search:** add an "Include similar" toggle for the genre filter ([#501](https://github.com/Public-Vinyl-Radio/groovenet/issues/501)) ([d318951](https://github.com/Public-Vinyl-Radio/groovenet/commit/d318951abe0991f7f31d9282521b098ca8723379))
+
 ## [0.3.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.1...v0.3.2) (2026-10-10)
 
 
