@@ -84,7 +84,14 @@ describe("recommendation candidate retriever", () => {
     ]);
     findAudioSimilar.mockResolvedValue([
       makeRow({ track_id: "shared", distance: 0.8 }),
-      makeRow({ track_id: "audio-only", friend_id: 3, distance: 1.5, danceability: null, mood_aggressive: null }),
+      makeRow({
+        track_id: "audio-only",
+        friend_id: 3,
+        distance: 1.5,
+        danceability: null,
+        mood_aggressive: null,
+        track_genre_ids: undefined,
+      }),
     ]);
 
     const result = await retrieveCandidates("seed", 9);
@@ -122,6 +129,7 @@ describe("recommendation candidate retriever", () => {
     });
     expect(result.candidates.find((candidate) => candidate.trackId === "identity-only")?.metadata.eraBucket).toBeNull();
     expect(result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.energy).toBeNull();
+    expect(result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.genreRefs).toEqual([]);
   });
 
   it("passes custom limits and IVFFlat probes to both queries", async () => {
