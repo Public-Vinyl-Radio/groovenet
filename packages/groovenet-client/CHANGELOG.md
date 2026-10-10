@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.1.0...groovenet-client-v3.1.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **genres:** accept nullable album metadata ([#479](https://github.com/Public-Vinyl-Radio/groovenet/issues/479)) ([86c9a3b](https://github.com/Public-Vinyl-Radio/groovenet/commit/86c9a3b468cf01dd0060083d28fc2441e87465db))
+
 ## [3.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.0.0...groovenet-client-v3.1.0) (2026-10-06)
 
 
