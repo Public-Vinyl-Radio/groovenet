@@ -187,6 +187,49 @@ returned, and `GET /api/genres/proposals/{id}/tracks` for examples.
 
 `just genres-test` runs it against real Postgres.
 
+## Genre similarity
+
+A ranked, explainable "similar genres" list per genre (#377, part of epic
+#368), stored in `genre_similarity` and shown on the genre page's "Related
+genres" section (`genrePageService.ts`), falling back to taxonomy siblings
+until the table has rows for a genre.
+
+```
+score = w_taxonomy * taxonomy_base + w_cooccur * max(npmi, 0)
+```
+
+- **Two independent signals.** Taxonomy position — a fixed base score for a
+  sibling (same parent) and a smaller one for a direct parent/child — plus how
+  often the two genres actually appear together in the collection, as
+  normalised PMI (NPMI, range `[-1, 1]`) over **distinct albums**, not tracks:
+  enrichment tags an album's tracks with 4–6 genres each (#448), so a per-track
+  count over-links, and a heavily-tagged album should count once per genre,
+  not once per track. An album's genre set is its tracks' `track_genres` links
+  plus its own Discogs genres/styles mapped onto the taxonomy by name or alias.
+- **Ancestor/descendant pairs never get the co-occurrence signal** (e.g.
+  Cumbia ↔ Latin) — they always co-occur because of the hierarchy itself, so
+  it says nothing new. A direct parent/child pair still gets the taxonomy
+  signal; anything further apart gets no score at all.
+- **A minimum support floor** (`GENRE_SIMILARITY_MIN_SUPPORT_ALBUMS`, default
+  3) drops a non-taxonomy pair that shares too few albums to mean anything.
+- The pure scoring function, `computeGenreSimilarity`
+  (`src/lib/genres/genreSimilarity.ts`), takes counts in and returns a ranked
+  list — no I/O, unit-tested on a fixture rather than a database.
+- **Computed over every collection**, not scoped to one friend (a later
+  refinement); recomputed whole-table in one transaction by
+  `genreSimilarityService.recomputeGenreSimilarity`, idempotent by
+  construction (the same inputs score the same way).
+- **Refreshed two ways**: immediately but fire-and-forget
+  (`triggerGenreSimilarityRefresh`) after a genre merge, a reparent, or a
+  reconciliation apply that linked tracks — all of which change the taxonomy
+  or the collection's genre links — and nightly as a backstop
+  (`startGenreSimilarityRefresh` in `instrumentation.ts`,
+  `GENRE_SIMILARITY_REFRESH_INTERVAL_MINUTES`, default 1440) for anything else
+  that moved the inputs, such as a Discogs sync.
+
+`just genres-test` includes its gated integration test (recompute against real
+Postgres, including the ancestor-exclusion and minimum-support end-to-end).
+
 ## Background work
 
 `src/instrumentation.ts` is where anything periodic starts, once per server

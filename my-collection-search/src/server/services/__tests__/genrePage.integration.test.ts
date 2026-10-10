@@ -59,6 +59,12 @@ async function addTrack(id: string, friend: number, username: string, release: s
 beforeAll(async () => {
   if (process.env.RUN_DB_TESTS !== "1") return;
   await cleanup();
+  // "related" falls back to taxonomy siblings only once the similarity
+  // table (#377) has no rows for the genre; another suite's admin mutation
+  // can leave rows behind (its own recompute trigger is fire-and-forget), so
+  // this test forces the fallback precondition itself rather than relying on
+  // incidental emptiness.
+  await dbQuery("DELETE FROM genre_similarity");
   const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = 'Cumbia'");
   await createGenre(SUBGENRE, rows[0].id);
 

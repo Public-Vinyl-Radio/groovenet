@@ -54,6 +54,15 @@ export async function register() {
       "@/server/services/nowPlayingTrackerService"
     );
     startNowPlayingTracker();
+
+    // Nightly backstop for #377: the admin mutations that change the
+    // taxonomy or the collection's genre links (merge, reparent,
+    // reconciliation apply) trigger a recompute themselves, but this covers
+    // anything else that moved the inputs since the last one.
+    const { startGenreSimilarityRefresh } = await import(
+      "@/server/services/genreSimilarityService"
+    );
+    startGenreSimilarityRefresh();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

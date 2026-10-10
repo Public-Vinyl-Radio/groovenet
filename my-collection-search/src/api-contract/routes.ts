@@ -77,6 +77,7 @@ import {
   genreTreeResponseSchema,
   genrePageQuerySchema,
   genrePageResponseSchema,
+  genreSimilarResponseSchema,
   trackGenreFacetsResponseSchema,
   genreCreateBodySchema,
   genreUpdateBodySchema,
@@ -3462,6 +3463,24 @@ const genrePageRefObject = {
   },
   required: ["id", "name", "slug", "track_count"],
 };
+const genreSimilaritySignalsObject = {
+  type: "object",
+  description: "What produced the score (#377): a taxonomy relation, co-occurrence, or both",
+  properties: {
+    taxonomy: { type: "string", enum: ["sibling", "parent", "child"] },
+    npmi: { type: "number", minimum: -1, maximum: 1, description: "Normalised PMI of the two genres' album co-occurrence" },
+    shared_albums: { type: "integer", minimum: 0, description: "Distinct albums tagged with both genres" },
+  },
+};
+const genreRelatedRefObject = {
+  type: "object",
+  properties: {
+    ...genrePageRefObject.properties,
+    score: { type: "number", description: "Absent for a sibling-fallback entry, which has no stored score" },
+    signals: genreSimilaritySignalsObject,
+  },
+  required: ["id", "name", "slug", "track_count"],
+};
 const genrePageSchemaObject = {
   type: "object",
   properties: {
@@ -3489,8 +3508,8 @@ const genrePageSchemaObject = {
     children: { type: "array", items: genrePageRefObject },
     related: {
       type: "array",
-      description: "Siblings under the same parent that the collection uses",
-      items: genrePageRefObject,
+      description: "From the genre_similarity table (#377), falling back to taxonomy siblings when it has no rows yet",
+      items: genreRelatedRefObject,
     },
     counts: {
       type: "object",
@@ -4439,7 +4458,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 },
                 ancestors: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin" }],
                 children: [],
-                related: [{ id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253 }],
+                related: [{
+                  id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253,
+                  score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+                }],
                 counts: { tracks: 412, albums: 108, tracks_total: 1029, albums_total: 108 },
                 top_tracks: [{
                   track_id: "33415451-A1", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
@@ -4456,6 +4478,55 @@ export const apiContractRoutes: ApiContractRoute[] = [
         "400": {
           description: "Invalid friend_id",
           content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "No genre has that slug or id",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getSimilarGenres",
+    method: "get",
+    path: "/api/genres/{id}/similar",
+    summary: "A genre's ranked similar genres (#377): taxonomy plus collection co-occurrence, with the signals that explain each one",
+    tags: ["Genres"],
+    successSchema: genreSimilarResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          description: "Genre slug or id",
+          schema: { type: "string" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Computed over every collection; falls back to taxonomy siblings until the table has rows for this genre",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { genre: genrePageRefObject, related: { type: "array", items: genreRelatedRefObject } },
+                required: ["genre", "related"],
+              },
+              example: {
+                genre: { id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia", track_count: 412 },
+                related: [{
+                  id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253,
+                  score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+                }],
+              },
+            },
+          },
         },
         "404": {
           description: "No genre has that slug or id",

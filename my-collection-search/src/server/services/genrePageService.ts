@@ -1,7 +1,9 @@
 import type { GenrePageRef, GenrePageResponse } from "@/api-contract/schemas";
 import { normalizeGenreName } from "@/lib/genres/normalization";
+import { byCount } from "@/lib/genres/genrePageRefs";
 import { genreRepository, type GenreRow } from "@/server/repositories/genreRepository";
 import { genrePageRepository } from "@/server/repositories/genrePageRepository";
+import { resolveRelated } from "@/server/services/genreSimilarityService";
 
 const TOP_TRACKS = 10;
 const TOP_ALBUMS = 8;
@@ -12,11 +14,6 @@ function jsonDates<T extends Record<string, unknown>>(row: T): T {
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value])
   ) as T;
-}
-
-/** Biggest first, then by name; zero-count genres stay, last. */
-function byCount(a: GenrePageRef, b: GenrePageRef): number {
-  return b.track_count - a.track_count || a.name.localeCompare(b.name);
 }
 
 /**
@@ -72,12 +69,7 @@ export async function getGenrePage(ref: string, friendId?: number): Promise<Genr
     },
     ancestors,
     children: flat.filter((row) => row.parent_id === genre.id).map(toRef).sort(byCount),
-    related: flat
-      .filter((row) => row.parent_id === genre.parent_id && row.id !== genre.id)
-      .map(toRef)
-      .filter((row) => row.track_count > 0)
-      .sort(byCount)
-      .slice(0, RELATED),
+    related: await resolveRelated(flat, genre, totals, RELATED),
     counts: { ...counts, tracks_total: totals.get(genre.id) ?? 0 },
     top_tracks: topTracks.map(jsonDates) as GenrePageResponse["top_tracks"],
     top_albums: topAlbums.map(jsonDates) as GenrePageResponse["top_albums"],

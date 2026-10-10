@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addGenreAlias, createGenre, mergeGenres, updateGenre } from "../genreAdminService";
 
 const { query, transaction } = vi.hoisted(() => ({ query: vi.fn(), transaction: vi.fn() }));
+const triggerGenreSimilarityRefresh = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: transaction }));
+vi.mock("@/server/services/genreSimilarityService", () => ({ triggerGenreSimilarityRefresh }));
 const row = { id: "source", name: "Post-Punk", slug: "post-punk", parent_id: "root", source: "custom" };
 let missing: string | undefined;
 let cycle: boolean;
@@ -56,6 +58,10 @@ describe("genre administration", () => {
     expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE genres SET name"), ["Dub", "dub", "dub", "root", "source"]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("VALUES ($1,$2,'manual') ON CONFLICT"), ["post-punk", "source"]);
   });
+  it("does not trigger a similarity refresh for a plain rename (#377)", async () => {
+    await updateGenre("source", { name: "Dub" });
+    expect(triggerGenreSimilarityRefresh).not.toHaveBeenCalled();
+  });
   it.each([{}, { name: "Post‑Punk" }])("avoids a canonical-name alias when the lookup name is unchanged", async (input) => {
     await updateGenre("source", input);
     expect(query.mock.calls.some(([sql]) => sql.startsWith("INSERT INTO genre_aliases"))).toBe(false);
@@ -65,13 +71,19 @@ describe("genre administration", () => {
     await updateGenre("source", { name: "Dub" });
     expect(query).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM genre_aliases"), ["dub", "source"]);
   });
-  it("allows a root move", async () => {
+  it("allows a root move, and triggers a similarity refresh after it commits (#377)", async () => {
     await updateGenre("source", { parent_id: null });
     expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE genres SET name"), ["Post-Punk", "post-punk", "post-punk", null, "source"]);
+    expect(triggerGenreSimilarityRefresh).toHaveBeenCalledTimes(1);
   });
-  it("allows a new existing parent after checking descendants", async () => {
+  it("allows a new existing parent after checking descendants, and triggers a similarity refresh", async () => {
     await updateGenre("source", { parent_id: "target" });
     expect(query).toHaveBeenCalledWith(expect.stringContaining("WITH RECURSIVE"), ["source", "target"]);
+    expect(triggerGenreSimilarityRefresh).toHaveBeenCalledTimes(1);
+  });
+  it("does not trigger a similarity refresh when a reparent fails", async () => {
+    await expect(updateGenre("source", { parent_id: "source" })).rejects.toMatchObject({ status: 409 });
+    expect(triggerGenreSimilarityRefresh).not.toHaveBeenCalled();
   });
   it("rejects self-parenting", async () => {
     await expect(updateGenre("source", { parent_id: "source" })).rejects.toMatchObject({ status: 409 });
@@ -118,9 +130,11 @@ describe("genre administration", () => {
     expect(query).toHaveBeenCalledWith("DELETE FROM track_genres WHERE genre_id=$1", ["source"]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE genre_reconciliation_proposals"), ["target", "source"]);
     expect(query).toHaveBeenLastCalledWith("DELETE FROM genres WHERE id=$1", ["source"]);
+    expect(triggerGenreSimilarityRefresh).toHaveBeenCalledTimes(1);
   });
-  it("rejects self-merges", async () => {
+  it("rejects self-merges, without triggering a similarity refresh", async () => {
     await expect(mergeGenres("source", "source")).rejects.toMatchObject({ status: 409 });
+    expect(triggerGenreSimilarityRefresh).not.toHaveBeenCalled();
   });
   it("rejects descendant merge targets", async () => {
     cycle = true;

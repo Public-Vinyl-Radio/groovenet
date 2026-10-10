@@ -1,6 +1,7 @@
 import { withDbTransaction } from "@/lib/serverDb";
 import type { PoolClient } from "pg";
 import { normalizeGenreName } from "@/lib/genres/normalization";
+import { triggerGenreSimilarityRefresh } from "@/server/services/genreSimilarityService";
 
 export type GenreAdminRow = {
   id: string;
@@ -80,7 +81,8 @@ export async function createGenre(name: string, parentId: string): Promise<Genre
 }
 
 export async function updateGenre(id: string, input: { name?: string; parent_id?: string | null }): Promise<GenreAdminRow> {
-  return mutate(async (client) => {
+  let reparented = false;
+  const row = await mutate(async (client) => {
     const existing = await find(client, id);
     const name = input.name?.trim() ?? existing.name;
     const parentId = input.parent_id === undefined ? existing.parent_id : input.parent_id;
@@ -103,8 +105,14 @@ export async function updateGenre(id: string, input: { name?: string; parent_id?
         [normalizeGenreName(existing.name), id]
       );
     }
+    reparented = parentId !== existing.parent_id;
     return result.rows[0];
   });
+  // After commit, not inside it: a reparenting recompute must see the new
+  // parent_id, not run concurrently with the transaction that sets it.
+  // Reparenting changes which genres are siblings (#377); a plain rename does not.
+  if (reparented) triggerGenreSimilarityRefresh();
+  return row;
 }
 
 export async function addGenreAlias(id: string, alias: string): Promise<void> {
@@ -164,4 +172,6 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
     );
     await client.query("DELETE FROM genres WHERE id=$1", [sourceId]);
   });
+  // After commit: moves genres and track_genres links, so similarity (#377) needs it.
+  triggerGenreSimilarityRefresh();
 }
