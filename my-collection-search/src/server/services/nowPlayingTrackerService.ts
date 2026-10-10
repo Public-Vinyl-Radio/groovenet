@@ -134,6 +134,7 @@ function toTrackInfo(row: {
   position: string | number | null;
   release_id?: string | null;
   year: string | number | null;
+  album_label?: string | null;
   bpm?: string | null;
   key?: string | null;
   genres?: string[] | null;
@@ -150,6 +151,7 @@ function toTrackInfo(row: {
     position: row.position,
     release_id: row.release_id ?? null,
     year: row.year,
+    label: row.album_label ?? null,
     bpm: row.bpm ?? null,
     key: row.key ?? null,
     genres: row.genres ?? [],

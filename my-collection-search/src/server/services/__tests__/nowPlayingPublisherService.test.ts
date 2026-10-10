@@ -43,6 +43,7 @@ function snapshot(overrides: Partial<NowPlayingSnapshot> = {}): NowPlayingSnapsh
       position: "A1",
       release_id: "rel-1",
       year: "1988",
+      label: "Rham!",
       bpm: "124",
       key: "Am",
       genres: ["House"],
@@ -127,6 +128,8 @@ describe("nowPlayingPublisherService", () => {
       state: "playing",
       track_id: "track-a",
       title: "Voodoo Ray",
+      year: "1988",
+      label: "Rham!",
       offset_seconds: 30,
       observed_at: "2026-10-01T20:00:00.000Z",
       confidence: 0.94,
@@ -135,6 +138,18 @@ describe("nowPlayingPublisherService", () => {
     for (const [, , opts] of client.publishCalls) {
       expect(opts).toMatchObject({ retain: true });
     }
+  });
+
+  it("publishes numeric years and null labels without retaining the previous label", async () => {
+    process.env.MQTT_URL = "mqtt://broker";
+    const { publishSnapshot } = await import("../nowPlayingPublisherService");
+    const first = snapshot();
+    await publishSnapshot(first);
+    const next = snapshot({ track: { ...first.track!, year: 1990, label: null } });
+    await publishSnapshot(next);
+
+    const payload = topicPayloads(client)["groovenet/now_playing/src-1/json"] as string;
+    expect(JSON.parse(payload)).toMatchObject({ year: 1990, label: null });
   });
 
   it("honors a custom topic prefix", async () => {
@@ -161,7 +176,7 @@ describe("nowPlayingPublisherService", () => {
     expect(payloads["groovenet/now_playing/src-1/cover"]).toBe("");
 
     const json = JSON.parse(payloads["groovenet/now_playing/src-1/json"] as string);
-    expect(json).toMatchObject({ state: "idle", track_id: null, title: null });
+    expect(json).toMatchObject({ state: "idle", track_id: null, title: null, year: null, label: null });
     expect(resizeCoverArt).toHaveBeenCalledWith(null);
   });
 

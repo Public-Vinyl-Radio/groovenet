@@ -26,6 +26,7 @@ function trackRow(overrides: Record<string, unknown> = {}) {
     position: "A1",
     release_id: "rel-1",
     year: "1988",
+    album_label: "Rham!",
     bpm: "124",
     key: "Am",
     genres: ["House"],
@@ -88,7 +89,7 @@ describe("NowPlayingTrackerService", () => {
 
     expect(publishSnapshot).toHaveBeenCalledTimes(1);
     expect(lastSnapshot()).toMatchObject({ state: "playing" });
-    expect(lastSnapshot().track.track_id).toBe("track-a");
+    expect(lastSnapshot().track).toMatchObject({ track_id: "track-a", year: "1988", label: "Rham!" });
   });
 
   it("ignores a window below the confidence floor", async () => {
@@ -292,12 +293,25 @@ describe("NowPlayingTrackerService", () => {
 
     expect(lastSnapshot().track).toMatchObject({
       release_id: null,
+      year: null,
+      label: null,
       bpm: null,
       key: null,
       genres: [],
       duration_seconds: null,
       cover_url: null,
     });
+  });
+
+  it("replaces the label and year when a different track is confirmed", async () => {
+    await service.observe("src-1", window({ at: T0 }), T0, OPTS);
+    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    findTrackByTrackIdAndFriendId.mockResolvedValue(trackRow({ track_id: "track-b", year: 1990, album_label: null }));
+
+    await service.observe("src-1", window({ track_id: "track-b", at: T0 + 30_000, offset_seconds: 0 }), T0 + 30_000, OPTS);
+    await service.observe("src-1", window({ track_id: "track-b", at: T0 + 45_000, offset_seconds: 15 }), T0 + 45_000, OPTS);
+
+    expect(lastSnapshot()).toMatchObject({ state: "playing", track: { track_id: "track-b", year: 1990, label: null } });
   });
 
   it("reports a null offset when the confirming window did not carry one", async () => {

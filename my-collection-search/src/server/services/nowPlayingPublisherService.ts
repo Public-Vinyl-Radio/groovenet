@@ -104,6 +104,7 @@ function jsonPayload(snapshot: NowPlayingSnapshot): string {
     album: track?.album ?? null,
     position: track?.position ?? null,
     year: track?.year ?? null,
+    label: track?.label ?? null,
     bpm: track?.bpm ?? null,
     key: track?.key ?? null,
     genres: track?.genres ?? [],

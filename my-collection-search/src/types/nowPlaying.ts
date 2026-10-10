@@ -25,6 +25,7 @@ export type NowPlayingTrackInfo = {
   position: string | number | null;
   release_id: string | null;
   year: string | number | null;
+  label: string | null;
   bpm: string | null;
   key: string | null;
   genres: string[];
