@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.1...v0.3.2) (2026-10-10)
+
+
+### Features
+
+* **albums:** album artwork preview, restore, upload and similarity-gated bulk matching ([#496](https://github.com/Public-Vinyl-Radio/groovenet/issues/496)) ([36e7ae9](https://github.com/Public-Vinyl-Radio/groovenet/commit/36e7ae907962302dd8399f7f1d6e8b8d535200e5))
+* **command-palette:** search genres and albums, search everywhere ([#492](https://github.com/Public-Vinyl-Radio/groovenet/issues/492)) ([c510995](https://github.com/Public-Vinyl-Radio/groovenet/commit/c510995043d042776162e355d3d5e9f364c061ab))
+* **genres:** genre pages ([#376](https://github.com/Public-Vinyl-Radio/groovenet/issues/376)) ([#458](https://github.com/Public-Vinyl-Radio/groovenet/issues/458)) ([c1f9143](https://github.com/Public-Vinyl-Radio/groovenet/commit/c1f91432c143bd21cd2b08c6028d03770538a547))
+* **genres:** show track genres on every track list ([#493](https://github.com/Public-Vinyl-Radio/groovenet/issues/493)) ([25b06b3](https://github.com/Public-Vinyl-Radio/groovenet/commit/25b06b397728fbb514fcd96884308b00014489b7))
+* **jobs:** show embedding queue status and failures on the jobs page ([#477](https://github.com/Public-Vinyl-Radio/groovenet/issues/477)) ([12ab1d2](https://github.com/Public-Vinyl-Radio/groovenet/commit/12ab1d2f784d095ed032ce1c34c6ea4257599ced))
+* **now-playing:** publish record labels in MQTT metadata ([#498](https://github.com/Public-Vinyl-Radio/groovenet/issues/498)) ([4d92af2](https://github.com/Public-Vinyl-Radio/groovenet/commit/4d92af292ac9312c705ee24d6264947b8980b943))
+* **now-playing:** track live plays and publish them to MQTT ([#466](https://github.com/Public-Vinyl-Radio/groovenet/issues/466)) ([cdd77e2](https://github.com/Public-Vinyl-Radio/groovenet/commit/cdd77e2ad92253ca434c2526d66ef1d081902439))
+* **pwa:** add standalone pull-to-refresh ([#481](https://github.com/Public-Vinyl-Radio/groovenet/issues/481)) ([12bdb8d](https://github.com/Public-Vinyl-Radio/groovenet/commit/12bdb8d503ba50998f881878919b2ac759571adc))
+* **worktree:** add worktree-gc and herdr-done ([#474](https://github.com/Public-Vinyl-Radio/groovenet/issues/474)) ([ff33d68](https://github.com/Public-Vinyl-Radio/groovenet/commit/ff33d68137650ca9149c03bdbfb3e88649929552))
+* **worktree:** start a coding agent from herdr-task ([#464](https://github.com/Public-Vinyl-Radio/groovenet/issues/464)) ([ea63dc4](https://github.com/Public-Vinyl-Radio/groovenet/commit/ea63dc45a49ac838fe79fa894bb97b53a430b687))
+
+
+### Bug Fixes
+
+* **backup:** stream pg_dump and restores to disk instead of buffering ([#459](https://github.com/Public-Vinyl-Radio/groovenet/issues/459)) ([#460](https://github.com/Public-Vinyl-Radio/groovenet/issues/460)) ([d7b1c45](https://github.com/Public-Vinyl-Radio/groovenet/commit/d7b1c45b6ca4de2db2f87b1a24c88c429f0ae92e))
+* **db:** raise maintenance_work_mem so restore can build ivfflat indexes ([#491](https://github.com/Public-Vinyl-Radio/groovenet/issues/491)) ([a23e930](https://github.com/Public-Vinyl-Radio/groovenet/commit/a23e93024def83064a1f1a055c979310b23d29fd))
+* **genres:** accept nullable album metadata ([#479](https://github.com/Public-Vinyl-Radio/groovenet/issues/479)) ([86c9a3b](https://github.com/Public-Vinyl-Radio/groovenet/commit/86c9a3b468cf01dd0060083d28fc2441e87465db))
+* **player:** finished-queue idle state, mobile dismiss, artwork fallback, title truncation ([#483](https://github.com/Public-Vinyl-Radio/groovenet/issues/483)) ([747a8b5](https://github.com/Public-Vinyl-Radio/groovenet/commit/747a8b55c5351dac826d28d67a47f5666a5b83a8))
+* **settings:** tabbed layout and dark-mode colours ([#489](https://github.com/Public-Vinyl-Radio/groovenet/issues/489)) ([9c7a819](https://github.com/Public-Vinyl-Radio/groovenet/commit/9c7a819eebfa7ee1cf35b7498137728bb9b53c54))
+* **tracks:** treat missing hasVectors as unknown, not missing ([#478](https://github.com/Public-Vinyl-Radio/groovenet/issues/478)) ([be01dd8](https://github.com/Public-Vinyl-Radio/groovenet/commit/be01dd882f40ca05b80bf221ae617b20ba45d719))
+
 ## [0.3.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.0...v0.3.1) (2026-10-06)
 
 
