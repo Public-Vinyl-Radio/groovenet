@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "redis==8.1.0",
     "yt-dlp==2026.8.19",
-    "gamdl==3.8.5",
+    "gamdl==3.9.1",
     "requests==2.34.2",
     "psycopg2-binary>=2.9.13,<2.10",
     "groovenet-python-client",
