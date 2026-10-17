@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.1.1...groovenet-client-v3.2.0) (2026-10-17)
+
+
+### Features
+
+* **albums:** add ability to delete an album ([#542](https://github.com/Public-Vinyl-Radio/groovenet/issues/542)) ([414c9b6](https://github.com/Public-Vinyl-Radio/groovenet/commit/414c9b6f04ec30c4ab0579cfbc821779ba2e4a33))
+* **albums:** preserve taxonomy overrides through Discogs sync ([#516](https://github.com/Public-Vinyl-Radio/groovenet/issues/516)) ([5da280a](https://github.com/Public-Vinyl-Radio/groovenet/commit/5da280affa665e8293ee8feb0f25928a4be0c39d))
+* **cli,mcp:** expose similar genres with scores and signals ([#543](https://github.com/Public-Vinyl-Radio/groovenet/issues/543)) ([63a27b7](https://github.com/Public-Vinyl-Radio/groovenet/commit/63a27b7c967c8b6de7d0d0a7da45edec5f9fc271))
+
+
+### Bug Fixes
+
+* **essentia:** surface key confidence and profile disagreement ([#527](https://github.com/Public-Vinyl-Radio/groovenet/issues/527)) ([a41e9dd](https://github.com/Public-Vinyl-Radio/groovenet/commit/a41e9dd2cc4ad6e6bc105c3d52c4bd1a4fab496c))
+
 ## [3.1.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.1.0...groovenet-client-v3.1.1) (2026-10-10)
 
 

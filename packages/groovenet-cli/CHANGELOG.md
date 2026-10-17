@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.1.1...groovenet-cli-v3.2.0) (2026-10-17)
+
+
+### Features
+
+* **albums:** add ability to delete an album ([#542](https://github.com/Public-Vinyl-Radio/groovenet/issues/542)) ([414c9b6](https://github.com/Public-Vinyl-Radio/groovenet/commit/414c9b6f04ec30c4ab0579cfbc821779ba2e4a33))
+* **cli,mcp:** expose similar genres with scores and signals ([#543](https://github.com/Public-Vinyl-Radio/groovenet/issues/543)) ([63a27b7](https://github.com/Public-Vinyl-Radio/groovenet/commit/63a27b7c967c8b6de7d0d0a7da45edec5f9fc271))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.1.1 to ^3.2.0
+
 ## [3.1.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.1.0...groovenet-cli-v3.1.1) (2026-10-10)
 
 
