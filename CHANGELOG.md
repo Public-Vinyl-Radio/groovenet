@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.2...v0.3.3) (2026-10-17)
+
+
+### Features
+
+* **albums:** add ability to delete an album ([#542](https://github.com/Public-Vinyl-Radio/groovenet/issues/542)) ([414c9b6](https://github.com/Public-Vinyl-Radio/groovenet/commit/414c9b6f04ec30c4ab0579cfbc821779ba2e4a33))
+* **albums:** preserve taxonomy overrides through Discogs sync ([#516](https://github.com/Public-Vinyl-Radio/groovenet/issues/516)) ([5da280a](https://github.com/Public-Vinyl-Radio/groovenet/commit/5da280affa665e8293ee8feb0f25928a4be0c39d))
+* **cli,mcp:** expose similar genres with scores and signals ([#543](https://github.com/Public-Vinyl-Radio/groovenet/issues/543)) ([63a27b7](https://github.com/Public-Vinyl-Radio/groovenet/commit/63a27b7c967c8b6de7d0d0a7da45edec5f9fc271))
+* **docker:** add on-demand container for one-off maintenance scripts ([#533](https://github.com/Public-Vinyl-Radio/groovenet/issues/533)) ([fddf7a6](https://github.com/Public-Vinyl-Radio/groovenet/commit/fddf7a679ee6e793c4b95269dfc0ddf9e72305ef))
+* **genres:** similar genres from taxonomy and album co-occurrence ([#377](https://github.com/Public-Vinyl-Radio/groovenet/issues/377)) ([#499](https://github.com/Public-Vinyl-Radio/groovenet/issues/499)) ([9ee9e94](https://github.com/Public-Vinyl-Radio/groovenet/commit/9ee9e946844ff6bab260ca89e611bb68ecd4c275))
+* **playlists:** make genre and style badges in playlist stats clickable ([#509](https://github.com/Public-Vinyl-Radio/groovenet/issues/509)) ([1323064](https://github.com/Public-Vinyl-Radio/groovenet/commit/132306481d06d48e1f89bbd0c7c82ca7b1a6cf3e))
+* **search:** add an "Include similar" toggle for the genre filter ([#501](https://github.com/Public-Vinyl-Radio/groovenet/issues/501)) ([d318951](https://github.com/Public-Vinyl-Radio/groovenet/commit/d318951abe0991f7f31d9282521b098ca8723379))
+* **search:** flag uncertain keys with an indicator + popover ([#535](https://github.com/Public-Vinyl-Radio/groovenet/issues/535)) ([c5aaaca](https://github.com/Public-Vinyl-Radio/groovenet/commit/c5aaacaf7ab9b0494c32ae9f0bb2e65eba69491b))
+* **search:** redesign track results with row and card layouts ([#520](https://github.com/Public-Vinyl-Radio/groovenet/issues/520)) ([351dd8a](https://github.com/Public-Vinyl-Radio/groovenet/commit/351dd8a30a73435efd86fe26c27fd7b8d08afbac))
+
+
+### Bug Fixes
+
+* **build:** suppress Turbopack tracing for runtime volume paths ([#529](https://github.com/Public-Vinyl-Radio/groovenet/issues/529)) ([c041647](https://github.com/Public-Vinyl-Radio/groovenet/commit/c041647fb000fd57617e46ae4f1cd5646cdcc1a6))
+* **deploy:** commit real PROD_*_VOLUME values in .env.tpl instead of blanks ([#540](https://github.com/Public-Vinyl-Radio/groovenet/issues/540)) ([dc8768e](https://github.com/Public-Vinyl-Radio/groovenet/commit/dc8768e401ce16594e164b97569e585edd7d4b2f))
+* **deploy:** require per-host external volume names in docker-compose.prod.yml ([#539](https://github.com/Public-Vinyl-Radio/groovenet/issues/539)) ([6c4bbb6](https://github.com/Public-Vinyl-Radio/groovenet/commit/6c4bbb6f043d7e7a0b3454af273e071aea01af47))
+* **deps:** pin npm 12.0.0 across bootstrap, Docker, and CI ([#517](https://github.com/Public-Vinyl-Radio/groovenet/issues/517)) ([dfc4798](https://github.com/Public-Vinyl-Radio/groovenet/commit/dfc47984d822f72609afb6e5107d347cc5d587fa))
+* **developer-tools:** package Storybook in app images ([#525](https://github.com/Public-Vinyl-Radio/groovenet/issues/525)) ([70b026c](https://github.com/Public-Vinyl-Radio/groovenet/commit/70b026cee04ed3f8825c83e6ed79c08a4ca493b8))
+* **discogs-sync:** report per-track upsert failures ([#536](https://github.com/Public-Vinyl-Radio/groovenet/issues/536)) ([55cad0b](https://github.com/Public-Vinyl-Radio/groovenet/commit/55cad0bbb07cfc6acca3118332305661590e78d2))
+* **essentia:** also check chords_key for key-profile disagreement ([#530](https://github.com/Public-Vinyl-Radio/groovenet/issues/530)) ([c20adbc](https://github.com/Public-Vinyl-Radio/groovenet/commit/c20adbc74b8123ad5dde657f05e03cbbf0f952e0))
+* **essentia:** pick key by consensus among the three profiles, not always edma ([#537](https://github.com/Public-Vinyl-Radio/groovenet/issues/537)) ([da3c07a](https://github.com/Public-Vinyl-Radio/groovenet/commit/da3c07a868e1609793bd1d7e1024fd93fc52dbe9))
+* **essentia:** surface key confidence and profile disagreement ([#527](https://github.com/Public-Vinyl-Radio/groovenet/issues/527)) ([a41e9dd](https://github.com/Public-Vinyl-Radio/groovenet/commit/a41e9dd2cc4ad6e6bc105c3d52c4bd1a4fab496c))
+
 ## [0.3.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.1...v0.3.2) (2026-10-10)
 
 
