@@ -1,14 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import NextLink from "next/link";
-import {
-  Box,
-  Flex,
-  Text,
-  Link,
-  Image,
-  RatingGroup,
-} from "@chakra-ui/react";
+import { Badge, Box, Flex, Table, Text, Link, Image } from "@chakra-ui/react";
 import { Album } from "@/types/track";
 import { useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum } from "@/hooks/useAlbum";
@@ -21,23 +14,65 @@ import { toaster } from "@/components/ui/toaster";
 import { discogsGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { GenreBadgeList } from "@/components/GenreBadge";
+import ArtistLink from "@/components/ArtistLink";
+import { RatingStars } from "@/components/TrackResult";
 
-function formatDate(dateString?: string): string {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
+/**
+ * The Missing checks that show as a tag on a result while their filter is on:
+ * what the list was narrowed to is visible on every row and card.
+ */
+export const ALBUM_MISSING_TAGS = {
+  missing_library_identifier: { label: "No identifier", palette: "status.missing" },
+  missing_local_cover_art_url: { label: "No local cover", palette: "status.missing" },
+  missing_audio: { label: "No audio", palette: "status.analysis" },
+} as const;
+export type AlbumMissingKey = keyof typeof ALBUM_MISSING_TAGS;
+
+function MissingTags({ keys }: { keys: AlbumMissingKey[] }) {
+  if (keys.length === 0) return null;
+  return (
+    <>
+      {keys.map((key) => (
+        <Badge
+          key={key}
+          colorPalette={ALBUM_MISSING_TAGS[key].palette}
+          variant="subtle"
+          size="sm"
+          whiteSpace="nowrap"
+          flexShrink={0}
+        >
+          {ALBUM_MISSING_TAGS[key].label}
+        </Badge>
+      ))}
+    </>
+  );
 }
+
+const ellipsis = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+} as const;
+
+const cell = { py: 3, px: 4, borderColor: "border", borderBottomWidth: "rule", verticalAlign: "middle" } as const;
+const revealRating = { "& .track-result-rating": { opacity: 1 } };
 
 export type AlbumResultProps = {
   album?: Album;
   albumRef?: { release_id: string; friend_id: number };
   showEditFields?: boolean;
+  /** "card" (default): outlined card. "row": a table row for `AlbumTable`. */
+  layout?: "card" | "row";
+  /** Active Missing filters, shown as tags. */
+  missingTags?: AlbumMissingKey[];
 };
 
 export default function AlbumResult({
   album,
   albumRef,
   showEditFields = false,
+  layout = "card",
+  missingTags = [],
 }: AlbumResultProps) {
   const releaseId = albumRef?.release_id ?? album?.release_id ?? "";
   const friendId = albumRef?.friend_id ?? album?.friend_id ?? -1;
@@ -49,8 +84,6 @@ export default function AlbumResult({
     resolvedAlbum?.album_thumbnail ||
     "/images/placeholder-artwork.png";
   const [rating, setRating] = useState(resolvedAlbum?.album_rating || 0);
-  const mutedText = "fg.muted";
-  const subtleText = "fg.muted";
 
   const updateMutation = useUpdateAlbumMutation();
   const genreLookup = useGenreLookup();
@@ -103,177 +136,234 @@ export default function AlbumResult({
 
   const displayGenres = discogsGenreBadges(resolvedAlbum.effective_genres ?? resolvedAlbum.genres, genreLookup);
   const displayStyles = discogsGenreBadges(resolvedAlbum.effective_styles ?? resolvedAlbum.styles, genreLookup);
+  const hasGenres = displayGenres.length > 0 || displayStyles.length > 0;
+  const albumHref = `/albums/${resolvedAlbum.release_id}?friend_id=${resolvedAlbum.friend_id}`;
+  const trackCount = resolvedAlbum.track_count;
+  const tracksText = `${trackCount} track${trackCount !== 1 ? "s" : ""}`;
 
-  return (
-    <Box
-      borderWidth="1px"
-      borderRadius="md"
-      p={3}
-      mb={2}
-      width="100%"
+  const handleRatingChange = (value: number) => {
+    setRating(value);
+    updateMutation.mutate({
+      release_id: resolvedAlbum.release_id,
+      friend_id: resolvedAlbum.friend_id,
+      album_rating: value,
+    });
+  };
+
+  const genreBadges = (size: "xs" | "sm") => (
+    <>
+      <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" size={size} />
+      <GenreBadgeList items={displayStyles} kind="discogs-style" scope="albums" size={size} />
+    </>
+  );
+
+  const menu = (
+    // The menu's button is sized by its own component; the phone gets a 44px target.
+    <Flex alignItems="center" css={{ "@media (max-width: 47.99em)": { "& button": { minWidth: "44px", minHeight: "44px" } } }}>
+      <AlbumActionsMenu
+        albumTitle={resolvedAlbum.title}
+        albumArtist={resolvedAlbum.artist}
+        discogsUrl={resolvedAlbum.discogs_url}
+        editAlbumHref={showEditFields ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}` : undefined}
+        onEnrichAlbum={handleEnrichAlbum}
+        isEnriching={isEnriching}
+        onLogCare={() => setLogCareOpen(true)}
+      />
+      {/* Mounted only while open: a list holds many rows. */}
+      {logCareOpen && (
+        <RecordActionDialog
+          open
+          onOpenChange={setLogCareOpen}
+          releaseId={resolvedAlbum.release_id}
+          friendId={resolvedAlbum.friend_id}
+          albumTitle={resolvedAlbum.title}
+        />
+      )}
+    </Flex>
+  );
+
+  const cover = (size: string | Record<string, string>) => (
+    <Image
+      src={artworkSrc}
+      alt=""
+      boxSize={size}
+      flexShrink={0}
+      objectFit="cover"
+      borderWidth="rule"
+      borderColor="border.ink"
+    />
+  );
+
+  const libraryId = resolvedAlbum.library_identifier ? (
+    <Text
+      as="span"
+      fontFamily="label"
+      fontWeight="bold"
+      letterSpacing="0.05em"
+      color="accent.fg"
+      whiteSpace="nowrap"
     >
-      <Flex gap={3} position="relative" width="100%">
-        <Box
-          flexShrink={0}
-          width={{ base: "70px", md: "80px", lg: "90px" }}
-          height={{ base: "70px", md: "80px", lg: "90px" }}
-        >
-          <Image
-            src={artworkSrc}
-            alt={resolvedAlbum.title}
-            width="100%"
-            height="100%"
-            objectFit="cover"
-            borderRadius="md"
-          />
-        </Box>
+      {resolvedAlbum.library_identifier}
+    </Text>
+  ) : null;
 
-        <Flex direction="column" flex={1} minW={0} gap={1}>
-          <Flex alignItems="center" gap={2} pr={{ base: 14, lg: 24 }}>
-            <Text
-              fontSize={{ base: "sm", md: "lg" }}
-              fontWeight="bold"
-              overflow="hidden"
-              textOverflow="ellipsis"
-              whiteSpace="nowrap"
-              flex="1 1 auto"
-              minW={0}
-            >
+  if (layout === "row") {
+    return (
+      <Table.Row data-testid="album-row" bg="transparent" _hover={{ bg: "bg.muted", ...revealRating }} _focusWithin={revealRating}>
+        {/* The table is fixed-layout, so a long title ellipsizes in its column. */}
+        <Table.Cell {...cell} overflow="hidden">
+          <Flex align="center" gap={4} minW={0}>
+            {cover("64px")}
+            <Flex direction="column" gap="2px" minW={0}>
               <Link
                 as={NextLink}
-                href={`/albums/${resolvedAlbum.release_id}?friend_id=${resolvedAlbum.friend_id}`}
-                display="block"
-                overflow="hidden"
-                textOverflow="ellipsis"
-                whiteSpace="nowrap"
+                href={albumHref}
+                title={resolvedAlbum.title}
+                fontSize="16px"
+                lineHeight="22px"
+                fontWeight="600"
+                {...ellipsis}
                 _hover={{ textDecoration: "underline" }}
               >
                 {resolvedAlbum.title}
               </Link>
-            </Text>
-          </Flex>
-
-          <Link
-            as={NextLink}
-            href={`/albums?q=${encodeURIComponent(resolvedAlbum.artist)}&friend_id=${resolvedAlbum.friend_id}`}
-            _hover={{ textDecoration: "underline" }}
-          >
-            <Text
-              fontSize={{ base: "xs", md: "sm" }}
-              fontWeight="medium"
-              color={mutedText}
-              lineClamp={1}
-            >
-              {resolvedAlbum.artist}
-            </Text>
-          </Link>
-
-          <Flex gap={2} fontSize="xs" color="fg.muted" alignItems="center" flexWrap="wrap">
-            {resolvedAlbum.library_identifier && (
-              <Text
-                color="accent.fg"
-                fontWeight="bold"
-                flexShrink={0}
-              >
-                {resolvedAlbum.library_identifier}
-              </Text>
-            )}
-            {displayYear && <Text>{displayYear}</Text>}
-            {resolvedAlbum.track_count > 0 && (
-              <>
-                <Text color="fg.muted">·</Text>
-                <Text>
-                  {resolvedAlbum.track_count} track{resolvedAlbum.track_count !== 1 ? "s" : ""}
+              <ArtistLink artist={resolvedAlbum.artist} friendId={resolvedAlbum.friend_id}>
+                <Text fontSize="14px" lineHeight="20px" fontWeight="500" {...ellipsis}>
+                  {resolvedAlbum.artist}
                 </Text>
-              </>
-            )}
-          </Flex>
-
-          <Flex
-            gap={3}
-            fontSize="xs"
-            flexWrap="wrap"
-            alignItems="center"
-            color="fg.muted"
-            mt={0.5}
-          >
-            <RatingGroup.Root
-              value={rating}
-              onValueChange={(details) => {
-                setRating(details.value);
-                updateMutation.mutate({
-                  release_id: resolvedAlbum.release_id,
-                  friend_id: resolvedAlbum.friend_id,
-                  album_rating: details.value,
-                });
-              }}
-              count={5}
-              size="xs"
-            >
-              {[1, 2, 3, 4, 5].map((index) => (
-                <RatingGroup.Item key={index} index={index}>
-                  <RatingGroup.ItemIndicator />
-                </RatingGroup.Item>
-              ))}
-            </RatingGroup.Root>
-            {resolvedAlbum.label && (
-              <Text display={{ base: "none", md: "block" }}>{resolvedAlbum.label}</Text>
-            )}
-            {resolvedAlbum.catalog_number && (
-              <Text display={{ base: "none", md: "block" }}>Cat: {resolvedAlbum.catalog_number}</Text>
-            )}
-            {resolvedAlbum.country && (
-              <Text display={{ base: "none", md: "block" }}>{resolvedAlbum.country}</Text>
-            )}
-            {resolvedAlbum.date_added && (
-              <Text display={{ base: "none", md: "block" }}>
-                Added: {formatDate(resolvedAlbum.date_added)}
+              </ArtistLink>
+              <Text fontSize="13px" lineHeight="18px" color="fg.muted" {...ellipsis}>
+                {[resolvedAlbum.label, displayYear].filter(Boolean).join(" · ")}
               </Text>
-            )}
-          </Flex>
-
-          {(displayGenres.length > 0 || displayStyles.length > 0) && (
-            <Flex gap={2} flexWrap="wrap" display={{ base: "none", md: "flex" }} mt={0.5}>
-              <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" />
-              <GenreBadgeList items={displayStyles} kind="discogs-style" scope="albums" />
+              {missingTags.length > 0 && (
+                <Flex gap={1.5} mt={1} flexWrap="wrap">
+                  <MissingTags keys={missingTags} />
+                </Flex>
+              )}
             </Flex>
+          </Flex>
+        </Table.Cell>
+        <Table.Cell {...cell}>
+          {resolvedAlbum.library_identifier && (
+            <Badge colorPalette="accent" variant="subtle" size="sm" fontWeight="bold" whiteSpace="nowrap">
+              {resolvedAlbum.library_identifier}
+            </Badge>
           )}
-        </Flex>
+        </Table.Cell>
+        <Table.Cell {...cell} fontFamily="label" fontSize="15px" fontWeight="600" fontVariantNumeric="tabular-nums">
+          {trackCount > 0 ? trackCount : ""}
+        </Table.Cell>
+        <Table.Cell {...cell}>
+          <Flex gap={1.5} flexWrap="wrap">
+            {genreBadges("sm")}
+          </Flex>
+        </Table.Cell>
+        <Table.Cell {...cell}>
+          <RatingStars value={rating} onChange={handleRatingChange} />
+        </Table.Cell>
+        <Table.Cell {...cell} pl={0} pr={3.5} textAlign="right">
+          {menu}
+        </Table.Cell>
+      </Table.Row>
+    );
+  }
+
+  // Card: the shape of a track card (outline, shadow-md, mb 14px for stacking).
+  return (
+    <Flex
+      data-testid="album-card"
+      position="relative"
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      p={3}
+      gap={3}
+      mb="14px"
+      width="100%"
+      minW={0}
+      _hover={{ bg: "bg.muted", ...revealRating }}
+      _focusWithin={revealRating}
+    >
+      {cover({ base: "88px", md: "120px" })}
+
+      <Flex direction="column" flex={1} minW={0} gap="2px" pr={{ base: "36px", md: "40px" }}>
+        <Link
+          as={NextLink}
+          href={albumHref}
+          title={resolvedAlbum.title}
+          fontFamily="heading"
+          fontSize={{ base: "16px", md: "20px" }}
+          lineHeight={{ base: "22px", md: "28px" }}
+          fontWeight="600"
+          {...ellipsis}
+          _hover={{ textDecoration: "underline" }}
+        >
+          {resolvedAlbum.title}
+        </Link>
+        <ArtistLink artist={resolvedAlbum.artist} friendId={resolvedAlbum.friend_id}>
+          <Text fontSize={{ base: "14px", md: "16px" }} lineHeight={{ base: "20px", md: "24px" }} fontWeight="500" {...ellipsis}>
+            {resolvedAlbum.artist}
+          </Text>
+        </ArtistLink>
+        <Text fontSize={{ base: "13px", md: "14px" }} lineHeight={{ base: "18px", md: "20px" }} color="fg.muted" {...ellipsis}>
+          {resolvedAlbum.label}
+          {/* Phones drop the country: one short line. */}
+          {resolvedAlbum.country && (
+            <Text as="span" display={{ base: "none", md: "inline" }}>{` · ${resolvedAlbum.country}`}</Text>
+          )}
+          {displayYear && ` (${displayYear})`}
+        </Text>
 
         <Flex
-          position="absolute"
-          top={{ base: 0, md: 2 }}
-          right={{ base: 0, md: 2 }}
-          gap={1}
+          data-testid="album-card-meta"
           alignItems="center"
+          columnGap={2}
+          rowGap={1}
+          flexWrap={{ base: "nowrap", md: "wrap" }}
+          mt={{ base: "4px", md: 2 }}
+          minH="16px"
+          fontFamily="label"
+          fontSize="xs"
+          lineHeight="16px"
+          color="fg.muted"
+          whiteSpace="nowrap"
         >
-          <AlbumActionsMenu
-            albumTitle={resolvedAlbum.title}
-            albumArtist={resolvedAlbum.artist}
-            discogsUrl={resolvedAlbum.discogs_url}
-            editAlbumHref={showEditFields ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}` : undefined}
-            onEnrichAlbum={handleEnrichAlbum}
-            isEnriching={isEnriching}
-            onLogCare={() => setLogCareOpen(true)}
-          />
-          {/* Mounted only while open: a list holds many rows. */}
-          {logCareOpen && (
-            <RecordActionDialog
-              open
-              onOpenChange={setLogCareOpen}
-              releaseId={resolvedAlbum.release_id}
-              friendId={resolvedAlbum.friend_id}
-              albumTitle={resolvedAlbum.title}
-            />
+          {libraryId}
+          {trackCount > 0 && <Text as="span">{tracksText}</Text>}
+          {resolvedAlbum.catalog_number && (
+            <Text as="span" display={{ base: "none", md: "inline" }}>
+              Cat {resolvedAlbum.catalog_number}
+            </Text>
           )}
+          <Box display={{ base: "none", md: "block" }}>
+            <RatingStars value={rating} onChange={handleRatingChange} />
+          </Box>
+          <MissingTags keys={missingTags} />
+        </Flex>
+
+        {/* Desktop wraps; a phone keeps one scrolling line so every card is the same height. */}
+        <Flex
+          data-testid="album-genres"
+          aria-label={hasGenres ? "Genres" : undefined}
+          gap={1.5}
+          mt={2}
+          minH={{ base: "20px", md: hasGenres ? "22px" : 0 }}
+          flexWrap={{ base: "nowrap", md: "wrap" }}
+          overflowX={{ base: "auto", md: "visible" }}
+          mr={{ base: "-36px", md: 0 }}
+          css={{
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+            "@media (max-width: 47.99em)": { "& > *": { flexShrink: 0 } },
+          }}
+        >
+          {genreBadges("sm")}
         </Flex>
       </Flex>
 
-      {resolvedAlbum.condition && (
-        <Flex mt={3} gap={3} fontSize="sm" color={subtleText} flexWrap="wrap">
-          <Text>Condition: {resolvedAlbum.condition}</Text>
-        </Flex>
-      )}
-    </Box>
+      <Box position="absolute" top={{ base: "4px", md: 2 }} right={{ base: "4px", md: 2 }}>
+        {menu}
+      </Box>
+    </Flex>
   );
 }

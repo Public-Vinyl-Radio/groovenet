@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
@@ -8,9 +9,19 @@ const mocks = vi.hoisted(() => ({
   useAlbumsInfiniteQuery: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({ useSearchParams: () => mocks.searchParams }));
-vi.mock("@/hooks/useAlbumsQuery", () => ({ useAlbumsInfiniteQuery: mocks.useAlbumsInfiniteQuery }));
-vi.mock("@/hooks/useAlbum", () => ({ useAlbumsByRefs: () => [] }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mocks.searchParams,
+  useRouter: () => ({ push: vi.fn() }),
+}));
+const albumsInStore = vi.hoisted(() => ({ list: [] as unknown[] }));
+vi.mock("@/hooks/useAlbum", () => ({
+  useAlbumsByRefs: () => albumsInStore.list,
+  useAlbum: () => undefined,
+}));
+vi.mock("@/hooks/useAlbumsQuery", () => ({
+  useAlbumsInfiniteQuery: mocks.useAlbumsInfiniteQuery,
+  useUpdateAlbumMutation: () => ({ mutate: vi.fn() }),
+}));
 
 import AlbumSearchResults from "./AlbumSearchResults";
 
@@ -107,5 +118,35 @@ describe("AlbumSearchResults include_similar (#485)", () => {
       <AlbumSearchResults friendId={6} onAddedGenresChange={onAddedGenresChange} />
     );
     await vi.waitFor(() => expect(onAddedGenresChange).toHaveBeenCalledWith([]));
+  });
+});
+
+describe("AlbumSearchResults layouts (#730)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", NoopObserver);
+    albumsInStore.list = [{ release_id: "r1", friend_id: 6, title: "One", artist: "A", track_count: 3 }];
+    mocks.useAlbumsInfiniteQuery.mockReset().mockReturnValue({
+      data: { pages: [{ hits: [], estimatedTotalHits: 1 }] },
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it("lists cards by default, tagged with the active Missing filters", () => {
+    mocks.searchParams = new URLSearchParams("missing_audio=1");
+    renderWithProviders(<AlbumSearchResults friendId={6} />);
+    expect(screen.getByTestId("album-card").textContent).toContain("No audio");
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("lists a table in row layout", () => {
+    mocks.searchParams = new URLSearchParams();
+    renderWithProviders(<AlbumSearchResults friendId={6} layout="row" />);
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(screen.getByTestId("album-row")).toBeTruthy();
   });
 });

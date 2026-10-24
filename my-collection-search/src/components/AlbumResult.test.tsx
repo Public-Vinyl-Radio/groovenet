@@ -7,8 +7,9 @@ import type { Album } from "@/types/track";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/hooks/useAlbum", () => ({ useAlbum: () => undefined }));
+const mutate = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useAlbumsQuery", () => ({
-  useUpdateAlbumMutation: () => ({ mutateAsync: vi.fn() }),
+  useUpdateAlbumMutation: () => ({ mutateAsync: vi.fn(), mutate }),
 }));
 // The care dialog has its own tests; here it only has to open, for this album.
 vi.mock("@/components/records/RecordActionDialog", () => ({
@@ -21,6 +22,7 @@ vi.mock("@/components/records/RecordActionDialog", () => ({
 }));
 
 import AlbumResult from "./AlbumResult";
+import AlbumTable from "./AlbumTable";
 
 const album: Album = {
   release_id: "rel",
@@ -56,4 +58,80 @@ it("badges effective album genres/styles, including intentionally empty replacem
   rerender(<AlbumResult album={{ ...album, genres: ["Source"], styles: ["Source Style"], effective_genres: [], effective_styles: [] }} />);
   expect(screen.queryByText("Source Style")).toBeNull();
   expect(screen.queryByText("Fusion")).toBeNull();
+});
+
+const full: Album = {
+  ...album,
+  label: "Virgin",
+  country: "UK",
+  year: "1991",
+  catalog_number: "WBRLP1",
+  library_identifier: "LP-42",
+  genres: ["Electronic"],
+  styles: ["Trip Hop"],
+};
+
+describe("AlbumResult card", () => {
+  it("shows label, country and year, the meta line and the genre tags", () => {
+    renderWithProviders(<AlbumResult album={full} missingTags={["missing_audio"]} />);
+    expect(screen.getByTestId("album-card")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe("/albums/rel?friend_id=7");
+    expect(screen.getByText(/Virgin/).textContent).toContain("UK");
+    expect(screen.getByText(/Virgin/).textContent).toContain("(1991)");
+    const meta = screen.getByTestId("album-card-meta").textContent;
+    expect(meta).toContain("LP-42");
+    expect(meta).toContain("9 tracks");
+    expect(meta).toContain("Cat WBRLP1");
+    expect(meta).toContain("No audio");
+    expect(screen.getByText("Electronic")).toBeTruthy();
+    expect(screen.getByText("Trip Hop")).toBeTruthy();
+  });
+
+  it("omits optional parts and the year 0", () => {
+    renderWithProviders(<AlbumResult album={{ ...album, track_count: 1, year: "0" }} />);
+    const meta = screen.getByTestId("album-card-meta").textContent;
+    expect(meta).toContain("1 track");
+    expect(meta).not.toContain("tracks");
+    expect(meta).not.toContain("Cat");
+    expect(screen.queryByText(/\(0\)/)).toBeNull();
+    expect(screen.getByTestId("album-genres").getAttribute("aria-label")).toBeNull();
+  });
+
+  it("saves a rating", async () => {
+    const { user } = renderWithProviders(<AlbumResult album={full} />);
+    await user.click(screen.getAllByRole("radio", { hidden: true })[2]);
+    expect(mutate).toHaveBeenCalledWith({ release_id: "rel", friend_id: 7, album_rating: 3 });
+  });
+});
+
+describe("AlbumResult row", () => {
+  it("renders the table cells with tags for each active Missing filter", () => {
+    renderWithProviders(
+      <AlbumTable>
+        <AlbumResult
+          album={full}
+          layout="row"
+          missingTags={["missing_library_identifier", "missing_local_cover_art_url", "missing_audio"]}
+        />
+      </AlbumTable>
+    );
+    const row = screen.getByTestId("album-row");
+    expect(row.textContent).toContain("Virgin · 1991");
+    expect(row.textContent).toContain("LP-42");
+    expect(row.textContent).toContain("No identifier");
+    expect(row.textContent).toContain("No local cover");
+    expect(row.textContent).toContain("No audio");
+    expect(row.textContent).toContain("Electronic");
+    expect(screen.getByRole("columnheader", { name: "Release" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Genre" })).toBeTruthy();
+  });
+
+  it("copes with a bare album", () => {
+    renderWithProviders(
+      <AlbumTable>
+        <AlbumResult album={{ ...album, track_count: 0 }} layout="row" />
+      </AlbumTable>
+    );
+    expect(screen.getByTestId("album-row").textContent).not.toContain("No audio");
+  });
 });

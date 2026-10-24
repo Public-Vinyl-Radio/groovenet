@@ -1,19 +1,23 @@
 "use client";
 import React, { useEffect, useRef } from "react";
-import { Box, Flex, Spinner, Text, Button } from "@chakra-ui/react";
+import { Box, Flex, Grid, Spinner, Text, Button } from "@chakra-ui/react";
 import { useAlbumsInfiniteQuery } from "@/hooks/useAlbumsQuery";
 import { useAlbumsByRefs } from "@/hooks/useAlbum";
-import AlbumResult from "./AlbumResult";
+import AlbumResult, { ALBUM_MISSING_TAGS, type AlbumMissingKey } from "./AlbumResult";
+import AlbumTable from "./AlbumTable";
 import { useSearchParams } from "next/navigation";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
 
 export default function AlbumSearchResults({
   friendId,
   onAddedGenresChange,
+  layout = "card",
 }: {
   friendId: number;
   /** Genres `include_similar` added (#485), reported up for the page to show as chips. */
   onAddedGenresChange?: (genres: GenreFilterRef[]) => void;
+  /** "row" is the table list view; "card" the outlined cards (and every phone). */
+  layout?: "row" | "card";
 }) {
   const searchParams = useSearchParams();
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -23,6 +27,9 @@ export default function AlbumSearchResults({
   const missingLibraryIdentifier = searchParams.get("missing_library_identifier") === "1";
   const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
   const missingAudio = searchParams.get("missing_audio") === "1";
+  const missingTags = (Object.keys(ALBUM_MISSING_TAGS) as AlbumMissingKey[]).filter(
+    (key) => searchParams.get(key) === "1"
+  );
   const genres = searchParams.getAll("genre");
   const includeSimilar = searchParams.get("similar") === "1";
   const similarExclude = searchParams.getAll("similar_exclude");
@@ -115,8 +122,8 @@ export default function AlbumSearchResults({
       </Text>
 
       {/* Album results */}
-      <Box>
-        {albums.map((album) => (
+      {(() => {
+        const results = albums.map((album) => (
           <AlbumResult
             key={`${album.release_id}_${album.friend_id}`}
             albumRef={{
@@ -125,9 +132,25 @@ export default function AlbumSearchResults({
             }}
             album={album}
             showEditFields={true}
+            layout={layout}
+            missingTags={missingTags}
           />
-        ))}
-      </Box>
+        ));
+        return layout === "row" ? (
+          <AlbumTable>{results}</AlbumTable>
+        ) : (
+          // Room for the cards' 6px hard shadow; each card carries a 14px mb.
+          <Grid
+            templateColumns={{ base: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }}
+            columnGap={5}
+            rowGap={{ base: 0, md: "6px" }}
+            pr="6px"
+            pb="6px"
+          >
+            {results}
+          </Grid>
+        );
+      })()}
 
       {/* Infinite scroll trigger */}
       <Box ref={observerTarget} py={4}>
