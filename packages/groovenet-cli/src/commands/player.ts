@@ -212,7 +212,7 @@ export function addPlayerCommands(program: Command): void {
   });
 
   player.command("stop")
-    .description("Stop the playback daemon")
+    .description("Stop the local daemon or selected remote playback")
     .option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient(async (client) => {
       const result = await client.request("shutdown");
@@ -222,9 +222,9 @@ export function addPlayerCommands(program: Command): void {
 
   player.command("status").description("Show playback status").option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("status")), options.json ?? false));
-  player.command("play [index]").description("Start or resume playback")
+  player.command("play [id-or-index]").description("Start/resume or play a queue entry (remote UUID or zero-based index)")
     .option("--json", "print machine-readable output")
-    .action(async (index: string | undefined, options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request(index === undefined ? "play" : "play", index === undefined ? undefined : { index: Number(index) })), options.json ?? false));
+    .action(async (index: string | undefined, options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("play", index === undefined ? undefined : player.opts().remote && !/^\d+$/.test(index) ? { id: index } : { index: Number(index) })), options.json ?? false));
   player.command("pause").description("Pause playback").option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient(async (client) => {
       const status = await client.request<{ status: string }>("status");

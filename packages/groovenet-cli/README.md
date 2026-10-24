@@ -251,6 +251,7 @@ Equivalent scripted operations use `--allow-unknown` or `--takeover`, plus:
 
 ```sh
 groovenet player --remote study devices transfer OUTPUT_ID --allow-unknown --json
+groovenet player --remote study play ENTRY_UUID --json
 groovenet player --remote study queue move ENTRY_UUID 0 --json
 groovenet player --remote study queue remove ENTRY_UUID --json
 groovenet player --remote study queue clear --json

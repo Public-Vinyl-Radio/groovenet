@@ -19,6 +19,12 @@ describe("remote player CLI", () => {
     expect(api.commandServerPlayer).toHaveBeenCalledWith("room", { type: "play", expected_revision: 2, allow_unknown: true, takeover: true });
     await run("--remote", "room", "queue", "clear", "--json");
     expect(api.commandServerPlayer).toHaveBeenLastCalledWith("room", { type: "queue.clear", expected_revision: 2 });
+    const entry = { id: "00000000-0000-4000-8000-000000000001", track_id: "track", friend_id: 1, artist: "Artist", title: "Song" };
+    api.getServerPlayer.mockResolvedValue({ ...state, state: { ...state.state, queue: [entry] } });
+    await run("--remote", "room", "play", entry.id, "--json");
+    expect(api.commandServerPlayer).toHaveBeenLastCalledWith("room", { type: "play", entry_id: entry.id, expected_revision: 2 });
+    await run("--remote", "room", "play", "0", "--json");
+    expect(api.commandServerPlayer).toHaveBeenLastCalledWith("room", { type: "play", entry_id: entry.id, expected_revision: 2 });
     await run("--remote", "room", "queue", "move", "missing", "0");
     expect(process.exitCode).toBe(1);
   });
