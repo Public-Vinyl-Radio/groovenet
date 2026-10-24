@@ -78,7 +78,7 @@ function GenreCell({ track }: { track: Track }) {
   if (items.length === 0) return <Text as="span" color="fg.subtle">{dash}</Text>;
   const overflow = items.length - 1;
   return (
-    <Flex gap={1.5} alignItems="center" minW={0} css={{ "& > a, & > span:not([data-overflow])": { minWidth: 0, maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
+    <Flex gap={1.5} alignItems="center" minW={0} css={{ "& > a, & > span:not([data-overflow])": { minWidth: 0, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
       <GenreBadgeList items={items.slice(0, 1)} kind={kind} scope="tracks" colorPalette="status.genre" variant="subtle" />
       {overflow > 0 && (
         <Badge data-overflow="" size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>
@@ -161,11 +161,11 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
         <Box as="thead" bg="bg.subtle" borderBottomWidth="outline" borderColor="border.ink">
           <tr>
             {["Track", "Side", "Time", "BPM", "Key", "Genre", "Rating"].map((name) => (
-              <Th scope="col" key={name} px="14px" py="10px" {...labelHead}>
+              <Th scope="col" key={name} px="12px" py="10px" {...labelHead}>
                 {name}
               </Th>
             ))}
-            <Th scope="col" px="14px" py="10px" w="56px">
+            <Th scope="col" px="12px" py="10px" w="56px">
               <Box as="span" srOnly>
                 Actions
               </Box>
@@ -184,12 +184,12 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
                 borderTopWidth="1px"
                 borderColor="border"
                 _hover={{ bg: "bg.muted" }}
-                css={{ "& > td": { padding: "10px 14px", verticalAlign: "middle" }, ...rowReveal }}
+                css={{ "& > td": { padding: "10px 12px", verticalAlign: "middle" }, ...rowReveal }}
               >
                 <td>
                   <Flex alignItems="center" gap={3} minW={0}>
                     <Artwork track={t} size="48px" />
-                    <Box minW={0} maxW="360px">
+                    <Box minW={0} maxW="300px">
                       <TitleLink track={t} display="block" fontSize="15px" lineHeight="20px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" />
                       <Text fontSize="12px" lineHeight="16px" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
                         <Byline track={t} showUsername={showUsername} />
