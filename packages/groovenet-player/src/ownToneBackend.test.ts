@@ -370,4 +370,34 @@ describe("OwnToneBackend", () => {
     await f.backend.close();
   });
 
+  it("distinguishes selected outputs from proven transport connections", async () => {
+    const f = fixture();
+    const unconfigured = new OwnToneBackend({ apiUrl: "http://engine/api", fetch: f.fetch });
+    expect(await unconfigured.outputConnection()).toBe("unknown");
+    expect(await f.backend.outputConnection()).toBe("disconnected");
+    await f.backend.load(source);
+    expect(await f.backend.outputConnection()).toBe("unknown");
+    f.responses.set("outputs", { outputs: [{ ...f.outputs[0], connected: true }] });
+    expect(await f.backend.outputConnection()).toBe("connected");
+    f.responses.set("outputs", { outputs: [{ ...f.outputs[0], connected: false }] });
+    expect(await f.backend.outputConnection()).toBe("disconnected");
+    f.responses.set("outputs", { outputs: [] });
+    expect(await f.backend.outputConnection()).toBe("disconnected");
+    f.responses.delete("outputs");
+    await f.backend.close(); await unconfigured.close();
+  });
+
+  it("reports an unexpected queue edit separately from normal stop", async () => {
+    const f = fixture(); await f.backend.load(source);
+    f.changeVersion(); await vi.advanceTimersByTimeAsync(500);
+    expect(f.errors).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining("queue changed") }));
+    await f.backend.close();
+  });
+  it("reports a replaced current item without treating it as completion", async () => {
+    const f = fixture(); await f.backend.load(source);
+    f.status.item_id = 999; await vi.advanceTimersByTimeAsync(500);
+    expect(f.errors).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining("item replaced") }));
+    expect(f.ended).not.toHaveBeenCalled(); await f.backend.close();
+  });
+
 });

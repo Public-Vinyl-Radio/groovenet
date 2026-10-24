@@ -1,6 +1,8 @@
 --- a/src/player.h
 +++ b/src/player.h
-@@ -72,0 +73,6 @@
+@@ -44,0 +45 @@
++  bool gn_connected;
+@@ -72,0 +74,6 @@
 +
 +  /* Groovenet terminal signal v1; snapshotted on the player thread. */
 +  char gn_instance[33];
@@ -36,7 +38,7 @@
 +  gn_terminal(pb_session.playing_now->item_id,
 +    pb_session.playing_now->gn_failed ? "failed" : "eof");
 @@ -1499,0 +1522,9 @@
-+  if ((!device || status == OUTPUT_STATE_FAILED || status == OUTPUT_STATE_STOPPED)
++  if ((!device || status == OUTPUT_STATE_FAILED || (status == OUTPUT_STATE_STOPPED && player_state == PLAY_PLAYING))
 +      && pb_session.playing_now)
 +    {
 +      pb_session.playing_now->gn_failed = true;
@@ -65,7 +67,9 @@
 +  status->gn_sequence = gn_sequence;
 +  status->gn_item_id = gn_item_id;
 +  status->gn_reason = gn_reason;
-@@ -3943 +3977,7 @@
+@@ -2564,0 +2599 @@
++  spk->gn_connected = (device->session != NULL);
+@@ -3943 +3978,7 @@
 -  int ret;
 +  unsigned char nonce[16];
 +  unsigned int i;
@@ -76,10 +80,11 @@
 +    snprintf(gn_instance + i * 2, 3, "%02x", nonce[i]);
 --- a/src/httpd_jsonapi.c
 +++ b/src/httpd_jsonapi.c
-@@ -1631,0 +1632,2 @@
+@@ -1631,0 +1632,3 @@
 +  json_object_object_add(output, "busy", json_object_new_boolean(spk->busy));
++  json_object_object_add(output, "connected", json_object_new_boolean(spk->gn_connected));
 +  json_object_object_add(output, "prevent_playback", json_object_new_boolean(spk->prevent_playback));
-@@ -2198,0 +2201,9 @@
+@@ -2198,0 +2202,9 @@
 +
 +  /* Additive, versioned extension: stock OwnTone clients ignore these fields. */
 +  json_object *terminal = json_object_new_object();

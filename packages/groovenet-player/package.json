@@ -9,7 +9,8 @@
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "bin": {
-    "groovenet-mpris": "build/mprisBin.js"
+    "groovenet-mpris": "build/mprisBin.js",
+    "groovenet-player-server": "build/server/bin.js"
   },
   "exports": {
     ".": {
@@ -23,6 +24,10 @@
     "./testing": {
       "import": "./build/testing.js",
       "types": "./build/testing.d.ts"
+    },
+    "./server": {
+      "types": "./build/server/manager.d.ts",
+      "import": "./build/server/manager.js"
     }
   },
   "scripts": {
@@ -35,6 +40,7 @@
     "build/",
     "MPRIS.md",
     "OWNTONE.md",
+    "SERVER_PLAYERS.md",
     "owntone/",
     "scripts/mpris-smoke.mjs"
   ],
@@ -42,10 +48,14 @@
     "access": "public"
   },
   "dependencies": {
-    "@groovenet/client": "^3.4.0"
+    "@groovenet/client": "^3.4.0",
+    "@groovenet/contracts": "1.1.0",
+    "pg": "8.23.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
+    "@types/pg": "8.23.1",
     "@vitest/coverage-v8": "^5.0.3",
     "typescript": "^7.0",
     "vitest": "^5.0.0"

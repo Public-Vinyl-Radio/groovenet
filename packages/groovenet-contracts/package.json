@@ -15,7 +15,7 @@
     "build": "tsc",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage --coverage.include=src/liveSets.ts --coverage.include=src/playlists.ts --coverage.include=src/tracks.ts --coverage.include=src/albums.ts --coverage.include=src/friends.ts --coverage.include=src/recordCare.ts --coverage.include=src/spins.ts --coverage.reporter=lcov"
+    "test:coverage": "vitest run --coverage --coverage.include=src/liveSets.ts --coverage.include=src/playlists.ts --coverage.include=src/tracks.ts --coverage.include=src/albums.ts --coverage.include=src/friends.ts --coverage.include=src/recordCare.ts --coverage.include=src/spins.ts --coverage.include=src/players.ts --coverage.reporter=lcov"
   },
   "files": [
     "build/"

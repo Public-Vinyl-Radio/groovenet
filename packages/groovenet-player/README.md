@@ -62,6 +62,9 @@ MPRIS for `playerctl` and desktop media keys. It is off unless explicitly starte
 and exits disabled without a Linux session bus. See [MPRIS.md](MPRIS.md) for setup,
 the platform design (including the macOS deferral), and smoke tests.
 
+Persistent Debian server players with independent queues and a shared control
+API are documented in [SERVER_PLAYERS.md](SERVER_PLAYERS.md).
+
 An opt-in `OwnToneBackend` supports one selected AirPlay output through a
 dedicated patched OwnTone engine. See [OWNTONE.md](OWNTONE.md) for the pinned
 engine build, shared read-only audio mapping, CLI setup, completion semantics

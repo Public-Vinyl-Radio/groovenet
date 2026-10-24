@@ -826,3 +826,5 @@ export interface AppearanceSettingsUpdate {
   customPalette?: AppearanceCustomPalette | null;
   fonts?: Partial<AppearanceFonts>;
 }
+
+export type { CreateServerPlayer, ServerPlayer, ServerPlayerState, ServerPlayerCommand, ServerPlayerCommandInput, ServerPlayerCommandResult, ServerPlayerDevice, SpeakerObservation } from "@groovenet/contracts";

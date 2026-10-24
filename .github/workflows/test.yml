@@ -495,6 +495,16 @@ jobs:
         env:
           DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
 
+      - name: Verify persistent server-player SQL and worker exclusion
+        run: |
+          npm ci --prefix ..
+          npm run build --workspace @groovenet/contracts --prefix ..
+          npm run build --workspace @groovenet/client --prefix ..
+          npm test --workspace @groovenet/player --prefix .. -- --run src/server/store.integration.test.ts
+        env:
+          DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
+          RUN_PLAYER_DB_TESTS: "1"
+
   redis-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

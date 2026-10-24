@@ -15,6 +15,7 @@ RUN patch -p1 < terminal-v1.patch \
     && ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
        --disable-install_systemd --disable-install_user --disable-webinterface \
     && make -j2 && make DESTDIR=/output install \
+    && (cd src/libairptp && ./configure --prefix=/usr --enable-daemon && make -j2 && make DESTDIR=/output install) \
     && rm -rf /output/var && make clean
 
 FROM alpine:3.22

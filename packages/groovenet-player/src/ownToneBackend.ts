@@ -34,6 +34,7 @@ interface Output {
   name: string;
   type: string;
   selected: boolean;
+  connected?: boolean;
   requires_auth?: boolean;
   needs_auth_key?: boolean;
   busy?: boolean;
@@ -169,6 +170,16 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
 
   listDevices(): Promise<AudioDevice[]> {
     return this.serial(async () => (await this.outputs()).map(({ id, name, type }) => ({ id, name, description: type })));
+  }
+
+  outputConnection(): Promise<"connected" | "disconnected" | "unknown"> {
+    return this.serial(async () => {
+      if (!this.outputId) return "unknown";
+      const output = (await this.outputs()).find((candidate) => candidate.id === this.outputId);
+      if (!output?.selected) return "disconnected";
+      if (output.connected === undefined) return "unknown";
+      return output.connected ? "connected" : "disconnected";
+    });
   }
 
   setOutputDevice(id: string): Promise<void> {
@@ -307,7 +318,10 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             this.emit("ended");
             return;
           }
-          if (!this.owns(status, queue)) throw new PlayerError("PLAYBACK_INTERRUPTED", "OwnTone playback stopped, failed, or was replaced; the queue has not advanced");
+          if (!this.owns(status, queue)) {
+            const reason = status.groovenet_terminal.instance !== this.session!.instance ? "engine restarted" : this.terminalForSession(status) ? status.groovenet_terminal.reason : status.state === "stop" ? "stopped" : queue.version !== this.session!.queueVersion ? "queue changed" : "item replaced";
+            throw new PlayerError("PLAYBACK_INTERRUPTED", `OwnTone playback interrupted (${reason}); the queue has not advanced`);
+          }
           const outputs = await this.outputs();
           const output = outputs.find((output) => output.id === this.outputId);
           if (outputs.filter((output) => output.selected).length !== 1 || !output?.selected) throw new PlayerError("DEVICE_UNAVAILABLE", "OwnTone output was disconnected or deselected");

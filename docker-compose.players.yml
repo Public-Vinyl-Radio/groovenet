@@ -1,0 +1,85 @@
+# Opt-in Debian server playback. Apply alongside docker-compose.yml and the
+# usual prod/dev override. Nothing here starts with a plain compose up.
+services:
+  app:
+    environment:
+      PLAYER_API_KEY: ${PLAYER_API_KEY:-}
+      PLAYER_WORKER_URL: http://player-worker:13700
+
+  player-worker:
+    profiles: [players]
+    build:
+      context: .
+      dockerfile: packages/groovenet-player/server/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-djplaylist}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-djplaylist}
+      PLAYER_API_KEY: ${PLAYER_API_KEY:-}
+      PLAYER_ENGINES_JSON: ${PLAYER_ENGINES_JSON:-}
+      PLAYER_HA_URL: ${PLAYER_HA_URL:-}
+      PLAYER_HA_TOKEN: ${PLAYER_HA_TOKEN:-}
+      PLAYER_HA_ENTITIES_JSON: ${PLAYER_HA_ENTITIES_JSON:-{}}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      db: { condition: service_healthy }
+      player-engine-a: { condition: service_started }
+      player-engine-b: { condition: service_started }
+    # Worker control is reachable only on the Compose network, never published.
+
+  player-clock:
+    profiles: [players]
+    build: { context: packages/groovenet-player/owntone }
+    image: groovenet-owntone:server
+    network_mode: host
+    restart: unless-stopped
+    ipc: shareable
+    entrypoint: [/usr/sbin/airptpd, -f]
+    healthcheck:
+      test: [CMD-SHELL, "pidof airptpd >/dev/null && test -r /dev/shm/airptp_shm"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+
+  player-engine-a:
+    profiles: [players]
+    image: groovenet-owntone:server
+    network_mode: host
+    restart: unless-stopped
+    ipc: service:player-clock
+    depends_on:
+      player-clock: { condition: service_healthy }
+    environment:
+      PLAYER_ENGINE_NAME: groovenet-primary
+      PLAYER_ENGINE_INTERFACE: ${PLAYER_LAN_INTERFACE:-enp170s0}
+      PLAYER_ENGINE_PASSWORD: ${PLAYER_ENGINE_A_PASSWORD:-}
+      PLAYER_ENGINE_PORT: "13689"
+      PLAYER_ENGINE_WS_PORT: "13688"
+    volumes:
+      - ${PLAYER_AUDIO_MOUNT:-music_data}:/srv/media:ro
+      - player_engine_a:/var/cache/owntone
+      - ./packages/groovenet-player/server/engine-entrypoint.sh:/usr/local/bin/player-engine:ro
+    entrypoint: [/bin/sh, /usr/local/bin/player-engine]
+
+  player-engine-b:
+    profiles: [players]
+    image: groovenet-owntone:server
+    network_mode: host
+    restart: unless-stopped
+    ipc: service:player-clock
+    depends_on:
+      player-clock: { condition: service_healthy }
+    environment:
+      PLAYER_ENGINE_NAME: groovenet-secondary
+      PLAYER_ENGINE_INTERFACE: ${PLAYER_LAN_INTERFACE:-enp170s0}
+      PLAYER_ENGINE_PASSWORD: ${PLAYER_ENGINE_B_PASSWORD:-}
+      PLAYER_ENGINE_PORT: "13690"
+      PLAYER_ENGINE_WS_PORT: "13691"
+    volumes:
+      - ${PLAYER_AUDIO_MOUNT:-music_data}:/srv/media:ro
+      - player_engine_b:/var/cache/owntone
+      - ./packages/groovenet-player/server/engine-entrypoint.sh:/usr/local/bin/player-engine:ro
+    entrypoint: [/bin/sh, /usr/local/bin/player-engine]
+
+volumes:
+  player_engine_a:
+  player_engine_b:

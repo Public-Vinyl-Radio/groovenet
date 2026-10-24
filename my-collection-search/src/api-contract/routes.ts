@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { playerContracts } from "./players";
 import { fontChoiceIdsFor, fontRoleIds } from "@/app/fontChoices";
 import { paletteIds } from "@/app/palettes";
 import { customColourKeys, customPaletteId } from "@/app/palettes/custom";
@@ -4161,6 +4162,7 @@ const albumWithTaxonomySchemaObject = {
 };
 
 export const apiContractRoutes: ApiContractRoute[] = [
+  ...playerContracts,
   ...genreMutationContracts,
   ...genreReconciliationContracts,
   {
