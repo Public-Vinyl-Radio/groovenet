@@ -74,3 +74,54 @@ test('player-only settings can augment a deployment without a base env file', ()
   assert.equal(run.status, 0, run.stderr);
   assert.ok(run.calls.every((call) => call.includes('.env.players')));
 });
+
+function remoteDeployment({ optedIn = true, validSecrets = true } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'groovenet-op-deploy-'));
+  try {
+    const bin = join(root, 'bin'); mkdirSync(bin);
+    const scripts = join(root, 'my-collection-search/scripts'); mkdirSync(scripts, { recursive: true });
+    copyFileSync(new URL('./render-player-env.mjs', import.meta.url), join(scripts, 'render-player-env.mjs'));
+    copyFileSync(new URL('../../.env.players.tpl', import.meta.url), join(root, '.env.players.tpl'));
+    const justfile = readFileSync(new URL('../../justfile', import.meta.url), 'utf8');
+    const recipe = justfile.split('deploy-prod-remote:\n')[1].split('\n# Pulls images')[0]
+      .replace(/^  /gm, '').replaceAll('{{prod_host}}', 'fixture-host')
+      .replaceAll('{{prod_stack_dir}}', '/fixture').replaceAll('{{tag}}', 'sha-1234567');
+    const script = join(root, 'deploy.sh'); writeFileSync(script, recipe);
+    const log = join(root, 'calls');
+    writeFileSync(join(bin, 'ssh'), `#!/bin/sh
+printf 'ssh %s\\n' "$*" >> "$DEPLOY_TEST_LOG"
+case "$*" in *"test -f "*) exit "$DEPLOY_TEST_OPT_IN" ;; esac
+`, { mode: 0o755 });
+    writeFileSync(join(bin, 'op'), '#!/bin/sh\nprintf "op run\\n" >> "$DEPLOY_TEST_LOG"\nshift 4\nexec "$@"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'scp'), '#!/bin/sh\nprintf "scp\\n" >> "$DEPLOY_TEST_LOG"\ncp "$1" "$DEPLOY_TEST_CAPTURE"\n', { mode: 0o755 });
+    const capture = join(root, 'captured.env');
+    const result = spawnSync('bash', [script], { cwd: root, encoding: 'utf8', env: {
+      PATH: `${bin}:${process.env.PATH}`, DEPLOY_TEST_LOG: log, DEPLOY_TEST_OPT_IN: optedIn ? '0' : '1', DEPLOY_TEST_CAPTURE: capture,
+      PLAYER_API_KEY: validSecrets ? 'test-api-key-'.repeat(5) : 'short', PLAYER_ENGINE_A_PASSWORD: 'engine-a', PLAYER_ENGINE_B_PASSWORD: 'engine-b',
+    } });
+    return { ...result, calls: readFileSync(log, 'utf8'), rendered: optedIn && validSecrets ? readFileSync(capture, 'utf8') : '' };
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}
+
+test('remote deployment refreshes opted-in player secrets from op before deploying', () => {
+  const run = remoteDeployment();
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(run.calls.includes('op run\nscp\nssh fixture-host chmod 600 /fixture/.env.players'));
+  assert.ok(run.rendered.includes('PLAYER_API_KEY="test-api-key-'));
+  assert.ok(!run.calls.includes('test-api-key-'));
+  assert.ok(run.calls.indexOf('scp') < run.calls.indexOf('git fetch'));
+});
+
+test('remote deployment leaves hosts without .env.players opted out', () => {
+  const run = remoteDeployment({ optedIn: false });
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(!run.calls.includes('op run') && !run.calls.includes('scp'));
+  assert.ok(run.calls.includes('git fetch'));
+});
+
+test('invalid op credentials stop remote deployment before copying or restarting anything', () => {
+  const run = remoteDeployment({ validSecrets: false });
+  assert.equal(run.status, 1);
+  assert.ok(!run.calls.includes('scp') && !run.calls.includes('git fetch'));
+  assert.match(run.stderr, /at least 32 characters/);
+});

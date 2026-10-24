@@ -116,8 +116,15 @@ jobs:
           # Node reports paths relative to this job's app working directory.
           sed -i 's#^SF:scripts/#SF:my-collection-search/scripts/#' coverage/storybook.lcov
 
-      - name: Test optional production player deployment
-        run: node --test scripts/deploy-prod.test.mjs
+      - name: Test optional production player deployment with coverage
+        run: |
+          node --test --experimental-test-coverage \
+            --test-coverage-include=scripts/render-player-env.mjs \
+            --test-reporter=spec --test-reporter=lcov \
+            --test-reporter-destination=stdout \
+            --test-reporter-destination=coverage/player-deploy.lcov \
+            scripts/deploy-prod.test.mjs scripts/render-player-env.test.mjs
+          sed -i 's#^SF:scripts/#SF:my-collection-search/scripts/#' coverage/player-deploy.lcov
 
       - name: Test dev dependency installation with coverage
         run: |
@@ -142,7 +149,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: my-collection-search/coverage/lcov.info,my-collection-search/coverage/storybook.lcov,my-collection-search/coverage/dev-deps.lcov
+          files: my-collection-search/coverage/lcov.info,my-collection-search/coverage/storybook.lcov,my-collection-search/coverage/dev-deps.lcov,my-collection-search/coverage/player-deploy.lcov
           flags: webapp
           disable_search: true
           fail_ci_if_error: false

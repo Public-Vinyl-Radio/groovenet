@@ -21,6 +21,35 @@ builds the two local images before starting services. It survives the normal
 `.env` rendering step. Keep the existing database/collection secrets in `.env`.
 Player secrets and private worktree files are excluded from Docker build contexts.
 
+The optional `.env.players.tpl` uses the existing `GROOVENET_OP_VAULT` /
+`GROOVENET_OP_ITEM` selection (defaults `Homelab` / `groovenet`). Add three fields
+to that 1Password item: `PLAYER_API_KEY`, `PLAYER_ENGINE_A_PASSWORD`, and
+`PLAYER_ENGINE_B_PASSWORD`. API keys must be at least 32 characters on one line;
+engine passwords must be distinct hex/base64url values. To render locally:
+
+```sh
+mkdir -p .worktree
+op run --env-file .env.players.tpl -- node my-collection-search/scripts/render-player-env.mjs .worktree/players.env
+# Copy to the production checkout as .env.players with mode 0600.
+```
+
+The renderer validates credentials before replacing any existing file, writes
+atomically with private permissions, and constructs the engine JSON from the same
+passwords. It quotes literal dollar signs/backslashes so Compose preserves secret
+values. Never commit the rendered file. `just deploy` refreshes `.env.players`
+from 1Password only on a host that already has that file; other hosts stay opted
+out. The ordinary collection credential template is unchanged.
+
+For the laptop CLI, load only the API key (never the engine passwords):
+
+```sh
+PLAYER_API_KEY='op://Homelab/groovenet/PLAYER_API_KEY' op run -- groovenet player list
+```
+
+Use the installed executable or the built Node entrypoint inside `op run`; shell
+functions such as `gn` are not executables that `op run` can invoke directly.
+Existing CLI collection credentials remain independent.
+
 Configure player settings:
 
 * Generate `PLAYER_API_KEY` with `openssl rand -hex 32`. It is a **shared
