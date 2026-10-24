@@ -33,7 +33,8 @@ import {
   type GenreBadgeItem,
 } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
-import { GenreBadgeList, type GenreBadgeKind } from "./GenreBadge";
+import { GenreBadgeList, GenreBadgeRow, type GenreBadgeKind } from "./GenreBadge";
+import { TrackCardContext } from "./trackCardContext";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
@@ -1010,22 +1011,30 @@ export default function TrackResult({
   }
 
   // ---- CARD layout (default) ----
+  // The library ID has its own plain-text treatment in the card's meta line.
+  const cardExtras = metaExtras.filter((el) => (el as React.ReactElement).key !== "lib");
+  const hasCamelot = Boolean(track.key) && Boolean(camelot) && camelot !== "-";
+  const showKeyWarning = typeof track.key_confidence === "number" && isKeyConfidenceLow(track.key_confidence);
+  const showBpmWarning = typeof track.bpm_confidence === "number" && isBpmConfidenceLow(track.bpm_confidence);
+  const genresShown = showGenres && genreBadges.items.length > 0;
+
   return (
     <Flex
-      borderWidth="1px"
-      borderLeftWidth={hasDataIssue ? "3px" : "1px"}
-      borderLeftColor={hasDataIssue ? "border.error" : undefined}
-      borderColor={isSelected ? "accent.border" : undefined}
-      borderRadius="md"
+      data-testid="track-card"
+      position="relative"
+      borderWidth="outline"
+      borderColor={isSelected ? "accent.border" : "border.ink"}
+      boxShadow="md"
       p={3}
       gap={3}
       // Most callers stack these in a plain .map() with no wrapper gap (genres,
       // related tracks, playlist/queue views) and rely on the card to space
-      // itself, same as before the redesign. A caller with its own wrapper gap
-      // (the search results card grid) cancels this out with rowGap={0}.
-      mb={3}
+      // itself. A caller with its own wrapper gap (the search results grid)
+      // sets rowGap to make up the difference.
+      mb="14px"
       width="100%"
       minW={0}
+      // A flagged track (no BPM, no embedding) keeps its tint; the outline stays ink.
       bg={hasDataIssue ? "bg.error" : undefined}
       _hover={{ bg: hasDataIssue ? undefined : "bg.muted", ...containerHoverReveal }}
       _focusWithin={containerHoverReveal}
@@ -1039,94 +1048,210 @@ export default function TrackResult({
         </Box>
       )}
 
-      <ArtworkPlay track={track} size={{ base: "64px", md: "96px" }} iconSize={7} />
+      <ArtworkPlay track={track} size={{ base: "64px", md: "120px" }} iconSize={7} />
 
-      <Flex direction="column" flex={1} minW={0} gap={1.5}>
-        <Flex direction="column" gap="1px" minW={0}>
-          <Flex alignItems="center" gap={1.5} minW={0}>
-            <Link
-              as={NextLink}
-              href={trackHref}
-              title={track.title}
-              fontSize={{ base: "md", md: "lg" }}
-              fontWeight="700"
-              overflow="hidden"
-              textOverflow="ellipsis"
-              whiteSpace="nowrap"
+      <Flex direction="column" flex={1} minW={0}>
+        <Flex alignItems="flex-start" gap={2} minW={0}>
+          <Flex direction="column" flex={1} minW={0}>
+            <Flex alignItems="center" gap={1.5} minW={0} pr={{ base: "32px", md: 0 }}>
+              <Link
+                as={NextLink}
+                href={trackHref}
+                title={track.title}
+                display="block"
+                fontFamily="heading"
+                fontSize={{ base: "16px", md: "20px" }}
+                lineHeight={{ base: "22px", md: "28px" }}
+                fontWeight="600"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+                minW={0}
+                _hover={{ textDecoration: "underline" }}
+              >
+                {track.title}
+              </Link>
+              {score !== undefined && (
+                <Badge colorPalette={score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"} size="sm" flexShrink={0}>
+                  {score.toFixed(1)}%
+                </Badge>
+              )}
+            </Flex>
+            {/* Desktop stacks artist and album; a phone has one `Artist · Album` line. */}
+            <Flex
+              direction={{ base: "row", md: "column" }}
               minW={0}
-              _hover={{ textDecoration: "underline" }}
+              pr={{ base: "32px", md: 0 }}
+              fontSize={{ base: "14px", md: "16px" }}
+              lineHeight={{ base: "20px", md: "24px" }}
+              css={{
+                "& > a": { minWidth: 0, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+                // On a phone the artist keeps its width up to 65% of the line and the album takes the rest.
+                "@media (max-width: 47.99em)": {
+                  "& > a:first-of-type": { maxWidth: "65%", flex: "0 1 auto" },
+                  "& > a:last-of-type": { flex: "1 1 0" },
+                },
+              }}
             >
-              {track.title}
-            </Link>
-            {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
-            {score !== undefined && (
-              <Badge colorPalette={score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"} size="sm" flexShrink={0}>
-                {score.toFixed(1)}%
-              </Badge>
-            )}
+              <ArtistLink artist={track.artist} friendId={track.friend_id}>
+                <Text as="span" fontWeight="500" title={track.artist}>
+                  {track.artist}
+                </Text>
+              </ArtistLink>
+              {track.album && (
+                <Text as="span" aria-hidden="true" display={{ base: "inline", md: "none" }} color="fg.muted" mx={1} flexShrink={0}>
+                  ·
+                </Text>
+              )}
+              <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
+                <Text
+                  as="span"
+                  data-testid="track-album-line"
+                  display="block"
+                  fontSize={{ base: "inherit", md: "14px" }}
+                  lineHeight={{ base: "inherit", md: "20px" }}
+                  color="fg.muted"
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  whiteSpace="nowrap"
+                  title={albumLine}
+                >
+                  {track.album}
+                  {track.year && track.year !== "0" && (
+                    <Text as="span" display={{ base: "none", md: "inline" }}>
+                      {` (${track.year})`}
+                    </Text>
+                  )}
+                </Text>
+              </AlbumLink>
+            </Flex>
           </Flex>
-          <ArtistLink artist={track.artist} friendId={track.friend_id}>
-            <Text
-              fontSize={{ base: "sm", md: "md" }}
-              fontWeight="500"
-              color="fg.muted"
-              overflow="hidden"
-              textOverflow="ellipsis"
-              whiteSpace="nowrap"
-              title={track.artist}
+
+          {/*
+            Desktop: a real flex sibling, so the title can never run under it. Phones:
+            absolutely positioned in the corner as a 44px target, and the title and
+            artist rows reserve 32px for it (the meta line below uses the full width).
+          */}
+          <TrackCardContext.Provider value={true}>
+            <Flex
+              position={{ base: "absolute", md: "static" }}
+              top="2px"
+              right="0"
+              flexShrink={0}
+              alignItems="center"
+              gap={1}
+              data-testid="track-card-actions"
             >
-              {track.artist}
-            </Text>
-          </ArtistLink>
-          <Flex gap={1} fontSize="xs" color="fg.subtle" alignItems="center" minW={0} overflow="hidden" css={{ "& > a": { minWidth: 0 } }}>
-            <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
-              <Text as="span" display="block" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" title={track.album}>
-                {track.album}
-                {track.year && ` · ${track.year}`}
-              </Text>
-            </AlbumLink>
-          </Flex>
+              {/* Hover affordance: desktop only, the card menu has "Add to Queue" on a phone. */}
+              <Box display={{ base: "none", md: "block" }}>
+                <AddToCrateButton track={track} />
+              </Box>
+              {buttons}
+            </Flex>
+          </TrackCardContext.Provider>
         </Flex>
 
         {showDetails && (
-          <Flex alignItems="center" gap={2} flexWrap="wrap">
-            <BpmValue bpm={track.bpm} bpmConfidence={track.bpm_confidence} align="left" />
-            <KeyChip keyName={track.key} camelot={camelot} keyConfidence={track.key_confidence} />
-            {durationSeconds && (
-              <Text fontSize="xs" color="fg.muted" fontVariantNumeric="tabular-nums">
-                {formatSeconds(durationSeconds)}
+          <Flex
+            data-testid="track-card-meta"
+            flexWrap="wrap"
+            alignItems="center"
+            columnGap={2}
+            rowGap={1}
+            mt={{ base: "6px", md: 2 }}
+            fontSize="xs"
+            lineHeight="16px"
+            color="fg.muted"
+          >
+            {track.library_identifier && (
+              <Text
+                as="span"
+                fontFamily="label"
+                fontWeight="bold"
+                letterSpacing="0.05em"
+                color="accent.fg"
+                whiteSpace="nowrap"
+                maxW="100%"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                title={track.library_identifier}
+              >
+                {track.library_identifier}
               </Text>
             )}
             {track.position && (
-              <Text fontSize="xs" color="fg.subtle">
+              <Text as="span" fontFamily="label" fontWeight="500">
                 {track.position}
               </Text>
             )}
-            {metaExtras}
+            {durationSeconds ? (
+              <Text as="span" fontVariantNumeric="tabular-nums">
+                {formatSeconds(durationSeconds)}
+              </Text>
+            ) : null}
+            {hasBpm ? (
+              <Flex as="span" display="inline-flex" alignItems="center" gap={1}>
+                <Text as="span" fontVariantNumeric="tabular-nums">
+                  {bpmNum} BPM
+                </Text>
+                {showBpmWarning && (
+                  <ConfidenceIndicator subject="BPM" low percent={formatBpmConfidencePercent(track.bpm_confidence as number)} />
+                )}
+              </Flex>
+            ) : (
+              <Badge colorPalette="status.analysis" variant="subtle" size="sm" whiteSpace="nowrap">
+                No BPM
+              </Badge>
+            )}
+            {hasCamelot && (
+              <Flex as="span" display="inline-flex" alignItems="center" gap={1} minW={0} title={track.key ?? undefined} data-testid="track-card-key">
+                <Box aria-hidden="true" boxSize="8px" borderRadius="full" bg={camelotDotColor(camelot)} flexShrink={0} />
+                <Text as="span" fontWeight="bold" color="fg" fontVariantNumeric="tabular-nums">
+                  {camelot}
+                </Text>
+                <Text as="span" display={{ base: "none", md: "inline" }} data-testid="track-card-key-name">
+                  {track.key}
+                </Text>
+                {showKeyWarning && (
+                  <ConfidenceIndicator subject="key" low percent={formatKeyConfidencePercent(track.key_confidence as number)} />
+                )}
+              </Flex>
+            )}
+            {cardExtras}
+            {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
           </Flex>
         )}
 
-        <Flex alignItems="center" justifyContent="space-between" gap={2} minW={0}>
-          {showGenres && <GenreList items={genreBadges.items} kind={genreBadges.kind} max={2} wrap />}
+        {/* Phones show genres only; the rating lives in the card menu there. */}
+        <Flex
+          display={{ base: genresShown ? "flex" : "none", md: genresShown || showRating ? "flex" : "none" }}
+          alignItems="center"
+          justifyContent="space-between"
+          gap={2}
+          minW={0}
+          mt={2}
+        >
+          {genresShown && (
+            <Box flex={1} minW={0}>
+              <GenreBadgeRow
+                data-testid="track-genres"
+                items={genreBadges.items}
+                kind={genreBadges.kind}
+                scope="tracks"
+                colorPalette="status.genre"
+                variant="subtle"
+                size={{ base: "xs", md: "sm" }}
+              />
+            </Box>
+          )}
           {showRating && (
-            <Box flexShrink={0}>
+            <Box display={{ base: "none", md: "block" }} flexShrink={0} ml="auto">
               <RatingStars value={localRating} onChange={handleRatingChange} />
             </Box>
           )}
         </Flex>
 
         {footer && <Box mt={1}>{footer}</Box>}
-      </Flex>
-
-      {/*
-        A real flex sibling, not position:absolute over the title — an absolutely
-        positioned cluster needs a manually guessed reserve (e.g. padding-right) on
-        the title to avoid overlap, which breaks for any title/button width it
-        didn't anticipate. flexShrink:0 here guarantees the reserved space instead.
-      */}
-      <Flex direction="column" alignItems="center" gap={0.5} flexShrink={0}>
-        {buttons}
-        <AddToCrateButton track={track} />
       </Flex>
     </Flex>
   );

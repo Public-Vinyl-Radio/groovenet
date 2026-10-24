@@ -90,7 +90,22 @@ export type GenreBadgeRowProps = {
   scope: GenreSearchScope;
   /** Badges kept on the one-line mobile row before folding the rest into "+N" (#470). */
   mobileLimit?: number;
+  size?: GenreBadgeProps["size"];
+  colorPalette?: GenreBadgeProps["colorPalette"];
+  variant?: GenreBadgeProps["variant"];
   "data-testid"?: string;
+};
+
+// A tag that doesn't fit shrinks and ends in an ellipsis rather than being cut mid-letter.
+const tagEllipsis = {
+  "& > a, & > span:not([data-overflow])": {
+    display: "block",
+    minWidth: 0,
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
 };
 
 /**
@@ -103,16 +118,20 @@ export function GenreBadgeRow({
   kind,
   scope,
   mobileLimit = 3,
+  size,
+  colorPalette,
+  variant,
   "data-testid": testId,
 }: GenreBadgeRowProps) {
   if (items.length === 0) return null;
   const overflow = Math.max(0, items.length - mobileLimit);
+  const badge = { kind, scope, size, colorPalette, variant };
   const mobileItems = overflow > 0 ? items.slice(0, mobileLimit) : items;
 
   return (
     <Box data-testid={testId}>
-      <Flex gap={1.5} flexWrap="wrap" display={{ base: "none", md: "flex" }}>
-        <GenreBadgeList items={items} kind={kind} scope={scope} />
+      <Flex gap={1.5} flexWrap="wrap" display={{ base: "none", md: "flex" }} css={tagEllipsis}>
+        <GenreBadgeList items={items} {...badge} />
       </Flex>
       <Flex
         gap={1.5}
@@ -120,10 +139,11 @@ export function GenreBadgeRow({
         overflow="hidden"
         alignItems="center"
         display={{ base: "flex", md: "none" }}
+        css={tagEllipsis}
       >
-        <GenreBadgeList items={mobileItems} kind={kind} scope={scope} />
+        <GenreBadgeList items={mobileItems} {...badge} />
         {overflow > 0 && (
-          <Badge size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>
+          <Badge data-overflow="" size={size ?? "sm"} variant="subtle" colorPalette="neutral" flexShrink={0}>
             +{overflow}
           </Badge>
         )}

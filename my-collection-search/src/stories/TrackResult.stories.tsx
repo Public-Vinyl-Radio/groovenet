@@ -167,6 +167,46 @@ export const SemanticScore: Story = {
   },
 };
 
+const longCardTrack = {
+  ...trackWithAudio,
+  title: 'Cumbia Beat Experimental Guitar-Driven Tropical Sounds From Perú, Side One Opener',
+  artist: 'Los Beltons y Su Conjunto Tropical Del Perú',
+  album: 'Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)',
+  year: '1976',
+  library_identifier: 'LP-349-DELUXE-BOX-SET',
+  position: 'B2',
+  key: 'Bb minor',
+  key_confidence: 0.4,
+  track_genres: ['Rock en Español', 'Psychedelic Cumbia', 'Electronic', 'Funk', 'Soul', 'Latin'].map((name, i) => ({
+    id: String(i),
+    name,
+    slug: name.toLowerCase().replace(/ /g, '-'),
+    parent_id: null,
+    parent_name: null,
+  })),
+};
+
+export const CardLongValues: Story = {
+  name: 'Card — long title, artist, ID and 6 genres (#722)',
+  args: { track: longCardTrack, footer: <Box>#4 · 12 plays</Box> },
+};
+
+export const CardNoBpmKeyOrGenres: Story = {
+  name: 'Card — no BPM, key or genres (#722)',
+  args: { track: { ...trackMinimal, bpm: null, key: null, track_genres: [], local_tags: '', styles: [], genres: [] } },
+};
+
+export const CardPhone: Story = {
+  name: 'Card — phone (#722)',
+  parameters: { viewport: { defaultViewport: 'mobile375' } },
+  render: (args) => (
+    <Box pr="6px">
+      <TrackResult {...args} track={longCardTrack} />
+      <TrackResult {...args} track={sampleTrack} />
+    </Box>
+  ),
+};
+
 export const MultipleInList: Story = {
   name: 'Multiple tracks (card layout)',
   render: (args) => (

@@ -7,6 +7,7 @@ import {
   CloseButton,
   Drawer,
   Heading,
+  IconButton,
   Portal,
   Stack,
 } from "@chakra-ui/react";
@@ -38,22 +39,24 @@ export default function FilterSheet({ count, onClearAll, children }: FilterSheet
       open={open}
       onOpenChange={(details) => setOpen(details.open)}
     >
+      {/* A 44px icon button beside the mode group; the count rides its corner. */}
       <Drawer.Trigger asChild>
-        <Button
-          size="xs"
+        <IconButton
+          size="sm"
           variant="outline"
           borderColor="border.ink"
+          boxSize="44px"
           flexShrink={0}
+          position="relative"
           aria-label={count > 0 ? `Filters, ${count} on` : "Filters"}
         >
           <LuSlidersHorizontal />
-          Filters
           {count > 0 && (
-            <Badge size="xs" colorPalette="accent" variant="solid">
+            <Badge size="xs" colorPalette="accent" variant="solid" position="absolute" top="-6px" right="-6px">
               {count}
             </Badge>
           )}
-        </Button>
+        </IconButton>
       </Drawer.Trigger>
       <Portal>
         <Drawer.Backdrop />

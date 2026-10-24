@@ -416,7 +416,7 @@ const SearchResults: React.FC = () => {
         placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
         mobileSecondaryControls={
           <>
-            <SearchModeToggle value={searchMode} onChange={setSearchMode} size="xs" />
+            <SearchModeToggle value={searchMode} onChange={setSearchMode} touchTarget />
             <FilterSheet
               count={activeFilterCount}
               onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
@@ -444,6 +444,7 @@ const SearchResults: React.FC = () => {
           <IconButton
             aria-label="Select tracks"
             size="sm"
+            boxSize="44px"
             variant={selectMode ? "solid" : "ghost"}
             onClick={toggleSelectMode}
           >
@@ -556,9 +557,17 @@ const SearchResults: React.FC = () => {
               </Box>
             </Box>
           ) : (
-            // Cards view (and every phone, regardless of the toggle). columnGap only:
-            // each card supplies its own mb for row spacing, so rowGap would double it up.
-            <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} columnGap={3} rowGap={0}>
+            // Cards view (and every phone, regardless of the toggle). Each card carries a
+            // 14px mb; the 6px rowGap tops it up to the 20px column gap on desktop. The
+            // padding leaves room for the cards' 6px hard shadow; the shell's bottom padding
+            // is what clears the fixed bottom nav on a phone.
+            <Grid
+              templateColumns={{ base: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }}
+              columnGap={5}
+              rowGap={{ base: 0, md: "6px" }}
+              pr="6px"
+              pb="6px"
+            >
               {trackInfo.map((info) => {
                 const key = `${info.trackId}:${info.friendId}`;
                 return (

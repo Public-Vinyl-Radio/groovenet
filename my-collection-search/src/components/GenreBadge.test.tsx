@@ -123,3 +123,29 @@ describe("GenreBadgeRow (#470)", () => {
     expect(screen.getAllByText("Merengue").length).toBeGreaterThan(0);
   });
 });
+
+describe("GenreBadgeRow badge props (#722)", () => {
+  it("passes size, palette and variant to every badge and the +N badge", () => {
+    renderWithProviders(
+      <GenreBadgeRow
+        items={[
+          { label: "Cumbia", slug: "cumbia" },
+          { label: "Chicha", slug: null },
+          { label: "Salsa", slug: null },
+          { label: "Merengue", slug: null },
+        ]}
+        kind="track"
+        scope="tracks"
+        colorPalette="status.genre"
+        variant="subtle"
+        size="xs"
+        data-testid="row"
+      />
+    );
+
+    const overflow = screen.getByText("+1");
+    expect(overflow.hasAttribute("data-overflow")).toBe(true);
+    // The phone row's tags give way with an ellipsis rather than cut mid-letter.
+    expect(getComputedStyle(overflow.parentElement as HTMLElement).flexWrap).toBe("nowrap");
+  });
+});

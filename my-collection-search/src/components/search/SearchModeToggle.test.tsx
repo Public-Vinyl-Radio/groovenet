@@ -17,6 +17,16 @@ describe("SearchModeToggle", () => {
   });
 });
 
+describe("SearchModeToggle touch target", () => {
+  it("is 44px tall and fills its row when asked, for phones (#722)", () => {
+    renderWithProviders(<SearchModeToggle value="lexical" onChange={vi.fn()} touchTarget />);
+
+    const group = screen.getByRole("radiogroup", { name: "Search mode", hidden: true });
+    expect(getComputedStyle(group).height).toBe("44px");
+    expect(getComputedStyle(group).flexGrow).toBe("1");
+  });
+});
+
 describe("isTrackSearchMode", () => {
   it("accepts only the three modes", () => {
     expect(isTrackSearchMode("hybrid")).toBe(true);

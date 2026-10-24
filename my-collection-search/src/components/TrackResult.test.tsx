@@ -90,7 +90,7 @@ describe("TrackResult genre badges (#470)", () => {
     expect(screen.queryByTestId("track-genres")).toBeNull();
   });
 
-  it("folds overflow genres (beyond 2) into a +N badge instead of showing every one", () => {
+  it("folds genres beyond the first 3 into a +N badge on a phone, one line (#722)", () => {
     const manyGenres = {
       ...track,
       track_genres: [
@@ -103,7 +103,13 @@ describe("TrackResult genre badges (#470)", () => {
     };
     renderWithProviders(<TrackResult track={manyGenres} />);
 
-    expect(screen.getAllByText("+3").length).toBeGreaterThan(0);
+    const row = screen.getByTestId("track-genres");
+    // jsdom has no media queries, so the phone row (base) and the wrapping desktop row both render.
+    expect(within(row).getAllByText("+2")).toHaveLength(1);
+    const phoneRow = within(row).getByText("+2").parentElement as HTMLElement;
+    expect(getComputedStyle(phoneRow).flexWrap).toBe("nowrap");
+    expect(phoneRow.children).toHaveLength(4);
+    expect(within(phoneRow).queryByText("Merengue")).toBeNull();
   });
 });
 
@@ -146,7 +152,16 @@ describe("TrackResult layout", () => {
   it("shows an 'Add to crate' quick action", () => {
     renderWithProviders(<TrackResult track={track} />);
 
-    expect(screen.getByRole("button", { name: "Add to crate" })).toBeTruthy();
+    // Desktop hover affordance: not in the phone layout's accessibility tree.
+    expect(screen.getByRole("button", { name: "Add to crate", hidden: true })).toBeTruthy();
+  });
+
+  it("has no hover affordances on a phone: no quick-add and no star rating", () => {
+    renderWithProviders(<TrackResult track={{ ...track, star_rating: 0 }} />);
+
+    expect(screen.queryByRole("button", { name: "Add to crate" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "4 stars" })).toBeNull();
+    expect(getComputedStyle(screen.getByRole("button", { name: "Add to crate", hidden: true }).parentElement as HTMLElement).display).toBe("none");
   });
 
   it("shows the sort-position-change badge when supplied", () => {
@@ -163,10 +178,11 @@ describe("TrackResult layout", () => {
     expect(screen.getByText("1:01:05")).toBeTruthy();
   });
 
-  it("shows an em dash for a track with no key", () => {
+  it("leaves the key out of the card's meta line for a track with no key", () => {
     renderWithProviders(<TrackResult track={{ ...track, key: null }} />);
 
-    expect(screen.getByText("—")).toBeTruthy();
+    expect(screen.queryByTestId("track-card-key")).toBeNull();
+    expect(screen.queryByText("—")).toBeNull();
   });
 
   it("flags a low-confidence key with an '!' that opens a popover (#524)", async () => {
@@ -179,14 +195,12 @@ describe("TrackResult layout", () => {
     expect(await screen.findByText(/42% confident/)).toBeTruthy();
   });
 
-  it("does not flag a confident key as uncertain, but still shows its confidence on click (#524)", async () => {
-    const { user } = renderWithProviders(
-      <TrackResult track={{ ...track, key: "F major", key_confidence: 0.9 }} />
-    );
+  it("shows no '!' and no trigger for a confident key (#722)", async () => {
+    renderWithProviders(<TrackResult track={{ ...track, key: "F major", key_confidence: 0.9 }} />);
 
     expect(screen.queryByRole("button", { name: "Uncertain key" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Key confidence" }));
-    expect(await screen.findByText(/90% confident/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Key confidence" })).toBeNull();
+    expect(within(screen.getByTestId("track-card-key")).queryByText("!")).toBeNull();
   });
 
   it("shows nothing clickable for a key with no confidence on record", () => {
@@ -206,14 +220,12 @@ describe("TrackResult layout", () => {
     expect(await screen.findByText(/Uncertain BPM — .* only 2% confident/)).toBeTruthy();
   });
 
-  it("does not flag a clear BPM, but still shows its confidence on click (#531)", async () => {
-    const { user } = renderWithProviders(
-      <TrackResult track={{ ...track, bpm: "103", bpm_confidence: 0.26 }} />
-    );
+  it("shows no '!' and no trigger for a clear BPM (#722)", async () => {
+    renderWithProviders(<TrackResult track={{ ...track, bpm: "103", bpm_confidence: 0.26 }} />);
 
     expect(screen.queryByRole("button", { name: "Uncertain BPM" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "BPM confidence" }));
-    expect(await screen.findByText(/26% confident in this BPM/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "BPM confidence" })).toBeNull();
+    expect(screen.getByText("103 BPM")).toBeTruthy();
   });
 
   it("shows nothing clickable for a BPM with no confidence on record (#531)", () => {
@@ -254,7 +266,7 @@ describe("TrackResult layout", () => {
   it("adds the track to the crate when the quick-add button is clicked", async () => {
     const { user } = renderWithProviders(<TrackResult track={track} />);
 
-    await user.click(screen.getByRole("button", { name: "Add to crate" }));
+    await user.click(screen.getByRole("button", { name: "Add to crate", hidden: true }));
 
     expect(mocks.appendToQueue).toHaveBeenCalledWith(track);
   });
@@ -272,7 +284,7 @@ describe("TrackResult layout", () => {
   it("saves a new rating when a star is clicked", async () => {
     const { user } = renderWithProviders(<TrackResult track={{ ...track, star_rating: 0 }} />);
 
-    await user.click(screen.getByRole("radio", { name: "4 stars" }));
+    await user.click(screen.getByRole("radio", { name: "4 stars", hidden: true }));
 
     expect(mocks.saveTrack).toHaveBeenCalledWith({
       track_id: track.track_id,
@@ -640,10 +652,12 @@ describe("TrackResult row layout (#685)", () => {
     expect(code.parentElement?.getAttribute("title")).toBe("Bb minor");
   });
 
-  it("keeps the full key name on the card", () => {
+  it("keeps the full key name on the card, as a tooltip on a phone", () => {
     renderWithProviders(<TrackResult track={{ ...track, key: "Bb minor" }} />);
 
-    expect(screen.getByText("Bb minor").getAttribute("title")).toBe("Bb minor");
+    expect(screen.getByTestId("track-card-key").getAttribute("title")).toBe("Bb minor");
+    // Desktop shows the name; a phone shows the dot and Camelot code only.
+    expect(getComputedStyle(screen.getByText("Bb minor")).display).toBe("none");
   });
 
   it("gives a single long genre tag an ellipsis and a tooltip instead of cutting it mid-letter", () => {
@@ -664,7 +678,8 @@ describe("TrackResult row layout (#685)", () => {
   it("wraps genre tags on the card instead of shrinking them", () => {
     renderWithProviders(<TrackResult track={track} />);
 
-    expect(getComputedStyle(screen.getByTestId("track-genres")).flexWrap).toBe("wrap");
+    const desktopRow = screen.getByTestId("track-genres").firstElementChild as HTMLElement;
+    expect(getComputedStyle(desktopRow).flexWrap).toBe("wrap");
   });
 
   it("is tall enough for three lines", () => {
@@ -695,5 +710,117 @@ describe("TrackResult row layout (#685)", () => {
       expect(headerGrid.children[4 + i].getAttribute("data-col")).toBe(col);
       expect(rowGrid.children[4 + i].getAttribute("data-col")).toBe(col);
     });
+  });
+});
+
+describe("TrackResult card (#722)", () => {
+  const cardTrack = {
+    ...track,
+    library_identifier: "LP-099",
+    position: "B2",
+    duration_seconds: 263,
+    bpm: "124",
+    key: "A major",
+    notes: "Great opener",
+  } as Track;
+
+  it("lists the meta line as library ID, side, duration, BPM, key, then the notes icon", () => {
+    renderWithProviders(<TrackResult track={cardTrack} />);
+
+    const meta = screen.getByTestId("track-card-meta");
+    const order = ["LP-099", "B2", "4:23", "124 BPM", "11B", "Has notes"];
+    const positions = order.map((text) => {
+      const el = text === "Has notes" ? within(meta).getByRole("button", { name: text }) : within(meta).getByText(text);
+      return Array.from(meta.children).findIndex((child) => child.contains(el));
+    });
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(new Set(positions).size).toBe(order.length);
+  });
+
+  it("sets the library ID as bold accent text in the label face, not a chip", () => {
+    renderWithProviders(<TrackResult track={cardTrack} />);
+
+    const id = screen.getByText("LP-099");
+    expect(id.closest("[data-scope=badge]")).toBeNull();
+    expect(getComputedStyle(id).fontWeight).toContain("bold");
+  });
+
+  it("shows the key as plain inline text: code in bold, name beside it, no chip", () => {
+    renderWithProviders(<TrackResult track={cardTrack} />);
+
+    const key = screen.getByTestId("track-card-key");
+    expect(within(key).getByText("11B")).toBeTruthy();
+    expect(within(key).getByText("A major")).toBeTruthy();
+    expect(getComputedStyle(key).borderWidth).toBe("0px");
+    expect(getComputedStyle(within(key).getByText("11B")).fontWeight).toContain("bold");
+  });
+
+  it("puts a '!' after the key name only below the confidence threshold", async () => {
+    const { rerender, user } = renderWithProviders(
+      <TrackResult track={{ ...cardTrack, key_confidence: 0.42 }} />
+    );
+    const key = screen.getByTestId("track-card-key");
+    const bang = within(key).getByRole("button", { name: "Uncertain key" });
+    expect(bang.textContent).toBe("!");
+    expect(key.lastElementChild).toBe(bang);
+    await user.click(bang);
+    expect(await screen.findByText(/42% confident/)).toBeTruthy();
+
+    rerender(<TrackResult track={{ ...cardTrack, key_confidence: 0.9 }} />);
+    expect(within(screen.getByTestId("track-card-key")).queryByRole("button")).toBeNull();
+  });
+
+  it("flags an uncertain BPM with a '!' too", () => {
+    renderWithProviders(<TrackResult track={{ ...cardTrack, bpm_confidence: 0.02 }} />);
+
+    expect(screen.getByRole("button", { name: "Uncertain BPM" })).toBeTruthy();
+  });
+
+  it("reserves 32px for the corner menu on a phone and puts the menu in the corner", () => {
+    renderWithProviders(<TrackResult track={cardTrack} buttons={<button type="button">Menu</button>} />);
+
+    const titleRow = screen.getByRole("link", { name: track.title }).parentElement as HTMLElement;
+    expect(getComputedStyle(titleRow).paddingRight).toBe("32px");
+    const artistRow = screen.getByText(track.artist).closest("a")?.parentElement as HTMLElement;
+    expect(getComputedStyle(artistRow).paddingRight).toBe("32px");
+    const actions = screen.getByTestId("track-card-actions");
+    expect(getComputedStyle(actions).position).toBe("absolute");
+    expect(actions.contains(screen.getByRole("button", { name: "Menu" }))).toBe(true);
+    // The meta line is not inset.
+    expect(getComputedStyle(screen.getByTestId("track-card-meta")).paddingRight).toBe("0");
+  });
+
+  it("carries the container shadow (the outline is checked in the browser)", () => {
+    renderWithProviders(<TrackResult track={cardTrack} />);
+
+    const style = getComputedStyle(screen.getByTestId("track-card"));
+    // Semantic tokens stay as CSS variables in jsdom.
+    expect(style.boxShadow).toContain("shadows-md");
+  });
+
+  it("shows the album with the artist on one line, and the year only on desktop", () => {
+    renderWithProviders(<TrackResult track={cardTrack} />);
+
+    expect(screen.getByTestId("track-album-line").textContent).toContain(`${track.album} (${track.year})`);
+    expect(getComputedStyle(screen.getByText(`(${track.year})`)).display).toBe("none");
+  });
+
+  it("keeps a card with no BPM, no key and no genres compact", () => {
+    renderWithProviders(
+      <TrackResult
+        track={{ ...cardTrack, bpm: null, key: null, track_genres: [], local_tags: "", styles: [], genres: [], notes: "" }}
+      />
+    );
+
+    expect(screen.getByText("No BPM")).toBeTruthy();
+    expect(screen.queryByTestId("track-card-key")).toBeNull();
+    expect(screen.queryByTestId("track-genres")).toBeNull();
+  });
+
+  it("keeps the footer slot", () => {
+    renderWithProviders(<TrackResult track={cardTrack} footer={<span>#3 · 12 plays</span>} />);
+
+    expect(screen.getByText("#3 · 12 plays")).toBeTruthy();
   });
 });

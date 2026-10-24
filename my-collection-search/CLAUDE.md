@@ -222,10 +222,24 @@ an invalid value the browser drops, so it fails silently.
   the block itself for standard-density rows, numbers them with `listPosition`,
   and gives the lifted row its own outline); `onRowClick` fires only for clicks
   on bare row, never on links, buttons or popovers.
+- **Track cards** (`TrackResult`, the default `layout`; #722): the container is a 2px
+  `border.ink` outline with `shadow-md`, so a grid of them needs `padding: 0 6px 6px 0`
+  and a 20px gap (14px between stacked cards; the card carries `mb: 14px`, a caller with
+  a row gap tops it up). Artwork is 120px on desktop and 64px on a phone; the corner
+  menu is an `xs` outline button on desktop and an absolutely positioned 44px target on a
+  phone, where the title and artist rows reserve 32px for it. The meta line is plain text
+  in this order: library ID (label face, bold, `accent.fg`), side, duration, `N BPM`,
+  key (dot, bold Camelot code, key name, which phones drop to the tooltip), notes icon.
+  The key is never a badge; a "!" follows it, and the BPM, only below the confidence
+  threshold. Genre tags go through `GenreBadgeRow` (`status.genre`, subtle): wrapping on
+  desktop, one line with the first three and "+N" on a phone. The "+" and the star rating
+  show on hover on desktop only; on a phone they live in the card menu, which
+  `TrackActionsMenu` recognises through `TrackCardContext`.
 - **Search fields and controls:** text you type uses the body face (14px at `md`,
   16px on phones), controls you click use the label face (13px). The search field,
   mode toggle, icon buttons and filter controls are all `size="sm"` (36px) so the
-  toolbar shares a baseline.
+  toolbar shares a baseline. On a phone the search field, mode group, select button and
+  Filters icon button are all 44px.
 - **Filter row** (`FilterChips` with `FilterGroup`s as `leading`): Genre and its
   "Include similar" toggle are one unit (`GenreFilterGroup`, the toggle shows once a
   genre is selected and the field reads "Genre · N"); Missing and BPM / Key are a
