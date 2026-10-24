@@ -189,6 +189,15 @@ An abrupt crash can leave an old engine playing; stop that engine explicitly
 before issuing new playback if its ownership cannot be established. Do not use
 the dedicated engines from other controller apps.
 
+When a receiver or input fails, the worker stops, clears and releases only a
+verified failed engine session. It rechecks the engine instance, queue version,
+item and terminal failure sequence, and refuses to clean up a resumed/replaced
+session or another selected output. The named player's queue/current entry and
+checkpoint remain intact; it never automatically resumes or advances after a
+failure. Once the receiver is ready, explicitly play again (with any required
+availability acknowledgement). Queue and settings edits preserve the playback
+error until a successful transport action leaves the error state.
+
 If engine cleanup fails, an uncertain assignment remains reserved and commands
 return `RELEASE_UNCERTAIN`. Stop/restart the affected engine, then restart the
 worker to restore stopped checkpoints and clear the claim. Investigate DB/engine
