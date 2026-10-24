@@ -16,6 +16,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { FiHeadphones } from "react-icons/fi";
 
+import TrackViewToggle from "@/components/TrackViewToggle";
+import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import DraggableTrackList from "@/components/DraggableTrackList";
 import PlaylistStatsPanel from "@/components/PlaylistStatsPanel";
 import { useSearchResults } from "@/hooks/useSearchResults";
@@ -81,7 +83,13 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     sortPositionChanges,
   } = usePlaylistMutations(playlistId, () => setHasUnsavedChanges(true));
 
-  const { replacePlaylist, playlistLength } = usePlaylistPlayer();
+  const {
+    replacePlaylist,
+    playlistLength,
+    playlist: queue,
+    currentTrackIndex: queueIndex,
+  } = usePlaylistPlayer();
+  const { viewMode, setViewMode, layout, isMobile } = useTrackViewMode();
   const mobileBottomOverlayOffset = getMobileBottomOverlayOffset(playlistLength);
 
   const { exportPlaylist, exportToPDF, getTotalPlaytime } =
@@ -351,6 +359,16 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     }
   };
 
+  // The row the player is on, when the queue is this playlist (it is a copy, so match by track).
+  const playingIndex = React.useMemo(() => {
+    if (queueIndex === null) return null;
+    const playing = queue[queueIndex];
+    const here = tracksPlaylist[queueIndex];
+    return playing && here && playing.track_id === here.track_id && playing.friend_id === here.friend_id
+      ? queueIndex
+      : null;
+  }, [queue, queueIndex, tracksPlaylist]);
+
   // Render function for playlist item menu buttons
   const renderPlaylistButtons = React.useCallback(
     (track: Track | undefined, idx: number) => {
@@ -539,6 +557,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
               Save Changes
             </Button>
           )}
+          {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
           <PlaylistActionsMenu
             disabled={tracksPlaylist.length === 0}
             onSortGreedy={() => {
@@ -586,8 +605,14 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           moveTrack={moveTrack}
           droppableId="playlist-droppable"
           renderTrackButtons={renderPlaylistButtons}
+          currentTrackIndex={layout === "row" ? playingIndex : undefined}
           trackResultProps={{
             playlistCount: playlistCounts,
+            layout,
+            onRowClick:
+              layout === "row"
+                ? (_track, idx) => replacePlaylist(tracks, { autoplay: true, startIndex: idx })
+                : undefined,
           }}
           sortPositionChanges={sortPositionChanges}
         />

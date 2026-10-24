@@ -114,6 +114,8 @@ export type TrackResultProps = {
   /** Called when a dense row is clicked (used by the queue to play that track). */
   onRowClick?: () => void;
   sortPositionChange?: SortPositionChange;
+  /** 1-based place in an ordered list (a playlist); shown at the start of the Release cell in `layout="row"`. */
+  listPosition?: number;
 };
 
 /** Header for `layout="row"`: same column template as each row, rendered once above the list. */
@@ -559,6 +561,7 @@ export default function TrackResult({
   density = "standard",
   onRowClick,
   sortPositionChange,
+  listPosition,
 }: TrackResultProps) {
   const [localRating, setLocalRating] = useState(track.star_rating ?? 0);
   const { saveTrack } = useTracksQuery();
@@ -827,8 +830,22 @@ export default function TrackResult({
   }
 
   if (layout === "row") {
+    // A click on the bare row; links, buttons, popovers and portalled menus keep their own behaviour.
+    const handleRowClick = onRowClick
+      ? (event: React.MouseEvent<HTMLElement>) => {
+          const target = event.target as HTMLElement;
+          if (!event.currentTarget.contains(target)) return;
+          // The drag handle around the row is itself role=button, so only look inside the row.
+          const control = target.closest("a,button,input,label,[role=button],[role=menuitem],[data-scope=popover]");
+          if (control && event.currentTarget.contains(control)) return;
+          onRowClick();
+        }
+      : undefined;
     return (
       <Flex
+        data-testid="track-result-row"
+        onClick={handleRowClick}
+        cursor={onRowClick ? "pointer" : undefined}
         align="center"
         gap={4}
         height={`${TRACK_ROW_HEIGHT}px`}
@@ -927,6 +944,20 @@ export default function TrackResult({
 
           {/* Release: what must never clip, so it wraps instead of truncating. */}
           <Flex data-testid="track-release" minW={0} fontSize="13px" color="fg.muted" alignItems="center" gap={1} flexWrap="wrap">
+            {listPosition !== undefined && (
+              <Text
+                as="span"
+                data-testid="track-list-position"
+                fontSize="xs"
+                color="fg.subtle"
+                fontFamily="label"
+                fontVariantNumeric="tabular-nums"
+                flexShrink={0}
+                title={`Position ${listPosition}`}
+              >
+                {listPosition}.
+              </Text>
+            )}
             {track.position && !track.library_identifier && (
               <Text as="span" fontSize="xs" color="fg.subtle" fontFamily="label" flexShrink={0}>
                 {track.position}

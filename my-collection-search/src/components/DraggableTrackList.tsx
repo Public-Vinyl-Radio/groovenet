@@ -11,6 +11,7 @@ import {
   DraggableStateSnapshot,
 } from "@hello-pangea/dnd";
 import TrackResultStore from "@/components/TrackResultStore";
+import { TrackListHeader } from "@/components/TrackResult";
 import { useDragAndDropList } from "@/hooks/useDragAndDropList";
 import type { Track } from "@/types/track";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
@@ -52,8 +53,11 @@ export default function DraggableTrackList({
   sortPositionChanges = {},
 }: DraggableTrackListProps) {
   const { onDragEnd } = useDragAndDropList(moveTrack);
+  // Standard-density rows are a table: one outlined block with a header. The queue's dense rows are not.
+  const isTable =
+    trackResultProps?.layout === "row" && trackResultProps?.density !== "dense";
 
-  return (
+  const list = (
     <DragDropContext onDragEnd={onDragEnd}>
       <Droppable droppableId={droppableId}>
         {(provided: DroppableProvided) => (
@@ -90,13 +94,19 @@ export default function DraggableTrackList({
                       {...dragProvided.dragHandleProps}
                       opacity={snapshot.isDragging ? 0.9 : 1}
                       bg={
-                        isCurrentTrack
-                          ? useDenseRow
+                        isTable && snapshot.isDragging
+                          ? "bg.panel"
+                          : isCurrentTrack
                             ? "bg.muted"
-                            : "bg.muted"
-                          : undefined
+                            : undefined
                       }
-                      borderRadius={isCurrentTrack ? (useDenseRow ? "xl" : "md") : undefined}
+                      borderRadius={
+                        isTable ? undefined : isCurrentTrack ? (useDenseRow ? "xl" : "md") : undefined
+                      }
+                      // The block's shadow doesn't travel with a lifted row, so it gets its own.
+                      {...(isTable && snapshot.isDragging
+                        ? { borderWidth: "outline", borderColor: "border.ink", boxShadow: "md" }
+                        : {})}
                     >
                       <TrackResultStore
                         key={`${droppableId}-${trackPlay.track_id}:${trackPlay.friend_id}:${idx}`}
@@ -121,6 +131,7 @@ export default function DraggableTrackList({
                           ]
                         }
                         sortPositionChange={sortPositionChange}
+                        listPosition={isTable ? idx + 1 : undefined}
                       />
                     </Box>
                   )}
@@ -132,5 +143,19 @@ export default function DraggableTrackList({
         )}
       </Droppable>
     </DragDropContext>
+  );
+
+  if (!isTable) return list;
+  return (
+    <Box
+      data-testid="track-table"
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      css={{ containerType: "inline-size" }}
+    >
+      <TrackListHeader />
+      {list}
+    </Box>
   );
 }

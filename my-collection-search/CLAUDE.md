@@ -216,8 +216,12 @@ an invalid value the browser drops, so it fails silently.
   `container-type: inline-size` ancestor) narrows. Anything that can overflow ends
   in an ellipsis with a `title` tooltip; never cut a badge or tag mid-glyph.
   A list that offers Rows/Cards uses `useTrackViewMode` (persisted `searchViewMode`,
-  phones always cards) and `TrackViewToggle`; search and the track page's Related
-  tracks do. Unvirtualised rows go in one outlined block with a single shadow.
+  phones always cards) and `TrackViewToggle`; search, the track page's Related
+  tracks and the playlist page do. Unvirtualised rows go in one outlined block
+  with a single shadow. Playlist rows are draggable (`DraggableTrackList` draws
+  the block itself for standard-density rows, numbers them with `listPosition`,
+  and gives the lifted row its own outline); `onRowClick` fires only for clicks
+  on bare row, never on links, buttons or popovers.
 - **Search fields and controls:** text you type uses the body face (14px at `md`,
   16px on phones), controls you click use the label face (13px). The search field,
   mode toggle, icon buttons and filter controls are all `size="sm"` (36px) so the
