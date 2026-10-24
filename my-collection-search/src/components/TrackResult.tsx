@@ -837,7 +837,7 @@ export default function TrackResult({
           if (!event.currentTarget.contains(target)) return;
           // The drag handle around the row is itself role=button, so only look inside the row.
           const control = target.closest("a,button,input,label,[role=button],[role=menuitem],[data-scope=popover]");
-          if (control && control !== event.currentTarget && event.currentTarget.contains(control)) return;
+          if (control && event.currentTarget.contains(control)) return;
           onRowClick();
         }
       : undefined;

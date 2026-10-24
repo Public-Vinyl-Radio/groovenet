@@ -124,7 +124,14 @@ function CountedGenreBadges({
     );
   }
   return (
-    <Flex gap={1} wrap="wrap">
+    // A long genre wraps inside its card instead of running past the edge and being cut mid-glyph.
+    <Flex
+      gap={1}
+      wrap="wrap"
+      minW={0}
+      maxW="100%"
+      css={{ "& > *": { maxW: "100%", whiteSpace: "normal", overflowWrap: "anywhere", height: "auto" } }}
+    >
       {items.map((item) => (
         <GenreBadge key={`${kind}-${item.label}`} item={withCount(item)} kind={kind} scope="tracks" size={size} />
       ))}

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
+import { createPortal } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -89,6 +90,17 @@ describe("DraggableTrackList table rows", () => {
     expect(onRowClick).toHaveBeenCalledWith(sampleTrack, 0);
   });
 
+  it("ignores clicks that bubble from a portalled popover", () => {
+    const onRowClick = vi.fn();
+    renderRows({
+      trackResultProps: { layout: "row", onRowClick },
+      renderTrackButtons: () =>
+        createPortal(<span data-testid="portalled">menu</span>, document.body),
+    });
+    fireEvent.click(screen.getAllByTestId("portalled")[0]);
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
+
   it("highlights the current row", () => {
     renderRows({ currentTrackIndex: 1 });
     const handles = [...document.querySelectorAll("[data-rfd-drag-handle-draggable-id]")];
@@ -106,6 +118,10 @@ describe("DraggableTrackList table rows", () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
+    // Lifted: the row carries its own outline and background.
+    expect(handle.className).not.toBe(
+      document.querySelectorAll<HTMLElement>("[data-rfd-drag-handle-draggable-id]")[2].className
+    );
     fireEvent.keyDown(handle, { key: "ArrowDown", keyCode: 40 });
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
