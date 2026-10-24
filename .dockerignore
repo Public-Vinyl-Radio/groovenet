@@ -26,3 +26,5 @@ my-collection-search/*.local
 my-collection-search/public/storybook
 my-collection-search/storybook-static
 **/.env
+**/.env.*
+**/.worktree

@@ -36,6 +36,14 @@ elif [[ -n "${COMPOSE_TEMPLATE_FILE}" && -n "${OP_BIN}" ]]; then
 else
   COMPOSE_CMD=(docker compose)
 fi
+# Keep host-private player settings separate from the .env rendered on deploy.
+# File presence is the explicit opt-in; preserve players during --remove-orphans.
+SERVER_PLAYERS_ENABLED=false
+if [[ -f "${PROJECT_DIR}/.env.players" ]]; then
+  SERVER_PLAYERS_ENABLED=true
+  COMPOSE_CMD+=(--env-file "${PROJECT_DIR}/.env.players" --profile players)
+  COMPOSE_FILES+=(-f docker-compose.players.yml)
+fi
 SERVICES=(app migrate essentia ga-service download-worker fingerprint-service fingerprint-set-worker)
 MIN_FREE_GB="${MIN_FREE_GB:-5}"
 PGUSER="${POSTGRES_USER:-djplaylist}"
@@ -108,6 +116,11 @@ check_disk_space
 
 echo "==> Pulling images for ${TAG}"
 IMAGE_TAG="${TAG}" "${COMPOSE_CMD[@]}" -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" pull "${SERVICES[@]}"
+
+if [[ "${SERVER_PLAYERS_ENABLED}" == true ]]; then
+  echo "==> Building persistent player images"
+  IMAGE_TAG="${TAG}" "${COMPOSE_CMD[@]}" -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" build player-clock player-worker
+fi
 
 echo "==> Starting database dependencies"
 IMAGE_TAG="${TAG}" "${COMPOSE_CMD[@]}" -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" up -d db redis
