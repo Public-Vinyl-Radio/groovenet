@@ -44,11 +44,15 @@ For the laptop CLI, load only the API key (never the engine passwords):
 
 ```sh
 PLAYER_API_KEY='op://Homelab/groovenet/PLAYER_API_KEY' op run -- groovenet player list
+PLAYER_API_KEY='op://Homelab/groovenet/PLAYER_API_KEY' op run --no-masking -- groovenet player --remote lounge
 ```
 
 Use the installed executable or the built Node entrypoint inside `op run`; shell
 functions such as `gn` are not executables that `op run` can invoke directly.
-Existing CLI collection credentials remain independent.
+Existing CLI collection credentials remain independent. For the interactive TUI,
+`op run` needs `--no-masking`: its default output-masking pipe makes stdout cease
+to be a TTY. This option passes terminal output through directly; the player UI
+does not print credentials. Keep default masking for noninteractive commands.
 
 Configure player settings:
 
