@@ -52,7 +52,25 @@ describe("TrackGenresSection", () => {
     renderSection({ track_genres: [], local_tags: undefined, genres: [], styles: [] });
 
     expect(screen.getByText("No genres yet")).toBeTruthy();
-    expect(screen.queryByText("Album (Discogs)")).toBeNull();
+    expect(screen.queryByText("Album")).toBeNull();
+  });
+
+  it("labels the album's values and shows each genre once", () => {
+    renderSection({
+      track_genres: [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null }],
+      genres: ["Latin"],
+      styles: ["cumbia", "Psychedelic"],
+    });
+
+    expect(screen.getByText("Album")).toBeTruthy();
+    expect(screen.getAllByText(/^cumbia$/i)).toHaveLength(1);
+    expect(screen.getByText("Psychedelic")).toBeTruthy();
+    expect(screen.getByText("Latin")).toBeTruthy();
+  });
+
+  it("is one inline row, not a card with a heading", () => {
+    renderSection({ track_genres: [], local_tags: undefined, genres: [], styles: [] });
+    expect(screen.queryByRole("heading")).toBeNull();
   });
 });
 

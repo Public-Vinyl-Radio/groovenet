@@ -2,18 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { Box, Button, Flex, Heading, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
-import { LuChevronDown, LuChevronUp } from "react-icons/lu";
+import { LuChevronDown } from "react-icons/lu";
 import { useQuery } from "@tanstack/react-query";
 import type { Track } from "@/types/track";
-import TrackResult, { TrackListHeader } from "@/components/TrackResult";
+import { RelatedTrackList, RelatedTrackTable } from "@/components/RelatedTrackRows";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { analytics } from "@/lib/analytics/client";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSimilarTracks } from "@/hooks/useSimilarTracks";
 import { useSimilarVibeTracks } from "@/hooks/useSimilarVibeTracks";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
-import TrackViewToggle from "@/components/TrackViewToggle";
-import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { fetchTracksByIds, type TrackBatchRef } from "@/services/internalApi/tracks";
 
@@ -42,11 +40,14 @@ function normalizeArtwork(track: Track): Track {
   };
 }
 
-export default function RelatedTracksSection({ track }: Props) {
-  const [expanded, setExpanded] = useState(false);
-  const initialCount = useBreakpointValue({ base: 3, md: 20 }) ?? 3;
+/** Rows added by each "Show more". */
+const PAGE_SIZE = 20;
 
-  const { viewMode, setViewMode, layout, isMobile } = useTrackViewMode();
+export default function RelatedTracksSection({ track }: Props) {
+  // Phones start shorter: each row is taller than a table row.
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
+  const initialCount = isMobile ? 5 : PAGE_SIZE;
+  const [extra, setExtra] = useState(0);
 
   const suggestionScope = useSuggestionScope();
   const { scope, libraryFriendId, ready } = suggestionScope;
@@ -156,54 +157,57 @@ export default function RelatedTracksSection({ track }: Props) {
     [merged, hydratedByKey]
   );
 
-  const displayTracks = expanded ? resolved.slice(0, 60) : resolved.slice(0, initialCount);
+  const shownCount = initialCount + extra;
+  const displayTracks = resolved.slice(0, shownCount);
+  const remaining = resolved.length - displayTracks.length;
   // Disabled queries don't count as loading, so cover the wait for the saved scope too.
   const isLoading = !ready || recQuery.isLoading || similarQuery.isLoading || vibeQuery.isLoading;
   const hasError = recQuery.error || similarQuery.error || vibeQuery.error;
 
-  const renderTrack = (item: MergedTrack, index: number) => (
-    <TrackResult
-      key={`${item.track_id}-${item.friend_id}`}
+  const renderActions = (item: Track, index: number) => (
+    <TrackActionsMenu
       track={item}
-      layout={layout}
-      // Only meaningful cross-library ("All libraries"): every row is the
-      // browsed library's own otherwise, so the badge is just repeated noise.
-      showUsername={scope === "all"}
-      showRating={true}
-      buttons={
-        <TrackActionsMenu
-          track={item}
-          onAction={(action) =>
-            analytics.track("recommendation_acted_on", {
-              track_id: item.track_id,
-              action,
-              rank: index + 1,
-              sources: item._sources,
-            })
-          }
-        />
+      onAction={(action) =>
+        analytics.track("recommendation_acted_on", {
+          track_id: item.track_id,
+          action,
+          rank: index + 1,
+          sources: (item as MergedTrack)._sources,
+        })
       }
     />
   );
 
+  const rowProps = {
+    base: track,
+    tracks: displayTracks,
+    // Only meaningful cross-library ("All libraries"): every row is the
+    // browsed library's own otherwise, so the name is just repeated noise.
+    showUsername: scope === "all",
+    renderActions,
+  };
+
   return (
-    <Box mt={4}>
-      <Flex align="center" justify="space-between" mb={3} gap={2}>
-        <Box>
-          <Heading size="sm">Related Tracks</Heading>
-          <Text fontSize="xs" color="fg.muted" display={{ base: "none", md: "block" }} mt={0.5}>
-            Combined from AI recommendations, similar tracks, and similar vibes
+    <Box as="section" aria-labelledby="related-tracks-heading" mt={6}>
+      <Flex align="flex-end" justify="space-between" wrap="wrap" mb={3} gap={3}>
+        <Box minW={0}>
+          <Flex align="baseline" gap={2.5}>
+            <Heading as="h2" id="related-tracks-heading" size="lg">
+              Related tracks
+            </Heading>
+            {!isLoading && !hasError && merged.length > 0 && (
+              <Text fontFamily="label" fontSize="11px" letterSpacing="0.08em" textTransform="uppercase" color="fg.muted">
+                {displayTracks.length} of {merged.length}
+              </Text>
+            )}
+          </Flex>
+          <Text fontSize="13px" color="fg.muted" mt={0.5} display={{ base: "none", md: "block" }}>
+            From AI recommendations, similar tracks and similar vibes. BPM and key are compared to this track.
           </Text>
         </Box>
-        <Flex align="center" gap={3} flexShrink={0}>
-          {!isLoading && !hasError && merged.length > 0 && (
-            <Text fontSize="xs" color="fg.muted">
-              {displayTracks.length} of {merged.length}
-            </Text>
-          )}
-          {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
+        <Box flexShrink={0} w={{ base: "full", md: "auto" }} css={{ "& > div": { width: "100%" } }}>
           <SuggestionScopeToggle value={scope} onChange={suggestionScope.setScope} />
-        </Flex>
+        </Box>
       </Flex>
 
       {isLoading ? (
@@ -221,32 +225,18 @@ export default function RelatedTracksSection({ track }: Props) {
         </Text>
       ) : (
         <>
-          {layout === "row" ? (
-            // One outlined block with one shadow for the stack; rows only rule.
-            // Not virtualised (60 at most). The container query drives which columns drop off.
-            <Box
-              borderWidth="outline"
-              borderColor="border.ink"
-              boxShadow="md"
-              css={{ containerType: "inline-size" }}
-            >
-              <TrackListHeader />
-              {displayTracks.map(renderTrack)}
-            </Box>
-          ) : (
-            displayTracks.map(renderTrack)
-          )}
+          {isMobile ? <RelatedTrackList {...rowProps} /> : <RelatedTrackTable {...rowProps} />}
 
-          {merged.length > initialCount && (
-            // Centred outline button under the list, like "Load More" in the album results.
+          {remaining > 0 && (
             <Flex justify="center" mt={4}>
               <Button
                 variant="outline"
-                aria-expanded={expanded}
-                onClick={() => setExpanded((v) => !v)}
+                w={{ base: "full", md: "auto" }}
+                minH={{ base: "44px", md: undefined }}
+                onClick={() => setExtra((n) => n + PAGE_SIZE)}
               >
-                {expanded ? <LuChevronUp /> : <LuChevronDown />}
-                {expanded ? "Show fewer" : `Show all ${merged.length}`}
+                <LuChevronDown />
+                Show {Math.min(PAGE_SIZE, remaining)} more
               </Button>
             </Flex>
           )}

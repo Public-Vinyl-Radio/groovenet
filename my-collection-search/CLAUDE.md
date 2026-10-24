@@ -216,8 +216,17 @@ an invalid value the browser drops, so it fails silently.
   `container-type: inline-size` ancestor) narrows. Anything that can overflow ends
   in an ellipsis with a `title` tooltip; never cut a badge or tag mid-glyph.
   A list that offers Rows/Cards uses `useTrackViewMode` (persisted `searchViewMode`,
-  phones always cards) and `TrackViewToggle`; search and the track page's Related
-  tracks do. Unvirtualised rows go in one outlined block with a single shadow.
+  phones always cards) and `TrackViewToggle`; search does. Unvirtualised rows go in
+  one outlined block with a single shadow.
+- **Track page (#714):** the header is one 2px ink card (`TrackHeader`): artwork,
+  title, genres (`TrackGenresSection`, an inline row, no card) and actions on the
+  left, a ruled 2x2 facts block (mono, 32px) on `bg.subtle` on the right. It sizes
+  from its own width (container query, 800px), not the viewport: narrow, the facts
+  become a 4-column strip and the actions move below the card as 44px buttons.
+  Related tracks is a table (`RelatedTrackTable`) or, on phones, a list
+  (`RelatedTrackList`), not `TrackResult`; both compare BPM and key with the current
+  track through `describeMix` (`src/lib/mixCompat.ts`), and the compatibility tag
+  always carries its text. Editing a track's genres is the menu's Edit Track.
 - **Search fields and controls:** text you type uses the body face (14px at `md`,
   16px on phones), controls you click use the label face (13px). The search field,
   mode toggle, icon buttons and filter controls are all `size="sm"` (36px) so the

@@ -29,17 +29,6 @@ vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: currentLibraryFriend }),
 }));
 vi.mock("@/hooks/useTrackDetailQueries", () => ({ useTrackDetailQueries: () => queries }));
-vi.mock("@/components/TrackResultStore", () => ({
-  default: (props: { buttons?: React.ReactNode; showUsername?: boolean }) => (
-    <div data-testid="track-result" data-show-username={String(props.showUsername)}>
-      {props.buttons}
-    </div>
-  ),
-}));
-vi.mock("@/components/TrackActionsMenu", () => ({
-  default: (props: { onChangeArtwork?: () => void }) =>
-    props.onChangeArtwork ? <button onClick={props.onChangeArtwork}>Cover Art...</button> : null,
-}));
 vi.mock("@/components/AlbumArtworkDialog", () => ({
   default: (props: { open: boolean; releaseId: string; albumTitle?: string; onOpenChange: (open: boolean) => void }) =>
     props.open ? (
@@ -52,7 +41,11 @@ vi.mock("@/components/AlbumArtworkDialog", () => ({
 vi.mock("@/components/RelatedTracksSection", () => ({ default: () => null }));
 vi.mock("@/components/track-detail", () => ({
   TrackPlaylistsSection: () => null,
-  TrackGenresSection: () => null,
+  TrackHeader: (props: { showUsername?: boolean; onChangeArtwork?: () => void }) => (
+    <div data-testid="track-result" data-show-username={String(props.showUsername)}>
+      {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Cover Art...</button>}
+    </div>
+  ),
   TrackDebugModal: (props: unknown) => {
     modalProps(props);
     return null;

@@ -6,3 +6,4 @@ export { default as AudioVibeEmbeddingSection } from "./AudioVibeEmbeddingSectio
 export { default as TrackPlaylistsSection } from "./TrackPlaylistsSection";
 export { default as TrackDebugModal } from "./TrackDebugModal";
 export { default as TrackGenresSection } from "./TrackGenresSection";
+export { default as TrackHeader } from "./TrackHeader";

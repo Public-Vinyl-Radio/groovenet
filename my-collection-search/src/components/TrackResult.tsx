@@ -22,6 +22,7 @@ import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { FiFileText, FiPlus } from "react-icons/fi";
 import { keyToCamelot } from "@/lib/playlistOrder";
+import { camelotDotColor } from "@/lib/mixCompat";
 import { formatBpmConfidencePercent, isBpmConfidenceLow } from "@/lib/essentiaBpm";
 import { formatKeyConfidencePercent, isKeyConfidenceLow } from "@/lib/essentiaKey";
 import { getTrackDurationSeconds } from "@/lib/trackUtils";
@@ -156,7 +157,7 @@ export function TrackListHeader() {
 // ---------------------------------------------------------------------------
 
 /** Camelot code bold, key name muted, optional dot coloured by wheel position. */
-function KeyChip({
+export function KeyChip({
   keyName,
   camelot,
   keyConfidence,
@@ -175,8 +176,6 @@ function KeyChip({
       </Text>
     );
   }
-  const wheelPosition = parseInt(camelot, 10) || 0;
-  const hue = (wheelPosition * 30 + 150) % 360;
   return (
     <Flex
       display="inline-flex"
@@ -194,7 +193,7 @@ function KeyChip({
       justifySelf="start"
       title={showName ? undefined : keyName}
     >
-      <Box aria-hidden="true" boxSize="8px" borderRadius="full" bg={`hsl(${hue}, 70%, 62%)`} flexShrink={0} />
+      <Box aria-hidden="true" boxSize="8px" borderRadius="full" bg={camelotDotColor(camelot)} flexShrink={0} />
       <Text as="span" fontSize="xs" fontWeight="bold" color="fg" fontVariantNumeric="tabular-nums" flexShrink={0}>
         {camelot}
       </Text>
@@ -356,7 +355,7 @@ function GenreList({
 }
 
 /** Star rating: hidden unless rated or the ancestor row/card carries the hover class. */
-function RatingStars({
+export function RatingStars({
   value,
   onChange,
   size = "xs",
@@ -387,7 +386,7 @@ function RatingStars({
 }
 
 /** The whole artwork is a real `<button aria-label="Play">`; a dark scrim + play icon on hover/focus. */
-function ArtworkPlay({
+export function ArtworkPlay({
   track,
   size,
   iconSize,
@@ -473,7 +472,7 @@ function ArtworkPlay({
 }
 
 /** Notes icon (yellow-400), shown only when the track actually has notes; click to read them. */
-function NotesIndicator({ notes }: { notes: string }) {
+export function NotesIndicator({ notes }: { notes: string }) {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>

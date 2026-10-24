@@ -7,15 +7,13 @@ import { toaster } from "@/components/ui/toaster";
 import { useUsername } from "@/providers/UsernameProvider";
 import { useTrackStore } from "@/stores/trackStore";
 import { useAlbumStore } from "@/stores/albumStore";
-import TrackResultStore from "@/components/TrackResultStore";
-import TrackActionsMenu from "@/components/TrackActionsMenu";
 import AlbumArtworkDialog from "@/components/AlbumArtworkDialog";
 import RelatedTracksSection from "@/components/RelatedTracksSection";
 import PageContainer from "@/components/layout/PageContainer";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
 import {
   TrackPlaylistsSection,
-  TrackGenresSection,
+  TrackHeader,
   TrackDebugModal,
 } from "@/components/track-detail";
 
@@ -77,24 +75,16 @@ export default function TrackPage() {
             </Box>
           ) : trackQuery.data ? (
             <>
-              <TrackResultStore
+              <TrackHeader
                 trackId={trackId}
                 friendId={friendId}
                 fallbackTrack={trackQuery.data}
                 showUsername={showUsername}
-                buttons={[
-                  <TrackActionsMenu
-                    key="menu"
-                    track={trackQuery.data}
-                    onOpenTrackDebug={() => setDebugOpen(true)}
-                    onChangeArtwork={
-                      trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined
-                    }
-                  />,
-                ]}
+                onOpenTrackDebug={() => setDebugOpen(true)}
+                onChangeArtwork={
+                  trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined
+                }
               />
-
-              <TrackGenresSection trackId={trackId} friendId={friendId} fallbackTrack={trackQuery.data} />
 
               <TrackPlaylistsSection query={playlistsQuery} />
 
