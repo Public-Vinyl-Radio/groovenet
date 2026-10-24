@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.5.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.5.0...groovenet-cli-v3.5.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **player:** scroll long TUI lists and harden cover-art hiding ([#659](https://github.com/Public-Vinyl-Radio/groovenet/issues/659)) ([e67145d](https://github.com/Public-Vinyl-Radio/groovenet/commit/e67145da3dd8df9cb041580bd0aa6e25d6da972d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.4.0 to ^3.5.0
+    * @groovenet/contracts bumped from 1.1.0 to 1.2.0
+    * @groovenet/player bumped from 0.1.3 to 0.1.4
+
 ## [3.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.4.0...groovenet-cli-v3.5.0) (2026-10-23)
 
 

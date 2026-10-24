@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.4](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.3...groovenet-player-v0.1.4) (2026-10-24)
+
+
+### Features
+
+* **player:** add optional MPRIS desktop controls ([#679](https://github.com/Public-Vinyl-Radio/groovenet/issues/679)) ([b9a3bf2](https://github.com/Public-Vinyl-Radio/groovenet/commit/b9a3bf2a66ea3ba790ed291cf7755a5f72024858))
+
+
+### Bug Fixes
+
+* **player:** scroll long TUI lists and harden cover-art hiding ([#659](https://github.com/Public-Vinyl-Radio/groovenet/issues/659)) ([e67145d](https://github.com/Public-Vinyl-Radio/groovenet/commit/e67145da3dd8df9cb041580bd0aa6e25d6da972d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.4.0 to ^3.5.0
+
 ## [0.1.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.2...groovenet-player-v0.1.3) (2026-10-23)
 
 

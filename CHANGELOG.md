@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.8...v0.3.9) (2026-10-24)
+
+
+### Features
+
+* **player:** add optional MPRIS desktop controls ([#679](https://github.com/Public-Vinyl-Radio/groovenet/issues/679)) ([b9a3bf2](https://github.com/Public-Vinyl-Radio/groovenet/commit/b9a3bf2a66ea3ba790ed291cf7755a5f72024858))
+* **settings:** appearance — palette and light/dark/system picker ([#677](https://github.com/Public-Vinyl-Radio/groovenet/issues/677)) ([3c43663](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c436631b761ed362d5eabfa94ca283b8b3eb0fd))
+* **ui:** add Riso, Midnight and Mono palettes ([#682](https://github.com/Public-Vinyl-Radio/groovenet/issues/682)) ([f7933cd](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7933cdbb54d8271ba9502df2d9113ab6d0725aa))
+* **ui:** palette-driven theme tokens with Sleeve default ([#674](https://github.com/Public-Vinyl-Radio/groovenet/issues/674)) ([c2cc5e6](https://github.com/Public-Vinyl-Radio/groovenet/commit/c2cc5e69aba7998f84a5820e64c8494426d6f357))
+* **ui:** retro house style with square outlines and hard shadows ([#678](https://github.com/Public-Vinyl-Radio/groovenet/issues/678)) ([c6fc301](https://github.com/Public-Vinyl-Radio/groovenet/commit/c6fc30103bbef290b31a859724490def858cff1e))
+
+
+### Bug Fixes
+
+* **player:** scroll long TUI lists and harden cover-art hiding ([#659](https://github.com/Public-Vinyl-Radio/groovenet/issues/659)) ([e67145d](https://github.com/Public-Vinyl-Radio/groovenet/commit/e67145da3dd8df9cb041580bd0aa6e25d6da972d))
+
 ## [0.3.8](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.7...v0.3.8) (2026-10-23)
 
 
