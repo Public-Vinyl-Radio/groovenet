@@ -201,9 +201,6 @@ export default function RelatedTracksSection({ track }: Props) {
               </Text>
             )}
           </Flex>
-          <Text fontSize="13px" color="fg.muted" mt={0.5} display={{ base: "none", md: "block" }}>
-            From AI recommendations, similar tracks and similar vibes. BPM and key are compared to this track.
-          </Text>
         </Box>
         <Box flexShrink={0} w={{ base: "full", md: "auto" }} css={{ "& > div": { width: "100%" } }}>
           <SuggestionScopeToggle value={scope} onChange={suggestionScope.setScope} />

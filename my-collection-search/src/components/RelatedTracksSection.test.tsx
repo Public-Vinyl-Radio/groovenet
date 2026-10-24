@@ -145,11 +145,10 @@ function RelatedTrackSectionWrapper() {
 describe("RelatedTracksSection layout", () => {
   beforeEach(() => mocks.similar.mockReturnValue(similarTracks(2)));
 
-  it("heads the section with the count, a caption and the scope toggle", async () => {
+  it("heads the section with the count and the scope toggle", async () => {
     renderWithProviders(<RelatedTracksSection track={track} />);
     expect(await screen.findByRole("heading", { name: "Related tracks" })).toBeTruthy();
     expect(screen.getByText("2 of 2")).toBeTruthy();
-    expect(screen.getByText(/BPM and key are compared to this track/)).toBeTruthy();
     expect(screen.getByText("This library")).toBeTruthy();
   });
 

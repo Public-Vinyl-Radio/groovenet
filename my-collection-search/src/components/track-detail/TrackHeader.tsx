@@ -254,15 +254,22 @@ export default function TrackHeader({
           <Text fontWeight="medium" fontSize="15px" lineHeight="20px" overflowWrap="anywhere" css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}>
             <ArtistLink artist={track.artist} friendId={track.friend_id} />
           </Text>
-          <Text color="fg.muted" fontSize="13px" lineHeight="18px" overflowWrap="anywhere" css={{ [wide]: { fontSize: "14px", lineHeight: "20px" } }}>
+          {/* One line: a long album ends in an ellipsis and the year stays beside it. */}
+          <Flex color="fg.muted" fontSize="13px" lineHeight="18px" minW={0} css={{ [wide]: { fontSize: "14px", lineHeight: "20px" } }}>
             {track.album && (
-              <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
-                {track.album}
-              </AlbumLink>
+              <Box minW={0} title={track.album} css={{ "& a": { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
+                <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
+                  {track.album}
+                </AlbumLink>
+              </Box>
             )}
-            {track.album && year ? " · " : null}
-            {year}
-          </Text>
+            {year && (
+              <Text as="span" flexShrink={0} whiteSpace="pre">
+                {track.album ? " · " : ""}
+                {year}
+              </Text>
+            )}
+          </Flex>
           {showUsername && track.username && (
             <Text color="fg.subtle" fontSize="12px">
               {track.username}
