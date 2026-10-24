@@ -60,6 +60,8 @@ type Props = {
   audioActions?: TrackAudioActions;
   /** Told when the track is played, queued or added to a playlist. */
   onAction?: (action: TrackMenuAction) => void;
+  /** A full-size outlined trigger on phones too (the track page header), not the compact ghost one. */
+  prominent?: boolean;
 };
 
 
@@ -70,6 +72,7 @@ export default function TrackActionsMenu({
   hideEdit,
   audioActions,
   onAction,
+  prominent = false,
 }: Props) {
   const { appendToQueue, replacePlaylist } = usePlaylistPlayer();
   const playTrack = () => {
@@ -294,9 +297,10 @@ export default function TrackActionsMenu({
       {/* Mobile: bottom sheet */}
       <Box display={{ base: "block", md: "none" }}>
         <Button
-          variant="ghost"
+          variant={prominent ? "outline" : "ghost"}
           size="sm"
           px={2}
+          {...(prominent ? { boxSize: "44px" } : {})}
           onClick={() => setDrawerOpen(true)}
           aria-label="Track actions"
         >

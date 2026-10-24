@@ -17,16 +17,11 @@ vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.s
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
 vi.mock("@/hooks/useSimilarTracks", () => ({ useSimilarTracks: mocks.similar }));
 vi.mock("@/hooks/useSimilarVibeTracks", () => ({ useSimilarVibeTracks: mocks.vibe }));
-vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds: vi.fn(async () => []) }));
-vi.mock("@/components/TrackResult", () => ({
-  default: (props: { track: Track; showUsername?: boolean; layout?: string; buttons?: React.ReactNode }) => (
-    <div data-show-username={String(props.showUsername)} data-layout={props.layout}>
-      result {props.track.track_id}
-      {props.buttons}
-    </div>
-  ),
-  TrackListHeader: () => <div data-testid="row-header">header</div>,
-}));
+const fetchTracksByIds = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []));
+const saveTrack = vi.hoisted(() => vi.fn());
+vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds }));
+vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack }) }));
+vi.mock("@/hooks/useGenreTaxonomyQuery", () => ({ useGenreLookup: () => new Map() }));
 const track_ = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: track_ } }));
 vi.mock("@/components/TrackActionsMenu", () => ({
@@ -37,7 +32,7 @@ vi.mock("@/components/TrackActionsMenu", () => ({
 
 import RelatedTracksSection from "./RelatedTracksSection";
 
-const track = { track_id: "seed", friend_id: 9, title: "Seed", artist: "A" } as Track;
+const track = { track_id: "seed", friend_id: 9, title: "Seed", artist: "A", bpm: "148", key: "A minor" } as Track;
 
 const similarTracks = (count: number) => ({
   data: {
@@ -47,6 +42,10 @@ const similarTracks = (count: number) => ({
       title: `S${i + 1}`,
       artist: "A",
       distance: 0.1 + i / 100,
+      bpm: 150,
+      key: "E minor",
+      position: "A1",
+      duration_seconds: 185,
     })),
   },
   isLoading: false,
@@ -99,8 +98,9 @@ describe("RelatedTracksSection scope", () => {
       error: null,
     });
     renderWithProviders(<RelatedTracksSection track={track} />);
-    expect(await screen.findByText("result s1")).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "S" })).toBeTruthy();
     expect(screen.getByText("1 of 1")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "S" }).getAttribute("href")).toBe("/tracks/s1?friend_id=4");
   });
 
   it("reports a failed source", () => {
@@ -124,34 +124,80 @@ describe("RelatedTracksSection scope", () => {
 
   it("hides the username within one library, but shows it across all libraries (#522)", async () => {
     mocks.similar.mockReturnValue({
-      data: { tracks: [{ track_id: "s1", friend_id: 4, title: "S", artist: "A", distance: 0.1 }] },
+      data: { tracks: [{ track_id: "s1", friend_id: 4, title: "S", artist: "A", username: "ben", distance: 0.1 }] },
       isLoading: false,
       error: null,
     });
-    const { rerender } = renderWithProviders(<RelatedTracksSection track={track} />);
-    expect((await screen.findByText("result s1")).dataset.showUsername).toBe("false");
+    const { rerender } = renderWithProviders(<RelatedTrackSectionWrapper />);
+    await screen.findByText("S");
+    expect(screen.queryByText(/ben/)).toBeNull();
 
     mocks.scope.scope = "all";
-    rerender(<RelatedTracksSection track={track} />);
-    expect(screen.getByText("result s1").dataset.showUsername).toBe("true");
+    rerender(<RelatedTrackSectionWrapper />);
+    expect(screen.getByText(/ben/)).toBeTruthy();
   });
 });
 
-describe("RelatedTracksSection view mode", () => {
+function RelatedTrackSectionWrapper() {
+  return <RelatedTracksSection track={track} />;
+}
+
+describe("RelatedTracksSection layout", () => {
   beforeEach(() => mocks.similar.mockReturnValue(similarTracks(2)));
 
-  it("lists rows under one header by default on desktop", async () => {
+  it("heads the section with the count and the scope toggle", async () => {
     renderWithProviders(<RelatedTracksSection track={track} />);
-    const first = await screen.findByText("result s1");
-    expect(first.dataset.layout).toBe("row");
-    expect(screen.getAllByTestId("row-header")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Rows view", pressed: true })).toBeTruthy();
-    expect(screen.getAllByText("actions")).toHaveLength(2);
+    expect(await screen.findByRole("heading", { name: "Related tracks" })).toBeTruthy();
+    expect(screen.getByText("2 of 2")).toBeTruthy();
+    expect(screen.getByText("This library")).toBeTruthy();
+  });
+
+  it("lists a table on desktop with each track's mix against the current one", async () => {
+    renderWithProviders(<RelatedTracksSection track={track} />);
+    await screen.findByText("S1");
+    expect(screen.getByTestId("related-table")).toBeTruthy();
+    expect(screen.queryByTestId("related-list")).toBeNull();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
+      expect.arrayContaining(["Track", "Side", "Time", "BPM", "Key", "Genre", "Rating"])
+    );
+    // 150 against 148, E minor next to A minor.
+    expect(screen.getAllByText("+2")).toHaveLength(2);
+    expect(screen.getAllByText("Adjacent")).toHaveLength(2);
+    expect(screen.getAllByText("3:05")).toHaveLength(2);
+  });
+
+  it("shows a clash as text and dashes for missing values", async () => {
+    mocks.similar.mockReturnValue({
+      data: {
+        tracks: [
+          { track_id: "c1", friend_id: 4, title: "Clash", artist: "A", bpm: 143, key: "F minor", distance: 0.1 },
+          { track_id: "n1", friend_id: 4, title: "Bare", artist: "A", distance: 0.2 },
+        ],
+      },
+      isLoading: false,
+      error: null,
+    });
+    renderWithProviders(<RelatedTracksSection track={track} />);
+    await screen.findByText("Clash");
+    expect(screen.getByText("Key clash")).toBeTruthy();
+    expect(screen.getByText("\u22125")).toBeTruthy();
+    expect(screen.getAllByLabelText("No BPM")).toHaveLength(1);
+    expect(screen.queryAllByText("Adjacent")).toHaveLength(0);
+  });
+
+  it("lists rows with the mix line on a phone", async () => {
+    setViewportWidth(390);
+    renderWithProviders(<RelatedTracksSection track={track} />);
+    await screen.findByText("S1");
+    expect(screen.getByTestId("related-list")).toBeTruthy();
+    expect(screen.queryByTestId("related-table")).toBeNull();
+    expect(screen.getAllByText("Adjacent")).toHaveLength(2);
+    expect(screen.getAllByText("A \u00b7 3:05 \u00b7 A1")).toHaveLength(2);
   });
 
   it("reports the acted-on track's rank and sources from a row", async () => {
     const { user } = renderWithProviders(<RelatedTracksSection track={track} />);
-    await screen.findByText("result s2");
+    await screen.findByText("S2");
     await user.click(screen.getAllByText("actions")[1]);
     expect(track_).toHaveBeenCalledWith(
       "recommendation_acted_on",
@@ -159,64 +205,64 @@ describe("RelatedTracksSection view mode", () => {
     );
   });
 
-  it("switches to cards and remembers the choice for search too", async () => {
+  it("shows 20 more at a time", async () => {
+    mocks.similar.mockReturnValue(similarTracks(45));
     const { user } = renderWithProviders(<RelatedTracksSection track={track} />);
-    await screen.findByText("result s1");
-    await user.click(screen.getByRole("button", { name: "Cards view" }));
-    expect(screen.getByText("result s1").dataset.layout).toBe("card");
-    expect(screen.queryByTestId("row-header")).toBeNull();
-    expect(localStorage.getItem("searchViewMode")).toBe("card");
-
-    await user.click(screen.getByRole("button", { name: "Rows view" }));
-    expect(screen.getByText("result s1").dataset.layout).toBe("row");
-    expect(localStorage.getItem("searchViewMode")).toBe("row");
+    await screen.findByText("S1");
+    expect(screen.getByText("20 of 45")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Show 20 more" }));
+    expect(screen.getByText("40 of 45")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Show 5 more" }));
+    expect(screen.getByText("45 of 45")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /more/ })).toBeNull();
   });
 
-  it("starts from the saved search view mode", async () => {
-    localStorage.setItem("searchViewMode", "card");
-    renderWithProviders(<RelatedTracksSection track={track} />);
-    expect((await screen.findByText("result s1")).dataset.layout).toBe("card");
-    expect(screen.getByRole("button", { name: "Cards view", pressed: true })).toBeTruthy();
-  });
-
-  it("ignores an unknown saved mode and survives blocked storage", async () => {
-    localStorage.setItem("searchViewMode", "grid");
-    const { unmount } = renderWithProviders(<RelatedTracksSection track={track} />);
-    expect((await screen.findByText("result s1")).dataset.layout).toBe("row");
-    unmount();
-
-    const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    const { user } = renderWithProviders(<RelatedTracksSection track={track} />);
-    await screen.findByText("result s1");
-    await user.click(screen.getByRole("button", { name: "Cards view" }));
-    expect(screen.getByText("result s1").dataset.layout).toBe("card");
-    get.mockRestore();
-    set.mockRestore();
-  });
-
-  it("always shows cards on a phone, without the toggle", async () => {
+  it("starts a phone with fewer rows", async () => {
     setViewportWidth(390);
-    localStorage.setItem("searchViewMode", "row");
+    mocks.similar.mockReturnValue(similarTracks(45));
     renderWithProviders(<RelatedTracksSection track={track} />);
-    expect((await screen.findByText("result s1")).dataset.layout).toBe("card");
-    expect(screen.queryByTestId("row-header")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Rows view" })).toBeNull();
+    await screen.findByText("S1");
+    expect(screen.getByText("5 of 45")).toBeTruthy();
   });
 
-  it("keeps show-all working in rows view", async () => {
-    mocks.similar.mockReturnValue(similarTracks(25));
+  it("fills rows from the hydrated tracks: genres, artwork, rating and dashes", async () => {
+    mocks.similar.mockReturnValue(similarTracks(2));
+    fetchTracksByIds.mockResolvedValue([
+      {
+        track_id: "s1",
+        friend_id: 4,
+        title: "S1",
+        artist: "A",
+        album: "Album One",
+        year: "2001",
+        release_id: "r1",
+        bpm: "150",
+        key: "E minor",
+        star_rating: 3,
+        track_genres: [
+          { id: "g1", name: "Cumbia", slug: "cumbia" },
+          { id: "g2", name: "Salsa", slug: "salsa" },
+        ],
+        album_thumbnail: "http://img/s1.jpg",
+      },
+    ]);
+    renderWithProviders(<RelatedTracksSection track={track} />);
+
+    expect(await screen.findByText("Cumbia")).toBeTruthy();
+    expect(screen.getByText("+1")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Album One" }).getAttribute("href")).toBe("/albums/r1?friend_id=4");
+    expect(screen.getByText("2001")).toBeTruthy();
+    expect(screen.getByLabelText("Rated 3 of 5")).toBeTruthy();
+    // The other row has no genres: a dash.
+    expect(screen.getAllByText("\u2013").length).toBeGreaterThan(0);
+  });
+
+  it("saves a rating given from a row", async () => {
+    mocks.similar.mockReturnValue(similarTracks(1));
     const { user } = renderWithProviders(<RelatedTracksSection track={track} />);
-    await screen.findByText("result s1");
-    expect(screen.getByText("20 of 25")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Show all 25" }));
-    expect(screen.getByText("25 of 25")).toBeTruthy();
-    expect(screen.getAllByTestId("row-header")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "Show fewer" }));
-    expect(screen.getByText("20 of 25")).toBeTruthy();
+    await screen.findByText("S1");
+    const stars = screen.getByLabelText("Not rated").querySelectorAll("[data-part=item]");
+    await user.click(stars[3]);
+    expect(saveTrack).toHaveBeenCalledWith({ track_id: "s1", friend_id: 4, star_rating: 4 });
   });
 });

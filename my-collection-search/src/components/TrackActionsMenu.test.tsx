@@ -72,6 +72,20 @@ function setup(
   return { ...rendered, menuButton };
 }
 
+describe("TrackActionsMenu phone trigger", () => {
+  it("is compact by default and a full 44px target when prominent", () => {
+    const { unmount } = renderWithProviders(<TrackActionsMenu track={trackMinimal} />);
+    const compact = screen.getAllByRole("button", { name: "Track actions", hidden: true })[0];
+    expect(getComputedStyle(compact).width).not.toBe("44px");
+    unmount();
+
+    renderWithProviders(<TrackActionsMenu track={trackMinimal} prominent />);
+    const prominent = screen.getAllByRole("button", { name: "Track actions", hidden: true })[0];
+    expect(getComputedStyle(prominent).width).toBe("44px");
+    expect(getComputedStyle(prominent).height).toBe("44px");
+  });
+});
+
 describe("TrackActionsMenu desktop dropdown — conditional items", () => {
   it("shows Play and Remove Audio only when the track has local audio", async () => {
     const { user, menuButton } = setup(trackWithEverything);
