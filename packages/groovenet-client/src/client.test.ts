@@ -1729,3 +1729,25 @@ describe("genre proposal review", () => {
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: {} }));
   });
 });
+
+describe("server-player API", () => {
+  it("lists players/engines, reads snapshots and devices, and posts revisioned commands", async () => {
+    const player = { id: "lounge", revision: 2 };
+    const client = clientReturning({ players: [player] });
+    expect(await client.listServerPlayers()).toEqual([player]);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/players" }));
+    requestMock.mockResolvedValueOnce({ data: { engines: ["primary"] } });
+    expect(await client.listPlayerEngines()).toEqual(["primary"]);
+    requestMock.mockResolvedValueOnce({ data: player });
+    await client.createServerPlayer({ id: "lounge", name: "Lounge", engine_id: "primary" });
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players", data: { id: "lounge", name: "Lounge", engine_id: "primary" } }));
+    requestMock.mockResolvedValueOnce({ data: player });
+    await client.getServerPlayer("lounge");
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/players/lounge" }));
+    requestMock.mockResolvedValueOnce({ data: { player } });
+    await client.commandServerPlayer("lounge", { type: "pause", expected_revision: 2 });
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: { type: "pause", expected_revision: 2 } }));
+    requestMock.mockResolvedValueOnce({ data: { devices: [] } });
+    expect(await client.listServerPlayerDevices("lounge")).toEqual([]);
+  });
+});

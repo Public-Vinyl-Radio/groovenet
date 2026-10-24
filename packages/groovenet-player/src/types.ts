@@ -43,6 +43,8 @@ export interface PlaybackBackend {
   setVolume(volume: number): Promise<void>;
   listDevices(): Promise<AudioDevice[]>;
   setOutputDevice(deviceId: string): Promise<void>;
+  /** Transport evidence for server resume policy; selected alone is not connected. */
+  outputConnection?(): Promise<"connected" | "disconnected" | "unknown">;
   close(): Promise<void>;
 }
 

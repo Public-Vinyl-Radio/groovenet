@@ -675,3 +675,29 @@ sync-album-covers:
     "{{album_covers_remote_host}}" \
     "{{album_covers_remote_path}}" \
     "{{album_covers_local_dir}}"
+
+# Silent Docker deployment and two-engine lifecycle regressions (no speakers).
+server-players-smoke:
+  {{buildkit_env}} docker build -t groovenet-owntone:693-test packages/groovenet-player/owntone
+  {{buildkit_env}} docker build -t groovenet-player-server:693-test -f packages/groovenet-player/server/Dockerfile .
+  {{mise_exec}} node evaluations/693/deployment-smoke.mjs
+  {{mise_exec}} node evaluations/693/isolated-smoke.mjs
+
+# Persistent server-player SQL, against an isolated migrated Postgres.
+server-players-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  name="groovenet-players-test-$$"
+  port="${PLAYER_TEST_PORT:-55594}"
+  cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+  trap cleanup EXIT
+  docker run -d --name "$name" --tmpfs /var/lib/postgresql/data \
+    -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
+    -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
+  for i in $(seq 1 60); do
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    sleep 1
+  done
+  export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
+  {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
+  RUN_PLAYER_DB_TESTS=1 {{mise_exec}} npm test --workspace @groovenet/player -- --run src/server/store.integration.test.ts

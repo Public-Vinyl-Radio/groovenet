@@ -195,3 +195,15 @@ is closed, so they need a follow-up issue as their owner.
 | POST | `/api/tracks/upload` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
 | GET | `/api/update-check` | system | #552 | Auto-discovered only; no contract entry yet. |
 | GET | `/api/version` | system | #552 | Auto-discovered only; no contract entry yet. |
+
+## Server players (#693)
+
+| Method | Path | Family | Status | Notes |
+| --- | --- | --- | --- | --- |
+| GET | `/api/players` | players | contracts | Independent named player snapshots. |
+| POST | `/api/players` | players | contracts | Configured engine IDs only. |
+| GET | `/api/players/engines` | players | contracts | Connection credentials never exposed. |
+| GET | `/api/players/{playerId}` | players | contracts | Revision and checkpoint semantics. |
+| POST | `/api/players/{playerId}/commands` | players | contracts | Explicit transfer and conflicting-edit rejection. |
+| GET | `/api/players/{playerId}/devices` | players | contracts | Observations separate from assignments. |
+| GET | `/api/players/{playerId}/events` | players | exception | SSE full snapshots use ServerPlayerEvent; not a JSON response. |

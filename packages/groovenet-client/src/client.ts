@@ -1,3 +1,4 @@
+import type { CreateServerPlayer, ServerPlayer, ServerPlayerCommandInput, ServerPlayerCommandResult, ServerPlayerDevice } from "@groovenet/contracts";
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Agent as HttpsAgent } from "https";
 import { checkPlaylist, type PlaylistCheck, type PlaylistCheckOptions } from "./playlistCheck.js";
@@ -1043,4 +1044,23 @@ export class GroovenetClient {
       needs_sleeve: query.needs_sleeve,
     });
   }
+  async listServerPlayers(): Promise<ServerPlayer[]> {
+    return (await this.request<{ players: ServerPlayer[] }>("GET", "/players")).players;
+  }
+  async listPlayerEngines(): Promise<string[]> {
+    return (await this.request<{ engines: string[] }>("GET", "/players/engines")).engines;
+  }
+  async createServerPlayer(input: CreateServerPlayer): Promise<ServerPlayer> {
+    return this.request("POST", "/players", input);
+  }
+  async getServerPlayer(playerId: string): Promise<ServerPlayer> {
+    return this.request("GET", `/players/${encodeURIComponent(playerId)}`);
+  }
+  async commandServerPlayer(playerId: string, command: ServerPlayerCommandInput): Promise<ServerPlayerCommandResult> {
+    return this.request("POST", `/players/${encodeURIComponent(playerId)}/commands`, command);
+  }
+  async listServerPlayerDevices(playerId: string): Promise<ServerPlayerDevice[]> {
+    return (await this.request<{ devices: ServerPlayerDevice[] }>("GET", `/players/${encodeURIComponent(playerId)}/devices`)).devices;
+  }
+
 }
