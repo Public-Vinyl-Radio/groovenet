@@ -93,3 +93,18 @@ describe("OwnTone configuration", () => {
     await expect(run("set", "player_backend", "vlc")).rejects.toThrow("exit");
   });
 });
+
+describe("player credentials", () => {
+  afterEach(() => vi.restoreAllMocks());
+  it("stores the separate key without revealing it and redacts JSON output", async () => {
+    const output = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    await run("set", "player_api_key", "household-secret");
+    expect(saveConfig).toHaveBeenLastCalledWith({ player_api_key: "household-secret" });
+    expect(output.mock.calls.flat().join("")).not.toContain("household-secret");
+    loadConfig.mockReturnValue({ api_base: "http://x/api", default_friend_id: 1, api_key: "collection-secret", player_api_key: "household-secret", owntone_password: "engine-secret" } as unknown as ReturnType<typeof loadConfig>);
+    await run("show", "--json");
+    const json = output.mock.calls.flat().join("");
+    expect(json).not.toContain("secret");
+    expect(json).toContain("***");
+  });
+});

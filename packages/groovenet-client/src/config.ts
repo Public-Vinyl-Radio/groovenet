@@ -1,10 +1,11 @@
 import { homedir } from "os";
 import { join } from "path";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from "fs";
 
 export interface GroovenetConfig {
   api_base: string;
   api_key?: string;
+  player_api_key?: string;
   default_friend_id: number;
   username?: string;
   /** Skip TLS certificate verification (e.g. internal CA / self-signed hosts). */
@@ -44,9 +45,10 @@ export function loadConfig(): GroovenetConfig {
 
 export function saveConfig(updates: Partial<GroovenetConfig>): void {
   if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
   const current = loadConfig();
   const merged = { ...current, ...updates };
-  writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+  if (existsSync(CONFIG_PATH)) chmodSync(CONFIG_PATH, 0o600);
+  writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2) + "\n", { encoding: "utf-8", mode: 0o600 });
 }

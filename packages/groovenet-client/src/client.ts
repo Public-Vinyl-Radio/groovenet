@@ -1,3 +1,6 @@
+import { createInterface } from "node:readline";
+import type { Readable } from "node:stream";
+import { serverPlayerStreamEventSchema } from "@groovenet/contracts";
 import type { CreateServerPlayer, ServerPlayer, ServerPlayerCommandInput, ServerPlayerCommandResult, ServerPlayerDevice } from "@groovenet/contracts";
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Agent as HttpsAgent } from "https";
@@ -91,6 +94,8 @@ import type {
 export interface GroovenetClientConfig {
   baseUrl: string;
   apiKey?: string;
+  /** Separate household/admin key; never falls back to collection credentials. */
+  playerApiKey?: string;
   /** Skip TLS certificate verification (internal CA / self-signed hosts). */
   insecureTls?: boolean;
   /**
@@ -103,8 +108,10 @@ export interface GroovenetClientConfig {
 
 export class GroovenetClient {
   private http: AxiosInstance;
+  private readonly playerApiKey?: string;
 
   constructor(config: GroovenetClientConfig) {
+    this.playerApiKey = config.playerApiKey;
     this.http = axios.create({
       baseURL: config.baseUrl,
       // Arrays repeat the key (`genre=a&genre=b`), as the API reads them, not `genre[]=`.
@@ -136,6 +143,10 @@ export class GroovenetClient {
    * status to branch on, headers, a streamed upload. Same error unwrapping.
    */
   private async send<T>(config: AxiosRequestConfig): Promise<{ status: number; data: T }> {
+    if (config.url?.startsWith("/players")) {
+      if (!this.playerApiKey) throw new Error("Remote players require player_api_key (PLAYER_API_KEY), separate from api_key.");
+      config = { timeout: 10000, ...config, maxRedirects: 0, headers: { ...config.headers, Authorization: `Bearer ${this.playerApiKey}` } };
+    }
     try {
       const res = await this.http.request<T>(config);
       return { status: res.status, data: res.data };
@@ -145,7 +156,7 @@ export class GroovenetClient {
         const msg = body?.error || body?.message || error.message;
         // Validation failures carry the fix in `details` / `invalid`; keep it.
         const extra = body?.details ?? body?.invalid;
-        throw new Error(`API Error: ${msg}${extra ? ` ${JSON.stringify(extra)}` : ""}`);
+        throw new Error(`API Error: ${body?.code ? `[${body.code}] ` : ""}${msg}${extra ? ` ${JSON.stringify(extra)}` : ""}`);
       }
       throw error;
     }
@@ -1044,6 +1055,24 @@ export class GroovenetClient {
       needs_sleeve: query.needs_sleeve,
     });
   }
+  /** A subscription has no replay. Each new stream must begin with a snapshot. */
+  async *serverPlayerEvents(playerId: string, signal: AbortSignal) {
+    const { data: stream } = await this.send<Readable>({
+      method: "GET", url: `/players/${encodeURIComponent(playerId)}/events`,
+      responseType: "stream", timeout: 0, signal, headers: { Accept: "text/event-stream" },
+    });
+    const lines = createInterface({ input: stream, crlfDelay: Infinity });
+    let data: string[] = [];
+    try {
+      for await (const line of lines) {
+        if (line === "") {
+          if (data.length) yield serverPlayerStreamEventSchema.parse(JSON.parse(data.join("\n")));
+          data = [];
+        } else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+      }
+    } finally { lines.close(); stream.destroy(); }
+  }
+
   async listServerPlayers(): Promise<ServerPlayer[]> {
     return (await this.request<{ players: ServerPlayer[] }>("GET", "/players")).players;
   }

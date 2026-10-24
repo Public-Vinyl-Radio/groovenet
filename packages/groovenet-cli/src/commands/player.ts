@@ -1,3 +1,4 @@
+import { RemotePlayerController, makeRemoteApi, type PlayerController } from "./remotePlayer.js";
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
@@ -77,10 +78,15 @@ function printPlayerResult(result: unknown, json: boolean): void {
     return;
   }
   if (typeof result === "object" && result !== null && "status" in result) {
-    const snapshot = result as { status: string; current?: { track?: { title?: string; artist?: string } } | null; position?: number; duration?: number | null; volume?: number };
+    if ("remote" in result) {
+      const remote = (result as import("./remotePlayer.js").RemoteSnapshot).remote;
+      console.log(`Remote: ${remote.player.name} [${remote.player.id}] · revision=${remote.player.revision} · desired=${remote.player.state.desired_output ?? "none"} · assigned=${remote.player.assigned_output ?? "none"} · ${remote.player.state.checkpoint ? "saved checkpoint" : "live state"}`);
+    } else console.log("Local player");
+    const snapshot = result as { status: string; current?: { track?: { title?: string; artist?: string } } | null; position?: number; duration?: number | null; volume?: number; error?: { code: string; message: string } | null };
     console.log(`Status: ${snapshot.status}${snapshot.current?.track ? ` — ${snapshot.current.track.title ?? "Unknown track"} / ${snapshot.current.track.artist ?? "Unknown artist"}` : ""}`);
     if (snapshot.position !== undefined) console.log(`Position: ${Math.floor(snapshot.position)}s${snapshot.duration == null ? "" : ` / ${Math.floor(snapshot.duration)}s`}`);
-    if (snapshot.volume !== undefined) console.log(`Volume: ${snapshot.volume}%`);
+    if (snapshot.volume !== undefined) console.log(`${"remote" in result ? "Requested sender volume" : "Volume"}: ${snapshot.volume}%`);
+    if (snapshot.error) console.log(`${snapshot.error.code}: ${snapshot.error.message}`);
     return;
   }
 }
@@ -95,13 +101,22 @@ function logPlaysFlag(command: Command): true | undefined {
   return command.optsWithGlobals<{ logPlays?: boolean }>().logPlays ? true : undefined;
 }
 
-async function withClient<T>(action: (client: PlayerControlClient) => Promise<T>): Promise<T> {
+async function withLocalClient<T>(action: (client: PlayerController) => Promise<T>): Promise<T> {
   const client = new PlayerControlClient(PLAYER_DAEMON_PATHS.socketPath);
   try { return await action(client); } finally { await client.close(); }
 }
 
 export function addPlayerCommands(program: Command): void {
-  const player = program.command("player").description("Control headless audio playback");
+  const player = program.command("player").description("Control local playback or an explicit named server player")
+    .option("--remote <player-id>", "control a persistent server player; never falls back to local")
+    .option("--allow-unknown", "explicitly allow connecting to unknown speaker activity")
+    .option("--takeover", "explicitly take over occupied activity (not another player claim)");
+  async function withClient<T>(action: (client: PlayerController) => Promise<T>): Promise<T> {
+    const opts = player.opts<{ remote?: string; allowUnknown?: boolean; takeover?: boolean }>();
+    if (!opts.remote) return withLocalClient(action);
+    const control = new RemotePlayerController(makeRemoteApi(), opts.remote, { allow_unknown: opts.allowUnknown, takeover: opts.takeover });
+    try { await control.refresh(); return await action(control); } finally { await control.close(); }
+  }
   player.enablePositionalOptions();
   player
     .option("--playlist <id>", "open a playlist in the interactive player")
@@ -109,7 +124,7 @@ export function addPlayerCommands(program: Command): void {
     .option("--backend <name>", "playback engine: mpv (default) or owntone")
     .option("--artwork", "show mpv's cover-art window this run (overrides player_artwork)")
     .option("--log-plays", "log plays as digital spins this run (overrides player_log_plays)")
-    .action(async (options: { playlist?: string; search?: string; artwork?: boolean; logPlays?: boolean; backend?: string }) => {
+    .action(async (options: { remote?: string; playlist?: string; search?: string; artwork?: boolean; logPlays?: boolean; backend?: string }) => {
       if (!process.stdin.isTTY || !process.stdout.isTTY) {
         printError("The interactive player requires a TTY. Use `groovenet player start --detach` and the player control commands in scripts.");
         process.exitCode = 1;
@@ -131,6 +146,7 @@ export function addPlayerCommands(program: Command): void {
     .option("--log-plays", "log plays as digital spins (overrides player_log_plays)")
     .option("--json", "print machine-readable output")
     .action(async (options: { detach?: boolean; json?: boolean }, command: Command) => reportFailure(async () => {
+      if (player.opts().remote) throw new Error("Remote players already run on the server. Open player --remote <id> instead of start.");
       const backend = command.optsWithGlobals<{ backend?: string }>().backend;
       const artwork = artworkFlag(command);
       const logPlays = logPlaysFlag(command);
@@ -176,6 +192,7 @@ export function addPlayerCommands(program: Command): void {
   player.command("_daemon").description("Internal daemon process").option("--backend <name>", "playback engine").option("--artwork", "show mpv's cover-art window").option("--log-plays", "log plays as digital spins")
     .action(async (_options: unknown, command: Command) => {
     try {
+      if (player.opts().remote) throw new Error("Cannot start a local daemon in remote mode.");
       const daemon = createPlayerDaemon({ backend: command.optsWithGlobals<{ backend?: string }>().backend, artwork: artworkFlag(command), logPlays: logPlaysFlag(command) });
       await daemon.start();
       const shutdown = () => {
@@ -199,7 +216,7 @@ export function addPlayerCommands(program: Command): void {
     .option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient(async (client) => {
       const result = await client.request("shutdown");
-      if (!options.json) { printSuccess("Player daemon stopped."); return undefined; }
+      if (!options.json) { printSuccess(player.opts().remote ? "Remote playback stopped; server player retained." : "Player daemon stopped."); return undefined; }
       return result;
     }), options.json ?? false));
 
@@ -232,9 +249,31 @@ export function addPlayerCommands(program: Command): void {
     .action(async (value: string, options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("queue.remove", /^\d+$/.test(value) ? { index: Number(value) } : { id: value })), options.json ?? false));
   queue.command("list").description("Show the playback queue").option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("queue.list")), options.json ?? false));
+  queue.command("move <id> <to>").option("--json", "print machine-readable output")
+    .action(async (id: string, to: string, options: { json?: boolean }) => reportFailure(async () => {
+      if (!player.opts().remote) throw new Error("Queue move requires --remote <player-id>.");
+      return withClient((client) => client.request("queue.move", { id, to: Number(to) }));
+    }, options.json ?? false));
+  queue.command("clear").option("--json", "print machine-readable output")
+    .action(async (options: { json?: boolean }) => reportFailure(async () => {
+      if (!player.opts().remote) throw new Error("Queue clear requires --remote <player-id>.");
+      return withClient((client) => client.request("queue.clear"));
+    }, options.json ?? false));
+  player.command("list").description("List persistent remote players").option("--json", "print machine-readable output")
+    .action(async (options: { json?: boolean }) => reportFailure(async () => {
+      const players = await makeRemoteApi().listServerPlayers();
+      if (options.json) return players;
+      for (const item of players) console.log(`${item.name} [${item.id}] · ${item.state.status} · desired=${item.state.desired_output ?? "none"} · assigned=${item.assigned_output ?? "none"}`);
+    }, options.json ?? false));
   const devices = player.command("devices").description("List or select audio outputs");
   devices.command("list").description("List available audio outputs").option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("devices")), options.json ?? false));
+  devices.command("transfer <id>").description("Explicitly detach another remote player's speaker and play here")
+    .option("--json", "print machine-readable output")
+    .action(async (id: string, options: { json?: boolean }) => reportFailure(async () => {
+      if (!player.opts().remote) throw new Error("Transfer requires --remote <player-id>.");
+      return withClient((client) => client.request("devices.transfer", { id }));
+    }, options.json ?? false));
   // Preserve the original bare command as the list operation.
   devices.option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("devices")), options.json ?? false));
