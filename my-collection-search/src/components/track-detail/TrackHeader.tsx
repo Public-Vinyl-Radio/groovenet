@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, Heading, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Flex, Heading, Text } from "@chakra-ui/react";
 import { FaPlay } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
 import AlbumLink from "@/components/AlbumLink";
@@ -267,6 +267,11 @@ export default function TrackHeader({
             <Text color="fg.subtle" fontSize="12px">
               {track.username}
             </Text>
+          )}
+          {track.library_identifier && (
+            <Badge colorPalette="accent" size="sm" fontWeight="bold" alignSelf="flex-start" mt={1}>
+              {track.library_identifier}
+            </Badge>
           )}
         </Flex>
 

@@ -17,7 +17,10 @@ vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.s
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
 vi.mock("@/hooks/useSimilarTracks", () => ({ useSimilarTracks: mocks.similar }));
 vi.mock("@/hooks/useSimilarVibeTracks", () => ({ useSimilarVibeTracks: mocks.vibe }));
-vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds: vi.fn(async () => []) }));
+const fetchTracksByIds = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []));
+const saveTrack = vi.hoisted(() => vi.fn());
+vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds }));
+vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack }) }));
 vi.mock("@/hooks/useGenreTaxonomyQuery", () => ({ useGenreLookup: () => new Map() }));
 const track_ = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: track_ } }));
@@ -221,5 +224,46 @@ describe("RelatedTracksSection layout", () => {
     renderWithProviders(<RelatedTracksSection track={track} />);
     await screen.findByText("S1");
     expect(screen.getByText("5 of 45")).toBeTruthy();
+  });
+
+  it("fills rows from the hydrated tracks: genres, artwork, rating and dashes", async () => {
+    mocks.similar.mockReturnValue(similarTracks(2));
+    fetchTracksByIds.mockResolvedValue([
+      {
+        track_id: "s1",
+        friend_id: 4,
+        title: "S1",
+        artist: "A",
+        album: "Album One",
+        year: "2001",
+        release_id: "r1",
+        bpm: "150",
+        key: "E minor",
+        star_rating: 3,
+        track_genres: [
+          { id: "g1", name: "Cumbia", slug: "cumbia" },
+          { id: "g2", name: "Salsa", slug: "salsa" },
+        ],
+        album_thumbnail: "http://img/s1.jpg",
+      },
+    ]);
+    renderWithProviders(<RelatedTracksSection track={track} />);
+
+    expect(await screen.findByText("Cumbia")).toBeTruthy();
+    expect(screen.getByText("+1")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Album One" }).getAttribute("href")).toBe("/albums/r1?friend_id=4");
+    expect(screen.getByText("2001")).toBeTruthy();
+    expect(screen.getByLabelText("Rated 3 of 5")).toBeTruthy();
+    // The other row has no genres: a dash.
+    expect(screen.getAllByText("\u2013").length).toBeGreaterThan(0);
+  });
+
+  it("saves a rating given from a row", async () => {
+    mocks.similar.mockReturnValue(similarTracks(1));
+    const { user } = renderWithProviders(<RelatedTracksSection track={track} />);
+    await screen.findByText("S1");
+    const stars = screen.getByLabelText("Not rated").querySelectorAll("[data-part=item]");
+    await user.click(stars[3]);
+    expect(saveTrack).toHaveBeenCalledWith({ track_id: "s1", friend_id: 4, star_rating: 4 });
   });
 });

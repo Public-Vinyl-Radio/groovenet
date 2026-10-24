@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { camelotOf, describeMix, formatBpmDelta, parseBpm } from "./mixCompat";
+import { camelotDotColor, camelotOf, describeMix, formatBpmDelta, parseBpm } from "./mixCompat";
 
 describe("describeMix", () => {
   const base = { bpm: 148, key: "A minor" };
@@ -64,5 +64,10 @@ describe("helpers", () => {
     expect(camelotOf("a minor")).toBe("8A");
     expect(camelotOf("8a")).toBe("8A");
     expect(camelotOf(undefined)).toBeNull();
+  });
+
+  it("colours each wheel position and falls back for a malformed code", () => {
+    expect(camelotDotColor("8A")).toBe("hsl(30, 70%, 62%)");
+    expect(camelotDotColor("x")).toBe("hsl(150, 70%, 62%)");
   });
 });

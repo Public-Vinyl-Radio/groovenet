@@ -60,6 +60,11 @@ describe("TrackHeader", () => {
     expect(screen.queryByText(/ · 0/)).toBeNull();
   });
 
+  it("keeps the library ID badge", () => {
+    renderHeader({ library_identifier: "LP-296" });
+    expect(screen.getByText("LP-296")).toBeTruthy();
+  });
+
   it("shows the notes icon when there are notes", () => {
     renderHeader({ notes: "Good opener" });
     expect(screen.getByLabelText("Has notes")).toBeTruthy();
