@@ -109,7 +109,7 @@ describe("AlbumRecordCarePanel", () => {
     const { user } = renderPanel();
     await screen.findByText("DJ copy");
 
-    await user.click(screen.getByRole("button", { name: "Log Care" }));
+    await user.click(screen.getByRole("button", { name: "Log care" }));
     await user.click(await screen.findByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -140,9 +140,9 @@ describe("AlbumRecordCarePanel", () => {
     const { user } = renderPanel();
     await screen.findByText("DJ copy");
 
-    await user.click(screen.getByRole("button", { name: "Add Copy" }));
+    await user.click(screen.getByRole("button", { name: "Add copy" }));
     await user.type(await screen.findByLabelText("Label"), "Sealed");
-    // The dialog is modal, so the header's "Add Copy" is hidden behind it.
+    // The dialog is modal, so the header's "Add copy" is hidden behind it.
     await user.click(screen.getByRole("button", { name: "Add Copy" }));
     await waitFor(() =>
       expect(api.createRecordCopy).toHaveBeenCalledWith({

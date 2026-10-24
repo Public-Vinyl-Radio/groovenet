@@ -21,53 +21,67 @@ export function useAddToPlaylistDialog({
   const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = React.useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = React.useState(false);
   const [playlistName, setPlaylistName] = React.useState("");
-  const [currentTrack, setCurrentTrack] = React.useState<Track | null>(null);
+  // One track from a row's menu, or a whole album's worth from its header.
+  const [currentTracks, setCurrentTracks] = React.useState<Track[]>([]);
+  const [currentLabel, setCurrentLabel] = React.useState<string | null>(null);
 
   const resetState = React.useCallback(() => {
     setIsPlaylistDialogOpen(false);
     setIsNameDialogOpen(false);
     setPlaylistName("");
-    setCurrentTrack(null);
+    setCurrentTracks([]);
+    setCurrentLabel(null);
   }, []);
 
-  // Mutation for adding track to existing playlist
+  // Mutation for adding tracks to an existing playlist
   const addToPlaylistMutation = useMutation({
-    mutationFn: async ({ playlist, track }: { playlist: Playlist; track: Track }) => {
-      // Check if track already exists in playlist
+    mutationFn: async ({ playlist, tracks }: { playlist: Playlist; tracks: Track[] }) => {
       const existingTracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
-      const trackExists = existingTracks.some((t) =>
-        typeof t === 'string' ? t === track.track_id : t.track_id === track.track_id
-      );
+      const isIn = (track: Track) =>
+        existingTracks.some((t) =>
+          typeof t === 'string' ? t === track.track_id : t.track_id === track.track_id
+        );
+      // Tracks already in the playlist are skipped; adding only those is an error.
+      const fresh = tracks.filter((track) => !isIn(track));
 
-      if (trackExists) {
-        throw new Error(`Track is already in playlist "${playlist.name}"`);
+      if (fresh.length === 0) {
+        throw new Error(
+          tracks.length === 1
+            ? `Track is already in playlist "${playlist.name}"`
+            : `These tracks are already in playlist "${playlist.name}"`
+        );
       }
 
-      // Add track to end of playlist
+      // Add tracks to end of playlist
       const updatedTracks = [
         ...existingTracks,
-        { track_id: track.track_id, friend_id: track.friend_id }
+        ...fresh.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id })),
       ];
 
       await updatePlaylist(playlist.id, { tracks: updatedTracks });
 
-      return { playlist, track };
+      return { playlist, tracks: fresh };
     },
-    onSuccess: ({ playlist, track }) => {
+    onSuccess: ({ playlist, tracks }) => {
       toaster.create({
-        title: `"${track.title}" added to "${playlist.name}"`,
+        title:
+          tracks.length === 1
+            ? `"${tracks[0].title}" added to "${playlist.name}"`
+            : `${tracks.length} tracks added to "${playlist.name}"`,
         type: "success",
       });
       // Invalidate playlist queries to refresh data
       queryClient.invalidateQueries({ queryKey: queryKeys.playlists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.playlistTrackIds(playlist.id) });
 
-      analytics.track("track_added_to_playlist", {
-        track_id: track.track_id,
-        playlist_id: playlist.id,
-        is_new_playlist: false,
+      tracks.forEach((track) => {
+        analytics.track("track_added_to_playlist", {
+          track_id: track.track_id,
+          playlist_id: playlist.id,
+          is_new_playlist: false,
+        });
+        onAdded?.(track);
       });
-      onAdded?.(track);
       resetState();
     },
     onError: (error) => {
@@ -79,27 +93,33 @@ export function useAddToPlaylistDialog({
     },
   });
 
-  // Mutation for creating new playlist with track
+  // Mutation for creating new playlist with tracks
   const createPlaylistMutation = useMutation({
-    mutationFn: async ({ name, track }: { name: string; track: Track }) => {
-      await importPlaylist(name, [
-        { track_id: track.track_id, friend_id: track.friend_id }
-      ]);
-      return { name, track };
+    mutationFn: async ({ name, tracks }: { name: string; tracks: Track[] }) => {
+      await importPlaylist(
+        name,
+        tracks.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id }))
+      );
+      return { name, tracks };
     },
-    onSuccess: ({ name, track }) => {
+    onSuccess: ({ name, tracks }) => {
       toaster.create({
-        title: `Created "${name}" with "${track.title}"`,
+        title:
+          tracks.length === 1
+            ? `Created "${name}" with "${tracks[0].title}"`
+            : `Created "${name}" with ${tracks.length} tracks`,
         type: "success",
       });
       // Invalidate playlist queries to refresh data
       queryClient.invalidateQueries({ queryKey: queryKeys.playlists() });
 
-      analytics.track("track_added_to_playlist", {
-        track_id: track.track_id,
-        is_new_playlist: true,
+      tracks.forEach((track) => {
+        analytics.track("track_added_to_playlist", {
+          track_id: track.track_id,
+          is_new_playlist: true,
+        });
+        onAdded?.(track);
       });
-      onAdded?.(track);
       resetState();
     },
     onError: (error) => {
@@ -111,22 +131,26 @@ export function useAddToPlaylistDialog({
     },
   });
 
-  // Open dialog for track
-  const openForTrack = React.useCallback((track: Track) => {
+  // Open dialog for tracks; `label` names them in the title when there are several
+  const openForTracks = React.useCallback((tracks: Track[], label?: string) => {
+    if (tracks.length === 0) return;
     if (addToPlaylistMutation.isPending || createPlaylistMutation.isPending) return;
-    setCurrentTrack(track);
+    setCurrentTracks(tracks);
+    setCurrentLabel(label ?? (tracks.length === 1 ? tracks[0].title : `${tracks.length} tracks`));
     setIsNameDialogOpen(false);
     setPlaylistName("");
     setIsPlaylistDialogOpen(true);
   }, [addToPlaylistMutation, createPlaylistMutation]);
 
+  const openForTrack = React.useCallback((track: Track) => openForTracks([track]), [openForTracks]);
+
   // Handle playlist selection
   const handlePlaylistSelect = React.useCallback((playlist: Playlist) => {
-    if (!addToPlaylistMutation.isPending && !createPlaylistMutation.isPending && currentTrack) {
-      addToPlaylistMutation.mutate({ playlist, track: currentTrack });
+    if (!addToPlaylistMutation.isPending && !createPlaylistMutation.isPending && currentTracks.length > 0) {
+      addToPlaylistMutation.mutate({ playlist, tracks: currentTracks });
     }
     setIsPlaylistDialogOpen(false);
-  }, [currentTrack, addToPlaylistMutation, createPlaylistMutation]);
+  }, [currentTracks, addToPlaylistMutation, createPlaylistMutation]);
 
   // Handle create new playlist
   const handleCreateNew = React.useCallback((name?: string) => {
@@ -134,29 +158,30 @@ export function useAddToPlaylistDialog({
     setIsPlaylistDialogOpen(false);
     if (name?.trim()) {
       // If name provided, create immediately
-      if (currentTrack) {
-        createPlaylistMutation.mutate({ name: name.trim(), track: currentTrack });
+      if (currentTracks.length > 0) {
+        createPlaylistMutation.mutate({ name: name.trim(), tracks: currentTracks });
       }
     } else {
       // Otherwise show name dialog
       setIsNameDialogOpen(true);
     }
-  }, [currentTrack, createPlaylistMutation, addToPlaylistMutation]);
+  }, [currentTracks, createPlaylistMutation, addToPlaylistMutation]);
 
   // Handle new playlist name confirmation
   const handleNameConfirm = React.useCallback((name: string) => {
-    if (!addToPlaylistMutation.isPending && !createPlaylistMutation.isPending && currentTrack && name.trim()) {
-      createPlaylistMutation.mutate({ name: name.trim(), track: currentTrack });
+    if (!addToPlaylistMutation.isPending && !createPlaylistMutation.isPending && currentTracks.length > 0 && name.trim()) {
+      createPlaylistMutation.mutate({ name: name.trim(), tracks: currentTracks });
     }
     setIsNameDialogOpen(false);
     setPlaylistName("");
-  }, [currentTrack, createPlaylistMutation, addToPlaylistMutation]);
+  }, [currentTracks, createPlaylistMutation, addToPlaylistMutation]);
 
   // Handle dialog close
   const handleClose = React.useCallback(() => {
     setIsPlaylistDialogOpen(false);
     if (!isNameDialogOpen) {
-      setCurrentTrack(null);
+      setCurrentTracks([]);
+      setCurrentLabel(null);
     }
   }, [isNameDialogOpen]);
 
@@ -174,7 +199,7 @@ export function useAddToPlaylistDialog({
       onPlaylistSelect={handlePlaylistSelect}
       onCreateNew={handleCreateNew}
       isSubmitting={isSubmitting}
-      title={currentTrack ? `Add "${currentTrack.title}" to Playlist` : "Add to Playlist"}
+      title={currentLabel ? `Add "${currentLabel}" to Playlist` : "Add to Playlist"}
     />
   );
 
@@ -183,7 +208,7 @@ export function useAddToPlaylistDialog({
       open={isNameDialogOpen}
       name={playlistName}
       setName={setPlaylistName}
-      trackCount={1}
+      trackCount={Math.max(currentTracks.length, 1)}
       onConfirm={handleNameConfirm}
       onCancel={handleNameCancel}
       confirmLabel="Create Playlist"
@@ -192,6 +217,7 @@ export function useAddToPlaylistDialog({
 
   return {
     openForTrack,
+    openForTracks,
     playlistDialog,
     nameDialog,
     isLoading: isSubmitting,

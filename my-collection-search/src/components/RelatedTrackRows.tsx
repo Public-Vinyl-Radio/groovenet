@@ -24,11 +24,11 @@ type Props = {
   renderActions: (track: Track, index: number) => React.ReactNode;
 };
 
-const Th = chakra("th");
+export const Th = chakra("th");
 
-const dash = "–";
+export const dash = "–";
 
-const labelHead = {
+export const labelHead = {
   fontFamily: "label",
   fontSize: "11px",
   letterSpacing: "0.08em",
@@ -49,7 +49,7 @@ function MixTag({ relation }: { relation: KeyRelation }) {
   );
 }
 
-function BpmCell({ track, delta }: { track: Track; delta: number | null }) {
+export function BpmCell({ track, delta }: { track: Track; delta: number | null }) {
   const bpm = parseBpm(track.bpm);
   if (bpm === null) {
     return (
@@ -72,7 +72,7 @@ function BpmCell({ track, delta }: { track: Track; delta: number | null }) {
   );
 }
 
-function GenreCell({ track }: { track: Track }) {
+export function GenreCell({ track }: { track: Track }) {
   const lookup = useGenreLookup();
   const { items, kind } = primaryGenreBadges(track, lookup);
   if (items.length === 0) return <Text as="span" color="fg.subtle">{dash}</Text>;
@@ -89,7 +89,7 @@ function GenreCell({ track }: { track: Track }) {
   );
 }
 
-function RatingCell({ track }: { track: Track }) {
+export function RatingCell({ track }: { track: Track }) {
   const { saveTrack } = useTracksQuery();
   const [rating, setRating] = useState(track.star_rating ?? 0);
   useEffect(() => setRating(track.star_rating ?? 0), [track.star_rating]);

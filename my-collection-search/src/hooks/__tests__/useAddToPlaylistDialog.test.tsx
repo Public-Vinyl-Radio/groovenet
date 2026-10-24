@@ -70,3 +70,59 @@ describe("useAddToPlaylistDialog onAdded", () => {
     expect(onAdded).not.toHaveBeenCalled();
   });
 });
+
+describe("useAddToPlaylistDialog with several tracks", () => {
+  beforeEach(() => vi.clearAllMocks());
+  const second = { track_id: "t2", friend_id: 1, title: "Red" } as Track;
+
+  it("adds every track not already in the playlist and reports each", async () => {
+    api.updatePlaylist.mockResolvedValue(undefined);
+    const { onAdded, result } = setup();
+    act(() => result.current.openForTracks([track, second], "Blue Lines"));
+    expect(result.current.playlistDialog.props.title).toBe('Add "Blue Lines" to Playlist');
+    act(() => result.current.playlistDialog.props.onPlaylistSelect(playlist([{ track_id: "t1", friend_id: 1, position: 0 }])));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
+    expect(onAdded).toHaveBeenCalledWith(second);
+    expect(api.updatePlaylist).toHaveBeenCalledWith(7, {
+      tracks: [
+        { track_id: "t1", friend_id: 1, position: 0 },
+        { track_id: "t2", friend_id: 1 },
+      ],
+    });
+  });
+
+  it("says so when none of them is new", async () => {
+    const { onAdded, result } = setup();
+    act(() => result.current.openForTracks([track, second]));
+    expect(result.current.playlistDialog.props.title).toBe('Add "2 tracks" to Playlist');
+    act(() =>
+      result.current.playlistDialog.props.onPlaylistSelect(
+        playlist([
+          { track_id: "t1", friend_id: 1, position: 0 },
+          { track_id: "t2", friend_id: 1, position: 1 },
+        ])
+      )
+    );
+    await waitFor(() =>
+      expect(toaster.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'These tracks are already in playlist "Sunday"', type: "error" })
+      )
+    );
+    expect(onAdded).not.toHaveBeenCalled();
+  });
+
+  it("creates a playlist from all of them, and ignores an empty list", async () => {
+    api.importPlaylist.mockResolvedValue(undefined);
+    const { onAdded, result } = setup();
+    act(() => result.current.openForTracks([]));
+    expect(result.current.playlistDialog.props.open).toBe(false);
+    act(() => result.current.openForTracks([track, second]));
+    act(() => result.current.playlistDialog.props.onCreateNew("Monday"));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(2));
+    expect(api.importPlaylist).toHaveBeenCalledWith("Monday", [
+      { track_id: "t1", friend_id: 1 },
+      { track_id: "t2", friend_id: 1 },
+    ]);
+    expect(toaster.create).toHaveBeenCalledWith(expect.objectContaining({ title: 'Created "Monday" with 2 tracks' }));
+  });
+});

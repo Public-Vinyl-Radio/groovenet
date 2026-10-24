@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { queryKeys } from "@/lib/queryKeys";
 
 // Only the record-care wiring is under test; everything else is stubbed.
@@ -12,9 +12,25 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("friend_id=7"),
   useRouter: () => ({ push: routerPush }),
 }));
+const updateAlbum = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useAlbumsQuery", () => ({
   useAlbumDetailQuery: () => ({ error: null }),
-  useUpdateAlbumMutation: () => ({ mutateAsync: vi.fn() }),
+  useUpdateAlbumMutation: () => ({ mutate: updateAlbum, mutateAsync: vi.fn() }),
+}));
+const openForTracks = vi.hoisted(() => vi.fn());
+vi.mock("@/hooks/useAddToPlaylistDialog", () => ({
+  useAddToPlaylistDialog: () => ({ openForTracks, playlistDialog: <div data-testid="playlist-dialog" />, nameDialog: null }),
+}));
+const spins = vi.hoisted(() => ({ current: { data: undefined, spins: [] } as { data: unknown; spins: unknown[] } }));
+vi.mock("@/hooks/useAlbumSpins", () => ({
+  ALBUM_SPINS_PAGE: 8,
+  useAlbumSpins: () => spins.current,
+}));
+vi.mock("@/components/spins/SpinFormDialog", () => ({
+  default: (props: { open: boolean }) => (props.open ? <div role="dialog" aria-label="Log spin" /> : null),
+}));
+vi.mock("@/components/TrackActionsMenu", () => ({
+  default: (props: { track: { title: string } }) => <button aria-label={`Actions for ${props.track.title}`}>menu</button>,
 }));
 const album = vi.hoisted(() => ({
   current: { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 0 } as Record<
@@ -26,16 +42,25 @@ vi.mock("@/hooks/useAlbum", () => ({
   useAlbum: () => album.current,
   useAlbumHydrated: () => true,
 }));
+const albumTracks = vi.hoisted(() => ({ current: [] as unknown[] }));
 vi.mock("@/hooks/useTrack", () => ({
-  useTracksByRelease: () => [],
+  useTracksByRelease: () => albumTracks.current,
   useTracksByReleaseHydrated: () => true,
 }));
+const replacePlaylist = vi.hoisted(() => vi.fn());
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({ replacePlaylist: vi.fn() }),
+  usePlaylistPlayer: () => ({ replacePlaylist }),
+}));
+const toast = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/toaster", () => ({ toaster: { create: toast } }));
+const queueDownloads = vi.hoisted(() => vi.fn());
+const enrichQueue = vi.hoisted(() => vi.fn());
+vi.mock("@/stores/enrichmentStore", () => ({
+  useEnrichmentStore: (select: (state: { setQueue: typeof enrichQueue }) => unknown) => select({ setQueue: enrichQueue }),
 }));
 vi.mock("@/services/internalApi/albums", () => ({
   fetchAlbumDiscogsRawRelease: vi.fn(() => new Promise(() => {})),
-  queueAlbumDownloads: vi.fn(),
+  queueAlbumDownloads: queueDownloads,
 }));
 vi.mock("@/components/spins/AlbumSpinPanel", () => ({ default: () => null }));
 vi.mock("@/components/records/AlbumRecordCarePanel", () => ({
@@ -185,5 +210,100 @@ describe("album page delete (#511)", () => {
     await user.click(await screen.findByRole("button", { name: "Confirm delete" }));
 
     expect(routerPush).toHaveBeenCalledWith("/albums");
+  });
+});
+
+describe("album page layout (#727)", () => {
+  const base = { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 2 };
+  const tracks = [
+    { track_id: "a1", friend_id: 7, title: "Safe", artist: "Massive Attack", position: "A1", duration: "3:00", local_audio_url: "/a.mp3" },
+    { track_id: "b1", friend_id: 7, title: "Daydreaming", artist: "Massive Attack", position: "B1", duration: "4:00", local_audio_url: "/b.mp3" },
+  ];
+
+  beforeEach(() => {
+    album.current = base;
+    albumTracks.current = tracks;
+    spins.current = { data: {}, spins: [{ session: { played_at: "2026-06-05T19:43:00Z" } }] };
+  });
+  afterEach(() => {
+    albumTracks.current = [];
+    spins.current = { data: undefined, spins: [] };
+    setViewportWidth(1280);
+  });
+
+  it("shows a breadcrumb and an album card whose stats read the tracks and spins", async () => {
+    renderWithProviders(<AlbumDetailPage />);
+    expect(await screen.findByRole("navigation", { name: "Breadcrumb" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Blue Lines" })).toBeTruthy();
+    expect(screen.getByText("A 3:00 · B 4:00")).toBeTruthy();
+  });
+
+  it("plays the album, a side and a track", async () => {
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+    await user.click(await screen.findByRole("button", { name: /Play album/ }));
+    expect(replacePlaylist).toHaveBeenLastCalledWith(tracks, { autoplay: true, startIndex: 0 });
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Album Enqueued" }));
+
+    await user.click(screen.getByRole("button", { name: "Play side B" }));
+    expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[1]], { autoplay: true, startIndex: 0 });
+    await user.click(screen.getByRole("button", { name: "Play Safe" }));
+    expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[0]], { autoplay: true, startIndex: 0 });
+  });
+
+  it("adds the whole album to a playlist and opens the spin form", async () => {
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+    await user.click(await screen.findByRole("button", { name: /Add to playlist/ }));
+    expect(openForTracks).toHaveBeenCalledWith(tracks, "Blue Lines");
+    expect(screen.getByTestId("playlist-dialog")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /Log spin/ }));
+    expect(await screen.findByRole("dialog", { name: "Log spin" })).toBeTruthy();
+  });
+
+  it("saves a rating", async () => {
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+    await screen.findByRole("heading", { level: 1 });
+    await user.click(screen.getAllByRole("radio", { hidden: true })[3]);
+    expect(updateAlbum).toHaveBeenCalledWith({ release_id: "rel", friend_id: 7, album_rating: 4 });
+  });
+
+  it("queues missing downloads and reports the result", async () => {
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+    queueDownloads.mockResolvedValueOnce({ tracksQueued: 2 }).mockResolvedValueOnce({ tracksQueued: 0 }).mockRejectedValueOnce(new Error("nope"));
+    for (const title of ["Downloads Queued", "No Downloads Needed", "Download Failed"]) {
+      await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
+      await user.click(await screen.findByRole("button", { name: /Download Missing/ }));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title })));
+    }
+  });
+
+  it("sends the tracks to enrichment", async () => {
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+    await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
+    await user.click(await screen.findByRole("button", { name: /Enrich Album/ }));
+    expect(enrichQueue).toHaveBeenCalledWith([
+      { trackId: "a1", friendId: 7 },
+      { trackId: "b1", friendId: 7 },
+    ]);
+    expect(routerPush).toHaveBeenCalledWith("/enrich");
+  });
+
+  it("warns instead of playing or enriching an album with no tracks", async () => {
+    albumTracks.current = [];
+    const { user } = renderWithProviders(<AlbumDetailPage />);
+    expect((await screen.findByRole("button", { name: /Play album/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("No tracks found for this album.")).toBeTruthy();
+    expect(replacePlaylist).not.toHaveBeenCalled();
+    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    expect(screen.queryByRole("button", { name: /Enrich Album/ })).toBeNull();
+  });
+
+  it("puts a back link and the overflow menu in a phone top bar", async () => {
+    setViewportWidth(390);
+    renderWithProviders(<AlbumDetailPage />);
+    expect((await screen.findByRole("link", { name: "Back to albums" })).getAttribute("href")).toBe("/albums");
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Album actions" }).length).toBeGreaterThan(0);
+    expect(screen.getByTestId("album-track-list")).toBeTruthy();
   });
 });
