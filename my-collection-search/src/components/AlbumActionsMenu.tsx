@@ -35,6 +35,8 @@ export interface AlbumActionsMenuProps {
   editAlbumHref?: string;
   /** Permanently delete the album and its tracks (#511). */
   onDeleteAlbum?: () => void;
+  /** A 44px outline trigger, for the phone's top bar. */
+  prominent?: boolean;
 }
 
 
@@ -52,6 +54,7 @@ export default function AlbumActionsMenu({
   onViewRawDiscogs,
   editAlbumHref,
   onDeleteAlbum,
+  prominent = false,
 }: AlbumActionsMenuProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const close = () => setDrawerOpen(false);
@@ -66,7 +69,14 @@ export default function AlbumActionsMenu({
     <>
       {/* Mobile: bottom sheet */}
       <Box display={{ base: "block", md: "none" }}>
-        <Button size="sm" variant="ghost" aria-label="Album actions" px={2} onClick={() => setDrawerOpen(true)}>
+        <Button
+          size="sm"
+          variant={prominent ? "outline" : "ghost"}
+          aria-label="Album actions"
+          px={2}
+          {...(prominent ? { boxSize: "44px" } : {})}
+          onClick={() => setDrawerOpen(true)}
+        >
           <FiMoreVertical />
         </Button>
         <Drawer.Root placement="bottom" open={drawerOpen} onOpenChange={(d) => setDrawerOpen(d.open)}>

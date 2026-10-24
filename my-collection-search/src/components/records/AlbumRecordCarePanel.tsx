@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
-import { FiDroplet } from "react-icons/fi";
+import { Box, Button, Flex, Spinner, Stack, Text } from "@chakra-ui/react";
+import SectionHeader from "@/components/album-detail/SectionHeader";
 import { toaster } from "@/components/ui/toaster";
 import { useRecordCareMutations, useRecordCopiesQuery } from "@/hooks/useRecordCareQuery";
 import type { RecordCopyListItem } from "@/services/internalApi/recordCare";
@@ -51,23 +51,18 @@ export default function AlbumRecordCarePanel({ releaseId, friendId, albumTitle }
 
   return (
     <Stack gap={3}>
-      <Flex justify="space-between" align="center" gap={3}>
-        <HStack gap={2}>
-          <FiDroplet />
-          <Text fontWeight="semibold" fontSize="sm">Copies & care</Text>
-          <Text fontSize="sm" color="fg.muted" display={{ base: "none", md: "block" }}>
-            — Cleanings and sleeves, per physical copy.
-          </Text>
-        </HStack>
-        <HStack gap={2}>
-          <Button size="xs" variant="ghost" onClick={() => setEditing(null)}>
-            Add Copy
-          </Button>
-          <Button size="xs" variant="outline" onClick={() => setLogFor(null)}>
-            Log Care
-          </Button>
-        </HStack>
-      </Flex>
+      <SectionHeader
+        title="Copies & care"
+        count={isLoading ? undefined : `${copies.length} ${copies.length === 1 ? "copy" : "copies"}`}
+        description="Cleanings and sleeves, per physical copy."
+      >
+        <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+          Add copy
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setLogFor(null)}>
+          Log care
+        </Button>
+      </SectionHeader>
 
       <Box borderWidth="outline" borderColor="border.ink" boxShadow="md">
         {isLoading ? (

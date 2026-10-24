@@ -125,7 +125,7 @@ export default function SpinRow({
             </Badge>
           </Tooltip>
           {item.session.context_type && (
-            <Badge size="xs" variant="outline">{item.session.context_type}</Badge>
+            <Badge size="xs" variant="subtle" colorPalette="neutral">{item.session.context_type}</Badge>
           )}
           <Text fontSize="xs" color="fg.muted">
             {formatPlayedAt(item.session.played_at, timeOnly)}

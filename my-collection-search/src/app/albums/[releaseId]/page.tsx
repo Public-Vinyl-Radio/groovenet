@@ -9,24 +9,25 @@ import {
   Flex,
   Spinner,
   Text,
-  Image,
   Badge,
   Link,
-  Heading,
-  RatingGroup,
   Dialog,
-  Popover,
   Portal,
   CloseButton,
+  useBreakpointValue,
 } from "@chakra-ui/react";
-import { FiFileText } from "react-icons/fi";
+import { FiChevronLeft } from "react-icons/fi";
 import NextLink from "next/link";
 
 import { useAlbumDetailQuery, useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
 import { useTracksByRelease, useTracksByReleaseHydrated } from "@/hooks/useTrack";
-import AlbumTrackItem from "@/components/AlbumTrackItem";
+import { ALBUM_SPINS_PAGE, useAlbumSpins } from "@/hooks/useAlbumSpins";
+import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
+import AlbumHeader from "@/components/album-detail/AlbumHeader";
+import AlbumTracklist from "@/components/album-detail/AlbumTracklist";
 import AlbumSpinPanel from "@/components/spins/AlbumSpinPanel";
+import SpinFormDialog from "@/components/spins/SpinFormDialog";
 import AlbumRecordCarePanel from "@/components/records/AlbumRecordCarePanel";
 import RecordActionDialog from "@/components/records/RecordActionDialog";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
@@ -36,30 +37,13 @@ import DeleteAlbumDialog from "@/components/DeleteAlbumDialog";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { toaster } from "@/components/ui/toaster";
 import PageContainer from "@/components/layout/PageContainer";
-import {
-  compareTrackPositions,
-  normalizeAlbumTrackSides,
-} from "@/lib/albumTrackPosition";
-import {
-  formatSeconds,
-  getTrackDurationSeconds,
-} from "@/lib/trackUtils";
+import { compareTrackPositions } from "@/lib/albumTrackPosition";
+import { summarizeSides, summarizeSpinStats } from "@/lib/albumStats";
 import {
   fetchAlbumDiscogsRawRelease,
   queueAlbumDownloads,
 } from "@/services/internalApi/albums";
-import { fetchPlaylistCounts } from "@/services/internalApi/tracks";
-import { queryKeys } from "@/lib/queryKeys";
-import { discogsGenreBadges } from "@/lib/genres/links";
-import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
-import { GenreBadgeList } from "@/components/GenreBadge";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
-
-function formatDate(dateString?: string): string {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
-}
 
 function AlbumDetailContent() {
   const params = useParams();
@@ -90,53 +74,38 @@ function AlbumDetailContent() {
   const [artworkOpen, setArtworkOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
 
-  const mutedText = "fg.muted";
   const subtleText = "fg.muted";
-  const genreLookup = useGenreLookup();
-  const sideHeaderBg = "bg.muted";
-  const sideHeaderAccent = "border";
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
+  const [logSpinOpen, setLogSpinOpen] = React.useState(false);
+  const { openForTracks, playlistDialog, nameDialog } = useAddToPlaylistDialog();
+  const spinsQuery = useAlbumSpins(releaseId, friendId);
   const album = albumFromStore;
   const tracks = React.useMemo(() => {
     return [...tracksFromStore].sort((a, b) =>
       compareTrackPositions(a.position, b.position)
     );
   }, [tracksFromStore]);
-  const trackRefs = React.useMemo(
-    () =>
-      tracks.map((track) => ({
-        track_id: track.track_id,
-        friend_id: track.friend_id,
-      })),
-    [tracks]
+  const sides = React.useMemo(() => summarizeSides(tracks), [tracks]);
+  const spinStats = React.useMemo(
+    () => (spinsQuery.data ? summarizeSpinStats(spinsQuery.spins, ALBUM_SPINS_PAGE) : null),
+    [spinsQuery.data, spinsQuery.spins]
   );
-  const playlistCountsQuery = useQuery({
-    queryKey: queryKeys.playlistCounts(
-      trackRefs.map((track) => `${track.track_id}:${track.friend_id}`)
-    ),
-    queryFn: () => fetchPlaylistCounts(trackRefs),
-    enabled: trackRefs.length > 0,
-    staleTime: 30_000,
-  });
-  const trackSections = React.useMemo(() => {
-    return normalizeAlbumTrackSides(tracks).map((group) => ({
-      label: group.side_label,
-      tracks: group.tracks,
-    }));
-  }, [tracks]);
-  const hasSideSections = trackSections.some((section) =>
-    section.label.startsWith("Side ") || section.label.startsWith("Disc ")
-  );
-  const albumDurationSeconds = React.useMemo(() => {
-    return tracks.reduce((total, track) => {
-      return total + (getTrackDurationSeconds(track) ?? 0);
-    }, 0);
-  }, [tracks]);
 
   React.useEffect(() => {
     if (album) {
       setRating(album.album_rating || 0);
     }
   }, [album]);
+
+  const handleRate = (value: number) => {
+    if (!album) return;
+    setRating(value);
+    updateMutation.mutate({
+      release_id: album.release_id,
+      friend_id: album.friend_id,
+      album_rating: value,
+    });
+  };
 
   const handleEnqueueAlbum = () => {
     if (tracks.length === 0 || !album) {
@@ -243,185 +212,121 @@ function AlbumDetailContent() {
     tracks.find((t) => t.audio_file_album_art_url)?.audio_file_album_art_url ||
     album.album_thumbnail;
 
+  const menu = (
+    <AlbumActionsMenu
+      prominent={isMobile}
+      albumTitle={album.title}
+      albumArtist={album.artist}
+      onPlayAlbum={tracks.length > 0 ? handleEnqueueAlbum : undefined}
+      onDownloadMissing={tracks.length > 0 ? handleDownloadAlbum : undefined}
+      isDownloading={isDownloading}
+      onEnrichAlbum={tracks.length > 0 ? handleEnrichAlbum : undefined}
+      onLogCare={() => setLogCareOpen(true)}
+      onChangeArtwork={() => setArtworkOpen(true)}
+      discogsUrl={album.discogs_url}
+      onViewRawDiscogs={() => setDiscogsRawModalOpen(true)}
+      editAlbumHref={`/albums/${releaseId}/edit?friend_id=${friendId}`}
+      onDeleteAlbum={() => setDeleteOpen(true)}
+    />
+  );
+
   return (
     <PageContainer size="standard" mb="100px">
-
-      {/* Album header */}
-      <Flex
-        borderWidth="1px"
-        borderRadius="md"
-        p={3}
-        mb={{ base: 4, md: 6 }}
-        gap={3}
-        position="relative"
-        width="100%"
-        direction={{ base: "row", md: "row" }}
-      >
-        {albumArtwork && (
-          <Box
-            as="button"
-            aria-label="Change cover art"
-            onClick={() => setArtworkOpen(true)}
-            cursor="pointer"
-            flexShrink={0}
-            width={{ base: "90px", md: "130px" }}
-            height={{ base: "90px", md: "130px" }}
+      {isMobile ? (
+        // The page's own top bar: back to the list, and the overflow menu.
+        <Flex alignItems="center" justifyContent="space-between" mb={2} mx={-2}>
+          <Link
+            as={NextLink}
+            href="/albums"
+            aria-label="Back to albums"
+            display="inline-flex"
+            alignItems="center"
+            gap={1}
+            minH="44px"
+            px={2}
+            fontFamily="label"
+            fontSize="12px"
+            fontWeight="medium"
+            letterSpacing="0.06em"
+            textTransform="uppercase"
+            color="fg"
           >
-            <Image
-              src={albumArtwork}
-              alt={album.title}
-              width="100%"
-              height="100%"
-              objectFit="cover"
-              borderRadius="md"
-            />
-          </Box>
-        )}
-
-        <Flex flex="1" direction="column" gap={1.5} minW={0} pr={{ base: 9, md: 10 }}>
-          <Box>
-            <Flex alignItems="center" gap={2} flexWrap="wrap">
-              {album.library_identifier && (
-                <Badge colorPalette="accent" size={{ base: "sm", md: "md" }} variant="solid" fontWeight="bold">
-                  {album.library_identifier}
-                </Badge>
-              )}
-              <Heading
-                size={{ base: "md", md: "lg" }}
-                lineClamp={{ base: 2, md: 3 }}
-                lineHeight={{ base: "1.3", md: "1.4" }}
-              >
-                {album.title}
-              </Heading>
-            </Flex>
-            <Link
-              asChild
-              _hover={{ textDecoration: "underline" }}
-            >
-              <NextLink href={`/albums?q=${encodeURIComponent(album.artist)}`}>
-                <Text fontSize={{ base: "xs", md: "sm" }} color={mutedText} fontWeight="medium">
-                  {album.artist}
-                </Text>
-              </NextLink>
-            </Link>
-          </Box>
-
-          <Flex alignItems="center" gap={2}>
-            <RatingGroup.Root
-              value={rating}
-              onValueChange={(details) => {
-                setRating(details.value);
-                updateMutation.mutate({
-                  release_id: album.release_id,
-                  friend_id: album.friend_id,
-                  album_rating: details.value,
-                });
-              }}
-              count={5}
-              size="xs"
-            >
-              {[1, 2, 3, 4, 5].map((index) => (
-                <RatingGroup.Item key={index} index={index}>
-                  <RatingGroup.ItemIndicator />
-                </RatingGroup.Item>
-              ))}
-            </RatingGroup.Root>
-            <Text fontSize="xs" color={subtleText}>
-              ({rating}/5)
-            </Text>
-          </Flex>
-
-          <Flex gap={2} flexWrap="wrap" fontSize="xs" color={mutedText}>
-            {album.year && <Text fontWeight="semibold">{album.year}</Text>}
-            {album.format && <Text>{album.format}</Text>}
-            {album.label && <Text display={{ base: "none", md: "block" }}>{album.label}</Text>}
-            {album.catalog_number && <Text display={{ base: "none", md: "block" }}>Cat: {album.catalog_number}</Text>}
-            {album.country && <Text display={{ base: "none", md: "block" }}>{album.country}</Text>}
-          </Flex>
-
-          {((album.effective_genres ?? album.genres)?.length || (album.effective_styles ?? album.styles)?.length) ? (
-            <Flex gap={1} flexWrap="wrap" display={{ base: "none", md: "flex" }}>
-              <GenreBadgeList
-                items={discogsGenreBadges(album.effective_genres ?? album.genres, genreLookup)}
-                kind="discogs-genre"
-                scope="albums"
-              />
-              <GenreBadgeList
-                items={discogsGenreBadges(album.effective_styles ?? album.styles, genreLookup)}
-                kind="discogs-style"
-                scope="albums"
-              />
-            </Flex>
-          ) : null}
-
-          <Flex gap={2} fontSize="xs" color={subtleText} flexWrap="wrap" alignItems="center">
-            {album.track_count && <Text>{album.track_count} tracks</Text>}
-            {albumDurationSeconds > 0 && <Text>{formatSeconds(albumDurationSeconds)}</Text>}
-            {album.date_added && <Text display={{ base: "none", md: "block" }}>Added: {formatDate(album.date_added)}</Text>}
-            {(album.album_notes || album.purchase_price || album.condition) && (
-              <Popover.Root>
-                <Popover.Trigger asChild>
-                  <Box
-                    as="button"
-                    display="inline-flex"
-                    alignItems="center"
-                    color="fg.warning"
-                    _hover={{ color: "fg.warning" }}
-                  >
-                    <FiFileText size={13} />
-                  </Box>
-                </Popover.Trigger>
-                <Popover.Positioner>
-                  <Popover.Content maxW="280px">
-                    <Popover.Body>
-                      {album.album_notes && (
-                        <Text fontSize="sm" whiteSpace="pre-wrap" mb={(album.purchase_price || album.condition) ? 2 : 0}>
-                          {album.album_notes}
-                        </Text>
-                      )}
-                      {(album.purchase_price || album.condition) && (
-                        <Flex gap={3} fontSize="xs" color={mutedText}>
-                          {album.purchase_price && <Text>Price: ${album.purchase_price}</Text>}
-                          {album.condition && <Text>{album.condition}</Text>}
-                        </Flex>
-                      )}
-                    </Popover.Body>
-                  </Popover.Content>
-                </Popover.Positioner>
-              </Popover.Root>
-            )}
-          </Flex>
+            <FiChevronLeft size={20} /> Albums
+          </Link>
+          {menu}
         </Flex>
-
-        <Flex position="absolute" top={2} right={2} gap={1} alignItems="center">
-          <AlbumActionsMenu
-            albumTitle={album.title}
-            albumArtist={album.artist}
-            onPlayAlbum={tracks.length > 0 ? handleEnqueueAlbum : undefined}
-            onDownloadMissing={tracks.length > 0 ? handleDownloadAlbum : undefined}
-            isDownloading={isDownloading}
-            onEnrichAlbum={tracks.length > 0 ? handleEnrichAlbum : undefined}
-            onLogCare={() => setLogCareOpen(true)}
-            onChangeArtwork={() => setArtworkOpen(true)}
-            discogsUrl={album.discogs_url}
-            onViewRawDiscogs={() => setDiscogsRawModalOpen(true)}
-            editAlbumHref={`/albums/${releaseId}/edit?friend_id=${friendId}`}
-            onDeleteAlbum={() => setDeleteOpen(true)}
-          />
+      ) : (
+        <Flex
+          as="nav"
+          aria-label="Breadcrumb"
+          alignItems="center"
+          gap={2}
+          mb={4}
+          fontFamily="label"
+          fontSize="12px"
+          fontWeight="medium"
+          letterSpacing="0.06em"
+          textTransform="uppercase"
+          color="fg.muted"
+          minW={0}
+        >
+          <Link as={NextLink} href="/albums" color="fg.muted">Albums</Link>
+          <span aria-hidden="true">/</span>
+          <Link as={NextLink} href={`/albums?q=${encodeURIComponent(album.artist)}`} color="fg.muted">{album.artist}</Link>
+          <span aria-hidden="true">/</span>
+          <Text as="span" color="fg" lineClamp={1}>{album.title}</Text>
         </Flex>
-      </Flex>
+      )}
 
-      <Box mb={{ base: 4, md: 6 }}>
-        <AlbumSpinPanel
-          releaseId={releaseId}
-          friendId={friendId}
-          albumTitle={album.title}
+      <Box mb={{ base: 8, md: 10 }} pr="6px" pb="6px">
+        <AlbumHeader
+          album={album}
+          tracks={tracks}
+          sides={sides}
+          spins={spinStats}
+          artworkSrc={albumArtwork}
+          rating={rating}
+          onRate={handleRate}
+          onPlay={handleEnqueueAlbum}
+          onAddToPlaylist={() => openForTracks(tracks, album.title)}
+          onLogSpin={() => setLogSpinOpen(true)}
+          onChangeArtwork={() => setArtworkOpen(true)}
+          menu={isMobile ? undefined : menu}
+          isMobile={isMobile}
         />
       </Box>
 
-      <Box mb={{ base: 4, md: 6 }}>
+      <Box mb={{ base: 8, md: 10 }} pr="6px" pb="6px">
+        <AlbumTracklist
+          sides={sides}
+          albumArtist={album.artist}
+          isMobile={isMobile}
+          onPlayTrack={(track) => replacePlaylist([track], { autoplay: true, startIndex: 0 })}
+          onPlaySide={(side) => replacePlaylist(side.tracks, { autoplay: true, startIndex: 0 })}
+          renderActions={(track) => <TrackActionsMenu track={track} />}
+        />
+      </Box>
+
+      <Box
+        display="grid"
+        gap={{ base: 8, md: 8 }}
+        pr="6px"
+        pb="6px"
+        css={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 480px), 1fr))" }}
+      >
+        <AlbumSpinPanel releaseId={releaseId} friendId={friendId} albumTitle={album.title} />
         <AlbumRecordCarePanel releaseId={releaseId} friendId={friendId} albumTitle={album.title} />
       </Box>
+
+      <SpinFormDialog
+        open={logSpinOpen}
+        onOpenChange={setLogSpinOpen}
+        releaseId={releaseId}
+        friendId={friendId}
+        albumTitle={album.title}
+      />
+      {playlistDialog}
+      {nameDialog}
       <RecordActionDialog
         open={logCareOpen}
         onOpenChange={setLogCareOpen}
@@ -445,68 +350,6 @@ function AlbumDetailContent() {
         onDeleted={() => router.push("/albums")}
         notify={(opts) => toaster.create({ title: opts.title, type: opts.type as "success" | "error" })}
       />
-
-      {/* Track list */}
-      <Box>
-
-        {tracks.length === 0 ? (
-          <Text color={subtleText}>No tracks found for this album.</Text>
-        ) : (
-          <Flex direction="column" gap={{ base: 4, md: 6 }}>
-            {trackSections.map((section) => (
-              <Box key={section.label}>
-                {(hasSideSections || section.label !== "Tracklist") && (
-                  <Flex
-                    alignItems="center"
-                    gap={3}
-                    mb={{ base: 2, md: 3 }}
-                    px={3}
-                    py={2}
-                    bg={sideHeaderBg}
-                    borderRadius="md"
-                    borderLeftWidth="3px"
-                    borderLeftColor={sideHeaderAccent}
-                  >
-                    <Heading size={{ base: "sm", md: "md" }} letterSpacing="wide">
-                      {section.label}
-                    </Heading>
-                    <Box flex="1" />
-                    <Text fontSize="xs" color={subtleText} whiteSpace="nowrap" fontWeight="medium">
-                      {section.tracks.length}{" "}
-                      {section.tracks.length === 1 ? "track" : "tracks"}
-                    </Text>
-                  </Flex>
-                )}
-                <Flex
-                  direction="column"
-                  borderWidth="1px"
-                  borderRadius="md"
-                  overflow="hidden"
-                >
-                  {section.tracks.map((track, idx) => (
-                    <AlbumTrackItem
-                      key={`${track.track_id}:${track.friend_id}:${idx}`}
-                      track={track}
-                      albumArtist={album.artist}
-                      playlistCount={
-                        playlistCountsQuery.data?.[
-                          `${track.track_id}:${track.friend_id}`
-                        ] ?? 0
-                      }
-                      buttons={
-                        <TrackActionsMenu
-                          key={`${track.track_id}:${track.friend_id}:${idx}:actions`}
-                          track={track}
-                        />
-                      }
-                    />
-                  ))}
-                </Flex>
-              </Box>
-            ))}
-          </Flex>
-        )}
-      </Box>
 
       <Dialog.Root
         open={discogsRawModalOpen}

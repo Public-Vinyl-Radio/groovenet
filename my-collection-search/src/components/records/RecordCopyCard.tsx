@@ -41,8 +41,8 @@ export default function RecordCopyCard({
           <HStack gap={2} wrap="wrap">
             <Text fontWeight="semibold" fontSize="sm">{name}</Text>
             {copy.is_default && hasSiblings && <Badge size="sm" variant="outline">Default</Badge>}
-            <Badge size="sm" variant="surface">{sleeveLabel(copy.inner_sleeve_type)}</Badge>
-            {state === "never_cleaned" && <Badge size="sm" colorPalette="status.analysis">Never cleaned</Badge>}
+            <Badge size="sm" variant="subtle" colorPalette="neutral">{sleeveLabel(copy.inner_sleeve_type)}</Badge>
+            {state === "never_cleaned" && <Badge size="sm" colorPalette="status.missing">Never cleaned</Badge>}
             {state === "overdue" && <Badge size="sm" colorPalette="status.missing">Overdue</Badge>}
           </HStack>
           {state !== "never_cleaned" && (
