@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.1.0...groovenet-contracts-v1.2.0) (2026-10-24)
+
+
+### Features
+
+* **settings:** appearance — palette and light/dark/system picker ([#677](https://github.com/Public-Vinyl-Radio/groovenet/issues/677)) ([3c43663](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c436631b761ed362d5eabfa94ca283b8b3eb0fd))
+
 ## [1.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.0.1...groovenet-contracts-v1.1.0) (2026-10-23)
 
 

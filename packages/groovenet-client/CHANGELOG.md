@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.4.0...groovenet-client-v3.5.0) (2026-10-24)
+
+
+### Features
+
+* **settings:** appearance — palette and light/dark/system picker ([#677](https://github.com/Public-Vinyl-Radio/groovenet/issues/677)) ([3c43663](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c436631b761ed362d5eabfa94ca283b8b3eb0fd))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.1.0 to 1.2.0
+
 ## [3.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.3.0...groovenet-client-v3.4.0) (2026-10-23)
 
 
