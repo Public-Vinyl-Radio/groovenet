@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import {
   Button,
   Menu,
@@ -29,6 +29,9 @@ import {
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { TrackCardContext } from "@/components/trackCardContext";
+import { RatingStars } from "@/components/TrackResult";
+import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { SiApplemusic, SiYoutube, SiSoundcloud } from "react-icons/si";
 import NextLink from "next/link";
 
@@ -62,6 +65,12 @@ type Props = {
   onAction?: (action: TrackMenuAction) => void;
   /** A full-size outlined trigger on phones too (the track page header), not the compact ghost one. */
   prominent?: boolean;
+  /**
+   * The menu on a track card: a 32px outline trigger on desktop and a bare 44px
+   * touch target on phones, whose sheet also holds the star rating (the card
+   * has no hover to reveal it there). Defaults to true inside a card's action slot.
+   */
+  compact?: boolean;
 };
 
 
@@ -73,7 +82,13 @@ export default function TrackActionsMenu({
   audioActions,
   onAction,
   prominent = false,
+  compact: compactProp,
 }: Props) {
+  const inCard = useContext(TrackCardContext);
+  const compact = compactProp ?? inCard;
+  const { saveTrack: saveTrackRating } = useTracksQuery();
+  const [rating, setRating] = useState(track.star_rating ?? 0);
+  React.useEffect(() => setRating(track.star_rating ?? 0), [track.star_rating]);
   const { appendToQueue, replacePlaylist } = usePlaylistPlayer();
   const playTrack = () => {
     replacePlaylist([track], { autoplay: true, startIndex: 0 });
@@ -301,6 +316,7 @@ export default function TrackActionsMenu({
           size="sm"
           px={2}
           {...(prominent ? { boxSize: "44px" } : {})}
+          {...(compact ? { boxSize: "44px", minW: "44px", px: 0 } : {})}
           onClick={() => setDrawerOpen(true)}
           aria-label="Track actions"
         >
@@ -340,6 +356,30 @@ export default function TrackActionsMenu({
                       label="Add to Playlist"
                       onClick={() => { openForTrack(track); setDrawerOpen(false); }}
                     />
+                    {compact && (
+                      <Box
+                        px={5}
+                        py={3}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        css={{ "& .track-result-rating": { opacity: 1 } }}
+                      >
+                        <Text fontSize="sm">Rating</Text>
+                        <RatingStars
+                          size="sm"
+                          value={rating}
+                          onChange={(value) => {
+                            setRating(value);
+                            void saveTrackRating({
+                              track_id: track.track_id,
+                              friend_id: track.friend_id,
+                              star_rating: value,
+                            });
+                          }}
+                        />
+                      </Box>
+                    )}
                     {!hideEdit && (
                       <DrawerItem icon={<FiEdit />} label="Edit Track" href={editHref} />
                     )}
@@ -428,7 +468,13 @@ export default function TrackActionsMenu({
       <Box display={{ base: "none", md: "block" }}>
         <Menu.Root>
           <Menu.Trigger asChild>
-            <Button variant="outline" size="sm" px={2} aria-label="Track actions">
+            <Button
+              variant="outline"
+              size={compact ? "xs" : "sm"}
+              px={2}
+              aria-label="Track actions"
+              {...(compact ? { boxSize: "32px", minW: "32px", px: 0 } : {})}
+            >
               <FiMoreVertical />
             </Button>
           </Menu.Trigger>

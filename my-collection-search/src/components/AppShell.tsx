@@ -37,7 +37,6 @@ import { useStandaloneMode } from "@/hooks/useStandaloneMode";
 import CommandPalette from "@/components/CommandPalette";
 import {
   getMobileBottomOverlayOffset,
-  MOBILE_NAV_BOTTOM_OFFSET,
 } from "@/lib/mobileLayout";
 
 const baseMenuItems = [
@@ -415,9 +414,9 @@ export default function AppShell({
             : { base: "block", md: "none" }
         }
         position="fixed"
-        left={4}
-        right={4}
-        bottom={`calc(env(safe-area-inset-bottom, 0px) + ${MOBILE_NAV_BOTTOM_OFFSET})`}
+        left={0}
+        right={0}
+        bottom={0}
         zIndex={90}
         opacity={drawerOpen ? 0 : 1}
         transform={drawerOpen ? "translateY(12px)" : "translateY(0)"}
@@ -428,12 +427,13 @@ export default function AppShell({
           align="center"
           justify="space-between"
           gap={1}
-          px={2}
-          py={1.5}
-          borderWidth="outline"
+          px={1}
+          pt={1.5}
+          // Edge to edge: a 2px rule on top, no box or shadow; the safe area is inside the bar.
+          pb="calc(env(safe-area-inset-bottom, 0px) + 6px)"
+          borderTopWidth="outline"
           borderColor="border.ink"
           bg="bg"
-          boxShadow="md"
         >
           {primaryMobileMenuItems.map((item) => {
             const active = isActiveRoute(current, item.href);

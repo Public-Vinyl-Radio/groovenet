@@ -42,6 +42,7 @@ vi.mock("@/services/internalApi/tracks", () => ({
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: mocks.toast } }));
 
 import TrackActionsMenu from "./TrackActionsMenu";
+import { TrackCardContext } from "./trackCardContext";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -83,6 +84,48 @@ describe("TrackActionsMenu phone trigger", () => {
     const prominent = screen.getAllByRole("button", { name: "Track actions", hidden: true })[0];
     expect(getComputedStyle(prominent).width).toBe("44px");
     expect(getComputedStyle(prominent).height).toBe("44px");
+  });
+});
+
+describe("TrackActionsMenu on a track card (#722)", () => {
+  it("is a 44px touch target on a phone and a 32px outline button on desktop, via the card context or the prop", () => {
+    const { unmount } = renderWithProviders(
+      <TrackCardContext.Provider value={true}>
+        <TrackActionsMenu track={trackMinimal} />
+      </TrackCardContext.Provider>
+    );
+    const [phone, desktop] = screen.getAllByRole("button", { name: "Track actions", hidden: true });
+    expect(getComputedStyle(phone).width).toBe("44px");
+    expect(getComputedStyle(phone).height).toBe("44px");
+    expect(getComputedStyle(desktop).width).toBe("32px");
+    expect(getComputedStyle(desktop).height).toBe("32px");
+    unmount();
+
+    renderWithProviders(<TrackActionsMenu track={trackMinimal} compact />);
+    expect(getComputedStyle(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]).width).toBe("44px");
+  });
+
+  it("puts the star rating in the phone sheet and saves it", async () => {
+    const rendered = renderWithProviders(
+      <TrackCardContext.Provider value={true}>
+        <TrackActionsMenu track={{ ...trackMinimal, star_rating: 2 }} />
+      </TrackCardContext.Provider>
+    );
+    await rendered.user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
+    await screen.findByText("Add to Playlist");
+
+    expect(screen.getByText("Rating")).toBeTruthy();
+    await rendered.user.click(screen.getByRole("radio", { name: "5 stars", hidden: true }));
+
+    expect(mocks.saveTrack).toHaveBeenCalledWith({ track_id: "t2", friend_id: 7, star_rating: 5 });
+  });
+
+  it("has no rating row outside a card", async () => {
+    const rendered = renderWithProviders(<TrackActionsMenu track={trackMinimal} />);
+    await rendered.user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
+    await screen.findByText("Add to Playlist");
+
+    expect(screen.queryByText("Rating")).toBeNull();
   });
 });
 

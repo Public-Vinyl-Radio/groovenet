@@ -24,15 +24,18 @@ type SearchModeToggleProps = {
   value: TrackSearchMode;
   onChange: (mode: TrackSearchMode) => void;
   size?: "xs" | "sm" | "md";
+  /** A 44px-tall group that fills its row, for phones. */
+  touchTarget?: boolean;
 };
 
 /** Keyword (full-text) vs. natural-language search over context embeddings (#409). */
-export default function SearchModeToggle({ value, onChange, size = "sm" }: SearchModeToggleProps) {
+export default function SearchModeToggle({ value, onChange, size = "sm", touchTarget = false }: SearchModeToggleProps) {
   return (
     <SegmentGroup.Root
       size={size}
       value={value}
       aria-label="Search mode"
+      {...(touchTarget ? { h: "44px", flex: 1, css: { "& label": { flex: 1, justifyContent: "center" } } } : {})}
       // Only ITEMS can be chosen, and a segment group can't be cleared.
       onValueChange={(details) => onChange(details.value as TrackSearchMode)}
     >

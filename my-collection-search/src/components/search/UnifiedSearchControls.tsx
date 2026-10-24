@@ -97,6 +97,7 @@ export default function UnifiedSearchControls({
               bg="bg.panel"
               fontSize={SEARCH_FONT_SIZE}
               size="sm"
+              h="44px"
               placeholder={placeholder}
             />
           </InputGroup>
