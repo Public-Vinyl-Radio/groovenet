@@ -305,13 +305,23 @@ deploy-prod-remote:
   #!/usr/bin/env bash
   set -euo pipefail
   tmp_env="$(mktemp)"
+  tmp_player_env="$(mktemp)"
   cleanup() {
-    rm -f "$tmp_env"
+    rm -f "$tmp_env" "$tmp_player_env"
   }
   trap cleanup EXIT
   if [ -f .env.tpl ] && command -v op >/dev/null 2>&1; then
     bash ./scripts/render-env.sh .env.tpl "$tmp_env"
     scp "$tmp_env" {{prod_host}}:{{prod_stack_dir}}/.env
+  fi
+  # Existing .env.players is the host opt-in. Refresh its 1Password values
+  # separately so rendering the collection .env never erases player settings.
+  if [ -f .env.players.tpl ] && command -v op >/dev/null 2>&1; then
+    if ssh {{prod_host}} "test -f {{prod_stack_dir}}/.env.players"; then
+      op run --env-file .env.players.tpl -- node my-collection-search/scripts/render-player-env.mjs "$tmp_player_env"
+      scp "$tmp_player_env" {{prod_host}}:{{prod_stack_dir}}/.env.players
+      ssh {{prod_host}} "chmod 600 {{prod_stack_dir}}/.env.players"
+    fi
   fi
   # Check out what is being deployed *before* running its deploy script, so
   # the script that runs is the one from that commit — not whatever the box

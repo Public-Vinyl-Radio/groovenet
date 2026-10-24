@@ -14,7 +14,47 @@ stack against the production database volume. Add `docker-compose.players.yml`
 after your usual Compose files and enable profile `players`. This extension is
 optional; the ordinary stack does not start any player engines.
 
-Configure the root `.env` using `.env.example`:
+For production, put the following player settings in a private root `.env.players`
+(`chmod 600 .env.players`), using `.env.example` as the reference. Its presence
+opts the production deploy script into the player Compose overlay/profile and
+builds the two local images before starting services. It survives the normal
+`.env` rendering step. Keep the existing database/collection secrets in `.env`.
+Player secrets and private worktree files are excluded from Docker build contexts.
+
+The optional `.env.players.tpl` uses the existing `GROOVENET_OP_VAULT` /
+`GROOVENET_OP_ITEM` selection (defaults `Homelab` / `groovenet`). Add three fields
+to that 1Password item: `PLAYER_API_KEY`, `PLAYER_ENGINE_A_PASSWORD`, and
+`PLAYER_ENGINE_B_PASSWORD`. API keys must be at least 32 characters on one line;
+engine passwords must be distinct hex/base64url values. To render locally:
+
+```sh
+mkdir -p .worktree
+op run --env-file .env.players.tpl -- node my-collection-search/scripts/render-player-env.mjs .worktree/players.env
+# Copy to the production checkout as .env.players with mode 0600.
+```
+
+The renderer validates credentials before replacing any existing file, writes
+atomically with private permissions, and constructs the engine JSON from the same
+passwords. It quotes literal dollar signs/backslashes so Compose preserves secret
+values. Never commit the rendered file. `just deploy` refreshes `.env.players`
+from 1Password only on a host that already has that file; other hosts stay opted
+out. The ordinary collection credential template is unchanged.
+
+For the laptop CLI, load only the API key (never the engine passwords):
+
+```sh
+PLAYER_API_KEY='op://Homelab/groovenet/PLAYER_API_KEY' op run -- groovenet player list
+PLAYER_API_KEY='op://Homelab/groovenet/PLAYER_API_KEY' op run --no-masking -- groovenet player --remote lounge
+```
+
+Use the installed executable or the built Node entrypoint inside `op run`; shell
+functions such as `gn` are not executables that `op run` can invoke directly.
+Existing CLI collection credentials remain independent. For the interactive TUI,
+`op run` needs `--no-masking`: its default output-masking pipe makes stdout cease
+to be a TTY. This option passes terminal output through directly; the player UI
+does not print credentials. Keep default masking for noninteractive commands.
+
+Configure player settings:
 
 * Generate `PLAYER_API_KEY` with `openssl rand -hex 32`. It is a **shared
   household/admin credential**, with access to every player and friend’s queued
@@ -27,9 +67,10 @@ Configure the root `.env` using `.env.example`:
   Engines and the shared clock use host networking for discovery/AirPlay.
   Reserve API ports 13689/13690, WebSocket ports 13688/13691 and PTP UDP 319/320.
   Restrict engine APIs to trusted host/network access; never expose them publicly.
-* Set `PLAYER_AUDIO_MOUNT` to the existing Docker music volume name or absolute
-  directory. For a production stack, use its actual `PROD_MUSIC_DATA_VOLUME`
-  value. The mount is read-only. OwnTone must finish indexing files before play.
+* Set `PLAYER_AUDIO_MOUNT=music_data` with the production overlay: this logical
+  Compose volume maps to the existing `PROD_MUSIC_DATA_VOLUME`. Alternatively use
+  an absolute directory visible to Docker. Do not supply an undeclared Docker
+  volume name. The mount is read-only. OwnTone must finish indexing before play.
 * Set `PLAYER_ENGINES_JSON` to the following single-line JSON, replacing passwords
   to match the engine environment variables. These credentials stay server-side.
 
@@ -40,8 +81,8 @@ Configure the root `.env` using `.env.example`:
 For example, with the existing production environment loaded:
 
 ```sh
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players build player-clock player-worker
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players up -d app player-clock player-engine-a player-engine-b player-worker
+docker compose --env-file .env --env-file .env.players -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players build player-clock player-worker
+docker compose --env-file .env --env-file .env.players -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players up -d app player-clock player-engine-a player-engine-b player-worker
 ```
 
 The worker has no published port: the app proxies to `http://player-worker:13700`.

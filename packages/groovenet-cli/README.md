@@ -224,7 +224,15 @@ groovenet player --remote lounge play --allow-unknown
 ```
 
 `PLAYER_API_KEY` overrides `player_api_key`; the collection `api_key` is separate
-and remains unchanged. Config output redacts secrets, and saved config files are
+and remains unchanged. When using 1Password to launch the interactive TUI, preserve
+the terminal with `--no-masking`:
+
+```sh
+PLAYER_API_KEY='op://Homelab/groovenet/PLAYER_API_KEY' op run --no-masking -- groovenet player --remote lounge
+```
+
+Default `op run` masking pipes stdout, so the TUI cannot detect a terminal. The
+player UI does not print credentials. Config output redacts secrets, and saved config files are
 private (0600). Engine URLs/passwords and Home Assistant credentials stay on the
 server. A server operator creates players through the existing shared API; see
 [server player setup/API](../groovenet-player/SERVER_PLAYERS.md).
