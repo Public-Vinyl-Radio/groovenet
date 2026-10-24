@@ -1,4 +1,5 @@
 import { defineConfig, createSystem, defaultConfig, type SystemStyleObject } from "@chakra-ui/react";
+import { fontChoiceValue, fontRoleIds, fontRoles } from "./fontChoices";
 import * as house from "./houseStyle";
 import {
   defaultPaletteId,
@@ -52,8 +53,23 @@ export function paletteBlocks(
   );
 }
 
+// One block per choice, setting the role's variable. The default choice also
+// answers on :root, so an unknown or missing data-font-<role> still gets a face,
+// and it comes first so an equally specific later choice wins. Faces define
+// only their own --face-* variable, so nothing else sets these.
+export function fontBlocks(): Record<string, SystemStyleObject> {
+  return Object.fromEntries(
+    fontRoleIds.flatMap((role) =>
+      fontRoles[role].choices.map(({ id }, index) => [
+        `${index === 0 ? ":root, " : ""}[data-font-${role}="${id}"]`,
+        { [fontRoles[role].variable]: fontChoiceValue(role, id) } as Record<`--${string}`, string>,
+      ]),
+    ),
+  );
+}
+
 const config = defineConfig({
-  globalCss: { ...paletteBlocks(palettes, defaultPaletteId), ...house.globalCss },
+  globalCss: { ...paletteBlocks(palettes, defaultPaletteId), ...fontBlocks(), ...house.globalCss },
   theme: {
     tokens: {
       radii: house.radii,

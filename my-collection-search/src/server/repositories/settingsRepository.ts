@@ -17,6 +17,20 @@ const GAMDL_ALLOWED_FIELDS = [
 
 type GamdlField = (typeof GAMDL_ALLOWED_FIELDS)[number];
 
+const APPEARANCE_COLUMNS = ["palette", "font_display", "font_body", "font_label"] as const;
+
+type AppearanceColumn = (typeof APPEARANCE_COLUMNS)[number];
+
+export interface AppearanceRow {
+  palette: string;
+  font_display: string | null;
+  font_body: string | null;
+  font_label: string | null;
+}
+
+/** Columns to change; undefined leaves one alone, a null font resets it. */
+export type AppearancePatch = Partial<Record<AppearanceColumn, string | null>>;
+
 export class SettingsRepository {
   async findDefaultLibraryFriendId(): Promise<number | null> {
     const { rows } = await dbQuery<{ friend_id: number | null }>(
@@ -39,26 +53,40 @@ export class SettingsRepository {
     return rows[0]?.friend_id ?? friendId;
   }
 
-  /** The saved palette id, or null when none has been chosen. */
-  async findAppearancePalette(): Promise<string | null> {
-    const { rows } = await dbQuery<{ palette: string }>(
-      "SELECT palette FROM appearance_settings WHERE id = 1"
+  /** The saved appearance row, or null when nothing has been chosen. */
+  async findAppearance(): Promise<AppearanceRow | null> {
+    const { rows } = await dbQuery<AppearanceRow>(
+      `SELECT ${APPEARANCE_COLUMNS.join(", ")} FROM appearance_settings WHERE id = 1`
     );
-    return rows[0]?.palette ?? null;
+    return rows[0] ?? null;
   }
 
-  async upsertAppearancePalette(palette: string): Promise<string> {
-    const { rows } = await dbQuery<{ palette: string }>(
-      `
-      INSERT INTO appearance_settings (id, palette, updated_at)
-      VALUES (1, $1, current_timestamp)
-      ON CONFLICT (id)
-      DO UPDATE SET palette = EXCLUDED.palette, updated_at = current_timestamp
-      RETURNING palette
-      `,
-      [palette]
+  /**
+   * Writes only the columns in `patch` (a null font clears it back to the
+   * default). A first save with no palette in the patch starts from
+   * `insertPalette`, because the column is required.
+   */
+  async upsertAppearance(
+    patch: AppearancePatch,
+    insertPalette: string
+  ): Promise<AppearanceRow> {
+    const supplied = APPEARANCE_COLUMNS.filter((column) => patch[column] !== undefined);
+    const columns: AppearanceColumn[] = ["palette", ...supplied.filter((column) => column !== "palette")];
+    const values = columns.map((column) =>
+      column === "palette" ? (patch.palette ?? insertPalette) : patch[column]
     );
-    return rows[0]?.palette ?? palette;
+    const update = supplied.map((column) => `${column} = EXCLUDED.${column}`);
+    const { rows } = await dbQuery<AppearanceRow>(
+      `
+      INSERT INTO appearance_settings (id, ${columns.join(", ")}, updated_at)
+      VALUES (1, ${columns.map((_, i) => `$${i + 1}`).join(", ")}, current_timestamp)
+      ON CONFLICT (id)
+      DO UPDATE SET ${[...update, "updated_at = current_timestamp"].join(", ")}
+      RETURNING ${APPEARANCE_COLUMNS.join(", ")}
+      `,
+      values
+    );
+    return rows[0];
   }
 
   async findAiPromptByFriendId(friendId: number): Promise<string | null> {

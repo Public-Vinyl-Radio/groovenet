@@ -941,6 +941,24 @@ describe("GroovenetClient appearance settings", () => {
   });
 });
 
+describe("GroovenetClient appearance fonts", () => {
+  it("updateAppearanceSettings sends only what changed", async () => {
+    const fonts = { display: "default", body: "inter", label: "default" };
+    const client = clientReturning({ palette: "sleeve", fonts });
+
+    await expect(client.updateAppearanceSettings({ fonts: { body: "inter" } })).resolves.toEqual({
+      palette: "sleeve",
+      fonts,
+    });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "PUT",
+      url: "/settings/appearance",
+      data: { fonts: { body: "inter" } },
+      params: undefined,
+    });
+  });
+});
+
 describe("GroovenetClient external search helpers", () => {
   it("searchAppleMusic posts the lookup options", async () => {
     const client = clientReturning({ results: [] });

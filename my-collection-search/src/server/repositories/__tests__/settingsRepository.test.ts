@@ -22,23 +22,37 @@ const ROW = {
   serving_template_version: 1,
 };
 
-describe("appearance palette", () => {
-  it("reads the saved palette, or null when none is saved", async () => {
-    dbQuery.mockResolvedValueOnce({ rows: [{ palette: "sleeve" }] }).mockResolvedValueOnce({ rows: [] });
+describe("appearance", () => {
+  const row = { palette: "riso", font_display: null, font_body: "inter", font_label: null };
 
-    await expect(makeRepo().findAppearancePalette()).resolves.toBe("sleeve");
-    await expect(makeRepo().findAppearancePalette()).resolves.toBeNull();
+  it("reads the saved row, or null when nothing is saved", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [row] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(makeRepo().findAppearance()).resolves.toEqual(row);
+    await expect(makeRepo().findAppearance()).resolves.toBeNull();
     expect(dbQuery.mock.calls[0][0]).toContain("FROM appearance_settings WHERE id = 1");
   });
 
-  it("upserts the single row", async () => {
-    dbQuery.mockResolvedValueOnce({ rows: [{ palette: "riso" }] }).mockResolvedValueOnce({ rows: [] });
+  it("upserts only the columns it is given, leaving the rest alone", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [row] });
 
-    await expect(makeRepo().upsertAppearancePalette("riso")).resolves.toBe("riso");
+    await expect(makeRepo().upsertAppearance({ font_body: "inter" }, "sleeve")).resolves.toEqual(row);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("ON CONFLICT (id)");
-    expect(params).toEqual(["riso"]);
-    await expect(makeRepo().upsertAppearancePalette("mono")).resolves.toBe("mono");
+    expect(sql).toContain("DO UPDATE SET font_body = EXCLUDED.font_body, updated_at");
+    expect(sql).not.toContain("palette = EXCLUDED");
+    expect(sql).not.toContain("font_display = EXCLUDED");
+    // A first save has no palette to inherit, so it starts from the default.
+    expect(params).toEqual(["sleeve", "inter"]);
+  });
+
+  it("writes the palette it is given, and clears a font set to null", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [row] });
+
+    await makeRepo().upsertAppearance({ palette: "riso", font_label: null }, "sleeve");
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("palette = EXCLUDED.palette, font_label = EXCLUDED.font_label");
+    expect(params).toEqual(["riso", null]);
   });
 });
 

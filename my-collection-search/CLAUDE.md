@@ -166,16 +166,40 @@ an invalid value the browser drops, so it fails silently.
 - **Filter chips** (`FilterChips`): square, the active chip a solid ink fill.
   Give a chip `count` where the data already has one (genre chips take the
   facet counts); the label becomes "Genre · 41". Don't add a count query for it.
-- **Type:** fonts are self-hosted through `next/font/local` (`src/app/fonts.ts`,
-  woff2 under `src/app/fonts/` with their OFL licences) and exposed as
-  `--gn-font-body|mono` (plus optional `--gn-font-heading|label`), which the `heading`, `body`, `mono` and
-  `label` font tokens read; a later font setting (#670) swaps a face by
-  overriding the variable. Body and headings are IBM Plex Sans (headings fall
-  back to the body face until `--gn-font-heading` is set), and
-  `fontFamily="mono"` (IDs, paths) is IBM Plex Mono. `fontFamily="label"` (defaults to the mono face) is for
-  overlines (uppercase, letter-spaced), table headers, tags, nav and buttons.
-  Add a face by committing its woff2 and licence and listing it in `fonts.ts`;
-  `fonts.test.ts` checks the files exist. Inputs use 16px text so iOS doesn't zoom.
+- **Type:** three user-selectable roles, each with a curated list in the
+  registry `src/app/fontChoices.ts`: **Display** (the `heading` token: page
+  titles, card headings), **Body** (`body`: UI text) and **Labels** (`label`:
+  buttons, tags, overlines, nav, IDs such as LP-342). Each role lists 2 to 4
+  choices; the first (`default`) is the app's own face and the last is
+  `system` (`system-ui` / `ui-monospace`, no file). `fontRoleIds`,
+  `isFontChoiceId`, `resolveFontChoice(role, value)` (unknown, missing or
+  another role's id is the default) and `fontChoiceIdsFor(role)` derive from it,
+  and so do the `PUT /api/settings/appearance` validation, the OpenAPI enums,
+  the Settings → Appearance → Typography picker and the CSS. `fontFamily="mono"`
+  (IDs, paths) is not a role: it is always IBM Plex Mono.
+  - **Scheme:** `layout.tsx` renders `data-font-display|body|label` on `<html>`
+    next to `data-palette` (from the shared `appearance_settings` row, nullable
+    `font_*` columns, null = default), so there is no flash. `chakraTheme.ts`
+    (`fontBlocks`) emits `[data-font-<role>="<id>"] { --gn-font-heading|body|label: ... }`
+    per choice, with each role's default also on `:root`, so a missing or unknown
+    attribute still gets the default. The font tokens read those variables.
+  - **Cascade rule:** `fonts.ts` loads every face through `next/font/local`
+    under its own `--face-<id>` variable (`--face-plex-sans`, `--face-inter`,
+    ...) and never sets a `--gn-font-*` variable. next/font's class has the same
+    specificity as an attribute selector, so defining `--gn-font-*` there would
+    win or lose by stylesheet order. A choice's value is
+    `var(--face-<id>, <role stack>)`, so a missing face degrades to the stack
+    (Storybook). Alternative faces set `preload: false`: the browser fetches a
+    woff2 only when a rule applies it (the chosen face, or the picker's cards).
+  - **Add a face:** commit a latin-subset woff2 per needed weight (400/500/600,
+    fewer if the face needs fewer) and its OFL/Apache licence as
+    `src/app/fonts/OFL-<Family>.txt`; add a literal `localFont` call in
+    `fonts.ts` with `variable: "--face-<id>"`, `display: "swap"`,
+    `preload: false` and a metric-matched `adjustFontFallback`; list it in the
+    role's `choices` in `fontChoices.ts`. `fonts.test.ts` checks the faces match
+    the registry and that files and licences exist. Check it in Storybook (the
+    toolbar has Display/Body/Labels font switchers) and in the app at 390px: buttons, chips, tags,
+    tabs and track rows must hold. Inputs use 16px text so iOS doesn't zoom.
 - **Copy:** terse sentence case, DJ vocabulary ("112 BPM", "D major (10B)",
   "B2", "LP-342"), no emoji in the UI.
 - **Layout:** pages sit in `PageContainer` (`wide` for lists, `narrow` for

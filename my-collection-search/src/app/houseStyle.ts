@@ -3,6 +3,7 @@
 // lives in this file, so tuning the look is a one-file change.
 //
 // Provisional until #664 is signed off.
+import { monoFallback, sansFallback } from "./fontChoices";
 import { defineRecipe, defineSlotRecipe, type SystemStyleObject } from "@chakra-ui/react";
 import {
   cardAnatomy,
@@ -69,17 +70,16 @@ export const borderWidths = {
   rule: { value: ruleWidth },
 };
 
-// Each token reads a CSS variable so #670 can swap a face without touching
-// the theme. `label` falls back to the mono face until a palette or setting
-// sets `--gn-font-label`. The fallback stacks match the metrics of the
-// loaded fonts closely enough to avoid layout shift while they swap in.
-const sansFallback = `"Helvetica Neue", Arial, sans-serif`;
-const monoFallback = `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+// Each token reads a CSS variable that the user's font choice sets from the
+// `data-font-<role>` attribute (fontChoices.ts, emitted by chakraTheme.ts), so
+// a face changes without touching the theme. The fallback stacks match the
+// metrics of the loaded fonts closely enough to avoid layout shift while they
+// swap in. `mono` (IDs, paths) is not a role: it is always Plex Mono.
 export const fonts = {
-  heading: { value: `var(--gn-font-heading, var(--gn-font-body)), ${sansFallback}` },
+  heading: { value: `var(--gn-font-heading), ${sansFallback}` },
   body: { value: `var(--gn-font-body), ${sansFallback}` },
-  mono: { value: `var(--gn-font-mono), ${monoFallback}` },
-  label: { value: `var(--gn-font-label, var(--gn-font-mono)), ${monoFallback}` },
+  mono: { value: `var(--face-plex-mono, ${monoFallback}), ${monoFallback}` },
+  label: { value: `var(--gn-font-label), ${monoFallback}` },
 };
 
 /** The focus ring every control shares: solid, offset from the 2px border. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { paletteBlocks, system } from "./chakraTheme";
+import { fontBlocks, paletteBlocks, system } from "./chakraTheme";
+import { faceVariable, fontChoiceValue, fontRoleIds, fontRoles } from "./fontChoices";
 import { paletteVariableNames, palettes, statusNames } from "./palettes";
 
 const resolved = (name: string) => system.tokens.getByName(`colors.${name}`)?.value;
@@ -119,11 +120,11 @@ describe("chakra theme", () => {
       expect(token("shadows.md")).toBe("6px 6px 0 0 var(--gn-shadow)");
     });
 
-    it("points the font tokens at swappable variables, with label defaulting to mono", () => {
-      expect(token("fonts.heading")).toContain("var(--gn-font-heading, var(--gn-font-body))");
-      expect(token("fonts.body")).toContain("var(--gn-font-body)");
-      expect(token("fonts.mono")).toContain("var(--gn-font-mono)");
-      expect(token("fonts.label")).toContain("var(--gn-font-label, var(--gn-font-mono))");
+    it("points the font tokens at the variables the font choice sets", () => {
+      expect(token("fonts.heading")).toMatch(/^var\(--gn-font-heading\), /);
+      expect(token("fonts.body")).toMatch(/^var\(--gn-font-body\), /);
+      expect(token("fonts.label")).toMatch(/^var\(--gn-font-label\), /);
+      expect(token("fonts.mono")).toContain("var(--face-plex-mono");
     });
 
     it("rings default-palette controls in the palette's focus colour", () => {
@@ -183,5 +184,53 @@ describe("chakra theme", () => {
       expect(css[":focus-visible"]).toMatchObject({ outlineOffset: "2px" });
       expect(css[":focus-visible"].outline).toContain("var(--gn-accent-focus-ring)");
     });
+  });
+});
+
+describe("font blocks", () => {
+  const blocks = fontBlocks();
+  const selector = (role: string, id: string) =>
+    Object.keys(blocks).find((key) => key.endsWith(`[data-font-${role}="${id}"]`));
+
+  it("emits a rule for every choice of every role, setting that role's variable", () => {
+    for (const role of fontRoleIds) {
+      for (const { id } of fontRoles[role].choices) {
+        const key = selector(role, id);
+        expect(key, `${role}/${id}`).toBeDefined();
+        expect(blocks[key as string]).toEqual({ [fontRoles[role].variable]: fontChoiceValue(role, id) });
+      }
+    }
+  });
+
+  it("puts each role's default on :root, so a missing or unknown attribute still gets a face", () => {
+    for (const role of fontRoleIds) {
+      const defaults = Object.keys(blocks).filter((key) => key.startsWith(":root"));
+      expect(defaults.some((key) => key.includes(`[data-font-${role}="default"]`)), role).toBe(true);
+      const others = fontRoles[role].choices.slice(1).map(({ id }) => selector(role, id));
+      for (const key of others) expect(key).not.toContain(":root");
+    }
+  });
+
+  it("lists the default first, so an equally specific later choice wins", () => {
+    const keys = Object.keys(blocks);
+    for (const role of fontRoleIds) {
+      const [first, ...rest] = fontRoles[role].choices.map(({ id }) => keys.indexOf(selector(role, id) as string));
+      for (const index of rest) expect(index).toBeGreaterThan(first);
+    }
+  });
+
+  it("maps a self-hosted face to its own variable, with the role's stack when it is missing", () => {
+    expect(fontChoiceValue("body", "inter")).toBe(`var(${faceVariable("inter")}, ${fontRoles.body.fallback})`);
+  });
+
+  it("maps System to a stack with no face", () => {
+    expect(fontChoiceValue("body", "system")).toMatch(/^system-ui/);
+    expect(fontChoiceValue("label", "system")).toMatch(/^ui-monospace/);
+    expect(fontChoiceValue("display", "system")).not.toContain("--face-");
+  });
+
+  it("is part of the theme's global CSS", () => {
+    const global = system._config.globalCss as Record<string, unknown>;
+    for (const key of Object.keys(blocks)) expect(global[key], key).toBeDefined();
   });
 });

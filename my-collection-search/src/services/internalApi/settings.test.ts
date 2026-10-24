@@ -42,6 +42,15 @@ describe("appearance settings", () => {
     expect(httpMock).toHaveBeenCalledWith("/api/settings/appearance", { method: "GET", cache: "no-store" });
   });
 
+  it("saves a font change without the palette", async () => {
+    await updateAppearanceSettings({ fonts: { body: "inter" } });
+    expect(httpMock).toHaveBeenCalledWith("/api/settings/appearance", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fonts: { body: "inter" } }),
+    });
+  });
+
   it("saves the palette", async () => {
     await updateAppearanceSettings({ palette: "sleeve" });
     expect(httpMock).toHaveBeenCalledWith("/api/settings/appearance", {

@@ -16,8 +16,8 @@ const repo = vi.hoisted(() => ({
   findGamdlSettingsByFriendId: vi.fn(),
   updateGamdlSettings: vi.fn(),
   resetGamdlSettings: vi.fn(),
-  findAppearancePalette: vi.fn(),
-  upsertAppearancePalette: vi.fn(),
+  findAppearance: vi.fn(),
+  upsertAppearance: vi.fn(),
   findRecommendationScope: vi.fn(),
   upsertRecommendationScope: vi.fn(),
 }));
@@ -42,20 +42,54 @@ beforeEach(() => {
 // ─── Appearance ───────────────────────────────────────────────────────────────
 
 describe("appearance", () => {
-  it("reads the saved palette", async () => {
-    repo.findAppearancePalette.mockResolvedValueOnce("sleeve");
-    await expect(settingsService.getAppearance()).resolves.toEqual({ palette: "sleeve" });
+  const row = (over: Record<string, unknown> = {}) => ({
+    palette: "sleeve",
+    font_display: null,
+    font_body: null,
+    font_label: null,
+    ...over,
+  });
+  const defaults = { display: "default", body: "default", label: "default" };
+
+  it("reads the saved palette and fonts, a null font being the default", async () => {
+    repo.findAppearance.mockResolvedValueOnce(row({ palette: "riso", font_body: "inter" }));
+    await expect(settingsService.getAppearance()).resolves.toEqual({
+      palette: "riso",
+      fonts: { ...defaults, body: "inter" },
+    });
   });
 
-  it.each([null, "retired-palette"])("falls back to the default for %j", async (stored) => {
-    repo.findAppearancePalette.mockResolvedValueOnce(stored);
-    await expect(settingsService.getAppearance()).resolves.toEqual({ palette: "sleeve" });
+  it("falls back to the defaults when nothing is saved", async () => {
+    repo.findAppearance.mockResolvedValueOnce(null);
+    await expect(settingsService.getAppearance()).resolves.toEqual({ palette: "sleeve", fonts: defaults });
   });
 
-  it("saves the palette", async () => {
-    repo.upsertAppearancePalette.mockResolvedValueOnce("sleeve");
-    await expect(settingsService.updateAppearance("sleeve")).resolves.toEqual({ palette: "sleeve" });
-    expect(repo.upsertAppearancePalette).toHaveBeenCalledWith("sleeve");
+  it("falls back to the default for an id that is no longer registered, or belongs to another role", async () => {
+    repo.findAppearance.mockResolvedValueOnce(
+      row({ palette: "retired-palette", font_display: "retired-font", font_body: "zilla-slab" })
+    );
+    await expect(settingsService.getAppearance()).resolves.toEqual({ palette: "sleeve", fonts: defaults });
+  });
+
+  it("saves only the palette when only the palette is given", async () => {
+    repo.upsertAppearance.mockResolvedValueOnce(row({ palette: "riso" }));
+    await expect(settingsService.updateAppearance({ palette: "riso" })).resolves.toEqual({
+      palette: "riso",
+      fonts: defaults,
+    });
+    expect(repo.upsertAppearance).toHaveBeenCalledWith({ palette: "riso" }, "sleeve");
+  });
+
+  it("saves only the fonts given, storing the default as null", async () => {
+    repo.upsertAppearance.mockResolvedValueOnce(row({ font_body: "inter" }));
+    await settingsService.updateAppearance({ fonts: { body: "inter", label: "default" } });
+    expect(repo.upsertAppearance).toHaveBeenCalledWith({ font_body: "inter", font_label: null }, "sleeve");
+  });
+
+  it("changes nothing for an empty update", async () => {
+    repo.upsertAppearance.mockResolvedValueOnce(row());
+    await settingsService.updateAppearance({});
+    expect(repo.upsertAppearance).toHaveBeenCalledWith({}, "sleeve");
   });
 });
 
