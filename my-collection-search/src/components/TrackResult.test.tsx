@@ -823,4 +823,20 @@ describe("TrackResult card (#722)", () => {
 
     expect(screen.getByText("#3 · 12 plays")).toBeTruthy();
   });
+
+  it("omits the duration when the track has none", () => {
+    renderWithProviders(<TrackResult track={{ ...cardTrack, duration_seconds: undefined, duration: "" }} />);
+
+    expect(within(screen.getByTestId("track-card-meta")).queryByText(/^\d+:\d{2}$/)).toBeNull();
+  });
+
+  it("drops the genre and rating row when both are turned off, and keeps it for the rating alone", () => {
+    const { rerender } = renderWithProviders(<TrackResult track={cardTrack} showGenres={false} showRating={false} />);
+    expect(screen.queryByTestId("track-genres")).toBeNull();
+    expect(screen.queryByRole("radio", { name: "4 stars", hidden: true })).toBeNull();
+
+    rerender(<TrackResult track={cardTrack} showGenres={false} />);
+    expect(screen.getByRole("radio", { name: "4 stars", hidden: true })).toBeTruthy();
+    expect(screen.queryByTestId("track-genres")).toBeNull();
+  });
 });

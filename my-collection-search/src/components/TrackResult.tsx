@@ -1204,7 +1204,7 @@ export default function TrackResult({
               </Badge>
             )}
             {hasCamelot && (
-              <Flex as="span" display="inline-flex" alignItems="center" gap={1} minW={0} title={track.key ?? undefined} data-testid="track-card-key">
+              <Flex as="span" display="inline-flex" alignItems="center" gap={1} minW={0} title={track.key as string} data-testid="track-card-key">
                 <Box aria-hidden="true" boxSize="8px" borderRadius="full" bg={camelotDotColor(camelot)} flexShrink={0} />
                 <Text as="span" fontWeight="bold" color="fg" fontVariantNumeric="tabular-nums">
                   {camelot}
