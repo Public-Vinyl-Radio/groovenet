@@ -4,10 +4,14 @@ import type { ReactElement } from "react";
 import { GroovenetClient, loadConfig, type Playlist, type Track } from "@groovenet/client";
 import { PlayerControlClient, PlayerDaemon, PlayerProtocolError, type AudioDevice, type PlaybackSnapshot, type QueueEntry } from "@groovenet/player";
 import { createPlayerDaemon, PLAYER_DAEMON_PATHS } from "./player.js";
+import { RemotePlayerController, makeRemoteApi, type PlayerController, type RemoteSnapshot } from "./remotePlayer.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
 import { formatPlayback, visibleWindow } from "./playerTuiView.js";
 
 export interface PlayerTuiOptions {
+  remote?: string;
+  allowUnknown?: boolean;
+  takeover?: boolean;
   backend?: string;
   search?: string;
   playlist?: string;
@@ -27,6 +31,7 @@ function makeApiClient(): GroovenetClient {
 }
 
 export interface PlayerTuiRuntime {
+  createRemote?: (id: string) => RemotePlayerController;
   createControl?: () => PlayerControlClient;
   createDaemon?: () => PlayerDaemon;
   createApi?: () => GroovenetClient;
@@ -34,6 +39,17 @@ export interface PlayerTuiRuntime {
 }
 
 export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: PlayerTuiRuntime = {}): Promise<void> {
+  if (options.remote) {
+    if (options.backend || options.artwork || options.logPlays) throw new Error("Remote players use server engine settings; omit local backend/artwork/log-plays flags.");
+    const control = runtime.createRemote?.(options.remote) ?? new RemotePlayerController(makeRemoteApi(), options.remote, { allow_unknown: options.allowUnknown, takeover: options.takeover });
+    try {
+      const initialSnapshot = await control.refresh();
+      const app = (runtime.render ?? render)(<PlayerTui control={control} api={runtime.createApi?.() ?? makeApiClient()} initialSnapshot={initialSnapshot} options={options} />, { alternateScreen: true, exitOnCtrlC: true });
+      control.startEvents();
+      await app.waitUntilExit();
+    } finally { await control.close(); }
+    return;
+  }
   let daemon: PlayerDaemon | null = null;
   let control = runtime.createControl?.() ?? new PlayerControlClient(PLAYER_DAEMON_PATHS.socketPath);
   try {
@@ -63,7 +79,7 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
 }
 
 export function PlayerTui({ control, api, initialSnapshot, options }: {
-  control: PlayerControlClient;
+  control: PlayerController;
   api: GroovenetClient;
   initialSnapshot: PlaybackSnapshot;
   options: PlayerTuiOptions;
@@ -102,6 +118,22 @@ export function PlayerTui({ control, api, initialSnapshot, options }: {
     return () => { control.off("event", onEvent); };
   // The startup actions should run once; the control client and API are stable for this view.
   }, []);
+
+  useEffect(() => {
+    if (!options.remote) return;
+    let cancelled = false;
+    const refreshDevices = async () => {
+      try {
+        const result = await control.request<AudioDevice[]>("devices");
+        if (!cancelled && Array.isArray(result)) setDevices(result);
+      } catch (error) {
+        if (!cancelled) { setDevices([]); setMessage(`Speaker observations unavailable: ${errorMessage(error)}`); }
+      }
+    };
+    void refreshDevices();
+    const timer = setInterval(() => { void refreshDevices(); }, 5000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [control, options.remote]);
 
   async function runControl(method: string, params?: Record<string, unknown>): Promise<unknown> {
     try {
@@ -165,11 +197,27 @@ export function PlayerTui({ control, api, initialSnapshot, options }: {
       if (item) await runControl("devices.select", { id: item.id });
       return;
     }
-    await runControl("play", { index: selected });
+    await runControl("play", options.remote ? { id: snapshot.queue[selected]?.id } : { index: selected });
   }
 
   useInput((input, key) => {
     const action = playerTuiAction(input, key, editingSearch);
+    if (options.remote && view === "devices" && ["U", "T", "t", "Y", "!"].includes(input)) {
+      const device = items[selected] as AudioDevice | undefined;
+      const policy = input === "U" || input === "Y" ? { allow_unknown: true } : input === "T" || input === "!" ? { takeover: true } : {};
+      if (["t", "Y", "!"].includes(input)) {
+        if (device) void runControl("devices.transfer", { id: device.id, ...policy });
+      } else void runControl("play", policy);
+      return;
+    }
+    if (options.remote && !editingSearch) {
+      if (input === "s") { void runControl("stop"); return; }
+      if (view === "queue" && (input === "[" || input === "]")) {
+        const entry = snapshot.queue[selected];
+        if (entry) void runControl("queue.move", { id: entry.id, to: Math.max(0, Math.min(snapshot.queue.length - 1, selected + (input === "[" ? -1 : 1))) });
+        return;
+      }
+    }
     if (!action) return;
     switch (action.type) {
       case "quit": exit(); break;
@@ -200,11 +248,16 @@ export function PlayerTui({ control, api, initialSnapshot, options }: {
     }
   });
 
+  const remote = (snapshot as Partial<RemoteSnapshot>).remote;
+  const output = remote ? devices.find((device) => device.id === (remote.player.assigned_output ?? remote.player.state.desired_output)) : undefined;
   const playbackLines = formatPlayback(snapshot);
   const rows = visibleWindow(items.length, selected, LIST_ROWS);
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
-      <Text bold color="cyan">Groovenet Player</Text>
+      <Text bold color="cyan">Groovenet Player · {remote ? `Remote: ${remote.player.name} [${remote.player.id}]` : "Local"}</Text>
+      {remote ? <Text color="yellow">{remote.connected ? "Connected" : "DISCONNECTED / state may be stale"} · revision={remote.player.revision} · desired={remote.player.state.desired_output ?? "none"} · assigned={remote.player.assigned_output ?? "none"} · {remote.player.state.checkpoint ? "saved checkpoint" : "live state"} · requested sender volume</Text> : null}
+      {remote ? <Text dimColor>{output?.name ?? "Speaker activity=unknown · observations unavailable"}</Text> : null}
+      {options.remote ? <Text dimColor>Devices: U play desired output allowing unknown · T play desired output taking over occupied · t transfer+play · Y transfer allowing unknown · ! transfer taking over occupied · s stop · [/] reorder queue · server audio continues after q</Text> : null}
       <Text>{playbackLines[0]}</Text>
       <Text dimColor>{playbackLines[1] || " "}</Text>
       <Text color="green">{playbackLines[2]}</Text>

@@ -4,6 +4,7 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GroovenetClient, Track } from "@groovenet/client";
 import { PlayerProtocolError, type PlayerControlClient, type PlayerDaemon, type PlaybackSnapshot } from "@groovenet/player";
+import { RemotePlayerController } from "./remotePlayer.js";
 import { PlayerTui, runPlayerTui, type PlayerTuiRuntime } from "./playerTui.js";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -250,4 +251,92 @@ describe("PlayerTui", () => {
     expect(control.close).toHaveBeenCalledOnce();
     expect(daemon.stop).toHaveBeenCalledOnce();
   });
+});
+
+describe("remote TUI", () => {
+  afterEach(() => act(() => cleanup()));
+  const remotePlayer = { id: "room", name: "Room", revision: 8, engine_id: "primary", assigned_output: "speaker",
+    state: { queue: [], current_entry_id: null, status: "stopped", position: 0, duration: null, volume: 50, error: null, desired_output: "speaker", checkpoint: true } };
+  it("selects only the remote controller and leaves audio running on exit or render failure", async () => {
+    const remote = Object.assign(new EventEmitter(), { refresh: vi.fn(async () => makeProps().initialSnapshot), startEvents: vi.fn(), close: vi.fn(async () => undefined) });
+    const createDaemon = vi.fn();
+    const createControl = vi.fn();
+    const runtime = { createRemote: vi.fn(() => remote), createDaemon, createControl, createApi: () => makeProps().api, render: vi.fn(() => ({ waitUntilExit: async () => undefined })) } as unknown as PlayerTuiRuntime;
+    await runPlayerTui({ remote: "room" }, runtime);
+    expect(runtime.createRemote).toHaveBeenCalledWith("room");
+    expect(remote.startEvents).toHaveBeenCalledOnce();
+    expect(remote.close).toHaveBeenCalledOnce();
+    expect(createDaemon).not.toHaveBeenCalled(); expect(createControl).not.toHaveBeenCalled();
+    remote.refresh.mockRejectedValueOnce(new Error("unreachable"));
+    await expect(runPlayerTui({ remote: "room" }, runtime)).rejects.toThrow("unreachable");
+    expect(createDaemon).not.toHaveBeenCalled();
+    await expect(runPlayerTui({ remote: "room", backend: "mpv" }, runtime)).rejects.toThrow("server engine settings");
+  });
+  it("displays remote identity/checkpoints/disconnection and explicit speaker controls", async () => {
+    const props = makeProps([{ id: "entry-uuid", track }]);
+    const snapshot = { ...props.initialSnapshot, remote: { player: remotePlayer, connected: true } };
+    const request = props.control.request as ReturnType<typeof vi.fn>;
+    request.mockResolvedValue(snapshot);
+    const app = render(<PlayerTui {...props} initialSnapshot={snapshot} options={{ remote: "room" }} />);
+    await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+    expect(app.lastFrame()).toContain("Remote: Room [room]");
+    expect(app.lastFrame()).toContain("saved checkpoint");
+    await act(async () => { app.stdin.write("\r"); });
+    expect(request).toHaveBeenCalledWith("play", { id: "entry-uuid" });
+    request.mockResolvedValueOnce([{ id: "speaker", name: "Room · activity=unknown · assigned=other · sender=unknown" }]);
+    await act(async () => { app.stdin.write("d"); });
+    expect(app.lastFrame()).toContain("activity=unknown");
+    for (const key of ["U", "T", "t", "Y", "!"]) await act(async () => { app.stdin.write(key); });
+    expect(request).toHaveBeenCalledWith("play", { allow_unknown: true });
+    expect(request).toHaveBeenCalledWith("play", { takeover: true });
+    expect(request).toHaveBeenCalledWith("devices.transfer", { id: "speaker" });
+    expect(request).toHaveBeenCalledWith("devices.transfer", { id: "speaker", allow_unknown: true });
+    expect(request).toHaveBeenCalledWith("devices.transfer", { id: "speaker", takeover: true });
+    await act(async () => { app.stdin.write("u"); });
+    await act(async () => { app.stdin.write("["); });
+    await act(async () => { app.stdin.write("]"); });
+    await act(async () => { app.stdin.write("s"); });
+    expect(request).toHaveBeenCalledWith("queue.move", { id: "entry-uuid", to: 0 });
+    expect(request).toHaveBeenCalledWith("stop", undefined);
+    await act(async () => { props.control.emit("event", { event: "state", data: { ...snapshot, remote: { player: { ...remotePlayer, state: { ...remotePlayer.state, checkpoint: false } }, connected: false } } }); });
+    expect(app.lastFrame()).toContain("DISCONNECTED");
+    expect(app.lastFrame()).toContain("live state");
+    await act(async () => { props.control.emit("event", { event: "state", data: { ...snapshot, queue: [], remote: { player: { ...remotePlayer, assigned_output: null, state: { ...remotePlayer.state, desired_output: null } }, connected: true } } }); });
+    await act(async () => { app.stdin.write("]"); });
+    request.mockResolvedValueOnce([]);
+    await act(async () => { app.stdin.write("d"); });
+    await act(async () => { app.stdin.write("t"); });
+  });
+});
+
+
+it("uses the default remote factory without touching local playback", async () => {
+  const refresh = vi.spyOn(RemotePlayerController.prototype, "refresh").mockResolvedValue(makeProps().initialSnapshot as never);
+  const events = vi.spyOn(RemotePlayerController.prototype, "startEvents").mockImplementation(() => undefined);
+  const close = vi.spyOn(RemotePlayerController.prototype, "close").mockResolvedValue(undefined);
+  try {
+    await runPlayerTui({ remote: "room" }, { render: () => ({ waitUntilExit: async () => undefined }) });
+    expect(refresh).toHaveBeenCalledOnce(); expect(events).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce();
+  } finally { refresh.mockRestore(); events.mockRestore(); close.mockRestore(); }
+});
+
+it("refreshes speaker observations and clears failed/stale reads after unmount", async () => {
+  let poll!: () => void;
+  const interval = vi.spyOn(globalThis, "setInterval").mockImplementation(((callback: () => void) => { poll = callback; return 123; }) as never);
+  const props = makeProps();
+  const snapshot = { ...props.initialSnapshot, remote: { player: { id: "room", name: "Room", revision: 1, assigned_output: null, state: { desired_output: "speaker", checkpoint: false } }, connected: true } };
+  const request = props.control.request as ReturnType<typeof vi.fn>;
+  request.mockImplementation(async (method: string) => method === "devices" ? [{ id: "speaker", name: "Room · activity=idle" }] : snapshot);
+  let app: ReturnType<typeof render>;
+  try {
+    await act(async () => { app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "room" }} />); });
+    expect(app!.lastFrame()).toContain("Room · activity=idle");
+    request.mockRejectedValueOnce(new Error("observer offline"));
+    await act(async () => { poll(); });
+    expect(app!.lastFrame()).toContain("Speaker observations unavailable: observer offline");
+    let resolve!: (value: unknown) => void;
+    request.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    await act(async () => { poll(); });
+    await act(async () => { app!.unmount(); resolve([]); });
+  } finally { interval.mockRestore(); await act(async () => cleanup()); }
 });

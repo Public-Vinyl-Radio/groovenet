@@ -4,6 +4,7 @@ import { printJson, printSuccess, printError } from "../output.js";
 
 type ConfigKey =
   | "api_base"
+  | "player_api_key"
   | "api_key"
   | "default_friend_id"
   | "username"
@@ -19,6 +20,7 @@ type ConfigKey =
 const VALID_KEYS: ConfigKey[] = [
   "api_base",
   "api_key",
+  "player_api_key",
   "default_friend_id",
   "username",
   "insecure_tls",
@@ -67,7 +69,7 @@ export function addConfigCommands(program: Command): void {
         update[key] = value;
       }
       saveConfig(update);
-      printSuccess(`✓ Set ${key} = ${key === "owntone_password" ? "***" : value}`);
+      printSuccess(`✓ Set ${key} = ${["api_key", "player_api_key", "owntone_password"].includes(key) ? "***" : value}`);
     });
 
   config
@@ -75,7 +77,10 @@ export function addConfigCommands(program: Command): void {
     .description("Show current configuration")
     .option("--json", "Output as JSON")
     .action((opts: { json?: boolean }) => {
-      const cfg = loadConfig();
+      const cfg = { ...loadConfig() };
+      for (const key of ["api_key", "player_api_key", "owntone_password"] as const) {
+        if (cfg[key]) cfg[key] = "***";
+      }
       if (opts.json) {
         printJson(cfg);
       } else {

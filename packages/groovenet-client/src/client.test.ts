@@ -1733,7 +1733,8 @@ describe("genre proposal review", () => {
 describe("server-player API", () => {
   it("lists players/engines, reads snapshots and devices, and posts revisioned commands", async () => {
     const player = { id: "lounge", revision: 2 };
-    const client = clientReturning({ players: [player] });
+    requestMock.mockResolvedValue({ data: { players: [player] } });
+    const client = new GroovenetClient({ baseUrl: "https://example.test", playerApiKey: "player-secret" });
     expect(await client.listServerPlayers()).toEqual([player]);
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/players" }));
     requestMock.mockResolvedValueOnce({ data: { engines: ["primary"] } });
@@ -1749,5 +1750,49 @@ describe("server-player API", () => {
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: { type: "pause", expected_revision: 2 } }));
     requestMock.mockResolvedValueOnce({ data: { devices: [] } });
     expect(await client.listServerPlayerDevices("lounge")).toEqual([]);
+  });
+});
+
+describe("server player credentials and events", () => {
+  it("requires a separate key for reads, writes and streams", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://example.test", apiKey: "collection" });
+    await expect(client.listServerPlayers()).rejects.toThrow("player_api_key");
+    await expect(client.commandServerPlayer("room", { type: "pause", expected_revision: 1 })).rejects.toThrow("player_api_key");
+    await expect(client.serverPlayerEvents("room", new AbortController().signal).next()).rejects.toThrow("player_api_key");
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it("overrides collection auth and refuses redirects on player endpoints", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://example.test", apiKey: "collection", playerApiKey: "household" });
+    requestMock.mockResolvedValue({ data: { players: [] } });
+    await client.listServerPlayers();
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ headers: { Authorization: "Bearer household" }, maxRedirects: 0 }));
+    await client.getTrack("track", 1);
+    expect(requestMock.mock.calls.at(-1)?.[0].headers).toBeUndefined();
+  });
+
+  it("preserves structured server error codes", async () => {
+    isAxiosErrorMock.mockReturnValue(true);
+    requestMock.mockRejectedValue({ response: { data: { error: "Stale state", code: "REVISION_CONFLICT" } } });
+    const client = new GroovenetClient({ baseUrl: "https://example.test", playerApiKey: "household" });
+    await expect(client.getServerPlayer("room")).rejects.toThrow("[REVISION_CONFLICT] Stale state");
+  });
+
+  it("parses SSE across chunks, ignores comments, validates events and closes streams", async () => {
+    const { Readable } = await import("node:stream");
+    const position = { type: "position", player_id: "room", revision: 1, current_entry_id: null, position: 2, duration: null, observed_at: "now", worker_instance: "00000000-0000-4000-8000-000000000001", sequence: 1 };
+    const stream = Readable.from([": heartbeat\r\nevent: position\r\ndata:", ` ${JSON.stringify(position)}\r\n\r\n`, "\n"]);
+    requestMock.mockResolvedValue({ data: stream });
+    const client = new GroovenetClient({ baseUrl: "https://example.test", playerApiKey: "household" });
+    const signal = new AbortController().signal;
+    const events = [];
+    for await (const event of client.serverPlayerEvents("room", signal)) events.push(event);
+    expect(events).toEqual([position]);
+    expect(stream.destroyed).toBe(true);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ url: "/players/room/events", responseType: "stream", signal, headers: { Accept: "text/event-stream", Authorization: "Bearer household" } }));
+    const invalid = Readable.from(["data: {}\n\n"]);
+    requestMock.mockResolvedValue({ data: invalid });
+    await expect(client.serverPlayerEvents("room", signal).next()).rejects.toThrow();
+    expect(invalid.destroyed).toBe(true);
   });
 });

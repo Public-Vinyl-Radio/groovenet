@@ -16,7 +16,7 @@ src/
 ```
 
 ```ts
-const client = new GroovenetClient({ baseUrl, apiKey, insecureTls });
+const client = new GroovenetClient({ baseUrl, apiKey, playerApiKey, insecureTls });
 ```
 
 `insecureTls` attaches an https agent with `rejectUnauthorized: false`, for
@@ -25,6 +25,10 @@ self-signed homelab certs.
 Every method funnels through one private `request()`, which unwraps axios errors
 into `Error("API Error: …")`, preferring the response body's `error` field, then
 `message`, then the axios message.
+
+All `/players` requests (including `serverPlayerEvents`) require `playerApiKey`;
+they never fall back to `apiKey` and refuse redirects. Event subscriptions expose
+validated shared events without retries/replay; consumers reconnect for a snapshot.
 
 ## Types
 

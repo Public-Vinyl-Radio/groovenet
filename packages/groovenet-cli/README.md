@@ -204,3 +204,68 @@ dedicated patched engine and a read-only shared audio library. Set
 `owntone_url`, `owntone_library`, optionally `owntone_output` and
 `owntone_password`; restart an existing daemon to apply them. Full setup and
 verification limits: [OwnTone backend](../groovenet-player/OWNTONE.md).
+
+### Named server players
+
+Local playback remains the default (`groovenet player`). To control server audio,
+select a persistent player explicitly on each invocation:
+
+```sh
+groovenet config set api_base https://groovenet.home.arpa/api
+# Set the separate household/admin PLAYER_API_KEY in the environment, or store it:
+groovenet config set player_api_key '<household-key>'
+groovenet player list --json
+groovenet player --remote lounge
+groovenet player --remote lounge status --json
+groovenet player --remote lounge queue add --playlist-id 7
+groovenet player --remote lounge devices list
+groovenet player --remote lounge devices select OUTPUT_ID
+groovenet player --remote lounge play --allow-unknown
+```
+
+`PLAYER_API_KEY` overrides `player_api_key`; the collection `api_key` is separate
+and remains unchanged. Config output redacts secrets, and saved config files are
+private (0600). Engine URLs/passwords and Home Assistant credentials stay on the
+server. A server operator creates players through the existing shared API; see
+[server player setup/API](../groovenet-player/SERVER_PLAYERS.md).
+
+The remote TUI shows identity/revision, its independent queue/current entry,
+position/state, saved checkpoint status, desired output, actual Groovenet
+assignment, and speaker observations refreshed every five seconds. Observations
+are evidence of activity, never sender identity. Disconnection marks state stale;
+errors such as busy, lost/interrupted playback and uncertain release are shown
+without automatic reconnection of audio. Volume is requested sender volume;
+some receivers ignore it.
+
+Normal playback keys retain their meanings. In remote mode `s` stops playback,
+and `[` / `]` move the selected queue entry. In the devices view Enter remembers
+the selected output; it does not connect/reserve it. `U` plays the **desired**
+output allowing unknown activity, and `T` plays it taking over occupied activity.
+These are explicit one-command acknowledgements. To detach another Groovenet
+player's speaker and play here, select it and press `t`; use `Y` to transfer
+allowing unknown activity or `!` to transfer taking over occupied activity.
+Queues remain independent. Each player uses one output; synchronized groups are
+deferred.
+
+Equivalent scripted operations use `--allow-unknown` or `--takeover`, plus:
+
+```sh
+groovenet player --remote study devices transfer OUTPUT_ID --allow-unknown --json
+groovenet player --remote study play ENTRY_UUID --json
+groovenet player --remote study queue move ENTRY_UUID 0 --json
+groovenet player --remote study queue remove ENTRY_UUID --json
+groovenet player --remote study queue clear --json
+```
+
+Flags on a bare remote TUI invocation acknowledge the policy for that session.
+Neither flag overrides another Groovenet player's claim without explicit
+transfer. A partial transfer fails the CLI command even with HTTP 200 and reports
+whether detachment/attachment happened. It never silently reconnects the source.
+Commands use revisions; on conflict state refreshes and the user decides whether
+to issue a new command. Ambiguous failures are never blindly retried.
+
+Reconnects wait for a fresh SSE snapshot and reject stale worker/sequence,
+revision and current-entry events. `q`, Ctrl-C, closing the laptop or losing the
+network leaves server audio running. An unreachable remote never starts local
+audio. `player stop --remote ID` explicitly stops playback while preserving the
+server player and queue; `player start` remains a local daemon operation.
