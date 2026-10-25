@@ -23,7 +23,7 @@ services:
       # Named volume keeps node_modules isolated from the host and independent of the image
       - dev_node_modules:/app/node_modules
       - ${APP_AUDIO_MOUNT:-music_data:/app/audio}
-      - ${APP_ALBUM_COVERS_SRC:-album_covers}:/app/public/uploads/album-covers
+      - ${APP_ALBUM_COVERS_SRC:-${HOME}/groovenet-covers}:/app/public/uploads/album-covers
       - essentia_data:/app/essentia-data
       - db_dumps:/app/dumps
       - discogs_exports:/app/discogs_exports
@@ -47,7 +47,7 @@ services:
       GAMDL_COOKIE_FILE: /app/cookies/gamdl_cookies.txt
     volumes:
       - ${WORKER_AUDIO_MOUNT:-music_data:/app/audio}
-      - ${WORKER_ALBUM_COVERS_SRC:-album_covers}:/app/public/uploads/album-covers
+      - ${WORKER_ALBUM_COVERS_SRC:-${HOME}/groovenet-covers}:/app/public/uploads/album-covers
       - essentia_data:/app/essentia-data
       - cookie_data:/app/cookies:ro
 

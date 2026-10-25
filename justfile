@@ -162,6 +162,10 @@ worktree-purge *args:
 worktree-seed *args:
   ./scripts/worktree/create-golden-seed.sh {{args}}
 
+# Golden seed from PRODUCTION (read-only): db dump + album covers over SSH. Needs PROD_SEED_HOST or --host user@host.
+worktree-seed-prod *args:
+  ./scripts/worktree/create-prod-seed.sh {{args}}
+
 worktree-install-caddy *args:
   ./scripts/worktree/install-caddy-host.sh {{args}}
 
