@@ -25,6 +25,19 @@ describe("SearchModeToggle touch target", () => {
     expect(getComputedStyle(group).height).toBe("44px");
     expect(getComputedStyle(group).flexGrow).toBe("1");
   });
+
+  it("stretches each segment to the group's height, so the ink fill has no gap under it", () => {
+    renderWithProviders(<SearchModeToggle value="lexical" onChange={vi.fn()} touchTarget />);
+
+    const group = screen.getByRole("radiogroup", { name: "Search mode", hidden: true });
+    const classes = [...group.classList];
+    const css = Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .map((rule) => rule.cssText)
+      .filter((text) => classes.some((c) => text.includes(`.${c}`)) && text.includes("label"))
+      .join("\n");
+    expect(css).toMatch(/height:\s*100%/);
+  });
 });
 
 describe("isTrackSearchMode", () => {
