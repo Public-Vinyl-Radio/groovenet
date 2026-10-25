@@ -116,6 +116,14 @@ Golden seeds are created and restored from
 refreshes the seed from a local stack; `just worktree-seed-prod` refreshes it
 from production. Override the location with `SEED_ROOT`, or use
 `just worktree-up --seed PATH` to restore a specific bundle.
+Production seed creation reads covers through the app container, independent
+of the host's Docker volume names. An explicit `PROD_SEED_COVERS_PATH` host-path
+override checks sudo access before dumping and prompts locally if needed.
+`latest` advances only after the database and covers
+have both finished copying. Existing worktree databases are preserved; to
+recreate one from the current seed, run `just worktree-purge` then
+`just worktree-up` in that worktree. Purging deletes all of that worktree's
+Compose volumes, including its database.
 When the task is done, run `just herdr-done` from a pane inside that
 workspace to tear down the stack and remove the workspace in one step (it
 refuses on uncommitted or unpushed changes unless `--force`, and can delete
