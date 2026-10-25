@@ -303,6 +303,12 @@ export const globalCss: Record<string, SystemStyleObject> = {
     "--tabbar-h": "calc(58px + var(--safe-bottom))",
     "--player-h": "0px",
     "--chrome-bottom": "calc(var(--tabbar-h) + var(--player-h))",
+    // PageHeader (phones): the sticky bar's height, and the shell's top padding,
+    // which the bar replaces once a page mounts one (`data-page-header`).
+    "--header-h": "52px",
+    "--content-pt": "calc(var(--safe-top) + 28px)",
+    "&[data-page-header]": { "--content-pt": "var(--safe-top)" },
+    scrollPaddingTop: "calc(var(--safe-top) + var(--header-h))",
     "&[data-player]": { "--player-h": "70px" },
     "&[data-tabbar-hidden]": { "--tabbar-h": "0px" },
     "@media (min-width: 768px)": {

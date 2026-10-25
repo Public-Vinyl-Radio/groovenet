@@ -2,8 +2,9 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Checkbox, Flex, Heading, Input, Link, Skeleton, Stack, Text, VStack } from "@chakra-ui/react";
+import { Box, Checkbox, Flex, Input, Link, Skeleton, Stack, Text, VStack } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
 import { countGenreTree, type CountedGenreNode } from "@/lib/genres/tree";
@@ -46,13 +47,11 @@ export default function GenresPage() {
 
   return (
     <PageContainer size="standard">
+      <PageHeader title="Genres" />
       <Stack gap={4}>
-        <Box>
-          <Heading size="2xl">Genres</Heading>
-          <Text color="fg.muted" mt={1}>
-            Browse the collection by genre. Counts include subgenres.
-          </Text>
-        </Box>
+        <Text color="fg.muted">
+          Browse the collection by genre. Counts include subgenres.
+        </Text>
 
         <Flex gap={4} align="center" flexWrap="wrap">
           <Input
