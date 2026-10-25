@@ -3,7 +3,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Playlist } from "@/types/track";
-import { formatDuration, playlistSummary } from "./PlaylistListItem";
+import { formatDuration, playlistCoverUrls, playlistSummary } from "./PlaylistListItem";
 import PlaylistListItem from "./PlaylistListItem";
 
 const base = { id: 1, name: "N", tracks: [{}, {}, {}], created_at: "2026-01-01T00:00:00Z" } as unknown as Playlist;
@@ -82,5 +82,84 @@ describe("PlaylistListItem", () => {
     first.unmount();
     renderWithProviders(<PlaylistListItem playlist={base} dayLabel="MON 10" {...props} />);
     expect(screen.getByTestId("playlist-day").textContent).toBe("MON 10");
+  });
+
+  it("renders a 2x2 mosaic from cover_urls, tinting the missing cells", async () => {
+    const { screen } = await import("@testing-library/react");
+    renderWithProviders(
+      <PlaylistListItem
+        playlist={{ ...base, cover_urls: ["/a.jpg", "/b.jpg"] } as unknown as Playlist}
+        onClick={vi.fn()}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />
+    );
+    expect(screen.getAllByTestId("mosaic-cover")).toHaveLength(2);
+    expect(screen.getAllByTestId("mosaic-tint")).toHaveLength(2);
+  });
+
+  it("falls back to four tinted blocks without cover_urls", async () => {
+    const { screen } = await import("@testing-library/react");
+    renderWithProviders(
+      <PlaylistListItem playlist={base} onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+    );
+    expect(screen.queryAllByTestId("mosaic-cover")).toHaveLength(0);
+    expect(screen.getAllByTestId("mosaic-tint")).toHaveLength(4);
+  });
+
+  it("clamps the name and shows the collaborator in the meta line", async () => {
+    const { screen } = await import("@testing-library/react");
+    const playlist = {
+      ...base,
+      name: "Long name",
+      set: { status: "planned", collaborators: [{ username: "ana" }], title: null },
+    } as unknown as Playlist;
+    renderWithProviders(
+      <PlaylistListItem playlist={playlist} onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+    );
+    expect(getComputedStyle(screen.getByText("Long name")).overflow).toBe("hidden");
+    expect(getComputedStyle(screen.getByText("w/ ana")).whiteSpace).toBe("nowrap");
+  });
+
+  it("shows the venue and the played date, and opens on click and Enter", async () => {
+    const { screen, fireEvent } = await import("@testing-library/react");
+    const onClick = vi.fn();
+    const playlist = {
+      ...base,
+      set: {
+        status: "performed",
+        collaborators: [],
+        venue_name: "Room 4",
+        last_performed_at: "2026-02-02T00:00:00Z",
+      },
+    } as unknown as Playlist;
+    renderWithProviders(
+      <PlaylistListItem playlist={playlist} onClick={onClick} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+    );
+    expect(screen.getByText("Room 4")).toBeTruthy();
+    expect(screen.getByText(/^Played /)).toBeTruthy();
+    const open = screen.getAllByRole("button")[0];
+    fireEvent.click(open);
+    fireEvent.keyDown(open, { key: "Enter" });
+    fireEvent.keyDown(open, { key: "a" });
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("PlaylistListItem loading", () => {
+  it("shows a spinner while the row is loading", async () => {
+    const { container } = renderWithProviders(
+      <PlaylistListItem playlist={base} isLoading onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+    );
+    expect(container.querySelector(".chakra-spinner")).toBeTruthy();
+  });
+});
+
+describe("playlistCoverUrls", () => {
+  it("keeps the first four non-empty strings and tolerates a missing field", () => {
+    expect(playlistCoverUrls(base)).toEqual([]);
+    const urls = playlistCoverUrls({ ...base, cover_urls: ["a", "", 3, "b", "c", "d", "e"] } as unknown as Playlist);
+    expect(urls).toEqual(["a", "b", "c", "d"]);
   });
 });
