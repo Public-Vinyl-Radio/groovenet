@@ -2,7 +2,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 
 const modalProps = vi.hoisted(() => vi.fn());
 const currentLibraryFriend = vi.hoisted(() => ({ id: 6, username: "dj" }));
@@ -38,11 +38,24 @@ vi.mock("@/components/AlbumArtworkDialog", () => ({
       </div>
     ) : null,
 }));
+vi.mock("@/hooks/useTrack", () => ({ useTrack: () => undefined }));
+vi.mock("@/components/TrackActionsMenu", () => ({
+  default: (props: { prominent?: boolean; onChangeArtwork?: () => void; onOpenTrackDebug?: () => void }) => (
+    <div data-testid="header-menu" data-prominent={String(props.prominent)}>
+      {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Header cover art</button>}
+      <button onClick={props.onOpenTrackDebug}>Header debug</button>
+    </div>
+  ),
+}));
 vi.mock("@/components/RelatedTracksSection", () => ({ default: () => null }));
 vi.mock("@/components/track-detail", () => ({
   TrackPlaylistsSection: () => null,
-  TrackHeader: (props: { showUsername?: boolean; onChangeArtwork?: () => void }) => (
-    <div data-testid="track-result" data-show-username={String(props.showUsername)}>
+  TrackHeader: (props: { showUsername?: boolean; onChangeArtwork?: () => void; menuInPageHeader?: boolean }) => (
+    <div
+      data-testid="track-result"
+      data-show-username={String(props.showUsername)}
+      data-menu-in-page-header={String(props.menuInPageHeader)}
+    >
       {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Cover Art...</button>}
     </div>
   ),
@@ -56,6 +69,7 @@ import TrackPage from "./page";
 
 beforeEach(() => {
   currentLibraryFriend.id = 6;
+  setViewportWidth(1280);
 });
 
 describe("TrackPage", () => {
@@ -121,5 +135,34 @@ describe("TrackPage breadcrumbs", () => {
     renderWithProviders(<TrackPage />);
     expect(screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href")).toBe("/");
     expect(screen.queryByRole("link", { name: "Blue Lines" })).toBeNull();
+  });
+});
+
+describe("TrackPage actions menu placement", () => {
+  it("keeps the menu in the track card on desktop", () => {
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
+    renderWithProviders(<TrackPage />);
+    expect(screen.queryByTestId("header-menu")).toBeNull();
+    expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("false");
+  });
+
+  it("moves the menu into the page header on a phone", async () => {
+    setViewportWidth(375);
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song", release_id: "r9", album: "Blue Lines" };
+    const { user } = renderWithProviders(<TrackPage />);
+    expect(screen.getByTestId("header-menu").dataset.prominent).toBe("true");
+    expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("true");
+
+    await user.click(screen.getByRole("button", { name: "Header cover art" }));
+    expect(screen.getByRole("dialog", { name: "Cover art" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Header debug" }));
+    expect(modalProps).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }));
+  });
+
+  it("offers no cover art in the header menu for a track without an album", () => {
+    setViewportWidth(375);
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
+    renderWithProviders(<TrackPage />);
+    expect(screen.queryByRole("button", { name: "Header cover art" })).toBeNull();
   });
 });

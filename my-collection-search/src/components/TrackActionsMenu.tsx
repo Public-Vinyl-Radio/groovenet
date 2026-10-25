@@ -59,7 +59,7 @@ type Props = {
   audioActions?: TrackAudioActions;
   /** Told when the track is played, queued or added to a playlist. */
   onAction?: (action: TrackMenuAction) => void;
-  /** A full-size outlined trigger on phones too (the track page header), not the compact ghost one. */
+  /** A full 44px borderless trigger on phones too (the track page header), not the compact one. */
   prominent?: boolean;
   /**
    * The menu on a track card: a 32px outline trigger on desktop and a bare 44px
@@ -299,7 +299,7 @@ export default function TrackActionsMenu({
       {/* Phone: centred modal (#735) */}
       <Box display={{ base: "block", md: "none" }}>
         <Button
-          variant={prominent ? "outline" : "ghost"}
+          variant="ghost"
           size="sm"
           px={2}
           {...(prominent ? { boxSize: "44px" } : {})}
