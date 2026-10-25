@@ -94,11 +94,16 @@ export default function PlaylistListItem({
                 </Badge>
               )}
             </HStack>
-            <HStack gap={2} color="fg.muted" fontSize="xs">
-              <Text>{playlist.tracks.length} tracks</Text>
-              {formatDuration(playlist.total_duration_seconds) && <><Text>·</Text><Text>{formatDuration(playlist.total_duration_seconds)}</Text></>}
+            <HStack data-testid="playlist-meta" columnGap={2} rowGap={0} wrap="wrap" color="fg.muted" fontSize="xs">
+              <Text whiteSpace="nowrap">{playlist.tracks.length} tracks</Text>
+              {formatDuration(playlist.total_duration_seconds) && (
+                <>
+                  <Text>·</Text>
+                  <Text whiteSpace="nowrap">{formatDuration(playlist.total_duration_seconds)}</Text>
+                </>
+              )}
               <Text>·</Text>
-              <Text>
+              <Text whiteSpace="nowrap">
                 {playlist.set?.last_performed_at
                   ? `Played ${formatDateWithRelative(playlist.set.last_performed_at)}`
                   : formatDateWithRelative(playlist.created_at)}

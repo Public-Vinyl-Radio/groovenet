@@ -55,4 +55,22 @@ describe("PlaylistListItem", () => {
     expect(await screen.findByText(/PLAYED/)).toBeTruthy();
     expect(screen.getAllByText("ana, bo").length).toBeGreaterThan(0);
   });
+
+  it("keeps each meta part on one line and lets the row wrap", async () => {
+    const { screen } = await import("@testing-library/react");
+    renderWithProviders(
+      <PlaylistListItem
+        playlist={{ ...base, total_duration_seconds: 7500 }}
+        onClick={vi.fn()}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />
+    );
+    const meta = screen.getByTestId("playlist-meta");
+    expect(getComputedStyle(meta).flexWrap).toBe("wrap");
+    for (const part of ["3 tracks", "2h 5m"]) {
+      expect(getComputedStyle(screen.getByText(part)).whiteSpace).toBe("nowrap");
+    }
+  });
 });
