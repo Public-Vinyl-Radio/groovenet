@@ -16,13 +16,10 @@ export function formatDuration(seconds?: number) {
 
 /**
  * Cover URLs for the 2x2 mosaic: the first four tracks' album art.
- * `cover_urls` is the field the list endpoint will return (#771); until it does
- * this is empty and every cell falls back to a tinted block.
+ * Missing cells fall back to a tinted block.
  */
 export function playlistCoverUrls(playlist: Playlist): string[] {
-  const urls = (playlist as { cover_urls?: unknown }).cover_urls;
-  if (!Array.isArray(urls)) return [];
-  return urls.filter((url): url is string => typeof url === "string" && url.length > 0).slice(0, 4);
+  return (playlist.cover_urls ?? []).filter((url) => url.length > 0).slice(0, 4);
 }
 
 const MOSAIC_TINTS = ["bg.muted", "bg.subtle", "bg.emphasized", "bg.muted"] as const;

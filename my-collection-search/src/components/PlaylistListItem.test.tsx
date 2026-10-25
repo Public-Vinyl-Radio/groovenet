@@ -88,7 +88,7 @@ describe("PlaylistListItem", () => {
     const { screen } = await import("@testing-library/react");
     renderWithProviders(
       <PlaylistListItem
-        playlist={{ ...base, cover_urls: ["/a.jpg", "/b.jpg"] } as unknown as Playlist}
+        playlist={{ ...base, cover_urls: ["/a.jpg", "/b.jpg"] }}
         onClick={vi.fn()}
         onPlay={vi.fn()}
         onDelete={vi.fn()}
@@ -157,9 +157,9 @@ describe("PlaylistListItem loading", () => {
 });
 
 describe("playlistCoverUrls", () => {
-  it("keeps the first four non-empty strings and tolerates a missing field", () => {
+  it("keeps the first four non-empty urls and tolerates a missing field", () => {
     expect(playlistCoverUrls(base)).toEqual([]);
-    const urls = playlistCoverUrls({ ...base, cover_urls: ["a", "", 3, "b", "c", "d", "e"] } as unknown as Playlist);
+    const urls = playlistCoverUrls({ ...base, cover_urls: ["a", "", "b", "c", "d", "e"] });
     expect(urls).toEqual(["a", "b", "c", "d"]);
   });
 });
