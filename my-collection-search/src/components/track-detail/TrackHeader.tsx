@@ -24,6 +24,8 @@ type Props = {
   showUsername?: boolean;
   onOpenTrackDebug?: () => void;
   onChangeArtwork?: () => void;
+  /** The phone page header carries the actions menu, so the strip below the card omits it. */
+  menuInPageHeader?: boolean;
 };
 
 // The header sizes itself from its own width, not the viewport's: the sidebar
@@ -146,6 +148,7 @@ export default function TrackHeader({
   showUsername = true,
   onOpenTrackDebug,
   onChangeArtwork,
+  menuInPageHeader = false,
 }: Props) {
   const track = useTrack(trackId, friendId) ?? fallbackTrack;
   const { replacePlaylist } = usePlaybackPlayer();
@@ -157,13 +160,13 @@ export default function TrackHeader({
   const actions = (placement: "card" | "below") => (
     <Flex
       data-testid={`track-actions-${placement}`}
-      gap={placement === "below" ? "8px" : "10px"}
+      gap={placement === "below" ? "10px" : "10px"}
       alignItems="center"
       flexWrap={placement === "card" ? "wrap" : undefined}
       css={
         placement === "card"
           ? { gridArea: "actions", alignSelf: "end", display: "none", [wide]: { display: "flex", padding: "16px 20px 20px" } }
-          : { marginTop: "16px", [wide]: { display: "none" } }
+          : { marginTop: "16px", paddingRight: "6px", [wide]: { display: "none" } }
       }
     >
       <Button
@@ -172,6 +175,7 @@ export default function TrackHeader({
         size={placement === "below" ? "sm" : undefined}
         flex={placement === "below" ? 1 : undefined}
         minH={placement === "below" ? "44px" : undefined}
+        minW={0}
         disabled={!track.local_audio_url}
         title={track.local_audio_url ? undefined : "No audio file for this track"}
         onClick={() => replacePlaylist([track], { autoplay: true, startIndex: 0 })}
@@ -189,12 +193,14 @@ export default function TrackHeader({
       >
         <FiPlus /> Add to playlist
       </Button>
-      <TrackActionsMenu
-        track={track}
-        prominent={placement === "below"}
-        onOpenTrackDebug={onOpenTrackDebug}
-        onChangeArtwork={onChangeArtwork}
-      />
+      {!(placement === "below" && menuInPageHeader) && (
+        <TrackActionsMenu
+          track={track}
+          prominent={placement === "below"}
+          onOpenTrackDebug={onOpenTrackDebug}
+          onChangeArtwork={onChangeArtwork}
+        />
+      )}
     </Flex>
   );
 

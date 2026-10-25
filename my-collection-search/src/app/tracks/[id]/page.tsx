@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Box, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { Box, Skeleton, Text, VStack, useBreakpointValue } from "@chakra-ui/react";
+import TrackActionsMenu from "@/components/TrackActionsMenu";
+import { useTrack } from "@/hooks/useTrack";
 import { toaster } from "@/components/ui/toaster";
 import { useUsername } from "@/providers/UsernameProvider";
 import { useTrackStore } from "@/stores/trackStore";
@@ -32,6 +34,7 @@ export default function TrackPage() {
   const showUsername = friendId !== currentUserFriend?.id;
   const [debugOpen, setDebugOpen] = useState(false);
   const [artworkOpen, setArtworkOpen] = useState(false);
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
 
   const {
     trackQuery,
@@ -44,7 +47,8 @@ export default function TrackPage() {
     extractCoverMutation,
   } = useTrackDetailQueries(trackId, friendId, hasValidFriendId);
 
-  const track = trackQuery.data;
+  const fetchedTrack = trackQuery.data;
+  const track = useTrack(trackId, friendId) ?? fetchedTrack;
   const crumbs: Crumb[] | undefined = track
     ? [
         { label: "Tracks", href: "/" },
@@ -58,7 +62,20 @@ export default function TrackPage() {
   return (
     <PageContainer size="standard">
       {hasValidFriendId && crumbs && track && (
-        <PageHeader title={track.title} breadcrumbs={crumbs} />
+        <PageHeader
+          title={track.title}
+          breadcrumbs={crumbs}
+          trailing={
+            isMobile ? (
+              <TrackActionsMenu
+                track={track}
+                prominent
+                onOpenTrackDebug={() => setDebugOpen(true)}
+                onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
+              />
+            ) : undefined
+          }
+        />
       )}
       {!hasValidFriendId && (
         <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
@@ -95,6 +112,7 @@ export default function TrackPage() {
                 friendId={friendId}
                 fallbackTrack={trackQuery.data}
                 showUsername={showUsername}
+                menuInPageHeader={isMobile}
                 onOpenTrackDebug={() => setDebugOpen(true)}
                 onChangeArtwork={
                   trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined
