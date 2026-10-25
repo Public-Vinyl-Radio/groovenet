@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Field, SegmentGroup, Text } from "@chakra-ui/react";
+import { Box, Field, SegmentGroup, Text } from "@chakra-ui/react";
 import type { TrackSearchMode } from "@/api-contract/schemas";
-import GenreFilter, { IncludeSimilarToggle } from "@/components/GenreFilter";
+import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
 import { BpmFields, KeyField, RatingField } from "@/components/AttributeFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { ChipToggle, ModalSection as Section } from "@/components/ui/RetroModalParts";
+import { ChipToggle, FiltersFooter, ModalSection as Section } from "@/components/ui/RetroModalParts";
 import { SEARCH_MODE_ITEMS } from "@/components/search/SearchModeToggle";
 import {
   TRACK_MISSING_OPTIONS,
@@ -27,13 +27,15 @@ const MISSING_CHIP_LABELS: Partial<Record<keyof TracksFilter, string>> = {
   missingMetadata: "BPM/key",
 };
 
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  mode: TrackSearchMode;
-  onModeChange: (mode: TrackSearchMode) => void;
+/**
+ * The Tracks filter state and its setters (#794). The page builds this once
+ * and hands the same object to the phone modal and the desktop panel, so a
+ * filter set in one is the filter shown in the other.
+ */
+export type TrackFilterControls = {
   genres: string[];
   onAddGenre: (slug: string) => void;
+  onRemoveGenre: (slug: string) => void;
   genreCounts?: ReadonlyMap<string, number>;
   includeSimilar: boolean;
   onIncludeSimilarChange: (checked: boolean) => void;
@@ -48,18 +50,21 @@ type Props = {
   onReset: () => void;
 };
 
+/** "Show 1,234 results", for the primary button. */
+export function showResultsLabel(count: number): string {
+  return `Show ${count.toLocaleString()} ${count === 1 ? "result" : "results"}`;
+}
+
 /**
- * The phone's "Search options" modal (#751): search mode and every filter in
- * one centred sheet. Changes apply as they're made, so the count on the
- * primary button follows them and "Show" just closes.
+ * Genre and key, tempo and rating, and the missing checks: the body of both
+ * the phone modal and the desktop panel. `first` drops the top rule when
+ * nothing sits above it.
  */
-export default function TrackSearchOptionsModal({
-  open,
-  onOpenChange,
-  mode,
-  onModeChange,
+export function TrackFilterSections({
+  first = false,
   genres,
   onAddGenre,
+  onRemoveGenre,
   genreCounts,
   includeSimilar,
   onIncludeSimilarChange,
@@ -67,43 +72,10 @@ export default function TrackSearchOptionsModal({
   onAttributesChange,
   missing,
   onToggleMissing,
-  activeCount,
-  resultCount,
-  onReset,
-}: Props) {
+}: TrackFilterControls & { first?: boolean }) {
   return (
-    <RetroDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Search options"
-      footer={
-        <Box display="flex" gap={2} p="12px 14px 12px 12px">
-          <Button variant="outline" minH="44px" flexShrink={0} disabled={activeCount === 0} onClick={onReset}>
-            Reset
-          </Button>
-          <Button variant="solid" minH="44px" flex="1" minW={0} onClick={() => onOpenChange(false)}>
-            Show {resultCount.toLocaleString()} {resultCount === 1 ? "result" : "results"}
-          </Button>
-        </Box>
-      }
-    >
-      <Section label="Search mode" first>
-        <SegmentGroup.Root
-          value={mode}
-          aria-label="Search mode"
-          h="44px"
-          css={{ "& label": { flex: 1, justifyContent: "center", height: "100%" } }}
-          onValueChange={(details) => onModeChange(details.value as TrackSearchMode)}
-        >
-          <SegmentGroup.Indicator />
-          <SegmentGroup.Items items={SEARCH_MODE_ITEMS} />
-        </SegmentGroup.Root>
-        <Text fontSize="13px" color="fg.muted" data-testid="search-mode-hint">
-          {SEARCH_MODE_HINTS[mode]}
-        </Text>
-      </Section>
-
-      <Section label="Genre and key">
+    <>
+      <Section label="Genre and key" first={first}>
         <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
           <Field.Root>
             <Field.Label>Genre</Field.Label>
@@ -111,6 +83,7 @@ export default function TrackSearchOptionsModal({
           </Field.Root>
           <KeyField value={attributes} onChange={onAttributesChange} />
         </Box>
+        <SelectedGenreTags selected={genres} onRemove={onRemoveGenre} />
         {genres.length > 0 && <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />}
       </Section>
 
@@ -133,6 +106,54 @@ export default function TrackSearchOptionsModal({
           ))}
         </Box>
       </Section>
+    </>
+  );
+}
+
+type Props = TrackFilterControls & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: TrackSearchMode;
+  onModeChange: (mode: TrackSearchMode) => void;
+};
+
+/**
+ * The phone's "Search options" modal (#751): search mode and every filter in
+ * one centred sheet. Changes apply as they're made, so the count on the
+ * primary button follows them and "Show" just closes.
+ */
+export default function TrackSearchOptionsModal({ open, onOpenChange, mode, onModeChange, ...filters }: Props) {
+  return (
+    <RetroDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Search options"
+      footer={
+        <FiltersFooter
+          activeCount={filters.activeCount}
+          onReset={filters.onReset}
+          showLabel={showResultsLabel(filters.resultCount)}
+          onShow={() => onOpenChange(false)}
+        />
+      }
+    >
+      <Section label="Search mode" first>
+        <SegmentGroup.Root
+          value={mode}
+          aria-label="Search mode"
+          h="44px"
+          css={{ "& label": { flex: 1, justifyContent: "center", height: "100%" } }}
+          onValueChange={(details) => onModeChange(details.value as TrackSearchMode)}
+        >
+          <SegmentGroup.Indicator />
+          <SegmentGroup.Items items={SEARCH_MODE_ITEMS} />
+        </SegmentGroup.Root>
+        <Text fontSize="13px" color="fg.muted" data-testid="search-mode-hint">
+          {SEARCH_MODE_HINTS[mode]}
+        </Text>
+      </Section>
+
+      <TrackFilterSections {...filters} />
     </RetroDialog>
   );
 }

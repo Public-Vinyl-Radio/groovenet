@@ -97,7 +97,7 @@ type SearchFieldProps = {
   placeholder?: string;
   /** The field's accessible name ("Search tracks"). */
   label: string;
-  /** Inside the field's right end, behind a 2px rule: the Tracks search-mode menu. */
+  /** Inside the field's right end, behind a 2px rule, from `md` up: the Tracks search-mode menu. */
   endElement?: React.ReactNode;
 };
 
@@ -149,7 +149,7 @@ export function SearchField({ value, onChange, onEnter, placeholder, label, endE
         />
       </Flex>
       {endElement ? (
-        <Flex flexShrink={0} borderLeftWidth="outline" borderColor="border.ink" align="stretch">
+        <Flex display={{ base: "none", md: "flex" }} flexShrink={0} borderLeftWidth="outline" borderColor="border.ink" align="stretch">
           {endElement}
         </Flex>
       ) : null}

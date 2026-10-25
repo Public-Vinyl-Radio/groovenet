@@ -55,7 +55,7 @@ describe("ListHeader (#794)", () => {
     expect(onChange).toHaveBeenCalledWith("a");
     await user.type(input, "{Enter}");
     expect(onEnter).toHaveBeenCalled();
-    expect(within(screen.getByTestId("search-field")).getByRole("button", { name: "Semantic" })).toBeTruthy();
+    expect(within(screen.getByTestId("search-field")).getByRole("button", { name: "Semantic", hidden: true })).toBeTruthy();
   });
 
   it("submits nothing on Enter without a handler", async () => {

@@ -14,6 +14,7 @@ function setup(props: Partial<React.ComponentProps<typeof TrackSearchOptionsModa
     onOpenChange: vi.fn(),
     onModeChange: vi.fn(),
     onAddGenre: vi.fn(),
+    onRemoveGenre: vi.fn(),
     onIncludeSimilarChange: vi.fn(),
     onAttributesChange: vi.fn(),
     onToggleMissing: vi.fn(),
@@ -72,6 +73,7 @@ describe("TrackSearchOptionsModal (#751)", () => {
         onModeChange={onModeChange}
         genres={[]}
         onAddGenre={vi.fn()}
+        onRemoveGenre={vi.fn()}
         includeSimilar={false}
         onIncludeSimilarChange={vi.fn()}
         attributes={{}}
