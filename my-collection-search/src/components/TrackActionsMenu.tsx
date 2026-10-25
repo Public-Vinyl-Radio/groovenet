@@ -5,14 +5,9 @@ import {
   Button,
   Menu,
   Portal,
-  Dialog,
-  Drawer,
   Box,
   Icon,
   Link,
-  Stack,
-  CloseButton,
-  Text,
 } from "@chakra-ui/react";
 import {
   FiCode,
@@ -30,13 +25,14 @@ import {
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { TrackCardContext } from "@/components/trackCardContext";
-import { RatingStars } from "@/components/TrackResult";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { SiApplemusic, SiYoutube, SiSoundcloud } from "react-icons/si";
 import NextLink from "next/link";
 
 import type { Track } from "@/types/track";
-import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import ConfirmDialog from "@/components/records/ConfirmDialog";
+import TrackActionsModal, { openInActions } from "@/components/TrackActionsModal";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
@@ -137,12 +133,11 @@ export default function TrackActionsMenu({
   const handleDeleteConfirm = async () => {
     if (!track.friend_id) {
       toaster.create({ title: "Track missing friend_id", type: "error" });
-      return;
+      throw new Error("Track missing friend_id");
     }
     setDeleteLoading(true);
     try {
       await softDeleteTrack({ track_id: track.track_id, friend_id: track.friend_id });
-      setDeleteConfirmOpen(false);
       toaster.create({ title: "Track deleted", type: "success" });
       queryClient.invalidateQueries({ queryKey: ["tracks"] });
     } catch (err) {
@@ -151,6 +146,7 @@ export default function TrackActionsMenu({
         description: err instanceof Error ? err.message : String(err),
         type: "error",
       });
+      throw err;
     } finally {
       setDeleteLoading(false);
     }
@@ -298,18 +294,9 @@ export default function TrackActionsMenu({
     fileInputRef.current?.click();
   };
 
-  const handleRemoveAudioConfirm = async () => {
-    try {
-      await Promise.resolve(removeAudio());
-      setRemoveAudioConfirmOpen(false);
-    } catch {
-      // errors are surfaced via toaster in the handler
-    }
-  };
-
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Phone: centred modal (#735) */}
       <Box display={{ base: "block", md: "none" }}>
         <Button
           variant={prominent ? "outline" : "ghost"}
@@ -322,146 +309,64 @@ export default function TrackActionsMenu({
         >
           <FiMoreVertical />
         </Button>
-        <Drawer.Root placement="bottom" open={drawerOpen} onOpenChange={(d) => setDrawerOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl" maxH="80vh">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Box pr={8}>
-                    <Text fontSize="xs" color="fg.muted">{track.artist}</Text>
-                    <Text fontWeight="semibold" fontSize="sm" lineClamp={1}>{track.title}</Text>
-                  </Box>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0} overflowY="auto">
-                  <Stack gap={0}>
-                    {/* Primary */}
-                    {hasAudio && (
-                      <DrawerItem
-                        icon={<FiPlay />}
-                        label="Play"
-                        onClick={() => { playTrack(); setDrawerOpen(false); }}
-                      />
-                    )}
-                    <DrawerItem
-                      icon={<FiPlusSquare />}
-                      label="Add to Queue"
-                      onClick={() => { queueTrack(); setDrawerOpen(false); }}
-                    />
-                    <DrawerItem
-                      icon={<FiPlus />}
-                      label="Add to Playlist"
-                      onClick={() => { openForTrack(track); setDrawerOpen(false); }}
-                    />
-                    {compact && (
-                      <Box
-                        px={5}
-                        py={3}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        css={{ "& .track-result-rating": { opacity: 1 } }}
-                      >
-                        <Text fontSize="sm">Rating</Text>
-                        <RatingStars
-                          size="sm"
-                          value={rating}
-                          onChange={(value) => {
-                            setRating(value);
-                            void saveTrackRating({
-                              track_id: track.track_id,
-                              friend_id: track.friend_id,
-                              star_rating: value,
-                            });
-                          }}
-                        />
-                      </Box>
-                    )}
-                    {!hideEdit && (
-                      <DrawerItem icon={<FiEdit />} label="Edit Track" href={editHref} />
-                    )}
-                    <DrawerItem
-                      icon={<FiZap />}
-                      label="Enrich Track"
-                      onClick={() => { handleEnrich(); setDrawerOpen(false); }}
-                    />
-                    {onChangeArtwork && (
-                      <DrawerItem
-                        icon={<FiImage />}
-                        label="Cover Art..."
-                        onClick={() => {
-                          onChangeArtwork();
-                          setDrawerOpen(false);
-                        }}
-                      />
-                    )}
-                    {onOpenTrackDebug && (
-                      <DrawerItem
-                        icon={<FiCode />}
-                        label="Track Debug"
-                        onClick={() => {
-                          onOpenTrackDebug();
-                          setDrawerOpen(false);
-                        }}
-                      />
-                    )}
-                    {/* Audio management */}
-                    {drawerDivider}
-                    {hasStreamingLinks && (
-                      <DrawerItem
-                        icon={<FiDownload />}
-                        label={fetchAudioLoading ? "Fetching Audio..." : "Fetch Audio"}
-                        disabled={fetchAudioLoading || fetchAudioDisabled}
-                        onClick={() => { void fetchAudio(); setDrawerOpen(false); }}
-                      />
-                    )}
-                    <DrawerItem
-                      icon={<FiUpload />}
-                      label={uploadLoading ? "Uploading..." : "Upload Audio"}
-                      disabled={uploadLoading}
-                      onClick={() => { handleUploadClick(); setDrawerOpen(false); }}
-                    />
-                    {/* Destructive: kept adjacent */}
-                    {drawerDivider}
-                    {hasAudio && (
-                      <DrawerItem
-                        icon={<FiTrash2 />}
-                        label={removeAudioLoading ? "Removing..." : "Remove Audio"}
-                        color="fg.error"
-                        disabled={removeAudioLoading}
-                        onClick={() => { setRemoveAudioConfirmOpen(true); setDrawerOpen(false); }}
-                      />
-                    )}
-                    <DrawerItem
-                      icon={<FiTrash2 />}
-                      label="Delete Track"
-                      color="fg.error"
-                      onClick={() => { setDeleteConfirmOpen(true); setDrawerOpen(false); }}
-                    />
-                    {/* External links */}
-                    {hasStreamingLinks && (
-                      <>
-                        {drawerDivider}
-                        {track.apple_music_url && (
-                          <DrawerItem icon={<Icon as={SiApplemusic} />} label="Apple Music" href={track.apple_music_url} external />
-                        )}
-                        {track.youtube_url && (
-                          <DrawerItem icon={<Icon as={SiYoutube} />} label="YouTube" href={track.youtube_url} external />
-                        )}
-                        {track.soundcloud_url && (
-                          <DrawerItem icon={<Icon as={SiSoundcloud} />} label="SoundCloud" href={track.soundcloud_url} external />
-                        )}
-                      </>
-                    )}
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <TrackActionsModal
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          track={track}
+          onPlay={hasAudio ? playTrack : undefined}
+          onQueue={queueTrack}
+          onPlaylist={() => openForTrack(track)}
+          rating={
+            compact
+              ? {
+                  value: rating,
+                  onChange: (value) => {
+                    setRating(value);
+                    void saveTrackRating({
+                      track_id: track.track_id,
+                      friend_id: track.friend_id,
+                      star_rating: value,
+                    });
+                  },
+                }
+              : undefined
+          }
+          library={[
+            ...(hideEdit ? [] : [{ label: "Edit track", href: editHref }]),
+            { label: "Enrich track", onClick: handleEnrich },
+            ...(onChangeArtwork ? [{ label: "Cover art...", onClick: onChangeArtwork }] : []),
+            ...(onOpenTrackDebug ? [{ label: "Track debug", onClick: onOpenTrackDebug }] : []),
+          ]}
+          audio={[
+            ...(hasStreamingLinks
+              ? [
+                  {
+                    label: fetchAudioLoading ? "Fetching audio..." : "Fetch audio",
+                    disabled: fetchAudioLoading || fetchAudioDisabled,
+                    onClick: () => void fetchAudio(),
+                  },
+                ]
+              : []),
+            {
+              label: uploadLoading ? "Uploading..." : "Upload audio",
+              disabled: uploadLoading,
+              onClick: handleUploadClick,
+            },
+          ]}
+          openIn={openInActions(track)}
+          danger={[
+            ...(hasAudio
+              ? [
+                  {
+                    label: removeAudioLoading ? "Removing..." : "Remove audio",
+                    disabled: removeAudioLoading,
+                    onClick: () => setRemoveAudioConfirmOpen(true),
+                  },
+                ]
+              : []),
+            { label: "Delete track", onClick: () => setDeleteConfirmOpen(true) },
+          ]}
+        />
       </Box>
 
       {/* Desktop: dropdown menu */}
@@ -595,63 +500,32 @@ export default function TrackActionsMenu({
       {playlistDialog}
       {nameDialog}
 
-      <Dialog.Root
+      <ConfirmDialog
         open={deleteConfirmOpen}
-        onOpenChange={(e) => !deleteLoading && setDeleteConfirmOpen(e.open)}
-        size="sm"
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Delete track?</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body>
-                <strong>{track.title}</strong> by {track.artist} will be soft-deleted and won&apos;t be re-imported from Discogs.
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={deleteLoading}>
-                  Cancel
-                </Button>
-                <Button colorPalette="danger" onClick={handleDeleteConfirm} loading={deleteLoading}>
-                  Delete
-                </Button>
-              </Dialog.Footer>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete track"
+        body={
+          <>
+            Delete <strong>{track.title}</strong> by {track.artist}? It is soft-deleted and won&apos;t be
+            re-imported from Discogs.
+          </>
+        }
+        confirmLabel="Delete track"
+        onConfirm={handleDeleteConfirm}
+        pending={deleteLoading}
+      />
 
-      <Dialog.Root
+      <ConfirmDialog
         open={removeAudioConfirmOpen}
-        onOpenChange={(e) => !removeAudioLoading && setRemoveAudioConfirmOpen(e.open)}
-        size="sm"
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Remove Audio</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body>
-                <Text>
-                  Are you sure you want to remove the local audio file? This action cannot be undone.
-                </Text>
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Button variant="outline" onClick={() => setRemoveAudioConfirmOpen(false)} disabled={removeAudioLoading}>
-                  Cancel
-                </Button>
-                <Button colorPalette="danger" onClick={handleRemoveAudioConfirm} loading={removeAudioLoading}>
-                  Remove
-                </Button>
-              </Dialog.Footer>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        onOpenChange={setRemoveAudioConfirmOpen}
+        title="Remove audio"
+        body="Remove the local audio file? This can't be undone."
+        confirmLabel="Remove audio"
+        onConfirm={async () => {
+          await Promise.resolve(removeAudio());
+        }}
+        pending={removeAudioLoading}
+      />
     </>
   );
 }
