@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.4.0...groovenet-client-v3.5.0) (2026-10-25)
+
+
+### Features
+
+* **cli:** control persistent named server players ([#726](https://github.com/Public-Vinyl-Radio/groovenet/issues/726)) ([657c93f](https://github.com/Public-Vinyl-Radio/groovenet/commit/657c93fca77eb8079e50c123e46389258731aea3))
+* **player:** add opt-in OwnTone backend with explicit EOF events ([#701](https://github.com/Public-Vinyl-Radio/groovenet/issues/701)) ([12b6b0a](https://github.com/Public-Vinyl-Radio/groovenet/commit/12b6b0a31016e7c9b67a7d559e9dcd9e6267934a))
+* **player:** persist named server players and independent queues ([#725](https://github.com/Public-Vinyl-Radio/groovenet/issues/725)) ([9f82664](https://github.com/Public-Vinyl-Radio/groovenet/commit/9f82664b2450a71747427593007906facabf9949))
+* **settings:** appearance — palette and light/dark/system picker ([#677](https://github.com/Public-Vinyl-Radio/groovenet/issues/677)) ([3c43663](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c436631b761ed362d5eabfa94ca283b8b3eb0fd))
+* **settings:** choose display, body and label fonts ([#686](https://github.com/Public-Vinyl-Radio/groovenet/issues/686)) ([c3ac994](https://github.com/Public-Vinyl-Radio/groovenet/commit/c3ac99409b6e042ab3fa07b22d92d9b850d32255))
+* **settings:** custom colour palette with contrast checks ([#696](https://github.com/Public-Vinyl-Radio/groovenet/issues/696)) ([ad232ba](https://github.com/Public-Vinyl-Radio/groovenet/commit/ad232bac162881250e815d21f1457af22ab667b2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.1.0 to 1.2.0
+
 ## [3.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.3.0...groovenet-client-v3.4.0) (2026-10-23)
 
 

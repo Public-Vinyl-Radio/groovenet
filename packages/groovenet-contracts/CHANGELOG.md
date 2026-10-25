@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.1.0...groovenet-contracts-v1.2.0) (2026-10-25)
+
+
+### Features
+
+* **player:** control persistent server players from the web ([#743](https://github.com/Public-Vinyl-Radio/groovenet/issues/743)) ([ef2cd93](https://github.com/Public-Vinyl-Radio/groovenet/commit/ef2cd93113599a3b59643a0bdd0353b4cfeb93d9))
+* **player:** persist named server players and independent queues ([#725](https://github.com/Public-Vinyl-Radio/groovenet/issues/725)) ([9f82664](https://github.com/Public-Vinyl-Radio/groovenet/commit/9f82664b2450a71747427593007906facabf9949))
+* **settings:** appearance — palette and light/dark/system picker ([#677](https://github.com/Public-Vinyl-Radio/groovenet/issues/677)) ([3c43663](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c436631b761ed362d5eabfa94ca283b8b3eb0fd))
+
 ## [1.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.0.1...groovenet-contracts-v1.1.0) (2026-10-23)
 
 
