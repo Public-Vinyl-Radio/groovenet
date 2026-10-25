@@ -63,8 +63,10 @@ export function Tile({
 
 export function ActionButton({ action, danger, onDone }: { action: ModalAction; danger?: boolean; onDone: () => void }) {
   const style = {
-    h: "44px",
+    minH: "44px",
     px: "10px",
+    py: "6px",
+    lineHeight: "1.2",
     display: "flex",
     alignItems: "center",
     gap: 2,
@@ -81,7 +83,7 @@ export function ActionButton({ action, danger, onDone }: { action: ModalAction; 
     _disabled: { opacity: 0.4, cursor: "not-allowed" },
   };
   const label = (
-    <Text as="span" lineClamp={1}>
+    <Text as="span" lineClamp={2}>
       {action.label}
     </Text>
   );
