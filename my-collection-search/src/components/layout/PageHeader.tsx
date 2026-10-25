@@ -36,6 +36,8 @@ type PageHeaderProps = {
   trailing?: React.ReactNode;
   /** Everything beyond two actions, in a "More" menu. */
   overflow?: PageHeaderOverflowItem[];
+  /** Labelled controls at the right of the title row from `md` up (SELECT, LIST / GRID, ADD ALBUM). */
+  desktopActions?: React.ReactNode;
 };
 
 const MAX_ACTIONS = 2;
@@ -55,6 +57,7 @@ export default function PageHeader({
   actions = [],
   trailing,
   overflow = [],
+  desktopActions,
 }: PageHeaderProps) {
   useRootFlag("data-page-header", true);
   const shown = actions.slice(0, MAX_ACTIONS);
@@ -165,6 +168,11 @@ export default function PageHeader({
           )}
           {trailing}
         </Flex>
+        {desktopActions ? (
+          <Flex data-testid="page-header-desktop-actions" display={{ base: "none", md: "flex" }} align="center" gap={3}>
+            {desktopActions}
+          </Flex>
+        ) : null}
       </Flex>
     </Box>
   );
