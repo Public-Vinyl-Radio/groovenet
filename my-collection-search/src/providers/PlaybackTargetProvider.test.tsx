@@ -41,7 +41,8 @@ describe("local and server playback target", () => {
   it("restores a viewed server, waits for authorization and a fresh snapshot, and never auto-plays", async () => {
     localStorage.setItem("mcs:playback-target", "lounge"); api.session.mockResolvedValueOnce({ authorized: false });
     const hook = mount(); await waitFor(() => expect(hook.result.current.target.target).toBe("lounge"));
-    act(() => { hook.result.current.playback.play(); hook.result.current.playback.appendToQueue(sampleTrack); });
+    act(() => { hook.result.current.playback.play(); hook.result.current.playback.pause(); hook.result.current.playback.appendToQueue(sampleTrack); hook.result.current.playback.replacePlaylist([sampleTrack], { autoplay: true }); });
+    expect(hook.result.current.target.problem).toContain("Unlock server access");
     expect(api.command).not.toHaveBeenCalled(); expect(api.subscribe).not.toHaveBeenCalled();
     await act(async () => hook.result.current.target.unlock("web-passphrase")); expect(api.unlock).toHaveBeenCalledWith("web-passphrase");
     await act(async () => snapshot()); expect(api.command).not.toHaveBeenCalled();

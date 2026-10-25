@@ -13,7 +13,7 @@ export function PlaybackTargetControl() {
   return <Dialog.Root size="lg" scrollBehavior="inside">
     <Box position="fixed" top="calc(var(--safe-top, 0px) + 8px)" right={3} zIndex={101}>
       <Dialog.Trigger asChild><Button variant="outline" size="sm" bg="bg.panel" minH="44px" maxW="calc(100vw - 24px)" overflow="hidden" textOverflow="ellipsis">Playback: {target.target === "" ? "Local browser" : `Server · ${selected}`}</Button></Dialog.Trigger>
-      {target.target !== "" && (target.remote.problem || target.remote.player?.state.error) && <Text role="alert" bg="bg.panel" borderWidth="outline" borderColor="border.ink" p={2} maxW="min(380px, calc(100vw - 24px))" fontSize="sm">{target.remote.problem ?? target.remote.player?.state.error?.message}</Text>}
+      {target.target !== "" && (target.remote.problem || target.problem || target.remote.player?.state.error) && <Text role="alert" bg="bg.panel" borderWidth="outline" borderColor="border.ink" p={2} maxW="min(380px, calc(100vw - 24px))" fontSize="sm">{target.remote.problem ?? target.problem ?? target.remote.player?.state.error?.message}</Text>}
     </Box>
     <Portal><Dialog.Backdrop /><Dialog.Positioner><Dialog.Content bg="bg.panel" borderWidth="outline" borderColor="border.ink" boxShadow="md">
       <Dialog.Header><Dialog.Title>Playback target</Dialog.Title><Dialog.CloseTrigger asChild><Button variant="outline" size="sm" aria-label="Close playback panel">Close</Button></Dialog.CloseTrigger></Dialog.Header>

@@ -51,7 +51,7 @@ function useTargetState() {
     try { await playerApi.lock(); setAuthorized(false); setPlayers([]); setProblem(null); }
     catch (error) { setProblem(error instanceof Error ? error.message : "Unable to lock players"); }
   };
-  return { target, select, players, authorized, unlock, lock, problem, loadPlayers, controller, remote };
+  return { target, select, players, authorized, unlock, lock, problem, reportProblem: setProblem, loadPlayers, controller, remote };
 }
 const Context = createContext<ReturnType<typeof useTargetState> | null>(null);
 export function PlaybackTargetProvider({ children }: { children: ReactNode }) {
@@ -71,17 +71,19 @@ export function usePlaybackPlayer() {
   const target = useOptionalPlaybackTarget();
   if (!target || target.target === "") return local;
   const { controller, remote } = target;
+  const reportLocked = () => target.reportProblem("Unlock server access before trying this action again.");
   const player = remote.player;
   const queue = player?.state.queue ?? [];
   const index = queue.findIndex(entry => entry.id === player?.state.current_entry_id);
   const add = async (items: Track[] | Track, at?: number) => {
     const tracks = (Array.isArray(items) ? items : [items]).map(({ track_id, friend_id }) => ({ track_id, friend_id }));
     if (!tracks.length) return null;
-    if (!controller) return null;
+    if (!controller) { reportLocked(); return null; }
     return controller.command({ type: "queue.add", tracks, ...(at === undefined ? {} : { at }) });
   };
   const replace = async (tracks: Track[], options: ReplacePlaylistOptions = {}) => {
-    if (!controller || !tracks.length) return;
+    if (!tracks.length) return;
+    if (!controller) { reportLocked(); return; }
     // There is no atomic queue.replace command. Add first so a failed request
     // cannot destroy the existing queue. Existing entries are retained remotely.
     const existingIds = new Set(controller.getSnapshot().player?.state.queue.map(entry => entry.id));
@@ -91,11 +93,14 @@ export function usePlaybackPlayer() {
     const entry = result.state.queue.filter(entry => !existingIds.has(entry.id))[offset];
     if (entry) await controller.command({ type: "play", entry_id: entry.id });
   };
-  const edit = (type: "play" | "pause" | "stop" | "next" | "previous" | "queue.clear") => { void controller?.command({ type }); };
+  const edit = (type: "play" | "resume" | "pause" | "stop" | "next" | "previous" | "queue.clear") => {
+    if (controller) void controller.command({ type });
+    else reportLocked();
+  };
   return {
     playlist: queue, playlistLength: queue.length, currentTrackIndex: index < 0 ? null : index,
     isPlaying: player?.state.status === "playing", currentTrack: queue[index] ?? null,
-    play: () => { void controller?.command({ type: player?.state.status === "paused" ? "resume" : "play" }); },
+    play: () => edit(player?.state.status === "paused" ? "resume" : "play"),
     pause: () => edit("pause"), stop: () => edit("stop"), playNext: () => edit("next"), playPrev: () => edit("previous"),
     clearQueue: () => edit("queue.clear"),
     replacePlaylist: (tracks: Track[], options?: ReplacePlaylistOptions) => { void replace(tracks, options); },

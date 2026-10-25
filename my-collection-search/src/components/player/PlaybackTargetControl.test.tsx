@@ -38,7 +38,8 @@ describe("playback target selector", () => {
     expect(screen.getByRole("alert").textContent).toBe("Connection lost");
     await user.click(screen.getByRole("button", { name: "Playback: Server · removed" }));
     expect(await screen.findByRole("option", { name: "Server · removed" })).toBeTruthy(); expect(screen.getByText(/Unlock access to view/)).toBeTruthy(); expect(screen.getAllByRole("alert", { hidden: true })).toHaveLength(2);
-    target.authorized = true; target.remote.problem = null; target.remote.player = player(); target.remote.player.state.error = { code: "FAIL", message: "Persistent failure" };
+    target.remote.problem = null; rerender(<PlaybackTargetControl />); expect(screen.getAllByText("Access unavailable")).toHaveLength(2);
+    target.problem = null; target.authorized = true; target.remote.player = player(); target.remote.player.state.error = { code: "FAIL", message: "Persistent failure" };
     rerender(<PlaybackTargetControl />); expect(screen.getByText(/No configured players found/)).toBeTruthy(); expect(screen.getByText("Persistent failure")).toBeTruthy();
   });
 });
