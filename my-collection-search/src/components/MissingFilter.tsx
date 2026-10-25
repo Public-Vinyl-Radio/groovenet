@@ -16,7 +16,7 @@ type MissingFilterProps<K extends string> = {
  * Each option with whether it's on, and whether it's disabled: a nested
  * check is off while the check above it is on, since that one covers it.
  */
-function optionStates<K extends string>(
+export function optionStates<K extends string>(
   options: MissingFilterOption<K>[],
   active: Partial<Record<K, boolean>>
 ) {

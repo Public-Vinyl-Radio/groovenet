@@ -13,12 +13,15 @@ const SearchPage = () => {
       <Flex gap={4} direction="row">
         {/* Search Results */}
         <PageContainer size="standard">
-          <PageHeader title="Tracks" />
+          {/* SearchResults renders the header itself: its kebab needs the search state. */}
           <Suspense
             fallback={
-              <Flex justify="center" pt={6}>
-                <Spinner />
-              </Flex>
+              <>
+                <PageHeader title="Tracks" />
+                <Flex justify="center" pt={6}>
+                  <Spinner />
+                </Flex>
+              </>
             }
           >
             <SearchResults />

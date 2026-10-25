@@ -38,6 +38,11 @@ describe("RetroDialog", () => {
     expect(getComputedStyle(close).position).toBe("static");
   });
 
+  it("pins a footer under the body", async () => {
+    renderDialog({ footer: <button>Apply</button> });
+    expect(await screen.findByRole("button", { name: "Apply" })).toBeTruthy();
+  });
+
   it("closes from the close button and Escape", async () => {
     const { user, onOpenChange } = renderDialog();
     await user.click(await screen.findByRole("button", { name: "Close" }));

@@ -4,7 +4,7 @@ import React from "react";
 import { SegmentGroup } from "@chakra-ui/react";
 import type { TrackSearchMode } from "@/api-contract/schemas";
 
-const ITEMS: { value: TrackSearchMode; label: string }[] = [
+export const SEARCH_MODE_ITEMS: { value: TrackSearchMode; label: string }[] = [
   { value: "lexical", label: "Keyword" },
   { value: "hybrid", label: "Hybrid" },
   { value: "semantic", label: "Semantic" },
@@ -17,7 +17,7 @@ export const SEARCH_MODE_PLACEHOLDERS: Record<TrackSearchMode, string> = {
 };
 
 export function isTrackSearchMode(value: string | null | undefined): value is TrackSearchMode {
-  return ITEMS.some((item) => item.value === value);
+  return SEARCH_MODE_ITEMS.some((item) => item.value === value);
 }
 
 // Segments fill the 44px group: the selection indicator is sized from the active
@@ -44,7 +44,7 @@ export default function SearchModeToggle({ value, onChange, size = "sm", touchTa
       onValueChange={(details) => onChange(details.value as TrackSearchMode)}
     >
       <SegmentGroup.Indicator />
-      <SegmentGroup.Items items={ITEMS} />
+      <SegmentGroup.Items items={SEARCH_MODE_ITEMS} />
     </SegmentGroup.Root>
   );
 }

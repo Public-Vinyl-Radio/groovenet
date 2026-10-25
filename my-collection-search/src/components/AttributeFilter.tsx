@@ -72,12 +72,8 @@ export default function AttributeFilter({ value, onChange }: AttributeFilterProp
   );
 }
 
-/**
- * The fields themselves. The key and rating apply as they're picked; the BPM
- * range applies on Enter or when a box loses focus, so typing 126 doesn't
- * search for 1 and 12 on the way.
- */
-export function AttributeFields({ value, onChange }: AttributeFilterProps) {
+/** The BPM range as two boxes; applies on Enter or blur, so typing 126 doesn't search 1 and 12. */
+export function BpmFields({ value, onChange }: AttributeFilterProps) {
   const [bpmMin, setBpmMin] = useState(value.bpm_min?.toString() ?? "");
   const [bpmMax, setBpmMax] = useState(value.bpm_max?.toString() ?? "");
 
@@ -97,88 +93,104 @@ export function AttributeFields({ value, onChange }: AttributeFilterProps) {
     if (event.key === "Enter") applyBpm();
   };
 
+  return (
+    <Field.Root invalid={inverted}>
+      <Field.Label>BPM</Field.Label>
+      <HStack gap={2}>
+        <Input
+          aria-label="Minimum BPM"
+          placeholder="Min"
+          type="number"
+          inputMode="decimal"
+          min={0}
+          size="sm"
+          fontSize="16px"
+          value={bpmMin}
+          onChange={(e) => setBpmMin(e.target.value)}
+          onBlur={applyBpm}
+          onKeyDown={onBpmKeyDown}
+        />
+        <Text color="fg.muted">–</Text>
+        <Input
+          aria-label="Maximum BPM"
+          placeholder="Max"
+          type="number"
+          inputMode="decimal"
+          min={0}
+          size="sm"
+          fontSize="16px"
+          value={bpmMax}
+          onChange={(e) => setBpmMax(e.target.value)}
+          onBlur={applyBpm}
+          onKeyDown={onBpmKeyDown}
+        />
+      </HStack>
+      <Field.ErrorText>Min must not be above max</Field.ErrorText>
+    </Field.Root>
+  );
+}
+
+export function KeyField({ value, onChange }: AttributeFilterProps) {
+  return (
+    <Field.Root>
+      <Field.Label>Key</Field.Label>
+      <NativeSelect.Root size="sm">
+        <NativeSelect.Field
+          aria-label="Key"
+          fontSize="16px"
+          value={value.key ?? ""}
+          onChange={(e) => onChange({ ...value, key: e.currentTarget.value || undefined })}
+        >
+          <option value="">Any key</option>
+          {KEY_FILTER_OPTIONS.map((key) => (
+            <option key={key.value} value={key.value}>
+              {key.label}
+            </option>
+          ))}
+        </NativeSelect.Field>
+        <NativeSelect.Indicator />
+      </NativeSelect.Root>
+    </Field.Root>
+  );
+}
+
+export function RatingField({ value, onChange, touchTarget = false }: AttributeFilterProps & { touchTarget?: boolean }) {
   const setRating = (stars: number) =>
     onChange({ ...value, star_rating: value.star_rating === stars ? undefined : stars });
 
   return (
+    <Field.Root>
+      <Field.Label>Minimum rating</Field.Label>
+      <HStack gap={0}>
+        {[1, 2, 3, 4, 5].map((stars) => {
+          const lit = (value.star_rating ?? 0) >= stars;
+          return (
+            <IconButton
+              key={stars}
+              aria-label={`${stars} star${stars > 1 ? "s" : ""} and up`}
+              aria-pressed={value.star_rating === stars}
+              size="sm"
+              variant="ghost"
+              boxSize={touchTarget ? "44px" : undefined}
+              color={lit ? "fg.warning" : "fg.muted"}
+              onClick={() => setRating(stars)}
+            >
+              <LuStar fill={lit ? "currentColor" : "none"} />
+            </IconButton>
+          );
+        })}
+      </HStack>
+    </Field.Root>
+  );
+}
+
+/** The fields together (BPM, key, rating), as the desktop popover shows them. */
+export function AttributeFields({ value, onChange }: AttributeFilterProps) {
+  return (
     <Stack gap={4}>
-      <Field.Root invalid={inverted}>
-        <Field.Label>BPM</Field.Label>
-        <HStack gap={2}>
-          <Input
-            aria-label="Minimum BPM"
-            placeholder="Min"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            size="sm"
-            fontSize="16px"
-            value={bpmMin}
-            onChange={(e) => setBpmMin(e.target.value)}
-            onBlur={applyBpm}
-            onKeyDown={onBpmKeyDown}
-          />
-          <Text color="fg.muted">–</Text>
-          <Input
-            aria-label="Maximum BPM"
-            placeholder="Max"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            size="sm"
-            fontSize="16px"
-            value={bpmMax}
-            onChange={(e) => setBpmMax(e.target.value)}
-            onBlur={applyBpm}
-            onKeyDown={onBpmKeyDown}
-          />
-        </HStack>
-        <Field.ErrorText>Min must not be above max</Field.ErrorText>
-      </Field.Root>
-
-      <Field.Root>
-        <Field.Label>Key</Field.Label>
-        <NativeSelect.Root size="sm">
-          <NativeSelect.Field
-            aria-label="Key"
-            fontSize="16px"
-            value={value.key ?? ""}
-            onChange={(e) =>
-              onChange({ ...value, key: e.currentTarget.value || undefined })
-            }
-          >
-            <option value="">Any key</option>
-            {KEY_FILTER_OPTIONS.map((key) => (
-              <option key={key.value} value={key.value}>
-                {key.label}
-              </option>
-            ))}
-          </NativeSelect.Field>
-          <NativeSelect.Indicator />
-        </NativeSelect.Root>
-      </Field.Root>
-
-      <Field.Root>
-        <Field.Label>Minimum rating</Field.Label>
-        <HStack gap={0}>
-          {[1, 2, 3, 4, 5].map((stars) => {
-            const lit = (value.star_rating ?? 0) >= stars;
-            return (
-              <IconButton
-                key={stars}
-                aria-label={`${stars} star${stars > 1 ? "s" : ""} and up`}
-                aria-pressed={value.star_rating === stars}
-                size="sm"
-                variant="ghost"
-                color={lit ? "fg.warning" : "fg.muted"}
-                onClick={() => setRating(stars)}
-              >
-                <LuStar fill={lit ? "currentColor" : "none"} />
-              </IconButton>
-            );
-          })}
-        </HStack>
-      </Field.Root>
+      <BpmFields value={value} onChange={onChange} />
+      <KeyField value={value} onChange={onChange} />
+      <RatingField value={value} onChange={onChange} />
     </Stack>
   );
 }
