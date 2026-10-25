@@ -1,20 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { Box, Button, Dialog, Flex, Input, NativeSelect, Portal, Text } from "@chakra-ui/react";
-import { usePlaybackTarget } from "@/providers/PlaybackTargetProvider";
+import { useEffect, useState } from "react";
+import { Button, Dialog, Flex, Input, NativeSelect, Portal, Text } from "@chakra-ui/react";
+import { useOptionalPlaybackTarget, usePlaybackTarget } from "@/providers/PlaybackTargetProvider";
+import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
+import { toaster } from "@/components/ui/toaster";
 import { ServerPlayerPanel } from "./ServerPlayerPanel";
+
+/** Short label for nav triggers: "Local browser" or "Server · Lounge". */
+export function usePlaybackTargetLabel(): string | null {
+  const target = useOptionalPlaybackTarget();
+  if (!target) return null;
+  if (target.target === "") return "Local browser";
+  const selected = target.remote.player?.name ?? target.players.find(player => player.id === target.target)?.name ?? target.target;
+  return `Server · ${selected}`;
+}
 
 export function PlaybackTargetControl() {
   const target = usePlaybackTarget();
   const [passphrase, setPassphrase] = useState("");
   const [unlocking, setUnlocking] = useState(false);
-  const selected = target.remote.player?.name ?? target.players.find(player => player.id === target.target)?.name ?? target.target;
-  return <Dialog.Root size="lg" scrollBehavior="inside">
-    <Box position="fixed" top="calc(var(--safe-top, 0px) + 8px)" right={3} zIndex={101}>
-      <Dialog.Trigger asChild><Button variant="outline" size="sm" bg="bg.panel" minH="44px" maxW="calc(100vw - 24px)" overflow="hidden" textOverflow="ellipsis">Playback: {target.target === "" ? "Local browser" : `Server · ${selected}`}</Button></Dialog.Trigger>
-      {target.target !== "" && (target.remote.problem || target.problem || target.remote.player?.state.error) && <Text role="alert" bg="bg.panel" borderWidth="outline" borderColor="border.ink" p={2} maxW="min(380px, calc(100vw - 24px))" fontSize="sm">{target.remote.problem ?? target.problem ?? target.remote.player?.state.error?.message}</Text>}
-    </Box>
+  const { open, setOpen } = usePlaybackTargetDialog();
+  // The trigger lives in the nav now, so a server problem has no button to sit under: surface it as a toast.
+  const problem = target.target !== "" ? target.remote.problem ?? target.problem ?? target.remote.player?.state.error?.message ?? null : null;
+  useEffect(() => {
+    if (problem) toaster.create({ id: "playback-target-problem", title: "Server playback", description: problem, type: "error" });
+  }, [problem]);
+  return <Dialog.Root size="lg" scrollBehavior="inside" open={open} onOpenChange={event => setOpen(event.open)}>
     <Portal><Dialog.Backdrop /><Dialog.Positioner><Dialog.Content bg="bg.panel" borderWidth="outline" borderColor="border.ink" boxShadow="md">
       <Dialog.Header><Dialog.Title>Playback target</Dialog.Title><Dialog.CloseTrigger asChild><Button variant="outline" size="sm" aria-label="Close playback panel">Close</Button></Dialog.CloseTrigger></Dialog.Header>
       <Dialog.Body>

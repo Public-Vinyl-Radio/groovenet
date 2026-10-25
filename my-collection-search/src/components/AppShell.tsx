@@ -18,7 +18,7 @@ import {
   CloseButton,
 } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FiChevronLeft, FiChevronRight, FiSearch, FiDisc, FiMoreHorizontal, FiCode, FiDroplet } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiSearch, FiSpeaker, FiDisc, FiMoreHorizontal, FiCode, FiDroplet } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload, LuTags } from "react-icons/lu";
 import {
@@ -35,6 +35,8 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useStandaloneMode } from "@/hooks/useStandaloneMode";
 import CommandPalette from "@/components/CommandPalette";
 import { useRootFlag } from "@/hooks/useRootFlag";
+import { usePlaybackTargetLabel } from "@/components/player/PlaybackTargetControl";
+import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 
 const baseMenuItems = [
   { href: "/", label: "Tracks" },
@@ -104,6 +106,8 @@ export default function AppShell({
   const secondaryMobileMenuItems = menuItems.slice(4);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const playbackLabel = usePlaybackTargetLabel();
+  const openPlaybackDialog = usePlaybackTargetDialog((s) => s.setOpen);
   const { setPaletteOpen } = useCommandPalette();
 
   React.useEffect(() => {
@@ -310,7 +314,29 @@ export default function AppShell({
             })}
           </VStack>
 
-          <Box mt="auto" px={isExpanded ? 2 : 1} pb={2} />
+          <Box mt="auto" px={isExpanded ? 2 : 1} pb={2}>
+            {playbackLabel !== null && (
+              <Tooltip content={`Playback: ${playbackLabel}`} disabled={isExpanded} openDelay={250}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  w="100%"
+                  minW={0}
+                  px={isExpanded ? 3 : 2}
+                  justifyContent={isExpanded ? "flex-start" : "center"}
+                  aria-label={`Playback: ${playbackLabel}`}
+                  onClick={() => openPlaybackDialog(true)}
+                >
+                  <Icon as={FiSpeaker} boxSize={5} color="fg.muted" />
+                  {isExpanded && (
+                    <Text truncate fontFamily="label" fontSize="xs" letterSpacing="0.06em" textTransform="uppercase">
+                      {playbackLabel}
+                    </Text>
+                  )}
+                </Button>
+              </Tooltip>
+            )}
+          </Box>
         </Flex>
       </Box>
 
@@ -390,6 +416,24 @@ export default function AppShell({
                       </Link>
                     );
                   })}
+                  {playbackLabel !== null && (
+                    <Box
+                      as="button"
+                      onClick={() => {
+                        openPlaybackDialog(true);
+                        setDrawerOpen(false);
+                      }}
+                      textAlign="left"
+                      px={5}
+                      py={3.5}
+                      _hover={{ bg: "bg.subtle" }}
+                    >
+                      <HStack gap={3} align="center">
+                        <Icon as={FiSpeaker} boxSize={5} color="fg.muted" />
+                        <Text>Playback: {playbackLabel}</Text>
+                      </HStack>
+                    </Box>
+                  )}
                   <Box
                     as="button"
                     onClick={() => {
