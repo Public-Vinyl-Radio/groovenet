@@ -82,13 +82,14 @@ export default function FilterChips({ chips, onToggle, onClearAll, leading, mt }
             colorPalette="neutral"
             onClick={() => onToggle(chip.key)}
             px={3}
+            minH={{ base: "44px", md: undefined }}
           >
             {chipLabel(chip)}
             {chip.active && <LuX />}
           </Button>
         ))}
         {anyActive && onClearAll && (
-          <Button size="xs" variant="ghost" onClick={onClearAll} color="fg.muted">
+          <Button size="xs" variant="ghost" onClick={onClearAll} color="fg.muted" minH={{ base: "44px", md: undefined }}>
             Clear all
           </Button>
         )}

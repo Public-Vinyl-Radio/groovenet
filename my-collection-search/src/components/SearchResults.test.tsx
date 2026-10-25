@@ -139,10 +139,11 @@ const lastFilter = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].filter;
 const lastIncludeSimilar = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].includeSimilar;
 const lastSimilarExclude = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].similarExclude;
 const lastFacets = () => mocks.useTrackGenreFacets.mock.calls.at(-1)?.[0];
-/** The phone filter sheet: jsdom renders the phone layout, so it's the one in reach. */
+/** The phone's Search options modal, opened from the header kebab. */
 const openFilters = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
-  await user.click(screen.getByRole("button", { name: /^Filters/ }));
-  return screen.findByRole("dialog", { name: "Filters" });
+  await user.click(screen.getByRole("button", { name: /^Tracks actions/ }));
+  await user.click(await screen.findByRole("menuitem", { name: /^Search options/ }));
+  return screen.findByRole("dialog", { name: "Search options" });
 };
 const genreNode = (id: string, name: string, parent_id: string | null = null) => ({
   id,
@@ -236,6 +237,54 @@ describe("SearchResults search mode", () => {
         expect.objectContaining({ query_length: 5, search_mode: "semantic" })
       )
     );
+  });
+});
+
+describe("SearchResults simplified toolbar and header menu (#751)", () => {
+  it("drops the mode switch and filter button from the phone toolbar", () => {
+    setViewportWidth(375);
+    renderWithProviders(<SearchResults />);
+    expect(screen.queryByRole("button", { name: /^Filters/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Hybrid" })).toBeNull();
+  });
+
+  it("shows no count on the kebab without filters", () => {
+    renderWithProviders(<SearchResults />);
+    expect(screen.getByRole("button", { name: "Tracks actions" })).toBeTruthy();
+  });
+
+  it("turns select mode on and off from the kebab", async () => {
+    seedTracks([trackFixture("t1")]);
+    mocks.useSearchResults.mockImplementation(() => ({
+      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
+      estimatedResults: 1, trackInfo: [{ trackId: "t1", friendId: 1 }],
+      playlistCounts: {}, hasMore: false, loadMore: mocks.loadMore,
+      initialLoading: false, loadingMore: false, addedGenres: [],
+    }));
+    const { user } = renderWithProviders(<SearchResults />);
+    expect(screen.queryByRole("button", { name: "Select t1" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Tracks actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Select tracks" }));
+    expect(await screen.findByRole("button", { name: "Select t1" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Tracks actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Stop selecting" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Select t1" })).toBeNull());
+  });
+
+  it("opens Search options with the active count, switches mode and shows the hint", async () => {
+    mocks.searchParams = new URLSearchParams("key=A+minor");
+    const { user } = renderWithProviders(<SearchResults />);
+    await user.click(screen.getByRole("button", { name: /^Tracks actions/ }));
+    expect(await screen.findByRole("menuitem", { name: "Search options (1)" })).toBeTruthy();
+    await user.click(screen.getByRole("menuitem", { name: "Search options (1)" }));
+    const dialog = await screen.findByRole("dialog", { name: "Search options" });
+
+    expect(within(dialog).getByTestId("search-mode-hint").textContent).toMatch(/words you type/);
+    await user.click(within(dialog).getByText("Semantic"));
+    await waitFor(() => expect(lastSearchMode()).toBe("semantic"));
+    expect(within(dialog).getByTestId("search-mode-hint").textContent).toMatch(/sound you describe/);
   });
 });
 
@@ -369,7 +418,7 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     expect(screen.getByRole("button", { name: /Missing audio/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /No YouTube/ })).toBeTruthy();
     expect(screen.getByText(/2 filters active/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Filters, 2 on" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tracks actions, 2 filters on" })).toBeTruthy();
   });
 
   it("turns a check on from the filter sheet, and off from its chip", async () => {
@@ -377,9 +426,9 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     expect(screen.queryByRole("button", { name: /Missing audio/ })).toBeNull();
 
     await openFilters(user);
-    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    await user.click(screen.getByRole("button", { name: "Audio" }));
     await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: /^Show/ }));
 
     await user.click(await screen.findByRole("button", { name: /Missing audio/ }));
     await waitFor(() => expect(lastFilter()).toEqual(["friend_id = 1"]));
@@ -424,12 +473,12 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     expect(mocks.replace).toHaveBeenLastCalledWith("/?star_rating=4");
   });
 
-  it("clears everything from the sheet's Clear all", async () => {
+  it("resets everything from the modal's Reset", async () => {
     mocks.searchParams = new URLSearchParams("key=A+minor&missingAudio=1");
     const { user } = renderWithProviders(<SearchResults />);
 
     const sheet = await openFilters(user);
-    await user.click(within(sheet).getByRole("button", { name: "Clear all" }));
+    await user.click(within(sheet).getByRole("button", { name: "Reset" }));
 
     await waitFor(() => expect(lastAttributes()).toEqual({}));
     expect(lastFilter()).toEqual(["friend_id = 1"]);
@@ -469,7 +518,7 @@ describe("SearchResults following a navigation (#376)", () => {
   it("doesn't mistake its own write landing for a navigation", async () => {
     const { user, rerender } = renderWithProviders(<SearchResults />);
     await openFilters(user);
-    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    await user.click(screen.getByRole("button", { name: "Audio" }));
     await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
 
     mocks.searchParams = new URLSearchParams("missingAudio=1");
@@ -482,7 +531,7 @@ describe("SearchResults following a navigation (#376)", () => {
   it("keeps a change made while its last write is still on the way", async () => {
     const { user } = renderWithProviders(<SearchResults />);
     await openFilters(user);
-    await user.click(screen.getByRole("checkbox", { name: "Audio" }));
+    await user.click(screen.getByRole("button", { name: "Audio" }));
     // The URL hasn't caught up yet when the next filter is set.
     await user.click(screen.getByRole("button", { name: "4 stars and up" }));
 

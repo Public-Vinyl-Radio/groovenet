@@ -21,6 +21,8 @@ type Props = {
   dismissible?: boolean;
   /** The element to focus on open; defaults to the first focusable. */
   initialFocusEl?: () => HTMLElement | null;
+  /** Pinned under the scrolling body, e.g. Reset and a primary action. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -38,6 +40,7 @@ export default function RetroDialog({
   header,
   dismissible = true,
   initialFocusEl,
+  footer,
   children,
 }: Props) {
   return (
@@ -90,6 +93,11 @@ export default function RetroDialog({
             <Dialog.Body p={0} flex="1" minH={0} overflowY="auto">
               {children}
             </Dialog.Body>
+            {footer ? (
+              <Dialog.Footer p={0} flexShrink={0} display="block" borderTopWidth="outline" borderColor="border.ink">
+                {footer}
+              </Dialog.Footer>
+            ) : null}
           </Dialog.Content>
         </Dialog.Positioner>
       </Portal>
