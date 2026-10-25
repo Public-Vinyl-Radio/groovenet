@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Box, Stack } from '@chakra-ui/react';
 import PlaylistListItem from '@/components/PlaylistListItem';
+import PlaylistMonthDivider, { TimelineRow } from '@/components/PlaylistMonthDivider';
 import type { Playlist } from '@/types/track';
 
 const noop = () => {};
@@ -190,4 +191,48 @@ export const LiveSetTicketNoVenue: Story = {
 export const LiveSetTicketBare: Story = {
   name: 'Live set ticket (no venue or links: no stub)',
   args: { playlist: liveSet({ venue_name: null, location_city: null }) },
+};
+
+const timelineDays = [
+  { day: '10', weekday: 'MON' },
+  { day: '5', weekday: 'WED' },
+  { day: '2', weekday: 'SUN' },
+];
+
+export const PhoneTimeline: Story = {
+  name: 'Month group on a phone (day column and rail)',
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
+  decorators: [
+    (Story) => (
+      <Box maxW="390px" mx="auto">
+        <Story />
+      </Box>
+    ),
+  ],
+  render: (args) => (
+    <Box as="section" aria-label="AUG 2026">
+      <PlaylistMonthDivider
+        group={{ key: '2026-08', label: 'AUG 2026', playlists: [], playlistCount: 3, setCount: 1 }}
+      />
+      <Stack gap={3}>
+        {[samplePlaylist, liveSet({ recording_url: 'https://example.com/recording' }), oldPlaylist].map((pl, i) => (
+          <TimelineRow key={pl.id} day={timelineDays[i]} isFirst={i === 0} isLast={i === 2}>
+            <PlaylistListItem {...args} playlist={pl} dayLabel={`${timelineDays[i].weekday} ${timelineDays[i].day}`} />
+          </TimelineRow>
+        ))}
+      </Stack>
+    </Box>
+  ),
+};
+
+export const PhoneTimelineMissingDate: Story = {
+  name: 'Day column with a missing date (rail only)',
+  decorators: PhoneTimeline.decorators,
+  render: (args) => (
+    <Stack gap={3}>
+      <TimelineRow day={null} isFirst isLast>
+        <PlaylistListItem {...args} playlist={samplePlaylist} />
+      </TimelineRow>
+    </Stack>
+  ),
 };
