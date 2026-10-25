@@ -38,10 +38,8 @@ import {
   updatePlaylist,
   type PlaylistTrackPayload,
 } from "@/services/internalApi/playlists";
-import { analyzeTrackAsync, fixTrackDuration } from "@/services/internalApi/tracks";
 import NamePlaylistDialog from "@/components/NamePlaylistDialog";
 import { queryKeys } from "@/lib/queryKeys";
-import { getTrackDurationSeconds } from "@/lib/trackUtils";
 import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
 import PageHeader from "@/components/layout/PageHeader";
@@ -105,8 +103,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const [duplicateName, setDuplicateName] = useState("");
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameName, setRenameName] = useState("");
-  const [isEnqueuingDownloads, setIsEnqueuingDownloads] = useState(false);
-  const [isBackfillingDuration, setIsBackfillingDuration] = useState(false);
   const [recommendationsModalOpen, setRecommendationsModalOpen] = useState(false);
   const [recommendationsPlaylistSnapshot, setRecommendationsPlaylistSnapshot] = useState<Track[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -196,100 +192,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     setPendingImport(null);
     setSelectedFriendId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleEnqueueMissingDownloads = async () => {
-    if (!tracks || tracks.length === 0) {
-      toaster.create({ title: "No tracks to enqueue", type: "info" });
-      return;
-    }
-
-    const missingAudio = tracks.filter(
-      (t) =>
-        !t.local_audio_url &&
-        (t.apple_music_url || t.youtube_url || t.soundcloud_url)
-    );
-
-    if (missingAudio.length === 0) {
-      toaster.create({ title: "All tracks already have audio", type: "info" });
-      return;
-    }
-
-    setIsEnqueuingDownloads(true);
-    let enqueued = 0;
-    let failed = 0;
-
-    for (const track of missingAudio) {
-      try {
-        await analyzeTrackAsync({
-          track_id: track.track_id,
-          friend_id: track.friend_id,
-          title: track.title,
-          artist: track.artist,
-          apple_music_url: track.apple_music_url || undefined,
-          youtube_url: track.youtube_url || undefined,
-          soundcloud_url: track.soundcloud_url || undefined,
-        });
-        enqueued += 1;
-      } catch (err) {
-        console.error("Failed to enqueue download for track", track.track_id, err);
-        failed += 1;
-      }
-    }
-
-    setIsEnqueuingDownloads(false);
-
-    toaster.create({
-      title: `Enqueued ${enqueued} track${enqueued === 1 ? "" : "s"} for download${
-        failed ? ` (${failed} failed)` : ""
-      }`,
-      type: failed ? "warning" : "success",
-    });
-  };
-
-  const handleBackfillDuration = async () => {
-    if (!tracks || tracks.length === 0) {
-      toaster.create({ title: "No tracks in playlist", type: "info" });
-      return;
-    }
-
-    const eligible = tracks.filter(
-      (t) => t.local_audio_url && getTrackDurationSeconds(t) === null
-    );
-
-    if (eligible.length === 0) {
-      toaster.create({
-        title: "All tracks with audio already have duration",
-        type: "info",
-      });
-      return;
-    }
-
-    setIsBackfillingDuration(true);
-    let enqueued = 0;
-    let failed = 0;
-
-    for (const track of eligible) {
-      try {
-        await fixTrackDuration({
-          track_id: track.track_id,
-          friend_id: track.friend_id!,
-          local_audio_url: track.local_audio_url,
-        });
-        enqueued += 1;
-      } catch (err) {
-        console.error("Failed to queue fix-duration for track", track.track_id, err);
-        failed += 1;
-      }
-    }
-
-    setIsBackfillingDuration(false);
-    toaster.create({
-      title: `Queued ${enqueued} track${enqueued === 1 ? "" : "s"} for duration backfill${
-        failed ? ` (${failed} failed)` : ""
-      }`,
-      type: failed ? "warning" : "success",
-    });
   };
 
   const handleDuplicatePlaylist = async (name: string) => {
@@ -585,12 +487,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           isCohesiveBlocksSorting={isCohesiveBlocksSorting}
           onDuplicate={playlistId ? () => setDuplicateDialogOpen(true) : undefined}
           onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
-          onEnqueueMissingDownloads={
-            isEnqueuingDownloads ? undefined : handleEnqueueMissingDownloads
-          }
-          onBackfillDuration={
-            isBackfillingDuration ? undefined : handleBackfillDuration
-          }
           onOpenRecommendations={() => {
             setRecommendationsPlaylistSnapshot([...tracks]);
             setRecommendationsModalOpen(true);
@@ -602,6 +498,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             })
             }
           playlistName={playlistName || undefined}
+          summary={`${tracksPlaylist.length} tracks · ${totalPlaytimeFormatted}`}
           />
         </Flex>
       </Flex>

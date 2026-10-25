@@ -1,28 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Button,
-  Menu,
-  Portal,
-  Drawer,
-  Box,
-  Flex,
-  Text,
-  Stack,
-  CloseButton,
-} from "@chakra-ui/react";
-import { menuDivider, drawerDivider, DrawerItem, DrawerSectionLabel } from "@/components/ui/action-menu-primitives";
+import { Button, Menu, Box, Flex } from "@chakra-ui/react";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import PlaylistActionsModal from "@/components/PlaylistActionsModal";
 import {
   FiCopy,
-  FiDownload,
   FiEdit,
   FiLayers,
   FiMoreVertical,
   FiPlay,
   FiSave,
   FiZap,
-  FiClock,
 } from "react-icons/fi";
 import { GiTakeMyMoney } from "react-icons/gi";
 import { PiDna, PiFilePdf } from "react-icons/pi";
@@ -39,13 +28,13 @@ export interface PlaylistActionsMenuProps {
   onOpenSaveDialog: () => void;
   onDuplicate?: () => void;
   onRename?: () => void;
-  onEnqueueMissingDownloads?: () => void;
-  onBackfillDuration?: () => void;
   onOpenRecommendations?: () => void;
   isGeneticSorting?: boolean;
   isCohesiveBlocksSorting?: boolean;
   enqueuePlaylist: () => void;
   playlistName?: string;
+  /** The strip's catalogue line on phones: `tracks · total time`. */
+  summary?: string;
 }
 
 
@@ -60,102 +49,60 @@ export default function PlaylistActionsMenu({
   onOpenSaveDialog,
   onDuplicate,
   onRename,
-  onEnqueueMissingDownloads,
-  onBackfillDuration,
   onOpenRecommendations,
   enqueuePlaylist,
   isGeneticSorting,
   isCohesiveBlocksSorting,
   playlistName,
+  summary = "",
 }: PlaylistActionsMenuProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const close = () => setDrawerOpen(false);
-
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Phone: centred modal (#751) */}
       <Box display={{ base: "block", md: "none" }}>
         <Button
           size="sm"
           variant="outline"
           aria-label="Playlist actions"
-          px={2}
+          boxSize="44px"
+          minW="44px"
+          px={0}
           disabled={disabled}
           onClick={() => setDrawerOpen(true)}
         >
           <FiMoreVertical />
         </Button>
-        <Drawer.Root placement="bottom" open={drawerOpen} onOpenChange={(d) => setDrawerOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl" maxH="85vh">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Box pr={8}>
-                    <Text fontWeight="semibold" fontSize="sm" lineClamp={1}>
-                      {playlistName ?? "Playlist Actions"}
-                    </Text>
-                  </Box>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0} overflowY="auto">
-                  <Stack gap={0}>
-                    <DrawerSectionLabel label="Sort" />
-                    <DrawerItem icon={<GiTakeMyMoney />} label="Greedy Order" onClick={() => { onSortGreedy(); close(); }} />
-                    <DrawerItem
-                      icon={<PiDna />}
-                      label={isGeneticSorting ? "Sorting..." : "Genetic Order"}
-                      disabled={isGeneticSorting}
-                      onClick={() => { onSortGenetic(); close(); }}
-                    />
-                    <DrawerItem
-                      icon={<FiLayers />}
-                      label={isCohesiveBlocksSorting ? "Sorting..." : "Cohesive Blocks"}
-                      disabled={isCohesiveBlocksSorting}
-                      onClick={() => { onSortCohesiveBlocks(); close(); }}
-                    />
-                    {onOpenRecommendations && (
-                      <DrawerItem icon={<FiZap />} label="AI Recommendations" onClick={() => { onOpenRecommendations(); close(); }} />
-                    )}
-                    {drawerDivider}
-                    <DrawerSectionLabel label="Export & Save" />
-                    <DrawerItem icon={<LuFileJson />} label="Export JSON" onClick={() => { onExportJson(); close(); }} />
-                    <DrawerItem icon={<LuFileInput />} label="Import & Append JSON" onClick={() => { onImportJson(); close(); }} />
-                    <DrawerItem icon={<PiFilePdf />} label="Export PDF" onClick={() => { onExportPdf(); close(); }} />
-                    <DrawerItem icon={<FiSave />} label="Save Playlist" onClick={() => { onOpenSaveDialog(); close(); }} />
-                    {(onDuplicate || onRename) && (
-                      <>
-                        {drawerDivider}
-                        {onDuplicate && (
-                          <DrawerItem icon={<FiCopy />} label="Duplicate Playlist" onClick={() => { onDuplicate(); close(); }} />
-                        )}
-                        {onRename && (
-                          <DrawerItem icon={<FiEdit />} label="Rename Playlist" onClick={() => { onRename(); close(); }} />
-                        )}
-                      </>
-                    )}
-                    {(onEnqueueMissingDownloads || onBackfillDuration) && (
-                      <>
-                        {drawerDivider}
-                        {onEnqueueMissingDownloads && (
-                          <DrawerItem icon={<FiDownload />} label="Enqueue Missing Downloads" onClick={() => { onEnqueueMissingDownloads(); close(); }} />
-                        )}
-                        {onBackfillDuration && (
-                          <DrawerItem icon={<FiClock />} label="Backfill Duration from Audio" onClick={() => { onBackfillDuration(); close(); }} />
-                        )}
-                      </>
-                    )}
-                    {drawerDivider}
-                    <DrawerItem icon={<FiPlay />} label="Enqueue Playlist" onClick={() => { enqueuePlaylist(); close(); }} />
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <PlaylistActionsModal
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          playlistName={playlistName}
+          summary={summary}
+          onEnqueue={enqueuePlaylist}
+          onSave={onOpenSaveDialog}
+          onDuplicate={onDuplicate}
+          onRename={onRename}
+          sort={[
+            { label: "Greedy order", onClick: onSortGreedy },
+            {
+              label: isGeneticSorting ? "Sorting..." : "Genetic order",
+              disabled: isGeneticSorting,
+              onClick: onSortGenetic,
+            },
+            {
+              label: isCohesiveBlocksSorting ? "Sorting..." : "Cohesive blocks",
+              disabled: isCohesiveBlocksSorting,
+              onClick: onSortCohesiveBlocks,
+            },
+            ...(onOpenRecommendations ? [{ label: "AI recommendations", onClick: onOpenRecommendations }] : []),
+          ]}
+          exportImport={[
+            { label: "Export JSON", onClick: onExportJson },
+            { label: "Export PDF", onClick: onExportPdf },
+            { label: "Import & append JSON", onClick: onImportJson },
+          ]}
+        />
       </Box>
 
       {/* Desktop: dropdown menu */}
@@ -216,21 +163,6 @@ export default function PlaylistActionsMenu({
                   {onRename && (
                     <Menu.Item value="rename" onSelect={onRename}>
                       <FiEdit /> Rename Playlist
-                    </Menu.Item>
-                  )}
-                </>
-              )}
-              {(onEnqueueMissingDownloads || onBackfillDuration) && (
-                <>
-                  {menuDivider}
-                  {onEnqueueMissingDownloads && (
-                    <Menu.Item value="enqueue-missing" onSelect={onEnqueueMissingDownloads}>
-                      <FiDownload /> Enqueue Missing Downloads
-                    </Menu.Item>
-                  )}
-                  {onBackfillDuration && (
-                    <Menu.Item value="backfill-duration" onSelect={onBackfillDuration}>
-                      <FiClock /> Backfill Duration from Audio
                     </Menu.Item>
                   )}
                 </>

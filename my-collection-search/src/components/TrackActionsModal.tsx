@@ -1,22 +1,15 @@
 "use client";
 
 import React from "react";
-import { Box, Image, Link, Text, chakra } from "@chakra-ui/react";
-import NextLink from "next/link";
+import { Box, Image, Text } from "@chakra-ui/react";
 import { FiPlay, FiPlusSquare, FiList } from "react-icons/fi";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
+import { Group, TileRow, overline, type ModalAction, type ModalTile } from "@/components/ui/RetroModalParts";
 import { RatingStars } from "@/components/TrackResult";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import type { Track } from "@/types/track";
 
-export type ModalAction = {
-  label: string;
-  onClick?: () => void;
-  /** An internal route (client navigation) or, with `external`, a new tab. */
-  href?: string;
-  external?: boolean;
-  disabled?: boolean;
-};
+export type { ModalAction };
 
 type Props = {
   open: boolean;
@@ -33,14 +26,6 @@ type Props = {
   danger: ModalAction[];
 };
 
-const overline = {
-  fontFamily: "label",
-  fontSize: "12px",
-  lineHeight: "16px",
-  letterSpacing: "0.06em",
-  textTransform: "uppercase" as const,
-};
-
 /** The catalogue line of the strip: LP ID · side · BPM · key. */
 export function catalogueLine(track: Track): string {
   const camelot = keyToCamelot(track.key);
@@ -55,117 +40,36 @@ export function catalogueLine(track: Track): string {
     .join(" · ");
 }
 
-function Tile({
-  icon,
-  label,
-  solid,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  solid?: boolean;
-  onClick: () => void;
-}) {
+/** The label strip of a track modal: art, catalogue line, title and artist. */
+export function TrackStripHeader({ track }: { track: Track }) {
+  const art = track.audio_file_album_art_url || track.album_thumbnail;
+  const catalogue = catalogueLine(track);
   return (
-    <Box
-      as="button"
-      onClick={onClick}
-      h="68px"
-      display="flex"
-      flexDirection="column"
-      alignItems="center"
-      justifyContent="center"
-      gap="6px"
-      borderWidth="outline"
-      borderColor="border.ink"
-      bg={solid ? "border.ink" : "bg"}
-      color={solid ? "bg" : "fg"}
-      boxShadow={solid ? "sm" : "xs"}
-      _hover={{ filter: "brightness(1.08)" }}
-      _active={{ filter: "brightness(0.94)" }}
-    >
-      <Box fontSize="20px" aria-hidden="true" display="flex">
-        {icon}
+    <>
+      <Box
+        boxSize="44px"
+        flexShrink={0}
+        borderWidth="outline"
+        borderColor="bg"
+        bg="fg.muted"
+        overflow="hidden"
+      >
+        {art && <Image src={art} alt="" boxSize="full" objectFit="cover" />}
       </Box>
-      <Text {...overline} lineHeight="14px" fontSize="11px" fontWeight="semibold">
-        {label}
-      </Text>
-    </Box>
-  );
-}
-
-function ActionButton({ action, danger, onDone }: { action: ModalAction; danger?: boolean; onDone: () => void }) {
-  const style = {
-    h: "44px",
-    px: "10px",
-    display: "flex",
-    alignItems: "center",
-    gap: 2,
-    borderWidth: "outline",
-    borderColor: danger ? "status.missing.border" : "border",
-    color: danger ? "danger.fg" : "fg",
-    fontFamily: "label",
-    fontSize: "13px",
-    fontWeight: "semibold",
-    letterSpacing: "0.02em",
-    textAlign: "left" as const,
-    minW: 0,
-    _hover: { bg: danger ? "danger.subtle" : "bg.muted", textDecoration: "none" },
-    _disabled: { opacity: 0.4, cursor: "not-allowed" },
-  };
-  const label = (
-    <Text as="span" lineClamp={1}>
-      {action.label}
-    </Text>
-  );
-  if (action.href && !action.disabled) {
-    return action.external ? (
-      <Link {...style} href={action.href} target="_blank" rel="noopener noreferrer" onClick={onDone}>
-        {label}
-      </Link>
-    ) : (
-      <Link {...style} as={NextLink} href={action.href} onClick={onDone}>
-        {label}
-      </Link>
-    );
-  }
-  return (
-    <chakra.button
-      {...style}
-      disabled={action.disabled}
-      onClick={() => {
-        action.onClick?.();
-        onDone();
-      }}
-    >
-      {label}
-    </chakra.button>
-  );
-}
-
-function Group({
-  label,
-  actions,
-  danger,
-  onDone,
-}: {
-  label: string;
-  actions: ModalAction[];
-  danger?: boolean;
-  onDone: () => void;
-}) {
-  if (actions.length === 0) return null;
-  return (
-    <Box p="10px 14px 12px 12px" borderTopWidth="rule" borderColor="border" display="flex" flexDirection="column" gap={2}>
-      <Text {...overline} color={danger ? "danger.fg" : "fg.muted"}>
-        {label}
-      </Text>
-      <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
-        {actions.map((action) => (
-          <ActionButton key={action.label} action={action} danger={danger} onDone={onDone} />
-        ))}
+      <Box flex="1" minW={0}>
+        {catalogue && (
+          <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8} lineClamp={1}>
+            {catalogue}
+          </Text>
+        )}
+        <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+          {track.title}
+        </RetroDialogTitle>
+        <Text fontSize="13px" lineHeight="18px" opacity={0.8} lineClamp={1}>
+          {track.artist}
+        </Text>
       </Box>
-    </Box>
+    </>
   );
 }
 
@@ -184,60 +88,19 @@ export default function TrackActionsModal({
   danger,
 }: Props) {
   const close = () => onOpenChange(false);
-  const art = track.audio_file_album_art_url || track.album_thumbnail;
-  const catalogue = catalogueLine(track);
-  const tiles = [
-    onPlay && { label: "Play", icon: <FiPlay fill="currentColor" />, solid: true, onClick: onPlay },
+  const tiles: ModalTile[] = [
+    ...(onPlay ? [{ label: "Play", icon: <FiPlay fill="currentColor" />, solid: true, onClick: onPlay }] : []),
     { label: "Queue", icon: <FiPlusSquare />, onClick: onQueue },
     { label: "Playlist", icon: <FiList />, onClick: onPlaylist },
-  ].filter((tile): tile is NonNullable<typeof tile> => Boolean(tile));
+  ];
 
   return (
     <RetroDialog
       open={open}
       onOpenChange={onOpenChange}
-      header={
-        <>
-          <Box
-            boxSize="44px"
-            flexShrink={0}
-            borderWidth="outline"
-            borderColor="bg"
-            bg="fg.muted"
-            overflow="hidden"
-          >
-            {art && <Image src={art} alt="" boxSize="full" objectFit="cover" />}
-          </Box>
-          <Box flex="1" minW={0}>
-            {catalogue && (
-              <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8} lineClamp={1}>
-                {catalogue}
-              </Text>
-            )}
-            <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
-              {track.title}
-            </RetroDialogTitle>
-            <Text fontSize="13px" lineHeight="18px" opacity={0.8} lineClamp={1}>
-              {track.artist}
-            </Text>
-          </Box>
-        </>
-      }
+      header={<TrackStripHeader track={track} />}
     >
-      <Box display="grid" gridTemplateColumns={`repeat(${tiles.length}, minmax(0, 1fr))`} gap="10px" p="14px 14px 12px 12px">
-        {tiles.map((tile) => (
-          <Tile
-            key={tile.label}
-            icon={tile.icon}
-            label={tile.label}
-            solid={"solid" in tile ? tile.solid : false}
-            onClick={() => {
-              tile.onClick();
-              close();
-            }}
-          />
-        ))}
-      </Box>
+      <TileRow tiles={tiles} onDone={close} />
       {rating && (
         <Box
           display="flex"

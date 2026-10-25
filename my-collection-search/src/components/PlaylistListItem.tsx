@@ -7,7 +7,7 @@ import { formatDateWithRelative } from "@/lib/date";
 import type { Playlist } from "@/types/track";
 import { FiMapPin, FiUsers } from "react-icons/fi";
 
-function formatDuration(seconds?: number) {
+export function formatDuration(seconds?: number) {
   if (!seconds) return null;
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -20,7 +20,22 @@ interface PlaylistListItemProps {
   onClick: () => void;
   onPlay: () => void;
   onDelete: () => void;
+  onEnqueue: () => void;
+  onExportPdf?: () => void;
   onCreateSet?: () => void;
+}
+
+/** The phone modal strip: count, duration and date. */
+export function playlistSummary(playlist: Playlist): string {
+  return [
+    `${playlist.tracks.length} tracks`,
+    formatDuration(playlist.total_duration_seconds),
+    playlist.set?.last_performed_at
+      ? `Played ${formatDateWithRelative(playlist.set.last_performed_at)}`
+      : formatDateWithRelative(playlist.created_at),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export default function PlaylistListItem({
@@ -29,6 +44,8 @@ export default function PlaylistListItem({
   onClick,
   onPlay,
   onDelete,
+  onEnqueue,
+  onExportPdf,
   onCreateSet,
 }: PlaylistListItemProps) {
   return (
@@ -113,6 +130,11 @@ export default function PlaylistListItem({
             onOpen={onClick}
             onPlay={onPlay}
             onDelete={onDelete}
+            onEnqueue={onEnqueue}
+            onExportPdf={onExportPdf}
+            summary={playlistSummary(playlist)}
+            played={playlist.set?.status === "performed"}
+            collaborators={playlist.set?.collaborators.map((person) => person.username).join(", ")}
             onCreateSet={playlist.set ? undefined : onCreateSet}
           />
         </HStack>
