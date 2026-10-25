@@ -207,3 +207,6 @@ is closed, so they need a follow-up issue as their owner.
 | POST | `/api/players/{playerId}/commands` | players | contracts | Explicit transfer and conflicting-edit rejection. |
 | GET | `/api/players/{playerId}/devices` | players | contracts | Observations separate from assignments. |
 | GET | `/api/players/{playerId}/events` | players | exception | SSE full snapshots use ServerPlayerEvent; not a JSON response. |
+| GET | `/api/players/browser/session` | players | exception | App-only household browser session status; no worker credential in responses. |
+| POST | `/api/players/browser/session` | players | exception | App-only web passphrase unlock; scoped Secure HttpOnly cookie. |
+| DELETE | `/api/players/browser/session` | players | exception | App-only session logout; leaves server playback running. |

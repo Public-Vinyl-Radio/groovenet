@@ -4,7 +4,9 @@ Server players run on the Debian Docker host. Closing a laptop, TUI or event
 subscription leaves playback running. Each named player has its own persistent
 queue and one dedicated OwnTone engine. Different players can use different
 speakers concurrently; synchronized groups are deferred. This is the backend
-for #693; remote TUI controls are tracked in #694. There is no new web/iOS UI yet.
+for #693; remote TUI controls are tracked in #694. The web UI can control these sessions through an optional household browser
+session; see [web controls](../../my-collection-search/docs/server-player-web.md).
+There is no iOS UI yet.
 
 ## Deployment
 
@@ -59,7 +61,9 @@ Configure player settings:
 * Generate `PLAYER_API_KEY` with `openssl rand -hex 32`. It is a **shared
   household/admin credential**, with access to every player and friend’s queued
   track references. All reads, commands and SSE require it. Existing browser
-  cookies and the ordinary app API key do not grant player access. Give it only
+  cookies and the ordinary app API key do not grant player access. The opt-in
+  web bridge issues a separate player-only session after web-passphrase
+  authorization; it never shares this worker key with browsers. Give it only
   to trusted controllers and use HTTPS when reaching the app across a network.
 * Generate distinct hex/base64url `PLAYER_ENGINE_A_PASSWORD` and
   `PLAYER_ENGINE_B_PASSWORD` values (`openssl rand -hex 24`).

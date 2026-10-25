@@ -66,3 +66,15 @@ describe("authenticated player API proxy", () => {
   });
 
 });
+
+describe("event stream lifetime", () => {
+  beforeEach(() => { vi.stubEnv("PLAYER_API_KEY", key); vi.stubEnv("PLAYER_WORKER_URL", "http://worker:13700"); vi.stubGlobal("fetch", transport); transport.mockReset(); });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+  it("denies missing upstream event bodies and propagates a failed stream without keeping its deadline", async () => {
+    transport.mockResolvedValueOnce(new Response(null));
+    expect((await events(request(), context)).status).toBe(503);
+    transport.mockResolvedValueOnce(new Response(new ReadableStream({ pull(controller) { controller.error(new Error("Stream interrupted")); } })));
+    const response = await events(request(), context);
+    await expect(response.text()).rejects.toThrow("Stream interrupted");
+  });
+});

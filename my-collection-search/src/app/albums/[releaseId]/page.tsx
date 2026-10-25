@@ -34,7 +34,7 @@ import TrackActionsMenu from "@/components/TrackActionsMenu";
 import AlbumActionsMenu from "@/components/AlbumActionsMenu";
 import AlbumArtworkDialog from "@/components/AlbumArtworkDialog";
 import DeleteAlbumDialog from "@/components/DeleteAlbumDialog";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { toaster } from "@/components/ui/toaster";
 import PageContainer from "@/components/layout/PageContainer";
 import { compareTrackPositions } from "@/lib/albumTrackPosition";
@@ -64,7 +64,7 @@ function AlbumDetailContent() {
     enabled: !!releaseId && !!friendId,
   });
   const updateMutation = useUpdateAlbumMutation();
-  const { replacePlaylist } = usePlaylistPlayer();
+  const { replacePlaylist } = usePlaybackPlayer();
   const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
 
   const [rating, setRating] = React.useState(0);

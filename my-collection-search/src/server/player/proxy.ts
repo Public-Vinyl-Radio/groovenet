@@ -1,3 +1,4 @@
+import { playerWebSession } from "./webSession";
 import { timingSafeEqual } from "node:crypto";
 import { createServerPlayerSchema, playerIdSchema, serverPlayerCommandSchema } from "@groovenet/contracts";
 
@@ -20,14 +21,16 @@ async function readBody(request: Request): Promise<string> {
   return Buffer.concat(chunks).toString();
 }
 
-/** Players use explicit household bearer authorization, including reads/SSE. */
+/** Preserve CLI bearer authorization; browser access needs its own player session. */
 export async function proxyPlayer(request: Request, path: string, bodyType?: "create" | "command"): Promise<Response> {
   const key = process.env.PLAYER_API_KEY;
   const worker = process.env.PLAYER_WORKER_URL;
   if (!key || key.length < 32 || !worker) return Response.json({ error: "Server players are not configured", code: "PLAYERS_DISABLED" }, { status: 503 });
   const actual = Buffer.from(request.headers.get("authorization") ?? "");
   const expected = Buffer.from(`Bearer ${key}`);
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return Response.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  const bearer = actual.length === expected.length && timingSafeEqual(actual, expected);
+  const sessionExpiry = bearer ? null : playerWebSession(request);
+  if (!bearer && !sessionExpiry) return Response.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   let body: string | undefined;
   if (bodyType) {
     try {
@@ -35,6 +38,7 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
       const schema = bodyType === "create" ? createServerPlayerSchema : serverPlayerCommandSchema;
       const parsed = schema.safeParse(JSON.parse(text));
       if (!parsed.success) return Response.json({ error: "Invalid player command", code: "INVALID_ARGUMENT" }, { status: 400 });
+      if (!bearer && (bodyType === "create" || ("type" in parsed.data && parsed.data.type === "rename"))) return Response.json({ error: "Browser sessions cannot administer players", code: "FORBIDDEN" }, { status: 403 });
       body = JSON.stringify(parsed.data);
     } catch (error) {
       return Response.json({ error: error instanceof RangeError ? "Player command exceeds 2 MB" : "Invalid JSON", code: error instanceof RangeError ? "BODY_TOO_LARGE" : "INVALID_JSON" }, { status: error instanceof RangeError ? 413 : 400 });
@@ -42,6 +46,9 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
   }
   const streaming = path.endsWith("/events");
   const controller = new AbortController();
+  const expiryTimer = sessionExpiry ? setTimeout(() => controller.abort(), Math.max(0, sessionExpiry * 1000 - Date.now())) : undefined;
+  expiryTimer?.unref();
+  let streamingResponse = false;
   const deadline = setTimeout(() => controller.abort(), streaming ? 5000 : 30000);
   try {
     const base = new URL(worker.endsWith("/") ? worker : `${worker}/`);
@@ -54,13 +61,27 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
       // Only the connection header deadline is cleared. request.signal still
       // cancels the worker subscription when the remote client disconnects.
       clearTimeout(deadline);
-      return new Response(upstream.body, { status: upstream.status, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
+      const reader = upstream.body?.getReader();
+      if (!reader) throw new Error("Missing event stream");
+      streamingResponse = true;
+      request.signal.addEventListener("abort", () => clearTimeout(expiryTimer), { once: true });
+      const stream = new ReadableStream<Uint8Array>({
+        async pull(streamController) {
+          try {
+            const { done, value } = await reader.read();
+            if (done) { clearTimeout(expiryTimer); streamController.close(); }
+            else streamController.enqueue(value);
+          } catch (error) { clearTimeout(expiryTimer); streamController.error(error); }
+        },
+        async cancel() { clearTimeout(expiryTimer); controller.abort(); await reader.cancel(); },
+      });
+      return new Response(stream, { status: upstream.status, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
     }
     const payload: unknown = await upstream.json();
     return Response.json(payload, { status: upstream.status, headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "Player worker unavailable", code: "WORKER_UNAVAILABLE" }, { status: 503 });
-  } finally { clearTimeout(deadline); }
+  } finally { clearTimeout(deadline); if (!streamingResponse) clearTimeout(expiryTimer); }
 }
 
 export async function proxyNamedPlayer(request: Request, context: PlayerRouteContext, suffix = "", bodyType?: "command"): Promise<Response> {

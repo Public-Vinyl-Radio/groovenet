@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createServerPlayerSchema, playerIdSchema, serverPlayerSchema, serverPlayerDeviceSchema, serverPlayerCommandSchema, serverPlayerCommandResultSchema } from "@groovenet/contracts";
+import { playerWebSessionSchema, playerWebUnlockSchema } from "./schemas";
 import type { ApiContractRoute } from "./routes";
 
 const error = z.object({ error: z.string(), code: z.string().optional() });
@@ -12,13 +13,13 @@ const definitions = [
   { operationId: "commandServerPlayer", responseComponent: "ServerPlayerCommandResult", bodyComponent: "ServerPlayerCommand", method: "post", path: "/api/players/{playerId}/commands", summary: "Apply a revision-checked player command or explicit speaker transfer", body: serverPlayerCommandSchema, success: serverPlayerCommandResultSchema },
   { operationId: "listServerPlayerDevices", responseComponent: "ServerPlayerDeviceList", method: "get", path: "/api/players/{playerId}/devices", summary: "Read outputs, Groovenet assignments and independent speaker observations", success: z.object({ devices: z.array(serverPlayerDeviceSchema) }) },
 ] as const;
-export const playerContracts: ApiContractRoute[] = definitions.map((definition) => ({
+export const playerContracts: ApiContractRoute[] = definitions.map((definition): ApiContractRoute => ({
   operationId: definition.operationId, method: definition.method, path: definition.path, summary: definition.summary, tags: ["Players"],
   successSchema: definition.success, errorSchema: error,
   ...("body" in definition ? { bodySchema: definition.body } : {}),
   ...(definition.path.includes("{playerId}") ? { paramsSchema: params } : {}),
   openapi: {
-    security: [{ BearerAuth: [] }],
+    security: definition.operationId === "createServerPlayer" ? [{ BearerAuth: [] }] : [{ BearerAuth: [] }, { PlayerWebSession: [] }],
     ...(definition.path.includes("{playerId}") ? { parameters: [{ in: "path", name: "playerId", required: true, schema: z.toJSONSchema(playerIdSchema) }] } : {}),
     ...("body" in definition ? { requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${definition.bodyComponent}` } } } } } : {}),
     responses: {
@@ -28,6 +29,16 @@ export const playerContracts: ApiContractRoute[] = definitions.map((definition) 
   },
 }));
 playerContracts.push({ operationId: "subscribeServerPlayer", method: "get", path: "/api/players/{playerId}/events", summary: "Subscribe to snapshots and position events; reconnect receives a fresh snapshot without replaying commands", tags: ["Players"], paramsSchema: params, successSchema: z.string(), errorSchema: error, openapi: {
-  security: [{ BearerAuth: [] }], parameters: [{ in: "path", name: "playerId", required: true, schema: z.toJSONSchema(playerIdSchema) }],
+  security: [{ BearerAuth: [] }, { PlayerWebSession: [] }], parameters: [{ in: "path", name: "playerId", required: true, schema: z.toJSONSchema(playerIdSchema) }],
   responses: { "200": { description: "SSE snapshot and position events containing worker_instance and sequence; reconnect for fresh state", content: { "text/event-stream": { schema: { type: "string" } } } }, "401": { description: "Household player bearer key required" }, "503": { description: "Worker unavailable" } },
 } });
+
+for (const method of ["get", "post", "delete"] as const) playerContracts.push({
+  operationId: `${method}PlayerWebSession`, method, path: "/api/players/browser/session", summary: method === "post" ? "Unlock player-only browser access with a separate household web passphrase" : method === "delete" ? "Clear this browser's player session without stopping audio" : "Read browser player authorization status",
+  tags: ["Players"], successSchema: playerWebSessionSchema, errorSchema: error,
+  ...(method === "post" ? { bodySchema: playerWebUnlockSchema } : {}),
+  openapi: {
+    ...(method === "post" ? { requestBody: { required: true, content: { "application/json": { schema: z.toJSONSchema(playerWebUnlockSchema) } } } } : {}),
+    responses: { "200": { description: "Browser authorization status; login/logout use a Secure HttpOnly player-only cookie", content: { "application/json": { schema: z.toJSONSchema(playerWebSessionSchema) } } }, ...Object.fromEntries([400, 401, 403, 429, 503].map(status => [String(status), { description: "Session denied or unavailable" }])) },
+  },
+});

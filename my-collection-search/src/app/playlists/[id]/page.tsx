@@ -5,7 +5,7 @@ import { Box } from "@chakra-ui/react";
 
 import PlaylistViewer from "@/components/PlaylistViewer";
 import PageContainer from "@/components/layout/PageContainer";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 
 interface PlaylistPageProps {
   params: Promise<{ id: string }>;
@@ -15,7 +15,7 @@ interface PlaylistPageProps {
 // This is a server component by default. Add 'use client' at the top if you need client-side interactivity.
 const PlaylistPage = ({ params }: PlaylistPageProps) => {
   const { id } = React.use(params);
-  const { playlistLength } = usePlaylistPlayer();
+  const { playlistLength } = usePlaybackPlayer();
 
   return (
     <PageContainer size="standard">

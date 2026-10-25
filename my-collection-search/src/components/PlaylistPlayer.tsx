@@ -2,6 +2,8 @@
 "use client";
 
 import React from "react";
+import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
+import { PlaybackTargetControl } from "@/components/player/PlaybackTargetControl";
 import { Box, useBreakpointValue } from "@chakra-ui/react";
 import { usePathname } from "next/navigation";
 import PlayerControls from "@/components/PlayerControls";
@@ -50,6 +52,7 @@ export const PlayerContainer: React.FC<{ children: React.ReactNode }> = ({
 
 
 const PlaylistPlayer: React.FC = () => {
+  const target = useOptionalPlaybackTarget();
   const { isOpen, toggle } = useQueueDrawer();
   const { playlistLength } = usePlaylistPlayer();
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
@@ -57,17 +60,18 @@ const PlaylistPlayer: React.FC = () => {
   const currentPath = pathname ? pathname.split("?")[0] : "";
   const hideForMobileEdit = isMobile && isMobileFullscreenEditRoute(currentPath);
 
-  const visible = playlistLength > 0 && !hideForMobileEdit;
-  // Feeds --player-h / --chrome-bottom (houseStyle globalCss).
+  const serverMode = target !== null && target.target !== "";
+  const visible = !serverMode && playlistLength > 0 && !hideForMobileEdit;
+  // Keep the current shell's safe-area and bottom-chrome geometry in local mode.
   useRootFlag("data-player", visible);
 
-  // Hide player if queue is empty
   if (!visible) {
-    return null;
+    return <>{target && <PlaybackTargetControl key="target" />}</>;
   }
 
   return (
     <>
+      {target && <PlaybackTargetControl key="target" />}
       {/* Original Player - hide when queue drawer is open */}
       {!isOpen && (
         <PlayerContainer>

@@ -2,6 +2,10 @@
 # usual prod/dev override. Nothing here starts with a plain compose up.
 services:
   app:
+    # Separate operator-managed browser credentials survive .env.players rendering.
+    env_file:
+      - path: .env.player-web
+        required: false
     environment:
       PLAYER_API_KEY: ${PLAYER_API_KEY:-}
       PLAYER_WORKER_URL: http://player-worker:13700

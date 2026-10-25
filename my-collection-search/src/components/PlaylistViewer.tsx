@@ -30,7 +30,7 @@ import { usePlaylistMutations } from "@/hooks/usePlaylistMutations";
 import { usePlaylistActions } from "@/hooks/usePlaylistActions";
 import PlaylistRecommendations from "./PlaylistRecommendations";
 import { Track } from "@/types/track";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
 import { toaster } from "@/components/ui/toaster";
 import {
@@ -88,7 +88,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     playlistLength,
     playlist: queue,
     currentTrackIndex: queueIndex,
-  } = usePlaylistPlayer();
+  } = usePlaybackPlayer();
   const { viewMode, setViewMode, layout, isMobile } = useTrackViewMode();
   const mobileBottomOverlayOffset = getMobileBottomOverlayOffset(playlistLength);
 
