@@ -10,7 +10,7 @@ REPO_NAME="${REPO_NAME:-$(basename "$(_main_worktree)")}"
 # The branch for REPO_ROOT, captured once so every slug/project lookup below
 # agrees even if something checks out a different ref mid-script.
 CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-SEED_ROOT="${SEED_ROOT:-$HOME/.supacode/worktree-seeds/$REPO_NAME}"
+SEED_ROOT="${SEED_ROOT:-$HOME/.herdr/worktree-seeds/$REPO_NAME}"
 SEED_LATEST_DIR="${SEED_LATEST_DIR:-$SEED_ROOT/latest}"
 CADDY_WORKTREE_DIR="${CADDY_WORKTREE_DIR:-$HOME/.config/caddy/worktrees}"
 CADDY_HOST_SUFFIX="${CADDY_HOST_SUFFIX:-groovenet.localhost}"
