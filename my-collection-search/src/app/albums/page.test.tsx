@@ -24,8 +24,6 @@ vi.mock("@/components/GenreFilter", () => ({
   genreSlugFromChipKey: () => null,
   similarGenreIdFromChipKey: () => null,
 }));
-vi.mock("@/components/MissingFilter", () => ({ default: () => null, MissingChecklist: () => null }));
-vi.mock("@/components/FilterSheet", () => ({ default: () => null, FilterSheetSection: () => null }));
 
 import AlbumsPage from "./page";
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
@@ -141,6 +141,59 @@ describe("AlbumSearchResults layouts (#730)", () => {
     renderWithProviders(<AlbumSearchResults friendId={6} />);
     expect(screen.getByTestId("album-card").textContent).toContain("No audio");
     expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("shows the count with the sort label, and changes the sort from it", async () => {
+    mocks.searchParams = new URLSearchParams("sort=year:desc");
+    const onSortChange = vi.fn();
+    const { user } = renderWithProviders(<AlbumSearchResults friendId={6} onSortChange={onSortChange} />);
+    expect(screen.getByText("1 album")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Sort: Newest Releases" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)" }));
+    expect(onSortChange).toHaveBeenCalledWith("title:asc");
+  });
+
+  it("has no sort label unless asked for one", () => {
+    mocks.searchParams = new URLSearchParams();
+    renderWithProviders(<AlbumSearchResults friendId={6} />);
+    expect(screen.queryByRole("button", { name: /Sort/ })).toBeNull();
+  });
+
+  it("reports the total once loaded, and not while loading or failed", async () => {
+    mocks.searchParams = new URLSearchParams();
+    const onTotalChange = vi.fn();
+    renderWithProviders(<AlbumSearchResults friendId={6} onTotalChange={onTotalChange} />);
+    await waitFor(() => expect(onTotalChange).toHaveBeenCalledWith(1));
+
+    const loading = vi.fn();
+    mocks.useAlbumsInfiniteQuery.mockReturnValue({
+      data: undefined, albumRefs: [], fetchNextPage: vi.fn(), hasNextPage: false,
+      isFetchingNextPage: false, isLoading: true, error: null,
+    });
+    renderWithProviders(<AlbumSearchResults friendId={6} onTotalChange={loading} />);
+    const failed = vi.fn();
+    mocks.useAlbumsInfiniteQuery.mockReturnValue({
+      data: undefined, albumRefs: [], fetchNextPage: vi.fn(), hasNextPage: false,
+      isFetchingNextPage: false, isLoading: false, error: new Error("boom"),
+    });
+    renderWithProviders(<AlbumSearchResults friendId={6} onTotalChange={failed} />);
+    expect(loading).not.toHaveBeenCalled();
+    expect(failed).not.toHaveBeenCalled();
+    expect(screen.getByText(/boom/)).toBeTruthy();
+  });
+
+  it("keeps the count and sort above an empty result", async () => {
+    albumsInStore.list = [];
+    mocks.useAlbumsInfiniteQuery.mockReturnValue({
+      data: { pages: [{ hits: [], estimatedTotalHits: 0 }] },
+      albumRefs: [], fetchNextPage: vi.fn(), hasNextPage: false,
+      isFetchingNextPage: false, isLoading: false, error: null,
+    });
+    mocks.searchParams = new URLSearchParams("q=zzz");
+    renderWithProviders(<AlbumSearchResults friendId={6} onSortChange={vi.fn()} />);
+    expect(screen.getByText("0 albums")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Sort:/ })).toBeTruthy();
+    expect(screen.getByText("No albums found.")).toBeTruthy();
   });
 
   it("lists a table in row layout", () => {

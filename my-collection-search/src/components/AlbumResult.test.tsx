@@ -87,6 +87,24 @@ describe("AlbumResult card", () => {
     expect(screen.getByText("Trip Hop")).toBeTruthy();
   });
 
+  it("shows at most two genre tags and counts the rest", () => {
+    renderWithProviders(
+      <AlbumResult album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }} />
+    );
+    const genres = screen.getByTestId("album-genres");
+    expect(genres.textContent).toContain("Electronic");
+    expect(genres.textContent).toContain("Rock");
+    expect(genres.textContent).not.toContain("Trip Hop");
+    const more = screen.getByLabelText("2 more genres");
+    expect(more.textContent).toBe("+2");
+    expect(more.getAttribute("title")).toBe("Trip Hop, Downtempo");
+  });
+
+  it("has no +N at two tags or fewer, and a row keeps them all", () => {
+    renderWithProviders(<AlbumResult album={full} />);
+    expect(screen.queryByLabelText(/more genres/)).toBeNull();
+  });
+
   it("omits optional parts and the year 0", () => {
     renderWithProviders(<AlbumResult album={{ ...album, track_count: 1, year: "0" }} />);
     const meta = screen.getByTestId("album-card-meta").textContent;
@@ -105,6 +123,17 @@ describe("AlbumResult card", () => {
 });
 
 describe("AlbumResult row", () => {
+  it("keeps every genre tag", () => {
+    renderWithProviders(
+      <AlbumTable>
+        <AlbumResult album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }} layout="row" />
+      </AlbumTable>
+    );
+    const row = screen.getByTestId("album-row").textContent;
+    expect(row).toContain("Downtempo");
+    expect(screen.queryByLabelText(/more genres/)).toBeNull();
+  });
+
   it("renders the table cells with tags for each active Missing filter", () => {
     renderWithProviders(
       <AlbumTable>

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
 import { discogsGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
-import { GenreBadgeList } from "@/components/GenreBadge";
+import GenreBadge, { GenreBadgeList } from "@/components/GenreBadge";
 import ArtistLink from "@/components/ArtistLink";
 import { RatingStars } from "@/components/TrackResult";
 
@@ -154,6 +154,32 @@ export default function AlbumResult({
     <>
       <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" size={size} />
       <GenreBadgeList items={displayStyles} kind="discogs-style" scope="albums" size={size} />
+    </>
+  );
+
+  // A card shows the first two tags and counts the rest; a row has the room for all.
+  const MAX_CARD_GENRES = 2;
+  const cardGenres = [
+    ...displayGenres.map((item) => ({ item, kind: "discogs-genre" as const })),
+    ...displayStyles.map((item) => ({ item, kind: "discogs-style" as const })),
+  ];
+  const hiddenGenres = cardGenres.slice(MAX_CARD_GENRES);
+  const cardGenreBadges = (
+    <>
+      {cardGenres.slice(0, MAX_CARD_GENRES).map(({ item, kind }) => (
+        <GenreBadge key={`${kind}:${item.label}`} item={item} kind={kind} scope="albums" size="sm" />
+      ))}
+      {hiddenGenres.length > 0 && (
+        <Badge
+          size="sm"
+          colorPalette="neutral"
+          variant="subtle"
+          title={hiddenGenres.map(({ item }) => item.label).join(", ")}
+          aria-label={`${hiddenGenres.length} more genres`}
+        >
+          +{hiddenGenres.length}
+        </Badge>
+      )}
     </>
   );
 
@@ -357,7 +383,7 @@ export default function AlbumResult({
             "@media (max-width: 47.99em)": { "& > *": { flexShrink: 0 } },
           }}
         >
-          {genreBadges("sm")}
+          {cardGenreBadges}
         </Flex>
       </Flex>
 
