@@ -1,22 +1,15 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Button,
-  CloseButton,
-  Dialog,
-  Drawer,
-  Menu,
-  Portal,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { FiEdit, FiMoreVertical, FiTrash } from "react-icons/fi";
-import { DrawerItem, drawerDivider, menuDivider } from "@/components/ui/action-menu-primitives";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
+import { Group, TileRow, overline } from "@/components/ui/RetroModalParts";
+import ConfirmDialog from "@/components/records/ConfirmDialog";
 
 type Props = {
-  /** What the spin was, for the sheet header and the delete prompt. */
+  /** What the spin was, for the modal header and the delete prompt. */
   label: string;
   onEdit: () => void;
   /** Resolves once deleted; rejects to keep the prompt open. */
@@ -28,18 +21,9 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  const handleConfirm = async () => {
-    try {
-      await onDelete();
-      setConfirmOpen(false);
-    } catch {
-      // The caller reports the failure; the prompt stays open to retry.
-    }
-  };
-
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Mobile: centred retro modal (#751) */}
       <Box display={{ base: "block", md: "none" }} flexShrink={0}>
         <Button
           variant="plain"
@@ -49,37 +33,31 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
         >
           <FiMoreVertical size={16} />
         </Button>
-        <Drawer.Root placement="bottom" open={sheetOpen} onOpenChange={(d) => setSheetOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Text fontWeight="semibold" fontSize="sm" lineClamp={1} pr={8}>{label}</Text>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0} pb="max(env(safe-area-inset-bottom), 8px)">
-                  <Stack gap={0}>
-                    <DrawerItem
-                      icon={<FiEdit />}
-                      label="Edit spin"
-                      onClick={() => { setSheetOpen(false); onEdit(); }}
-                    />
-                    {drawerDivider}
-                    <DrawerItem
-                      icon={<FiTrash />}
-                      label="Delete spin"
-                      color="fg.error"
-                      onClick={() => { setSheetOpen(false); setConfirmOpen(true); }}
-                    />
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <RetroDialog
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          header={
+            <Box flex="1" minW={0}>
+              <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
+                Spin
+              </Text>
+              <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+                {label}
+              </RetroDialogTitle>
+            </Box>
+          }
+        >
+          <TileRow
+            onDone={() => setSheetOpen(false)}
+            tiles={[{ label: "Edit spin", icon: <FiEdit />, solid: true, onClick: onEdit }]}
+          />
+          <Group
+            label="Danger"
+            danger
+            onDone={() => setSheetOpen(false)}
+            actions={[{ label: "Delete spin", onClick: () => setConfirmOpen(true) }]}
+          />
+        </RetroDialog>
       </Box>
 
       {/* Desktop: dropdown menu */}
@@ -111,36 +89,19 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
         </Menu.Root>
       </Box>
 
-      <Dialog.Root
+      <ConfirmDialog
         open={confirmOpen}
-        onOpenChange={(e) => !deleting && setConfirmOpen(e.open)}
-        size="sm"
-        role="alertdialog"
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Delete spin?</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body>
-                <Text>
-                  <strong>{label}</strong> will be removed from your spin history and play counts.
-                </Text>
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={deleting}>
-                  Cancel
-                </Button>
-                <Button colorPalette="danger" onClick={handleConfirm} loading={deleting}>
-                  Delete
-                </Button>
-              </Dialog.Footer>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        onOpenChange={setConfirmOpen}
+        title="Delete spin?"
+        body={
+          <>
+            <strong>{label}</strong> will be removed from your spin history and play counts.
+          </>
+        }
+        confirmLabel="Delete"
+        onConfirm={onDelete}
+        pending={deleting}
+      />
     </>
   );
 }

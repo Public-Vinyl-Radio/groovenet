@@ -1,12 +1,14 @@
 "use client";
 
 import React from "react";
-import { Box, Button, CloseButton, Drawer, Menu, Portal, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { FiDroplet, FiEdit, FiMoreVertical, FiTrash } from "react-icons/fi";
-import { DrawerItem, drawerDivider, menuDivider } from "@/components/ui/action-menu-primitives";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
+import { Group, TileRow, overline } from "@/components/ui/RetroModalParts";
 
 type Props = {
-  /** The copy's name, for the sheet header. */
+  /** The copy's name, for the modal header. */
   label: string;
   onLogCare: () => void;
   onEdit: () => void;
@@ -14,53 +16,45 @@ type Props = {
   onRemove?: () => void;
 };
 
-/** A copy's actions: a bottom sheet on mobile, a dropdown on desktop, as SpinActionsMenu. */
+/** A copy's actions: a centred retro modal on mobile (#751), a dropdown on desktop, as SpinActionsMenu. */
 export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: Props) {
   const [sheetOpen, setSheetOpen] = React.useState(false);
-  const fromSheet = (action: () => void) => () => {
-    setSheetOpen(false);
-    action();
-  };
 
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Mobile: centred retro modal */}
       <Box display={{ base: "block", md: "none" }} flexShrink={0}>
         <Button variant="plain" size="xs" aria-label="Copy actions" onClick={() => setSheetOpen(true)}>
           <FiMoreVertical size={16} />
         </Button>
-        <Drawer.Root placement="bottom" open={sheetOpen} onOpenChange={(d) => setSheetOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Text fontWeight="semibold" fontSize="sm" lineClamp={1} pr={8}>{label}</Text>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0} pb="max(env(safe-area-inset-bottom), 8px)">
-                  <Stack gap={0}>
-                    <DrawerItem icon={<FiDroplet />} label="Log care" onClick={fromSheet(onLogCare)} />
-                    <DrawerItem icon={<FiEdit />} label="Edit label & notes" onClick={fromSheet(onEdit)} />
-                    {onRemove && (
-                      <>
-                        {drawerDivider}
-                        <DrawerItem
-                          icon={<FiTrash />}
-                          label="Remove copy"
-                          color="fg.error"
-                          onClick={fromSheet(onRemove)}
-                        />
-                      </>
-                    )}
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <RetroDialog
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          header={
+            <Box flex="1" minW={0}>
+              <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
+                Copy
+              </Text>
+              <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+                {label}
+              </RetroDialogTitle>
+            </Box>
+          }
+        >
+          <TileRow
+            onDone={() => setSheetOpen(false)}
+            tiles={[
+              { label: "Log care", icon: <FiDroplet />, solid: true, onClick: onLogCare },
+              { label: "Edit", icon: <FiEdit />, onClick: onEdit },
+            ]}
+          />
+          <Group
+            label="Danger"
+            danger
+            onDone={() => setSheetOpen(false)}
+            actions={onRemove ? [{ label: "Remove copy", onClick: onRemove }] : []}
+          />
+        </RetroDialog>
       </Box>
 
       {/* Desktop: dropdown menu */}
