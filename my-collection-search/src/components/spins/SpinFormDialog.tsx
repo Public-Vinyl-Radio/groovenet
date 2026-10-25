@@ -7,9 +7,7 @@ import {
   Box,
   Button,
   Checkbox,
-  CloseButton,
   Dialog,
-  Drawer,
   Flex,
   HStack,
   Input,
@@ -22,6 +20,7 @@ import {
   VStack,
   useBreakpointValue,
 } from "@chakra-ui/react";
+import RetroDialog from "@/components/ui/RetroDialog";
 import { toaster } from "@/components/ui/toaster";
 import { useSpinMutations } from "@/hooks/useSpinsQuery";
 import { queryKeys } from "@/lib/queryKeys";
@@ -349,27 +348,18 @@ export default function SpinFormDialog({
       </Portal>
     </Dialog.Root>
   ) : (
-    <Drawer.Root placement="bottom" open={open} onOpenChange={(details) => onOpenChange(details.open)}>
-      <Portal>
-        <Drawer.Backdrop />
-        <Drawer.Positioner>
-          <Drawer.Content borderTopRadius="xl" maxH="92vh">
-            <Drawer.Header borderBottomWidth="1px" py={3} px={4} position="relative">
-              <Text fontWeight="semibold" fontSize="sm">{title}</Text>
-              <Drawer.CloseTrigger asChild>
-                <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-              </Drawer.CloseTrigger>
-            </Drawer.Header>
-            <Drawer.Body p={4} overflowY="auto">{formBody}</Drawer.Body>
-            <Drawer.Footer borderTopWidth="1px" pt={3} pb="max(env(safe-area-inset-bottom), 16px)" px={4}>
-              <HStack gap={2} w="full">
-                <Button variant="outline" flex={1} onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button flex={1} loading={saving} onClick={handleSubmit}>{saveLabel}</Button>
-              </HStack>
-            </Drawer.Footer>
-          </Drawer.Content>
-        </Drawer.Positioner>
-      </Portal>
-    </Drawer.Root>
+    <RetroDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      footer={
+        <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap="10px" p="12px 17px 12px 12px">
+          <Button variant="outline" h="44px" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="solid" h="44px" loading={saving} onClick={handleSubmit}>{saveLabel}</Button>
+        </Box>
+      }
+    >
+      <Box p="14px 17px 16px 12px">{formBody}</Box>
+    </RetroDialog>
   );
 }

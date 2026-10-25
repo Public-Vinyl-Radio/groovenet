@@ -161,7 +161,7 @@ describe("RecordActionDialog", () => {
     ).toBe("true");
   });
 
-  it("is a bottom sheet on mobile, and cancels", async () => {
+  it("is a centred modal on mobile, and cancels", async () => {
     setViewportWidth(375);
     const { user, onOpenChange } = renderDialog();
 
