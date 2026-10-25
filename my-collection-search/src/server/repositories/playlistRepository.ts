@@ -68,7 +68,8 @@ export class PlaylistRepository {
         s.playlist_id, s.id, s.title, s.status, s.cover_image_url,
         latest.performed_at AS last_performed_at,
         latest.venue_name, latest.location_city,
-        COALESCE(collaborators.collaborators, '[]'::json) AS collaborators
+        COALESCE(collaborators.collaborators, '[]'::json) AS collaborators,
+        media.flyer_url, media.recording_url, media.post_url, media.youtube_url
       FROM live_sets s
       LEFT JOIN LATERAL (
         SELECT performed_at, venue_name, location_city
@@ -83,6 +84,15 @@ export class PlaylistRepository {
         JOIN friends f ON f.id = c.friend_id
         WHERE c.live_set_id = s.id
       ) collaborators ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          (array_agg(url ORDER BY position, id) FILTER (WHERE media_type = 'flyer'))[1] AS flyer_url,
+          (array_agg(url ORDER BY position, id) FILTER (WHERE media_type = 'audio'))[1] AS recording_url,
+          (array_agg(url ORDER BY position, id) FILTER (WHERE media_type = 'link'))[1] AS post_url,
+          (array_agg(url ORDER BY position, id) FILTER (WHERE media_type = 'youtube'))[1] AS youtube_url
+        FROM live_set_media
+        WHERE live_set_id = s.id
+      ) media ON true
       WHERE s.playlist_id = ANY($1)`,
       [playlistIds]
     );
@@ -90,6 +100,26 @@ export class PlaylistRepository {
       result.rows.map(({ playlist_id, ...set }) => [playlist_id, set])
     );
   }
+
+  /** Album art of each playlist's first four tracks (that have art), in position order. */
+  async listCoverUrlsByPlaylistIds(playlistIds: number[]): Promise<Record<number, string[]>> {
+    if (playlistIds.length === 0) return {};
+    const result = await dbQuery<{ playlist_id: number; cover_urls: string[] }>(
+      `SELECT playlist_id, array_agg(album_thumbnail ORDER BY position) AS cover_urls
+       FROM (
+         SELECT pt.playlist_id, pt.position, t.album_thumbnail,
+                row_number() OVER (PARTITION BY pt.playlist_id ORDER BY pt.position) AS rn
+         FROM playlist_tracks pt
+         JOIN tracks t ON t.track_id = pt.track_id AND t.friend_id = pt.friend_id
+         WHERE pt.playlist_id = ANY($1) AND COALESCE(t.album_thumbnail, '') <> ''
+       ) ranked
+       WHERE rn <= 4
+       GROUP BY playlist_id`,
+      [playlistIds]
+    );
+    return Object.fromEntries(result.rows.map((row) => [row.playlist_id, row.cover_urls]));
+  }
+
   async getDefaultFriendId(): Promise<number> {
     const result = await dbQuery("SELECT id FROM friends ORDER BY id LIMIT 1");
     if (result.rows.length === 0) {

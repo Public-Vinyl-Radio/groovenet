@@ -53,6 +53,8 @@ export const playlistSchema = z
     created_at: z.string(),
     total_duration_seconds: z.number().optional(),
     tracks: z.array(playlistTrackRefSchema),
+    /** Album art of the first four tracks that have one, in position order. List endpoint only. */
+    cover_urls: z.array(z.string()).optional(),
     set: liveSetSummarySchema.optional(),
   })
   .passthrough();

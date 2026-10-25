@@ -15,6 +15,7 @@ const repo = vi.hoisted(() => ({
   listPlaylistTracksByPlaylistIds: vi.fn(),
   listPlaylistDurationsByPlaylistIds: vi.fn(),
   listLiveSetSummariesByPlaylistIds: vi.fn(),
+  listCoverUrlsByPlaylistIds: vi.fn(),
   createPlaylistWithClient: vi.fn(),
   upsertTracksWithMetadata: vi.fn(),
   insertPlaylistTracks: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("@/lib/serverDb", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  repo.listCoverUrlsByPlaylistIds.mockResolvedValue({});
 });
 
 function makeService() {
@@ -112,8 +114,10 @@ describe("getAllPlaylistsWithTracks()", () => {
     repo.listPlaylistTracksByPlaylistIds.mockResolvedValue([{ playlist_id: 1, track_id: "t1", friend_id: 1, position: 0 }]);
     repo.listPlaylistDurationsByPlaylistIds.mockResolvedValue({ 1: 3600 });
     repo.listLiveSetSummariesByPlaylistIds.mockResolvedValue({ 1: { id: 7, status: "performed", collaborators: [] } });
+    repo.listCoverUrlsByPlaylistIds.mockResolvedValue({ 1: ["/a.jpg"] });
     const result = await makeService().getAllPlaylistsWithTracks();
-    expect(result).toMatchObject([{ id: 1, total_duration_seconds: 3600, set: { id: 7 }, tracks: [{ track_id: "t1" }] }]);
+    expect(result).toMatchObject([{ id: 1, total_duration_seconds: 3600, cover_urls: ["/a.jpg"], set: { id: 7 }, tracks: [{ track_id: "t1" }] }]);
+    expect(repo.listCoverUrlsByPlaylistIds).toHaveBeenCalledWith([1]);
     expect(repo.listPlaylistDurationsByPlaylistIds).toHaveBeenCalledWith([1]);
   });
 });
@@ -155,6 +159,7 @@ describe("getAllPlaylistsWithTracks()", () => {
 
     const result = await makeService().getAllPlaylistsWithTracks();
     expect(result[0].tracks).toEqual([]);
+    expect(result[0].cover_urls).toEqual([]);
   });
 });
 

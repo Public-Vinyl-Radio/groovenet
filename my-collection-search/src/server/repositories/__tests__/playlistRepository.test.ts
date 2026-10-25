@@ -72,6 +72,10 @@ describe("PlaylistRepository — reads", () => {
         venue_name: "The Room",
         location_city: "Seattle",
         collaborators: [{ friend_id: 2, username: "alex", role: "DJ" }],
+        flyer_url: "/flyer.jpg",
+        recording_url: "https://example.com/rec.mp3",
+        post_url: null,
+        youtube_url: null,
       }],
     });
     await expect(repo().listLiveSetSummariesByPlaylistIds([1, 2])).resolves.toEqual({
@@ -79,11 +83,33 @@ describe("PlaylistRepository — reads", () => {
         id: 7, title: "Late night", status: "performed", cover_image_url: null,
         last_performed_at: "2026-09-01T00:00:00.000Z", venue_name: "The Room",
         location_city: "Seattle", collaborators: [{ friend_id: 2, username: "alex", role: "DJ" }],
+        flyer_url: "/flyer.jpg", recording_url: "https://example.com/rec.mp3",
+        post_url: null, youtube_url: null,
       },
     });
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/live_sets/);
     expect(sql).toMatch(/json_agg/);
+    expect(sql).toMatch(/live_set_media/);
+    expect(params).toEqual([[1, 2]]);
+  });
+
+  it("short-circuits cover urls for no playlists", async () => {
+    await expect(repo().listCoverUrlsByPlaylistIds([])).resolves.toEqual({});
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("fetches the first four covers for all playlists in one query", async () => {
+    dbQuery.mockResolvedValueOnce({
+      rows: [{ playlist_id: 1, cover_urls: ["/a.jpg", "/b.jpg"] }],
+    });
+    await expect(repo().listCoverUrlsByPlaylistIds([1, 2])).resolves.toEqual({
+      1: ["/a.jpg", "/b.jpg"],
+    });
+    expect(dbQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(/rn <= 4/);
+    expect(sql).toMatch(/album_thumbnail/);
     expect(params).toEqual([[1, 2]]);
   });
 

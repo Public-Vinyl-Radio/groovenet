@@ -50,7 +50,7 @@ export class PlaylistManagementService {
   }
 
   async getAllPlaylistsWithTracks(): Promise<
-    Array<{ id: number; name: string; created_at: string; tracks: PlaylistTrackRow[]; set?: import("@/types/track").LiveSetSummary }>
+    Array<{ id: number; name: string; created_at: string; tracks: PlaylistTrackRow[]; cover_urls: string[]; set?: import("@/types/track").LiveSetSummary }>
   > {
     const playlists = await playlistRepository.listPlaylists();
     if (playlists.length === 0) return [];
@@ -60,6 +60,7 @@ export class PlaylistManagementService {
       await playlistRepository.listPlaylistTracksByPlaylistIds(playlistIds);
     const durations = await playlistRepository.listPlaylistDurationsByPlaylistIds(playlistIds);
     const liveSets = await playlistRepository.listLiveSetSummariesByPlaylistIds(playlistIds);
+    const covers = await playlistRepository.listCoverUrlsByPlaylistIds(playlistIds);
     const tracksByPlaylist: Record<number, PlaylistTrackRow[]> = {};
 
     playlistTracks.forEach((row) => {
@@ -72,6 +73,7 @@ export class PlaylistManagementService {
         ...playlist,
         tracks: tracksByPlaylist[playlist.id] || [],
         total_duration_seconds: durations[playlist.id] || 0,
+        cover_urls: covers[playlist.id] || [],
         ...(liveSets[playlist.id] ? { set: liveSets[playlist.id] } : {}),
       })
     );

@@ -35,6 +35,11 @@ export const liveSetSummarySchema = z.object({
   venue_name: z.string().nullable(),
   location_city: z.string().nullable(),
   collaborators: z.array(liveSetCollaboratorSchema),
+  /** First media of each type by position; null when the set has none. */
+  flyer_url: z.string().nullable().optional(),
+  recording_url: z.string().nullable().optional(),
+  post_url: z.string().nullable().optional(),
+  youtube_url: z.string().nullable().optional(),
 }).passthrough();
 
 export const liveSetSchema = z.object({

@@ -38,9 +38,16 @@ describe("playlist contracts", () => {
         venue_name: null,
         location_city: null,
         collaborators: [],
+        flyer_url: "/f.jpg",
+        recording_url: "https://example.com/rec.mp3",
+        post_url: null,
       },
+      cover_urls: ["/a.jpg", "/b.jpg"],
       extension: true,
     });
+    expect(result.cover_urls).toEqual(["/a.jpg", "/b.jpg"]);
+    expect(result.set?.flyer_url).toBe("/f.jpg");
+    expect(result.set?.post_url).toBeNull();
     expect(result.tracks).toHaveLength(2);
     expect(result.extension).toBe(true);
     expect(playlistSchema.safeParse({ id: 1, name: "x", tracks: [] }).success).toBe(false);
