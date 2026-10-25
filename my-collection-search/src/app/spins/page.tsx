@@ -18,6 +18,7 @@ import { FiActivity, FiClock, FiDisc } from "react-icons/fi";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import TrackResultStore from "@/components/TrackResultStore";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import SpinRow from "@/components/spins/SpinRow";
 import { groupSpinsByDay } from "@/components/spins/spinSummary";
 import { useSpinsQuery, useSpinTopTracksQuery } from "@/hooks/useSpinsQuery";
@@ -82,6 +83,7 @@ function SpinsPageContent() {
   if (!isHydrated || !selectedFriendId) {
     return (
       <PageContainer size="standard">
+        <PageHeader title="Vinyl Spins" />
         <Flex justify="center" py={10}><Spinner /></Flex>
       </PageContainer>
     );
@@ -89,16 +91,11 @@ function SpinsPageContent() {
 
   return (
     <PageContainer size="standard">
+      <PageHeader title="Vinyl Spins" />
       <Stack gap={4}>
-        {/* Header */}
-        <Flex align="center" justify="space-between" gap={3}>
-          <Box>
-            <Heading size={{ base: "md", md: "lg" }}>Vinyl Spins</Heading>
-            <Text color="fg.muted" fontSize="sm" display={{ base: "none", md: "block" }}>
-              Global history and most-played physical vinyl tracks.
-            </Text>
-          </Box>
-        </Flex>
+        <Text color="fg.muted" fontSize="sm" display={{ base: "none", md: "block" }}>
+          Global history and most-played physical vinyl tracks.
+        </Text>
 
         <Grid templateColumns={{ base: "1fr", xl: "1.2fr 0.8fr" }} gap={4} minW={0}>
           {/* Recent Spins */}
