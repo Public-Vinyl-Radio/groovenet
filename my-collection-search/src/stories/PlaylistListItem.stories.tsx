@@ -135,3 +135,59 @@ export const WithCollaborator: Story = {
     } as unknown as Playlist,
   },
 };
+
+const liveSet = (set: Record<string, unknown>): Playlist =>
+  ({
+    ...samplePlaylist,
+    name: 'Friday at Room 4',
+    cover_urls: ['/cover1.jpg', '/cover2.jpg', '/cover3.jpg', '/cover4.jpg'],
+    set: {
+      id: 1,
+      title: null,
+      status: 'performed',
+      cover_image_url: null,
+      last_performed_at: '2026-08-10T22:00:00.000Z',
+      venue_name: 'Room 4',
+      location_city: 'Oakland',
+      collaborators: [],
+      flyer_url: null,
+      recording_url: null,
+      post_url: null,
+      youtube_url: null,
+      ...set,
+    },
+  }) as Playlist;
+
+export const LiveSetTicket: Story = {
+  name: 'Live set ticket (flyer, venue, all links)',
+  args: {
+    playlist: liveSet({
+      flyer_url: '/flyer.jpg',
+      recording_url: 'https://example.com/recording',
+      post_url: 'https://example.com/post',
+      youtube_url: 'https://youtube.com/watch?v=x',
+    }),
+  },
+};
+
+export const LiveSetTicketNoFlyer: Story = {
+  name: 'Live set ticket (no flyer: mosaic, recording only)',
+  args: { playlist: liveSet({ recording_url: 'https://example.com/recording' }) },
+};
+
+export const LiveSetTicketNoVenue: Story = {
+  name: 'Live set ticket (no venue, post + YouTube)',
+  args: {
+    playlist: liveSet({
+      venue_name: null,
+      location_city: null,
+      post_url: 'https://example.com/post',
+      youtube_url: 'https://youtube.com/watch?v=x',
+    }),
+  },
+};
+
+export const LiveSetTicketBare: Story = {
+  name: 'Live set ticket (no venue or links: no stub)',
+  args: { playlist: liveSet({ venue_name: null, location_city: null }) },
+};
