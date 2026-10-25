@@ -111,6 +111,11 @@ Parallel tasks run in git worktrees, each with its own compose stack via
 `just worktree-up`. With [herdr](https://herdr.dev), `just herdr` attaches to
 the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
 worktree workspace off `main`, runs `just bootstrap` and starts its stack.
+Golden seeds are created and restored from
+`~/.herdr/worktree-seeds/<main-checkout-name>/latest`. `just worktree-seed`
+refreshes the seed from a local stack; `just worktree-seed-prod` refreshes it
+from production. Override the location with `SEED_ROOT`, or use
+`just worktree-up --seed PATH` to restore a specific bundle.
 When the task is done, run `just herdr-done` from a pane inside that
 workspace to tear down the stack and remove the workspace in one step (it
 refuses on uncommitted or unpushed changes unless `--force`, and can delete
