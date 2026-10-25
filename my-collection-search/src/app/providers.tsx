@@ -11,6 +11,7 @@ import { PlaylistPlayerProvider } from "@/providers/PlaylistPlayerProvider";
 import TrackEditProvider from "@/providers/TrackEditProvider";
 import PlaylistsProvider from "@/providers/PlaylistsProvider";
 import { JobWatcherProvider } from "@/providers/JobWatcherProvider";
+import ThemeColorSync from "@/components/ThemeColorSync";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
 
 const ReactQueryDevtools: React.ComponentType<{ initialIsOpen?: boolean }> =
@@ -37,6 +38,7 @@ export default function ClientProviders({
 
   return (
     <ChakraProvider>
+      <ThemeColorSync />
       <QueryClientProvider client={client}>
         <CommandPaletteProvider>
         <JobWatcherProvider>

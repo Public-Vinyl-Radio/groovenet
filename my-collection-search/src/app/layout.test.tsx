@@ -15,7 +15,7 @@ vi.mock("@/components/AnalyticsInit", () => ({ default: () => null }));
 vi.mock("@/lib/analytics/config", () => ({ getClientAnalyticsConfig: () => ({}) }));
 vi.mock("@/lib/developerTools", () => ({ developerToolsEnabled: () => false }));
 
-import RootLayout from "./layout";
+import RootLayout, { generateViewport, metadata } from "./layout";
 
 const saved = (overrides: Record<string, unknown> = {}) => ({
   palette: "sleeve",
@@ -114,6 +114,30 @@ describe("root layout", () => {
       expect(html).not.toContain("display:none");
       expect(html).not.toContain("<style");
       expect(html).toMatch(/^<html [^>]*data-palette="sleeve"/);
+    });
+  });
+
+  describe("viewport", () => {
+    it("covers the notch so env(safe-area-inset-*) is non-zero, and tints the status bar per scheme", async () => {
+      const viewport = await generateViewport();
+      expect(viewport.viewportFit).toBe("cover");
+      expect(viewport.themeColor).toEqual([
+        { media: "(prefers-color-scheme: light)", color: sleeve.light["--gn-ground"] },
+        { media: "(prefers-color-scheme: dark)", color: sleeve.dark["--gn-ground"] },
+      ]);
+    });
+
+    it("follows the saved palette", async () => {
+      service.getAppearance.mockResolvedValue(saved({ palette: "midnight" }));
+      const viewport = await generateViewport();
+      expect(viewport.themeColor).toEqual([
+        { media: "(prefers-color-scheme: light)", color: palettes.midnight.light["--gn-ground"] },
+        { media: "(prefers-color-scheme: dark)", color: palettes.midnight.dark["--gn-ground"] },
+      ]);
+    });
+
+    it("lets the page draw under a translucent status bar", () => {
+      expect(metadata.appleWebApp).toMatchObject({ capable: true, statusBarStyle: "black-translucent" });
     });
   });
 });

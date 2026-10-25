@@ -445,7 +445,9 @@ const SearchResults: React.FC = () => {
             aria-label="Select tracks"
             size="sm"
             boxSize="44px"
-            variant={selectMode ? "solid" : "ghost"}
+            // Outlined like the filter button beneath it, so the two read as one column.
+            variant={selectMode ? "solid" : "outline"}
+            borderColor="border.ink"
             onClick={toggleSelectMode}
           >
             <LuListChecks />

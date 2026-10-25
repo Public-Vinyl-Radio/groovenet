@@ -7,6 +7,8 @@ import { PlaylistPlayerProvider } from "@/providers/PlaylistPlayerProvider";
 import { sampleTrack } from "@/stories/fixtures/track";
 import { FiVolume2 } from "react-icons/fi";
 
+vi.mock("@/components/player/MiniProgressLine", () => ({ default: () => null }));
+
 const noop = () => {};
 const noopAsync = async () => {};
 
@@ -32,6 +34,32 @@ const baseProps = {
   onSeek: noopAsync,
   onClosePlayer: noop,
 };
+
+function cssOf(el: Element) {
+  const classes = [...el.classList];
+  return Array.from(document.styleSheets)
+    .flatMap((sheet) => Array.from(sheet.cssRules))
+    .map((rule) => rule.cssText)
+    .filter((text) => classes.some((c) => text.includes(`.${c}`)))
+    .join("\n");
+}
+
+describe("PlayerControlsView — mini player", () => {
+  it.each([
+    ["Play", {}],
+    ["Pause", { isPlaying: true }],
+    ["Next", {}],
+    ["Close player", {}],
+  ])("makes %s a 44px round button with no hard shadow and a dim-and-shrink press", (name, props) => {
+    renderWithProviders(<PlayerControlsView {...baseProps} {...props} compact onQueueToggle={noop} />);
+    const css = cssOf(screen.getByRole("button", { name }));
+    expect(css).toMatch(/height:\s*44px/);
+    expect(css).toMatch(/border-radius:\s*var\(--chakra-radii-full\)/);
+    expect(css).toMatch(/box-shadow:\s*none/);
+    expect(css).toMatch(/scale\(0\.96\)/);
+    expect(css).toMatch(/brightness\(0\.9\)/);
+  });
+});
 
 describe("PlayerControlsView — compact close button", () => {
   it("renders a Close player button with a 44px touch target", async () => {

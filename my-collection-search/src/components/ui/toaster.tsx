@@ -10,8 +10,18 @@ import {
   createToaster,
 } from "@chakra-ui/react"
 
+// Toasts sit 12px above the bottom chrome (tab bar + player, --chrome-bottom in
+// houseStyle globalCss), never over it. The var is 0 when no bar is showing.
+export const toastOffsets = {
+  top: "1rem",
+  left: "1rem",
+  right: "1rem",
+  bottom: "calc(var(--chrome-bottom, 0px) + 12px)",
+};
+
 export const toaster = createToaster({
   placement: "bottom-end",
+  offsets: toastOffsets,
   pauseOnPageIdle: true,
 })
 

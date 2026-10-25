@@ -6,10 +6,6 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 
 const pathname = vi.hoisted(() => ({ value: "/chore" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.value }));
-const playlist = vi.hoisted(() => ({ length: 0 }));
-vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({ playlistLength: playlist.length }),
-}));
 vi.mock("@/providers/CommandPaletteProvider", () => ({
   useCommandPalette: () => ({ setPaletteOpen: vi.fn() }),
 }));
@@ -25,7 +21,6 @@ describe("AppShell", () => {
   afterEach(() => {
     standaloneMode.value = false;
     pathname.value = "/chore";
-    playlist.length = 0;
     localStorage.clear();
   });
 
@@ -121,13 +116,41 @@ describe("AppShell", () => {
     expect(toggle()).toBeTruthy();
   });
 
-  it("keeps desktop content clear of the floating player only while it is open", () => {
-    const { unmount } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
-    expect(rulesFor(contentOf())).not.toMatch(/124px/);
-    unmount();
-
-    playlist.length = 3;
+  it("pads content by the published bottom chrome, so it clears the tab bar and player", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
-    expect(rulesFor(contentOf())).toMatch(/padding-bottom:\s*124px/);
+    const css = rulesFor(contentOf());
+    expect(css).toMatch(/padding-bottom:\s*calc\(var\(--chrome-bottom\) \+ 16px\)/);
+    expect(css).toMatch(/padding-bottom:\s*calc\(var\(--chrome-bottom\) \+ 24px\)/);
+    expect(css).toMatch(/padding-top:\s*calc\(var\(--safe-top\) \+ 28px\)/);
+  });
+
+  it("caps the status bar with an opaque strip that has no backdrop blur", () => {
+    renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    const css = rulesFor(screen.getByTestId("status-bar-strip"));
+    expect(css).toMatch(/position:\s*fixed/);
+    expect(css).toMatch(/height:\s*var\(--safe-top\)/);
+    expect(css).not.toMatch(/backdrop-filter/);
+  });
+
+  it("gives the tab bar the bottom safe area and rounded-corner side insets", () => {
+    renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    const css = rulesFor(screen.getByTestId("mobile-tab-bar"));
+    expect(css).toMatch(/height:\s*var\(--tabbar-h\)/);
+    expect(css).toMatch(/padding-bottom:\s*var\(--safe-bottom\)/);
+    expect(css).toMatch(/padding-left:\s*max\(16px, env\(safe-area-inset-left/);
+    expect(css).toMatch(/padding-right:\s*max\(16px, env\(safe-area-inset-right/);
+  });
+
+  it("leaves the tab bar var alone on a normal route", () => {
+    renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    expect(document.documentElement.hasAttribute("data-tabbar-hidden")).toBe(false);
+  });
+
+  it("zeroes the tab bar var on a fullscreen edit route and restores it on leaving", () => {
+    pathname.value = "/tracks/1/edit";
+    const { unmount } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    expect(document.documentElement.hasAttribute("data-tabbar-hidden")).toBe(true);
+    unmount();
+    expect(document.documentElement.hasAttribute("data-tabbar-hidden")).toBe(false);
   });
 });

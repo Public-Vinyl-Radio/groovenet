@@ -20,6 +20,10 @@ export function isTrackSearchMode(value: string | null | undefined): value is Tr
   return ITEMS.some((item) => item.value === value);
 }
 
+// Segments fill the 44px group: the selection indicator is sized from the active
+// segment, so a shorter segment leaves a gap under the ink fill.
+const TOUCH_TARGET_CSS = { "& label": { flex: 1, justifyContent: "center", height: "100%" } };
+
 type SearchModeToggleProps = {
   value: TrackSearchMode;
   onChange: (mode: TrackSearchMode) => void;
@@ -35,7 +39,7 @@ export default function SearchModeToggle({ value, onChange, size = "sm", touchTa
       size={size}
       value={value}
       aria-label="Search mode"
-      {...(touchTarget ? { h: "44px", flex: 1, css: { "& label": { flex: 1, justifyContent: "center" } } } : {})}
+      {...(touchTarget ? { h: "44px", flex: 1, css: TOUCH_TARGET_CSS } : {})}
       // Only ITEMS can be chosen, and a segment group can't be cleared.
       onValueChange={(details) => onChange(details.value as TrackSearchMode)}
     >

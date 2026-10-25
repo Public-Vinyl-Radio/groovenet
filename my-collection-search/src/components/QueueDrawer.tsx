@@ -33,6 +33,7 @@ import DraggableTrackList from "@/components/DraggableTrackList";
 import PlayerControls from "@/components/PlayerControls";
 import { usePlaylistPlayer, usePlaylistPlayerTime } from "@/providers/PlaylistPlayerProvider";
 import { useQueueSaveDialog } from "@/hooks/useQueueSaveDialog";
+import { roundTransportButton } from "@/components/player/transportButtonStyle";
 import { usePlayerControlsController } from "@/components/player/usePlayerControlsController";
 import type { Track } from "@/types/track";
 import { formatSeconds, getTrackDurationSeconds } from "@/lib/trackUtils";
@@ -410,8 +411,9 @@ export default function QueueDrawer({
             <Drawer.Body
               position="relative"
               px={5}
-              pt={4}
-              pb={6}
+              // Header clears the status-bar strip, the volume/transport row the home indicator.
+              pt="calc(var(--safe-top) + 16px)"
+              pb="calc(var(--safe-bottom) + 24px)"
               flex="1"
               display="flex"
               flexDirection="column"
@@ -507,7 +509,7 @@ export default function QueueDrawer({
                           aria-label={isPlaying ? "Pause" : "Play"}
                           minW="84px"
                           h="84px"
-                          borderRadius="full"
+                          css={roundTransportButton}
                           bg="transparent"
                           color="overlay.fg"
                           onClick={isPlaying ? handlePause : handlePlay}
@@ -674,7 +676,7 @@ export default function QueueDrawer({
                         aria-label={isPlaying ? "Pause" : "Play"}
                         minW="72px"
                         h="72px"
-                        borderRadius="full"
+                        css={roundTransportButton}
                         bg="transparent"
                         color="overlay.fg"
                         onClick={isPlaying ? handlePause : handlePlay}
