@@ -13,7 +13,10 @@ import GenreFilter, {
   genreFilterChips,
   GenreFilterGroup,
   genreSlugFromChipKey,
+  INCLUDE_SIMILAR_CHIP_KEY,
+  includeSimilarChips,
   IncludeSimilarToggle,
+  SelectedGenreTags,
   similarGenreIdFromChipKey,
 } from "./GenreFilter";
 
@@ -178,5 +181,31 @@ describe("GenreFilterGroup (#685)", () => {
     await user.click(await screen.findByRole("option", { name: /Cumbia/ }));
     expect(onAdd).toHaveBeenCalledWith("cumbia");
     expect((field as HTMLInputElement).value).toBe("");
+  });
+});
+
+describe("include-similar chip and selected genre tags (#794)", () => {
+  beforeEach(() => fetchGenreTree.mockResolvedValue(TREE));
+
+  it("adds one '+ Similar genres' chip only while on with a genre chosen", () => {
+    expect(includeSimilarChips(true, ["cumbia"])).toEqual([
+      { key: INCLUDE_SIMILAR_CHIP_KEY, label: "+ Similar genres", active: true },
+    ]);
+    expect(includeSimilarChips(true, [])).toEqual([]);
+    expect(includeSimilarChips(false, ["cumbia"])).toEqual([]);
+  });
+
+  it("names the chosen genres from the taxonomy and removes one from its tag", async () => {
+    const onRemove = vi.fn();
+    const { user } = renderWithProviders(<SelectedGenreTags selected={["salsa", "unknown"]} onRemove={onRemove} />);
+
+    await user.click(await screen.findByRole("button", { name: "Remove genre Salsa" }));
+    expect(onRemove).toHaveBeenCalledWith("salsa");
+    expect(screen.getByRole("button", { name: "Remove genre unknown" })).toBeTruthy();
+  });
+
+  it("renders nothing with no genre chosen", () => {
+    renderWithProviders(<SelectedGenreTags selected={[]} onRemove={vi.fn()} />);
+    expect(screen.queryByTestId("selected-genre-tags")).toBeNull();
   });
 });

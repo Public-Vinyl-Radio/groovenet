@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Link, Text, chakra } from "@chakra-ui/react";
+import { Box, Button, Link, Text, chakra } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 
@@ -276,5 +276,33 @@ export function ChipToggle({
     >
       {children}
     </chakra.button>
+  );
+}
+
+/**
+ * The fixed footer of a filters modal or panel: Reset (disabled with nothing
+ * on) and the primary "Show N …", which only closes, since changes apply as
+ * they're made.
+ */
+export function FiltersFooter({
+  activeCount,
+  onReset,
+  showLabel,
+  onShow,
+}: {
+  activeCount: number;
+  onReset: () => void;
+  showLabel: string;
+  onShow: () => void;
+}) {
+  return (
+    <Box display="flex" gap={2} p="12px 14px 12px 12px">
+      <Button variant="outline" minH="44px" flexShrink={0} disabled={activeCount === 0} onClick={onReset}>
+        Reset
+      </Button>
+      <Button variant="solid" minH="44px" flex="1" minW={0} onClick={onShow}>
+        {showLabel}
+      </Button>
+    </Box>
   );
 }

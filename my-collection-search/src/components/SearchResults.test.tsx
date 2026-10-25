@@ -126,12 +126,16 @@ class CapturingIntersectionObserver {
   disconnect() {}
 }
 
-/** The "Select tracks" toggle is duplicated for mobile/desktop with the same label. */
-const selectTracksButton = () =>
-  screen.getAllByRole("button", { name: "Select tracks", hidden: true })[0];
+/** SELECT in the desktop page row (hidden from the a11y tree by jsdom's base breakpoint). */
+const selectTracksButton = () => screen.getByRole("button", { name: "Select", hidden: true });
 
-/** The desktop input: jsdom renders both layouts and only the mobile one is accessible. */
-const searchInput = () => screen.getAllByRole("textbox")[0] as HTMLInputElement;
+const searchInput = () => screen.getByRole("searchbox", { name: "Search tracks" }) as HTMLInputElement;
+
+/** Picks a mode from the menu at the end of the desktop search field. */
+const chooseMode = async (user: ReturnType<typeof renderWithProviders>["user"], label: string) => {
+  await user.click(screen.getByRole("button", { name: /^Search mode:/, hidden: true }));
+  await user.click(await screen.findByRole("menuitemradio", { name: new RegExp(`^${label}`) }));
+};
 const lastSearchMode = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].searchMode;
 const lastGenres = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].genres;
 const lastAttributes = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].attributes;
@@ -209,7 +213,7 @@ describe("SearchResults search mode", () => {
   it("switches mode from the toggle and records it in the URL", async () => {
     const { user } = renderWithProviders(<SearchResults />);
 
-    await user.click(screen.getAllByText("Hybrid")[0]);
+    await chooseMode(user, "Hybrid");
 
     await waitFor(() => expect(lastSearchMode()).toBe("hybrid"));
     expect(mocks.replace).toHaveBeenLastCalledWith("/?mode=hybrid");
@@ -220,7 +224,7 @@ describe("SearchResults search mode", () => {
     mocks.query = "cumbia";
     const { user } = renderWithProviders(<SearchResults />);
 
-    await user.click(screen.getAllByText("Keyword")[0]);
+    await chooseMode(user, "Keyword");
 
     await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?q=cumbia"));
   });
@@ -327,7 +331,7 @@ describe("SearchResults genre filter (#375)", () => {
     const { user } = renderWithProviders(<SearchResults />);
     expect(lastFacets()).toEqual({ q: "", filter: "friend_id = 1", attributes: {}, enabled: true });
 
-    await user.click(screen.getAllByText("Semantic")[0]);
+    await chooseMode(user, "Semantic");
     await waitFor(() => expect(lastFacets().enabled).toBe(false));
   });
 
@@ -342,13 +346,12 @@ describe("SearchResults genre filter (#375)", () => {
 describe("SearchResults include_similar (#485)", () => {
   it("reads similar=1 from the URL and shows the toggle checked", async () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
-    renderWithProviders(<SearchResults />);
+    const { user } = renderWithProviders(<SearchResults />);
 
     expect(lastIncludeSimilar()).toBe(true);
-    expect(
-      (screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0] as HTMLInputElement)
-        .checked
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
+    const dialog = await openFilters(user);
+    expect((within(dialog).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked).toBe(true);
   });
 
   it("hides the toggle without an active genre", () => {
@@ -360,7 +363,8 @@ describe("SearchResults include_similar (#485)", () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia");
     const { user } = renderWithProviders(<SearchResults />);
 
-    await user.click(screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0]);
+    const dialog = await openFilters(user);
+    await user.click(within(dialog).getByRole("checkbox", { name: "Include similar" }));
 
     await waitFor(() => expect(lastIncludeSimilar()).toBe(true));
     expect(mocks.replace).toHaveBeenLastCalledWith("/?genre=cumbia&similar=1");
@@ -604,7 +608,7 @@ describe("SearchResults rows/cards view", () => {
     withResults();
     const { user, unmount } = renderWithProviders(<SearchResults />);
 
-    await user.click(screen.getByRole("button", { name: "Cards view", hidden: true }));
+    await user.click(screen.getByText("Grid"));
     expect(screen.getByTestId("track-t1").dataset.layout).toBe("card");
     expect(localStorage.getItem("searchViewMode")).toBe("card");
 
@@ -619,7 +623,7 @@ describe("SearchResults rows/cards view", () => {
     const { user } = renderWithProviders(<SearchResults />);
     expect(screen.getByTestId("track-t1").dataset.layout).toBe("card");
 
-    await user.click(screen.getByRole("button", { name: "Rows view", hidden: true }));
+    await user.click(screen.getByText("List"));
 
     expect(screen.getByTestId("track-t1").dataset.layout).toBe("row");
     expect(localStorage.getItem("searchViewMode")).toBe("row");
@@ -669,7 +673,7 @@ describe("SearchResults selection and bulk actions", () => {
     withSelectableResults();
     const { user } = renderWithProviders(<SearchResults />);
 
-    await user.click(screen.getByRole("button", { name: "Cards view", hidden: true }));
+    await user.click(screen.getByText("Grid"));
     await user.click(selectTracksButton());
     await user.click(screen.getByRole("button", { name: "Select t1" }));
 
@@ -730,5 +734,73 @@ describe("SearchResults selection and bulk actions", () => {
         expect.objectContaining({ title: "1 track queued for download" })
       )
     );
+  });
+});
+
+describe("SearchResults desktop header (#794)", () => {
+  const openPanel = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
+    await user.click(screen.getByRole("button", { name: /^Filters/, hidden: true }));
+    return screen.findByRole("dialog", { name: "Filters" });
+  };
+
+  it("labels FILTERS with the count and opens the panel under it", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&missingAudio=1");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    const panel = await openPanel(user);
+    expect(screen.getByRole("button", { name: "Filters · 2", hidden: true })).toBeTruthy();
+    expect(within(panel).getByText("Tracks · 2 active")).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: "Show 0 results" })).toBeTruthy();
+  });
+
+  it("sets the same filter state as the phone modal", async () => {
+    const { user } = renderWithProviders(<SearchResults />);
+
+    const panel = await openPanel(user);
+    await user.click(within(panel).getByRole("button", { name: "Audio" }));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Filters" })).toBeNull());
+
+    const dialog = await openFilters(user);
+    expect(within(dialog).getByRole("button", { name: "Audio" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("removes a genre from its tag in the panel", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&genre=salsa");
+    const { user } = renderWithProviders(<SearchResults />);
+    await waitFor(() => expect(mocks.fetchGenreTree).toHaveBeenCalled());
+
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole("button", { name: "Remove genre Cumbia" }));
+    await waitFor(() => expect(lastGenres()).toEqual(["salsa"]));
+  });
+
+  it("resets every filter from the panel and closes from Show", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&missingAudio=1");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    const panel = await openPanel(user);
+    await user.click(within(panel).getByRole("button", { name: "Reset" }));
+    await waitFor(() => expect(lastGenres()).toEqual([]));
+    await user.click(within(panel).getByRole("button", { name: "Show 0 results" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Filters" })).toBeNull());
+  });
+
+  it("turns Include similar off from its chip", async () => {
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
+    const { user } = renderWithProviders(<SearchResults />);
+
+    await user.click(screen.getByRole("button", { name: "Remove filter + Similar genres" }));
+    await waitFor(() => expect(lastIncludeSimilar()).toBe(false));
+    expect(lastGenres()).toEqual(["cumbia"]);
+  });
+
+  it("marks SELECT pressed while selecting", async () => {
+    const { user } = renderWithProviders(<SearchResults />);
+    expect(selectTracksButton().getAttribute("aria-pressed")).toBe("false");
+    await user.click(selectTracksButton());
+    expect(selectTracksButton().getAttribute("aria-pressed")).toBe("true");
   });
 });

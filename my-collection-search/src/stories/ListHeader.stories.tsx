@@ -12,6 +12,11 @@ import {
   ViewModeSwitch,
 } from '@/components/layout/ListHeader';
 import type { TrackViewMode } from '@/hooks/useTrackViewMode';
+import type { TrackSearchMode } from '@/api-contract/schemas';
+import SearchModeMenu from '@/components/search/SearchModeMenu';
+import FiltersPanel from '@/components/FiltersPanel';
+import { TrackFilterSections, showResultsLabel } from '@/components/TrackSearchOptionsModal';
+import { createEmptyFilters, type TracksFilter } from '@/lib/trackFilters';
 
 /**
  * The desktop list header (#794): the page row, the search row and the chip
@@ -35,6 +40,9 @@ function Header({ title, primary }: { title: string; primary?: boolean }) {
   const [view, setView] = useState<TrackViewMode>('card');
   const [query, setQuery] = useState('');
   const [chips, setChips] = useState(initialChips);
+  const [mode, setMode] = useState<TrackSearchMode>('semantic');
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [missing, setMissing] = useState<TracksFilter>(createEmptyFilters());
   return (
     <Box maxW="1160px">
       <PageHeader
@@ -57,8 +65,45 @@ function Header({ title, primary }: { title: string; primary?: boolean }) {
       />
       <ListSearchRow
         maxW={primary ? '640px' : '760px'}
-        field={<SearchField value={query} onChange={setQuery} label={`Search ${title.toLowerCase()}`} placeholder={`Search ${title.toLowerCase()}`} />}
-        controls={<FiltersButton activeCount={chips.length} />}
+        field={
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            label={`Search ${title.toLowerCase()}`}
+            placeholder={`Search ${title.toLowerCase()}`}
+            endElement={primary ? undefined : <SearchModeMenu value={mode} onChange={setMode} />}
+          />
+        }
+        controls={
+          primary ? (
+            <FiltersButton activeCount={chips.length} />
+          ) : (
+            <FiltersPanel
+              open={panelOpen}
+              onOpenChange={setPanelOpen}
+              scope="Tracks"
+              activeCount={chips.length}
+              onReset={() => setChips([])}
+              showLabel={showResultsLabel(81)}
+            >
+              <TrackFilterSections
+                first
+                genres={[]}
+                onAddGenre={() => {}}
+                onRemoveGenre={() => {}}
+                includeSimilar={false}
+                onIncludeSimilarChange={() => {}}
+                attributes={{}}
+                onAttributesChange={() => {}}
+                missing={missing}
+                onToggleMissing={(key) => setMissing((prev) => ({ ...prev, [key]: !prev[key] }))}
+                activeCount={chips.length}
+                resultCount={81}
+                onReset={() => setChips([])}
+              />
+            </FiltersPanel>
+          )
+        }
       />
       <FilterChips
         chips={chips}
