@@ -6,7 +6,9 @@ import ConfirmDialog from "@/components/records/ConfirmDialog";
 import { useDeletePlaylistMutation } from "@/hooks/useDeletePlaylistMutation";
 import PlaylistListItem, { formatDuration } from "@/components/PlaylistListItem";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
-import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
+import PageHeader from "@/components/layout/PageHeader";
+import PlaylistsToolbar from "@/components/PlaylistsToolbar";
+import { usePlaylistsViewMode } from "@/hooks/usePlaylistsViewMode";
 import {
   Box,
   Text,
@@ -16,7 +18,6 @@ import {
   Skeleton,
   VStack,
   HStack,
-  Menu,
 } from "@chakra-ui/react";
 
 import { Toaster, toaster } from "@/components/ui/toaster"; // See below
@@ -56,6 +57,9 @@ export default function PlaylistManager() {
     name: string;
     tracks: Array<PlaylistTrackPayload>;
   } | null>(null);
+
+  const { viewMode, setViewMode } = usePlaylistsViewMode();
+  const openImport = () => fileInputRef.current?.click();
 
   // Simple filter for playlists
   const [filter, setFilter] = useState("");
@@ -167,64 +171,20 @@ export default function PlaylistManager() {
 
   return (
     <Box minW="240px">
-      {/* Header + filter */}
-      <VStack align="stretch" mb={2} gap={2}>
-        <UnifiedSearchControls
-          query={filter}
-          onQueryChange={setFilter}
-          showLibrarySelect={false}
-          placeholder="Search playlists..."
-          desktopControls={
-            <>
-              <Menu.Root>
-                <Menu.Trigger asChild>
-                  <Button size="sm" variant="outline" flexShrink={0}>
-                    <TbFileImport /> Import
-                  </Button>
-                </Menu.Trigger>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    <Menu.Item
-                      value="import-json"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <TbFileImport /> Import JSON
-                    </Menu.Item>
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Menu.Root>
-            </>
-          }
-          mobilePrimaryControl={
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <Button size="sm" variant="outline" flexShrink={0} px={2}>
-                  <TbFileImport />
-                </Button>
-              </Menu.Trigger>
-              <Menu.Positioner>
-                <Menu.Content>
-                  <Menu.Item
-                    value="import-json"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <TbFileImport /> Import JSON
-                  </Menu.Item>
-                </Menu.Content>
-              </Menu.Positioner>
-            </Menu.Root>
-          }
-        />
+      <PageHeader
+        title="Playlists"
+        count={playlistsLoading || loadingPlaylists ? undefined : filtered.length}
+        actions={[{ label: "Import playlist", icon: <TbFileImport />, onClick: openImport }]}
+      />
+      <PlaylistsToolbar
+        query={filter}
+        onQueryChange={setFilter}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onImport={openImport}
+      />
 
-        {!loadingPlaylists && playlists.length > 0 && (
-          <Text fontSize="sm" color="fg.muted" px={1}>
-            {filtered.length.toLocaleString()}{" "}
-            {filtered.length === 1 ? "playlist" : "playlists"}
-          </Text>
-        )}
-      </VStack>
-
-      <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap={3} overflowY="auto">
+      <SimpleGrid columns={viewMode === "list" ? 1 : { base: 1, md: 2, xl: 3 }} gap={3} overflowY="auto">
         {playlistsLoading ? (
           Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} height="72px" borderRadius="md" />
@@ -243,7 +203,7 @@ export default function PlaylistManager() {
                 <HStack>
                   <Button
                     size="xs"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={openImport}
                   >
                     Import JSON
                   </Button>
