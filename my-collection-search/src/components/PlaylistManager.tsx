@@ -2,8 +2,9 @@
 
 import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import DeletePlaylistDialog from "@/components/DeletePlaylistDialog";
-import PlaylistListItem from "@/components/PlaylistListItem";
+import ConfirmDialog from "@/components/records/ConfirmDialog";
+import { useDeletePlaylistMutation } from "@/hooks/useDeletePlaylistMutation";
+import PlaylistListItem, { formatDuration } from "@/components/PlaylistListItem";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import {
@@ -27,6 +28,7 @@ import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
 import { analytics } from "@/lib/analytics/client";
+import { exportPlaylistToPDF } from "@/lib/exportPlaylistPdf";
 
 export default function PlaylistManager() {
   const router = useRouter();
@@ -36,12 +38,12 @@ export default function PlaylistManager() {
     showCurrentUser: true,
   });
 
-  const { replacePlaylist } = usePlaybackPlayer();
+  const { replacePlaylist, appendToQueue } = usePlaybackPlayer();
 
   const notify = (opts: Parameters<typeof toaster.create>[0]) =>
     toaster.create(opts);
 
-  // Delete dialog state and handler moved to DeletePlaylistDialog below
+  const { mutateAsync: deletePlaylist, isPending: deletePending } = useDeletePlaylistMutation();
   const [deleteDialogState, setDeleteDialogState] = useState<{
     open: boolean;
     playlistId: number | null;
@@ -276,6 +278,21 @@ export default function PlaylistManager() {
                     source: "playlist_manager",
                   });
                 }}
+                onEnqueue={async () => {
+                  appendToQueue(await fetchTracksByIds(pl.tracks));
+                }}
+                onExportPdf={async () => {
+                  const tracks = await fetchTracksByIds(pl.tracks);
+                  const stamp = new Date().toISOString().replace(/[:]/g, "-").replace(/\..+/, "").replace("T", "_");
+                  const slug = pl.name.trim().replace(/[^a-zA-Z0-9-_]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+                  await exportPlaylistToPDF({
+                    playlist: tracks,
+                    totalPlaytimeFormatted: formatDuration(pl.total_duration_seconds) ?? "0m",
+                    playlistName: pl.name,
+                    exportedAt: new Date().toLocaleString(),
+                    filename: `${slug || "playlist"}-${stamp}.pdf`,
+                  });
+                }}
                 onDelete={() => setDeleteDialogState({ open: true, playlistId: pl.id })}
                 onCreateSet={async () => {
                   try {
@@ -291,12 +308,26 @@ export default function PlaylistManager() {
           })
         )}
       </SimpleGrid>
-      <DeletePlaylistDialog
+      <ConfirmDialog
         open={deleteDialogState.open}
-        playlistId={deleteDialogState.playlistId}
-        onClose={() => setDeleteDialogState({ open: false, playlistId: null })}
-        fetchPlaylists={fetchPlaylists}
-        notify={notify}
+        onOpenChange={(open) => {
+          if (!open) setDeleteDialogState({ open: false, playlistId: null });
+        }}
+        title="Delete playlist"
+        body="Delete this playlist? This can't be undone."
+        confirmLabel="Delete playlist"
+        pending={deletePending}
+        onConfirm={async () => {
+          if (deleteDialogState.playlistId == null) return;
+          try {
+            await deletePlaylist(deleteDialogState.playlistId);
+          } catch (err) {
+            notify({ title: "Failed to delete playlist.", type: "error" });
+            throw err;
+          }
+          notify({ title: "Playlist deleted.", type: "success" });
+          fetchPlaylists();
+        }}
       />
       <input
         type="file"

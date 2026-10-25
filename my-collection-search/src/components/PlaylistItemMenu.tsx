@@ -5,14 +5,10 @@ import NextLink from "next/link";
 import {
   Box,
   Button,
-  CloseButton,
   Dialog,
-  Drawer,
   Flex,
   Menu,
   Portal,
-  Stack,
-  Text,
 } from "@chakra-ui/react";
 import {
   FiArrowDown,
@@ -24,7 +20,8 @@ import {
   FiTrash,
 } from "react-icons/fi";
 import type { Track } from "@/types/track";
-import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import PlaylistTrackActionsModal from "@/components/PlaylistTrackActionsModal";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
 import PlaylistRecommendations from "./PlaylistRecommendations";
 import { analyzeTrackAsync } from "@/services/internalApi/tracks";
@@ -64,7 +61,10 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
 
   const editHref = `/tracks/${encodeURIComponent(track.track_id)}/edit?friend_id=${track.friend_id}`;
 
-  const close = () => setDrawerOpen(false);
+  const openRecommendations = () => {
+    setRecommendationsTrackSnapshot([track]);
+    setRecommendationsModalOpen(true);
+  };
 
   const handleFetchAudio = async () => {
     if (!track.friend_id) {
@@ -100,65 +100,41 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
 
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Phone: centred modal (#751) */}
       <Box display={{ base: "block", md: "none" }}>
-        <Button variant="plain" size={size} onClick={() => setDrawerOpen(true)}>
+        <Button variant="plain" size={size} boxSize="44px" minW="44px" aria-label="Track actions" onClick={() => setDrawerOpen(true)}>
           <FiMoreVertical size={16} />
         </Button>
-        <Drawer.Root placement="bottom" open={drawerOpen} onOpenChange={(d) => setDrawerOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl" maxH="85vh">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Box pr={8}>
-                    <Text fontSize="xs" color="fg.muted">{track.artist}</Text>
-                    <Text fontWeight="semibold" fontSize="sm" lineClamp={1}>{track.title}</Text>
-                  </Box>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0} overflowY="auto">
-                  <Stack gap={0}>
-                    <DrawerItem icon={<FiArrowUp />} label="Move Up" disabled={isFirst} onClick={() => { moveTrack(idx, idx - 1); close(); }} />
-                    <DrawerItem icon={<FiArrowDown />} label="Move Down" disabled={isLast} onClick={() => { moveTrack(idx, idx + 1); close(); }} />
-                    {drawerDivider}
-                    <DrawerItem icon={<FiEdit />} label="Edit" href={editHref} />
-                    <DrawerItem icon={<FiPlus />} label="Add to Playlist" onClick={() => { openForTrack(track); close(); }} />
-                    {canFetchAudio && (
-                      <DrawerItem
-                        icon={<FiDownload />}
-                        label={fetchAudioLoading ? "Fetching Audio..." : "Fetch Audio"}
-                        disabled={fetchAudioLoading}
-                        onClick={() => { handleFetchAudio(); close(); }}
-                      />
-                    )}
-                    <DrawerItem
-                      icon={<FiPlus />}
-                      label="AI Recommendations"
-                      onClick={() => { setRecommendationsTrackSnapshot([track]); setRecommendationsModalOpen(true); close(); }}
-                    />
-                    {drawerDivider}
-                    <DrawerItem
-                      icon={<FiTrash />}
-                      label="Remove"
-                      color="fg.error"
-                      onClick={() => { removeFromPlaylist(idx); close(); }}
-                    />
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <PlaylistTrackActionsModal
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          track={track}
+          index={idx}
+          total={total}
+          onMove={(to) => moveTrack(idx, to)}
+          trackActions={[
+            { label: "Edit", href: editHref },
+            { label: "Add to playlist", onClick: () => openForTrack(track) },
+            ...(canFetchAudio
+              ? [
+                  {
+                    label: fetchAudioLoading ? "Fetching audio..." : "Fetch audio",
+                    disabled: fetchAudioLoading,
+                    onClick: () => void handleFetchAudio(),
+                  },
+                ]
+              : []),
+          ]}
+          discover={[{ label: "AI recommendations", onClick: openRecommendations }]}
+          danger={[{ label: "Remove from playlist", onClick: () => removeFromPlaylist(idx) }]}
+        />
       </Box>
 
       {/* Desktop: dropdown menu */}
       <Box display={{ base: "none", md: "block" }}>
         <Menu.Root>
           <Menu.Trigger asChild>
-            <Button variant="plain" size={size}>
+            <Button variant="plain" size={size} aria-label="Track actions">
               <FiMoreVertical size={16} />
             </Button>
           </Menu.Trigger>
@@ -184,7 +160,7 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
                 </Menu.Item>
               )}
               <Menu.Item
-                onSelect={() => { setRecommendationsTrackSnapshot([track]); setRecommendationsModalOpen(true); }}
+                onSelect={openRecommendations}
                 value="recommendations"
               >
                 <FiPlus /> AI Recommendations

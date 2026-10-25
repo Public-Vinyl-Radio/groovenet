@@ -1,0 +1,125 @@
+// @vitest-environment jsdom
+import React from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "@/test/renderWithProviders";
+import type { Playlist, Track } from "@/types/track";
+
+const tracks = [{ track_id: "t1", friend_id: 1, title: "A", artist: "B" }] as Track[];
+
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  fetchPlaylists: vi.fn(),
+  deletePlaylist: vi.fn(),
+  appendToQueue: vi.fn(),
+  replacePlaylist: vi.fn(),
+  fetchTracksByIds: vi.fn(),
+  exportPlaylistToPDF: vi.fn().mockResolvedValue(undefined),
+  toast: vi.fn(),
+}));
+
+const playlists = [
+  { id: 5, name: "Late Night", tracks: [{}, {}], total_duration_seconds: 3900, created_at: "2026-01-01T00:00:00Z" },
+] as unknown as Playlist[];
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
+vi.mock("@/providers/PlaylistsProvider", () => ({
+  usePlaylists: () => ({
+    playlists,
+    playlistsLoading: false,
+    loadingPlaylists: null,
+    fetchPlaylists: mocks.fetchPlaylists,
+  }),
+}));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ replacePlaylist: mocks.replacePlaylist, appendToQueue: mocks.appendToQueue }),
+}));
+vi.mock("@/hooks/useFriendsQuery", () => ({ useFriendsQuery: () => ({ friends: [] }) }));
+vi.mock("@/hooks/useDeletePlaylistMutation", () => ({
+  useDeletePlaylistMutation: () => ({ mutateAsync: mocks.deletePlaylist, isPending: false }),
+}));
+vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds: mocks.fetchTracksByIds }));
+vi.mock("@/services/internalApi/playlists", () => ({ createSetForPlaylist: vi.fn(), importPlaylist: vi.fn() }));
+vi.mock("@/lib/exportPlaylistPdf", () => ({ exportPlaylistToPDF: mocks.exportPlaylistToPDF }));
+vi.mock("@/components/ui/toaster", () => ({
+  Toaster: () => null,
+  toaster: { create: mocks.toast },
+}));
+vi.mock("@/components/search/UnifiedSearchControls", () => ({ default: () => null }));
+vi.mock("@/components/FriendSelectDialog", () => ({ default: () => null }));
+
+import PlaylistManager from "./PlaylistManager";
+
+afterEach(() => vi.clearAllMocks());
+
+async function openRowModal() {
+  const rendered = renderWithProviders(<PlaylistManager />);
+  await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+  await screen.findByRole("button", { name: "Play now" });
+  return rendered;
+}
+
+describe("PlaylistManager row actions (#751)", () => {
+  it("summarises the playlist in the modal strip", async () => {
+    await openRowModal();
+    expect(screen.getAllByText(/2 tracks · 1h 5m/).length).toBeGreaterThan(0);
+  });
+
+  it("enqueues the playlist's tracks", async () => {
+    mocks.fetchTracksByIds.mockResolvedValue(tracks);
+    const { user } = await openRowModal();
+    await user.click(screen.getByRole("button", { name: "Enqueue" }));
+    await waitFor(() => expect(mocks.appendToQueue).toHaveBeenCalledWith(tracks));
+  });
+
+  it("exports a PDF named after the playlist", async () => {
+    mocks.fetchTracksByIds.mockResolvedValue(tracks);
+    const { user } = await openRowModal();
+    await user.click(screen.getByRole("button", { name: "Export PDF" }));
+    await waitFor(() =>
+      expect(mocks.exportPlaylistToPDF).toHaveBeenCalledWith(
+        expect.objectContaining({
+          playlist: tracks,
+          playlistName: "Late Night",
+          totalPlaytimeFormatted: "1h 5m",
+          filename: expect.stringMatching(/^late-night-\d{4}-\d{2}-\d{2}_.*\.pdf$/),
+        })
+      )
+    );
+  });
+
+  it("asks to confirm, then deletes", async () => {
+    mocks.deletePlaylist.mockResolvedValue(undefined);
+    const { user } = await openRowModal();
+    await user.click(screen.getByRole("button", { name: "Delete playlist" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(mocks.deletePlaylist).not.toHaveBeenCalled();
+    await user.click(screen.getAllByRole("button", { name: "Delete playlist" }).find((b) => dialog.contains(b))!);
+
+    await waitFor(() => expect(mocks.deletePlaylist).toHaveBeenCalledWith(5));
+    expect(mocks.toast).toHaveBeenCalledWith({ title: "Playlist deleted.", type: "success" });
+    expect(mocks.fetchPlaylists).toHaveBeenCalled();
+  });
+
+  it("keeps the prompt open and reports a failed delete", async () => {
+    mocks.deletePlaylist.mockRejectedValue(new Error("nope"));
+    const { user } = await openRowModal();
+    await user.click(screen.getByRole("button", { name: "Delete playlist" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(screen.getAllByRole("button", { name: "Delete playlist" }).find((b) => dialog.contains(b))!);
+
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Failed to delete playlist.", type: "error" }));
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(mocks.fetchPlaylists).not.toHaveBeenCalled();
+  });
+
+  it("cancelling the prompt deletes nothing", async () => {
+    const { user } = await openRowModal();
+    await user.click(screen.getByRole("button", { name: "Delete playlist" }));
+    await screen.findByRole("alertdialog");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(mocks.deletePlaylist).not.toHaveBeenCalled();
+  });
+});

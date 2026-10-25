@@ -32,6 +32,12 @@ describe("RetroDialog", () => {
     expect(await screen.findByRole("dialog", { name: "Custom" })).toBeTruthy();
   });
 
+  it("keeps the close button in the strip's flow, so header buttons are not overlapped", async () => {
+    renderDialog({ title: undefined, header: <RetroDialogTitle>Custom</RetroDialogTitle> });
+    const close = await screen.findByRole("button", { name: "Close" });
+    expect(getComputedStyle(close).position).toBe("static");
+  });
+
   it("closes from the close button and Escape", async () => {
     const { user, onOpenChange } = renderDialog();
     await user.click(await screen.findByRole("button", { name: "Close" }));

@@ -1,19 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  CloseButton,
-  Drawer,
-  Menu,
-  Portal,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
-import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
+import { Box, Button, Menu } from "@chakra-ui/react";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import PlaylistRowActionsModal from "@/components/PlaylistRowActionsModal";
 import { FaPlay } from "react-icons/fa";
-import { FiCalendar, FiEdit2, FiMoreVertical, FiTrash } from "react-icons/fi";
+import { FiCalendar, FiEdit2, FiFileText, FiMoreVertical, FiPlusSquare, FiTrash } from "react-icons/fi";
 
 interface PlaylistItemActionsMenuProps {
   playlistName: string;
@@ -21,6 +13,14 @@ interface PlaylistItemActionsMenuProps {
   onDelete: () => void;
   onCreateSet?: () => void;
   onOpen: () => void;
+  /** Appends the playlist to the queue. */
+  onEnqueue: () => void;
+  onExportPdf?: () => void;
+  /** The phone strip's catalogue line: count, duration and date. */
+  summary?: string;
+  /** A performed set. */
+  played?: boolean;
+  collaborators?: string;
 }
 
 
@@ -30,43 +30,37 @@ export default function PlaylistItemActionsMenu({
   onDelete,
   onCreateSet,
   onOpen,
+  onEnqueue,
+  onExportPdf,
+  summary = "",
+  played,
+  collaborators,
 }: PlaylistItemActionsMenuProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const close = () => setDrawerOpen(false);
 
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Phone: centred modal (#751) */}
       <Box display={{ base: "block", md: "none" }}>
-        <Button size="xs" variant="ghost" px={2} aria-label="Playlist actions" onClick={() => setDrawerOpen(true)}>
+        <Button size="xs" variant="ghost" boxSize="44px" minW="44px" px={0} aria-label="Playlist actions" onClick={() => setDrawerOpen(true)}>
           <FiMoreVertical />
         </Button>
-        <Drawer.Root placement="bottom" open={drawerOpen} onOpenChange={(d) => setDrawerOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Text fontWeight="semibold" fontSize="sm" lineClamp={1} pr={8}>
-                    {playlistName}
-                  </Text>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0}>
-                  <Stack gap={0}>
-                    <DrawerItem icon={<FiEdit2 />} label="Open playlist" onClick={() => { onOpen(); close(); }} />
-                    <DrawerItem icon={<FaPlay />} label="Play Now" onClick={() => { onPlay(); close(); }} />
-                    {onCreateSet && <DrawerItem icon={<FiCalendar />} label="Turn into a set" onClick={() => { onCreateSet(); close(); }} />}
-                    {drawerDivider}
-                    <DrawerItem icon={<FiTrash />} label="Delete" color="fg.error" onClick={() => { onDelete(); close(); }} />
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <PlaylistRowActionsModal
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          playlistName={playlistName}
+          summary={summary}
+          played={played}
+          collaborators={collaborators}
+          onPlay={onPlay}
+          onEnqueue={onEnqueue}
+          onOpen={onOpen}
+          playlist={[
+            ...(onCreateSet ? [{ label: "Turn into a set", onClick: onCreateSet }] : []),
+            ...(onExportPdf ? [{ label: "Export PDF", onClick: onExportPdf }] : []),
+          ]}
+          danger={[{ label: "Delete playlist", onClick: onDelete }]}
+        />
       </Box>
 
       {/* Desktop: dropdown menu */}
@@ -85,9 +79,17 @@ export default function PlaylistItemActionsMenu({
               <Menu.Item value="play-now" onClick={onPlay}>
                 <FaPlay /> Play now
               </Menu.Item>
+              <Menu.Item value="enqueue" onClick={onEnqueue}>
+                <FiPlusSquare /> Enqueue
+              </Menu.Item>
               {onCreateSet && (
                 <Menu.Item value="turn-into-set" onClick={onCreateSet}>
                   <FiCalendar /> Turn into a set
+                </Menu.Item>
+              )}
+              {onExportPdf && (
+                <Menu.Item value="export-pdf" onClick={onExportPdf}>
+                  <FiFileText /> Export PDF
                 </Menu.Item>
               )}
               {menuDivider}

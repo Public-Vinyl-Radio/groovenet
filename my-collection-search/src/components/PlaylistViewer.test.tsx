@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { sampleTrack, trackInPlaylist } from "@/stories/fixtures/track";
 
@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   player: { playlist: [] as unknown[], currentTrackIndex: null as number | null },
   pending: false,
   empty: false,
+  saveExisting: vi.fn(),
+  markChanged: (() => {}) as () => void,
 }));
 
 const refs = [
@@ -29,17 +31,20 @@ vi.mock("@/hooks/usePlaylistTracksQuery", () => ({
   usePlaylistTracksQuery: () => ({ tracks, isPending: false }),
 }));
 vi.mock("@/hooks/usePlaylistMutations", () => ({
-  usePlaylistMutations: () => ({
-    moveTrack: vi.fn(),
-    removeFromPlaylist: vi.fn(),
-    addToPlaylist: vi.fn(),
-    sortGreedy: vi.fn(),
-    sortGenetic: vi.fn(),
-    sortCohesiveBlocks: vi.fn(),
-    isGeneticSorting: false,
-    isCohesiveBlocksSorting: false,
-    sortPositionChanges: {},
-  }),
+  usePlaylistMutations: (_id: unknown, onChange: () => void) => {
+    mocks.markChanged = onChange;
+    return {
+      moveTrack: vi.fn(),
+      removeFromPlaylist: vi.fn(),
+      addToPlaylist: vi.fn(),
+      sortGreedy: vi.fn(),
+      sortGenetic: vi.fn(),
+      sortCohesiveBlocks: vi.fn(),
+      isGeneticSorting: false,
+      isCohesiveBlocksSorting: false,
+      sortPositionChanges: {},
+    };
+  },
 }));
 vi.mock("@/hooks/usePlaylistActions", () => ({
   usePlaylistActions: () => ({
@@ -49,7 +54,7 @@ vi.mock("@/hooks/usePlaylistActions", () => ({
   }),
 }));
 vi.mock("@/hooks/usePlaylistSaveDialog", () => ({
-  usePlaylistSaveDialog: () => ({ Dialog: () => null, open: vi.fn(), saveExisting: vi.fn() }),
+  usePlaylistSaveDialog: () => ({ Dialog: () => null, open: vi.fn(), saveExisting: mocks.saveExisting }),
 }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   usePlaylistPlayer: () => ({ replacePlaylist: mocks.replacePlaylist, playlistLength: 0, ...mocks.player }),
@@ -57,7 +62,7 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
 vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: vi.fn() }) }));
 vi.mock("@/components/PlaylistStatsPanel", () => ({ default: () => null }));
 vi.mock("@/components/SetDetailsPanel", () => ({ default: () => null }));
-vi.mock("@/components/PlaylistActionsMenu", () => ({ default: () => null }));
+vi.mock("@/components/PlaylistActionsMenu", () => ({ default: () => <span data-testid="actions-menu" /> }));
 vi.mock("@/components/PlaylistItemMenu", () => ({ default: () => <button>item menu</button> }));
 vi.mock("@/components/PlaylistRecommendations", () => ({ default: () => null }));
 vi.mock("@/components/FriendSelectDialog", () => ({ default: () => null }));
@@ -135,6 +140,24 @@ describe("PlaylistViewer page header", () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     expect(await screen.findByRole("heading", { level: 1, name: "Set" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to Playlists", hidden: true }).getAttribute("href")).toBe("/playlists");
+  });
+
+  it("puts the actions menu in the phone header as well as beside the playtime on desktop", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.getAllByTestId("actions-menu")).toHaveLength(2);
+  });
+
+  it("offers Save in the phone header once the order changes, in place of a floating bar", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.queryByRole("button", { name: "Save changes", hidden: true })).toBeNull();
+
+    act(() => mocks.markChanged());
+    const save = await screen.findByRole("button", { name: "Save changes", hidden: true });
+    fireEvent.click(save);
+    expect(mocks.saveExisting).toHaveBeenCalled();
+    expect(screen.queryByText("Reordered tracks won't persist until you save.")).toBeNull();
   });
 
   it.each([

@@ -19,8 +19,6 @@ const meta: Meta<typeof PlaylistActionsMenu> = {
     enqueuePlaylist: noop,
     onDuplicate: noop,
     onRename: noop,
-    onEnqueueMissingDownloads: noop,
-    onBackfillDuration: noop,
     onOpenRecommendations: noop,
   },
 };
@@ -47,8 +45,6 @@ export const Minimal: Story = {
   args: {
     onDuplicate: undefined,
     onRename: undefined,
-    onEnqueueMissingDownloads: undefined,
-    onBackfillDuration: undefined,
     onOpenRecommendations: undefined,
   },
 };

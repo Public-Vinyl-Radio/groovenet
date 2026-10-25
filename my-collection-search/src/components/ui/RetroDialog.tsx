@@ -79,6 +79,7 @@ export default function RetroDialog({
                   boxSize="44px"
                   minW="44px"
                   flexShrink={0}
+                  position="static"
                   disabled={!dismissible}
                   _hover={{ bg: "transparent", opacity: 0.75 }}
                 >
