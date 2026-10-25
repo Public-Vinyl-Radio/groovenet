@@ -54,6 +54,12 @@ seed_dir="$(seed_bundle_dir)"
 if [[ -n "$SEED_DIR_OVERRIDE" ]]; then
   seed_dir="$SEED_DIR_OVERRIDE"
 fi
+# Resolve latest once so a concurrent seed refresh cannot mix a database
+# from one bundle with assets from another.
+if [[ -d "$seed_dir" ]]; then
+  seed_dir="$(cd "$seed_dir" && pwd -P)"
+fi
+echo "Selected golden seed: $seed_dir"
 
 if database_is_empty; then
   if [[ "$SEED_MODE" == "skip" ]]; then
@@ -88,6 +94,9 @@ if database_is_empty; then
   fi
 else
   echo "Database already contains tables; skipping seed restore."
+  echo "Refreshing the golden seed does not replace an existing worktree database."
+  echo "To recreate this worktree with the selected seed, run 'just worktree-purge' then 'just worktree-up'."
+  echo "Warning: worktree-purge deletes this worktree's database and other Compose volumes."
 fi
 
 compose_exec run --rm --build migrate
