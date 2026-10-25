@@ -472,7 +472,7 @@ jobs:
           uv run python -c "import chromaprint; print('libchromaprint', chromaprint._libchromaprint.chromaprint_get_version())"
 
       - name: Run fingerprint service tests with coverage
-        run: uv run --group dev pytest --cov=fingerprint_service --cov-report=xml:coverage.xml
+        run: uv run --group dev pytest --cov=fingerprint_service --cov-report=xml:coverage.xml --durations=15
 
       - name: Upload fingerprint service coverage to Codecov
         uses: codecov/codecov-action@v7

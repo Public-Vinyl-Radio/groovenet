@@ -3,6 +3,7 @@ import logging
 import math
 import struct
 import wave
+from functools import lru_cache
 
 import fakeredis
 import pytest
@@ -136,7 +137,7 @@ def index_job():
     return _make
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def tone_pcm():
     """Mono 16-bit PCM standing in for one track.
 
@@ -150,7 +151,10 @@ def tone_pcm():
 
     `noise` degrades a capture the way a mix does, for testing recall.
     """
-    def _make(seconds=20.0, sample_rate=22050, seed=1.0, noise=0.0):
+    # Many tests use the same long clips. Cache only immutable source bytes;
+    # each test still constructs and exercises its own matcher and index.
+    @lru_cache(maxsize=32)
+    def _synthesize(seconds, sample_rate, seed, noise):
         import random
 
         rng = random.Random(int(seed * 1000))
@@ -170,6 +174,10 @@ def tone_pcm():
                 sample += noise_rng.gauss(0, noise * 4000)
             out += struct.pack("<h", max(-32768, min(32767, int(sample))))
         return bytes(out)
+
+    def _make(seconds=20.0, sample_rate=22050, seed=1.0, noise=0.0):
+        # Normalize defaults and positional/keyword calls to the same cache key.
+        return _synthesize(seconds, sample_rate, seed, noise)
 
     return _make
 
