@@ -52,14 +52,17 @@ export function CoverMosaic({ urls, size = "72px" }: { urls: string[]; size?: st
   );
 }
 
-/** Ticket thumbnail: the set flyer, portrait. 56x72 on a phone, 96x128 on desktop. */
-export function SetFlyer({ url }: { url: string }) {
+/**
+ * Ticket thumbnail: the set flyer, portrait. 56x72 on a phone, 96x128 on
+ * desktop; `compact` is the 40x48 thumbnail of the desktop table.
+ */
+export function SetFlyer({ url, compact = false }: { url: string; compact?: boolean }) {
   return (
     <Box
       data-testid="set-flyer"
       boxSize="auto"
-      w={{ base: "56px", md: "96px" }}
-      h={{ base: "72px", md: "128px" }}
+      w={compact ? "40px" : { base: "56px", md: "96px" }}
+      h={compact ? "48px" : { base: "72px", md: "128px" }}
       flexShrink={0}
       borderWidth="rule"
       borderColor="border.ink"
@@ -148,15 +151,19 @@ function SetStub({ set }: { set: NonNullable<Playlist["set"]> }) {
   );
 }
 
-interface PlaylistListItemProps {
-  playlist: Playlist;
-  isLoading?: boolean;
+/** What a playlist's row can do; shared by the card and the desktop table. */
+export interface PlaylistActionHandlers {
   onClick: () => void;
   onPlay: () => void;
   onDelete: () => void;
   onEnqueue: () => void;
   onExportPdf?: () => void;
   onCreateSet?: () => void;
+}
+
+interface PlaylistListItemProps extends PlaylistActionHandlers {
+  playlist: Playlist;
+  isLoading?: boolean;
   /** Desktop day line above the name (`MON 10`). Set when the row sits under a month divider, which also hides the meta date on phones. */
   dayLabel?: string;
 }

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Playlist, Track } from "@/types/track";
 
 const tracks = [{ track_id: "t1", friend_id: 1, title: "A", artist: "B" }] as Track[];
@@ -16,20 +16,21 @@ const mocks = vi.hoisted(() => ({
   fetchTracksByIds: vi.fn(),
   exportPlaylistToPDF: vi.fn().mockResolvedValue(undefined),
   toast: vi.fn(),
+  createSet: vi.fn(),
 }));
 
 const playlists = [
   { id: 5, name: "Late Night", tracks: [{}, {}], total_duration_seconds: 3900, created_at: "2026-01-01T00:00:00Z" },
 ] as unknown as Playlist[];
 
-const providerState = vi.hoisted(() => ({ playlists: null as unknown[] | null, loading: false }));
+const providerState = vi.hoisted(() => ({ playlists: null as unknown[] | null, loading: false, loadingId: null as number | null }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/providers/PlaylistsProvider", () => ({
   usePlaylists: () => ({
     playlists: providerState.playlists ?? playlists,
     playlistsLoading: providerState.loading,
-    loadingPlaylists: null,
+    loadingPlaylists: providerState.loadingId == null ? null : { id: providerState.loadingId },
     fetchPlaylists: mocks.fetchPlaylists,
   }),
 }));
@@ -41,7 +42,7 @@ vi.mock("@/hooks/useDeletePlaylistMutation", () => ({
   useDeletePlaylistMutation: () => ({ mutateAsync: mocks.deletePlaylist, isPending: false }),
 }));
 vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds: mocks.fetchTracksByIds }));
-vi.mock("@/services/internalApi/playlists", () => ({ createSetForPlaylist: vi.fn(), importPlaylist: vi.fn() }));
+vi.mock("@/services/internalApi/playlists", () => ({ createSetForPlaylist: mocks.createSet, importPlaylist: vi.fn() }));
 vi.mock("@/lib/exportPlaylistPdf", () => ({ exportPlaylistToPDF: mocks.exportPlaylistToPDF }));
 vi.mock("@/components/ui/toaster", () => ({
   Toaster: () => null,
@@ -53,8 +54,11 @@ import PlaylistManager from "./PlaylistManager";
 
 afterEach(() => {
   vi.clearAllMocks();
+  mocks.createSet.mockReset();
   providerState.playlists = null;
   providerState.loading = false;
+  providerState.loadingId = null;
+  localStorage.clear();
 });
 
 async function openRowModal() {
@@ -174,11 +178,67 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     expect(click).toHaveBeenCalled();
   });
 
-  it("lays playlists out in one column in list view", async () => {
+  it("renders the desktop table in list view", async () => {
+    const { user } = renderWithProviders(<PlaylistManager />);
+    expect(screen.queryByRole("table")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    expect(screen.getByRole("table", { name: "Playlists" })).toBeTruthy();
+    expect(screen.queryByTestId("playlist-card")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "CARDS", hidden: true }));
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByTestId("playlist-card")).toBeTruthy();
+  });
+
+  it("keeps cards on a phone even when LIST was saved", () => {
+    localStorage.setItem("playlistsViewMode", "list");
+    setViewportWidth(390);
+    try {
+      renderWithProviders(<PlaylistManager />);
+      expect(screen.queryByRole("table")).toBeNull();
+      expect(screen.getByTestId("playlist-card")).toBeTruthy();
+    } finally {
+      setViewportWidth(1280);
+      localStorage.clear();
+    }
+  });
+
+  it("opens a playlist from its table row and shares the card's actions", async () => {
+    mocks.fetchTracksByIds.mockResolvedValue(tracks);
     const { user } = renderWithProviders(<PlaylistManager />);
     await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
-    expect(screen.getByText("Late Night")).toBeTruthy();
-    expect(getComputedStyle(screen.getByTestId("month-grid")).gridTemplateColumns).toBe("repeat(1, minmax(0, 1fr))");
+    await user.click(screen.getByTestId("playlist-table-row"));
+    expect(mocks.push).toHaveBeenCalledWith("/playlists/5");
+    await user.click(within(screen.getByTestId("playlist-table-row")).getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
+    await user.click(await screen.findByRole("menuitem", { name: /Enqueue/, hidden: true }));
+    await waitFor(() => expect(mocks.appendToQueue).toHaveBeenCalledWith(tracks));
+  });
+
+  it("plays, and turns into a set, from the table row menu", async () => {
+    mocks.fetchTracksByIds.mockResolvedValue(tracks);
+    mocks.createSet.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("no"));
+    const { user } = renderWithProviders(<PlaylistManager />);
+    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    const kebab = () => within(screen.getByTestId("playlist-table-row")).getAllByRole("button", { name: "Playlist actions", hidden: true })[1];
+
+    await user.click(kebab());
+    await user.click(await screen.findByRole("menuitem", { name: /Play now/, hidden: true }));
+    await waitFor(() => expect(mocks.replacePlaylist).toHaveBeenCalledWith(tracks, { autoplay: true, startIndex: 0 }));
+
+    await user.click(kebab());
+    await user.click(await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Created a set for 'Late Night'", type: "success" }));
+    expect(mocks.fetchPlaylists).toHaveBeenCalled();
+
+    await user.click(kebab());
+    await user.click(await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Could not create set", type: "error" }));
+  });
+
+  it("marks the table row of the playlist with a pending action", async () => {
+    providerState.loadingId = 5;
+    const { user, container } = renderWithProviders(<PlaylistManager />);
+    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    expect(container.querySelector(".chakra-spinner")).toBeTruthy();
   });
 
   it("lays cards out top-aligned in cards view, one grid per month", () => {
