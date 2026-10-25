@@ -24,6 +24,7 @@ import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
 import { useTracksByRelease, useTracksByReleaseHydrated } from "@/hooks/useTrack";
 import { ALBUM_SPINS_PAGE, useAlbumSpins } from "@/hooks/useAlbumSpins";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import AlbumHeader from "@/components/album-detail/AlbumHeader";
 import AlbumTracklist from "@/components/album-detail/AlbumTracklist";
 import AlbumSpinPanel from "@/components/spins/AlbumSpinPanel";
@@ -256,26 +257,13 @@ function AlbumDetailContent() {
           {menu}
         </Flex>
       ) : (
-        <Flex
-          as="nav"
-          aria-label="Breadcrumb"
-          alignItems="center"
-          gap={2}
-          mb={4}
-          fontFamily="label"
-          fontSize="12px"
-          fontWeight="medium"
-          letterSpacing="0.06em"
-          textTransform="uppercase"
-          color="fg.muted"
-          minW={0}
-        >
-          <Link as={NextLink} href="/albums" color="fg.muted">Albums</Link>
-          <span aria-hidden="true">/</span>
-          <Link as={NextLink} href={`/albums?q=${encodeURIComponent(album.artist)}`} color="fg.muted">{album.artist}</Link>
-          <span aria-hidden="true">/</span>
-          <Text as="span" color="fg" lineClamp={1}>{album.title}</Text>
-        </Flex>
+        <Breadcrumbs
+          crumbs={[
+            { label: "Albums", href: "/albums" },
+            { label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` },
+            { label: album.title },
+          ]}
+        />
       )}
 
       <Box mb={{ base: 8, md: 10 }} pr="6px" pb="6px">

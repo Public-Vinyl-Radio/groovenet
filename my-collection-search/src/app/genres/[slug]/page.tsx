@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import {
   Badge,
   Box,
-  Breadcrumb,
   Button,
   Flex,
   Grid,
@@ -20,6 +19,7 @@ import AlbumResult from "@/components/AlbumResult";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import TrackResultStore from "@/components/TrackResultStore";
 import GenreLinkList from "@/components/genres/GenreLinkList";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PageContainer from "@/components/layout/PageContainer";
 import { useGenrePageQuery } from "@/hooks/useGenrePageQuery";
 import { genreSearchHref } from "@/lib/genres/links";
@@ -92,29 +92,17 @@ export default function GenrePage() {
     <PageContainer size="standard">
       <Stack gap={6}>
         <Box>
-          <Breadcrumb.Root size="sm" mb={2}>
-            <Breadcrumb.List>
-              <Breadcrumb.Item>
-                <Breadcrumb.Link asChild>
-                  <NextLink href="/genres">Genres</NextLink>
-                </Breadcrumb.Link>
-              </Breadcrumb.Item>
-              {page.ancestors.map((ancestor) => (
-                <React.Fragment key={ancestor.id}>
-                  <Breadcrumb.Separator />
-                  <Breadcrumb.Item>
-                    <Breadcrumb.Link asChild>
-                      <NextLink href={`/genres/${encodeURIComponent(ancestor.slug)}`}>{ancestor.name}</NextLink>
-                    </Breadcrumb.Link>
-                  </Breadcrumb.Item>
-                </React.Fragment>
-              ))}
-              <Breadcrumb.Separator />
-              <Breadcrumb.Item>
-                <Breadcrumb.CurrentLink>{genre.name}</Breadcrumb.CurrentLink>
-              </Breadcrumb.Item>
-            </Breadcrumb.List>
-          </Breadcrumb.Root>
+          <Breadcrumbs
+            mb={2}
+            crumbs={[
+              { label: "Genres", href: "/genres" },
+              ...page.ancestors.map((ancestor) => ({
+                label: ancestor.name,
+                href: `/genres/${encodeURIComponent(ancestor.slug)}`,
+              })),
+              { label: genre.name },
+            ]}
+          />
 
           <Flex align="center" gap={3} flexWrap="wrap">
             <Heading size="2xl">{genre.name}</Heading>

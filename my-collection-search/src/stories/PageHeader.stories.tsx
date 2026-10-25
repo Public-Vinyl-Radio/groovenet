@@ -33,3 +33,34 @@ export const WithOverflow: Story = {
     overflow: [{ label: "Show genres with no tracks", onClick: () => {} }],
   },
 };
+
+export const DetailTwoCrumbs: Story = {
+  args: {
+    title: "Unfinished Sympathy",
+    breadcrumbs: [{ label: "Tracks", href: "/" }, { label: "Unfinished Sympathy" }],
+  },
+};
+
+export const DetailWithAlbum: Story = {
+  args: {
+    title: "Unfinished Sympathy",
+    breadcrumbs: [
+      { label: "Tracks", href: "/" },
+      { label: "Blue Lines", href: "/albums/1" },
+      { label: "Unfinished Sympathy" },
+    ],
+    actions: [{ label: "Search", icon: <LuSearch />, onClick: () => {} }],
+  },
+};
+
+export const DetailGenreTrail: Story = {
+  args: {
+    title: "Trip Hop",
+    breadcrumbs: [
+      { label: "Genres", href: "/genres" },
+      { label: "Electronic", href: "/genres/electronic" },
+      { label: "Downtempo", href: "/genres/downtempo" },
+      { label: "Trip Hop" },
+    ],
+  },
+};

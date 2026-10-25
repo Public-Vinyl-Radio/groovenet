@@ -61,4 +61,47 @@ describe("PageHeader", () => {
     unmount();
     expect(document.documentElement.hasAttribute("data-page-header")).toBe(false);
   });
+
+  describe("breadcrumbs", () => {
+    const trail = [
+      { label: "Tracks", href: "/" },
+      { label: "Blue Lines", href: "/albums/r1" },
+      { label: "Unfinished Sympathy" },
+    ];
+
+    it("gives phones a back button to the last parent, and md+ the trail", () => {
+      renderWithProviders(<PageHeader title="Unfinished Sympathy" breadcrumbs={trail} />);
+      const back = screen.getByRole("link", { name: "Back to Blue Lines", hidden: true });
+      expect(back.getAttribute("href")).toBe("/albums/r1");
+      expect(screen.getByTestId("page-header-breadcrumbs")).toBeTruthy();
+      expect(screen.getByRole("heading", { level: 1, name: "Unfinished Sympathy" })).toBeTruthy();
+    });
+
+    it("targets the only parent when there are two crumbs", () => {
+      renderWithProviders(
+        <PageHeader title="Song" breadcrumbs={[{ label: "Tracks", href: "/" }, { label: "Song" }]} />,
+      );
+      expect(screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href")).toBe("/");
+    });
+
+    it("has no back button with a single crumb or an unlinked parent", () => {
+      const { rerender } = renderWithProviders(<PageHeader title="Song" breadcrumbs={[{ label: "Song" }]} />);
+      expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
+      rerender(<PageHeader title="Song" breadcrumbs={[{ label: "Tracks" }, { label: "Song" }]} />);
+      expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
+    });
+
+    it("renders no trail for an empty list", () => {
+      renderWithProviders(<PageHeader title="Song" breadcrumbs={[]} />);
+      expect(screen.queryByTestId("page-header-breadcrumbs")).toBeNull();
+    });
+
+    it("lets an explicit leading replace the generated back button", () => {
+      renderWithProviders(
+        <PageHeader title="Song" breadcrumbs={trail} leading={<button>Custom back</button>} />,
+      );
+      expect(screen.getByRole("button", { name: "Custom back" })).toBeTruthy();
+      expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
+    });
+  });
 });
