@@ -49,7 +49,39 @@ All CLI/SDK bearer requests keep their existing behavior. A browser session can
 read players/devices/events and issue playback/queue/output commands; creating
 or renaming players still requires bearer authorization.
 
-With server players configured, create an operator-managed root `.env.player-web`
+With server players configured, the easiest setup uses the existing 1Password CLI
+workflow. Add three fields to `Homelab/groovenet` once:
+
+- `PLAYER_WEB_ORIGIN`: the exact HTTPS address you use to open Groovenet, without
+  a trailing slash or path.
+- `PLAYER_WEB_PASSPHRASE`: generate a new password of at least 32 characters.
+- `PLAYER_WEB_SESSION_SECRET`: generate another independent value of at least
+  32 characters.
+
+The existing `PLAYER_API_KEY` field is read only to verify that the secrets are
+distinct. It is never written into the web settings file. The committed
+`.env.player-web.tpl` contains references, not resolved credentials, and honors
+`GROOVENET_OP_VAULT` / `GROOVENET_OP_ITEM` like `.env.players.tpl`.
+
+From your usual deployment machine, run:
+
+```sh
+just player-web-setup
+```
+
+This resolves the fields through `op run`, validates them and uploads a private
+`.env.player-web` to the configured production checkout (`PROD_HOST` /
+`PROD_STACK_DIR`). It creates an empty `.env.player-web.op` marker to opt this
+host into automatic refresh. It does not restart services. Your next normal deployment applies the
+settings and subsequently refreshes them from 1Password. Hosts without that marker
+keep their manually managed settings and do not need the new 1Password fields.
+Remove the marker to stop automatic refresh. Only distribute the web passphrase
+to household controllers.
+
+For local rendering without uploading, use `just player-web-env`; an optional
+output path can be passed as its first argument. No credential values are printed.
+
+For manual setup, create an operator-managed root `.env.player-web`
 with mode `0600`. It is ignored by git and excluded from Docker build contexts;
 the players Compose overlay loads it only into the app. It is separate from
 `.env.players`, which the existing credential renderer replaces on deployment.

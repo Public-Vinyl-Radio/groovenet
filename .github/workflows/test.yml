@@ -120,10 +120,11 @@ jobs:
         run: |
           node --test --experimental-test-coverage \
             --test-coverage-include=scripts/render-player-env.mjs \
+            --test-coverage-include=scripts/render-player-web-env.mjs \
             --test-reporter=spec --test-reporter=lcov \
             --test-reporter-destination=stdout \
             --test-reporter-destination=coverage/player-deploy.lcov \
-            scripts/deploy-prod.test.mjs scripts/render-player-env.test.mjs
+            scripts/deploy-prod.test.mjs scripts/render-player-env.test.mjs scripts/render-player-web-env.test.mjs
           sed -i 's#^SF:scripts/#SF:my-collection-search/scripts/#' coverage/player-deploy.lcov
 
       - name: Test dev dependency installation with coverage
