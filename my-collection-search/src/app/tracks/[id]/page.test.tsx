@@ -104,3 +104,22 @@ describe("TrackPage cover art (#494)", () => {
     expect(screen.queryByRole("button", { name: "Cover Art..." })).toBeNull();
   });
 });
+
+describe("TrackPage breadcrumbs", () => {
+  it("trails Tracks > Album > Track for a track on a release", () => {
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song", release_id: "r9", album: "Blue Lines" };
+    renderWithProviders(<TrackPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Song" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href")).toBe(
+      "/albums/r9?friend_id=6",
+    );
+    expect(screen.getByRole("link", { name: "Tracks", hidden: true }).getAttribute("href")).toBe("/");
+  });
+
+  it("skips the album crumb when the album is unknown", () => {
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
+    renderWithProviders(<TrackPage />);
+    expect(screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href")).toBe("/");
+    expect(screen.queryByRole("link", { name: "Blue Lines" })).toBeNull();
+  });
+});

@@ -10,6 +10,8 @@ import { useAlbumStore } from "@/stores/albumStore";
 import AlbumArtworkDialog from "@/components/AlbumArtworkDialog";
 import RelatedTracksSection from "@/components/RelatedTracksSection";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
+import type { Crumb } from "@/components/layout/Breadcrumbs";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
 import {
   TrackPlaylistsSection,
@@ -42,9 +44,22 @@ export default function TrackPage() {
     extractCoverMutation,
   } = useTrackDetailQueries(trackId, friendId, hasValidFriendId);
 
+  const track = trackQuery.data;
+  const crumbs: Crumb[] | undefined = track
+    ? [
+        { label: "Tracks", href: "/" },
+        ...(track.release_id && track.album
+          ? [{ label: track.album, href: `/albums/${track.release_id}?friend_id=${friendId}` }]
+          : []),
+        { label: track.title },
+      ]
+    : undefined;
+
   return (
     <PageContainer size="standard">
-
+      {hasValidFriendId && crumbs && track && (
+        <PageHeader title={track.title} breadcrumbs={crumbs} />
+      )}
       {!hasValidFriendId && (
         <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
           <Text fontWeight="medium" mb={2}>

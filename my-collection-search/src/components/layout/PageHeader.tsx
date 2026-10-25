@@ -2,8 +2,10 @@
 
 import React from "react";
 import { Box, Flex, Heading, IconButton, Menu, Text } from "@chakra-ui/react";
-import { FiMoreHorizontal } from "react-icons/fi";
+import NextLink from "next/link";
+import { FiChevronLeft, FiMoreHorizontal } from "react-icons/fi";
 import { useRootFlag } from "@/hooks/useRootFlag";
+import Breadcrumbs, { type Crumb } from "@/components/layout/Breadcrumbs";
 
 export type PageHeaderAction = {
   label: string;
@@ -21,6 +23,11 @@ type PageHeaderProps = {
   count?: number | string;
   /** Back button on detail pages; sits left of the title. */
   leading?: React.ReactNode;
+  /**
+   * Detail-page trail ending in the current page. Phones get a back button to
+   * the last parent (unless `leading` is set); md+ shows the trail above the title.
+   */
+  breadcrumbs?: Crumb[];
   /** At most two icon buttons; extras are dropped (use `overflow`). */
   actions?: PageHeaderAction[];
   /** Everything beyond two actions, in a "More" menu. */
@@ -40,11 +47,28 @@ export default function PageHeader({
   title,
   count,
   leading,
+  breadcrumbs,
   actions = [],
   overflow = [],
 }: PageHeaderProps) {
   useRootFlag("data-page-header", true);
   const shown = actions.slice(0, MAX_ACTIONS);
+  const parent = breadcrumbs && breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2] : undefined;
+  const back =
+    !leading && parent?.href ? (
+      <IconButton
+        asChild
+        aria-label={`Back to ${parent.label}`}
+        variant="ghost"
+        boxSize="44px"
+        minW="44px"
+        display={{ base: "inline-flex", md: "none" }}
+      >
+        <NextLink href={parent.href} aria-label={`Back to ${parent.label}`}>
+          <FiChevronLeft />
+        </NextLink>
+      </IconButton>
+    ) : null;
 
   return (
     <Box
@@ -61,7 +85,15 @@ export default function PageHeader({
       borderBottomWidth={{ base: "outline", md: 0 }}
       borderColor="border.ink"
     >
-      <Flex h="full" align="center" gap={2}>
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <Breadcrumbs
+          crumbs={breadcrumbs}
+          data-testid="page-header-breadcrumbs"
+          display={{ base: "none", md: "flex" }}
+        />
+      )}
+      <Flex h={{ base: "full", md: "auto" }} align="center" gap={2}>
+        {back}
         {leading ? <Box data-testid="page-header-leading">{leading}</Box> : null}
         <Flex align="baseline" gap={2} minW={0} flex="1">
           <Heading
