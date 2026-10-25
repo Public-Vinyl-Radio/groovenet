@@ -14,6 +14,7 @@ import AlbumSearchResults from "@/components/AlbumSearchResults";
 import TrackViewToggle from "@/components/TrackViewToggle";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import FilterChips, { FilterGroup } from "@/components/FilterChips";
 import GenreFilter, {
@@ -140,6 +141,7 @@ function AlbumsPageContent() {
 
   return (
     <PageContainer size="standard">
+      <PageHeader title="Albums" />
       <Flex gap={3} direction="column">
         {!isHydrated || !currentUserFriend ? (
           <Flex justify="center" py={8}>

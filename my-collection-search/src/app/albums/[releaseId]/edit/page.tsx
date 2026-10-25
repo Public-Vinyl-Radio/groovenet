@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { Box, Button, Heading, Stack, Flex, Spinner, Text } from "@chakra-ui/react";
+import { Button, Stack, Flex, Spinner, Text } from "@chakra-ui/react";
+import { FiCheck } from "react-icons/fi";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
 import { useUpdateAlbumWithTracksMutation } from "@/hooks/useUpdateAlbumWithTracksMutation";
@@ -13,6 +14,8 @@ import AlbumForm, { AlbumFormData } from "@/components/AlbumForm";
 import CoverArtUpload from "@/components/CoverArtUpload";
 import TrackListBuilder, { TrackFormData } from "@/components/TrackListBuilder";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
+import HeaderCancelButton from "@/components/layout/HeaderCancelButton";
 import AlbumTaxonomyEditor from "@/components/AlbumTaxonomyEditor";
 import type { AlbumTaxonomyOverrides } from "@/api-contract/schemas";
 
@@ -273,8 +276,19 @@ function EditAlbumContent() {
       size="standard"
       py={{ base: 0, md: 4 }}
     >
+      <PageHeader
+        title="Edit Album"
+        leading={<HeaderCancelButton onClick={handleCancel} disabled={updateMutation.isPending} />}
+        actions={[
+          {
+            label: "Save Changes",
+            icon: <FiCheck />,
+            onClick: handleSave,
+            disabled: updateMutation.isPending,
+          },
+        ]}
+      />
       <Stack gap={6}>
-        <Heading size="2xl">Edit Album</Heading>
 
         <AlbumForm value={albumForm} onChange={setAlbumForm} taxonomyEditor={
           <AlbumTaxonomyEditor album={album} value={taxonomyOverrides} onChange={setTaxonomyOverrides} />
@@ -309,57 +323,6 @@ function EditAlbumContent() {
           >
             Save Changes
           </Button>
-        </Flex>
-
-        <Box
-          display={{ base: "block", md: "none" }}
-          h="108px"
-        />
-
-        <Flex
-          display={{ base: "flex", md: "none" }}
-          position="fixed"
-          left="0"
-          right="0"
-          bottom="0"
-          px={4}
-          pb="calc(env(safe-area-inset-bottom, 0px) + 12px)"
-          pt={3}
-          bg="linear-gradient(to top, var(--chakra-colors-bg), color-mix(in srgb, var(--chakra-colors-bg) 88%, transparent))"
-          zIndex={20}
-        >
-            <Flex
-              gap={2}
-              w="full"
-              p="10px"
-              borderWidth="outline"
-              borderColor="border.ink"
-              bg="bg.panel"
-              boxShadow="md"
-            >
-              <Button
-                onClick={handleCancel}
-                variant="outline"
-                bg="bg"
-                borderColor="border.subtle"
-                disabled={updateMutation.isPending}
-                flex={1}
-                fontWeight="semibold"
-                borderRadius="xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                colorPalette="accent"
-                loading={updateMutation.isPending}
-                flex={1}
-                fontWeight="semibold"
-                borderRadius="xl"
-              >
-                Save Changes
-              </Button>
-          </Flex>
         </Flex>
       </Stack>
     </PageContainer>

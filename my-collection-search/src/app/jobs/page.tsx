@@ -2,7 +2,6 @@
 
 import React from "react";
 import {
-  Heading,
   Spinner,
   Text,
   Badge,
@@ -30,6 +29,7 @@ import TrackResultStore from "@/components/TrackResultStore";
 import type { Track } from "@/types/track";
 import type { JobInfo } from "@/types/jobs";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import EmbeddingQueueSection from "@/components/jobs/EmbeddingQueueSection";
 
 export default function JobsPage() {
@@ -264,10 +264,18 @@ export default function JobsPage() {
 
   return (
     <PageContainer size="standard">
+      <PageHeader
+        title="Downloads"
+        actions={[
+          { label: "Refresh jobs", icon: <LuRefreshCw />, onClick: () => refetch(), disabled: isLoading },
+        ]}
+        overflow={
+          summary.total > 0 ? [{ label: "Clear all jobs", onClick: () => clearJobsMutation.mutate() }] : []
+        }
+      />
       <Stack gap={{ base: 3, md: 6 }}>
         <Flex direction="column" gap={2}>
-          <Flex justify="space-between" align="center" gap={2}>
-            <Heading size={{ base: "md", md: "lg" }}>Downloads</Heading>
+          <Flex justify="flex-end" align="center" gap={2}>
             <Flex gap={2} align="center">
               <NativeSelectRoot size="sm" width={{ base: "130px", md: "180px" }}>
                 <NativeSelectField
@@ -292,6 +300,7 @@ export default function JobsPage() {
                 </NativeSelectField>
               </NativeSelectRoot>
               <Button
+                display={{ base: "none", md: "inline-flex" }}
                 onClick={() => clearJobsMutation.mutate()}
                 loading={clearJobsMutation.isPending}
                 variant="outline"
@@ -304,6 +313,7 @@ export default function JobsPage() {
                 <Text display={{ base: "none", md: "inline" }}>Clear All</Text>
               </Button>
               <Button
+                display={{ base: "none", md: "inline-flex" }}
                 onClick={() => refetch()}
                 loading={isLoading}
                 variant="outline"

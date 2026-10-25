@@ -90,8 +90,8 @@ describe("genre page", () => {
     renderWithProviders(<GenrePage />);
 
     expect(screen.getByRole("heading", { name: "Psychedelic Cumbia" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Genres" }).getAttribute("href")).toBe("/genres");
-    expect(screen.getByRole("link", { name: "Cumbia" }).getAttribute("href")).toBe("/genres/cumbia");
+    expect(screen.getByRole("link", { name: "Genres", hidden: true }).getAttribute("href")).toBe("/genres");
+    expect(screen.getByRole("link", { name: "Cumbia", hidden: true }).getAttribute("href")).toBe("/genres/cumbia");
     expect(screen.getByText("Custom")).toBeTruthy();
     expect(screen.getByText("Also matches chicha psicodelica")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Search tracks" }).getAttribute("href")).toBe("/?genre=psychedelic-cumbia");

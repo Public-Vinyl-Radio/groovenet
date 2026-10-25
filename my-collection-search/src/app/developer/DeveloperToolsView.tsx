@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { FiActivity, FiBookOpen, FiExternalLink, FiFileText } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 
 type Tool = { title: string; description: string; href: string; icon: IconType; external?: boolean };
 
@@ -34,14 +35,10 @@ const tools: Tool[] = [
 export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: string | null }) {
   return (
     <PageContainer size="wide">
-      <Box mb={{ base: 8, md: 12 }}>
-        <Heading size={{ base: "lg", md: "xl" }} mb={2}>
-          Developer tools
-        </Heading>
-        <Text color="fg.muted">
-          API references and component documentation for this GrooveNet instance.
-        </Text>
-      </Box>
+      <PageHeader title="Developer tools" />
+      <Text color="fg.muted" mb={{ base: 6, md: 10 }}>
+        API references and component documentation for this GrooveNet instance.
+      </Text>
 
       <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
         {tools.map((tool) => (

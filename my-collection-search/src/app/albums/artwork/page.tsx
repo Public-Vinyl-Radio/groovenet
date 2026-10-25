@@ -3,10 +3,11 @@
 import React from "react";
 import NextLink from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Box, Button, Flex, Heading, Image, Link, Spinner, Stack, Text } from "@chakra-ui/react";
-import { FiImage } from "react-icons/fi";
+import { Badge, Box, Button, Flex, Image, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { FiImage, FiRefreshCw } from "react-icons/fi";
 
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import { toaster } from "@/components/ui/toaster";
 import { syncArtworkIntoStores } from "@/hooks/useAlbumArtwork";
 import { queryKeys } from "@/lib/queryKeys";
@@ -154,8 +155,18 @@ export default function AlbumArtworkReviewPage() {
 
   return (
     <PageContainer size="standard" mb="100px">
-      <Flex justify="space-between" align={{ base: "stretch", md: "center" }} gap={3} mb={2} direction={{ base: "column", md: "row" }}>
-        <Heading size="lg">Album artwork</Heading>
+      <PageHeader
+        title="Album artwork"
+        actions={[
+          {
+            label: "Run artwork matching",
+            icon: <FiRefreshCw />,
+            onClick: () => backfill.mutate(),
+            disabled: backfill.isPending || !friendId,
+          },
+        ]}
+      />
+      <Flex justify="flex-end" mb={2} display={{ base: "none", md: "flex" }}>
         <Button onClick={() => backfill.mutate()} loading={backfill.isPending} disabled={!friendId}>
           Run artwork matching
         </Button>

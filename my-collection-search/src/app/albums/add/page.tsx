@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Heading, Stack, Flex } from "@chakra-ui/react";
+import { Button, Stack, Flex } from "@chakra-ui/react";
+import { FiCheck } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
 import { useCreateAlbumMutation } from "@/hooks/useCreateAlbumMutation";
@@ -11,6 +12,8 @@ import AlbumForm, { AlbumFormData } from "@/components/AlbumForm";
 import CoverArtUpload from "@/components/CoverArtUpload";
 import TrackListBuilder, { TrackFormData } from "@/components/TrackListBuilder";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
+import HeaderCancelButton from "@/components/layout/HeaderCancelButton";
 
 export default function AddAlbumPage() {
   const router = useRouter();
@@ -175,8 +178,19 @@ export default function AddAlbumPage() {
       py={{ base: 0, md: 4 }}
       mb={playlistLength > 0 ? "120px" : "0"}
     >
+      <PageHeader
+        title="Add Album"
+        leading={<HeaderCancelButton onClick={handleCancel} disabled={createAlbumMutation.isPending} />}
+        actions={[
+          {
+            label: "Save Album",
+            icon: <FiCheck />,
+            onClick: handleSave,
+            disabled: createAlbumMutation.isPending,
+          },
+        ]}
+      />
       <Stack gap={6}>
-        <Heading size="2xl">Add Album</Heading>
 
         <AlbumForm value={albumForm} onChange={setAlbumForm} />
 
@@ -189,7 +203,7 @@ export default function AddAlbumPage() {
           defaultAlbum={albumForm.title}
         />
 
-        <Flex gap={3} justify="flex-end" pt={4}>
+        <Flex gap={3} justify="flex-end" pt={4} display={{ base: "none", md: "flex" }}>
           <Button
             onClick={handleCancel}
             variant="outline"

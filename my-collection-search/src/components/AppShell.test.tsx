@@ -15,6 +15,10 @@ vi.mock("@/hooks/useStandaloneMode", () => ({
   useStandaloneMode: () => standaloneMode.value,
 }));
 
+const playback = vi.hoisted(() => ({ label: null as string | null }));
+vi.mock("@/components/player/PlaybackTargetControl", () => ({ usePlaybackTargetLabel: () => playback.label }));
+import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
+
 import AppShell from "./AppShell";
 
 describe("AppShell", () => {
@@ -152,5 +156,32 @@ describe("AppShell", () => {
     expect(document.documentElement.hasAttribute("data-tabbar-hidden")).toBe(true);
     unmount();
     expect(document.documentElement.hasAttribute("data-tabbar-hidden")).toBe(false);
+  });
+
+  describe("playback target", () => {
+    afterEach(() => {
+      playback.label = null;
+      usePlaybackTargetDialog.setState({ open: false });
+    });
+
+    it("has no trigger when playback targets are unavailable", () => {
+      renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      expect(screen.queryByRole("button", { name: /^Playback:/, hidden: true })).toBeNull();
+    });
+
+    it("opens the dialog from the sidebar foot", async () => {
+      playback.label = "Server · Lounge";
+      const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      await user.click(screen.getByRole("button", { name: "Playback: Server · Lounge", hidden: true }));
+      expect(usePlaybackTargetDialog.getState().open).toBe(true);
+    });
+
+    it("opens the dialog from the More sheet", async () => {
+      playback.label = "Local browser";
+      const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      await user.click(screen.getByRole("button", { name: /^More$/, hidden: true }));
+      await user.click(await screen.findByText("Playback: Local browser"));
+      expect(usePlaybackTargetDialog.getState().open).toBe(true);
+    });
   });
 });

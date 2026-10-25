@@ -38,6 +38,20 @@ describe("PageHeader", () => {
     expect(screen.getByRole("button", { name: "Search", hidden: true })).toBeTruthy();
   });
 
+  it("disables an action while it is busy", () => {
+    const onClick = vi.fn();
+    renderWithProviders(<PageHeader title="Edit" actions={[{ ...action("Save", onClick), disabled: true }]} />);
+    const save = screen.getByRole("button", { name: "Save", hidden: true }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(save);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("renders a trailing control after the actions", () => {
+    renderWithProviders(<PageHeader title="Album" trailing={<button>Album actions</button>} />);
+    expect(screen.getByRole("button", { name: "Album actions", hidden: true })).toBeTruthy();
+  });
+
   it("drops a third action rather than crowding the bar", () => {
     renderWithProviders(
       <PageHeader title="Albums" actions={[action("A"), action("B"), action("C")]} />,

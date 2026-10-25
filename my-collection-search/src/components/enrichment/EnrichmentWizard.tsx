@@ -11,6 +11,8 @@ import {
 } from "@chakra-ui/react";
 import { Checkbox } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
+import { FiX } from "react-icons/fi";
+import PageHeader from "@/components/layout/PageHeader";
 import { useEnrichmentStore, type EnrichmentTypes } from "@/stores/enrichmentStore";
 import { useTrackStore } from "@/stores/trackStore";
 import { useTrack } from "@/hooks/useTrack";
@@ -147,16 +149,13 @@ export default function EnrichmentWizard() {
 
   if (phase === "setup") {
     return (
-      <Flex direction="column" gap={6} maxW="lg" mx="auto" pt={8} px={4}>
-        <Box>
-          <Text fontSize="2xl" fontWeight="bold" mb={1}>
-            Enrich {queue.length} Track{queue.length !== 1 ? "s" : ""}
-          </Text>
-          <Text color="fg.muted" fontSize="sm">
-            Choose what data to fetch for each track. You can review and edit
-            each result before saving.
-          </Text>
-        </Box>
+      <>
+      <PageHeader title="Enrich" count={`${queue.length} track${queue.length !== 1 ? "s" : ""}`} />
+      <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4}>
+        <Text color="fg.muted" fontSize="sm">
+          Choose what data to fetch for each track. You can review and edit
+          each result before saving.
+        </Text>
 
         <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={5}>
           <Text fontWeight="semibold" mb={4} fontSize="sm">
@@ -262,15 +261,15 @@ export default function EnrichmentWizard() {
           </Button>
         </Flex>
       </Flex>
+      </>
     );
   }
 
   if (phase === "done") {
     return (
-      <Flex direction="column" gap={6} maxW="lg" mx="auto" pt={8} px={4} align="center">
-        <Text fontSize="2xl" fontWeight="bold">
-          Done!
-        </Text>
+      <>
+      <PageHeader title="Enrich" count="Done" />
+      <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4} align="center">
         <Flex gap={6}>
           <Box textAlign="center">
             <Text fontSize="3xl" fontWeight="bold" color="fg.success">
@@ -293,6 +292,7 @@ export default function EnrichmentWizard() {
           Back to tracks
         </Button>
       </Flex>
+      </>
     );
   }
 
@@ -300,13 +300,16 @@ export default function EnrichmentWizard() {
   const progress = queue.length > 0 ? (currentIndex / queue.length) * 100 : 0;
 
   return (
-    <Flex direction="column" maxW="2xl" mx="auto" pt={6} px={4}>
+    <>
+    <PageHeader
+      title="Enrich"
+      count={`${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`}
+      actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/") }]}
+    />
+    <Flex direction="column" maxW="2xl" mx="auto" px={4}>
       {/* Header */}
       <Flex align="center" justify="space-between" mb={2}>
         <Flex align="center" gap={3}>
-          <Text fontSize="sm" color="fg.muted">
-            Track {Math.min(currentIndex + 1, queue.length)} of {queue.length}
-          </Text>
           <Badge size="sm" colorPalette="accent">
             {savedCount} saved
           </Badge>
@@ -316,7 +319,12 @@ export default function EnrichmentWizard() {
             </Badge>
           )}
         </Flex>
-        <Button size="xs" variant="ghost" onClick={() => router.push("/")}>
+        <Button
+          size="xs"
+          variant="ghost"
+          display={{ base: "none", md: "inline-flex" }}
+          onClick={() => router.push("/")}
+        >
           Exit
         </Button>
       </Flex>
@@ -354,5 +362,6 @@ export default function EnrichmentWizard() {
         />
       )}
     </Flex>
+    </>
   );
 }

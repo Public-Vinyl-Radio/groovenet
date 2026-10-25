@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Album } from "@/types/track";
 
@@ -47,5 +47,17 @@ describe("album edit replacement submission", () => {
     const { user } = renderWithProviders(<Page />);
     await user.click(screen.getAllByRole("button", { name: "Save Changes" })[0]);
     expect(state.mutate.mock.calls[0][0].album).toMatchObject({ genre_override_ids: null, style_override_ids: null });
+  });
+  it("puts Cancel and Save in the page header, and Cancel returns to the album", async () => {
+    const { user } = renderWithProviders(<Page />);
+    expect(screen.getByRole("heading", { level: 1, name: "Edit Album" })).toBeTruthy();
+    await user.click(within(screen.getByTestId("page-header")).getByRole("button", { name: "Cancel", hidden: true }));
+    expect(state.push).toHaveBeenCalledWith("/albums/r?friend_id=7");
+    expect(state.mutate).not.toHaveBeenCalled();
+  });
+  it("saves from the header action", async () => {
+    const { user } = renderWithProviders(<Page />);
+    await user.click(within(screen.getByTestId("page-header")).getByRole("button", { name: "Save Changes", hidden: true }));
+    expect(state.mutate).toHaveBeenCalledTimes(1);
   });
 });

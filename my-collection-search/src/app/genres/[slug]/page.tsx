@@ -19,7 +19,7 @@ import AlbumResult from "@/components/AlbumResult";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import TrackResultStore from "@/components/TrackResultStore";
 import GenreLinkList from "@/components/genres/GenreLinkList";
-import Breadcrumbs from "@/components/layout/Breadcrumbs";
+import PageHeader from "@/components/layout/PageHeader";
 import PageContainer from "@/components/layout/PageContainer";
 import { useGenrePageQuery } from "@/hooks/useGenrePageQuery";
 import { genreSearchHref } from "@/lib/genres/links";
@@ -52,6 +52,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 /** `/genres/<slug>` (#376): a genre's place in the taxonomy and in the collection. */
+const GENRES_CRUMB = { label: "Genres", href: "/genres" };
+
 export default function GenrePage() {
   const slug = decodeURIComponent(useParams<{ slug: string }>().slug);
   const { friend } = useUsername();
@@ -61,6 +63,7 @@ export default function GenrePage() {
   if (query.error) {
     return (
       <PageContainer size="standard">
+        <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />
         <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
           <Text fontWeight="medium">Couldn&apos;t load this genre</Text>
           <Text color="fg.muted" mt={1}>
@@ -77,8 +80,8 @@ export default function GenrePage() {
   if (!page) {
     return (
       <PageContainer size="standard">
+        <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />
         <VStack align="stretch" gap={3} data-testid="genre-page-loading">
-          <Skeleton height="20px" width="200px" />
           <Skeleton height="36px" width="320px" />
           <Skeleton height="80px" />
         </VStack>
@@ -90,28 +93,24 @@ export default function GenrePage() {
 
   return (
     <PageContainer size="standard">
+      <PageHeader
+        title={genre.name}
+        breadcrumbs={[
+          GENRES_CRUMB,
+          ...page.ancestors.map((ancestor) => ({
+            label: ancestor.name,
+            href: `/genres/${encodeURIComponent(ancestor.slug)}`,
+          })),
+          { label: genre.name },
+        ]}
+      />
       <Stack gap={6}>
         <Box>
-          <Breadcrumbs
-            mb={2}
-            crumbs={[
-              { label: "Genres", href: "/genres" },
-              ...page.ancestors.map((ancestor) => ({
-                label: ancestor.name,
-                href: `/genres/${encodeURIComponent(ancestor.slug)}`,
-              })),
-              { label: genre.name },
-            ]}
-          />
-
-          <Flex align="center" gap={3} flexWrap="wrap">
-            <Heading size="2xl">{genre.name}</Heading>
-            {genre.source === "custom" && (
-              <Badge variant="outline" title="Added to the taxonomy; not a Discogs genre or style">
-                Custom
-              </Badge>
-            )}
-          </Flex>
+          {genre.source === "custom" && (
+            <Badge variant="outline" title="Added to the taxonomy; not a Discogs genre or style">
+              Custom
+            </Badge>
+          )}
           {genre.aliases.length > 0 && (
             <Text fontSize="sm" color="fg.muted" mt={1}>
               Also matches {genre.aliases.join(", ")}

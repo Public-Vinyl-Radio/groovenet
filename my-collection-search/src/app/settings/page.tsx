@@ -1,7 +1,7 @@
 // app/(pages)/settings/page.tsx
 "use client";
 import { Suspense, useMemo } from "react";
-import { Box, Flex, Heading, Spinner, Tabs, Text } from "@chakra-ui/react";
+import { Box, Heading, Spinner, Tabs, Text } from "@chakra-ui/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { SettingsDialogsProvider } from "@/providers/SettingsDialogProvider";
@@ -18,6 +18,7 @@ import SuggestionScopeSettingsSection from "@/components/settings/SuggestionScop
 import AppearanceSettingsSection from "@/components/settings/AppearanceSettingsSection";
 import AboutSection from "@/components/settings/AboutSection";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import DiscogsSyncDialog from "@/components/settings/dialogs/DiscogsSyncDialog";
 import RemoveFriendDialog from "@/components/settings/dialogs/RemoveFriendDialog"; // your streamed removal dialog
 
@@ -113,23 +114,11 @@ function SettingsPageContent() {
     <SettingsDialogsProvider>
       <SyncStreamsProvider>
         <PageContainer size="wide">
+          <PageHeader title="Settings" />
           <Box mb="120px">
-            <Flex
-              direction={{ base: "column", sm: "row" }}
-              align={{ base: "flex-start", sm: "center" }}
-              justify="space-between"
-              gap={4}
-              mb={4}
-            >
-              <Box flex="1" minW={0}>
-                <Heading size={{ base: "lg", md: "xl" }} mb={1}>
-                  Settings
-                </Heading>
-                <Text color="fg.muted" fontSize={{ base: "sm", md: "md" }}>
-                  Configure GrooveNET by area, without the long one-page scroll.
-                </Text>
-              </Box>
-            </Flex>
+            <Text color="fg.muted" fontSize={{ base: "sm", md: "md" }} mb={4}>
+              Configure GrooveNET by area, without the long one-page scroll.
+            </Text>
 
             <Tabs.Root
               value={activeSectionId}
