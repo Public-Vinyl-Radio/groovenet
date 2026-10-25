@@ -6,7 +6,8 @@ import ConfirmDialog from "@/components/records/ConfirmDialog";
 import { useDeletePlaylistMutation } from "@/hooks/useDeletePlaylistMutation";
 import PlaylistMonthDivider, { TimelineRow } from "@/components/PlaylistMonthDivider";
 import { groupPlaylistsByMonth, playlistDayParts } from "@/lib/playlistGroups";
-import PlaylistListItem, { formatDuration } from "@/components/PlaylistListItem";
+import PlaylistMonthGrid, { PLAYLIST_GRID_COLUMNS } from "@/components/PlaylistMonthGrid";
+import PlaylistListItem,{ formatDuration } from "@/components/PlaylistListItem";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
 import PageHeader from "@/components/layout/PageHeader";
 import PlaylistsToolbar from "@/components/PlaylistsToolbar";
@@ -72,7 +73,7 @@ export default function PlaylistManager() {
   }, [playlists, filter]);
 
   const groups = React.useMemo(() => groupPlaylistsByMonth(filtered), [filtered]);
-  const gridColumns = viewMode === "list" ? 1 : { base: 1, md: 2, xl: 3 };
+  const gridColumns = viewMode === "list" ? 1 : PLAYLIST_GRID_COLUMNS;
 
   const handleImportJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -227,7 +228,7 @@ export default function PlaylistManager() {
         groups.map((group) => (
           <Box as="section" key={group.key} aria-label={group.label} mb={5}>
             <PlaylistMonthDivider group={group} />
-            <SimpleGrid columns={gridColumns} gap={3} overflowY="auto">
+            <PlaylistMonthGrid list={viewMode === "list"}>
               {group.playlists.map((pl) => {
                 const day = playlistDayParts(pl);
                 const isRowLoading =
@@ -279,7 +280,7 @@ export default function PlaylistManager() {
                   </TimelineRow>
                 );
               })}
-            </SimpleGrid>
+            </PlaylistMonthGrid>
           </Box>
         ))
       )}
