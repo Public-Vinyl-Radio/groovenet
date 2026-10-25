@@ -215,6 +215,9 @@ function AlbumDetailContent() {
       prominent={isMobile}
       albumTitle={album.title}
       albumArtist={album.artist}
+      coverUrl={albumArtwork ?? undefined}
+      catalogue={["Album", album.library_identifier].filter(Boolean).join(" · ")}
+      subtitle={[album.artist, album.label, album.year && album.year !== "0" ? album.year : null].filter(Boolean).join(" · ")}
       onPlayAlbum={tracks.length > 0 ? handleEnqueueAlbum : undefined}
       onDownloadMissing={tracks.length > 0 ? handleDownloadAlbum : undefined}
       isDownloading={isDownloading}

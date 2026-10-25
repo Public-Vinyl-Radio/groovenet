@@ -26,16 +26,19 @@ export function Tile({
   icon,
   label,
   solid,
+  href,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   solid?: boolean;
+  /** Renders the tile as a client-navigation link. */
+  href?: string;
   onClick: () => void;
 }) {
   return (
     <Box
-      as="button"
+      {...(href ? { as: NextLink, href } : { as: "button" })}
       onClick={onClick}
       h="68px"
       display="flex"
@@ -143,7 +146,8 @@ export type ModalTile = {
   label: string;
   icon: React.ReactNode;
   solid?: boolean;
-  onClick: () => void;
+  href?: string;
+  onClick?: () => void;
 };
 
 /** Up to three primary tiles in one row; picking one runs it, then closes. */
@@ -156,8 +160,9 @@ export function TileRow({ tiles, onDone }: { tiles: ModalTile[]; onDone: () => v
           icon={tile.icon}
           label={tile.label}
           solid={tile.solid}
+          href={tile.href}
           onClick={() => {
-            tile.onClick();
+            tile.onClick?.();
             onDone();
           }}
         />

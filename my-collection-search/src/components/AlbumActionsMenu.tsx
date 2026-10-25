@@ -4,11 +4,8 @@ import React, { useState } from "react";
 import {
   Button,
   Menu,
-  Portal,
-  Drawer,
   Box,
-  Stack,
-  CloseButton,
+  Image,
   Link,
   Icon,
   Text,
@@ -16,7 +13,9 @@ import {
 import { FiDownload, FiDroplet, FiEdit, FiFileText, FiImage, FiMoreVertical, FiPlay, FiTrash2, FiZap } from "react-icons/fi";
 import { SiDiscogs } from "react-icons/si";
 import NextLink from "next/link";
-import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
+import { menuDivider } from "@/components/ui/action-menu-primitives";
+import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
+import { Group, TileRow, overline, type ModalAction, type ModalTile } from "@/components/ui/RetroModalParts";
 
 export interface AlbumActionsMenuProps {
   albumTitle?: string;
@@ -35,6 +34,12 @@ export interface AlbumActionsMenuProps {
   editAlbumHref?: string;
   /** Permanently delete the album and its tracks (#511). */
   onDeleteAlbum?: () => void;
+  /** Thumbnail in the phone modal's label strip. */
+  coverUrl?: string;
+  /** Mono line above the title in the phone modal, e.g. `Album · Vinyl · LP-349`. */
+  catalogue?: string;
+  /** Under the title in the phone modal; defaults to the artist. */
+  subtitle?: string;
   /** A 44px outline trigger, for the phone's top bar. */
   prominent?: boolean;
 }
@@ -55,9 +60,34 @@ export default function AlbumActionsMenu({
   editAlbumHref,
   onDeleteAlbum,
   prominent = false,
+  coverUrl,
+  catalogue,
+  subtitle,
 }: AlbumActionsMenuProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const close = () => setDrawerOpen(false);
+
+  const tiles: ModalTile[] = [
+    ...(onPlayAlbum
+      ? [{ label: "Play", icon: <FiPlay fill="currentColor" />, solid: true, onClick: onPlayAlbum }]
+      : []),
+    ...(onLogCare ? [{ label: "Log care", icon: <FiDroplet />, onClick: onLogCare }] : []),
+    ...(editAlbumHref ? [{ label: "Edit", icon: <FiEdit />, href: editAlbumHref }] : []),
+  ];
+  const library: ModalAction[] = [
+    ...(onEnrichAlbum
+      ? [{ label: isEnriching ? "Opening enrichment..." : "Enrich album", onClick: onEnrichAlbum, disabled: isEnriching }]
+      : []),
+    ...(onChangeArtwork ? [{ label: "Cover art", onClick: onChangeArtwork }] : []),
+    ...(onDownloadMissing
+      ? [{ label: isDownloading ? "Downloading..." : "Download missing audio", onClick: onDownloadMissing, disabled: isDownloading }]
+      : []),
+  ];
+  const discogs: ModalAction[] = [
+    ...(discogsUrl ? [{ label: "View on Discogs", href: discogsUrl, external: true }] : []),
+    ...(onViewRawDiscogs ? [{ label: "View raw Discogs file", onClick: onViewRawDiscogs }] : []),
+  ];
+  const danger: ModalAction[] = onDeleteAlbum ? [{ label: "Delete album", onClick: onDeleteAlbum }] : [];
 
   const hasAlbumActions =
     !!onPlayAlbum || !!onDownloadMissing || !!onEnrichAlbum || !!onLogCare || !!onChangeArtwork;
@@ -67,7 +97,7 @@ export default function AlbumActionsMenu({
 
   return (
     <>
-      {/* Mobile: bottom sheet */}
+      {/* Mobile: centred retro modal (#751) */}
       <Box display={{ base: "block", md: "none" }}>
         <Button
           size="sm"
@@ -79,83 +109,42 @@ export default function AlbumActionsMenu({
         >
           <FiMoreVertical />
         </Button>
-        <Drawer.Root placement="bottom" open={drawerOpen} onOpenChange={(d) => setDrawerOpen(d.open)}>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content borderTopRadius="xl" maxH="85vh">
-                <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                  <Box pr={8}>
-                    {albumArtist && <Text fontSize="xs" color="fg.muted">{albumArtist}</Text>}
-                    <Text fontWeight="semibold" fontSize="sm" lineClamp={1}>
-                      {albumTitle ?? "Album Actions"}
-                    </Text>
-                  </Box>
-                  <Drawer.CloseTrigger asChild>
-                    <CloseButton size="sm" position="absolute" right={3} top="50%" transform="translateY(-50%)" />
-                  </Drawer.CloseTrigger>
-                </Drawer.Header>
-                <Drawer.Body p={0} overflowY="auto">
-                  <Stack gap={0}>
-                    {hasAlbumActions && (
-                      <>
-                        {onPlayAlbum && (
-                          <DrawerItem icon={<FiPlay />} label="Play Album" onClick={() => { onPlayAlbum(); close(); }} />
-                        )}
-                        {onDownloadMissing && (
-                          <DrawerItem
-                            icon={<FiDownload />}
-                            label={isDownloading ? "Downloading..." : "Download Missing"}
-                            disabled={isDownloading}
-                            onClick={() => { onDownloadMissing(); close(); }}
-                          />
-                        )}
-                        {onEnrichAlbum && (
-                          <DrawerItem
-                            icon={<FiZap />}
-                            label={isEnriching ? "Opening Enrichment..." : "Enrich Album"}
-                            disabled={isEnriching}
-                            onClick={() => { onEnrichAlbum(); close(); }}
-                          />
-                        )}
-                        {onLogCare && (
-                          <DrawerItem icon={<FiDroplet />} label="Log Care..." onClick={() => { onLogCare(); close(); }} />
-                        )}
-                        {onChangeArtwork && (
-                          <DrawerItem icon={<FiImage />} label="Cover Art..." onClick={() => { onChangeArtwork(); close(); }} />
-                        )}
-                        {(hasDiscogs || hasEdit) && drawerDivider}
-                      </>
-                    )}
-                    {hasDiscogs && (
-                      <>
-                        {discogsUrl && (
-                          <DrawerItem icon={<Icon as={SiDiscogs} />} label="View on Discogs" href={discogsUrl} external />
-                        )}
-                        {onViewRawDiscogs && (
-                          <DrawerItem icon={<FiFileText />} label="View Raw Discogs File" onClick={() => { onViewRawDiscogs(); close(); }} />
-                        )}
-                        {hasEdit && drawerDivider}
-                      </>
-                    )}
-                    {editAlbumHref && (
-                      <DrawerItem icon={<FiEdit />} label="Edit Album & Tracks" href={editAlbumHref} />
-                    )}
-                    {hasEdit && hasDelete && drawerDivider}
-                    {onDeleteAlbum && (
-                      <DrawerItem
-                        icon={<FiTrash2 />}
-                        label="Delete Album..."
-                        color="fg.error"
-                        onClick={() => { onDeleteAlbum(); close(); }}
-                      />
-                    )}
-                  </Stack>
-                </Drawer.Body>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+        <RetroDialog
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          header={
+            <>
+              <Box
+                boxSize="52px"
+                flexShrink={0}
+                borderWidth="outline"
+                borderColor="bg"
+                bg="fg.muted"
+                overflow="hidden"
+              >
+                {coverUrl && <Image src={coverUrl} alt="" boxSize="full" objectFit="cover" />}
+              </Box>
+              <Box flex="1" minW={0}>
+                <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8} lineClamp={1}>
+                  {catalogue ?? "Album"}
+                </Text>
+                <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+                  {albumTitle ?? "Album actions"}
+                </RetroDialogTitle>
+                {(subtitle ?? albumArtist) && (
+                  <Text fontSize="13px" lineHeight="18px" opacity={0.8} lineClamp={1}>
+                    {subtitle ?? albumArtist}
+                  </Text>
+                )}
+              </Box>
+            </>
+          }
+        >
+          {tiles.length > 0 && <TileRow tiles={tiles} onDone={close} />}
+          <Group label="Library" actions={library} onDone={close} />
+          <Group label="Discogs" actions={discogs} onDone={close} />
+          <Group label="Danger" actions={danger} danger onDone={close} />
+        </RetroDialog>
       </Box>
 
       {/* Desktop: dropdown menu */}

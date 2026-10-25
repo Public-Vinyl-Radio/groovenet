@@ -54,7 +54,7 @@ describe("Cover Art menu items (#494)", () => {
   it("offers no cover art item without a handler", async () => {
     const { user } = renderWithProviders(<AlbumActionsMenu onLogCare={vi.fn()} />);
     await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
-    await screen.findByRole("button", { name: /Log Care/ });
+    await screen.findByRole("button", { name: /Log care/i });
     expect(screen.queryByRole("button", { name: /Cover Art/ })).toBeNull();
   });
 });

@@ -11,6 +11,12 @@ const meta: Meta<typeof AlbumActionsMenu> = {
   args: {
     albumTitle: 'Cumbia Cumbia Cumbia!!! Vol. 3',
     albumArtist: 'Various Artists',
+    catalogue: 'Album · Vinyl · LP-349',
+    subtitle: 'Various Artists · Sony Music · 2024',
+    onLogCare: noop,
+    onEnrichAlbum: noop,
+    onChangeArtwork: noop,
+    onDeleteAlbum: noop,
     onPlayAlbum: noop,
     onDownloadMissing: noop,
     discogsUrl: 'https://www.discogs.com/release/12345',
