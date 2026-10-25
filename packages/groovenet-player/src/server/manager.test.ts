@@ -5,6 +5,7 @@ import type { PlaybackBackend, PlaybackSource } from "../types.js";
 import type { Track } from "@groovenet/client";
 import { ServerPlayerManager, unknownSpeaker } from "./manager.js";
 import { ServerPlayerError, type PlayerStore } from "./store.js";
+import { OwnToneBackend } from "../ownToneBackend.js";
 import { PlayerError } from "../types.js";
 
 class FakeBackend extends EventEmitter implements PlaybackBackend {
@@ -380,6 +381,111 @@ describe("persistent server player manager", () => {
     const defaults = new ServerPlayerManager(f.store, { a: { libraryRoot: "/media", create: () => new FakeBackend() } });
     await defaults.initialize();
     expect((await defaults.devices("a"))[0]!.observed.availability).toBe("unknown");
+  });
+
+  it("keeps the playback error visible through queue/settings edits and clears it on successful replay", async () => {
+    const f = await fixture(); await f.prepare("a");
+    await f.command("a", { type: "play", allow_unknown: true });
+    const failure = new PlayerError("PLAYBACK_INTERRUPTED", "Receiver output lost; explicitly play again when ready");
+    f.backends[0]!.emit("error", failure); await f.settle();
+    const entry = f.manager.get("a").state.current_entry_id;
+    for (const command of [
+      { type: "rename", name: "Renamed" },
+      { type: "queue.add", tracks: [{ track_id: "3", friend_id: 1 }] },
+      { type: "queue.move", entry_id: entry, to: 1 },
+      { type: "queue.remove", entry_id: f.manager.get("a").state.queue[1]!.id },
+      { type: "volume", volume: 20 }, { type: "seek", seconds: 10 },
+      { type: "output.select", output_id: "speaker-a" },
+    ]) {
+      await f.command("a", command);
+      expect(f.manager.get("a").state).toMatchObject({ status: "error", error: { code: failure.code, message: failure.message } });
+    }
+    await expect(f.command("a", { type: "queue.remove", entry_id: "00000000-0000-4000-8000-000000000001" })).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
+    expect(f.manager.get("a").state.error?.code).toBe("PLAYBACK_INTERRUPTED");
+    await f.command("a", { type: "play", allow_unknown: true });
+    expect(f.manager.get("a").state).toMatchObject({ status: "playing", error: null });
+    await f.manager.shutdown();
+  });
+
+  it.each(["stop", "queue.clear", "remove current"])("clears an old playback error after explicit %s succeeds", async (type) => {
+    const f = await fixture(); await f.prepare("a"); await f.command("a", { type: "play", allow_unknown: true });
+    f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "Lost output")); await f.settle();
+    await f.command("a", type === "remove current" ? { type: "queue.remove", entry_id: f.manager.get("a").state.current_entry_id } : { type });
+    expect(f.manager.get("a").state).toMatchObject({ status: "stopped", error: null });
+    await f.manager.shutdown();
+  });
+
+  it.each([false, true])("recovers the real OwnTone output-loss sequence through the manager (cleanup failure=%s)", async (cleanupFails) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const terminal = { version: 1, instance: "a".repeat(32), sequence: 0, item_id: 0, reason: "none" };
+    const status = { state: "stop", item_id: 0, item_progress_ms: 0, item_length_ms: 10000, groovenet_terminal: terminal };
+    let queue = { version: 0, items: [] as { id: number; file_id: number }[] };
+    let selected: string[] = [];
+    let failStop = false;
+    let nextId = 10;
+    const writes: string[] = [];
+    const transport = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input)); const path = url.pathname.replace("/api/", "");
+      if (init?.method !== "GET") writes.push(path);
+      let data: unknown;
+      if (path === "library/files") data = { tracks: { items: [{ id: 1, path: "/media/1.wav", data_kind: "file", length_ms: 10000 }] } };
+      else if (path === "player") data = status;
+      else if (path === "queue") data = queue;
+      else if (path === "outputs") data = { outputs: [{ id: "speaker-a", name: "A", type: "AirPlay 2", selected: selected.includes("speaker-a"), connected: false }] };
+      else if (path === "outputs/set") selected = JSON.parse(String(init!.body)).outputs;
+      else if (path === "queue/items/add") { queue = { version: queue.version + 1, items: [{ id: nextId++, file_id: 1 }] }; status.item_id = queue.items[0]!.id; data = queue; }
+      else if (path === "queue/clear") queue = { version: queue.version + 1, items: [] };
+      else if (path === "player/play") status.state = "play";
+      else if (path === "player/stop") { if (failStop) return new Response(null, { status: 503 }); status.state = "stop"; }
+      return data === undefined ? new Response(null, { status: 204 }) : Response.json(data);
+    });
+    const store = new MemoryStore();
+    const create = vi.fn((outputId?: string) => new OwnToneBackend({ apiUrl: "http://engine/api", outputId, fetch: transport }));
+    const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create } });
+    const command = (value: Record<string, unknown>) => manager.command("a", { ...value, expected_revision: manager.get("a").revision } as ServerPlayerCommand);
+    try {
+      await manager.initialize(); await manager.create({ id: "a", name: "A", engine_id: "a" });
+      await command({ type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "1", friend_id: 1 }] });
+      await command({ type: "output.select", output_id: "speaker-a" });
+      await command({ type: "play", allow_unknown: true });
+      status.item_progress_ms = 2500;
+      await vi.advanceTimersByTimeAsync(500);
+      for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+      const before = manager.get("a"); const plays = writes.filter(path => path === "player/play").length;
+      status.state = "pause"; terminal.sequence++; terminal.item_id = status.item_id; terminal.reason = "output_lost";
+      failStop = cleanupFails;
+      await vi.advanceTimersByTimeAsync(1000);
+      for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+      const failed = manager.get("a");
+      expect(failed.state).toMatchObject({ status: "error", position: before.state.position, current_entry_id: before.state.current_entry_id, queue: before.state.queue, error: { code: "PLAYBACK_INTERRUPTED" } });
+      expect(writes.filter(path => path === "player/play")).toHaveLength(plays);
+      await command({ type: "rename", name: "Still failed" });
+      expect(manager.get("a").state.error?.code).toBe("PLAYBACK_INTERRUPTED");
+      if (cleanupFails) {
+        expect(failed.assigned_output).toBe("speaker-a"); expect(status.state).toBe("pause");
+        await expect(command({ type: "play", allow_unknown: true })).rejects.toMatchObject({ code: "RELEASE_UNCERTAIN" });
+        expect(writes.filter(path => path === "player/play")).toHaveLength(plays);
+      } else {
+        expect(failed.assigned_output).toBeNull(); expect(status.state).toBe("stop"); expect(selected).toEqual([]);
+        await expect(command({ type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+        await command({ type: "play", allow_unknown: true });
+        expect(manager.get("a").state).toMatchObject({ status: "playing", error: null, position: 2.5, current_entry_id: before.state.current_entry_id, queue: before.state.queue });
+        expect(writes.filter(path => path === "player/play")).toHaveLength(plays + 1);
+      }
+    } finally { await manager.shutdown(); vi.useRealTimers(); }
+  });
+
+  it("requires a fresh availability acknowledgement after a control failure loses transport", async () => {
+    const f = await fixture(); await f.prepare("a"); await f.command("a", { type: "play", allow_unknown: true });
+    f.backends[0]!.pause.mockRejectedValueOnce(new PlayerError("PLAYBACK_INTERRUPTED", "Output lost"));
+    f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
+    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({ code: "PLAYBACK_INTERRUPTED" });
+    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    expect(f.backends[0]!.close).not.toHaveBeenCalled();
+    await f.command("a", { type: "play", allow_unknown: true });
+    expect(f.backends[0]!.close).toHaveBeenCalledOnce();
+    expect(f.manager.get("a").state).toMatchObject({ status: "playing", error: null });
+    await f.manager.shutdown();
   });
 
 });

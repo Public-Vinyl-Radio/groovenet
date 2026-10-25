@@ -51,6 +51,7 @@ function fixture() {
   return {
     backend, status, outputs, terminal, requests, failures, responses, fetch, errors, ended, position,
     setTracks: (value: typeof tracks) => { tracks = value; },
+    fail: (reason = "output_lost", state = "pause") => { terminal.sequence++; terminal.item_id = status.item_id; terminal.reason = reason; status.state = state; },
     replace: () => { items = [{ id: 99, file_id: 2 }]; version++; status.item_id = 99; },
     eof: (keep = false) => { terminal.sequence++; terminal.item_id = status.item_id; terminal.reason = "eof"; status.state = "stop"; if (!keep) { items = []; version++; } },
     changeVersion: () => { version++; },
@@ -115,7 +116,7 @@ describe("OwnToneBackend", () => {
     expect(f.ended).not.toHaveBeenCalled();
     expect(f.errors).toHaveBeenCalledWith(expect.objectContaining({ code: "PLAYBACK_INTERRUPTED" }));
     await f.backend.close();
-    expect(f.requests.filter((r) => r.method !== "GET")).toHaveLength(writes);
+    expect(f.requests.filter((r) => r.method !== "GET")).toHaveLength(writes + (["input_error", "failed", "output_lost"].includes(reason) ? 3 : 0));
   });
 
   it.each(["duplicate", "wrong item", "restart", "replacement"])("ignores %s completion signals", async (kind) => {
@@ -398,6 +399,74 @@ describe("OwnToneBackend", () => {
     f.status.item_id = 999; await vi.advanceTimersByTimeAsync(500);
     expect(f.errors).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining("item replaced") }));
     expect(f.ended).not.toHaveBeenCalled(); await f.backend.close();
+  });
+
+  it.each(["output_lost", "input_error", "failed"])("releases its verified %s session without replay and permits a fresh explicit play", async (reason) => {
+    const f = fixture(); await f.backend.load(source);
+    const writes = f.requests.filter(r => r.method !== "GET").length;
+    f.fail(reason);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(f.errors).toHaveBeenCalledTimes(1);
+    expect(f.ended).not.toHaveBeenCalled();
+    expect(f.requests.filter(r => r.method !== "GET")).toHaveLength(writes);
+    await f.backend.close();
+    expect(f.requests.slice(-3).map(r => r.path)).toEqual(["player/stop", "queue/clear", "outputs/set"]);
+    expect(f.status.state).toBe("stop"); expect(f.outputs[0]!.selected).toBe(false);
+    const next = new OwnToneBackend({ apiUrl: "http://engine/api", outputId: "speaker/1", fetch: f.fetch });
+    await next.load(source);
+    expect(f.status.state).toBe("play");
+    await next.close();
+  });
+
+  it.each(["restart", "item", "queue version", "empty queue", "queue item", "resumed", "new terminal", "terminal reason", "terminal item", "foreign output"])("rechecks failure identity and leaves %s untouched at close", async (change) => {
+    const f = fixture(); await f.backend.load(source); f.fail();
+    await vi.advanceTimersByTimeAsync(500);
+    if (change === "restart") f.terminal.instance = "b".repeat(32);
+    if (change === "item") f.status.item_id = 99;
+    if (change === "queue version") f.changeVersion();
+    if (change === "empty queue") f.responses.set("queue", { version: 2, items: [] });
+    if (change === "queue item") f.responses.set("queue", { version: 2, items: [{ id: 99 }] });
+    if (change === "resumed") f.status.state = "play";
+    if (change === "new terminal") f.terminal.sequence++;
+    if (change === "terminal reason") f.terminal.reason = "interrupted";
+    if (change === "terminal item") f.terminal.item_id = 99;
+    if (change === "foreign output") f.outputs.push({ ...f.outputs[0]!, id: "foreign", selected: true });
+    const count = f.requests.length;
+    await f.backend.close();
+    expect(f.requests.slice(count).every(r => r.method === "GET")).toBe(true);
+  });
+
+  it.each(["queue changed", "still playing"])("does not mutate the engine when failure is observed with %s", async (change) => {
+    const f = fixture(); await f.backend.load(source); f.fail();
+    if (change === "queue changed") f.changeVersion();
+    else f.status.state = "play";
+    const writes = f.requests.filter(r => r.method !== "GET").length;
+    await vi.advanceTimersByTimeAsync(500); await f.backend.close();
+    expect(f.requests.filter(r => r.method !== "GET")).toHaveLength(writes);
+  });
+
+  it("retains verified failure identity when a control command detects interruption before the poll", async () => {
+    const f = fixture(); await f.backend.load(source); f.fail();
+    await expect(f.backend.pause(false)).rejects.toMatchObject({ code: "PLAYBACK_INTERRUPTED" });
+    await f.backend.close();
+    expect(f.status.state).toBe("stop"); expect(f.outputs[0]!.selected).toBe(false);
+  });
+
+  it("reports failed cleanup instead of claiming the engine was released", async () => {
+    const f = fixture(); await f.backend.load(source); f.fail();
+    await vi.advanceTimersByTimeAsync(500);
+    f.failures.set("player/stop", new Error("offline"));
+    await expect(f.backend.close()).rejects.toMatchObject({ code: "ENGINE_UNAVAILABLE" });
+    expect(f.status.state).toBe("pause"); expect(f.outputs[0]!.selected).toBe(true);
+  });
+
+  it("waits for a nonplaying state before cleaning up a terminal failure observed during transition", async () => {
+    const f = fixture(); await f.backend.load(source); f.fail("output_lost", "play");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(f.errors).toHaveBeenCalledTimes(1);
+    f.status.state = "pause";
+    await f.backend.close();
+    expect(f.status.state).toBe("stop"); expect(f.outputs[0]!.selected).toBe(false);
   });
 
 });

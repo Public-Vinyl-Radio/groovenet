@@ -148,7 +148,9 @@ export class ServerPlayerManager extends EventEmitter {
             if (this.runtimes.has(id)) await this.active(id).backend.setVolume(command.volume);
             player.state.volume = command.volume; break;
         }
-        player.state.error = null;
+        // Queue/settings edits do not recover failed playback. Keep its cause
+        // visible until a transport command successfully leaves the error state.
+        if (player.state.status !== "error") player.state.error = null;
         player = await this.save(player);
         return { player: clone(player) };
       } catch (error) {
@@ -172,8 +174,8 @@ export class ServerPlayerManager extends EventEmitter {
     if (!output) throw new ServerPlayerError("OUTPUT_REQUIRED", "Select a desired output before playing", 400);
     const owner = this.list().find((p) => p.assigned_output === output && p.id !== player.id);
     if (owner) throw new ServerPlayerError("OUTPUT_ASSIGNED", "Speaker belongs to another player; use explicit transfer");
-    const pausedWithoutTransport = player.state.status === "paused" && await this.runtimes.get(player.id)?.backend.outputConnection?.() !== "connected";
-    if (player.assigned_output !== output || pausedWithoutTransport) await this.requireAvailable(output, policy);
+    const needsReconnect = (player.state.status === "paused" || player.state.status === "error") && await this.runtimes.get(player.id)?.backend.outputConnection?.() !== "connected";
+    if (player.assigned_output !== output || needsReconnect) await this.requireAvailable(output, policy);
     const track = await this.store.resolve(entry);
     const engine = this.engine(player);
     const source = track ? audioSource(track, { apiBase: "http://unused/api", audioLibraryRoot: engine.libraryRoot }) : null;
@@ -323,7 +325,7 @@ export class ServerPlayerManager extends EventEmitter {
   }
   private active(id: string): Runtime {
     const runtime = this.runtimes.get(id);
-    if (!runtime) throw new ServerPlayerError("PLAYER_INACTIVE", "Player has no active engine session");
+    if (!runtime) throw new ServerPlayerError("PLAYER_INACTIVE", "Player has no active engine session; explicitly play to start one");
     return runtime;
   }
   private revision(player: ServerPlayer, expected: number): void {
