@@ -75,31 +75,38 @@ test('player-only settings can augment a deployment without a base env file', ()
   assert.ok(run.calls.every((call) => call.includes('.env.players')));
 });
 
-function remoteDeployment({ optedIn = true, validSecrets = true } = {}) {
+function remoteDeployment({ optedIn = true, webOptedIn = false, validSecrets = true, validWebSecrets = true, setup = false, failCopy = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'groovenet-op-deploy-'));
   try {
     const bin = join(root, 'bin'); mkdirSync(bin);
     const scripts = join(root, 'my-collection-search/scripts'); mkdirSync(scripts, { recursive: true });
     copyFileSync(new URL('./render-player-env.mjs', import.meta.url), join(scripts, 'render-player-env.mjs'));
     copyFileSync(new URL('../../.env.players.tpl', import.meta.url), join(root, '.env.players.tpl'));
+    copyFileSync(new URL('./render-player-web-env.mjs', import.meta.url), join(scripts, 'render-player-web-env.mjs'));
+    copyFileSync(new URL('../../.env.player-web.tpl', import.meta.url), join(root, '.env.player-web.tpl'));
     const justfile = readFileSync(new URL('../../justfile', import.meta.url), 'utf8');
-    const recipe = justfile.split('deploy-prod-remote:\n')[1].split('\n# Pulls images')[0]
+    const recipe = (setup ? justfile.split('player-web-setup:\n')[1].split('\ndeploy-prod-local:')[0] : justfile.split('deploy-prod-remote:\n')[1].split('\n# Pulls images')[0])
       .replace(/^  /gm, '').replaceAll('{{prod_host}}', 'fixture-host')
-      .replaceAll('{{prod_stack_dir}}', '/fixture').replaceAll('{{tag}}', 'sha-1234567');
+      .replaceAll('{{prod_stack_dir}}', '/fixture').replaceAll('{{tag}}', 'sha-1234567').replaceAll('{{mise_exec}}', '');
     const script = join(root, 'deploy.sh'); writeFileSync(script, recipe);
     const log = join(root, 'calls');
     writeFileSync(join(bin, 'ssh'), `#!/bin/sh
 printf 'ssh %s\\n' "$*" >> "$DEPLOY_TEST_LOG"
-case "$*" in *"test -f "*) exit "$DEPLOY_TEST_OPT_IN" ;; esac
+case "$*" in
+  *"test -f /fixture/.env.player-web.op"*) exit "$DEPLOY_TEST_WEB_OPT_IN" ;;
+  *"test -f "*) exit "$DEPLOY_TEST_OPT_IN" ;;
+esac
 `, { mode: 0o755 });
     writeFileSync(join(bin, 'op'), '#!/bin/sh\nprintf "op run\\n" >> "$DEPLOY_TEST_LOG"\nshift 4\nexec "$@"\n', { mode: 0o755 });
-    writeFileSync(join(bin, 'scp'), '#!/bin/sh\nprintf "scp\\n" >> "$DEPLOY_TEST_LOG"\ncp "$1" "$DEPLOY_TEST_CAPTURE"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'scp'), '#!/bin/sh\nprintf "scp\\n" >> "$DEPLOY_TEST_LOG"\n[ "$DEPLOY_TEST_COPY_FAIL" = "0" ] || exit 1\ncase "$2" in *".env.player-web") cp "$1" "$DEPLOY_TEST_WEB_CAPTURE" ;; *) cp "$1" "$DEPLOY_TEST_CAPTURE" ;; esac\n', { mode: 0o755 });
     const capture = join(root, 'captured.env');
+    const webCapture = join(root, 'captured-web.env');
     const result = spawnSync('bash', [script], { cwd: root, encoding: 'utf8', env: {
-      PATH: `${bin}:${process.env.PATH}`, DEPLOY_TEST_LOG: log, DEPLOY_TEST_OPT_IN: optedIn ? '0' : '1', DEPLOY_TEST_CAPTURE: capture,
+      PATH: `${bin}:${process.env.PATH}`, DEPLOY_TEST_LOG: log, DEPLOY_TEST_OPT_IN: optedIn ? '0' : '1', DEPLOY_TEST_WEB_OPT_IN: webOptedIn ? '0' : '1', DEPLOY_TEST_CAPTURE: capture, DEPLOY_TEST_WEB_CAPTURE: webCapture, DEPLOY_TEST_COPY_FAIL: failCopy ? '1' : '0',
       PLAYER_API_KEY: validSecrets ? 'test-api-key-'.repeat(5) : 'short', PLAYER_ENGINE_A_PASSWORD: 'engine-a', PLAYER_ENGINE_B_PASSWORD: 'engine-b',
+      PLAYER_WEB_ORIGIN: validWebSecrets ? 'https://fixture.example' : 'http://invalid', PLAYER_WEB_PASSPHRASE: 'web-passphrase-'.repeat(4), PLAYER_WEB_SESSION_SECRET: 'web-signing-secret-'.repeat(4),
     } });
-    return { ...result, calls: readFileSync(log, 'utf8'), rendered: optedIn && validSecrets ? readFileSync(capture, 'utf8') : '' };
+    return { ...result, calls: readFileSync(log, 'utf8'), rendered: !setup && optedIn && validSecrets && !failCopy ? readFileSync(capture, 'utf8') : '', webRendered: (setup || webOptedIn) && validWebSecrets && validSecrets && !failCopy ? readFileSync(webCapture, 'utf8') : '' };
   } finally { rmSync(root, { recursive: true, force: true }); }
 }
 
@@ -124,4 +131,43 @@ test('invalid op credentials stop remote deployment before copying or restarting
   assert.equal(run.status, 1);
   assert.ok(!run.calls.includes('scp') && !run.calls.includes('git fetch'));
   assert.match(run.stderr, /at least 32 characters/);
+});
+
+
+test('opted-in web settings refresh from op during normal deployment without leaking the worker key', () => {
+  const run = remoteDeployment({ webOptedIn: true });
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(run.webRendered.includes('PLAYER_WEB_ORIGIN="https://fixture.example"'));
+  assert.ok(!run.webRendered.includes('PLAYER_API_KEY') && !run.webRendered.includes('test-api-key-'));
+  assert.ok(run.calls.includes('ssh fixture-host chmod 600 /fixture/.env.player-web'));
+  assert.equal(run.calls.split('op run').length - 1, 2);
+  for (const secret of ['web-passphrase-', 'web-signing-secret-', 'test-api-key-']) assert.ok(!run.calls.includes(secret) && !run.stdout.includes(secret));
+});
+
+test('invalid web settings preserve the remote file and stop deployment', () => {
+  const run = remoteDeployment({ webOptedIn: true, validWebSecrets: false });
+  assert.equal(run.status, 1); assert.match(run.stderr, /exact HTTPS origin/);
+  assert.ok(!run.calls.includes('chmod 600 /fixture/.env.player-web') && !run.calls.includes('git fetch'));
+});
+
+test('one-time web setup uploads settings privately without deploying or restarting audio services', () => {
+  const run = remoteDeployment({ setup: true });
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(run.webRendered.includes('PLAYER_WEB_PASSPHRASE='));
+  assert.equal(run.calls, 'op run\nscp\nssh fixture-host chmod 600 /fixture/.env.player-web && touch /fixture/.env.player-web.op\n');
+  assert.match(run.stdout, /normal deployment/);
+});
+
+for (const changes of [{ validWebSecrets: false }, { failCopy: true }]) test('failed web setup does not proceed to deployment or restart', () => {
+  const run = remoteDeployment({ setup: true, ...changes });
+  assert.equal(run.status, 1); assert.ok(!run.calls.includes('chmod 600') && !run.calls.includes('git fetch'));
+});
+
+test('deploy preserves manual web settings without the explicit op marker', () => {
+  const run = remoteDeployment();
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.calls.split('op run').length - 1, 1);
+  assert.ok(run.calls.includes('test -f /fixture/.env.player-web.op'));
+  assert.ok(!run.calls.includes('chmod 600 /fixture/.env.player-web'));
+  assert.equal(run.webRendered, '');
 });

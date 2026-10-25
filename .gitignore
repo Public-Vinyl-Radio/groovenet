@@ -14,6 +14,7 @@ eval-data/
 !.env.example
 !.env.tpl
 !.env.players.tpl
+!.env.player-web.tpl
 .envrc
 .DS_Store
 tmp/

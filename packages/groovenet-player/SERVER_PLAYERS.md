@@ -6,7 +6,8 @@ queue and one dedicated OwnTone engine. Different players can use different
 speakers concurrently; synchronized groups are deferred. This is the backend
 for #693; remote TUI controls are tracked in #694. The web UI can control these sessions through an optional household browser
 session; see [web controls](../../my-collection-search/docs/server-player-web.md).
-There is no iOS UI yet.
+There is no iOS UI yet. Web authorization can be provisioned from 1Password with
+`just player-web-setup`; existing hosts remain opted out until that explicit setup.
 
 ## Deployment
 

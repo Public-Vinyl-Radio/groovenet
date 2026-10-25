@@ -310,6 +310,21 @@ push-images:
   {{buildkit_env}} docker buildx build --platform {{platform}} --push -t {{registry}}/download-worker:{{tag}} -f download-worker/Dockerfile .
   {{buildkit_env}} docker buildx build --platform {{platform}} --push -t {{registry}}/fingerprint-service:{{tag}} -f fingerprint-service/Dockerfile .
 
+# Render private browser player settings from 1Password without deploying.
+player-web-env output=".env.player-web":
+  {{mise_exec}} op run --env-file .env.player-web.tpl -- node my-collection-search/scripts/render-player-web-env.mjs "{{output}}"
+
+# Opt a production host into 1Password-managed browser settings; apply on deploy.
+player-web-setup:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  tmp_web_env="$(mktemp)"
+  trap 'rm -f "$tmp_web_env"' EXIT
+  op run --env-file .env.player-web.tpl -- {{mise_exec}} node my-collection-search/scripts/render-player-web-env.mjs "$tmp_web_env"
+  scp "$tmp_web_env" {{prod_host}}:{{prod_stack_dir}}/.env.player-web
+  ssh {{prod_host}} "chmod 600 {{prod_stack_dir}}/.env.player-web && touch {{prod_stack_dir}}/.env.player-web.op"
+  echo "Web playback settings uploaded. Apply them with your normal deployment."
+
 deploy-prod-local:
   cd {{app_dir}} && ./scripts/deploy-prod.sh {{tag}}
 
@@ -318,8 +333,9 @@ deploy-prod-remote:
   set -euo pipefail
   tmp_env="$(mktemp)"
   tmp_player_env="$(mktemp)"
+  tmp_web_env="$(mktemp)"
   cleanup() {
-    rm -f "$tmp_env" "$tmp_player_env"
+    rm -f "$tmp_env" "$tmp_player_env" "$tmp_web_env"
   }
   trap cleanup EXIT
   if [ -f .env.tpl ] && command -v op >/dev/null 2>&1; then
@@ -333,6 +349,14 @@ deploy-prod-remote:
       op run --env-file .env.players.tpl -- node my-collection-search/scripts/render-player-env.mjs "$tmp_player_env"
       scp "$tmp_player_env" {{prod_host}}:{{prod_stack_dir}}/.env.players
       ssh {{prod_host}} "chmod 600 {{prod_stack_dir}}/.env.players"
+    fi
+  fi
+  # An explicit op marker preserves manually managed web settings.
+  if [ -f .env.player-web.tpl ] && command -v op >/dev/null 2>&1; then
+    if ssh {{prod_host}} "test -f {{prod_stack_dir}}/.env.player-web.op"; then
+      op run --env-file .env.player-web.tpl -- node my-collection-search/scripts/render-player-web-env.mjs "$tmp_web_env"
+      scp "$tmp_web_env" {{prod_host}}:{{prod_stack_dir}}/.env.player-web
+      ssh {{prod_host}} "chmod 600 {{prod_stack_dir}}/.env.player-web"
     fi
   fi
   # Check out what is being deployed *before* running its deploy script, so
