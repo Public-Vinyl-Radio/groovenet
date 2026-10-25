@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Track, TrackGenre } from "@/types/track";
 
@@ -140,5 +140,37 @@ describe("TrackEditPage bpm confidence (#531)", () => {
     renderWithProviders(<TrackEditPage />);
 
     expect(screen.queryByText(/% confident/)).toBeNull();
+  });
+});
+
+describe("TrackEditPage header", () => {
+  beforeEach(() => {
+    mocks.fetchGenreTree.mockReset().mockResolvedValue([]);
+    mocks.saveTrack.mockReset().mockResolvedValue(undefined);
+    mocks.back.mockReset();
+    mocks.track = { track_id: "t1", friend_id: 1, title: "Cumbia del Sol", artist: "Los Destellos", track_genres: [] } as Partial<Track>;
+  });
+
+  it("cancels back to where the user came from, without saving", async () => {
+    const { user } = renderWithProviders(<TrackEditPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Edit Track" })).toBeTruthy();
+    await user.click(within(screen.getByTestId("page-header")).getByRole("button", { name: "Cancel", hidden: true }));
+    expect(mocks.back).toHaveBeenCalledTimes(1);
+    expect(mocks.saveTrack).not.toHaveBeenCalled();
+  });
+
+  it("saves from the header action", async () => {
+    const { user } = renderWithProviders(<TrackEditPage />);
+    const header = screen.getByTestId("page-header");
+    await user.click(within(header).getByRole("button", { name: "Save", hidden: true }));
+    await waitFor(() => expect(mocks.saveTrack).toHaveBeenCalledOnce());
+  });
+
+  it("offers no Save until a track has loaded", () => {
+    mocks.track = null;
+    renderWithProviders(<TrackEditPage />);
+    const header = screen.getByTestId("page-header");
+    expect(within(header).queryByRole("button", { name: "Save", hidden: true })).toBeNull();
+    expect(within(header).getByRole("button", { name: "Cancel", hidden: true })).toBeTruthy();
   });
 });

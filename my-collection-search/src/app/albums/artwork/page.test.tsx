@@ -99,6 +99,16 @@ describe("album artwork review page", () => {
     expect(api.queueAlbumArtworkBackfill).toHaveBeenCalledWith({ friend_id: 7 });
   });
 
+  it("also offers the run from the header action, disabled until a friend is known", async () => {
+    api.queueAlbumArtworkBackfill.mockResolvedValueOnce({ queuedAlbums: 1, queued: 1, tracksImpacted: 1, jobIds: [], errors: [] });
+    const { user } = renderWithProviders(<AlbumArtworkReviewPage />);
+    await screen.findByRole("button", { name: "Run artwork matching" });
+    const [headerAction] = screen.getAllByRole("button", { name: "Run artwork matching", hidden: true });
+    expect(screen.getByRole("heading", { level: 1, name: "Album artwork" })).toBeTruthy();
+    await user.click(headerAction);
+    await waitFor(() => expect(api.queueAlbumArtworkBackfill).toHaveBeenCalledWith({ friend_id: 7 }));
+  });
+
   it("says when there is nothing to match, and when queueing fails", async () => {
     api.queueAlbumArtworkBackfill
       .mockResolvedValueOnce({ queuedAlbums: 0, queued: 0, tracksImpacted: 0, jobIds: [], errors: [] })

@@ -38,6 +38,15 @@ describe("PageHeader", () => {
     expect(screen.getByRole("button", { name: "Search", hidden: true })).toBeTruthy();
   });
 
+  it("disables an action while it is busy", () => {
+    const onClick = vi.fn();
+    renderWithProviders(<PageHeader title="Edit" actions={[{ ...action("Save", onClick), disabled: true }]} />);
+    const save = screen.getByRole("button", { name: "Save", hidden: true }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(save);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("drops a third action rather than crowding the bar", () => {
     renderWithProviders(
       <PageHeader title="Albums" actions={[action("A"), action("B"), action("C")]} />,

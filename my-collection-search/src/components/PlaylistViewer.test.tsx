@@ -8,6 +8,8 @@ import { sampleTrack, trackInPlaylist } from "@/stories/fixtures/track";
 const mocks = vi.hoisted(() => ({
   replacePlaylist: vi.fn(),
   player: { playlist: [] as unknown[], currentTrackIndex: null as number | null },
+  pending: false,
+  empty: false,
 }));
 
 const refs = [
@@ -21,7 +23,7 @@ const tracks = [
 
 vi.mock("@/hooks/useSearchResults", () => ({ useSearchResults: () => ({ playlistCounts: {} }) }));
 vi.mock("@/hooks/usePlaylistTrackIdsQuery", () => ({
-  usePlaylistTrackIdsQuery: () => ({ tracks: refs, playlistName: "Set", isPending: false, refetch: vi.fn() }),
+  usePlaylistTrackIdsQuery: () => ({ tracks: mocks.empty ? [] : refs, playlistName: "Set", isPending: mocks.pending, refetch: vi.fn() }),
 }));
 vi.mock("@/hooks/usePlaylistTracksQuery", () => ({
   usePlaylistTracksQuery: () => ({ tracks, isPending: false }),
@@ -68,6 +70,8 @@ beforeEach(() => {
   localStorage.clear();
   setViewportWidth(1280);
   mocks.player = { playlist: [], currentTrackIndex: null };
+  mocks.pending = false;
+  mocks.empty = false;
 });
 
 describe("PlaylistViewer view mode", () => {
@@ -123,5 +127,23 @@ describe("PlaylistViewer view mode", () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     await screen.findByTestId("track-table");
     expect(classes()[1]).toBe(classes()[0]);
+  });
+});
+
+describe("PlaylistViewer page header", () => {
+  it("titles the page with the playlist name and links back to Playlists", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Set" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to Playlists", hidden: true }).getAttribute("href")).toBe("/playlists");
+  });
+
+  it.each([
+    ["while loading", () => { mocks.pending = true; }],
+    ["when empty", () => { mocks.empty = true; }],
+  ])("keeps the header and back link %s", async (_label, arrange) => {
+    arrange();
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Set" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to Playlists", hidden: true })).toBeTruthy();
   });
 });

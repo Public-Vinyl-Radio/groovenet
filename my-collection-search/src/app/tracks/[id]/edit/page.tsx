@@ -8,7 +8,6 @@ import {
   Button,
   Flex,
   Grid,
-  Heading,
   RatingGroup,
   Skeleton,
   Stack,
@@ -16,6 +15,8 @@ import {
 } from "@chakra-ui/react";
 
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
+import HeaderCancelButton from "@/components/layout/HeaderCancelButton";
 import LabeledInput from "@/components/form/LabeledInput";
 import LabeledTextarea from "@/components/form/LabeledTextarea";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
@@ -32,6 +33,7 @@ import { cleanSoundcloudUrl } from "@/lib/url";
 import { formatBpmConfidencePercent, isBpmConfidenceLow } from "@/lib/essentiaBpm";
 import { formatKeyConfidencePercent, isKeyConfidenceLow } from "@/lib/essentiaKey";
 import { toaster } from "@/components/ui/toaster";
+import { FiCheck } from "react-icons/fi";
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -81,8 +83,9 @@ export default function TrackEditPage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (saving) return;
     if (!form.friend_id) {
       toaster.create({ title: "Track missing friend_id", type: "error" });
       return;
@@ -106,6 +109,15 @@ export default function TrackEditPage() {
   };
   return (
     <PageContainer size="standard">
+      <PageHeader
+        title="Edit Track"
+        leading={<HeaderCancelButton onClick={() => router.back()} disabled={saving} />}
+        actions={
+          hasValidFriendId && track
+            ? [{ label: "Save", icon: <FiCheck />, onClick: () => void handleSubmit(), disabled: saving }]
+            : []
+        }
+      />
       <Flex
         justify="space-between"
         align={{ base: "flex-start", md: "center" }}
@@ -113,9 +125,6 @@ export default function TrackEditPage() {
         gap={3}
       >
         <Stack gap={1} minW={0} flex={1}>
-          <Heading size={{ base: "lg", md: "xl" }} lineHeight="1.15">
-            Edit Track
-          </Heading>
           {track && (
             <Text color="fg.muted" fontSize={{ base: "sm", md: "md" }} lineClamp={1}>
               {form.title || track.title}
@@ -309,57 +318,6 @@ export default function TrackEditPage() {
               Cancel
             </Button>
           </Flex>
-
-          <Box
-            display={{ base: "block", md: "none" }}
-            h="108px"
-          />
-
-          <Box
-            display={{ base: "block", md: "none" }}
-            position="fixed"
-            left="0"
-            right="0"
-            bottom="0"
-            px={4}
-            pb="calc(env(safe-area-inset-bottom, 0px) + 12px)"
-            pt={3}
-            bg="linear-gradient(to top, var(--chakra-colors-bg), color-mix(in srgb, var(--chakra-colors-bg) 88%, transparent))"
-            zIndex={20}
-          >
-            <Flex
-              gap={2}
-              p="10px"
-              borderWidth="outline"
-              borderColor="border.ink"
-              bg="bg.panel"
-              boxShadow="md"
-            >
-              <Button
-                variant="outline"
-                bg="bg"
-                borderColor="border.subtle"
-                onClick={() => router.back()}
-                disabled={saving}
-                flex={1}
-                fontWeight="semibold"
-                borderRadius="xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                loading={saving}
-                disabled={saving}
-                flex={1}
-                colorPalette="accent"
-                fontWeight="semibold"
-                borderRadius="xl"
-              >
-                Save
-              </Button>
-            </Flex>
-          </Box>
         </Box>
       )}
     </PageContainer>

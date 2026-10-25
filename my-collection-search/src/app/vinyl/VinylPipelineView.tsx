@@ -19,6 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { LuPause, LuPlay, LuRefreshCw } from "react-icons/lu";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import {
   useIngestRetentionQuery,
   useIngestStatsQuery,
@@ -112,15 +113,31 @@ export default function VinylPipelineView() {
   );
   const retention = useIngestRetentionQuery({ refetchInterval: live ? 30000 : false });
 
+  const refreshNow = () => {
+    stats.refetch();
+    detections.refetch();
+    retention.refetch();
+  };
+
   const s = stats.data;
   const rows = detections.data?.detections ?? [];
 
   return (
     <PageContainer size="wide">
+      <PageHeader
+        title="Vinyl Pipeline"
+        actions={[
+          {
+            label: live ? "Pause live updates" : "Resume live updates",
+            icon: live ? <LuPause /> : <LuPlay />,
+            onClick: () => setLive((v) => !v),
+          },
+          { label: "Refresh now", icon: <LuRefreshCw />, onClick: refreshNow },
+        ]}
+      />
       <Stack gap={{ base: 3, md: 6 }}>
         <Flex direction="column" gap={2}>
-          <Flex justify="space-between" align="center" gap={2} wrap="wrap">
-            <Heading size={{ base: "md", md: "lg" }}>Vinyl Pipeline</Heading>
+          <Flex justify="flex-end" align="center" gap={2} wrap="wrap">
             <Flex gap={2} align="center" wrap="wrap">
               <NativeSelectRoot size="sm" width="140px">
                 <NativeSelectField
@@ -141,6 +158,7 @@ export default function VinylPipelineView() {
                 onChange={(e) => setSourceId(e.target.value)}
               />
               <Button
+                display={{ base: "none", md: "inline-flex" }}
                 size="sm"
                 variant="outline"
                 onClick={() => setLive((v) => !v)}
@@ -150,13 +168,10 @@ export default function VinylPipelineView() {
                 <Text display={{ base: "none", md: "inline" }}>{live ? "Live" : "Paused"}</Text>
               </Button>
               <Button
+                display={{ base: "none", md: "inline-flex" }}
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  stats.refetch();
-                  detections.refetch();
-                  retention.refetch();
-                }}
+                onClick={refreshNow}
                 loading={stats.isFetching}
                 aria-label="Refresh now"
               >

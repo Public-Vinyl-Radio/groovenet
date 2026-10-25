@@ -44,6 +44,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { getTrackDurationSeconds } from "@/lib/trackUtils";
 import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
+import PageHeader from "@/components/layout/PageHeader";
 
 const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const { playlistCounts } = useSearchResults({});
@@ -465,9 +466,18 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     }
   };
 
+  const displayName = playlistName || `Playlist ${playlistId ?? ""}`.trim();
+  const header = (
+    <PageHeader
+      title={displayName}
+      breadcrumbs={[{ label: "Playlists", href: "/playlists" }, { label: displayName }]}
+    />
+  );
+
   if (trackIdsLoading || tracksLoading) {
     return (
       <Box>
+        {header}
         {/* Header skeleton */}
         <Flex align="flex-start" w="100%" pt={3} mb={2} gap={3}>
           <Box flex="1">
@@ -503,6 +513,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   if (tracksPlaylist.length === 0) {
     return (
       <Box overflowY="auto">
+        {header}
         <EmptyState.Root size={"sm"}>
           <EmptyState.Content>
             <EmptyState.Indicator>
@@ -522,12 +533,10 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
 
   return (
     <>
-      <Flex align="flex-start" w="100%" pt={3}>
+      {header}
+      <Flex align="flex-start" w="100%">
         <Box flex="1">
           <Flex align="center" gap={2} flexWrap="wrap">
-            <Text fontWeight="semibold">
-              {playlistName || `Playlist ${playlistId ?? ""}`.trim()}
-            </Text>
             {hasUnsavedChanges && (
               <Badge
                 colorPalette="status.analysis"

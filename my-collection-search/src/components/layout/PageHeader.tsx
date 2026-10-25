@@ -11,6 +11,8 @@ export type PageHeaderAction = {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
+  /** Greyed out while a save/run is in flight. */
+  disabled?: boolean;
 };
 
 export type PageHeaderOverflowItem = {
@@ -126,6 +128,7 @@ export default function PageHeader({
               boxSize="44px"
               minW="44px"
               onClick={action.onClick}
+              disabled={action.disabled}
             >
               {action.icon}
             </IconButton>
