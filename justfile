@@ -166,6 +166,14 @@ worktree-seed *args:
 worktree-seed-prod *args:
   ./scripts/worktree/create-prod-seed.sh {{args}}
 
+# Park an epic: label it and its sub-issues `parked` (hide with -label:parked on GitHub).
+epic-park epic:
+  ./scripts/epic-park.sh park {{epic}}
+
+# Unpark an epic and its sub-issues.
+epic-unpark epic:
+  ./scripts/epic-park.sh unpark {{epic}}
+
 worktree-install-caddy *args:
   ./scripts/worktree/install-caddy-host.sh {{args}}
 
