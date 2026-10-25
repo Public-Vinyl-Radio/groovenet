@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   albumJsonSchemas,
   friendJsonSchemas,
+  genreJsonSchemas,
   liveSetJsonSchemas,
   playlistJsonSchemas,
   recordCareJsonSchemas,
@@ -58,6 +59,7 @@ const SHARED_COMPONENTS = new Set(
     ...trackJsonSchemas,
     ...albumJsonSchemas,
     ...friendJsonSchemas,
+    ...genreJsonSchemas,
     ...recordCareJsonSchemas,
     ...spinJsonSchemas,
     ...playerJsonSchemas,

@@ -2,19 +2,10 @@ import { effectiveAlbumTaxonomySql } from "@/lib/genres/albumTaxonomySql";
 import { dbQuery, withDbTransaction } from "@/lib/serverDb";
 import type { GenreFilter, GenreFilterRef } from "@/lib/trackFilterSpec";
 
-export type GenreSource = "discogs" | "custom";
+import type { GenreTreeNode as SharedGenreTreeNode } from "@groovenet/contracts";
+export type { GenreSource } from "@groovenet/contracts";
 
-export type GenreRow = {
-  id: string;
-  name: string;
-  slug: string;
-  parent_id: string | null;
-  source: GenreSource;
-  track_count: number;
-  album_count: number;
-  /** Normalised alias keys, so a client can match raw Discogs spellings (#376). */
-  aliases: string[];
-};
+export type GenreRow = Omit<SharedGenreTreeNode, "children" | "aliases"> & { aliases: string[] };
 
 /** How many tracks a genre filter would return, subgenres included (#375). */
 export type GenreFacet = { id: string; track_count: number };

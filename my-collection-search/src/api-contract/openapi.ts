@@ -1,7 +1,8 @@
-import { apiContractRoutes, genreTreeNodeSchemaObject } from "@/api-contract/routes";
+import { apiContractRoutes } from "@/api-contract/routes";
 import {
   albumJsonSchemas,
   friendJsonSchemas,
+  genreJsonSchemas,
   liveSetJsonSchemas,
   playlistJsonSchemas,
   recordCareJsonSchemas,
@@ -210,12 +211,12 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
   }
   addDiscoveredRoutes(paths);
   const schemas = {
-    GenreTreeNode: genreTreeNodeSchemaObject,
     ...liveSetJsonSchemas,
     ...playlistJsonSchemas,
     ...trackJsonSchemas,
     ...albumJsonSchemas,
     ...friendJsonSchemas,
+    ...genreJsonSchemas,
     ...recordCareJsonSchemas,
     ...spinJsonSchemas,
     ...playerJsonSchemas,

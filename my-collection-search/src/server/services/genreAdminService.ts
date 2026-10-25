@@ -3,13 +3,8 @@ import type { PoolClient } from "pg";
 import { normalizeGenreName } from "@/lib/genres/normalization";
 import { triggerGenreSimilarityRefresh } from "@/server/services/genreSimilarityService";
 
-export type GenreAdminRow = {
-  id: string;
-  name: string;
-  slug: string;
-  parent_id: string | null;
-  source: "discogs" | "custom";
-};
+import type { Genre, GenreUpdateInput } from "@groovenet/contracts";
+export type GenreAdminRow = Genre;
 
 export class GenreAdminError extends Error {
   constructor(message: string, public readonly status: 404 | 409) {
@@ -80,7 +75,7 @@ export async function createGenre(name: string, parentId: string): Promise<Genre
   });
 }
 
-export async function updateGenre(id: string, input: { name?: string; parent_id?: string | null }): Promise<GenreAdminRow> {
+export async function updateGenre(id: string, input: GenreUpdateInput): Promise<GenreAdminRow> {
   let reparented = false;
   const row = await mutate(async (client) => {
     const existing = await find(client, id);

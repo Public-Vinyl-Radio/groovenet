@@ -29,7 +29,7 @@ counts are as of this inventory; the table below is authoritative.
 | 3 | settings (AI prompt, appearance, recommendations, gamdl) | 10 | Flat settings documents. |
 | 4 | backups | 10 | Settings + status payloads; one binary download stays an exception. |
 | 5 | background jobs | 5 | Job entity also shapes the SSE events. |
-| 6 | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
+| done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
 | 7 | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
 | 8 | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
 | 9 | providers & Discogs | 8 | External-provider passthroughs; least shared shape. |
@@ -90,13 +90,13 @@ is closed, so they need a follow-up issue as their owner.
 | DELETE | `/api/friends` | friends & library settings | exception | Plain-text progress stream; the `username` query is validated in the app. |
 | GET | `/api/friends` | friends & library settings | contracts |  |
 | POST | `/api/friends` | friends & library settings | contracts |  |
-| GET | `/api/genres` | genres | #552 |  |
-| POST | `/api/genres` | genres | #552 |  |
-| GET | `/api/genres/{id}` | genres | #552 |  |
-| PATCH | `/api/genres/{id}` | genres | #552 |  |
-| POST | `/api/genres/{id}/aliases` | genres | #552 |  |
-| POST | `/api/genres/{id}/merge` | genres | #552 |  |
-| GET | `/api/genres/{id}/similar` | genres | #552 |  |
+| GET | `/api/genres` | genres | contracts |  |
+| POST | `/api/genres` | genres | contracts |  |
+| GET | `/api/genres/{id}` | genres | contracts |  |
+| PATCH | `/api/genres/{id}` | genres | contracts |  |
+| POST | `/api/genres/{id}/aliases` | genres | contracts |  |
+| POST | `/api/genres/{id}/merge` | genres | contracts |  |
+| GET | `/api/genres/{id}/similar` | genres | contracts |  |
 | GET | `/api/genres/proposals` | genre reconciliation | #552 |  |
 | PATCH | `/api/genres/proposals/{id}` | genre reconciliation | #552 |  |
 | GET | `/api/genres/proposals/{id}/tracks` | genre reconciliation | #552 |  |

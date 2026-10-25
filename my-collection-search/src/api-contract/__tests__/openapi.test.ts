@@ -300,3 +300,34 @@ describe("OpenAPI contract coverage", () => {
     ]);
   });
 });
+
+describe("shared genre taxonomy components", () => {
+  it.each([
+    ["/api/genres", "get", "200", "GenreTreeResponse", undefined],
+    ["/api/genres", "post", "201", "Genre", "GenreCreateInput"],
+    ["/api/genres/{id}", "get", "200", "GenrePageResponse", undefined],
+    ["/api/genres/{id}", "patch", "200", "Genre", "GenreUpdateInput"],
+    ["/api/genres/{id}/aliases", "post", "201", "GenreAliasResponse", "GenreAliasInput"],
+    ["/api/genres/{id}/merge", "post", "200", "GenreMergeResponse", "GenreMergeInput"],
+    ["/api/genres/{id}/similar", "get", "200", "GenreSimilarResponse", undefined],
+  ])("references shared components for %s %s", (path, method, status, response, body) => {
+    const doc = getOpenApiDocument();
+    expect(doc.paths[path!][method!]).toMatchObject({
+      responses: { [status!]: { content: { "application/json": { schema: { $ref: `#/components/schemas/${response}` } } } } },
+      ...(body ? { requestBody: { content: { "application/json": { schema: { $ref: `#/components/schemas/${body}` } } } } } : {}),
+    });
+  });
+
+  it("exports the source enum, signal bounds and recursive tree references", () => {
+    const schemas = getOpenApiDocument().components.schemas;
+    expect(schemas.GenreSource).toMatchObject({ enum: ["discogs", "custom"] });
+    expect(schemas.GenreSimilaritySignals).toMatchObject({ properties: {
+      taxonomy: { enum: ["sibling", "parent", "child"] },
+      npmi: { minimum: -1, maximum: 1 }, shared_albums: { minimum: 0 },
+    } });
+    expect(schemas.GenreTreeNode).toMatchObject({ properties: {
+      source: { $ref: "#/components/schemas/GenreSource" },
+      children: { items: { $ref: "#/components/schemas/GenreTreeNode" } },
+    } });
+  });
+});

@@ -40,11 +40,8 @@ export const DEFAULT_GENRE_SIMILARITY_WEIGHTS: GenreSimilarityWeights = {
 export const DEFAULT_MIN_SUPPORT_ALBUMS = 3;
 export const DEFAULT_TOP_N = 20;
 
-export type GenreSimilaritySignals = {
-  taxonomy?: "sibling" | "parent" | "child";
-  npmi?: number;
-  shared_albums?: number;
-};
+import type { GenreSimilaritySignals } from "@groovenet/contracts";
+export type { GenreSimilaritySignals } from "@groovenet/contracts";
 
 export type GenreSimilarityEntry = {
   genre_id: string;

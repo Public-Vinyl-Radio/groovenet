@@ -1,3 +1,4 @@
+import { genrePageQuerySchema as sharedGenrePageQuerySchema, genreSimilarQuerySchema as sharedGenreSimilarQuerySchema } from "@groovenet/contracts";
 import { z } from "zod";
 import {
   albumArtMatchStatusSchema,
@@ -1633,111 +1634,34 @@ export const embeddingModelSettingsListSchema = z.array(embeddingModelSettingsSc
 
 // ─── Genre taxonomy (#370) ───────────────────────────────────────────────────
 
-export const genreSourceSchema = z.enum(["discogs", "custom"]);
-export type GenreTreeNode = {
-  id: string;
-  name: string;
-  slug: string;
-  parent_id: string | null;
-  source: "discogs" | "custom";
-  track_count: number;
-  album_count: number;
-  /** Normalised alias keys (#376). */
-  aliases?: string[];
-  children: GenreTreeNode[];
-};
+export {
+  genreSourceSchema,
+  genreTreeNodeSchema,
+  genreTreeResponseSchema,
+  genrePageRefSchema,
+  genreSimilaritySignalsSchema,
+  genreRelatedRefSchema,
+  genrePageResponseSchema,
+  genreSimilarResponseSchema,
+  genreParamsSchema,
+  genreCreateBodySchema,
+  genreUpdateBodySchema,
+  genreAliasBodySchema,
+  genreMergeBodySchema,
+  genreMutationResponseSchema,
+  genreAliasResponseSchema,
+  genreMergeResponseSchema,
+} from "@groovenet/contracts";
+export type { GenreTreeNode, GenrePageRef, GenreSimilaritySignals, GenreRelatedRef, GenrePageResponse, GenreSimilarResponse } from "@groovenet/contracts";
 
-export const genreTreeNodeSchema: z.ZodType<GenreTreeNode> = z.lazy(() =>
-  z.object({
-    id: z.string().uuid(),
-    name: z.string(),
-    slug: z.string(),
-    parent_id: z.string().uuid().nullable(),
-    source: genreSourceSchema,
-    track_count: z.number().int().nonnegative(),
-    album_count: z.number().int().nonnegative(),
-    aliases: z.array(z.string()).optional(),
-    children: z.array(genreTreeNodeSchema),
-  })
-);
-
-export const genreTreeResponseSchema = z.object({ genres: z.array(genreTreeNodeSchema) });
+export const genrePageQuerySchema = sharedGenrePageQuerySchema.extend({ friend_id: intFromInputSchema.optional() });
+export const genreSimilarQuerySchema = sharedGenreSimilarQuerySchema.extend({ limit: z.coerce.number().int().positive().optional() });
 
 /** Per-genre track counts for the current search, subgenres included (#375). */
 export const trackGenreFacetsResponseSchema = z.object({
   genres: z.array(z.object({ id: z.string(), track_count: z.number().int() })),
 });
 export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
-
-/** A genre as the genre page links to it (#376), with its track count, subgenres included. */
-export const genrePageRefSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  slug: z.string(),
-  track_count: z.number().int().nonnegative(),
-});
-export type GenrePageRef = z.infer<typeof genrePageRefSchema>;
-
-/** What produced a similar-genre score (#377): a taxonomy relation, co-occurrence, or both. */
-export const genreSimilaritySignalsSchema = z.object({
-  taxonomy: z.enum(["sibling", "parent", "child"]).optional(),
-  npmi: z.number().min(-1).max(1).optional(),
-  shared_albums: z.number().int().nonnegative().optional(),
-});
-export type GenreSimilaritySignals = z.infer<typeof genreSimilaritySignalsSchema>;
-
-/** A related genre (#377): stored similarity when it exists, else the sibling stand-in it falls back to. */
-export const genreRelatedRefSchema = genrePageRefSchema.extend({
-  score: z.number().optional(),
-  signals: genreSimilaritySignalsSchema.optional(),
-});
-export type GenreRelatedRef = z.infer<typeof genreRelatedRefSchema>;
-
-export const genrePageQuerySchema = z.object({ friend_id: intFromInputSchema.optional() });
-
-/** `GET /api/genres/{id}`: one genre's place in the taxonomy and in the collection (#376). */
-export const genrePageResponseSchema = z.object({
-  genre: z.object({
-    id: z.string().uuid(),
-    name: z.string(),
-    slug: z.string(),
-    parent_id: z.string().uuid().nullable(),
-    source: genreSourceSchema,
-    aliases: z.array(z.string()),
-  }),
-  /** Root first, ending with the genre's parent. */
-  ancestors: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })),
-  children: z.array(genrePageRefSchema),
-  /** From the genre_similarity table (#377), falling back to taxonomy siblings when it has no rows yet. */
-  related: z.array(genreRelatedRefSchema),
-  counts: z.object({
-    tracks: z.number().int().nonnegative(),
-    albums: z.number().int().nonnegative(),
-    tracks_total: z.number().int().nonnegative(),
-    albums_total: z.number().int().nonnegative(),
-  }),
-  top_tracks: z.array(trackEntitySchema.extend({ play_count: z.number().int().nonnegative() })),
-  top_albums: z.array(albumEntitySchema.extend({ play_count: z.number().int().nonnegative() })),
-});
-export type GenrePageResponse = z.infer<typeof genrePageResponseSchema>;
-
-/** `GET /api/genres/{id}/similar` (#377): the same ranking `related` reads on the genre page, standalone. */
-export const genreSimilarQuerySchema = z.object({
-  limit: z.coerce.number().int().positive().optional(),
-});
-
-export const genreSimilarResponseSchema = z.object({
-  genre: genrePageRefSchema,
-  related: z.array(genreRelatedRefSchema),
-});
-export type GenreSimilarResponse = z.infer<typeof genreSimilarResponseSchema>;
-
-export const genreParamsSchema = z.object({ id: z.string().uuid() });
-export const genreCreateBodySchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
-export const genreUpdateBodySchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });
-export const genreAliasBodySchema = z.object({ alias: z.string().trim().min(1) });
-export const genreMergeBodySchema = z.object({ target_id: z.string().uuid() });
-export const genreMutationResponseSchema = z.object({ id: z.string().uuid(), name: z.string(), slug: z.string(), parent_id: z.string().uuid().nullable(), source: genreSourceSchema });
 
 /**
  * One field at a time, by design: `target` is "what new jobs embed with
@@ -2026,8 +1950,6 @@ export const setDerivationViewQuerySchema = z.object({
   live_set_id: intFromInputSchema.optional(),
 });
 
-export const genreAliasResponseSchema = z.object({ success: z.literal(true) });
-export const genreMergeResponseSchema = z.object({ success: z.literal(true), merged_genre_id: z.string().uuid(), survivor_genre_id: z.string().uuid() });
 
 // ─── Genre reconciliation (#372) ─────────────────────────────────────────────
 
