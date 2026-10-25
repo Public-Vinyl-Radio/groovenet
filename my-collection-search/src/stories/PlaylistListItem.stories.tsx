@@ -108,3 +108,30 @@ export const List: Story = {
     </Stack>
   ),
 };
+
+const withCovers = (count: number): Playlist =>
+  ({
+    ...samplePlaylist,
+    // Expected from the list endpoint (#771); not in the contract yet.
+    cover_urls: ['/cover1.jpg', '/cover2.jpg', '/cover3.jpg', '/cover4.jpg'].slice(0, count),
+  }) as Playlist;
+
+export const CoverMosaic: Story = {
+  name: 'Cover mosaic (partial covers tint the rest)',
+  render: (args) => (
+    <Stack gap={3}>
+      <PlaylistListItem {...args} playlist={withCovers(4)} />
+      <PlaylistListItem {...args} playlist={withCovers(2)} />
+      <PlaylistListItem {...args} playlist={withCovers(0)} />
+    </Stack>
+  ),
+};
+
+export const WithCollaborator: Story = {
+  args: {
+    playlist: {
+      ...longNamePlaylist,
+      set: { status: 'planned', collaborators: [{ username: 'ana' }], venue_name: null },
+    } as unknown as Playlist,
+  },
+};
