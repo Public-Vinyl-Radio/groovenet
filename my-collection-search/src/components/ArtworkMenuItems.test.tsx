@@ -33,12 +33,12 @@ describe("Cover Art menu items (#494)", () => {
     ["Track actions", (fn: () => void) => <TrackActionsMenu track={track} onChangeArtwork={fn} />],
   ] as const;
 
-  it.each(menus)("%s: opens cover art from the drawer", async (trigger, render) => {
+  it.each(menus)("%s: opens cover art from the phone menu", async (trigger, render) => {
     const onChangeArtwork = vi.fn();
     const { user } = renderWithProviders(render(onChangeArtwork));
 
     await user.click(screen.getAllByRole("button", { name: trigger, hidden: true })[0]);
-    await user.click(await screen.findByRole("button", { name: /Cover Art/, hidden: true }));
+    await user.click(await screen.findByRole("button", { name: /Cover art/i, hidden: true }));
 
     expect(onChangeArtwork).toHaveBeenCalledTimes(1);
   });

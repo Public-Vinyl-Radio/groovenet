@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
-import { Button, Dialog, Portal, Text } from "@chakra-ui/react";
+import React, { useRef } from "react";
+import { Box, Button, Text } from "@chakra-ui/react";
+import RetroDialog from "@/components/ui/RetroDialog";
 
 type Props = {
   open: boolean;
@@ -12,6 +13,8 @@ type Props = {
   /** Resolves once done; rejects to keep the prompt open, as SpinActionsMenu's does. */
   onConfirm: () => Promise<void>;
   pending: boolean;
+  /** Destructive confirms focus Cancel first and use the danger fill; otherwise the accent. */
+  destructive?: boolean;
 };
 
 export default function ConfirmDialog({
@@ -22,7 +25,9 @@ export default function ConfirmDialog({
   confirmLabel,
   onConfirm,
   pending,
+  destructive = true,
 }: Props) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const handleConfirm = async () => {
     try {
       await onConfirm();
@@ -33,33 +38,31 @@ export default function ConfirmDialog({
   };
 
   return (
-    <Dialog.Root
+    <RetroDialog
       open={open}
-      onOpenChange={(e) => !pending && onOpenChange(e.open)}
-      size="sm"
+      onOpenChange={onOpenChange}
       role="alertdialog"
+      title={title}
+      dismissible={!pending}
+      initialFocusEl={destructive ? () => cancelRef.current : undefined}
     >
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>{title}</Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Body>
-              <Text>{body}</Text>
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-                Cancel
-              </Button>
-              <Button colorPalette="danger" onClick={handleConfirm} loading={pending}>
-                {confirmLabel}
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      <Box p="16px 14px" display="flex" flexDirection="column" gap={4}>
+        <Text>{body}</Text>
+        <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap="10px" pr="3px">
+          <Button ref={cancelRef} variant="outline" h="44px" onClick={() => onOpenChange(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button
+            variant="solid"
+            h="44px"
+            colorPalette={destructive ? "danger" : "accent"}
+            onClick={handleConfirm}
+            loading={pending}
+          >
+            {confirmLabel}
+          </Button>
+        </Box>
+      </Box>
+    </RetroDialog>
   );
 }

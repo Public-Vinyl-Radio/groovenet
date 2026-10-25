@@ -169,6 +169,36 @@ export const recipes = {
 
 const container: SystemStyleObject = { borderWidth: "outline", borderColor: "border.ink", boxShadow: "md" };
 
+// The centred modal (`RetroDialog`, #735): an ink scrim under a 4px halftone dot
+// pattern instead of a blur, and a scale-in that is quick and absent for
+// reduced motion. The positioner leaves 22px on the right for the 6px shadow
+// and keeps clear of the notch and home indicator.
+export const retroDialog = {
+  positioner: {
+    pt: "calc(env(safe-area-inset-top, 0px) + 16px)",
+    pb: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    pl: "16px",
+    pr: "22px",
+  },
+  backdrop: {
+    bg: "color-mix(in srgb, var(--gn-ink) 38%, transparent)",
+    backgroundImage: "radial-gradient(color-mix(in srgb, var(--gn-ink) 55%, transparent) 1px, transparent 1.6px)",
+    backgroundSize: "4px 4px",
+    backdropFilter: "none",
+    animationDuration: "100ms",
+    "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+  },
+  content: {
+    ...container,
+    bg: "bg",
+    m: 0,
+    maxH: "100%",
+    maxW: "sm",
+    animationDuration: "100ms",
+    "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+  },
+} satisfies Record<string, SystemStyleObject>;
+
 export const slotRecipes = {
   card: defineSlotRecipe({
     slots: cardAnatomy.keys(),

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -18,8 +18,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({
     appendToQueue: mocks.appendToQueue,
     replacePlaylist: mocks.replacePlaylist,
   }),
@@ -112,7 +112,7 @@ describe("TrackActionsMenu on a track card (#722)", () => {
       </TrackCardContext.Provider>
     );
     await rendered.user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
-    await screen.findByText("Add to Playlist");
+    await screen.findByText("Playlist");
 
     expect(screen.getByText("Rating")).toBeTruthy();
     await rendered.user.click(screen.getByRole("radio", { name: "5 stars", hidden: true }));
@@ -123,7 +123,7 @@ describe("TrackActionsMenu on a track card (#722)", () => {
   it("has no rating row outside a card", async () => {
     const rendered = renderWithProviders(<TrackActionsMenu track={trackMinimal} />);
     await rendered.user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
-    await screen.findByText("Add to Playlist");
+    await screen.findByText("Playlist");
 
     expect(screen.queryByText("Rating")).toBeNull();
   });
@@ -222,13 +222,13 @@ describe("TrackActionsMenu desktop dropdown — selecting an item", () => {
   it("opens the remove-audio confirmation", async () => {
     const { user, menuButton } = setup(trackWithEverything);
     await chooseMenuItem(user, menuButton, /Remove Audio/);
-    expect(await screen.findByRole("dialog", { name: "Remove Audio" })).toBeTruthy();
+    expect(await screen.findByRole("alertdialog", { name: "Remove audio" })).toBeTruthy();
   });
 
   it("opens the delete-track confirmation", async () => {
     const { user, menuButton } = setup(trackWithEverything);
     await chooseMenuItem(user, menuButton, /Delete Track/);
-    expect(await screen.findByRole("dialog", { name: "Delete track?" })).toBeTruthy();
+    expect(await screen.findByRole("alertdialog", { name: "Delete track" })).toBeTruthy();
   });
 });
 
@@ -280,27 +280,45 @@ describe("TrackActionsMenu desktop dropdown — optional items", () => {
   });
 });
 
-describe("TrackActionsMenu mobile drawer", () => {
-  async function openDrawer(
+describe("TrackActionsMenu phone modal (#735)", () => {
+  async function openModal(
     track: Track = trackWithEverything,
     props: Partial<React.ComponentProps<typeof TrackActionsMenu>> = {}
   ) {
     const rendered = renderWithProviders(<TrackActionsMenu track={track} {...props} />);
     const trigger = screen.getAllByRole("button", { name: "Track actions", hidden: true })[0];
     await rendered.user.click(trigger);
-    await screen.findByText("Add to Playlist");
-    return rendered;
+    await screen.findByText("Playlist");
+    return { ...rendered, trigger };
   }
 
-  it("lists the same groups in the same order as the desktop menu", async () => {
-    await openDrawer(trackWithEverything, {
-      onOpenTrackDebug: vi.fn(),
-      onChangeArtwork: vi.fn(),
+  it("is a labelled dialog headed by the track and its catalogue line", async () => {
+    await openModal({
+      ...trackWithEverything,
+      library_identifier: "LP-350",
+      position: "B5",
+      bpm: "124.2",
+      key: "F# major",
+      album_thumbnail: "https://img.test/cover.jpg",
     });
+    expect(document.querySelector('img[src="https://img.test/cover.jpg"]')).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Full House" })).toBeTruthy();
+    expect(screen.getByText("DJ Test")).toBeTruthy();
+    expect(screen.getByText(/LP-350 · Side B5 · 124 BPM · /)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
+  });
+
+  it("leaves the catalogue line out when the track has nothing for it", async () => {
+    await openModal(trackMinimal);
+    expect(screen.queryByText(/BPM|Side/)).toBeNull();
+  });
+
+  it("groups the actions under Library, Audio, Open in and Danger, in that order", async () => {
+    await openModal(trackWithEverything, { onOpenTrackDebug: vi.fn(), onChangeArtwork: vi.fn() });
     const labels = [
-      "Play", "Add to Queue", "Add to Playlist", "Edit Track", "Enrich Track",
-      "Cover Art...", "Track Debug", "Fetch Audio", "Upload Audio",
-      "Remove Audio", "Delete Track", "Apple Music", "YouTube", "SoundCloud",
+      "Play", "Queue", "Playlist", "Library", "Edit track", "Enrich track", "Cover art...", "Track debug",
+      "Audio", "Fetch audio", "Upload audio", "Open in", "Apple Music", "YouTube", "SoundCloud",
+      "Danger", "Remove audio", "Delete track",
     ];
     for (let i = 1; i < labels.length; i++) {
       const prev = screen.getByText(labels[i - 1]);
@@ -309,38 +327,105 @@ describe("TrackActionsMenu mobile drawer", () => {
     }
   });
 
+  it("drops what the track cannot do: no Play, Fetch, Open in or Remove audio", async () => {
+    await openModal(trackMinimal, { hideEdit: true });
+    for (const label of ["Play", "Fetch audio", "Open in", "Apple Music", "Remove audio", "Edit track"]) {
+      expect(screen.queryByText(label)).toBeNull();
+    }
+    expect(screen.getByText("Delete track")).toBeTruthy();
+  });
+
+  it("links Edit track and opens streaming links in a new tab", async () => {
+    await openModal();
+    expect(screen.getByText("Edit track").closest("a")?.getAttribute("href")).toBe("/tracks/t1/edit?friend_id=7");
+    const apple = screen.getByText("Apple Music").closest("a");
+    expect(apple?.getAttribute("href")).toBe("https://music.apple.com/x");
+    expect(apple?.getAttribute("target")).toBe("_blank");
+  });
+
   it.each([
     ["Play", () => expect(mocks.replacePlaylist).toHaveBeenCalled()],
-    ["Add to Queue", () => expect(mocks.appendToQueue).toHaveBeenCalledWith(trackWithEverything)],
-    ["Add to Playlist", () => expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything)],
-    ["Enrich Track", () => expect(mocks.push).toHaveBeenCalledWith("/enrich")],
-    ["Fetch Audio", () => expect(mocks.analyzeTrackAsync).toHaveBeenCalled()],
-  ])("runs %s", async (label, assertion) => {
-    const { user } = await openDrawer();
+    ["Queue", () => expect(mocks.appendToQueue).toHaveBeenCalledWith(trackWithEverything)],
+    ["Playlist", () => expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything)],
+    ["Enrich track", () => expect(mocks.push).toHaveBeenCalledWith("/enrich")],
+    ["Fetch audio", () => expect(mocks.analyzeTrackAsync).toHaveBeenCalled()],
+  ])("runs %s and closes the modal", async (label, assertion) => {
+    const { user } = await openModal();
     await user.click(screen.getByText(label));
     await vi.waitFor(assertion);
+    await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Full House", hidden: true })).toBeNull());
   });
 
   it("runs cover art and track debug", async () => {
     const onChangeArtwork = vi.fn();
     const onOpenTrackDebug = vi.fn();
-    const { user } = await openDrawer(trackWithEverything, { onChangeArtwork, onOpenTrackDebug });
-    await user.click(screen.getByText("Cover Art..."));
+    const { user, trigger } = await openModal(trackWithEverything, { onChangeArtwork, onOpenTrackDebug });
+    await user.click(screen.getByText("Cover art..."));
     expect(onChangeArtwork).toHaveBeenCalled();
-    await user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
-    await user.click(await screen.findByText("Track Debug"));
+    await user.click(trigger);
+    await user.click(await screen.findByText("Track debug"));
     expect(onOpenTrackDebug).toHaveBeenCalled();
   });
 
-  it("opens the destructive confirmations", async () => {
-    const { user } = await openDrawer();
-    await user.click(screen.getByText("Remove Audio"));
-    expect(await screen.findByRole("dialog", { name: "Remove Audio" })).toBeTruthy();
+  it("closes from the close button", async () => {
+    const { user } = await openModal();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Full House", hidden: true })).toBeNull());
+  });
+
+  it("confirms Remove audio and removes on confirm", async () => {
+    const { user } = await openModal();
+    await user.click(screen.getByText("Remove audio"));
+    const dialog = await screen.findByRole("alertdialog", { name: "Remove audio" });
+    await user.click(within(dialog).getByRole("button", { name: "Remove audio" }));
+    await vi.waitFor(() =>
+      expect(mocks.saveTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 7, local_audio_url: null })
+    );
+  });
+
+  it("deletes the track after confirming, and cancelling deletes nothing", async () => {
+    const { user } = await openModal();
+    await user.click(screen.getByText("Delete track"));
+    let dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(mocks.softDeleteTrack).not.toHaveBeenCalled();
+
+    await user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
+    await user.click(await screen.findByText("Delete track"));
+    dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete track" }));
+    await vi.waitFor(() =>
+      expect(mocks.softDeleteTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 7 })
+    );
+    await vi.waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Track deleted", type: "success" }));
+  });
+
+  it("keeps the delete prompt open and reports a failure", async () => {
+    mocks.softDeleteTrack.mockRejectedValueOnce(new Error("nope"));
+    const { user } = await openModal();
+    await user.click(screen.getByText("Delete track"));
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete track" }));
+    await vi.waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Failed to delete track", type: "error" }))
+    );
+    expect(screen.getByRole("alertdialog", { name: "Delete track" })).toBeTruthy();
+  });
+
+  it("refuses to delete a track without a friend_id", async () => {
+    const { user } = await openModal({ ...trackMinimal, friend_id: undefined } as unknown as Track);
+    await user.click(screen.getByText("Delete track"));
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete track" }));
+    await vi.waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith({ title: "Track missing friend_id", type: "error" })
+    );
+    expect(mocks.softDeleteTrack).not.toHaveBeenCalled();
   });
 
   it("uploads chosen audio with the track's friend_id", async () => {
     mocks.mutateAsync.mockResolvedValue({ analysis: {}, local_audio_url: "a.m4a" });
-    await openDrawer();
+    await openModal();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["x"], "song.mp3", { type: "audio/mpeg" });
     fireEvent.change(input, { target: { files: [file] } });
@@ -351,11 +436,12 @@ describe("TrackActionsMenu mobile drawer", () => {
     );
   });
 
-  it("opens the delete confirmation and the upload picker", async () => {
-    const { user } = await openDrawer();
-    await user.click(screen.getByText("Upload Audio"));
-    await user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
-    await user.click(await screen.findByText("Delete Track"));
-    expect(await screen.findByRole("dialog", { name: "Delete track?" })).toBeTruthy();
+  it("opens the upload picker from Upload audio", async () => {
+    await openModal();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const click = vi.spyOn(input, "click");
+    const { user } = { user: (await import("@testing-library/user-event")).default.setup() };
+    await user.click(screen.getByText("Upload audio"));
+    expect(click).toHaveBeenCalled();
   });
 });
