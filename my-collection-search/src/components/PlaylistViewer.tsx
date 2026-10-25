@@ -368,11 +368,46 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     }
   };
 
+  const actionsMenu = (
+    <PlaylistActionsMenu
+      disabled={tracksPlaylist.length === 0}
+      onSortGreedy={() => {
+        console.log("sort greed");
+        sortGreedy();
+      }}
+      onSortGenetic={sortGenetic}
+      onSortCohesiveBlocks={sortCohesiveBlocks}
+      onExportJson={exportPlaylist}
+      onImportJson={() => fileInputRef.current?.click()}
+      onExportPdf={() =>
+        exportToPDF(playlistName || `Playlist ${playlistId ?? ""}`.trim())
+      }
+      onOpenSaveDialog={playlistId ? saveExisting : openSaveDialog}
+      isGeneticSorting={isGeneticSorting}
+      isCohesiveBlocksSorting={isCohesiveBlocksSorting}
+      onDuplicate={playlistId ? () => setDuplicateDialogOpen(true) : undefined}
+      onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
+      onOpenRecommendations={() => {
+        setRecommendationsPlaylistSnapshot([...tracks]);
+        setRecommendationsModalOpen(true);
+      }}
+      enqueuePlaylist={() =>
+        replacePlaylist(tracks, {
+          autoplay: true,
+          startIndex: 0,
+        })
+      }
+      playlistName={playlistName || undefined}
+      summary={`${tracksPlaylist.length} tracks · ${totalPlaytimeFormatted}`}
+    />
+  );
+
   const displayName = playlistName || `Playlist ${playlistId ?? ""}`.trim();
   const header = (
     <PageHeader
       title={displayName}
       breadcrumbs={[{ label: "Playlists", href: "/playlists" }, { label: displayName }]}
+      trailing={actionsMenu}
     />
   );
 
@@ -469,37 +504,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             </Button>
           )}
           {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
-          <PlaylistActionsMenu
-            disabled={tracksPlaylist.length === 0}
-            onSortGreedy={() => {
-              console.log("sort greed");
-              sortGreedy();
-            }}
-            onSortGenetic={sortGenetic}
-            onSortCohesiveBlocks={sortCohesiveBlocks}
-            onExportJson={exportPlaylist}
-          onImportJson={() => fileInputRef.current?.click()}
-          onExportPdf={() =>
-            exportToPDF(playlistName || `Playlist ${playlistId ?? ""}`.trim())
-          }
-          onOpenSaveDialog={playlistId ? saveExisting : openSaveDialog}
-          isGeneticSorting={isGeneticSorting}
-          isCohesiveBlocksSorting={isCohesiveBlocksSorting}
-          onDuplicate={playlistId ? () => setDuplicateDialogOpen(true) : undefined}
-          onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
-          onOpenRecommendations={() => {
-            setRecommendationsPlaylistSnapshot([...tracks]);
-            setRecommendationsModalOpen(true);
-          }}
-          enqueuePlaylist={() =>
-            replacePlaylist(tracks, {
-              autoplay: true,
-              startIndex: 0,
-            })
-            }
-          playlistName={playlistName || undefined}
-          summary={`${tracksPlaylist.length} tracks · ${totalPlaytimeFormatted}`}
-          />
+          <Box display={{ base: "none", md: "block" }}>{actionsMenu}</Box>
         </Flex>
       </Flex>
       {playlistId && <SetDetailsPanel playlistId={playlistId} />}

@@ -57,7 +57,7 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
 vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: vi.fn() }) }));
 vi.mock("@/components/PlaylistStatsPanel", () => ({ default: () => null }));
 vi.mock("@/components/SetDetailsPanel", () => ({ default: () => null }));
-vi.mock("@/components/PlaylistActionsMenu", () => ({ default: () => null }));
+vi.mock("@/components/PlaylistActionsMenu", () => ({ default: () => <span data-testid="actions-menu" /> }));
 vi.mock("@/components/PlaylistItemMenu", () => ({ default: () => <button>item menu</button> }));
 vi.mock("@/components/PlaylistRecommendations", () => ({ default: () => null }));
 vi.mock("@/components/FriendSelectDialog", () => ({ default: () => null }));
@@ -135,6 +135,12 @@ describe("PlaylistViewer page header", () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     expect(await screen.findByRole("heading", { level: 1, name: "Set" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to Playlists", hidden: true }).getAttribute("href")).toBe("/playlists");
+  });
+
+  it("puts the actions menu in the phone header as well as beside the playtime on desktop", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.getAllByTestId("actions-menu")).toHaveLength(2);
   });
 
   it.each([
