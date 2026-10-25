@@ -40,7 +40,7 @@ describe("AlbumResult care action", () => {
 
     expect(screen.queryByRole("dialog", { name: "Log care" })).toBeNull();
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
-    await user.click(await screen.findByRole("button", { name: /Log Care/ }));
+    await user.click(await screen.findByRole("button", { name: /Log care/i }));
 
     const dialog = await screen.findByRole("dialog", { name: "Log care" });
     expect(dialog.textContent).toContain("rel:7");

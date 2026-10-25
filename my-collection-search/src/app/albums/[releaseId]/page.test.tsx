@@ -120,7 +120,7 @@ describe("album page record care", () => {
     expect((await screen.findByRole("region", { name: "Copies & care" })).textContent).toBe("rel:7");
 
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
-    await user.click(await screen.findByRole("button", { name: /Log Care/ }));
+    await user.click(await screen.findByRole("button", { name: /Log care/i }));
     expect(await screen.findByRole("dialog", { name: "Log care" })).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Close care" }));
@@ -179,7 +179,7 @@ describe("album page cover art (#494)", () => {
     );
 
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
-    await user.click(await screen.findByRole("button", { name: /Cover Art/ }));
+    await user.click(await screen.findByRole("button", { name: /Cover art/i }));
     expect(await screen.findByRole("dialog", { name: "Cover art" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Close art" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Cover art" })).toBeNull());
@@ -194,7 +194,7 @@ describe("album page delete (#511)", () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
 
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
-    await user.click(await screen.findByRole("button", { name: /Delete Album/ }));
+    await user.click(await screen.findByRole("button", { name: /Delete album/i }));
     expect(await screen.findByRole("dialog", { name: "Delete album" })).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Close delete" }));
@@ -206,7 +206,7 @@ describe("album page delete (#511)", () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
 
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
-    await user.click(await screen.findByRole("button", { name: /Delete Album/ }));
+    await user.click(await screen.findByRole("button", { name: /Delete album/i }));
     await user.click(await screen.findByRole("button", { name: "Confirm delete" }));
 
     expect(routerPush).toHaveBeenCalledWith("/albums");
@@ -273,7 +273,7 @@ describe("album page layout (#727)", () => {
     queueDownloads.mockResolvedValueOnce({ tracksQueued: 2 }).mockResolvedValueOnce({ tracksQueued: 0 }).mockRejectedValueOnce(new Error("nope"));
     for (const title of ["Downloads Queued", "No Downloads Needed", "Download Failed"]) {
       await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
-      await user.click(await screen.findByRole("button", { name: /Download Missing/ }));
+      await user.click(await screen.findByRole("button", { name: /Download missing/i }));
       await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title })));
     }
   });
@@ -281,7 +281,7 @@ describe("album page layout (#727)", () => {
   it("sends the tracks to enrichment", async () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
     await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
-    await user.click(await screen.findByRole("button", { name: /Enrich Album/ }));
+    await user.click(await screen.findByRole("button", { name: /Enrich album/i }));
     expect(enrichQueue).toHaveBeenCalledWith([
       { trackId: "a1", friendId: 7 },
       { trackId: "b1", friendId: 7 },
@@ -296,7 +296,7 @@ describe("album page layout (#727)", () => {
     expect(screen.getByText("No tracks found for this album.")).toBeTruthy();
     expect(replacePlaylist).not.toHaveBeenCalled();
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
-    expect(screen.queryByRole("button", { name: /Enrich Album/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Enrich album/i })).toBeNull();
   });
 
   it("puts a back link and the overflow menu in a phone top bar", async () => {

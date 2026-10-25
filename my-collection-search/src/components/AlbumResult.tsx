@@ -189,6 +189,8 @@ export default function AlbumResult({
       <AlbumActionsMenu
         albumTitle={resolvedAlbum.title}
         albumArtist={resolvedAlbum.artist}
+        coverUrl={resolvedAlbum.album_thumbnail ?? undefined}
+        catalogue={["Album", resolvedAlbum.library_identifier].filter(Boolean).join(" · ")}
         discogsUrl={resolvedAlbum.discogs_url}
         editAlbumHref={showEditFields ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}` : undefined}
         onEnrichAlbum={handleEnrichAlbum}
