@@ -1,3 +1,8 @@
+# Unchanged components keep their last coverage report when CI skips them.
+flag_management:
+  default_rules:
+    carryforward: true
+
 flags:
   webapp:
     paths:
@@ -20,3 +25,6 @@ flags:
   fingerprint-service:
     paths:
       - fingerprint-service/
+  ci-changes:
+    paths:
+      - .github/scripts/ci-changes.mjs

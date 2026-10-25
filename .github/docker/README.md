@@ -69,3 +69,33 @@ change. In job containers, `setup-npm` uses an empty `node-version` input to
 keep the already-verified Node installation, retains the npm download cache,
 checks all npm pin sources, and skips reinstalling npm when it already matches.
 Other jobs continue to select Node 26 by default.
+
+## Change-based CI
+
+PRs run `test.yml` once directly; `docker-publish.yml` runs image validation
+alongside it without publishing. Branch pushes without a PR no longer run the
+test workflow. New commits cancel superseded PR tests and image builds.
+Main pushes call the same test workflow as a publishing gate.
+
+Both workflows call `changes.yml`, backed by `.github/scripts/ci-changes.mjs`.
+PR comparisons use the merge base; pushes compare the complete before/after
+range. Deletions and both sides of renames count. Unknown/initial push ranges
+run everything, while Git comparison errors fail CI.
+
+Web UI edits run web lint, type checking, coverage and web image checks. Server,
+API contract, migration and app configuration changes also run the Python API
+contract and database/Redis integration checks. Shared contracts trigger Node
+consumers; the Node client triggers player/CLI checks; the Python client
+triggers both worker suites and images. CI/toolchain changes rerun the relevant
+checks conservatively. Update the classifier and its regression tests whenever
+adding a component or shared dependency:
+
+```sh
+node --test .github/scripts/ci-changes.test.mjs
+```
+
+Main still builds **all** service images even when only one service changed:
+`deploy-rc` and release promotion require every image under the same commit SHA.
+Keep this invariant until deployment supports reusing per-service image digests.
+Codecov flags carry forward the previous coverage for skipped components;
+the web coverage command itself executes the full web suite once.
