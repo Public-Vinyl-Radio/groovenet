@@ -207,7 +207,10 @@ export default function AlbumHeader({
                   fontWeight="semibold"
                   overflowWrap="anywhere"
                   minW={0}
-                  css={{ [wide]: { fontSize: "30px", lineHeight: "38px" } }}
+                  title={album.title}
+                  // A long title takes three lines beside the phone's small cover, then ends in an ellipsis.
+                  lineClamp={3}
+                  css={{ [wide]: { fontSize: "30px", lineHeight: "38px", WebkitLineClamp: "unset", display: "block" } }}
                 >
                   {album.title}
                 </Heading>

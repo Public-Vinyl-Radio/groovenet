@@ -8,9 +8,11 @@ import {
   IconButton,
   Menu,
 } from "@chakra-ui/react";
-import { LuArrowUpDown, LuImage } from "react-icons/lu";
+import { LuArrowUpDown, LuImage, LuPlus } from "react-icons/lu";
 import { useSearchParams, useRouter } from "next/navigation";
 import AlbumSearchResults from "@/components/AlbumSearchResults";
+import TrackViewToggle from "@/components/TrackViewToggle";
+import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import PageContainer from "@/components/layout/PageContainer";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import FilterChips, { FilterGroup } from "@/components/FilterChips";
@@ -40,6 +42,9 @@ function AlbumsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { friend: currentUserFriend, isHydrated } = useUsername();
+
+  // Rows/Cards, shared with the tracks page; phones always get cards.
+  const { viewMode, setViewMode, layout } = useTrackViewMode();
 
   const [query, setQuery] = React.useState(searchParams.get("q") || "");
   const [sort, setSort] = React.useState(
@@ -189,6 +194,7 @@ function AlbumsPageContent() {
               >
                 <LuImage />
               </IconButton>
+              <TrackViewToggle value={viewMode} onChange={setViewMode} />
               <Button variant="outline" flexShrink={0} onClick={() => router.push("/albums/add")}>
                 + Add Album
               </Button>
@@ -217,7 +223,7 @@ function AlbumsPageContent() {
               </FilterSheet>
               <Menu.Root>
                 <Menu.Trigger asChild>
-                  <IconButton aria-label="Sort" size="sm" variant="ghost">
+                  <IconButton aria-label="Sort" size="sm" boxSize="44px" variant="ghost">
                     <LuArrowUpDown />
                   </IconButton>
                 </Menu.Trigger>
@@ -247,10 +253,20 @@ function AlbumsPageContent() {
               <IconButton
                 aria-label="Album artwork review"
                 size="sm"
+                boxSize="44px"
                 variant="ghost"
                 onClick={() => router.push("/albums/artwork")}
               >
                 <LuImage />
+              </IconButton>
+              <IconButton
+                aria-label="Add album"
+                size="sm"
+                boxSize="44px"
+                variant="outline"
+                onClick={() => router.push("/albums/add")}
+              >
+                <LuPlus />
               </IconButton>
             </Flex>
           }
@@ -290,6 +306,7 @@ function AlbumsPageContent() {
           <AlbumSearchResults
             friendId={currentUserFriend.id}
             onAddedGenresChange={setAddedGenres}
+            layout={layout}
           />
         </Suspense>
           </>

@@ -25,13 +25,15 @@ vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGen
 // reports added_genres (#485) up, the way the real component does.
 function StubAlbumSearchResults({
   onAddedGenresChange,
+  layout,
 }: {
   onAddedGenresChange?: (g: typeof mocks.addedGenres) => void;
+  layout?: string;
 }) {
   React.useEffect(() => {
     onAddedGenresChange?.(mocks.addedGenres);
   }, [onAddedGenresChange]);
-  return null;
+  return <div data-testid="results" data-layout={layout} />;
 }
 vi.mock("@/components/AlbumSearchResults", () => ({ default: StubAlbumSearchResults }));
 
@@ -238,5 +240,36 @@ describe("albums page artwork review link (#494)", () => {
 
     expect(mocks.push).toHaveBeenCalledTimes(2);
     expect(mocks.push).toHaveBeenCalledWith("/albums/artwork");
+  });
+});
+
+describe("albums page view toggle (#730)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.fetchGenreTree.mockResolvedValue([]);
+    localStorage.clear();
+  });
+
+  it("switches between rows and cards, remembering the choice", async () => {
+    const { user, unmount } = renderWithProviders(<AlbumsPage />);
+    expect((await screen.findByTestId("results")).getAttribute("data-layout")).toBe("row");
+    const cards = screen.getAllByRole("button", { name: "Cards view", hidden: true })[0];
+    const rows = screen.getAllByRole("button", { name: "Rows view", hidden: true })[0];
+    expect(rows.getAttribute("aria-pressed")).toBe("true");
+    await user.click(cards);
+    expect(localStorage.getItem("searchViewMode")).toBe("card");
+    expect(cards.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("results").getAttribute("data-layout")).toBe("card");
+    unmount();
+    renderWithProviders(<AlbumsPage />);
+    const again = await screen.findAllByRole("button", { name: "Cards view", hidden: true });
+    await waitFor(() => expect(again[0].getAttribute("aria-pressed")).toBe("true"));
+  });
+
+  it("opens the add form from the phone's icon button", async () => {
+    const { user } = renderWithProviders(<AlbumsPage />);
+    await user.click(await screen.findByRole("button", { name: "Add album" }));
+    expect(mocks.push).toHaveBeenCalledWith("/albums/add");
   });
 });
