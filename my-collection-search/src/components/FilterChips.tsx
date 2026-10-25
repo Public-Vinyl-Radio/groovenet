@@ -69,10 +69,19 @@ export default function FilterChips({ chips, onToggle, onClearAll, leading, mt }
       <Flex
         data-testid="filter-chips"
         gap={2}
-        flexWrap="wrap"
+        // Phones keep one line that scrolls sideways (room below for the chips' hard shadow); md+ wraps.
+        flexWrap={{ base: "nowrap", md: "wrap" }}
+        overflowX={{ base: "auto", md: "visible" }}
+        pb={{ base: "6px", md: 0 }}
+        pr={{ base: "6px", md: 0 }}
         alignItems="center"
         mt={leading ? { md: 2 } : undefined}
         minH={leading ? { md: "24px" } : undefined}
+        css={{
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
+          "@media (max-width: 47.99em)": { "& > *": { flexShrink: 0 } },
+        }}
       >
         {chips.map((chip) => (
           <Button

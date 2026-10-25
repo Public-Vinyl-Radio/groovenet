@@ -83,20 +83,18 @@ describe("AlbumResult card", () => {
     expect(meta).toContain("9 tracks");
     expect(meta).toContain("Cat WBRLP1");
     expect(meta).toContain("No audio");
-    expect(screen.getAllByText("Electronic").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Trip Hop").length).toBeGreaterThan(0);
+    expect(screen.getByText("Electronic")).toBeTruthy();
+    expect(screen.getByText("Trip Hop")).toBeTruthy();
   });
 
-  it("counts tags past the first two on wide screens, and keeps them all for a phone to scroll", () => {
+  it("shows at most two genre tags and counts the rest", () => {
     renderWithProviders(
       <AlbumResult album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }} />
     );
     const genres = screen.getByTestId("album-genres");
     expect(genres.textContent).toContain("Electronic");
     expect(genres.textContent).toContain("Rock");
-    // The phone's scrolling line has every tag; the wide one stops at two.
-    expect(screen.getAllByText("Trip Hop")).toHaveLength(1);
-    expect(screen.getAllByText("Electronic")).toHaveLength(2);
+    expect(genres.textContent).not.toContain("Trip Hop");
     const more = screen.getByLabelText("2 more genres");
     expect(more.textContent).toBe("+2");
     expect(more.getAttribute("title")).toBe("Trip Hop, Downtempo");

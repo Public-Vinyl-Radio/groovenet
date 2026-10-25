@@ -157,33 +157,29 @@ export default function AlbumResult({
     </>
   );
 
-  // Wide screens show the first two tags and count the rest; a phone scrolls them all on one line.
+  // A card shows the first two tags and counts the rest; a row has the room for all.
   const MAX_CARD_GENRES = 2;
   const cardGenres = [
     ...displayGenres.map((item) => ({ item, kind: "discogs-genre" as const })),
     ...displayStyles.map((item) => ({ item, kind: "discogs-style" as const })),
   ];
   const hiddenGenres = cardGenres.slice(MAX_CARD_GENRES);
-  const badgeFor = ({ item, kind }: (typeof cardGenres)[number]) => (
-    <GenreBadge key={`${kind}:${item.label}`} item={item} kind={kind} scope="albums" size="sm" />
-  );
   const cardGenreBadges = (
     <>
-      <Box display={{ base: "contents", md: "none" }}>{cardGenres.map(badgeFor)}</Box>
-      <Box display={{ base: "none", md: "contents" }}>
-        {cardGenres.slice(0, MAX_CARD_GENRES).map(badgeFor)}
-        {hiddenGenres.length > 0 && (
-          <Badge
-            size="sm"
-            colorPalette="neutral"
-            variant="subtle"
-            title={hiddenGenres.map(({ item }) => item.label).join(", ")}
-            aria-label={`${hiddenGenres.length} more genres`}
-          >
-            +{hiddenGenres.length}
-          </Badge>
-        )}
-      </Box>
+      {cardGenres.slice(0, MAX_CARD_GENRES).map(({ item, kind }) => (
+        <GenreBadge key={`${kind}:${item.label}`} item={item} kind={kind} scope="albums" size="sm" />
+      ))}
+      {hiddenGenres.length > 0 && (
+        <Badge
+          size="sm"
+          colorPalette="neutral"
+          variant="subtle"
+          title={hiddenGenres.map(({ item }) => item.label).join(", ")}
+          aria-label={`${hiddenGenres.length} more genres`}
+        >
+          +{hiddenGenres.length}
+        </Badge>
+      )}
     </>
   );
 
@@ -384,7 +380,7 @@ export default function AlbumResult({
           css={{
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": { display: "none" },
-            "@media (max-width: 47.99em)": { "& > * > *": { flexShrink: 0 } },
+            "@media (max-width: 47.99em)": { "& > *": { flexShrink: 0 } },
           }}
         >
           {cardGenreBadges}
