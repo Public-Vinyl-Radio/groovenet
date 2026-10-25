@@ -64,7 +64,7 @@ export default function PlaylistActionsMenu({
       <Box display={{ base: "block", md: "none" }}>
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
           aria-label="Playlist actions"
           boxSize="44px"
           minW="44px"
