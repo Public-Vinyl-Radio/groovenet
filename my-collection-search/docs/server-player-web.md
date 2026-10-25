@@ -70,7 +70,10 @@ the worker key into the browser unlock form. Missing/invalid configuration keeps
 browser access disabled, while local audio and the existing bearer API remain
 available. This change does not deploy/restart any services for you.
 
-Unlock uses a same-origin POST. The passphrase is cleared from the form on
+Unlock uses a same-origin POST and compares asynchronously derived scrypt keys
+with a fresh random salt (N=32768, r=8, p=3, the
+[OWASP 32 MiB profile](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt)).
+The passphrase is cleared from the form on
 submission and is never saved in browser storage. The app issues an eight-hour
 HMAC-signed, `Secure`, `HttpOnly`, `SameSite=Strict` cookie scoped to `/api/players`.
 The token contains only expiry, a random nonce and a signature. Mutations require

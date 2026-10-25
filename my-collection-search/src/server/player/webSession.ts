@@ -1,5 +1,6 @@
 import { playerWebUnlockSchema } from "@/api-contract/schemas";
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { createHmac, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
 
 const cookieName = "__Secure-gn-player";
 const lifetime = 8 * 60 * 60;
@@ -15,7 +16,27 @@ function config() {
   return { passphrase, secret, origin };
 }
 
-const equal = (a: string, b: string) => timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+function equalSignature(actual: string, expected: string): boolean {
+  const a = Buffer.from(actual);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+// promisify's inference selects the three-argument overload; retain the
+// supported options overload so the work factors are explicit and typed.
+const derivePassword = promisify(scrypt) as (
+  password: string, salt: Buffer, keyLength: number, options: ScryptOptions
+) => Promise<Buffer>;
+async function verifyPassphrase(actual: string, expected: string): Promise<boolean> {
+  const salt = randomBytes(16);
+  // OWASP's 32 MiB scrypt profile; use the async worker pool so unlocks do
+  // not block player commands or event streams on the application thread.
+  const options = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
+  const [actualKey, expectedKey] = await Promise.all([
+    derivePassword(actual, salt, 64, options),
+    derivePassword(expected, salt, 64, options),
+  ]);
+  return timingSafeEqual(actualKey, expectedKey);
+}
 const sign = (value: string, secret: string) => createHmac("sha256", secret).update(value).digest("base64url");
 
 /** Returns the absolute expiry only for a valid player-only browser session. */
@@ -32,7 +53,7 @@ export function playerWebSession(request: Request): number | null {
   if (!expiry || !nonce || !signature || extra !== undefined) return null;
   const expires = Number(expiry);
   const now = Math.floor(Date.now() / 1000);
-  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + lifetime || !equal(signature, sign(`${expiry}.${nonce}`, settings.secret))) return null;
+  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + lifetime || !equalSignature(signature, sign(`${expiry}.${nonce}`, settings.secret))) return null;
   return expires;
 }
 
@@ -70,7 +91,7 @@ export async function playerSessionRoute(request: Request): Promise<Response> {
     const parsed = playerWebUnlockSchema.safeParse(JSON.parse(text));
     if (parsed.success) passphrase = parsed.data.passphrase;
   } catch { /* generic denial */ }
-  if (typeof passphrase !== "string" || !equal(passphrase, settings.passphrase)) return Response.json({ error: "Invalid credentials" }, { status: 401, headers });
+  if (typeof passphrase !== "string" || !(await verifyPassphrase(passphrase, settings.passphrase))) return Response.json({ error: "Invalid credentials" }, { status: 401, headers });
   const payload = `${Math.floor(now / 1000) + lifetime}.${randomBytes(24).toString("base64url")}`;
   return Response.json({ authorized: true }, { headers: { ...headers, "Set-Cookie": `${cookieName}=${payload}.${sign(payload, settings.secret)}; Max-Age=${lifetime}; ${cookieOptions}` } });
 }

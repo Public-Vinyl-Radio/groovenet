@@ -63,7 +63,7 @@ describe("player browser authorization", () => {
   });
   it("denies missing, malformed, tampered, expired, future and rotated sessions", async () => {
     const session = await cookie();
-    for (const value of ["", "other=123", "__Secure-gn-player=x", `${session}.extra`, session.replace(/.$/, "x")]) expect(playerWebSession(request(undefined, "GET", { cookie: value }))).toBeNull();
+    for (const value of ["", "other=123", "__Secure-gn-player=x", `${session}.extra`, session.replace(/[^.]+$/, "short"), session.replace(/.$/, "x")]) expect(playerWebSession(request(undefined, "GET", { cookie: value }))).toBeNull();
     const future = `${Math.floor(Date.now()/1000) + 30000}.nonce`;
     const signature = createHmac("sha256", secret).update(future).digest("base64url");
     expect(playerWebSession(request(undefined, "GET", { cookie: `__Secure-gn-player=${future}.${signature}` }))).toBeNull();
