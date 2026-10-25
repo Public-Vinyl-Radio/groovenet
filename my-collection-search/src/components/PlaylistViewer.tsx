@@ -14,7 +14,7 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FiHeadphones } from "react-icons/fi";
+import { FiHeadphones, FiSave } from "react-icons/fi";
 
 import TrackViewToggle from "@/components/TrackViewToggle";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
@@ -40,7 +40,6 @@ import {
 } from "@/services/internalApi/playlists";
 import NamePlaylistDialog from "@/components/NamePlaylistDialog";
 import { queryKeys } from "@/lib/queryKeys";
-import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
 import PageHeader from "@/components/layout/PageHeader";
 
@@ -84,12 +83,10 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
 
   const {
     replacePlaylist,
-    playlistLength,
     playlist: queue,
     currentTrackIndex: queueIndex,
   } = usePlaybackPlayer();
   const { viewMode, setViewMode, layout, isMobile } = useTrackViewMode();
-  const mobileBottomOverlayOffset = getMobileBottomOverlayOffset(playlistLength);
 
   const { exportPlaylist, exportToPDF, getTotalPlaytime } =
     usePlaylistActions(playlistId);
@@ -407,6 +404,11 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     <PageHeader
       title={displayName}
       breadcrumbs={[{ label: "Playlists", href: "/playlists" }, { label: displayName }]}
+      actions={
+        hasUnsavedChanges && playlistId
+          ? [{ label: "Save changes", icon: <FiSave />, onClick: saveExisting }]
+          : []
+      }
       trailing={actionsMenu}
     />
   );
@@ -606,44 +608,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           </Portal>
         </Dialog.Root>
       </Box>
-      {hasUnsavedChanges && playlistId && (
-        <Box
-          display={{ base: "block", md: "none" }}
-          position="fixed"
-          left="0"
-          right="0"
-          bottom={mobileBottomOverlayOffset}
-          px={4}
-          pb="calc(env(safe-area-inset-bottom, 0px) + 12px)"
-          pt={3}
-          bg="linear-gradient(to top, var(--chakra-colors-bg), color-mix(in srgb, var(--chakra-colors-bg) 88%, transparent))"
-          zIndex={20}
-        >
-          <Box
-            borderWidth="1px"
-            borderColor="border.warning"
-            bg="bg.warning"
-            borderRadius="xl"
-            boxShadow="lg"
-            px={3}
-            py={3}
-          >
-            <Flex align="center" gap={3}>
-              <Box flex="1" minW={0}>
-                <Text fontSize="sm" fontWeight="semibold" color="fg.warning">
-                  Unsaved changes
-                </Text>
-                <Text fontSize="xs" color="fg.warning">
-                  Reordered tracks won&apos;t persist until you save.
-                </Text>
-              </Box>
-              <Button size="sm" colorPalette="status.analysis" onClick={saveExisting}>
-                Save
-              </Button>
-            </Flex>
-          </Box>
-        </Box>
-      )}
     </>
   );
 };
