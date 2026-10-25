@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Box, Stack } from '@chakra-ui/react';
 import PlaylistListItem from '@/components/PlaylistListItem';
+import PlaylistMonthGrid from '@/components/PlaylistMonthGrid';
 import PlaylistMonthDivider, { TimelineRow } from '@/components/PlaylistMonthDivider';
 import type { Playlist } from '@/types/track';
 
@@ -234,5 +235,36 @@ export const PhoneTimelineMissingDate: Story = {
         <PlaylistListItem {...args} playlist={samplePlaylist} />
       </TimelineRow>
     </Stack>
+  ),
+};
+
+const gridSet = (id: number, title: string, set: Record<string, unknown>): Playlist => ({ ...liveSet(set), id, name: title });
+
+export const DesktopMonthGrid: Story = {
+  name: 'Desktop month grid (sets taller, cards top-aligned)',
+  parameters: { layout: 'fullscreen', viewport: { defaultViewport: 'desktop' } },
+  decorators: [
+    (Story) => (
+      <Box maxW="1200px" mx="auto" p={6}>
+        <Story />
+      </Box>
+    ),
+  ],
+  render: (args) => (
+    <PlaylistMonthGrid>
+      <PlaylistListItem {...args} playlist={{ ...samplePlaylist, id: 10 }} dayLabel="TUE 20" />
+      <PlaylistListItem
+        {...args}
+        dayLabel="MON 10"
+        playlist={gridSet(11, 'Inner Signals', {
+          flyer_url: '/flyer.jpg',
+          recording_url: 'https://example.com/recording',
+          post_url: 'https://example.com/post',
+          youtube_url: 'https://youtube.com/watch?v=x',
+        })}
+      />
+      <PlaylistListItem {...args} playlist={{ ...longNamePlaylist, id: 12 }} dayLabel="FRI 24" />
+      <PlaylistListItem {...args} dayLabel="MON 03" playlist={gridSet(13, 'Flow State', { recording_url: 'https://example.com/r' })} />
+    </PlaylistMonthGrid>
   ),
 };

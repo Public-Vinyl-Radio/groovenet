@@ -52,14 +52,14 @@ export function CoverMosaic({ urls, size = "72px" }: { urls: string[]; size?: st
   );
 }
 
-/** Ticket thumbnail: the set flyer, portrait. */
+/** Ticket thumbnail: the set flyer, portrait. 56x72 on a phone, 96x128 on desktop. */
 export function SetFlyer({ url }: { url: string }) {
   return (
     <Box
       data-testid="set-flyer"
       boxSize="auto"
-      w="56px"
-      h="72px"
+      w={{ base: "56px", md: "96px" }}
+      h={{ base: "72px", md: "128px" }}
       flexShrink={0}
       borderWidth="rule"
       borderColor="border.ink"

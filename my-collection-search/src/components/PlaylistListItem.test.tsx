@@ -197,6 +197,17 @@ describe("set ticket card", () => {
     expect(screen.getByTestId("playlist-mosaic")).toBeTruthy();
   });
 
+  it("sizes the flyer 56x72 on a phone and 96x128 from desktop", async () => {
+    const { screen } = await import("@testing-library/react");
+    renderWithProviders(<PlaylistListItem playlist={withSet({ flyer_url: "/f.jpg" })} {...props} />);
+    const style = getComputedStyle(screen.getByTestId("set-flyer"));
+    expect(style.width).toBe("56px");
+    expect(style.height).toBe("72px");
+    const css = Array.from(document.querySelectorAll("style")).map((el) => el.textContent).join("\n");
+    expect(css).toMatch(/width:\s*96px/);
+    expect(css).toMatch(/height:\s*128px/);
+  });
+
   it("renders each link as an anchor with a 44px target, hiding the missing ones", async () => {
     const { screen } = await import("@testing-library/react");
     const all = renderWithProviders(

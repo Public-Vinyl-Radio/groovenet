@@ -178,6 +178,18 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     const { user } = renderWithProviders(<PlaylistManager />);
     await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
     expect(screen.getByText("Late Night")).toBeTruthy();
+    expect(getComputedStyle(screen.getByTestId("month-grid")).gridTemplateColumns).toBe("repeat(1, minmax(0, 1fr))");
+  });
+
+  it("lays cards out top-aligned in cards view, one grid per month", () => {
+    providerState.playlists = [
+      { id: 1, name: "Old", tracks: [], created_at: "2026-01-05T12:00:00" },
+      { id: 2, name: "New", tracks: [], created_at: "2026-08-10T12:00:00" },
+    ];
+    renderWithProviders(<PlaylistManager />);
+    const grids = screen.getAllByTestId("month-grid");
+    expect(grids).toHaveLength(2);
+    grids.forEach((grid) => expect(getComputedStyle(grid).alignItems).toBe("start"));
   });
 });
 
