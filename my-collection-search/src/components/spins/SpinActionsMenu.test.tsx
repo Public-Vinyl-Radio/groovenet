@@ -12,7 +12,7 @@ function setup(onDelete = vi.fn().mockResolvedValue(undefined)) {
   const rendered = renderWithProviders(
     <SpinActionsMenu label="A1 Blue" onEdit={onEdit} onDelete={onDelete} deleting={false} />
   );
-  // [0] opens the mobile sheet, [1] the desktop menu (hidden in jsdom).
+  // [0] opens the phone modal, [1] the desktop menu (hidden in jsdom).
   const [sheetButton, menuButton] = screen.getAllByRole("button", {
     name: "Spin actions",
     hidden: true,
@@ -29,11 +29,11 @@ describe("SpinActionsMenu", () => {
     expect(onEdit).toHaveBeenCalledOnce();
   });
 
-  it("edits from the mobile sheet", async () => {
+  it("edits from the phone modal", async () => {
     const { user, onEdit, sheetButton } = setup();
 
     await user.click(sheetButton);
-    await user.click(await screen.findByRole("button", { name: /Edit spin/ }));
+    await user.click(await screen.findByText("Edit spin", { selector: "p" }));
 
     expect(onEdit).toHaveBeenCalledOnce();
   });
@@ -42,7 +42,7 @@ describe("SpinActionsMenu", () => {
     const { user, onDelete, sheetButton } = setup();
 
     await user.click(sheetButton);
-    await user.click(await screen.findByRole("button", { name: /Delete spin/ }));
+    await user.click(await screen.findByText("Delete spin"));
     const prompt = await screen.findByRole("alertdialog");
     expect(within(prompt).getByText("A1 Blue")).toBeTruthy();
     expect(onDelete).not.toHaveBeenCalled();

@@ -155,7 +155,7 @@ describe("AlbumRecordCarePanel", () => {
 
     const dj = await card("DJ copy");
     await user.click(within(dj).getAllByRole("button", { name: "Copy actions" })[0]);
-    await user.click(await screen.findByRole("button", { name: /Edit label & notes/ }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
     const label = await screen.findByLabelText("Label");
     await user.clear(label);
     await user.type(label, "Club copy");
@@ -182,7 +182,7 @@ describe("AlbumRecordCarePanel", () => {
 
     const defaultCard = await card("Default copy");
     await user.click(within(defaultCard).getAllByRole("button", { name: "Copy actions" })[0]);
-    expect(await screen.findByRole("button", { name: /Edit label & notes/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Edit" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Remove copy/ })).toBeNull();
     await user.keyboard("{Escape}");
 
