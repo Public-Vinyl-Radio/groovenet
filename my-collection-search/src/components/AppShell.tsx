@@ -515,7 +515,7 @@ export default function AppShell({
         px={{ base: 4, md: 6 }}
         // The last rows scroll clear of both bars: the status-bar strip above and
         // the bottom chrome (tab bar + player) below.
-        pt={{ base: "calc(var(--safe-top) + 16px)", md: 6 }}
+        pt={{ base: "calc(var(--safe-top) + 28px)", md: 6 }}
         pb={{ base: "calc(var(--chrome-bottom) + 16px)", md: "calc(var(--chrome-bottom) + 24px)" }}
       >
         <Box w="full" maxW={CONTENT_MAX_W} mx="auto">

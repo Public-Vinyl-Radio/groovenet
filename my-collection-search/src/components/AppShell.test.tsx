@@ -121,7 +121,7 @@ describe("AppShell", () => {
     const css = rulesFor(contentOf());
     expect(css).toMatch(/padding-bottom:\s*calc\(var\(--chrome-bottom\) \+ 16px\)/);
     expect(css).toMatch(/padding-bottom:\s*calc\(var\(--chrome-bottom\) \+ 24px\)/);
-    expect(css).toMatch(/padding-top:\s*calc\(var\(--safe-top\) \+ 16px\)/);
+    expect(css).toMatch(/padding-top:\s*calc\(var\(--safe-top\) \+ 28px\)/);
   });
 
   it("caps the status bar with an opaque strip that has no backdrop blur", () => {
