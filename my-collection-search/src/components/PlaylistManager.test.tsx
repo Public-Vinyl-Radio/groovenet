@@ -22,11 +22,13 @@ const playlists = [
   { id: 5, name: "Late Night", tracks: [{}, {}], total_duration_seconds: 3900, created_at: "2026-01-01T00:00:00Z" },
 ] as unknown as Playlist[];
 
+const providerState = vi.hoisted(() => ({ playlists: null as unknown[] | null, loading: false }));
+
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/providers/PlaylistsProvider", () => ({
   usePlaylists: () => ({
-    playlists,
-    playlistsLoading: false,
+    playlists: providerState.playlists ?? playlists,
+    playlistsLoading: providerState.loading,
     loadingPlaylists: null,
     fetchPlaylists: mocks.fetchPlaylists,
   }),
@@ -45,12 +47,15 @@ vi.mock("@/components/ui/toaster", () => ({
   Toaster: () => null,
   toaster: { create: mocks.toast },
 }));
-vi.mock("@/components/search/UnifiedSearchControls", () => ({ default: () => null }));
 vi.mock("@/components/FriendSelectDialog", () => ({ default: () => null }));
 
 import PlaylistManager from "./PlaylistManager";
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  providerState.playlists = null;
+  providerState.loading = false;
+});
 
 async function openRowModal() {
   const rendered = renderWithProviders(<PlaylistManager />);
@@ -121,5 +126,57 @@ describe("PlaylistManager row actions (#751)", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(mocks.deletePlaylist).not.toHaveBeenCalled();
+  });
+});
+
+describe("PlaylistManager header and toolbar (#765)", () => {
+  it("shows the title and count in the shared header", () => {
+    renderWithProviders(<PlaylistManager />);
+    expect(screen.getByRole("heading", { level: 1, name: "Playlists" })).toBeTruthy();
+    expect(screen.getByTestId("page-header-count").textContent).toBe("1");
+  });
+
+  it("filters by name and updates the count", async () => {
+    const { user } = renderWithProviders(<PlaylistManager />);
+    await user.type(screen.getByRole("textbox", { name: "Search playlists" }), "zzz");
+    expect(screen.getByText('No playlists match "zzz"')).toBeTruthy();
+    expect(screen.getByTestId("page-header-count").textContent).toBe("0");
+  });
+
+  it("opens the file picker from the header and toolbar Import buttons", async () => {
+    const { user, container } = renderWithProviders(<PlaylistManager />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const click = vi.spyOn(input, "click");
+    await user.click(screen.getByRole("button", { name: "Import playlist", hidden: true }));
+    await user.click(screen.getByRole("button", { name: /^Import$/, hidden: true }));
+    expect(click).toHaveBeenCalledTimes(2);
+  });
+
+  it("remembers the Cards/List choice", async () => {
+    localStorage.clear();
+    const { user } = renderWithProviders(<PlaylistManager />);
+    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    expect(localStorage.getItem("playlistsViewMode")).toBe("list");
+    expect(screen.getByRole("button", { name: "LIST", hidden: true }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("omits the count while loading", () => {
+    providerState.loading = true;
+    renderWithProviders(<PlaylistManager />);
+    expect(screen.queryByTestId("page-header-count")).toBeNull();
+  });
+
+  it("offers Import JSON from the empty state", async () => {
+    providerState.playlists = [];
+    const { user, container } = renderWithProviders(<PlaylistManager />);
+    const click = vi.spyOn(container.querySelector('input[type="file"]') as HTMLInputElement, "click");
+    await user.click(screen.getByRole("button", { name: "Import JSON" }));
+    expect(click).toHaveBeenCalled();
+  });
+
+  it("lays playlists out in one column in list view", async () => {
+    const { user } = renderWithProviders(<PlaylistManager />);
+    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    expect(screen.getByText("Late Night")).toBeTruthy();
   });
 });

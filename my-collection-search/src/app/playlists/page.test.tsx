@@ -10,9 +10,8 @@ vi.mock("@/components/PlaylistManager", () => ({ default: () => <div>manager</di
 import PlaylistsPage from "./page";
 
 describe("PlaylistsPage", () => {
-  it("titles the page through the shared header", () => {
+  it("renders the playlist manager", () => {
     renderWithProviders(<PlaylistsPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Playlists" })).toBeTruthy();
     expect(screen.getByText("manager")).toBeTruthy();
   });
 });
