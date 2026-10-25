@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.3.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.8...v0.3.9) (2026-10-25)
+
+
+### Features
+
+* **albums:** list and card views in house style ([#731](https://github.com/Public-Vinyl-Radio/groovenet/issues/731)) ([3ec87b4](https://github.com/Public-Vinyl-Radio/groovenet/commit/3ec87b48b5941d6ab3bc27d374f288bdc640e18b))
+* **albums:** redesign album page in house style ([#728](https://github.com/Public-Vinyl-Radio/groovenet/issues/728)) ([1fce973](https://github.com/Public-Vinyl-Radio/groovenet/commit/1fce973bd8ece95ec7136ce57f538e8c90e8ec9a))
+* **cli:** control persistent named server players ([#726](https://github.com/Public-Vinyl-Radio/groovenet/issues/726)) ([657c93f](https://github.com/Public-Vinyl-Radio/groovenet/commit/657c93fca77eb8079e50c123e46389258731aea3))
+* **player:** add opt-in OwnTone backend with explicit EOF events ([#701](https://github.com/Public-Vinyl-Radio/groovenet/issues/701)) ([12b6b0a](https://github.com/Public-Vinyl-Radio/groovenet/commit/12b6b0a31016e7c9b67a7d559e9dcd9e6267934a))
+* **player:** add optional MPRIS desktop controls ([#679](https://github.com/Public-Vinyl-Radio/groovenet/issues/679)) ([b9a3bf2](https://github.com/Public-Vinyl-Radio/groovenet/commit/b9a3bf2a66ea3ba790ed291cf7755a5f72024858))
+* **player:** control persistent server players from the web ([#743](https://github.com/Public-Vinyl-Radio/groovenet/issues/743)) ([ef2cd93](https://github.com/Public-Vinyl-Radio/groovenet/commit/ef2cd93113599a3b59643a0bdd0353b4cfeb93d9))
+* **player:** persist named server players and independent queues ([#725](https://github.com/Public-Vinyl-Radio/groovenet/issues/725)) ([9f82664](https://github.com/Public-Vinyl-Radio/groovenet/commit/9f82664b2450a71747427593007906facabf9949))
+* **playlists:** table/card track list view on the playlist page ([#713](https://github.com/Public-Vinyl-Radio/groovenet/issues/713)) ([edfd0e5](https://github.com/Public-Vinyl-Radio/groovenet/commit/edfd0e5eab92e7333562763c4db8e98baadb68e1))
+* **settings:** appearance — palette and light/dark/system picker ([#677](https://github.com/Public-Vinyl-Radio/groovenet/issues/677)) ([3c43663](https://github.com/Public-Vinyl-Radio/groovenet/commit/3c436631b761ed362d5eabfa94ca283b8b3eb0fd))
+* **settings:** choose display, body and label fonts ([#686](https://github.com/Public-Vinyl-Radio/groovenet/issues/686)) ([c3ac994](https://github.com/Public-Vinyl-Radio/groovenet/commit/c3ac99409b6e042ab3fa07b22d92d9b850d32255))
+* **settings:** custom colour palette with contrast checks ([#696](https://github.com/Public-Vinyl-Radio/groovenet/issues/696)) ([ad232ba](https://github.com/Public-Vinyl-Radio/groovenet/commit/ad232bac162881250e815d21f1457af22ab667b2))
+* **tracks:** redesign the track page header and mix-aware related tracks ([#721](https://github.com/Public-Vinyl-Radio/groovenet/issues/721)) ([696c11d](https://github.com/Public-Vinyl-Radio/groovenet/commit/696c11da70b5bfae83b2dd5cedeec9f7eb9da42c))
+* **tracks:** table list view for related tracks ([#702](https://github.com/Public-Vinyl-Radio/groovenet/issues/702)) ([1794581](https://github.com/Public-Vinyl-Radio/groovenet/commit/1794581b0a4af62157e80292210a0086bc09b040))
+* **ui:** add Riso, Midnight and Mono palettes ([#682](https://github.com/Public-Vinyl-Radio/groovenet/issues/682)) ([f7933cd](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7933cdbb54d8271ba9502df2d9113ab6d0725aa))
+* **ui:** page header for secondary and edit pages ([#749](https://github.com/Public-Vinyl-Radio/groovenet/issues/749)) ([3145192](https://github.com/Public-Vinyl-Radio/groovenet/commit/31451928a4599700d17283e5f26c86d1d6243125))
+* **ui:** palette-driven theme tokens with Sleeve default ([#674](https://github.com/Public-Vinyl-Radio/groovenet/issues/674)) ([c2cc5e6](https://github.com/Public-Vinyl-Radio/groovenet/commit/c2cc5e69aba7998f84a5820e64c8494426d6f357))
+* **ui:** realign track cards with the house style ([#723](https://github.com/Public-Vinyl-Radio/groovenet/issues/723)) ([bcb32d8](https://github.com/Public-Vinyl-Radio/groovenet/commit/bcb32d88b9ae4e578dd50b28710e549c39f330d8))
+* **ui:** retro house style with square outlines and hard shadows ([#678](https://github.com/Public-Vinyl-Radio/groovenet/issues/678)) ([c6fc301](https://github.com/Public-Vinyl-Radio/groovenet/commit/c6fc30103bbef290b31a859724490def858cff1e))
+* **ui:** shared breadcrumbs for detail pages ([#746](https://github.com/Public-Vinyl-Radio/groovenet/issues/746)) ([8f88d01](https://github.com/Public-Vinyl-Radio/groovenet/commit/8f88d0194fb8e0d3d8a964b09cc30feae5dccb30))
+* **ui:** shared mobile page header ([#742](https://github.com/Public-Vinyl-Radio/groovenet/issues/742)) ([925c26f](https://github.com/Public-Vinyl-Radio/groovenet/commit/925c26fb1bd0679a0b889057979d4824b686bc73))
+
+
+### Bug Fixes
+
+* **deploy:** preserve server players and resolve credentials from 1Password ([#729](https://github.com/Public-Vinyl-Radio/groovenet/issues/729)) ([1716439](https://github.com/Public-Vinyl-Radio/groovenet/commit/1716439d3a79abe717fd296ebe90fe57589e05f0))
+* **dev:** mount synced album covers and add prod golden seed ([#744](https://github.com/Public-Vinyl-Radio/groovenet/issues/744)) ([42024c9](https://github.com/Public-Vinyl-Radio/groovenet/commit/42024c9cbf8d40a178bd903a850b59c4e5258a35))
+* **player:** recover verified failed sessions and preserve errors ([#732](https://github.com/Public-Vinyl-Radio/groovenet/issues/732)) ([437ac38](https://github.com/Public-Vinyl-Radio/groovenet/commit/437ac38763defcdc3b9c5773fcfae7e598634fa8))
+* **player:** scroll long TUI lists and harden cover-art hiding ([#659](https://github.com/Public-Vinyl-Radio/groovenet/issues/659)) ([e67145d](https://github.com/Public-Vinyl-Radio/groovenet/commit/e67145da3dd8df9cb041580bd0aa6e25d6da972d))
+* **ui:** handle iOS PWA safe areas in the app shell ([#737](https://github.com/Public-Vinyl-Radio/groovenet/issues/737)) ([3d3cd5a](https://github.com/Public-Vinyl-Radio/groovenet/commit/3d3cd5ab508e680f8cee926525c1122d62bb3716))
+* **ui:** keep the sidebar full height at the bottom of the page ([#695](https://github.com/Public-Vinyl-Radio/groovenet/issues/695)) ([09858ae](https://github.com/Public-Vinyl-Radio/groovenet/commit/09858aebd85c65705e6ffa973cd198d89ae4aa6b))
+* **ui:** stop clipping track row badges and tidy the search toolbar ([#697](https://github.com/Public-Vinyl-Radio/groovenet/issues/697)) ([54d9ea3](https://github.com/Public-Vinyl-Radio/groovenet/commit/54d9ea3ce2f4a04a234a916ba7039133010a33d6))
+
 ## [0.3.8](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.7...v0.3.8) (2026-10-23)
 
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.5.0...groovenet-cli-v3.6.0) (2026-10-25)
+
+
+### Features
+
+* **cli:** control persistent named server players ([#726](https://github.com/Public-Vinyl-Radio/groovenet/issues/726)) ([657c93f](https://github.com/Public-Vinyl-Radio/groovenet/commit/657c93fca77eb8079e50c123e46389258731aea3))
+* **player:** add opt-in OwnTone backend with explicit EOF events ([#701](https://github.com/Public-Vinyl-Radio/groovenet/issues/701)) ([12b6b0a](https://github.com/Public-Vinyl-Radio/groovenet/commit/12b6b0a31016e7c9b67a7d559e9dcd9e6267934a))
+
+
+### Bug Fixes
+
+* **deploy:** preserve server players and resolve credentials from 1Password ([#729](https://github.com/Public-Vinyl-Radio/groovenet/issues/729)) ([1716439](https://github.com/Public-Vinyl-Radio/groovenet/commit/1716439d3a79abe717fd296ebe90fe57589e05f0))
+* **player:** scroll long TUI lists and harden cover-art hiding ([#659](https://github.com/Public-Vinyl-Radio/groovenet/issues/659)) ([e67145d](https://github.com/Public-Vinyl-Radio/groovenet/commit/e67145da3dd8df9cb041580bd0aa6e25d6da972d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.4.0 to ^3.5.0
+    * @groovenet/contracts bumped from 1.1.0 to 1.2.0
+    * @groovenet/player bumped from 0.1.3 to 0.1.4
+
 ## [3.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.4.0...groovenet-cli-v3.5.0) (2026-10-23)
 
 

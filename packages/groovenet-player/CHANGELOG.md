@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.1.4](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.3...groovenet-player-v0.1.4) (2026-10-25)
+
+
+### Features
+
+* **player:** add opt-in OwnTone backend with explicit EOF events ([#701](https://github.com/Public-Vinyl-Radio/groovenet/issues/701)) ([12b6b0a](https://github.com/Public-Vinyl-Radio/groovenet/commit/12b6b0a31016e7c9b67a7d559e9dcd9e6267934a))
+* **player:** add optional MPRIS desktop controls ([#679](https://github.com/Public-Vinyl-Radio/groovenet/issues/679)) ([b9a3bf2](https://github.com/Public-Vinyl-Radio/groovenet/commit/b9a3bf2a66ea3ba790ed291cf7755a5f72024858))
+* **player:** control persistent server players from the web ([#743](https://github.com/Public-Vinyl-Radio/groovenet/issues/743)) ([ef2cd93](https://github.com/Public-Vinyl-Radio/groovenet/commit/ef2cd93113599a3b59643a0bdd0353b4cfeb93d9))
+* **player:** persist named server players and independent queues ([#725](https://github.com/Public-Vinyl-Radio/groovenet/issues/725)) ([9f82664](https://github.com/Public-Vinyl-Radio/groovenet/commit/9f82664b2450a71747427593007906facabf9949))
+
+
+### Bug Fixes
+
+* **deploy:** preserve server players and resolve credentials from 1Password ([#729](https://github.com/Public-Vinyl-Radio/groovenet/issues/729)) ([1716439](https://github.com/Public-Vinyl-Radio/groovenet/commit/1716439d3a79abe717fd296ebe90fe57589e05f0))
+* **player:** recover verified failed sessions and preserve errors ([#732](https://github.com/Public-Vinyl-Radio/groovenet/issues/732)) ([437ac38](https://github.com/Public-Vinyl-Radio/groovenet/commit/437ac38763defcdc3b9c5773fcfae7e598634fa8))
+* **player:** scroll long TUI lists and harden cover-art hiding ([#659](https://github.com/Public-Vinyl-Radio/groovenet/issues/659)) ([e67145d](https://github.com/Public-Vinyl-Radio/groovenet/commit/e67145da3dd8df9cb041580bd0aa6e25d6da972d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.4.0 to ^3.5.0
+    * @groovenet/contracts bumped from 1.1.0 to 1.2.0
+
 ## [0.1.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.2...groovenet-player-v0.1.3) (2026-10-23)
 
 
