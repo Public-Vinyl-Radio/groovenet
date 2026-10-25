@@ -89,7 +89,16 @@ export default function FilterChips({ chips, onToggle, onClearAll, leading, mt }
           </Button>
         ))}
         {anyActive && onClearAll && (
-          <Button size="xs" variant="ghost" onClick={onClearAll} color="fg.muted" minH={{ base: "44px", md: undefined }}>
+          <Button
+            size="xs"
+            variant="outline"
+            // The outline variant draws 1px; the filter row's controls all carry the 2px outline.
+            borderWidth="outline"
+            borderColor="border.ink"
+            onClick={onClearAll}
+            px={3}
+            minH={{ base: "44px", md: undefined }}
+          >
             Clear all
           </Button>
         )}
