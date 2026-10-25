@@ -214,3 +214,62 @@ export function PositionStepper({
     </Box>
   );
 }
+
+const sectionPadding = { p: "10px 14px 12px 12px", borderTopWidth: "rule", borderColor: "border" } as const;
+
+/** A ruled block of a filter modal, with an optional overline label. */
+export function ModalSection({
+  label,
+  first,
+  children,
+}: {
+  label?: string;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box {...sectionPadding} borderTopWidth={first ? 0 : "rule"} display="flex" flexDirection="column" gap={3}>
+      {label && (
+        <Text {...overline} color="fg.muted">
+          {label}
+        </Text>
+      )}
+      {children}
+    </Box>
+  );
+}
+
+/** A 44px toggle chip: solid ink while on. */
+export function ChipToggle({
+  checked,
+  disabled,
+  onClick,
+  children,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <chakra.button
+      type="button"
+      aria-pressed={checked}
+      disabled={disabled}
+      onClick={onClick}
+      minH="44px"
+      px="12px"
+      borderWidth="outline"
+      borderColor="border.ink"
+      bg={checked ? "border.ink" : "bg"}
+      color={checked ? "bg" : "fg"}
+      fontFamily="label"
+      fontSize="13px"
+      fontWeight="semibold"
+      _hover={{ bg: checked ? "border.ink" : "bg.muted" }}
+      _disabled={{ opacity: 0.4, cursor: "not-allowed" }}
+    >
+      {children}
+    </chakra.button>
+  );
+}

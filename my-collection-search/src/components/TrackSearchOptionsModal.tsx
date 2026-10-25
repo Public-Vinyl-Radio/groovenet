@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Field, SegmentGroup, Text, chakra } from "@chakra-ui/react";
+import { Box, Button, Field, SegmentGroup, Text } from "@chakra-ui/react";
 import type { TrackSearchMode } from "@/api-contract/schemas";
 import GenreFilter, { IncludeSimilarToggle } from "@/components/GenreFilter";
 import { BpmFields, KeyField, RatingField } from "@/components/AttributeFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { overline } from "@/components/ui/RetroModalParts";
+import { ChipToggle, ModalSection as Section } from "@/components/ui/RetroModalParts";
 import { SEARCH_MODE_ITEMS } from "@/components/search/SearchModeToggle";
 import {
   TRACK_MISSING_OPTIONS,
@@ -47,21 +47,6 @@ type Props = {
   resultCount: number;
   onReset: () => void;
 };
-
-const section = { p: "10px 14px 12px 12px", borderTopWidth: "rule", borderColor: "border" } as const;
-
-function Section({ label, first, children }: { label?: string; first?: boolean; children: React.ReactNode }) {
-  return (
-    <Box {...section} borderTopWidth={first ? 0 : "rule"} display="flex" flexDirection="column" gap={3}>
-      {label && (
-        <Text {...overline} color="fg.muted">
-          {label}
-        </Text>
-      )}
-      {children}
-    </Box>
-  );
-}
 
 /**
  * The phone's "Search options" modal (#751): search mode and every filter in
@@ -137,26 +122,14 @@ export default function TrackSearchOptionsModal({
       <Section label="Only tracks missing">
         <Box display="flex" flexWrap="wrap" gap={2} role="group" aria-label="Only tracks missing">
           {optionStates(TRACK_MISSING_OPTIONS, missing).map(({ option, checked, disabled }) => (
-            <chakra.button
+            <ChipToggle
               key={option.key}
-              type="button"
-              aria-pressed={checked}
+              checked={checked}
               disabled={disabled}
               onClick={() => onToggleMissing(option.key)}
-              minH="44px"
-              px="12px"
-              borderWidth="outline"
-              borderColor="border.ink"
-              bg={checked ? "border.ink" : "bg"}
-              color={checked ? "bg" : "fg"}
-              fontFamily="label"
-              fontSize="13px"
-              fontWeight="semibold"
-              _hover={{ bg: checked ? "border.ink" : "bg.muted" }}
-              _disabled={{ opacity: 0.4, cursor: "not-allowed" }}
             >
               {MISSING_CHIP_LABELS[option.key] ?? option.label}
-            </chakra.button>
+            </ChipToggle>
           ))}
         </Box>
       </Section>

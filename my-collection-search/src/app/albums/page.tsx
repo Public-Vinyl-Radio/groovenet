@@ -1,14 +1,8 @@
 "use client";
 
 import React, { Suspense } from "react";
-import {
-  Flex,
-  Spinner,
-  Button,
-  IconButton,
-  Menu,
-} from "@chakra-ui/react";
-import { LuArrowUpDown, LuImage, LuPlus } from "react-icons/lu";
+import { Flex, Spinner, Button, IconButton } from "@chakra-ui/react";
+import { LuImage, LuPlus } from "react-icons/lu";
 import { useSearchParams, useRouter } from "next/navigation";
 import AlbumSearchResults from "@/components/AlbumSearchResults";
 import TrackViewToggle from "@/components/TrackViewToggle";
@@ -17,27 +11,20 @@ import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
 import FilterChips, { FilterGroup } from "@/components/FilterChips";
-import GenreFilter, {
+import {
   addedGenreChips,
   genreFilterChips,
   GenreFilterGroup,
   genreSlugFromChipKey,
-  IncludeSimilarToggle,
   similarGenreIdFromChipKey,
 } from "@/components/GenreFilter";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
-import MissingFilter, { MissingChecklist } from "@/components/MissingFilter";
-import FilterSheet, { FilterSheetSection } from "@/components/FilterSheet";
-import type { MissingFilterOption } from "@/lib/trackFilters";
+import MissingFilter from "@/components/MissingFilter";
+import AlbumFiltersModal, { ALBUM_MISSING_OPTIONS } from "@/components/AlbumFiltersModal";
+import AlbumSearchMenu from "@/components/AlbumSearchMenu";
+import AlbumSortMenu, { DEFAULT_ALBUM_SORT } from "@/components/AlbumSortMenu";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useUsername } from "@/providers/UsernameProvider";
-
-/** The album missing checks; each key is its URL parameter, as before #447. */
-const ALBUM_MISSING_OPTIONS: MissingFilterOption[] = [
-  { key: "missing_library_identifier", label: "Library identifier", chipLabel: "Missing identifier" },
-  { key: "missing_local_cover_art_url", label: "Local cover", chipLabel: "Missing local cover" },
-  { key: "missing_audio", label: "Audio", chipLabel: "Missing audio" },
-];
 
 function AlbumsPageContent() {
   const searchParams = useSearchParams();
@@ -49,12 +36,12 @@ function AlbumsPageContent() {
 
   const [query, setQuery] = React.useState(searchParams.get("q") || "");
   const [sort, setSort] = React.useState(
-    searchParams.get("sort") || "created_at:desc"
+    searchParams.get("sort") || DEFAULT_ALBUM_SORT
   );
 
   // A genre badge (#376) navigates here with a new URL; the inputs follow it.
   const urlQuery = searchParams.get("q") || "";
-  const urlSort = searchParams.get("sort") || "created_at:desc";
+  const urlSort = searchParams.get("sort") || DEFAULT_ALBUM_SORT;
   React.useEffect(() => setQuery(urlQuery), [urlQuery]);
   React.useEffect(() => setSort(urlSort), [urlSort]);
 
@@ -69,6 +56,9 @@ function AlbumsPageContent() {
   // "Include similar" (#485), linkable as `?genre=cumbia&similar=1`.
   const includeSimilar = searchParams.get("similar") === "1";
   const similarExclude = searchParams.getAll("similar_exclude");
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  // Albums matching the current search, reported by the results for the modal's button.
+  const [total, setTotal] = React.useState<number | null>(null);
   const [addedGenres, setAddedGenres] = React.useState<GenreFilterRef[]>([]);
   const { genres: taxonomy } = useGenreTaxonomyQuery();
 
@@ -77,7 +67,7 @@ function AlbumsPageContent() {
     const effectiveQuery = overrides.q !== undefined ? overrides.q : query;
     const effectiveSort = overrides.sort !== undefined ? overrides.sort : sort;
     if (effectiveQuery) params.set("q", effectiveQuery);
-    if (effectiveSort && effectiveSort !== "created_at:desc") params.set("sort", effectiveSort);
+    if (effectiveSort && effectiveSort !== DEFAULT_ALBUM_SORT) params.set("sort", effectiveSort);
     ALBUM_MISSING_OPTIONS.forEach(({ key }) => {
       if (missing[key]) params.set(key, "1");
     });
@@ -141,7 +131,17 @@ function AlbumsPageContent() {
 
   return (
     <PageContainer size="standard">
-      <PageHeader title="Albums" />
+      <PageHeader
+        title="Albums"
+        actions={[{ label: "Add album", icon: <LuPlus />, onClick: () => router.push("/albums/add") }]}
+        trailing={
+          <AlbumSearchMenu
+            activeCount={filterCount}
+            onOpenFilters={() => setFiltersOpen(true)}
+            onOpenArtwork={() => router.push("/albums/artwork")}
+          />
+        }
+      />
       <Flex gap={3} direction="column">
         {!isHydrated || !currentUserFriend ? (
           <Flex justify="center" py={8}>
@@ -158,35 +158,7 @@ function AlbumsPageContent() {
           compactDesktop={true}
           desktopControls={
             <>
-              <Menu.Root>
-                <Menu.Trigger asChild>
-                  <IconButton aria-label="Sort" size="sm" variant="ghost">
-                    <LuArrowUpDown />
-                  </IconButton>
-                </Menu.Trigger>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    {[
-                      { value: "created_at:desc", label: "Recently Added" },
-                      { value: "date_added:desc", label: "Newest in Discogs" },
-                      { value: "date_added:asc", label: "Oldest in Discogs" },
-                      { value: "year:desc", label: "Newest Releases" },
-                      { value: "year:asc", label: "Oldest Releases" },
-                      { value: "title:asc", label: "Title (A-Z)" },
-                      { value: "album_rating:desc", label: "Highest Rated" },
-                    ].map((opt) => (
-                      <Menu.Item
-                        key={opt.value}
-                        value={opt.value}
-                        onSelect={() => handleSortChange(opt.value)}
-                        fontWeight={sort === opt.value ? "bold" : "normal"}
-                      >
-                        {opt.label}
-                      </Menu.Item>
-                    ))}
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Menu.Root>
+              <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="icon" />
               <IconButton
                 aria-label="Album artwork review"
                 title="Album artwork review"
@@ -202,76 +174,20 @@ function AlbumsPageContent() {
               </Button>
             </>
           }
-          mobilePrimaryControl={
-            <Flex gap={1} align="center" flexShrink={0}>
-              <FilterSheet count={filterCount} onClearAll={filterCount > 0 ? clearAll : undefined}>
-                <FilterSheetSection title="Genre">
-                  <GenreFilter
-                    selected={genres}
-                    onAdd={addGenre}
-                    inSheet
-                  />
-                  {genres.length > 0 && (
-                    <IncludeSimilarToggle checked={includeSimilar} onChange={setIncludeSimilar} />
-                  )}
-                </FilterSheetSection>
-                <FilterSheetSection title="Missing">
-                  <MissingChecklist
-                    options={ALBUM_MISSING_OPTIONS}
-                    active={missing}
-                    onToggle={handleAlbumFilterToggle}
-                  />
-                </FilterSheetSection>
-              </FilterSheet>
-              <Menu.Root>
-                <Menu.Trigger asChild>
-                  <IconButton aria-label="Sort" size="sm" boxSize="44px" variant="ghost">
-                    <LuArrowUpDown />
-                  </IconButton>
-                </Menu.Trigger>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    {[
-                      { value: "created_at:desc", label: "Recently Added" },
-                      { value: "date_added:desc", label: "Newest in Discogs" },
-                      { value: "date_added:asc", label: "Oldest in Discogs" },
-                      { value: "year:desc", label: "Newest Releases" },
-                      { value: "year:asc", label: "Oldest Releases" },
-                      { value: "title:asc", label: "Title (A-Z)" },
-                      { value: "album_rating:desc", label: "Highest Rated" },
-                    ].map((opt) => (
-                      <Menu.Item
-                        key={opt.value}
-                        value={opt.value}
-                        onSelect={() => handleSortChange(opt.value)}
-                        fontWeight={sort === opt.value ? "bold" : "normal"}
-                      >
-                        {opt.label}
-                      </Menu.Item>
-                    ))}
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Menu.Root>
-              <IconButton
-                aria-label="Album artwork review"
-                size="sm"
-                boxSize="44px"
-                variant="ghost"
-                onClick={() => router.push("/albums/artwork")}
-              >
-                <LuImage />
-              </IconButton>
-              <IconButton
-                aria-label="Add album"
-                size="sm"
-                boxSize="44px"
-                variant="outline"
-                onClick={() => router.push("/albums/add")}
-              >
-                <LuPlus />
-              </IconButton>
-            </Flex>
-          }
+        />
+
+        <AlbumFiltersModal
+          open={filtersOpen}
+          onOpenChange={setFiltersOpen}
+          genres={genres}
+          onAddGenre={addGenre}
+          includeSimilar={includeSimilar}
+          onIncludeSimilarChange={setIncludeSimilar}
+          missing={missing}
+          onToggleMissing={handleAlbumFilterToggle}
+          activeCount={filterCount}
+          resultCount={total}
+          onReset={clearAll}
         />
 
         <FilterChips
@@ -308,6 +224,8 @@ function AlbumsPageContent() {
           <AlbumSearchResults
             friendId={currentUserFriend.id}
             onAddedGenresChange={setAddedGenres}
+            onTotalChange={setTotal}
+            onSortChange={handleSortChange}
             layout={layout}
           />
         </Suspense>
