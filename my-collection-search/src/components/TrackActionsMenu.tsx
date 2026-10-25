@@ -37,7 +37,7 @@ import NextLink from "next/link";
 
 import type { Track } from "@/types/track";
 import { menuDivider, drawerDivider, DrawerItem } from "@/components/ui/action-menu-primitives";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
 import { useUploadTrackAudioMutation } from "@/hooks/useUploadTrackAudioMutation";
@@ -89,7 +89,7 @@ export default function TrackActionsMenu({
   const { saveTrack: saveTrackRating } = useTracksQuery();
   const [rating, setRating] = useState(track.star_rating ?? 0);
   React.useEffect(() => setRating(track.star_rating ?? 0), [track.star_rating]);
-  const { appendToQueue, replacePlaylist } = usePlaylistPlayer();
+  const { appendToQueue, replacePlaylist } = usePlaybackPlayer();
   const playTrack = () => {
     replacePlaylist([track], { autoplay: true, startIndex: 0 });
     onAction?.("played");

@@ -13,7 +13,7 @@ import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
 import { useTrack } from "@/hooks/useTrack";
 import { camelotDotColor, camelotOf, parseBpm } from "@/lib/mixCompat";
 import { formatSeconds, getTrackDurationSeconds } from "@/lib/trackUtils";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import type { Track } from "@/types/track";
 
 type Props = {
@@ -148,7 +148,7 @@ export default function TrackHeader({
   onChangeArtwork,
 }: Props) {
   const track = useTrack(trackId, friendId) ?? fallbackTrack;
-  const { replacePlaylist } = usePlaylistPlayer();
+  const { replacePlaylist } = usePlaybackPlayer();
   const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog();
   const hasNotes = Boolean(track.notes?.trim());
   // Some imports store a missing year as "0".

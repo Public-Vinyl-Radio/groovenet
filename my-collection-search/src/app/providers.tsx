@@ -8,6 +8,7 @@ import { Provider as ChakraProvider } from "@/components/ui/provider";
 import { UsernameProvider } from "@/providers/UsernameProvider";
 import PlaylistPlayer from "@/components/PlaylistPlayer";
 import { PlaylistPlayerProvider } from "@/providers/PlaylistPlayerProvider";
+import { PlaybackTargetProvider } from "@/providers/PlaybackTargetProvider";
 import TrackEditProvider from "@/providers/TrackEditProvider";
 import PlaylistsProvider from "@/providers/PlaylistsProvider";
 import { JobWatcherProvider } from "@/providers/JobWatcherProvider";
@@ -46,8 +47,10 @@ export default function ClientProviders({
             <TrackEditProvider>
               <PlaylistsProvider>
                 <PlaylistPlayerProvider>
-                  {children}
-                  <PlaylistPlayer />
+                  <PlaybackTargetProvider>
+                    {children}
+                    <PlaylistPlayer />
+                  </PlaybackTargetProvider>
                 </PlaylistPlayerProvider>
               </PlaylistsProvider>
             </TrackEditProvider>

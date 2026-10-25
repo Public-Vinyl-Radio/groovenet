@@ -23,7 +23,7 @@ import { FiHeadphones } from "react-icons/fi";
 import { TbFileImport } from "react-icons/tb";
 import { usePlaylists } from "@/providers/PlaylistsProvider";
 import { createSetForPlaylist, importPlaylist, PlaylistTrackPayload } from "@/services/internalApi/playlists";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
 import { analytics } from "@/lib/analytics/client";
@@ -36,7 +36,7 @@ export default function PlaylistManager() {
     showCurrentUser: true,
   });
 
-  const { replacePlaylist } = usePlaylistPlayer();
+  const { replacePlaylist } = usePlaybackPlayer();
 
   const notify = (opts: Parameters<typeof toaster.create>[0]) =>
     toaster.create(opts);

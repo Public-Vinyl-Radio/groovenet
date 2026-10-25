@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
 import { useCreateAlbumMutation } from "@/hooks/useCreateAlbumMutation";
 import { useUsername } from "@/providers/UsernameProvider";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import AlbumForm, { AlbumFormData } from "@/components/AlbumForm";
 import CoverArtUpload from "@/components/CoverArtUpload";
 import TrackListBuilder, { TrackFormData } from "@/components/TrackListBuilder";
@@ -16,7 +16,7 @@ export default function AddAlbumPage() {
   const router = useRouter();
   const createAlbumMutation = useCreateAlbumMutation();
   const { friend: currentUserFriend } = useUsername();
-  const { playlistLength } = usePlaylistPlayer();
+  const { playlistLength } = usePlaybackPlayer();
 
   const [albumForm, setAlbumForm] = useState<AlbumFormData>({
     title: '',

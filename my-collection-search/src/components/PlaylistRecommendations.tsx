@@ -7,7 +7,7 @@ import TrackResultStore from "@/components/TrackResultStore";
 import type { Track } from "@/types/track";
 import { FiEdit, FiMoreVertical, FiPlus, FiPlusSquare } from "react-icons/fi";
 import { useRecommendationsQuery, type RecommendedTrack } from "@/hooks/useRecommendations";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 
@@ -28,7 +28,7 @@ export default function PlaylistRecommendations({
     libraryFriendId,
     enabled: ready,
   });
-  const { appendToQueue } = usePlaylistPlayer();
+  const { appendToQueue } = usePlaybackPlayer();
 
   return (
     <Box mt={0}>

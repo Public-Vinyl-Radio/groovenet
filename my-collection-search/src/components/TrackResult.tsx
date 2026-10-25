@@ -35,7 +35,7 @@ import {
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { GenreBadgeList, GenreBadgeRow, type GenreBadgeKind } from "./GenreBadge";
 import { TrackCardContext } from "./trackCardContext";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
 
@@ -399,7 +399,7 @@ export function ArtworkPlay({
   iconSize: number;
 }) {
   const [imageError, setImageError] = useState(false);
-  const { replacePlaylist } = usePlaylistPlayer();
+  const { replacePlaylist } = usePlaybackPlayer();
 
   React.useEffect(() => {
     setImageError(false);
@@ -510,7 +510,7 @@ export function NotesIndicator({ notes }: { notes: string }) {
 
 /** Quick "add to the play queue" action, revealed on row/card hover (`_hover`/`_focusWithin`). */
 function AddToCrateButton({ track }: { track: Track }) {
-  const { appendToQueue } = usePlaylistPlayer();
+  const { appendToQueue } = usePlaybackPlayer();
   return (
     <Box
       as="button"

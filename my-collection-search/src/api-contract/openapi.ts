@@ -234,12 +234,13 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     paths,
     components: {
       securitySchemes: {
+        PlayerWebSession: { type: "apiKey", in: "cookie", name: "__Secure-gn-player", description: "Short-lived player-only browser session. Mutations require the configured same-origin Origin header; administration still requires bearer authorization." },
         BearerAuth: {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
           description:
-            "Defined for endpoints that use bearer auth. No current documented endpoint requires it.",
+            "Player endpoints require the household player bearer credential or an authorized player-only browser session where documented.",
         },
       },
       schemas,

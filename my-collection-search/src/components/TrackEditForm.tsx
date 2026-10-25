@@ -15,7 +15,7 @@ import TrackEditFormSkeleton from "@/components/TrackEditFormSkeleton";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrackEditAudioActions } from "@/components/track-edit/useTrackEditAudioActions";
 import TrackEditFormFields from "@/components/track-edit/TrackEditFormFields";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
 import {
   toTrackEditFormState,
@@ -47,7 +47,7 @@ export default function TrackEditForm({
   }, [track]);
 
   const [loading, setLoading] = useState(false);
-  const { playlistLength } = usePlaylistPlayer();
+  const { playlistLength } = usePlaybackPlayer();
   const mobileBottomOverlayOffset = getMobileBottomOverlayOffset(playlistLength);
   const {
     analyzeLoading,

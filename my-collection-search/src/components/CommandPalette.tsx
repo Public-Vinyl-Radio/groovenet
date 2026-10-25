@@ -6,7 +6,7 @@ import * as RadixDialog from "@radix-ui/react-dialog";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useUsername } from "@/providers/UsernameProvider";
 import { usePlaylistsQuery } from "@/hooks/usePlaylistsQuery";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useCommandPalette } from "@/providers/CommandPaletteProvider";
 import { useGenreTaxonomyQuery, useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { importPlaylist } from "@/services/internalApi/playlists";
@@ -64,7 +64,7 @@ export default function CommandPalette() {
     playPrev,
     clearQueue,
     replacePlaylist,
-  } = usePlaylistPlayer();
+  } = usePlaybackPlayer();
 
   const { paletteOpen: open, setPaletteOpen: setOpen } = useCommandPalette();
 
