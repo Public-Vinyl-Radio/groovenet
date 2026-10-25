@@ -447,6 +447,7 @@ const SearchResults: React.FC = () => {
             boxSize="44px"
             // Outlined like the filter button beneath it, so the two read as one column.
             variant={selectMode ? "solid" : "outline"}
+            borderColor="border.ink"
             onClick={toggleSelectMode}
           >
             <LuListChecks />
