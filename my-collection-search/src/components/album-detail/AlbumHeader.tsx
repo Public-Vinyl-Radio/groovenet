@@ -201,7 +201,7 @@ export default function AlbumHeader({
               </Text>
               <Flex alignItems="center" gap={2.5} minW={0}>
                 <Heading
-                  as="h1"
+                  as="h2"
                   fontSize="22px"
                   lineHeight="28px"
                   fontWeight="semibold"

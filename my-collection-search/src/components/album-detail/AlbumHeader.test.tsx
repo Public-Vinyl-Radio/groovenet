@@ -65,7 +65,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("AlbumHeader", () => {
   it("names the album, links its artist and gives the overline and byline", () => {
     renderHeader();
-    expect(screen.getByRole("heading", { level: 1, name: "Corazón Amazónico" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Corazón Amazónico" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain("Los%20Mirlos");
     expect(screen.getByText(/Album · Vinyl/).textContent).toContain("LP0029");
     expect(screen.getByText("Discos Eternos · 2022 · Peru")).toBeTruthy();

@@ -233,8 +233,9 @@ describe("album page layout (#727)", () => {
 
   it("shows a breadcrumb and an album card whose stats read the tracks and spins", async () => {
     renderWithProviders(<AlbumDetailPage />);
-    expect(await screen.findByRole("navigation", { name: "Breadcrumb" })).toBeTruthy();
+    expect(await screen.findByTestId("page-header-breadcrumbs")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1, name: "Blue Lines" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Blue Lines" })).toBeTruthy();
     expect(screen.getByText("A 3:00 · B 4:00")).toBeTruthy();
   });
 
@@ -301,8 +302,7 @@ describe("album page layout (#727)", () => {
   it("puts a back link and the overflow menu in a phone top bar", async () => {
     setViewportWidth(390);
     renderWithProviders(<AlbumDetailPage />);
-    expect((await screen.findByRole("link", { name: "Back to albums" })).getAttribute("href")).toBe("/albums");
-    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
+    expect((await screen.findByRole("link", { name: "Back to Albums", hidden: true })).getAttribute("href")).toBe("/albums");
     expect(screen.getAllByRole("button", { name: "Album actions" }).length).toBeGreaterThan(0);
     expect(screen.getByTestId("album-track-list")).toBeTruthy();
   });

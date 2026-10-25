@@ -47,6 +47,11 @@ describe("PageHeader", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("renders a trailing control after the actions", () => {
+    renderWithProviders(<PageHeader title="Album" trailing={<button>Album actions</button>} />);
+    expect(screen.getByRole("button", { name: "Album actions", hidden: true })).toBeTruthy();
+  });
+
   it("drops a third action rather than crowding the bar", () => {
     renderWithProviders(
       <PageHeader title="Albums" actions={[action("A"), action("B"), action("C")]} />,

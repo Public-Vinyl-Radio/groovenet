@@ -10,21 +10,18 @@ import {
   Spinner,
   Text,
   Badge,
-  Link,
   Dialog,
   Portal,
   CloseButton,
   useBreakpointValue,
 } from "@chakra-ui/react";
-import { FiChevronLeft } from "react-icons/fi";
-import NextLink from "next/link";
 
 import { useAlbumDetailQuery, useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
 import { useTracksByRelease, useTracksByReleaseHydrated } from "@/hooks/useTrack";
 import { ALBUM_SPINS_PAGE, useAlbumSpins } from "@/hooks/useAlbumSpins";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
-import Breadcrumbs from "@/components/layout/Breadcrumbs";
+import PageHeader from "@/components/layout/PageHeader";
 import AlbumHeader from "@/components/album-detail/AlbumHeader";
 import AlbumTracklist from "@/components/album-detail/AlbumTracklist";
 import AlbumSpinPanel from "@/components/spins/AlbumSpinPanel";
@@ -233,38 +230,16 @@ function AlbumDetailContent() {
 
   return (
     <PageContainer size="standard" mb="100px">
-      {isMobile ? (
-        // The page's own top bar: back to the list, and the overflow menu.
-        <Flex alignItems="center" justifyContent="space-between" mb={2} mx={-2}>
-          <Link
-            as={NextLink}
-            href="/albums"
-            aria-label="Back to albums"
-            display="inline-flex"
-            alignItems="center"
-            gap={1}
-            minH="44px"
-            px={2}
-            fontFamily="label"
-            fontSize="12px"
-            fontWeight="medium"
-            letterSpacing="0.06em"
-            textTransform="uppercase"
-            color="fg"
-          >
-            <FiChevronLeft size={20} /> Albums
-          </Link>
-          {menu}
-        </Flex>
-      ) : (
-        <Breadcrumbs
-          crumbs={[
-            { label: "Albums", href: "/albums" },
-            { label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` },
-            { label: album.title },
-          ]}
-        />
-      )}
+      <PageHeader
+        title={album.title}
+        // Phones go back to the list; the artist crumb is for the desktop trail.
+        breadcrumbs={[
+          { label: "Albums", href: "/albums" },
+          ...(isMobile ? [] : [{ label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` }]),
+          { label: album.title },
+        ]}
+        trailing={isMobile ? menu : undefined}
+      />
 
       <Box mb={{ base: 8, md: 10 }} pr="6px" pb="6px">
         <AlbumHeader

@@ -32,6 +32,8 @@ type PageHeaderProps = {
   breadcrumbs?: Crumb[];
   /** At most two icon buttons; extras are dropped (use `overflow`). */
   actions?: PageHeaderAction[];
+  /** A ready-made control (e.g. a page's own actions menu) after the actions; phones only. */
+  trailing?: React.ReactNode;
   /** Everything beyond two actions, in a "More" menu. */
   overflow?: PageHeaderOverflowItem[];
 };
@@ -51,6 +53,7 @@ export default function PageHeader({
   leading,
   breadcrumbs,
   actions = [],
+  trailing,
   overflow = [],
 }: PageHeaderProps) {
   useRootFlag("data-page-header", true);
@@ -160,6 +163,7 @@ export default function PageHeader({
               </Menu.Positioner>
             </Menu.Root>
           )}
+          {trailing}
         </Flex>
       </Flex>
     </Box>
