@@ -616,6 +616,13 @@ Coverage is 100%. `tests/conftest.py` provides a `fake_redis` fixture
 `wave` module rather than committing binary fixtures, and `job` / `index_job`
 payload factories.
 
+`tone_pcm` caches up to 32 immutable synthetic audio clips for the test session,
+keyed by duration, sample rate, seed and noise. This avoids repeating the slow
+sample-generation loop while keeping the exact PCM bytes and running every
+real decode/fingerprint/match assertion. Matchers and indexes remain local to
+each test. Use `pytest --durations=15` to see remaining bottlenecks; CI prints
+these timings after the coverage run.
+
 Two things worth knowing when adding tests:
 
 - `run_once` blocks for `BRPOP_TIMEOUT` on an empty queue. Monkeypatch it to a
