@@ -40,7 +40,7 @@ export interface AlbumActionsMenuProps {
   catalogue?: string;
   /** Under the title in the phone modal; defaults to the artist. */
   subtitle?: string;
-  /** A 44px outline trigger, for the phone's top bar. */
+  /** A borderless 44px trigger, for the phone's top bar. */
   prominent?: boolean;
 }
 
@@ -101,7 +101,7 @@ export default function AlbumActionsMenu({
       <Box display={{ base: "block", md: "none" }}>
         <Button
           size="sm"
-          variant={prominent ? "outline" : "ghost"}
+          variant="ghost"
           aria-label="Album actions"
           px={2}
           {...(prominent ? { boxSize: "44px" } : {})}
