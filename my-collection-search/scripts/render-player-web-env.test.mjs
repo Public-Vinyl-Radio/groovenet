@@ -13,6 +13,10 @@ const valid = {
   PLAYER_API_KEY: 'mock-worker-key-'.repeat(4),
 };
 const composeAvailable = spawnSync('docker', ['compose', 'version']).status === 0;
+const readSettings = output => Object.fromEntries(readFileSync(output, 'utf8').trim().split('\n').map(line => {
+  const at = line.indexOf('=');
+  return [line.slice(0, at), JSON.parse(line.slice(at + 1))];
+}));
 
 for (const name of ['PLAYER_WEB_PASSPHRASE', 'PLAYER_WEB_SESSION_SECRET', 'PLAYER_API_KEY']) {
   for (const value of [undefined, 'short', `${valid[name]}\n`, `${valid[name]}\r`, `${valid[name]}\0`]) {
@@ -41,10 +45,11 @@ test('writes only the web settings atomically with private permissions', () => {
     const output = join(root, '.env.player-web'); writePlayerWebEnv(output, valid);
     assert.equal(statSync(output).mode & 0o777, 0o600);
     const content = readFileSync(output, 'utf8');
-    const values = Object.fromEntries(content.trim().split('\n').map(line => { const at = line.indexOf('='); return [line.slice(0, at), JSON.parse(line.slice(at + 1))]; }));
+    const values = readSettings(output);
     assert.deepEqual(values, { PLAYER_WEB_ORIGIN: valid.PLAYER_WEB_ORIGIN, PLAYER_WEB_PASSPHRASE: valid.PLAYER_WEB_PASSPHRASE, PLAYER_WEB_SESSION_SECRET: valid.PLAYER_WEB_SESSION_SECRET });
     assert.ok(!content.includes(valid.PLAYER_API_KEY) && !content.includes('PLAYER_API_KEY'));
-    writePlayerWebEnv(output, { ...valid, PLAYER_WEB_ORIGIN: 'https://new.example' }); assert.ok(readFileSync(output, 'utf8').includes('https://new.example'));
+    writePlayerWebEnv(output, { ...valid, PLAYER_WEB_ORIGIN: 'https://new.example' });
+    assert.deepEqual(readSettings(output), { ...values, PLAYER_WEB_ORIGIN: 'https://new.example' });
     assert.deepEqual(readdirSync(root), ['.env.player-web']);
     assert.throws(() => writePlayerWebEnv(join(root, 'missing/settings'), valid));
     assert.throws(() => writePlayerWebEnv(undefined, valid), /Usage/);
