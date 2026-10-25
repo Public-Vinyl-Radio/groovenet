@@ -1,0 +1,95 @@
+name: Changed components
+
+on:
+  workflow_call:
+    outputs:
+      lint:
+        value: ${{ jobs.changes.outputs.lint }}
+      web:
+        value: ${{ jobs.changes.outputs.web }}
+      contracts:
+        value: ${{ jobs.changes.outputs.contracts }}
+      client:
+        value: ${{ jobs.changes.outputs.client }}
+      player:
+        value: ${{ jobs.changes.outputs.player }}
+      cli:
+        value: ${{ jobs.changes.outputs.cli }}
+      python:
+        value: ${{ jobs.changes.outputs.python }}
+      download:
+        value: ${{ jobs.changes.outputs.download }}
+      ga:
+        value: ${{ jobs.changes.outputs.ga }}
+      fingerprint:
+        value: ${{ jobs.changes.outputs.fingerprint }}
+      migrate:
+        value: ${{ jobs.changes.outputs.migrate }}
+      redis:
+        value: ${{ jobs.changes.outputs.redis }}
+      webapp:
+        value: ${{ jobs.changes.outputs.webapp }}
+      essentia:
+        value: ${{ jobs.changes.outputs.essentia }}
+      ga_service:
+        value: ${{ jobs.changes.outputs.ga_service }}
+      download_worker:
+        value: ${{ jobs.changes.outputs.download_worker }}
+      fingerprint_service:
+        value: ${{ jobs.changes.outputs.fingerprint_service }}
+      force_all:
+        value: ${{ jobs.changes.outputs.force_all }}
+      ci_image:
+        value: ${{ jobs.changes.outputs.ci_image }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      lint: ${{ steps.filter.outputs.lint }}
+      web: ${{ steps.filter.outputs.web }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      client: ${{ steps.filter.outputs.client }}
+      player: ${{ steps.filter.outputs.player }}
+      cli: ${{ steps.filter.outputs.cli }}
+      python: ${{ steps.filter.outputs.python }}
+      download: ${{ steps.filter.outputs.download }}
+      ga: ${{ steps.filter.outputs.ga }}
+      fingerprint: ${{ steps.filter.outputs.fingerprint }}
+      migrate: ${{ steps.filter.outputs.migrate }}
+      redis: ${{ steps.filter.outputs.redis }}
+      webapp: ${{ steps.filter.outputs.webapp }}
+      essentia: ${{ steps.filter.outputs.essentia }}
+      ga_service: ${{ steps.filter.outputs.ga_service }}
+      download_worker: ${{ steps.filter.outputs.download_worker }}
+      fingerprint_service: ${{ steps.filter.outputs.fingerprint_service }}
+      force_all: ${{ steps.filter.outputs.force_all }}
+      ci_image: ${{ steps.filter.outputs.ci_image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify change detection with coverage
+        run: >-
+          node --test --experimental-test-coverage
+          --test-coverage-include=.github/scripts/ci-changes.mjs
+          --test-reporter=spec --test-reporter=lcov
+          --test-reporter-destination=stdout
+          --test-reporter-destination=${{ runner.temp }}/ci-changes.lcov
+          .github/scripts/ci-changes.test.mjs
+      - name: Detect affected components
+        id: filter
+        run: node .github/scripts/ci-changes.mjs
+      - name: Upload change detection coverage
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ${{ runner.temp }}/ci-changes.lcov
+          flags: ci-changes
+          disable_search: true
+          fail_ci_if_error: false

@@ -10,112 +10,43 @@ on:
     tags:
       - "v*.*.*"
 
+concurrency:
+  group: docker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  # Test gate: images are only built/published if lint + tests pass.
+  affected:
+    uses: ./.github/workflows/changes.yml
+    secrets: inherit
+
+  # Publishing gate: main images require lint + tests; PR builds run in parallel.
   # Skipped on release tags — those promote already-tested images (see promote).
   test:
-    if: github.ref_type != 'tag'
+    # PRs run Test directly, preserving its existing check names.
+    if: github.event_name == 'push' && github.ref_type != 'tag'
     permissions:
       contents: read
       packages: write
     uses: ./.github/workflows/test.yml
+    secrets: inherit
 
   changes:
+    needs: affected
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     outputs:
-      webapp: ${{ steps.filter.outputs.webapp }}
-      essentia: ${{ steps.filter.outputs.essentia }}
-      ga_service: ${{ steps.filter.outputs.ga_service }}
-      download_worker: ${{ steps.filter.outputs.download_worker }}
-      fingerprint_service: ${{ steps.filter.outputs.fingerprint_service }}
-      force_all: ${{ steps.filter.outputs.force_all }}
+      webapp: ${{ needs.affected.outputs.webapp }}
+      essentia: ${{ needs.affected.outputs.essentia }}
+      ga_service: ${{ needs.affected.outputs.ga_service }}
+      download_worker: ${{ needs.affected.outputs.download_worker }}
+      fingerprint_service: ${{ needs.affected.outputs.fingerprint_service }}
+      force_all: ${{ needs.affected.outputs.force_all }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
       should_push: ${{ steps.meta.outputs.should_push }}
       platforms: ${{ steps.meta.outputs.platforms }}
       release_sha: ${{ steps.meta.outputs.release_sha }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed build inputs
-        id: filter
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base_ref="${{ github.event.pull_request.base.sha }}"
-            head_ref="${{ github.event.pull_request.head.sha }}"
-            changed_files="$(git diff --name-only "$base_ref" "$head_ref")"
-          else
-            changed_files="$(git diff-tree --no-commit-id --name-only -r "${{ github.sha }}")"
-          fi
-
-          echo "Changed files:"
-          echo "$changed_files"
-
-          webapp=false
-          essentia=false
-          ga_service=false
-          download_worker=false
-          fingerprint_service=false
-          force_all=false
-
-          while IFS= read -r file; do
-            [[ -n "$file" ]] || continue
-
-            case "$file" in
-              .github/workflows/docker-publish.yml|justfile|.dockerignore)
-                force_all=true
-                ;;
-            esac
-
-            case "$file" in
-              my-collection-search/*|package.json|package-lock.json|packages/*/package.json|mcp-server/package.json|packages/groovenet-contracts/*)
-                webapp=true
-                ;;
-            esac
-
-            case "$file" in
-              essentia-api/*)
-                essentia=true
-                ;;
-            esac
-
-            case "$file" in
-              ga-service/*)
-                ga_service=true
-                ;;
-            esac
-
-            case "$file" in
-              download-worker/*|packages/groovenet-python/*)
-                download_worker=true
-                ;;
-            esac
-
-            case "$file" in
-              fingerprint-service/*|packages/groovenet-python/*)
-                fingerprint_service=true
-                ;;
-            esac
-          done <<< "$changed_files"
-
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            force_all=true
-          fi
-
-          echo "webapp=$webapp" >> "$GITHUB_OUTPUT"
-          echo "essentia=$essentia" >> "$GITHUB_OUTPUT"
-          echo "ga_service=$ga_service" >> "$GITHUB_OUTPUT"
-          echo "download_worker=$download_worker" >> "$GITHUB_OUTPUT"
-          echo "fingerprint_service=$fingerprint_service" >> "$GITHUB_OUTPUT"
-          echo "force_all=$force_all" >> "$GITHUB_OUTPUT"
-
       - name: Resolve image tag / push policy
         id: meta
         shell: bash
@@ -147,7 +78,10 @@ jobs:
 
   build-webapp:
     needs: [changes, test]
-    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.webapp == 'true')
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.test.result == 'success') &&
+      github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.webapp == 'true')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -274,7 +208,10 @@ jobs:
 
   build-essentia:
     needs: [changes, test]
-    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.essentia == 'true')
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.test.result == 'success') &&
+      github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.essentia == 'true')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -330,7 +267,10 @@ jobs:
 
   build-ga-service:
     needs: [changes, test]
-    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.ga_service == 'true')
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.test.result == 'success') &&
+      github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.ga_service == 'true')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -386,7 +326,10 @@ jobs:
 
   build-download-worker:
     needs: [changes, test]
-    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.download_worker == 'true')
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.test.result == 'success') &&
+      github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.download_worker == 'true')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -466,7 +409,10 @@ jobs:
 
   build-fingerprint-service:
     needs: [changes, test]
-    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.fingerprint_service == 'true')
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.test.result == 'success') &&
+      github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.fingerprint_service == 'true')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -525,7 +471,10 @@ jobs:
   # webapp-migrate:vX.Y.Z exists for the deploy's migrate step.
   build-migrate:
     needs: [changes, test]
-    if: github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.webapp == 'true')
+    if: >-
+      !cancelled() && needs.changes.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.test.result == 'success') &&
+      github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.webapp == 'true')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
