@@ -228,14 +228,19 @@ export default function PlaylistManager() {
           <Box as="section" key={group.key} aria-label={group.label} mb={5}>
             <PlaylistMonthDivider group={group} />
             <SimpleGrid columns={gridColumns} gap={3} overflowY="auto">
-              {group.playlists.map((pl) => {
+              {group.playlists.map((pl, index) => {
                 const day = playlistDayParts(pl);
                 const isRowLoading =
                   typeof loadingPlaylists === "object" &&
                   loadingPlaylists !== null &&
                   pl.id === loadingPlaylists.id;
                 return (
-                  <TimelineRow key={pl.id} day={day}>
+                  <TimelineRow
+                    key={pl.id}
+                    day={day}
+                    isFirst={index === 0}
+                    isLast={index === group.playlists.length - 1}
+                  >
                   <PlaylistListItem
                     playlist={pl}
                     dayLabel={day ? `${day.weekday} ${day.day}` : undefined}
