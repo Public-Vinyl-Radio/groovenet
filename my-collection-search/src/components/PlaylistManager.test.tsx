@@ -180,3 +180,21 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     expect(screen.getByText("Late Night")).toBeTruthy();
   });
 });
+
+describe("PlaylistManager month grouping (#766)", () => {
+  it("groups playlists under month dividers, newest first, with counts", () => {
+    providerState.playlists = [
+      { id: 1, name: "Old", tracks: [], created_at: "2026-01-05T12:00:00" },
+      { id: 2, name: "New", tracks: [], created_at: "2026-08-10T12:00:00" },
+      { id: 3, name: "Gig", tracks: [], created_at: "2026-08-02T12:00:00", set: { status: "performed", collaborators: [] } },
+    ];
+    renderWithProviders(<PlaylistManager />);
+    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual(["AUG 2026", "JAN 2026"]);
+    expect(screen.getAllByTestId("month-count").map((el) => el.textContent)).toEqual([
+      "2 playlists · 1 set",
+      "1 playlist",
+    ]);
+    expect(screen.getAllByTestId("playlist-day").map((el) => el.textContent)).toEqual(["MON 10", "SUN 2", "MON 5"]);
+    expect(screen.getAllByTestId("timeline-day")[0].textContent).toBe("10MON");
+  });
+});

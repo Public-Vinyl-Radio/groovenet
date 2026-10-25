@@ -73,4 +73,14 @@ describe("PlaylistListItem", () => {
       expect(getComputedStyle(screen.getByText(part)).whiteSpace).toBe("nowrap");
     }
   });
+
+  it("shows the day line only when the row sits under a month divider", async () => {
+    const { screen } = await import("@testing-library/react");
+    const props = { onClick: vi.fn(), onPlay: vi.fn(), onDelete: vi.fn(), onEnqueue: vi.fn() };
+    const first = renderWithProviders(<PlaylistListItem playlist={base} {...props} />);
+    expect(screen.queryByTestId("playlist-day")).toBeNull();
+    first.unmount();
+    renderWithProviders(<PlaylistListItem playlist={base} dayLabel="MON 10" {...props} />);
+    expect(screen.getByTestId("playlist-day").textContent).toBe("MON 10");
+  });
 });

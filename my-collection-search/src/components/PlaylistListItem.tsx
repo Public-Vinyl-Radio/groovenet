@@ -23,6 +23,8 @@ interface PlaylistListItemProps {
   onEnqueue: () => void;
   onExportPdf?: () => void;
   onCreateSet?: () => void;
+  /** Desktop day line above the name (`MON 10`). Set when the row sits under a month divider, which also hides the meta date on phones. */
+  dayLabel?: string;
 }
 
 /** The phone modal strip: count, duration and date. */
@@ -47,6 +49,7 @@ export default function PlaylistListItem({
   onEnqueue,
   onExportPdf,
   onCreateSet,
+  dayLabel,
 }: PlaylistListItemProps) {
   return (
     <Box
@@ -84,6 +87,18 @@ export default function PlaylistListItem({
             />
           ) : null}
           <VStack align="start" gap={0} minW={0}>
+            {dayLabel && (
+              <Text
+                data-testid="playlist-day"
+                display={{ base: "none", md: "block" }}
+                fontFamily="mono"
+                fontSize="2xs"
+                letterSpacing="0.08em"
+                color="fg.muted"
+              >
+                {dayLabel}
+              </Text>
+            )}
             <HStack gap={2} minW={0}>
               <Text fontWeight="semibold" fontSize="sm" lineClamp={1}>
                 {playlist.set?.title || playlist.name}
@@ -102,8 +117,8 @@ export default function PlaylistListItem({
                   <Text whiteSpace="nowrap">{formatDuration(playlist.total_duration_seconds)}</Text>
                 </>
               )}
-              <Text>·</Text>
-              <Text whiteSpace="nowrap">
+              <Text display={dayLabel ? { base: "none", md: "block" } : undefined}>·</Text>
+              <Text whiteSpace="nowrap" display={dayLabel ? { base: "none", md: "block" } : undefined}>
                 {playlist.set?.last_performed_at
                   ? `Played ${formatDateWithRelative(playlist.set.last_performed_at)}`
                   : formatDateWithRelative(playlist.created_at)}

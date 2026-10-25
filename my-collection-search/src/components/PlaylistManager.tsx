@@ -4,6 +4,8 @@ import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/records/ConfirmDialog";
 import { useDeletePlaylistMutation } from "@/hooks/useDeletePlaylistMutation";
+import PlaylistMonthDivider, { TimelineRow } from "@/components/PlaylistMonthDivider";
+import { groupPlaylistsByMonth, playlistDayParts } from "@/lib/playlistGroups";
 import PlaylistListItem, { formatDuration } from "@/components/PlaylistListItem";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
 import PageHeader from "@/components/layout/PageHeader";
@@ -68,6 +70,9 @@ export default function PlaylistManager() {
     const q = filter.toLowerCase();
     return playlists.filter((pl) => !q || pl.name.toLowerCase().includes(q));
   }, [playlists, filter]);
+
+  const groups = React.useMemo(() => groupPlaylistsByMonth(filtered), [filtered]);
+  const gridColumns = viewMode === "list" ? 1 : { base: 1, md: 2, xl: 3 };
 
   const handleImportJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -184,90 +189,100 @@ export default function PlaylistManager() {
         onImport={openImport}
       />
 
-      <SimpleGrid columns={viewMode === "list" ? 1 : { base: 1, md: 2, xl: 3 }} gap={3} overflowY="auto">
-        {playlistsLoading ? (
-          Array.from({ length: 6 }).map((_, index) => (
+      {playlistsLoading ? (
+        <SimpleGrid columns={gridColumns} gap={3}>
+          {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} height="72px" borderRadius="md" />
-          ))
-        ) : playlists.length === 0 && !loadingPlaylists ? (
-          <EmptyState.Root size={"sm"}>
-            <EmptyState.Content>
-              <EmptyState.Indicator>
-                <FiHeadphones />
-              </EmptyState.Indicator>
-              <VStack textAlign="center">
-                <EmptyState.Title>No saved playlists</EmptyState.Title>
-                <EmptyState.Description>
-                  Save your playlists to access them here.
-                </EmptyState.Description>
-                <HStack>
-                  <Button
-                    size="xs"
-                    onClick={openImport}
-                  >
-                    Import JSON
-                  </Button>
-                </HStack>
-              </VStack>
-            </EmptyState.Content>
-          </EmptyState.Root>
-        ) : filtered.length === 0 ? (
-          <Text fontSize="sm" color="fg.muted" px={2} py={1}>
-            {filter.trim()
-              ? `No playlists match "${filter}"`
-              : "No playlists yet"}
-          </Text>
-        ) : (
-          filtered.map((pl) => {
-            const isRowLoading =
-              typeof loadingPlaylists === "object" &&
-              loadingPlaylists !== null &&
-              pl.id === loadingPlaylists.id;
-            return (
-              <PlaylistListItem
-                key={pl.id}
-                playlist={pl}
-                isLoading={isRowLoading}
-                onClick={() => router.push(`/playlists/${pl.id}`)}
-                onPlay={async () => {
-                  const tracks = await fetchTracksByIds(pl.tracks);
-                  replacePlaylist(tracks, { autoplay: true, startIndex: 0 });
-                  analytics.track("playback_started", {
-                    playlist_id: pl.id,
-                    track_count: pl.tracks.length,
-                    source: "playlist_manager",
-                  });
-                }}
-                onEnqueue={async () => {
-                  appendToQueue(await fetchTracksByIds(pl.tracks));
-                }}
-                onExportPdf={async () => {
-                  const tracks = await fetchTracksByIds(pl.tracks);
-                  const stamp = new Date().toISOString().replace(/[:]/g, "-").replace(/\..+/, "").replace("T", "_");
-                  const slug = pl.name.trim().replace(/[^a-zA-Z0-9-_]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-                  await exportPlaylistToPDF({
-                    playlist: tracks,
-                    totalPlaytimeFormatted: formatDuration(pl.total_duration_seconds) ?? "0m",
-                    playlistName: pl.name,
-                    exportedAt: new Date().toLocaleString(),
-                    filename: `${slug || "playlist"}-${stamp}.pdf`,
-                  });
-                }}
-                onDelete={() => setDeleteDialogState({ open: true, playlistId: pl.id })}
-                onCreateSet={async () => {
-                  try {
-                    await createSetForPlaylist(pl.id);
-                    await fetchPlaylists();
-                    notify({ title: `Created a set for '${pl.name}'`, type: "success" });
-                  } catch {
-                    notify({ title: "Could not create set", type: "error" });
-                  }
-                }}
-              />
-            );
-          })
-        )}
-      </SimpleGrid>
+          ))}
+        </SimpleGrid>
+      ) : playlists.length === 0 && !loadingPlaylists ? (
+        <EmptyState.Root size={"sm"}>
+          <EmptyState.Content>
+            <EmptyState.Indicator>
+              <FiHeadphones />
+            </EmptyState.Indicator>
+            <VStack textAlign="center">
+              <EmptyState.Title>No saved playlists</EmptyState.Title>
+              <EmptyState.Description>
+                Save your playlists to access them here.
+              </EmptyState.Description>
+              <HStack>
+                <Button
+                  size="xs"
+                  onClick={openImport}
+                >
+                  Import JSON
+                </Button>
+              </HStack>
+            </VStack>
+          </EmptyState.Content>
+        </EmptyState.Root>
+      ) : filtered.length === 0 ? (
+        <Text fontSize="sm" color="fg.muted" px={2} py={1}>
+          {filter.trim()
+            ? `No playlists match "${filter}"`
+            : "No playlists yet"}
+        </Text>
+      ) : (
+        groups.map((group) => (
+          <Box as="section" key={group.key} aria-label={group.label} mb={5}>
+            <PlaylistMonthDivider group={group} />
+            <SimpleGrid columns={gridColumns} gap={3} overflowY="auto">
+              {group.playlists.map((pl) => {
+                const day = playlistDayParts(pl);
+                const isRowLoading =
+                  typeof loadingPlaylists === "object" &&
+                  loadingPlaylists !== null &&
+                  pl.id === loadingPlaylists.id;
+                return (
+                  <TimelineRow key={pl.id} day={day}>
+                  <PlaylistListItem
+                    playlist={pl}
+                    dayLabel={day ? `${day.weekday} ${day.day}` : undefined}
+                    isLoading={isRowLoading}
+                    onClick={() => router.push(`/playlists/${pl.id}`)}
+                    onPlay={async () => {
+                      const tracks = await fetchTracksByIds(pl.tracks);
+                      replacePlaylist(tracks, { autoplay: true, startIndex: 0 });
+                      analytics.track("playback_started", {
+                        playlist_id: pl.id,
+                        track_count: pl.tracks.length,
+                        source: "playlist_manager",
+                      });
+                    }}
+                    onEnqueue={async () => {
+                      appendToQueue(await fetchTracksByIds(pl.tracks));
+                    }}
+                    onExportPdf={async () => {
+                      const tracks = await fetchTracksByIds(pl.tracks);
+                      const stamp = new Date().toISOString().replace(/[:]/g, "-").replace(/\..+/, "").replace("T", "_");
+                      const slug = pl.name.trim().replace(/[^a-zA-Z0-9-_]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+                      await exportPlaylistToPDF({
+                        playlist: tracks,
+                        totalPlaytimeFormatted: formatDuration(pl.total_duration_seconds) ?? "0m",
+                        playlistName: pl.name,
+                        exportedAt: new Date().toLocaleString(),
+                        filename: `${slug || "playlist"}-${stamp}.pdf`,
+                      });
+                    }}
+                    onDelete={() => setDeleteDialogState({ open: true, playlistId: pl.id })}
+                    onCreateSet={async () => {
+                      try {
+                        await createSetForPlaylist(pl.id);
+                        await fetchPlaylists();
+                        notify({ title: `Created a set for '${pl.name}'`, type: "success" });
+                      } catch {
+                        notify({ title: "Could not create set", type: "error" });
+                      }
+                    }}
+                  />
+                  </TimelineRow>
+                );
+              })}
+            </SimpleGrid>
+          </Box>
+        ))
+      )}
       <ConfirmDialog
         open={deleteDialogState.open}
         onOpenChange={(open) => {
