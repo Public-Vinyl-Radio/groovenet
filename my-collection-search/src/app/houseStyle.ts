@@ -292,6 +292,24 @@ export const slotRecipes = {
 // tabIndex, third-party widgets. Recipes that set their own ring use the same
 // width, offset and colour.
 export const globalCss: Record<string, SystemStyleObject> = {
+  // The bottom chrome the shell publishes, so content padding, the toaster and
+  // the floating player agree on one number. Mobile: the tab bar (56px row, 2px
+  // rule, home-indicator inset) plus the mini player (64px row, 4px progress line).
+  // Desktop has no tab bar and a 100px floating player. `data-player` is set
+  // while a queue is loaded; `data-tabbar-hidden` on fullscreen edit routes.
+  html: {
+    "--safe-top": "env(safe-area-inset-top, 0px)",
+    "--safe-bottom": "env(safe-area-inset-bottom, 0px)",
+    "--tabbar-h": "calc(58px + var(--safe-bottom))",
+    "--player-h": "0px",
+    "--chrome-bottom": "calc(var(--tabbar-h) + var(--player-h))",
+    "&[data-player]": { "--player-h": "70px" },
+    "&[data-tabbar-hidden]": { "--tabbar-h": "0px" },
+    "@media (min-width: 768px)": {
+      "--tabbar-h": "0px",
+      "&[data-player]": { "--player-h": "100px" },
+    },
+  },
   ":focus-visible": {
     outline: `${focusRing.width} solid ${focusRing.color}`,
     outlineOffset: focusRing.offset,

@@ -27,6 +27,8 @@ import ProgressSlider from "@/components/player/ProgressSlider";
 import Artwork from "@/components/player/Artwork";
 import ArtistLink from "@/components/ArtistLink";
 import AlbumLink from "@/components/AlbumLink";
+import MiniProgressLine from "@/components/player/MiniProgressLine";
+import { roundTransportButton } from "@/components/player/transportButtonStyle";
 
 interface PlayerControlsViewProps {
   showQueueButton: boolean;
@@ -114,7 +116,14 @@ export default function PlayerControlsView({
           }
         }}
       >
-        <Flex align="center" gap={2.5} minH="42px">
+        <MiniProgressLine />
+        <Flex
+          align="center"
+          gap={3}
+          h="64px"
+          pl="max(16px, env(safe-area-inset-left, 0px))"
+          pr="max(16px, env(safe-area-inset-right, 0px))"
+        >
           <AlbumLink
             releaseId={currentTrack?.release_id}
             friendId={currentTrack?.friend_id}
@@ -126,7 +135,7 @@ export default function PlayerControlsView({
                   ? `${currentTrack.artist} - ${currentTrack.title}`
                   : "Artwork"
               }
-              size="36px"
+              size="48px"
             />
           </AlbumLink>
 
@@ -144,14 +153,14 @@ export default function PlayerControlsView({
             </Text>
           </VStack>
 
-          <HStack gap={1.5}>
+          <HStack gap={1}>
             {isPlaying ? (
               <IconButton
                 aria-label="Pause"
                 size="sm"
-                minW="36px"
-                h="36px"
-                borderRadius="full"
+                minW="44px"
+                h="44px"
+                css={roundTransportButton}
                 variant="solid"
                 colorPalette="neutral"
                 onClick={(event) => {
@@ -165,9 +174,9 @@ export default function PlayerControlsView({
               <IconButton
                 aria-label="Play"
                 size="sm"
-                minW="36px"
-                h="36px"
-                borderRadius="full"
+                minW="44px"
+                h="44px"
+                css={roundTransportButton}
                 variant="solid"
                 colorPalette="neutral"
                 onClick={(event) => {
@@ -183,9 +192,9 @@ export default function PlayerControlsView({
             <IconButton
               aria-label="Next"
               size="sm"
-              minW="36px"
-              h="36px"
-              borderRadius="full"
+              minW="44px"
+              h="44px"
+              css={roundTransportButton}
               variant="ghost"
               color="fg.muted"
               onClick={(event) => {
@@ -202,7 +211,7 @@ export default function PlayerControlsView({
               size="sm"
               minW="44px"
               h="44px"
-              borderRadius="full"
+              css={roundTransportButton}
               variant="ghost"
               color="fg.muted"
               onClick={(event) => {

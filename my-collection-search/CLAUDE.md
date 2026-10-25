@@ -186,6 +186,13 @@ an invalid value the browser drops, so it fails silently.
   compact controls, `md` (6px) for containers: cards, dialogs, popovers, menus,
   drawers, the list block. They read `--gn-shadow`, which a palette must keep
   opaque (`palettes.test.ts` checks it). Hover is a background step, never a lift.
+  Exception: the round transport buttons (mini player, Now playing) carry no
+  shadow; pressed is `brightness(0.9)` + `scale(0.96)` (`roundTransportButton`).
+- **App shell (iOS PWA):** `viewport-fit=cover` + `black-translucent`, so the page
+  draws under the status bar; an opaque `--safe-top` strip in `AppShell` caps it.
+  The bottom chrome publishes `--tabbar-h`, `--player-h`, `--chrome-bottom`
+  (`houseStyle.ts`, driven by `data-player` / `data-tabbar-hidden` on `<html>`):
+  size content padding and fixed overlays from those, never from literals.
 - **Lists:** a list is ONE outlined block with ruled dividers and ONE shadow for
   the whole stack (the track rows in `SearchResults`, record care, spins), never
   a shadow per row; 50+ results stay calm that way.

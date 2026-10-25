@@ -233,4 +233,17 @@ describe("font blocks", () => {
     const global = system._config.globalCss as Record<string, unknown>;
     for (const key of Object.keys(blocks)) expect(global[key], key).toBeDefined();
   });
+
+  it("publishes the bottom-chrome vars: tab bar and player on mobile, only the floating player on desktop", () => {
+    const html = (system._config.globalCss as Record<string, Record<string, unknown>>).html;
+    expect(html["--tabbar-h"]).toBe("calc(58px + var(--safe-bottom))");
+    expect(html["--player-h"]).toBe("0px");
+    expect(html["--chrome-bottom"]).toBe("calc(var(--tabbar-h) + var(--player-h))");
+    expect(html["&[data-player]"]).toEqual({ "--player-h": "70px" });
+    expect(html["&[data-tabbar-hidden]"]).toEqual({ "--tabbar-h": "0px" });
+    expect(html["@media (min-width: 768px)"]).toEqual({
+      "--tabbar-h": "0px",
+      "&[data-player]": { "--player-h": "100px" },
+    });
+  });
 });

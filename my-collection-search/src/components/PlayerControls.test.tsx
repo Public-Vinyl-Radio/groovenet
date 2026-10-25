@@ -31,6 +31,8 @@ vi.mock("@/components/player/usePlayerControlsController", () => ({
   usePlayerControlsController: () => controller,
 }));
 
+vi.mock("@/components/player/MiniProgressLine", () => ({ default: () => null }));
+
 import PlayerControls from "./PlayerControls";
 
 describe("PlayerControls", () => {

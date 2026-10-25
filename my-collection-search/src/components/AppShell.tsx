@@ -28,16 +28,13 @@ import {
   IoAlbums,
 } from "react-icons/io5";
 import { usePathname } from "next/navigation";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCommandPalette } from "@/providers/CommandPaletteProvider";
 import PullToRefreshIndicator from "@/components/PullToRefreshIndicator";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useStandaloneMode } from "@/hooks/useStandaloneMode";
 import CommandPalette from "@/components/CommandPalette";
-import {
-  getMobileBottomOverlayOffset,
-} from "@/lib/mobileLayout";
+import { useRootFlag } from "@/hooks/useRootFlag";
 
 const baseMenuItems = [
   { href: "/", label: "Tracks" },
@@ -85,22 +82,18 @@ export default function AppShell({
   developerToolsEnabled: boolean;
 }) {
   const CONTENT_MAX_W = "1360px";
-  // The desktop floating player is fixed over the content; this keeps the last
-  // rows scrollable clear of it (24px page padding + 100px player).
-  const DESKTOP_PLAYER_CLEARANCE = "124px";
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const standalone = useStandaloneMode();
   const { distance, refreshing } = usePullToRefresh(standalone);
-  const { playlistLength } = usePlaylistPlayer();
-  const mobileDrawerBottomPadding = "80px";
-  const mobileContentBottomPadding = getMobileBottomOverlayOffset(playlistLength);
   const current = useMemo(() => {
     if (!pathname) return "";
     if (pathname === "/") return "/";
     return pathname.split("?")[0];
   }, [pathname]);
   const isFullscreenEditMobile = isMobileFullscreenEditRoute(current);
+  // Feeds --tabbar-h / --chrome-bottom (houseStyle globalCss).
+  useRootFlag("data-tabbar-hidden", isFullscreenEditMobile);
   const menuItems = useMemo(
     () => developerToolsEnabled
       ? [...baseMenuItems, { href: "/developer", label: "Developer" }]
@@ -145,6 +138,20 @@ export default function AppShell({
 
   return (
     <Flex minH="100vh" bg="bg">
+      {/* Opaque cap under the translucent iOS status bar (black-translucent), so
+          scrolling content never blurs behind it. No backdrop-filter, on purpose. */}
+      <Box
+        aria-hidden
+        data-testid="status-bar-strip"
+        position="fixed"
+        top={0}
+        left={0}
+        right={0}
+        h="var(--safe-top)"
+        bg="bg"
+        zIndex={95}
+        pointerEvents="none"
+      />
       <PullToRefreshIndicator distance={distance} refreshing={refreshing} />
       <Suspense fallback={null}>
         <CommandPalette />
@@ -317,7 +324,7 @@ export default function AppShell({
           <Drawer.Backdrop bg="overlay.backdrop" />
           <Drawer.Positioner
             paddingTop={0}
-            paddingBottom={`calc(env(safe-area-inset-bottom, 0px) + ${mobileDrawerBottomPadding})`}
+            paddingBottom="calc(var(--tabbar-h) + 16px)"
           >
             <Drawer.Content
               mx={4}
@@ -424,13 +431,18 @@ export default function AppShell({
         pointerEvents={drawerOpen ? "none" : "auto"}
       >
         <Flex
+          data-testid="mobile-tab-bar"
           align="center"
           justify="space-between"
           gap={1}
-          px={1}
-          pt={1.5}
-          // Edge to edge: a 2px rule on top, no box or shadow; the safe area is inside the bar.
-          pb="calc(env(safe-area-inset-bottom, 0px) + 6px)"
+          // Edge to edge: a 2px ink rule on top, no box or shadow. The 56px row
+          // keeps clear of the rounded corners (side inset) and the home
+          // indicator (bottom inset) without shrinking the touch targets.
+          h="var(--tabbar-h)"
+          paddingBottom="var(--safe-bottom)"
+          pl="max(16px, env(safe-area-inset-left, 0px))"
+          pr="max(16px, env(safe-area-inset-right, 0px))"
+          boxSizing="border-box"
           borderTopWidth="outline"
           borderColor="border.ink"
           bg="bg"
@@ -450,7 +462,8 @@ export default function AppShell({
                   gap={1}
                   py={1.5}
                   px={1}
-                  borderRadius="xl"
+                  borderWidth="outline"
+                  borderColor={active ? "border.ink" : "transparent"}
                   bg={active ? "bg.subtle" : "transparent"}
                 >
                   <Icon
@@ -479,7 +492,8 @@ export default function AppShell({
             h="auto"
             py={1.5}
             px={1}
-            borderRadius="xl"
+            borderWidth="outline"
+            borderColor="transparent"
           >
             <VStack gap={1}>
               <Icon as={FiMoreHorizontal} boxSize={5} color="fg.muted" />
@@ -499,11 +513,10 @@ export default function AppShell({
         ml={{ base: 0, md: sidebarWidth }}
         transition="margin-left 0.18s ease"
         px={{ base: 4, md: 6 }}
-        py={{ base: 4, md: 6 }}
-        pb={{
-          base: isFullscreenEditMobile ? 6 : mobileContentBottomPadding,
-          md: playlistLength > 0 ? DESKTOP_PLAYER_CLEARANCE : 6,
-        }}
+        // The last rows scroll clear of both bars: the status-bar strip above and
+        // the bottom chrome (tab bar + player) below.
+        pt={{ base: "calc(var(--safe-top) + 16px)", md: 6 }}
+        pb={{ base: "calc(var(--chrome-bottom) + 16px)", md: "calc(var(--chrome-bottom) + 24px)" }}
       >
         <Box w="full" maxW={CONTENT_MAX_W} mx="auto">
           {children}
