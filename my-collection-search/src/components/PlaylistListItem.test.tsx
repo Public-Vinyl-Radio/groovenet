@@ -3,7 +3,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Playlist } from "@/types/track";
-import { formatDuration, playlistCoverUrls, playlistSummary } from "./PlaylistListItem";
+import { formatDuration, playlistCoverUrls, playlistSummary, setLinks } from "./PlaylistListItem";
 import PlaylistListItem from "./PlaylistListItem";
 
 const base = { id: 1, name: "N", tracks: [{}, {}, {}], created_at: "2026-01-01T00:00:00Z" } as unknown as Playlist;
@@ -161,5 +161,96 @@ describe("playlistCoverUrls", () => {
     expect(playlistCoverUrls(base)).toEqual([]);
     const urls = playlistCoverUrls({ ...base, cover_urls: ["a", "", "b", "c", "d", "e"] });
     expect(urls).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
+describe("set ticket card", () => {
+  const props = { onClick: vi.fn(), onPlay: vi.fn(), onDelete: vi.fn(), onEnqueue: vi.fn() };
+  const withSet = (set: Record<string, unknown>) =>
+    ({
+      ...base,
+      cover_urls: ["/a.jpg"],
+      set: { status: "performed", collaborators: [], venue_name: null, location_city: null, ...set },
+    }) as unknown as Playlist;
+
+  it("shows the LIVE SET stamp for a set and not for a plain playlist", async () => {
+    const { screen } = await import("@testing-library/react");
+    const first = renderWithProviders(<PlaylistListItem playlist={base} {...props} />);
+    expect(screen.queryByTestId("live-set-stamp")).toBeNull();
+    expect(screen.queryByTestId("set-stub")).toBeNull();
+    first.unmount();
+    renderWithProviders(<PlaylistListItem playlist={withSet({ venue_name: "Room 4" })} {...props} />);
+    expect(screen.getByTestId("live-set-stamp").textContent).toBe("LIVE SET");
+    expect(screen.queryByText("Played")).toBeNull();
+  });
+
+  it("uses the flyer as the thumbnail, and the mosaic when there is none", async () => {
+    const { screen } = await import("@testing-library/react");
+    const first = renderWithProviders(<PlaylistListItem playlist={withSet({ flyer_url: "/f.jpg" })} {...props} />);
+    expect(screen.getByTestId("set-flyer")).toBeTruthy();
+    expect(screen.queryByTestId("playlist-mosaic")).toBeNull();
+    first.unmount();
+    renderWithProviders(<PlaylistListItem playlist={withSet({ flyer_url: null })} {...props} />);
+    expect(screen.queryByTestId("set-flyer")).toBeNull();
+    expect(screen.getByTestId("playlist-mosaic")).toBeTruthy();
+  });
+
+  it("renders each link as an anchor with a 44px target, hiding the missing ones", async () => {
+    const { screen } = await import("@testing-library/react");
+    const all = renderWithProviders(
+      <PlaylistListItem
+        playlist={withSet({ recording_url: "https://r.example/a", post_url: "https://p.example/b", youtube_url: "https://y.example/c" })}
+        {...props}
+      />
+    );
+    const recording = screen.getByRole("link", { name: "Recording" });
+    expect(recording.getAttribute("href")).toBe("https://r.example/a");
+    expect(recording.getAttribute("rel")).toContain("noopener");
+    expect(getComputedStyle(recording).minHeight).toBe("44px");
+    expect(screen.getByRole("link", { name: "Post" }).getAttribute("href")).toBe("https://p.example/b");
+    expect(screen.getByRole("link", { name: "YouTube" }).getAttribute("href")).toBe("https://y.example/c");
+    expect(screen.getAllByTestId("set-notch")).toHaveLength(2);
+    all.unmount();
+
+    for (const [field, name] of [["recording_url", "Recording"], ["post_url", "Post"], ["youtube_url", "YouTube"]] as const) {
+      const only = renderWithProviders(<PlaylistListItem playlist={withSet({ [field]: "https://x.example" })} {...props} />);
+      expect(screen.getAllByRole("link").map((l) => l.textContent)).toEqual([name]);
+      only.unmount();
+    }
+  });
+
+  it("links do not trigger opening the playlist", async () => {
+    const { screen } = await import("@testing-library/react");
+    const onClick = vi.fn();
+    const rendered = renderWithProviders(
+      <PlaylistListItem playlist={withSet({ recording_url: "https://r.example/a" })} {...props} onClick={onClick} />
+    );
+    await rendered.user.click(screen.getByRole("link", { name: "Recording" }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("shows venue and city, venue alone, or no venue line", async () => {
+    const { screen } = await import("@testing-library/react");
+    const a = renderWithProviders(<PlaylistListItem playlist={withSet({ venue_name: "Room 4", location_city: "Oakland" })} {...props} />);
+    expect(screen.getByTestId("set-venue").textContent).toBe("Room 4 · Oakland");
+    a.unmount();
+    const b = renderWithProviders(<PlaylistListItem playlist={withSet({ venue_name: "Room 4" })} {...props} />);
+    expect(screen.getByTestId("set-venue").textContent).toBe("Room 4");
+    b.unmount();
+    renderWithProviders(<PlaylistListItem playlist={withSet({ recording_url: "https://r.example" })} {...props} />);
+    expect(screen.queryByTestId("set-venue")).toBeNull();
+    expect(screen.getByTestId("set-stub")).toBeTruthy();
+  });
+
+  it("omits the stub when the set has no venue and no links", async () => {
+    const { screen } = await import("@testing-library/react");
+    renderWithProviders(<PlaylistListItem playlist={withSet({})} {...props} />);
+    expect(screen.queryByTestId("set-stub")).toBeNull();
+    expect(screen.getByTestId("live-set-stamp")).toBeTruthy();
+  });
+
+  it("setLinks orders recording first and drops empty urls", () => {
+    const set = { recording_url: "r", post_url: "", youtube_url: "y" } as unknown as NonNullable<Playlist["set"]>;
+    expect(setLinks(set).map((l) => l.key)).toEqual(["recording", "youtube"]);
   });
 });

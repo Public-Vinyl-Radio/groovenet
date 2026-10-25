@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, HStack, VStack, Text, Spinner } from "@chakra-ui/react";
+import { Box, HStack, VStack, Text, Spinner, Link } from "@chakra-ui/react";
 import PlaylistItemActionsMenu from "@/components/PlaylistItemActionsMenu";
 import { formatDateWithRelative } from "@/lib/date";
 import type { Playlist } from "@/types/track";
@@ -52,6 +52,102 @@ export function CoverMosaic({ urls, size = "72px" }: { urls: string[]; size?: st
   );
 }
 
+/** Ticket thumbnail: the set flyer, portrait. */
+export function SetFlyer({ url }: { url: string }) {
+  return (
+    <Box
+      data-testid="set-flyer"
+      boxSize="auto"
+      w="56px"
+      h="72px"
+      flexShrink={0}
+      borderWidth="rule"
+      borderColor="border.ink"
+      bg="bg.muted"
+      bgImage={`url(${url})`}
+      bgSize="cover"
+      backgroundPosition="center"
+      aria-hidden="true"
+    />
+  );
+}
+
+const LINK_STYLE = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minH: "44px",
+  minW: "44px",
+  px: 3,
+  borderWidth: "rule",
+  borderColor: "border.ink",
+  fontFamily: "mono",
+  fontSize: "xs",
+  fontWeight: "semibold",
+  textDecoration: "none",
+  _hover: { bg: "bg.muted", textDecoration: "none" },
+  _focusVisible: { outline: "2px solid", outlineColor: "accent.focusRing", outlineOffset: "2px" },
+} as const;
+
+const PERFORATION_NOTCH = {
+  position: "absolute",
+  top: "-8px",
+  boxSize: "14px",
+  borderRadius: "full",
+  borderWidth: "rule",
+  borderColor: "border.ink",
+  bg: "bg",
+} as const;
+
+export function setLinks(set: NonNullable<Playlist["set"]>) {
+  return [
+    { key: "recording", label: "Recording", href: set.recording_url, primary: true },
+    { key: "post", label: "Post", href: set.post_url, primary: false },
+    { key: "youtube", label: "YouTube", href: set.youtube_url, primary: false },
+  ].filter((link): link is typeof link & { href: string } => Boolean(link.href));
+}
+
+/** Perforated stub under a set card: venue line and the set's links. */
+function SetStub({ set }: { set: NonNullable<Playlist["set"]> }) {
+  const venue = [set.venue_name, set.location_city].filter(Boolean).join(" · ");
+  const links = setLinks(set);
+  if (!venue && links.length === 0) return null;
+  return (
+    <Box data-testid="set-stub" position="relative" mt={3} pt={3} borderTopWidth="rule" borderTopStyle="dashed" borderColor="border.ink">
+      <Box data-testid="set-notch" {...PERFORATION_NOTCH} left="-21px" aria-hidden="true" />
+      <Box data-testid="set-notch" {...PERFORATION_NOTCH} right="-21px" aria-hidden="true" />
+      <VStack align="stretch" gap={2}>
+        {venue && (
+          <HStack gap={1} color="fg.muted" fontSize="xs" minW={0}>
+            <FiMapPin aria-hidden="true" />
+            <Text data-testid="set-venue" lineClamp={1}>
+              {venue}
+            </Text>
+          </HStack>
+        )}
+        {links.length > 0 && (
+          <HStack gap={2} wrap="wrap">
+            {links.map((link) => (
+              <Link
+                key={link.key}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`set-link-${link.key}`}
+                {...LINK_STYLE}
+                bg={link.primary ? "accent.solid" : undefined}
+                color={link.primary ? "accent.contrast" : "fg"}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </HStack>
+        )}
+      </VStack>
+    </Box>
+  );
+}
+
 interface PlaylistListItemProps {
   playlist: Playlist;
   isLoading?: boolean;
@@ -95,6 +191,7 @@ export default function PlaylistListItem({
   return (
     <Box
       data-testid="playlist-card"
+      position="relative"
       w="100%"
       textAlign="left"
       p={3}
@@ -118,7 +215,11 @@ export default function PlaylistListItem({
             if (e.key === "Enter") onClick();
           }}
         >
-          <CoverMosaic urls={playlistCoverUrls(playlist)} />
+          {playlist.set?.flyer_url ? (
+            <SetFlyer url={playlist.set.flyer_url} />
+          ) : (
+            <CoverMosaic urls={playlistCoverUrls(playlist)} />
+          )}
           <VStack align="start" gap={1} minW={0}>
             {dayLabel && (
               <Text
@@ -137,9 +238,21 @@ export default function PlaylistListItem({
                 {playlist.set?.title || playlist.name}
               </Text>
               {playlist.set && (
-                <Badge size="sm" colorPalette={playlist.set.status === "performed" ? "status.success" : "status.genre"}>
-                  {playlist.set.status === "performed" ? "Played" : "Set"}
-                </Badge>
+                <Text
+                  data-testid="live-set-stamp"
+                  flexShrink={0}
+                  px={1.5}
+                  borderWidth="rule"
+                  borderColor="border.ink"
+                  fontFamily="mono"
+                  fontSize="2xs"
+                  fontWeight="bold"
+                  letterSpacing="0.08em"
+                  whiteSpace="nowrap"
+                  transform="rotate(-3deg)"
+                >
+                  LIVE SET
+                </Text>
               )}
             </HStack>
             <HStack
@@ -175,12 +288,6 @@ export default function PlaylistListItem({
                 </>
               )}
             </HStack>
-            {playlist.set?.venue_name && (
-              <HStack gap={1} color="fg.muted" fontSize="xs">
-                <FiMapPin />
-                <Text lineClamp={1}>{playlist.set.venue_name}</Text>
-              </HStack>
-            )}
           </VStack>
         </Box>
 
@@ -200,6 +307,7 @@ export default function PlaylistListItem({
           />
         </HStack>
       </HStack>
+      {playlist.set && <SetStub set={playlist.set} />}
     </Box>
   );
 }
