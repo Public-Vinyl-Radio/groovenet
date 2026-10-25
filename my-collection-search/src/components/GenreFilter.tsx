@@ -167,8 +167,15 @@ export default function GenreFilter({ selected, onAdd, counts, inSheet = false }
       </Combobox.Control>
       {/* In a portal, so the filter row never clips the list. */}
       <Portal disabled={inSheet}>
-        <Combobox.Positioner>
-          <Combobox.Content minW="240px">
+        {/* In a sheet the list sits in the flow, so the sheet scrolls instead of clipping it. */}
+        <Combobox.Positioner
+          css={
+            inSheet
+              ? { position: "static !important", transform: "none !important", minWidth: "0 !important", zIndex: "auto !important" }
+              : undefined
+          }
+        >
+          <Combobox.Content minW={inSheet ? 0 : "240px"} maxH={inSheet ? "240px" : undefined}>
             <Combobox.Empty>
               {isError ? "Couldn't load genres" : "No matching genre"}
             </Combobox.Empty>
