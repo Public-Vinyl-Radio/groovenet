@@ -82,6 +82,8 @@ describe("PlaylistListItem", () => {
     first.unmount();
     renderWithProviders(<PlaylistListItem playlist={base} dayLabel="MON 10" {...props} />);
     expect(screen.getByTestId("playlist-day").textContent).toBe("MON 10");
+    // The date moves to the day column, so the meta line drops it.
+    expect(screen.getByTestId("playlist-meta").textContent).not.toMatch(/2026|ago|Today|Yesterday/);
   });
 
   it("renders a 2x2 mosaic from cover_urls, tinting the missing cells", async () => {

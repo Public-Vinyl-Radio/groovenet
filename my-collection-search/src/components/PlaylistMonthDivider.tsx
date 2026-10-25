@@ -52,12 +52,23 @@ export default function PlaylistMonthDivider({
   );
 }
 
-/** Phone row: day column and timeline rail beside the card. Desktop renders the card alone. */
+/** Where the rail dot sits, level with the first line of the card. */
+const DOT_TOP = "18px";
+
+/**
+ * Phone row: day column and timeline rail beside the card. Desktop renders the
+ * card alone. The rail runs through the row gap to join its neighbours, starts
+ * at the dot on the first row and ends at it on the last.
+ */
 export function TimelineRow({
   day,
+  isFirst = false,
+  isLast = false,
   children,
 }: {
   day: { day: string; weekday: string } | null;
+  isFirst?: boolean;
+  isLast?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -68,14 +79,32 @@ export function TimelineRow({
         flexDirection="column"
         alignItems="center"
         flexShrink={0}
+        position="relative"
         w="10"
         pt={3}
+        pr={2}
         fontFamily="mono"
         lineHeight="1.1"
-        borderRightWidth="1px"
-        borderColor="border"
         aria-hidden
       >
+        <Box
+          data-testid="timeline-rail"
+          position="absolute"
+          right="0"
+          w="1px"
+          bg="border"
+          top={isFirst ? DOT_TOP : "-12px"}
+          bottom={isLast ? `calc(100% - ${DOT_TOP})` : "-12px"}
+        />
+        <Box
+          data-testid="timeline-dot"
+          position="absolute"
+          right="-3px"
+          top={DOT_TOP}
+          boxSize="7px"
+          borderRadius="full"
+          bg="fg"
+        />
         {day && (
           <>
             <Text fontSize="md" fontWeight="bold">

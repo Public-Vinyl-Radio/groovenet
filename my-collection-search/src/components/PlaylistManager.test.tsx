@@ -209,4 +209,21 @@ describe("PlaylistManager month grouping (#766)", () => {
     expect(screen.getAllByTestId("playlist-day").map((el) => el.textContent)).toEqual(["MON 10", "SUN 2", "MON 5"]);
     expect(screen.getAllByTestId("timeline-day")[0].textContent).toBe("10MON");
   });
+
+  it("joins the rail across a month's rows and leaves undated playlists without a day", () => {
+    providerState.playlists = [
+      { id: 1, name: "A", tracks: [], created_at: "2026-08-10T12:00:00" },
+      { id: 2, name: "B", tracks: [], created_at: "2026-08-05T12:00:00" },
+      { id: 3, name: "C", tracks: [], created_at: "2026-08-01T12:00:00" },
+      { id: 4, name: "Bad", tracks: [], created_at: "not a date" },
+    ];
+    renderWithProviders(<PlaylistManager />);
+    const tops = screen.getAllByTestId("timeline-rail").map((el) => getComputedStyle(el).top);
+    expect(tops).toEqual(["18px", "-12px", "-12px", "18px"]);
+    const bottoms = screen.getAllByTestId("timeline-rail").map((el) => getComputedStyle(el).bottom);
+    expect(bottoms).toEqual(["-12px", "-12px", "calc(100% - 18px)", "calc(100% - 18px)"]);
+    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual(["AUG 2026", "UNDATED"]);
+    expect(screen.getAllByTestId("timeline-day")[3].textContent).toBe("");
+    expect(screen.getAllByTestId("playlist-day")).toHaveLength(3);
+  });
 });
