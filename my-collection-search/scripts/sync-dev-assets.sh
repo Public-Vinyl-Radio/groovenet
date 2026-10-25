@@ -6,13 +6,14 @@
 set -euo pipefail
 
 BEELINK_HOST="${BEELINK_HOST:-saegey@100.117.118.15}"
-COVERS_LOCAL_DIR="${COVERS_LOCAL_DIR:-/Users/saegey/groovenet-covers}"
+COVERS_LOCAL_DIR="${COVERS_LOCAL_DIR:-$HOME/groovenet-covers}"
+COVERS_REMOTE_PATH="${COVERS_REMOTE_PATH:-/var/lib/docker/volumes/groovenet_album_covers/_data}"
 
 mkdir -p "$COVERS_LOCAL_DIR"
 
 echo "→ Syncing album covers from $BEELINK_HOST..."
 rsync -avz --rsync-path='sudo rsync' \
-  "$BEELINK_HOST":/var/lib/docker/volumes/teststack_album_covers/_data/ \
+  "$BEELINK_HOST":"$COVERS_REMOTE_PATH"/ \
   "$COVERS_LOCAL_DIR/"
 
 echo "✓ Covers sync complete."
