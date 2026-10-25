@@ -56,6 +56,11 @@ describe("SettingsPage", () => {
     expect(screen.getByText(/default library section\s*suggestion scope section/)).toBeTruthy();
   });
 
+  it("titles the page through the shared header", () => {
+    renderWithProviders(<SettingsPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();
+  });
+
   it("opens the section named in the URL, with its heading and description", () => {
     mocks.searchParams = new URLSearchParams("section=library");
     renderWithProviders(<SettingsPage />);
