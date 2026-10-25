@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Heading, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Flex, Spinner, Stack, Text } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import RecordCareList from "@/components/records/RecordCareList";
 import RecordCareSummary from "@/components/records/RecordCareSummary";
 import { useRecordCareSummaryQuery } from "@/hooks/useRecordCareQuery";
@@ -26,13 +27,11 @@ export default function ChorePage() {
 
   return (
     <PageContainer size="standard">
+      <PageHeader title="Chores" />
       <Stack gap={4}>
-        <Box>
-          <Heading size={{ base: "md", md: "lg" }}>Chores</Heading>
-          <Text color="fg.muted" fontSize="sm">
-            Copies due a cleaning, and copies still to move to a new sleeve.
-          </Text>
-        </Box>
+        <Text color="fg.muted" fontSize="sm">
+          Copies due a cleaning, and copies still to move to a new sleeve.
+        </Text>
 
         {summaryQuery.data ? (
           <RecordCareSummary summary={summaryQuery.data} status={status} onStatusChange={setStatus} />

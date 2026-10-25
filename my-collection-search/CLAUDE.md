@@ -193,6 +193,10 @@ an invalid value the browser drops, so it fails silently.
   The bottom chrome publishes `--tabbar-h`, `--player-h`, `--chrome-bottom`
   (`houseStyle.ts`, driven by `data-player` / `data-tabbar-hidden` on `<html>`):
   size content padding and fixed overlays from those, never from literals.
+  `PageHeader` (`components/layout`) is the phone page title bar: 52px
+  (`--header-h`), sticky at `top: var(--safe-top)`, 2px ink rule. Mounting one
+  sets `data-page-header` on `<html>`, which swaps the shell's `--content-pt`
+  (safe-top + 28px) for plain safe-top; pages not yet migrated keep the old gap.
 - **Lists:** a list is ONE outlined block with ruled dividers and ONE shadow for
   the whole stack (the track rows in `SearchResults`, record care, spins), never
   a shadow per row; 50+ results stay calm that way.
