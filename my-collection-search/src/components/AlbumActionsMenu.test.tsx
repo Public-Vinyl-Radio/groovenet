@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 
 import AlbumActionsMenu from "./AlbumActionsMenu";
@@ -86,7 +86,7 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
     const { user } = await open(<AlbumActionsMenu {...props} />);
     await user.click(within(screen.getByRole("dialog")).getByText(label));
     expect(Object.values(props)[0]).toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("disables the busy actions", async () => {

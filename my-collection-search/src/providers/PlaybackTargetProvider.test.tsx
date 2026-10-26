@@ -20,7 +20,8 @@ beforeEach(() => {
   api.session.mockResolvedValue({ authorized: true }); api.list.mockResolvedValue([player(), player("aswitch")]); api.unlock.mockResolvedValue({ authorized: true }); api.lock.mockResolvedValue({});
   api.subscribe.mockImplementation((_id, event) => { receive = event; return close; });
   api.get.mockResolvedValue(player()); api.devices.mockResolvedValue([device]);
-  api.command.mockImplementation(async (_id, command) => ({ player: player("lounge", command.expected_revision + 1) }));
+  let revision = 3;
+  api.command.mockImplementation(async () => ({ player: player("lounge", ++revision) }));
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("local and server playback target", () => {
@@ -55,7 +56,8 @@ describe("local and server playback target", () => {
     await act(async () => hook.result.current.playback.replacePlaylist([track], { autoplay: true, startIndex: 0 }));
     expect(api.command).toHaveBeenCalledTimes(1);
     const replacement = api.command.mock.calls[0]![1];
-    expect(replacement).toMatchObject({ type: "queue.replace", entries: [{ id: expect.any(String), track_id: "new", friend_id: 2 }], position: 0, play: true, expected_revision: 3 });
+    expect(replacement).toMatchObject({ type: "queue.replace", entries: [{ id: expect.any(String), track_id: "new", friend_id: 2 }], position: 0, play: true });
+    expect(replacement).not.toHaveProperty("expected_revision");
     if (replacement.type !== "queue.replace") throw new Error("Expected replacement");
     expect(replacement.current_entry_id).toBe(replacement.entries[0]!.id);
     await act(async () => hook.result.current.playback.enqueueNext([track])); expect(api.command.mock.lastCall?.[1]).toMatchObject({ type: "queue.add", at: 1 });

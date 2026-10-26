@@ -130,6 +130,27 @@ describe("persistent server player manager", () => {
     await f.manager.shutdown();
   });
 
+  it("accepts edits and transport from stale controllers when they omit expected_revision", async () => {
+    const f = await fixture(); await f.prepare("a");
+    const staleRevision = f.manager.get("a").revision;
+    const [first, second] = f.manager.get("a").state.queue;
+    await f.manager.command("a", { type: "volume", volume: 30 });
+    await f.manager.command("a", { type: "queue.move", entry_id: second!.id, to: 0 });
+    await f.manager.command("a", { type: "play", entry_id: first!.id, allow_unknown: true });
+    await f.manager.command("a", { type: "pause" });
+    await f.manager.command("a", { type: "seek", seconds: 20 });
+    await f.manager.command("a", { type: "next", allow_unknown: true });
+    await f.manager.command("a", { type: "queue.remove", entry_id: second!.id });
+    expect(f.manager.get("a").state).toMatchObject({ volume: 30, queue: [expect.objectContaining({ id: first!.id })] });
+    await f.manager.command("a", { type: "queue.replace", entries: [{ id: first!.id, track_id: first!.track_id, friend_id: first!.friend_id }] });
+    await expect(f.manager.command("a", { type: "volume", volume: 50, expected_revision: staleRevision })).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    for (const type of ["queue.remove", "queue.move", "play"] as const) {
+      const command = type === "queue.move" ? { type, entry_id: second!.id, to: 0 } : { type, entry_id: second!.id };
+      await expect(f.manager.command("a", command)).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND", status: 404 });
+    }
+    await f.manager.shutdown();
+  });
+
   it("explicitly transfers a speaker after detaching its old player", async () => {
     const f = await fixture(); await f.prepare("a"); await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });

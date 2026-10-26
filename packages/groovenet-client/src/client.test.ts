@@ -1752,6 +1752,9 @@ describe("server-player API", () => {
     requestMock.mockResolvedValueOnce({ data: { player } });
     await client.commandServerPlayer("lounge", replacement);
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: replacement }));
+    requestMock.mockResolvedValueOnce({ data: { player } });
+    await client.commandServerPlayer("lounge", { type: "pause" });
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: { type: "pause" } }));
     requestMock.mockResolvedValueOnce({ data: { devices: [] } });
     expect(await client.listServerPlayerDevices("lounge")).toEqual([]);
   });

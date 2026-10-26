@@ -25,7 +25,8 @@ shows a **Queue cleared · Undo** toast after success. Undo restores the origina
 entry UUIDs, current entry and saved position through `queue.replace`, and
 restarts audio only if it was playing before Clear. A paused queue returns as a
 stopped checkpoint until Play. Undo is unavailable if another server edit has
-happened since Clear; server revision checks also fence concurrent edits.
+been observed since Clear; Undo also supplies the cleared revision so the server
+rejects an edit from another controller that has not reached this browser yet.
 Playback restoration remains subject to the normal output availability checks.
 
 The server panel shows current track, status, elapsed/duration, saved checkpoint,
@@ -45,8 +46,10 @@ the destination. The panel exposes both phases and the failure; it never restore
 the source or retries playback automatically. Playback errors remain visible
 through queue/settings edits, including a compact alert while browsing. Reconnects
 wait for a fresh full snapshot and reject old connections, workers, sequences,
-revisions and entries. Revision conflicts refresh state and ask you to review and
-repeat the action explicitly. Refresh outputs to obtain a new device observation.
+revisions and entries. Normal browser commands omit `expected_revision`, so two
+controllers can edit the same player without revision-conflict prompts. Commands
+for removed queue entries report `ENTRY_NOT_FOUND` and refresh the view. Refresh
+outputs to obtain a new device observation.
 
 ## Browser authorization
 

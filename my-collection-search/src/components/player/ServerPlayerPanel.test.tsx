@@ -101,7 +101,7 @@ describe("server queue Clear and Undo", () => {
     expect(toast.title).toBe("Queue cleared"); expect(toast.action?.label).toBe("Undo");
     target.remote.player = cleared;
     toast.action!.onClick();
-    expect(command).toHaveBeenLastCalledWith({ type: "queue.replace", entries: before.state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: before.state.current_entry_id, position: 12, play: status === "playing" });
+    expect(command).toHaveBeenLastCalledWith({ type: "queue.replace", entries: before.state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: before.state.current_entry_id, position: 12, play: status === "playing" }, cleared.revision);
   });
   it("does not offer Undo after a failed clear", async () => {
     command.mockResolvedValueOnce(null);

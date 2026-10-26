@@ -16,7 +16,7 @@ function setup() {
   const state = player();
   const api = {
     getServerPlayer: vi.fn(async () => state),
-    commandServerPlayer: vi.fn(async (_id: string, command: ServerPlayerCommandInput) => ({ player: { ...state, revision: command.expected_revision + 1 } })),
+    commandServerPlayer: vi.fn(async (_id: string, command: ServerPlayerCommandInput) => ({ player: { ...state, revision: command.expected_revision! + 1 } })),
     searchTracks: vi.fn(async () => ({ tracks: [entry] })),
     getPlaylistTracks: vi.fn(async () => ({ track_refs: [entry] })),
     listServerPlayerDevices: vi.fn(async () => [{ id: "speaker", name: "Room", assigned_player_id: "other", desired_by: ["other"], observed: { availability: "unknown", sender_identity: "unknown" } }]),
