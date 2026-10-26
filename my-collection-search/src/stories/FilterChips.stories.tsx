@@ -115,3 +115,17 @@ export const GroupedControlsNoChips: Story = {
   name: 'Grouped controls, no filters (chip line holds its height)',
   args: { leading: controls, chips: [], onToggle: () => {} },
 };
+
+export const WithResultCount: Story = {
+  name: 'Active chips, Clear all and result count (#794)',
+  args: {
+    chips: [
+      { key: 'genre:latin', label: 'Latin', active: true },
+      { key: 'bpm', label: 'BPM 110–130', active: true },
+      { key: 'missingAudio', label: 'Missing audio', active: true },
+    ],
+    onToggle: () => {},
+    onClearAll: () => {},
+    summary: '81 results',
+  },
+};

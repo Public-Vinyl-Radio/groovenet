@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Text, IconButton, Flex, Grid, Spinner } from "@chakra-ui/react";
+import { Box, IconButton, Flex, Grid, Spinner } from "@chakra-ui/react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { LuListChecks } from "react-icons/lu";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -493,6 +493,11 @@ const SearchResults: React.FC = () => {
         ]}
         onToggle={handleFilterToggle}
         onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
+        summary={
+          initialLoading
+            ? undefined
+            : `${estimatedResults.toLocaleString()} ${estimatedResults === 1 ? "result" : "results"}`
+        }
       />
 
       {initialLoading ? (
@@ -505,19 +510,10 @@ const SearchResults: React.FC = () => {
         </Box>
       ) : (
         <>
-          <Text fontSize="sm" color="fg.muted" mb={2} mt={3}>
-            {estimatedResults.toLocaleString()} results found
-            {activeFilterCount > 0 && (
-              <Text as="span" color="accent.fg" ml={2}>
-                ({activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} active)
-              </Text>
-            )}
-          </Text>
-
           {effectiveLayout === "row" ? (
             // Rows view: dense, grid-aligned, virtualised (fixed row height).
             // One outlined block with one shadow for the whole stack; rows only rule.
-            <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" overflow="hidden" css={{ containerType: "inline-size" }}>
+            <Box mt={3} borderWidth="outline" borderColor="border.ink" boxShadow="md" overflow="hidden" css={{ containerType: "inline-size" }}>
               <TrackListHeader />
               <Box ref={rowListRef} position="relative" height={`${rowVirtualizer.getTotalSize()}px`}>
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -557,6 +553,7 @@ const SearchResults: React.FC = () => {
             // padding leaves room for the cards' 6px hard shadow; the shell's bottom padding
             // is what clears the fixed bottom nav on a phone.
             <Grid
+              mt={3}
               templateColumns={{ base: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }}
               columnGap={5}
               rowGap={{ base: 0, md: "6px" }}

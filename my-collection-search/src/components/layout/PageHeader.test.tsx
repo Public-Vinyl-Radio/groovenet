@@ -23,6 +23,13 @@ describe("PageHeader", () => {
     expect(screen.getByTestId("page-header-count").textContent).toBe("12 of 40");
   });
 
+  it("puts desktop actions at the right of the title row, desktop only (#794)", () => {
+    renderWithProviders(<PageHeader title="Tracks" desktopActions={<button>Select</button>} />);
+    const slot = screen.getByTestId("page-header-desktop-actions");
+    expect(slot.textContent).toBe("Select");
+    expect(getComputedStyle(slot).display).toBe("none");
+  });
+
   it("renders leading content", () => {
     renderWithProviders(<PageHeader title="Track" leading={<button>Back to Tracks</button>} />);
     expect(screen.getByRole("button", { name: "Back to Tracks" })).toBeTruthy();

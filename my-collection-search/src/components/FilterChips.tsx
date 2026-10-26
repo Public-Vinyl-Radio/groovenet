@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Button, type FlexProps } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra, type FlexProps } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 
 export interface FilterChip {
@@ -22,6 +22,8 @@ interface FilterChipsProps {
    * reach them through the filter sheet.
    */
   leading?: React.ReactNode;
+  /** The result count ("81 albums"), in mono: right-aligned on the chip line from `md` up, its own line on phones. */
+  summary?: React.ReactNode;
   /** Space above the row, which goes with it when it's hidden. */
   mt?: FlexProps["mt"];
 }
@@ -40,14 +42,61 @@ export function FilterGroup({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function FilterChips({ chips, onToggle, onClearAll, leading, mt }: FilterChipsProps) {
+const chipText = {
+  fontFamily: "label",
+  fontSize: "12px",
+  fontWeight: "semibold",
+  letterSpacing: "0.04em",
+} as const;
+
+/**
+ * One filter as a chip (#794): an active filter is a surface-filled chip with
+ * an ink outline and an x that removes it; an inactive one is a quiet outline
+ * that turns it on. The same chip on phones and desktop.
+ */
+function Chip({ chip, onToggle }: { chip: FilterChip; onToggle: (key: string) => void }) {
+  const text = chipLabel(chip);
+  return (
+    <chakra.button
+      type="button"
+      onClick={() => onToggle(chip.key)}
+      aria-label={chip.active ? `Remove filter ${text}` : undefined}
+      aria-pressed={chip.active ? undefined : false}
+      title={text}
+      display="inline-flex"
+      alignItems="center"
+      gap="6px"
+      flexShrink={0}
+      // 44px touch target on phones, the 32px chip from `md` up.
+      minH={{ base: "44px", md: "32px" }}
+      pl="10px"
+      pr={chip.active ? "6px" : "10px"}
+      borderWidth="outline"
+      borderColor={chip.active ? "border.ink" : "border"}
+      bg={chip.active ? "bg.subtle" : "transparent"}
+      color="fg"
+      textTransform="uppercase"
+      maxW="280px"
+      _hover={{ bg: "bg.muted" }}
+      {...chipText}
+    >
+      <Text as="span" truncate>
+        {text}
+      </Text>
+      {chip.active && <LuX aria-hidden="true" size={14} strokeWidth={2.5} />}
+    </chakra.button>
+  );
+}
+
+export default function FilterChips({ chips, onToggle, onClearAll, leading, summary, mt }: FilterChipsProps) {
   const anyActive = chips.some((c) => c.active);
+  const hasChips = chips.length > 0;
 
   return (
     <Box
       mt={mt}
-      // On phones there are only chips, so with none it takes no space.
-      display={{ base: chips.length > 0 ? "block" : "none", md: "block" }}
+      // On phones there are only chips and the count, so with neither it takes no space.
+      display={{ base: hasChips || summary ? "block" : "none", md: "block" }}
     >
       {leading && (
         <Flex
@@ -57,59 +106,66 @@ export default function FilterChips({ chips, onToggle, onClearAll, leading, mt }
           flexWrap="wrap"
           alignItems="center"
           display={{ base: "none", md: "flex" }}
+          mb={2}
         >
           {leading}
         </Flex>
       )}
       {/*
-        The active filters get their own line, so the controls above keep one height
-        with or without filters. With controls it holds its height empty, so the result
-        count below doesn't jump when the first chip appears.
+        The chip line: active filters, Clear all, and the result count at the
+        right end. It holds its height empty from `md` up, so the results below
+        don't jump when the first chip appears.
       */}
       <Flex
-        data-testid="filter-chips"
-        gap={2}
-        // Phones keep one line that scrolls sideways (room below for the chips' hard shadow); md+ wraps.
-        flexWrap={{ base: "nowrap", md: "wrap" }}
-        overflowX={{ base: "auto", md: "visible" }}
-        pb={{ base: "6px", md: 0 }}
-        pr={{ base: "6px", md: 0 }}
-        alignItems="center"
-        mt={leading ? { md: 2 } : undefined}
-        minH={leading ? { md: "24px" } : undefined}
-        css={{
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
-          "@media (max-width: 47.99em)": { "& > *": { flexShrink: 0 } },
-        }}
+        data-testid="filter-row"
+        direction={{ base: "column", md: "row" }}
+        alignItems={{ base: "stretch", md: "center" }}
+        gap={{ base: 2, md: 3 }}
+        minH={{ md: "32px" }}
       >
-        {chips.map((chip) => (
-          <Button
-            key={chip.key}
-            size="xs"
-            variant={chip.active ? "solid" : "outline"}
-            colorPalette="neutral"
-            onClick={() => onToggle(chip.key)}
-            px={3}
-            minH={{ base: "44px", md: undefined }}
+        <Flex
+          data-testid="filter-chips"
+          gap={2}
+          flex="1"
+          minW={0}
+          // Phones keep one line that scrolls sideways; md+ wraps.
+          flexWrap={{ base: "nowrap", md: "wrap" }}
+          overflowX={{ base: "auto", md: "visible" }}
+          display={{ base: hasChips ? "flex" : "none", md: "flex" }}
+          alignItems="center"
+          css={{ scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}
+        >
+          {chips.map((chip) => (
+            <Chip key={chip.key} chip={chip} onToggle={onToggle} />
+          ))}
+          {anyActive && onClearAll && (
+            <chakra.button
+              type="button"
+              onClick={onClearAll}
+              flexShrink={0}
+              minH={{ base: "44px", md: "32px" }}
+              px={2}
+              color="fg.muted"
+              textDecoration="underline"
+              textUnderlineOffset="3px"
+              _hover={{ color: "fg" }}
+              {...chipText}
+            >
+              Clear all
+            </chakra.button>
+          )}
+        </Flex>
+        {summary !== undefined && (
+          <Text
+            data-testid="filter-summary"
+            fontFamily="mono"
+            fontSize="12px"
+            color="fg.muted"
+            flexShrink={0}
+            ml={{ md: "auto" }}
           >
-            {chipLabel(chip)}
-            {chip.active && <LuX />}
-          </Button>
-        ))}
-        {anyActive && onClearAll && (
-          <Button
-            size="xs"
-            variant="outline"
-            // The outline variant draws 1px; the filter row's controls all carry the 2px outline.
-            borderWidth="outline"
-            borderColor="border.ink"
-            onClick={onClearAll}
-            px={3}
-            minH={{ base: "44px", md: undefined }}
-          >
-            Clear all
-          </Button>
+            {summary}
+          </Text>
         )}
       </Flex>
     </Box>

@@ -295,7 +295,7 @@ describe("SearchResults genre filter (#375)", () => {
 
     expect(lastGenres()).toEqual(["cumbia"]);
     expect(await screen.findByRole("button", { name: /Cumbia/ })).toBeTruthy();
-    expect(screen.getByText(/1 filter active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tracks actions, 1 filters on" })).toBeTruthy();
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
@@ -417,7 +417,7 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     );
     expect(screen.getByRole("button", { name: /Missing audio/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /No YouTube/ })).toBeTruthy();
-    expect(screen.getByText(/2 filters active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tracks actions, 2 filters on" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tracks actions, 2 filters on" })).toBeTruthy();
   });
 
@@ -444,7 +444,7 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     for (const label of ["120–126 BPM", "8A · A minor", "★4+"]) {
       expect(screen.getByRole("button", { name: new RegExp(label) })).toBeTruthy();
     }
-    expect(screen.getByText(/3 filters active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tracks actions, 3 filters on" })).toBeTruthy();
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
@@ -499,7 +499,7 @@ describe("SearchResults following a navigation (#376)", () => {
     expect(lastFilter()).toEqual(["friend_id = 1"]);
     expect(lastSearchMode()).toBe("lexical");
     expect(mocks.setQuery).toHaveBeenCalledWith("");
-    expect(screen.getByText(/1 filter active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tracks actions, 1 filters on" })).toBeTruthy();
     // Nothing writes the old search back over the badge's URL.
     expect(mocks.replace).not.toHaveBeenCalled();
   });
@@ -525,7 +525,7 @@ describe("SearchResults following a navigation (#376)", () => {
     rerender(<SearchResults />);
 
     expect(mocks.setQuery).not.toHaveBeenCalled();
-    expect(screen.getByText(/1 filter active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tracks actions, 1 filters on", hidden: true })).toBeTruthy();
   });
 
   it("keeps a change made while its last write is still on the way", async () => {
@@ -550,7 +550,7 @@ describe("SearchResults loading states", () => {
     }));
     renderWithProviders(<SearchResults />);
 
-    expect(screen.queryByText(/results found/)).toBeNull();
+    expect(screen.queryByTestId("filter-summary")).toBeNull();
   });
 
   it("shows a spinner while loading more", () => {

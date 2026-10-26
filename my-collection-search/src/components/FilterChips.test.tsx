@@ -46,6 +46,32 @@ describe("FilterChips", () => {
     expect(screen.getByRole("button", { name: "No BPM" })).toBeTruthy();
   });
 
+  it("names an active chip for what its x does, and leaves an inactive one unpressed (#794)", () => {
+    renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Remove filter No BPM" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "No embedding" }).getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("puts the result count on the chip line, and leaves it out until it's known", () => {
+    const { rerender } = renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} summary="81 albums" />);
+
+    const summary = screen.getByTestId("filter-summary");
+    expect(summary.textContent).toBe("81 albums");
+    expect(screen.getByTestId("filter-row").contains(summary)).toBe(true);
+
+    rerender(<FilterChips chips={chips} onToggle={vi.fn()} />);
+    expect(screen.queryByTestId("filter-summary")).toBeNull();
+  });
+
+  it("takes no space on phones with neither chips nor a count", () => {
+    const { container, rerender } = renderWithProviders(<FilterChips chips={[]} onToggle={vi.fn()} />);
+    expect(getComputedStyle(container.firstElementChild as Element).display).toBe("none");
+
+    rerender(<FilterChips chips={[]} onToggle={vi.fn()} summary="0 results" />);
+    expect(getComputedStyle(container.firstElementChild as Element).display).toBe("block");
+  });
+
   it("formats a zero count rather than dropping it", () => {
     expect(chipLabel({ label: "Missing audio", count: 0 })).toBe("Missing audio · 0");
   });
@@ -82,7 +108,7 @@ describe("FilterChips", () => {
       const line = screen.getByTestId("filter-chips");
       expect(controls.contains(line)).toBe(false);
       expect(line.contains(controls)).toBe(false);
-      expect(controls.nextElementSibling).toBe(line);
+      expect(controls.nextElementSibling).toBe(screen.getByTestId("filter-row"));
       expect(within(line).getByRole("button", { name: "Clear all" })).toBeTruthy();
       expect(within(line).getByRole("button", { name: "No embedding" })).toBeTruthy();
       expect(within(controls).queryByRole("button", { name: "No embedding" })).toBeNull();
