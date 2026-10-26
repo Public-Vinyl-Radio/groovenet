@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.5.0...groovenet-client-v3.6.0) (2026-10-26)
+
+
+### Features
+
+* **player:** allow commands without expected revision ([#810](https://github.com/Public-Vinyl-Radio/groovenet/issues/810)) ([f2fe8ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/f2fe8ef5b59a0b27b08d5969b4d67c2a35126679))
+* **player:** atomic queue replacement and HA sender recognition ([#807](https://github.com/Public-Vinyl-Radio/groovenet/issues/807)) ([2e20762](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e20762575314edccc73adb0a93182b0d901c00b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.2.0 to 1.3.0
+
 ## [3.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.4.0...groovenet-client-v3.5.0) (2026-10-25)
 
 

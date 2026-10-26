@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.5](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.4...groovenet-player-v0.1.5) (2026-10-26)
+
+
+### Features
+
+* **player:** allow commands without expected revision ([#810](https://github.com/Public-Vinyl-Radio/groovenet/issues/810)) ([f2fe8ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/f2fe8ef5b59a0b27b08d5969b4d67c2a35126679))
+* **player:** atomic queue replacement and HA sender recognition ([#807](https://github.com/Public-Vinyl-Radio/groovenet/issues/807)) ([2e20762](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e20762575314edccc73adb0a93182b0d901c00b))
+* **player:** log server player plays per queue entry ([#814](https://github.com/Public-Vinyl-Radio/groovenet/issues/814)) ([facd807](https://github.com/Public-Vinyl-Radio/groovenet/commit/facd807989d20046c17716cec4c6dbe295521cd3))
+* **player:** persist per-player availability policy ([#813](https://github.com/Public-Vinyl-Radio/groovenet/issues/813)) ([fe91b34](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe91b347d6ee25ee78878d97e367ab3241bda98a))
+* **player:** provision web credentials from 1Password ([#755](https://github.com/Public-Vinyl-Radio/groovenet/issues/755)) ([427983b](https://github.com/Public-Vinyl-Radio/groovenet/commit/427983b44c19d4b76138dc08f05a457dce6349f9))
+
+
+### Bug Fixes
+
+* **player:** reject ambiguous HA output name mappings ([#812](https://github.com/Public-Vinyl-Radio/groovenet/issues/812)) ([c73f338](https://github.com/Public-Vinyl-Radio/groovenet/commit/c73f3382dfd431d4ad4607f5577fa889e64f540f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.5.0 to ^3.6.0
+    * @groovenet/contracts bumped from 1.2.0 to 1.3.0
+
 ## [0.1.4](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.3...groovenet-player-v0.1.4) (2026-10-25)
 
 
