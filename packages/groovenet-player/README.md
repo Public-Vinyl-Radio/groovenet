@@ -45,6 +45,9 @@ and `isPlay` are the pure rules: a track of 30 seconds or more counts after
 `min(50% of its duration, 240 s)` of accumulated play time, where only forward
 progress while playing is counted. The CLI wires it to `POST /api/spins` with
 `medium: "digital"` (`player_log_plays` / `--log-plays`).
+Persistent server players apply the same threshold per queue entry and deliver
+owner-library plays through the app's `/api/spins` endpoint. Pending deliveries
+are stored in Postgres for retries across worker restarts.
 
 `MpvBackend` does not install mpv. Install it separately and make it available
 on `PATH`, or pass an executable path in the constructor. `close()` stops the

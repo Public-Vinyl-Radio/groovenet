@@ -25,10 +25,12 @@ builds the two local images before starting services. It survives the normal
 Player secrets and private worktree files are excluded from Docker build contexts.
 
 The optional `.env.players.tpl` uses the existing `GROOVENET_OP_VAULT` /
-`GROOVENET_OP_ITEM` selection (defaults `Homelab` / `groovenet`). Add three fields
-to that 1Password item: `PLAYER_API_KEY`, `PLAYER_ENGINE_A_PASSWORD`, and
-`PLAYER_ENGINE_B_PASSWORD`. API keys must be at least 32 characters on one line;
-engine passwords must be distinct hex/base64url values. To render locally:
+`GROOVENET_OP_ITEM` selection (defaults `Homelab` / `groovenet`). Add four fields
+to that 1Password item: `PLAYER_API_KEY`, `PLAYER_LIBRARY_FRIEND_ID`,
+`PLAYER_ENGINE_A_PASSWORD`, and `PLAYER_ENGINE_B_PASSWORD`. The friend ID is the
+positive `friends.id` of the library owner. API keys must be at least 32
+characters on one line; engine passwords must be distinct hex/base64url values.
+To render locally:
 
 ```sh
 mkdir -p .worktree
@@ -97,8 +99,10 @@ requires `/dev/shm/airptp_shm`, as well as network access to the clock. The engi
 entrypoint refuses startup without it. Run only one such shared clock per host.
 
 Outside Compose, build packages with `just build-packages`, then run
-`groovenet-player-server` with `DATABASE_URL`, `PLAYER_API_KEY` and
-`PLAYER_ENGINES_JSON`. Set the app's `PLAYER_WORKER_URL` to that private worker.
+`groovenet-player-server` with `DATABASE_URL`, `PLAYER_API_KEY`,
+`PLAYER_LIBRARY_FRIEND_ID`, `PLAYER_ENGINES_JSON` and `PLAYER_APP_URL` (the app
+origin, default `http://app:3000`). Set the app's `PLAYER_WORKER_URL` to that
+private worker.
 The standalone worker binds `0.0.0.0:13700` (override `PLAYER_WORKER_PORT`), so
 restrict access at the host/network boundary.
 
@@ -310,6 +314,14 @@ events share a serial lane; a slow engine can delay commands to other players.
 A worker restart restores **stopped checkpoints**, clears transient assignments
 and creates no engine connections. It never resumes or reclaims a speaker
 automatically. `checkpoint: true` means saved position, not observed live audio.
+
+Server players log digital plays after the shared `playThreshold` listen time.
+Only tracks belonging to `PLAYER_LIBRARY_FRIEND_ID` are eligible. Each queue
+entry has its own durable delivery record; failed app API requests are retried
+every 30 seconds and after a worker restart. An API conflict for an already
+logged digital play completes the delivery. The worker must be able to reach
+`POST /api/spins` at `PLAYER_APP_URL`.
+
 An abrupt crash can leave an old engine playing; stop that engine explicitly
 before issuing new playback if its ownership cannot be established. Do not use
 the dedicated engines from other controller apps.

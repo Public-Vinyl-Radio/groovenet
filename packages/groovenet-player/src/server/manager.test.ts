@@ -4,7 +4,7 @@ import type { ServerPlayer, ServerPlayerCommand, ServerPlayerState, SpeakerObser
 import type { PlaybackBackend, PlaybackSource } from "../types.js";
 import type { Track } from "@groovenet/client";
 import { ServerPlayerManager, unknownSpeaker } from "./manager.js";
-import { ServerPlayerError, type PlayerStore } from "./store.js";
+import { ServerPlayerError, type PlayerStore, type ServerPlay } from "./store.js";
 import { homeAssistantObserver } from "./observer.js";
 import { OwnToneBackend } from "../ownToneBackend.js";
 import { PlayerError } from "../types.js";
@@ -21,7 +21,11 @@ class FakeBackend extends EventEmitter implements PlaybackBackend {
 }
 class MemoryStore implements PlayerStore {
   rows = new Map<string, ServerPlayer>();
-  tracks = new Map([1, 2, 3].map((id) => [String(id), { track_id: String(id), friend_id: 1, title: `Track ${id}`, artist: "Artist", local_audio_url: `${id}.wav` } as Track]));
+  tracks = new Map([1, 2, 3].map((id) => [String(id), { track_id: String(id), friend_id: 1, release_id: `release-${id}`, title: `Track ${id}`, artist: "Artist", local_audio_url: `${id}.wav` } as Track]));
+  plays = new Map<string, { play: ServerPlay; logged: boolean }>();
+  queuePlay = vi.fn(async (play: ServerPlay) => { if (!this.plays.has(play.entryId)) this.plays.set(play.entryId, { play, logged: false }); });
+  pendingPlays = vi.fn(async () => [...this.plays.values()].filter(row => !row.logged).map(row => row.play));
+  markPlayLogged = vi.fn(async (entryId: string) => { this.plays.get(entryId)!.logged = true; });
   list = vi.fn(async () => structuredClone([...this.rows.values()]));
   create = vi.fn(async (input: { id: string; name: string; engine_id: string }, state: ServerPlayerState) => {
     if ([...this.rows.values()].some(p => p.id === input.id || p.engine_id === input.engine_id)) throw new ServerPlayerError("ASSIGNMENT_CONFLICT", "Already exists");
@@ -39,12 +43,12 @@ class MemoryStore implements PlayerStore {
   checkpoint = vi.fn(async (input: ServerPlayer) => { if (this.rows.get(input.id)?.revision === input.revision) this.rows.set(input.id, structuredClone(input)); });
   resolve = vi.fn(async (ref: { track_id: string }) => this.tracks.get(ref.track_id) ?? null);
 }
-async function fixture(observed: SpeakerObservation = unknownSpeaker()) {
+async function fixture(observed: SpeakerObservation = unknownSpeaker(), playLogging?: import("./manager.js").ServerPlayLogging) {
   const store = new MemoryStore();
   const backends: FakeBackend[] = [];
   const create = vi.fn(() => { const backend = new FakeBackend(); backends.push(backend); return backend; });
   const observer = vi.fn<import("./manager.js").SpeakerObserver>(async () => observed);
-  const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create }, b: { libraryRoot: "/media", create } }, observer);
+  const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create }, b: { libraryRoot: "/media", create } }, observer, playLogging);
   const fault = vi.fn();
   manager.on("fault", fault);
   await manager.initialize();
@@ -60,6 +64,97 @@ async function fixture(observed: SpeakerObservation = unknownSpeaker()) {
 }
 
 describe("persistent server player manager", () => {
+  it("logs each duplicate queue entry once after listening, including after seeks and repeated events", async () => {
+    let clock = new Date("2026-01-01T00:00:00.000Z");
+    const logPlay = vi.fn(async (_play: ServerPlay) => { void _play; });
+    const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay, now: () => clock });
+    await f.command("a", { type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "1", friend_id: 1 }] });
+    await f.command("a", { type: "output.select", output_id: "speaker-a" });
+    await f.command("a", { type: "play", allow_unknown: true });
+    const first = f.manager.get("a").state.queue[0]!;
+    const advance = async (backend: FakeBackend) => {
+      for (let second = 0; second <= 15; second++) backend.emit("position", second, 30);
+      await f.settle();
+    };
+    await advance(f.backends[0]!);
+    expect(logPlay).toHaveBeenCalledOnce();
+    expect(logPlay.mock.calls[0]![0]).toMatchObject({ entryId: first.id, trackId: "1", friendId: 1 });
+    expect(logPlay.mock.calls[0]![0].startedAt).toEqual(clock);
+    f.backends[0]!.emit("position", 15, 30);
+    f.backends[0]!.emit("position", 100, 200);
+    await f.settle();
+    expect(logPlay).toHaveBeenCalledOnce();
+    clock = new Date("2026-01-01T00:01:00.000Z");
+    await f.command("a", { type: "next" });
+    await advance(f.backends[1]!);
+    expect(logPlay).toHaveBeenCalledTimes(2);
+    expect(logPlay.mock.calls[1]![0].entryId).not.toBe(first.id);
+    await f.manager.shutdown();
+  });
+
+  it("keeps failed plays pending across a skip and manager restart, and excludes another owner's track", async () => {
+    const logPlay = vi.fn().mockRejectedValueOnce(new Error("app unavailable")).mockResolvedValue(undefined);
+    const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay, now: () => new Date("2026-01-01") });
+    f.store.tracks.get("2")!.friend_id = 2;
+    await f.command("a", { type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "2", friend_id: 2 }] });
+    await f.command("a", { type: "output.select", output_id: "speaker-a" });
+    await f.command("a", { type: "play", allow_unknown: true });
+    // A seek moves the reference point; only fifteen real seconds count.
+    f.backends[0]!.emit("position", 100, 30);
+    for (let second = 101; second <= 115; second++) f.backends[0]!.emit("position", second, 30);
+    await f.settle();
+    await expect(f.store.pendingPlays()).resolves.toHaveLength(1);
+    expect(logPlay).toHaveBeenCalledOnce();
+    await f.command("a", { type: "next" });
+    for (let second = 0; second <= 15; second++) f.backends[1]!.emit("position", second, 30);
+    await f.settle();
+    expect(f.store.plays.size).toBe(1);
+    await f.manager.shutdown();
+    const restored = new ServerPlayerManager(f.store, {}, undefined, { ownerFriendId: 1, logPlay });
+    await restored.initialize();
+    await restored.retryPlays();
+    expect(logPlay).toHaveBeenCalledTimes(2);
+    expect((await f.store.pendingPlays())).toHaveLength(0);
+  });
+
+  it("continues one entry's progress after a reconnect without counting a seek or replaying the log", async () => {
+    const logPlay = vi.fn(async () => {});
+    const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay });
+    await f.prepare("a");
+    await f.command("a", { type: "play", allow_unknown: true });
+    for (let second = 0; second <= 8; second++) f.backends[0]!.emit("position", second, 30);
+    await f.settle();
+    await f.command("a", { type: "play", allow_unknown: true });
+    f.backends[1]!.emit("position", 100, 30);
+    for (let second = 101; second <= 107; second++) f.backends[1]!.emit("position", second, 30);
+    await f.settle();
+    expect(logPlay).toHaveBeenCalledOnce();
+    await f.command("a", { type: "pause" });
+    f.backends[1]!.emit("position", 108, 30);
+    await f.settle();
+    await f.command("a", { type: "resume" });
+    f.backends[1]!.emit("position", 109, 30);
+    await f.settle();
+    expect(logPlay).toHaveBeenCalledOnce();
+    await f.manager.shutdown();
+  });
+
+  it("retries a failed outbox write on the next position without failing playback", async () => {
+    const logPlay = vi.fn(async () => {});
+    const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay });
+    f.store.queuePlay.mockRejectedValueOnce(new Error("database busy"));
+    const error = vi.fn(); f.manager.on("play-log-error", error);
+    await f.prepare("a"); await f.command("a", { type: "play", allow_unknown: true });
+    for (let second = 0; second <= 15; second++) f.backends[0]!.emit("position", second, 30);
+    await f.settle();
+    expect(error).toHaveBeenCalledOnce();
+    expect(f.manager.get("a").state.status).toBe("playing");
+    f.backends[0]!.emit("position", 16, 30);
+    await f.settle();
+    expect(logPlay).toHaveBeenCalledOnce();
+    await f.manager.shutdown();
+  });
+
   it("restores independent checkpoints without contacting engines or claiming outputs", async () => {
     const f = await fixture();
     await f.prepare("a"); await f.prepare("b");

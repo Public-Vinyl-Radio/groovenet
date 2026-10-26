@@ -17,8 +17,10 @@ export function renderPlayerEnv(env) {
     }
   }
   if (a === b) throw new Error('The two engine passwords must be distinct.');
+  if (!/^[1-9][0-9]*$/.test(env.PLAYER_LIBRARY_FRIEND_ID || '')) throw new Error('PLAYER_LIBRARY_FRIEND_ID must be a positive integer.');
   const values = {
     PLAYER_API_KEY: key,
+    PLAYER_LIBRARY_FRIEND_ID: env.PLAYER_LIBRARY_FRIEND_ID,
     PLAYER_WORKER_URL: 'http://player-worker:13700',
     PLAYER_ENGINE_A_PASSWORD: a,
     PLAYER_ENGINE_B_PASSWORD: b,

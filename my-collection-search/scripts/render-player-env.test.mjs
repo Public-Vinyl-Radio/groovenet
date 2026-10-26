@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderPlayerEnv, writePlayerEnv } from './render-player-env.mjs';
 
-const valid = { PLAYER_API_KEY: 'a'.repeat(64), PLAYER_ENGINE_A_PASSWORD: 'engine-a_secret', PLAYER_ENGINE_B_PASSWORD: 'engine-b_secret' };
+const valid = { PLAYER_API_KEY: 'a'.repeat(64), PLAYER_LIBRARY_FRIEND_ID: '1', PLAYER_ENGINE_A_PASSWORD: 'engine-a_secret', PLAYER_ENGINE_B_PASSWORD: 'engine-b_secret' };
 const composeAvailable = spawnSync('docker', ['compose', 'version']).status === 0;
 
 for (const changes of [
@@ -15,6 +15,7 @@ for (const changes of [
   { PLAYER_ENGINE_A_PASSWORD: undefined }, { PLAYER_ENGINE_A_PASSWORD: 'bad"password' },
   { PLAYER_ENGINE_B_PASSWORD: '' }, { PLAYER_ENGINE_B_PASSWORD: 'bad$password' },
   { PLAYER_ENGINE_B_PASSWORD: valid.PLAYER_ENGINE_A_PASSWORD },
+  { PLAYER_LIBRARY_FRIEND_ID: '' }, { PLAYER_LIBRARY_FRIEND_ID: '0' },
 ]) {
   test(`rejects invalid ${Object.keys(changes).join(',')} before replacing configuration`, () => {
     const root = mkdtempSync(join(tmpdir(), 'player-env-'));
@@ -36,6 +37,7 @@ test('writes a private atomic file and builds matching engine credentials', () =
       const at = line.indexOf('='); return [line.slice(0, at), JSON.parse(line.slice(at + 1))];
     }));
     assert.equal(values.PLAYER_AUDIO_MOUNT, 'music_data');
+    assert.equal(values.PLAYER_LIBRARY_FRIEND_ID, '1');
     const engines = JSON.parse(values.PLAYER_ENGINES_JSON);
     assert.equal(engines.primary.password, values.PLAYER_ENGINE_A_PASSWORD);
     assert.equal(engines.secondary.password, values.PLAYER_ENGINE_B_PASSWORD);

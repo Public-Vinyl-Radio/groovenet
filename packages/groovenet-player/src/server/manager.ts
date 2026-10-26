@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { createServerPlayerSchema, serverPlayerCommandSchema, type CreateServerPlayer, type ServerPlayer, type ServerPlayerCommand, type ServerPlayerCommandResult, type ServerPlayerDevice, type SpeakerObservation } from "@groovenet/contracts";
 import { audioSource } from "../resolver.js";
 import { PlayerError, type PlaybackBackend } from "../types.js";
-import { ServerPlayerError, type PlayerStore } from "./store.js";
+import { advanceProgress, initialProgress, isPlay, type ListenProgress } from "../playThreshold.js";
+import { ServerPlayerError, type PlayerStore, type ServerPlay } from "./store.js";
 
 export interface PlayerEngine {
   libraryRoot: string;
@@ -12,6 +13,11 @@ export interface PlayerEngine {
 export type SpeakerObserver = (outputId: string, context?: { outputName?: string; resolveOutputName?: () => Promise<string | undefined>; fresh?: boolean }) => Promise<SpeakerObservation>;
 export const unknownSpeaker = (): SpeakerObservation => ({ availability: "unknown", observed_at: null, source: "unconfigured", sender_identity: "unknown" });
 interface Runtime { backend: PlaybackBackend; generation: number; }
+export interface ServerPlayLogging {
+  ownerFriendId: number;
+  logPlay: (play: ServerPlay) => Promise<void>;
+  now?: () => Date;
+}
 const errorValue = (error: unknown) => error instanceof PlayerError || error instanceof ServerPlayerError ? { code: error.code, message: error.message } : { code: "PLAYER_OPERATION_FAILED", message: "Player operation failed" };
 const clone = <T>(value: T): T => structuredClone(value);
 
@@ -23,8 +29,26 @@ export class ServerPlayerManager extends EventEmitter {
   private tail: Promise<unknown> = Promise.resolve();
   private stopping = false;
   private checkpointAt = new Map<string, number>();
+  private progress = new Map<string, { listened: ListenProgress; startedAt: Date }>();
+  private queuedPlays = new Set<string>();
+  private retrying = false;
 
-  constructor(private readonly store: PlayerStore, private readonly engines: Record<string, PlayerEngine>, private readonly observe: SpeakerObserver = async () => unknownSpeaker()) { super(); }
+  constructor(private readonly store: PlayerStore, private readonly engines: Record<string, PlayerEngine>, private readonly observe: SpeakerObserver = async () => unknownSpeaker(), private readonly playLogging?: ServerPlayLogging) { super(); }
+
+  /** Retry durable deliveries independently of queue changes and playback. */
+  async retryPlays(): Promise<void> {
+    if (!this.playLogging || this.retrying || this.stopping) return;
+    this.retrying = true;
+    try {
+      for (const play of await this.store.pendingPlays()) {
+        try {
+          await this.playLogging.logPlay(play);
+          await this.store.markPlayLogged(play.entryId);
+        } catch (error) { this.emit("play-log-error", error); }
+      }
+    } catch (error) { this.emit("play-log-error", error); }
+    finally { this.retrying = false; }
+  }
 
   private serial<T>(action: () => Promise<T>): Promise<T> {
     const result = this.tail.then(action);
@@ -258,6 +282,20 @@ export class ServerPlayerManager extends EventEmitter {
       current.state.position = position;
       current.state.duration = duration !== null && Number.isFinite(duration) && duration >= 0 ? duration : null;
       current.state.checkpoint = false;
+      const entryId = current.state.current_entry_id;
+      if (this.playLogging && entryId && track?.friend_id === this.playLogging.ownerFriendId && track.release_id && !this.queuedPlays.has(entryId)) {
+        const listening = this.progress.get(entryId) ?? { listened: initialProgress, startedAt: this.playLogging.now?.() ?? new Date() };
+        listening.listened = advanceProgress(listening.listened, position, current.state.status === "playing");
+        this.progress.set(entryId, listening);
+        if (isPlay(listening.listened.listened, current.state.duration)) {
+          const play: ServerPlay = { entryId, playerId: current.id, trackId: entry.track_id, friendId: entry.friend_id, releaseId: track.release_id, startedAt: listening.startedAt };
+          try {
+            await this.store.queuePlay(play);
+            this.queuedPlays.add(entryId);
+            void this.retryPlays();
+          } catch (error) { this.emit("play-log-error", error); }
+        }
+      }
       this.players.set(current.id, current);
       this.emit("position", { player_id: current.id, revision: current.revision, current_entry_id: current.state.current_entry_id, position: current.state.position, duration: current.state.duration, observed_at: new Date().toISOString() });
       if (Date.now() - (this.checkpointAt.get(current.id) ?? 0) >= 5000) {
