@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { useState } from 'react';
 import { Box } from '@chakra-ui/react';
-import { Button } from '@chakra-ui/react';
-import FilterChips, { FilterGroup, type FilterChip } from '@/components/FilterChips';
+import FilterChips, { type FilterChip } from '@/components/FilterChips';
 
 const meta: Meta<typeof FilterChips> = {
   title: 'Components/FilterChips',
@@ -86,34 +85,6 @@ export const Interactive: Story = {
     const clearAll = () => setChips((prev) => prev.map((c) => ({ ...c, active: false })));
     return <FilterChips chips={chips} onToggle={toggle} onClearAll={clearAll} />;
   },
-};
-
-const controls = (
-  <>
-    <FilterGroup>
-      <Button size="sm" variant="outline">Genre · 1</Button>
-      <Button size="sm" variant="outline">Include similar</Button>
-    </FilterGroup>
-    <FilterGroup>
-      <Button size="sm" variant="outline">Missing</Button>
-      <Button size="sm" variant="outline">BPM / Key</Button>
-    </FilterGroup>
-  </>
-);
-
-export const GroupedControlsWithChips: Story = {
-  name: 'Grouped controls, active chips on their own line (desktop)',
-  args: {
-    leading: controls,
-    chips: genreFilters.slice(0, 2).map((c) => ({ ...c, active: true })),
-    onToggle: () => {},
-    onClearAll: () => {},
-  },
-};
-
-export const GroupedControlsNoChips: Story = {
-  name: 'Grouped controls, no filters (chip line holds its height)',
-  args: { leading: controls, chips: [], onToggle: () => {} },
 };
 
 export const WithResultCount: Story = {

@@ -112,9 +112,10 @@ export default function AlbumSearchResults({
     );
   }
 
-  // The count, with the sort beside it on phones (desktop sorts from the toolbar).
+  // Phones only: the count with the sort beside it. Desktop shows the count in
+  // the chip row and sorts from the search row (#794).
   const countRow = (
-    <Flex align="center" justify="space-between" gap={2} mb={2}>
+    <Flex display={{ base: "flex", md: "none" }} align="center" justify="space-between" gap={2} mb={2}>
       <Text fontSize="sm" color="fg.muted">
         {totalHits.toLocaleString()} {totalHits === 1 ? "album" : "albums"}
       </Text>

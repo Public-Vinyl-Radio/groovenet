@@ -13,15 +13,16 @@ vi.mock("@/providers/UsernameProvider", () => ({
 }));
 vi.mock("@/hooks/useGenreTaxonomyQuery", () => ({ useGenreTaxonomyQuery: () => ({ genres: [] }) }));
 vi.mock("@/components/AlbumSearchResults", () => ({ default: () => <div>results</div> }));
-vi.mock("@/components/search/UnifiedSearchControls", () => ({ default: () => <div>controls</div> }));
-vi.mock("@/components/FilterChips", () => ({ default: () => null, FilterGroup: () => null }));
+vi.mock("@/components/FilterChips", () => ({ default: () => null }));
 vi.mock("@/components/GenreFilter", () => ({
   default: () => null,
-  GenreFilterGroup: () => null,
   IncludeSimilarToggle: () => null,
+  SelectedGenreTags: () => null,
+  INCLUDE_SIMILAR_CHIP_KEY: "include-similar",
   addedGenreChips: () => [],
   genreFilterChips: () => [],
   genreSlugFromChipKey: () => null,
+  includeSimilarChips: () => [],
   similarGenreIdFromChipKey: () => null,
 }));
 

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Box, Combobox, Flex, Portal, Switch, Text, createListCollection } from "@chakra-ui/react";
+import { Combobox, Flex, Portal, Switch, Text, chakra, createListCollection } from "@chakra-ui/react";
+import { LuX } from "react-icons/lu";
 import type { FilterChip } from "@/components/FilterChips";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
@@ -55,6 +56,58 @@ export function similarGenreIdFromChipKey(key: string): string | null {
   return key.startsWith(SIMILAR_CHIP_PREFIX) ? key.slice(SIMILAR_CHIP_PREFIX.length) : null;
 }
 
+/** The chip key for "Include similar" itself, so the chip row can turn it off. */
+export const INCLUDE_SIMILAR_CHIP_KEY = "include-similar";
+
+/** "+ Similar genres" as its own chip while the toggle is on and a genre is chosen (#794). */
+export function includeSimilarChips(includeSimilar: boolean, selected: string[]): FilterChip[] {
+  return includeSimilar && selected.length > 0
+    ? [{ key: INCLUDE_SIMILAR_CHIP_KEY, label: "+ Similar genres", active: true }]
+    : [];
+}
+
+/**
+ * The chosen genres as small removable tags under the genre field, in the
+ * filters modal and panel (#794), named from the taxonomy once it loads.
+ */
+export function SelectedGenreTags({ selected, onRemove }: { selected: string[]; onRemove: (slug: string) => void }) {
+  const { genres } = useGenreTaxonomyQuery();
+  if (selected.length === 0) return null;
+  const names = new Map(genres.map((genre) => [genre.slug, genre.name]));
+  return (
+    <Flex wrap="wrap" gap="6px" role="group" aria-label="Chosen genres" data-testid="selected-genre-tags">
+      {selected.map((slug) => {
+        const name = names.get(slug) ?? slug;
+        return (
+          <chakra.button
+            key={slug}
+            type="button"
+            aria-label={`Remove genre ${name}`}
+            onClick={() => onRemove(slug)}
+            display="inline-flex"
+            alignItems="center"
+            gap="4px"
+            minH="32px"
+            pl="8px"
+            pr="4px"
+            borderWidth="outline"
+            borderColor="border.ink"
+            bg="bg"
+            fontFamily="label"
+            fontSize="11px"
+            fontWeight="semibold"
+            textTransform="uppercase"
+            _hover={{ bg: "bg.muted" }}
+          >
+            {name}
+            <LuX aria-hidden="true" size={12} strokeWidth={2.5} />
+          </chakra.button>
+        );
+      })}
+    </Flex>
+  );
+}
+
 /** The "Include similar" toggle (#485): widens the active genre filter to its top related genres. */
 export function IncludeSimilarToggle({
   checked,
@@ -88,40 +141,6 @@ type GenreFilterProps = {
    */
   inSheet?: boolean;
 };
-
-/**
- * The genre field with its "Include similar" toggle beside it, one unit: the
- * toggle gets its own outlined box, a field's width away, and appears once a
- * genre is selected.
- */
-export function GenreFilterGroup({
-  includeSimilar,
-  onIncludeSimilarChange,
-  ...genre
-}: GenreFilterProps & {
-  includeSimilar: boolean;
-  onIncludeSimilarChange: (checked: boolean) => void;
-}) {
-  return (
-    <Flex alignItems="center" gap={2} data-testid="genre-filter-group">
-      <GenreFilter {...genre} />
-      {genre.selected.length > 0 && (
-        <Box
-          data-testid="include-similar"
-          display="flex"
-          alignItems="center"
-          h="36px"
-          px={3}
-          borderWidth="outline"
-          borderColor="border.ink"
-          bg="bg.panel"
-        >
-          <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />
-        </Box>
-      )}
-    </Flex>
-  );
-}
 
 /**
  * Type-ahead over the genre taxonomy for search filters (#375). A pick is

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, IconButton, Flex, Grid, Spinner } from "@chakra-ui/react";
+import { Box, Flex, Grid, Spinner } from "@chakra-ui/react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { LuListChecks } from "react-icons/lu";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,32 +12,33 @@ import { useTrackStore } from "@/stores/trackStore";
 import { analyzeTrackAsync } from "@/services/internalApi/tracks";
 import { toaster } from "@/components/ui/toaster";
 
-import TrackViewToggle from "@/components/TrackViewToggle";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import TrackResultStore from "@/components/TrackResultStore";
 import { TrackListHeader, TRACK_ROW_HEIGHT } from "@/components/TrackResult";
-import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
-import SearchModeToggle, {
-  SEARCH_MODE_PLACEHOLDERS,
-  isTrackSearchMode,
-} from "@/components/search/SearchModeToggle";
+import { SEARCH_MODE_PLACEHOLDERS, isTrackSearchMode } from "@/components/search/searchModes";
+import SearchModeMenu from "@/components/search/SearchModeMenu";
 import type { TrackSearchMode } from "@/api-contract/schemas";
 import { useSearchResults } from "@/hooks/useSearchResults";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrack } from "@/hooks/useTrack";
-import FilterChips, { FilterGroup } from "@/components/FilterChips";
+import FilterChips from "@/components/FilterChips";
 import {
   addedGenreChips,
   genreFilterChips,
-  GenreFilterGroup,
   genreSlugFromChipKey,
+  includeSimilarChips,
+  INCLUDE_SIMILAR_CHIP_KEY,
   similarGenreIdFromChipKey,
 } from "@/components/GenreFilter";
-import MissingFilter from "@/components/MissingFilter";
-import AttributeFilter from "@/components/AttributeFilter";
 import PageHeader from "@/components/layout/PageHeader";
+import { HeaderButton, ListSearchRow, SearchField, ViewModeSwitch } from "@/components/layout/ListHeader";
+import FiltersPanel from "@/components/FiltersPanel";
 import TrackSearchMenu from "@/components/TrackSearchMenu";
-import TrackSearchOptionsModal from "@/components/TrackSearchOptionsModal";
+import TrackSearchOptionsModal, {
+  TrackFilterSections,
+  showResultsLabel,
+  type TrackFilterControls,
+} from "@/components/TrackSearchOptionsModal";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
 import {
@@ -166,6 +167,9 @@ const SearchResults: React.FC = () => {
   const addGenre = React.useCallback((slug: string) => {
     setGenres((prev) => [...prev, slug]);
   }, []);
+  const removeGenre = React.useCallback((slug: string) => {
+    setGenres((prev) => prev.filter((s) => s !== slug));
+  }, []);
 
   // Selection state
   const [selectedTracks, setSelectedTracks] = React.useState<Set<string>>(new Set());
@@ -234,6 +238,7 @@ const SearchResults: React.FC = () => {
 
   const [selectMode, setSelectMode] = React.useState(false);
   const [optionsOpen, setOptionsOpen] = React.useState(false);
+  const [panelOpen, setPanelOpen] = React.useState(false);
 
   const toggleSelectMode = React.useCallback(() => {
     setSelectMode((prev) => {
@@ -259,9 +264,13 @@ const SearchResults: React.FC = () => {
   });
 
   const handleFilterToggle = React.useCallback((key: string) => {
+    if (key === INCLUDE_SIMILAR_CHIP_KEY) {
+      setIncludeSimilar(false);
+      return;
+    }
     const genreSlug = genreSlugFromChipKey(key);
     if (genreSlug !== null) {
-      setGenres((prev) => prev.filter((slug) => slug !== genreSlug));
+      removeGenre(genreSlug);
       return;
     }
     const similarGenreId = similarGenreIdFromChipKey(key);
@@ -275,7 +284,7 @@ const SearchResults: React.FC = () => {
       return;
     }
     setActiveFilters((prev) => toggleTracksFilter(prev, key as keyof TracksFilter));
-  }, [attributes]);
+  }, [attributes, removeGenre]);
 
   const handleClearAllFilters = React.useCallback(() => {
     setActiveFilters(createEmptyFilters());
@@ -287,6 +296,23 @@ const SearchResults: React.FC = () => {
   const attributeChips = attributeFilterChips(attributes);
   const activeFilterCount =
     getActiveFilterCount(activeFilters) + genres.length + attributeChips.length;
+
+  // One filter state for the phone modal and the desktop panel (#794).
+  const filterControls: TrackFilterControls = {
+    genres,
+    onAddGenre: addGenre,
+    onRemoveGenre: removeGenre,
+    genreCounts,
+    includeSimilar,
+    onIncludeSimilarChange: setIncludeSimilar,
+    attributes,
+    onAttributesChange: setAttributes,
+    missing: activeFilters,
+    onToggleMissing: handleFilterToggle,
+    activeCount: activeFilterCount,
+    resultCount: estimatedResults,
+    onReset: handleClearAllFilters,
+  };
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const bottomSentinelRef = React.useRef<HTMLDivElement>(null);
@@ -407,6 +433,15 @@ const SearchResults: React.FC = () => {
     <Box mb={'100px'}>
       <PageHeader
         title="Tracks"
+        desktopActions={
+          <>
+            <HeaderButton quiet variant={selectMode ? "solid" : "outline"} aria-pressed={selectMode} onClick={toggleSelectMode}>
+              <LuListChecks aria-hidden="true" />
+              Select
+            </HeaderButton>
+            <ViewModeSwitch value={viewMode} onChange={handleViewModeChange} />
+          </>
+        }
         trailing={
           <TrackSearchMenu
             activeCount={activeFilterCount}
@@ -422,24 +457,27 @@ const SearchResults: React.FC = () => {
         </Flex>
       ) : (
         <>
-      <UnifiedSearchControls
-        query={debouncedValue}
-        onQueryChange={setDebouncedValue}
-        showLibrarySelect={false}
-        placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
-        desktopControls={
-          <>
-            <SearchModeToggle value={searchMode} onChange={setSearchMode} />
-            <IconButton
-              aria-label="Select tracks"
-              size="sm"
-              variant={selectMode ? "solid" : "ghost"}
-              onClick={toggleSelectMode}
-            >
-              <LuListChecks />
-            </IconButton>
-            <TrackViewToggle value={viewMode} onChange={handleViewModeChange} />
-          </>
+      <ListSearchRow
+        field={
+          <SearchField
+            value={debouncedValue}
+            onChange={setDebouncedValue}
+            label="Search tracks"
+            placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
+            endElement={<SearchModeMenu value={searchMode} onChange={setSearchMode} />}
+          />
+        }
+        controls={
+          <FiltersPanel
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            scope="Tracks"
+            activeCount={activeFilterCount}
+            onReset={handleClearAllFilters}
+            showLabel={showResultsLabel(estimatedResults)}
+          >
+            <TrackFilterSections {...filterControls} first />
+          </FiltersPanel>
         }
       />
 
@@ -448,43 +486,13 @@ const SearchResults: React.FC = () => {
         onOpenChange={setOptionsOpen}
         mode={searchMode}
         onModeChange={setSearchMode}
-        genres={genres}
-        onAddGenre={addGenre}
-        genreCounts={genreCounts}
-        includeSimilar={includeSimilar}
-        onIncludeSimilarChange={setIncludeSimilar}
-        attributes={attributes}
-        onAttributesChange={setAttributes}
-        missing={activeFilters}
-        onToggleMissing={handleFilterToggle}
-        activeCount={activeFilterCount}
-        resultCount={estimatedResults}
-        onReset={handleClearAllFilters}
+        {...filterControls}
       />
 
       <FilterChips
-        mt={3}
-        leading={
-          <>
-            <GenreFilterGroup
-              selected={genres}
-              onAdd={addGenre}
-              counts={genreCounts}
-              includeSimilar={includeSimilar}
-              onIncludeSimilarChange={setIncludeSimilar}
-            />
-            <FilterGroup>
-              <MissingFilter
-                options={TRACK_MISSING_OPTIONS}
-                active={activeFilters}
-                onToggle={handleFilterToggle}
-              />
-              <AttributeFilter value={attributes} onChange={setAttributes} />
-            </FilterGroup>
-          </>
-        }
         chips={[
           ...genreFilterChips(genres, taxonomy, genreCounts),
+          ...includeSimilarChips(includeSimilar, genres),
           ...addedGenreChips(addedGenres),
           ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
             ({ key, chipLabel }) => ({ key, label: chipLabel, active: true })

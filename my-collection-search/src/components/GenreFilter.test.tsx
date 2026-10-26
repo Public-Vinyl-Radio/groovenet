@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { GenreTreeNode } from "@/api-contract/schemas";
 
@@ -11,9 +11,11 @@ vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree }));
 import GenreFilter, {
   addedGenreChips,
   genreFilterChips,
-  GenreFilterGroup,
   genreSlugFromChipKey,
+  INCLUDE_SIMILAR_CHIP_KEY,
+  includeSimilarChips,
   IncludeSimilarToggle,
+  SelectedGenreTags,
   similarGenreIdFromChipKey,
 } from "./GenreFilter";
 
@@ -127,56 +129,28 @@ describe("IncludeSimilarToggle", () => {
   });
 });
 
-describe("GenreFilterGroup (#685)", () => {
-  beforeEach(() => {
-    fetchGenreTree.mockReset().mockResolvedValue(TREE);
+describe("include-similar chip and selected genre tags (#794)", () => {
+  beforeEach(() => fetchGenreTree.mockResolvedValue(TREE));
+
+  it("adds one '+ Similar genres' chip only while on with a genre chosen", () => {
+    expect(includeSimilarChips(true, ["cumbia"])).toEqual([
+      { key: INCLUDE_SIMILAR_CHIP_KEY, label: "+ Similar genres", active: true },
+    ]);
+    expect(includeSimilarChips(true, [])).toEqual([]);
+    expect(includeSimilarChips(false, ["cumbia"])).toEqual([]);
   });
 
-  it("shows no toggle until a genre is selected, and says 'Genre' in the field", async () => {
-    renderWithProviders(
-      <GenreFilterGroup selected={[]} onAdd={vi.fn()} includeSimilar={false} onIncludeSimilarChange={vi.fn()} />
-    );
-    await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
+  it("names the chosen genres from the taxonomy and removes one from its tag", async () => {
+    const onRemove = vi.fn();
+    const { user } = renderWithProviders(<SelectedGenreTags selected={["salsa", "unknown"]} onRemove={onRemove} />);
 
-    expect(screen.queryByRole("checkbox", { name: "Include similar" })).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByRole("combobox", { name: "Filter by genre" }).getAttribute("placeholder")).toBe("Genre")
-    );
+    await user.click(await screen.findByRole("button", { name: "Remove genre Salsa" }));
+    expect(onRemove).toHaveBeenCalledWith("salsa");
+    expect(screen.getByRole("button", { name: "Remove genre unknown" })).toBeTruthy();
   });
 
-  it("attaches the toggle to the field and shows the selection count in it", async () => {
-    const onChange = vi.fn();
-    const { user } = renderWithProviders(
-      <GenreFilterGroup
-        selected={["cumbia", "salsa"]}
-        onAdd={vi.fn()}
-        includeSimilar={false}
-        onIncludeSimilarChange={onChange}
-      />
-    );
-    await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
-
-    const group = screen.getByTestId("genre-filter-group");
-    const field = within(group).getByRole("combobox", { name: "Filter by genre" });
-    await waitFor(() => expect(field.getAttribute("placeholder")).toBe("Genre · 2"));
-    // The toggle sits in the same unit as the field, in its own outlined segment.
-    const segment = screen.getByTestId("include-similar");
-    expect(group.contains(segment)).toBe(true);
-    await user.click(within(segment).getByRole("checkbox", { name: "Include similar" }));
-    expect(onChange).toHaveBeenCalledWith(true);
-  });
-
-  it("keeps picking and clearing working", async () => {
-    const onAdd = vi.fn();
-    const { user } = renderWithProviders(
-      <GenreFilterGroup selected={["jazz"]} onAdd={onAdd} includeSimilar onIncludeSimilarChange={vi.fn()} />
-    );
-    await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
-
-    const field = screen.getByRole("combobox", { name: "Filter by genre" });
-    await user.type(field, "cum");
-    await user.click(await screen.findByRole("option", { name: /Cumbia/ }));
-    expect(onAdd).toHaveBeenCalledWith("cumbia");
-    expect((field as HTMLInputElement).value).toBe("");
+  it("renders nothing with no genre chosen", () => {
+    renderWithProviders(<SelectedGenreTags selected={[]} onRemove={vi.fn()} />);
+    expect(screen.queryByTestId("selected-genre-tags")).toBeNull();
   });
 });

@@ -14,7 +14,7 @@ import { searchTracks } from "@/services/internalApi/tracks";
 import { searchAlbums, getAlbumWithTracks } from "@/services/internalApi/albums";
 import { matchGenresForPalette, genreSearchHref } from "@/lib/genres/links";
 import type { GenreOption } from "@/lib/genres/options";
-import { isTrackSearchMode } from "@/components/search/SearchModeToggle";
+import { isTrackSearchMode } from "@/components/search/searchModes";
 import type { Album, Track } from "@/types/track";
 import { toaster } from "@/components/ui/toaster";
 import { analytics } from "@/lib/analytics/client";

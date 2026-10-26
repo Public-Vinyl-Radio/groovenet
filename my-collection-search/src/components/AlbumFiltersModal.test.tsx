@@ -6,12 +6,13 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: vi.fn().mockResolvedValue([]) }));
 
-import AlbumFiltersModal from "./AlbumFiltersModal";
+import AlbumFiltersModal, { albumCountLabel } from "./AlbumFiltersModal";
 
 function setup(props: Partial<React.ComponentProps<typeof AlbumFiltersModal>> = {}) {
   const handlers = {
     onOpenChange: vi.fn(),
     onAddGenre: vi.fn(),
+    onRemoveGenre: vi.fn(),
     onIncludeSimilarChange: vi.fn(),
     onToggleMissing: vi.fn(),
     onReset: vi.fn(),
@@ -75,5 +76,12 @@ describe("AlbumFiltersModal (#751)", () => {
 
     setup({ genres: ["cumbia"] });
     expect(await screen.findByText(/similar/i)).toBeTruthy();
+  });
+});
+
+describe("albumCountLabel (#794)", () => {
+  it("says 'album' for exactly one and groups thousands", () => {
+    expect(albumCountLabel(1)).toBe("1 album");
+    expect(albumCountLabel(1234)).toBe(`${(1234).toLocaleString()} albums`);
   });
 });
