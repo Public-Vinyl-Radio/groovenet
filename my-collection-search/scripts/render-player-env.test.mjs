@@ -48,10 +48,11 @@ test('writes a private atomic file and builds matching engine credentials', () =
 });
 
 test('preserves explicit interface, mount and observer configuration', () => {
-  const content = renderPlayerEnv({ ...valid, PLAYER_LAN_INTERFACE: 'eth0', PLAYER_AUDIO_MOUNT: '/srv/music', PLAYER_HA_URL: 'http://ha', PLAYER_HA_TOKEN: 'ha-token', PLAYER_HA_ENTITIES_JSON: '{"speaker":"media_player.room"}' });
+  const content = renderPlayerEnv({ ...valid, PLAYER_LAN_INTERFACE: 'eth0', PLAYER_AUDIO_MOUNT: '/srv/music', PLAYER_HA_URL: 'http://ha', PLAYER_HA_TOKEN: 'ha-token', PLAYER_HA_ENTITIES_JSON: '{"speaker":"media_player.room"}', PLAYER_HA_SENDERS_JSON: '{"primary":{"client_name":"Groovenet-primary"}}' });
   assert.ok(content.includes('PLAYER_LAN_INTERFACE="eth0"'));
   assert.ok(content.includes('PLAYER_AUDIO_MOUNT="/srv/music"'));
   assert.ok(content.includes('PLAYER_HA_TOKEN="ha-token"'));
+  assert.ok(content.includes('PLAYER_HA_SENDERS_JSON=' + JSON.stringify('{"primary":{"client_name":"Groovenet-primary"}}')));
 });
 
 test('Compose preserves literal dollars, quotes and backslashes in actual secrets', { skip: !composeAvailable }, () => {

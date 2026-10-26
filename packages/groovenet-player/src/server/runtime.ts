@@ -21,8 +21,10 @@ export async function runPlayerWorker(env: NodeJS.ProcessEnv = process.env, depe
   if (!env.DATABASE_URL) throw new Error("DATABASE_URL is required");
   const engines: Record<string, PlayerEngine> = Object.fromEntries(Object.entries(configured).map(([id, options]) => [id, { libraryRoot: options.libraryRoot, create: (outputId?: string) => new OwnToneBackend({ apiUrl: options.apiUrl, password: options.password, outputId }) }]));
   const entities = z.record(z.string(), z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/)).parse(JSON.parse(env.PLAYER_HA_ENTITIES_JSON ?? "{}"));
+  const senders = z.record(playerIdSchema, z.record(z.string().min(1), z.string().min(1)).refine(value => Object.keys(value).length > 0)).parse(JSON.parse(env.PLAYER_HA_SENDERS_JSON ?? "{}"));
+  for (const engineId of Object.keys(senders)) if (!configured[engineId]) throw new Error("HA sender must reference a configured engine");
   const store = dependencies.store ?? new PostgresPlayerStore(new Pool({ connectionString: env.DATABASE_URL, connectionTimeoutMillis: 5000, query_timeout: 5000, statement_timeout: 5000 }));
-  const manager = dependencies.manager ?? new ServerPlayerManager(store, engines, homeAssistantObserver({ url: env.PLAYER_HA_URL, token: env.PLAYER_HA_TOKEN, entities }));
+  const manager = dependencies.manager ?? new ServerPlayerManager(store, engines, homeAssistantObserver({ url: env.PLAYER_HA_URL, token: env.PLAYER_HA_TOKEN, entities, senders }));
   const server = dependencies.server ?? playerHttpServer(manager, key);
   const signals = dependencies.signals ?? process;
   let stopping = false;

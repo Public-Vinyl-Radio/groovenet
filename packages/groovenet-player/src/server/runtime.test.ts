@@ -85,13 +85,15 @@ describe("player worker lifecycle", () => {
     vi.spyOn(Store.prototype, 'create').mockImplementation(async (input, state) => ({ ...input, state, revision: 0, assigned_output: null }));
     vi.spyOn(Pool.prototype, 'connect').mockImplementation(() => { throw new Error('No DB network expected'); });
     const listen = vi.spyOn(Server.prototype, 'listen').mockImplementation(function (this: Server) { return this; });
-    const devices = vi.spyOn(OwnToneBackend.prototype, 'listDevices').mockResolvedValue([]);
+    const devices = vi.spyOn(OwnToneBackend.prototype, 'listDevices').mockResolvedValue([{ id: 'opaque', name: 'Lounge' }]);
+    const ha = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ state: 'paused', attributes: { client_name: 'Groovenet-a' } }));
     vi.spyOn(OwnToneBackend.prototype, 'close').mockResolvedValue();
-    const worker = await runPlayerWorker(env);
+    const worker = await runPlayerWorker({ ...env, PLAYER_HA_URL: "http://ha", PLAYER_HA_TOKEN: "token", PLAYER_HA_ENTITIES_JSON: '{"Lounge":"media_player.room"}', PLAYER_HA_SENDERS_JSON: '{"a":{"client_name":"Groovenet-a"}}' });
     expect(listen).toHaveBeenCalledWith(13700, '0.0.0.0', expect.any(Function));
     expect(devices).not.toHaveBeenCalled();
     await worker.manager.create({ id: 'lounge', name: 'Lounge', engine_id: 'a' });
-    expect(await worker.manager.devices('lounge')).toEqual([]);
+    expect((await worker.manager.devices('lounge'))[0]!.observed).toMatchObject({ entity_id: 'media_player.room', sender_identity: 'groovenet', sender_engine_id: 'a' });
+    expect(ha).toHaveBeenCalledOnce();
     expect(devices).toHaveBeenCalledOnce();
     // No persisted player in this unit fixture needs a shutdown UPDATE.
     vi.spyOn(Store.prototype, 'save').mockImplementation(async player => player);
@@ -101,6 +103,9 @@ describe("player worker lifecycle", () => {
     [{ ...env, PLAYER_ENGINES_JSON: "{}" }, /dedicated engine/],
     [{ ...env, PLAYER_ENGINES_JSON: undefined }, /dedicated engine/],
     [{ ...env, PLAYER_ENGINES_JSON: JSON.stringify({ a: { apiUrl: "file:///api", libraryRoot: "/media" } }) }, /Invalid/],
+    [{ ...env, PLAYER_HA_SENDERS_JSON: '{"a":{}}' }, /Invalid/],
+    [{ ...env, PLAYER_HA_SENDERS_JSON: '{"missing":{"client_name":"engine"}}' }, /configured engine/],
+    [{ ...env, PLAYER_HA_SENDERS_JSON: '{"a":{"client_name":""}}' }, /Too small/],
     [{ ...env, PLAYER_API_KEY: "short" }, /32/],
     [{ ...env, PLAYER_API_KEY: undefined }, /32/],
     [{ ...env, DATABASE_URL: undefined }, /DATABASE_URL/],

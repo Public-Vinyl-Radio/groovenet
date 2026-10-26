@@ -5,4 +5,6 @@ PLAYER_ENGINE_A_PASSWORD=op://${GROOVENET_OP_VAULT:-Homelab}/${GROOVENET_OP_ITEM
 PLAYER_ENGINE_B_PASSWORD=op://${GROOVENET_OP_VAULT:-Homelab}/${GROOVENET_OP_ITEM:-groovenet}/PLAYER_ENGINE_B_PASSWORD
 PLAYER_LAN_INTERFACE=enp170s0
 PLAYER_AUDIO_MOUNT=music_data
-PLAYER_HA_ENTITIES_JSON={}
+# Optional HA settings are inherited from the calling environment and rendered when set:
+# PLAYER_HA_URL, PLAYER_HA_TOKEN, PLAYER_HA_ENTITIES_JSON, PLAYER_HA_SENDERS_JSON.
+# Keep them in the deployment environment; unset values default to disabled/empty maps.

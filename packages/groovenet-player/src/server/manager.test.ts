@@ -5,6 +5,7 @@ import type { PlaybackBackend, PlaybackSource } from "../types.js";
 import type { Track } from "@groovenet/client";
 import { ServerPlayerManager, unknownSpeaker } from "./manager.js";
 import { ServerPlayerError, type PlayerStore } from "./store.js";
+import { homeAssistantObserver } from "./observer.js";
 import { OwnToneBackend } from "../ownToneBackend.js";
 import { PlayerError } from "../types.js";
 
@@ -42,7 +43,7 @@ async function fixture(observed: SpeakerObservation = unknownSpeaker()) {
   const store = new MemoryStore();
   const backends: FakeBackend[] = [];
   const create = vi.fn(() => { const backend = new FakeBackend(); backends.push(backend); return backend; });
-  const observer = vi.fn(async () => observed);
+  const observer = vi.fn<import("./manager.js").SpeakerObserver>(async () => observed);
   const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create }, b: { libraryRoot: "/media", create } }, observer);
   const fault = vi.fn();
   manager.on("fault", fault);
@@ -488,4 +489,47 @@ describe("persistent server player manager", () => {
     await f.manager.shutdown();
   });
 
+});
+
+
+describe("sender-aware availability", () => {
+  it("allows cold play and disconnected resume for this engine, but protects other assignments", async () => {
+    const f = await fixture({ availability: "occupied", source: "home_assistant", observed_at: "now", sender_identity: "groovenet", sender_engine_id: "a" });
+    await f.prepare("a"); await f.prepare("b", "speaker-a");
+    await f.command("a", { type: "play" });
+    await f.command("a", { type: "pause" });
+    f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
+    await f.command("a", { type: "resume" });
+    expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false);
+    await expect(f.command("b", { type: "play" })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    expect(f.observer).toHaveBeenLastCalledWith("speaker-a", expect.objectContaining({ fresh: true }));
+    await f.manager.shutdown();
+  });
+  it.each([
+    { sender_identity: "groovenet" as const, sender_engine_id: "b" },
+    { sender_identity: "groovenet" as const },
+    { sender_identity: "foreign" as const },
+    { sender_identity: "unknown" as const },
+  ])("requires takeover for a disconnected resume with %j", async sender => {
+    const f = await fixture({ availability: "idle", source: "home_assistant", observed_at: "now", sender_identity: "unknown" });
+    await f.prepare("a"); await f.command("a", { type: "play" }); await f.command("a", { type: "pause" });
+    f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
+    f.observer.mockResolvedValue({ availability: "occupied", source: "home_assistant", observed_at: "now", ...sender });
+    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
+    expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(true);
+    await f.manager.shutdown();
+  });
+  it("resolves name mappings on cold play and runtime reconnect, and exposes mapping diagnostics", async () => {
+    const f = await fixture();
+    const observe = homeAssistantObserver({ url: "http://ha", token: "token", entities: { A: "media_player.room" }, fetch: vi.fn(async () => Response.json({ state: "idle" })) });
+    f.observer.mockImplementation(observe);
+    await f.prepare("a");
+    expect((await f.manager.devices("a"))[0]!.observed).toMatchObject({ entity_id: "media_player.room", availability: "idle" });
+    await f.command("a", { type: "play" });
+    const backend = f.backends.at(-1)!;
+    await f.command("a", { type: "pause" }); backend.outputConnection.mockResolvedValue("disconnected");
+    await f.command("a", { type: "resume" });
+    expect(backend.pause).toHaveBeenLastCalledWith(false);
+    await f.manager.shutdown();
+  });
 });

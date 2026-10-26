@@ -157,16 +157,73 @@ list/create/get/command/devices/engines requests; SSE can be consumed directly.
 
 ## Speaker activity and transfers
 
-Optionally configure `PLAYER_HA_URL`, `PLAYER_HA_TOKEN` and an output-to-entity
-map such as `PLAYER_HA_ENTITIES_JSON={"OUTPUT_ID":"media_player.lounge"}`.
-The observer only reads HA state, with a 2-second timeout and 5-second cache.
+Configure `PLAYER_HA_URL`, `PLAYER_HA_TOKEN` and `PLAYER_HA_ENTITIES_JSON`
+with exact OwnTone output IDs or names as keys. ID mappings take precedence.
+Names are case-sensitive and should be unique; use IDs if names collide.
+For example:
+
+```json
+{"aswitch":"media_player.aswitch_streamer","Lounge Room Audio":"media_player.lounge_streamer","132116595608304":"media_player.bedroom_sonos"}
+```
+
+Read-only inspection on beelink on 2026-10-25 confirmed both engines discover:
+
+| OwnTone output ID | Name | HA entity from the installed registry (#691) |
+| --- | --- | --- |
+| `202481599519404` | aswitch | `media_player.aswitch_streamer` |
+| `202481586338774` | Lounge Room Audio | `media_player.lounge_streamer` |
+| `132116595608304` | Bedroom | `media_player.bedroom_sonos` |
+
+The running worker had an empty HA URL/token and `{}` mappings. HA live states
+could not be queried through that worker. These settings must be supplied to
+`.env.players` and retained in the environment used to render it on deployment.
+The optional `.env.players.tpl` does not supply HA credentials by default.
+
+`groovenet player devices --remote lounge` (or the devices API) shows
+`observed.entity_id`, availability, source, observation time and sender identity.
+`entity=unmapped` exposes missing mappings; an entity with `source=unconfigured`
+means the URL/token is missing. A configured but inaccessible entity reports
+`source=home_assistant`, unknown activity and no observation timestamp.
+
+The observer reads HA with a 2-second timeout. Device listings cache observations
+for 5 seconds; connection/reconnection decisions always fetch fresh state.
 `idle`, `off`, `standby` mean observed idle; active/paused states mean occupied;
 unavailable, missing configuration and failed observations mean unknown.
-HA does not prove which app is sending audio. Observations can race another app.
+Observations can race another app.
+
+To recognise an engine, HA must expose receiver **session sender attributes**.
+Configure exact attribute/value matches keyed by engine ID, for example:
+
+```sh
+PLAYER_HA_SENDERS_JSON='{"primary":{"client_name":"Groovenet-primary","client_ip":"192.168.2.151"},"secondary":{"client_name":"Groovenet-secondary","client_ip":"192.168.2.151"}}'
+```
+
+These attribute names/values are illustrative: inspect the actual HA entity
+attributes before configuring them. All attributes for an engine must match;
+exactly one engine must match. Matching only the beelink IP cannot distinguish
+its two engines or another app on that host. Use a unique sender identifier,
+never track metadata, a room source label or a shared host IP. Duplicate matches
+remain unknown identity and occupied activity. Sender attributes must describe
+the current session and be cleared/replaced on takeover. Idle/unavailable states
+never identify a sender, even if attributes linger.
+
+The installed `shairport_sync` 1.4.0 integration was inspected read-only: it
+subscribes to playback and track metadata but exposes no client name/IP. It needs
+an HA integration/receiver metadata update before this sender configuration can
+work. Shairport's D-Bus client address is available on the Lounge receiver, but
+its client name was empty in #691 and the address persists after disconnect.
+Do not assume an engine library name appears as `client_name`. No receiver or HA
+configuration was changed as part of the inspection.
+
+An active matching sender reports `sender_identity=groovenet` and
+`sender_engine_id`. Its own player may connect/resume without takeover; other
+engines still need takeover. Nonmatching sender attributes report `foreign`;
+missing/ambiguous attributes report `unknown`. Both retain occupancy protection.
 
 Connecting to unknown activity requires explicit `allow_unknown: true`.
-Occupied activity requires `takeover: true`. A paused engine may release its
-AirPlay transport, so resuming may require another availability decision.
+Occupied activity requires `takeover: true` unless its sender identifies this
+player's dedicated engine. A paused engine may release its AirPlay transport;
+reconnection checks apply the same sender rules.
 Neither acknowledgement can steal another Groovenet player's assignment.
 For that, send `output.transfer` to the destination player:
 

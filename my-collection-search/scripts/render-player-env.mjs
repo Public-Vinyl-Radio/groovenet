@@ -31,6 +31,7 @@ export function renderPlayerEnv(env) {
     PLAYER_HA_URL: env.PLAYER_HA_URL || '',
     PLAYER_HA_TOKEN: env.PLAYER_HA_TOKEN || '',
     PLAYER_HA_ENTITIES_JSON: env.PLAYER_HA_ENTITIES_JSON || '{}',
+    PLAYER_HA_SENDERS_JSON: env.PLAYER_HA_SENDERS_JSON || '{}',
   };
   // Double-quoted dotenv values preserve JSON/quotes/backslashes; $$ prevents
   // Compose from interpolating dollar signs inside an actual secret.

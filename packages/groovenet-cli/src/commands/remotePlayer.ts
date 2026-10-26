@@ -176,5 +176,5 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
 }
 
 export function formatRemoteDevice(device: ServerPlayerDevice): string {
-  return `${device.name} · activity=${device.observed.availability} · assigned=${device.assigned_player_id ?? "none"} · desired=${device.desired_by.join(",") || "none"} · sender=unknown · observed=${device.observed.observed_at ?? "unavailable"}`;
+  return `${device.name} · activity=${device.observed.availability} · assigned=${device.assigned_player_id ?? "none"} · desired=${device.desired_by.join(",") || "none"} · entity=${device.observed.entity_id ?? "unmapped"} · sender=${device.observed.sender_identity}${device.observed.sender_engine_id ? `(${device.observed.sender_engine_id})` : ""} · observed=${device.observed.observed_at ?? "unavailable"}`;
 }

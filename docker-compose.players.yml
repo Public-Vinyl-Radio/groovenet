@@ -23,6 +23,7 @@ services:
       PLAYER_HA_URL: ${PLAYER_HA_URL:-}
       PLAYER_HA_TOKEN: ${PLAYER_HA_TOKEN:-}
       PLAYER_HA_ENTITIES_JSON: ${PLAYER_HA_ENTITIES_JSON:-{}}
+      PLAYER_HA_SENDERS_JSON: ${PLAYER_HA_SENDERS_JSON:-{}}
     extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       db: { condition: service_healthy }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createServerPlayerSchema, serverPlayerCommandSchema, serverPlayerEventSchema, playerJsonSchemas } from "./players.js";
+import { createServerPlayerSchema, serverPlayerCommandSchema, serverPlayerEventSchema, playerJsonSchemas, speakerObservationSchema } from "./players.js";
 describe("server-player contracts", () => {
   it("accepts persistent names and configured engine identifiers, not client-supplied URLs", () => {
     expect(createServerPlayerSchema.parse({ id: "lounge", name: " Lounge ", engine_id: "primary" }).name).toBe("Lounge");
@@ -19,4 +19,11 @@ describe("server-player contracts", () => {
     expect(playerJsonSchemas.ServerPlayer).toHaveProperty("properties");
     expect(serverPlayerEventSchema.safeParse({ type: "snapshot" }).success).toBe(false);
   });
+});
+
+it("preserves mapping diagnostics and sender identity in device observations", () => {
+  const observation = { availability: "occupied", source: "home_assistant", observed_at: "now", entity_id: "media_player.room", sender_identity: "groovenet", sender_engine_id: "primary" };
+  expect(speakerObservationSchema.parse(observation)).toEqual(observation);
+  expect(speakerObservationSchema.safeParse({ ...observation, sender_identity: "trusted" }).success).toBe(false);
+  expect(speakerObservationSchema.parse({ availability: "unknown", source: "unconfigured", observed_at: null, sender_identity: "unknown" })).not.toHaveProperty("entity_id");
 });
