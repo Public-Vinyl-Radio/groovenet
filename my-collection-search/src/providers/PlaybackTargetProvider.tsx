@@ -84,14 +84,9 @@ export function usePlaybackPlayer() {
   const replace = async (tracks: Track[], options: ReplacePlaylistOptions = {}) => {
     if (!tracks.length) return;
     if (!controller) { reportLocked(); return; }
-    // There is no atomic queue.replace command. Add first so a failed request
-    // cannot destroy the existing queue. Existing entries are retained remotely.
-    const existingIds = new Set(controller.getSnapshot().player?.state.queue.map(entry => entry.id));
-    const result = await add(tracks);
-    if (!result || options.autoplay !== true) return;
+    const entries = tracks.map(({ track_id, friend_id }) => ({ id: crypto.randomUUID(), track_id, friend_id }));
     const offset = options.startIndex ?? (options.startTrackId ? Math.max(0, tracks.findIndex(track => track.track_id === options.startTrackId)) : 0);
-    const entry = result.state.queue.filter(entry => !existingIds.has(entry.id))[offset];
-    if (entry) await controller.command({ type: "play", entry_id: entry.id });
+    await controller.command({ type: "queue.replace", entries, current_entry_id: entries[offset]?.id ?? entries[0]!.id, position: 0, play: options.autoplay === true });
   };
   const edit = (type: "play" | "resume" | "pause" | "stop" | "next" | "previous" | "queue.clear") => {
     if (controller) void controller.command({ type });

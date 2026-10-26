@@ -48,16 +48,19 @@ describe("local and server playback target", () => {
     await act(async () => snapshot()); expect(api.command).not.toHaveBeenCalled();
     await act(async () => hook.result.current.target.lock()); expect(close).toHaveBeenCalled(); expect(hook.result.current.target.authorized).toBe(false);
   });
-  it("routes additions with friend identity and queue UUIDs, plays only explicitly requested entries after an add", async () => {
+  it("atomically replaces for Play now, while additions retain friend identity", async () => {
     const hook = mount(); await waitFor(() => expect(hook.result.current.target.authorized).toBe(true));
     act(() => hook.result.current.target.select("lounge")); await act(async () => snapshot());
     const track = { ...sampleTrack, track_id: "new", friend_id: 2 };
-    const p = player("lounge", 4); p.state.queue.push({ id: "55555555-5555-4555-8555-555555555555", track_id: "new", friend_id: 2, title: "New", artist: "Artist" });
-    api.command.mockResolvedValueOnce({ player: p });
     await act(async () => hook.result.current.playback.replacePlaylist([track], { autoplay: true, startIndex: 0 }));
-    expect(api.command.mock.calls[0]![1]).toEqual({ type: "queue.add", tracks: [{ track_id: "new", friend_id: 2 }], expected_revision: 3 });
-    expect(api.command.mock.calls[1]![1]).toEqual({ type: "play", entry_id: p.state.queue[2]!.id, expected_revision: 4 });
+    expect(api.command).toHaveBeenCalledTimes(1);
+    const replacement = api.command.mock.calls[0]![1];
+    expect(replacement).toMatchObject({ type: "queue.replace", entries: [{ id: expect.any(String), track_id: "new", friend_id: 2 }], position: 0, play: true, expected_revision: 3 });
+    if (replacement.type !== "queue.replace") throw new Error("Expected replacement");
+    expect(replacement.current_entry_id).toBe(replacement.entries[0]!.id);
     await act(async () => hook.result.current.playback.enqueueNext([track])); expect(api.command.mock.lastCall?.[1]).toMatchObject({ type: "queue.add", at: 1 });
+    await act(async () => hook.result.current.playback.appendToQueue(track));
+    expect(api.command.mock.lastCall?.[1]).toMatchObject({ type: "queue.add", tracks: [{ track_id: "new", friend_id: 2 }] });
     expect(local.appendToQueue).not.toHaveBeenCalled(); expect(local.replacePlaylist).not.toHaveBeenCalled();
   });
   it("routes shortcuts to remote transport and retains duplicate track references", async () => {
@@ -69,7 +72,7 @@ describe("local and server playback target", () => {
     await act(async () => receive({ type: "snapshot", player: p, worker_instance: workerA, sequence: 2 }));
     expect(hook.result.current.playback.currentTrackIndex).toBeNull(); await act(async () => hook.result.current.playback.play()); expect(api.command.mock.lastCall?.[1].type).toBe("play");
   });
-  it("does not play after a failed add, after an empty selection, or for enqueue-only requests", async () => {
+  it("does not retry or issue separate play commands after a failed replacement or empty selection", async () => {
     const hook = mount(); await waitFor(() => expect(hook.result.current.target.authorized).toBe(true)); act(() => hook.result.current.target.select("lounge")); await act(async () => snapshot());
     await act(async () => { hook.result.current.playback.appendToQueue([]); hook.result.current.playback.replacePlaylist([], { autoplay: true }); }); expect(api.command).not.toHaveBeenCalled();
     api.command.mockRejectedValueOnce(new Error("failed add")); await act(async () => hook.result.current.playback.replacePlaylist([sampleTrack], { autoplay: true })); expect(api.command).toHaveBeenCalledTimes(1);
@@ -94,7 +97,7 @@ describe("local and server playback target", () => {
   });
 });
 
-it("surfaces non-Error rejections and chooses newly added entries by stable UUID and requested track offset", async () => {
+it("surfaces non-Error rejections and selects a requested track offset within one replacement", async () => {
   const hook = mount(); await waitFor(() => expect(hook.result.current.target.authorized).toBe(true));
   for (const method of ["unlock", "lock", "list"] as const) {
     api[method].mockRejectedValueOnce("offline");
@@ -103,18 +106,24 @@ it("surfaces non-Error rejections and chooses newly added entries by stable UUID
   }
   act(() => hook.result.current.target.select("lounge")); await act(async () => snapshot());
   const next = { ...sampleTrack, track_id: "second", friend_id: 2 };
-  const p = player("lounge", 4);
-  p.state.queue.push({ id: "55555555-5555-4555-8555-555555555555", track_id: sampleTrack.track_id, friend_id: sampleTrack.friend_id, title: "First", artist: "Artist" }, { id: "66666666-6666-4666-8666-666666666666", track_id: "second", friend_id: 2, title: "Second", artist: "Artist" });
-  api.command.mockResolvedValueOnce({ player: p });
   await act(async () => hook.result.current.playback.replacePlaylist([sampleTrack, next], { autoplay: true, startTrackId: "second" }));
-  expect(api.command.mock.lastCall?.[1]).toMatchObject({ type: "play", entry_id: p.state.queue[3]!.id });
-  api.command.mockClear();
-  api.command.mockResolvedValueOnce({ player: player("lounge", 6) });
-  await act(async () => hook.result.current.playback.replacePlaylist([sampleTrack], { autoplay: true, startTrackId: "missing" }));
+  const command = api.command.mock.lastCall![1];
+  if (command.type !== "queue.replace") throw new Error("Expected replacement");
+  expect(command.current_entry_id).toBe(command.entries[1]!.id);
   expect(api.command).toHaveBeenCalledTimes(1);
   api.command.mockClear();
-  const newPlayer = player("lounge", 7); newPlayer.state.queue.push({ id: "77777777-7777-4777-8777-777777777777", track_id: sampleTrack.track_id, friend_id: sampleTrack.friend_id, title: "New", artist: "Artist" });
-  api.command.mockResolvedValueOnce({ player: newPlayer });
-  await act(async () => hook.result.current.playback.replacePlaylist([sampleTrack], { autoplay: true }));
-  expect(api.command.mock.lastCall?.[1]).toMatchObject({ type: "play", entry_id: newPlayer.state.queue[2]!.id });
+  await act(async () => hook.result.current.playback.replacePlaylist([sampleTrack], { startTrackId: "missing" }));
+  const fallback = api.command.mock.lastCall![1];
+  if (fallback.type !== "queue.replace") throw new Error("Expected replacement");
+  expect(fallback.current_entry_id).toBe(fallback.entries[0]!.id);
+  expect(fallback.play).toBe(false);
+});
+
+it("falls back to the first replacement entry when a requested index is out of range", async () => {
+  const hook = mount(); await waitFor(() => expect(hook.result.current.target.authorized).toBe(true));
+  act(() => hook.result.current.target.select("lounge")); await act(async () => snapshot());
+  await act(async () => hook.result.current.playback.replacePlaylist([sampleTrack], { autoplay: true, startIndex: 99 }));
+  const command = api.command.mock.lastCall![1];
+  if (command.type !== "queue.replace") throw new Error("Expected replacement");
+  expect(command.current_entry_id).toBe(command.entries[0]!.id);
 });

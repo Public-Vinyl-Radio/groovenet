@@ -13,13 +13,20 @@ not included. Operators configure players through the existing CLI/API; see
 [server players](../../packages/groovenet-player/SERVER_PLAYERS.md).
 
 Collection play/enqueue actions and keyboard playback shortcuts target the
-selected mode. In server mode, **play adds the selection to the server queue and
-explicitly plays its requested entry**, retaining existing entries. The API has
-no atomic queue-replace operation; the browser does not emulate one by clearing
-music before an add that might fail. Enqueue adds without starting audio. Queue
-remove/move/play actions identify individual entry UUIDs, so duplicate tracks
-and different friends' track references remain distinct. Local behavior stays
-with the existing browser player.
+selected mode. In server mode, **Play now atomically replaces the server queue
+and starts the selected entry**. Every track is resolved before the old queue
+or playback changes; failures do not half-clear it. Enqueue appends without
+starting audio. Queue remove/move/play actions identify individual entry UUIDs,
+so duplicate tracks and different friends' track references remain distinct.
+Local behavior stays with the existing browser player.
+
+**Clear server queue** stops and empties the server queue in one action and
+shows a **Queue cleared · Undo** toast after success. Undo restores the original
+entry UUIDs, current entry and saved position through `queue.replace`, and
+restarts audio only if it was playing before Clear. A paused queue returns as a
+stopped checkpoint until Play. Undo is unavailable if another server edit has
+happened since Clear; server revision checks also fence concurrent edits.
+Playback restoration remains subject to the normal output availability checks.
 
 The server panel shows current track, status, elapsed/duration, saved checkpoint,
 requested sender volume, queue, desired output, actual assignment and independent

@@ -229,3 +229,7 @@ it("does not reconnect when a stream ends as the controller closes", async () =>
   await vi.advanceTimersByTimeAsync(2000);
   expect(api.serverPlayerEvents).toHaveBeenCalledOnce();
 });
+
+it("formats mapped entity and sender engine diagnostics", () => {
+  expect(formatRemoteDevice({ id: "s", name: "Room", assigned_player_id: "a", desired_by: ["a"], observed: { availability: "occupied", source: "home_assistant", observed_at: "now", entity_id: "media_player.room", sender_identity: "groovenet", sender_engine_id: "primary" } })).toContain("entity=media_player.room · sender=groovenet(primary) · observed=now");
+});

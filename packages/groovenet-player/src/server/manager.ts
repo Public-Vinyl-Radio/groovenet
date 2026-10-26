@@ -9,7 +9,7 @@ export interface PlayerEngine {
   libraryRoot: string;
   create(outputId?: string): PlaybackBackend;
 }
-export type SpeakerObserver = (outputId: string) => Promise<SpeakerObservation>;
+export type SpeakerObserver = (outputId: string, context?: { outputName?: string; resolveOutputName?: () => Promise<string | undefined>; fresh?: boolean }) => Promise<SpeakerObservation>;
 export const unknownSpeaker = (): SpeakerObservation => ({ availability: "unknown", observed_at: null, source: "unconfigured", sender_identity: "unknown" });
 interface Runtime { backend: PlaybackBackend; generation: number; }
 const errorValue = (error: unknown) => error instanceof PlayerError || error instanceof ServerPlayerError ? { code: error.code, message: error.message } : { code: "PLAYER_OPERATION_FAILED", message: "Player operation failed" };
@@ -72,7 +72,7 @@ export class ServerPlayerManager extends EventEmitter {
       return await Promise.all(outputs.map(async (output) => ({ ...output,
         assigned_player_id: this.list().find((p) => p.assigned_output === output.id)?.id ?? null,
         desired_by: this.list().filter((p) => p.state.desired_output === output.id).map((p) => p.id),
-        observed: await this.observe(output.id),
+        observed: await this.observe(output.id, { outputName: output.name }),
       })));
     } finally { if (!runtime) await backend.close(); }
   }
@@ -112,6 +112,7 @@ export class ServerPlayerManager extends EventEmitter {
             player.state.queue.splice(command.to, 0, player.state.queue.splice(index, 1)[0]!);
             break;
           }
+          case "queue.replace": return { player: await this.replaceQueue(player, command) };
           case "queue.clear": await this.stop(player); player.state.queue = []; break;
           case "output.select":
             if (this.runtimes.has(id)) await this.stop(player, true);
@@ -125,7 +126,7 @@ export class ServerPlayerManager extends EventEmitter {
           case "resume":
             if (this.runtimes.has(id)) {
               const backend = this.runtimes.get(id)!.backend;
-              if (await backend.outputConnection?.() !== "connected") await this.requireAvailable(player.state.desired_output!, command);
+              if (await backend.outputConnection?.() !== "connected") await this.requireAvailable(player, player.state.desired_output!, command);
               await backend.pause(false);
               player.state.status = "playing"; player.state.checkpoint = false;
             } else { await this.play(player, player.state.current_entry_id ?? undefined, command); return { player: this.get(id) }; }
@@ -167,6 +168,58 @@ export class ServerPlayerManager extends EventEmitter {
     });
   }
 
+  private async replaceQueue(player: ServerPlayer, command: Extract<ServerPlayerCommand, { type: "queue.replace" }>): Promise<ServerPlayer> {
+    // Resolve and validate the entire replacement before touching playback or
+    // saving anything. A bad final entry cannot leave a half-cleared queue.
+    const previousEntries = new Map(player.state.queue.map(entry => [entry.id, entry]));
+    const queue = [];
+    for (const ref of command.entries) {
+      const previous = ref.id ? previousEntries.get(ref.id) : undefined;
+      if (previous && (previous.track_id !== ref.track_id || previous.friend_id !== ref.friend_id)) throw new ServerPlayerError("INVALID_QUEUE", "An existing entry ID cannot identify a different track", 400);
+      const track = await this.store.resolve(ref).catch(() => {
+        throw new ServerPlayerError("TRACK_RESOLUTION_FAILED", "Unable to resolve replacement tracks", 503);
+      });
+      if (!track) throw new ServerPlayerError("TRACK_NOT_FOUND", "Queued track does not exist or is ambiguous", 404);
+      queue.push({ ...ref, id: ref.id ?? randomUUID(), title: track.title, artist: track.artist });
+    }
+    const retained = queue.some(entry => entry.id === player.state.current_entry_id);
+    const current = command.current_entry_id === undefined
+      ? (retained ? player.state.current_entry_id : command.play ? queue[0]?.id ?? null : null)
+      : command.current_entry_id;
+    if (current !== null && !queue.some(entry => entry.id === current)) throw new ServerPlayerError("ENTRY_NOT_FOUND", "Current entry must belong to the replacement queue", 404);
+    if (command.play && current === null) throw new ServerPlayerError("ENTRY_NOT_FOUND", "Select a replacement entry before playing", 400);
+    const unchanged = current !== null && current === player.state.current_entry_id;
+    const position = command.position ?? (unchanged ? player.state.position : 0);
+    if (unchanged && this.runtimes.has(player.id)) {
+      const backend = this.active(player.id).backend;
+      if (command.play && player.state.status !== "playing") {
+        if (await backend.outputConnection?.() !== "connected") await this.requireAvailable(player, player.state.desired_output!, command);
+        await backend.pause(false);
+        player.state.status = "playing";
+        player.state.checkpoint = false; player.state.error = null;
+      }
+      if (position !== player.state.position) await backend.seek(position);
+      player.state.queue = queue;
+      player.state.position = position;
+      return this.save(player);
+    }
+    if (command.play) {
+      // play validates output policy and audio before detaching the old backend.
+      player.state.queue = queue;
+      player.state.current_entry_id = current;
+      player.state.position = position;
+      await this.play(player, current!, command);
+      return this.get(player.id);
+    }
+    if (!unchanged) await this.stop(player);
+    player.state.queue = queue;
+    player.state.current_entry_id = current;
+    player.state.position = current === null ? 0 : position;
+    player.state.checkpoint = current !== null && !this.runtimes.has(player.id);
+    if (player.state.status !== "error") player.state.error = null;
+    return this.save(player);
+  }
+
   private async play(player: ServerPlayer, entryId: string | undefined, policy: { allow_unknown: boolean; takeover: boolean }, resumeCheckpoint = true): Promise<void> {
     const entry = player.state.queue.find((entry) => entry.id === entryId);
     if (!entry) throw new ServerPlayerError("ENTRY_NOT_FOUND", "Queue is empty or the entry does not exist", 400);
@@ -175,7 +228,7 @@ export class ServerPlayerManager extends EventEmitter {
     const owner = this.list().find((p) => p.assigned_output === output && p.id !== player.id);
     if (owner) throw new ServerPlayerError("OUTPUT_ASSIGNED", "Speaker belongs to another player; use explicit transfer");
     const needsReconnect = (player.state.status === "paused" || player.state.status === "error") && await this.runtimes.get(player.id)?.backend.outputConnection?.() !== "connected";
-    if (player.assigned_output !== output || needsReconnect) await this.requireAvailable(output, policy);
+    if (player.assigned_output !== output || needsReconnect) await this.requireAvailable(player, output, policy);
     const track = await this.store.resolve(entry);
     const engine = this.engine(player);
     const source = track ? audioSource(track, { apiBase: "http://unused/api", audioLibraryRoot: engine.libraryRoot }) : null;
@@ -312,9 +365,15 @@ export class ServerPlayerManager extends EventEmitter {
     });
   }
 
-  private async requireAvailable(output: string, policy: { allow_unknown: boolean; takeover: boolean }): Promise<void> {
-    const observed = await this.observe(output);
-    if (observed.availability === "occupied" && !policy.takeover) throw new ServerPlayerError("SPEAKER_OCCUPIED", "Observed speaker activity requires explicit takeover");
+  private async requireAvailable(player: ServerPlayer, output: string, policy: { allow_unknown: boolean; takeover: boolean }): Promise<void> {
+    const observed = await this.observe(output, { fresh: true, resolveOutputName: async () => {
+      const runtime = this.runtimes.get(player.id);
+      const backend = runtime?.backend ?? this.engine(player).create();
+      try { return (await backend.listDevices()).find(device => device.id === output)?.name; }
+      finally { if (!runtime) await backend.close(); }
+    } });
+    const ownSender = observed.sender_identity === "groovenet" && observed.sender_engine_id === player.engine_id;
+    if (observed.availability === "occupied" && !ownSender && !policy.takeover) throw new ServerPlayerError("SPEAKER_OCCUPIED", "Observed speaker activity requires explicit takeover");
     if (observed.availability === "unknown" && !policy.allow_unknown) throw new ServerPlayerError("AVAILABILITY_UNKNOWN", "Speaker availability is unknown; explicitly acknowledge it before connecting");
   }
 

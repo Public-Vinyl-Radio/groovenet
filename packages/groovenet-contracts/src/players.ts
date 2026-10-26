@@ -27,6 +27,8 @@ export const serverPlayerSchema = z.object({
 }).strict();
 export const createServerPlayerSchema = serverPlayerSchema.pick({ id: true, name: true, engine_id: true }).strict();
 const edit = { expected_revision: revision };
+const replacementEntries = z.array(playerTrackRefSchema.extend({ id: z.uuid().optional() }).strict()).max(10000)
+  .refine(entries => { const ids = entries.flatMap(entry => entry.id ? [entry.id] : []); return new Set(ids).size === ids.length; }, "Queue entry IDs must be unique");
 const connect = { allow_unknown: z.boolean().default(false), takeover: z.boolean().default(false) };
 export const serverPlayerCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename"), ...edit, name: z.string().trim().min(1).max(120) }).strict(),
@@ -34,6 +36,7 @@ export const serverPlayerCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("queue.remove"), ...edit, entry_id: z.uuid() }).strict(),
   z.object({ type: z.literal("queue.move"), ...edit, entry_id: z.uuid(), to: z.number().int().nonnegative() }).strict(),
   z.object({ type: z.literal("queue.clear"), ...edit }).strict(),
+  z.object({ type: z.literal("queue.replace"), ...edit, ...connect, entries: replacementEntries, current_entry_id: z.uuid().nullable().optional(), position: z.number().finite().nonnegative().optional(), play: z.boolean().default(false) }).strict(),
   z.object({ type: z.literal("play"), ...edit, ...connect, entry_id: z.uuid().optional() }).strict(),
   z.object({ type: z.literal("pause"), ...edit }).strict(),
   z.object({ type: z.literal("resume"), ...edit, ...connect }).strict(),
@@ -49,8 +52,10 @@ export const speakerObservationSchema = z.object({
   availability: z.enum(["idle", "occupied", "unknown"]),
   observed_at: z.string().nullable(),
   source: z.enum(["home_assistant", "unconfigured"]),
-  // HA does not establish which application owns an AirPlay session.
-  sender_identity: z.literal("unknown"),
+  // Engine identity requires an explicit, unambiguous operator-configured match.
+  sender_identity: z.enum(["unknown", "groovenet", "foreign"]),
+  sender_engine_id: playerIdSchema.nullable().optional(),
+  entity_id: z.string().nullable().optional(),
 });
 export const serverPlayerDeviceSchema = z.object({
   id: z.string(), name: z.string(), description: z.string().optional(),

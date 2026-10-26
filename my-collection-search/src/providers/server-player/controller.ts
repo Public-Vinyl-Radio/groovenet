@@ -3,9 +3,9 @@ import { playerApi } from "@/services/internalApi/players";
 
 type WithoutRevision<T> = T extends unknown ? Omit<T, "expected_revision"> : never;
 export type PlayerEdit = WithoutRevision<ServerPlayerCommandInput>;
-export type ConnectingEdit = Extract<PlayerEdit, { type: "play" | "resume" | "next" | "previous" | "output.select" | "output.transfer" }>;
+export type ConnectingEdit = Extract<PlayerEdit, { type: "play" | "resume" | "next" | "previous" | "output.select" | "output.transfer" | "queue.replace" }>;
 function connects(command: PlayerEdit): command is ConnectingEdit {
-  return ["play", "resume", "next", "previous", "output.select", "output.transfer"].includes(command.type);
+  return (command.type === "queue.replace" && command.play === true) || ["play", "resume", "next", "previous", "output.select", "output.transfer"].includes(command.type);
 }
 type Event = ReturnType<typeof serverPlayerStreamEventSchema.parse>;
 export type RemoteView = {

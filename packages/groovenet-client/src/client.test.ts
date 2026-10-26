@@ -1748,6 +1748,10 @@ describe("server-player API", () => {
     requestMock.mockResolvedValueOnce({ data: { player } });
     await client.commandServerPlayer("lounge", { type: "pause", expected_revision: 2 });
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: { type: "pause", expected_revision: 2 } }));
+    const replacement = { type: "queue.replace" as const, expected_revision: 2, entries: [{ id: "11111111-1111-4111-8111-111111111111", track_id: "track", friend_id: 1 }], current_entry_id: "11111111-1111-4111-8111-111111111111", position: 42, play: true };
+    requestMock.mockResolvedValueOnce({ data: { player } });
+    await client.commandServerPlayer("lounge", replacement);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: replacement }));
     requestMock.mockResolvedValueOnce({ data: { devices: [] } });
     expect(await client.listServerPlayerDevices("lounge")).toEqual([]);
   });
