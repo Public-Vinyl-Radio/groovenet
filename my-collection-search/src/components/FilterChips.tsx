@@ -16,12 +16,6 @@ interface FilterChipsProps {
   chips: FilterChip[];
   onToggle: (key: string) => void;
   onClearAll?: () => void;
-  /**
-   * Controls shown above the chips, as one or more `FilterGroup`s: the genre
-   * filter with its toggle, then Missing and BPM / Key. Desktop only: phones
-   * reach them through the filter sheet.
-   */
-  leading?: React.ReactNode;
   /** The result count ("81 albums"), in mono: right-aligned on the chip line from `md` up, its own line on phones. */
   summary?: React.ReactNode;
   /** False where the page shows its count elsewhere on phones (Albums, beside the sort). */
@@ -33,15 +27,6 @@ interface FilterChipsProps {
 /** The chip's text: its label, then the count when the data has one. */
 export function chipLabel({ label, count }: Pick<FilterChip, "label" | "count">): string {
   return count === undefined ? label : `${label} · ${count.toLocaleString()}`;
-}
-
-/** Controls that belong together; the gap between groups is wider than inside one. */
-export function FilterGroup({ children }: { children: React.ReactNode }) {
-  return (
-    <Flex gap={2} alignItems="center" data-testid="filter-group">
-      {children}
-    </Flex>
-  );
 }
 
 const chipText = {
@@ -94,7 +79,6 @@ export default function FilterChips({
   chips,
   onToggle,
   onClearAll,
-  leading,
   summary,
   summaryOnPhones = true,
   mt,
@@ -109,19 +93,6 @@ export default function FilterChips({
       // On phones there are only chips and the count, so with neither it takes no space.
       display={{ base: hasChips || phoneSummary ? "block" : "none", md: "block" }}
     >
-      {leading && (
-        <Flex
-          data-testid="filter-controls"
-          columnGap={6}
-          rowGap={2}
-          flexWrap="wrap"
-          alignItems="center"
-          display={{ base: "none", md: "flex" }}
-          mb={2}
-        >
-          {leading}
-        </Flex>
-      )}
       {/*
         The chip line: active filters, Clear all, and the result count at the
         right end. It holds its height empty from `md` up, so the results below

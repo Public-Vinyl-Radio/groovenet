@@ -23,10 +23,12 @@ describe("AlbumSortMenu (#751)", () => {
     expect(screen.getByRole("button", { name: "Sort: Recently Added" })).toBeTruthy();
   });
 
-  it("is an icon button on desktop", async () => {
+  it("is a labelled SORT button in the desktop search row (#794)", async () => {
     const onChange = vi.fn();
-    const { user } = renderWithProviders(<AlbumSortMenu value="created_at:desc" onChange={onChange} trigger="icon" />);
-    await user.click(screen.getByRole("button", { name: "Sort" }));
+    const { user } = renderWithProviders(<AlbumSortMenu value="created_at:desc" onChange={onChange} trigger="button" />);
+    const trigger = screen.getByRole("button", { name: "Sort: Recently Added" });
+    expect(trigger.textContent).toBe("SortRecently Added");
+    await user.click(trigger);
     await user.click(await screen.findByRole("menuitem", { name: "Oldest Releases" }));
     expect(onChange).toHaveBeenCalledWith("year:asc");
   });

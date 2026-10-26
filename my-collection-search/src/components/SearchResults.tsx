@@ -15,7 +15,7 @@ import { toaster } from "@/components/ui/toaster";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import TrackResultStore from "@/components/TrackResultStore";
 import { TrackListHeader, TRACK_ROW_HEIGHT } from "@/components/TrackResult";
-import { SEARCH_MODE_PLACEHOLDERS, isTrackSearchMode } from "@/components/search/SearchModeToggle";
+import { SEARCH_MODE_PLACEHOLDERS, isTrackSearchMode } from "@/components/search/searchModes";
 import SearchModeMenu from "@/components/search/SearchModeMenu";
 import type { TrackSearchMode } from "@/api-contract/schemas";
 import { useSearchResults } from "@/hooks/useSearchResults";

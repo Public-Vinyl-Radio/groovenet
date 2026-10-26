@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { LuChevronDown } from "react-icons/lu";
 import type { TrackSearchMode } from "@/api-contract/schemas";
-import { SEARCH_MODE_ITEMS } from "@/components/search/SearchModeToggle";
+import { SEARCH_MODE_ITEMS } from "@/components/search/searchModes";
 import { SEARCH_MODE_HINTS } from "@/components/TrackSearchOptionsModal";
 
 type Props = {
