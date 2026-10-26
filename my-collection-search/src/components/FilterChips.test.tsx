@@ -72,6 +72,14 @@ describe("FilterChips", () => {
     expect(getComputedStyle(container.firstElementChild as Element).display).toBe("block");
   });
 
+  it("keeps the count to desktop where the page shows it elsewhere on phones", () => {
+    const { container } = renderWithProviders(
+      <FilterChips chips={[]} onToggle={vi.fn()} summary="81 albums" summaryOnPhones={false} />
+    );
+    expect(getComputedStyle(screen.getByTestId("filter-summary")).display).toBe("none");
+    expect(getComputedStyle(container.firstElementChild as Element).display).toBe("none");
+  });
+
   it("formats a zero count rather than dropping it", () => {
     expect(chipLabel({ label: "Missing audio", count: 0 })).toBe("Missing audio · 0");
   });

@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Button, IconButton, Menu } from "@chakra-ui/react";
+import { Button, IconButton, Menu, Text } from "@chakra-ui/react";
 import { LuArrowUpDown, LuChevronDown } from "react-icons/lu";
+import { HeaderButton } from "@/components/layout/ListHeader";
 
 export const DEFAULT_ALBUM_SORT = "created_at:desc";
 
@@ -19,8 +20,11 @@ export const ALBUM_SORT_OPTIONS = [
 type Props = {
   value: string;
   onChange: (sort: string) => void;
-  /** "icon": the desktop toolbar's button. "label": the phone's `Recently Added ▾` beside the count. */
-  trigger: "icon" | "label";
+  /**
+   * "button": the desktop search row's `SORT RECENTLY ADDED ▾` (#794). "label":
+   * the phone's `Recently Added ▾` beside the count. "icon": a bare icon button.
+   */
+  trigger: "button" | "icon" | "label";
 };
 
 /** The seven-option sort menu (#751), behind either trigger. */
@@ -29,7 +33,16 @@ export default function AlbumSortMenu({ value, onChange, trigger }: Props) {
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }}>
       <Menu.Trigger asChild>
-        {trigger === "icon" ? (
+        {trigger === "button" ? (
+          <HeaderButton size="search" px="14px" aria-label={`Sort: ${current.label}`}>
+            <LuArrowUpDown aria-hidden="true" />
+            <Text as="span" color="fg.muted">
+              Sort
+            </Text>
+            {current.label}
+            <LuChevronDown aria-hidden="true" />
+          </HeaderButton>
+        ) : trigger === "icon" ? (
           <IconButton aria-label="Sort" size="sm" variant="ghost">
             <LuArrowUpDown />
           </IconButton>

@@ -104,7 +104,7 @@ describe("albums page genre filter (#375)", () => {
     mocks.searchParams = new URLSearchParams("genre=jazz");
     const { user } = renderWithProviders(<AlbumsPage />);
 
-    const input = screen.getAllByRole("textbox")[0];
+    const input = screen.getByRole("searchbox", { name: "Search albums" });
     await user.type(input, "blue{Enter}");
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/albums?q=blue&genre=jazz"));
@@ -148,7 +148,7 @@ describe("albums page missing filter (#447)", () => {
     mocks.searchParams = new URLSearchParams("missing_audio=1&missing_local_cover_art_url=1");
     const { user } = renderWithProviders(<AlbumsPage />);
 
-    const input = screen.getAllByRole("textbox")[0];
+    const input = screen.getByRole("searchbox", { name: "Search albums" });
     await user.type(input, "blue{Enter}");
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
@@ -186,18 +186,18 @@ describe("albums page include_similar (#485)", () => {
 
   it("reads similar=1 from the URL and shows the toggle checked", async () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
-    renderWithProviders(<AlbumsPage />);
-    expect(
-      (screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0] as HTMLInputElement)
-        .checked
-    ).toBe(true);
+    const { user } = renderWithProviders(<AlbumsPage />);
+    expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
+    const modal = await openFilters(user);
+    expect((within(modal).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked).toBe(true);
   });
 
   it("turns the toggle on and records it in the URL", async () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia");
     const { user } = renderWithProviders(<AlbumsPage />);
 
-    await user.click(screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0]);
+    const modal = await openFilters(user);
+    await user.click(within(modal).getByRole("checkbox", { name: "Include similar" }));
 
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia&similar=1");
   });
@@ -206,7 +206,8 @@ describe("albums page include_similar (#485)", () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
     const { user } = renderWithProviders(<AlbumsPage />);
 
-    await user.click(screen.getAllByRole("checkbox", { name: "Include similar", hidden: true })[0]);
+    // From its chip; the modal's toggle is the same setter.
+    await user.click(screen.getByRole("button", { name: "Remove filter + Similar genres" }));
 
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia");
   });
@@ -239,10 +240,11 @@ describe("albums page artwork review link (#494)", () => {
     mocks.fetchGenreTree.mockResolvedValue([]);
   });
 
-  it("opens artwork review from the desktop toolbar and the phone kebab", async () => {
+  it("opens artwork review from the desktop kebab and the phone kebab", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Album artwork review", hidden: true }));
+    await user.click(await screen.findByRole("button", { name: "More album options", hidden: true }));
+    await user.click(await screen.findByRole("menuitem", { name: "Album artwork review", hidden: true }));
     await user.click(screen.getByRole("button", { name: /^Albums actions/ }));
     await user.click(await screen.findByRole("menuitem", { name: "Album artwork review" }));
 
@@ -262,22 +264,27 @@ describe("albums page view toggle (#730)", () => {
   it("switches between rows and cards, remembering the choice", async () => {
     const { user, unmount } = renderWithProviders(<AlbumsPage />);
     expect((await screen.findByTestId("results")).getAttribute("data-layout")).toBe("row");
-    const cards = screen.getAllByRole("button", { name: "Cards view", hidden: true })[0];
-    const rows = screen.getAllByRole("button", { name: "Rows view", hidden: true })[0];
-    expect(rows.getAttribute("aria-pressed")).toBe("true");
-    await user.click(cards);
+    const grid = () => screen.getByRole("radio", { name: "Grid", hidden: true }) as HTMLInputElement;
+    expect((screen.getByRole("radio", { name: "List", hidden: true }) as HTMLInputElement).checked).toBe(true);
+    await user.click(screen.getByText("Grid"));
     expect(localStorage.getItem("searchViewMode")).toBe("card");
-    expect(cards.getAttribute("aria-pressed")).toBe("true");
+    expect(grid().checked).toBe(true);
     expect(screen.getByTestId("results").getAttribute("data-layout")).toBe("card");
     unmount();
     renderWithProviders(<AlbumsPage />);
-    const again = await screen.findAllByRole("button", { name: "Cards view", hidden: true });
-    await waitFor(() => expect(again[0].getAttribute("aria-pressed")).toBe("true"));
+    await waitFor(() => expect(grid().checked).toBe(true));
   });
 
   it("opens the add form from the phone's icon button", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     await user.click(await screen.findByRole("button", { name: "Add album" }));
+    expect(mocks.push).toHaveBeenCalledWith("/albums/add");
+  });
+
+  it("opens the add form from ADD ALBUM in the desktop page row (#794)", async () => {
+    const { user } = renderWithProviders(<AlbumsPage />);
+    const row = await screen.findByTestId("page-header-desktop-actions");
+    await user.click(within(row).getByRole("button", { name: "Add album", hidden: true }));
     expect(mocks.push).toHaveBeenCalledWith("/albums/add");
   });
 });
@@ -314,10 +321,59 @@ describe("albums page simplified search (#751)", () => {
     expect(mocks.push).toHaveBeenCalledWith("/albums?q=dub&sort=title%3Aasc");
   });
 
-  it("sorts from the desktop toolbar icon", async () => {
+  it("sorts from SORT in the desktop search row", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
-    await user.click(await screen.findByRole("button", { name: "Sort", hidden: true }));
+    await user.click(await screen.findByRole("button", { name: "Sort: Recently Added", hidden: true }));
     await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)", hidden: true }));
     expect(mocks.push).toHaveBeenCalledWith("/albums?sort=title%3Aasc");
+  });
+});
+
+describe("albums page desktop header (#794)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.addedGenres = [];
+    mocks.fetchGenreTree.mockResolvedValue([genreNode("jazz", "Jazz")]);
+  });
+
+  const openPanel = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
+    await user.click(screen.getByRole("button", { name: /^Filters/, hidden: true }));
+    return screen.findByRole("dialog", { name: "Filters" });
+  };
+
+  it("opens the panel from FILTERS with the count and the album sections", async () => {
+    mocks.searchParams = new URLSearchParams("genre=jazz&missing_audio=1");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const panel = await openPanel(user);
+    expect(screen.getByRole("button", { name: "Filters · 2", hidden: true })).toBeTruthy();
+    expect(within(panel).getByText("Albums · 2 active")).toBeTruthy();
+    expect(within(panel).getByRole("group", { name: "Only albums missing" })).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: "Show albums" })).toBeTruthy();
+  });
+
+  it("sets the same filter state as the phone modal", async () => {
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const panel = await openPanel(user);
+    await user.click(within(panel).getByRole("button", { name: "Local cover" }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?missing_local_cover_art_url=1");
+  });
+
+  it("removes a genre from its tag in the panel", async () => {
+    mocks.searchParams = new URLSearchParams("genre=jazz&genre=dub");
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    const panel = await openPanel(user);
+    await user.click(await within(panel).findByRole("button", { name: "Remove genre Jazz" }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=dub");
+  });
+
+  it("shows the reported total in the chip row once known", async () => {
+    const { user } = renderWithProviders(<AlbumsPage />);
+    expect(screen.queryByTestId("filter-summary")).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "report total" }));
+    expect(screen.getByTestId("filter-summary").textContent).toBe("42 albums");
   });
 });

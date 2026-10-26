@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Field } from "@chakra-ui/react";
-import GenreFilter, { IncludeSimilarToggle } from "@/components/GenreFilter";
+import { Box, Field } from "@chakra-ui/react";
+import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { ChipToggle, ModalSection as Section } from "@/components/ui/RetroModalParts";
+import { ChipToggle, FiltersFooter, ModalSection as Section } from "@/components/ui/RetroModalParts";
 import type { MissingFilterOption } from "@/lib/trackFilters";
 
 /** The album missing checks; each key is its URL parameter, as before #447. */
@@ -15,11 +15,14 @@ export const ALBUM_MISSING_OPTIONS: MissingFilterOption[] = [
   { key: "missing_audio", label: "Audio", chipLabel: "Missing audio" },
 ];
 
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+/**
+ * The Albums filter state and its setters (#794). The page builds this once
+ * and hands the same object to the phone modal and the desktop panel.
+ */
+export type AlbumFilterControls = {
   genres: string[];
   onAddGenre: (slug: string) => void;
+  onRemoveGenre: (slug: string) => void;
   includeSimilar: boolean;
   onIncludeSimilarChange: (checked: boolean) => void;
   missing: Record<string, boolean>;
@@ -31,48 +34,34 @@ type Props = {
   onReset: () => void;
 };
 
-/**
- * The phone's "Filters" modal on Albums (#751): genre and the Missing checks
- * in one centred sheet. Changes apply as they're made, so the count on the
- * primary button follows them and "Show" just closes.
- */
-export default function AlbumFiltersModal({
-  open,
-  onOpenChange,
+/** "81 albums", "1 album". */
+export function albumCountLabel(count: number): string {
+  return `${count.toLocaleString()} ${count === 1 ? "album" : "albums"}`;
+}
+
+/** "Show 81 albums" for the primary button, or "Show albums" before the count is known. */
+export function showAlbumsLabel(count: number | null): string {
+  return count === null ? "Show albums" : `Show ${albumCountLabel(count)}`;
+}
+
+/** Genre, with its tags and Include similar, then the missing checks: the body of the modal and the panel. */
+export function AlbumFilterSections({
   genres,
   onAddGenre,
+  onRemoveGenre,
   includeSimilar,
   onIncludeSimilarChange,
   missing,
   onToggleMissing,
-  activeCount,
-  resultCount,
-  onReset,
-}: Props) {
-  const showLabel =
-    resultCount === null ? "Show albums" : `Show ${resultCount.toLocaleString()} ${resultCount === 1 ? "album" : "albums"}`;
-
+}: AlbumFilterControls) {
   return (
-    <RetroDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Filters"
-      footer={
-        <Box display="flex" gap={2} p="12px 14px 12px 12px">
-          <Button variant="outline" minH="44px" flexShrink={0} disabled={activeCount === 0} onClick={onReset}>
-            Reset
-          </Button>
-          <Button variant="solid" minH="44px" flex="1" minW={0} onClick={() => onOpenChange(false)}>
-            {showLabel}
-          </Button>
-        </Box>
-      }
-    >
+    <>
       <Section label="Genre" first>
         <Field.Root>
           <Field.Label srOnly>Genre</Field.Label>
           <GenreFilter selected={genres} onAdd={onAddGenre} inSheet />
         </Field.Root>
+        <SelectedGenreTags selected={genres} onRemove={onRemoveGenre} />
         {genres.length > 0 && <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />}
       </Section>
 
@@ -90,6 +79,36 @@ export default function AlbumFiltersModal({
           ))}
         </Box>
       </Section>
+    </>
+  );
+}
+
+type Props = AlbumFilterControls & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+/**
+ * The phone's "Filters" modal on Albums (#751): genre and the Missing checks
+ * in one centred sheet. Changes apply as they're made, so the count on the
+ * primary button follows them and "Show" just closes.
+ */
+export default function AlbumFiltersModal({ open, onOpenChange, ...filters }: Props) {
+  return (
+    <RetroDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Filters"
+      footer={
+        <FiltersFooter
+          activeCount={filters.activeCount}
+          onReset={filters.onReset}
+          showLabel={showAlbumsLabel(filters.resultCount)}
+          onShow={() => onOpenChange(false)}
+        />
+      }
+    >
+      <AlbumFilterSections {...filters} />
     </RetroDialog>
   );
 }
