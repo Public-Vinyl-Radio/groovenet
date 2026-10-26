@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, SegmentGroup, chakra, type ButtonProps } from "@chakra-ui/react";
+import { Box, Button, Flex, SegmentGroup, chakra, type ButtonProps, type FlexProps } from "@chakra-ui/react";
 import { LuSearch, LuSlidersHorizontal } from "react-icons/lu";
 import type { TrackViewMode } from "@/hooks/useTrackViewMode";
 
@@ -165,13 +165,16 @@ export function ListSearchRow({
   field,
   controls,
   maxW = "760px",
+  mb = { base: 3, md: 4 },
 }: {
   field: React.ReactNode;
   controls?: React.ReactNode;
   maxW?: string;
+  /** Space below; 0 where the parent already spaces its children. */
+  mb?: FlexProps["mb"];
 }) {
   return (
-    <Flex data-testid="list-search-row" align="center" gap={3} pr={{ md: "6px" }} mb={{ base: 3, md: 4 }}>
+    <Flex data-testid="list-search-row" align="center" gap={3} pr={{ md: "6px" }} mb={mb}>
       <Flex flex="1" minW={0} maxW={{ md: maxW }}>
         {field}
       </Flex>

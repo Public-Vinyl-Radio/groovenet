@@ -92,8 +92,9 @@ an invalid value the browser drops, so it fails silently.
   do not, and ESLint rejects them (`no-restricted-syntax` in
   `eslint.config.mjs`) in colour props and `colorPalette`.
 - **One accent:** `accent.solid` or `colorPalette="accent"` for the primary
-  action, selection and playback progress. Active filter chips are the
-  exception: a solid ink fill (`colorPalette="neutral"`). Never two solid
+  action, selection and playback progress. Toggles that are on (the filter
+  modal's missing chips, LIST / GRID) are the exception: a solid ink fill
+  (`colorPalette="neutral"`). Never two solid
   accent buttons side by side; `colorPalette="danger"` only for destructive
   actions. `colorPalette="neutral"` for inactive chips and plain badges.
   `overlay.*` tokens (`overlay.fg`, `.fg.muted`, `.track`, `.scrim`,
@@ -246,19 +247,24 @@ an invalid value the browser drops, so it fails silently.
   desktop, one line with the first three and "+N" on a phone. The "+" and the star rating
   show on hover on desktop only; on a phone they live in the card menu, which
   `TrackActionsMenu` recognises through `TrackCardContext`.
-- **Search fields and controls:** text you type uses the body face (14px at `md`,
-  16px on phones), controls you click use the label face (13px). The search field,
-  mode toggle, icon buttons and filter controls are all `size="sm"` (36px) so the
-  toolbar shares a baseline. On a phone the search field, mode group, select button and
-  Filters icon button are all 44px.
-- **Filter row** (`FilterChips` with `FilterGroup`s as `leading`): Genre and its
-  "Include similar" toggle are one unit (`GenreFilterGroup`, the toggle shows once a
-  genre is selected and the field reads "Genre · N"); Missing and BPM / Key are a
-  second group, with a wider gap between groups. Active chips and "Clear all" sit on
-  their own line below, which holds its height empty so nothing jumps.
-- **Filter chips** (`FilterChips`): square, the active chip a solid ink fill.
-  Give a chip `count` where the data already has one (genre chips take the
-  facet counts); the label becomes "Genre · 41". Don't add a count query for it.
+- **List header** (Tracks, Albums; #794): three rows, no toolbar box, every control a
+  2px outline with mono capital labels (`components/layout/ListHeader.tsx`).
+  1. Page row: `PageHeader` with `desktopActions` (SELECT, `ViewModeSwitch` LIST / GRID,
+     the Albums kebab, ADD ALBUM as the one solid button). Phones keep the header kebab.
+  2. Search row (`ListSearchRow`): the 48px `SearchField` (44px on phones; text in the
+     body face at 16px), with Tracks' `SearchModeMenu` fused onto its right end, then
+     Albums' SORT and FILTERS last. Its controls are desktop only.
+  3. Chip row: `FilterChips`, with the mono result count (`summary`) at its right end.
+- **Filters** live in one place per page: a `*FilterControls` object the page builds
+  once and spreads into both the phone modal (`TrackSearchOptionsModal`,
+  `AlbumFiltersModal`) and the desktop `FiltersPanel` (a 460px popover under FILTERS,
+  the modal's shell: ink label strip, `*FilterSections`, fixed `FiltersFooter`). Never
+  give the panel its own state. Changes apply as they're made; "Show N" only closes.
+- **Filter chips** (`FilterChips`): square, outlined, surface fill, an x, named
+  "Remove filter …"; "Clear all" is an underlined text button. "+ Similar genres" is
+  its own chip while Include similar is on. Give a chip `count` where the data already
+  has one (genre chips take the facet counts); the label becomes "Genre · 41". Don't
+  add a count query for it.
 - **Type:** three user-selectable roles, each with a curated list in the
   registry `src/app/fontChoices.ts`: **Display** (the `heading` token: page
   titles, card headings), **Body** (`body`: UI text) and **Labels** (`label`:
@@ -296,7 +302,7 @@ an invalid value the browser drops, so it fails silently.
 - **Copy:** terse sentence case, DJ vocabulary ("112 BPM", "D major (10B)",
   "B2", "LP-342"), no emoji in the UI.
 - **Layout:** pages sit in `PageContainer` (`wide` for lists, `narrow` for
-  settings and forms); phones fold filters into `FilterSheet` and navigation
+  settings and forms); phones fold filters into a `RetroDialog` modal and navigation
   into the bottom drawer.
 
 ## How to extend safely

@@ -1,27 +1,33 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { Flex, Spinner, Button, IconButton } from "@chakra-ui/react";
-import { LuImage, LuPlus } from "react-icons/lu";
+import { Flex, Spinner } from "@chakra-ui/react";
+import { LuPlus } from "react-icons/lu";
 import { useSearchParams, useRouter } from "next/navigation";
 import AlbumSearchResults from "@/components/AlbumSearchResults";
-import TrackViewToggle from "@/components/TrackViewToggle";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
-import UnifiedSearchControls from "@/components/search/UnifiedSearchControls";
-import FilterChips, { FilterGroup } from "@/components/FilterChips";
+import { HeaderButton, ListSearchRow, SearchField, ViewModeSwitch } from "@/components/layout/ListHeader";
+import FilterChips from "@/components/FilterChips";
+import FiltersPanel from "@/components/FiltersPanel";
 import {
   addedGenreChips,
   genreFilterChips,
-  GenreFilterGroup,
   genreSlugFromChipKey,
+  includeSimilarChips,
+  INCLUDE_SIMILAR_CHIP_KEY,
   similarGenreIdFromChipKey,
 } from "@/components/GenreFilter";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
-import MissingFilter from "@/components/MissingFilter";
-import AlbumFiltersModal, { ALBUM_MISSING_OPTIONS } from "@/components/AlbumFiltersModal";
-import AlbumSearchMenu from "@/components/AlbumSearchMenu";
+import AlbumFiltersModal, {
+  ALBUM_MISSING_OPTIONS,
+  AlbumFilterSections,
+  albumCountLabel,
+  showAlbumsLabel,
+  type AlbumFilterControls,
+} from "@/components/AlbumFiltersModal";
+import AlbumSearchMenu, { AlbumOptionsMenu } from "@/components/AlbumSearchMenu";
 import AlbumSortMenu, { DEFAULT_ALBUM_SORT } from "@/components/AlbumSortMenu";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -57,6 +63,7 @@ function AlbumsPageContent() {
   const includeSimilar = searchParams.get("similar") === "1";
   const similarExclude = searchParams.getAll("similar_exclude");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [panelOpen, setPanelOpen] = React.useState(false);
   // Albums matching the current search, reported by the results for the modal's button.
   const [total, setTotal] = React.useState<number | null>(null);
   const [addedGenres, setAddedGenres] = React.useState<GenreFilterRef[]>([]);
@@ -111,6 +118,10 @@ function AlbumsPageContent() {
   };
 
   const handleAlbumFilterToggle = (key: string) => {
+    if (key === INCLUDE_SIMILAR_CHIP_KEY) {
+      setIncludeSimilar(false);
+      return;
+    }
     const genreSlug = genreSlugFromChipKey(key);
     if (genreSlug !== null) {
       setGenres(genres.filter((slug) => slug !== genreSlug));
@@ -129,11 +140,35 @@ function AlbumsPageContent() {
     router.replace(`/albums?${params.toString()}`);
   };
 
+  // One filter state for the phone modal and the desktop panel (#794).
+  const filterControls: AlbumFilterControls = {
+    genres,
+    onAddGenre: addGenre,
+    onRemoveGenre: (slug) => setGenres(genres.filter((s) => s !== slug)),
+    includeSimilar,
+    onIncludeSimilarChange: setIncludeSimilar,
+    missing,
+    onToggleMissing: handleAlbumFilterToggle,
+    activeCount: filterCount,
+    resultCount: total,
+    onReset: clearAll,
+  };
+
   return (
     <PageContainer size="standard">
       <PageHeader
         title="Albums"
         actions={[{ label: "Add album", icon: <LuPlus />, onClick: () => router.push("/albums/add") }]}
+        desktopActions={
+          <>
+            <AlbumOptionsMenu onOpenArtwork={() => router.push("/albums/artwork")} />
+            <ViewModeSwitch value={viewMode} onChange={setViewMode} />
+            <HeaderButton variant="solid" onClick={() => router.push("/albums/add")}>
+              <LuPlus aria-hidden="true" />
+              Add album
+            </HeaderButton>
+          </>
+        }
         trailing={
           <AlbumSearchMenu
             activeCount={filterCount}
@@ -149,68 +184,49 @@ function AlbumsPageContent() {
           </Flex>
         ) : (
           <>
-        <UnifiedSearchControls
-          query={query}
-          onQueryChange={setQuery}
-          onQueryEnter={handleSearch}
-          showLibrarySelect={false}
-          placeholder="Search"
-          compactDesktop={true}
-          desktopControls={
+        <ListSearchRow
+          maxW="640px"
+          mb={0}
+          field={
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              onEnter={handleSearch}
+              label="Search albums"
+              placeholder="Search albums"
+            />
+          }
+          controls={
             <>
-              <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="icon" />
-              <IconButton
-                aria-label="Album artwork review"
-                title="Album artwork review"
-                size="sm"
-                variant="ghost"
-                onClick={() => router.push("/albums/artwork")}
+              <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="button" />
+              <FiltersPanel
+                open={panelOpen}
+                onOpenChange={setPanelOpen}
+                scope="Albums"
+                activeCount={filterCount}
+                onReset={clearAll}
+                showLabel={showAlbumsLabel(total)}
               >
-                <LuImage />
-              </IconButton>
-              <TrackViewToggle value={viewMode} onChange={setViewMode} />
-              <Button variant="outline" flexShrink={0} onClick={() => router.push("/albums/add")}>
-                + Add Album
-              </Button>
+                <AlbumFilterSections {...filterControls} />
+              </FiltersPanel>
             </>
           }
         />
 
-        <AlbumFiltersModal
-          open={filtersOpen}
-          onOpenChange={setFiltersOpen}
-          genres={genres}
-          onAddGenre={addGenre}
-          includeSimilar={includeSimilar}
-          onIncludeSimilarChange={setIncludeSimilar}
-          missing={missing}
-          onToggleMissing={handleAlbumFilterToggle}
-          activeCount={filterCount}
-          resultCount={total}
-          onReset={clearAll}
-        />
+        <AlbumFiltersModal open={filtersOpen} onOpenChange={setFiltersOpen} {...filterControls} />
 
         <FilterChips
-          leading={
-            <>
-              <GenreFilterGroup
-                selected={genres}
-                onAdd={addGenre}
-                includeSimilar={includeSimilar}
-                onIncludeSimilarChange={setIncludeSimilar}
-              />
-              <FilterGroup>
-                <MissingFilter
-                  options={ALBUM_MISSING_OPTIONS}
-                  active={missing}
-                  onToggle={handleAlbumFilterToggle}
-                />
-              </FilterGroup>
-            </>
-          }
-          chips={[...genreFilterChips(genres, taxonomy), ...addedGenreChips(addedGenres), ...missingChips]}
+          chips={[
+            ...genreFilterChips(genres, taxonomy),
+            ...includeSimilarChips(includeSimilar, genres),
+            ...addedGenreChips(addedGenres),
+            ...missingChips,
+          ]}
           onToggle={handleAlbumFilterToggle}
           onClearAll={filterCount > 0 ? clearAll : undefined}
+          // Phones keep the count beside the sort above the results.
+          summaryOnPhones={false}
+          summary={total === null ? undefined : albumCountLabel(total)}
         />
 
         {/* Album Results */}

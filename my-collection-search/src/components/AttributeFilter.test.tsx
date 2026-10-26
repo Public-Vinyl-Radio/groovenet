@@ -1,34 +1,31 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { TrackAttributeFilters } from "@/lib/trackFilters";
 
-import AttributeFilter from "./AttributeFilter";
+import { BpmFields, KeyField, RatingField } from "./AttributeFilter";
 
-/**
- * Open the popover, and wait for it to take focus: it does so a tick later,
- * which would otherwise pull focus out of a box mid-type.
- */
-async function openPopover(user: ReturnType<typeof renderWithProviders>["user"]) {
-  await user.click(screen.getByRole("button", { name: /BPM, key and rating/ }));
-  await waitFor(() => expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true));
+/** The fields as the filters modal and panel lay them out. */
+function AttributeFilter({ value, onChange }: { value: TrackAttributeFilters; onChange: (next: TrackAttributeFilters) => void }) {
+  return (
+    <>
+      <BpmFields value={value} onChange={onChange} />
+      <KeyField value={value} onChange={onChange} />
+      <RatingField value={value} onChange={onChange} />
+    </>
+  );
 }
 
 function setup(value: TrackAttributeFilters = {}) {
   const onChange = vi.fn();
   const view = renderWithProviders(<AttributeFilter value={value} onChange={onChange} />);
-  const open = () => openPopover(view.user);
+  const open = async () => {};
   return { ...view, onChange, open };
 }
 
-describe("AttributeFilter (#447)", () => {
-  it("counts the filters that are on", () => {
-    setup({ bpm_min: 120, bpm_max: 126, key: "A minor" });
-    expect(screen.getByRole("button", { name: "BPM, key and rating filters, 2 on" })).toBeTruthy();
-  });
-
+describe("attribute fields (#447)", () => {
   it("applies the BPM range on Enter, not while typing", async () => {
     const { user, onChange, open } = setup({ key: "A minor", bpm_min: 120 });
     await open();
@@ -68,10 +65,9 @@ describe("AttributeFilter (#447)", () => {
 
   it("follows the range when it's cleared from outside", async () => {
     const onChange = vi.fn();
-    const { user, rerender } = renderWithProviders(
+    const { rerender } = renderWithProviders(
       <AttributeFilter value={{ bpm_min: 120, bpm_max: 126 }} onChange={onChange} />
     );
-    await openPopover(user);
     rerender(<AttributeFilter value={{}} onChange={onChange} />);
 
     expect(((await screen.findByLabelText("Minimum BPM")) as HTMLInputElement).value).toBe("");

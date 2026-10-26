@@ -5,7 +5,6 @@ import { LuListChecks, LuPlus } from 'react-icons/lu';
 import PageHeader from '@/components/layout/PageHeader';
 import FilterChips, { type FilterChip } from '@/components/FilterChips';
 import {
-  FiltersButton,
   HeaderButton,
   ListSearchRow,
   SearchField,
@@ -17,6 +16,9 @@ import SearchModeMenu from '@/components/search/SearchModeMenu';
 import FiltersPanel from '@/components/FiltersPanel';
 import { TrackFilterSections, showResultsLabel } from '@/components/TrackSearchOptionsModal';
 import { createEmptyFilters, type TracksFilter } from '@/lib/trackFilters';
+import AlbumSortMenu, { DEFAULT_ALBUM_SORT } from '@/components/AlbumSortMenu';
+import { AlbumOptionsMenu } from '@/components/AlbumSearchMenu';
+import { AlbumFilterSections, showAlbumsLabel } from '@/components/AlbumFiltersModal';
 
 /**
  * The desktop list header (#794): the page row, the search row and the chip
@@ -43,12 +45,15 @@ function Header({ title, primary }: { title: string; primary?: boolean }) {
   const [mode, setMode] = useState<TrackSearchMode>('semantic');
   const [panelOpen, setPanelOpen] = useState(false);
   const [missing, setMissing] = useState<TracksFilter>(createEmptyFilters());
+  const [sort, setSort] = useState<string>(DEFAULT_ALBUM_SORT);
+  const [albumMissing, setAlbumMissing] = useState<Record<string, boolean>>({});
   return (
     <Box maxW="1160px">
       <PageHeader
         title={title}
         desktopActions={
           <>
+            {primary && <AlbumOptionsMenu onOpenArtwork={() => {}} />}
             {!primary && (
               <HeaderButton quiet>
                 <LuListChecks aria-hidden="true" /> Select
@@ -76,7 +81,30 @@ function Header({ title, primary }: { title: string; primary?: boolean }) {
         }
         controls={
           primary ? (
-            <FiltersButton activeCount={chips.length} />
+            <>
+              <AlbumSortMenu value={sort} onChange={setSort} trigger="button" />
+              <FiltersPanel
+                open={panelOpen}
+                onOpenChange={setPanelOpen}
+                scope="Albums"
+                activeCount={chips.length}
+                onReset={() => setChips([])}
+                showLabel={showAlbumsLabel(81)}
+              >
+                <AlbumFilterSections
+                  genres={[]}
+                  onAddGenre={() => {}}
+                  onRemoveGenre={() => {}}
+                  includeSimilar={false}
+                  onIncludeSimilarChange={() => {}}
+                  missing={albumMissing}
+                  onToggleMissing={(key) => setAlbumMissing((prev) => ({ ...prev, [key]: !prev[key] }))}
+                  activeCount={chips.length}
+                  resultCount={81}
+                  onReset={() => setChips([])}
+                />
+              </FiltersPanel>
+            </>
           ) : (
             <FiltersPanel
               open={panelOpen}
