@@ -10,7 +10,7 @@ function connects(command: PlayerEdit): command is ConnectingEdit {
 type Event = ReturnType<typeof serverPlayerStreamEventSchema.parse>;
 export type RemoteView = {
   player: ServerPlayer | null; devices: ServerPlayerDevice[]; connected: boolean; busy: boolean;
-  problem: string | null; acknowledgement: { command: ConnectingEdit; code: string; revision: number } | null;
+  problem: string | null; acknowledgement: { command: ConnectingEdit; code: string; revision: number; expectedRevision?: number } | null;
 };
 const message = (error: unknown) => error instanceof Error ? error.message : "Player request failed";
 const code = (error: unknown) => (error as { data?: { code?: string } })?.data?.code;
@@ -98,16 +98,16 @@ export class ServerPlayerController {
       this.update({ acknowledgement: null, problem: "Player changed while awaiting acknowledgement. Review its output and repeat the action." });
       return;
     }
-    await this.command({ ...acknowledgement.command, ...(acknowledgement.code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) });
+    await this.command({ ...acknowledgement.command, ...(acknowledgement.code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) }, acknowledgement.expectedRevision);
   };
-  async command(command: PlayerEdit): Promise<ServerPlayer | null> {
+  async command(command: PlayerEdit, expectedRevision?: number): Promise<ServerPlayer | null> {
     if (!this.view.connected || !this.view.player || this.closed) { this.update({ problem: "Wait for a fresh server snapshot before trying the action again." }); return null; }
     if (this.view.busy) { this.update({ problem: "A command is in progress. Try again when it finishes." }); return null; }
     const generation = this.generation;
     const revision = this.view.player.revision;
     this.update({ busy: true, problem: null, acknowledgement: null });
     try {
-      const result = await this.api.command(this.id, { ...command, expected_revision: revision });
+      const result = await this.api.command(this.id, expectedRevision === undefined ? command : { ...command, expected_revision: expectedRevision });
       if (this.closed || generation !== this.generation) return null;
       if (result.player.revision >= this.view.player!.revision) this.update({ player: result.player });
       if (result.transfer?.error || (result.transfer?.detached && command.type === "output.transfer" && command.play && !result.transfer.attached)) {
@@ -118,8 +118,8 @@ export class ServerPlayerController {
     } catch (error) {
       if (this.closed || generation !== this.generation) return null;
       const errorCode = code(error);
-      if ((errorCode === "AVAILABILITY_UNKNOWN" || errorCode === "SPEAKER_OCCUPIED") && connects(command)) this.update({ acknowledgement: { command, code: errorCode, revision } });
-      this.update({ problem: errorCode === "REVISION_CONFLICT" ? "Player changed elsewhere. State refreshed; review it and repeat your action if still appropriate." : message(error) });
+      if ((errorCode === "AVAILABILITY_UNKNOWN" || errorCode === "SPEAKER_OCCUPIED") && connects(command)) this.update({ acknowledgement: { command, code: errorCode, revision, ...(expectedRevision === undefined ? {} : { expectedRevision }) } });
+      this.update({ problem: message(error) });
       await this.refresh();
       return null;
     } finally {

@@ -82,7 +82,7 @@ export class ServerPlayerManager extends EventEmitter {
       this.available();
       const command = serverPlayerCommandSchema.parse(input);
       let player = this.get(id);
-      this.revision(player, command.expected_revision);
+      if (command.expected_revision !== undefined) this.revision(player, command.expected_revision);
       if (command.type === "output.transfer") return this.transfer(player, command);
       try {
         switch (command.type) {
@@ -108,7 +108,8 @@ export class ServerPlayerManager extends EventEmitter {
           }
           case "queue.move": {
             const index = player.state.queue.findIndex((entry) => entry.id === command.entry_id);
-            if (index < 0 || command.to >= player.state.queue.length) throw new ServerPlayerError("INVALID_QUEUE", "Queue move is out of range", 400);
+            if (index < 0) throw new ServerPlayerError("ENTRY_NOT_FOUND", "Queue entry does not exist", 404);
+            if (command.to >= player.state.queue.length) throw new ServerPlayerError("INVALID_QUEUE", "Queue move is out of range", 400);
             player.state.queue.splice(command.to, 0, player.state.queue.splice(index, 1)[0]!);
             break;
           }
@@ -222,7 +223,7 @@ export class ServerPlayerManager extends EventEmitter {
 
   private async play(player: ServerPlayer, entryId: string | undefined, policy: { allow_unknown: boolean; takeover: boolean }, resumeCheckpoint = true): Promise<void> {
     const entry = player.state.queue.find((entry) => entry.id === entryId);
-    if (!entry) throw new ServerPlayerError("ENTRY_NOT_FOUND", "Queue is empty or the entry does not exist", 400);
+    if (!entry) throw new ServerPlayerError("ENTRY_NOT_FOUND", "Queue is empty or the entry does not exist", 404);
     const output = player.state.desired_output;
     if (!output) throw new ServerPlayerError("OUTPUT_REQUIRED", "Select a desired output before playing", 400);
     const owner = this.list().find((p) => p.assigned_output === output && p.id !== player.id);

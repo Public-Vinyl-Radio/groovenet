@@ -114,35 +114,38 @@ All public paths start with `/api/players`. Supply
 | `POST /api/players` | Create `{ "id": "lounge", "name": "Lounge", "engine_id": "primary" }` |
 | `GET /api/players/lounge` | Get full state and revision |
 | `GET /api/players/lounge/devices` | Discovered outputs, assignments and observations |
-| `POST /api/players/lounge/commands` | Apply a revisioned command |
+| `POST /api/players/lounge/commands` | Apply a command |
 | `GET /api/players/lounge/events` | SSE snapshots and lightweight position updates |
 
 Each engine can belong to only one named player. Names can be changed; player
 IDs and engine assignments are fixed. Engine configuration is an operator
 allowlist, never a client-provided URL. Player deletion is not implemented.
 
-Commands include `expected_revision` from the most recent snapshot. A stale
-revision returns `REVISION_CONFLICT`; fetch fresh state before deciding whether
-to retry. Position ticks do not change the edit revision. For example:
+Commands use last-write-wins behavior by default. Optionally include
+`expected_revision` from a snapshot to require optimistic concurrency: a stale
+value returns `REVISION_CONFLICT`. Position ticks do not change the revision.
+For example:
 
 ```json
-{"type":"queue.add","expected_revision":0,"tracks":[{"track_id":"TRACK_ID","friend_id":1}]}
+{"type":"queue.add","tracks":[{"track_id":"TRACK_ID","friend_id":1}]}
 ```
 
-After each command, use its returned player revision for the next command:
+Scripts that need optimistic concurrency can use the returned player revision
+for their next command:
 
 ```json
 {"type":"output.select","expected_revision":1,"output_id":"OUTPUT_ID"}
 ```
 
 ```json
-{"type":"play","expected_revision":2,"allow_unknown":true}
+{"type":"play","allow_unknown":true}
 ```
 
 Selecting an output remembers intent; it does not connect or reserve the
 speaker. Playback requires indexed local audio, resolved afresh from Postgres.
 Queue entries get stable UUIDs, including repeated copies of the same track.
 Use those entry IDs for `queue.remove`, `queue.move` and an explicit `play`.
+If an entry has disappeared, these commands return `ENTRY_NOT_FOUND`.
 Other commands are `rename`, `queue.clear`, `pause`, `resume`, `stop`, `next`,
 `previous`, `seek` (seconds) and `volume` (0–100). Stop clears the current entry
 and position while preserving the queue. Natural EOF advances only that player's
@@ -264,11 +267,13 @@ Neither acknowledgement can steal another Groovenet player's assignment.
 For that, send `output.transfer` to the destination player:
 
 ```json
-{"type":"output.transfer","expected_revision":7,"from_player_id":"lounge","from_revision":12,"output_id":"OUTPUT_ID","play":true,"allow_unknown":true}
+{"type":"output.transfer","from_player_id":"lounge","from_revision":12,"output_id":"OUTPUT_ID","play":true,"allow_unknown":true}
 ```
 
 Transfer detaches the source first and keeps each player's own queue and
 checkpoint. `play: false` only changes the destination's desired output.
+`from_revision` is required even when `expected_revision` is omitted; it fences
+the source player whose output is being transferred.
 Inspect `transfer.detached`, `attached` and `error` even when HTTP status is 200:
 the source can be detached while destination playback fails. It is never
 automatically reconnected to hide that partial result.

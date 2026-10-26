@@ -63,27 +63,35 @@ describe("remote player observations", () => {
     api.get.mockRejectedValueOnce("offline"); await controller.refresh(); expect(controller.getSnapshot().problem).toContain("Player request failed");
   });
 });
-describe("revisioned commands", () => {
-  it("serializes commands, uses current revision and stable UUIDs, rejects stale command responses", async () => {
+describe("shared player commands", () => {
+  it("serializes commands, sends stable UUIDs without a revision, and rejects stale responses", async () => {
     snapshot(); let resolve!: (result: { player: ReturnType<typeof player> }) => void;
     api.command.mockReturnValueOnce(new Promise(done => { resolve = done; }));
     const pending = controller.command({ type: "queue.remove", entry_id: entryB });
     await controller.command({ type: "next" }); expect(controller.getSnapshot().problem).toContain("in progress");
     snapshot(8, 4); resolve({ player: player("lounge", 4) }); await pending;
     expect(controller.getSnapshot().player?.revision).toBe(8);
-    expect(api.command).toHaveBeenCalledExactlyOnceWith("lounge", { type: "queue.remove", entry_id: entryB, expected_revision: 3 });
-    await controller.command({ type: "pause" }); expect(api.command.mock.lastCall?.[1].expected_revision).toBe(8);
+    expect(api.command).toHaveBeenCalledExactlyOnceWith("lounge", { type: "queue.remove", entry_id: entryB });
+    await controller.command({ type: "pause" }); expect(api.command.mock.lastCall?.[1]).toEqual({ type: "pause" });
   });
-  it("refreshes conflicts without retrying side effects", async () => {
-    snapshot(); api.command.mockRejectedValueOnce(failure("REVISION_CONFLICT")); api.get.mockResolvedValue(player("lounge", 9));
-    expect(await controller.command({ type: "next" })).toBeNull(); expect(api.command).toHaveBeenCalledTimes(1);
-    expect(controller.getSnapshot().player?.revision).toBe(9); expect(controller.getSnapshot().problem).toContain("repeat your action");
+  it("lets two controllers act from the same snapshot and converge on the newer state", async () => {
+    snapshot();
+    const other = new ServerPlayerController("lounge", api); other.start();
+    const receiveOther = receive; receiveOther({ type: "snapshot", player: player(), worker_instance: workerA, sequence: 1 });
+    api.command.mockResolvedValueOnce({ player: player("lounge", 4) }).mockResolvedValueOnce({ player: player("lounge", 5) });
+    await controller.command({ type: "pause" });
+    await other.command({ type: "queue.remove", entry_id: entryB });
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "pause" }, { type: "queue.remove", entry_id: entryB }]);
+    receiveOther({ type: "snapshot", player: player("lounge", 5), worker_instance: workerA, sequence: 2 });
+    expect(other.getSnapshot().player?.revision).toBe(5);
+    expect(other.getSnapshot().problem).toBeNull();
+    other.close();
   });
   it.each(["AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED"])("requires an explicit acknowledgement for %s", async code => {
     snapshot(); api.command.mockRejectedValueOnce(failure(code)); await controller.command({ type: "play" });
     expect(controller.getSnapshot().acknowledgement).toEqual({ command: { type: "play" }, code, revision: 3 });
     await controller.acknowledge();
-    expect(api.command.mock.lastCall?.[1]).toEqual({ type: "play", expected_revision: 3, ...(code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) });
+    expect(api.command.mock.lastCall?.[1]).toEqual({ type: "play", ...(code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) });
     controller.dismissAcknowledgement(); expect(controller.getSnapshot().acknowledgement).toBeNull();
   });
   it.each([null, { code: "ENGINE_FAILURE", message: "Failed attachment" }])("exposes partial HTTP 200 transfers (%s)", async error => {
@@ -131,7 +139,15 @@ it.each(["AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED"])("acknowledges %s by replay
   await controller.command(replacement);
   expect(controller.getSnapshot().acknowledgement?.command).toEqual(replacement);
   await controller.acknowledge();
-  expect(api.command.mock.lastCall?.[1]).toEqual({ ...replacement, expected_revision: 3, ...(code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) });
+  expect(api.command.mock.lastCall?.[1]).toEqual({ ...replacement, ...(code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) });
+});
+it("preserves an explicit revision when acknowledging a conditional replacement", async () => {
+  snapshot(); api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
+  const replacement = { type: "queue.replace" as const, entries: [], play: true };
+  await controller.command(replacement, 3);
+  expect(controller.getSnapshot().acknowledgement?.expectedRevision).toBe(3);
+  await controller.acknowledge();
+  expect(api.command.mock.lastCall?.[1]).toEqual({ ...replacement, allow_unknown: true, expected_revision: 3 });
 });
 it("never treats an enqueue-only replacement as a connection request", async () => {
   snapshot(); api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));

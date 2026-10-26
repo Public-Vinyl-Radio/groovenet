@@ -99,7 +99,7 @@ export function ServerPlayerPanel() {
             toaster.create({ title: "Queue changed since it was cleared", description: "Undo is no longer available.", type: "warning" });
             return;
           }
-          void controller.command({ type: "queue.replace", entries: snapshot.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: snapshot.current_entry_id, position: snapshot.position, play: snapshot.status === "playing" });
+          void controller.command({ type: "queue.replace", entries: snapshot.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: snapshot.current_entry_id, position: snapshot.position, play: snapshot.status === "playing" }, clearedRevision);
         } } });
       }}>Clear server queue</Button>
     </Flex>

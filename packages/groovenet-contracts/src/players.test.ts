@@ -6,16 +6,21 @@ describe("server-player contracts", () => {
     expect(createServerPlayerSchema.safeParse({ id: "lounge", name: "Lounge", engine_id: "primary", apiUrl: "http://attacker" }).success).toBe(false);
     expect(createServerPlayerSchema.safeParse({ id: "../escape", name: "Lounge", engine_id: "primary" }).success).toBe(false);
   });
-  it("requires a revision and explicit occupancy overrides; defaults never authorize takeover", () => {
+  it("accepts commands with or without a revision and never defaults to takeover", () => {
     expect(serverPlayerCommandSchema.parse({ type: "play", expected_revision: 3 })).toMatchObject({ allow_unknown: false, takeover: false });
-    expect(serverPlayerCommandSchema.safeParse({ type: "play" }).success).toBe(false);
+    expect(serverPlayerCommandSchema.parse({ type: "play" })).toEqual({ type: "play", allow_unknown: false, takeover: false });
+    expect(serverPlayerCommandSchema.safeParse({ type: "pause", expected_revision: -1 }).success).toBe(false);
     expect(serverPlayerCommandSchema.safeParse({ type: "seek", expected_revision: 1, seconds: -1 }).success).toBe(false);
     expect(serverPlayerCommandSchema.safeParse({ type: "volume", expected_revision: 1, volume: 101 }).success).toBe(false);
     expect(serverPlayerCommandSchema.safeParse({ type: "queue.add", expected_revision: 1, tracks: [{ track_id: "a", friend_id: 1, local_audio_url: "/secret" }] }).success).toBe(false);
   });
-  it("requires both player revisions for transfers and exports reusable JSON schemas", () => {
-    expect(serverPlayerCommandSchema.safeParse({ type: "output.transfer", expected_revision: 1, from_player_id: "a", output_id: "s" }).success).toBe(false);
-    expect(serverPlayerCommandSchema.parse({ type: "output.transfer", expected_revision: 1, from_player_id: "a", from_revision: 2, output_id: "s" })).toMatchObject({ play: false });
+  it("requires the source revision for transfers and exports an optional target revision", () => {
+    expect(serverPlayerCommandSchema.safeParse({ type: "output.transfer", from_player_id: "a", output_id: "s" }).success).toBe(false);
+    expect(serverPlayerCommandSchema.parse({ type: "output.transfer", from_player_id: "a", from_revision: 2, output_id: "s" })).toMatchObject({ play: false });
+    expect(serverPlayerCommandSchema.parse({ type: "output.transfer", expected_revision: 1, from_player_id: "a", from_revision: 2, output_id: "s" })).toMatchObject({ expected_revision: 1 });
+    const variants = (playerJsonSchemas.ServerPlayerCommand as { oneOf: Array<{ required: string[]; properties: Record<string, unknown> }> }).oneOf;
+    expect(variants.every(variant => !variant.required.includes("expected_revision"))).toBe(true);
+    expect(variants.find(variant => variant.properties.type && variant.required.includes("from_revision"))).toBeTruthy();
     expect(playerJsonSchemas.ServerPlayer).toHaveProperty("properties");
     expect(serverPlayerEventSchema.safeParse({ type: "snapshot" }).success).toBe(false);
   });
@@ -32,6 +37,7 @@ it("validates atomic queue replacement and keeps playback opt-in", () => {
   const id = "11111111-1111-4111-8111-111111111111";
   const entry = { id, track_id: "track", friend_id: 1 };
   expect(serverPlayerCommandSchema.parse({ type: "queue.replace", expected_revision: 3, entries: [entry] })).toMatchObject({ entries: [entry], play: false, allow_unknown: false, takeover: false });
+  expect(serverPlayerCommandSchema.parse({ type: "queue.replace", entries: [entry] })).not.toHaveProperty("expected_revision");
   for (const command of [
     { entries: [entry, entry] }, { entries: [{ ...entry, id: "invalid" }] },
     { entries: [{ ...entry, local_audio_url: "/secret" }] }, { entries: [entry], position: -1 },

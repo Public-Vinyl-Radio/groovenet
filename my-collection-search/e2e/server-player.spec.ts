@@ -5,8 +5,15 @@ import type { ServerPlayerCommandInput } from "@groovenet/contracts";
 test.skip(!process.env.RUN_E2E_TESTS, "Run against the isolated Docker/worktree app with RUN_E2E_TESTS=1");
 
 async function openPlayback(page: Page, label: string) {
-  if ((page.viewportSize()?.width ?? 1280) < 768) await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("button", { name: `Playback: ${label}`, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Playback target" });
+  if (await dialog.isVisible()) return;
+  if ((page.viewportSize()?.width ?? 1280) < 768) {
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    if (await dialog.isVisible()) return;
+    await page.getByText(/^Playback:/).first().click();
+  } else {
+    await page.getByRole("button", { name: `Playback: ${label}` }).click();
+  }
 }
 
 async function fixture(page: Page) {
@@ -14,10 +21,9 @@ async function fixture(page: Page) {
   players.aswitch.assigned_output = "speaker";
   const commands: Array<{ id: string; command: ServerPlayerCommandInput }> = [];
   let authorized = false;
-  let conflict = false;
-  await page.addInitScript(({ initial, worker }) => {
+  await page.context().addInitScript(({ initial, worker }) => {
     const sources: Array<{ url: string; closed: boolean; listeners: Record<string, (event: { data: string }) => void>; onerror: (() => void) | null }> = [];
-    const state = { players: initial, worker, sources };
+    const state = { players: initial, worker, sources, sequence: 1 };
     Object.assign(window, { __serverPlayerFixture: state });
     class FixtureEventSource {
       url: string; closed = false; listeners: Record<string, (event: { data: string }) => void> = {}; onerror: (() => void) | null = null;
@@ -31,7 +37,7 @@ async function fixture(page: Page) {
     }
     Object.assign(window, { EventSource: FixtureEventSource });
   }, { initial: players, worker: workerA });
-  await page.route("**/api/players**", async route => {
+  await page.context().route("**/api/players**", async route => {
     const request = route.request(); const path = new URL(request.url()).pathname;
     const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
     if (path.endsWith("browser/session")) {
@@ -44,12 +50,26 @@ async function fixture(page: Page) {
     if (path === "/api/players") return json({ players: Object.values(players) });
     const id = path.split("/")[3] as keyof typeof players;
     const p = players[id];
+    const publish = async () => {
+      await Promise.all(page.context().pages().map(async client => {
+        await client.evaluate(({ playerId, current }) => {
+          const state = (window as unknown as { __serverPlayerFixture?: {
+            players: Record<string, typeof current>; worker: string; sequence: number;
+            sources: Array<{ url: string; closed: boolean; listeners: Record<string, (event: { data: string }) => void> }>;
+          } }).__serverPlayerFixture;
+          if (!state) return;
+          state.players[playerId] = current;
+          for (const source of state.sources) {
+            if (source.closed || !source.url.includes(`/players/${playerId}/events`)) continue;
+            source.listeners.snapshot?.({ data: JSON.stringify({ type: "snapshot", player: current, worker_instance: state.worker, sequence: ++state.sequence }) });
+          }
+        }, { playerId: id, current: structuredClone(p) }).catch(() => {});
+      }));
+    };
     if (path.endsWith("devices")) return json({ devices: [{ ...device, assigned_player_id: players.aswitch.assigned_output ? "aswitch" : null }] });
     if (path.endsWith("commands")) {
       const command = request.postDataJSON() as ServerPlayerCommandInput;
       commands.push({ id, command });
-      if (conflict) { conflict = false; p.revision++; return json({ error: "Player changed", code: "REVISION_CONFLICT" }, 409); }
-      expect(command.expected_revision).toBe(p.revision);
       if ((command.type === "play" || command.type === "resume") && !command.allow_unknown) return json({ error: "Activity unknown", code: "AVAILABILITY_UNKNOWN" }, 409);
       switch (command.type) {
         case "play": p.state.current_entry_id = command.entry_id ?? p.state.current_entry_id; p.state.status = "playing"; break;
@@ -76,12 +96,12 @@ async function fixture(page: Page) {
           return json({ player: p, transfer: { from_player: players.aswitch, detached: true, attached: false, error: { code: "TEST_ENGINE_FAILURE", message: "Fixture destination failed" } } });
         }
       }
-      p.revision++; return json({ player: p });
+      p.revision++; await publish(); return json({ player: p });
     }
     return json(p);
   });
   // Keep development tooling clear of navigation controls across reloads.
-  await page.addInitScript(() => {
+  await page.context().addInitScript(() => {
     document.addEventListener("DOMContentLoaded", () => {
       const style = document.createElement("style");
       style.textContent = "nextjs-portal { display: none !important; }";
@@ -94,10 +114,10 @@ async function fixture(page: Page) {
   await page.getByRole("button", { name: "Unlock server players" }).click();
   await page.getByRole("combobox", { name: "Control playback on" }).selectOption("lounge");
   await expect(page.getByText("Server: Lounge · paused")).toBeVisible();
-  return { players, commands, conflictNext: () => { conflict = true; } };
+  return { players, commands };
 }
 
-test("server selection, explicit acknowledgement, revisioned controls, conflicts and duplicate queue entries", async ({ page }) => {
+test("server selection, explicit acknowledgement, shared controls and duplicate queue entries", async ({ page }) => {
   const f = await fixture(page);
   expect(f.commands).toHaveLength(0);
   await expect(page.getByText("Desired output: speaker")).toBeVisible();
@@ -107,9 +127,6 @@ test("server selection, explicit acknowledgement, revisioned controls, conflicts
   expect(f.commands).toHaveLength(1);
   await page.getByRole("button", { name: "Acknowledge unknown activity and continue" }).click();
   await expect(page.getByText("Server: Lounge · playing")).toBeVisible();
-  f.conflictNext(); await page.getByRole("button", { name: "Pause", exact: true }).click();
-  await expect(page.getByText(/State refreshed; review it/).first()).toBeVisible();
-  expect(f.commands.filter(item => item.command.type === "pause")).toHaveLength(1);
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(page.getByText("Server: Lounge · paused")).toBeVisible();
   await page.getByLabel("Seek to seconds").fill("36"); await page.getByRole("button", { name: "Seek", exact: true }).click();
@@ -118,6 +135,7 @@ test("server selection, explicit acknowledgement, revisioned controls, conflicts
   await page.getByRole("button", { name: "Move queue entry 2 up" }).click();
   await page.getByRole("button", { name: "Remove queue entry 1" }).click();
   await expect(page.getByText("Queue · 1")).toBeVisible();
+  expect(f.commands.every(({ command }) => command.expected_revision === undefined)).toBe(true);
   expect(f.players.lounge.state.queue[0]!.friend_id).toBe(1);
   await page.getByRole("combobox", { name: "Control playback on" }).selectOption("aswitch");
   await expect(page.getByText("Server: Aswitch · paused")).toBeVisible();
@@ -153,6 +171,32 @@ test("explicit transfer exposes partial attachment and remains visible after clo
   expect(f.commands).toHaveLength(1); expect(f.commands[0]!.command.type).toBe("output.transfer");
 });
 
+test("two controllers edit the same player from stale snapshots without conflict prompts", async ({ page }) => {
+  const f = await fixture(page);
+  const second = await page.context().newPage();
+  await second.goto("/settings");
+  await openPlayback(second, "Local browser");
+  await second.getByRole("combobox", { name: "Control playback on" }).selectOption("lounge");
+  await expect(second.getByText("Server: Lounge · paused")).toBeVisible();
+
+  await page.getByLabel("Requested sender volume (%)").fill("35");
+  await page.getByRole("button", { name: "Set volume" }).click();
+  await second.getByRole("button", { name: "Move queue entry 2 up" }).click();
+  await page.getByRole("button", { name: "Remove queue entry 1" }).click();
+  await second.getByLabel("Requested sender volume (%)").fill("40");
+  await second.getByRole("button", { name: "Set volume" }).click();
+
+  await expect(page.getByText("Queue · 1")).toBeVisible();
+  await expect(second.getByText("Queue · 1")).toBeVisible();
+  await expect(page.getByLabel("Requested sender volume (%)")).toHaveValue("40");
+  expect(f.players.lounge.state.volume).toBe(40);
+  expect(f.commands.map(({ command }) => command.type)).toEqual(["volume", "queue.move", "queue.remove", "volume"]);
+  expect(f.commands.every(({ command }) => command.expected_revision === undefined)).toBe(true);
+  await expect(page.getByText(/review it and repeat|revision conflict/i)).toHaveCount(0);
+  await expect(second.getByText(/review it and repeat|revision conflict/i)).toHaveCount(0);
+  await second.close();
+});
+
 test("position fencing and worker restart reconnect do not send playback commands", async ({ page }) => {
   const f = await fixture(page);
   await page.evaluate(({ worker, initial }) => {
@@ -181,6 +225,8 @@ test("clearing a server queue offers Undo with identical entries and saved playb
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(page.getByText("Queue · 2")).toBeVisible();
   expect(f.commands.map(item => item.command.type)).toEqual(["queue.clear", "queue.replace"]);
+  expect(f.commands[0]!.command.expected_revision).toBeUndefined();
+  expect(f.commands[1]!.command.expected_revision).toBe(4);
   expect(f.commands[1]!.command).toMatchObject({ entries: before.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: before.current_entry_id, position: before.position, play: false });
   await expect(page.getByText("12 / unknown seconds · Saved checkpoint")).toBeVisible();
 });

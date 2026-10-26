@@ -12,7 +12,7 @@ export interface RemoteSnapshot extends PlaybackSnapshot {
   remote: { player: ServerPlayer; connected: boolean };
 }
 
-type Edit = ServerPlayerCommandInput extends infer C ? C extends { expected_revision: number } ? Omit<C, "expected_revision"> : never : never;
+type Edit = ServerPlayerCommandInput extends infer C ? C extends { type: string } ? Omit<C, "expected_revision"> : never : never;
 
 export function makeRemoteApi(): GroovenetClient {
   const config = loadConfig();

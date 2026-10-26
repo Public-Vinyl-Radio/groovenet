@@ -26,7 +26,7 @@ export const serverPlayerSchema = z.object({
   state: serverPlayerStateSchema,
 }).strict();
 export const createServerPlayerSchema = serverPlayerSchema.pick({ id: true, name: true, engine_id: true }).strict();
-const edit = { expected_revision: revision };
+const edit = { expected_revision: revision.optional() };
 const replacementEntries = z.array(playerTrackRefSchema.extend({ id: z.uuid().optional() }).strict()).max(10000)
   .refine(entries => { const ids = entries.flatMap(entry => entry.id ? [entry.id] : []); return new Set(ids).size === ids.length; }, "Queue entry IDs must be unique");
 const connect = { allow_unknown: z.boolean().default(false), takeover: z.boolean().default(false) };
