@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import FilterChips, { FilterGroup, chipLabel } from "./FilterChips";
+import FilterChips, { chipLabel } from "./FilterChips";
 
 const chips = [
   { key: "a", label: "No BPM", active: true },
@@ -82,59 +82,5 @@ describe("FilterChips", () => {
 
   it("formats a zero count rather than dropping it", () => {
     expect(chipLabel({ label: "Missing audio", count: 0 })).toBe("Missing audio · 0");
-  });
-
-  describe("layout (#685)", () => {
-    const leading = (
-      <>
-        <FilterGroup>
-          <button>Genre</button>
-        </FilterGroup>
-        <FilterGroup>
-          <button>Missing</button>
-          <button>BPM / Key</button>
-        </FilterGroup>
-      </>
-    );
-
-    it("puts the controls in groups, on a row of their own", () => {
-      renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} leading={leading} />);
-
-      const controls = screen.getByTestId("filter-controls");
-      const groups = within(controls).getAllByTestId("filter-group");
-      expect(groups).toHaveLength(2);
-      expect(within(groups[1]).getAllByRole("button", { hidden: true }).map((b) => b.textContent)).toEqual(["Missing", "BPM / Key"]);
-      // The gap between groups is wider than the gap inside one.
-      expect(getComputedStyle(controls).columnGap).not.toBe(getComputedStyle(groups[1]).columnGap);
-      expect(getComputedStyle(controls).alignItems).toBe("center");
-    });
-
-    it("puts the active chips and clear-all on a separate line from the controls", () => {
-      renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} onClearAll={vi.fn()} leading={leading} />);
-
-      const controls = screen.getByTestId("filter-controls");
-      const line = screen.getByTestId("filter-chips");
-      expect(controls.contains(line)).toBe(false);
-      expect(line.contains(controls)).toBe(false);
-      expect(controls.nextElementSibling).toBe(screen.getByTestId("filter-row"));
-      expect(within(line).getByRole("button", { name: "Clear all" })).toBeTruthy();
-      expect(within(line).getByRole("button", { name: "No embedding" })).toBeTruthy();
-      expect(within(controls).queryByRole("button", { name: "No embedding" })).toBeNull();
-    });
-
-    it("keeps the chip line in place, empty, so the controls don't move when filters appear", () => {
-      renderWithProviders(<FilterChips chips={[]} onToggle={vi.fn()} leading={leading} />);
-
-      const line = screen.getByTestId("filter-chips");
-      expect(line.children).toHaveLength(0);
-      expect(screen.getByTestId("filter-controls")).toBeTruthy();
-    });
-
-    it("has no controls row without leading controls", () => {
-      renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} />);
-
-      expect(screen.queryByTestId("filter-controls")).toBeNull();
-      expect(screen.getByTestId("filter-chips")).toBeTruthy();
-    });
   });
 });

@@ -2,22 +2,16 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  Badge,
-  Button,
   Field,
   HStack,
   IconButton,
   Input,
   NativeSelect,
-  Popover,
-  Portal,
-  Stack,
   Text,
 } from "@chakra-ui/react";
-import { LuChevronDown, LuStar } from "react-icons/lu";
+import { LuStar } from "react-icons/lu";
 import {
   KEY_FILTER_OPTIONS,
-  attributeFilterChips,
   type TrackAttributeFilters,
 } from "@/lib/trackFilters";
 
@@ -29,47 +23,6 @@ type AttributeFilterProps = {
 function parseBpm(text: string): number | undefined {
   const n = Number(text);
   return text.trim() !== "" && Number.isFinite(n) && n > 0 ? n : undefined;
-}
-
-/**
- * BPM range, key and minimum rating for track search (#412, #447), behind a
- * button. On phones the same fields sit in the filter sheet instead.
- */
-export default function AttributeFilter({ value, onChange }: AttributeFilterProps) {
-  const count = attributeFilterChips(value).length;
-
-  return (
-    <Popover.Root positioning={{ placement: "bottom-start" }}>
-      <Popover.Trigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          // The outline variant draws 1px; the filter row's controls all carry the 2px outline.
-          borderWidth="outline"
-          borderColor="border.ink"
-          flexShrink={0}
-          aria-label={count > 0 ? `BPM, key and rating filters, ${count} on` : "BPM, key and rating filters"}
-        >
-          BPM / Key
-          {count > 0 && (
-            <Badge size="xs" colorPalette="accent" variant="solid">
-              {count}
-            </Badge>
-          )}
-          <LuChevronDown />
-        </Button>
-      </Popover.Trigger>
-      <Portal>
-        <Popover.Positioner>
-          <Popover.Content width="260px">
-            <Popover.Body>
-              <AttributeFields value={value} onChange={onChange} />
-            </Popover.Body>
-          </Popover.Content>
-        </Popover.Positioner>
-      </Portal>
-    </Popover.Root>
-  );
 }
 
 /** The BPM range as two boxes; applies on Enter or blur, so typing 126 doesn't search 1 and 12. */
@@ -181,16 +134,5 @@ export function RatingField({ value, onChange, touchTarget = false }: AttributeF
         })}
       </HStack>
     </Field.Root>
-  );
-}
-
-/** The fields together (BPM, key, rating), as the desktop popover shows them. */
-export function AttributeFields({ value, onChange }: AttributeFilterProps) {
-  return (
-    <Stack gap={4}>
-      <BpmFields value={value} onChange={onChange} />
-      <KeyField value={value} onChange={onChange} />
-      <RatingField value={value} onChange={onChange} />
-    </Stack>
   );
 }

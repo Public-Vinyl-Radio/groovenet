@@ -8,7 +8,7 @@ import { BpmFields, KeyField, RatingField } from "@/components/AttributeFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
 import { ChipToggle, FiltersFooter, ModalSection as Section } from "@/components/ui/RetroModalParts";
-import { SEARCH_MODE_ITEMS } from "@/components/search/SearchModeToggle";
+import { SEARCH_MODE_ITEMS } from "@/components/search/searchModes";
 import {
   TRACK_MISSING_OPTIONS,
   type TrackAttributeFilters,

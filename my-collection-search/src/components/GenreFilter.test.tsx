@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { GenreTreeNode } from "@/api-contract/schemas";
 
@@ -11,7 +11,6 @@ vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree }));
 import GenreFilter, {
   addedGenreChips,
   genreFilterChips,
-  GenreFilterGroup,
   genreSlugFromChipKey,
   INCLUDE_SIMILAR_CHIP_KEY,
   includeSimilarChips,
@@ -127,60 +126,6 @@ describe("IncludeSimilarToggle", () => {
     expect(
       (screen.getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked
     ).toBe(true);
-  });
-});
-
-describe("GenreFilterGroup (#685)", () => {
-  beforeEach(() => {
-    fetchGenreTree.mockReset().mockResolvedValue(TREE);
-  });
-
-  it("shows no toggle until a genre is selected, and says 'Genre' in the field", async () => {
-    renderWithProviders(
-      <GenreFilterGroup selected={[]} onAdd={vi.fn()} includeSimilar={false} onIncludeSimilarChange={vi.fn()} />
-    );
-    await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
-
-    expect(screen.queryByRole("checkbox", { name: "Include similar" })).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByRole("combobox", { name: "Filter by genre" }).getAttribute("placeholder")).toBe("Genre")
-    );
-  });
-
-  it("attaches the toggle to the field and shows the selection count in it", async () => {
-    const onChange = vi.fn();
-    const { user } = renderWithProviders(
-      <GenreFilterGroup
-        selected={["cumbia", "salsa"]}
-        onAdd={vi.fn()}
-        includeSimilar={false}
-        onIncludeSimilarChange={onChange}
-      />
-    );
-    await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
-
-    const group = screen.getByTestId("genre-filter-group");
-    const field = within(group).getByRole("combobox", { name: "Filter by genre" });
-    await waitFor(() => expect(field.getAttribute("placeholder")).toBe("Genre · 2"));
-    // The toggle sits in the same unit as the field, in its own outlined segment.
-    const segment = screen.getByTestId("include-similar");
-    expect(group.contains(segment)).toBe(true);
-    await user.click(within(segment).getByRole("checkbox", { name: "Include similar" }));
-    expect(onChange).toHaveBeenCalledWith(true);
-  });
-
-  it("keeps picking and clearing working", async () => {
-    const onAdd = vi.fn();
-    const { user } = renderWithProviders(
-      <GenreFilterGroup selected={["jazz"]} onAdd={onAdd} includeSimilar onIncludeSimilarChange={vi.fn()} />
-    );
-    await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
-
-    const field = screen.getByRole("combobox", { name: "Filter by genre" });
-    await user.type(field, "cum");
-    await user.click(await screen.findByRole("option", { name: /Cumbia/ }));
-    expect(onAdd).toHaveBeenCalledWith("cumbia");
-    expect((field as HTMLInputElement).value).toBe("");
   });
 });
 

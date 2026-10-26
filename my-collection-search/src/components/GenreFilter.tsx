@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Box, Combobox, Flex, Portal, Switch, Text, chakra, createListCollection } from "@chakra-ui/react";
+import { Combobox, Flex, Portal, Switch, Text, chakra, createListCollection } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import type { FilterChip } from "@/components/FilterChips";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
@@ -141,40 +141,6 @@ type GenreFilterProps = {
    */
   inSheet?: boolean;
 };
-
-/**
- * The genre field with its "Include similar" toggle beside it, one unit: the
- * toggle gets its own outlined box, a field's width away, and appears once a
- * genre is selected.
- */
-export function GenreFilterGroup({
-  includeSimilar,
-  onIncludeSimilarChange,
-  ...genre
-}: GenreFilterProps & {
-  includeSimilar: boolean;
-  onIncludeSimilarChange: (checked: boolean) => void;
-}) {
-  return (
-    <Flex alignItems="center" gap={2} data-testid="genre-filter-group">
-      <GenreFilter {...genre} />
-      {genre.selected.length > 0 && (
-        <Box
-          data-testid="include-similar"
-          display="flex"
-          alignItems="center"
-          h="36px"
-          px={3}
-          borderWidth="outline"
-          borderColor="border.ink"
-          bg="bg.panel"
-        >
-          <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />
-        </Box>
-      )}
-    </Flex>
-  );
-}
 
 /**
  * Type-ahead over the genre taxonomy for search filters (#375). A pick is
