@@ -2,35 +2,57 @@
 
 import React from "react";
 import { chakra, Icon, Text } from "@chakra-ui/react";
-import { FiChevronDown, FiSpeaker } from "react-icons/fi";
-import { usePlaybackTargetLabel } from "@/components/player/PlaybackTargetControl";
+import { FiChevronDown, FiSmartphone, FiVolume1 } from "react-icons/fi";
+import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
+import { useDeviceLabel } from "@/lib/deviceLabel";
+
+export type PlaybackOutputKind = "device" | "airplay" | "server";
 
 /**
- * Where audio plays, and a way to change it. For now both entry points open
- * the existing playback-target dialog; the output picker replaces it (#793).
- * Null without a PlaybackTargetProvider, so the entry points hide.
+ * Where audio plays right now: this device ("This iPhone"), AirPlay from it,
+ * or a music server by name. Null without a PlaybackTargetProvider, so the
+ * entry points hide.
  */
+export function usePlaybackOutputState(): { kind: PlaybackOutputKind; label: string } | null {
+  const target = useOptionalPlaybackTarget();
+  const device = useDeviceLabel();
+  if (!target) return null;
+  if (target.target === "") return target.airPlayActive ? { kind: "airplay", label: "AirPlay" } : { kind: "device", label: device };
+  const name = target.remote.player?.name ?? target.players.find((player) => player.id === target.target)?.name ?? target.target;
+  return { kind: "server", label: name };
+}
+
+/** Short label for nav triggers: "This Mac" or the server's name. */
+export function usePlaybackTargetLabel(): string | null {
+  return usePlaybackOutputState()?.label ?? null;
+}
+
+/** The output plus a way to open the Play on picker. */
 function usePlaybackOutput() {
-  const label = usePlaybackTargetLabel();
+  const state = usePlaybackOutputState();
   const setOpen = usePlaybackTargetDialog((s) => s.setOpen);
-  if (label === null) return null;
-  return { label, open: () => setOpen(true) };
+  if (state === null) return null;
+  return { ...state, open: () => setOpen(true) };
 }
 
 const Trigger = chakra("button");
 
-const triggerCss = {
-  display: "flex",
-  alignItems: "center",
-  borderWidth: "outline",
-  borderColor: "border.ink",
-  bg: "bg.panel",
-  color: "fg",
-  cursor: "pointer",
-  textAlign: "left",
-  _hover: { bg: "bg.muted" },
-} as const;
+/** Outlined while on this device; filled (surface, ink edge) once audio plays elsewhere. */
+function triggerCss(kind: PlaybackOutputKind) {
+  const remote = kind !== "device";
+  return {
+    display: "flex",
+    alignItems: "center",
+    borderWidth: "outline",
+    borderColor: remote ? "border.ink" : "border",
+    bg: remote ? "bg.panel" : "transparent",
+    color: "fg",
+    cursor: "pointer",
+    textAlign: "left",
+    _hover: { bg: "bg.muted" },
+  } as const;
+}
 
 /** Now playing's `PLAY ON` row (phones). */
 export function PlayOnRow() {
@@ -45,9 +67,9 @@ export function PlayOnRow() {
       w="100%"
       px="12px"
       gap="10px"
-      css={triggerCss}
+      css={triggerCss(output.kind)}
     >
-      <Icon as={FiSpeaker} boxSize="18px" />
+      <Icon as={FiSmartphone} boxSize="18px" />
       <Text fontFamily="mono" fontSize="11px" letterSpacing="0.08em" fontWeight="semibold" color="fg.muted">
         PLAY ON
       </Text>
@@ -59,7 +81,7 @@ export function PlayOnRow() {
   );
 }
 
-/** The desktop bar's output button. */
+/** The desktop bar's output button: the server's name, or `THIS MAC`. */
 export function OutputButton() {
   const output = usePlaybackOutput();
   if (!output) return null;
@@ -70,18 +92,46 @@ export function OutputButton() {
       title={`Play on: ${output.label}`}
       onClick={output.open}
       h="40px"
-      maxW="220px"
+      maxW="200px"
       px="10px"
       gap="8px"
-      flexShrink={1}
+      flexShrink={0}
       minW={0}
-      css={triggerCss}
+      css={triggerCss(output.kind)}
     >
-      <Icon as={FiSpeaker} boxSize="16px" flexShrink={0} />
+      <Icon as={FiSmartphone} boxSize="16px" flexShrink={0} />
       <Text fontFamily="mono" fontSize="11px" fontWeight="semibold" letterSpacing="0.06em" textTransform="uppercase" truncate>
         {output.label}
       </Text>
       <Icon as={FiChevronDown} boxSize="12px" flexShrink={0} />
     </Trigger>
+  );
+}
+
+/** The mini player's `ON LOUNGE` / `AIRPLAY` tag under the artist; nothing while on this device. */
+export function OutputTag() {
+  const output = usePlaybackOutputState();
+  if (!output || output.kind === "device") return null;
+  const text = output.kind === "airplay" ? "AIRPLAY" : `ON ${output.label.toUpperCase()}`;
+  return (
+    <Text
+      as="span"
+      data-testid="output-tag"
+      mt="2px"
+      display="inline-flex"
+      alignItems="center"
+      gap="4px"
+      maxW="100%"
+      fontFamily="mono"
+      fontSize="10px"
+      lineHeight="12px"
+      fontWeight="semibold"
+      letterSpacing="0.08em"
+    >
+      <Icon as={FiVolume1} boxSize="10px" flexShrink={0} />
+      <Text as="span" truncate>
+        {text}
+      </Text>
+    </Text>
   );
 }

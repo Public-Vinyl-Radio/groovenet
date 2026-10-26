@@ -16,7 +16,7 @@ vi.mock("@/hooks/useStandaloneMode", () => ({
 }));
 
 const playback = vi.hoisted(() => ({ label: null as string | null }));
-vi.mock("@/components/player/PlaybackTargetControl", () => ({ usePlaybackTargetLabel: () => playback.label }));
+vi.mock("@/components/player/PlaybackOutput", () => ({ usePlaybackTargetLabel: () => playback.label }));
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 
 import AppShell from "./AppShell";
@@ -175,18 +175,18 @@ describe("AppShell", () => {
       expect(screen.queryByRole("button", { name: /^Playback:/, hidden: true })).toBeNull();
     });
 
-    it("opens the dialog from the sidebar foot", async () => {
-      playback.label = "Server · Lounge";
+    it("opens the Play on picker from the sidebar foot", async () => {
+      playback.label = "Lounge";
       const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
-      await user.click(screen.getByRole("button", { name: "Playback: Server · Lounge", hidden: true }));
+      await user.click(screen.getByRole("button", { name: "Playback: Lounge", hidden: true }));
       expect(usePlaybackTargetDialog.getState().open).toBe(true);
     });
 
-    it("opens the dialog from the More sheet", async () => {
-      playback.label = "Local browser";
+    it("opens the Play on picker from the More sheet", async () => {
+      playback.label = "This Mac";
       const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
       await user.click(screen.getByRole("button", { name: /^More$/, hidden: true }));
-      await user.click(await screen.findByText("Playback: Local browser"));
+      await user.click(await screen.findByText("Playback: This Mac"));
       expect(usePlaybackTargetDialog.getState().open).toBe(true);
     });
   });

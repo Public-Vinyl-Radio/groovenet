@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
 import { renderHook, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Track } from "@/types/track";
 
 const createMock = vi.fn();
@@ -37,6 +39,9 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
 
 import { usePlayerControlsController } from "@/components/player/usePlayerControlsController";
 
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: new QueryClient() }, children);
+
 function makeTrack(id: string): Track {
   return {
     track_id: id,
@@ -60,7 +65,7 @@ describe("usePlayerControlsController — isQueueFinished", () => {
     playlistPlayerState.currentTrackIndex = 1;
     playlistPlayerState.finishedTrack = makeTrack("stale");
 
-    const { result } = renderHook(() => usePlayerControlsController());
+    const { result } = renderHook(() => usePlayerControlsController(), { wrapper });
 
     expect(result.current.isQueueFinished).toBe(false);
   });
@@ -69,7 +74,7 @@ describe("usePlayerControlsController — isQueueFinished", () => {
     playlistPlayerState.currentTrackIndex = null;
     playlistPlayerState.finishedTrack = null;
 
-    const { result } = renderHook(() => usePlayerControlsController());
+    const { result } = renderHook(() => usePlayerControlsController(), { wrapper });
 
     expect(result.current.isQueueFinished).toBe(false);
   });
@@ -78,7 +83,7 @@ describe("usePlayerControlsController — isQueueFinished", () => {
     playlistPlayerState.currentTrackIndex = null;
     playlistPlayerState.finishedTrack = makeTrack("d");
 
-    const { result } = renderHook(() => usePlayerControlsController());
+    const { result } = renderHook(() => usePlayerControlsController(), { wrapper });
 
     expect(result.current.isQueueFinished).toBe(true);
     expect(result.current.currentTrack?.track_id).toBe("d");
@@ -98,7 +103,7 @@ describe("usePlayerControlsController — handleClearQueue", () => {
   });
 
   it("pauses and clears the queue", () => {
-    const { result } = renderHook(() => usePlayerControlsController());
+    const { result } = renderHook(() => usePlayerControlsController(), { wrapper });
 
     act(() => { result.current.handleClearQueue(); });
 
@@ -107,7 +112,7 @@ describe("usePlayerControlsController — handleClearQueue", () => {
   });
 
   it("shows an undo toast that restores the exact prior queue state", () => {
-    const { result } = renderHook(() => usePlayerControlsController());
+    const { result } = renderHook(() => usePlayerControlsController(), { wrapper });
     const snapshotPlaylist = playlistPlayerState.playlist;
     const snapshotIndex = playlistPlayerState.currentTrackIndex;
     const snapshotIsPlaying = playlistPlayerState.isPlaying;

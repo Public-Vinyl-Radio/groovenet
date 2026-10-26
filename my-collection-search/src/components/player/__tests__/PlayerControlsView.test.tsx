@@ -27,9 +27,6 @@ const baseProps = {
   volume: 0.8,
   setVolume: noop,
   VolumeIcon: FiVolume2,
-  isAirPlayAvailable: false,
-  isAirPlayActive: false,
-  onAirPlayClick: noop,
   onPlay: noop,
   onPause: noop,
   onSeek: noopAsync,
@@ -308,22 +305,31 @@ describe("PlayerControlsView — no artwork", () => {
   });
 });
 
-describe("PlayerControlsView — AirPlay and Queue toggles", () => {
-  it.each([true, false])("renders AirPlay and Queue (active: %s)", (active) => {
+describe("PlayerControlsView — Queue toggle and server volume", () => {
+  it.each([true, false])("renders the Queue toggle (pressed: %s)", (active) => {
     renderWithProviders(
       <PlaylistPlayerProvider>
-        <PlayerControlsView
-          {...baseProps}
-          compact={false}
-          isAirPlayAvailable
-          isAirPlayActive={active}
-          isQueueOpen={active}
-          onQueueToggle={noop}
-        />
+        <PlayerControlsView {...baseProps} compact={false} isQueueOpen={active} onQueueToggle={noop} />
       </PlaylistPlayerProvider>
     );
 
-    expect(screen.getByRole("button", { name: "AirPlay" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Queue" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Queue" }).getAttribute("aria-pressed")).toBe(String(active));
+    expect(screen.queryByRole("button", { name: "AirPlay" })).toBeNull();
+  });
+
+  it("names the server's volume and commits a mute as one change", async () => {
+    const setVolume = vi.fn();
+    const onVolumeCommit = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistPlayerProvider>
+        <PlayerControlsView {...baseProps} compact={false} showVolumeControls serverMode setVolume={setVolume} onVolumeCommit={onVolumeCommit} />
+      </PlaylistPlayerProvider>
+    );
+
+    // The slider shows from `lg`; jsdom renders the base breakpoint, so it can't take focus here.
+    expect(screen.getByRole("slider", { name: "Server player volume", hidden: true })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Mute", hidden: true }));
+    expect(setVolume).toHaveBeenCalledWith(0);
+    expect(onVolumeCommit).toHaveBeenCalledWith(0);
   });
 });

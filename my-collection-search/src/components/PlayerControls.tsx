@@ -29,8 +29,8 @@ export default function PlayerControls({
     isQueueFinished,
     volume,
     setVolume,
-    isAirPlayAvailable,
-    isAirPlayActive,
+    commitVolume,
+    seekOnRelease,
     playNext,
     playPrev,
     safeLen,
@@ -40,7 +40,6 @@ export default function PlayerControls({
     handlePlay,
     handlePause,
     handleSeek,
-    handleAirPlayClick,
   } = usePlayerControlsController();
 
   return (
@@ -60,10 +59,9 @@ export default function PlayerControls({
       playNext={playNext}
       volume={volume}
       setVolume={setVolume}
+      onVolumeCommit={commitVolume}
       VolumeIcon={VolumeIcon}
-      isAirPlayAvailable={isAirPlayAvailable}
-      isAirPlayActive={isAirPlayActive}
-      onAirPlayClick={handleAirPlayClick}
+      serverMode={seekOnRelease}
       onPlay={handlePlay}
       onPause={handlePause}
       onSeek={handleSeek}

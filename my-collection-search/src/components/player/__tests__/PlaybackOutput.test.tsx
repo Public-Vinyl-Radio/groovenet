@@ -1,40 +1,69 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { renderHook, screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
+import { player } from "@/test/serverPlayerFixtures";
 
-const label = vi.hoisted(() => ({ value: "Local browser" as string | null }));
-vi.mock("@/components/player/PlaybackTargetControl", () => ({ usePlaybackTargetLabel: () => label.value }));
+type Target = { target: string; airPlayActive: boolean; remote: { player: ReturnType<typeof player> | null }; players: ReturnType<typeof player>[] };
+const state = vi.hoisted(() => ({ target: null as Target | null }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({ useOptionalPlaybackTarget: () => state.target }));
+vi.mock("@/lib/deviceLabel", () => ({ useDeviceLabel: () => "This Mac" }));
 
-import { OutputButton, PlayOnRow } from "@/components/player/PlaybackOutput";
+import { OutputButton, OutputTag, PlayOnRow, usePlaybackTargetLabel } from "@/components/player/PlaybackOutput";
+
+const local = (airPlayActive = false): Target => ({ target: "", airPlayActive, remote: { player: null }, players: [] });
+const server = (connected = true): Target => ({ target: "lounge", airPlayActive: false, remote: { player: connected ? player() : null }, players: connected ? [] : [player()] });
 
 describe("playback output entry points", () => {
   beforeEach(() => {
-    label.value = "Local browser";
+    state.target = local();
     usePlaybackTargetDialog.setState({ open: false });
   });
 
   it.each([
     ["PLAY ON row", PlayOnRow],
     ["output button", OutputButton],
-  ])("the %s labels the current target and opens the playback-target dialog", async (_name, Component) => {
+  ])("the %s names this device and opens the Play on picker", async (_name, Component) => {
     const { user } = renderWithProviders(<Component />);
-    const trigger = screen.getByRole("button", { name: "Play on: Local browser" });
+    const trigger = screen.getByRole("button", { name: "Play on: This Mac" });
     expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
-    expect(screen.getByText("Local browser")).toBeTruthy();
     await user.click(trigger);
     expect(usePlaybackTargetDialog.getState().open).toBe(true);
   });
 
+  it.each([true, false])("names the server, from its snapshot or the list (connected: %s)", (connected) => {
+    state.target = server(connected);
+    renderWithProviders(<OutputButton />);
+    expect(screen.getByRole("button", { name: "Play on: Lounge" })).toBeTruthy();
+  });
+
+  it("falls back to the player ID before anything has loaded", () => {
+    state.target = { ...server(), remote: { player: null } };
+    expect(renderHook(usePlaybackTargetLabel).result.current).toBe("lounge");
+  });
+
+  it("tags the mini player ON <SERVER> or AIRPLAY, and nothing on this device", () => {
+    const { rerender } = renderWithProviders(<OutputTag />);
+    expect(screen.queryByTestId("output-tag")).toBeNull();
+    state.target = local(true);
+    rerender(<OutputTag />);
+    expect(screen.getByTestId("output-tag").textContent).toBe("AIRPLAY");
+    state.target = server();
+    rerender(<OutputTag />);
+    expect(screen.getByTestId("output-tag").textContent).toBe("ON LOUNGE");
+  });
+
   it("hides without a playback-target provider", () => {
-    label.value = null;
+    state.target = null;
     renderWithProviders(
       <>
         <PlayOnRow />
         <OutputButton />
+        <OutputTag />
       </>
     );
     expect(screen.queryByRole("button")).toBeNull();
+    expect(renderHook(usePlaybackTargetLabel).result.current).toBeNull();
   });
 });

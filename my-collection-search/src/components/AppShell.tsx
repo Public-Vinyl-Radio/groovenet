@@ -35,7 +35,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useStandaloneMode } from "@/hooks/useStandaloneMode";
 import CommandPalette from "@/components/CommandPalette";
 import { useRootFlag } from "@/hooks/useRootFlag";
-import { usePlaybackTargetLabel } from "@/components/player/PlaybackTargetControl";
+import { usePlaybackTargetLabel } from "@/components/player/PlaybackOutput";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 
 const baseMenuItems = [

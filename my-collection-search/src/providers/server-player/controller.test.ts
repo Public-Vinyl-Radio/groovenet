@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ServerPlayerController } from "./controller";
+import { ServerPlayerController, isIdle, isLive } from "./controller";
 import { player, device, entryB, workerA, workerB } from "@/test/serverPlayerFixtures";
 import type { playerApi } from "@/services/internalApi/players";
 
@@ -153,4 +153,80 @@ it("never treats an enqueue-only replacement as a connection request", async () 
   snapshot(); api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
   await controller.command({ type: "queue.replace", entries: [], play: false });
   expect(controller.getSnapshot().acknowledgement).toBeNull();
+});
+
+describe("joining a server (#793)", () => {
+  const added = (status: "playing" | "stopped", ...extra: string[]) => {
+    const p = player("lounge", 4); p.state.status = status;
+    p.state.queue.push(...extra.map((id, n) => ({ id, track_id: `t${n}`, friend_id: 1, title: "New", artist: "New" })));
+    return { player: p };
+  };
+  const newEntry = "55555555-5555-4555-8555-555555555555";
+  const tracks = [{ track_id: "t0", friend_id: 1 }];
+
+  it("waits for a fresh snapshot, then appends once and leaves a live session playing", async () => {
+    const live = player(); live.state.status = "playing";
+    api.command.mockResolvedValueOnce(added("playing", newEntry));
+    const joining = controller.join(tracks);
+    receive({ type: "snapshot", player: live, worker_instance: workerA, sequence: 1 });
+    expect(await joining).toBe(true);
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "queue.add", tracks }]);
+  });
+
+  it("plays the first appended entry when the server was idle", async () => {
+    const idle = player(); idle.state.status = "stopped";
+    receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 });
+    api.command.mockResolvedValueOnce(added("stopped", newEntry)).mockResolvedValueOnce({ player: player("lounge", 5) });
+    expect(await controller.join(tracks)).toBe(true);
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "queue.add", tracks }, { type: "play", entry_id: newEntry }]);
+  });
+
+  it("reports the join even while playback awaits a speaker confirm", async () => {
+    const idle = player(); idle.state.current_entry_id = null;
+    receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 });
+    api.command.mockResolvedValueOnce(added("stopped", newEntry)).mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
+    expect(await controller.join(tracks)).toBe(true);
+    expect(controller.getSnapshot().acknowledgement?.command).toEqual({ type: "play", entry_id: newEntry });
+  });
+
+  it("fails without sending anything for no tracks, a failed append or a closed controller", async () => {
+    expect(await controller.join([])).toBe(false);
+    snapshot(); api.command.mockRejectedValueOnce(new Error("offline"));
+    expect(await controller.join(tracks)).toBe(false);
+    expect(api.command).toHaveBeenCalledTimes(1);
+    const waiting = new ServerPlayerController("aswitch", api); waiting.start();
+    const pending = waiting.join(tracks); waiting.close();
+    expect(await pending).toBe(false); expect(await waiting.ready()).toBe(false);
+  });
+
+  it("classifies idle and live sessions", () => {
+    const p = player();
+    expect([isIdle(p), isLive(p)]).toEqual([false, true]);
+    p.state.status = "ended"; expect([isIdle(p), isLive(p)]).toEqual([true, false]);
+    p.state.status = "playing"; p.state.current_entry_id = null; expect(isIdle(p)).toBe(true);
+  });
+});
+
+describe("server volume", () => {
+  it("sends the latest value once an in-flight command finishes, and skips an unchanged volume", async () => {
+    snapshot(); let resolve!: (result: { player: ReturnType<typeof player> }) => void;
+    api.command.mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    const pending = controller.command({ type: "pause" });
+    controller.setVolume(40); controller.setVolume(45);
+    expect(api.command).toHaveBeenCalledTimes(1);
+    resolve({ player: player("lounge", 4) }); await pending; await Promise.resolve();
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "pause" }, { type: "volume", volume: 45 }]);
+    controller.setVolume(30); await Promise.resolve();
+    expect(api.command).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears a passing problem, and a dismissed confirm takes its rejection with it", async () => {
+    snapshot(); api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
+    await controller.command({ type: "play" });
+    expect(controller.getSnapshot().problem).toBe("AVAILABILITY_UNKNOWN");
+    controller.dismissAcknowledgement(); expect(controller.getSnapshot().problem).toBeNull();
+    await controller.command({ type: "pause" }); controller.close(); controller.start();
+    await controller.command({ type: "pause" }); expect(controller.getSnapshot().problem).toContain("fresh server snapshot");
+    controller.dismissProblem(); expect(controller.getSnapshot().problem).toBeNull();
+  });
 });

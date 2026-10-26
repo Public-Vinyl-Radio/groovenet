@@ -24,4 +24,13 @@ describe("RetroSlider", () => {
     renderWithProviders(<RetroSlider label="Seek" value={10} onChange={() => {}} />);
     expect(screen.getByRole("slider", { name: "Seek" }).getAttribute("aria-valuetext")).toBeNull();
   });
+
+  it("settles on the last value it reported, not the not-yet-rendered controlled one", async () => {
+    const onChange = vi.fn();
+    const onChangeEnd = vi.fn();
+    const { user } = renderWithProviders(<RetroSlider label="Volume" value={40} onChange={onChange} onChangeEnd={onChangeEnd} />);
+    screen.getByRole("slider", { name: "Volume" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onChangeEnd).toHaveBeenLastCalledWith(41);
+  });
 });
