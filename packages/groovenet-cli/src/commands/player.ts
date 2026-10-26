@@ -273,6 +273,17 @@ export function addPlayerCommands(program: Command): void {
       if (options.json) return players;
       for (const item of players) console.log(`${item.name} [${item.id}] · ${item.state.status} · desired=${item.state.desired_output ?? "none"} · assigned=${item.assigned_output ?? "none"}`);
     }, options.json ?? false));
+  player.command("set <id>").description("Set a persistent remote player's policy")
+    .requiredOption("--availability <policy>", "ask, allow_unknown, or always")
+    .option("--json", "print machine-readable output")
+    .action(async (id: string, options: { availability: string; json?: boolean }) => reportFailure(async () => {
+      if (player.opts().remote) throw new Error("Use player set <id> without --remote.");
+      if (!["ask", "allow_unknown", "always"].includes(options.availability)) throw new Error("Availability must be ask, allow_unknown, or always.");
+      const api = makeRemoteApi();
+      const current = await api.getServerPlayer(id);
+      const result = await api.commandServerPlayer(id, { type: "availability.set", expected_revision: current.revision, availability_policy: options.availability as "ask" | "allow_unknown" | "always" });
+      return options.json ? result.player : (printSuccess(`${result.player.name}: availability ${result.player.availability_policy}`), undefined);
+    }, options.json ?? false));
   const devices = player.command("devices").description("List or select audio outputs");
   devices.command("list").description("List available audio outputs").option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(() => withClient((client) => client.request("devices")), options.json ?? false));

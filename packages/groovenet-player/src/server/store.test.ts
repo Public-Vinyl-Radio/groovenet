@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Pool } from "pg";
 import { PostgresPlayerStore } from "./store.js";
 const state = { queue: [], current_entry_id: null, status: "stopped" as const, position: 0, duration: null, volume: 50, desired_output: null, checkpoint: true, error: null };
-const row = { id: "lounge", name: "Lounge", engine_id: "a", revision: "1", assigned_output: null, state };
+const row = { id: "lounge", name: "Lounge", engine_id: "a", availability_policy: "ask", revision: "1", assigned_output: null, state };
 function fixture() {
   const query = vi.fn(async (_sql: string, _values?: unknown[]) => { void _sql; void _values; return { rows: [row] as unknown[] }; });
   const lease = Object.assign(new EventEmitter(), { query: vi.fn(async () => ({ rows: [{ acquired: true }] })), release: vi.fn() });
@@ -46,7 +46,8 @@ describe("Postgres player persistence", () => {
     const player = await f.store.create({ id: "lounge", name: "Lounge", engine_id: "a" }, state);
     await f.store.save(player, 1); await f.store.checkpoint(player);
     expect(f.query.mock.calls[1]![1]).toEqual(["lounge", "Lounge", "a", JSON.stringify(state)]);
-    expect(f.query.mock.calls[2]![0]).toContain("AND revision=$5");
+    expect(f.query.mock.calls[2]![0]).toContain("AND revision=$6");
+    expect(f.query.mock.calls[2]![1]).toEqual(["lounge", "Lounge", null, JSON.stringify(state), "ask", 1]);
     expect(f.query.mock.calls[3]![0]).not.toContain("revision=revision+1");
   });
   it("rejects stale revisions and maps unique engine/output conflicts", async () => {

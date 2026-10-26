@@ -53,6 +53,14 @@ const CONTRACTED: Array<[method: string, path: string]> = [
 ];
 
 describe("OpenAPI contract coverage", () => {
+  it("documents the player availability enum and bearer-only administration", () => {
+    const doc = getOpenApiDocument();
+    const schemas = doc.components?.schemas as Record<string, { properties?: Record<string, { enum?: string[] }> }>;
+    expect(schemas.ServerPlayer.properties?.availability_policy?.enum).toEqual(["ask", "allow_unknown", "always"]);
+    const operation = (doc.paths["/api/players/{playerId}/commands"] as Record<string, { summary?: string; responses?: Record<string, unknown> }>).post;
+    expect(operation.summary).toContain("bearer-only availability policy");
+    expect(operation.responses).toHaveProperty("403");
+  });
   it.each(CONTRACTED)("documents %s %s with a real contract entry", (method, path) => {
     const op = getOperation(path, method);
     expect(op, `${method} ${path} should be present`).toBeTruthy();

@@ -27,6 +27,8 @@ describe("authenticated player API proxy", () => {
     await create(request('{"id":"lounge","name":"Lounge","engine_id":"primary"}'));
     await command(request('{"type":"pause","expected_revision":3}'), context);
     expect(transport).toHaveBeenLastCalledWith(new URL("http://worker:13700/players/lounge/commands"), expect.objectContaining({ method: "POST", body: '{"type":"pause","expected_revision":3}' }));
+    await command(request('{"type":"availability.set","availability_policy":"always","expected_revision":3}'), context);
+    expect(transport).toHaveBeenLastCalledWith(new URL("http://worker:13700/players/lounge/commands"), expect.objectContaining({ body: '{"type":"availability.set","expected_revision":3,"availability_policy":"always"}' }));
   });
   it("rejects malformed, oversized, unsafe-path and source-injection commands", async () => {
     expect((await create(request("broken"))).status).toBe(400);

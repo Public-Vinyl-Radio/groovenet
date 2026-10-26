@@ -25,7 +25,7 @@ class MemoryStore implements PlayerStore {
   list = vi.fn(async () => structuredClone([...this.rows.values()]));
   create = vi.fn(async (input: { id: string; name: string; engine_id: string }, state: ServerPlayerState) => {
     if ([...this.rows.values()].some(p => p.id === input.id || p.engine_id === input.engine_id)) throw new ServerPlayerError("ASSIGNMENT_CONFLICT", "Already exists");
-    const row = { ...input, state, revision: 0, assigned_output: null };
+    const row = { ...input, availability_policy: "ask" as const, state, revision: 0, assigned_output: null };
     this.rows.set(row.id, structuredClone(row));
     return structuredClone(row);
   });
@@ -86,6 +86,28 @@ describe("persistent server player manager", () => {
     await expect(busy.command("a", { type: "play" })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
     await busy.command("a", { type: "play", takeover: true });
     expect(busy.backends[0]!.load).toHaveBeenCalledWith({ url: "file:///media/1.wav" });
+    await busy.manager.shutdown();
+  });
+
+  it("persists availability policy and applies it on connection without overriding a player claim", async () => {
+    const f = await fixture(); await f.prepare("a"); await f.prepare("b", "speaker-a");
+    expect(f.manager.get("a").availability_policy).toBe("ask");
+    await f.command("a", { type: "availability.set", availability_policy: "allow_unknown" });
+    await f.command("a", { type: "play" });
+    expect(f.manager.get("a").availability_policy).toBe("allow_unknown");
+    await expect(f.command("b", { type: "availability.set", availability_policy: "always" })).resolves.toMatchObject({ player: { availability_policy: "always" } });
+    await expect(f.command("b", { type: "play" })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    // Cover the second guard used by reconnection paths independently of play's preflight.
+    const recheck = f.manager as unknown as { requireAvailable: (player: ServerPlayer, output: string, policy: { allow_unknown: boolean; takeover: boolean }) => Promise<void> };
+    await expect(recheck.requireAvailable(f.manager.get("b"), "speaker-a", { allow_unknown: true, takeover: true })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    await f.manager.shutdown();
+    const busy = await fixture({ availability: "occupied", source: "home_assistant", observed_at: "now", sender_identity: "foreign" });
+    await busy.prepare("a");
+    await busy.command("a", { type: "availability.set", availability_policy: "allow_unknown" });
+    await expect(busy.command("a", { type: "play" })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
+    await busy.command("a", { type: "availability.set", availability_policy: "always" });
+    await busy.command("a", { type: "play" });
+    expect(busy.manager.get("a").state.status).toBe("playing");
     await busy.manager.shutdown();
   });
 

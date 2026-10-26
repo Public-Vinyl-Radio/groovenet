@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { addPlayerCommands } from "./player.js";
 const { api } = vi.hoisted(() => ({ api: { getServerPlayer: vi.fn(), commandServerPlayer: vi.fn(), listServerPlayers: vi.fn(), listServerPlayerDevices: vi.fn() } }));
 vi.mock("./remotePlayer.js", async (original) => ({ ...await original<typeof import("./remotePlayer.js")>(), makeRemoteApi: () => api }));
-const state = { id: "room", name: "Room", revision: 2, engine_id: "primary", assigned_output: null,
+const state = { id: "room", name: "Room", revision: 2, engine_id: "primary", availability_policy: "ask", assigned_output: null,
   state: { queue: [], current_entry_id: null, status: "stopped", position: 0, duration: null, volume: 50, error: null, desired_output: null, checkpoint: true } };
 async function run(...args: string[]) {
   const program = new Command(); program.exitOverride(); addPlayerCommands(program);
@@ -11,6 +11,19 @@ async function run(...args: string[]) {
 }
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); process.exitCode = 0; });
 describe("remote player CLI", () => {
+  it("sets a validated persistent availability policy with a revision", async () => {
+    api.getServerPlayer.mockResolvedValue(state);
+    api.commandServerPlayer.mockResolvedValue({ player: { ...state, availability_policy: "always" } });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await run("set", "room", "--availability", "always", "--json");
+    expect(api.commandServerPlayer).toHaveBeenCalledExactlyOnceWith("room", { type: "availability.set", availability_policy: "always", expected_revision: 2 });
+    await run("set", "room", "--availability", "ask");
+    expect(api.commandServerPlayer).toHaveBeenLastCalledWith("room", { type: "availability.set", availability_policy: "ask", expected_revision: 2 });
+    await run("--remote", "room", "set", "room", "--availability", "always");
+    expect(api.commandServerPlayer).toHaveBeenCalledTimes(2);
+    await run("set", "room", "--availability", "invalid");
+    expect(api.commandServerPlayer).toHaveBeenCalledTimes(2);
+  });
   it("selects remote mode after subcommands and sends acknowledged policy flags", async () => {
     api.getServerPlayer.mockResolvedValue(state);
     api.commandServerPlayer.mockResolvedValue({ player: state });

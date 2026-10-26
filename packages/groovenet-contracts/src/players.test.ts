@@ -7,6 +7,9 @@ describe("server-player contracts", () => {
     expect(createServerPlayerSchema.safeParse({ id: "../escape", name: "Lounge", engine_id: "primary" }).success).toBe(false);
   });
   it("accepts commands with or without a revision and never defaults to takeover", () => {
+    for (const availability_policy of ["ask", "allow_unknown", "always"]) expect(serverPlayerCommandSchema.parse({ type: "availability.set", availability_policy })).toMatchObject({ availability_policy });
+    expect(serverPlayerCommandSchema.safeParse({ type: "availability.set", availability_policy: "unsafe" }).success).toBe(false);
+    expect((playerJsonSchemas.ServerPlayer as { properties: Record<string, unknown> }).properties).toHaveProperty("availability_policy");
     expect(serverPlayerCommandSchema.parse({ type: "play", expected_revision: 3 })).toMatchObject({ allow_unknown: false, takeover: false });
     expect(serverPlayerCommandSchema.parse({ type: "play" })).toEqual({ type: "play", allow_unknown: false, takeover: false });
     expect(serverPlayerCommandSchema.safeParse({ type: "pause", expected_revision: -1 }).success).toBe(false);

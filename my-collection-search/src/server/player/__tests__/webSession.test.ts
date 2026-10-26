@@ -105,6 +105,7 @@ describe("player browser authorization", () => {
     const command = (body: unknown) => request(JSON.stringify(body), "POST", { cookie: session });
     expect((await proxyPlayer(command({ type: "pause", expected_revision: 3 }), "players/lounge/commands", "command")).status).toBe(200);
     expect((await proxyPlayer(command({ type: "rename", name: "Other", expected_revision: 3 }), "players/lounge/commands", "command")).status).toBe(403);
+    expect((await proxyPlayer(command({ type: "availability.set", availability_policy: "always", expected_revision: 3 }), "players/lounge/commands", "command")).status).toBe(403);
     expect((await proxyPlayer(command({ id: "new", name: "New", engine_id: "primary" }), "players", "create")).status).toBe(403);
     expect((await proxyPlayer(request(), "players")).status).toBe(401);
   });
