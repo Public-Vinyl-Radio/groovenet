@@ -69,10 +69,12 @@ export class ServerPlayerManager extends EventEmitter {
     const backend = runtime?.backend ?? this.engine(player).create();
     try {
       const outputs = await backend.listDevices();
+      const nameCounts = new Map<string, number>();
+      for (const output of outputs) nameCounts.set(output.name, (nameCounts.get(output.name) ?? 0) + 1);
       return await Promise.all(outputs.map(async (output) => ({ ...output,
         assigned_player_id: this.list().find((p) => p.assigned_output === output.id)?.id ?? null,
         desired_by: this.list().filter((p) => p.state.desired_output === output.id).map((p) => p.id),
-        observed: await this.observe(output.id, { outputName: output.name }),
+        observed: await this.observe(output.id, { outputName: nameCounts.get(output.name) === 1 ? output.name : undefined }),
       })));
     } finally { if (!runtime) await backend.close(); }
   }
@@ -370,7 +372,11 @@ export class ServerPlayerManager extends EventEmitter {
     const observed = await this.observe(output, { fresh: true, resolveOutputName: async () => {
       const runtime = this.runtimes.get(player.id);
       const backend = runtime?.backend ?? this.engine(player).create();
-      try { return (await backend.listDevices()).find(device => device.id === output)?.name; }
+      try {
+        const devices = await backend.listDevices();
+        const name = devices.find(device => device.id === output)?.name;
+        return name && devices.filter(device => device.name === name).length === 1 ? name : undefined;
+      }
       finally { if (!runtime) await backend.close(); }
     } });
     const ownSender = observed.sender_identity === "groovenet" && observed.sender_engine_id === player.engine_id;

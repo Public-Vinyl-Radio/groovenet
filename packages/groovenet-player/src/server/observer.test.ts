@@ -45,6 +45,7 @@ describe("speaker mapping and sender identity", () => {
     expect(await observe("unmapped")).toMatchObject({ entity_id: null, source: "unconfigured", availability: "unknown" });
     expect(transport).toHaveBeenCalledTimes(2);
     expect(await homeAssistantObserver({ entities: { s: "media_player.room" } })("s")).toMatchObject({ entity_id: "media_player.room", source: "unconfigured" });
+    expect(await homeAssistantObserver({ entities: { Lounge: "media_player.lounge" } })("new-id", { outputName: "Lounge" })).toMatchObject({ entity_id: "media_player.lounge", source: "unconfigured" });
   });
   it("resolves names only when necessary and leaves discovery failures unknown", async () => {
     const resolveOutputName = vi.fn(async () => "Lounge");
