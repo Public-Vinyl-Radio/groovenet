@@ -17,8 +17,12 @@ describe("remote player CLI", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     await run("set", "room", "--availability", "always", "--json");
     expect(api.commandServerPlayer).toHaveBeenCalledExactlyOnceWith("room", { type: "availability.set", availability_policy: "always", expected_revision: 2 });
+    await run("set", "room", "--availability", "ask");
+    expect(api.commandServerPlayer).toHaveBeenLastCalledWith("room", { type: "availability.set", availability_policy: "ask", expected_revision: 2 });
+    await run("--remote", "room", "set", "room", "--availability", "always");
+    expect(api.commandServerPlayer).toHaveBeenCalledTimes(2);
     await run("set", "room", "--availability", "invalid");
-    expect(api.commandServerPlayer).toHaveBeenCalledTimes(1);
+    expect(api.commandServerPlayer).toHaveBeenCalledTimes(2);
   });
   it("selects remote mode after subcommands and sends acknowledged policy flags", async () => {
     api.getServerPlayer.mockResolvedValue(state);

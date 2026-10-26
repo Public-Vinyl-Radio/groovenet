@@ -97,6 +97,9 @@ describe("persistent server player manager", () => {
     expect(f.manager.get("a").availability_policy).toBe("allow_unknown");
     await expect(f.command("b", { type: "availability.set", availability_policy: "always" })).resolves.toMatchObject({ player: { availability_policy: "always" } });
     await expect(f.command("b", { type: "play" })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    // Cover the second guard used by reconnection paths independently of play's preflight.
+    const recheck = f.manager as unknown as { requireAvailable: (player: ServerPlayer, output: string, policy: { allow_unknown: boolean; takeover: boolean }) => Promise<void> };
+    await expect(recheck.requireAvailable(f.manager.get("b"), "speaker-a", { allow_unknown: true, takeover: true })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
     await f.manager.shutdown();
     const busy = await fixture({ availability: "occupied", source: "home_assistant", observed_at: "now", sender_identity: "foreign" });
     await busy.prepare("a");
