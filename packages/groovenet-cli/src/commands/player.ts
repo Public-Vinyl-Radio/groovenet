@@ -254,6 +254,14 @@ export function addPlayerCommands(program: Command): void {
       if (!player.opts().remote) throw new Error("Queue move requires --remote <player-id>.");
       return withClient((client) => client.request("queue.move", { id, to: Number(to) }));
     }, options.json ?? false));
+  queue.command("replace <replacement-json>").description("Atomically replace a remote queue with {entries, current_entry_id?, position?, play?}")
+    .option("--json", "print machine-readable output")
+    .action(async (replacement: string, options: { json?: boolean }) => reportFailure(async () => {
+      if (!player.opts().remote) throw new Error("Queue replace requires --remote <player-id>.");
+      const value: unknown = JSON.parse(replacement);
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Replacement must be a JSON object.");
+      return withClient((client) => client.request("queue.replace", value as Record<string, unknown>));
+    }, options.json ?? false));
   queue.command("clear").option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) => reportFailure(async () => {
       if (!player.opts().remote) throw new Error("Queue clear requires --remote <player-id>.");

@@ -73,3 +73,16 @@ describe("remote player CLI", () => {
     expect(process.exitCode).toBe(1);
   });
 });
+
+it("replaces a remote queue atomically and rejects malformed/local replacements", async () => {
+  api.getServerPlayer.mockResolvedValue(state); api.commandServerPlayer.mockResolvedValue({ player: state });
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  const replacement = { entries: [{ track_id: "track", friend_id: 1 }], position: 42, play: true };
+  await run("--remote", "room", "--allow-unknown", "queue", "replace", JSON.stringify(replacement), "--json");
+  expect(api.commandServerPlayer).toHaveBeenCalledExactlyOnceWith("room", { type: "queue.replace", expected_revision: 2, ...replacement, allow_unknown: true, takeover: false });
+  const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  for (const value of ["[]", "null", "1", "{", '{"entries":[{"track_id":"t","friend_id":0}]}']) await run("--remote", "room", "queue", "replace", value);
+  await run("queue", "replace", JSON.stringify(replacement));
+  expect(api.commandServerPlayer).toHaveBeenCalledTimes(1);
+  expect(error.mock.calls.flat().join("")).toContain("requires --remote");
+});

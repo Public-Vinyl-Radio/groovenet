@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { GroovenetClient, loadConfig, type Track } from "@groovenet/client";
-import type { ServerPlayer, ServerPlayerCommandInput, ServerPlayerDevice } from "@groovenet/contracts";
+import { serverPlayerCommandSchema, type ServerPlayer, type ServerPlayerCommandInput, type ServerPlayerDevice } from "@groovenet/contracts";
 import type { PlaybackSnapshot } from "@groovenet/player";
 
 export interface PlayerController extends EventEmitter {
@@ -129,6 +129,11 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
       return devices.map((device) => ({ ...device, name: formatRemoteDevice(device) }));
     }
     const policy = { ...this.policy, ...(p.allow_unknown === true ? { allow_unknown: true } : {}), ...(p.takeover === true ? { takeover: true } : {}) };
+    if (method === "queue.replace") {
+      const { expected_revision, ...replacement } = serverPlayerCommandSchema.parse({ ...p, type: "queue.replace", ...policy, expected_revision: 0 });
+      void expected_revision;
+      return this.edit(replacement);
+    }
     if (method === "queue.addTrack") {
       const track = p.track as Track;
       return this.edit({ type: "queue.add", tracks: [{ track_id: track.track_id, friend_id: track.friend_id }] });

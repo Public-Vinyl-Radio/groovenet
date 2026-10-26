@@ -6,15 +6,17 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 import { player, device } from "@/test/serverPlayerFixtures";
 import { usePlaybackTarget } from "@/providers/PlaybackTargetProvider";
 import { playerApi } from "@/services/internalApi/players";
+import { toaster } from "@/components/ui/toaster";
 import { ServerPlayerPanel } from "./ServerPlayerPanel";
 let target: ReturnType<typeof usePlaybackTarget>;
 const acknowledge = vi.fn();
 const command = vi.fn(); const refresh = vi.fn(); const cancel = vi.fn();
+vi.mock("@/components/ui/toaster", () => ({ toaster: { create: vi.fn() } }));
 vi.mock("@/providers/PlaybackTargetProvider", () => ({ usePlaybackTarget: () => target }));
 vi.mock("@/services/internalApi/players", () => ({ playerApi: { get: vi.fn() } }));
 beforeEach(() => {
   vi.clearAllMocks(); command.mockResolvedValue(player()); vi.mocked(playerApi.get).mockResolvedValue(player("aswitch", 8));
-  target = { target: "lounge", remote: { player: player(), devices: [device], connected: true, busy: false, problem: null, acknowledgement: null }, controller: { command, acknowledge, refresh, dismissAcknowledgement: cancel } } as unknown as ReturnType<typeof usePlaybackTarget>;
+  target = { target: "lounge", remote: { player: player(), devices: [device], connected: true, busy: false, problem: null, acknowledgement: null }, controller: { command, acknowledge, refresh, dismissAcknowledgement: cancel, getSnapshot: () => target.remote } } as unknown as ReturnType<typeof usePlaybackTarget>;
 });
 describe("server player controls", () => {
   it("renders identity, current status, independent queue, desired output and actual assignment", () => {
@@ -84,4 +86,44 @@ it("starts a stopped checkpoint explicitly", async () => {
   target.remote.player!.state.status = "stopped";
   const { user } = renderWithProviders(<ServerPlayerPanel />);
   await user.click(screen.getByRole("button", { name: "Play" })); expect(command).toHaveBeenCalledWith({ type: "play" });
+});
+
+describe("server queue Clear and Undo", () => {
+  it.each(["playing", "paused"] as const)("restores identical entry IDs and saved position after clearing %s audio", async status => {
+    const before = player(); before.state.status = status;
+    target.remote.player = before;
+    const cleared = player("lounge", 4); cleared.state.queue = []; cleared.state.current_entry_id = null; cleared.state.position = 0; cleared.state.status = "stopped";
+    command.mockResolvedValueOnce(cleared);
+    const { user } = renderWithProviders(<ServerPlayerPanel />);
+    await user.click(screen.getByRole("button", { name: "Clear server queue" }));
+    expect(command).toHaveBeenCalledExactlyOnceWith({ type: "queue.clear" });
+    const toast = vi.mocked(toaster.create).mock.calls[0]![0];
+    expect(toast.title).toBe("Queue cleared"); expect(toast.action?.label).toBe("Undo");
+    target.remote.player = cleared;
+    toast.action!.onClick();
+    expect(command).toHaveBeenLastCalledWith({ type: "queue.replace", entries: before.state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: before.state.current_entry_id, position: 12, play: status === "playing" });
+  });
+  it("does not offer Undo after a failed clear", async () => {
+    command.mockResolvedValueOnce(null);
+    const { user } = renderWithProviders(<ServerPlayerPanel />);
+    await user.click(screen.getByRole("button", { name: "Clear server queue" }));
+    expect(toaster.create).not.toHaveBeenCalled();
+  });
+  it("does not overwrite server changes made after Clear", async () => {
+    command.mockResolvedValueOnce(player("lounge", 4));
+    const { user } = renderWithProviders(<ServerPlayerPanel />);
+    await user.click(screen.getByRole("button", { name: "Clear server queue" }));
+    const toast = vi.mocked(toaster.create).mock.calls[0]![0];
+    target.remote.player = player("lounge", 5);
+    toast.action!.onClick();
+    expect(command).toHaveBeenCalledTimes(1);
+    expect(toaster.create).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Queue changed since it was cleared" }));
+  });
+});
+
+it("does not clear without an available controller", async () => {
+  target.controller = null;
+  const { user } = renderWithProviders(<ServerPlayerPanel />);
+  await user.click(screen.getByRole("button", { name: "Clear server queue" }));
+  expect(command).not.toHaveBeenCalled(); expect(toaster.create).not.toHaveBeenCalled();
 });

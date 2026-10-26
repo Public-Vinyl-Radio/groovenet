@@ -124,3 +124,17 @@ it("fences an availability acknowledgement when another controller changes the p
   await controller.acknowledge(); expect(api.command).toHaveBeenCalledTimes(1);
   expect(controller.getSnapshot().acknowledgement).toBeNull(); expect(controller.getSnapshot().problem).toContain("changed while awaiting");
 });
+
+it.each(["AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED"])("acknowledges %s by replaying the complete atomic replacement", async code => {
+  snapshot(); api.command.mockRejectedValueOnce(failure(code));
+  const replacement = { type: "queue.replace" as const, entries: [{ id: entryB, track_id: "track", friend_id: 1 }], current_entry_id: entryB, position: 42, play: true };
+  await controller.command(replacement);
+  expect(controller.getSnapshot().acknowledgement?.command).toEqual(replacement);
+  await controller.acknowledge();
+  expect(api.command.mock.lastCall?.[1]).toEqual({ ...replacement, expected_revision: 3, ...(code === "AVAILABILITY_UNKNOWN" ? { allow_unknown: true } : { takeover: true }) });
+});
+it("never treats an enqueue-only replacement as a connection request", async () => {
+  snapshot(); api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
+  await controller.command({ type: "queue.replace", entries: [], play: false });
+  expect(controller.getSnapshot().acknowledgement).toBeNull();
+});

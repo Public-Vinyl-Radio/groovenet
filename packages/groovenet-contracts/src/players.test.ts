@@ -27,3 +27,16 @@ it("preserves mapping diagnostics and sender identity in device observations", (
   expect(speakerObservationSchema.safeParse({ ...observation, sender_identity: "trusted" }).success).toBe(false);
   expect(speakerObservationSchema.parse({ availability: "unknown", source: "unconfigured", observed_at: null, sender_identity: "unknown" })).not.toHaveProperty("entity_id");
 });
+
+it("validates atomic queue replacement and keeps playback opt-in", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const entry = { id, track_id: "track", friend_id: 1 };
+  expect(serverPlayerCommandSchema.parse({ type: "queue.replace", expected_revision: 3, entries: [entry] })).toMatchObject({ entries: [entry], play: false, allow_unknown: false, takeover: false });
+  for (const command of [
+    { entries: [entry, entry] }, { entries: [{ ...entry, id: "invalid" }] },
+    { entries: [{ ...entry, local_audio_url: "/secret" }] }, { entries: [entry], position: -1 },
+    { entries: [entry], position: Infinity }, { entries: [entry], current_entry_id: "invalid" },
+    { entries: Array.from({ length: 10001 }, () => ({ track_id: "track", friend_id: 1 })) },
+  ]) expect(serverPlayerCommandSchema.safeParse({ type: "queue.replace", expected_revision: 3, ...command }).success).toBe(false);
+  expect(serverPlayerCommandSchema.parse({ type: "queue.replace", expected_revision: 0, entries: [], current_entry_id: null }).entries).toEqual([]);
+});

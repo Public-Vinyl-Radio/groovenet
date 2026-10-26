@@ -148,6 +148,42 @@ Other commands are `rename`, `queue.clear`, `pause`, `resume`, `stop`, `next`,
 and position while preserving the queue. Natural EOF advances only that player's
 queue; interruption/error preserves the current entry and requires a command.
 
+### Atomic queue replacement
+
+`queue.replace` resolves every track before changing the queue or playback. An
+unresolved track rejects the whole command. Entries accept optional UUIDs;
+provided IDs are preserved and new entries receive generated IDs. Duplicate IDs
+and reusing a current queue ID for another track/friend are rejected. Titles and
+artists are resolved on the server, never accepted from the caller.
+
+```json
+{"type":"queue.replace","expected_revision":3,"entries":[{"id":"11111111-1111-4111-8111-111111111111","track_id":"TRACK_ID","friend_id":1}],"current_entry_id":"11111111-1111-4111-8111-111111111111","position":42,"play":false}
+```
+
+Omitting `current_entry_id` retains the current entry if present; otherwise it
+selects the first replacement entry only when `play: true`. Explicit `null`
+clears the current entry. A non-null ID must belong to the replacement queue.
+Omitting `position` preserves the retained entry's position, or starts a new
+entry at zero. An explicit position seeks a retained live entry, or saves a
+checkpoint for a later play. Removing/changing the current entry stops playback
+unless `play: true`. Retaining it keeps its existing backend and playing/paused
+state; `play: true` resumes it. An empty replacement clears the queue and cannot
+be played. Playback is opt-in and uses the usual output availability/assignment
+checks; rejected preflight checks leave the old queue intact. Engine failures
+after playback effects begin are reported as playback errors, not a rollback of
+already-performed audio operations.
+
+The typed client's `commandServerPlayer` accepts this command. From the CLI:
+
+```sh
+groovenet player --remote lounge queue replace '{"entries":[{"track_id":"TRACK_ID","friend_id":1}],"play":true}' --json
+```
+
+Use `--allow-unknown` or `--takeover` only when deliberately authorizing the
+corresponding speaker policy. A replacement with retained UUIDs can restore an
+Undo snapshot, including its current entry and position. Revisions still guard
+against overwriting changes made after that snapshot.
+
 SSE begins with a complete `snapshot`. `position` events include player ID,
 revision, current entry ID and observation time; apply them only to a matching
 snapshot revision/entry. Each event also carries worker instance and sequence.

@@ -4,6 +4,11 @@ import type { ServerPlayerCommandInput } from "@groovenet/contracts";
 
 test.skip(!process.env.RUN_E2E_TESTS, "Run against the isolated Docker/worktree app with RUN_E2E_TESTS=1");
 
+async function openPlayback(page: Page, label: string) {
+  if ((page.viewportSize()?.width ?? 1280) < 768) await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("button", { name: `Playback: ${label}`, exact: true }).click();
+}
+
 async function fixture(page: Page) {
   const players = { lounge: player(), aswitch: player("aswitch") };
   players.aswitch.assigned_output = "speaker";
@@ -54,6 +59,16 @@ async function fixture(page: Page) {
         case "volume": p.state.volume = command.volume; break;
         case "queue.remove": p.state.queue = p.state.queue.filter(entry => entry.id !== command.entry_id); break;
         case "queue.move": { const from = p.state.queue.findIndex(entry => entry.id === command.entry_id); const [entry] = p.state.queue.splice(from, 1); p.state.queue.splice(command.to, 0, entry!); break; }
+        case "queue.clear": p.state.queue = []; p.state.current_entry_id = null; p.state.position = 0; p.state.duration = null; p.state.status = "stopped"; break;
+        case "queue.replace": {
+          p.state.queue = command.entries.map(entry => ({ ...entry, id: entry.id ?? crypto.randomUUID(), title: entry.track_id, artist: "Fixture artist" }));
+          p.state.current_entry_id = command.current_entry_id ?? null;
+          p.state.position = command.position ?? 0;
+          p.state.duration = null;
+          p.state.status = command.play ? "playing" : "stopped";
+          p.state.checkpoint = !command.play && p.state.current_entry_id !== null;
+          break;
+        }
         case "output.transfer": {
           expect(command.from_revision).toBe(players.aswitch.revision);
           players.aswitch.assigned_output = null; players.aswitch.revision++;
@@ -65,8 +80,16 @@ async function fixture(page: Page) {
     }
     return json(p);
   });
+  // Keep development tooling clear of navigation controls across reloads.
+  await page.addInitScript(() => {
+    document.addEventListener("DOMContentLoaded", () => {
+      const style = document.createElement("style");
+      style.textContent = "nextjs-portal { display: none !important; }";
+      document.head.append(style);
+    });
+  });
   await page.goto("/settings");
-  await page.getByRole("button", { name: "Playback: Local browser" }).click();
+  await openPlayback(page, "Local browser");
   await page.getByLabel("Household web passphrase").fill("fixture-web-passphrase");
   await page.getByRole("button", { name: "Unlock server players" }).click();
   await page.getByRole("combobox", { name: "Control playback on" }).selectOption("lounge");
@@ -101,15 +124,15 @@ test("server selection, explicit acknowledgement, revisioned controls, conflicts
   await expect(page.getByText("Queue · 2")).toBeVisible();
   const count = f.commands.length;
   await page.getByRole("button", { name: "Close playback panel" }).click();
-  await page.getByRole("button", { name: "Playback: Server · Aswitch" }).click();
+  await openPlayback(page, "Server · Aswitch");
   expect(f.commands).toHaveLength(count);
   expect(await page.evaluate(() => localStorage.getItem("mcs:playback-target"))).toBe("aswitch");
   await page.reload();
-  await page.getByRole("button", { name: "Playback: Server · Aswitch" }).click();
+  await openPlayback(page, "Server · Aswitch");
   await expect(page.getByText("Server: Aswitch · paused")).toBeVisible();
   expect(f.commands).toHaveLength(count);
   await page.goto("/settings/appearance");
-  await page.getByRole("button", { name: "Playback: Server · Aswitch" }).click();
+  await openPlayback(page, "Server · Aswitch");
   await expect(page.getByText("Server: Aswitch · paused")).toBeVisible();
   expect(f.commands).toHaveLength(count);
   await page.getByRole("dialog", { name: "Playback target" }).evaluate(element => Promise.all(element.getAnimations({ subtree: true }).map(animation => animation.finished)));
@@ -126,7 +149,7 @@ test("explicit transfer exposes partial attachment and remains visible after clo
   await expect(page.getByText(/destination attached=false/).first()).toBeVisible();
   await page.getByRole("button", { name: "Close playback panel" }).click();
   await expect(page.getByRole("dialog", { name: "Playback target" })).toBeHidden();
-  await expect(page.getByRole("alert").filter({ hasText: "Fixture destination failed" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /Notifications/ }).getByText(/Fixture destination failed/)).toBeVisible();
   expect(f.commands).toHaveLength(1); expect(f.commands[0]!.command.type).toBe("output.transfer");
 });
 
@@ -147,4 +170,17 @@ test("position fencing and worker restart reconnect do not send playback command
   expect(f.commands).toHaveLength(0);
   await page.getByRole("combobox", { name: "Control playback on" }).selectOption("");
   expect(f.commands).toHaveLength(0);
+});
+
+test("clearing a server queue offers Undo with identical entries and saved playback position", async ({ page }) => {
+  const f = await fixture(page);
+  const before = structuredClone(f.players.lounge.state);
+  await page.getByRole("button", { name: "Clear server queue" }).click();
+  await expect(page.getByText("Queue · 0")).toBeVisible();
+  await expect(page.getByText("Queue cleared", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByText("Queue · 2")).toBeVisible();
+  expect(f.commands.map(item => item.command.type)).toEqual(["queue.clear", "queue.replace"]);
+  expect(f.commands[1]!.command).toMatchObject({ entries: before.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: before.current_entry_id, position: before.position, play: false });
+  await expect(page.getByText("12 / unknown seconds · Saved checkpoint")).toBeVisible();
 });

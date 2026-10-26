@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Box, Button, Flex, Input, NativeSelect, Text } from "@chakra-ui/react";
 import type { ServerPlayer } from "@groovenet/contracts";
 import { usePlaybackTarget } from "@/providers/PlaybackTargetProvider";
+import { toaster } from "@/components/ui/toaster";
 import { playerApi } from "@/services/internalApi/players";
 
 export function ServerPlayerPanel() {
@@ -86,9 +87,23 @@ export function ServerPlayerPanel() {
     </Box>}
     <Flex justify="space-between" align="center" gap={2}>
       <Text fontWeight="bold">Queue · {player?.state.queue.length ?? 0}</Text>
-      <Button variant="outline" size="sm" disabled={disabled || !player?.state.queue.length} onClick={() => void controller?.command({ type: "queue.clear" })}>Clear server queue</Button>
+      <Button variant="outline" size="sm" disabled={disabled || !player?.state.queue.length} onClick={async () => {
+        if (!player || !controller) return;
+        const snapshot = structuredClone(player.state);
+        const cleared = await controller.command({ type: "queue.clear" });
+        if (!cleared) return;
+        const clearedRevision = cleared.revision;
+        toaster.create({ title: "Queue cleared", type: "info", action: { label: "Undo", onClick: () => {
+          // Do not overwrite edits made by another controller after the clear.
+          if (controller.getSnapshot().player?.revision !== clearedRevision) {
+            toaster.create({ title: "Queue changed since it was cleared", description: "Undo is no longer available.", type: "warning" });
+            return;
+          }
+          void controller.command({ type: "queue.replace", entries: snapshot.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: snapshot.current_entry_id, position: snapshot.position, play: snapshot.status === "playing" });
+        } } });
+      }}>Clear server queue</Button>
     </Flex>
-    <Text fontSize="sm">Add music with the collection’s play and enqueue actions. In server mode, play adds the selection and plays its chosen entry.</Text>
+    <Text fontSize="sm">Add music with the collection’s play and enqueue actions. In server mode, Play now replaces the queue with your selection.</Text>
     <Box as="ol" listStyleType="none" borderWidth="outline" borderColor="border.ink" boxShadow="sm">
       {player?.state.queue.map((entry, index) => <Box as="li" key={entry.id} p={2} borderBottomWidth="rule" aria-current={entry.id === player.state.current_entry_id ? "true" : undefined}>
         <Text>{index + 1}. {entry.title} — {entry.artist}{entry.id === player.state.current_entry_id ? " · Current" : ""}</Text>
