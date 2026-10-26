@@ -3,17 +3,28 @@ import { promisify } from "node:util";
 import { createHmac, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
 
 const cookieName = "__Secure-gn-player";
-const lifetime = 8 * 60 * 60;
+const defaultSessionDays = 365;
+const maxSessionDays = 3650;
+const secondsPerDay = 24 * 60 * 60;
 const cookieOptions = "Path=/api/players; HttpOnly; Secure; SameSite=Strict";
+
+function sessionLifetime(): number | null {
+  const value = process.env.PLAYER_WEB_SESSION_DAYS;
+  if (value === undefined) return defaultSessionDays * secondsPerDay;
+  if (!/^[1-9]\d*$/.test(value)) return null;
+  const days = Number(value);
+  return Number.isSafeInteger(days) && days <= maxSessionDays ? days * secondsPerDay : null;
+}
 
 function config() {
   const passphrase = process.env.PLAYER_WEB_PASSPHRASE;
   const secret = process.env.PLAYER_WEB_SESSION_SECRET;
   const origin = process.env.PLAYER_WEB_ORIGIN;
+  const lifetime = sessionLifetime();
   if (!passphrase || passphrase.length < 24 || !secret || secret.length < 32 || !origin ||
-      passphrase === process.env.PLAYER_API_KEY || secret === process.env.PLAYER_API_KEY || secret === passphrase) return null;
+      !lifetime || passphrase === process.env.PLAYER_API_KEY || secret === process.env.PLAYER_API_KEY || secret === passphrase) return null;
   try { if (new URL(origin).origin !== origin || !origin.startsWith("https://")) return null; } catch { return null; }
-  return { passphrase, secret, origin };
+  return { passphrase, secret, origin, lifetime };
 }
 
 function equalSignature(actual: string, expected: string): boolean {
@@ -49,11 +60,14 @@ export function playerWebSession(request: Request): number | null {
   if (request.method !== "GET" && request.headers.get("origin") !== settings.origin) return null;
   const token = request.headers.get("cookie")?.split(";").map(part => part.trim()).find(part => part.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
   if (!token) return null;
-  const [expiry, nonce, signature, extra] = token.split(".");
-  if (!expiry || !nonce || !signature || extra !== undefined) return null;
+  const [issued, expiry, nonce, signature, extra] = token.split(".");
+  if (!issued || !expiry || !nonce || !signature || extra !== undefined) return null;
+  const issuedAt = Number(issued);
   const expires = Number(expiry);
   const now = Math.floor(Date.now() / 1000);
-  if (!Number.isSafeInteger(expires) || expires <= now || expires > now + lifetime || !equalSignature(signature, sign(`${expiry}.${nonce}`, settings.secret))) return null;
+  if (!Number.isSafeInteger(issuedAt) || issuedAt > now || issuedAt <= 0 ||
+      !Number.isSafeInteger(expires) || expires <= now || expires - issuedAt > settings.lifetime ||
+      !equalSignature(signature, sign(`${issued}.${expiry}.${nonce}`, settings.secret))) return null;
   return expires;
 }
 
@@ -92,6 +106,7 @@ export async function playerSessionRoute(request: Request): Promise<Response> {
     if (parsed.success) passphrase = parsed.data.passphrase;
   } catch { /* generic denial */ }
   if (typeof passphrase !== "string" || !(await verifyPassphrase(passphrase, settings.passphrase))) return Response.json({ error: "Invalid credentials" }, { status: 401, headers });
-  const payload = `${Math.floor(now / 1000) + lifetime}.${randomBytes(24).toString("base64url")}`;
-  return Response.json({ authorized: true }, { headers: { ...headers, "Set-Cookie": `${cookieName}=${payload}.${sign(payload, settings.secret)}; Max-Age=${lifetime}; ${cookieOptions}` } });
+  const issuedAt = Math.floor(now / 1000);
+  const payload = `${issuedAt}.${issuedAt + settings.lifetime}.${randomBytes(24).toString("base64url")}`;
+  return Response.json({ authorized: true }, { headers: { ...headers, "Set-Cookie": `${cookieName}=${payload}.${sign(payload, settings.secret)}; Max-Age=${settings.lifetime}; ${cookieOptions}` } });
 }

@@ -10,8 +10,10 @@ const origin = "https://app.example";
 const request = (body?: string, method = body === undefined ? "GET" : "POST", headers: Record<string, string> = {}) => new Request(`${origin}/api/players/browser/session`, { method, headers: { origin, ...headers }, ...(body === undefined ? {} : { body }) });
 const login = () => POST(request(JSON.stringify({ passphrase })));
 const cookie = async () => (await login()).headers.get("set-cookie")!.split(";")[0]!;
+const tokenExpiry = (session: string) => Number(session.split("=")[1]!.split(".")[1]);
+let nextTestTime = Date.parse("2026-10-24T12:00:00Z");
 beforeEach(() => {
-  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-24T12:00:00Z"));
+  vi.useFakeTimers(); vi.setSystemTime(nextTestTime); nextTestTime += 120000;
   vi.stubEnv("PLAYER_API_KEY", key); vi.stubEnv("PLAYER_WORKER_URL", "http://worker:13700");
   vi.stubEnv("PLAYER_WEB_PASSPHRASE", passphrase); vi.stubEnv("PLAYER_WEB_SESSION_SECRET", secret); vi.stubEnv("PLAYER_WEB_ORIGIN", origin);
   vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => Response.json({ players: [] })));
@@ -22,14 +24,38 @@ describe("player browser authorization", () => {
     const response = await login(); expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ authorized: true });
     const setCookie = response.headers.get("set-cookie")!;
-    for (const flag of ["HttpOnly", "Secure", "SameSite=Strict", "Path=/api/players", "Max-Age=28800"]) expect(setCookie).toContain(flag);
+    for (const flag of ["HttpOnly", "Secure", "SameSite=Strict", "Path=/api/players", "Max-Age=31536000"]) expect(setCookie).toContain(flag);
     for (const credential of [key, passphrase, secret]) expect(setCookie).not.toContain(credential);
     const headers = { cookie: setCookie.split(";")[0]! };
-    expect(playerWebSession(request(undefined, "GET", headers))).toBeGreaterThan(0);
+    expect(playerWebSession(request(undefined, "GET", headers))).toBe(tokenExpiry(headers.cookie));
+    expect(tokenExpiry(headers.cookie)).toBe(Math.floor(Date.now() / 1000) + 31536000);
     expect(await (await GET(request(undefined, "GET", headers))).json()).toEqual({ authorized: true });
     expect(await (await GET(request())).json()).toEqual({ authorized: false });
     const locked = await DELETE(request(undefined, "DELETE", headers)); expect(locked.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(playerWebSession(request(undefined, "GET", headers))).toBe(tokenExpiry(headers.cookie));
     expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([["1", 86400], ["30", 2592000], ["3650", 315360000]])("uses %s days for the cookie and signed expiry", async (days, seconds) => {
+    vi.stubEnv("PLAYER_WEB_SESSION_DAYS", days);
+    const response = await login();
+    const setCookie = response.headers.get("set-cookie")!;
+    expect(setCookie).toContain(`Max-Age=${seconds}`);
+    const session = setCookie.split(";")[0]!;
+    expect(tokenExpiry(session)).toBe(Math.floor(Date.now() / 1000) + seconds);
+    expect(playerWebSession(request(undefined, "GET", { cookie: session }))).toBe(tokenExpiry(session));
+  });
+  it.each(["", "0", "-1", "1.5", " 2", "2 ", "+2", "1e2", "3651", "999999999999999999999", "NaN"])("fails closed for invalid session days %s", async days => {
+    vi.stubEnv("PLAYER_WEB_SESSION_DAYS", days);
+    expect((await login()).status).toBe(503);
+    expect((await GET(request())).status).toBe(503);
+  });
+  it("invalidates a longer token when policy is shortened", async () => {
+    vi.stubEnv("PLAYER_WEB_SESSION_DAYS", "3650");
+    const session = await cookie();
+    vi.stubEnv("PLAYER_WEB_SESSION_DAYS", "1");
+    expect(playerWebSession(request(undefined, "GET", { cookie: session }))).toBeNull();
+    expect(await (await GET(request(undefined, "GET", { cookie: session }))).json()).toEqual({ authorized: false });
+    expect(playerWebSession(request(undefined, "GET", { cookie: await cookie() }))).not.toBeNull();
   });
   it("rejects missing, wrong, malformed and oversized credentials without echoing them", async () => {
     for (const body of [undefined, "null", "broken", "{}", JSON.stringify({ passphrase: key }), JSON.stringify({ passphrase: 42 })]) {
@@ -64,11 +90,11 @@ describe("player browser authorization", () => {
   it("denies missing, malformed, tampered, expired, future and rotated sessions", async () => {
     const session = await cookie();
     for (const value of ["", "other=123", "__Secure-gn-player=x", `${session}.extra`, session.replace(/[^.]+$/, "short"), session.replace(/.$/, "x")]) expect(playerWebSession(request(undefined, "GET", { cookie: value }))).toBeNull();
-    const future = `${Math.floor(Date.now()/1000) + 30000}.nonce`;
+    const future = `${Math.floor(Date.now()/1000) + 1}.${Math.floor(Date.now()/1000) + 86400}.nonce`;
     const signature = createHmac("sha256", secret).update(future).digest("base64url");
     expect(playerWebSession(request(undefined, "GET", { cookie: `__Secure-gn-player=${future}.${signature}` }))).toBeNull();
     vi.stubEnv("PLAYER_WEB_SESSION_SECRET", "rotated-secret".repeat(4)); expect(playerWebSession(request(undefined, "GET", { cookie: session }))).toBeNull();
-    vi.stubEnv("PLAYER_WEB_SESSION_SECRET", secret); await vi.advanceTimersByTimeAsync(28800001);
+    vi.stubEnv("PLAYER_WEB_SESSION_SECRET", secret); await vi.advanceTimersByTimeAsync(31536000001);
     expect(playerWebSession(request(undefined, "GET", { cookie: session }))).toBeNull();
   });
   it("authorizes reads and commands only after session validation, forwards the worker key privately and forbids administration", async () => {
@@ -89,8 +115,22 @@ describe("player browser authorization", () => {
     const abort = new AbortController();
     const result = await proxyPlayer(new Request(`${origin}/api/players/lounge/events`, { headers: { cookie: session }, signal: abort.signal }), "players/lounge/events");
     expect(result.status).toBe(200);
-    await vi.advanceTimersByTimeAsync(28800000); expect(signal.aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(2_147_483_647); expect(signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(31536000000 - 2_147_483_647); expect(signal.aborted).toBe(true);
     await result.body!.cancel(); abort.abort();
+  });
+  it.each(["completion", "cancellation", "disconnect"])("clears a long stream deadline on %s", async ending => {
+    const session = await cookie();
+    vi.mocked(fetch).mockImplementationOnce(async () => new Response(new ReadableStream({
+      start(controller) { if (ending === "completion") controller.close(); },
+    })));
+    const client = new AbortController();
+    const result = await proxyPlayer(new Request(`${origin}/api/players/lounge/events`, { headers: { cookie: session }, signal: client.signal }), "players/lounge/events");
+    if (ending !== "completion") expect(vi.getTimerCount()).toBe(1);
+    if (ending === "completion") await result.text();
+    else if (ending === "cancellation") await result.body!.cancel();
+    else { client.abort(); await result.body!.cancel(); }
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

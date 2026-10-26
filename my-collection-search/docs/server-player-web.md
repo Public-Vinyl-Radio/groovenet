@@ -57,13 +57,15 @@ read players/devices/events and issue playback/queue/output commands; creating
 or renaming players still requires bearer authorization.
 
 With server players configured, the easiest setup uses the existing 1Password CLI
-workflow. Add three fields to `Homelab/groovenet` once:
+workflow. Add these fields to `Homelab/groovenet` once:
 
 - `PLAYER_WEB_ORIGIN`: the exact HTTPS address you use to open Groovenet, without
   a trailing slash or path.
 - `PLAYER_WEB_PASSPHRASE`: generate a new password of at least 32 characters.
 - `PLAYER_WEB_SESSION_SECRET`: generate another independent value of at least
   32 characters.
+- `PLAYER_WEB_SESSION_DAYS`: a whole number from 1 to 3650; use `365` for the
+  default one-year session.
 
 The existing `PLAYER_API_KEY` field is read only to verify that the secrets are
 distinct. It is never written into the web settings file. The committed
@@ -98,6 +100,7 @@ Do not put these values in `NEXT_PUBLIC_*` variables.
 PLAYER_WEB_ORIGIN=https://your-public-app-origin.example
 PLAYER_WEB_PASSPHRASE=<independent random value of at least 24 characters>
 PLAYER_WEB_SESSION_SECRET=<another independent random value of at least 32 characters>
+PLAYER_WEB_SESSION_DAYS=365
 ```
 
 Use an exact HTTPS origin, without a trailing slash/path. Generate independent
@@ -113,10 +116,14 @@ Unlock uses a same-origin POST and compares asynchronously derived scrypt keys
 with a fresh random salt (N=32768, r=8, p=3, the
 [OWASP 32 MiB profile](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt)).
 The passphrase is cleared from the form on
-submission and is never saved in browser storage. The app issues an eight-hour
+submission and is never saved in browser storage. The app issues a fixed-lifetime
 HMAC-signed, `Secure`, `HttpOnly`, `SameSite=Strict` cookie scoped to `/api/players`.
-The token contains only expiry, a random nonce and a signature. Mutations require
-the configured Origin; cross-site/sibling-site browser sessions are denied.
+`PLAYER_WEB_SESSION_DAYS` sets both the cookie `Max-Age` and signed token expiry
+(default 365 days, maximum 3650). Access does not renew the expiry. The token
+contains only issuance time, expiry, a random nonce and a signature. Existing
+eight-hour tokens need one new unlock after this format change. Shortening the
+setting immediately invalidates tokens issued for a longer term. Mutations
+require the configured Origin; cross-site/sibling-site browser sessions are denied.
 Unlock attempts have a bounded process-wide budget of ten per minute (not an
 IP allowlist; forwarded headers do not establish identity). Multi-process apps
 have independent budgets; use a high-entropy passphrase. The worker key is added
@@ -124,11 +131,12 @@ only after authorization, server-side, and is never in browser bundles, response
 storage or logs. Engine credentials remain private to the worker.
 
 Lock clears this browser's cookie and subscription without changing audio. A
-copied session remains valid until expiry: rotate the session-signing secret to
-invalidate all sessions. Rotate the web passphrase and signing secret together
-when revoking household access. Signing-secret rotation does not affect CLI keys.
-Event streams are bounded by session expiry; if access expires, lock and unlock
-browser access again. This is a small household player session bridge, not the
+copied token can remain valid until expiry: rotate `PLAYER_WEB_SESSION_SECRET` to
+revoke copies of existing tokens in all browsers. Rotate the web passphrase and
+signing secret together when revoking household access. Signing-secret rotation
+does not affect CLI keys.
+Event streams are bounded by token expiry; unlock browser access again after
+expiry. This is a small household player session bridge, not the
 per-user OAuth project (#569).
 
 ## Validation

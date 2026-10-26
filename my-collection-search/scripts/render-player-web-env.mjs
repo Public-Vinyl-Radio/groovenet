@@ -16,7 +16,11 @@ export function renderPlayerWebEnv(env) {
   try {
     if (typeof origin !== 'string' || !origin.startsWith('https://') || new URL(origin).origin !== origin) throw new Error();
   } catch { throw new Error('PLAYER_WEB_ORIGIN must be an exact HTTPS origin without a path or trailing slash.'); }
-  const output = { PLAYER_WEB_ORIGIN: origin, PLAYER_WEB_PASSPHRASE: values.PLAYER_WEB_PASSPHRASE, PLAYER_WEB_SESSION_SECRET: values.PLAYER_WEB_SESSION_SECRET };
+  const days = env.PLAYER_WEB_SESSION_DAYS === undefined ? '365' : env.PLAYER_WEB_SESSION_DAYS;
+  if (typeof days !== 'string' || !/^[1-9]\d*$/.test(days) || !Number.isSafeInteger(Number(days)) || Number(days) > 3650) {
+    throw new Error('PLAYER_WEB_SESSION_DAYS must be a positive integer of at most 3650.');
+  }
+  const output = { PLAYER_WEB_ORIGIN: origin, PLAYER_WEB_PASSPHRASE: values.PLAYER_WEB_PASSPHRASE, PLAYER_WEB_SESSION_SECRET: values.PLAYER_WEB_SESSION_SECRET, PLAYER_WEB_SESSION_DAYS: days };
   // Match Compose's dotenv interpolation, including literal dollar signs.
   return Object.entries(output).map(([name, value]) => `${name}=${JSON.stringify(value).replaceAll('$', () => '$$')}\n`).join('');
 }

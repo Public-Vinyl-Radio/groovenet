@@ -46,8 +46,18 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
   }
   const streaming = path.endsWith("/events");
   const controller = new AbortController();
-  const expiryTimer = sessionExpiry ? setTimeout(() => controller.abort(), Math.max(0, sessionExpiry * 1000 - Date.now())) : undefined;
-  expiryTimer?.unref();
+  let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearExpiryTimer = () => { clearTimeout(expiryTimer); expiryTimer = undefined; };
+  const scheduleExpiry = () => {
+    if (!sessionExpiry || controller.signal.aborted) return;
+    const remaining = sessionExpiry * 1000 - Date.now();
+    if (remaining <= 0) { controller.abort(); return; }
+    expiryTimer = setTimeout(scheduleExpiry, Math.min(remaining, 2_147_483_647));
+    expiryTimer.unref();
+  };
+  scheduleExpiry();
+  request.signal.addEventListener("abort", clearExpiryTimer, { once: true });
+  const finishExpiry = () => { clearExpiryTimer(); request.signal.removeEventListener("abort", clearExpiryTimer); };
   let streamingResponse = false;
   const deadline = setTimeout(() => controller.abort(), streaming ? 5000 : 30000);
   try {
@@ -64,16 +74,15 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
       const reader = upstream.body?.getReader();
       if (!reader) throw new Error("Missing event stream");
       streamingResponse = true;
-      request.signal.addEventListener("abort", () => clearTimeout(expiryTimer), { once: true });
       const stream = new ReadableStream<Uint8Array>({
         async pull(streamController) {
           try {
             const { done, value } = await reader.read();
-            if (done) { clearTimeout(expiryTimer); streamController.close(); }
+            if (done) { finishExpiry(); streamController.close(); }
             else streamController.enqueue(value);
-          } catch (error) { clearTimeout(expiryTimer); streamController.error(error); }
+          } catch (error) { finishExpiry(); streamController.error(error); }
         },
-        async cancel() { clearTimeout(expiryTimer); controller.abort(); await reader.cancel(); },
+        async cancel() { finishExpiry(); controller.abort(); await reader.cancel(); },
       });
       return new Response(stream, { status: upstream.status, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
     }
@@ -81,7 +90,7 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
     return Response.json(payload, { status: upstream.status, headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "Player worker unavailable", code: "WORKER_UNAVAILABLE" }, { status: 503 });
-  } finally { clearTimeout(deadline); if (!streamingResponse) clearTimeout(expiryTimer); }
+  } finally { clearTimeout(deadline); if (!streamingResponse) finishExpiry(); }
 }
 
 export async function proxyNamedPlayer(request: Request, context: PlayerRouteContext, suffix = "", bodyType?: "command"): Promise<Response> {
