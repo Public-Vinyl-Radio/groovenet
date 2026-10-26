@@ -41,8 +41,6 @@ export default function PlayerControls({
     handlePause,
     handleSeek,
     handleAirPlayClick,
-    handleClosePlayer,
-    handleDismissPlayer,
   } = usePlayerControlsController();
 
   return (
@@ -69,8 +67,6 @@ export default function PlayerControls({
       onPlay={handlePlay}
       onPause={handlePause}
       onSeek={handleSeek}
-      onClosePlayer={handleClosePlayer}
-      onDismissPlayer={handleDismissPlayer}
     />
   );
 }

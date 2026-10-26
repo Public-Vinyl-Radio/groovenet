@@ -67,12 +67,9 @@ export function usePlayerControlsController() {
     }
   }, [showAirPlayPicker]);
 
-  const handleClosePlayer = useCallback(async () => {
-    browserPause();
-    clearQueue();
-  }, [browserPause, clearQueue]);
-
-  const handleDismissPlayer = useCallback(() => {
+  // The queue's Clear: one tap, then a "Queue cleared" toast whose Undo puts
+  // back the exact queue, position and play state. No confirmation dialog.
+  const handleClearQueue = useCallback(() => {
     const snapshot = {
       playlist: playlist.slice(),
       currentTrackIndex,
@@ -118,7 +115,6 @@ export function usePlayerControlsController() {
     handlePause,
     handleSeek,
     handleAirPlayClick,
-    handleClosePlayer,
-    handleDismissPlayer,
+    handleClearQueue,
   };
 }

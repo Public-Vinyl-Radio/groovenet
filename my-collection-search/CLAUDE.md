@@ -179,20 +179,29 @@ an invalid value the browser drops, so it fails silently.
   signed off; tuning is a one-file change. There is no Classic style switch.
 - **Shape:** every radius token is `0`, so `borderRadius="md"`/`xl`/... are all
   square; don't set one on a new component. `full` stays for round things only
-  (slider thumbs and tracks, player transport buttons, avatars, dots). Controls
-  and containers carry a 2px outline (`borderWidth="outline"`,
-  `borderColor="border.ink"`); a literal `1px` is for ruled dividers inside a
-  block (`borderWidth="rule"`).
+  (avatars, dots). Controls and containers carry a 2px outline
+  (`borderWidth="outline"`, `borderColor="border.ink"`); a literal `1px` is for
+  ruled dividers inside a block (`borderWidth="rule"`).
 - **Shadow:** hard offsets, no blur, never a literal. `boxShadow="sm"` (3px) for
   compact controls, `md` (6px) for containers: cards, dialogs, popovers, menus,
   drawers, the list block. They read `--gn-shadow`, which a palette must keep
   opaque (`palettes.test.ts` checks it). Hover is a background step, never a lift.
-  Exception: the round transport buttons (mini player, Now playing) carry no
-  shadow; pressed is `brightness(0.9)` + `scale(0.96)` (`roundTransportButton`).
+- **Player (#792):** solid `bg` surfaces, never artwork behind text. Transport is
+  `TransportStrip` (`components/player/TransportControls.tsx`): previous,
+  play-pause and next as one outlined row of keys with one hard shadow, the
+  play-pause key solid ink; the mini player and the queue use its 48px
+  `SquarePlayButton`. Sliders are `RetroSlider`: 10px outlined track, accent
+  range, square ink thumb, named for keyboard and screen readers. Times and
+  meta (`A1 · 134 BPM · 7A`) are mono. Phones: mini player, then a full-screen
+  Now playing / queue; desktop: a bar docked full width under the sidebar, and
+  a 400px queue panel that sets `data-queue-panel` (`--queue-w`, which the
+  shell's content padding makes room for). Clearing the queue is one tap and an
+  Undo toast, never a dialog.
 - **App shell (iOS PWA):** `viewport-fit=cover` + `black-translucent`, so the page
   draws under the status bar; an opaque `--safe-top` strip in `AppShell` caps it.
-  The bottom chrome publishes `--tabbar-h`, `--player-h`, `--chrome-bottom`
-  (`houseStyle.ts`, driven by `data-player` / `data-tabbar-hidden` on `<html>`):
+  The bottom chrome publishes `--tabbar-h`, `--player-h`, `--chrome-bottom`,
+  `--queue-w` (`houseStyle.ts`, driven by `data-player` / `data-tabbar-hidden` /
+  `data-queue-panel` on `<html>`):
   size content padding and fixed overlays from those, never from literals.
   `PageHeader` (`components/layout`) is the phone page title bar: 52px
   (`--header-h`), sticky at `top: var(--safe-top)`, 2px ink rule. Mounting one

@@ -4,7 +4,7 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { sampleTrack } from "@/stories/fixtures/track";
 
-const handleDismissPlayer = vi.fn();
+const handlePlay = vi.fn();
 const controller = {
   isPlaying: false,
   currentTrack: sampleTrack,
@@ -19,12 +19,11 @@ const controller = {
   canPrev: false,
   canNext: false,
   VolumeIcon: () => null,
-  handlePlay: vi.fn(),
+  handlePlay,
   handlePause: vi.fn(),
   handleSeek: vi.fn(),
   handleAirPlayClick: vi.fn(),
-  handleClosePlayer: vi.fn(),
-  handleDismissPlayer,
+  handleClearQueue: vi.fn(),
 };
 
 vi.mock("@/components/player/usePlayerControlsController", () => ({
@@ -36,12 +35,13 @@ vi.mock("@/components/player/MiniProgressLine", () => ({ default: () => null }))
 import PlayerControls from "./PlayerControls";
 
 describe("PlayerControls", () => {
-  it("wires the controller's handleDismissPlayer into the compact close button", async () => {
+  it("wires the controller's handlePlay into the mini player's play key", async () => {
     const { user } = renderWithProviders(<PlayerControls compact />);
 
-    await user.click(screen.getByRole("button", { name: "Close player" }));
+    await user.click(screen.getByRole("button", { name: "Play" }));
 
-    expect(handleDismissPlayer).toHaveBeenCalledTimes(1);
+    expect(handlePlay).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Close player" })).toBeNull();
   });
 
   it("passes isQueueFinished through to the finished-state label", () => {

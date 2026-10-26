@@ -10,7 +10,7 @@ export default function MiniProgressLine() {
   const pct = duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
 
   return (
-    <Box h="4px" bg="bg.emphasized" aria-hidden>
+    <Box h="4px" bg="bg.muted" aria-hidden>
       <Box data-testid="mini-progress" h="100%" bg="accent.solid" style={{ width: `${pct}%` }} />
     </Box>
   );

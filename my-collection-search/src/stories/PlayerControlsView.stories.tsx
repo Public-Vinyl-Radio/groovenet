@@ -28,8 +28,6 @@ const baseArgs = {
   onPlay: noop,
   onPause: noop,
   onSeek: noopAsync,
-  onClosePlayer: noop,
-  onDismissPlayer: noop,
 };
 
 const meta: Meta<typeof PlayerControlsView> = {
@@ -92,7 +90,7 @@ export const AirPlayActive: Story = {
 };
 
 export const QueueOpen: Story = {
-  name: 'Queue panel open',
+  name: 'Queue panel open (toggle pressed)',
   args: {
     isQueueOpen: true,
     showQueueButton: true,
@@ -138,7 +136,7 @@ const compactDecorator: Meta<typeof PlayerControlsView>['decorators'] = [
 ];
 
 export const Compact: Story = {
-  name: 'Compact (mobile drawer)',
+  name: 'Mini player (phones)',
   args: {
     compact: true,
     isPlaying: false,
@@ -147,7 +145,7 @@ export const Compact: Story = {
 };
 
 export const CompactPlaying: Story = {
-  name: 'Compact — playing',
+  name: 'Mini player — playing',
   args: {
     compact: true,
     isPlaying: true,
@@ -157,7 +155,7 @@ export const CompactPlaying: Story = {
 };
 
 export const CompactNoTrack: Story = {
-  name: 'Compact — no track',
+  name: 'Mini player — no track',
   args: {
     compact: true,
     currentTrack: null,
@@ -170,7 +168,7 @@ export const CompactNoTrack: Story = {
 };
 
 export const CompactQueueFinished: Story = {
-  name: 'Compact — queue finished',
+  name: 'Mini player — queue finished',
   args: {
     compact: true,
     isQueueFinished: true,
@@ -184,7 +182,7 @@ export const CompactQueueFinished: Story = {
 };
 
 export const CompactNoArtwork: Story = {
-  name: 'Compact — no artwork',
+  name: 'Mini player — no artwork',
   args: {
     compact: true,
     currentTrack: trackNoArtwork,
@@ -194,7 +192,7 @@ export const CompactNoArtwork: Story = {
 };
 
 export const CompactLongTitle: Story = {
-  name: 'Compact — long title',
+  name: 'Mini player — long title',
   args: {
     compact: true,
     currentTrack: trackLongTitle,

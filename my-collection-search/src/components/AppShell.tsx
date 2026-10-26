@@ -165,7 +165,8 @@ export default function AppShell({
         display={{ base: "none", md: "block" }}
         position="fixed"
         top={0}
-        bottom={0}
+        // Ends on the docked player bar, which runs the full width under it.
+        bottom="var(--player-h)"
         left={0}
         w={sidebarWidth}
         transition="width 0.18s ease"
@@ -557,6 +558,8 @@ export default function AppShell({
         ml={{ base: 0, md: sidebarWidth }}
         transition="margin-left 0.18s ease"
         px={{ base: 4, md: 6 }}
+        // Room for the desktop queue panel while it is open (--queue-w is 0 otherwise).
+        pr={{ md: "calc(var(--chakra-spacing-6) + var(--queue-w))" }}
         // The last rows scroll clear of both bars: the status-bar strip above and
         // the bottom chrome (tab bar + player) below.
         pt={{ base: "var(--content-pt)", md: 6 }}

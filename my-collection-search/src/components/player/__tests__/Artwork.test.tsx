@@ -41,3 +41,36 @@ describe("Artwork", () => {
     );
   });
 });
+
+describe("Artwork — Now playing", () => {
+  it("fills its column as a square with the container shadow, image or placeholder", () => {
+    const { rerender } = renderWithProviders(<Artwork src="https://example.com/art.jpg" alt="Cover" fill shadow />);
+    const img = screen.getByRole("img", { name: "Cover" });
+    const css = cssOf(img);
+    expect(css).toMatch(/width:\s*100%/);
+    expect(css).toMatch(/aspect-ratio:\s*1/);
+    expect(css).toMatch(/box-shadow:\s*var\(--chakra-shadows-md\)/);
+
+    rerender(<Artwork alt="Cover" fill shadow />);
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("names the image Artwork when no alt is given", () => {
+    renderWithProviders(<Artwork src="https://example.com/art.jpg" />);
+    expect(screen.getByRole("img", { name: "Artwork" })).toBeTruthy();
+  });
+
+  it("is decorative with an empty alt", () => {
+    const { container } = renderWithProviders(<Artwork src="https://example.com/art.jpg" alt="" />);
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
+  });
+});
+
+function cssOf(el: Element) {
+  const classes = [...el.classList];
+  return Array.from(document.styleSheets)
+    .flatMap((sheet) => Array.from(sheet.cssRules))
+    .map((rule) => rule.cssText)
+    .filter((text) => classes.some((c) => text.includes(`.${c}`)))
+    .join("\n");
+}

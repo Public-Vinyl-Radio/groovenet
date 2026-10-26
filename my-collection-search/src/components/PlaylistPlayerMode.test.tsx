@@ -19,10 +19,22 @@ describe("global player mode presentation", () => {
     count = 0; mode = null; const { rerender } = renderWithProviders(<PlaylistPlayer />); expect(screen.queryByTestId("floating-player")).toBeNull();
     mode = { target: "" }; rerender(<PlaylistPlayer />); expect(screen.getByText("Playback target")).toBeTruthy();
     count = 1; rerender(<PlaylistPlayer />); expect(screen.getByText("Local controls")).toBeTruthy(); expect(document.documentElement.hasAttribute("data-player")).toBe(true);
-    fireEvent.click(screen.getByText("Local controls")); expect(screen.getByText("Local queue")).toBeTruthy(); expect(screen.queryByTestId("floating-player")).toBeNull();
-    fireEvent.click(screen.getByText("Close queue")); fireEvent.click(screen.getByText("Local controls")); fireEvent.click(screen.getByText("Toggle queue"));
+    fireEvent.click(screen.getByText("Local controls")); expect(screen.getByText("Local queue")).toBeTruthy(); expect(screen.getByTestId("floating-player")).toBeTruthy();
+    fireEvent.click(screen.getByText("Close queue")); expect(screen.queryByText("Local queue")).toBeNull(); fireEvent.click(screen.getByText("Local controls")); fireEvent.click(screen.getByText("Toggle queue"));
     mode = { target: "lounge" }; rerender(<PlaylistPlayer />); expect(document.documentElement.hasAttribute("data-player")).toBe(false); expect(screen.getByText("Playback target")).toBeTruthy(); expect(screen.queryByTestId("floating-player")).toBeNull();
     mode = { target: "" }; rerender(<PlaylistPlayer />); expect(screen.getByText("Local controls")).toBeTruthy();
+  });
+  it("keeps the docked bar under the desktop queue panel", () => {
+    count = 2; mode = { target: "" };
+    renderWithProviders(<PlaylistPlayer />);
+    fireEvent.click(screen.getByText("Local controls")); expect(screen.getByText("Local queue")).toBeTruthy(); expect(screen.getByTestId("floating-player")).toBeTruthy();
+    fireEvent.click(screen.getByText("Close queue")); expect(screen.queryByText("Local queue")).toBeNull();
+  });
+  it("hides the mini player while Now playing is open on phones", () => {
+    setViewportWidth(390); count = 2; mode = { target: "" };
+    renderWithProviders(<PlaylistPlayer />);
+    fireEvent.click(screen.getByText("Local controls")); expect(screen.getByText("Local queue")).toBeTruthy(); expect(screen.queryByTestId("floating-player")).toBeNull();
+    fireEvent.click(screen.getByText("Close queue")); expect(screen.getByTestId("floating-player")).toBeTruthy();
   });
   it("hides local floating controls during mobile album/track editing", () => {
     setViewportWidth(390); count = 1; mode = { target: "" }; path = "/albums/album/edit";

@@ -17,6 +17,15 @@ import PlaylistPlayer from "./PlaylistPlayer";
 
 const hasPlayerFlag = () => document.documentElement.hasAttribute("data-player");
 
+function cssOf(el: Element) {
+  const classes = [...el.classList];
+  return Array.from(document.styleSheets)
+    .flatMap((sheet) => Array.from(sheet.cssRules))
+    .map((rule) => rule.cssText)
+    .filter((text) => classes.some((c) => text.includes(`.${c}`)))
+    .join("\n");
+}
+
 describe("PlaylistPlayer", () => {
   afterEach(() => {
     pathname.value = "/";
@@ -29,7 +38,7 @@ describe("PlaylistPlayer", () => {
     expect(hasPlayerFlag()).toBe(false);
   });
 
-  it("flags <html> while the player shows, so --player-h becomes 70px, and clears it on unmount", () => {
+  it("flags <html> while the player shows, so --player-h takes the mini player or docked bar height, and clears it on unmount", () => {
     playlist.length = 2;
     const { unmount } = renderWithProviders(<PlaylistPlayer />);
     expect(screen.getByTestId("floating-player")).toBeTruthy();
@@ -41,13 +50,18 @@ describe("PlaylistPlayer", () => {
   it("sits on the tab bar on mobile, edge to edge, with no hard shadow", () => {
     playlist.length = 2;
     renderWithProviders(<PlaylistPlayer />);
-    const classes = [...screen.getByTestId("floating-player").classList];
-    const css = Array.from(document.styleSheets)
-      .flatMap((sheet) => Array.from(sheet.cssRules))
-      .map((rule) => rule.cssText)
-      .filter((text) => classes.some((c) => text.includes(`.${c}`)))
-      .join("\n");
+    const css = cssOf(screen.getByTestId("floating-player"));
     expect(css).toMatch(/bottom:\s*var\(--tabbar-h\)/);
     expect(css).toMatch(/box-shadow:\s*none/);
+  });
+
+  it("docks full width at the bottom on desktop, --player-h tall", () => {
+    playlist.length = 2;
+    renderWithProviders(<PlaylistPlayer />);
+    const css = cssOf(screen.getByTestId("floating-player"));
+    expect(css).toMatch(/bottom:\s*0/);
+    expect(css).toMatch(/left:\s*0/);
+    expect(css).toMatch(/right:\s*0/);
+    expect(css).toMatch(/height:\s*var\(--player-h\)/);
   });
 });
