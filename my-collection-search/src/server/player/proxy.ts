@@ -38,7 +38,7 @@ export async function proxyPlayer(request: Request, path: string, bodyType?: "cr
       const schema = bodyType === "create" ? createServerPlayerSchema : serverPlayerCommandSchema;
       const parsed = schema.safeParse(JSON.parse(text));
       if (!parsed.success) return Response.json({ error: "Invalid player command", code: "INVALID_ARGUMENT" }, { status: 400 });
-      if (!bearer && (bodyType === "create" || ("type" in parsed.data && parsed.data.type === "rename"))) return Response.json({ error: "Browser sessions cannot administer players", code: "FORBIDDEN" }, { status: 403 });
+      if (!bearer && (bodyType === "create" || ("type" in parsed.data && (parsed.data.type === "rename" || parsed.data.type === "availability.set")))) return Response.json({ error: "Browser sessions cannot administer players", code: "FORBIDDEN" }, { status: 403 });
       body = JSON.stringify(parsed.data);
     } catch (error) {
       return Response.json({ error: error instanceof RangeError ? "Player command exceeds 2 MB" : "Invalid JSON", code: error instanceof RangeError ? "BODY_TOO_LARGE" : "INVALID_JSON" }, { status: error instanceof RangeError ? 413 : 400 });

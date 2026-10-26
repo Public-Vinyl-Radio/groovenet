@@ -221,6 +221,7 @@ groovenet player --remote lounge queue add --playlist-id 7
 groovenet player --remote lounge devices list
 groovenet player --remote lounge devices select OUTPUT_ID
 groovenet player --remote lounge play --allow-unknown
+groovenet player set lounge --availability allow_unknown
 ```
 
 `PLAYER_API_KEY` overrides `player_api_key`; the collection `api_key` is separate

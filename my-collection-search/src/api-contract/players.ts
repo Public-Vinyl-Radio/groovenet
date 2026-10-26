@@ -10,7 +10,7 @@ const definitions = [
   { operationId: "createServerPlayer", responseComponent: "ServerPlayer", bodyComponent: "CreateServerPlayer", method: "post", path: "/api/players", summary: "Create a named player on a configured engine", body: createServerPlayerSchema, success: serverPlayerSchema },
   { operationId: "listPlayerEngines", responseComponent: "PlayerEngineList", method: "get", path: "/api/players/engines", summary: "List configured engine IDs without connection credentials", success: z.object({ engines: z.array(playerIdSchema) }) },
   { operationId: "getServerPlayer", responseComponent: "ServerPlayer", method: "get", path: "/api/players/{playerId}", summary: "Read player state and its edit revision", success: serverPlayerSchema },
-  { operationId: "commandServerPlayer", responseComponent: "ServerPlayerCommandResult", bodyComponent: "ServerPlayerCommand", method: "post", path: "/api/players/{playerId}/commands", summary: "Apply a player command with optional revision check or explicit speaker transfer", body: serverPlayerCommandSchema, success: serverPlayerCommandResultSchema },
+  { operationId: "commandServerPlayer", responseComponent: "ServerPlayerCommandResult", bodyComponent: "ServerPlayerCommand", method: "post", path: "/api/players/{playerId}/commands", summary: "Apply a player command with optional revision check, bearer-only availability policy change, or explicit speaker transfer", body: serverPlayerCommandSchema, success: serverPlayerCommandResultSchema },
   { operationId: "listServerPlayerDevices", responseComponent: "ServerPlayerDeviceList", method: "get", path: "/api/players/{playerId}/devices", summary: "Read outputs, Groovenet assignments and independent speaker observations", success: z.object({ devices: z.array(serverPlayerDeviceSchema) }) },
 ] as const;
 export const playerContracts: ApiContractRoute[] = definitions.map((definition): ApiContractRoute => ({
@@ -24,7 +24,7 @@ export const playerContracts: ApiContractRoute[] = definitions.map((definition):
     ...("body" in definition ? { requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${definition.bodyComponent}` } } } } } : {}),
     responses: {
       [definition.operationId === "createServerPlayer" ? "201" : "200"]: { description: definition.summary, content: { "application/json": { schema: { $ref: `#/components/schemas/${definition.responseComponent}` } } } },
-      ...Object.fromEntries([400, 401, 404, 409, 413, 422, 502, 503].map((status) => [String(status), { description: status === 409 ? "Revision, assignment, or availability conflict; refresh before retrying" : "Player request rejected or unavailable", content: { "application/json": { schema: z.toJSONSchema(error) } } }])),
+      ...Object.fromEntries([400, 401, 403, 404, 409, 413, 422, 502, 503].map((status) => [String(status), { description: status === 409 ? "Revision, assignment, or availability conflict; refresh before retrying" : status === 403 ? "Browser sessions cannot administer players or change availability policy" : "Player request rejected or unavailable", content: { "application/json": { schema: z.toJSONSchema(error) } } }])),
     },
   },
 }));

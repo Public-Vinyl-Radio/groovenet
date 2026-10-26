@@ -57,7 +57,7 @@ export class PostgresPlayerStore implements PlayerStore {
   }
 
   private row(row: Record<string, unknown>): ServerPlayer {
-    return serverPlayerSchema.parse({ id: row.id, name: row.name, engine_id: row.engine_id, revision: Number(row.revision), assigned_output: row.assigned_output, state: row.state });
+    return serverPlayerSchema.parse({ id: row.id, name: row.name, engine_id: row.engine_id, availability_policy: row.availability_policy, revision: Number(row.revision), assigned_output: row.assigned_output, state: row.state });
   }
 
   async list(): Promise<ServerPlayer[]> {
@@ -74,7 +74,7 @@ export class PostgresPlayerStore implements PlayerStore {
 
   async save(player: ServerPlayer, expectedRevision: number): Promise<ServerPlayer> {
     try {
-      const result = await this.pool.query(`UPDATE server_players SET name=$2, assigned_output=$3, state=$4::jsonb, revision=revision+1, updated_at=now() WHERE id=$1 AND revision=$5 RETURNING *`, [player.id, player.name, player.assigned_output, JSON.stringify(player.state), expectedRevision]);
+      const result = await this.pool.query(`UPDATE server_players SET name=$2, assigned_output=$3, state=$4::jsonb, availability_policy=$5, revision=revision+1, updated_at=now() WHERE id=$1 AND revision=$6 RETURNING *`, [player.id, player.name, player.assigned_output, JSON.stringify(player.state), player.availability_policy, expectedRevision]);
       if (!result.rows[0]) throw new ServerPlayerError("REVISION_CONFLICT", "Player changed; refresh its state before retrying");
       return this.row(result.rows[0]);
     } catch (error) { throw this.mapError(error); }

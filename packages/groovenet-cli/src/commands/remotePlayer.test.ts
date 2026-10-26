@@ -7,7 +7,7 @@ vi.mock("@groovenet/client", async (original) => ({ ...await original<typeof imp
 
 export const entry = { id: "00000000-0000-4000-8000-000000000001", track_id: "track", friend_id: 1, title: "Song", artist: "Artist" };
 export function player(): ServerPlayer {
-  return { id: "lounge", name: "Lounge", engine_id: "primary", revision: 3, assigned_output: "speaker", state: {
+  return { id: "lounge", name: "Lounge", engine_id: "primary", availability_policy: "ask", revision: 3, assigned_output: "speaker", state: {
     queue: [entry, { ...entry, id: "00000000-0000-4000-8000-000000000002" }], current_entry_id: entry.id,
     status: "playing", position: 10, duration: 120, volume: 50, desired_output: "speaker", checkpoint: false, error: null,
   } };

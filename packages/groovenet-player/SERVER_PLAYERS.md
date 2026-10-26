@@ -124,6 +124,24 @@ allowlist, never a client-provided URL. Player deletion is not implemented.
 Commands use last-write-wins behavior by default. Optionally include
 `expected_revision` from a snapshot to require optimistic concurrency: a stale
 value returns `REVISION_CONFLICT`. Position ticks do not change the revision.
+Each player has a persisted `availability_policy`, initially `ask`. Set it with
+the bearer credential:
+
+```sh
+groovenet player set lounge --availability allow_unknown
+groovenet player set lounge --availability always
+groovenet player set lounge --availability ask
+```
+
+The equivalent command is
+`{"type":"availability.set","availability_policy":"allow_unknown","expected_revision":3}`.
+`ask` requires the existing per-command acknowledgements. `allow_unknown`
+connects when HA activity is unknown without `allow_unknown: true`, but still
+requires `takeover: true` for observed occupied activity. `always` also permits
+observed occupied activity without a takeover flag. Both policies apply to fresh
+connection and reconnection checks; neither bypasses another Groovenet player's
+assignment. Use `output.transfer` explicitly to move that assignment. Browser
+sessions cannot change this policy.
 For example:
 
 ```json

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const playerIdSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/);
+export const availabilityPolicySchema = z.enum(["ask", "allow_unknown", "always"]);
 const revision = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const playerTrackRefSchema = z.object({ track_id: z.string().min(1).max(255), friend_id: z.number().int().positive() }).strict();
 export const serverQueueEntrySchema = playerTrackRefSchema.extend({
@@ -21,6 +22,7 @@ export const serverPlayerSchema = z.object({
   id: playerIdSchema,
   name: z.string().trim().min(1).max(120),
   engine_id: playerIdSchema,
+  availability_policy: availabilityPolicySchema,
   revision,
   assigned_output: z.string().nullable(),
   state: serverPlayerStateSchema,
@@ -32,6 +34,7 @@ const replacementEntries = z.array(playerTrackRefSchema.extend({ id: z.uuid().op
 const connect = { allow_unknown: z.boolean().default(false), takeover: z.boolean().default(false) };
 export const serverPlayerCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename"), ...edit, name: z.string().trim().min(1).max(120) }).strict(),
+  z.object({ type: z.literal("availability.set"), ...edit, availability_policy: availabilityPolicySchema }).strict(),
   z.object({ type: z.literal("queue.add"), ...edit, tracks: z.array(playerTrackRefSchema).min(1).max(1000), at: z.number().int().nonnegative().optional() }).strict(),
   z.object({ type: z.literal("queue.remove"), ...edit, entry_id: z.uuid() }).strict(),
   z.object({ type: z.literal("queue.move"), ...edit, entry_id: z.uuid(), to: z.number().int().nonnegative() }).strict(),

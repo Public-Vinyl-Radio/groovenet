@@ -82,7 +82,7 @@ describe("player worker lifecycle", () => {
     vi.spyOn(Store.prototype, 'acquire').mockResolvedValue();
     vi.spyOn(Store.prototype, 'list').mockResolvedValue([]);
     vi.spyOn(Store.prototype, 'release').mockImplementation(async function (this: Store) { await this.pool.end(); });
-    vi.spyOn(Store.prototype, 'create').mockImplementation(async (input, state) => ({ ...input, state, revision: 0, assigned_output: null }));
+    vi.spyOn(Store.prototype, 'create').mockImplementation(async (input, state) => ({ ...input, availability_policy: "ask", state, revision: 0, assigned_output: null }));
     vi.spyOn(Pool.prototype, 'connect').mockImplementation(() => { throw new Error('No DB network expected'); });
     const listen = vi.spyOn(Server.prototype, 'listen').mockImplementation(function (this: Server) { return this; });
     const devices = vi.spyOn(OwnToneBackend.prototype, 'listDevices').mockResolvedValue([{ id: 'opaque', name: 'Lounge' }]);

@@ -89,6 +89,7 @@ export class ServerPlayerManager extends EventEmitter {
       try {
         switch (command.type) {
           case "rename": player.name = command.name; break;
+          case "availability.set": player.availability_policy = command.availability_policy; break;
           case "queue.add": {
             const at = command.at ?? player.state.queue.length;
             if (at > player.state.queue.length || player.state.queue.length + command.tracks.length > 10000) throw new ServerPlayerError("INVALID_QUEUE", "Queue insertion is out of range", 400);
@@ -369,6 +370,8 @@ export class ServerPlayerManager extends EventEmitter {
   }
 
   private async requireAvailable(player: ServerPlayer, output: string, policy: { allow_unknown: boolean; takeover: boolean }): Promise<void> {
+    // Assignment is a Groovenet claim, independent of HA's observation.
+    if (this.list().some(other => other.id !== player.id && other.assigned_output === output)) throw new ServerPlayerError("OUTPUT_ASSIGNED", "Speaker belongs to another player; use explicit transfer");
     const observed = await this.observe(output, { fresh: true, resolveOutputName: async () => {
       const runtime = this.runtimes.get(player.id);
       const backend = runtime?.backend ?? this.engine(player).create();
@@ -380,8 +383,8 @@ export class ServerPlayerManager extends EventEmitter {
       finally { if (!runtime) await backend.close(); }
     } });
     const ownSender = observed.sender_identity === "groovenet" && observed.sender_engine_id === player.engine_id;
-    if (observed.availability === "occupied" && !ownSender && !policy.takeover) throw new ServerPlayerError("SPEAKER_OCCUPIED", "Observed speaker activity requires explicit takeover");
-    if (observed.availability === "unknown" && !policy.allow_unknown) throw new ServerPlayerError("AVAILABILITY_UNKNOWN", "Speaker availability is unknown; explicitly acknowledge it before connecting");
+    if (observed.availability === "occupied" && !ownSender && !policy.takeover && player.availability_policy !== "always") throw new ServerPlayerError("SPEAKER_OCCUPIED", "Observed speaker activity requires explicit takeover");
+    if (observed.availability === "unknown" && !policy.allow_unknown && player.availability_policy === "ask") throw new ServerPlayerError("AVAILABILITY_UNKNOWN", "Speaker availability is unknown; explicitly acknowledge it before connecting");
   }
 
   private engine(player: ServerPlayer): PlayerEngine {

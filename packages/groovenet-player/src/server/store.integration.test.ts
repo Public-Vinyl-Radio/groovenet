@@ -19,11 +19,13 @@ afterAll(async () => {
 test("enforces exclusive workers, durable independent queues, revisions and unique speaker claims in real Postgres", async () => {
   await expect(other.acquire(() => {})).rejects.toMatchObject({ code: "WORKER_ALREADY_RUNNING" });
   let a = await store.create({ id: ids[0]!, name: "First", engine_id: ids[0]! }, state);
+  expect(a.availability_policy).toBe("ask");
   const b = await store.create({ id: ids[1]!, name: "Second", engine_id: ids[1]! }, state);
   a.state.queue.push({ id: randomUUID(), track_id: "track-one", friend_id: 1, title: "One", artist: "Artist" });
   a.state.current_entry_id = a.state.queue[0]!.id;
   a.state.desired_output = "test-output";
   a.assigned_output = "test-output";
+  a.availability_policy = "always";
   a = await store.save(a, 0);
   await expect(store.save(b, 123)).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
   await expect(store.save({ ...b, assigned_output: "test-output" }, 0)).rejects.toMatchObject({ code: "ASSIGNMENT_CONFLICT" });
@@ -31,6 +33,7 @@ test("enforces exclusive workers, durable independent queues, revisions and uniq
   await store.checkpoint({ ...a, revision: 0, state: { ...a.state, position: 99 } });
   const persisted = (await store.list()).filter(row => ids.includes(row.id));
   expect(persisted.find(row => row.id === a.id)!.state.position).toBe(22);
+  expect(persisted.find(row => row.id === a.id)!.availability_policy).toBe("always");
   expect(persisted.find(row => row.id === b.id)!.state.queue).toEqual([]);
   await store.heartbeat();
 });
