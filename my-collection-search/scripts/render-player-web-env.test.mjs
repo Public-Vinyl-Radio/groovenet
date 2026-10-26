@@ -38,6 +38,14 @@ for (const changes of [
 for (const origin of [undefined, 'invalid', 'http://groovenet.example', 'https://groovenet.example/', 'https://groovenet.example/path', 'https://groovenet.example?secret', 'https://groovenet.example#fragment', 'https://user:password@groovenet.example']) {
   test(`rejects invalid origin (${origin})`, () => assert.throws(() => renderPlayerWebEnv({ ...valid, PLAYER_WEB_ORIGIN: origin }), /exact HTTPS origin/));
 }
+for (const days of ['', '0', '-1', '1.5', ' 2', '2 ', '+2', '1e2', '3651', '999999999999999999999']) {
+  test(`rejects invalid session days (${days})`, () => assert.throws(() => renderPlayerWebEnv({ ...valid, PLAYER_WEB_SESSION_DAYS: days }), /PLAYER_WEB_SESSION_DAYS/));
+}
+for (const days of ['1', '30', '3650']) {
+  test(`preserves configured session days (${days})`, () => {
+    assert.match(renderPlayerWebEnv({ ...valid, PLAYER_WEB_SESSION_DAYS: days }), new RegExp(`PLAYER_WEB_SESSION_DAYS="${days}"`));
+  });
+}
 
 test('writes only the web settings atomically with private permissions', () => {
   const root = mkdtempSync(join(tmpdir(), 'player-web-env-'));
@@ -46,10 +54,10 @@ test('writes only the web settings atomically with private permissions', () => {
     assert.equal(statSync(output).mode & 0o777, 0o600);
     const content = readFileSync(output, 'utf8');
     const values = readSettings(output);
-    assert.deepEqual(values, { PLAYER_WEB_ORIGIN: valid.PLAYER_WEB_ORIGIN, PLAYER_WEB_PASSPHRASE: valid.PLAYER_WEB_PASSPHRASE, PLAYER_WEB_SESSION_SECRET: valid.PLAYER_WEB_SESSION_SECRET });
+    assert.deepEqual(values, { PLAYER_WEB_ORIGIN: valid.PLAYER_WEB_ORIGIN, PLAYER_WEB_PASSPHRASE: valid.PLAYER_WEB_PASSPHRASE, PLAYER_WEB_SESSION_SECRET: valid.PLAYER_WEB_SESSION_SECRET, PLAYER_WEB_SESSION_DAYS: '365' });
     assert.ok(!content.includes(valid.PLAYER_API_KEY) && !content.includes('PLAYER_API_KEY'));
-    writePlayerWebEnv(output, { ...valid, PLAYER_WEB_ORIGIN: 'https://new.example' });
-    assert.deepEqual(readSettings(output), { ...values, PLAYER_WEB_ORIGIN: 'https://new.example' });
+    writePlayerWebEnv(output, { ...valid, PLAYER_WEB_ORIGIN: 'https://new.example', PLAYER_WEB_SESSION_DAYS: '30' });
+    assert.deepEqual(readSettings(output), { ...values, PLAYER_WEB_ORIGIN: 'https://new.example', PLAYER_WEB_SESSION_DAYS: '30' });
     assert.deepEqual(readdirSync(root), ['.env.player-web']);
     assert.throws(() => writePlayerWebEnv(join(root, 'missing/settings'), valid));
     assert.throws(() => writePlayerWebEnv(undefined, valid), /Usage/);

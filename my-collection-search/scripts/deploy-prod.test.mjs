@@ -75,7 +75,7 @@ test('player-only settings can augment a deployment without a base env file', ()
   assert.ok(run.calls.every((call) => call.includes('.env.players')));
 });
 
-function remoteDeployment({ optedIn = true, webOptedIn = false, validSecrets = true, validWebSecrets = true, setup = false, failCopy = false } = {}) {
+function remoteDeployment({ optedIn = true, webOptedIn = false, validSecrets = true, validWebSecrets = true, setup = false, failCopy = false, sessionDays = '30' } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'groovenet-op-deploy-'));
   try {
     const bin = join(root, 'bin'); mkdirSync(bin);
@@ -104,9 +104,9 @@ esac
     const result = spawnSync('bash', [script], { cwd: root, encoding: 'utf8', env: {
       PATH: `${bin}:${process.env.PATH}`, DEPLOY_TEST_LOG: log, DEPLOY_TEST_OPT_IN: optedIn ? '0' : '1', DEPLOY_TEST_WEB_OPT_IN: webOptedIn ? '0' : '1', DEPLOY_TEST_CAPTURE: capture, DEPLOY_TEST_WEB_CAPTURE: webCapture, DEPLOY_TEST_COPY_FAIL: failCopy ? '1' : '0',
       PLAYER_API_KEY: validSecrets ? 'test-api-key-'.repeat(5) : 'short', PLAYER_ENGINE_A_PASSWORD: 'engine-a', PLAYER_ENGINE_B_PASSWORD: 'engine-b',
-      PLAYER_WEB_ORIGIN: validWebSecrets ? 'https://fixture.example' : 'http://invalid', PLAYER_WEB_PASSPHRASE: 'web-passphrase-'.repeat(4), PLAYER_WEB_SESSION_SECRET: 'web-signing-secret-'.repeat(4),
+      PLAYER_WEB_ORIGIN: validWebSecrets ? 'https://fixture.example' : 'http://invalid', PLAYER_WEB_PASSPHRASE: 'web-passphrase-'.repeat(4), PLAYER_WEB_SESSION_SECRET: 'web-signing-secret-'.repeat(4), PLAYER_WEB_SESSION_DAYS: sessionDays,
     } });
-    return { ...result, calls: readFileSync(log, 'utf8'), rendered: !setup && optedIn && validSecrets && !failCopy ? readFileSync(capture, 'utf8') : '', webRendered: (setup || webOptedIn) && validWebSecrets && validSecrets && !failCopy ? readFileSync(webCapture, 'utf8') : '' };
+    return { ...result, calls: readFileSync(log, 'utf8'), rendered: !setup && optedIn && validSecrets && !failCopy ? readFileSync(capture, 'utf8') : '', webRendered: result.status === 0 && (setup || webOptedIn) && validWebSecrets && validSecrets && !failCopy ? readFileSync(webCapture, 'utf8') : '' };
   } finally { rmSync(root, { recursive: true, force: true }); }
 }
 
@@ -138,6 +138,7 @@ test('opted-in web settings refresh from op during normal deployment without lea
   const run = remoteDeployment({ webOptedIn: true });
   assert.equal(run.status, 0, run.stderr);
   assert.ok(run.webRendered.includes('PLAYER_WEB_ORIGIN="https://fixture.example"'));
+  assert.ok(run.webRendered.includes('PLAYER_WEB_SESSION_DAYS="30"'));
   assert.ok(!run.webRendered.includes('PLAYER_API_KEY') && !run.webRendered.includes('test-api-key-'));
   assert.ok(run.calls.includes('ssh fixture-host chmod 600 /fixture/.env.player-web'));
   assert.equal(run.calls.split('op run').length - 1, 2);
@@ -147,6 +148,12 @@ test('opted-in web settings refresh from op during normal deployment without lea
 test('invalid web settings preserve the remote file and stop deployment', () => {
   const run = remoteDeployment({ webOptedIn: true, validWebSecrets: false });
   assert.equal(run.status, 1); assert.match(run.stderr, /exact HTTPS origin/);
+  assert.ok(!run.calls.includes('chmod 600 /fixture/.env.player-web') && !run.calls.includes('git fetch'));
+});
+
+test('invalid session days stop deployment before copying web settings', () => {
+  const run = remoteDeployment({ webOptedIn: true, sessionDays: '3651' });
+  assert.equal(run.status, 1); assert.match(run.stderr, /PLAYER_WEB_SESSION_DAYS/);
   assert.ok(!run.calls.includes('chmod 600 /fixture/.env.player-web') && !run.calls.includes('git fetch'));
 });
 
