@@ -8,7 +8,7 @@ export function homeAssistantObserver(options: { url?: string; token?: string; e
   return async (outputId, context) => {
     const mappedEntity = (key: string) => options.entities && Object.hasOwn(options.entities, key) ? options.entities[key] : undefined;
     let entity = mappedEntity(outputId);
-    if (!entity && options.url && options.token && Object.keys(options.entities ?? {}).length > 0) {
+    if (!entity && Object.keys(options.entities ?? {}).length > 0) {
       try {
         const name = context?.outputName ?? await context?.resolveOutputName?.();
         entity = name ? mappedEntity(name) : undefined;

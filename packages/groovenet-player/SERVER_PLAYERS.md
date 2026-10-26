@@ -198,7 +198,11 @@ list/create/get/command/devices/engines requests; SSE can be consumed directly.
 
 Configure `PLAYER_HA_URL`, `PLAYER_HA_TOKEN` and `PLAYER_HA_ENTITIES_JSON`
 with exact OwnTone output IDs or names as keys. ID mappings take precedence.
-Names are case-sensitive and should be unique; use IDs if names collide.
+Names are case-sensitive. A name mapping is used only when that name is unique
+among the engine's discovered outputs; duplicate names remain unmapped unless
+each output has an ID mapping. ID mappings always take precedence. Name mapping
+still appears in device diagnostics when HA credentials are missing, so the
+mapping can be checked separately from HA connectivity.
 For example:
 
 ```json

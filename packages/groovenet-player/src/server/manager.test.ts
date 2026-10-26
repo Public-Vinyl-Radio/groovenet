@@ -553,6 +553,23 @@ describe("sender-aware availability", () => {
     expect(backend.pause).toHaveBeenLastCalledWith(false);
     await f.manager.shutdown();
   });
+  it("does not use an ambiguous output name for device observations or cold play", async () => {
+    const f = await fixture();
+    const observe = homeAssistantObserver({ url: "http://ha", token: "token", entities: { A: "media_player.room", "speaker-a": "media_player.exact" }, fetch: vi.fn(async () => Response.json({ state: "idle" })) });
+    f.observer.mockImplementation(observe);
+    f.create.mockImplementation(() => {
+      const backend = new FakeBackend();
+      backend.listDevices.mockResolvedValue([{ id: "speaker-a", name: "A" }, { id: "speaker-b", name: "A" }]);
+      f.backends.push(backend);
+      return backend;
+    });
+    await f.prepare("a");
+    // The exact ID remains mapped, while the duplicate name cannot map speaker-b.
+    expect((await f.manager.devices("a")).map(device => device.observed.entity_id)).toEqual(["media_player.exact", null]);
+    await f.command("a", { type: "output.select", output_id: "speaker-b" });
+    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    await f.manager.shutdown();
+  });
 });
 
 describe("atomic queue replacement", () => {
