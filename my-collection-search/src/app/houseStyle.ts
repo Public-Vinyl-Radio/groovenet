@@ -324,26 +324,30 @@ export const slotRecipes = {
 export const globalCss: Record<string, SystemStyleObject> = {
   // The bottom chrome the shell publishes, so content padding, the toaster and
   // the floating player agree on one number. Mobile: the tab bar (56px row, 2px
-  // rule, home-indicator inset) plus the mini player (64px row, 4px progress line).
-  // Desktop has no tab bar and a 100px floating player. `data-player` is set
-  // while a queue is loaded; `data-tabbar-hidden` on fullscreen edit routes.
+  // rule, home-indicator inset) plus the mini player (2px rule, 4px progress
+  // line, 68px row). Desktop has no tab bar and a 92px docked bar. `data-player`
+  // is set while a queue is loaded; `data-tabbar-hidden` on fullscreen edit
+  // routes; `data-queue-panel` while the desktop queue panel is open, which
+  // the content makes room for (`--queue-w`).
   html: {
     "--safe-top": "env(safe-area-inset-top, 0px)",
     "--safe-bottom": "env(safe-area-inset-bottom, 0px)",
     "--tabbar-h": "calc(58px + var(--safe-bottom))",
     "--player-h": "0px",
     "--chrome-bottom": "calc(var(--tabbar-h) + var(--player-h))",
+    "--queue-w": "0px",
     // PageHeader (phones): the sticky bar's height, and the shell's top padding,
     // which the bar replaces once a page mounts one (`data-page-header`).
     "--header-h": "52px",
     "--content-pt": "calc(var(--safe-top) + 28px)",
     "&[data-page-header]": { "--content-pt": "var(--safe-top)" },
     scrollPaddingTop: "calc(var(--safe-top) + var(--header-h))",
-    "&[data-player]": { "--player-h": "70px" },
+    "&[data-player]": { "--player-h": "74px" },
     "&[data-tabbar-hidden]": { "--tabbar-h": "0px" },
     "@media (min-width: 768px)": {
       "--tabbar-h": "0px",
-      "&[data-player]": { "--player-h": "100px" },
+      "&[data-player]": { "--player-h": "92px" },
+      "&[data-queue-panel]": { "--queue-w": "400px" },
     },
   },
   ":focus-visible": {

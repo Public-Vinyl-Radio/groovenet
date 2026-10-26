@@ -25,25 +25,26 @@ export const PlayerContainer: React.FC<{ children: React.ReactNode }> = ({
   return (
     <Box
       data-testid="floating-player"
+      as="section"
+      aria-label="Player"
       position="fixed"
       // Mobile: an edge-to-edge strip sitting on the tab bar (which owns the
-      // safe-area inset), 70px tall = --player-h. Desktop: the floating card.
-      bottom={{ base: "var(--tabbar-h)", md: 4 }}
-      left={{ base: 0, md: "50%" }}
-      transform={{ base: "none", md: "translateX(-50%)" }}
+      // safe-area inset). Desktop: docked full width at the bottom, under the
+      // sidebar and the queue panel. Both are --player-h tall, rule included.
+      bottom={{ base: "var(--tabbar-h)", md: 0 }}
+      left={0}
+      right={0}
       zIndex={100}
-      width={{ base: "100%", md: "calc(100% - 80px)" }}
-      maxW={{ base: "none", md: "920px" }}
+      h="var(--player-h)"
+      boxSizing="border-box"
       overflow="hidden"
-      borderWidth={{ base: "0", md: "outline" }}
       borderTopWidth="outline"
       borderColor="border.ink"
-      boxShadow={{ base: "none", md: "md" }}
-      bg="bg.panel"
+      boxShadow="none"
+      bg="bg"
       // No side padding on mobile: the progress line runs edge to edge and the
       // row insets itself (PlayerControlsView).
       px={{ base: 0, md: 5 }}
-      py={{ base: 0, md: 3 }}
     >
       {children}
     </Box>
@@ -72,8 +73,8 @@ const PlaylistPlayer: React.FC = () => {
   return (
     <>
       {target && <PlaybackTargetControl key="target" />}
-      {/* Original Player - hide when queue drawer is open */}
-      {!isOpen && (
+      {/* On phones Now playing covers the screen; the desktop bar stays under the queue panel. */}
+      {!(isOpen && isMobile) && (
         <PlayerContainer>
           <PlayerControls
             showQueueButton={true}
@@ -85,7 +86,7 @@ const PlaylistPlayer: React.FC = () => {
         </PlayerContainer>
       )}
 
-      {/* Queue Drawer with embedded player */}
+      {/* Now playing + queue (phones), the queue panel (desktop) */}
       <QueueDrawer
         isOpen={isOpen}
         onClose={() => toggle()}

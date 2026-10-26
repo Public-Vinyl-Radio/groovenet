@@ -1,26 +1,8 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Button,
-  Flex,
-  HStack,
-  IconButton,
-  Text,
-  VStack,
-  Slider,
-  Icon,
-} from "@chakra-ui/react";
-import {
-  FiPause,
-  FiPlay,
-  FiSkipBack,
-  FiSkipForward,
-  FiList,
-  FiCast,
-  FiX,
-} from "react-icons/fi";
+import { Box, chakra, Flex, Grid, Text, VStack } from "@chakra-ui/react";
+import { FiCast, FiList } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import type { Track } from "@/types/track";
 import ProgressSlider from "@/components/player/ProgressSlider";
@@ -28,10 +10,14 @@ import Artwork from "@/components/player/Artwork";
 import ArtistLink from "@/components/ArtistLink";
 import AlbumLink from "@/components/AlbumLink";
 import MiniProgressLine from "@/components/player/MiniProgressLine";
-import { roundTransportButton } from "@/components/player/transportButtonStyle";
+import RetroSlider from "@/components/player/RetroSlider";
+import { OutputButton } from "@/components/player/PlaybackOutput";
+import { BareTransportButton, SquarePlayButton, TransportStrip } from "@/components/player/TransportControls";
+import { artworkAlt, artworkOf, trackMetaLine } from "@/components/player/trackMeta";
 
 interface PlayerControlsViewProps {
   showQueueButton: boolean;
+  /** Mini player: opens Now playing. Desktop bar: toggles the queue panel. */
   onQueueToggle?: () => void;
   isQueueOpen: boolean;
   compact: boolean;
@@ -52,10 +38,22 @@ interface PlayerControlsViewProps {
   onPlay: () => void;
   onPause: () => void;
   onSeek: (time: number) => Promise<void>;
-  onClosePlayer: () => void;
-  onDismissPlayer?: () => void;
   isQueueFinished?: boolean;
 }
+
+const BarButton = chakra("button", {
+  base: {
+    w: "40px",
+    h: "40px",
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "fg",
+    cursor: "pointer",
+    _hover: { bg: "bg.muted" },
+  },
+});
 
 export default function PlayerControlsView({
   showQueueButton,
@@ -79,13 +77,8 @@ export default function PlayerControlsView({
   onPlay,
   onPause,
   onSeek,
-  onClosePlayer,
-  onDismissPlayer,
   isQueueFinished = false,
 }: PlayerControlsViewProps) {
-  const currentArtwork =
-    currentTrack?.audio_file_album_art_url || currentTrack?.album_thumbnail;
-
   const primaryText = isQueueFinished
     ? "Queue finished"
     : currentTrack
@@ -100,307 +93,159 @@ export default function PlayerControlsView({
       ? currentTrack.artist
       : "—";
 
+  const transport = {
+    isPlaying,
+    canPrev,
+    canNext,
+    canPlay: safeLen > 0,
+    onPrev: playPrev,
+    onPlay,
+    onPause,
+    onNext: playNext,
+  };
+
   if (compact) {
+    // The mini player (phones): progress line, then art + text (opens Now
+    // playing), the square play key and next. Stop and clear live in the queue.
     return (
-      <Box
-        role={onQueueToggle ? "button" : undefined}
-        tabIndex={onQueueToggle ? 0 : undefined}
-        aria-label={onQueueToggle ? "Open player queue" : undefined}
-        cursor={onQueueToggle ? "pointer" : "default"}
-        onClick={onQueueToggle}
-        onKeyDown={(event) => {
-          if (!onQueueToggle) return;
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onQueueToggle();
-          }
-        }}
-      >
+      <Box>
         <MiniProgressLine />
         <Flex
           align="center"
-          gap={3}
-          h="64px"
-          pl="max(16px, env(safe-area-inset-left, 0px))"
-          pr="max(16px, env(safe-area-inset-right, 0px))"
+          gap="12px"
+          h="68px"
+          pl="max(12px, env(safe-area-inset-left, 0px))"
+          pr="max(12px, env(safe-area-inset-right, 0px))"
         >
-          <AlbumLink
-            releaseId={currentTrack?.release_id}
-            friendId={currentTrack?.friend_id}
+          <chakra.button
+            aria-label={onQueueToggle ? "Open now playing" : undefined}
+            onClick={onQueueToggle}
+            disabled={!onQueueToggle}
+            flex="1"
+            minW={0}
+            h="56px"
+            display="flex"
+            alignItems="center"
+            gap="12px"
+            textAlign="left"
+            cursor={onQueueToggle ? "pointer" : "default"}
           >
-            <Artwork
-              src={currentArtwork}
-              alt={
-                currentTrack
-                  ? `${currentTrack.artist} - ${currentTrack.title}`
-                  : "Artwork"
-              }
-              size="48px"
-            />
-          </AlbumLink>
-
-          <VStack align="start" gap={0} flex="1" minW={0}>
-            <Text
-              fontWeight="semibold"
-              fontSize="xs"
-              lineClamp={1}
-              maxW="100%"
-            >
-              {primaryText}
-            </Text>
-            <Text color="fg.muted" fontSize="11px" lineClamp={1} maxW="100%">
-              {secondaryText}
-            </Text>
-          </VStack>
-
-          <HStack gap={1}>
-            {isPlaying ? (
-              <IconButton
-                aria-label="Pause"
-                size="sm"
-                minW="44px"
-                h="44px"
-                css={roundTransportButton}
-                variant="solid"
-                colorPalette="neutral"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onPause();
-                }}
-              >
-                <FiPause />
-              </IconButton>
-            ) : (
-              <IconButton
-                aria-label="Play"
-                size="sm"
-                minW="44px"
-                h="44px"
-                css={roundTransportButton}
-                variant="solid"
-                colorPalette="neutral"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onPlay();
-                }}
-                disabled={safeLen === 0}
-              >
-                <FiPlay />
-              </IconButton>
-            )}
-
-            <IconButton
-              aria-label="Next"
-              size="sm"
-              minW="44px"
-              h="44px"
-              css={roundTransportButton}
-              variant="ghost"
-              color="fg.muted"
-              onClick={(event) => {
-                event.stopPropagation();
-                playNext();
-              }}
-              disabled={!canNext}
-            >
-              <FiSkipForward />
-            </IconButton>
-
-            <IconButton
-              aria-label="Close player"
-              size="sm"
-              minW="44px"
-              h="44px"
-              css={roundTransportButton}
-              variant="ghost"
-              color="fg.muted"
-              onClick={(event) => {
-                event.stopPropagation();
-                (onDismissPlayer ?? onClosePlayer)();
-              }}
-            >
-              <FiX />
-            </IconButton>
-          </HStack>
+            <Artwork src={artworkOf(currentTrack)} alt={artworkAlt(currentTrack)} size="48px" />
+            <VStack align="start" gap={0} flex="1" minW={0}>
+              <Text fontWeight="semibold" fontSize="14px" lineHeight="20px" lineClamp={1} maxW="100%">
+                {primaryText}
+              </Text>
+              <Text color="fg.muted" fontSize="12px" lineHeight="16px" lineClamp={1} maxW="100%">
+                {secondaryText}
+              </Text>
+            </VStack>
+          </chakra.button>
+          <SquarePlayButton {...transport} />
+          <BareTransportButton kind="next" onClick={playNext} disabled={!canNext} />
         </Flex>
       </Box>
     );
   }
 
+  const meta = isQueueFinished ? "" : trackMetaLine(currentTrack);
+
+  // The docked desktop bar: track | transport + seek | output, volume, queue.
   return (
-    <Box>
-      <ProgressSlider seek={onSeek} />
-
-      <Flex
-        align="center"
-        gap={{ base: 3, md: 4 }}
-        justify="space-between"
-        minH="64px"
-      >
-        <HStack minW={0} gap={3} flex="1">
-          <AlbumLink
-            releaseId={currentTrack?.release_id}
-            friendId={currentTrack?.friend_id}
+    <Grid
+      templateColumns={{
+        base: "minmax(0, 1fr) minmax(260px, 2fr) minmax(0, 1fr)",
+        xl: "minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr)",
+      }}
+      alignItems="center"
+      gap={{ base: 4, lg: 6 }}
+      h="100%"
+    >
+      <Flex align="center" gap="12px" minW={0}>
+        <AlbumLink releaseId={currentTrack?.release_id} friendId={currentTrack?.friend_id}>
+          <Artwork src={artworkOf(currentTrack)} alt={artworkAlt(currentTrack)} size="60px" />
+        </AlbumLink>
+        <VStack align="start" gap={0} minW={0}>
+          <Text fontWeight="semibold" fontSize="15px" lineHeight="20px" maxW="100%" lineClamp={1} title={primaryText}>
+            {primaryText}
+          </Text>
+          <Text
+            color="fg.muted"
+            fontSize="13px"
+            lineHeight="18px"
+            maxW="100%"
+            lineClamp={1}
+            title={secondaryText}
+            // Chakra's Link is inline-flex, which defeats the parent's line clamp.
+            css={{ "& > a": { display: "inline" } }}
           >
-            <Artwork
-              src={currentArtwork}
-              alt={
-                currentTrack
-                  ? `${currentTrack.artist} - ${currentTrack.title}`
-                  : "Artwork"
-              }
-              size={compact ? "40px" : "48px"}
-            />
-          </AlbumLink>
-          <VStack
-            align="start"
-            minW={0}
-            display={{ base: "none", md: "flex" }}
-          >
-            <Text
-              fontWeight="semibold"
-              fontSize={{ base: "sm", md: "md" }}
-              maxW="40vw"
-              lineClamp={1}
-              title={primaryText}
-            >
-              {primaryText}
+            {!isQueueFinished && currentTrack ? (
+              <ArtistLink artist={currentTrack.artist} friendId={currentTrack.friend_id}>
+                {currentTrack.artist}
+              </ArtistLink>
+            ) : (
+              secondaryText
+            )}
+          </Text>
+          {meta && (
+            <Text fontFamily="mono" fontSize="11px" lineHeight="15px" color="fg.muted" lineClamp={1} maxW="100%">
+              {meta}
             </Text>
-            <Text
-              color="fg.muted"
-              fontSize="xs"
-              maxW="40vw"
-              lineClamp={1}
-              title={secondaryText}
-              // Chakra's Link is inline-flex, which defeats the parent's line clamp.
-              css={{ "& > a": { display: "inline" } }}
-            >
-              {!isQueueFinished && currentTrack ? (
-                <ArtistLink
-                  artist={currentTrack.artist}
-                  friendId={currentTrack.friend_id}
-                >
-                  {currentTrack.artist}
-                </ArtistLink>
-              ) : (
-                secondaryText
-              )}
-            </Text>
-          </VStack>
-        </HStack>
-
-        <HStack gap={{ base: 1, md: 2 }}>
-          <IconButton
-            aria-label="Previous"
-            size="sm"
-            variant="ghost"
-            onClick={playPrev}
-            disabled={!canPrev}
-          >
-            <FiSkipBack />
-          </IconButton>
-
-          {isPlaying ? (
-            <Button
-              aria-label="Pause"
-              size="sm"
-              variant="solid"
-              colorPalette="danger"
-              onClick={onPause}
-            >
-              <FiPause />
-            </Button>
-          ) : (
-            <Button
-              aria-label="Play"
-              size="sm"
-              variant="solid"
-              colorPalette="status.success"
-              onClick={onPlay}
-              disabled={safeLen === 0}
-            >
-              <FiPlay />
-            </Button>
           )}
-
-          <IconButton
-            aria-label="Next"
-            size="sm"
-            variant="ghost"
-            onClick={playNext}
-            disabled={!canNext}
-          >
-            <FiSkipForward />
-          </IconButton>
-        </HStack>
-
-        <HStack gap={1} justify="flex-end" flex="1">
-          {showVolumeControls && (
-            <Box display={{ base: "none", md: "block" }}>
-              <HStack align="center" gap={3}>
-                <Icon
-                  aria-label={volume === 0 ? "Unmute" : "Mute"}
-                  size="sm"
-                  onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
-                  cursor="pointer"
-                >
-                  <VolumeIcon />
-                </Icon>
-                <Slider.Root
-                  width="200px"
-                  value={[volume * 100]}
-                  onValueChange={(e) => {
-                    setVolume(e.value[0] / 100);
-                  }}
-                >
-                  <Slider.Control>
-                    <Slider.Track bg="bg.panel" height="10px" borderWidth="outline" borderColor="border.ink">
-                      <Slider.Range bg="accent.solid" />
-                    </Slider.Track>
-                    <Slider.Thumbs rounded="none" width="10px" height="18px" bg="neutral.solid" borderWidth="0" boxShadow="none" />
-                  </Slider.Control>
-                </Slider.Root>
-              </HStack>
-            </Box>
-          )}
-
-          {isAirPlayAvailable && (
-            <IconButton
-              aria-label="AirPlay"
-              size="sm"
-              variant={isAirPlayActive ? "solid" : "ghost"}
-              colorPalette={isAirPlayActive ? "accent" : undefined}
-              title="AirPlay"
-              onClick={onAirPlayClick}
-            >
-              <FiCast />
-            </IconButton>
-          )}
-
-          {showQueueButton && onQueueToggle && (
-            <IconButton
-              aria-label="Queue"
-              size="sm"
-              variant="ghost"
-              title="Queue"
-              onClick={onQueueToggle}
-              colorPalette={isQueueOpen ? "accent" : undefined}
-            >
-              <FiList />
-            </IconButton>
-          )}
-
-          <IconButton
-            aria-label="Close player"
-            size="sm"
-            variant="ghost"
-            title="Close player"
-            onClick={onClosePlayer}
-          >
-            <FiX />
-          </IconButton>
-        </HStack>
+        </VStack>
       </Flex>
-    </Box>
+
+      <VStack gap="8px" minW={0}>
+        <TransportStrip size="md" {...transport} />
+        <Box w="100%" maxW="560px">
+          <ProgressSlider seek={onSeek} layout="inline" />
+        </Box>
+      </VStack>
+
+      <Flex align="center" justify="flex-end" gap="10px" minW={0}>
+        <OutputButton />
+        {isAirPlayAvailable && (
+          <BarButton
+            aria-label="AirPlay"
+            title="AirPlay"
+            aria-pressed={isAirPlayActive}
+            onClick={onAirPlayClick}
+            bg={isAirPlayActive ? "bg.muted" : undefined}
+          >
+            <FiCast size={18} />
+          </BarButton>
+        )}
+        {showVolumeControls && (
+          <>
+            <BarButton aria-label={volume === 0 ? "Unmute" : "Mute"} onClick={() => setVolume(volume === 0 ? 0.8 : 0)}>
+              <VolumeIcon size={18} />
+            </BarButton>
+            <Box display={{ base: "none", lg: "block" }} w="96px" flexShrink={0}>
+              <RetroSlider
+                label="Volume"
+                value={Math.round(volume * 100)}
+                valueText={`${Math.round(volume * 100)}%`}
+                thumbH="18px"
+                onChange={(v) => setVolume(v / 100)}
+              />
+            </Box>
+          </>
+        )}
+        {showQueueButton && onQueueToggle && (
+          <BarButton
+            aria-label="Queue"
+            title="Queue"
+            aria-pressed={isQueueOpen}
+            onClick={onQueueToggle}
+            borderWidth="outline"
+            borderColor="border.ink"
+            bg={isQueueOpen ? "border.ink" : "bg"}
+            color={isQueueOpen ? "bg" : "fg"}
+            _hover={{ bg: isQueueOpen ? "border.ink" : "bg.muted" }}
+          >
+            <FiList size={18} />
+          </BarButton>
+        )}
+      </Flex>
+    </Grid>
   );
 }

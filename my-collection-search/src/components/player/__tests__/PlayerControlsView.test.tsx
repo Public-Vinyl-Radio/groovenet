@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import type React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import PlayerControlsView from "@/components/player/PlayerControlsView";
 import { PlaylistPlayerProvider } from "@/providers/PlaylistPlayerProvider";
@@ -32,7 +33,6 @@ const baseProps = {
   onPlay: noop,
   onPause: noop,
   onSeek: noopAsync,
-  onClosePlayer: noop,
 };
 
 function cssOf(el: Element) {
@@ -45,86 +45,122 @@ function cssOf(el: Element) {
 }
 
 describe("PlayerControlsView — mini player", () => {
+  it("makes the play key a 48px square, solid with a hard shadow", () => {
+    renderWithProviders(<PlayerControlsView {...baseProps} compact onQueueToggle={noop} />);
+    const css = cssOf(screen.getByRole("button", { name: "Play" }));
+    expect(css).toMatch(/width:\s*48px/);
+    expect(css).toMatch(/height:\s*48px/);
+    expect(css).toMatch(/box-shadow:\s*var\(--chakra-shadows-sm\)/);
+    expect(css).not.toMatch(/border-radius:\s*var\(--chakra-radii-full\)/);
+  });
+
   it.each([
-    ["Play", {}],
-    ["Pause", { isPlaying: true }],
-    ["Next", {}],
-    ["Close player", {}],
-  ])("makes %s a 44px round button with no hard shadow and a dim-and-shrink press", (name, props) => {
-    renderWithProviders(<PlayerControlsView {...baseProps} {...props} compact onQueueToggle={noop} />);
-    const css = cssOf(screen.getByRole("button", { name }));
-    expect(css).toMatch(/height:\s*44px/);
-    expect(css).toMatch(/border-radius:\s*var\(--chakra-radii-full\)/);
-    expect(css).toMatch(/box-shadow:\s*none/);
-    expect(css).toMatch(/scale\(0\.96\)/);
-    expect(css).toMatch(/brightness\(0\.9\)/);
-  });
-});
-
-describe("PlayerControlsView — compact close button", () => {
-  it("renders a Close player button with a 44px touch target", async () => {
-    const { user } = renderWithProviders(
-      <PlayerControlsView {...baseProps} compact onQueueToggle={noop} />
-    );
-
-    const closeButton = screen.getByRole("button", { name: "Close player" });
-    expect(closeButton).toBeTruthy();
-    void user;
+    ["Open now playing", 56],
+    ["Next", 48],
+  ])("keeps %s at least 44px tall", (name, height) => {
+    renderWithProviders(<PlayerControlsView {...baseProps} compact onQueueToggle={noop} />);
+    expect(cssOf(screen.getByRole("button", { name }))).toMatch(new RegExp(`height:\\s*${height}px`));
   });
 
-  it("calls onDismissPlayer, not onQueueToggle, when the close button is clicked", async () => {
-    const onQueueToggle = vi.fn();
-    const onDismissPlayer = vi.fn();
-    const onClosePlayer = vi.fn();
-    const { user } = renderWithProviders(
-      <PlayerControlsView
-        {...baseProps}
-        compact
-        onQueueToggle={onQueueToggle}
-        onClosePlayer={onClosePlayer}
-        onDismissPlayer={onDismissPlayer}
-      />
-    );
-
-    await user.click(screen.getByRole("button", { name: "Close player" }));
-
-    expect(onDismissPlayer).toHaveBeenCalledTimes(1);
-    expect(onClosePlayer).not.toHaveBeenCalled();
-    expect(onQueueToggle).not.toHaveBeenCalled();
+  it("has no close button: stop and clear live in the queue", () => {
+    renderWithProviders(<PlayerControlsView {...baseProps} compact onQueueToggle={noop} />);
+    expect(screen.queryByRole("button", { name: "Close player" })).toBeNull();
   });
 
-  it("falls back to onClosePlayer when onDismissPlayer is not provided", async () => {
-    const onClosePlayer = vi.fn();
-    const { user } = renderWithProviders(
-      <PlayerControlsView
-        {...baseProps}
-        compact
-        onQueueToggle={noop}
-        onClosePlayer={onClosePlayer}
-      />
-    );
-
-    await user.click(screen.getByRole("button", { name: "Close player" }));
-
-    expect(onClosePlayer).toHaveBeenCalledTimes(1);
-  });
-
-  it("clicking Play/Pause/Next still doesn't open the queue drawer", async () => {
+  it("opens Now playing from the art and text, not from the transport keys", async () => {
     const onQueueToggle = vi.fn();
     const onPlay = vi.fn();
-    const { user } = renderWithProviders(
-      <PlayerControlsView
-        {...baseProps}
-        compact
-        onQueueToggle={onQueueToggle}
-        onPlay={onPlay}
-      />
+    const onPause = vi.fn();
+    const playNext = vi.fn();
+    const { user, rerender } = renderWithProviders(
+      <PlayerControlsView {...baseProps} compact onQueueToggle={onQueueToggle} onPlay={onPlay} playNext={playNext} />
     );
 
     await user.click(screen.getByRole("button", { name: "Play" }));
-
+    await user.click(screen.getByRole("button", { name: "Next" }));
     expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(playNext).toHaveBeenCalledTimes(1);
     expect(onQueueToggle).not.toHaveBeenCalled();
+
+    rerender(
+      <PlayerControlsView {...baseProps} compact isPlaying onQueueToggle={onQueueToggle} onPause={onPause} />
+    );
+    await user.click(screen.getByRole("button", { name: "Pause" }));
+    expect(onPause).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Open now playing" }));
+    expect(onQueueToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables Play with an empty queue and Next at the end of it", () => {
+    renderWithProviders(<PlayerControlsView {...baseProps} compact safeLen={0} canNext={false} />);
+    expect(screen.getByRole("button", { name: "Play" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Next" }).hasAttribute("disabled")).toBe(true);
+  });
+});
+
+describe("PlayerControlsView — docked desktop bar", () => {
+  const renderBar = (props: Partial<React.ComponentProps<typeof PlayerControlsView>> = {}) =>
+    renderWithProviders(
+      <PlaylistPlayerProvider>
+        <PlayerControlsView {...baseProps} compact={false} showVolumeControls onQueueToggle={noop} {...props} />
+      </PlaylistPlayerProvider>
+    );
+
+  it("joins previous, play-pause and next in one transport strip", () => {
+    renderBar({ canPrev: true });
+    const strip = screen.getByRole("group", { name: "Transport" });
+    expect(within(strip).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Previous",
+      "Play",
+      "Next",
+    ]);
+    expect(cssOf(strip)).toMatch(/box-shadow:\s*var\(--chakra-shadows-sm\)/);
+  });
+
+  it("shows the mono meta line: position, BPM and Camelot key", () => {
+    renderBar({ currentTrack: { ...sampleTrack, position: "A1", bpm: "134", key: "D minor" } });
+    expect(screen.getByText("A1 · 134 BPM · 7A")).toBeTruthy();
+  });
+
+  it("hides the meta line once the queue has finished", () => {
+    renderBar({ isQueueFinished: true, currentTrack: { ...sampleTrack, position: "A1", bpm: "134", key: null } });
+    expect(screen.queryByText(/BPM/)).toBeNull();
+  });
+
+  it("toggles mute from the volume button and reads the volume out as a percentage", async () => {
+    const setVolume = vi.fn();
+    const { user, rerender } = renderBar({ setVolume, volume: 0.5 });
+    await user.click(screen.getByRole("button", { name: "Mute" }));
+    expect(setVolume).toHaveBeenLastCalledWith(0);
+
+    // The slider shows from `lg`; jsdom renders the base breakpoint.
+    const volume = screen.getByRole("slider", { name: "Volume", hidden: true });
+    expect(volume.getAttribute("aria-valuetext")).toBe("50%");
+
+    rerender(
+      <PlaylistPlayerProvider>
+        <PlayerControlsView {...baseProps} compact={false} showVolumeControls setVolume={setVolume} volume={0} />
+      </PlaylistPlayerProvider>
+    );
+    await user.click(screen.getByRole("button", { name: "Unmute" }));
+    expect(setVolume).toHaveBeenLastCalledWith(0.8);
+  });
+
+  it("marks the queue toggle pressed while the panel is open", async () => {
+    const onQueueToggle = vi.fn();
+    const { user } = renderBar({ isQueueOpen: true, onQueueToggle });
+    const toggle = screen.getByRole("button", { name: "Queue" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    await user.click(toggle);
+    expect(onQueueToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("has a keyboard-operable seek slider with the time read out", () => {
+    renderBar();
+    const seek = screen.getByRole("slider", { name: "Seek" });
+    expect(seek.getAttribute("tabindex")).toBe("0");
+    expect(seek.getAttribute("aria-valuetext")).toBe("0:00 of 0:00");
   });
 });
 

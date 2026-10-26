@@ -88,9 +88,15 @@ describe("AppShell", () => {
     const css = rulesFor(sidebarOf());
     expect(css).toMatch(/position:\s*fixed/);
     expect(css).toMatch(/top:\s*0/);
-    expect(css).toMatch(/bottom:\s*0/);
+    // It ends on the docked player bar, which runs full width under it.
+    expect(css).toMatch(/bottom:\s*var\(--player-h\)/);
     expect(css).toMatch(/left:\s*0/);
     expect(css).not.toMatch(/sticky|100vh/);
+  });
+
+  it("pads the content right by --queue-w so the desktop queue panel never covers it", () => {
+    renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    expect(rulesFor(contentOf())).toMatch(/padding-right:\s*calc\(var\(--chakra-spacing-6\) \+ var\(--queue-w\)\)/);
   });
 
   it("offsets the content by the sidebar width and follows its state", async () => {

@@ -85,7 +85,7 @@ describe("usePlayerControlsController — isQueueFinished", () => {
   });
 });
 
-describe("usePlayerControlsController — handleDismissPlayer", () => {
+describe("usePlayerControlsController — handleClearQueue", () => {
   beforeEach(() => {
     createMock.mockClear();
     pause.mockClear();
@@ -100,7 +100,7 @@ describe("usePlayerControlsController — handleDismissPlayer", () => {
   it("pauses and clears the queue", () => {
     const { result } = renderHook(() => usePlayerControlsController());
 
-    act(() => { result.current.handleDismissPlayer(); });
+    act(() => { result.current.handleClearQueue(); });
 
     expect(pause).toHaveBeenCalledTimes(1);
     expect(clearQueue).toHaveBeenCalledTimes(1);
@@ -112,7 +112,7 @@ describe("usePlayerControlsController — handleDismissPlayer", () => {
     const snapshotIndex = playlistPlayerState.currentTrackIndex;
     const snapshotIsPlaying = playlistPlayerState.isPlaying;
 
-    act(() => { result.current.handleDismissPlayer(); });
+    act(() => { result.current.handleClearQueue(); });
 
     expect(createMock).toHaveBeenCalledTimes(1);
     const toastArgs = createMock.mock.calls[0][0];

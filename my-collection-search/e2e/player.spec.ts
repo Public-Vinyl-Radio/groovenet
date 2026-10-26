@@ -119,6 +119,11 @@ async function openPlayer(
     [STORAGE_KEY, JSON.stringify(state)] as const
   );
   await page.goto(PLAYER_PAGE);
+  // The dev stack's Next.js and TanStack devtools buttons sit over the bottom
+  // corners, where the player's controls are; production has neither.
+  await page.addStyleTag({
+    content: "nextjs-portal, .tsqd-parent-container { display: none !important; }",
+  });
   const player = page.getByTestId("floating-player");
   await expect(player).toBeVisible();
   return player;
@@ -216,30 +221,100 @@ test.describe("floating player", () => {
     );
   });
 
-  test("mobile: close button dismisses the player and Undo restores the queue", async ({
+  test("mobile: the mini player has no close button and every control is at least 44px", async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name !== "mobile", "compact player is mobile-only");
-    const player = await openPlayer(page, [TRACK_A, TRACK_B], 1);
+    test.skip(testInfo.project.name !== "mobile", "mini player is mobile-only");
+    const player = await openPlayer(page, [TRACK_A, TRACK_B], 0);
+    await expect(player.getByRole("button", { name: "Close player" })).toHaveCount(0);
+    for (const button of await player.getByRole("button").all()) {
+      const box = (await button.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+  });
 
-    const close = player.getByRole("button", { name: "Close player" });
-    const box = (await close.boundingBox())!;
-    expect(box.width).toBeGreaterThanOrEqual(44);
-    expect(box.height).toBeGreaterThanOrEqual(44);
+  test("mobile: Now playing, the queue, and Clear with Undo", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "Now playing is mobile-only");
+    const player = await openPlayer(page, [TRACK_A, TRACK_B], 0);
 
-    await close.click();
+    await player.getByRole("button", { name: "Open now playing" }).click();
+    const sheet = page.getByRole("dialog", { name: "NOW PLAYING" });
+    await expect(sheet).toBeVisible();
+    await expect(page.getByTestId("floating-player")).toHaveCount(0);
+    await expect(sheet.getByRole("group", { name: "Transport" })).toBeVisible();
+    await expect(sheet.getByRole("slider", { name: "Seek" })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Play on: Local browser" })).toBeVisible();
+
+    // Sliders take the keyboard.
+    const volume = sheet.getByRole("slider", { name: "Volume" });
+    await volume.focus();
+    await page.keyboard.press("Home");
+    await expect(volume).toHaveAttribute("aria-valuenow", "0");
+
+    await sheet.getByRole("button", { name: "Open queue, 1 up next" }).click();
+    const queue = page.getByRole("dialog", { name: "Queue" });
+    await expect(queue.getByTestId("queue-now-playing")).toContainText("Alpha Track");
+    await expect(queue.getByRole("button", { name: "Play Bravo Track by Bravo Artist" })).toBeVisible();
+    for (const name of ["Back to now playing", "Save", "Clear queue", "Reorder Bravo Track", "Remove Bravo Track from queue"]) {
+      const box = (await queue.getByRole("button", { name }).boundingBox())!;
+      expect(box.width, name).toBeGreaterThanOrEqual(44);
+      expect(box.height, name).toBeGreaterThanOrEqual(44);
+    }
+
+    // One tap, no dialog; Undo puts the queue back.
+    await queue.getByRole("button", { name: "Clear queue" }).click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(page.getByTestId("floating-player")).toHaveCount(0);
     await expect(page.getByText("Queue cleared")).toBeVisible();
-
-    const undo = page.getByRole("button", { name: "Undo" });
-    await expect(undo).toBeVisible();
     const toastBox = (await page.getByText("Queue cleared").boundingBox())!;
     expect(toastBox.x).toBeGreaterThanOrEqual(0);
     expect(toastBox.x + toastBox.width).toBeLessThanOrEqual(390);
-
-    await undo.click();
+    await page.getByRole("button", { name: "Undo" }).click();
     const restored = page.getByTestId("floating-player");
     await expect(restored).toBeVisible();
-    await expect(restored.getByText("Bravo Track")).toBeVisible();
+    await expect(restored.getByText("Alpha Track")).toBeVisible();
+  });
+
+  test("desktop: docked bar and the 400px queue panel, which the content makes room for", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "the queue panel is desktop-only");
+    const player = await openPlayer(page, [TRACK_A, TRACK_B], 0);
+    const viewport = page.viewportSize()!;
+    const bar = (await player.boundingBox())!;
+    expect(bar.x).toBe(0);
+    expect(bar.width).toBe(viewport.width);
+    expect(bar.y + bar.height).toBe(viewport.height);
+    await expect(player.getByRole("group", { name: "Transport" })).toBeVisible();
+
+    const toggle = player.getByRole("button", { name: "Queue", exact: true });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    const panel = page.getByRole("complementary", { name: "Queue" });
+    await expect(panel).toBeVisible();
+    const box = (await panel.boundingBox())!;
+    expect(box.width).toBe(400);
+    expect(box.x + box.width).toBe(viewport.width);
+    // The panel ends on the bar, which stays visible.
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + 1);
+    await expect(player).toBeVisible();
+    expect(
+      await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--queue-w").trim())
+    ).toBe("400px");
+
+    await panel.getByRole("button", { name: "Play Bravo Track by Bravo Artist" }).click();
+    await expect(panel.getByTestId("queue-now-playing")).toContainText("Bravo Track");
+
+    await panel.getByRole("button", { name: "Close queue" }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await toggle.click();
+    await page.getByRole("complementary", { name: "Queue" }).getByRole("button", { name: "Clear" }).click();
+    await expect(page.getByTestId("floating-player")).toHaveCount(0);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByTestId("floating-player")).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Queue" })).toHaveCount(0);
   });
 });
