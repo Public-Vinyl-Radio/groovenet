@@ -4,7 +4,7 @@ Shared runtime schemas and TypeScript types for Groovenet API resources. It is
 the source of truth for the wire enums, entities, and request/response payloads
 of live sets (`liveSets.ts`), playlists (`playlists.ts`), tracks (`tracks.ts`),
 albums (`albums.ts`), friends with the default-library setting (`friends.ts`)
-and physical-copy record care (`recordCare.ts`).
+physical-copy record care (`recordCare.ts`) and genre taxonomy (`genres.ts`).
 
 [`INVENTORY.md`](INVENTORY.md) lists every published API operation with its
 family and migration status, and the order the remaining families follow.
@@ -23,7 +23,7 @@ family and migration status, and the order the remaining families follow.
    shape and enum values.
 
 Migrate one resource family at a time: live sets, playlists, tracks, albums,
-friends, record care and spins are done; `INVENTORY.md` orders the rest. Preserve permissive response fields where
+friends, record care, spins and genre taxonomy are done; `INVENTORY.md` orders the rest. Preserve permissive response fields where
 the database returns additional wire fields; make request schemas strict only
 when the endpoint already rejects unknown fields.
 

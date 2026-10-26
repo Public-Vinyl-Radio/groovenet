@@ -6,3 +6,4 @@ export * from "./friends.js";
 export * from "./recordCare.js";
 export * from "./spins.js";
 export * from "./players.js";
+export * from "./genres.js";

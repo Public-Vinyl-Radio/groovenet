@@ -55,66 +55,21 @@ export type {
   TrackSpinEvent,
 } from "@groovenet/contracts";
 
-export type GenreSource = "discogs" | "custom";
-
-export interface Genre {
-  id: string;
-  name: string;
-  slug: string;
-  parent_id: string | null;
-  source: GenreSource;
-}
-export interface GenreCreateInput { name: string; parent_id: string }
-export interface GenreUpdateInput { name?: string; parent_id?: string | null }
-export interface GenreAliasResponse { success: true }
-export interface GenreMergeResponse { success: true; merged_genre_id: string; survivor_genre_id: string }
-
-export interface GenreTreeNode {
-  id: string;
-  name: string;
-  slug: string;
-  parent_id: string | null;
-  source: GenreSource;
-  track_count: number;
-  album_count: number;
-  /** Normalised alias keys that resolve to this genre. */
-  aliases?: string[];
-  children: GenreTreeNode[];
-}
-
-export interface GenreTreeResponse {
-  genres: GenreTreeNode[];
-}
-
-/** Copied from the app's genre API contract schemas. Counts include subgenres. */
-export interface GenrePageRef {
-  id: string;
-  name: string;
-  slug: string;
-  track_count: number;
-}
-
-export interface GenreSimilaritySignals {
-  taxonomy?: "sibling" | "parent" | "child";
-  npmi?: number;
-  shared_albums?: number;
-}
-
-/** Scores and signals are absent for the taxonomy-sibling fallback. */
-export interface GenreRelatedRef extends GenrePageRef {
-  score?: number;
-  signals?: GenreSimilaritySignals;
-}
-
-export interface GenreSimilarResponse {
-  genre: GenrePageRef;
-  related: GenreRelatedRef[];
-}
-
-export interface GenreSimilarQuery {
-  /** Maximum related genres to return; defaults to 20 on the server. */
-  limit?: number;
-}
+export type {
+  GenreSource,
+  Genre,
+  GenreTreeNode,
+  GenreTreeResponse,
+  GenrePageQuery,
+  GenreSimilarQuery,
+  GenreCreateInput,
+  GenreUpdateInput,
+  GenreAliasInput,
+  GenreMergeInput,
+  GenreAliasResponse,
+  GenreMergeResponse,
+  GenrePageRef, GenreSimilaritySignals, GenreRelatedRef, GenrePageResponse, GenreSimilarResponse,
+} from "@groovenet/contracts";
 
 // ── Genre reconciliation (#372) ─────────────────────────────────────────────
 

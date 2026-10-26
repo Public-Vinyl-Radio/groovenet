@@ -3187,56 +3187,8 @@ const backupContracts: ApiContractRoute[] = [
   },
 ];
 
-export const genreTreeNodeSchemaObject = {
-  type: "object",
-  properties: {
-    id: { type: "string", format: "uuid" },
-    name: { type: "string" },
-    slug: { type: "string" },
-    parent_id: { type: ["string", "null"], format: "uuid" },
-    source: { type: "string", enum: ["discogs", "custom"] },
-    track_count: { type: "integer", minimum: 0, description: "Zero until track genre links are introduced" },
-    album_count: { type: "integer", minimum: 0, description: "Zero until track genre links are introduced" },
-    aliases: {
-      type: "array",
-      items: { type: "string" },
-      description: "Normalised alias keys that resolve to this genre, for matching raw Discogs spellings",
-    },
-    children: { type: "array", items: { $ref: "#/components/schemas/GenreTreeNode" } },
-  },
-  required: ["id", "name", "slug", "parent_id", "source", "track_count", "album_count", "children"],
-};
-
 const genreUuid = { type: "string", format: "uuid" };
 
-const genrePageRefObject = {
-  type: "object",
-  properties: {
-    id: genreUuid,
-    name: { type: "string" },
-    slug: { type: "string" },
-    track_count: { type: "integer", minimum: 0, description: "Tracks the genre filter returns, subgenres included" },
-  },
-  required: ["id", "name", "slug", "track_count"],
-};
-const genreSimilaritySignalsObject = {
-  type: "object",
-  description: "What produced the score (#377): a taxonomy relation, co-occurrence, or both",
-  properties: {
-    taxonomy: { type: "string", enum: ["sibling", "parent", "child"] },
-    npmi: { type: "number", minimum: -1, maximum: 1, description: "Normalised PMI of the two genres' album co-occurrence" },
-    shared_albums: { type: "integer", minimum: 0, description: "Distinct albums tagged with both genres" },
-  },
-};
-const genreRelatedRefObject = {
-  type: "object",
-  properties: {
-    ...genrePageRefObject.properties,
-    score: { type: "number", description: "Absent for a sibling-fallback entry, which has no stored score" },
-    signals: genreSimilaritySignalsObject,
-  },
-  required: ["id", "name", "slug", "track_count"],
-};
 /** A genre `include_similar` added (#485): no track_count, since a search response isn't the genre page. */
 const genreFilterRefObject = {
   type: "object",
@@ -3247,85 +3199,18 @@ const genreFilterRefObject = {
   },
   required: ["id", "name", "slug"],
 };
-const genrePageSchemaObject = {
-  type: "object",
-  properties: {
-    genre: {
-      type: "object",
-      properties: {
-        id: genreUuid,
-        name: { type: "string" },
-        slug: { type: "string" },
-        parent_id: { type: ["string", "null"], format: "uuid" },
-        source: { type: "string", enum: ["discogs", "custom"] },
-        aliases: { type: "array", items: { type: "string" } },
-      },
-      required: ["id", "name", "slug", "parent_id", "source", "aliases"],
-    },
-    ancestors: {
-      type: "array",
-      description: "Root first, ending with the parent",
-      items: {
-        type: "object",
-        properties: { id: genreUuid, name: { type: "string" }, slug: { type: "string" } },
-        required: ["id", "name", "slug"],
-      },
-    },
-    children: { type: "array", items: genrePageRefObject },
-    related: {
-      type: "array",
-      description: "From the genre_similarity table (#377), falling back to taxonomy siblings when it has no rows yet",
-      items: genreRelatedRefObject,
-    },
-    counts: {
-      type: "object",
-      properties: {
-        tracks: { type: "integer", minimum: 0, description: "Tracks linked to this genre itself" },
-        albums: { type: "integer", minimum: 0, description: "Albums whose Discogs genres or styles name this genre" },
-        tracks_total: { type: "integer", minimum: 0, description: "Tracks the genre filter returns" },
-        albums_total: { type: "integer", minimum: 0, description: "Albums the genre filter returns" },
-      },
-      required: ["tracks", "albums", "tracks_total", "albums_total"],
-    },
-    top_tracks: {
-      type: "array",
-      description: "Most played first, then most recently added",
-      items: {
-        type: "object",
-        properties: {
-          play_count: { type: "integer", minimum: 0 },
-          hasVectors: {
-            type: "boolean",
-            description: "Has an audio_vibe embedding; absent means the server didn't report it",
-          },
-        },
-        required: ["play_count"],
-      },
-    },
-    top_albums: {
-      type: "array",
-      description: "Most played first, then most recently added",
-      items: { type: "object", properties: { play_count: { type: "integer", minimum: 0 } }, required: ["play_count"] },
-    },
-  },
-  required: ["genre", "ancestors", "children", "related", "counts", "top_tracks", "top_albums"],
-};
-const genreName = { type: "string", minLength: 1 };
 const genreBodyObjects: Record<string, Record<string, unknown>> = {
-  createGenre: { type: "object", properties: { name: genreName, parent_id: genreUuid }, required: ["name", "parent_id"] },
-  updateGenre: { type: "object", properties: { name: genreName, parent_id: { type: ["string", "null"], format: "uuid" } }, anyOf: [{ required: ["name"] }, { required: ["parent_id"] }] },
-  addGenreAlias: { type: "object", properties: { alias: genreName }, required: ["alias"] },
-  mergeGenres: { type: "object", properties: { target_id: genreUuid }, required: ["target_id"] },
+  createGenre: componentRef("GenreCreateInput"),
+  updateGenre: componentRef("GenreUpdateInput"),
+  addGenreAlias: componentRef("GenreAliasInput"),
+  mergeGenres: componentRef("GenreMergeInput"),
 };
 const genreResponseObjects: Record<string, Record<string, unknown>> = {
-  createGenre: { type: "object", properties: {
-    id: genreUuid, name: { type: "string" }, slug: { type: "string" },
-    parent_id: { type: ["string", "null"], format: "uuid" }, source: { type: "string", enum: ["discogs", "custom"] },
-  }, required: ["id", "name", "slug", "parent_id", "source"] },
-  addGenreAlias: { type: "object", properties: { success: { type: "boolean", const: true } }, required: ["success"] },
-  mergeGenres: { type: "object", properties: { success: { type: "boolean", const: true }, merged_genre_id: genreUuid, survivor_genre_id: genreUuid }, required: ["success", "merged_genre_id", "survivor_genre_id"] },
+  createGenre: componentRef("Genre"),
+  updateGenre: componentRef("Genre"),
+  addGenreAlias: componentRef("GenreAliasResponse"),
+  mergeGenres: componentRef("GenreMergeResponse"),
 };
-genreResponseObjects.updateGenre = genreResponseObjects.createGenre;
 
 const genreMutationContracts: ApiContractRoute[] = ([
   {
@@ -4183,16 +4068,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin",
                 parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [],
               }] },
-              schema: {
-                type: "object",
-                properties: {
-                  genres: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/GenreTreeNode" },
-                  },
-                },
-                required: ["genres"],
-              },
+              schema: componentRef("GenreTreeResponse"),
             },
           },
         },
@@ -4235,7 +4111,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
             "The genre. Counts and lists use the search genre filter, so they match what searching the genre returns",
           content: {
             "application/json": {
-              schema: genrePageSchemaObject,
+              schema: componentRef("GenrePageResponse"),
               example: {
                 genre: {
                   id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia",
@@ -4307,11 +4183,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Computed over every collection; falls back to taxonomy siblings until the table has rows for this genre",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: { genre: genrePageRefObject, related: { type: "array", items: genreRelatedRefObject } },
-                required: ["genre", "related"],
-              },
+              schema: componentRef("GenreSimilarResponse"),
               example: {
                 genre: { id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia", track_count: 412 },
                 related: [{

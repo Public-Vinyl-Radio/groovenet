@@ -1,6 +1,6 @@
 import type { GenrePageRef } from "@/api-contract/schemas";
 import { byCount } from "@/lib/genres/genrePageRefs";
-import { computeGenreSimilarity, DEFAULT_TOP_N, type GenreSimilaritySignals } from "@/lib/genres/genreSimilarity";
+import { computeGenreSimilarity, DEFAULT_TOP_N } from "@/lib/genres/genreSimilarity";
 import {
   buildGenreOverlapContext,
   type GenreOverlapContext,
@@ -10,7 +10,8 @@ import { genreSimilarityRepository } from "@/server/repositories/genreSimilarity
 
 export const RELATED_LIMIT = DEFAULT_TOP_N;
 
-export type GenreRelatedRef = GenrePageRef & { score?: number; signals?: GenreSimilaritySignals };
+export type { GenreRelatedRef } from "@groovenet/contracts";
+import type { GenreRelatedRef } from "@groovenet/contracts";
 
 function positiveInt(raw: string | undefined, fallback: number): number {
   const parsed = Number(raw);
