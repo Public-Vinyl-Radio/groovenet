@@ -1,16 +1,16 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runPlayerWorker } from "./runtime.js";
+import { postServerPlay, runPlayerWorker } from "./runtime.js";
 import { Server } from "node:http";
 import { Pool } from "pg";
 import { OwnToneBackend } from "../ownToneBackend.js";
 import { PostgresPlayerStore as Store } from "./store.js";
 import type { ServerPlayerManager } from "./manager.js";
 import type { PostgresPlayerStore } from "./store.js";
-const env = { PLAYER_API_KEY: "x".repeat(40), DATABASE_URL: "postgres://test", PLAYER_ENGINES_JSON: JSON.stringify({ a: { apiUrl: "http://a/api", libraryRoot: "/media" } }) };
+const env = { PLAYER_API_KEY: "x".repeat(40), PLAYER_LIBRARY_FRIEND_ID: "1", DATABASE_URL: "postgres://test", PLAYER_ENGINES_JSON: JSON.stringify({ a: { apiUrl: "http://a/api", libraryRoot: "/media" } }) };
 function fixture() {
   const store = { acquire: vi.fn(async (_lost: () => void) => { void _lost; }), release: vi.fn(async () => {}), heartbeat: vi.fn(async () => {}) };
-  const manager = Object.assign(new EventEmitter(), { initialize: vi.fn(async () => {}), shutdown: vi.fn(async () => {}) });
+  const manager = Object.assign(new EventEmitter(), { initialize: vi.fn(async () => {}), shutdown: vi.fn(async () => {}), retryPlays: vi.fn(async () => {}) });
   const server = Object.assign(new EventEmitter(), { listen: vi.fn((_port: number, _host: string, callback: () => void) => callback()), close: vi.fn(), closeAllConnections: vi.fn() });
   const signals = new EventEmitter();
   const dependencies = { store: store as unknown as PostgresPlayerStore, manager: manager as unknown as ServerPlayerManager, server: server as unknown as Server, signals };
@@ -108,9 +108,22 @@ describe("player worker lifecycle", () => {
     [{ ...env, PLAYER_HA_SENDERS_JSON: '{"a":{"client_name":""}}' }, /Too small/],
     [{ ...env, PLAYER_API_KEY: "short" }, /32/],
     [{ ...env, PLAYER_API_KEY: undefined }, /32/],
+    [{ ...env, PLAYER_LIBRARY_FRIEND_ID: "" }, /Too small/],
     [{ ...env, DATABASE_URL: undefined }, /DATABASE_URL/],
     [{ ...env, PLAYER_ENGINES_JSON: JSON.stringify({ a: { apiUrl: "http://same/api", libraryRoot: "/media" }, b: { apiUrl: "http://same/api/", libraryRoot: "/media" } }) }, /different API URL/],
   ])("rejects invalid worker configuration", async (configuration, message) => {
     await expect(runPlayerWorker(configuration, fixture().dependencies)).rejects.toThrow(message);
+  });
+});
+
+describe("server play API delivery", () => {
+  it("posts the entry's track and friend, accepts an existing digital play, and retries other failures", async () => {
+    const play = { entryId: "entry", playerId: "a", trackId: "track", friendId: 3, releaseId: "release", startedAt: new Date("2026-01-01T00:00:00Z") };
+    const transport = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({})).mockResolvedValueOnce(Response.json({ error: "Digital play already logged" }, { status: 409 })).mockResolvedValueOnce(Response.json({ error: "unavailable" }, { status: 503 }));
+    await postServerPlay("http://app:3000", play);
+    expect(transport).toHaveBeenCalledWith(new URL("http://app:3000/api/spins"), expect.objectContaining({ method: "POST", body: JSON.stringify({ friend_id: 3, release_id: "release", medium: "digital", played_at: "2026-01-01T00:00:00.000Z", context_type: "player", track_refs: [{ track_id: "track", friend_id: 3 }] }) }));
+    await expect(postServerPlay("http://app:3000", play)).resolves.toBeUndefined();
+    await expect(postServerPlay("http://app:3000", play)).rejects.toThrow("503");
+    transport.mockRestore();
   });
 });

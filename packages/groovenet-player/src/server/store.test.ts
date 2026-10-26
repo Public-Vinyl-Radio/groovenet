@@ -66,4 +66,14 @@ describe("Postgres player persistence", () => {
     f.query.mockResolvedValue({ rows: [{}, {}] });
     expect(await f.store.resolve({ track_id: "one", friend_id: 7 })).toBeNull();
   });
+  it("persists pending plays by entry UUID and marks successful delivery", async () => {
+    const f = fixture();
+    const play = { entryId: "entry", playerId: "lounge", trackId: "track", friendId: 4, releaseId: "release", startedAt: new Date("2026-01-01") };
+    await f.store.queuePlay(play);
+    expect(f.query).toHaveBeenLastCalledWith(expect.stringContaining("ON CONFLICT (entry_id) DO NOTHING"), ["entry", "lounge", "track", 4, "release", play.startedAt]);
+    f.query.mockResolvedValue({ rows: [{ entry_id: "entry", player_id: "lounge", track_id: "track", friend_id: 4, release_id: "release", started_at: play.startedAt.toISOString() }] });
+    expect(await f.store.pendingPlays()).toEqual([play]);
+    await f.store.markPlayLogged("entry");
+    expect(f.query).toHaveBeenLastCalledWith(expect.stringContaining("logged_at IS NULL"), ["entry"]);
+  });
 });

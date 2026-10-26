@@ -5,12 +5,23 @@ import type { Track } from "@groovenet/client";
 export class ServerPlayerError extends Error {
   constructor(readonly code: string, message: string, readonly status = 409) { super(message); }
 }
+export interface ServerPlay {
+  entryId: string;
+  playerId: string;
+  trackId: string;
+  friendId: number;
+  releaseId: string;
+  startedAt: Date;
+}
 export interface PlayerStore {
   list(): Promise<ServerPlayer[]>;
   create(input: CreateServerPlayer, state: ServerPlayerState): Promise<ServerPlayer>;
   save(player: ServerPlayer, expectedRevision: number): Promise<ServerPlayer>;
   checkpoint(player: ServerPlayer): Promise<void>;
   resolve(ref: PlayerTrackRef): Promise<Track | null>;
+  queuePlay(play: ServerPlay): Promise<void>;
+  pendingPlays(): Promise<ServerPlay[]>;
+  markPlayLogged(entryId: string): Promise<void>;
 }
 
 /** Only the elected worker writes this table; every command also uses CAS. */
@@ -90,6 +101,22 @@ export class PostgresPlayerStore implements PlayerStore {
     const result = await this.pool.query("SELECT t.* FROM tracks t WHERE track_id=$1 AND friend_id=$2 LIMIT 2", [ref.track_id, ref.friend_id]);
     if (result.rows.length !== 1) return null;
     return result.rows[0] as Track;
+  }
+
+  async queuePlay(play: ServerPlay): Promise<void> {
+    await this.pool.query(`INSERT INTO server_player_plays (entry_id, player_id, track_id, friend_id, release_id, started_at)
+      VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (entry_id) DO NOTHING`,
+    [play.entryId, play.playerId, play.trackId, play.friendId, play.releaseId, play.startedAt]);
+  }
+
+  async pendingPlays(): Promise<ServerPlay[]> {
+    const result = await this.pool.query(`SELECT entry_id, player_id, track_id, friend_id, release_id, started_at
+      FROM server_player_plays WHERE logged_at IS NULL ORDER BY started_at`);
+    return result.rows.map(row => ({ entryId: row.entry_id, playerId: row.player_id, trackId: row.track_id, friendId: row.friend_id, releaseId: row.release_id, startedAt: new Date(row.started_at) }));
+  }
+
+  async markPlayLogged(entryId: string): Promise<void> {
+    await this.pool.query("UPDATE server_player_plays SET logged_at=now() WHERE entry_id=$1 AND logged_at IS NULL", [entryId]);
   }
 
   private mapError(error: unknown): unknown {

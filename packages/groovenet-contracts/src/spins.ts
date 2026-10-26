@@ -33,7 +33,7 @@ export const spinSessionSchema = z.object({
   id: z.number().int(),
   friend_id: z.number().int(),
   release_id: z.string(),
-  medium: spinMediumSchema.meta({ description: "`digital` for plays logged by the player daemon" }),
+  medium: spinMediumSchema.meta({ description: "`digital` for plays logged by local and server players" }),
   selection_mode: spinSelectionModeSchema,
   played_at: dateTime(),
   note: z.string().nullable().optional(),
