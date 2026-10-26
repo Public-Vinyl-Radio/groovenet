@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { playerIdSchema, type ServerPlayer } from "@groovenet/contracts";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { ServerPlayerController, type RemoteView } from "@/providers/server-player/controller";
@@ -13,6 +13,13 @@ const empty: RemoteView = { player: null, devices: [], connected: false, busy: f
 const noopSubscribe = () => () => {};
 const emptySnapshot = () => empty;
 
+type LocalQueue = Pick<ReturnType<typeof usePlaylistPlayer>, "playlist" | "currentTrackIndex" | "finishedTrack">;
+/** What joining a server takes from this device: the current track onward, never what already played. */
+export function upcomingLocalTracks({ playlist, currentTrackIndex, finishedTrack }: LocalQueue): Track[] {
+  if (currentTrackIndex !== null) return playlist.slice(currentTrackIndex);
+  return finishedTrack ? [] : playlist;
+}
+
 function useTargetState() {
   // An empty target means local; every valid named-player ID remains selectable.
   const [target, setTarget] = useState("");
@@ -20,6 +27,9 @@ function useTargetState() {
   const [authorized, setAuthorized] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const local = usePlaylistPlayer();
+  const localRef = useRef(local);
+  useEffect(() => { localRef.current = local; });
+  const pendingJoin = useRef<{ id: string; tracks: Track[] } | null>(null);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -34,15 +44,36 @@ function useTargetState() {
   useEffect(() => { if (authorized) void loadPlayers(); }, [authorized, loadPlayers]);
   const controller = useMemo(() => target !== "" && authorized ? new ServerPlayerController(target) : null, [target, authorized]);
   useEffect(() => controller?.start(), [controller]);
+  useEffect(() => {
+    const join = pendingJoin.current;
+    if (!controller || join?.id !== controller.id) return;
+    pendingJoin.current = null;
+    // The local queue is cleared only once its tracks are safely on the server.
+    void controller.join(join.tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id }))).then(joined => { if (joined) localRef.current.clearQueue(); });
+  }, [controller]);
   const remote = useSyncExternalStore(controller?.subscribe ?? noopSubscribe, controller?.getSnapshot ?? emptySnapshot, emptySnapshot);
-  const select = (next: string) => {
-    if (next !== "" && !playerIdSchema.safeParse(next).success) return;
-    // Pause only browser audio when explicitly leaving local mode. Remote
-    // subscriptions can be replaced without any server transport command.
-    if (target === "" && next !== "") local.pause();
+  const remember = (next: string) => {
     setTarget(next);
     try { localStorage.setItem(storageKey, next); } catch { /* optional preference */ }
   };
+  /**
+   * Join a server from this device: its upcoming local tracks are appended to
+   * the server queue (an idle server starts playing them), then the local
+   * queue is cleared so only one queue is in view. Moving between servers
+   * carries nothing over; the server keeps the queue whoever leaves.
+   */
+  const join = (id: string) => {
+    if (!playerIdSchema.safeParse(id).success || id === target) return;
+    if (target === "") {
+      const tracks = upcomingLocalTracks(local);
+      local.pause();
+      pendingJoin.current = tracks.length ? { id, tracks } : null;
+    } else pendingJoin.current = null;
+    remember(id);
+  };
+  /** Back to this device. The server is never sent a command: it keeps playing its queue. */
+  const playHere = () => { pendingJoin.current = null; remember(""); };
+  const select = (next: string) => next === "" ? playHere() : join(next);
   const unlock = async (passphrase: string) => {
     try { await playerApi.unlock(passphrase); setAuthorized(true); setProblem(null); }
     catch (error) { setProblem(error instanceof Error ? error.message : "Unable to unlock players"); }
@@ -51,7 +82,7 @@ function useTargetState() {
     try { await playerApi.lock(); setAuthorized(false); setPlayers([]); setProblem(null); }
     catch (error) { setProblem(error instanceof Error ? error.message : "Unable to lock players"); }
   };
-  return { target, select, players, authorized, unlock, lock, problem, reportProblem: setProblem, loadPlayers, controller, remote };
+  return { target, select, join, playHere, airPlayActive: local.isAirPlayActive, players, authorized, unlock, lock, problem, reportProblem: setProblem, loadPlayers, controller, remote };
 }
 const Context = createContext<ReturnType<typeof useTargetState> | null>(null);
 export function PlaybackTargetProvider({ children }: { children: ReactNode }) {

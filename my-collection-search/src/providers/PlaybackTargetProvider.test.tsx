@@ -2,11 +2,11 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { PlaybackTargetProvider, usePlaybackTarget, usePlaybackPlayer } from "./PlaybackTargetProvider";
+import { PlaybackTargetProvider, usePlaybackTarget, usePlaybackPlayer, upcomingLocalTracks } from "./PlaybackTargetProvider";
 import { player, device, workerA, entryB } from "@/test/serverPlayerFixtures";
 import { sampleTrack } from "@/stories/fixtures/track";
 import { playerApi } from "@/services/internalApi/players";
-const local = vi.hoisted(() => ({ playlist: [], playlistLength: 0, pause: vi.fn(), appendToQueue: vi.fn(), replacePlaylist: vi.fn() }));
+const local = vi.hoisted(() => ({ playlist: [] as unknown[], playlistLength: 0, currentTrackIndex: null as number | null, finishedTrack: null as unknown, isAirPlayActive: false, pause: vi.fn(), clearQueue: vi.fn(), appendToQueue: vi.fn(), replacePlaylist: vi.fn() }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({ usePlaylistPlayer: () => local }));
 vi.mock("@/services/internalApi/players", () => ({ playerApi: { session: vi.fn(), list: vi.fn(), unlock: vi.fn(), lock: vi.fn(), subscribe: vi.fn(), get: vi.fn(), command: vi.fn(), devices: vi.fn() } }));
 const api = vi.mocked(playerApi);
@@ -17,6 +17,7 @@ const mount = () => renderHook(() => ({ target: usePlaybackTarget(), playback: u
 const snapshot = (id = "lounge") => receive({ type: "snapshot", player: player(id), worker_instance: workerA, sequence: 1 });
 beforeEach(() => {
   vi.clearAllMocks(); localStorage.clear();
+  local.playlist = []; local.currentTrackIndex = null; local.finishedTrack = null;
   api.session.mockResolvedValue({ authorized: true }); api.list.mockResolvedValue([player(), player("aswitch")]); api.unlock.mockResolvedValue({ authorized: true }); api.lock.mockResolvedValue({});
   api.subscribe.mockImplementation((_id, event) => { receive = event; return close; });
   api.get.mockResolvedValue(player()); api.devices.mockResolvedValue([device]);
@@ -128,4 +129,63 @@ it("falls back to the first replacement entry when a requested index is out of r
   const command = api.command.mock.lastCall![1];
   if (command.type !== "queue.replace") throw new Error("Expected replacement");
   expect(command.current_entry_id).toBe(command.entries[0]!.id);
+});
+
+describe("join and Play here (#793)", () => {
+  const queued = (id: string) => ({ ...sampleTrack, track_id: id, friend_id: 1 });
+  const ready = async () => { const hook = mount(); await waitFor(() => expect(hook.result.current.target.authorized).toBe(true)); return hook; };
+
+  it("takes the current track onward, never what already played", () => {
+    const [a, b, c] = [queued("a"), queued("b"), queued("c")];
+    expect(upcomingLocalTracks({ playlist: [a, b, c], currentTrackIndex: 1, finishedTrack: null })).toEqual([b, c]);
+    expect(upcomingLocalTracks({ playlist: [a, b], currentTrackIndex: null, finishedTrack: null })).toEqual([a, b]);
+    expect(upcomingLocalTracks({ playlist: [a, b], currentTrackIndex: null, finishedTrack: b })).toEqual([]);
+  });
+
+  it("appends the local queue to a live server with one queue.add, then clears it locally", async () => {
+    local.playlist = [queued("played"), queued("now"), queued("next")]; local.currentTrackIndex = 1;
+    const hook = await ready();
+    act(() => hook.result.current.target.join("lounge"));
+    expect(local.pause).toHaveBeenCalledTimes(1); expect(local.clearQueue).not.toHaveBeenCalled();
+    const live = player(); live.state.status = "playing";
+    await act(async () => receive({ type: "snapshot", player: live, worker_instance: workerA, sequence: 1 }));
+    await waitFor(() => expect(local.clearQueue).toHaveBeenCalledTimes(1));
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "queue.add", tracks: [{ track_id: "now", friend_id: 1 }, { track_id: "next", friend_id: 1 }] }]);
+  });
+
+  it("starts an idle server on the first appended entry", async () => {
+    local.playlist = [queued("now")]; local.currentTrackIndex = 0;
+    const hook = await ready();
+    const appended = player("lounge", 4); appended.state.status = "stopped";
+    appended.state.queue.push({ id: "66666666-6666-4666-8666-666666666666", track_id: "now", friend_id: 1, title: "Now", artist: "A" });
+    api.command.mockResolvedValueOnce({ player: appended });
+    act(() => hook.result.current.target.join("lounge"));
+    const idle = player(); idle.state.status = "stopped";
+    await act(async () => receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 }));
+    await waitFor(() => expect(api.command).toHaveBeenCalledTimes(2));
+    expect(api.command.mock.calls[1]![1]).toEqual({ type: "play", entry_id: "66666666-6666-4666-8666-666666666666" });
+  });
+
+  it("keeps the local queue when the append fails", async () => {
+    local.playlist = [queued("now")]; local.currentTrackIndex = 0;
+    api.command.mockRejectedValueOnce(new Error("offline"));
+    const hook = await ready();
+    act(() => hook.result.current.target.join("lounge"));
+    await act(async () => snapshot());
+    await waitFor(() => expect(api.command).toHaveBeenCalledTimes(1));
+    expect(local.clearQueue).not.toHaveBeenCalled();
+  });
+
+  it("just switches with an empty local queue, carries nothing between servers, and Play here sends nothing", async () => {
+    const hook = await ready();
+    act(() => hook.result.current.target.join("lounge")); await act(async () => snapshot());
+    local.playlist = [queued("left-behind")]; local.currentTrackIndex = 0;
+    act(() => hook.result.current.target.join("lounge")); // already there
+    act(() => hook.result.current.target.join("aswitch")); await act(async () => snapshot("aswitch"));
+    act(() => hook.result.current.target.playHere());
+    expect(hook.result.current.target.target).toBe("");
+    expect(localStorage.getItem("mcs:playback-target")).toBe("");
+    expect(api.command).not.toHaveBeenCalled(); expect(local.clearQueue).not.toHaveBeenCalled();
+    expect(local.pause).toHaveBeenCalledTimes(1);
+  });
 });

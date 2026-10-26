@@ -244,7 +244,7 @@ test.describe("floating player", () => {
     await expect(page.getByTestId("floating-player")).toHaveCount(0);
     await expect(sheet.getByRole("group", { name: "Transport" })).toBeVisible();
     await expect(sheet.getByRole("slider", { name: "Seek" })).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Play on: Local browser" })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /^Play on: This / })).toBeVisible();
 
     // Sliders take the keyboard.
     const volume = sheet.getByRole("slider", { name: "Volume" });

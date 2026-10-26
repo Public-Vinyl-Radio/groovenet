@@ -36,4 +36,23 @@ describe("ProgressSlider", () => {
     expect(screen.getByRole("slider", { name: "Seek" }).getAttribute("aria-valuenow")).toBe("0");
     Object.assign(time, { currentTime: 36, duration: 242 });
   });
+
+  it("for a server, holds the drag and seeks once, on release", async () => {
+    const seek = vi.fn();
+    const { user } = renderWithProviders(<ProgressSlider seek={seek} seekOnRelease />);
+    screen.getByRole("slider", { name: "Seek" }).focus();
+    await user.keyboard("{End}");
+    expect(seek).toHaveBeenCalledTimes(1);
+    expect(seek).toHaveBeenLastCalledWith(242);
+  });
+
+  it("for a server, never seeks before the duration is known", async () => {
+    Object.assign(time, { currentTime: 0, duration: 0 });
+    const seek = vi.fn();
+    const { user } = renderWithProviders(<ProgressSlider seek={seek} seekOnRelease />);
+    screen.getByRole("slider", { name: "Seek" }).focus();
+    await user.keyboard("{End}");
+    expect(seek).not.toHaveBeenCalled();
+    Object.assign(time, { currentTime: 36, duration: 242 });
+  });
 });

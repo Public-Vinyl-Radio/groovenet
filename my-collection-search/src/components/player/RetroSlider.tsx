@@ -12,6 +12,8 @@ type Props = {
   /** Read out instead of the raw number, e.g. "0:36 of 4:02". */
   valueText?: string;
   onChange: (value: number) => void;
+  /** Once a drag or key press settles: for a remote target that should get one command, not a stream. */
+  onChangeEnd?: (value: number) => void;
   /** Thumb height; the track is always 10px. */
   thumbH?: string;
   width?: string;
@@ -30,10 +32,14 @@ export default function RetroSlider({
   step = 1,
   valueText,
   onChange,
+  onChangeEnd,
   thumbH = "22px",
   width,
   flex,
 }: Props) {
+  // The end event reports the controlled value, which a key press hasn't
+  // re-rendered yet: commit the last value this slider reported instead.
+  const last = React.useRef<number | null>(null);
   return (
     <Slider.Root
       width={width ?? "100%"}
@@ -44,7 +50,18 @@ export default function RetroSlider({
       aria-label={[label]}
       getAriaValueText={valueText === undefined ? undefined : () => valueText}
       thumbAlignment="center"
-      onValueChange={(e) => onChange(e.value[0])}
+      onValueChange={(e) => {
+        last.current = e.value[0];
+        onChange(e.value[0]);
+      }}
+      onValueChangeEnd={
+        onChangeEnd
+          ? (e) => {
+              onChangeEnd(last.current ?? e.value[0]);
+              last.current = null;
+            }
+          : undefined
+      }
     >
       <Slider.Control h={thumbH}>
         <Slider.Track bg="bg.panel" height="10px" borderWidth="outline" borderColor="border.ink" rounded="none">

@@ -2,9 +2,8 @@
 
 import React from "react";
 import { Box, Button, chakra, Drawer, Flex, Heading, Text, useBreakpointValue } from "@chakra-ui/react";
-import { FiCast, FiChevronDown, FiSave, FiTrash2, FiX } from "react-icons/fi";
+import { FiChevronDown, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { LuListMusic } from "react-icons/lu";
-import { usePlaylistPlayer, usePlaylistPlayerTime } from "@/providers/PlaylistPlayerProvider";
 import { useQueueSaveDialog } from "@/hooks/useQueueSaveDialog";
 import { useRootFlag } from "@/hooks/useRootFlag";
 import { usePlayerControlsController } from "@/components/player/usePlayerControlsController";
@@ -14,6 +13,9 @@ import MiniProgressLine from "@/components/player/MiniProgressLine";
 import RetroSlider from "@/components/player/RetroSlider";
 import QueueList from "@/components/player/QueueList";
 import { PlayOnRow } from "@/components/player/PlaybackOutput";
+import ServerNotice from "@/components/player/ServerNotice";
+import ServerSessionStrip from "@/components/player/ServerSessionStrip";
+import { usePlayerTime } from "@/components/player/usePlayerTime";
 import { CompactTransport, TransportStrip, type TransportProps } from "@/components/player/TransportControls";
 import { artworkAlt, artworkOf, queueSummary, trackMetaLine } from "@/components/player/trackMeta";
 import { formatSeconds } from "@/lib/trackUtils";
@@ -43,9 +45,8 @@ const HeaderKey = chakra("button", {
 });
 
 function useQueueModel() {
-  const { playlist, currentTrack, currentTrackIndex, moveTrackInQueue, removeFromQueue, playTrack, volume, setVolume } =
-    usePlaylistPlayer();
   const c = usePlayerControlsController();
+  const { playlist, currentTrack, currentTrackIndex } = c;
   const transport: TransportProps = {
     isPlaying: c.isPlaying,
     canPrev: c.canPrev,
@@ -60,17 +61,15 @@ function useQueueModel() {
     playlist,
     currentTrack,
     currentTrackIndex,
-    volume,
-    setVolume,
     transport,
     controller: c,
-    list: { playlist, currentTrackIndex, moveTrack: moveTrackInQueue, removeTrack: removeFromQueue, playTrack },
+    list: { playlist, currentTrackIndex, moveTrack: c.moveTrack, removeTrack: c.removeTrack, playTrack: c.playTrack },
   };
 }
 
 /** `0:45 / 4:02` beside the queue's compact transport. */
 function ElapsedOfTotal() {
-  const { currentTime, duration } = usePlaylistPlayerTime();
+  const { currentTime, duration } = usePlayerTime();
   return (
     <Text flex="1" fontFamily="mono" fontSize="12px" color="fg.muted" fontVariantNumeric="tabular-nums">
       {formatSeconds(currentTime)} / {formatSeconds(duration)}
@@ -106,10 +105,12 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
 
   const summary = queueSummary(model.playlist);
   const empty = model.playlist.length === 0;
-  // Clear, then close: the player hides with an empty queue, and Undo brings it back closed.
+  const server = model.controller.mode === "server";
+  // Clear, then close: the player hides with an empty queue, and Undo brings it
+  // back closed. A server's player stays, so its queue stays open too.
   const clear = () => {
     model.controller.handleClearQueue();
-    onClose();
+    if (!server) onClose();
   };
 
   if (!isMobile) {
@@ -147,6 +148,7 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
               <FiX size={18} />
             </HeaderKey>
           </Flex>
+          <ServerSessionStrip />
           <Box flex="1" minH={0} overflowY="auto">
             <QueueList {...model.list} />
           </Box>
@@ -208,37 +210,22 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       </Text>
                     )}
                   </Box>
-                  <ProgressSlider seek={model.controller.handleSeek} layout="stacked" />
+                  <ProgressSlider seek={model.controller.handleSeek} layout="stacked" seekOnRelease={server} />
                   <TransportStrip size="lg" {...model.transport} />
                   <Flex align="center" gap="12px">
-                    <Text w="40px" flexShrink={0} fontFamily="mono" fontSize="11px" letterSpacing="0.06em" fontWeight="semibold" color="fg.muted">
-                      VOL
+                    <Text w={server ? "64px" : "40px"} flexShrink={0} fontFamily="mono" fontSize="11px" lineHeight="13px" letterSpacing="0.06em" fontWeight="semibold" color="fg.muted">
+                      {model.controller.volumeLabel}
                     </Text>
                     <RetroSlider
-                      label="Volume"
-                      value={Math.round(model.volume * 100)}
-                      valueText={`${Math.round(model.volume * 100)}%`}
-                      onChange={(v) => model.setVolume(v / 100)}
+                      label={server ? "Server player volume" : "Volume"}
+                      value={Math.round(model.controller.volume * 100)}
+                      valueText={`${Math.round(model.controller.volume * 100)}%`}
+                      onChange={(v) => model.controller.setVolume(v / 100)}
+                      onChangeEnd={server ? (v) => model.controller.commitVolume(v / 100) : undefined}
                     />
                   </Flex>
-                  <Flex gap="8px">
-                    <Box flex="1" minW={0}>
-                      <PlayOnRow />
-                    </Box>
-                    {model.controller.isAirPlayAvailable && (
-                      <HeaderKey
-                        aria-label="AirPlay"
-                        aria-pressed={model.controller.isAirPlayActive}
-                        onClick={model.controller.handleAirPlayClick}
-                        h="48px"
-                        w="48px"
-                        borderWidth="outline"
-                        borderColor="border.ink"
-                      >
-                        <FiCast size={18} />
-                      </HeaderKey>
-                    )}
-                  </Flex>
+                  <ServerNotice />
+                  <PlayOnRow />
                 </Flex>
               </>
             ) : (
@@ -263,6 +250,7 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                     <FiTrash2 size={18} />
                   </HeaderKey>
                 </Flex>
+                <ServerSessionStrip />
                 <Box flex="1" minH={0} overflowY="auto">
                   <QueueList {...model.list} />
                 </Box>

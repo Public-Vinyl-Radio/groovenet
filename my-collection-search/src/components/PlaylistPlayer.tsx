@@ -3,7 +3,8 @@
 
 import React from "react";
 import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
-import { PlaybackTargetControl } from "@/components/player/PlaybackTargetControl";
+import PlayOnPicker from "@/components/player/PlayOnPicker";
+import ServerNotice, { useServerNotice } from "@/components/player/ServerNotice";
 import { Box, useBreakpointValue } from "@chakra-ui/react";
 import { usePathname } from "next/navigation";
 import PlayerControls from "@/components/PlayerControls";
@@ -61,19 +62,39 @@ const PlaylistPlayer: React.FC = () => {
   const currentPath = pathname ? pathname.split("?")[0] : "";
   const hideForMobileEdit = isMobile && isMobileFullscreenEditRoute(currentPath);
 
+  // A music server keeps its player in view even with an empty queue: it is
+  // where audio plays, and where its status and errors show.
   const serverMode = target !== null && target.target !== "";
-  const visible = !serverMode && playlistLength > 0 && !hideForMobileEdit;
-  // Keep the current shell's safe-area and bottom-chrome geometry in local mode.
+  const visible = (serverMode || playlistLength > 0) && !hideForMobileEdit;
+  const notice = useServerNotice();
   useRootFlag("data-player", visible);
-
-  if (!visible) {
-    return <>{target && <PlaybackTargetControl key="target" />}</>;
-  }
 
   return (
     <>
-      {target && <PlaybackTargetControl key="target" />}
-      {/* On phones Now playing covers the screen; the desktop bar stays under the queue panel. */}
+      {/* One stable position, so the picker survives the player appearing or hiding under it. */}
+      {target && <PlayOnPicker />}
+      {visible && <VisiblePlayer notice={notice} isOpen={isOpen} isMobile={isMobile} toggle={toggle} />}
+    </>
+  );
+};
+
+function VisiblePlayer({ notice, isOpen, isMobile, toggle }: { notice: ReturnType<typeof useServerNotice>; isOpen: boolean; isMobile: boolean; toggle: () => void }) {
+  return (
+    <>
+      {/* On phones Now playing covers the screen (and shows the notice itself); the desktop bar stays under the queue panel. */}
+      {notice && !(isOpen && isMobile) && (
+        <Box
+          position="fixed"
+          zIndex={100}
+          left={{ base: "8px", md: "auto" }}
+          right={{ base: "8px", md: "calc(var(--queue-w) + 16px)" }}
+          bottom="calc(var(--chrome-bottom) + 14px)"
+          w={{ base: "auto", md: "420px" }}
+          boxShadow="md"
+        >
+          <ServerNotice notice={notice} />
+        </Box>
+      )}
       {!(isOpen && isMobile) && (
         <PlayerContainer>
           <PlayerControls
@@ -95,6 +116,6 @@ const PlaylistPlayer: React.FC = () => {
       />
     </>
   );
-};
+}
 
 export default PlaylistPlayer;

@@ -1,4 +1,4 @@
-import type { ServerPlayer, ServerPlayerCommandInput, ServerPlayerDevice, serverPlayerStreamEventSchema } from "@groovenet/contracts";
+import type { PlayerTrackRef, ServerPlayer, ServerPlayerCommandInput, ServerPlayerDevice, serverPlayerStreamEventSchema } from "@groovenet/contracts";
 import { playerApi } from "@/services/internalApi/players";
 
 type WithoutRevision<T> = T extends unknown ? Omit<T, "expected_revision"> : never;
@@ -12,6 +12,10 @@ export type RemoteView = {
   player: ServerPlayer | null; devices: ServerPlayerDevice[]; connected: boolean; busy: boolean;
   problem: string | null; acknowledgement: { command: ConnectingEdit; code: string; revision: number; expectedRevision?: number } | null;
 };
+/** Nothing is playing or loading: joining starts a session with the joiner's queue. */
+export const isIdle = (player: ServerPlayer) => player.state.current_entry_id === null || player.state.status === "stopped" || player.state.status === "ended";
+/** A session is under way (the picker's LIVE tag). */
+export const isLive = (player: ServerPlayer) => ["playing", "paused", "loading"].includes(player.state.status);
 const message = (error: unknown) => error instanceof Error ? error.message : "Player request failed";
 const code = (error: unknown) => (error as { data?: { code?: string } })?.data?.code;
 
@@ -26,10 +30,22 @@ export class ServerPlayerController {
   private worker?: string;
   private sequence = -1;
   private reconnecting = false;
+  private waiters: Array<(ready: boolean) => void> = [];
+  private pendingVolume?: number;
   constructor(readonly id: string, private api = playerApi) {}
   getSnapshot = () => this.view;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  private update(patch: Partial<RemoteView>) { this.view = { ...this.view, ...patch }; this.listeners.forEach(listener => listener()); }
+  private update(patch: Partial<RemoteView>) {
+    this.view = { ...this.view, ...patch }; this.listeners.forEach(listener => listener());
+    if (this.view.connected && this.view.player && this.waiters.length) this.settle(true);
+  }
+  private settle(ready: boolean) { const waiters = this.waiters; this.waiters = []; waiters.forEach(done => done(ready)); }
+  /** Resolves once a fresh snapshot arrives, or false if the controller closes first. */
+  ready(): Promise<boolean> {
+    if (this.closed) return Promise.resolve(false);
+    if (this.view.connected && this.view.player) return Promise.resolve(true);
+    return new Promise(done => this.waiters.push(done));
+  }
 
   start = () => {
     this.closed = false;
@@ -37,7 +53,7 @@ export class ServerPlayerController {
     this.connect();
     return () => this.close();
   };
-  close() { this.closed = true; ++this.generation; this.unsubscribe?.(); clearTimeout(this.timer); }
+  close() { this.closed = true; ++this.generation; this.unsubscribe?.(); clearTimeout(this.timer); this.settle(false); }
   private connect() {
     const generation = ++this.generation;
     this.unsubscribe?.();
@@ -90,7 +106,31 @@ export class ServerPlayerController {
       if (!this.closed && generation === this.generation) this.update({ problem: `Refresh failed: ${message(error)}` });
     }
   };
-  dismissAcknowledgement = () => this.update({ acknowledgement: null });
+  // The rejection that raised the confirm goes with it.
+  dismissAcknowledgement = () => this.update({ acknowledgement: null, problem: null });
+  dismissProblem = () => this.update({ problem: null });
+  /**
+   * Joins this server with another device's upcoming tracks: one append, then,
+   * only when the server was idle, play the first appended entry. True once the
+   * tracks are on the server, whether or not playback still awaits a confirm.
+   */
+  async join(tracks: PlayerTrackRef[]): Promise<boolean> {
+    if (!tracks.length || !(await this.ready())) return false;
+    const before = this.view.player!;
+    const existing = new Set(before.state.queue.map(entry => entry.id));
+    const added = await this.command({ type: "queue.add", tracks });
+    if (!added) return false;
+    const first = added.state.queue.find(entry => !existing.has(entry.id));
+    if (isIdle(before) && first) await this.command({ type: "play", entry_id: first.id });
+    return true;
+  }
+  /** Latest-wins volume: a change made while a command is in flight is sent when it finishes. */
+  setVolume = (volume: number) => { this.pendingVolume = volume; void this.flushVolume(); };
+  private async flushVolume() {
+    if (this.pendingVolume === undefined || this.view.busy || !this.view.connected || this.closed) return;
+    const volume = this.pendingVolume; this.pendingVolume = undefined;
+    if (volume !== this.view.player?.state.volume) await this.command({ type: "volume", volume });
+  }
   acknowledge = async () => {
     const acknowledgement = this.view.acknowledgement;
     if (!acknowledgement) return;
@@ -123,7 +163,7 @@ export class ServerPlayerController {
       await this.refresh();
       return null;
     } finally {
-      if (!this.closed && generation === this.generation) this.update({ busy: false });
+      if (!this.closed && generation === this.generation) { this.update({ busy: false }); void this.flushVolume(); }
     }
   }
 }

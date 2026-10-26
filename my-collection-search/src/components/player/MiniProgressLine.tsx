@@ -2,11 +2,11 @@
 
 import React from "react";
 import { Box } from "@chakra-ui/react";
-import { usePlaylistPlayerTime } from "@/providers/PlaylistPlayerProvider";
+import { usePlayerTime } from "@/components/player/usePlayerTime";
 
 /** The mini player's 4px accent progress line. Read-only: seeking lives in Now playing. */
 export default function MiniProgressLine() {
-  const { currentTime, duration } = usePlaylistPlayerTime();
+  const { currentTime, duration } = usePlayerTime();
   const pct = duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
 
   return (

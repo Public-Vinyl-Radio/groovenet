@@ -116,6 +116,8 @@ export const queryKeys = {
   /** Under "genres", so a taxonomy edit refreshes the counts too. */
   trackGenreFacets: (args: { q?: string; filter?: string; attributes?: TrackAttributeFilters }) =>
     ["genres", "track-facets", args] as const,
+  /** Track rows behind a server player's queue, keyed by the sorted unique refs. */
+  serverQueueTracks: (refs: readonly string[]) => ["server-queue-tracks", ...refs] as const,
   trackById: (track_id: string, friend_id: number) =>
     ["track", "by-id", track_id, friend_id] as const,
   trackPlaylists: (track_id: string, friend_id: number) =>

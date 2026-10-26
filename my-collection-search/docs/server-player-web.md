@@ -1,55 +1,90 @@
 # Control server players from the web
 
-Open **Playback: Local browser** to unlock server access and choose a configured
-named player. Local audio stays in this browser; server audio runs independently
-on Debian. The viewed player is remembered on this device, without starting
-playback. Switching away from local mode pauses browser audio and preserves its
-queue. Switching server players, navigating, closing the panel/browser, locking
-browser access or losing events leaves server audio alone.
-
-Each player has its own queue and one engine/output. Multiple players can listen
-simultaneously. Synchronized groups and browser player/engine administration are
+A **music server** (a named player) owns its queue and playback. Any browser
+can connect to it and acts as a remote; the queue stays on the server when
+every device disconnects, and anyone connected can edit or overwrite it (last
+write wins). Each server has its own queue and one engine/output; several can
+play at once. Synchronized groups and browser player/engine administration are
 not included. Operators configure players through the existing CLI/API; see
 [server players](../../packages/groovenet-player/SERVER_PLAYERS.md).
 
-Collection play/enqueue actions and keyboard playback shortcuts target the
-selected mode. In server mode, **Play now atomically replaces the server queue
-and starts the selected entry**. Every track is resolved before the old queue
-or playback changes; failures do not half-clear it. Enqueue appends without
-starting audio. Queue remove/move/play actions identify individual entry UUIDs,
-so duplicate tracks and different friends' track references remain distinct.
-Local behavior stays with the existing browser player.
+## Play on
 
-**Clear server queue** stops and empties the server queue in one action and
-shows a **Queue cleared · Undo** toast after success. Undo restores the original
-entry UUIDs, current entry and saved position through `queue.replace`, and
-restarts audio only if it was playing before Clear. A paused queue returns as a
-stopped checkpoint until Play. Undo is unavailable if another server edit has
-been observed since Clear; Undo also supplies the cleared revision so the server
-rejects an edit from another controller that has not reached this browser yet.
-Playback restoration remains subject to the normal output availability checks.
+**Play on** chooses where audio plays. Open it from Now playing's `PLAY ON`
+row (phones), the desktop bar's output button, or **Playback** in the
+navigation. It is the shared retro modal: this device (`This iPhone`,
+`This Mac`, ...) and then `MUSIC SERVERS`, every player from `GET /api/players`,
+fetched each time the picker opens. A server whose status is playing, paused or
+loading is `LIVE` ("Session live"); anything else is `IDLE`. Choosing a row only
+previews it; the footer button confirms.
 
-The server panel shows current track, status, elapsed/duration, saved checkpoint,
-requested sender volume, queue, desired output, actual assignment and independent
-observed speaker activity. Sender volume is not measured receiver loudness;
-Lounge currently ignores it. Remembering a desired output does not connect or
-claim it. Unknown activity and occupied activity require deliberate acknowledgement
-before connection. Acknowledgements are tied to the rejected command’s revision;
-a change elsewhere requires reviewing and repeating the action. Another player's claim requires a separately reviewed transfer,
-including its source revision. Transfers default to no destination playback.
-The optional start-playback checkbox requires any observed unknown/occupied
-acknowledgement before confirmation. Activity can still change between observation
-and connection.
+- **Join a server** from this device: the local queue *from the current track
+  onward* (never what already played) is appended to the end of the server's
+  queue with one `queue.add`. If the server was idle (stopped, ended or with no
+  current entry), the first appended entry then plays. Local audio pauses, and
+  once the append succeeds the local queue is cleared so there is only one
+  queue in view; a failed append leaves it intact. An empty local queue just
+  switches. Moving from one server to another carries nothing over.
+- **Play here** switches back to this device. The server is never sent a
+  command: it keeps playing its queue.
+- **AirPlay…** under `FROM THIS DEVICE` opens the system picker, and only
+  appears where the browser has one (WebKit's `webkitShowPlaybackTargetPicker`).
+  AirPlay carries this device's audio, so it switches back here first.
 
-A transfer can return success HTTP status while detaching the source and failing
-the destination. The panel exposes both phases and the failure; it never restores
-the source or retries playback automatically. Playback errors remain visible
-through queue/settings edits, including a compact alert while browsing. Reconnects
-wait for a fresh full snapshot and reject old connections, workers, sequences,
-revisions and entries. Normal browser commands omit `expected_revision`, so two
-controllers can edit the same player without revision-conflict prompts. Commands
-for removed queue entries report `ENTRY_NOT_FOUND` and refresh the view. Refresh
-outputs to obtain a new device observation.
+The chosen server is remembered on this device without starting playback.
+Closing the picker or any player UI, navigating, reloading, locking browser
+access or losing the event stream never pauses, stops or clears a server.
+
+## One player for both
+
+In server mode the mini player, Now playing, the queue and the desktop bar are
+the same ones as local mode, reading the server's snapshot. The mini player
+tags `ON <SERVER>` (or `AIRPLAY` for local AirPlay); the `PLAY ON` row and the
+desktop output button name the server; the volume is `SERVER VOL`, sent as one
+`volume` command once the slider settles (sender volume, which some receivers,
+including Lounge, ignore). Seeking also commits on release. The queue shows a
+`SERVER SESSION` strip with the server's name, "shared queue" and **Play here**.
+Queue rows load their tracks from the collection, keeping the server's title
+and artist until they do; play, remove and move address individual entry UUIDs,
+so duplicate tracks and different friends' copies stay distinct. Position runs
+on locally between the server's position events. There are no device counts,
+connected-device lists or "added by" labels.
+
+Collection play/enqueue actions and keyboard shortcuts target the selected
+mode. In server mode **Play now atomically replaces the server queue** with
+`queue.replace` and starts the selected entry; enqueue appends without starting
+audio.
+
+**Clear** is one tap and a **Queue cleared · Undo** toast, as locally. Undo
+restores the original entry UUIDs, current entry and saved position through
+`queue.replace`, restarting audio only if it was playing. It is refused once
+another edit has been observed since Clear, and it supplies the cleared
+revision so the server rejects it if another controller edited first.
+
+## Speaker availability and problems
+
+Until Home Assistant speaker detection is configured (#797), `play`/`resume`
+can come back `AVAILABILITY_UNKNOWN` or `SPEAKER_OCCUPIED`. The player shows a
+compact inline confirm, "Speaker status unknown · Play anyway" (or "Speaker in
+use · Take over"), floating above the player, in Now playing and in the
+picker. Confirming resends the same command with `allow_unknown` or `takeover`;
+it is never acknowledged automatically, and it is refused if the player changed
+meanwhile. Once detection is configured the prompt stops appearing.
+
+The same strip carries what needs attention: locked or expired browser access
+(with **Unlock**, which opens the picker), the server's own playback error, and
+failed requests such as a lost connection (reconnects wait for a fresh full
+snapshot and reject old connections, workers, sequences, revisions and
+entries).
+
+**Speaker details**, from the connected server's preview in the picker, keeps
+output routing out of the everyday player: desired output against actual
+assignment, each speaker's observed activity, remembering a desired output
+(which neither connects nor plays), and a reviewed transfer from the player
+that holds an output. Transfers default to no destination playback; starting
+it needs the unknown/occupied confirm first. A transfer can return HTTP 200
+having detached the source and failed the destination; both phases and the
+failure are shown, and nothing is retried or restored automatically.
 
 ## Browser authorization
 

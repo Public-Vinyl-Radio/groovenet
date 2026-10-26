@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Box, chakra, Flex, Grid, Text, VStack } from "@chakra-ui/react";
-import { FiCast, FiList } from "react-icons/fi";
+import { FiList } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import type { Track } from "@/types/track";
 import ProgressSlider from "@/components/player/ProgressSlider";
@@ -11,7 +11,7 @@ import ArtistLink from "@/components/ArtistLink";
 import AlbumLink from "@/components/AlbumLink";
 import MiniProgressLine from "@/components/player/MiniProgressLine";
 import RetroSlider from "@/components/player/RetroSlider";
-import { OutputButton } from "@/components/player/PlaybackOutput";
+import { OutputButton, OutputTag } from "@/components/player/PlaybackOutput";
 import { BareTransportButton, SquarePlayButton, TransportStrip } from "@/components/player/TransportControls";
 import { artworkAlt, artworkOf, trackMetaLine } from "@/components/player/trackMeta";
 
@@ -31,10 +31,11 @@ interface PlayerControlsViewProps {
   playNext: () => void;
   volume: number;
   setVolume: (value: number) => void;
+  /** The volume slider settled (a server gets one command); mute calls it too. */
+  onVolumeCommit?: (value: number) => void;
   VolumeIcon: IconType;
-  isAirPlayAvailable: boolean;
-  isAirPlayActive: boolean;
-  onAirPlayClick: () => void;
+  /** A music server is the target: seek on release, and the volume is the server's. */
+  serverMode?: boolean;
   onPlay: () => void;
   onPause: () => void;
   onSeek: (time: number) => Promise<void>;
@@ -70,10 +71,9 @@ export default function PlayerControlsView({
   playNext,
   volume,
   setVolume,
+  onVolumeCommit,
   VolumeIcon,
-  isAirPlayAvailable,
-  isAirPlayActive,
-  onAirPlayClick,
+  serverMode = false,
   onPlay,
   onPause,
   onSeek,
@@ -138,6 +138,7 @@ export default function PlayerControlsView({
               <Text color="fg.muted" fontSize="12px" lineHeight="16px" lineClamp={1} maxW="100%">
                 {secondaryText}
               </Text>
+              <OutputTag />
             </VStack>
           </chakra.button>
           <SquarePlayButton {...transport} />
@@ -197,35 +198,33 @@ export default function PlayerControlsView({
       <VStack gap="8px" minW={0}>
         <TransportStrip size="md" {...transport} />
         <Box w="100%" maxW="560px">
-          <ProgressSlider seek={onSeek} layout="inline" />
+          <ProgressSlider seek={onSeek} layout="inline" seekOnRelease={serverMode} />
         </Box>
       </VStack>
 
       <Flex align="center" justify="flex-end" gap="10px" minW={0}>
         <OutputButton />
-        {isAirPlayAvailable && (
-          <BarButton
-            aria-label="AirPlay"
-            title="AirPlay"
-            aria-pressed={isAirPlayActive}
-            onClick={onAirPlayClick}
-            bg={isAirPlayActive ? "bg.muted" : undefined}
-          >
-            <FiCast size={18} />
-          </BarButton>
-        )}
         {showVolumeControls && (
           <>
-            <BarButton aria-label={volume === 0 ? "Unmute" : "Mute"} onClick={() => setVolume(volume === 0 ? 0.8 : 0)}>
+            <BarButton
+              aria-label={volume === 0 ? "Unmute" : "Mute"}
+              onClick={() => {
+                const next = volume === 0 ? 0.8 : 0;
+                setVolume(next);
+                onVolumeCommit?.(next);
+              }}
+            >
               <VolumeIcon size={18} />
             </BarButton>
-            <Box display={{ base: "none", lg: "block" }} w="96px" flexShrink={0}>
+            {/* Gives way before the output button's name does. */}
+            <Box display={{ base: "none", lg: "block" }} flex="0 1 96px" minW="56px">
               <RetroSlider
-                label="Volume"
+                label={serverMode ? "Server player volume" : "Volume"}
                 value={Math.round(volume * 100)}
                 valueText={`${Math.round(volume * 100)}%`}
                 thumbH="18px"
                 onChange={(v) => setVolume(v / 100)}
+                onChangeEnd={onVolumeCommit ? (v) => onVolumeCommit(v / 100) : undefined}
               />
             </Box>
           </>

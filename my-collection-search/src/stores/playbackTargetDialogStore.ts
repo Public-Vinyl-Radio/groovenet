@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-/** Open state of the playback-target dialog, so triggers in the nav can open the one dialog `PlaylistPlayer` mounts. */
+/** Open state of the Play on picker, so triggers in the nav and the player open the one picker `PlaylistPlayer` mounts. */
 export const usePlaybackTargetDialog = create<{
   open: boolean;
   setOpen: (open: boolean) => void;

@@ -23,6 +23,9 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   usePlaylistPlayerTime: () => ({ currentTime: 45, duration: 242 }),
 }));
 const controller = vi.hoisted(() => ({
+  mode: "local" as "local" | "server",
+  volumeLabel: "VOL",
+  commitVolume: vi.fn(),
   isPlaying: true,
   canPrev: true,
   canNext: true,
@@ -37,10 +40,23 @@ const controller = vi.hoisted(() => ({
   isAirPlayAvailable: false,
   isAirPlayActive: false,
 }));
-vi.mock("@/components/player/usePlayerControlsController", () => ({ usePlayerControlsController: () => controller }));
+vi.mock("@/components/player/usePlayerControlsController", () => ({
+  usePlayerControlsController: () => ({
+    ...controller,
+    playlist: player.playlist,
+    currentTrack: player.currentTrack,
+    currentTrackIndex: player.currentTrackIndex,
+    volume: player.volume,
+    setVolume: player.setVolume,
+    moveTrack: player.moveTrackInQueue,
+    removeTrack: player.removeFromQueue,
+    playTrack: player.playTrack,
+  }),
+}));
 const openSave = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useQueueSaveDialog", () => ({ useQueueSaveDialog: () => ({ Dialog: () => null, open: openSave }) }));
-vi.mock("@/components/player/PlaybackTargetControl", () => ({ usePlaybackTargetLabel: () => "Local browser" }));
+vi.mock("@/components/player/PlaybackOutput", () => ({ PlayOnRow: () => <button aria-label="Play on: This iPhone">PLAY ON</button> }));
+vi.mock("@/components/player/ServerSessionStrip", () => ({ default: () => <section aria-label="Server session">SERVER SESSION</section> }));
 
 import QueueDrawer from "./QueueDrawer";
 
@@ -52,6 +68,8 @@ beforeEach(() => {
   player.currentTrack = player.playlist[0];
   player.currentTrackIndex = 0;
   controller.isAirPlayAvailable = false;
+  controller.mode = "local";
+  controller.volumeLabel = "VOL";
 });
 afterEach(() => setViewportWidth(1280));
 
@@ -66,7 +84,7 @@ describe("QueueDrawer — phone", () => {
     expect(screen.getByRole("slider", { name: "Seek" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "Volume" })).toBeTruthy();
     expect(screen.getByRole("group", { name: "Transport" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Play on: Local browser" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Play on: This iPhone" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "AirPlay" })).toBeNull();
   });
 
@@ -81,14 +99,31 @@ describe("QueueDrawer — phone", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("minimizes, and offers AirPlay when Safari has it", async () => {
+  it("minimizes; AirPlay lives in the Play on picker, not beside the row", async () => {
     controller.isAirPlayAvailable = true;
     const onClose = vi.fn();
     const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
-    await user.click(await screen.findByRole("button", { name: "AirPlay" }));
-    expect(controller.handleAirPlayClick).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByRole("button", { name: "Minimize player" }));
+    expect(screen.queryByRole("button", { name: "AirPlay" })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Minimize player" }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("on a server: SERVER VOL commits once settled, the queue shows its session, and Clear keeps it open", async () => {
+    controller.mode = "server";
+    controller.volumeLabel = "SERVER VOL";
+    const onClose = vi.fn();
+    const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    expect(await screen.findByText("SERVER VOL")).toBeTruthy();
+    const volume = screen.getByRole("slider", { name: "Server player volume" });
+    volume.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(player.setVolume).toHaveBeenLastCalledWith(0.51);
+    expect(controller.commitVolume).toHaveBeenLastCalledWith(0.51);
+    await user.click(screen.getByRole("button", { name: "Open queue, 2 up next" }));
+    expect(screen.getByRole("region", { name: "Server session" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Clear queue" }));
+    expect(controller.handleClearQueue).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("moves to the queue and back, with Save, Clear and a compact transport", async () => {

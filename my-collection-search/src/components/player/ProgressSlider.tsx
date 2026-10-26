@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
-import { usePlaylistPlayerTime } from "@/providers/PlaylistPlayerProvider";
+import { usePlayerTime } from "@/components/player/usePlayerTime";
 import { formatSeconds } from "@/lib/trackUtils";
 import RetroSlider from "@/components/player/RetroSlider";
 
@@ -13,6 +13,8 @@ type Props = {
    * `stacked` (Now playing): the slider over elapsed and time remaining.
    */
   layout?: "inline" | "stacked";
+  /** Seek once on release (a server player) instead of scrubbing while dragging. */
+  seekOnRelease?: boolean;
 };
 
 const timeCss = {
@@ -22,10 +24,12 @@ const timeCss = {
   fontVariantNumeric: "tabular-nums",
 } as const;
 
-const ProgressSlider: React.FC<Props> = React.memo(({ seek, layout = "inline" }) => {
-  const { currentTime, duration } = usePlaylistPlayerTime();
-  const elapsed = currentTime || 0;
+const ProgressSlider: React.FC<Props> = React.memo(({ seek, layout = "inline", seekOnRelease = false }) => {
+  const { currentTime, duration } = usePlayerTime();
+  const [dragPct, setDragPct] = React.useState<number | null>(null);
   const total = duration || 0;
+  const toSeconds = (next: number) => (Math.max(0, Math.min(100, next)) / 100) * total;
+  const elapsed = dragPct === null ? currentTime || 0 : toSeconds(dragPct);
   const pct = total > 0 ? Math.max(0, Math.min(100, (elapsed / total) * 100)) : 0;
 
   const slider = (
@@ -37,9 +41,19 @@ const ProgressSlider: React.FC<Props> = React.memo(({ seek, layout = "inline" })
       thumbH={layout === "inline" ? "18px" : "22px"}
       flex="1"
       onChange={(next) => {
-        const target = (Math.max(0, Math.min(100, next)) / 100) * total;
+        if (seekOnRelease) return setDragPct(next);
+        const target = toSeconds(next);
         if (Number.isFinite(target)) seek(target);
       }}
+      onChangeEnd={
+        seekOnRelease
+          ? (next) => {
+              setDragPct(null);
+              const target = toSeconds(next);
+              if (Number.isFinite(target) && total > 0) seek(target);
+            }
+          : undefined
+      }
     />
   );
 

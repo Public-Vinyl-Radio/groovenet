@@ -22,9 +22,6 @@ const baseArgs = {
   volume: 0.8,
   setVolume: noop,
   VolumeIcon: FiVolume2,
-  isAirPlayAvailable: false,
-  isAirPlayActive: false,
-  onAirPlayClick: noop,
   onPlay: noop,
   onPause: noop,
   onSeek: noopAsync,
@@ -72,20 +69,12 @@ export const Muted: Story = {
   },
 };
 
-export const WithAirPlay: Story = {
-  name: 'AirPlay available',
+export const ServerVolume: Story = {
+  name: 'Server player (server volume, seek on release)',
   args: {
-    isAirPlayAvailable: true,
-    isAirPlayActive: false,
-  },
-};
-
-export const AirPlayActive: Story = {
-  name: 'AirPlay active',
-  args: {
-    isAirPlayAvailable: true,
-    isAirPlayActive: true,
     isPlaying: true,
+    serverMode: true,
+    showVolumeControls: true,
   },
 };
 
