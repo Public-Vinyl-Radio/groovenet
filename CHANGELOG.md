@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.3.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.9...v0.3.10) (2026-10-26)
+
+
+### Features
+
+* **api:** playlist list returns covers, set data and collaborator ([#778](https://github.com/Public-Vinyl-Radio/groovenet/issues/778)) ([db8a07f](https://github.com/Public-Vinyl-Radio/groovenet/commit/db8a07fcdf3779b7517a9bdb7d4b3d5029472629))
+* **player:** allow commands without expected revision ([#810](https://github.com/Public-Vinyl-Radio/groovenet/issues/810)) ([f2fe8ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/f2fe8ef5b59a0b27b08d5969b4d67c2a35126679))
+* **player:** atomic queue replacement and HA sender recognition ([#807](https://github.com/Public-Vinyl-Radio/groovenet/issues/807)) ([2e20762](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e20762575314edccc73adb0a93182b0d901c00b))
+* **player:** log server player plays per queue entry ([#814](https://github.com/Public-Vinyl-Radio/groovenet/issues/814)) ([facd807](https://github.com/Public-Vinyl-Radio/groovenet/commit/facd807989d20046c17716cec4c6dbe295521cd3))
+* **player:** make browser session lifetime configurable ([#808](https://github.com/Public-Vinyl-Radio/groovenet/issues/808)) ([cff09aa](https://github.com/Public-Vinyl-Radio/groovenet/commit/cff09aa3eb55ed615bcef66dd762086d887aa049))
+* **player:** persist per-player availability policy ([#813](https://github.com/Public-Vinyl-Radio/groovenet/issues/813)) ([fe91b34](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe91b347d6ee25ee78878d97e367ab3241bda98a))
+* **player:** play on picker and shared server queue in the main player ([#811](https://github.com/Public-Vinyl-Radio/groovenet/issues/811)) ([0f7c849](https://github.com/Public-Vinyl-Radio/groovenet/commit/0f7c849ca037eb4b7be69e8ea20cf98441822926))
+* **player:** provision web credentials from 1Password ([#755](https://github.com/Public-Vinyl-Radio/groovenet/issues/755)) ([427983b](https://github.com/Public-Vinyl-Radio/groovenet/commit/427983b44c19d4b76138dc08f05a457dce6349f9))
+* **ui:** album actions menu as a retro modal on phones ([#763](https://github.com/Public-Vinyl-Radio/groovenet/issues/763)) ([#785](https://github.com/Public-Vinyl-Radio/groovenet/issues/785)) ([72eb4b0](https://github.com/Public-Vinyl-Radio/groovenet/commit/72eb4b0c94425acadd9be285f65350736455b5fd))
+* **ui:** centred retro modals replace mobile bottom sheets ([#752](https://github.com/Public-Vinyl-Radio/groovenet/issues/752)) ([ea97a6a](https://github.com/Public-Vinyl-Radio/groovenet/commit/ea97a6a3e886940f12a927a04708fb0e0df1f7fc))
+* **ui:** group playlists by month with timeline dividers ([#775](https://github.com/Public-Vinyl-Radio/groovenet/issues/775)) ([ac4b321](https://github.com/Public-Vinyl-Radio/groovenet/commit/ac4b3217e22e8bf25dd92865f38cab23feb64708))
+* **ui:** live set ticket card ([#779](https://github.com/Public-Vinyl-Radio/groovenet/issues/779)) ([61939f6](https://github.com/Public-Vinyl-Radio/groovenet/commit/61939f664aab1bea6da05f71ad8c078ee03816eb))
+* **ui:** playlist card with cover mosaic ([#776](https://github.com/Public-Vinyl-Radio/groovenet/issues/776)) ([ed08921](https://github.com/Public-Vinyl-Radio/groovenet/commit/ed08921aa6d88ad4813ffe975ed58a0231fb4f3d))
+* **ui:** playlist timeline day column ([#780](https://github.com/Public-Vinyl-Radio/groovenet/issues/780)) ([73ff445](https://github.com/Public-Vinyl-Radio/groovenet/commit/73ff4450d8e34c75cb834bf22ab8b26e0fc3c8e5))
+* **ui:** playlists desktop cards view ([#782](https://github.com/Public-Vinyl-Radio/groovenet/issues/782)) ([fd7d9c9](https://github.com/Public-Vinyl-Radio/groovenet/commit/fd7d9c9309b9caccc31590e7feb253c8a718f5e3))
+* **ui:** playlists desktop list view ([#784](https://github.com/Public-Vinyl-Radio/groovenet/issues/784)) ([344ceb1](https://github.com/Public-Vinyl-Radio/groovenet/commit/344ceb16e50d25e4c7182b259a6d1ef0d14c461f))
+* **ui:** playlists page header and toolbar ([#774](https://github.com/Public-Vinyl-Radio/groovenet/issues/774)) ([0cdbbd7](https://github.com/Public-Vinyl-Radio/groovenet/commit/0cdbbd76c75fb0fa846ccccc80baa21f48dfb701))
+* **ui:** record and spin form sheets as retro modals on phones ([#763](https://github.com/Public-Vinyl-Radio/groovenet/issues/763)) ([#787](https://github.com/Public-Vinyl-Radio/groovenet/issues/787)) ([eee932b](https://github.com/Public-Vinyl-Radio/groovenet/commit/eee932b9ebe4fd0b5c510e25fd8e90b17c74209d))
+* **ui:** restyle player with transport strip, readable queue and docked desktop bar ([#809](https://github.com/Public-Vinyl-Radio/groovenet/issues/809)) ([779cc74](https://github.com/Public-Vinyl-Radio/groovenet/commit/779cc741466b9510da1c97ef98c725640d747bb6))
+* **ui:** retro modals for playlist actions ([#757](https://github.com/Public-Vinyl-Radio/groovenet/issues/757)) ([a3a342a](https://github.com/Public-Vinyl-Radio/groovenet/commit/a3a342a4081c89dcda6acfd5b09d31272c7c3969))
+* **ui:** shared list header pieces and outlined filter chips ([#794](https://github.com/Public-Vinyl-Radio/groovenet/issues/794)) ([#795](https://github.com/Public-Vinyl-Radio/groovenet/issues/795)) ([ffbc97d](https://github.com/Public-Vinyl-Radio/groovenet/commit/ffbc97d0ff3a397a11ff2d635450d4e21aca1058))
+* **ui:** simplified albums search with filters modal ([#761](https://github.com/Public-Vinyl-Radio/groovenet/issues/761)) ([a9f21e0](https://github.com/Public-Vinyl-Radio/groovenet/commit/a9f21e0d709668fb7f6f6648c2d19065cd84fd80))
+* **ui:** simplified tracks search with options modal ([#758](https://github.com/Public-Vinyl-Radio/groovenet/issues/758)) ([9fe5cc3](https://github.com/Public-Vinyl-Radio/groovenet/commit/9fe5cc339301a4073659c60e2c800579ec4b8d67))
+* **ui:** spin and copy action menus as retro modals on phones ([#763](https://github.com/Public-Vinyl-Radio/groovenet/issues/763)) ([#786](https://github.com/Public-Vinyl-Radio/groovenet/issues/786)) ([978ddd9](https://github.com/Public-Vinyl-Radio/groovenet/commit/978ddd9ba0f7fb1ca46595835b935c350efa0dc3))
+* **ui:** Tracks desktop header with search-mode menu and filters panel ([#794](https://github.com/Public-Vinyl-Radio/groovenet/issues/794)) ([#796](https://github.com/Public-Vinyl-Radio/groovenet/issues/796)) ([78eac7a](https://github.com/Public-Vinyl-Radio/groovenet/commit/78eac7a2da4ca18916ed8b4158b74862d60afec2))
+
+
+### Bug Fixes
+
+* **player:** reject ambiguous HA output name mappings ([#812](https://github.com/Public-Vinyl-Radio/groovenet/issues/812)) ([c73f338](https://github.com/Public-Vinyl-Radio/groovenet/commit/c73f3382dfd431d4ad4607f5577fa889e64f540f))
+* **ui:** playlist meta line wraps into columns on narrow screens ([#773](https://github.com/Public-Vinyl-Radio/groovenet/issues/773)) ([fb744ac](https://github.com/Public-Vinyl-Radio/groovenet/commit/fb744ac6a6db2f8c87bf7264a739082fb393f48f))
+* **ui:** track page phone header menu and scope toggle ([#763](https://github.com/Public-Vinyl-Radio/groovenet/issues/763)) ([#788](https://github.com/Public-Vinyl-Radio/groovenet/issues/788)) ([f7d4a09](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7d4a0996adcf82bf5daade067490a4f4b7c19a7))
+* **worktree:** store golden seeds under herdr ([#777](https://github.com/Public-Vinyl-Radio/groovenet/issues/777)) ([a797394](https://github.com/Public-Vinyl-Radio/groovenet/commit/a79739464cddb85b7f36a931186cc8a5145ac1dd))
+* **worktree:** stream production seed covers from app container ([#783](https://github.com/Public-Vinyl-Radio/groovenet/issues/783)) ([a8c008d](https://github.com/Public-Vinyl-Radio/groovenet/commit/a8c008d7320fde088677e496f3471d4d07df7bd6))
+
 ## [0.3.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.8...v0.3.9) (2026-10-25)
 
 

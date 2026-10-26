@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.2.0...groovenet-contracts-v1.3.0) (2026-10-26)
+
+
+### Features
+
+* **api:** playlist list returns covers, set data and collaborator ([#778](https://github.com/Public-Vinyl-Radio/groovenet/issues/778)) ([db8a07f](https://github.com/Public-Vinyl-Radio/groovenet/commit/db8a07fcdf3779b7517a9bdb7d4b3d5029472629))
+* **player:** allow commands without expected revision ([#810](https://github.com/Public-Vinyl-Radio/groovenet/issues/810)) ([f2fe8ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/f2fe8ef5b59a0b27b08d5969b4d67c2a35126679))
+* **player:** atomic queue replacement and HA sender recognition ([#807](https://github.com/Public-Vinyl-Radio/groovenet/issues/807)) ([2e20762](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e20762575314edccc73adb0a93182b0d901c00b))
+* **player:** log server player plays per queue entry ([#814](https://github.com/Public-Vinyl-Radio/groovenet/issues/814)) ([facd807](https://github.com/Public-Vinyl-Radio/groovenet/commit/facd807989d20046c17716cec4c6dbe295521cd3))
+* **player:** persist per-player availability policy ([#813](https://github.com/Public-Vinyl-Radio/groovenet/issues/813)) ([fe91b34](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe91b347d6ee25ee78878d97e367ab3241bda98a))
+
 ## [1.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.1.0...groovenet-contracts-v1.2.0) (2026-10-25)
 
 
