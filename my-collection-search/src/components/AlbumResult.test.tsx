@@ -175,3 +175,11 @@ it("shows a compact discovery card with linked artwork, title and effective genr
   expect(screen.queryByText("Electronic")).toBeNull();
   expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
 });
+
+it("reuses album links and genre badges in the full cover-grid layout", () => {
+  renderWithProviders(<AlbumResult album={{ ...full, title: "A very long album title ".repeat(10) }} layout="cover" />);
+  const coverLink = screen.getByRole("link", { name: /^Open A very long album/ });
+  expect(coverLink.getAttribute("href")).toBe("/albums/rel?friend_id=7");
+  expect(coverLink.querySelector("img")).toBeTruthy();
+  expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
+});

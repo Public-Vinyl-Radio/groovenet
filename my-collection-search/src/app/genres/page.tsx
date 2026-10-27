@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Button, Checkbox, Flex, Grid, Heading, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { Box, Checkbox, Flex, Grid, Heading, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { GenreIndexCrate } from "@/components/genres/GenreCrate";
 import AlbumResult from "@/components/AlbumResult";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
@@ -12,7 +13,7 @@ import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
 import { useRecentAlbumsQuery } from "@/hooks/useRecentAlbumsQuery";
 import { countGenreTree, type CountedGenreNode } from "@/lib/genres/tree";
-import { arrivalGenreSummary, rankedSubgenres } from "@/lib/genres/discovery";
+import { arrivalGenreSummary } from "@/lib/genres/discovery";
 import { flattenGenreTree } from "@/lib/genres/options";
 import { useUsername } from "@/providers/UsernameProvider";
 
@@ -78,40 +79,6 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
         ))}
       </Grid>
     </Section>
-  );
-}
-
-function Crate({ entry, onOpen }: { entry: CountedGenreNode; onOpen: () => void }) {
-  const subgenres = rankedSubgenres(entry).slice(0, 5);
-  const largest = subgenres[0]?.count ?? 1;
-  return (
-    <Box as="article" aria-label={`${entry.node.name} crate`} borderWidth="outline" borderColor="border.ink" boxShadow="md" minW={0} display="flex" flexDirection="column">
-      <Link asChild display="flex" justifyContent="space-between" gap={3} minH="52px" px={4} borderBottomWidth="outline" borderColor="border.ink">
-        <NextLink href={genreHref(entry)}>
-          <Heading as="h3" fontSize="lg">{entry.node.name}</Heading>
-          <Text fontFamily="label" fontWeight="semibold" fontSize="sm">{entry.count.toLocaleString()}</Text>
-        </NextLink>
-      </Link>
-      <Box as="ul" listStyleType="none" p={3} flex={1}>
-        {subgenres.map((child) => (
-          <Box as="li" key={child.node.id}>
-            <Link asChild display="flex" minH="44px" gap={3} fontSize="sm">
-              <NextLink href={genreHref(child)}>
-                <Text flex={1}>{child.node.name}</Text>
-                <Box aria-hidden="true" w="25%" h="10px" borderWidth="rule" borderColor="border.ink" flexShrink={0}>
-                  <Box bg="fg" h="full" w={`${child.count / largest * 100}%`} />
-                </Box>
-                <Text minW="4ch" textAlign="end" fontFamily="label" color="fg.muted">{child.count.toLocaleString()}</Text>
-              </NextLink>
-            </Link>
-          </Box>
-        ))}
-        {subgenres.length === 0 && <Box as="li"><Text color="fg.muted" p={1} fontSize="sm">No subgenres with tracks yet.</Text></Box>}
-      </Box>
-      <Button variant="plain" minH="44px" w="full" justifyContent="start" px={4} borderTopWidth="rule" borderColor="border" fontFamily="label" fontSize="xs" textDecoration="underline" whiteSpace="normal" onClick={onOpen}>
-        All {entry.node.name.toLowerCase()} subgenres →
-      </Button>
-    </Box>
   );
 }
 
@@ -185,7 +152,7 @@ export default function GenresPage() {
             </Section>
             <Section title="Crates" note="Top subgenres in each">
               <Grid templateColumns={{ base: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }} gap={5} p="0 6px 6px 0">
-                {entries.map((entry) => <Crate key={entry.node.id} entry={entry} onOpen={() => { setOpenCrateId(entry.node.id); setShowEmpty(false); }} />)}
+                {entries.map((entry) => <GenreIndexCrate key={entry.node.id} entry={entry} onOpen={() => { setOpenCrateId(entry.node.id); setShowEmpty(false); }} />)}
               </Grid>
             </Section>
           </>

@@ -6,7 +6,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { createGenre } from "@/server/services/genreAdminService";
+import { genrePageRepository } from "@/server/repositories/genrePageRepository";
 import { getGenrePage } from "../genrePageService";
+import { genrePageResponseSchema } from "@/api-contract/schemas";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const USERNAME = "genre-page-test";
@@ -138,6 +140,17 @@ describe("genre page (integration)", () => {
     expect(typeof page?.top_albums[0].date_added).toBe("string");
   });
 
+  dbTest("serializes priced albums as numbers so genres such as Bolero pass response validation", async () => {
+    try {
+      await dbQuery("UPDATE albums SET purchase_price = 12.50 WHERE release_id = 'gp-cumbia-lp' AND friend_id = $1", [friendId]);
+      const page = await getGenrePage("cumbia", friendId);
+      expect(page?.top_albums.find((album) => album.release_id === "gp-cumbia-lp")?.purchase_price).toBe(12.5);
+      expect(() => genrePageResponseSchema.shape.top_albums.parse(page?.top_albums)).not.toThrow();
+    } finally {
+      await dbQuery("UPDATE albums SET purchase_price = NULL WHERE release_id = 'gp-cumbia-lp' AND friend_id = $1", [friendId]);
+    }
+  });
+
   dbTest("counts every collection when no friend is given", async () => {
     const page = await getGenrePage("cumbia");
     expect(page?.counts.tracks).toBeGreaterThanOrEqual(3);
@@ -151,5 +164,50 @@ describe("genre page (integration)", () => {
     expect(page?.ancestors.map((a) => a.name)).toEqual(["Latin", "Cumbia"]);
     expect(page?.genre.source).toBe("custom");
     expect(page?.top_tracks.map((t) => t.track_id)).toEqual(["gp-6"]);
+  });
+});
+
+
+describe("genre detail full statistics (integration)", () => {
+  dbTest("counts once across ancestor/descendant tags, excludes invalid BPM/deleted/other-friend tracks and uses calendar-year boundaries", async () => {
+    const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = ANY($1) ORDER BY name", [["Cumbia", SUBGENRE]]);
+    const filter = { ids: rows.map((row) => row.id), keys: [] };
+    const before = await genrePageRepository.stats(filter, friendId, 2026);
+    const cases = [
+      { date: "2025-12-31 23:59:59.999", bpm: 90, audio: "a.flac" },
+      { date: "2026-01-01 00:00:00", bpm: 99.5, audio: "b.flac" },
+      { date: "2026-12-31 23:59:59.999", bpm: 120, audio: " " },
+      { date: "2027-01-01 00:00:00", bpm: 120.5, audio: null },
+      { date: null, bpm: null, audio: null },
+      { date: null, bpm: 0, audio: null },
+      { date: null, bpm: -5, audio: null },
+      { date: null, bpm: "NaN", audio: null },
+      { date: null, bpm: "Infinity", audio: null },
+      { date: null, bpm: "-Infinity", audio: null },
+    ];
+    try {
+      for (const [i, entry] of cases.entries()) {
+        await addTrack(`gp-stats-${i}`, friendId, USERNAME, "gp-cumbia-lp", "2026-01-01", ["Cumbia", SUBGENRE]);
+        await dbQuery("UPDATE tracks SET date_added = $1, bpm = $2, local_audio_url = $3 WHERE track_id = $4 AND friend_id = $5", [entry.date, entry.bpm, entry.audio, `gp-stats-${i}`, friendId]);
+      }
+      await addTrack("gp-stats-deleted", friendId, USERNAME, "gp-cumbia-lp", "2026-01-01", ["Cumbia", SUBGENRE]);
+      await dbQuery("UPDATE tracks SET deleted_at = now(), bpm = 200 WHERE track_id = 'gp-stats-deleted' AND friend_id = $1", [friendId]);
+      await dbQuery("UPDATE tracks SET bpm = 300 WHERE track_id = 'gp-other' AND friend_id = $1", [otherFriendId]);
+      const stats = await genrePageRepository.stats(filter, friendId, 2026);
+      expect(stats).toEqual({
+        year: 2026, bpm_min: 90, bpm_max: 120.5,
+        added_this_year: before.added_this_year + 2,
+        playable_tracks: before.playable_tracks + 2,
+        bpm_histogram: [{ min: 90, max: 100, count: 2 }, { min: 120, max: 130, count: 2 }],
+      });
+      const nextYear = await genrePageRepository.stats(filter, friendId, 2027);
+      expect(nextYear.added_this_year).toBe(1);
+      expect((await genrePageRepository.stats(filter, undefined, 2026)).bpm_max).toBe(300);
+      const empty = await genrePageRepository.stats({ ids: [], keys: [] }, friendId, 2026);
+      expect(empty).toEqual({ year: 2026, bpm_min: null, bpm_max: null, added_this_year: 0, playable_tracks: 0, bpm_histogram: [] });
+    } finally {
+      await dbQuery("DELETE FROM tracks WHERE track_id LIKE 'gp-stats-%' AND friend_id = $1", [friendId]);
+      await dbQuery("UPDATE tracks SET bpm = NULL WHERE track_id = 'gp-other' AND friend_id = $1", [otherFriendId]);
+    }
   });
 });

@@ -69,6 +69,18 @@ export const genrePageResponseSchema = z.object({
     tracks_total: z.number().int().nonnegative().meta({ description: "Tracks the genre filter returns" }),
     albums_total: z.number().int().nonnegative().meta({ description: "Albums the genre filter returns" }),
   }),
+  stats: z.object({
+    bpm_min: z.number().positive().nullable(),
+    bpm_max: z.number().positive().nullable(),
+    added_this_year: z.number().int().nonnegative().meta({ description: "Matching tracks with collection date_added in the current UTC calendar year; never import/created_at time" }),
+    year: z.number().int(),
+    playable_tracks: z.number().int().nonnegative().meta({ description: "Matching live tracks with a nonblank local_audio_url" }),
+    bpm_histogram: z.array(z.object({
+      min: z.number().nonnegative(),
+      max: z.number().positive(),
+      count: z.number().int().nonnegative(),
+    })).meta({ description: "10 BPM bins [min, max), over all matching live tracks with finite positive BPM; empty bins omitted" }),
+  }),
   top_tracks: z.array(trackSchema.extend({ play_count: z.number().int().nonnegative() })).meta({ description: "Most played first, then most recently added" }),
   top_albums: z.array(albumSchema.extend({ play_count: z.number().int().nonnegative() })).meta({ description: "Most played first, then most recently added" }),
 });

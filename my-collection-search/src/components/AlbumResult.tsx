@@ -61,8 +61,8 @@ export type AlbumResultProps = {
   album?: Album;
   albumRef?: { release_id: string; friend_id: number };
   showEditFields?: boolean;
-  /** "card": outlined card; "row": album table row; "discovery": compact recent arrival. */
-  layout?: "card" | "row" | "discovery";
+  /** "card": outlined card; "row": album table row; "discovery": compact recent arrival; "cover": artwork grid. */
+  layout?: "card" | "row" | "discovery" | "cover";
   /** Active Missing filters, shown as tags. */
   missingTags?: AlbumMissingKey[];
 };
@@ -214,10 +214,12 @@ export default function AlbumResult({
     <Image
       src={artworkSrc}
       alt=""
-      boxSize={size}
+      boxSize={layout === "cover" ? undefined : size}
+      width={layout === "cover" ? "full" : undefined}
+      aspectRatio={layout === "cover" ? 1 : undefined}
       flexShrink={0}
       objectFit="cover"
-      borderWidth="rule"
+      borderWidth={layout === "cover" ? "outline" : "rule"}
       borderColor="border.ink"
     />
   );
@@ -236,20 +238,20 @@ export default function AlbumResult({
   ) : null;
 
   // Compact arrivals on the genre index: artwork above on phones, beside the title on desktop.
-  if (layout === "discovery") {
+  if (layout === "discovery" || layout === "cover") {
     return (
       <Flex
         data-testid="album-discovery-card"
-        direction={{ base: "column", md: "row" }}
-        borderWidth={{ base: 0, md: "outline" }}
+        direction={layout === "cover" ? "column" : { base: "column", md: "row" }}
+        borderWidth={layout === "cover" ? 0 : { base: 0, md: "outline" }}
         borderColor="border.ink"
-        boxShadow={{ base: "none", md: "sm" }}
-        p={{ base: 0, md: 3 }}
+        boxShadow={layout === "cover" ? "none" : { base: "none", md: "sm" }}
+        p={layout === "cover" ? 0 : { base: 0, md: 3 }}
         gap={2}
         minW={0}
         css={{ "@media (max-width: 47.99em)": { "& a": { minHeight: "44px", alignItems: "center" } } }}
       >
-        <Link asChild flexShrink={0} alignSelf="start" aria-label={`Open ${resolvedAlbum.title}`}>
+        <Link asChild flexShrink={0} alignSelf="start" w={layout === "cover" ? "full" : undefined} aria-label={`Open ${resolvedAlbum.title}`}>
           <NextLink href={albumHref}>{cover({ base: "144px", md: "64px" })}</NextLink>
         </Link>
         <Box minW={0}>
@@ -257,7 +259,7 @@ export default function AlbumResult({
             <NextLink href={albumHref}><Text truncate>{resolvedAlbum.title}</Text></NextLink>
           </Link>
           <Text fontSize="sm" color="fg.muted" truncate title={resolvedAlbum.artist}>{resolvedAlbum.artist}</Text>
-          <Flex gap={1} flexWrap="wrap" mt={1}>
+          <Flex gap={1} flexWrap="wrap" mt={1} css={layout === "cover" ? { "& > a, & > span": { maxWidth: "100%", whiteSpace: "normal", overflowWrap: "anywhere" } } : undefined}>
             <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" size="sm" />
           </Flex>
         </Box>
