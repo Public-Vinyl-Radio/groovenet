@@ -103,3 +103,19 @@ BPM statistics include finite positive values only; histogram bins are 10 BPM
 intervals `[min, max)`, and missing or invalid values contribute to neither the
 range nor the histogram. All these reads use the search genre filter, including
 descendants, and the selected friend's collection.
+
+### Thin genre presentation
+
+Genre detail uses “Build this crate” when `counts.albums_total < 4` (including
+zero). Four is one row at the cover grid's widest breakpoint; this threshold
+stays fixed across devices. The count is the full deduplicated album total for
+the selected friend and genre including descendants, never the loaded refs,
+direct-only count or `top_albums` preview. Existing searches, entity ownership,
+pagination and full-collection playback remain unchanged.
+
+After album results finish successfully, decorative dashed squares complete the
+last row: two columns on phones, three at `lg`, four at `2xl`. Zero albums gets
+one empty row. No slots are shown while loading, on errors or while more pages
+remain. Tracks keeps the existing rows. Thin genres label related links
+“Neighbouring crates” and reserve a noninteractive “Weekly wantlist picks” panel;
+there are no recommendations or recommendation requests yet.
