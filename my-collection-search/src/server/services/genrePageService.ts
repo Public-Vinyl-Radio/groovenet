@@ -31,7 +31,7 @@ export async function getGenrePage(ref: string, friendId?: number): Promise<Genr
   const filter = await genreRepository.expandToFilter([genre.id]);
   const facetWhere = friendId === undefined ? [] : ["t.friend_id = $1"];
   const facetParams = friendId === undefined ? [] : [friendId];
-  const [facets, counts, topTracks, topAlbums] = await Promise.all([
+  const [facets, counts, topTracks, topAlbums, stats] = await Promise.all([
     genreRepository.trackFacets(facetWhere, facetParams),
     genrePageRepository.counts({
       genreId: genre.id,
@@ -41,6 +41,7 @@ export async function getGenrePage(ref: string, friendId?: number): Promise<Genr
     }),
     genrePageRepository.topTracks(filter, friendId, TOP_TRACKS),
     genrePageRepository.topAlbums(filter, friendId, TOP_ALBUMS),
+    genrePageRepository.stats(filter, friendId, new Date().getUTCFullYear()),
   ]);
 
   const totals = new Map(facets.map((facet) => [facet.id, facet.track_count]));
@@ -71,6 +72,7 @@ export async function getGenrePage(ref: string, friendId?: number): Promise<Genr
     children: flat.filter((row) => row.parent_id === genre.id).map(toRef).sort(byCount),
     related: await resolveRelated(flat, genre, totals, RELATED),
     counts: { ...counts, tracks_total: totals.get(genre.id) ?? 0 },
+    stats,
     top_tracks: topTracks.map(jsonDates) as GenrePageResponse["top_tracks"],
     top_albums: topAlbums.map(jsonDates) as GenrePageResponse["top_albums"],
   };

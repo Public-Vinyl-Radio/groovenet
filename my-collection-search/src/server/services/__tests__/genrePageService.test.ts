@@ -7,6 +7,7 @@ const genreRepository = vi.hoisted(() => ({
 }));
 const genrePageRepository = vi.hoisted(() => ({
   counts: vi.fn(),
+  stats: vi.fn(),
   topTracks: vi.fn(),
   topAlbums: vi.fn(),
 }));
@@ -54,6 +55,7 @@ describe("getGenrePage", () => {
       { id: uuid(5), track_count: 12 },
       { id: uuid(6), track_count: 12 },
     ]);
+    genrePageRepository.stats.mockResolvedValue({ bpm_min: 90, bpm_max: 128, added_this_year: 3, year: 2026, playable_tracks: 12, bpm_histogram: [{ min: 90, max: 100, count: 2 }] });
     genrePageRepository.counts.mockResolvedValue({ tracks: 25, albums: 4, albums_total: 9 });
     genrePageRepository.topTracks.mockResolvedValue([{ track_id: "t1", play_count: 3, date_added: new Date("2026-01-02T00:00:00Z") }]);
     genrePageRepository.topAlbums.mockResolvedValue([{ release_id: "r1", play_count: 0, date_added: "2026-01-01" }]);
@@ -102,6 +104,8 @@ describe("getGenrePage", () => {
     });
     expect(genrePageRepository.topTracks).toHaveBeenCalledWith(filter, 6, 10);
     expect(genrePageRepository.topAlbums).toHaveBeenCalledWith(filter, 6, 8);
+    expect(genrePageRepository.stats).toHaveBeenCalledWith(filter, 6, new Date().getUTCFullYear());
+    expect((await getGenrePage("cumbia", 6))?.stats.added_this_year).toBe(3);
   });
 
   it("scopes the subgenre counts to a collection only when given one", async () => {
@@ -174,4 +178,16 @@ describe("getGenrePage", () => {
     expect(page?.ancestors).toEqual([]);
     expect(page?.related).toEqual([]);
   });
+  it("selects the UTC calendar year at New Year even while the local year differs", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-12-31T23:59:59.999Z"));
+      await getGenrePage("cumbia", 6);
+      expect(genrePageRepository.stats).toHaveBeenLastCalledWith(filter, 6, 2026);
+      vi.setSystemTime(new Date("2027-01-01T00:00:00Z"));
+      await getGenrePage("cumbia", 6);
+      expect(genrePageRepository.stats).toHaveBeenLastCalledWith(filter, 6, 2027);
+    } finally { vi.useRealTimers(); }
+  });
+
 });

@@ -84,3 +84,22 @@ Prefer:
 4. Component reads entities from store; query controls only loading/error/refetch.
 5. Mutation writes store and invalidates affected query keys.
 6. No duplicate entity patching in React Query cache.
+
+## Genre detail reads
+
+Genre detail caches taxonomy, counts and full-set statistics as React Query
+metadata. Album and track searches are paginated: each page hydrates Zustand and
+caches only entity refs plus pagination metadata. The API's `top_albums` and
+`top_tracks` remain limited previews for existing consumers; the detail UI does
+not use them for browsing, statistics or playback. Play all and Shuffle collect
+all matching search pages before replacing the selected output's playable queue.
+
+“Added this year” counts matching live tracks by `tracks.date_added`, the date
+added to the Discogs collection preserved by collection imports, rather than
+`created_at` (when GrooveNet imported the row). The interval is January 1 inclusive
+to the following January 1 exclusive, using the current UTC calendar year and
+the stored collection timestamps. Missing collection dates do not count.
+BPM statistics include finite positive values only; histogram bins are 10 BPM
+intervals `[min, max)`, and missing or invalid values contribute to neither the
+range nor the histogram. All these reads use the search genre filter, including
+descendants, and the selected friend's collection.

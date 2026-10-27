@@ -51,6 +51,12 @@ describe("GenrePageRepository", () => {
     await repo.topTracks(filter, 6, 10);
 
     expect(lastCall()[0]).toContain('AS "hasVectors"');
+    expect(lastCall()[0]).toContain("COALESCE(t.album, '') AS album");
+    expect(lastCall()[0]).toContain("COALESCE(t.duration, '') AS duration");
+    expect(lastCall()[0]).toContain("COALESCE(t.position, '') AS position");
+    expect(lastCall()[0]).toContain("COALESCE(t.genres, '{}'::text[]) AS genres");
+    expect(lastCall()[0]).toContain("COALESCE(t.styles, '{}'::text[]) AS styles");
+    expect(lastCall()[0]).toContain("CASE WHEN t.bpm > 0 AND t.bpm < 'Infinity'::real THEN t.bpm ELSE NULL END AS bpm");
   });
 
   it("lists albums by plays of their tracks, then newest, scoped and limited", async () => {
@@ -59,6 +65,8 @@ describe("GenrePageRepository", () => {
 
     const [sql, params] = lastCall();
     expect(sql).toContain("GROUP BY release_id, friend_id");
+    // pg returns NUMERIC as a string; the wire album contract requires a number.
+    expect(sql).toContain("a.purchase_price::double precision AS purchase_price");
     expect(sql).toContain("a.friend_id = $3");
     expect(params).toEqual([["cumbia", "chicha"], ["g1", "g2"], 6, 8]);
 
@@ -73,5 +81,29 @@ describe("GenrePageRepository", () => {
     for (const [sql] of dbQuery.mock.calls as [string][]) {
       expect(sql).toContain("session_id IN (SELECT id FROM spin_sessions WHERE medium = 'vinyl')");
     }
+  });
+});
+
+describe("full genre statistics", () => {
+  it("uses search's deduplicating filter, scoped to live tracks, with explicit calendar-year bounds", async () => {
+    const stats = { bpm_min: 90, bpm_max: 120.5, added_this_year: 4, playable_tracks: 3, bpm_histogram: [{ min: 90, max: 100, count: 1 }] };
+    dbQuery.mockResolvedValue({ rows: [stats] });
+    expect(await repo.stats(filter, 6, 2026)).toEqual({ ...stats, year: 2026 });
+    const [sql, params] = lastCall();
+    expect(params).toEqual([filter.ids, filter.keys, 6, "2026-01-01", "2027-01-01"]);
+    expect(sql).toContain("t.deleted_at IS NULL");
+    expect(sql).toContain("t.friend_id = $3");
+    expect(sql).toContain("EXISTS (SELECT 1 FROM track_genres");
+    expect(sql).toContain("date_added >= $4::timestamp AND date_added < $5::timestamp");
+    expect(sql).toContain("bpm > 0 AND bpm < 'Infinity'::real");
+    expect(sql).toContain("NULLIF(btrim(local_audio_url), '') IS NOT NULL");
+    expect(sql).not.toContain("LIMIT");
+  });
+
+  it("also supports all collections and an empty BPM range", async () => {
+    const stats = { bpm_min: null, bpm_max: null, added_this_year: 0, playable_tracks: 0, bpm_histogram: [] };
+    dbQuery.mockResolvedValue({ rows: [stats] });
+    expect(await repo.stats(filter, undefined, 2027)).toEqual({ ...stats, year: 2027 });
+    expect(lastCall()[1]).toEqual([filter.ids, filter.keys, "2027-01-01", "2028-01-01"]);
   });
 });

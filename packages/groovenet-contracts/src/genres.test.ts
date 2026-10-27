@@ -63,7 +63,8 @@ describe("genre contracts", () => {
     const page = {
       genre: { ...genre, aliases: [] }, ancestors: [], children: [ref], related: [ref],
       counts: { tracks: 3, albums: 1, tracks_total: 3, albums_total: 1 },
-      top_tracks: [{ track_id: "t1", friend_id: 1, title: "Song", artist: "Artist", album: "Album", play_count: 2, extra_column: "kept" }],
+      stats: { bpm_min: 90, bpm_max: 128, added_this_year: 3, year: 2026, playable_tracks: 12, bpm_histogram: [{ min: 90, max: 100, count: 2 }] },
+  top_tracks: [{ track_id: "t1", friend_id: 1, title: "Song", artist: "Artist", album: "Album", play_count: 2, extra_column: "kept" }],
       top_albums: [{ release_id: "r1", friend_id: 1, title: "Album", artist: "Artist", play_count: 3, extra_column: "kept" }],
     };
     expect(genrePageResponseSchema.parse(page)).toEqual(page);

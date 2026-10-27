@@ -9,6 +9,7 @@ import {
 } from "@/lib/trackFilterSpec";
 import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
 import { VINYL_SESSIONS_SQL } from "@/server/repositories/trackSpinEventRepository";
+import type { GenrePageResponse } from "@/api-contract/schemas";
 
 export type GenrePageCounts = {
   /** Live tracks linked to this genre itself. */
@@ -32,6 +33,37 @@ function binder(params: unknown[]) {
 
 /** The genre page's reads (#376), each optionally scoped to one friend's collection. */
 export class GenrePageRepository {
+  /** Full-set aggregates, using search's EXISTS filter to count each track once.
+   * date_added is the imported collection timestamp (not created_at). The DB
+   * stores it without a timezone; boundaries are explicit UTC calendar dates.
+   */
+  async stats(filter: GenreFilter, friendId: number | undefined, year: number): Promise<GenrePageResponse["stats"]> {
+    const params: unknown[] = [];
+    const bind = binder(params);
+    const where = ["t.deleted_at IS NULL", trackGenreFilterClause(filter, bind, "t")];
+    if (friendId !== undefined) where.push(`t.friend_id = ${bind(friendId)}`);
+    const start = bind(`${year}-01-01`);
+    const end = bind(`${year + 1}-01-01`);
+    const { rows } = await dbQuery<Omit<GenrePageResponse["stats"], "year">>(`
+      WITH matching AS MATERIALIZED (
+        SELECT t.bpm, t.date_added, t.local_audio_url
+        FROM tracks t WHERE ${where.join(" AND ")}
+      ), valid_bpm AS (
+        SELECT bpm FROM matching WHERE bpm > 0 AND bpm < 'Infinity'::real
+      ), bins AS (
+        SELECT floor(bpm::double precision / 10) * 10 AS min, count(*)::integer AS count
+        FROM valid_bpm GROUP BY 1
+      )
+      SELECT
+        (SELECT min(bpm) FROM valid_bpm) AS bpm_min,
+        (SELECT max(bpm) FROM valid_bpm) AS bpm_max,
+        (SELECT count(*) FROM matching WHERE date_added >= ${start}::timestamp AND date_added < ${end}::timestamp)::integer AS added_this_year,
+        (SELECT count(*) FROM matching WHERE NULLIF(btrim(local_audio_url), '') IS NOT NULL)::integer AS playable_tracks,
+        COALESCE((SELECT jsonb_agg(jsonb_build_object('min', min, 'max', min + 10, 'count', count) ORDER BY min) FROM bins), '[]'::jsonb) AS bpm_histogram
+    `, params);
+    return { ...rows[0], year };
+  }
+
   /**
    * The page's counts in one round trip. `ownKeys` are the genre's own
    * normalised name and aliases; `filter` is the genre with its subgenres.
@@ -85,7 +117,11 @@ export class GenrePageRepository {
 
     const { rows } = await dbQuery<GenrePageTrackRow>(
       `
-      SELECT t.*, ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}, COALESCE(p.play_count, 0)::integer AS play_count
+      SELECT t.*, COALESCE(t.album, '') AS album, COALESCE(t.duration, '') AS duration,
+        COALESCE(t.position, '') AS position, COALESCE(t.genres, '{}'::text[]) AS genres,
+        COALESCE(t.styles, '{}'::text[]) AS styles,
+        CASE WHEN t.bpm > 0 AND t.bpm < 'Infinity'::real THEN t.bpm ELSE NULL END AS bpm,
+        ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}, COALESCE(p.play_count, 0)::integer AS play_count
       FROM tracks t
       LEFT JOIN (
         SELECT track_id, friend_id, COUNT(*) AS play_count
@@ -111,7 +147,8 @@ export class GenrePageRepository {
 
     const { rows } = await dbQuery<GenrePageAlbumRow>(
       `
-      SELECT a.*, ${albumTaxonomySelectSql("a")}, COALESCE(p.play_count, 0)::integer AS play_count
+      SELECT a.*, a.purchase_price::double precision AS purchase_price,
+        ${albumTaxonomySelectSql("a")}, COALESCE(p.play_count, 0)::integer AS play_count
       FROM albums a
       LEFT JOIN (
         SELECT release_id, friend_id, COUNT(*) AS play_count

@@ -4124,6 +4124,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
                 }],
                 counts: { tracks: 412, albums: 108, tracks_total: 1029, albums_total: 108 },
+                stats: { bpm_min: 90, bpm_max: 128, added_this_year: 42, year: 2026, playable_tracks: 500, bpm_histogram: [{ min: 90, max: 100, count: 12 }] },
                 top_tracks: [{
                   track_id: "33415451-A1", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
                   album: "La Danza De Los Mirlos", play_count: 4, hasVectors: true,

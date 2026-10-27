@@ -8,7 +8,12 @@ import { fetchGenrePage } from "@/services/internalApi/genres";
 export function useGenrePageQuery(slug: string, friendId: number | undefined) {
   return useQuery({
     queryKey: queryKeys.genrePage(slug, friendId),
-    queryFn: () => fetchGenrePage(slug, friendId),
+    queryFn: async () => {
+      // Samples are retained by the API for other consumers; this page reads
+      // entities through paginated searches and Zustand, never the query cache.
+      const { top_tracks: _tracks, top_albums: _albums, ...metadata } = await fetchGenrePage(slug, friendId);
+      return metadata;
+    },
     enabled: Boolean(slug) && friendId !== undefined,
     staleTime: 60_000,
     retry: false,
