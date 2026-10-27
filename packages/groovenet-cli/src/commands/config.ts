@@ -86,7 +86,7 @@ export function addConfigCommands(program: Command): void {
       } else {
         console.log("Current configuration:");
         for (const [k, v] of Object.entries(cfg)) {
-          const display = (k === "api_key" || k === "owntone_password") && v ? "***" : v;
+          const display = (k === "api_key" || k === "owntone_password") && v ? "***" : typeof v === "object" ? JSON.stringify(v) : v;
           console.log(`  ${k}: ${display}`);
         }
       }

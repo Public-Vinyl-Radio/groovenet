@@ -87,6 +87,12 @@ describe("OwnTone configuration", () => {
     await run("show");
     expect(log).toHaveBeenCalledWith("  owntone_password: ***");
   });
+  it("shows the player keymap as JSON rather than [object Object]", async () => {
+    loadConfig.mockReturnValueOnce({ api_base: "http://x/api", default_friend_id: 1, player_keymap: { "transport.next": ["n"] } } as ReturnType<typeof loadConfig>);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await run("show");
+    expect(log).toHaveBeenCalledWith('  player_keymap: {"transport.next":["n"]}');
+  });
   it("rejects unknown backend names", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     vi.spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);

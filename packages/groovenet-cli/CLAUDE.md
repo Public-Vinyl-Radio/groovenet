@@ -12,7 +12,7 @@ groovenet config set api_base https://groovenet.home.arpa/api
 groovenet config show
 ```
 
-Keys: `api_base`, `api_key`, `player_api_key`, `default_friend_id`, `username`, `insecure_tls`, `player_artwork`, `player_log_plays`, `player_backend`, `owntone_url`, `owntone_library`, `owntone_output`, `owntone_password`.
+Keys: `api_base`, `api_key`, `player_api_key`, `default_friend_id`, `username`, `insecure_tls`, `player_artwork`, `player_log_plays`, `player_backend`, `owntone_url`, `owntone_library`, `owntone_output`, `owntone_password`, `player_keymap` (an object, edited in the file; see Keymap).
 
 Remote controls use `player --remote <id>`; the separate `PLAYER_API_KEY` environment
 variable overrides `player_api_key`. Local playback remains the default. See the
@@ -34,7 +34,7 @@ records             clean | sleeve | log | copies (add | label | remove)
                     history | void | care [--summary]
 genres              similar | reconcile | review | apply | proposals | coverage
 player              start | stop | play | pause | next | prev | seek | volume
-                    status | queue (add | remove | list) | devices
+                    keys | status | queue (add | remove | list) | devices
                     (bare `player` opens the lazy-loaded Ink TUI)
 status              (no subcommands — one-line segment for tmux / status bars)
 ```
@@ -205,6 +205,40 @@ no session or stream.
 - `--max-width` shortens title and artist first, the longer one first, and only
   cuts the rest of the line when the fixed parts alone do not fit. In tmux mode
   it counts visible cells, not `#[…]` styles.
+
+## Keymap
+
+The player TUI's keys (#822) come from one registry; nothing is hard-coded in
+`playerTui.tsx`. All of it is pure and testable without a TTY:
+
+- `playerKeymapRegistry.ts` — the action table: id, description, views
+  (`queue`, `search`, `playlists`, `devices`, and `input` for typing in the
+  search box), default keys, optional per-view defaults, hint label,
+  `remoteOnly`. **Add a new action or view here**, then handle its id in the
+  `useInput` switch; hints, `player keys` and validation follow.
+- `playerKeyspec.ts` — `parseKey` (text to spec), `matchKey` (spec against an
+  Ink `input, key` event), `formatKey` (`→`, `S-Tab`, `^N`, `Space`).
+- `playerKeymap.ts` — `buildKeymap(config.player_keymap)` merges and validates
+  (never throws), `resolveAction` picks the action for a view, `hintItems` /
+  `hintLine` render hints.
+- `playerKeys.ts` — the `player keys` table and JSON.
+- `playerTuiKeys.ts` — `playerTuiAction`: in the search box only `input`
+  actions apply and other printable keys are text.
+
+Rules worth knowing:
+
+- **Conflicts are per view**, over all actions including remote-only ones, so a
+  config behaves the same locally and remotely. A conflict reverts the
+  *overridden* action(s) to defaults and repeats until stable; defaults never
+  conflict (a registry test enforces it).
+- **A bad entry loses only itself.** Any bad key in an entry reverts that whole
+  action to its default keys.
+- `→` is `nav.open` in search/playlists and seek in queue/devices; seek there
+  uses `<` / `>` (`viewKeys`). `nav.open`, `search.scope`, `search.mode` and
+  `app.debug` are registered for the #823 views and do nothing yet.
+- Problems go to an in-TUI notice, never stderr, which would corrupt the screen.
+- Ink gives capital letters `shift: true`, so characters match on `input` only;
+  `ctrl+j` arrives as `enter`, not `return`, and cannot be bound.
 
 ## Build
 

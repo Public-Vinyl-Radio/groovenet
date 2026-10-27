@@ -111,7 +111,46 @@ about two seconds of latency, so it is suitable for auditioning rather than
 beatmatching. The help line in the TUI lists the keyboard shortcuts: arrows or
 `j`/`k` select, Enter adds or plays, Space pauses, `n`/`p` skip, left/right seek,
 `+`/`-` change volume, `/` searches, `l` opens playlists, `u` opens the queue,
-`d` selects an output, `r` starts playback, and `q` quits.
+`d` or `o` selects an output, `r` starts playback, `x` removes a queue entry,
+and `q` quits. In the playlists and search views `→` is reserved for opening the
+selected item, so seek with `<` / `>` there.
+
+### Keymap
+
+`groovenet player keys` prints every action, its keys, the views it applies to
+and what it does (`--json` for scripts). It reads your config only; it starts no
+daemon and no TUI. Override any action under `player_keymap` in
+`~/.groovenet/config.json`:
+
+```json
+{
+  "player_keymap": {
+    "transport.next": ["n", "ctrl+right"],
+    "queue.remove": ["delete"],
+    "app.debug": []
+  }
+}
+```
+
+An override replaces the action's keys in every view it applies to; `[]`
+unbinds it. Keys are a single character (case-sensitive: `U` is not `u`), a name
+(`enter`, `esc`, `tab`, `space`, `backspace`, `delete`, `up`, `down`, `left`,
+`right`, `pageup`, `pagedown`, `home`, `end`), or either with `ctrl+` / `shift+`,
+such as `ctrl+n` or `shift+tab`. `ctrl+c` is reserved and always exits. Terminals
+send `ctrl+i`, `ctrl+m`, `ctrl+h` and `ctrl+j` as Tab, Enter, Backspace and
+newline, so avoid binding those.
+
+The hint line, the `?` help and the output prompts show the active keys, so a
+rebound key appears under its new name. Hints show an action's first key.
+
+The keymap is checked when the player starts. An unknown action, a key that does
+not parse, or two actions bound to the same key in one view is reported, and only
+that entry falls back to its default keys. The player still starts; the problems
+appear as a notice on its first screen (any key dismisses it) and in
+`groovenet player keys`.
+
+While you type in the search box only the search keys apply (`input.*`, Enter,
+Esc and Backspace by default); everything else is typed.
 
 ### Status bar segment
 
@@ -288,7 +327,8 @@ without automatic reconnection of audio. Volume is requested sender volume;
 some receivers ignore it.
 
 Normal playback keys retain their meanings. In remote mode `s` stops playback,
-and `[` / `]` move the selected queue entry. In the devices view Enter remembers
+and `[` / `]` move the selected queue entry. These and the acknowledgement keys
+below are keymap actions too (see [Keymap](#keymap)). In the devices view Enter remembers
 the selected output; it does not connect/reserve it. `U` plays the **desired**
 output allowing unknown activity, and `T` plays it taking over occupied activity.
 These are explicit one-command acknowledgements. To detach another Groovenet

@@ -4,6 +4,8 @@ import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
 import { OwnToneBackend, MpvBackend, PlayLogger, PlayerControlClient, PlayerCore, PlayerDaemon, TrackResolver, defaultPlayerPaths } from "@groovenet/player";
 import { printError, printJson, printSuccess } from "../output.js";
+import { buildKeymap } from "./playerKeymap.js";
+import { formatKeymap, keymapJson } from "./playerKeys.js";
 
 export const PLAYER_DAEMON_PATHS = defaultPlayerPaths();
 
@@ -210,6 +212,15 @@ export function addPlayerCommands(program: Command): void {
       process.exitCode = 1;
     }
   });
+
+  // Reads config only: no daemon, no TUI, no server.
+  player.command("keys").description("Show the player TUI's keymap, with any player_keymap overrides")
+    .option("--json", "print machine-readable output")
+    .action((options: { json?: boolean }) => {
+      const keymap = buildKeymap(loadConfig().player_keymap);
+      if (options.json) printJson(keymapJson(keymap));
+      else for (const line of formatKeymap(keymap)) console.log(line);
+    });
 
   player.command("stop")
     .description("Stop the local daemon or selected remote playback")

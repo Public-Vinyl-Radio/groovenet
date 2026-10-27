@@ -6,6 +6,7 @@ import type { GroovenetClient, Track } from "@groovenet/client";
 import { PlayerProtocolError, type PlayerControlClient, type PlayerDaemon, type PlaybackSnapshot } from "@groovenet/player";
 import { RemotePlayerController } from "./remotePlayer.js";
 import { PlayerTui, runPlayerTui, type PlayerTuiRuntime } from "./playerTui.js";
+import { buildKeymap } from "./playerKeymap.js";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -164,7 +165,8 @@ describe("PlayerTui", () => {
     await act(async () => { app.stdin.write("\r"); await new Promise((resolve) => setImmediate(resolve)); });
     const request = (props.control as unknown as { request: ReturnType<typeof vi.fn> }).request;
     expect(request).toHaveBeenCalledWith("devices.select", { id: "airplay" });
-    await act(async () => { app.stdin.write("u"); app.stdin.write("x"); await new Promise((resolve) => setImmediate(resolve)); });
+    await act(async () => { app.stdin.write("u"); });
+    await act(async () => { app.stdin.write("x"); await new Promise((resolve) => setImmediate(resolve)); });
     expect(request).toHaveBeenCalledWith("queue.remove", { id: "q1" });
   });
 
@@ -339,4 +341,134 @@ it("refreshes speaker observations and clears failed/stale reads after unmount",
     await act(async () => { poll(); });
     await act(async () => { app!.unmount(); resolve([]); });
   } finally { interval.mockRestore(); await act(async () => cleanup()); }
+});
+
+describe("PlayerTui keymap", () => {
+  afterEach(() => act(() => cleanup()));
+  const settle = () => act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+  const requestOf = (props: ReturnType<typeof makeProps>) => (props.control as unknown as { request: ReturnType<typeof vi.fn> }).request;
+
+  it("renders the hint line from the default keymap, and the short help when toggled", async () => {
+    const app = render(<PlayerTui {...makeProps()} options={{}} />);
+    await settle();
+    expect(app.lastFrame()).toContain("↑/↓ select · Enter add/play · r play · x remove · Space pause · n/p skip");
+    await act(async () => { app.stdin.write("?"); });
+    expect(app.lastFrame()).toContain("Press ? for help · q quit");
+    expect(app.lastFrame()).not.toContain("Space pause");
+  });
+
+  it("shows a rebound key everywhere and acts on it", async () => {
+    const props = makeProps();
+    const keymap = buildKeymap({ "transport.next": ["ctrl+n"], "app.help": ["h"], "app.quit": ["Q"] });
+    const app = render(<PlayerTui {...props} options={{}} keymap={keymap} />);
+    await settle();
+    expect(app.lastFrame()).toContain("^N/p skip");
+    expect(app.lastFrame()).toContain("h help · Q quit");
+    await act(async () => { app.stdin.write("n"); });
+    expect(requestOf(props)).not.toHaveBeenCalledWith("next", undefined);
+    await act(async () => { app.stdin.write("\u000e"); });
+    expect(requestOf(props)).toHaveBeenCalledWith("next", undefined);
+    await act(async () => { app.stdin.write("h"); });
+    expect(app.lastFrame()).toContain("Press h for help · Q quit");
+  });
+
+  it("omits help text for keys that are unbound", async () => {
+    const app = render(<PlayerTui {...makeProps()} options={{}} keymap={buildKeymap({ "app.help": [], "app.quit": [] })} />);
+    await settle();
+    await act(async () => { app.stdin.write("q"); });
+    expect(app.lastFrame()).not.toContain("quit");
+  });
+
+  it("lets typing win in the search box, with the input keys as its hints", async () => {
+    const props = makeProps();
+    const keymap = buildKeymap({ "input.submit": ["ctrl+g"], "transport.next": ["n"] });
+    const app = render(<PlayerTui {...props} options={{}} keymap={keymap} />);
+    await settle();
+    await act(async () => { app.stdin.write("/"); });
+    expect(app.lastFrame()).toContain("^G search · Esc cancel");
+    // q, n, space and capital letters are typed, not commands.
+    await act(async () => { app.stdin.write("qn U"); });
+    expect(app.lastFrame()).toContain("Search: qn U");
+    expect(requestOf(props)).not.toHaveBeenCalledWith("next", undefined);
+    await act(async () => { app.stdin.write("\u007f"); });
+    expect(app.lastFrame()).toContain("Search: qn ");
+    await act(async () => { app.stdin.write("\r"); });
+    expect(props.api.searchTracks).not.toHaveBeenCalled();
+    await act(async () => { app.stdin.write("\u0007"); await new Promise((resolve) => setImmediate(resolve)); });
+    expect(props.api.searchTracks).toHaveBeenCalledWith({ query: "qn ", limit: 30 });
+  });
+
+  it("moves the selection with k and the up arrow, stopping at the first entry", async () => {
+    const queue = [0, 1, 2].map((i) => ({ id: `q${i}`, track: { ...track, title: `Song ${i}` } }));
+    const app = render(<PlayerTui {...makeProps(queue)} options={{}} />);
+    await settle();
+    await act(async () => { app.stdin.write("j"); });
+    await act(async () => { app.stdin.write("j"); });
+    expect(app.lastFrame()).toContain("› John Coltrane — Song 2");
+    await act(async () => { app.stdin.write("k"); });
+    await act(async () => { app.stdin.write("\u001b[A"); });
+    await act(async () => { app.stdin.write("k"); });
+    expect(app.lastFrame()).toContain("› John Coltrane — Song 0");
+  });
+
+  it("opens the output list with play-on and ignores the keys for views that do not exist yet", async () => {
+    const props = makeProps([{ id: "q1", track }]);
+    const app = render(<PlayerTui {...props} options={{}} />);
+    await settle();
+    await act(async () => { app.stdin.write("~"); });
+    await act(async () => { app.stdin.write("\t"); });
+    await act(async () => { app.stdin.write("\u001b[C"); });
+    expect(requestOf(props)).toHaveBeenCalledWith("seek", { seconds: 22 });
+    await act(async () => { app.stdin.write("o"); await new Promise((resolve) => setImmediate(resolve)); });
+    expect(app.lastFrame()).toContain("Living room [airplay]");
+  });
+
+  it("shows keymap problems once and dismisses them on the next key", async () => {
+    const props = makeProps();
+    const keymap = buildKeymap({ "transport.nxt": ["n"], "transport.prev": ["bogus"] });
+    const app = render(<PlayerTui {...props} options={{}} keymap={keymap} />);
+    await settle();
+    expect(app.lastFrame()).toContain("Keymap: ");
+    expect(app.lastFrame()).toContain('Unknown action "transport.nxt"');
+    expect(app.lastFrame()).toContain("groovenet player keys");
+    await act(async () => { app.stdin.write("j"); });
+    expect(app.lastFrame()).not.toContain("Keymap: ");
+  });
+
+  it("summarises a long list of problems", async () => {
+    const keymap = buildKeymap(Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`bad.action${i}`, ["x"]])));
+    const app = render(<PlayerTui {...makeProps()} options={{}} keymap={keymap} />);
+    await settle();
+    expect(app.lastFrame()).toContain("+2 more");
+  });
+
+  it("builds the remote key line and handles remote keys from the keymap", async () => {
+    const props = makeProps([{ id: "entry-uuid", track }]);
+    const snapshot = { ...props.initialSnapshot, remote: { player: { id: "room", name: "Room", revision: 8, assigned_output: "speaker", state: { desired_output: "speaker", checkpoint: false } }, connected: true } };
+    const request = requestOf(props);
+    request.mockImplementation(async (method: string) => method === "devices" ? [{ id: "speaker", name: "Speaker" }] : snapshot);
+    const keymap = buildKeymap({ "devices.transfer": ["ctrl+t"], "app.quit": ["Q"], "queue.move-down": ["}"] });
+    const app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "room" }} keymap={keymap} />);
+    await settle();
+    expect(app.lastFrame()).toContain("Remote keys: U play desired output allowing unknown");
+    expect(app.lastFrame()).toContain("^T transfer+play");
+    expect(app.lastFrame()).toContain("[/} reorder queue · server audio continues after Q");
+    await act(async () => { app.stdin.write("d"); });
+    await settle();
+    await act(async () => { app.stdin.write("t"); });
+    expect(request).not.toHaveBeenCalledWith("devices.transfer", expect.anything());
+    await act(async () => { app.stdin.write("\u0014"); });
+    expect(request).toHaveBeenCalledWith("devices.transfer", { id: "speaker" });
+  });
+
+  it("passes the configured keymap into the TUI, and builds one from the config by default", async () => {
+    const props = makeProps();
+    const keymap = buildKeymap({ "app.quit": ["Q"] });
+    const renderTui = vi.fn(() => ({ waitUntilExit: async () => undefined }));
+    await runPlayerTui({}, { createControl: () => makeControl(async () => props.initialSnapshot), keymap, render: renderTui });
+    expect((renderTui.mock.calls[0] as unknown as [{ props: { keymap: unknown } }])[0].props.keymap).toBe(keymap);
+    const fallback = vi.fn(() => ({ waitUntilExit: async () => undefined }));
+    await runPlayerTui({}, { createControl: () => makeControl(async () => props.initialSnapshot), render: fallback });
+    expect((fallback.mock.calls[0] as unknown as [{ props: { keymap: { actions: unknown[] } } }])[0].props.keymap.actions.length).toBeGreaterThan(20);
+  });
 });

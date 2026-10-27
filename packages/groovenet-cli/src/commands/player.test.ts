@@ -30,6 +30,30 @@ function makeProgram() {
   return program;
 }
 
+describe("player keys", () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.mocked(loadConfig).mockReturnValue({ api_base: "http://localhost:3000/api", default_friend_id: 1 }); });
+
+  it("prints the keymap table from config alone, with overrides marked and problems listed", async () => {
+    vi.mocked(loadConfig).mockReturnValue({ api_base: "x", default_friend_id: 1, player_keymap: { "transport.next": ["ctrl+n"], "nope.nope": ["x"] } });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const request = vi.spyOn(PlayerControlClient.prototype, "request");
+    await makeProgram().parseAsync(["node", "test", "player", "keys"]);
+    const output = log.mock.calls.map((call) => call[0]).join("\n");
+    expect(output).toContain("*transport.next");
+    expect(output).toContain('Unknown action "nope.nope"');
+    expect(request).not.toHaveBeenCalled();
+    expect(runPlayerTui).not.toHaveBeenCalled();
+  });
+
+  it("prints JSON", async () => {
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    await makeProgram().parseAsync(["node", "test", "player", "keys", "--json"]);
+    const json = JSON.parse(String(write.mock.calls[0]![0]));
+    expect(json.problems).toEqual([]);
+    expect(json.actions.find((action: { id: string }) => action.id === "transport.toggle").keys).toEqual(["space"]);
+  });
+});
+
 describe("player CLI commands", () => {
   afterEach(() => {
     vi.restoreAllMocks();
