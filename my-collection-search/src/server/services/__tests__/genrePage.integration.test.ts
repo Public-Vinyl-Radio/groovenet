@@ -145,7 +145,7 @@ describe("genre page (integration)", () => {
       await dbQuery("UPDATE albums SET purchase_price = 12.50 WHERE release_id = 'gp-cumbia-lp' AND friend_id = $1", [friendId]);
       const page = await getGenrePage("cumbia", friendId);
       expect(page?.top_albums.find((album) => album.release_id === "gp-cumbia-lp")?.purchase_price).toBe(12.5);
-      expect(() => genrePageResponseSchema.shape.top_albums.parse(page?.top_albums)).not.toThrow();
+      expect(() => genrePageResponseSchema.parse(page)).not.toThrow();
     } finally {
       await dbQuery("UPDATE albums SET purchase_price = NULL WHERE release_id = 'gp-cumbia-lp' AND friend_id = $1", [friendId]);
     }
@@ -202,6 +202,11 @@ describe("genre detail full statistics (integration)", () => {
       });
       const nextYear = await genrePageRepository.stats(filter, friendId, 2027);
       expect(nextYear.added_this_year).toBe(1);
+      // Legacy previews still cross the response validator even though the UI
+      // doesn't render them. Invalid BPM and nullable imports must not 500 it.
+      const previews = await genrePageRepository.topTracks(filter, friendId, 100);
+      expect(() => genrePageResponseSchema.shape.top_tracks.parse(previews.map((track) => ({ ...track, date_added: null })))).not.toThrow();
+      expect(previews.find((track) => track.track_id === "gp-stats-7")?.bpm).toBeNull();
       expect((await genrePageRepository.stats(filter, undefined, 2026)).bpm_max).toBe(300);
       const empty = await genrePageRepository.stats({ ids: [], keys: [] }, friendId, 2026);
       expect(empty).toEqual({ year: 2026, bpm_min: null, bpm_max: null, added_this_year: 0, playable_tracks: 0, bpm_histogram: [] });

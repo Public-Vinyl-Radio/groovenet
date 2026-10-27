@@ -51,6 +51,12 @@ describe("GenrePageRepository", () => {
     await repo.topTracks(filter, 6, 10);
 
     expect(lastCall()[0]).toContain('AS "hasVectors"');
+    expect(lastCall()[0]).toContain("COALESCE(t.album, '') AS album");
+    expect(lastCall()[0]).toContain("COALESCE(t.duration, '') AS duration");
+    expect(lastCall()[0]).toContain("COALESCE(t.position, '') AS position");
+    expect(lastCall()[0]).toContain("COALESCE(t.genres, '{}'::text[]) AS genres");
+    expect(lastCall()[0]).toContain("COALESCE(t.styles, '{}'::text[]) AS styles");
+    expect(lastCall()[0]).toContain("CASE WHEN t.bpm > 0 AND t.bpm < 'Infinity'::real THEN t.bpm ELSE NULL END AS bpm");
   });
 
   it("lists albums by plays of their tracks, then newest, scoped and limited", async () => {

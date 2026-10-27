@@ -117,7 +117,11 @@ export class GenrePageRepository {
 
     const { rows } = await dbQuery<GenrePageTrackRow>(
       `
-      SELECT t.*, ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}, COALESCE(p.play_count, 0)::integer AS play_count
+      SELECT t.*, COALESCE(t.album, '') AS album, COALESCE(t.duration, '') AS duration,
+        COALESCE(t.position, '') AS position, COALESCE(t.genres, '{}'::text[]) AS genres,
+        COALESCE(t.styles, '{}'::text[]) AS styles,
+        CASE WHEN t.bpm > 0 AND t.bpm < 'Infinity'::real THEN t.bpm ELSE NULL END AS bpm,
+        ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}, COALESCE(p.play_count, 0)::integer AS play_count
       FROM tracks t
       LEFT JOIN (
         SELECT track_id, friend_id, COUNT(*) AS play_count
