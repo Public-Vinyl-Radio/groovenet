@@ -24,7 +24,7 @@ export function classify(files, { full = false, mainPush = false } = {}) {
     if (file.startsWith('packages/groovenet-contracts/')) {
       enable('contracts', 'client', 'player', 'cli', 'web', 'python', 'migrate', 'redis', 'lint', 'webapp');
     }
-    if (file.startsWith('packages/groovenet-client/')) enable('client', 'player', 'cli', 'migrate', 'lint');
+    if (file.startsWith('packages/groovenet-client/')) enable('client', 'player', 'cli', 'web', 'migrate', 'lint', 'webapp');
     if (file.startsWith('packages/groovenet-player/')) enable('player', 'cli', 'migrate', 'lint');
     if (/^(packages\/groovenet-cli\/|mcp-server\/|evaluations\/)/.test(file)) enable('cli', 'lint');
     if (file.startsWith('scripts/') && /npm.*toolchain|check-npm-toolchain/.test(file)) enable('client', 'lint');

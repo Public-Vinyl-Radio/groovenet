@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlaybackSnapshot } from "@groovenet/player";
-import { formatPlayback, formatTime, visibleWindow } from "./playerTuiView.js";
+import { formatPlayback, visibleWindow } from "./playerTuiView.js";
 
 describe("player TUI state rendering", () => {
   it("shows current track metadata, progress, and transport state", () => {
@@ -19,7 +19,7 @@ describe("player TUI state rendering", () => {
     expect(formatPlayback({ status: "stopped", current: null, queue: [], position: 0, duration: null, volume: 100, error: null })).toEqual([
       "Nothing playing", "", expect.stringContaining("0:00 / --:-- · stopped · 100%"),
     ]);
-    expect(formatTime(-1)).toBe("0:00");
+    expect(formatPlayback({ status: "stopped", current: null, queue: [], position: -1, duration: 3723, volume: 100, error: null })[2]).toContain("0:00 / 1:02:03");
   });
 
   it("omits track metadata when BPM and key are absent", () => {

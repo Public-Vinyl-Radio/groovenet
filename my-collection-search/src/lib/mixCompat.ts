@@ -1,4 +1,7 @@
-import { camelotDistance, keyToCamelot } from "@/lib/playlistOrder";
+import { camelotOf, parseBpm } from "@groovenet/client/player-session";
+import { camelotDistance } from "@/lib/playlistOrder";
+
+export { camelotOf, parseBpm };
 
 export type KeyRelation = "same" | "adjacent" | "clash";
 
@@ -16,18 +19,6 @@ export const KEY_RELATION_LABEL: Record<KeyRelation, string> = {
   adjacent: "Adjacent",
   clash: "Key clash",
 };
-
-/** A usable tempo: a positive number, whether stored as a number or a string. */
-export function parseBpm(bpm: number | string | null | undefined): number | null {
-  const n = typeof bpm === "number" ? bpm : parseFloat(bpm ?? "");
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/** The Camelot code (`8A`) for a key, or null when the key is missing or unrecognised. */
-export function camelotOf(key: string | null | undefined): string | null {
-  const camelot = keyToCamelot(key);
-  return /^\d{1,2}[AB]$/i.test(camelot) ? camelot.toUpperCase() : null;
-}
 
 /**
  * How well `other` mixes after `base`. Same key is wheel distance 0, Adjacent

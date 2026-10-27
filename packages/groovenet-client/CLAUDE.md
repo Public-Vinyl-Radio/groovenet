@@ -12,8 +12,27 @@ src/
   schemas.ts   Zod schemas
   config.ts    ~/.groovenet/config.json load/save
   playlistCheck.ts  pure playlist analysis (BPM, keys, releases, vinyl sides)
+  serverPlayerSession.ts  ServerPlayerSession: snapshot/position state, stale-event fencing,
+               reconnect, commands, join()/playHere(), isLive/isIdle (transport injected)
+  trackLookup.ts   TrackLookup: batch-fetch + cache queue tracks by track_id + friend_id
+  trackFormat.ts   pure formatters: meta line, duration, queue summary, Camelot, BPM
+  playerSession.ts the browser-safe entry: the three files above and nothing else
+  serverPlayerTransport.ts  clientTransport(): the Node transport for a session
   index.ts     re-exports all of the above
 ```
+
+**Consumers.** The CLI (`RemotePlayerController`, `formatSeconds`) imports the package root.
+The web app (`my-collection-search`, `file:` dependency like contracts) imports only
+`@groovenet/client/player-session`, which must never import axios, `node:*` or anything
+that does — it is bundled for the browser. Keep new browser-facing code in those files and
+make anything Node-only (like `clientTransport`) reachable from `index.ts` alone. The web
+resolves the package through `build/`, so `just build-packages` (or `just bootstrap`) comes
+first; the dev container mounts it read-only and never rebuilds it.
+
+A session takes a `ServerPlayerTransport` (`get`, `devices`, `command`, `subscribe`): the
+web passes its `EventSource`-backed `playerApi`, Node passes `clientTransport(client)`.
+`command()` reports trouble as `view.problem` and never throws (web); `execute()` throws
+and resolves with the whole result (CLI). Neither replays a command.
 
 ```ts
 const client = new GroovenetClient({ baseUrl, apiKey, playerApiKey, insecureTls });
@@ -48,7 +67,7 @@ types here so client and CLI consumers share the declaration.
 ## Tests
 
 ```bash
-npm test --workspace=packages/groovenet-client      # 76 tests
+npm test --workspace=packages/groovenet-client
 ```
 
 `client.test.ts` mocks axios wholesale and asserts the exact request each method

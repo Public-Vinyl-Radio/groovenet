@@ -26,7 +26,7 @@ test('shared clients and contracts select downstream consumers', () => {
   for (const key of ['contracts', 'client', 'player', 'cli', 'web', 'python', 'migrate', 'redis']) {
     assert.equal(classify(['packages/groovenet-contracts/src/index.ts'])[key], true, key);
   }
-  assert.equal(classify(['packages/groovenet-client/src/client.ts']).cli, true);
+  for (const key of ['cli', 'web', 'webapp']) assert.equal(classify(['packages/groovenet-client/src/client.ts'])[key], true, key);
   assert.equal(classify(['packages/groovenet-player/src/server/store.ts']).migrate, true);
 });
 

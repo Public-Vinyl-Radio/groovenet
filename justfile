@@ -40,6 +40,7 @@ bootstrap-node:
   {{mise_exec}} node scripts/check-npm-toolchain.mjs
   {{mise_exec}} npm ci --no-fund --no-audit --loglevel=error
   {{mise_exec}} npm run build --workspace=@groovenet/contracts
+  {{mise_exec}} npm run build --workspace=@groovenet/client
   {{mise_exec}} npm ci --prefix my-collection-search --no-fund --no-audit --loglevel=error
 
 bootstrap-python:
@@ -91,8 +92,8 @@ lint:
 
 typecheck:
   {{mise_exec}} npm run build --workspace=@groovenet/contracts
-  {{mise_exec}} npm run typecheck --prefix my-collection-search
   {{mise_exec}} npm run build --workspace=packages/groovenet-client
+  {{mise_exec}} npm run typecheck --prefix my-collection-search
   {{mise_exec}} npm run build --workspace=packages/groovenet-player
   {{mise_exec}} npm run build --workspace=packages/groovenet-cli
   {{mise_exec}} npm run build --workspace=mcp-server

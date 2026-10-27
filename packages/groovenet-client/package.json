@@ -9,6 +9,10 @@
     ".": {
       "import": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./player-session": {
+      "types": "./build/playerSession.d.ts",
+      "import": "./build/playerSession.js"
     }
   },
   "scripts": {
