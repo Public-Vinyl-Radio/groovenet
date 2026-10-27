@@ -164,3 +164,14 @@ describe("AlbumResult row", () => {
     expect(screen.getByTestId("album-row").textContent).not.toContain("No audio");
   });
 });
+
+it("shows a compact discovery card with linked artwork, title and effective genres", () => {
+  renderWithProviders(<AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />);
+  expect(screen.getByTestId("album-discovery-card")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Open Blue Lines" }).getAttribute("href")).toBe("/albums/rel?friend_id=7");
+  expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe("/albums/rel?friend_id=7");
+  expect(screen.getByText("Massive Attack")).toBeTruthy();
+  expect(screen.getByText("Jazz")).toBeTruthy();
+  expect(screen.queryByText("Electronic")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
+});
