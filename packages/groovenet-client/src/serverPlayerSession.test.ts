@@ -179,23 +179,33 @@ describe("joining a server (#793)", () => {
     const joining = session.join(tracks);
     receive({ type: "snapshot", player: live, worker_instance: workerA, sequence: 1 });
     expect(await joining).toBe(true);
-    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "queue.add", tracks }]);
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "session.join", tracks }]);
   });
 
   it("plays the first appended entry when the server was idle", async () => {
     const idle = player(); idle.state.status = "stopped";
     receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 });
-    api.command.mockResolvedValueOnce(added("stopped", newEntry)).mockResolvedValueOnce({ player: player("lounge", 5) });
+    api.command.mockResolvedValueOnce(added("playing", newEntry));
     expect(await session.join(tracks)).toBe(true);
-    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "queue.add", tracks }, { type: "play", entry_id: newEntry }]);
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "session.join", tracks }]);
   });
 
-  it("reports the join even while playback awaits a speaker confirm", async () => {
+  it("retains the join for acknowledgement and reports success only after it commits", async () => {
     const idle = player(); idle.state.current_entry_id = null;
     receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 });
-    api.command.mockResolvedValueOnce(added("stopped", newEntry)).mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
-    expect(await session.join(tracks)).toBe(true);
-    expect(session.getSnapshot().acknowledgement?.command).toEqual({ type: "play", entry_id: newEntry });
+    const onJoined = vi.fn();
+    session.close();
+    session = new ServerPlayerSession("lounge", api, { onJoined });
+    session.start();
+    receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 });
+    api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
+    expect(await session.join(tracks)).toBe(false);
+    expect(onJoined).not.toHaveBeenCalled();
+    expect(session.getSnapshot().acknowledgement?.command).toEqual({ type: "session.join", tracks });
+    api.command.mockResolvedValueOnce(added("playing", newEntry));
+    await session.acknowledge();
+    expect(api.command.mock.lastCall?.[1]).toEqual({ type: "session.join", tracks, allow_unknown: true, expected_revision: idle.revision });
+    expect(onJoined).toHaveBeenCalledOnce();
   });
 
   it("fails without sending anything for no tracks, a failed append or a closed session", async () => {

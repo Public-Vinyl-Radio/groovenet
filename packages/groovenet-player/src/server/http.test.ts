@@ -131,3 +131,47 @@ describe("private player worker HTTP API", () => {
   });
 
 });
+
+
+it("streams all players, creations and updates with a fresh list on reconnect", async () => {
+  const f = await fixture();
+  const other = { id: "other", revision: 1, state: { status: "stopped" } };
+  f.manager.list.mockReturnValueOnce([f.manager.get(), other]);
+  const abort = new AbortController();
+  const response = await f.request("/players/events", { signal: abort.signal });
+  const reader = response.body!.getReader();
+  const initial = new TextDecoder().decode((await reader.read()).value);
+  expect(initial).toContain('event: players'); expect(initial).toContain('"id":"other"');
+  expect(f.manager.listenerCount("position")).toBe(0);
+  f.manager.emit("snapshot", { id: "new", revision: 0 });
+  expect(new TextDecoder().decode((await reader.read()).value)).toContain('"id":"new"');
+  f.manager.emit("snapshot", { id: "other", revision: 2 });
+  expect(new TextDecoder().decode((await reader.read()).value)).toContain('"revision":2');
+  abort.abort();
+  await vi.waitFor(() => expect(f.manager.listenerCount("snapshot")).toBe(0));
+  const next = new AbortController();
+  const reconnected = await f.request("/players/events", { signal: next.signal });
+  expect(new TextDecoder().decode((await reconnected.body!.getReader().read()).value)).toContain('event: players');
+  next.abort();
+  expect(f.manager.command).not.toHaveBeenCalled();
+});
+
+
+it("sends an empty initial list, requires auth and rejects writes to all-player events", async () => {
+  const f = await fixture(); f.manager.list.mockReturnValue([]);
+  expect((await fetch(f.base + "/players/events")).status).toBe(401);
+  expect((await f.request("/players/events", { method: "POST" })).status).toBe(405);
+  const abort = new AbortController();
+  const response = await f.request("/players/events", { signal: abort.signal });
+  expect(new TextDecoder().decode((await response.body!.getReader().read()).value)).toContain('"players":[]');
+  abort.abort();
+  await vi.waitFor(() => expect(f.manager.listenerCount("snapshot")).toBe(0));
+});
+
+it("drops an all-player stream when its initial list exceeds the buffer bound", async () => {
+  const f = await fixture();
+  f.server.prependListener("request", (_request, response) => { vi.spyOn(response, "writableLength", "get").mockReturnValue(64 * 1024 * 1024 + 1); });
+  await f.request("/players/events").catch(() => {});
+  await vi.waitFor(() => expect(f.manager.listenerCount("snapshot")).toBe(0));
+  expect(f.manager.command).not.toHaveBeenCalled();
+});

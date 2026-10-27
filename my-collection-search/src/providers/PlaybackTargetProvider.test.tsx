@@ -8,7 +8,7 @@ import { sampleTrack } from "@/stories/fixtures/track";
 import { playerApi } from "@/services/internalApi/players";
 const local = vi.hoisted(() => ({ playlist: [] as unknown[], playlistLength: 0, currentTrackIndex: null as number | null, finishedTrack: null as unknown, isAirPlayActive: false, pause: vi.fn(), clearQueue: vi.fn(), appendToQueue: vi.fn(), replacePlaylist: vi.fn() }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({ usePlaylistPlayer: () => local }));
-vi.mock("@/services/internalApi/players", () => ({ playerApi: { session: vi.fn(), list: vi.fn(), unlock: vi.fn(), lock: vi.fn(), subscribe: vi.fn(), get: vi.fn(), command: vi.fn(), devices: vi.fn() } }));
+vi.mock("@/services/internalApi/players", () => ({ playerApi: { session: vi.fn(), list: vi.fn(), subscribeAll: vi.fn(), unlock: vi.fn(), lock: vi.fn(), subscribe: vi.fn(), get: vi.fn(), command: vi.fn(), devices: vi.fn() } }));
 const api = vi.mocked(playerApi);
 let receive: Parameters<typeof playerApi.subscribe>[1];
 const close = vi.fn();
@@ -18,6 +18,10 @@ const snapshot = (id = "lounge") => receive({ type: "snapshot", player: player(i
 beforeEach(() => {
   vi.clearAllMocks(); localStorage.clear();
   local.playlist = []; local.currentTrackIndex = null; local.finishedTrack = null;
+  api.subscribeAll.mockImplementation(event => {
+    event({ type: "players", players: [player(), player("aswitch")], worker_instance: workerA, sequence: 1 });
+    return vi.fn();
+  });
   api.session.mockResolvedValue({ authorized: true }); api.list.mockResolvedValue([player(), player("aswitch")]); api.unlock.mockResolvedValue({ authorized: true }); api.lock.mockResolvedValue({});
   api.subscribe.mockImplementation((_id, event) => { receive = event; return close; });
   api.get.mockResolvedValue(player()); api.devices.mockResolvedValue([device]);
@@ -142,7 +146,7 @@ describe("join and Play here (#793)", () => {
     expect(upcomingLocalTracks({ playlist: [a, b], currentTrackIndex: null, finishedTrack: b })).toEqual([]);
   });
 
-  it("appends the local queue to a live server with one queue.add, then clears it locally", async () => {
+  it("appends the local queue to a live server with one session.join, then clears it locally", async () => {
     local.playlist = [queued("played"), queued("now"), queued("next")]; local.currentTrackIndex = 1;
     const hook = await ready();
     act(() => hook.result.current.target.join("lounge"));
@@ -150,7 +154,7 @@ describe("join and Play here (#793)", () => {
     const live = player(); live.state.status = "playing";
     await act(async () => receive({ type: "snapshot", player: live, worker_instance: workerA, sequence: 1 }));
     await waitFor(() => expect(local.clearQueue).toHaveBeenCalledTimes(1));
-    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "queue.add", tracks: [{ track_id: "now", friend_id: 1 }, { track_id: "next", friend_id: 1 }] }]);
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "session.join", tracks: [{ track_id: "now", friend_id: 1 }, { track_id: "next", friend_id: 1 }] }]);
   });
 
   it("starts an idle server on the first appended entry", async () => {
@@ -162,8 +166,8 @@ describe("join and Play here (#793)", () => {
     act(() => hook.result.current.target.join("lounge"));
     const idle = player(); idle.state.status = "stopped";
     await act(async () => receive({ type: "snapshot", player: idle, worker_instance: workerA, sequence: 1 }));
-    await waitFor(() => expect(api.command).toHaveBeenCalledTimes(2));
-    expect(api.command.mock.calls[1]![1]).toEqual({ type: "play", entry_id: "66666666-6666-4666-8666-666666666666" });
+    await waitFor(() => expect(local.clearQueue).toHaveBeenCalledOnce());
+    expect(api.command.mock.calls.map(call => call[1])).toEqual([{ type: "session.join", tracks: [{ track_id: "now", friend_id: 1 }] }]);
   });
 
   it("keeps the local queue when the append fails", async () => {
@@ -188,4 +192,66 @@ describe("join and Play here (#793)", () => {
     expect(api.command).not.toHaveBeenCalled(); expect(local.clearQueue).not.toHaveBeenCalled();
     expect(local.pause).toHaveBeenCalledTimes(1);
   });
+});
+
+
+it("updates every server through one list stream, ignores stale events, and closes it on lock", async () => {
+  let update!: Parameters<typeof playerApi.subscribeAll>[0];
+  const stop = vi.fn();
+  api.subscribeAll.mockImplementation(event => { update = event; return stop; });
+  const hook = mount(); await waitFor(() => expect(api.subscribeAll).toHaveBeenCalledOnce());
+  expect(api.list).not.toHaveBeenCalled(); expect(api.subscribe).not.toHaveBeenCalled();
+  const send = (p: ReturnType<typeof player>, sequence: number, worker_instance = workerA) => update({ type: "snapshot", player: p, sequence, worker_instance });
+  act(() => send(player("lounge", 10), 2)); expect(hook.result.current.target.players).toEqual([]);
+  act(() => update({ type: "players", players: [player(), player("other")], worker_instance: workerA, sequence: 1 }));
+  const latest = player("lounge", 5); latest.state.status = "playing";
+  act(() => { send(latest, 3); send(player("lounge", 4), 4); send(player("lounge", 20), 2); send(player("lounge", 20), 5, "another-worker"); send(player("new"), 6); });
+  expect(hook.result.current.target.players).toEqual([latest, player("other"), player("new")]);
+  await act(async () => hook.result.current.target.lock()); expect(stop).toHaveBeenCalledOnce();
+  act(() => send(player("late"), 7)); expect(hook.result.current.target.players).toEqual([]);
+});
+
+it("reconnects the list stream for a fresh complete snapshot and fences the old stream", async () => {
+  let receiveAll!: Parameters<typeof playerApi.subscribeAll>[0];
+  let disconnectAll!: () => void;
+  const stop = vi.fn();
+  api.subscribeAll.mockImplementation((event, disconnect) => { receiveAll = event; disconnectAll = disconnect; return stop; });
+  const hook = mount(); await waitFor(() => expect(api.subscribeAll).toHaveBeenCalledOnce());
+  vi.useFakeTimers();
+  try {
+    const old = receiveAll;
+    act(() => { receiveAll({ type: "players", players: [player("old", 20)], worker_instance: workerA, sequence: 10 }); disconnectAll(); disconnectAll(); });
+    expect(hook.result.current.target.problem).toContain("Reconnecting");
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(api.subscribeAll).toHaveBeenCalledTimes(2);
+    act(() => {
+      receiveAll({ type: "players", players: [], worker_instance: "new-worker", sequence: 1 });
+      old({ type: "snapshot", player: player("late"), worker_instance: workerA, sequence: 11 });
+    });
+    expect(hook.result.current.target.players).toEqual([]); expect(hook.result.current.target.problem).toBeNull();
+    hook.unmount();
+    disconnectAll();
+    await vi.advanceTimersByTimeAsync(5000); expect(api.subscribeAll).toHaveBeenCalledTimes(2);
+  } finally { vi.useRealTimers(); }
+});
+
+it("retains local tracks for speaker acknowledgement and clears them only after the join commits", async () => {
+  local.playlist = [{ ...sampleTrack, track_id: "local" }]; local.currentTrackIndex = 0;
+  api.command.mockRejectedValueOnce(Object.assign(new Error("Confirm speaker"), { data: { code: "AVAILABILITY_UNKNOWN" } }));
+  const hook = mount(); await waitFor(() => expect(hook.result.current.target.authorized).toBe(true));
+  act(() => hook.result.current.target.join("lounge")); await act(async () => snapshot());
+  expect(local.clearQueue).not.toHaveBeenCalled();
+  expect(hook.result.current.target.remote.acknowledgement?.command.type).toBe("session.join");
+  await act(async () => hook.result.current.target.controller!.acknowledge());
+  expect(local.clearQueue).toHaveBeenCalledOnce();
+  expect(api.command).toHaveBeenCalledTimes(2);
+  expect(api.command.mock.lastCall?.[1]).toMatchObject({ type: "session.join", allow_unknown: true, expected_revision: 3 });
+});
+
+
+it("cleans up when a subscription disconnects during setup", async () => {
+  const stop = vi.fn();
+  api.subscribeAll.mockImplementation((_event, disconnect) => { disconnect(); return stop; });
+  const hook = mount(); await waitFor(() => expect(hook.result.current.target.problem).toContain("Reconnecting"));
+  hook.unmount(); expect(stop).toHaveBeenCalledOnce();
 });

@@ -32,6 +32,10 @@ playerContracts.push({ operationId: "subscribeServerPlayer", method: "get", path
   security: [{ BearerAuth: [] }, { PlayerWebSession: [] }], parameters: [{ in: "path", name: "playerId", required: true, schema: z.toJSONSchema(playerIdSchema) }],
   responses: { "200": { description: "SSE snapshot and position events containing worker_instance and sequence; reconnect for fresh state", content: { "text/event-stream": { schema: { type: "string" } } } }, "401": { description: "Household player bearer key required" }, "503": { description: "Worker unavailable" } },
 } });
+playerContracts.push({ operationId: "subscribeAllServerPlayers", method: "get", path: "/api/players/events", summary: "Subscribe to all players: an initial players event followed by changed player snapshots", tags: ["Players"], successSchema: z.string(), errorSchema: error, openapi: {
+  security: [{ BearerAuth: [] }, { PlayerWebSession: [] }],
+  responses: { "200": { description: "SSE players and snapshot events containing worker_instance and sequence; reconnect receives a fresh complete list", content: { "text/event-stream": { schema: { type: "string" } } } }, "401": { description: "Household player bearer key required" }, "503": { description: "Worker unavailable" } },
+} });
 
 for (const method of ["get", "post", "delete"] as const) playerContracts.push({
   operationId: `${method}PlayerWebSession`, method, path: "/api/players/browser/session", summary: method === "post" ? "Unlock player-only browser access with a separate household web passphrase" : method === "delete" ? "Clear this browser's player session without stopping audio" : "Read browser player authorization status",

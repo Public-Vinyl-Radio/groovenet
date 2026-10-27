@@ -114,8 +114,9 @@ export class ServerPlayerManager extends EventEmitter {
         switch (command.type) {
           case "rename": player.name = command.name; break;
           case "availability.set": player.availability_policy = command.availability_policy; break;
+          case "session.join":
           case "queue.add": {
-            const at = command.at ?? player.state.queue.length;
+            const at = command.type === "queue.add" ? command.at ?? player.state.queue.length : player.state.queue.length;
             if (at > player.state.queue.length || player.state.queue.length + command.tracks.length > 10000) throw new ServerPlayerError("INVALID_QUEUE", "Queue insertion is out of range", 400);
             const added = [];
             for (const ref of command.tracks) {
@@ -124,6 +125,10 @@ export class ServerPlayerManager extends EventEmitter {
               added.push({ ...ref, id: randomUUID(), title: track.title, artist: track.artist });
             }
             player.state.queue.splice(at, 0, ...added);
+            if (command.type === "session.join" && (player.state.current_entry_id === null || player.state.status === "stopped" || player.state.status === "ended")) {
+              await this.play(player, added[0]!.id, command, false);
+              return { player: this.get(id) };
+            }
             break;
           }
           case "queue.remove": {

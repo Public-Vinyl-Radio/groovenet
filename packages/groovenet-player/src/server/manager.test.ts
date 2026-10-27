@@ -816,3 +816,57 @@ describe("queue replacement recovery", () => {
     expect(f.manager.get("b")).toEqual(before); await f.manager.shutdown();
   });
 });
+
+
+describe("atomic session.join", () => {
+  const tracks = [{ track_id: "3", friend_id: 1 }];
+  it.each(["stopped", "ended", "playing", "paused", "error"] as const)("joins a %s player using its authoritative state", async status => {
+    const f = await fixture(); await f.prepare("a");
+    if (status !== "stopped") {
+      await f.command("a", { type: "play", entry_id: f.manager.get("a").state.queue[1]!.id, allow_unknown: true });
+      if (status === "paused") await f.command("a", { type: "pause" });
+      if (status === "ended") { f.backends[0]!.emit("ended"); await f.settle(); }
+      if (status === "error") { f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "Lost speaker")); await f.settle(); }
+    }
+    f.create.mockClear();
+    const before = f.manager.get("a");
+    const result = await f.command("a", { type: "session.join", tracks, allow_unknown: true });
+    expect(result.player.state.queue).toHaveLength(3);
+    expect(result.player.state.queue.slice(0, 2)).toEqual(before.state.queue);
+    if (status === "stopped" || status === "ended") {
+      expect(result.player.state.current_entry_id).toBe(result.player.state.queue[2]!.id);
+      expect(result.player.state.status).toBe("playing");
+      expect(f.backends.at(-1)!.load).toHaveBeenCalledOnce();
+    } else {
+      expect(result.player.state.current_entry_id).toBe(before.state.current_entry_id);
+      expect(result.player.state.status).toBe(status);
+      expect(f.create).not.toHaveBeenCalled();
+    }
+    await f.manager.shutdown();
+  });
+  it("serializes concurrent joins so the second appends without restarting playback", async () => {
+    const f = await fixture(); await f.command("a", { type: "output.select", output_id: "speaker-a" });
+    const join = () => f.manager.command("a", { type: "session.join", tracks, allow_unknown: true, takeover: false });
+    const [first, second] = await Promise.all([join(), join()]);
+    expect(first.player.state.queue).toHaveLength(1);
+    expect(second.player.state.queue).toHaveLength(2);
+    expect(second.player.state.current_entry_id).toBe(first.player.state.current_entry_id);
+    expect(new Set(second.player.state.queue.map(entry => entry.id)).size).toBe(2);
+    expect(f.create).toHaveBeenCalledOnce();
+    await f.manager.shutdown();
+  });
+  it("does not append on policy, output, audio or track validation failure", async () => {
+    const f = await fixture();
+    await expect(f.command("a", { type: "session.join", tracks })).rejects.toMatchObject({ code: "OUTPUT_REQUIRED" });
+    await f.command("a", { type: "output.select", output_id: "speaker-a" });
+    const before = f.manager.get("a");
+    await expect(f.command("a", { type: "session.join", tracks })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    expect(f.manager.get("a")).toEqual(before);
+    await expect(f.command("a", { type: "session.join", tracks: [...tracks, { track_id: "missing", friend_id: 1 }] })).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
+    expect(f.manager.get("a")).toEqual(before);
+    f.store.tracks.get("3")!.local_audio_url = null;
+    await expect(f.command("a", { type: "session.join", tracks, allow_unknown: true })).rejects.toMatchObject({ code: "NO_AUDIO" });
+    expect(f.manager.get("a")).toEqual(before);
+    await f.manager.shutdown();
+  });
+});

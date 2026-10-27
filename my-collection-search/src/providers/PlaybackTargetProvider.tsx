@@ -24,8 +24,7 @@ function useTargetState() {
   const [authorized, setAuthorized] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const local = usePlaylistPlayer();
-  const localRef = useRef(local);
-  useEffect(() => { localRef.current = local; });
+  const onJoined = local.clearQueue;
   const pendingJoin = useRef<{ id: string; tracks: Track[] } | null>(null);
   useEffect(() => {
     try {
@@ -38,15 +37,50 @@ function useTargetState() {
     try { setPlayers(await playerApi.list()); setProblem(null); }
     catch (error) { setProblem(error instanceof Error ? error.message : "Server players unavailable"); }
   }, []);
-  useEffect(() => { if (authorized) void loadPlayers(); }, [authorized, loadPlayers]);
-  const controller = useMemo(() => target !== "" && authorized ? new ServerPlayerSession(target, playerApi) : null, [target, authorized]);
+  useEffect(() => {
+    if (!authorized) return;
+    let active = true;
+    let generation = 0;
+    let close: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout>;
+    const connect = () => {
+      const current = ++generation;
+      let worker: string | undefined;
+      let sequence = -1;
+      close = playerApi.subscribeAll(event => {
+        if (!active || current !== generation) return;
+        if (event.type === "players" && worker === undefined) {
+          worker = event.worker_instance;
+          sequence = event.sequence;
+          setPlayers(event.players);
+          setProblem(null);
+        } else if (event.type === "snapshot" && event.worker_instance === worker && event.sequence > sequence) {
+          sequence = event.sequence;
+          setPlayers(players => {
+            const existing = players.find(player => player.id === event.player.id);
+            if (existing && existing.revision > event.player.revision) return players;
+            return existing ? players.map(player => player.id === event.player.id ? event.player : player) : [...players, event.player];
+          });
+        }
+      }, () => {
+        if (!active || current !== generation) return;
+        ++generation;
+        close?.();
+        setProblem("Music server updates disconnected. Reconnecting.");
+        timer = setTimeout(connect, 1500);
+      });
+    };
+    connect();
+    return () => { active = false; ++generation; clearTimeout(timer); close?.(); };
+  }, [authorized]);
+  const controller = useMemo(() => target !== "" && authorized ? new ServerPlayerSession(target, playerApi, { onJoined }) : null, [target, authorized, onJoined]);
   useEffect(() => controller?.start(), [controller]);
   useEffect(() => {
     const join = pendingJoin.current;
     if (!controller || join?.id !== controller.id) return;
     pendingJoin.current = null;
     // The local queue is cleared only once its tracks are safely on the server.
-    void controller.join(join.tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id }))).then(joined => { if (joined) localRef.current.clearQueue(); });
+    void controller.join(join.tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id })));
   }, [controller]);
   const remote = useSyncExternalStore(controller?.subscribe ?? noopSubscribe, controller?.getSnapshot ?? emptySnapshot, emptySnapshot);
   const remember = (next: string) => {

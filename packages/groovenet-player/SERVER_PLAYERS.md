@@ -173,6 +173,32 @@ Other commands are `rename`, `queue.clear`, `pause`, `resume`, `stop`, `next`,
 and position while preserving the queue. Natural EOF advances only that player's
 queue; interruption/error preserves the current entry and requires a command.
 
+### Joining a session
+
+`session.join` appends tracks and starts the first appended entry when the player
+has no current entry or is stopped or ended. The idle check, append and play run
+in one serialized worker command; concurrent joins cannot interrupt each other.
+Playing, loading and paused sessions keep their current track and position.
+
+```json
+{"type":"session.join","tracks":[{"track_id":"TRACK_ID","friend_id":1}]}
+```
+
+Joins accept `expected_revision`, `allow_unknown` and `takeover`. Track, output
+and availability validation failures leave the queue unchanged. A browser keeps
+its local queue until the command succeeds, including after an explicit speaker
+acknowledgement. An engine failure after the selected entry is persisted retains
+the appended queue and error state, as with other playback commands; commands are
+never automatically replayed.
+
+`GET /api/players/events` uses the same player authorization as named-player
+streams. It emits one `players` event containing the complete `players` list,
+then `snapshot` events containing each changed or newly created `player`. Both
+include `worker_instance` and increasing `sequence` values. Reconnecting gets a
+fresh complete list, even when no players exist. This stream omits position
+ticks; the selected player's stream supplies transport progress. Disconnecting
+either stream never stops playback.
+
 ### Atomic queue replacement
 
 `queue.replace` resolves every track before changing the queue or playback. An

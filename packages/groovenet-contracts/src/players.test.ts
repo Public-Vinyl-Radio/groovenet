@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createServerPlayerSchema, serverPlayerCommandSchema, serverPlayerEventSchema, playerJsonSchemas, speakerObservationSchema } from "./players.js";
+import { createServerPlayerSchema, serverPlayerCommandSchema, serverPlayerEventSchema, playerJsonSchemas, speakerObservationSchema, serverPlayersStreamEventSchema } from "./players.js";
 describe("server-player contracts", () => {
   it("accepts persistent names and configured engine identifiers, not client-supplied URLs", () => {
     expect(createServerPlayerSchema.parse({ id: "lounge", name: " Lounge ", engine_id: "primary" }).name).toBe("Lounge");
@@ -48,4 +48,16 @@ it("validates atomic queue replacement and keeps playback opt-in", () => {
     { entries: Array.from({ length: 10001 }, () => ({ track_id: "track", friend_id: 1 })) },
   ]) expect(serverPlayerCommandSchema.safeParse({ type: "queue.replace", expected_revision: 3, ...command }).success).toBe(false);
   expect(serverPlayerCommandSchema.parse({ type: "queue.replace", expected_revision: 0, entries: [], current_entry_id: null }).entries).toEqual([]);
+});
+
+
+it("validates bounded joins and the aggregate stream's initial list", () => {
+  const tracks = [{ track_id: "track", friend_id: 1 }];
+  expect(serverPlayerCommandSchema.parse({ type: "session.join", tracks })).toEqual({ type: "session.join", tracks, allow_unknown: false, takeover: false });
+  for (const change of [{ tracks: [] }, { tracks: Array(1001).fill(tracks[0]) }, { at: 0 }, { tracks: [{ ...tracks[0], local_audio_url: "secret" }] }]) {
+    expect(serverPlayerCommandSchema.safeParse({ type: "session.join", tracks, ...change }).success).toBe(false);
+  }
+  const initial = { type: "players", players: [], worker_instance: "33333333-3333-4333-8333-333333333333", sequence: 1 };
+  expect(serverPlayersStreamEventSchema.parse(initial)).toEqual(initial);
+  expect(serverPlayersStreamEventSchema.safeParse({ ...initial, players: [{}] }).success).toBe(false);
 });

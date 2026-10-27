@@ -15,15 +15,19 @@ describe("same-origin player transport", () => {
     expect(fetcher).toHaveBeenLastCalledWith("/api/players/browser/session", { method: "DELETE" });
     fetcher.mockImplementation(async () => Response.json({ invalid: true })); await expect(playerApi.get("lounge")).rejects.toThrow();
   });
-  it("owns an EventSource for a single subscription and closes on malformed data or disconnect", () => {
+  it.each([false, true])("owns an EventSource and closes on malformed data or disconnect (all=%s)", all => {
     const listeners: Record<string, (event: { data: string }) => void> = {};
     const source = { addEventListener: vi.fn((name, listener) => { listeners[name] = listener; }), close: vi.fn(), onerror: null as (() => void) | null };
     const constructor = vi.fn(function () { return source; }); vi.stubGlobal("EventSource", constructor);
-    const receive = vi.fn(); const disconnected = vi.fn(); const close = playerApi.subscribe("lounge", receive, disconnected);
-    expect(constructor).toHaveBeenCalledWith("/api/players/lounge/events");
+    const receive = vi.fn(); const disconnected = vi.fn(); const close = all ? playerApi.subscribeAll(receive, disconnected) : playerApi.subscribe("lounge", receive, disconnected);
+    expect(constructor).toHaveBeenCalledWith(all ? "/api/players/events" : "/api/players/lounge/events");
     const event = { type: "snapshot", player: player(), worker_instance: workerA, sequence: 1 };
     listeners.snapshot!({ data: JSON.stringify(event) }); expect(receive).toHaveBeenCalledWith(event);
-    listeners.position!({ data: "invalid" }); expect(disconnected).toHaveBeenCalledTimes(1); expect(source.close).toHaveBeenCalled();
+    if (all) {
+      const initial = { type: "players", players: [], worker_instance: workerA, sequence: 0 };
+      listeners.players!({ data: JSON.stringify(initial) }); expect(receive).toHaveBeenLastCalledWith(initial);
+    }
+    listeners.snapshot!({ data: "invalid" }); expect(disconnected).toHaveBeenCalledTimes(1); expect(source.close).toHaveBeenCalled();
     source.onerror!(); expect(disconnected).toHaveBeenCalledTimes(2); close(); expect(source.close).toHaveBeenCalledTimes(3);
   });
 });

@@ -35,6 +35,7 @@ const connect = { allow_unknown: z.boolean().default(false), takeover: z.boolean
 export const serverPlayerCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename"), ...edit, name: z.string().trim().min(1).max(120) }).strict(),
   z.object({ type: z.literal("availability.set"), ...edit, availability_policy: availabilityPolicySchema }).strict(),
+  z.object({ type: z.literal("session.join"), ...edit, ...connect, tracks: z.array(playerTrackRefSchema).min(1).max(1000) }).strict(),
   z.object({ type: z.literal("queue.add"), ...edit, tracks: z.array(playerTrackRefSchema).min(1).max(1000), at: z.number().int().nonnegative().optional() }).strict(),
   z.object({ type: z.literal("queue.remove"), ...edit, entry_id: z.uuid() }).strict(),
   z.object({ type: z.literal("queue.move"), ...edit, entry_id: z.uuid(), to: z.number().int().nonnegative() }).strict(),
@@ -89,6 +90,8 @@ export const serverPlayerListSchema = z.object({ players: z.array(serverPlayerSc
 export const serverPlayerDeviceListSchema = z.object({ devices: z.array(serverPlayerDeviceSchema) });
 export const playerEngineListSchema = z.object({ engines: z.array(playerIdSchema) });
 export const serverPlayerEventSchema = z.object({ type: z.literal("snapshot"), player: serverPlayerSchema, worker_instance: z.uuid(), sequence: revision });
+export const serverPlayersEventSchema = z.object({ type: z.literal("players"), players: z.array(serverPlayerSchema), worker_instance: z.uuid(), sequence: revision });
+export const serverPlayersStreamEventSchema = z.discriminatedUnion("type", [serverPlayersEventSchema, serverPlayerEventSchema]);
 export const serverPlayerPositionSchema = z.object({ type: z.literal("position"), player_id: playerIdSchema, revision, current_entry_id: z.uuid().nullable(), position: z.number().finite().nonnegative(), duration: z.number().finite().nonnegative().nullable(), observed_at: z.string(), worker_instance: z.uuid(), sequence: revision });
 export const serverPlayerStreamEventSchema = z.discriminatedUnion("type", [serverPlayerEventSchema, serverPlayerPositionSchema]);
 export const playerJsonSchemas = {
@@ -100,5 +103,6 @@ export const playerJsonSchemas = {
   ServerPlayerDeviceList: z.toJSONSchema(serverPlayerDeviceListSchema),
   PlayerEngineList: z.toJSONSchema(playerEngineListSchema),
   ServerPlayerEvent: z.toJSONSchema(serverPlayerEventSchema),
+  ServerPlayersEvent: z.toJSONSchema(serverPlayersEventSchema),
   ServerPlayerPosition: z.toJSONSchema(serverPlayerPositionSchema),
 };
