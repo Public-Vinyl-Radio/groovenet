@@ -3,7 +3,7 @@
 import React from "react";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
-import { Badge, Box, Button, Flex, Grid, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Flex, Grid, Heading, Skeleton, Stack, Text } from "@chakra-ui/react";
 import AlbumResult from "@/components/AlbumResult";
 import TrackResultStore from "@/components/TrackResultStore";
 import GenreBpmSpread from "@/components/genres/GenreBpmSpread";
@@ -16,16 +16,22 @@ import { useGenrePlayback } from "@/hooks/useGenrePlayback";
 import { useUsername } from "@/providers/UsernameProvider";
 import type { GenrePageResponse } from "@/api-contract/schemas";
 
+// Fewer than one widest (four-cover) row, using full friend-scoped totals.
+const THIN_GENRE_ALBUM_THRESHOLD = 4;
+
 const GENRES_CRUMB = { label: "Genres", href: "/genres" };
 
 function GenreContent({ page, friendId }: { page: Omit<GenrePageResponse, "top_albums" | "top_tracks">; friendId: number | undefined }) {
   const { genre, counts, stats } = page;
+  const isThin = counts.albums_total < THIN_GENRE_ALBUM_THRESHOLD;
+  const relatedTitle = isThin ? "Neighbouring crates" : "Related genres";
   const [view, setView] = React.useState<GenreView>("albums");
   const [aliasesOpen, setAliasesOpen] = React.useState(false);
   const aliasesId = React.useId();
   const results = useGenreResults(genre.slug, friendId, view);
   const playback = useGenrePlayback(genre.slug, friendId);
   const refs = results.data?.pages.flatMap((page) => page.refs) ?? [];
+  const emptySlots = (columns: number) => refs.length === 0 ? columns : (columns - refs.length % columns) % columns;
   const actions = <Flex gap={3} w={{ base: "full", md: "auto" }}>
     <Button flex={{ base: 1, md: "initial" }} minH="44px" variant="solid" colorPalette="accent" disabled={playback.busy || !stats.playable_tracks} loading={playback.busy} onClick={() => void playback.play(false)}>Play all</Button>
     <Button flex={{ base: 1, md: "initial" }} minH="44px" variant="outline" disabled={playback.busy || !stats.playable_tracks} onClick={() => void playback.play(true)}>Shuffle</Button>
@@ -59,10 +65,19 @@ function GenreContent({ page, friendId }: { page: Omit<GenrePageResponse, "top_a
             {(["albums", "tracks"] as const).map((item) => <Button key={item} flex={1} minH="44px" variant={view === item ? "solid" : "ghost"} colorPalette="neutral" boxShadow="none" borderWidth={0} aria-pressed={view === item} onClick={() => setView(item)}>{item === "albums" ? "Albums" : "Tracks"} [{(item === "albums" ? counts.albums_total : counts.tracks_total).toLocaleString()}]</Button>)}
           </Flex>
           {view === "albums" && page.children.length > 0 && <Box as="section" aria-label="Subgenres" pb={2} pe={1.5}><GenreCrate title="Subgenres" genres={page.children} /></Box>}
+          {isThin && view === "albums" && <Box>
+            <Heading as="h2" fontSize="xl">Build this crate</Heading>
+            <Text color="fg.muted" fontSize="sm" mt={2}>Room for more records. Explore neighbouring crates for somewhere to dig next.</Text>
+          </Box>}
           {results.isPending ? <Grid data-testid="genre-results-loading" templateColumns="repeat(2, minmax(0, 1fr))" gap={5}><Skeleton h="180px" /><Skeleton h="180px" /></Grid> : <>
             {refs.length === 0 && !results.error && <Text color="fg.muted">No {view} in this genre yet.</Text>}
             {view === "albums" ? <Grid aria-label="Albums" templateColumns={{ base: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))", "2xl": "repeat(4, minmax(0, 1fr))" }} gap={5} p="0 6px 6px 0">
               {refs.map((ref) => <AlbumResult key={`${ref.id}:${ref.friend_id}`} albumRef={{ release_id: ref.id, friend_id: ref.friend_id }} layout="cover" />)}
+              {isThin && !results.error && !results.hasNextPage && Array.from({ length: 4 }, (_, index) => <Box key={`empty-${index}`} data-testid="crate-empty-slot" aria-hidden="true" aspectRatio={1} alignSelf="start" borderWidth="outline" borderStyle="dashed" borderColor="border.ink" display={{
+                base: index < emptySlots(2) ? "block" : "none",
+                lg: index < emptySlots(3) ? "block" : "none",
+                "2xl": index < emptySlots(4) ? "block" : "none",
+              }} />)}
             </Grid> : refs.length > 0 && <Box aria-label="Tracks" borderWidth="outline" borderColor="border.ink" boxShadow="md" css={{ containerType: "inline-size" }}>
               {refs.map((ref) => <TrackResultStore key={`${ref.id}:${ref.friend_id}`} trackId={ref.id} friendId={ref.friend_id} layout="row" showUsername={false} />)}
             </Box>}
@@ -71,7 +86,11 @@ function GenreContent({ page, friendId }: { page: Omit<GenrePageResponse, "top_a
           {results.hasNextPage && <Button minH="44px" loading={results.isFetchingNextPage} disabled={results.isFetchingNextPage} onClick={() => void results.fetchNextPage()}>Load more {view}</Button>}
         </Stack>
         <Stack as="aside" aria-label="Genre insights" gap={7} minW={0} pe={1.5}>
-          <Box as="section" aria-label="Related genres"><GenreCrate title="Related genres" genres={page.related} /></Box>
+          <Box as="section" aria-label={relatedTitle}><GenreCrate title={relatedTitle} genres={page.related} /></Box>
+          {isThin && <Box as="section" aria-label="Weekly wantlist picks" borderWidth="outline" borderStyle="dashed" borderColor="border.ink" p={4}>
+            <Heading as="h2" fontSize="lg" overflowWrap="anywhere">Weekly wantlist picks</Heading>
+            <Text mt={3} color="fg.muted" fontSize="sm">Picks arrive with the recommender. This space is reserved for future weekly wantlist picks.</Text>
+          </Box>}
           <GenreBpmSpread stats={stats} />
         </Stack>
       </Grid>

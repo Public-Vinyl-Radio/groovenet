@@ -5,13 +5,14 @@ import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
+  slug: "psychedelic%20cumbia",
   query: { data: undefined, error: null, refetch: vi.fn() } as { data: unknown; error: Error | null; refetch: ReturnType<typeof vi.fn> },
   friend: { id: 6 } as { id: number } | null,
   useGenrePageQuery: vi.fn(), useGenreResults: vi.fn(), play: vi.fn(),
   results: { data: { pages: [{ refs: [{ id: "r1", friend_id: 6 }] }] }, isPending: false, hasNextPage: true, isFetchingNextPage: false, isFetchNextPageError: false, error: null as Error | null, fetchNextPage: vi.fn(), refetch: vi.fn() },
   playback: { busy: false, problem: null as string | null },
 }));
-vi.mock("next/navigation", () => ({ useParams: () => ({ slug: "psychedelic%20cumbia" }) }));
+vi.mock("next/navigation", () => ({ useParams: () => ({ slug: mocks.slug }) }));
 vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => ({ friend: mocks.friend }) }));
 vi.mock("@/hooks/useGenrePageQuery", () => ({ useGenrePageQuery: (...args: unknown[]) => { mocks.useGenrePageQuery(...args); return mocks.query; } }));
 vi.mock("@/hooks/useGenreResults", () => ({ useGenreResults: (...args: unknown[]) => { mocks.useGenreResults(...args); return mocks.results; } }));
@@ -33,6 +34,7 @@ const fullPage = {
 describe("genre detail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.slug = "psychedelic%20cumbia";
     mocks.query = { data: undefined, error: null, refetch: vi.fn() };
     mocks.friend = { id: 6 };
     mocks.results = { data: { pages: [{ refs: [{ id: "r1", friend_id: 6 }] }] }, isPending: false, hasNextPage: true, isFetchingNextPage: false, isFetchNextPageError: false, error: null, fetchNextPage: vi.fn(), refetch: vi.fn() };
@@ -125,4 +127,79 @@ describe("genre detail", () => {
     expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 7, "albums");
     expect(screen.getByRole("button", { name: "More" }).getAttribute("aria-expanded")).toBe("false");
   });
+  it.each([0, 1, 2, 3, 4])("uses the full album total at the thin boundary (%i albums)", (total) => {
+    mocks.query.data = { ...fullPage, counts: { ...fullPage.counts, albums: 0, albums_total: total } };
+    mocks.results.data.pages = [{ refs: Array.from({ length: total }, (_, i) => ({ id: `r${i}`, friend_id: 6 })) }];
+    mocks.results.hasNextPage = false;
+    renderWithProviders(<GenrePage />);
+    expect(screen.queryByRole("heading", { name: "Build this crate" }) !== null).toBe(total < 4);
+    expect(screen.queryByRole("region", { name: "Weekly wantlist picks" }) !== null).toBe(total < 4);
+    expect(screen.getByRole("region", { name: total < 4 ? "Neighbouring crates" : "Related genres" })).toBeTruthy();
+    expect(screen.queryAllByTestId("album-row")).toHaveLength(total);
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(total < 4 ? 4 : 0);
+    for (const slot of screen.queryAllByTestId("crate-empty-slot")) {
+      expect(slot.getAttribute("aria-hidden")).toBe("true");
+      expect(slot.tabIndex).toBe(-1);
+      expect(getComputedStyle(slot).borderStyle).toBe("dashed");
+    }
+  });
+  it("does not infer thinness from direct counts, loaded pages or previews", () => {
+    mocks.query.data = { ...fullPage, counts: { ...fullPage.counts, albums: 1, albums_total: 4 } };
+    renderWithProviders(<GenrePage />);
+    expect(screen.queryByText("Build this crate")).toBeNull();
+    expect(screen.queryByText("Weekly wantlist picks")).toBeNull();
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Load more albums" })).toBeTruthy();
+  });
+  it("keeps thin-state navigation, playback, aliases and Tracks working", async () => {
+    mocks.query.data = { ...fullPage, counts: { ...fullPage.counts, albums_total: 1 } };
+    mocks.results.hasNextPage = false;
+    const { user } = renderWithProviders(<GenrePage />);
+    expect(screen.getByRole("heading", { name: "Build this crate" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Subgenres" })).toBeTruthy();
+    expect(screen.getByText(/Picks arrive with the recommender/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Chicha/ }).getAttribute("href")).toBe("/genres/chicha");
+    await user.click(screen.getByRole("button", { name: "Play all" }));
+    await user.click(screen.getByRole("button", { name: "Shuffle" }));
+    expect(mocks.play.mock.calls).toEqual([[false], [true]]);
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: "Tracks [24]" }));
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(0);
+    expect(screen.queryByText("Build this crate")).toBeNull();
+    expect(screen.getByTestId("track-row")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Neighbouring crates" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Albums [1]" }));
+    expect(screen.getByTestId("album-row")).toBeTruthy();
+  });
+  it("withholds empty slots during loading, errors and unfinished pagination", () => {
+    mocks.query.data = { ...fullPage, counts: { ...fullPage.counts, albums_total: 1 } };
+    const { rerender } = renderWithProviders(<GenrePage />);
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(0);
+    mocks.results.hasNextPage = false; mocks.results.isPending = true; rerender(<GenrePage />);
+    expect(screen.getByTestId("genre-results-loading")).toBeTruthy();
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(0);
+    mocks.results.isPending = false; mocks.results.error = new Error("Offline"); rerender(<GenrePage />);
+    expect(screen.getByRole("alert").textContent).toContain("Offline");
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(0);
+    mocks.results.error = null; rerender(<GenrePage />);
+    expect(screen.queryAllByTestId("crate-empty-slot")).toHaveLength(4);
+  });
+  it("recalculates thin state and resets the view for friend and genre changes", async () => {
+    mocks.query.data = fullPage;
+    const { user, rerender } = renderWithProviders(<GenrePage />);
+    await user.click(screen.getByRole("button", { name: "Tracks [24]" }));
+    mocks.friend = { id: 7 };
+    mocks.query.data = { ...fullPage, genre: { ...fullPage.genre, name: "Very long genre ".repeat(20), aliases: [] }, children: [], counts: { ...fullPage.counts, albums_total: 0 } };
+    mocks.results.data.pages = [{ refs: [] }]; mocks.results.hasNextPage = false;
+    rerender(<GenrePage />);
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 7, "albums");
+    expect(screen.getByText("Build this crate")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Very long genre");
+    expect(screen.queryByRole("region", { name: "Subgenres" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Tracks [24]" }));
+    mocks.slug = "salsa"; mocks.query.data = { ...fullPage, genre: { ...fullPage.genre, slug: "salsa" } }; rerender(<GenrePage />);
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("salsa", 7, "albums");
+    expect(screen.queryByText("Build this crate")).toBeNull();
+  });
+
 });
