@@ -61,6 +61,7 @@ Run `groovenet --help` (or `groovenet <command> --help`) for the full command re
 | `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays |
 | `sets` | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
 | `player` | Start, control, and stop local headless playback through the player daemon |
+| `status` | One-line now-playing segment for tmux and status bars |
 
 ### Local player
 
@@ -111,6 +112,46 @@ beatmatching. The help line in the TUI lists the keyboard shortcuts: arrows or
 `j`/`k` select, Enter adds or plays, Space pauses, `n`/`p` skip, left/right seek,
 `+`/`-` change volume, `/` searches, `l` opens playlists, `u` opens the queue,
 `d` selects an output, `r` starts playback, and `q` quits.
+
+### Status bar segment
+
+`groovenet status` prints one line about what is playing and exits. It is built
+for a status bar that runs it every few seconds; for a full report use
+`groovenet player status`.
+
+```bash
+groovenet status                    # ▶ Money Trees · Kendrick Lamar ━━──── 0:44 · LOCAL
+groovenet status --remote lounge    # a server player; its name is the target
+groovenet status --format '{icon} {title} [{position}/{duration}]'
+groovenet status --max-width 40     # shortens title and artist, not the times
+groovenet status --idle '■ idle'    # print this when nothing plays
+```
+
+Fields for `--format`: `{icon}` (▶ playing, ‖ paused, … loading, ! error),
+`{title}`, `{artist}`, `{position}`, `{duration}`, `{bar}` (`--bar-width`,
+default 6) and `{target}` (`LOCAL`, or the server player's name).
+
+It reads the local daemon over its socket, or one server player snapshot with
+`--remote <id>`. It never starts a daemon or the TUI. **It is quiet by design:**
+no daemon, no server, a missing key or a timeout (`--timeout`, default 1000 ms)
+all print nothing and exit 0, so a status bar never shows an error. When
+nothing is playing it prints nothing too, unless `--idle` is given.
+
+For tmux, `--tmux` adds `#[…]` styles using attributes and ANSI colour names, so
+the segment follows your terminal theme, and escapes `#` in track names:
+
+```tmux
+# ~/.tmux.conf
+set -g status-interval 5           # how often tmux reruns #(…), in seconds
+set -g status-right-length 80
+set -g status-right '#(groovenet status --tmux --max-width 60) '
+# or a server player:
+# set -g status-right '#(groovenet status --tmux --remote lounge --max-width 60) '
+```
+
+`status-interval` is the refresh rate; the position only moves when tmux reruns
+the command. A server player's position is the server's last checkpoint, so it
+can lag by a few seconds.
 
 ### genres similar
 

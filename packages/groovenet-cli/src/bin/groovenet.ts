@@ -13,6 +13,7 @@ import { addSetsCommands } from "../commands/sets.js";
 import { addRecordsCommands } from "../commands/records.js";
 import { addGenresCommands } from "../commands/genres.js";
 import { addPlayerCommands } from "../commands/player.js";
+import { addStatusCommand } from "../commands/status.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../../package.json") as { version: string };
@@ -36,6 +37,7 @@ addSetsCommands(program);
 addRecordsCommands(program);
 addGenresCommands(program);
 addPlayerCommands(program);
+addStatusCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(
