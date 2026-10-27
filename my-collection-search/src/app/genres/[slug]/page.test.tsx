@@ -56,7 +56,7 @@ describe("genre detail", () => {
   it("shows hierarchy, full stats, cover results and linked subgenres/relatives", () => {
     mocks.query.data = fullPage;
     renderWithProviders(<GenrePage />);
-    expect(screen.getByRole("heading", { name: "Psychedelic Cumbia" })).toBeTruthy();
+    expect(getComputedStyle(screen.getByRole("heading", { name: "Psychedelic Cumbia" })).fontSize).toBe("20px");
     expect(screen.getByRole("link", { name: "Cumbia", hidden: true }).getAttribute("href")).toBe("/genres/cumbia");
     expect(screen.getByText("Custom")).toBeTruthy();
     expect(screen.getByText("24")).toBeTruthy(); expect(screen.getByText("9")).toBeTruthy();

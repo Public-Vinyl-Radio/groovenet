@@ -83,7 +83,7 @@ export default function GenrePage() {
   const slug = decodeURIComponent(useParams<{ slug: string }>().slug);
   const { friend } = useUsername();
   const query = useGenrePageQuery(slug, friend?.id);
-  return <Box w="full" css={{ "& [data-testid=page-header] h1": { fontSize: { base: "28px", md: "48px" }, whiteSpace: { md: "normal" }, overflowWrap: "anywhere" } }}><PageContainer size="wide">
+  return <Box w="full" css={{ "& [data-testid=page-header] h1": { fontSize: { md: "48px" }, whiteSpace: { md: "normal" }, overflowWrap: "anywhere" } }}><PageContainer size="wide">
     {query.error ? <>
       <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />
       <Box role="alert" borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
