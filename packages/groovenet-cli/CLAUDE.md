@@ -36,6 +36,7 @@ genres              similar | reconcile | review | apply | proposals | coverage
 player              start | stop | play | pause | next | prev | seek | volume
                     status | queue (add | remove | list) | devices
                     (bare `player` opens the lazy-loaded Ink TUI)
+status              (no subcommands — one-line segment for tmux / status bars)
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -180,6 +181,30 @@ timestamp, …); add `--source <id>` to scope it to one listener. Safe to
 re-run: it hits the same `POST /api/spins/aggregate` route the schedulers use,
 whose dedup (`findAutomaticSessionByDetectionId`) means re-aggregating a
 window that already has spins creates nothing twice.
+
+## status
+
+`groovenet status` (#828) is the status-bar segment, not `player status`:
+`player status` is the full report and fails loudly; `status` prints one line or
+nothing and **always exits 0**. Unreachable daemon or server, missing key and
+timeout all print nothing, and it never writes to stderr. `--json` prints the
+fields, or `null` when idle or unreachable.
+
+`status.ts` keeps it pure and testable: `fromLocalSnapshot` / `fromServerPlayer`
+build a `NowPlaying` (null when idle), `renderSegment` applies `--format`,
+`--max-width` and `--tmux`, `progressBar` draws `━`/`─`, and `runStatus` takes
+the sources as an argument. `--remote` is a single `getServerPlayer` call, with
+no session or stream.
+
+- **The action calls `process.exit`.** A timed-out request would otherwise keep
+  the process alive, and tmux reruns it every few seconds.
+- **`readLocalSnapshot` waits for the daemon to hang up before returning.** The
+  daemon streams position events to every client and has no `error` handler on
+  client sockets. Exiting with events unread makes the kernel send a reset,
+  which crashes the daemon.
+- `--max-width` shortens title and artist first, the longer one first, and only
+  cuts the rest of the line when the fixed parts alone do not fit. In tmux mode
+  it counts visible cells, not `#[…]` styles.
 
 ## Build
 
