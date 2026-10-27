@@ -21,6 +21,12 @@ export interface GroovenetConfig {
   /** Absolute library path as seen inside OwnTone, not the CLI filesystem. */
   owntone_library?: string;
   owntone_output?: string;
+  /**
+   * Overrides for the player TUI's keys: action id to a list of keys, e.g.
+   * `{ "transport.next": ["n", "ctrl+right"] }`. Validated by the CLI, which
+   * reports bad entries rather than failing, so it is typed loosely here.
+   */
+  player_keymap?: Record<string, string[]>;
 }
 
 const CONFIG_DIR = join(homedir(), ".groovenet");

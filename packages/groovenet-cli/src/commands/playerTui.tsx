@@ -5,6 +5,7 @@ import { GroovenetClient, loadConfig, type Playlist, type Track } from "@grooven
 import { PlayerControlClient, PlayerDaemon, PlayerProtocolError, type AudioDevice, type PlaybackSnapshot, type QueueEntry } from "@groovenet/player";
 import { createPlayerDaemon, PLAYER_DAEMON_PATHS } from "./player.js";
 import { RemotePlayerController, makeRemoteApi, type PlayerController, type RemoteSnapshot } from "./remotePlayer.js";
+import { buildKeymap, defaultKeymap, hintItems, hintLine, displayKeys, type Keymap } from "./playerKeymap.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
 import { formatPlayback, visibleWindow } from "./playerTuiView.js";
 
@@ -35,16 +36,19 @@ export interface PlayerTuiRuntime {
   createControl?: () => PlayerControlClient;
   createDaemon?: () => PlayerDaemon;
   createApi?: () => GroovenetClient;
+  /** The active keymap; defaults to the `player_keymap` in the config. */
+  keymap?: Keymap;
   render?: (node: ReactElement, options: RenderOptions) => { waitUntilExit(): Promise<unknown> };
 }
 
 export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: PlayerTuiRuntime = {}): Promise<void> {
+  const keymap = runtime.keymap ?? buildKeymap(loadConfig().player_keymap);
   if (options.remote) {
     if (options.backend || options.artwork || options.logPlays) throw new Error("Remote players use server engine settings; omit local backend/artwork/log-plays flags.");
     const control = runtime.createRemote?.(options.remote) ?? new RemotePlayerController(makeRemoteApi(), options.remote, { allow_unknown: options.allowUnknown, takeover: options.takeover });
     try {
       const initialSnapshot = await control.refresh();
-      const app = (runtime.render ?? render)(<PlayerTui control={control} api={runtime.createApi?.() ?? makeApiClient()} initialSnapshot={initialSnapshot} options={options} />, { alternateScreen: true, exitOnCtrlC: true });
+      const app = (runtime.render ?? render)(<PlayerTui control={control} api={runtime.createApi?.() ?? makeApiClient()} initialSnapshot={initialSnapshot} options={options} keymap={keymap} />, { alternateScreen: true, exitOnCtrlC: true });
       control.startEvents();
       await app.waitUntilExit();
     } finally { await control.close(); }
@@ -67,7 +71,7 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
 
     const api = runtime.createApi?.() ?? makeApiClient();
     const renderTui = runtime.render ?? render;
-    const app = renderTui(<PlayerTui control={control} api={api} initialSnapshot={initialSnapshot} options={options} />, {
+    const app = renderTui(<PlayerTui control={control} api={api} initialSnapshot={initialSnapshot} options={options} keymap={keymap} />, {
       alternateScreen: true,
       exitOnCtrlC: true,
     });
@@ -78,11 +82,12 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
   }
 }
 
-export function PlayerTui({ control, api, initialSnapshot, options }: {
+export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap }: {
   control: PlayerController;
   api: GroovenetClient;
   initialSnapshot: PlaybackSnapshot;
   options: PlayerTuiOptions;
+  keymap?: Keymap;
 }) {
   const { exit } = useApp();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -95,6 +100,8 @@ export function PlayerTui({ control, api, initialSnapshot, options }: {
   const [selected, setSelected] = useState(0);
   const [message, setMessage] = useState("");
   const [showHelp, setShowHelp] = useState(true);
+  // Keymap problems are shown once and dismissed by the next key: stderr would corrupt the screen.
+  const [notice, setNotice] = useState<string[] | null>(keymap.problems.length ? keymap.problems.map((problem) => problem.message) : null);
 
   const items = useMemo((): Array<Track | Playlist | QueueEntry | AudioDevice> => {
     if (view === "search") return searchResults;
@@ -201,63 +208,67 @@ export function PlayerTui({ control, api, initialSnapshot, options }: {
   }
 
   useInput((input, key) => {
-    const action = playerTuiAction(input, key, editingSearch);
-    if (options.remote && view === "devices" && ["U", "T", "t", "Y", "!"].includes(input)) {
-      const device = items[selected] as AudioDevice | undefined;
-      const policy = input === "U" || input === "Y" ? { allow_unknown: true } : input === "T" || input === "!" ? { takeover: true } : {};
-      if (["t", "Y", "!"].includes(input)) {
-        if (device) void runControl("devices.transfer", { id: device.id, ...policy });
-      } else void runControl("play", policy);
-      return;
-    }
-    if (options.remote && !editingSearch) {
-      if (input === "s") { void runControl("stop"); return; }
-      if (view === "queue" && (input === "[" || input === "]")) {
-        const entry = snapshot.queue[selected];
-        if (entry) void runControl("queue.move", { id: entry.id, to: Math.max(0, Math.min(snapshot.queue.length - 1, selected + (input === "[" ? -1 : 1))) });
-        return;
-      }
-    }
+    setNotice(null);
+    const action = playerTuiAction(input, key, { view, editingSearch, remote: !!options.remote, keymap });
     if (!action) return;
-    switch (action.type) {
-      case "quit": exit(); break;
-      case "help": setShowHelp((value) => !value); break;
-      case "play": void runControl("play"); break;
-      case "pause": void runControl(snapshot.status === "paused" ? "resume" : "pause"); break;
-      case "next": void runControl("next"); break;
-      case "previous": void runControl("prev"); break;
-      case "search": setEditingSearch(true); setView("search"); setMessage("Type a query, then press Enter."); break;
-      case "playlists": void loadPlaylists(); break;
-      case "queue": setView("queue"); setSelected(0); break;
-      case "devices": void loadDevices(); break;
-      case "seek-forward": void runControl("seek", { seconds: snapshot.position + 10 }); break;
-      case "seek-backward": void runControl("seek", { seconds: Math.max(0, snapshot.position - 10) }); break;
-      case "volume-up": void runControl("volume", { volume: Math.min(100, snapshot.volume + 5) }); break;
-      case "volume-down": void runControl("volume", { volume: Math.max(0, snapshot.volume - 5) }); break;
-      case "select": void selectCurrent(); break;
-      case "add": void addSelected(); break;
-      case "remove": {
+    if ("text" in action) { setQuery((value) => `${value}${action.text}`); return; }
+    const device = items[selected] as AudioDevice | undefined;
+    switch (action.id) {
+      case "app.quit": exit(); break;
+      case "app.help": setShowHelp((value) => !value); break;
+      case "transport.play": void runControl("play"); break;
+      case "transport.toggle": void runControl(snapshot.status === "paused" ? "resume" : "pause"); break;
+      case "transport.next": void runControl("next"); break;
+      case "transport.prev": void runControl("prev"); break;
+      case "transport.stop": void runControl("stop"); break;
+      case "view.search": setEditingSearch(true); setView("search"); setMessage("Type a query, then press Enter."); break;
+      case "view.playlists": void loadPlaylists(); break;
+      case "view.queue": setView("queue"); setSelected(0); break;
+      case "view.devices": case "play-on.open": void loadDevices(); break;
+      case "transport.seek-forward": void runControl("seek", { seconds: snapshot.position + 10 }); break;
+      case "transport.seek-back": void runControl("seek", { seconds: Math.max(0, snapshot.position - 10) }); break;
+      case "transport.volume-up": void runControl("volume", { volume: Math.min(100, snapshot.volume + 5) }); break;
+      case "transport.volume-down": void runControl("volume", { volume: Math.max(0, snapshot.volume - 5) }); break;
+      case "list.select": void selectCurrent(); break;
+      case "queue.add": void addSelected(); break;
+      case "queue.remove": {
         const item = snapshot.queue[selected];
         if (item) void runControl("queue.remove", { id: item.id });
         break;
       }
-      case "move": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index + action.amount))); break;
-      case "cancel-search": setEditingSearch(false); setMessage(""); break;
-      case "search-submit": setEditingSearch(false); void search(query); break;
-      case "search-text": setQuery((value) => action.text === "\b" ? value.slice(0, -1) : `${value}${action.text}`); break;
+      case "queue.move-up": case "queue.move-down": {
+        const entry = snapshot.queue[selected];
+        if (entry) void runControl("queue.move", { id: entry.id, to: Math.max(0, Math.min(snapshot.queue.length - 1, selected + (action.id === "queue.move-up" ? -1 : 1))) });
+        break;
+      }
+      case "devices.play-allow-unknown": void runControl("play", { allow_unknown: true }); break;
+      case "devices.play-takeover": void runControl("play", { takeover: true }); break;
+      case "devices.transfer": if (device) void runControl("devices.transfer", { id: device.id }); break;
+      case "devices.transfer-allow-unknown": if (device) void runControl("devices.transfer", { id: device.id, allow_unknown: true }); break;
+      case "devices.transfer-takeover": if (device) void runControl("devices.transfer", { id: device.id, takeover: true }); break;
+      case "list.up": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index - 1))); break;
+      case "list.down": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index + 1))); break;
+      case "input.cancel": setEditingSearch(false); setMessage(""); break;
+      case "input.submit": setEditingSearch(false); void search(query); break;
+      case "input.backspace": setQuery((value) => value.slice(0, -1)); break;
+      // Registered for the views #823 adds; nothing to open, switch or show yet.
+      case "nav.open": case "search.scope": case "search.mode": case "app.debug": break;
     }
   });
 
   const remote = (snapshot as Partial<RemoteSnapshot>).remote;
   const output = remote ? devices.find((device) => device.id === (remote.player.assigned_output ?? remote.player.state.desired_output)) : undefined;
   const playbackLines = formatPlayback(snapshot);
+  const helpKeys = displayKeys(keymap, "app.help", "queue");
+  const quitKeys = displayKeys(keymap, "app.quit", "queue");
+  const shortHelp = [helpKeys && `Press ${helpKeys} for help`, quitKeys && `${quitKeys} quit`].filter(Boolean).join(" · ");
   const rows = visibleWindow(items.length, selected, LIST_ROWS);
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       <Text bold color="cyan">Groovenet Player · {remote ? `Remote: ${remote.player.name} [${remote.player.id}]` : "Local"}</Text>
       {remote ? <Text color="yellow">{remote.connected ? "Connected" : "DISCONNECTED / state may be stale"} · revision={remote.player.revision} · desired={remote.player.state.desired_output ?? "none"} · assigned={remote.player.assigned_output ?? "none"} · {remote.player.state.checkpoint ? "saved checkpoint" : "live state"} · requested sender volume</Text> : null}
       {remote ? <Text dimColor>{output?.name ?? "Speaker activity=unknown · observations unavailable"}</Text> : null}
-      {options.remote ? <Text dimColor>Devices: U play desired output allowing unknown · T play desired output taking over occupied · t transfer+play · Y transfer allowing unknown · ! transfer taking over occupied · s stop · [/] reorder queue · server audio continues after q</Text> : null}
+      {options.remote ? <Text dimColor>Remote keys: {hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))} · server audio continues after {displayKeys(keymap, "app.quit", "queue") || "quitting"}</Text> : null}
       <Text>{playbackLines[0]}</Text>
       <Text dimColor>{playbackLines[1] || " "}</Text>
       <Text color="green">{playbackLines[2]}</Text>
@@ -276,7 +287,8 @@ export function PlayerTui({ control, api, initialSnapshot, options }: {
         })}
       </Box>
       {message ? <Text color="yellow">{message}</Text> : null}
-      {showHelp ? <Text dimColor>↑/↓ or j/k select · Enter add/play · r play · a add · x remove · Space pause · n/p skip · ←/→ seek · +/- volume · / search · l playlists · u queue · d devices · ? help · q quit</Text> : <Text dimColor>Press ? for help · q quit</Text>}
+      {notice ? <Text color="yellow">Keymap: {notice.slice(0, 4).join(" · ")}{notice.length > 4 ? ` · +${notice.length - 4} more` : ""} (run `groovenet player keys`; any key dismisses)</Text> : null}
+      {showHelp ? <Text dimColor>{hintLine(hintItems(keymap, editingSearch ? "input" : view, { remote: !!options.remote }))}</Text> : <Text dimColor>{shortHelp}</Text>}
     </Box>
   );
 }

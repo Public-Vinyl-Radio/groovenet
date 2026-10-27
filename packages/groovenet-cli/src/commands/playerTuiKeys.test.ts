@@ -1,34 +1,80 @@
 import { describe, expect, it } from "vitest";
+import { buildKeymap } from "./playerKeymap.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
+
+const ctx = (view: "queue" | "search" | "playlists" | "devices" = "queue", extra: { editingSearch?: boolean; remote?: boolean } = {}) => ({ view, editingSearch: false, ...extra });
 
 describe("player TUI key mapping", () => {
   it("maps transport, navigation, and view controls", () => {
-    expect(playerTuiAction(" ", {}, false)).toEqual({ type: "pause" });
-    expect(playerTuiAction("n", {}, false)).toEqual({ type: "next" });
-    expect(playerTuiAction("p", {}, false)).toEqual({ type: "previous" });
-    expect(playerTuiAction("r", {}, false)).toEqual({ type: "play" });
-    expect(playerTuiAction("/", {}, false)).toEqual({ type: "search" });
-    expect(playerTuiAction("l", {}, false)).toEqual({ type: "playlists" });
-    expect(playerTuiAction("d", {}, false)).toEqual({ type: "devices" });
-    expect(playerTuiAction("j", {}, false)).toEqual({ type: "move", amount: 1 });
-    expect(playerTuiAction("", { leftArrow: true }, false)).toEqual({ type: "seek-backward" });
-    expect(playerTuiAction("q", {}, false)).toEqual({ type: "quit" });
-    expect(playerTuiAction("k", {}, false)).toEqual({ type: "move", amount: -1 });
-    expect(playerTuiAction("", { upArrow: true }, false)).toEqual({ type: "move", amount: -1 });
-    expect(playerTuiAction("", { downArrow: true }, false)).toEqual({ type: "move", amount: 1 });
-    expect(playerTuiAction("", { return: true }, false)).toEqual({ type: "select" });
-    expect(playerTuiAction("", { backspace: true }, false)).toEqual({ type: "remove" });
-    expect(playerTuiAction("=", {}, false)).toEqual({ type: "volume-up" });
-    expect(playerTuiAction("", { rightArrow: true }, false)).toEqual({ type: "seek-forward" });
-    expect(playerTuiAction("?", {}, false)).toEqual({ type: "help" });
-    expect(playerTuiAction("z", {}, false)).toBeNull();
+    const id = (input: string, key = {}, c = ctx()) => playerTuiAction(input, key, c);
+    expect(id(" ")).toEqual({ id: "transport.toggle" });
+    expect(id("n")).toEqual({ id: "transport.next" });
+    expect(id("p")).toEqual({ id: "transport.prev" });
+    expect(id("r")).toEqual({ id: "transport.play" });
+    expect(id("/")).toEqual({ id: "view.search" });
+    expect(id("l")).toEqual({ id: "view.playlists" });
+    expect(id("u")).toEqual({ id: "view.queue" });
+    expect(id("d")).toEqual({ id: "view.devices" });
+    expect(id("o")).toEqual({ id: "play-on.open" });
+    expect(id("j")).toEqual({ id: "list.down" });
+    expect(id("k")).toEqual({ id: "list.up" });
+    expect(id("", { leftArrow: true })).toEqual({ id: "transport.seek-back" });
+    expect(id("", { rightArrow: true })).toEqual({ id: "transport.seek-forward" });
+    expect(id("", { rightArrow: true }, ctx("playlists"))).toEqual({ id: "nav.open" });
+    expect(id("q")).toEqual({ id: "app.quit" });
+    expect(id("", { upArrow: true })).toEqual({ id: "list.up" });
+    expect(id("", { downArrow: true })).toEqual({ id: "list.down" });
+    expect(id("", { return: true })).toEqual({ id: "list.select" });
+    expect(id("", { backspace: true })).toEqual({ id: "queue.remove" });
+    expect(id("=")).toEqual({ id: "transport.volume-up" });
+    expect(id("-")).toEqual({ id: "transport.volume-down" });
+    expect(id("?")).toEqual({ id: "app.help" });
+    expect(id("~")).toEqual({ id: "app.debug" });
+    expect(id("z")).toBeNull();
   });
 
-  it("edits a search query and handles submit/cancel keys", () => {
-    expect(playerTuiAction("b", {}, true)).toEqual({ type: "search-text", text: "b" });
-    expect(playerTuiAction("", { backspace: true }, true)).toEqual({ type: "search-text", text: "\b" });
-    expect(playerTuiAction("", { return: true }, true)).toEqual({ type: "search-submit" });
-    expect(playerTuiAction("", { escape: true }, true)).toEqual({ type: "cancel-search" });
-    expect(playerTuiAction("", {}, true)).toBeNull();
+  it("only removes queue entries in the queue view", () => {
+    expect(playerTuiAction("x", {}, ctx("search"))).toBeNull();
+    expect(playerTuiAction("", { backspace: true }, ctx("playlists"))).toBeNull();
+    expect(playerTuiAction("a", {}, ctx("search"))).toEqual({ id: "queue.add" });
+    expect(playerTuiAction("a", {}, ctx("queue"))).toBeNull();
+  });
+
+  it("offers the remote-only keys only when remote", () => {
+    expect(playerTuiAction("s", {}, ctx())).toBeNull();
+    expect(playerTuiAction("s", {}, ctx("queue", { remote: true }))).toEqual({ id: "transport.stop" });
+    expect(playerTuiAction("[", {}, ctx("queue", { remote: true }))).toEqual({ id: "queue.move-up" });
+    expect(playerTuiAction("]", {}, ctx("queue", { remote: true }))).toEqual({ id: "queue.move-down" });
+    for (const [input, id] of [["U", "devices.play-allow-unknown"], ["T", "devices.play-takeover"], ["t", "devices.transfer"], ["Y", "devices.transfer-allow-unknown"], ["!", "devices.transfer-takeover"]] as const) {
+      expect(playerTuiAction(input, { shift: input !== "t" && input !== "!" }, ctx("devices", { remote: true }))).toEqual({ id });
+      expect(playerTuiAction(input, {}, ctx("devices"))).toBeNull();
+    }
+  });
+
+  it("captures typing in the search box, and only the input keys act there", () => {
+    const typing = ctx("search", { editingSearch: true });
+    expect(playerTuiAction("b", {}, typing)).toEqual({ text: "b" });
+    expect(playerTuiAction("q", {}, typing)).toEqual({ text: "q" });
+    expect(playerTuiAction("U", { shift: true }, typing)).toEqual({ text: "U" });
+    expect(playerTuiAction(" ", {}, typing)).toEqual({ text: " " });
+    expect(playerTuiAction("s", {}, { ...typing, remote: true })).toEqual({ text: "s" });
+    expect(playerTuiAction("", { backspace: true }, typing)).toEqual({ id: "input.backspace" });
+    expect(playerTuiAction("", { return: true }, typing)).toEqual({ id: "input.submit" });
+    expect(playerTuiAction("", { escape: true }, typing)).toEqual({ id: "input.cancel" });
+    expect(playerTuiAction("", {}, typing)).toBeNull();
+    expect(playerTuiAction("", { upArrow: true }, typing)).toBeNull();
+    expect(playerTuiAction("x", { ctrl: true }, typing)).toBeNull();
+    expect(playerTuiAction("x", { meta: true }, typing)).toBeNull();
+    expect(playerTuiAction("\u001b[", {}, typing)).toBeNull();
+    expect(playerTuiAction("\r", { return: true }, { ...typing, keymap: buildKeymap({ "input.submit": ["ctrl+g"] }) })).toBeNull();
+  });
+
+  it("uses the keymap it is given", () => {
+    const keymap = buildKeymap({ "transport.next": ["ctrl+n"], "input.submit": ["ctrl+g"] });
+    expect(playerTuiAction("n", {}, { ...ctx(), keymap })).toBeNull();
+    expect(playerTuiAction("n", { ctrl: true }, { ...ctx(), keymap })).toEqual({ id: "transport.next" });
+    const typing = { ...ctx("search", { editingSearch: true }), keymap };
+    expect(playerTuiAction("g", { ctrl: true }, typing)).toEqual({ id: "input.submit" });
+    expect(playerTuiAction("", { return: true }, typing)).toBeNull();
   });
 });
