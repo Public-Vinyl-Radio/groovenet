@@ -1,40 +1,6 @@
 // Utility functions for track duration parsing and formatting
 
-export function parseDurationToSeconds(duration: string): number {
-  if (!duration) return 0;
-  const parts = duration.split(":").map(Number);
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
-  } else if (parts.length === 1) {
-    return parts[0];
-  }
-  return 0;
-}
-
-export function formatSeconds(seconds: number): string {
-  const safeSeconds = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0));
-  const h = Math.floor(safeSeconds / 3600);
-  const m = Math.floor((safeSeconds % 3600) / 60);
-  const s = safeSeconds % 60;
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  } else {
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }
-}
-
-export function getTrackDurationSeconds(track: { duration_seconds?: number | null; duration?: string | null }): number | null {
-  if (typeof track.duration_seconds === "number" && track.duration_seconds > 0) {
-    return track.duration_seconds;
-  }
-  if (track.duration) {
-    const parsed = parseDurationToSeconds(track.duration);
-    return parsed > 0 ? parsed : null;
-  }
-  return null;
-}
+export { formatSeconds, getTrackDurationSeconds, parseDurationToSeconds } from "@groovenet/client/player-session";
 
 function collectDisplayTags(
   values: unknown,

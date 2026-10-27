@@ -20,6 +20,11 @@ services:
       # Mount source code for live reload
       - ./my-collection-search:/app
       - ./packages/groovenet-contracts:/packages/groovenet-contracts
+      # The web app resolves @groovenet/client through this mount. Its build/
+      # output comes from `just bootstrap` (host-built, platform independent):
+      # the container never builds it, so unlike contracts its node_modules
+      # is left alone.
+      - ./packages/groovenet-client:/packages/groovenet-client:ro
       # Named volume keeps node_modules isolated from the host and independent of the image
       - dev_node_modules:/app/node_modules
       - ${APP_AUDIO_MOUNT:-music_data:/app/audio}

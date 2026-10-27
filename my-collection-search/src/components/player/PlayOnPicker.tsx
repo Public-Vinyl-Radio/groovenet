@@ -9,7 +9,7 @@ import { overline } from "@/components/ui/RetroModalParts";
 import { focusRing } from "@/app/houseStyle";
 import { upcomingLocalTracks, usePlaybackTarget } from "@/providers/PlaybackTargetProvider";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { isLive } from "@/providers/server-player/controller";
+import { isLive } from "@groovenet/client/player-session";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 import { useDeviceLabel } from "@/lib/deviceLabel";
 import { formatSeconds } from "@/lib/trackUtils";

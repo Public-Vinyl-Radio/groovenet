@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 export function ensureDevDependencies(appDirectory = process.cwd(), run = execFileSync) {
   const marker = resolve(appDirectory, 'node_modules/.groovenet-install');
   const hash = createHash('sha256');
-  for (const file of ['package.json', 'package-lock.json', '../packages/groovenet-contracts/package.json']) {
+  for (const file of ['package.json', 'package-lock.json', '../packages/groovenet-contracts/package.json', '../packages/groovenet-client/package.json']) {
     hash.update(readFileSync(resolve(appDirectory, file)));
     hash.update('\0');
   }

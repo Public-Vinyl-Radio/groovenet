@@ -91,6 +91,11 @@ FROM deps AS contracts
 COPY packages/groovenet-contracts/tsconfig.json ./packages/groovenet-contracts/
 COPY --exclude=**/*.test.ts packages/groovenet-contracts/src ./packages/groovenet-contracts/src
 RUN npm run build --workspace=@groovenet/contracts
+# The web app bundles @groovenet/client/player-session, the part of the client
+# with no Node imports; it resolves through the client's build output.
+COPY packages/groovenet-client/tsconfig.json ./packages/groovenet-client/
+COPY --exclude=**/*.test.ts packages/groovenet-client/src ./packages/groovenet-client/src
+RUN npm run build --workspace=@groovenet/client
 
 # Frontend inputs are shared by Storybook and Next. Backend routes/services,
 # tests and documentation do not invalidate Storybook or dependency installs.
@@ -195,5 +200,6 @@ WORKDIR /repo/my-collection-search
 COPY --from=contracts /repo/node_modules /repo/node_modules
 COPY --from=contracts /repo/my-collection-search/node_modules ./node_modules
 COPY --from=contracts /repo/packages/groovenet-contracts /repo/packages/groovenet-contracts
+COPY --from=contracts /repo/packages/groovenet-client /repo/packages/groovenet-client
 COPY my-collection-search/package*.json my-collection-search/tsconfig.json ./
 COPY my-collection-search/src ./src

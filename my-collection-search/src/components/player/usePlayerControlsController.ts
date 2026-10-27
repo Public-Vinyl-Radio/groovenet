@@ -6,7 +6,7 @@ import { FiVolume2, FiVolume1, FiVolumeX } from "react-icons/fi";
 import type { ServerQueueEntry } from "@groovenet/contracts";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
 import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
-import type { PlayerEdit } from "@/providers/server-player/controller";
+import type { PlayerEdit } from "@groovenet/client/player-session";
 import { useServerQueueTracks } from "@/hooks/useServerQueueTracks";
 import { toaster } from "@/components/ui/toaster";
 

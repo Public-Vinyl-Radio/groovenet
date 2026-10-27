@@ -3,22 +3,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { playerIdSchema, type ServerPlayer } from "@groovenet/contracts";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { ServerPlayerController, type RemoteView } from "@/providers/server-player/controller";
+import { ServerPlayerSession, upcomingTracks, type SessionView } from "@groovenet/client/player-session";
 import { playerApi } from "@/services/internalApi/players";
 import type { Track } from "@/types/track";
 import type { ReplacePlaylistOptions } from "@/providers/playlist-player/useQueueState";
 
 const storageKey = "mcs:playback-target";
-const empty: RemoteView = { player: null, devices: [], connected: false, busy: false, problem: null, acknowledgement: null };
+const empty: SessionView = { player: null, devices: [], connected: false, busy: false, problem: null, acknowledgement: null };
 const noopSubscribe = () => () => {};
 const emptySnapshot = () => empty;
 
 type LocalQueue = Pick<ReturnType<typeof usePlaylistPlayer>, "playlist" | "currentTrackIndex" | "finishedTrack">;
 /** What joining a server takes from this device: the current track onward, never what already played. */
-export function upcomingLocalTracks({ playlist, currentTrackIndex, finishedTrack }: LocalQueue): Track[] {
-  if (currentTrackIndex !== null) return playlist.slice(currentTrackIndex);
-  return finishedTrack ? [] : playlist;
-}
+export const upcomingLocalTracks = (queue: LocalQueue): Track[] => upcomingTracks(queue);
 
 function useTargetState() {
   // An empty target means local; every valid named-player ID remains selectable.
@@ -42,7 +39,7 @@ function useTargetState() {
     catch (error) { setProblem(error instanceof Error ? error.message : "Server players unavailable"); }
   }, []);
   useEffect(() => { if (authorized) void loadPlayers(); }, [authorized, loadPlayers]);
-  const controller = useMemo(() => target !== "" && authorized ? new ServerPlayerController(target) : null, [target, authorized]);
+  const controller = useMemo(() => target !== "" && authorized ? new ServerPlayerSession(target, playerApi) : null, [target, authorized]);
   useEffect(() => controller?.start(), [controller]);
   useEffect(() => {
     const join = pendingJoin.current;

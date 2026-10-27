@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
-import { GroovenetClient, loadConfig, type Track } from "@groovenet/client";
-import { serverPlayerCommandSchema, type ServerPlayer, type ServerPlayerCommandInput, type ServerPlayerDevice } from "@groovenet/contracts";
+import { GroovenetClient, ServerPlayerSession, clientTransport, loadConfig, type PlayerEdit, type Track } from "@groovenet/client";
+import { serverPlayerCommandSchema, type ServerPlayer, type ServerPlayerDevice } from "@groovenet/contracts";
 import type { PlaybackSnapshot } from "@groovenet/player";
 
 export interface PlayerController extends EventEmitter {
@@ -12,8 +12,6 @@ export interface RemoteSnapshot extends PlaybackSnapshot {
   remote: { player: ServerPlayer; connected: boolean };
 }
 
-type Edit = ServerPlayerCommandInput extends infer C ? C extends { type: string } ? Omit<C, "expected_revision"> : never : never;
-
 export function makeRemoteApi(): GroovenetClient {
   const config = loadConfig();
   return new GroovenetClient({ baseUrl: config.api_base, apiKey: config.api_key,
@@ -21,97 +19,65 @@ export function makeRemoteApi(): GroovenetClient {
     insecureTls: config.insecure_tls, clientName: "cli" });
 }
 
-/** Adapts the shared server API to the local TUI's controls; owns no audio engine. */
+/** Adapts the shared server player session to the local TUI's controls; owns no audio engine. */
 export class RemotePlayerController extends EventEmitter implements PlayerController {
-  private player?: ServerPlayer;
-  private connected = false;
   private closed = false;
-  private abort?: AbortController;
-  private timer?: ReturnType<typeof setTimeout>;
-  private generation = 0;
-  private busy = false;
+  private readonly session: ServerPlayerSession;
+  private published: { player: ServerPlayer | null; connected: boolean };
 
   constructor(readonly api: GroovenetClient, readonly playerId: string,
-    readonly policy: { allow_unknown?: boolean; takeover?: boolean } = {}) { super(); }
+    readonly policy: { allow_unknown?: boolean; takeover?: boolean } = {}) {
+    super();
+    this.session = new ServerPlayerSession(playerId, clientTransport(api), {
+      reconnectMs: 1000, devices: false,
+      disconnectMessage: (reason) => `${reason instanceof Error ? reason.message : String(reason)} Reconnecting for a fresh snapshot; server audio continues.`,
+      onDisconnect: () => this.problem(this.session.getSnapshot().problem!),
+    });
+    this.published = this.view();
+    // Publish when the player or the connection changes; busy flags and device lists are not the TUI's concern.
+    this.session.subscribe(() => {
+      const view = this.view();
+      if (view.player === this.published.player && view.connected === this.published.connected) return;
+      this.published = view;
+      if (view.player) this.publish();
+    });
+  }
+
+  private view() {
+    const { player, connected } = this.session.getSnapshot();
+    return { player, connected };
+  }
 
   private snapshot(): RemoteSnapshot {
-    const player = this.player!;
-    const queue = player.state.queue.map((entry) => ({ id: entry.id, track: { ...entry } as unknown as Track }));
-    return { ...player.state, current: queue.find((entry) => entry.id === player.state.current_entry_id) ?? null,
-      queue, error: player.state.error as PlaybackSnapshot["error"], remote: { player, connected: this.connected } };
+    const { player, connected } = this.view();
+    const queue = player!.state.queue.map((entry) => ({ id: entry.id, track: { ...entry } as unknown as Track }));
+    return { ...player!.state, current: queue.find((entry) => entry.id === player!.state.current_entry_id) ?? null,
+      queue, error: player!.state.error as PlaybackSnapshot["error"], remote: { player: player!, connected } };
   }
 
   private publish(): void { this.emit("event", { event: "state", data: this.snapshot() }); }
   private problem(message: string): void { this.emit("event", { event: "error", data: { error: { message } } }); }
 
   async refresh(): Promise<RemoteSnapshot> {
-    const player = await this.api.getServerPlayer(this.playerId);
-    if (this.closed) throw new Error("Remote controller is closed.");
-    if (!this.player || player.revision >= this.player.revision) this.player = player;
-    this.connected = true;
+    await this.session.load();
     this.publish();
     return this.snapshot();
   }
 
   startEvents(): void {
     if (this.closed) return;
-    this.abort?.abort();
-    clearTimeout(this.timer);
-    void this.subscribe();
+    this.session.observe();
   }
 
-  private async subscribe(): Promise<void> {
-    const generation = ++this.generation;
-    const abort = this.abort = new AbortController();
-    let worker: string | undefined;
-    let sequence = -1;
-    try {
-      for await (const event of this.api.serverPlayerEvents(this.playerId, abort.signal)) {
-        if (this.closed || generation !== this.generation) return;
-        if (!worker) {
-          if (event.type !== "snapshot" || event.player.id !== this.playerId) continue;
-          worker = event.worker_instance;
-        }
-        if (event.worker_instance !== worker || event.sequence <= sequence) continue;
-        sequence = event.sequence;
-        if (event.type === "snapshot") {
-          if (event.player.id !== this.playerId || (this.player && event.player.revision < this.player.revision)) continue;
-          this.player = event.player;
-          this.connected = true;
-        } else {
-          if (!this.player || event.player_id !== this.playerId || event.revision !== this.player.revision || event.current_entry_id !== this.player.state.current_entry_id) continue;
-          this.player = { ...this.player, state: { ...this.player.state, position: event.position, duration: event.duration } };
-        }
-        this.publish();
-      }
-      if (!this.closed) throw new Error("Remote event connection lost.");
-    } catch (error) {
-      if (this.closed || generation !== this.generation) return;
-      this.connected = false;
-      if (this.player) this.publish();
-      this.problem(`${error instanceof Error ? error.message : String(error)} Reconnecting for a fresh snapshot; server audio continues.`);
-      this.timer = setTimeout(() => { void this.subscribe(); }, 1000);
+  private async edit(command: PlayerEdit): Promise<RemoteSnapshot> {
+    const { player, connected, busy } = { ...this.view(), busy: this.session.getSnapshot().busy };
+    if (!connected || !player) throw new Error("Remote player is disconnected. Wait for a fresh snapshot; no local fallback.");
+    if (busy) throw new Error("A remote command is already in progress.");
+    const result = await this.session.execute(command, player.revision);
+    if (result.transfer && (!result.transfer.detached || ("play" in command && command.play && !result.transfer.attached) || result.transfer.error)) {
+      throw new Error(`Transfer: detached=${result.transfer.detached}, attached=${result.transfer.attached}. ${result.transfer.error?.code ?? "INCOMPLETE"}: ${result.transfer.error?.message ?? "Transfer incomplete"}`);
     }
-  }
-
-  private async edit(command: Edit): Promise<RemoteSnapshot> {
-    if (!this.connected || !this.player) throw new Error("Remote player is disconnected. Wait for a fresh snapshot; no local fallback.");
-    if (this.busy) throw new Error("A remote command is already in progress.");
-    this.busy = true;
-    try {
-      const result = await this.api.commandServerPlayer(this.playerId, { ...command, expected_revision: this.player.revision });
-      if (this.closed) throw new Error("Remote controller is closed.");
-      if (result.player.revision >= this.player.revision) this.player = result.player;
-      this.publish();
-      if (result.transfer && (!result.transfer.detached || ("play" in command && command.play && !result.transfer.attached) || result.transfer.error)) {
-        throw new Error(`Transfer: detached=${result.transfer.detached}, attached=${result.transfer.attached}. ${result.transfer.error?.code ?? "INCOMPLETE"}: ${result.transfer.error?.message ?? "Transfer incomplete"}`);
-      }
-      return this.snapshot();
-    } catch (error) {
-      // Commands are never replayed, including ambiguous transport failures.
-      try { await this.refresh(); } catch { this.connected = false; this.publish(); }
-      throw error;
-    } finally { this.busy = false; }
+    return this.snapshot();
   }
 
   async request<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
@@ -122,7 +88,7 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
 
   private async dispatch(method: string, p: Record<string, unknown>): Promise<unknown> {
     if (method === "status") return this.refresh();
-    if (!this.player) await this.refresh();
+    if (!this.view().player) await this.refresh();
     if (method === "queue.list") return this.snapshot().queue;
     if (method === "devices") {
       const devices = await this.api.listServerPlayerDevices(this.playerId);
@@ -146,8 +112,8 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
       return this.edit({ type: "queue.add", tracks: tracks.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id })) });
     }
     if (method === "queue.remove" || method === "queue.move" || method === "play") {
-      const entry = p.id !== undefined ? this.player!.state.queue.find((entry) => entry.id === p.id)
-        : p.index !== undefined ? this.player!.state.queue[Number(p.index)] : undefined;
+      const entry = p.id !== undefined ? this.view().player!.state.queue.find((entry) => entry.id === p.id)
+        : p.index !== undefined ? this.view().player!.state.queue[Number(p.index)] : undefined;
       if ((p.id !== undefined || p.index !== undefined) && !entry) throw new Error("Queue entry no longer exists. Refresh and select again.");
       if (method === "play") return this.edit({ type: "play", ...policy, ...(entry ? { entry_id: entry.id } : {}) });
       if (!entry) throw new Error("Select a queue entry.");
@@ -173,9 +139,7 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
 
   async close(): Promise<void> {
     this.closed = true;
-    ++this.generation;
-    clearTimeout(this.timer);
-    this.abort?.abort();
+    this.session.close();
     this.removeAllListeners();
   }
 }

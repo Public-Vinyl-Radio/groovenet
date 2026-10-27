@@ -7,13 +7,16 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { ensureDevDependencies } from './ensure-dev-deps.mjs';
 
+const inputs = ['package.json', 'package-lock.json', '../packages/groovenet-contracts/package.json', '../packages/groovenet-client/package.json'];
+
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'groovenet-dev-deps-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const app = join(root, 'app');
   mkdirSync(app);
   mkdirSync(join(root, 'packages/groovenet-contracts'), { recursive: true });
-  for (const file of ['package.json', 'package-lock.json', '../packages/groovenet-contracts/package.json']) {
+  mkdirSync(join(root, 'packages/groovenet-client'), { recursive: true });
+  for (const file of inputs) {
     writeFileSync(join(app, file), '{}');
   }
   let installs = 0;
@@ -49,7 +52,7 @@ test('installs a fresh volume and skips an unchanged restart', (t) => {
   assert.equal(f.installs, 1);
 });
 
-for (const file of ['package.json', 'package-lock.json', '../packages/groovenet-contracts/package.json']) {
+for (const file of inputs) {
   test(`reinstalls when ${file} changes`, (t) => {
     const f = fixture(t);
     ensureDevDependencies(f.app, f.run);

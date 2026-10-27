@@ -51,6 +51,7 @@
     "test:storybook": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=scripts/check-storybook.mjs --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/storybook.lcov scripts/check-storybook.test.mjs scripts/storybook-deployment.test.mjs"
   },
   "dependencies": {
+    "@groovenet/client": "file:../packages/groovenet-client",
     "@groovenet/contracts": "file:../packages/groovenet-contracts",
     "@chakra-ui/react": "^3.37.0",
     "@emotion/react": "^11.14.0",
