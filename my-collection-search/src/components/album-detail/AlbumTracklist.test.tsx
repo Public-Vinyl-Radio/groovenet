@@ -51,6 +51,34 @@ function setup(isMobile: boolean, list: Track[] = tracks) {
 beforeEach(() => vi.clearAllMocks());
 
 describe("AlbumTracklist table", () => {
+  it("constrains long titles while keeping metadata and the notes button available", async () => {
+    const title = "You Probably Couldn't See For The Lights But You Were Staring Straight At Me";
+    const { user } = setup(false, [track("A5", {
+      title,
+      notes: "Open with this",
+      local_tags: "Garage Rock, Indie Rock",
+    })]);
+    const table = screen.getByRole("table");
+    expect(getComputedStyle(table).tableLayout).toBe("fixed");
+    for (const name of ["Time", "BPM", "Key", "Genre", "Rating"]) {
+      expect(getComputedStyle(within(table).getByRole("columnheader", { name })).width).toMatch(/^\d+px$/);
+    }
+    const link = screen.getByRole("link", { name: title });
+    expect(link.title).toBe(title);
+    expect(getComputedStyle(link).textOverflow).toBe("ellipsis");
+    expect(getComputedStyle(link).display).toBe("block");
+    expect(getComputedStyle(link).minWidth).toBe("0px");
+    const genre = screen.getByText("Garage Rock");
+    expect(getComputedStyle(genre).display).toBe("block");
+    expect(getComputedStyle(genre).textOverflow).toBe("ellipsis");
+    expect(screen.getByText("+1")).toBeTruthy();
+    expect(within(table).getByLabelText("Rated 3 of 5")).toBeTruthy();
+    const notes = screen.getByRole("button", { name: "Has notes" });
+    expect(getComputedStyle(notes).flexShrink).toBe("0");
+    await user.click(notes);
+    expect(await screen.findByText("Open with this")).toBeTruthy();
+  });
+
   it("groups rows by side with a header showing count and runtime", () => {
     setup(false);
     const table = screen.getByTestId("album-track-table");

@@ -78,7 +78,7 @@ export function GenreCell({ track }: { track: Track }) {
   if (items.length === 0) return <Text as="span" color="fg.subtle">{dash}</Text>;
   const overflow = items.length - 1;
   return (
-    <Flex gap={1.5} alignItems="center" minW={0} css={{ "& > a, & > span:not([data-overflow])": { minWidth: 0, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
+    <Flex gap={1.5} alignItems="center" minW={0} css={{ "& > a, & > span:not([data-overflow])": { display: "block", minWidth: 0, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
       <GenreBadgeList items={items.slice(0, 1)} kind={kind} scope="tracks" colorPalette="status.genre" variant="subtle" />
       {overflow > 0 && (
         <Badge data-overflow="" size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>

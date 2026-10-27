@@ -86,13 +86,13 @@ function TitleCell({ track, albumArtist }: { track: Track; albumArtist: string }
   return (
     <Box minW={0}>
       <Flex alignItems="center" gap={2} minW={0}>
-        <Link as={NextLink} href={trackHref(track)} fontWeight="semibold" fontSize="17px" lineHeight="24px" _hover={{ textDecoration: "underline" }} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+        <Link as={NextLink} href={trackHref(track)} title={track.title} display="block" minW={0} fontWeight="semibold" fontSize="17px" lineHeight="24px" _hover={{ textDecoration: "underline" }} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
           {track.title}
         </Link>
         {track.notes?.trim() && <NotesIndicator notes={track.notes} />}
       </Flex>
       {showArtist && (
-        <Text fontSize="12px" lineHeight="16px" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+        <Text title={track.artist} fontSize="12px" lineHeight="16px" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
           {track.artist}
         </Text>
       )}
@@ -119,15 +119,23 @@ function TrackTable({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions
   const rowReveal = { "& .track-result-rating": { opacity: 1 } };
   return (
     <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" overflowX="auto" data-testid="album-track-table">
-      <Box as="table" w="full" minW="980px" css={{ borderCollapse: "collapse" }}>
+      <Box as="table" w="full" minW="980px" css={{ tableLayout: "fixed", borderCollapse: "collapse" }}>
         <Box as="thead" bg="bg.subtle" borderBottomWidth="outline" borderColor="border.ink">
           <tr>
             <Th scope="col" px="16px" py="12px" w="72px" {...labelHead}>Side</Th>
             <Th scope="col" w="44px" p={0}>
               <Box as="span" srOnly>Play</Box>
             </Th>
-            {["Track", "Time", "BPM", "Key", "Genre", "Rating"].map((name) => (
-              <Th scope="col" key={name} px="16px" py="12px" {...labelHead}>
+            {/* Track alone takes the remaining width, so long titles shrink first. */}
+            {[
+              { name: "Track", width: undefined },
+              { name: "Time", width: "80px" },
+              { name: "BPM", width: "88px" },
+              { name: "Key", width: "140px" },
+              { name: "Genre", width: "216px" },
+              { name: "Rating", width: "132px" },
+            ].map(({ name, width }) => (
+              <Th scope="col" key={name} w={width} px="16px" py="12px" {...labelHead}>
                 {name}
               </Th>
             ))}
