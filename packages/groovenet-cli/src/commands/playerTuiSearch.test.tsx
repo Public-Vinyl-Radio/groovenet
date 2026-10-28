@@ -287,3 +287,22 @@ describe("search text and album order", () => {
     expect(orderedAlbumTracks([{ ...track, position: undefined }, track])).toEqual([{ ...track, position: undefined }, track]);
   });
 });
+
+
+it.each([false, true])("scopes track and album searches to the configured friend in every mode (remote=%s)", async (remote) => {
+  const f = fixture();
+  const options = { search: "cumbia", ...(remote ? { remote: "room" } : {}) };
+  const app = render(<PlayerTui {...f.props} options={options} searchFriendId={7} />); await tick();
+  expect(f.api.searchTracks).toHaveBeenCalledWith({ query: "cumbia", limit: 30, mode: "lexical", filters: { friend_id: 7 } });
+  expect(f.api.searchAlbums).toHaveBeenCalledWith({ q: "cumbia", limit: 30, friend_id: 7 });
+  await key(app, "\u001b[Z"); await delay();
+  expect(f.api.searchTracks).toHaveBeenLastCalledWith({ query: "cumbia", limit: 30, mode: "semantic", filters: { friend_id: 7 } });
+  await key(app, "\u001b[Z"); await delay();
+  expect(f.api.searchTracks).toHaveBeenLastCalledWith({ query: "cumbia", limit: 30, mode: "hybrid", filters: { friend_id: 7 } });
+  app.rerender(<PlayerTui {...f.props} options={options} searchFriendId={9} />); await delay();
+  expect(f.api.searchTracks).toHaveBeenLastCalledWith({ query: "cumbia", limit: 30, mode: "hybrid", filters: { friend_id: 9 } });
+  expect(f.api.searchAlbums).toHaveBeenLastCalledWith({ q: "cumbia", limit: 30, friend_id: 9 });
+  await key(app, "\t");
+  // Details use the selected result's friend identity, never overwrite it with the filter.
+  expect(f.api.getAlbum).toHaveBeenCalledWith("r1", 2);
+});

@@ -214,7 +214,7 @@ The player TUI's keys (#822) come from one registry; nothing is hard-coded in
 
 - `playerKeymapRegistry.ts` — the action table: id, description, views
   (`queue`, `search`, `playlists`, `devices`, and `input` for typing in the
-  search box), default keys, optional per-view defaults, hint label,
+  search box or playlist filter), default keys, optional per-view defaults, hint label,
   `remoteOnly`. **Add a new action or view here**, then handle its id in the
   `useInput` switch; hints, `player keys` and validation follow.
 - `playerKeyspec.ts` — `parseKey` (text to spec), `matchKey` (spec against an
@@ -235,8 +235,8 @@ Rules worth knowing:
 - **A bad entry loses only itself.** Any bad key in an entry reverts that whole
   action to its default keys.
 - `→` is `nav.open` in search/playlists and seek in queue/devices; seek there
-  uses `<` / `>` (`viewKeys`). `nav.open`, `search.scope`, `search.mode` and
-  `app.debug` are registered for the #824–#827 views and do nothing yet.
+  uses `<` / `>` (`viewKeys`). `nav.open` opens a full tracklist; `search.scope` / `search.mode` control search.
+  `playlists.filter` focuses the playlist name filter. `app.debug` remains reserved.
 - Problems go to an in-TUI notice, never stderr, which would corrupt the screen.
 - Ink gives capital letters `shift: true`, so characters match on `input` only;
   `ctrl+j` arrives as `enter`, not `return`, and cannot be bound.
@@ -277,6 +277,16 @@ must be fitted to the area (`fit`, `Line`): the frame clips overflow rather
 than letting Ink wrap. Hints and help come from the keymap (`hintItems` with
 `omit` for what the tabs and top bar already show, `helpEntries`,
 `primaryKey`), never literal key text.
+
+The playlists view (#826) lives in `playerTuiPlaylists.tsx` and
+`playerTuiPlaylistsState.ts`: grouping follows the web timeline (last performed,
+else created, local calendar month). Existing client list / playlist refs / batch
+track methods provide all metadata; batch results are reordered by playlist
+position and missing references block playback. Preview and full tracklist share
+columns; side panes use two-line rows. The filter uses `playlists.filter` and the
+shared input dispatch. Enter replaces the whole playlist even in the full table;
+`a` enqueues it. Remote replacement is one policy-preserving `queue.replace`;
+local replacement uses the daemon's stop/remove/addTrack/play commands.
 
 The queue view (#824) is `playerTuiQueue.tsx`: `NowPlaying` (the card in all
 three layouts), `QueueView` (full: `#`/title/artist/time/BPM/key, title and

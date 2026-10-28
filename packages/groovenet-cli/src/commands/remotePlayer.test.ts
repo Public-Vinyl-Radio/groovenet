@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GroovenetClient, Track } from "@groovenet/client";
+import type { GroovenetClient, Playlist, Track } from "@groovenet/client";
 import type { ServerPlayer, ServerPlayerCommandInput } from "@groovenet/contracts";
+import { queuePlaylist } from "./playerTuiPlaylistsState.js";
 import { RemotePlayerController, formatRemoteDevice, makeRemoteApi } from "./remotePlayer.js";
 
 vi.mock("@groovenet/client", async (original) => ({ ...await original<typeof import("@groovenet/client")>(), loadConfig: () => ({ api_base: "http://example/api", api_key: "collection", player_api_key: "household" }) }));
@@ -59,6 +60,46 @@ describe("remote controller", () => {
     expect(api.commandServerPlayer).toHaveBeenCalledWith("lounge", { ...expected, expected_revision: 3 });
     await control.request("pause");
     expect(api.commandServerPlayer).toHaveBeenLastCalledWith("lounge", { type: "pause", expected_revision: 4 });
+    await control.close();
+  });
+
+  it("plays/enqueues playlists through the real revisioned adapter without implicit policy acknowledgements", async () => {
+    const { api, control } = setup();
+    const playlist = { id: 7 } as Playlist;
+    const tracks = [entry as unknown as Track, { ...entry, track_id: "second", friend_id: 2 } as unknown as Track];
+    await control.refresh();
+    await queuePlaylist(control, playlist, tracks, true, true);
+    expect(api.commandServerPlayer).toHaveBeenLastCalledWith("lounge", {
+      type: "queue.replace", expected_revision: 3, allow_unknown: false, takeover: false,
+      entries: [{ track_id: "track", friend_id: 1 }, { track_id: "second", friend_id: 2 }], play: true,
+    });
+    await queuePlaylist(control, playlist, tracks, false, true);
+    expect(api.commandServerPlayer).toHaveBeenLastCalledWith("lounge", {
+      type: "queue.add", expected_revision: 4, tracks: [{ track_id: "track", friend_id: 1 }],
+    });
+    await control.close();
+  });
+
+  it.each(["AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED", "REVISION_CONFLICT"])("propagates playlist replacement refusal %s with no retry or fallback", async (reason) => {
+    const { api, control, state } = setup();
+    await control.refresh();
+    api.commandServerPlayer.mockRejectedValueOnce(new Error(reason));
+    await expect(queuePlaylist(control, { id: 7 } as Playlist, [entry as unknown as Track], true, true)).rejects.toThrow(reason);
+    expect(api.commandServerPlayer).toHaveBeenCalledTimes(1);
+    expect(api.commandServerPlayer).toHaveBeenCalledWith("lounge", {
+      type: "queue.replace", expected_revision: 3, allow_unknown: false, takeover: false, entries: [{ track_id: "track", friend_id: 1 }], play: true,
+    });
+    expect((await control.request<import("./remotePlayer.js").RemoteSnapshot>("status")).remote.player.state.queue).toEqual(state.state.queue);
+    await control.close();
+  });
+
+  it("preserves explicitly configured acknowledgements on playlist replacement", async () => {
+    const { api } = setup();
+    const control = new RemotePlayerController(api as unknown as GroovenetClient, "lounge", { allow_unknown: true, takeover: true });
+    await queuePlaylist(control, { id: 7 } as Playlist, [entry as unknown as Track], true, true);
+    expect(api.commandServerPlayer).toHaveBeenCalledWith("lounge", {
+      type: "queue.replace", expected_revision: 3, allow_unknown: true, takeover: true, entries: [{ track_id: "track", friend_id: 1 }], play: true,
+    });
     await control.close();
   });
 
