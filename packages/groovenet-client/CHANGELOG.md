@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.6.0...groovenet-client-v3.7.0) (2026-10-28)
+
+
+### Features
+
+* **cli:** configurable keymap for the player TUI ([#835](https://github.com/Public-Vinyl-Radio/groovenet/issues/835)) ([972a865](https://github.com/Public-Vinyl-Radio/groovenet/commit/972a865b15cceef85bcf547a6ad9fd1e63498f08))
+* **player:** add atomic session joins and all-player events ([#836](https://github.com/Public-Vinyl-Radio/groovenet/issues/836)) ([156f0eb](https://github.com/Public-Vinyl-Radio/groovenet/commit/156f0eb5ab542145f0a90c40a9565d22e1d70771))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.3.0 to 1.4.0
+
 ## [3.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.5.0...groovenet-client-v3.6.0) (2026-10-26)
 
 

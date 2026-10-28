@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.3.0...groovenet-contracts-v1.4.0) (2026-10-28)
+
+
+### Features
+
+* **genres:** build albums-first genre detail pages ([#831](https://github.com/Public-Vinyl-Radio/groovenet/issues/831)) ([955598a](https://github.com/Public-Vinyl-Radio/groovenet/commit/955598afdce11fdf1836514dedbc741c84d44632))
+* **player:** add atomic session joins and all-player events ([#836](https://github.com/Public-Vinyl-Radio/groovenet/issues/836)) ([156f0eb](https://github.com/Public-Vinyl-Radio/groovenet/commit/156f0eb5ab542145f0a90c40a9565d22e1d70771))
+
 ## [1.3.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.2.0...groovenet-contracts-v1.3.0) (2026-10-26)
 
 
