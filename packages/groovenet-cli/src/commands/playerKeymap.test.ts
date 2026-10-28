@@ -207,7 +207,7 @@ describe("hints", () => {
   const items = (keymap = defaultKeymap, view: "queue" | "input" | "devices" = "queue", remote = false) => hintItems(keymap, view, { remote });
 
   it("builds the hint line from the keymap, merging paired actions", () => {
-    expect(hintLine(items())).toBe("↑/↓ select · Enter add/play · r play · x remove · Space pause · n/p skip · ←/→ seek · +/- volume · / search · l playlists · u queue · d devices · o play on · ? help · q quit");
+    expect(hintLine(items())).toBe("↑/↓ select · Enter add/play · r play · x remove · [/] move · Space pause · n/p skip · ←/→ seek · +/- volume · / search · l playlists · u queue · d devices · o play on · ? help · q quit");
   });
 
   it("only hints what applies in the view", () => {
@@ -229,7 +229,7 @@ describe("hints", () => {
   it("lists server-player keys separately and only in remote mode", () => {
     expect(hintItems(defaultKeymap, null, { remote: false, remoteOnly: true })).toEqual([]);
     expect(hintLine(hintItems(defaultKeymap, null, { remote: true, remoteOnly: true }))).toBe(
-      "U play desired output allowing unknown · T play desired output taking over occupied · t transfer+play · Y transfer allowing unknown · ! transfer taking over occupied · s stop · [/] reorder queue",
+      "U play desired output allowing unknown · T play desired output taking over occupied · t transfer+play · Y transfer allowing unknown · ! transfer taking over occupied · s stop",
     );
     expect(hintLine(items(defaultKeymap, "queue", true))).not.toContain("stop");
   });

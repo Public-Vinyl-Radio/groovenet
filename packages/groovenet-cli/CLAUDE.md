@@ -268,13 +268,37 @@ state and keys and renders into it.
 
 A view plugs in through two render props, each told the exact cells it has:
 `nowPlaying(area)` (the card's text column, right of the art; the whole first
-row in the strip) and `children(area)` (the body, `width` × `rows`). The frame
+row in the strip) and `children(area)` (the body, `width` × `rows`). The side
+pane calls `nowPlaying` twice: beside the art (`art.height` rows), then with
+`area.region === "below"` for the card's full width under it (#824). The frame
 owns the top bar, tabs, status line (or `alert` while a message is up), hint
 bar and the `?` overlay (`help`, which replaces the body). Text inside a slot
 must be fitted to the area (`fit`, `Line`): the frame clips overflow rather
 than letting Ink wrap. Hints and help come from the keymap (`hintItems` with
 `omit` for what the tabs and top bar already show, `helpEntries`,
 `primaryKey`), never literal key text.
+
+The queue view (#824) is `playerTuiQueue.tsx`: `NowPlaying` (the card in all
+three layouts), `QueueView` (full: `#`/title/artist/time/BPM/key, title and
+artist splitting the spare width 40:46; side: two rows per entry) and
+`stripHints`. The row builders (`fullRow`, `sideRows`) are pure and return
+segments, so roles are testable without ANSI. Formatting comes from
+`@groovenet/client` (`trackMetaLine`, `trackDurationLabel`, `camelotOf`,
+`parseBpm`). `currentIndex(snapshot)` is the playing entry; earlier entries
+render as played. The cursor opens on (and `u` returns to) the playing entry,
+follows an entry it moves with `[`/`]`, and is clamped when the queue shrinks.
+The status line reads `TARGET · connection · N in queue · i/N`; outside the full
+queue `i/N` sits on the right, where a narrow pane cannot cut it.
+
+**`↵` in the strip opens the full view by zooming the tmux pane**
+(`playerTuiFullView.ts`, `resize-pane -Z`), not by forcing a layout: the strip
+means the terminal is too short for anything else, and a 24-row frame drawn into
+5 rows scrolls the screen. The resize that follows picks the full layout like
+any other; tmux's own zoom key goes back. Outside tmux (or already zoomed) it
+shows the size needed. `PlayerTui` takes `fullView` so tests can stub it.
+
+`queue.move` (`{ id, to }`) works on the local daemon too, so `[`/`]` are no
+longer remote-only.
 
 Tests force the terminal with `forceTerminal(columns, rows, { colorLevel })`
 and `resizeTerminal` from `src/tui/testing.tsx` (excluded from the build):
@@ -294,7 +318,7 @@ node build/bin/groovenet.js --help
 ## Tests
 
 ```bash
-npm test --workspace=packages/groovenet-cli      # 46 tests
+npm test --workspace=packages/groovenet-cli
 ```
 
 Vitest, mirroring `groovenet-client`. The command file keeps its logic in

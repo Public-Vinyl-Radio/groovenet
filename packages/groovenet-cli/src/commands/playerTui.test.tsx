@@ -46,14 +46,15 @@ describe("PlayerTui", () => {
     const props = makeProps([{ id: "q1", track }]);
     const app = render(<PlayerTui {...props} options={{}} />);
     await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
-    expect(app.lastFrame()).toContain("John Coltrane — Blue Train");
-    expect(app.lastFrame()).toContain("132 BPM · A minor");
-    expect(app.lastFrame()).toContain("0:12 / 3:00");
+    expect(app.lastFrame()).toMatch(/Blue Train\s+┃/);
+    expect(app.lastFrame()).toMatch(/John Coltrane\s+┃/);
+    expect(app.lastFrame()).toContain("132 BPM · 8A");
+    expect(app.lastFrame()).toMatch(/0:12 ━+─+ 3:00 {2}▶ PLAYING/);
     expect(app.lastFrame()).toContain("Space pause");
-    expect(app.lastFrame()).toContain("Blue Train");
+    expect(app.lastFrame()).toMatch(/1 {2}Blue Train\s+John Coltrane\s+-:--\s+132 {2}8A$/m);
     const updated = { ...props.initialSnapshot, position: 28 };
     await act(async () => { (props.control as unknown as EventEmitter).emit("event", { event: "state", data: updated }); });
-    expect(app.lastFrame()).toContain("0:28 / 3:00");
+    expect(app.lastFrame()).toMatch(/0:28 ━+─+ 3:00/);
     await act(async () => { (props.control as unknown as EventEmitter).emit("event", { event: "error", data: { error: { message: "mpv stream failed" } } }); });
     expect(app.lastFrame()).toContain("mpv stream failed");
   });
@@ -63,17 +64,16 @@ describe("PlayerTui", () => {
     const props = makeProps(queue);
     const app = render(<PlayerTui {...props} options={{}} />);
     await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
-    // 120×40 leaves 21 body rows.
-    expect(app.lastFrame()).toContain("Song 0");
-    expect(app.lastFrame()).toContain("Song 20");
-    expect(app.lastFrame()).not.toContain("Song 21");
+    // 120×40 leaves 21 body rows: the column header and 20 entries.
+    expect(app.lastFrame()).toContain("Song 0 ");
+    expect(app.lastFrame()).toContain("Song 19 ");
+    expect(app.lastFrame()).not.toContain("Song 20 ");
     for (let i = 0; i < 25; i++) await act(async () => { app.stdin.write("j"); });
     const frame = app.lastFrame()!;
-    expect(frame).toContain("› John Coltrane — Song 25");
-    expect(frame).toContain("26/30");
-    // Ink trims trailing padding, so a row ends at its text.
-    expect(frame).not.toMatch(/Song 4$/m);
-    expect(frame).toMatch(/Song 5$/m);
+    expect(frame).toMatch(/^› {2}26 {2}Song 25 /m);
+    expect(frame).toContain("30 in queue · 26/30");
+    expect(frame).not.toContain("Song 5 ");
+    expect(frame).toContain("Song 6 ");
   });
 
   it("searches, renders results, and adds the selected track", async () => {
@@ -284,14 +284,14 @@ describe("remote TUI", () => {
     await expect(runPlayerTui({ remote: "room", backend: "mpv" }, runtime)).rejects.toThrow("server engine settings");
   });
   it("displays remote identity/checkpoints/disconnection and explicit speaker controls", async () => {
-    const props = makeProps([{ id: "entry-uuid", track }]);
+    const props = makeProps([{ id: "entry-uuid", track }, { id: "second", track: { ...track, title: "Second" } as Track }]);
     const snapshot = { ...props.initialSnapshot, remote: { player: remotePlayer, connected: true } };
     const request = props.control.request as ReturnType<typeof vi.fn>;
     request.mockResolvedValue(snapshot);
     const app = render(<PlayerTui {...props} initialSnapshot={snapshot} options={{ remote: "room" }} />);
     await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
     expect(app.lastFrame()).toContain("PLAY ON ROOM ● LIVE");
-    expect(app.lastFrame()).toContain("saved checkpoint");
+    expect(app.lastFrame()).toContain("NO OUTPUT · connected · saved checkpoint · 2 in queue · 1/2");
     await act(async () => { app.stdin.write("\r"); });
     expect(request).toHaveBeenCalledWith("play", { id: "entry-uuid" });
     request.mockResolvedValueOnce([{ id: "speaker", name: "Room · activity=unknown · assigned=other · sender=unknown" }]);
@@ -305,13 +305,17 @@ describe("remote TUI", () => {
     expect(request).toHaveBeenCalledWith("devices.transfer", { id: "speaker", takeover: true });
     await act(async () => { app.stdin.write("u"); });
     await act(async () => { app.stdin.write("["); });
+    expect(request).not.toHaveBeenCalledWith("queue.move", expect.anything());
     await act(async () => { app.stdin.write("]"); });
+    await act(async () => { app.stdin.write("]"); });
+    await act(async () => { app.stdin.write("["); });
     await act(async () => { app.stdin.write("s"); });
-    expect(request).toHaveBeenCalledWith("queue.move", { id: "entry-uuid", to: 0 });
+    // The cursor follows the moved entry; the stub's queue keeps its order, so `[` then moves the other one.
+    expect(request.mock.calls.filter(([method]) => method === "queue.move")).toEqual([["queue.move", { id: "entry-uuid", to: 1 }], ["queue.move", { id: "second", to: 0 }]]);
     expect(request).toHaveBeenCalledWith("stop", undefined);
     await act(async () => { props.control.emit("event", { event: "state", data: { ...snapshot, remote: { player: { ...remotePlayer, state: { ...remotePlayer.state, checkpoint: false } }, connected: false } } }); });
-    expect(app.lastFrame()).toContain("DISCONNECTED");
-    expect(app.lastFrame()).toContain("live state");
+    expect(app.lastFrame()).toContain("DISCONNECTED · state may be stale · 2 in queue");
+    expect(app.lastFrame()).not.toContain("saved checkpoint");
     await act(async () => { props.control.emit("event", { event: "state", data: { ...snapshot, queue: [], remote: { player: { ...remotePlayer, assigned_output: null, state: { ...remotePlayer.state, desired_output: null } }, connected: true } } }); });
     await act(async () => { app.stdin.write("]"); });
     request.mockResolvedValueOnce([]);
@@ -341,7 +345,7 @@ it("refreshes speaker observations and clears failed/stale reads after unmount",
   let app: ReturnType<typeof render>;
   try {
     await act(async () => { app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "room" }} />); });
-    expect(app!.lastFrame()).toContain("Room · activity=idle");
+    expect(app!.lastFrame()).toContain("Room · connected · 0 in queue");
     request.mockRejectedValueOnce(new Error("observer offline"));
     await act(async () => { poll(); });
     expect(app!.lastFrame()).toContain("Speaker observations unavailable: observer offline");
@@ -360,7 +364,7 @@ describe("PlayerTui keymap", () => {
   it("renders the hint bar from the default keymap, and the help overlay when toggled", async () => {
     const app = render(<PlayerTui {...makeProps()} options={{}} />);
     await settle();
-    expect(app.lastFrame()).toContain("↑/↓ select   Enter add/play   r play   x remove   Space pause   n/p skip");
+    expect(app.lastFrame()).toContain("↑/↓ select   Enter add/play   r play   x remove   [/] move   Space pause   n/p skip");
     expect(app.lastFrame()).toContain("? help   q quit");
     expect(app.lastFrame()).not.toContain("KEYS");
     await act(async () => { app.stdin.write("?"); });
@@ -419,11 +423,11 @@ describe("PlayerTui keymap", () => {
     await settle();
     await act(async () => { app.stdin.write("j"); });
     await act(async () => { app.stdin.write("j"); });
-    expect(app.lastFrame()).toContain("› John Coltrane — Song 2");
+    expect(app.lastFrame()).toMatch(/^› {3}3 {2}Song 2 /m);
     await act(async () => { app.stdin.write("k"); });
     await act(async () => { app.stdin.write("\u001b[A"); });
     await act(async () => { app.stdin.write("k"); });
-    expect(app.lastFrame()).toContain("› John Coltrane — Song 0");
+    expect(app.lastFrame()).toMatch(/^› {3}1 {2}Song 0 /m);
   });
 
   it("opens the output list with play-on and ignores the keys for views that do not exist yet", async () => {
@@ -468,8 +472,8 @@ describe("PlayerTui keymap", () => {
     expect(app.lastFrame()).toContain("Remote keys: U play desired output allowing unknown");
     expect(app.lastFrame()).toContain("^T transfer+play");
     // The line wraps to the body width; "Q" lands on the next row.
-    expect(app.lastFrame()).toContain("[/} reorder queue · server audio continues after");
-    expect(app.lastFrame()).toContain("Q quit");
+    expect(app.lastFrame()).toContain("! transfer taking over occupied · s stop · server audio continues after Q");
+    expect(app.lastFrame()).toContain("[/} move");
     await act(async () => { app.stdin.write("d"); });
     await settle();
     await act(async () => { app.stdin.write("t"); });
@@ -602,5 +606,99 @@ describe("PlayerTui layouts", () => {
     const app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "room" }} keymap={buildKeymap({ "app.quit": [] })} />);
     await settle();
     expect(app.lastFrame()).toMatch(/server audio continues after\s+quitting/);
+  });
+});
+
+describe("PlayerTui queue view", () => {
+  afterEach(() => act(() => cleanup()));
+  const settle = () => act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+  const queue = ["One", "Two", "Three", "Four"].map((title, i) => ({ id: `q${i}`, track: { ...track, title, duration_seconds: 200 + i } as Track }));
+  const playingSecond = () => {
+    const props = makeProps(queue);
+    const initialSnapshot = { ...props.initialSnapshot, current: queue[1]! };
+    (props.control.request as ReturnType<typeof vi.fn>).mockResolvedValue(initialSnapshot);
+    return { ...props, initialSnapshot };
+  };
+  const emit = (props: ReturnType<typeof makeProps>, data: Partial<PlaybackSnapshot>) =>
+    act(async () => { (props.control as unknown as EventEmitter).emit("event", { event: "state", data: { ...props.initialSnapshot, ...data } }); });
+
+  it("opens on the playing entry and returns to it with the queue key", async () => {
+    const props = playingSecond();
+    const app = render(<PlayerTui {...props} options={{}} />);
+    await settle();
+    expect(app.lastFrame()).toMatch(/^› {3}2 {2}Two /m);
+    expect(app.lastFrame()).toContain("LOCAL · local daemon · 4 in queue · 2/4");
+    await act(async () => { app.stdin.write("j"); });
+    await act(async () => { app.stdin.write("j"); });
+    expect(app.lastFrame()).toMatch(/^▶ {3}2 {2}Two /m);
+    await act(async () => { app.stdin.write("u"); });
+    expect(app.lastFrame()).toMatch(/^› {3}2 {2}Two /m);
+  });
+
+  it("moves the selected entry locally with [ and ], the cursor following it", async () => {
+    const props = makeProps(queue);
+    const request = props.control.request as ReturnType<typeof vi.fn>;
+    const app = render(<PlayerTui {...props} options={{}} />);
+    await settle();
+    await act(async () => { app.stdin.write("["); });
+    expect(request).not.toHaveBeenCalledWith("queue.move", expect.anything());
+    await act(async () => { app.stdin.write("]"); });
+    expect(request).toHaveBeenCalledWith("queue.move", { id: "q0", to: 1 });
+    expect(app.lastFrame()).toContain("2/4");
+    for (let i = 0; i < 3; i++) await act(async () => { app.stdin.write("j"); });
+    await act(async () => { app.stdin.write("]"); });
+    expect(request.mock.calls.filter(([method]) => method === "queue.move")).toHaveLength(1);
+  });
+
+  it("keeps the cursor on a row when the queue shrinks under it", async () => {
+    const props = makeProps(queue);
+    const app = render(<PlayerTui {...props} options={{}} />);
+    await settle();
+    for (let i = 0; i < 3; i++) await act(async () => { app.stdin.write("j"); });
+    expect(app.lastFrame()).toContain("4/4");
+    await emit(props, { queue: queue.slice(0, 2) });
+    expect(app.lastFrame()).toMatch(/^› {3}2 {2}Two /m);
+    expect(app.lastFrame()).toContain("2 in queue · 2/2");
+  });
+
+  it("opens the full view with Enter in the strip, and plays the entry with it elsewhere", async () => {
+    forceTerminal(120, 5);
+    const props = makeProps(queue);
+    const fullView = vi.fn(async () => "The full view needs 80×24; enlarge the terminal.");
+    const app = render(<PlayerTui {...props} options={{}} fullView={fullView} />);
+    await settle();
+    expect(app.lastFrame()).toContain("Space pause   n next   p prev   +/- volume   Enter full view");
+    await act(async () => { app.stdin.write("\r"); });
+    await settle();
+    expect(fullView).toHaveBeenCalledOnce();
+    expect(props.control.request).not.toHaveBeenCalledWith("play", expect.anything());
+    expect(app.lastFrame()).toContain("The full view needs 80×24");
+    // Typing a query uses the input hints, not the strip's (the prompt covers them here).
+    await act(async () => { app.stdin.write("/"); });
+    expect(app.lastFrame()).toContain("Type a query");
+    await act(async () => { app.stdin.write("\u001b"); await new Promise((resolve) => setTimeout(resolve, 30)); });
+    await act(async () => { resizeTerminal(app.stdout, 120, 40); });
+    await act(async () => { app.stdin.write("u"); });
+    await act(async () => { app.stdin.write("\r"); });
+    expect(props.control.request).toHaveBeenCalledWith("play", { index: 0 });
+    expect(fullView).toHaveBeenCalledOnce();
+  });
+
+  it("names the remote output and connection in the side pane, with the position on the right", async () => {
+    forceTerminal(40, 50);
+    const props = playingSecond();
+    const snapshot = { ...props.initialSnapshot, remote: { player: { id: "lounge", name: "Lounge", revision: 3, assigned_output: "speaker", state: { desired_output: "speaker", checkpoint: false } }, connected: true } };
+    (props.control.request as ReturnType<typeof vi.fn>).mockImplementation(async (method: string) => method === "devices" ? [{ id: "speaker", name: "Lounge Room Audio · activity=idle" }] : snapshot);
+    const app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "lounge" }} />);
+    await settle();
+    const frame = app.lastFrame()!;
+    expect(frame).toContain("PLAY ON Lounge Room Audio");
+    expect(frame).toMatch(/^Lounge Room Audio · connected · 4 i… 2\/4$/m);
+    expect(frame).toMatch(/^› Two +3:21$/m);
+    expect(frame).toMatch(/^ {2}One +3:20$/m);
+    props.api.listPlaylists = vi.fn(async () => [{ id: 1, name: "Late night" }, { id: 2, name: "Early" }]) as unknown as GroovenetClient["listPlaylists"];
+    await act(async () => { app.stdin.write("l"); await new Promise((resolve) => setImmediate(resolve)); });
+    expect(app.lastFrame()).toContain("› Late night");
+    expect(app.lastFrame()).toMatch(/^ {2}Early$/m);
   });
 });

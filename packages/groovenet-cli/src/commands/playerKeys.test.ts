@@ -30,7 +30,7 @@ describe("player keys output", () => {
     expect(json.actions).toHaveLength(defaultKeymap.actions.length);
     expect(json.actions.find((action) => action.id === "search.mode")).toMatchObject({ overridden: true, keys: ["ctrl+t"], display: ["^T"], defaults: ["shift+tab"], remote_only: false });
     expect(json.actions.find((action) => action.id === "transport.toggle")).toMatchObject({ overridden: false, keys: ["space"], display: ["Space"] });
-    expect(json.actions.find((action) => action.id === "queue.move-up")).toMatchObject({ remote_only: true, views: ["queue"] });
+    expect(json.actions.find((action) => action.id === "queue.move-up")).toMatchObject({ remote_only: false, views: ["queue"] });
     expect(json.actions.find((action) => action.id === "transport.seek-forward")!.by_view).toEqual([
       { views: ["queue", "devices"], keys: ["right", ">"] }, { views: ["search", "playlists"], keys: [">"] },
     ]);
