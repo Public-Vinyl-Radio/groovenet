@@ -237,6 +237,14 @@ describe("SearchView", () => {
 
 const settle = (ms = 0) => act(async () => { await new Promise((resolve) => setTimeout(resolve, ms)); });
 const press = (app: ReturnType<typeof render>, keys: string, ms = 0) => act(async () => { app.stdin.write(keys); await new Promise((resolve) => setTimeout(resolve, ms)); });
+/** Polls `assertion` inside act until it passes: timers under coverage on CI run late, so debounced work gets no fixed deadline. */
+async function eventually(assertion: () => void, timeout = 3000): Promise<void> {
+  const start = Date.now();
+  for (;;) {
+    try { assertion(); return; } catch (error) { if (Date.now() - start > timeout) throw error; }
+    await settle(20);
+  }
+}
 const ESC = "\u001b";
 const TAB = "\t";
 const SHIFT_TAB = "\u001b[Z";
@@ -273,11 +281,11 @@ describe("PlayerTui search", () => {
     expect(app.lastFrame()).toContain("Type to search tracks.");
     for (const char of "cumb") await press(app, char);
     expect(api.searchTracks).not.toHaveBeenCalled();
-    await settle(SEARCH_DEBOUNCE_MS + 30);
+    await settle(SEARCH_DEBOUNCE_MS);
+    await eventually(() => expect(app.lastFrame()).toContain("TRACKS · 2   ALBUMS · 2"));
     expect(api.searchTracks).toHaveBeenCalledTimes(1);
     expect(api.searchTracks).toHaveBeenCalledWith({ query: "cumb", limit: 30 });
     expect(api.searchAlbums).toHaveBeenCalledWith({ q: "cumb", limit: 30 });
-    expect(app.lastFrame()).toContain("TRACKS · 2   ALBUMS · 2");
     // Still typing: the box keeps the keys, and the list is selectable after Enter.
     await press(app, "\r");
     await press(app, "j");
@@ -333,10 +341,10 @@ describe("PlayerTui search", () => {
     const { props, api } = makePlayer();
     const app = render(<PlayerTui {...props} options={{ search: "dusty brass" }} />);
     await settle();
-    await press(app, SHIFT_TAB, SEARCH_DEBOUNCE_MS + 30);
+    await press(app, SHIFT_TAB);
     expect(app.lastFrame()).toContain(" SEMANTIC ");
-    expect(api.searchTracks).toHaveBeenLastCalledWith({ query: "dusty brass", limit: 30, mode: "semantic" });
-    expect(app.lastFrame()).toContain("SEARCH · semantic · 2 tracks");
+    await eventually(() => expect(api.searchTracks).toHaveBeenLastCalledWith({ query: "dusty brass", limit: 30, mode: "semantic" }));
+    await eventually(() => expect(app.lastFrame()).toMatch(/SEARCH · semantic · 2 tracks\s+1\/2$/m));
     await press(app, TAB);
     // Albums only search by keyword.
     expect(app.lastFrame()).toContain(" KEYWORD ");
@@ -347,7 +355,8 @@ describe("PlayerTui search", () => {
     const app = render(<PlayerTui {...props} options={{ search: "cumbia" }} />);
     await settle();
     await press(app, TAB);
-    await press(app, "j", 200);
+    await press(app, "j");
+    await eventually(() => expect(app.lastFrame()).toMatch(/A1 {2}Cumbia 0/));
     expect(api.getAlbum).toHaveBeenCalledTimes(1);
     expect(api.getAlbum).toHaveBeenCalledWith("r1", 1);
     expect(app.lastFrame()).toContain("┏━ LP-031 ━");
