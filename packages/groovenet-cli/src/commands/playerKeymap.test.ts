@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildKeymap, defaultKeymap, displayKeys, hintItems, hintLine, resolveAction } from "./playerKeymap.js";
+import { buildKeymap, defaultKeymap, displayKeys, helpEntries, hintItems, hintLine, primaryKey, resolveAction } from "./playerKeymap.js";
 import { ACTIONS, KEYMAP_VIEWS, type ActionDef } from "./playerKeymapRegistry.js";
 import { parseKey } from "./playerKeyspec.js";
 
@@ -237,5 +237,28 @@ describe("hints", () => {
   it("skips an action with no keys in the chosen view of a remote-only list", () => {
     const keymap = buildKeymap({ "transport.stop": [] });
     expect(hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))).not.toContain("stop");
+  });
+});
+
+describe("frame helpers", () => {
+  it("leaves omitted actions out of the hints", () => {
+    const hints = hintItems(defaultKeymap, "queue", { remote: false, omit: ["view.search", "app.quit"] });
+    expect(hintLine(hints)).not.toContain("/ search");
+    expect(hintLine(hints)).not.toContain("q quit");
+    expect(hintLine(hints)).toContain("l playlists");
+  });
+
+  it("gives an action's first key, or nothing when unbound", () => {
+    expect(primaryKey(defaultKeymap, "list.up", "queue")).toBe("↑");
+    expect(primaryKey(defaultKeymap, "view.search", "queue")).toBe("/");
+    expect(primaryKey(buildKeymap({ "view.search": [] }), "view.search", "queue")).toBe("");
+  });
+
+  it("lists every bound action in a view for the help overlay, remote-only ones only remotely", () => {
+    const local = helpEntries(defaultKeymap, "queue", { remote: false });
+    expect(local).toContainEqual({ keys: "Space", description: "Pause or resume" });
+    expect(local.some((entry) => entry.description.startsWith("Stop playback"))).toBe(false);
+    expect(helpEntries(defaultKeymap, "queue", { remote: true })).toContainEqual({ keys: "s", description: "Stop playback (the server player is kept)" });
+    expect(helpEntries(buildKeymap({ "app.help": [] }), "queue", { remote: false }).some((entry) => entry.description.includes("key list"))).toBe(false);
   });
 });

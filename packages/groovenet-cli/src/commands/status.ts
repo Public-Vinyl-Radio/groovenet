@@ -5,6 +5,10 @@ import { PlayerControlClient, type PlaybackSnapshot } from "@groovenet/player";
 import { PLAYER_DAEMON_PATHS } from "./player.js";
 import { makeRemoteApi } from "./remotePlayer.js";
 import { boundedIntOption } from "../options.js";
+import { displayWidth as width, progressBar, sliceWidth, truncate } from "../tui/text.js";
+
+// Shared with the player TUI; re-exported so the segment's API stays in one place.
+export { progressBar, truncate };
 
 // `groovenet status`: a one-line now-playing segment for tmux and status bars
 // (#828). Unlike `player status` it never reports an error: a status bar polls
@@ -43,27 +47,9 @@ const TMUX_ROLE: Record<Exclude<Field, "icon" | "bar">, [string, string]> = {
   title: BOLD, artist: DIM, position: DIM, duration: DIM, target: BOLD,
 };
 
-/** A `━━────` progress bar, `width` cells wide; all `─` when the duration is unknown. */
-export function progressBar(position: number, duration: number | null, width: number): string {
-  const cells = Math.max(0, Math.floor(width));
-  const fraction = duration && duration > 0 && Number.isFinite(position) ? Math.min(1, Math.max(0, position / duration)) : 0;
-  const filled = Math.round(cells * fraction);
-  return "━".repeat(filled) + "─".repeat(cells - filled);
-}
-
 /** One line of track text: control characters and runs of whitespace become a single space. */
 export function cleanText(text: string | null | undefined): string {
   return (text ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function width(text: string): number { return Array.from(text).length; }
-
-/** `text` cut to `max` cells, ending in `…` when anything was cut. */
-export function truncate(text: string, max: number): string {
-  const chars = Array.from(text);
-  if (chars.length <= max) return text;
-  if (max <= 0) return "";
-  return chars.slice(0, max - 1).join("") + "…";
 }
 
 /** Widths for title and artist that fit `budget`, taking from the longer one first. */
@@ -174,7 +160,7 @@ function fit(pieces: Piece[], maxWidth: number): Piece[] {
   // The fixed parts alone are too wide: cut the line from the end.
   let room = maxWidth;
   return fitted.map((piece) => {
-    const text = Array.from(piece.text).slice(0, Math.max(0, room)).join("");
+    const text = sliceWidth(piece.text, Math.max(0, room));
     room -= width(text);
     return { ...piece, text };
   });

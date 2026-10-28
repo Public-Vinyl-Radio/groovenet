@@ -155,6 +155,21 @@ export function displayKeys(keymap: Keymap, id: ActionId, view: KeymapView): str
   return (action.specs[view] ?? []).map(formatKey).join("/");
 }
 
+/** Display text for an action's first key in a view; empty if unbound. */
+export function primaryKey(keymap: Keymap, id: ActionId, view: KeymapView): string {
+  const spec = keymap.actions.find((item) => item.def.id === id)!.specs[view]?.[0];
+  return spec ? formatKey(spec) : "";
+}
+
+export interface HelpEntry { keys: string; description: string }
+
+/** Every bound action live in a view, for the `?` overlay: all its keys and its description. */
+export function helpEntries(keymap: Keymap, view: KeymapView, { remote }: { remote: boolean }): HelpEntry[] {
+  return keymap.actions
+    .filter((action) => (!action.def.remoteOnly || remote) && action.specs[view]?.length)
+    .map((action) => ({ keys: displayKeys(keymap, action.def.id as ActionId, view), description: action.def.description }));
+}
+
 export interface HintItem { keys: string; label: string }
 
 /**
@@ -162,11 +177,16 @@ export interface HintItem { keys: string; label: string }
  * merging adjacent actions with the same label (`↑/↓ select`). Unbound actions
  * are left out. `remoteOnly: true` lists the server-player actions instead.
  */
-export function hintItems(keymap: Keymap, view: KeymapView | null, { remote, remoteOnly = false }: { remote: boolean; remoteOnly?: boolean }): HintItem[] {
+export function hintItems(keymap: Keymap, view: KeymapView | null, { remote, remoteOnly = false, omit = [] }: {
+  remote: boolean;
+  remoteOnly?: boolean;
+  /** Actions the frame already shows elsewhere (tabs, top bar). */
+  omit?: readonly ActionId[];
+}): HintItem[] {
   const items: HintItem[] = [];
   for (const action of keymap.actions) {
     const { def } = action;
-    if (!def.hint || !!def.remoteOnly !== remoteOnly || (def.remoteOnly && !remote)) continue;
+    if (!def.hint || !!def.remoteOnly !== remoteOnly || (def.remoteOnly && !remote) || omit.includes(def.id as ActionId)) continue;
     const specs = view ? action.specs[view] : Object.values(action.specs).find((list) => list?.length);
     if (!specs?.length) continue;
     const keys = formatKey(specs[0]!);

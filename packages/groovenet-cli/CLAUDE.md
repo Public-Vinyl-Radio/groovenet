@@ -56,6 +56,7 @@ src/
   bin/         entrypoint, commander wiring
   commands/    one file per group: tracks, albums, playlists, friends, play,
                config, fingerprintLibrary, vinyl, sets
+  tui/         the player TUI's theme, primitives, layouts and frame
   output.ts    table and JSON rendering
 ```
 
@@ -235,10 +236,51 @@ Rules worth knowing:
   action to its default keys.
 - `→` is `nav.open` in search/playlists and seek in queue/devices; seek there
   uses `<` / `>` (`viewKeys`). `nav.open`, `search.scope`, `search.mode` and
-  `app.debug` are registered for the #823 views and do nothing yet.
+  `app.debug` are registered for the #824–#827 views and do nothing yet.
 - Problems go to an in-TUI notice, never stderr, which would corrupt the screen.
 - Ink gives capital letters `shift: true`, so characters match on `input` only;
   `ctrl+j` arrives as `enter`, not `return`, and cannot be bound.
+
+## TUI layout
+
+The player TUI's frame (#823) lives in `src/tui/`; `playerTui.tsx` holds the
+state and keys and renders into it.
+
+- `theme.ts`: the colour roles (`ink`, `strong`, `muted`, `dim`, `shadow`,
+  `selection`, `selectionStrong`, `reverse`, `live`, `warn`, `error`) as ANSI
+  attributes and named colours only, never hex. **Views name a role
+  (`<Styled role="muted">`, or `{ text, role }` segments) and never set Ink
+  colour props.** `NO_COLOR` drops colour and dim but keeps inverse and bold.
+- `text.ts`: `displayWidth`, `sliceWidth`, `truncate`, `fit`, `fitRight`,
+  `wrap` and `progressBar`, all counting terminal cells (wide CJK/emoji,
+  combining marks) via `string-width`. `status.ts` uses the same helpers.
+- `primitives.tsx`: `Styled`, `Line` (left fitted, right aligned, one row),
+  `fitSegments`, `OutlinedBox` (`┏━┓` with the `▐`/`▀` shadow, `width + 1` ×
+  `height + 1`), `ProgressBar`, `ReverseLabel`, `Rule`, `HintBar`, `ArtSlot`.
+- `layout.ts`: `pickLayout(columns, rows)`, pure. Breakpoints, as named
+  constants: **full** at ≥ 80×24, **side** pane at ≥ 32×30 (narrower than 80),
+  **strip** at ≥ 60×5 (anything wider but too short for the others; it draws
+  five rows), otherwise a "terminal too small" message. The art slots are fixed:
+  18×8 in full, 14×6 in side, none in the strip.
+- `useTerminalSize.ts`: `stdout.columns`/`rows`, updated on `resize`.
+- `frame.tsx`: `PlayerFrame`, plus `TopBar`, `tabSegments`, `HelpOverlay`,
+  `TooSmall`.
+
+A view plugs in through two render props, each told the exact cells it has:
+`nowPlaying(area)` (the card's text column, right of the art; the whole first
+row in the strip) and `children(area)` (the body, `width` × `rows`). The frame
+owns the top bar, tabs, status line (or `alert` while a message is up), hint
+bar and the `?` overlay (`help`, which replaces the body). Text inside a slot
+must be fitted to the area (`fit`, `Line`): the frame clips overflow rather
+than letting Ink wrap. Hints and help come from the keymap (`hintItems` with
+`omit` for what the tabs and top bar already show, `helpEntries`,
+`primaryKey`), never literal key text.
+
+Tests force the terminal with `forceTerminal(columns, rows, { colorLevel })`
+and `resizeTerminal` from `src/tui/testing.tsx` (excluded from the build):
+ink-testing-library's fake stdout is otherwise always 100 columns with no rows.
+Snapshots are plain text (chalk level 0). Ink trims trailing spaces from each
+row, so match a row's end with `/text$/m`, not padding.
 
 ## Build
 
