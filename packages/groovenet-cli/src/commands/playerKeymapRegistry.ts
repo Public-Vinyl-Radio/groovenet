@@ -30,11 +30,11 @@ export interface ActionDef {
 }
 
 export const ACTIONS = [
-  { id: "list.up", description: "Move the selection up", views: LISTS, keys: ["up", "k"], hint: "select" },
-  { id: "list.down", description: "Move the selection down", views: LISTS, keys: ["down", "j"], hint: "select" },
-  { id: "list.select", description: "Play the queue entry, add the track or playlist, or pick the output (in the strip: open the full view)", views: LISTS, keys: ["enter"], hint: "add/play" },
+  { id: "list.up", description: "Move the selection up", views: [...LISTS, "input"], keys: ["up", "k"], viewKeys: { input: ["up"] }, hint: "select" },
+  { id: "list.down", description: "Move the selection down", views: [...LISTS, "input"], keys: ["down", "j"], viewKeys: { input: ["down"] }, hint: "select" },
+  { id: "list.select", description: "Play the queue entry or search result, add the playlist, or pick the output (in the strip: open the full view)", views: LISTS, keys: ["enter"], hint: "add/play" },
   { id: "transport.play", description: "Start or resume playback", views: LISTS, keys: ["r"], hint: "play" },
-  { id: "queue.add", description: "Add the selected track or playlist to the queue", views: ["search", "playlists"], keys: ["a"], hint: "add" },
+  { id: "queue.add", description: "Add the selected track, album or playlist to the queue", views: ["search", "playlists"], keys: ["a"], hint: "add" },
   { id: "queue.remove", description: "Remove the selected entry from the queue", views: ["queue"], keys: ["x", "backspace"], hint: "remove" },
   { id: "queue.move-up", description: "Move the selected queue entry up", views: ["queue"], keys: ["["], hint: "move" },
   { id: "queue.move-down", description: "Move the selected queue entry down", views: ["queue"], keys: ["]"], hint: "move" },
@@ -62,8 +62,8 @@ export const ACTIONS = [
   { id: "app.debug", description: "Show or hide the debug panel", views: LISTS, keys: ["~"] },
   { id: "app.help", description: "Show or hide the key list", views: LISTS, keys: ["?"], hint: "help" },
   { id: "app.quit", description: "Quit the player (a server player keeps playing)", views: LISTS, keys: ["q"], hint: "quit" },
-  { id: "input.submit", description: "Run the search", views: ["input"], keys: ["enter"], hint: "search" },
-  { id: "input.cancel", description: "Stop typing and keep the query", views: ["input"], keys: ["esc"], hint: "cancel" },
+  { id: "input.submit", description: "Focus the search results", views: ["input"], keys: ["enter"], hint: "search" },
+  { id: "input.cancel", description: "Leave typing, clear search, or return from an album", views: ["input", "search"], keys: ["esc"], hint: "cancel" },
   { id: "input.backspace", description: "Delete the last character", views: ["input"], keys: ["backspace"] },
   { id: "devices.play-allow-unknown", description: "Play the desired output, allowing unknown activity", views: ["devices"], keys: ["U"], hint: "play desired output allowing unknown", remoteOnly: true },
   { id: "devices.play-takeover", description: "Play the desired output, taking over occupied activity", views: ["devices"], keys: ["T"], hint: "play desired output taking over occupied", remoteOnly: true },

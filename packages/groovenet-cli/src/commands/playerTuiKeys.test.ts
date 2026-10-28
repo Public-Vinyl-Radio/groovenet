@@ -62,7 +62,7 @@ describe("player TUI key mapping", () => {
     expect(playerTuiAction("", { return: true }, typing)).toEqual({ id: "input.submit" });
     expect(playerTuiAction("", { escape: true }, typing)).toEqual({ id: "input.cancel" });
     expect(playerTuiAction("", {}, typing)).toBeNull();
-    expect(playerTuiAction("", { upArrow: true }, typing)).toBeNull();
+    expect(playerTuiAction("", { upArrow: true }, typing)).toEqual({ id: "list.up" });
     expect(playerTuiAction("x", { ctrl: true }, typing)).toBeNull();
     expect(playerTuiAction("x", { meta: true }, typing)).toBeNull();
     expect(playerTuiAction("\u001b[", {}, typing)).toBeNull();
