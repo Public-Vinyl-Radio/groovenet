@@ -23,7 +23,7 @@ try {
   // Check the deployable Compose configuration as well as the runtime wiring.
   const composed = JSON.parse((await exec('docker', ['compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.players.yml', '--profile', 'players', 'config', '--format', 'json'], { env: { ...process.env, POSTGRES_PASSWORD: 'test-only' } })).stdout);
   assert.equal(composed.services['player-clock'].ipc, 'shareable');
-  for (const id of ['player-engine-a', 'player-engine-b']) {
+  for (const id of ['player-engine-a', 'player-engine-b', 'player-engine-c']) {
     assert.equal(composed.services[id].ipc, 'service:player-clock');
     assert.equal(composed.services[id].depends_on['player-clock'].condition, 'service_healthy');
   }

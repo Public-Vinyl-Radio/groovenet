@@ -31,6 +31,7 @@ services:
       db: { condition: service_healthy }
       player-engine-a: { condition: service_started }
       player-engine-b: { condition: service_started }
+      player-engine-c: { condition: service_started }
     # Worker control is reachable only on the Compose network, never published.
 
   player-clock:
@@ -87,6 +88,27 @@ services:
       - ./packages/groovenet-player/server/engine-entrypoint.sh:/usr/local/bin/player-engine:ro
     entrypoint: [/bin/sh, /usr/local/bin/player-engine]
 
+  player-engine-c:
+    profiles: [players]
+    image: groovenet-owntone:server
+    network_mode: host
+    restart: unless-stopped
+    ipc: service:player-clock
+    depends_on:
+      player-clock: { condition: service_healthy }
+    environment:
+      PLAYER_ENGINE_NAME: groovenet-tertiary
+      PLAYER_ENGINE_INTERFACE: ${PLAYER_LAN_INTERFACE:-enp170s0}
+      PLAYER_ENGINE_PASSWORD: ${PLAYER_ENGINE_C_PASSWORD:-}
+      PLAYER_ENGINE_PORT: "13692"
+      PLAYER_ENGINE_WS_PORT: "13693"
+    volumes:
+      - ${PLAYER_AUDIO_MOUNT:-music_data}:/srv/media:ro
+      - player_engine_c:/var/cache/owntone
+      - ./packages/groovenet-player/server/engine-entrypoint.sh:/usr/local/bin/player-engine:ro
+    entrypoint: [/bin/sh, /usr/local/bin/player-engine]
+
 volumes:
   player_engine_a:
   player_engine_b:
+  player_engine_c:

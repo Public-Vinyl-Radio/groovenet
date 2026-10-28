@@ -11,12 +11,13 @@ export function renderPlayerEnv(env) {
   }
   const a = env.PLAYER_ENGINE_A_PASSWORD;
   const b = env.PLAYER_ENGINE_B_PASSWORD;
-  for (const name of ['PLAYER_ENGINE_A_PASSWORD', 'PLAYER_ENGINE_B_PASSWORD']) {
+  const c = env.PLAYER_ENGINE_C_PASSWORD;
+  for (const name of ['PLAYER_ENGINE_A_PASSWORD', 'PLAYER_ENGINE_B_PASSWORD', 'PLAYER_ENGINE_C_PASSWORD']) {
     if (typeof env[name] !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(env[name])) {
       throw new Error(`${name} must be a nonempty hex/base64url password.`);
     }
   }
-  if (a === b) throw new Error('The two engine passwords must be distinct.');
+  if (new Set([a, b, c]).size !== 3) throw new Error('The three engine passwords must be pairwise distinct.');
   if (!/^[1-9][0-9]*$/.test(env.PLAYER_LIBRARY_FRIEND_ID || '')) throw new Error('PLAYER_LIBRARY_FRIEND_ID must be a positive integer.');
   const values = {
     PLAYER_API_KEY: key,
@@ -24,11 +25,13 @@ export function renderPlayerEnv(env) {
     PLAYER_WORKER_URL: 'http://player-worker:13700',
     PLAYER_ENGINE_A_PASSWORD: a,
     PLAYER_ENGINE_B_PASSWORD: b,
+    PLAYER_ENGINE_C_PASSWORD: c,
     PLAYER_LAN_INTERFACE: env.PLAYER_LAN_INTERFACE || 'enp170s0',
     PLAYER_AUDIO_MOUNT: env.PLAYER_AUDIO_MOUNT || 'music_data',
     PLAYER_ENGINES_JSON: JSON.stringify({
       primary: { apiUrl: 'http://host.docker.internal:13689/api', password: a, libraryRoot: '/srv/media' },
       secondary: { apiUrl: 'http://host.docker.internal:13690/api', password: b, libraryRoot: '/srv/media' },
+      tertiary: { apiUrl: 'http://host.docker.internal:13692/api', password: c, libraryRoot: '/srv/media' },
     }),
     PLAYER_HA_URL: env.PLAYER_HA_URL || '',
     PLAYER_HA_TOKEN: env.PLAYER_HA_TOKEN || '',

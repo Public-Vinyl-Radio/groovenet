@@ -103,7 +103,7 @@ esac
     const webCapture = join(root, 'captured-web.env');
     const result = spawnSync('bash', [script], { cwd: root, encoding: 'utf8', env: {
       PATH: `${bin}:${process.env.PATH}`, DEPLOY_TEST_LOG: log, DEPLOY_TEST_OPT_IN: optedIn ? '0' : '1', DEPLOY_TEST_WEB_OPT_IN: webOptedIn ? '0' : '1', DEPLOY_TEST_CAPTURE: capture, DEPLOY_TEST_WEB_CAPTURE: webCapture, DEPLOY_TEST_COPY_FAIL: failCopy ? '1' : '0',
-      PLAYER_API_KEY: validSecrets ? 'test-api-key-'.repeat(5) : 'short', PLAYER_LIBRARY_FRIEND_ID: '1', PLAYER_ENGINE_A_PASSWORD: 'engine-a', PLAYER_ENGINE_B_PASSWORD: 'engine-b',
+      PLAYER_API_KEY: validSecrets ? 'test-api-key-'.repeat(5) : 'short', PLAYER_LIBRARY_FRIEND_ID: '1', PLAYER_ENGINE_A_PASSWORD: 'engine-a', PLAYER_ENGINE_B_PASSWORD: 'engine-b', PLAYER_ENGINE_C_PASSWORD: 'engine-c',
       PLAYER_WEB_ORIGIN: validWebSecrets ? 'https://fixture.example' : 'http://invalid', PLAYER_WEB_PASSPHRASE: 'web-passphrase-'.repeat(4), PLAYER_WEB_SESSION_SECRET: 'web-signing-secret-'.repeat(4), PLAYER_WEB_SESSION_DAYS: sessionDays,
     } });
     return { ...result, calls: readFileSync(log, 'utf8'), rendered: !setup && optedIn && validSecrets && !failCopy ? readFileSync(capture, 'utf8') : '', webRendered: result.status === 0 && (setup || webOptedIn) && validWebSecrets && validSecrets && !failCopy ? readFileSync(webCapture, 'utf8') : '' };
