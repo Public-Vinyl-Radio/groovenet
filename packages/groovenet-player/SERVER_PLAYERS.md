@@ -25,11 +25,14 @@ builds the two local images before starting services. It survives the normal
 Player secrets and private worktree files are excluded from Docker build contexts.
 
 The optional `.env.players.tpl` uses the existing `GROOVENET_OP_VAULT` /
-`GROOVENET_OP_ITEM` selection (defaults `Homelab` / `groovenet`). Add four fields
+`GROOVENET_OP_ITEM` selection (defaults `Homelab` / `groovenet`). Add five fields
 to that 1Password item: `PLAYER_API_KEY`, `PLAYER_LIBRARY_FRIEND_ID`,
-`PLAYER_ENGINE_A_PASSWORD`, and `PLAYER_ENGINE_B_PASSWORD`. The friend ID is the
-positive `friends.id` of the library owner. API keys must be at least 32
-characters on one line; engine passwords must be distinct hex/base64url values.
+`PLAYER_ENGINE_A_PASSWORD`, `PLAYER_ENGINE_B_PASSWORD` and
+`PLAYER_ENGINE_C_PASSWORD`. The friend ID is the positive `friends.id` of the
+library owner. API keys must be at least 32 characters on one line; engine
+passwords must be pairwise distinct hex/base64url values. A missing field makes
+the renderer fail with an error naming it, so `just deploy` stops before it
+touches the host.
 To render locally:
 
 ```sh
@@ -68,11 +71,13 @@ Configure player settings:
   web bridge issues a separate player-only session after web-passphrase
   authorization; it never shares this worker key with browsers. Give it only
   to trusted controllers and use HTTPS when reaching the app across a network.
-* Generate distinct hex/base64url `PLAYER_ENGINE_A_PASSWORD` and
-  `PLAYER_ENGINE_B_PASSWORD` values (`openssl rand -hex 24`).
+* Generate distinct hex/base64url `PLAYER_ENGINE_A_PASSWORD`,
+  `PLAYER_ENGINE_B_PASSWORD` and `PLAYER_ENGINE_C_PASSWORD` values
+  (`openssl rand -hex 24`).
 * Set `PLAYER_LAN_INTERFACE` to the Debian host's actual speaker-facing interface.
   Engines and the shared clock use host networking for discovery/AirPlay.
-  Reserve API ports 13689/13690, WebSocket ports 13688/13691 and PTP UDP 319/320.
+  Reserve API ports 13689/13690/13692, WebSocket ports 13688/13691/13693 and PTP
+  UDP 319/320.
   Restrict engine APIs to trusted host/network access; never expose them publicly.
 * Set `PLAYER_AUDIO_MOUNT=music_data` with the production overlay: this logical
   Compose volume maps to the existing `PROD_MUSIC_DATA_VOLUME`. Alternatively use
@@ -82,21 +87,43 @@ Configure player settings:
   to match the engine environment variables. These credentials stay server-side.
 
 ```json
-{"primary":{"apiUrl":"http://host.docker.internal:13689/api","password":"A_PASSWORD","libraryRoot":"/srv/media"},"secondary":{"apiUrl":"http://host.docker.internal:13690/api","password":"B_PASSWORD","libraryRoot":"/srv/media"}}
+{"primary":{"apiUrl":"http://host.docker.internal:13689/api","password":"A_PASSWORD","libraryRoot":"/srv/media"},"secondary":{"apiUrl":"http://host.docker.internal:13690/api","password":"B_PASSWORD","libraryRoot":"/srv/media"},"tertiary":{"apiUrl":"http://host.docker.internal:13692/api","password":"C_PASSWORD","libraryRoot":"/srv/media"}}
 ```
 
 For example, with the existing production environment loaded:
 
 ```sh
 docker compose --env-file .env --env-file .env.players -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players build player-clock player-worker
-docker compose --env-file .env --env-file .env.players -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players up -d app player-clock player-engine-a player-engine-b player-worker
+docker compose --env-file .env --env-file .env.players -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.players.yml --profile players up -d app player-clock player-engine-a player-engine-b player-engine-c player-worker
 ```
 
 The worker has no published port: the app proxies to `http://player-worker:13700`.
-The two engine cache databases use separate persistent volumes. Both engines
-must share the clock's IPC namespace (`ipc: service:player-clock`): AirPlay 2
+The three engines (`primary`, `secondary`, `tertiary`) each own one OwnTone
+process, so one named player each, and their cache databases use separate
+persistent volumes. Every engine must share the clock's IPC namespace (`ipc: service:player-clock`): AirPlay 2
 requires `/dev/shm/airptp_shm`, as well as network access to the clock. The engine
 entrypoint refuses startup without it. Run only one such shared clock per host.
+
+### Adding the Bedroom player
+
+The `tertiary` engine exists for a third player, such as a Bedroom Sonos, that
+plays its own queue alongside the players on `primary` and `secondary`. Roll it
+out in this order:
+
+1. Before deploying a release with `player-engine-c`, add
+   `PLAYER_ENGINE_C_PASSWORD` (`openssl rand -hex 24`) to the 1Password item.
+   Without it `.env.players` rendering fails and the deploy stops before it
+   touches the running stack.
+2. Confirm ports 13692/13693 are free on the host:
+   `ss -ltnu | grep -E ':1369[23]'` should print nothing.
+3. Deploy, then create the player on that engine with
+   `POST /api/players {"id":"bedroom","name":"Bedroom","engine_id":"tertiary"}`
+   (`GET /api/players/engines` should list `tertiary`).
+4. Select the Sonos output (`output.select`) and set the availability policy,
+   for example `groovenet player set bedroom --availability allow_unknown`.
+
+OwnTone reaches Sonos only over AirPlay 2: One, Five, Era, Move, Roam, Arc,
+Beam and Port work; first-generation Play:1 and Play:5 do not appear as outputs.
 
 Outside Compose, build packages with `just build-packages`, then run
 `groovenet-player-server` with `DATABASE_URL`, `PLAYER_API_KEY`,

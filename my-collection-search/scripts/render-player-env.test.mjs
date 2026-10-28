@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderPlayerEnv, writePlayerEnv } from './render-player-env.mjs';
 
-const valid = { PLAYER_API_KEY: 'a'.repeat(64), PLAYER_LIBRARY_FRIEND_ID: '1', PLAYER_ENGINE_A_PASSWORD: 'engine-a_secret', PLAYER_ENGINE_B_PASSWORD: 'engine-b_secret' };
+const valid = { PLAYER_API_KEY: 'a'.repeat(64), PLAYER_LIBRARY_FRIEND_ID: '1', PLAYER_ENGINE_A_PASSWORD: 'engine-a_secret', PLAYER_ENGINE_B_PASSWORD: 'engine-b_secret', PLAYER_ENGINE_C_PASSWORD: 'engine-c_secret' };
 const composeAvailable = spawnSync('docker', ['compose', 'version']).status === 0;
 
 for (const changes of [
@@ -14,7 +14,10 @@ for (const changes of [
   { PLAYER_API_KEY: `${'a'.repeat(32)}\n` }, { PLAYER_API_KEY: `${'a'.repeat(32)}\0` },
   { PLAYER_ENGINE_A_PASSWORD: undefined }, { PLAYER_ENGINE_A_PASSWORD: 'bad"password' },
   { PLAYER_ENGINE_B_PASSWORD: '' }, { PLAYER_ENGINE_B_PASSWORD: 'bad$password' },
+  { PLAYER_ENGINE_C_PASSWORD: undefined }, { PLAYER_ENGINE_C_PASSWORD: 'bad password' },
   { PLAYER_ENGINE_B_PASSWORD: valid.PLAYER_ENGINE_A_PASSWORD },
+  { PLAYER_ENGINE_C_PASSWORD: valid.PLAYER_ENGINE_A_PASSWORD },
+  { PLAYER_ENGINE_C_PASSWORD: valid.PLAYER_ENGINE_B_PASSWORD },
   { PLAYER_LIBRARY_FRIEND_ID: '' }, { PLAYER_LIBRARY_FRIEND_ID: '0' },
 ]) {
   test(`rejects invalid ${Object.keys(changes).join(',')} before replacing configuration`, () => {
@@ -42,11 +45,24 @@ test('writes a private atomic file and builds matching engine credentials', () =
     assert.equal(engines.primary.password, values.PLAYER_ENGINE_A_PASSWORD);
     assert.equal(engines.secondary.password, values.PLAYER_ENGINE_B_PASSWORD);
     assert.equal(engines.secondary.libraryRoot, '/srv/media');
+    assert.deepEqual(Object.keys(engines), ['primary', 'secondary', 'tertiary']);
+    assert.equal(values.PLAYER_ENGINE_C_PASSWORD, 'engine-c_secret');
+    assert.deepEqual(engines.tertiary, { apiUrl: 'http://host.docker.internal:13692/api', password: 'engine-c_secret', libraryRoot: '/srv/media' });
+    assert.equal(engines.primary.apiUrl, 'http://host.docker.internal:13689/api');
+    assert.equal(engines.secondary.apiUrl, 'http://host.docker.internal:13690/api');
     writePlayerEnv(output, { ...valid, PLAYER_API_KEY: 'b'.repeat(64) });
     assert.ok(readFileSync(output, 'utf8').includes('b'.repeat(64)));
     assert.throws(() => writePlayerEnv(join(root, 'absent/file'), valid));
     assert.throws(() => writePlayerEnv(undefined, valid), /Usage/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('names the offending field and rejects any pair of equal engine passwords', () => {
+  assert.throws(() => renderPlayerEnv({ ...valid, PLAYER_ENGINE_C_PASSWORD: undefined }), /PLAYER_ENGINE_C_PASSWORD must be a nonempty/);
+  assert.throws(() => renderPlayerEnv({ ...valid, PLAYER_ENGINE_C_PASSWORD: 'bad"password' }), /PLAYER_ENGINE_C_PASSWORD/);
+  for (const [x, y] of [['A', 'B'], ['A', 'C'], ['B', 'C']]) {
+    assert.throws(() => renderPlayerEnv({ ...valid, [`PLAYER_ENGINE_${y}_PASSWORD`]: valid[`PLAYER_ENGINE_${x}_PASSWORD`] }), /three engine passwords must be pairwise distinct/);
+  }
 });
 
 test('preserves explicit interface, mount and observer configuration', () => {
@@ -82,5 +98,7 @@ test('CLI succeeds silently and reports missing fields without exposing values',
     const failure = run([join(root, '.env.players')], { ...valid, PLAYER_API_KEY: 'short' });
     assert.equal(failure.status, 1);
     assert.ok(!failure.stderr.includes('engine-a_secret'));
+    const missingC = run([join(root, '.env.players')], { ...valid, PLAYER_ENGINE_C_PASSWORD: undefined });
+    assert.equal(missingC.status, 1); assert.match(missingC.stderr, /PLAYER_ENGINE_C_PASSWORD/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
