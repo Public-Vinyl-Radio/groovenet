@@ -111,7 +111,7 @@ about two seconds of latency, so it is suitable for auditioning rather than
 beatmatching. The help line in the TUI lists the keyboard shortcuts: arrows or
 `j`/`k` select, Enter adds or plays, Space pauses, `n`/`p` skip, left/right seek,
 `+`/`-` change volume, `/` searches (filters in playlists), `l` opens playlists, `u` opens the queue,
-`d` or `o` selects an output, `r` starts playback, `x` removes a queue entry,
+`d` selects an output; `o` chooses this machine or a named server player, `r` starts playback, `x` removes a queue entry,
 `[` / `]` move it, and `q` quits. In the five-row bottom strip, Enter opens the
 full view: inside tmux it zooms the pane (tmux's zoom key goes back); elsewhere
 it says how large the terminal needs to be. In the playlists and search views `→` is reserved for opening the
@@ -363,6 +363,29 @@ private (0600). Engine URLs/passwords and Home Assistant credentials stay on the
 server. A server operator creates players through the existing shared API; see
 [server player setup/API](../groovenet-player/SERVER_PLAYERS.md).
 
+`--remote` chooses the initial target. Press `o` for **Play on**: This machine,
+then named servers with LIVE/IDLE state and a current-target marker. Arrow keys
+select a target and preview its track, position, up-next count and join behavior;
+Enter joins, Esc cancels. In the five-row strip, Enter expands the pane first.
+`d` remains the selected target's devices view, with the selected output's activity,
+assigned/desired owners and sender observations below the list.
+
+Joining from local sends the current entry and everything after it, preserving
+order, duplicates and each entry's library. A stopped queue sends all entries;
+an ended queue sends none. One atomic join appends to a live server or starts an
+idle session. An empty local queue only attaches controls. Local playback pauses
+before Join; refusals and cancellation retain its queue. Only a committed join
+finalizes that local queue. Switching servers copies no queue. Returning to
+This machine sends no server command: the server keeps playing.
+
+If speaker activity is unknown or occupied, the TUI shows an inline confirmation:
+`y` explicitly plays anyway / takes over; Esc cancels. These are `target.confirm`
+and `target.cancel` keymap actions. Changing the local queue or server revision
+requires review and another action. A failed join retry retains its original
+revision fence, so an ambiguous reply cannot merge the same queue twice. If local
+cleanup fails after a committed join, remove the retained entries before joining
+again. Discovery/authorization failures leave This machine usable.
+
 The remote TUI shows identity/revision, its independent queue/current entry,
 position/state, saved checkpoint status, desired output, actual Groovenet
 assignment, and speaker observations refreshed every five seconds. Observations
@@ -392,7 +415,7 @@ groovenet player --remote study queue remove ENTRY_UUID --json
 groovenet player --remote study queue clear --json
 ```
 
-Flags on a bare remote TUI invocation acknowledge the policy for that session.
+Flags on a bare TUI invocation acknowledge only their stated policy for remote actions, including after switching targets.
 Neither flag overrides another Groovenet player's claim without explicit
 transfer. A partial transfer fails the CLI command even with HTTP 200 and reports
 whether detachment/attachment happened. It never silently reconnects the source.
