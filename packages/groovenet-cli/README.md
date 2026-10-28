@@ -117,6 +117,23 @@ full view: inside tmux it zooms the pane (tmux's zoom key goes back); elsewhere
 it says how large the terminal needs to be. In the playlists and search views `→` is reserved for opening the
 selected item, so seek with `<` / `>` there.
 
+### Search
+
+`/` focuses FIND. Results update after a short typing pause; Enter or the up/down
+arrows move focus to results. Press `/` to edit again. Printable keys stay in the
+query while FIND has focus.
+
+Tab switches Tracks / Albums. Shift-Tab cycles Keyword, Semantic and Hybrid for
+tracks; albums use keyword search and preserve the track mode. Enter appends and
+plays the selected track or album; `a` appends without interrupting playback.
+Existing queue entries are preserved. Album previews show metadata and the start
+of the tracklist in wide windows; `→` opens the full tracklist in any window.
+Esc leaves typing, returns from a tracklist, or clears the query from results.
+
+Search shows up to 30 results per scope, with the API's estimated total in the
+scope label. Search uses a compact playback header to leave room for results.
+Album covers use the artwork placeholder until terminal artwork support lands.
+
 ### Keymap
 
 `groovenet player keys` prints every action, its keys, the views it applies to
@@ -151,8 +168,8 @@ that entry falls back to its default keys. The player still starts; the problems
 appear as a notice on its first screen (any key dismisses it) and in
 `groovenet player keys`.
 
-While you type in the search box only the search keys apply (`input.*`, Enter,
-Esc and Backspace by default); everything else is typed.
+While you type in the search box only the search controls apply (Enter, Esc, Backspace, up/down,
+Tab and Shift-Tab by default); printable keys are typed.
 
 ### Status bar segment
 

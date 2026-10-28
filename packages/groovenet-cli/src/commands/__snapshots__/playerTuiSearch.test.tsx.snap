@@ -1,0 +1,44 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`player search > searches both scopes directly, previews albums, opens and returns with the selection preserved > album preview at 120x40 1`] = `
+" GROOVENET  PLAY ON LOCAL   ▶ Cumbia Morena · Various  0:44                                              ? help   q quit
+
+ / SEARCH   u QUEUE · 1   l PLAYLISTS   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┏━ FIND ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ / cumbia                                                                                    KEYWORD   keyword only ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ TRACKS · 1    ALBUMS · 26   Tab tracks / albums
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ALBUM / ARTIST / YEAR                                     ┏━ LP-037 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+› Cumbia Collection           Various               2025    ┃ ░░░░░░░░░░░░  Cumbia Collection                         ┃▐
+    LP-037 · 28 tracks                                      ┃ ░░░░░░░░░░░░  Various                                   ┃▐
+  Cumbia Luciana              Paolo Petrella        2025    ┃ ░░░ ART ░░░░  Vampi Soul · 2025                         ┃▐
+    LP-289 · 28 tracks                                      ┃ ░░░░░░░░░░░░  28 tracks                                 ┃▐
+                                                            ┃ ░░░░░░░░░░░░                                            ┃▐
+                                                            ┃ ░░░░░░░░░░░░  Enter PLAY  a ADD ALL                     ┃▐
+                                                            ┃                                                         ┃▐
+                                                            ┃ TRACKLIST                                               ┃▐
+                                                            ┃ A1  Cumbia 0                                       2:46 ┃▐
+                                                            ┃ A2  Cumbia 1                                       2:46 ┃▐
+                                                            ┃ A3  Cumbia 2                                       2:46 ┃▐
+                                                            ┃ A4  Cumbia 3                                       2:46 ┃▐
+                                                            ┃ A5  Cumbia 4                                       2:46 ┃▐
+                                                            ┃ A6  Cumbia 5                                       2:46 ┃▐
+                                                            ┃ A7  Cumbia 6                                       2:46 ┃▐
+                                                            ┃ A8  Cumbia 7                                       2:46 ┃▐
+                                                            ┃ A9  Cumbia 8                                       2:46 ┃▐
+                                                            ┃ A10  Cumbia 9                                      2:46 ┃▐
+                                                            ┃ A11  Cumbia 10                                     2:46 ┃▐
+                                                            ┃ A12  Cumbia 11                                     2:46 ┃▐
+                                                            ┃ … 16 more · → open album                                ┃▐
+                                                            ┃                                                         ┃▐
+                                                            ┃                                                         ┃▐
+                                                            ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+                                                             ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+SEARCH · keyword · 26 albums                                                                                         1/2
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+↑/↓ select   Enter play   a add all   → open album   / find   Esc clear   Tab tracks   ? keys"
+`;

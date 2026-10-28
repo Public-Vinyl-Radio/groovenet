@@ -46,6 +46,8 @@ export interface PlayerFrameProps {
   hints: Hint[];
   /** When set, the `?` overlay replaces the body (and the strip's hints). */
   help?: HelpEntry[] | null;
+  /** Search uses a compact playback summary in the top bar. */
+  compactPlayback?: Segment[];
   nowPlaying: (area: CardArea) => ReactNode;
   children: (area: BodyArea) => ReactNode;
 }
@@ -61,7 +63,8 @@ function keyHint(keys: string, label: string): Segment[] {
 }
 
 /** `GROOVENET  PLAY ON LOUNGE ● LIVE … ? help   q quit`; the side pane keeps the brand and target only. */
-export function TopBar({ kind, width, target, live, helpKeys, quitKeys }: {
+export function TopBar({ kind, width, target, live, helpKeys, quitKeys, playback = [] }: {
+  playback?: Segment[];
   kind: "full" | "side"; width: number; target: string; live: LiveState; helpKeys: string; quitKeys: string;
 }) {
   const marker = liveMarker(live, kind === "side");
@@ -72,7 +75,7 @@ export function TopBar({ kind, width, target, live, helpKeys, quitKeys }: {
   const quit = keyHint(quitKeys, "quit");
   const right = [...help, ...(help.length && quit.length ? [{ text: "   " }] : []), ...quit];
   const left: Segment[] = [reverseLabel("GROOVENET"), { text: " " }, { text: "PLAY ON ", role: "dim" }, { text: target, role: "strong" }, ...(marker.length ? [{ text: " " }, ...marker] : [])];
-  return <Line left={left} right={right} width={width} />;
+  return <Line left={[...left, ...(playback.length ? [{ text: "   " }, ...playback] : [])]} right={right} width={width} />;
 }
 
 /** The tab row as segments. The side pane shows only the active tab's label. */
@@ -143,10 +146,11 @@ function Strip({ layout, target, live, alert, hints, help, nowPlaying }: PlayerF
 
 /** The whole screen for `layout`. Below every minimum it is the "too small" message alone. */
 export function PlayerFrame(props: PlayerFrameProps) {
-  const { layout, target, live, helpKeys, quitKeys, tabs, status, alert, hints, help, nowPlaying, children } = props;
+  const { layout, target, live, helpKeys, quitKeys, tabs, status, alert, hints, help, nowPlaying, children, compactPlayback } = props;
   if (layout.kind === "too-small") return <TooSmall layout={layout} />;
   if (layout.kind === "strip") return <Strip {...props} />;
-  const { kind, columns, boxWidth, bodyRows } = layout;
+  const { kind, columns, boxWidth } = layout;
+  const bodyRows = layout.bodyRows + (compactPlayback ? CARD_ROWS[kind] + 2 : 0);
   const art = layout.art!;
   const inner = boxWidth - 2;
   const gap = kind === "full" ? 3 : 2;
@@ -156,18 +160,22 @@ export function PlayerFrame(props: PlayerFrameProps) {
   const below = kind === "side" ? { kind, region: "below" as const, width: Math.max(0, inner - 2), height: Math.max(0, cardHeight - art.height - 1) } : null;
   return (
     <Box flexDirection="column" width={columns} height={layout.rows}>
-      <TopBar kind={kind} width={columns} target={target} live={live} helpKeys={helpKeys} quitKeys={quitKeys} />
+      <TopBar kind={kind} width={columns} target={target} live={live} helpKeys={helpKeys} quitKeys={quitKeys} playback={compactPlayback} />
       <Text> </Text>
-      <OutlinedBox width={boxWidth} height={CARD_ROWS[kind]} title={[reverseLabel("NOW PLAYING")]}>
-        <Box flexDirection="column" paddingLeft={1}>
-          <Box flexDirection="row">
-            <ArtSlot width={art.width} height={art.height} />
-            <Box flexDirection="column" marginLeft={gap} width={cardText.width} height={cardText.height} overflow="hidden">{nowPlaying(cardText)}</Box>
-          </Box>
-          {below ? <Box flexDirection="column" marginTop={1} width={below.width} height={below.height} overflow="hidden">{nowPlaying(below)}</Box> : null}
-        </Box>
-      </OutlinedBox>
-      <Text> </Text>
+      {!compactPlayback ? (
+        <>
+          <OutlinedBox width={boxWidth} height={CARD_ROWS[kind]} title={[reverseLabel("NOW PLAYING")]}>
+            <Box flexDirection="column" paddingLeft={1}>
+              <Box flexDirection="row">
+                <ArtSlot width={art.width} height={art.height} />
+                <Box flexDirection="column" marginLeft={gap} width={cardText.width} height={cardText.height} overflow="hidden">{nowPlaying(cardText)}</Box>
+              </Box>
+              {below ? <Box flexDirection="column" marginTop={1} width={below.width} height={below.height} overflow="hidden">{nowPlaying(below)}</Box> : null}
+            </Box>
+          </OutlinedBox>
+          <Text> </Text>
+        </>
+      ) : null}
       <Line left={fitSegments(tabSegments(tabs, kind), columns)} width={columns} />
       <Rule width={columns} heavy />
       <Box flexDirection="column" height={bodyRows} overflow="hidden">

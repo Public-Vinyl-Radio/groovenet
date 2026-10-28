@@ -27,6 +27,7 @@ function makeProps(queue: PlaybackSnapshot["queue"] = []) {
   });
   const api = {
     searchTracks: vi.fn(async () => ({ tracks: [track] })),
+    searchAlbums: vi.fn(async () => ({ hits: [], estimatedTotalHits: 0 })),
     listPlaylists: vi.fn(async () => [{ id: 1, name: "Late night" }]),
   };
   return { control: control as unknown as PlayerControlClient, api: api as unknown as GroovenetClient, initialSnapshot: snapshot };
@@ -85,8 +86,8 @@ describe("PlayerTui", () => {
     await act(async () => { app.stdin.write("/"); });
     await act(async () => { app.stdin.write("miles"); });
     await act(async () => { app.stdin.write("\r"); await new Promise((resolve) => setImmediate(resolve)); });
-    expect(props.api.searchTracks).toHaveBeenCalledWith({ query: "miles", limit: 30 });
-    expect(app.lastFrame()).toContain("John Coltrane — Blue Train");
+    expect(props.api.searchTracks).toHaveBeenCalledWith({ query: "miles", limit: 30, mode: "lexical" });
+    expect(app.lastFrame()).toMatch(/Blue Train.*John Coltrane/);
     expect(app.lastFrame()).toContain("no downloaded audio");
     await act(async () => { app.stdin.write("a"); await new Promise((resolve) => setImmediate(resolve)); });
     expect((props.control as unknown as { request: ReturnType<typeof vi.fn> }).request).toHaveBeenCalledWith("queue.addTrack", { track: unavailableTrack });
@@ -161,8 +162,8 @@ describe("PlayerTui", () => {
     await act(async () => { app.stdin.write("/"); });
     await act(async () => { app.stdin.write("jazz"); });
     await act(async () => { app.stdin.write("\u001b"); await new Promise((resolve) => setTimeout(resolve, 30)); });
-    expect(app.lastFrame()).toContain("Query: jazz");
-    expect(app.lastFrame()).not.toContain("Search: jazz");
+    expect(app.lastFrame()).toContain("/ jazz");
+    expect(app.lastFrame()).not.toContain("jazz▏");
   });
 
   it("opens devices and selects one, and removes a selected queue entry", async () => {
@@ -404,17 +405,17 @@ describe("PlayerTui keymap", () => {
     const app = render(<PlayerTui {...props} options={{}} keymap={keymap} />);
     await settle();
     await act(async () => { app.stdin.write("/"); });
-    expect(app.lastFrame()).toContain("^G search   Esc cancel");
+    expect(app.lastFrame()).toContain("^G results   Esc done");
     // q, n, space and capital letters are typed, not commands.
     await act(async () => { app.stdin.write("qn U"); });
-    expect(app.lastFrame()).toContain("Search: qn U");
+    expect(app.lastFrame()).toContain("/ qn U▏");
     expect(requestOf(props)).not.toHaveBeenCalledWith("next", undefined);
     await act(async () => { app.stdin.write("\u007f"); });
-    expect(app.lastFrame()).toContain("Search: qn ");
+    expect(app.lastFrame()).toContain("/ qn ▏");
     await act(async () => { app.stdin.write("\r"); });
     expect(props.api.searchTracks).not.toHaveBeenCalled();
     await act(async () => { app.stdin.write("\u0007"); await new Promise((resolve) => setImmediate(resolve)); });
-    expect(props.api.searchTracks).toHaveBeenCalledWith({ query: "qn ", limit: 30 });
+    expect(props.api.searchTracks).toHaveBeenCalledWith({ query: "qn ", limit: 30, mode: "lexical" });
   });
 
   it("moves the selection with k and the up arrow, stopping at the first entry", async () => {
@@ -583,7 +584,7 @@ describe("PlayerTui layouts", () => {
     const props = makeProps();
     const app = render(<PlayerTui {...props} options={{ search: "jazz" }} />);
     await settle();
-    expect(app.lastFrame()).toContain("Query: jazz");
+    expect(app.lastFrame()).toContain("/ jazz");
     expect(app.lastFrame()).toContain(" / SEARCH ");
     await act(async () => { app.stdin.write("l"); await new Promise((resolve) => setImmediate(resolve)); });
     expect(app.lastFrame()).toContain("PLAYLISTS · 1");
@@ -675,7 +676,7 @@ describe("PlayerTui queue view", () => {
     expect(app.lastFrame()).toContain("The full view needs 80×24");
     // Typing a query uses the input hints, not the strip's (the prompt covers them here).
     await act(async () => { app.stdin.write("/"); });
-    expect(app.lastFrame()).toContain("Type a query");
+    expect(app.lastFrame()).toContain("Enter search");
     await act(async () => { app.stdin.write("\u001b"); await new Promise((resolve) => setTimeout(resolve, 30)); });
     await act(async () => { resizeTerminal(app.stdout, 120, 40); });
     await act(async () => { app.stdin.write("u"); });

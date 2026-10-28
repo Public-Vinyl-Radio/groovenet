@@ -211,7 +211,7 @@ describe("hints", () => {
   });
 
   it("only hints what applies in the view", () => {
-    expect(hintLine(items(defaultKeymap, "input"))).toBe("Enter search · Esc cancel");
+    expect(hintLine(items(defaultKeymap, "input"))).toBe("↑/↓ select · Enter search · Esc cancel");
     expect(hintLine(items(defaultKeymap, "devices"))).not.toContain("remove");
   });
 
