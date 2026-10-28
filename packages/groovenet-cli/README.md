@@ -142,6 +142,8 @@ Album covers use the artwork placeholder until terminal artwork support lands.
 `l` opens playlists grouped by month, using the last live-set performance date
 or the creation date. Live sets carry a SET badge. Counts and total duration
 come from the API; unknown dates and durations are shown explicitly.
+Playlists can mix libraries: each track is resolved using its saved `friend_id`,
+regardless of `default_friend_id` or the search scope.
 Wide windows show a preview with metadata, actions and BPM / Camelot columns.
 `→` opens the full tracklist; up/down scroll it and Esc returns to the list
 with the filter and selection preserved.

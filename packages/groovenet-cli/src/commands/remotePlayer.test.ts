@@ -73,9 +73,10 @@ describe("remote controller", () => {
       type: "queue.replace", expected_revision: 3, allow_unknown: false, takeover: false,
       entries: [{ track_id: "track", friend_id: 1 }, { track_id: "second", friend_id: 2 }], play: true,
     });
+    api.getPlaylistTracks.mockResolvedValueOnce({ track_refs: [entry, { ...entry, friend_id: 9 }] });
     await queuePlaylist(control, playlist, tracks, false, true);
     expect(api.commandServerPlayer).toHaveBeenLastCalledWith("lounge", {
-      type: "queue.add", expected_revision: 4, tracks: [{ track_id: "track", friend_id: 1 }],
+      type: "queue.add", expected_revision: 4, tracks: [{ track_id: "track", friend_id: 1 }, { track_id: "track", friend_id: 9 }],
     });
     await control.close();
   });

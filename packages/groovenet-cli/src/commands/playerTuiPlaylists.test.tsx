@@ -329,3 +329,28 @@ it("shows idle playback in the compact playlist header", async () => {
   const app = render(<PlayerTui {...f.props} initialSnapshot={idle} />); await tick(); await key(app, "l"); await tick();
   expect(app.lastFrame()).toContain("Nothing playing");
 });
+
+it.each([false, true])("resolves mixed-library playlists by each entry's friend despite the search default (remote=%s)", async (remote) => {
+  const f = fixture();
+  const own = { ...track, track_id: "shared-id", friend_id: 7, title: "My library copy" };
+  const other = { ...track, track_id: "shared-id", friend_id: 9, title: "Friend library copy" };
+  const mixedTracks = [own, other, own];
+  const mixedRefs = mixedTracks.map(({ track_id, friend_id }, position) => ({ track_id, friend_id, position }));
+  f.api.listPlaylists.mockResolvedValue([{ ...playlist, tracks: mixedRefs }]);
+  f.api.getPlaylistTracks.mockResolvedValue({ track_refs: [...mixedRefs].reverse() });
+  f.api.batchGetTracks.mockResolvedValue([other, own]);
+  const app = render(<PlayerTui {...f.props} options={remote ? { remote: "room" } : {}} searchFriendId={7} />);
+  await tick(); await key(app, "l"); await tick();
+  expect(f.api.batchGetTracks).toHaveBeenCalledWith(mixedRefs);
+  expect(app.lastFrame()).toMatch(/1 My library copy[^\n]*\n[^\n]*2 Friend library copy[^\n]*\n[^\n]*3 My library copy/);
+  await key(app, "\u001b[C");
+  expect(app.lastFrame()).toContain("Friend library copy");
+  await key(app, "\r");
+  if (remote) {
+    expect(f.control.request).toHaveBeenCalledWith("queue.replace", {
+      entries: mixedRefs.map(({ track_id, friend_id }) => ({ track_id, friend_id })), play: true,
+    });
+  } else expect(f.snapshot().queue.map((entry) => entry.track)).toEqual(mixedTracks);
+  await key(app, "a");
+  expect(f.control.request).toHaveBeenCalledWith("queue.add", { playlistId: "1" });
+});
