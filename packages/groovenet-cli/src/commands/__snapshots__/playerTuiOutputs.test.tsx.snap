@@ -1,0 +1,344 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Play on and devices rendering > fits 30x10 and snapshots the picker 1`] = `
+"Terminal too small (30×10).
+Needs 60×5 for the strip,
+32×30 for the side pane or
+80×24 for the full window."
+`;
+
+exports[`Play on and devices rendering > fits 32x30 and snapshots the picker 1`] = `
+" GROOVENET                 LOCAL
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░  Local 1    ┃▐
+┃ ░░░░░░░░░░░░░░  Artist     ┃▐
+┃ ░░░░ ART ░░░░░             ┃▐
+┃ ░░░░░░░░░░░░░░             ┃▐
+┃ ░░░░░░░░░░░░░░             ┃▐
+┃ ░░░░░░░░░░░░░░             ┃▐
+┃                            ┃▐
+┃                            ┃▐
+┃ 0:12 ━─────────────── 3:00 ┃▐
+┃                            ┃▐
+┃  |◀   ||   ▶|   VOL ━─ 50% ┃▐
+┃                            ┃▐
+┃ PLAY ON LOCAL              ┃▐
+┃ o change output            ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ /   u QUEUE · 4   l   d
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PLAY ON · Choose a target
+› ○ LOUNGE · LIVE
+Blue Train · John Coltrane
+0:12 · 0 up next
+3 tracks → append to live queue.
+LOCAL · local daemon · 4 in… 2/4
+────────────────────────────────
+Enter choose   Esc cancel   ↑ up"
+`;
+
+exports[`Play on and devices rendering > fits 40x50 and snapshots the picker 1`] = `
+" GROOVENET                         LOCAL
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░  Local 1            ┃▐
+┃ ░░░░░░░░░░░░░░  Artist             ┃▐
+┃ ░░░░ ART ░░░░░                     ┃▐
+┃ ░░░░░░░░░░░░░░                     ┃▐
+┃ ░░░░░░░░░░░░░░                     ┃▐
+┃ ░░░░░░░░░░░░░░                     ┃▐
+┃                                    ┃▐
+┃                                    ┃▐
+┃ 0:12 ━━────────────────────── 3:00 ┃▐
+┃                                    ┃▐
+┃  |◀   ||   ▶|   VOL ━━━━━───── 50% ┃▐
+┃                                    ┃▐
+┃ PLAY ON LOCAL                      ┃▐
+┃ o change output                    ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ /   u QUEUE · 4   l   d
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PLAY ON · Choose where audio plays
+  ● This machine · local daemon
+› ○ LOUNGE · LIVE
+  ○ STUDY · LIVE
+Blue Train · John Coltrane
+0:12 · 0 up next
+3 upcoming tracks join the end of this
+queue.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LOCAL · local daemon · 4 in queue    2/4
+────────────────────────────────────────
+Enter choose   Esc cancel   ↑ up"
+`;
+
+exports[`Play on and devices rendering > fits 60x5 and snapshots the picker 1`] = `
+"┏━ GROOVENET   LOCAL  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ▶ Local 1 · Ar… 0:12 ━───────────────── 3:00   VOL 50% ┃▐
+┃ Enter full view   Esc cancel   ↑ up   ↓ down   ? help  ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
+`;
+
+exports[`Play on and devices rendering > fits 80x24 and snapshots the picker 1`] = `
+" GROOVENET  PLAY ON LOCAL                                        ? help   q quit
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░░░░░   Local 1                                               ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   Artist                                                ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░ ART ░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   0:12 ━━────────────────────────────── 3:00  ▶ PLAYING ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░    |◀ p   || Space   ▶| n    VOL ━━━━━━━━──────── 50%   ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ / SEARCH   u QUEUE · 4   l PLAYLISTS   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PLAY ON · Choose where audio plays
+› ○ LOUNGE · LIVE
+Blue Train · John Coltrane
+0:12 · 0 up next
+3 tracks → append to live queue.
+LOCAL · local daemon · 4 in queue · 2/4
+────────────────────────────────────────────────────────────────────────────────
+Enter choose   Esc cancel   ↑ up   ↓ down   ? help   q quit"
+`;
+
+exports[`Play on and devices rendering > fits 120x5 and snapshots the picker 1`] = `
+"┏━ GROOVENET   LOCAL  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ▶ Local 1 · Artist                                      0:12 ━━━─────────────────────────────────── 3:00   VOL 50% ┃▐
+┃ Enter full view   Esc cancel   ↑ up   ↓ down   ? help   q quit                                                     ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
+`;
+
+exports[`Play on and devices rendering > fits 120x40 and snapshots the picker 1`] = `
+" GROOVENET  PLAY ON LOCAL                                                                                ? help   q quit
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░░░░░   Local 1                                                                                       ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   Artist                                                                                        ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░ ART ░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   0:12 ━━━━──────────────────────────────────────────────────────── 3:00  ▶ PLAYING             ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░    |◀ p   || Space   ▶| n    VOL ━━━━━━━━──────── 50%   +/- volume                              ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ / SEARCH   u QUEUE · 4   l PLAYLISTS   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PLAY ON · Choose where audio plays
+  ● This machine · local daemon
+› ○ LOUNGE · LIVE
+  ○ STUDY · LIVE
+Blue Train · John Coltrane
+0:12 · 0 up next
+3 upcoming tracks join the end of this queue.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LOCAL · local daemon · 4 in queue · 2/4
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Enter choose   Esc cancel   ↑ up   ↓ down   ? help   q quit"
+`;
+
+exports[`fits and snapshots devices at 32x30 1`] = `
+" GROOVENET              LOUNGE ●
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░  Blue Train ┃▐
+┃ ░░░░░░░░░░░░░░  John Colt… ┃▐
+┃ ░░░░ ART ░░░░░             ┃▐
+┃ ░░░░░░░░░░░░░░             ┃▐
+┃ ░░░░░░░░░░░░░░             ┃▐
+┃ ░░░░░░░░░░░░░░             ┃▐
+┃                            ┃▐
+┃                            ┃▐
+┃ 0:12 ━─────────────── 3:00 ┃▐
+┃                            ┃▐
+┃  |◀   ||   ▶|   VOL ━─ 50% ┃▐
+┃                            ┃▐
+┃ PLAY ON Lounge Room Audio  ┃▐
+┃ o change output            ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ /   u   l   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Remote keys: U play desired
+output allowing unknown · T play
+desired output taking over
+occupied · t transfer+play · Y
+transfer allowing unknown · !
+LOUNGE · Lounge Room Audio … 1/1
+────────────────────────────────
+↑/↓ select   Enter add/play"
+`;
+
+exports[`fits and snapshots devices at 40x50 1`] = `
+" GROOVENET                      LOUNGE ●
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░  Blue Train         ┃▐
+┃ ░░░░░░░░░░░░░░  John Coltrane      ┃▐
+┃ ░░░░ ART ░░░░░                     ┃▐
+┃ ░░░░░░░░░░░░░░                     ┃▐
+┃ ░░░░░░░░░░░░░░                     ┃▐
+┃ ░░░░░░░░░░░░░░                     ┃▐
+┃                                    ┃▐
+┃                                    ┃▐
+┃ 0:12 ━━────────────────────── 3:00 ┃▐
+┃                                    ┃▐
+┃  |◀   ||   ▶|   VOL ━━━━━───── 50% ┃▐
+┃                                    ┃▐
+┃ PLAY ON Lounge Room Audio          ┃▐
+┃ o change output                    ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ /   u   l   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Remote keys: U play desired output
+allowing unknown · T play desired output
+taking over occupied · t transfer+play ·
+Y transfer allowing unknown · ! transfer
+taking over occupied · s stop · server
+audio continues after q
+› Lounge Room Audio [speaker]
+activity=unknown · assigned=study ·
+desired=lounge · entity=unmapped ·
+sender=unknown · observed=unavailable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LOUNGE · Lounge Room Audio · connec… 1/1
+────────────────────────────────────────
+↑/↓ select   Enter add/play   r play"
+`;
+
+exports[`fits and snapshots devices at 80x24 1`] = `
+" GROOVENET  PLAY ON LOUNGE ● LIVE                                ? help   q quit
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░░░░░   Blue Train                                            ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   John Coltrane                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░ ART ░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   0:12 ━━────────────────────────────── 3:00  ▶ PLAYING ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░    |◀ p   || Space   ▶| n    VOL ━━━━━━━━──────── 50%   ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ / SEARCH   u QUEUE · 1   l PLAYLISTS   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Remote keys: U play desired output allowing unknown · T play desired output
+taking over occupied · t transfer+play · Y transfer allowing unknown · !
+transfer taking over occupied · s stop · server audio continues after q
+› Lounge Room Audio [speaker]
+activity=unknown · assigned=study · desired=lounge · entity=unmapped ·
+LOUNGE · Lounge Room Audio · connected · 1 in queue                          1/1
+────────────────────────────────────────────────────────────────────────────────
+↑/↓ select   Enter add/play   r play   Space pause   n/p skip   ←/→ seek"
+`;
+
+exports[`fits and snapshots devices at 120x5 1`] = `
+"┏━ GROOVENET   LOUNGE ● ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ▶ Blue Train · John Coltrane                            0:12 ━━━─────────────────────────────────── 3:00   VOL 50% ┃▐
+┃ Space pause   n next   p prev   +/- volume   Enter full view                                                       ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
+`;
+
+exports[`fits and snapshots devices at 120x40 1`] = `
+" GROOVENET  PLAY ON LOUNGE ● LIVE                                                                        ? help   q quit
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░░░░░   Blue Train                                                                                    ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   John Coltrane                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░ ART ░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   0:12 ━━━━──────────────────────────────────────────────────────── 3:00  ▶ PLAYING             ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                                                                 ┃▐
+┃ ░░░░░░░░░░░░░░░░░░    |◀ p   || Space   ▶| n    VOL ━━━━━━━━──────── 50%   +/- volume                              ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ / SEARCH   u QUEUE · 1   l PLAYLISTS   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Remote keys: U play desired output allowing unknown · T play desired output taking over occupied · t transfer+play · Y
+transfer allowing unknown · ! transfer taking over occupied · s stop · server audio continues after q
+› Lounge Room Audio [speaker]
+activity=unknown · assigned=study · desired=lounge · entity=unmapped · sender=unknown · observed=unavailable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LOUNGE · Lounge Room Audio · connected · 1 in queue                                                                  1/1
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+↑/↓ select   Enter add/play   r play   Space pause   n/p skip   ←/→ seek   +/- volume   o play on"
+`;

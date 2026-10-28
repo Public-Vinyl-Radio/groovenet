@@ -14,7 +14,7 @@ groovenet config show
 
 Keys: `api_base`, `api_key`, `player_api_key`, `default_friend_id`, `username`, `insecure_tls`, `player_artwork`, `player_log_plays`, `player_backend`, `owntone_url`, `owntone_library`, `owntone_output`, `owntone_password`, `player_keymap` (an object, edited in the file; see Keymap).
 
-Remote controls use `player --remote <id>`; the separate `PLAYER_API_KEY` environment
+Remote controls use `player --remote <id>` as an initial target; `o` switches at runtime; the separate `PLAYER_API_KEY` environment
 variable overrides `player_api_key`. Local playback remains the default. See the
 README for acknowledgement keys, transfers and reconnect semantics.
 
@@ -213,7 +213,7 @@ The player TUI's keys (#822) come from one registry; nothing is hard-coded in
 `playerTui.tsx`. All of it is pure and testable without a TTY:
 
 - `playerKeymapRegistry.ts` — the action table: id, description, views
-  (`queue`, `search`, `playlists`, `devices`, and `input` for typing in the
+  (`queue`, `search`, `playlists`, `devices`, `play-on`, `confirmation`, and `input` for typing in the
   search box or playlist filter), default keys, optional per-view defaults, hint label,
   `remoteOnly`. **Add a new action or view here**, then handle its id in the
   `useInput` switch; hints, `player keys` and validation follow.
@@ -315,6 +315,23 @@ and `resizeTerminal` from `src/tui/testing.tsx` (excluded from the build):
 ink-testing-library's fake stdout is otherwise always 100 columns with no rows.
 Snapshots are plain text (chalk level 0). Ink trims trailing spaces from each
 row, so match a row's end with `/text$/m`, not padding.
+
+The target picker/devices renderers are in `playerTuiOutputs.tsx`; `PlayerTargets`
+in `playerTuiTargets.ts` owns candidate observers and the active target. Join uses
+`ServerPlayerSession.command(session.join)` with the current revision and explicit
+policy; its `onJoined` callback proves commitment, including after acknowledgement.
+Local queue identity and original revision fence retries. Local pause precedes Join;
+stop/removal follows commitment only. Failed cleanup blocks rejoining retained
+entries. An empty/ended queue attaches without a playback command. Remote-to-remote
+and Play here never copy a server queue or stop its audio.
+
+`play-on` and `confirmation` are isolated keymap contexts. `target.confirm` (`y`)
+and `target.cancel` (`Esc`) are registry actions, and input mode protects their
+printable bindings. `RemotePlayerController.interactive` enables the shared
+session's acknowledgement lifecycle for TUI commands; scripted commands retain
+throwing behavior. Runtime local clients attach lazily, and only the daemon
+started by this TUI is stopped on exit. Listener effects fence old controllers;
+startup `--playlist` runs once across target switches.
 
 ## Build
 

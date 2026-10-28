@@ -298,7 +298,7 @@ describe("remote TUI", () => {
     const app = render(<PlayerTui {...props} initialSnapshot={snapshot} options={{ remote: "room" }} />);
     await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
     expect(app.lastFrame()).toContain("PLAY ON ROOM ● LIVE");
-    expect(app.lastFrame()).toContain("NO OUTPUT · connected · saved checkpoint · 2 in queue · 1/2");
+    expect(app.lastFrame()).toContain("ROOM · NO OUTPUT · connected · saved checkpoint · 2 in queue · 1/2");
     await act(async () => { app.stdin.write("\r"); });
     expect(request).toHaveBeenCalledWith("play", { id: "entry-uuid" });
     request.mockResolvedValueOnce([{ id: "speaker", name: "Room · activity=unknown · assigned=other · sender=unknown" }]);
@@ -352,7 +352,7 @@ it("refreshes speaker observations and clears failed/stale reads after unmount",
   let app: ReturnType<typeof render>;
   try {
     await act(async () => { app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "room" }} />); });
-    expect(app!.lastFrame()).toContain("Room · connected · 0 in queue");
+    expect(app!.lastFrame()).toContain("ROOM · Room · connected · 0 in queue");
     request.mockRejectedValueOnce(new Error("observer offline"));
     await act(async () => { poll(); });
     expect(app!.lastFrame()).toContain("Speaker observations unavailable: observer offline");
@@ -437,7 +437,7 @@ describe("PlayerTui keymap", () => {
     expect(app.lastFrame()).toMatch(/^› {3}1 {2}Song 0 /m);
   });
 
-  it("opens the output list with play-on and ignores the keys for views that do not exist yet", async () => {
+  it("opens a distinct Play on picker and returns to the previous view", async () => {
     const props = makeProps([{ id: "q1", track }]);
     const app = render(<PlayerTui {...props} options={{}} />);
     await settle();
@@ -446,7 +446,10 @@ describe("PlayerTui keymap", () => {
     await act(async () => { app.stdin.write("\u001b[C"); });
     expect(requestOf(props)).toHaveBeenCalledWith("seek", { seconds: 22 });
     await act(async () => { app.stdin.write("o"); await new Promise((resolve) => setImmediate(resolve)); });
-    expect(app.lastFrame()).toContain("Living room [airplay]");
+    expect(app.lastFrame()).toContain("This machine · local daemon");
+    expect(app.lastFrame()).not.toContain("Living room [airplay]");
+    await act(async () => { app.stdin.write("\u001b"); await new Promise(resolve => setTimeout(resolve, 30)); });
+    expect(app.lastFrame()).not.toContain("Choose where audio plays");
   });
 
   it("shows keymap problems once and dismisses them on the next key", async () => {
@@ -700,7 +703,7 @@ describe("PlayerTui queue view", () => {
     await settle();
     const frame = app.lastFrame()!;
     expect(frame).toContain("PLAY ON Lounge Room Audio");
-    expect(frame).toMatch(/^Lounge Room Audio · connected · 4 i… 2\/4$/m);
+    expect(frame).toMatch(/^LOUNGE · Lounge Room Audio · connec… 2\/4$/m);
     expect(frame).toMatch(/^› Two +3:21$/m);
     expect(frame).toMatch(/^ {2}One +3:20$/m);
     props.api.listPlaylists = vi.fn(async () => [{ id: 1, name: "Late night", created_at: "2026-10-01", tracks: [] }, { id: 2, name: "Early", created_at: "2026-09-01", tracks: [] }]) as unknown as GroovenetClient["listPlaylists"];

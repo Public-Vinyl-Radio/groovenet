@@ -22,20 +22,23 @@ export function makeRemoteApi(): GroovenetClient {
 /** Adapts the shared server player session to the local TUI's controls; owns no audio engine. */
 export class RemotePlayerController extends EventEmitter implements PlayerController {
   private closed = false;
-  private readonly session: ServerPlayerSession;
+  readonly session: ServerPlayerSession;
+  interactive = false;
+  joined = 0;
   private published: { player: ServerPlayer | null; connected: boolean };
 
   constructor(readonly api: GroovenetClient, readonly playerId: string,
     readonly policy: { allow_unknown?: boolean; takeover?: boolean } = {}) {
     super();
     this.session = new ServerPlayerSession(playerId, clientTransport(api), {
-      reconnectMs: 1000, devices: false,
+      reconnectMs: 1000, devices: false, onJoined: () => { this.joined++; },
       disconnectMessage: (reason) => `${reason instanceof Error ? reason.message : String(reason)} Reconnecting for a fresh snapshot; server audio continues.`,
       onDisconnect: () => this.problem(this.session.getSnapshot().problem!),
     });
     this.published = this.view();
-    // Publish when the player or the connection changes; busy flags and device lists are not the TUI's concern.
+    // Playback snapshots change with player/connection state; session notifications also expose pending confirmations.
     this.session.subscribe(() => {
+      this.emit("session");
       const view = this.view();
       if (view.player === this.published.player && view.connected === this.published.connected) return;
       this.published = view;
@@ -48,7 +51,7 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
     return { player, connected };
   }
 
-  private snapshot(): RemoteSnapshot {
+  snapshot(): RemoteSnapshot {
     const { player, connected } = this.view();
     const queue = player!.state.queue.map((entry) => ({ id: entry.id, track: { ...entry } as unknown as Track }));
     return { ...player!.state, current: queue.find((entry) => entry.id === player!.state.current_entry_id) ?? null,
@@ -73,6 +76,12 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
     const { player, connected, busy } = { ...this.view(), busy: this.session.getSnapshot().busy };
     if (!connected || !player) throw new Error("Remote player is disconnected. Wait for a fresh snapshot; no local fallback.");
     if (busy) throw new Error("A remote command is already in progress.");
+    if (this.interactive) {
+      const result = await this.session.command(command, player.revision);
+      const problem = this.session.getSnapshot().problem;
+      if (!result || problem) throw new Error(problem ?? "Remote command did not complete. Review the target before retrying.");
+      return this.snapshot();
+    }
     const result = await this.session.execute(command, player.revision);
     if (result.transfer && (!result.transfer.detached || ("play" in command && command.play && !result.transfer.attached) || result.transfer.error)) {
       throw new Error(`Transfer: detached=${result.transfer.detached}, attached=${result.transfer.attached}. ${result.transfer.error?.code ?? "INCOMPLETE"}: ${result.transfer.error?.message ?? "Transfer incomplete"}`);
