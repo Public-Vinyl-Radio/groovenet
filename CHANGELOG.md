@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.11](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.10...v0.3.11) (2026-10-28)
+
+
+### Features
+
+* **cli:** add player TUI Play on picker and runtime targets ([#846](https://github.com/Public-Vinyl-Radio/groovenet/issues/846)) ([893a00d](https://github.com/Public-Vinyl-Radio/groovenet/commit/893a00dd3b802ed0c5592bc511d07e7a9e661211))
+* **cli:** add player TUI playlists view ([#845](https://github.com/Public-Vinyl-Radio/groovenet/issues/845)) ([4dbdd9a](https://github.com/Public-Vinyl-Radio/groovenet/commit/4dbdd9af4cea44e0ffeb7d590917b2ae44a1c479))
+* **cli:** add player TUI search for tracks and albums ([#844](https://github.com/Public-Vinyl-Radio/groovenet/issues/844)) ([87dd22d](https://github.com/Public-Vinyl-Radio/groovenet/commit/87dd22d0d82b0d3c70c3e31b79233372fc6c9b80))
+* **cli:** configurable keymap for the player TUI ([#835](https://github.com/Public-Vinyl-Radio/groovenet/issues/835)) ([972a865](https://github.com/Public-Vinyl-Radio/groovenet/commit/972a865b15cceef85bcf547a6ad9fd1e63498f08))
+* **cli:** groovenet status segment for tmux and status bars ([#833](https://github.com/Public-Vinyl-Radio/groovenet/issues/833)) ([d94b991](https://github.com/Public-Vinyl-Radio/groovenet/commit/d94b991ee5b2be2b5a239df59f1bff8e175b32e0))
+* **cli:** player TUI foundation with ANSI theme, primitives and responsive layouts ([#838](https://github.com/Public-Vinyl-Radio/groovenet/issues/838)) ([c8a7a07](https://github.com/Public-Vinyl-Radio/groovenet/commit/c8a7a07f75e8e3ff5faa3b0f9932d242f3920484))
+* **cli:** player TUI queue view, Now Playing card and bottom strip ([#840](https://github.com/Public-Vinyl-Radio/groovenet/issues/840)) ([a4aadcf](https://github.com/Public-Vinyl-Radio/groovenet/commit/a4aadcf42caa937b5f68ecb64042c553a3bce08e))
+* **genres:** add build this crate state for thin genres ([#834](https://github.com/Public-Vinyl-Radio/groovenet/issues/834)) ([4287eac](https://github.com/Public-Vinyl-Radio/groovenet/commit/4287eac966a074353015431f30bd6a515730060b))
+* **genres:** build albums-first genre detail pages ([#831](https://github.com/Public-Vinyl-Radio/groovenet/issues/831)) ([955598a](https://github.com/Public-Vinyl-Radio/groovenet/commit/955598afdce11fdf1836514dedbc741c84d44632))
+* **genres:** turn index into a collection discovery page ([#818](https://github.com/Public-Vinyl-Radio/groovenet/issues/818)) ([8458a78](https://github.com/Public-Vinyl-Radio/groovenet/commit/8458a788ab2b0678345baacf1daab2941c169366))
+* **player:** add a third OwnTone engine for a Bedroom server player ([#843](https://github.com/Public-Vinyl-Radio/groovenet/issues/843)) ([96b1318](https://github.com/Public-Vinyl-Radio/groovenet/commit/96b13181ff4cf419c12555476c70f506588fbcff))
+* **player:** add atomic session joins and all-player events ([#836](https://github.com/Public-Vinyl-Radio/groovenet/issues/836)) ([156f0eb](https://github.com/Public-Vinyl-Radio/groovenet/commit/156f0eb5ab542145f0a90c40a9565d22e1d70771))
+
+
+### Bug Fixes
+
+* **ui:** constrain long album tracklist titles ([#837](https://github.com/Public-Vinyl-Radio/groovenet/issues/837)) ([a500345](https://github.com/Public-Vinyl-Radio/groovenet/commit/a500345750ca471c80696184bf5b368233731ef7))
+
 ## [0.3.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.9...v0.3.10) (2026-10-26)
 
 

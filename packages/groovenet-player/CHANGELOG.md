@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.6](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.5...groovenet-player-v0.1.6) (2026-10-28)
+
+
+### Features
+
+* **cli:** player TUI queue view, Now Playing card and bottom strip ([#840](https://github.com/Public-Vinyl-Radio/groovenet/issues/840)) ([a4aadcf](https://github.com/Public-Vinyl-Radio/groovenet/commit/a4aadcf42caa937b5f68ecb64042c553a3bce08e))
+* **player:** add a third OwnTone engine for a Bedroom server player ([#843](https://github.com/Public-Vinyl-Radio/groovenet/issues/843)) ([96b1318](https://github.com/Public-Vinyl-Radio/groovenet/commit/96b13181ff4cf419c12555476c70f506588fbcff))
+* **player:** add atomic session joins and all-player events ([#836](https://github.com/Public-Vinyl-Radio/groovenet/issues/836)) ([156f0eb](https://github.com/Public-Vinyl-Radio/groovenet/commit/156f0eb5ab542145f0a90c40a9565d22e1d70771))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.6.0 to ^3.7.0
+    * @groovenet/contracts bumped from 1.3.0 to 1.4.0
+
 ## [0.1.5](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.4...groovenet-player-v0.1.5) (2026-10-26)
 
 

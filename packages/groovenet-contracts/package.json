@@ -1,6 +1,6 @@
 {
   "name": "@groovenet/contracts",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Shared runtime schemas and inferred types for the Groovenet API",
   "type": "module",
   "main": "build/index.js",

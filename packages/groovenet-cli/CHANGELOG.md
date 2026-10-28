@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.7.0...groovenet-cli-v3.8.0) (2026-10-28)
+
+
+### Features
+
+* **cli:** add player TUI Play on picker and runtime targets ([#846](https://github.com/Public-Vinyl-Radio/groovenet/issues/846)) ([893a00d](https://github.com/Public-Vinyl-Radio/groovenet/commit/893a00dd3b802ed0c5592bc511d07e7a9e661211))
+* **cli:** add player TUI playlists view ([#845](https://github.com/Public-Vinyl-Radio/groovenet/issues/845)) ([4dbdd9a](https://github.com/Public-Vinyl-Radio/groovenet/commit/4dbdd9af4cea44e0ffeb7d590917b2ae44a1c479))
+* **cli:** add player TUI search for tracks and albums ([#844](https://github.com/Public-Vinyl-Radio/groovenet/issues/844)) ([87dd22d](https://github.com/Public-Vinyl-Radio/groovenet/commit/87dd22d0d82b0d3c70c3e31b79233372fc6c9b80))
+* **cli:** configurable keymap for the player TUI ([#835](https://github.com/Public-Vinyl-Radio/groovenet/issues/835)) ([972a865](https://github.com/Public-Vinyl-Radio/groovenet/commit/972a865b15cceef85bcf547a6ad9fd1e63498f08))
+* **cli:** groovenet status segment for tmux and status bars ([#833](https://github.com/Public-Vinyl-Radio/groovenet/issues/833)) ([d94b991](https://github.com/Public-Vinyl-Radio/groovenet/commit/d94b991ee5b2be2b5a239df59f1bff8e175b32e0))
+* **cli:** player TUI foundation with ANSI theme, primitives and responsive layouts ([#838](https://github.com/Public-Vinyl-Radio/groovenet/issues/838)) ([c8a7a07](https://github.com/Public-Vinyl-Radio/groovenet/commit/c8a7a07f75e8e3ff5faa3b0f9932d242f3920484))
+* **cli:** player TUI queue view, Now Playing card and bottom strip ([#840](https://github.com/Public-Vinyl-Radio/groovenet/issues/840)) ([a4aadcf](https://github.com/Public-Vinyl-Radio/groovenet/commit/a4aadcf42caa937b5f68ecb64042c553a3bce08e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.6.0 to ^3.7.0
+    * @groovenet/contracts bumped from 1.3.0 to 1.4.0
+    * @groovenet/player bumped from 0.1.5 to 0.1.6
+
 ## [3.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.6.0...groovenet-cli-v3.7.0) (2026-10-26)
 
 
