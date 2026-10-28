@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { render, useApp, useInput, type RenderOptions } from "ink";
 import type { ReactElement } from "react";
-import { GroovenetClient, loadConfig, type Playlist, type Track } from "@groovenet/client";
+import { GroovenetClient, loadConfig, type Album, type Playlist, type Track, type TrackSearchMode } from "@groovenet/client";
 import { PlayerControlClient, PlayerDaemon, PlayerProtocolError, type AudioDevice, type PlaybackSnapshot, type QueueEntry } from "@groovenet/player";
 import { createPlayerDaemon, PLAYER_DAEMON_PATHS } from "./player.js";
 import { RemotePlayerController, makeRemoteApi, type PlayerController, type RemoteSnapshot } from "./remotePlayer.js";
@@ -12,6 +12,7 @@ import { visibleWindow } from "./playerTuiView.js";
 import { currentIndex, NowPlaying, QueueView, stripHints } from "./playerTuiQueue.js";
 import { openFullView } from "./playerTuiFullView.js";
 import { PlayerFrame, type TabItem } from "../tui/frame.js";
+import { albumKey, albumRefOf, dataOf, nextSearchMode, SearchView, searchHints, searchKeys, searchStatus, trackAlbumRef, useAlbumDetails, useAlbumPreview, useSearchResults, type AlbumRef, type SearchScope } from "./playerTuiSearch.js";
 import { pickLayout } from "../tui/layout.js";
 import { Styled, type Segment } from "../tui/primitives.js";
 import { fit, wrap } from "../tui/text.js";
@@ -108,7 +109,11 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   const [view, setView] = useState<View>(options.search ? "search" : "queue");
   const [query, setQuery] = useState(options.search ?? "");
   const [editingSearch, setEditingSearch] = useState(false);
-  const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [scope, setScope] = useState<SearchScope>("tracks");
+  const [mode, setMode] = useState<TrackSearchMode>("lexical");
+  // Bumped by `input.submit` to query at once instead of after the debounce.
+  const [searchNonce, setSearchNonce] = useState(0);
+  const [openAlbum, setOpenAlbum] = useState<{ album: AlbumRef; returnTo: number } | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   // The queue opens on the playing entry.
@@ -118,12 +123,20 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   // Keymap problems are shown once and dismissed by the next key: stderr would corrupt the screen.
   const [notice, setNotice] = useState<string[] | null>(keymap.problems.length ? keymap.problems.map((problem) => problem.message) : null);
 
-  const items = useMemo((): Array<Track | Playlist | QueueEntry | AudioDevice> => {
-    if (view === "search") return searchResults;
+  const { tracks: trackResults, albums: albumResults } = useSearchResults(api, query, mode, searchNonce);
+  const { details: albumDetails, load: loadAlbum } = useAlbumDetails(api);
+  const albumTracks = openAlbum ? dataOf(albumDetails[albumKey(openAlbum.album)])?.tracks ?? [] : [];
+  const searchItems: Array<Track | Album> = openAlbum ? albumTracks
+    : scope === "tracks" ? dataOf(trackResults)?.tracks ?? [] : dataOf(albumResults)?.hits ?? [];
+  const previewAlbum = view === "search" && scope === "albums" && !openAlbum ? (searchItems[selected] as Album | undefined) : undefined;
+  useAlbumPreview(previewAlbum ? albumRefOf(previewAlbum) : null, loadAlbum);
+
+  const items = useMemo((): Array<Track | Album | Playlist | QueueEntry | AudioDevice> => {
+    if (view === "search") return searchItems;
     if (view === "playlists") return playlists;
     if (view === "devices") return devices;
     return snapshot.queue;
-  }, [devices, playlists, searchResults, snapshot.queue, view]);
+  }, [devices, playlists, searchItems, snapshot.queue, view]);
 
   useEffect(() => {
     const onEvent = (event: { event: string; data: unknown }) => {
@@ -135,7 +148,6 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     };
     control.on("event", onEvent);
     void control.request<PlaybackSnapshot>("status").then(setSnapshot).catch((error: unknown) => setMessage(errorMessage(error)));
-    if (options.search) void search(options.search);
     if (options.playlist) void addPlaylist(options.playlist);
     return () => { control.off("event", onEvent); };
   // The startup actions should run once; the control client and API are stable for this view.
@@ -174,15 +186,49 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     }
   }
 
-  async function search(text: string): Promise<void> {
-    setQuery(text);
-    setView("search");
+  /** Adds `tracks` in order and, with `play`, starts the first of them. Both controllers take one track per request. */
+  async function enqueue(tracks: Track[], label: string, play: boolean): Promise<void> {
+    if (!tracks.length) { setMessage("Nothing to add."); return; }
+    const before = play ? (await runControl("status") as PlaybackSnapshot | undefined)?.queue.length : undefined;
+    if (play && before === undefined) return;
+    for (const track of tracks) if (await runControl("queue.addTrack", { track }) === undefined) return;
+    if (play) {
+      const after = await runControl("status") as PlaybackSnapshot | undefined;
+      const entry = after?.queue[before!];
+      if (!entry || await runControl("play", options.remote ? { id: entry.id } : { index: before }) === undefined) return;
+    }
+    setMessage(`${play ? "Playing" : "Added"} ${label}${play ? "" : " to the queue"}.`);
+  }
+
+  async function albumTracksOf(album: AlbumRef): Promise<Track[] | null> {
+    try { return (await loadAlbum(album)).tracks; }
+    catch (error) { setMessage(errorMessage(error)); return null; }
+  }
+
+  /** `↵` plays and `a` adds: the selected track, or every track on the selected album. */
+  async function searchSelect(play: boolean): Promise<void> {
+    const item = searchItems[selected];
+    if (!item) return;
+    if (openAlbum || scope === "tracks") { await enqueue([item as Track], `“${(item as Track).title}”`, play); return; }
+    const album = albumRefOf(item as Album);
+    const tracks = await albumTracksOf(album);
+    if (tracks) await enqueue(tracks, `${tracks.length === 1 ? "1 track" : `${tracks.length} tracks`} from “${album.title}”`, play);
+  }
+
+  function openSelectedAlbum(): void {
+    if (openAlbum) return;
+    const item = searchItems[selected];
+    const album = !item ? null : scope === "albums" ? albumRefOf(item as Album) : trackAlbumRef(item as Track);
+    if (!album) return;
+    setOpenAlbum({ album, returnTo: selected });
     setSelected(0);
-    try {
-      const result = await api.searchTracks({ query: text, limit: 30 });
-      setSearchResults(result.tracks);
-      setMessage(result.tracks.length ? "" : "No tracks found.");
-    } catch (error) { setMessage(errorMessage(error)); }
+    void albumTracksOf(album);
+  }
+
+  function editQuery(update: (value: string) => string): void {
+    setQuery(update);
+    setSelected(0);
+    setOpenAlbum(null);
   }
 
   async function loadPlaylists(): Promise<void> {
@@ -210,15 +256,15 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     const item = items[selected];
     if (!item) return;
     if (view === "search") {
-      await runControl("queue.addTrack", { track: item });
-      setView("queue");
+      await searchSelect(false);
     } else if (view === "playlists") {
       await addPlaylist(String((item as Playlist).id));
     }
   }
 
   async function selectCurrent(): Promise<void> {
-    if (view === "search" || view === "playlists") { await addSelected(); return; }
+    if (view === "search") { await searchSelect(true); return; }
+    if (view === "playlists") { await addSelected(); return; }
     if (view === "devices") {
       const item = items[selected] as AudioDevice | undefined;
       if (item) await runControl("devices.select", { id: item.id });
@@ -231,7 +277,7 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     setNotice(null);
     const action = playerTuiAction(input, key, { view, editingSearch, remote: !!options.remote, keymap });
     if (!action) return;
-    if ("text" in action) { setQuery((value) => `${value}${action.text}`); return; }
+    if ("text" in action) { editQuery((value) => `${value}${action.text}`); return; }
     const device = items[selected] as AudioDevice | undefined;
     switch (action.id) {
       case "app.quit": exit(); break;
@@ -241,7 +287,8 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
       case "transport.next": void runControl("next"); break;
       case "transport.prev": void runControl("prev"); break;
       case "transport.stop": void runControl("stop"); break;
-      case "view.search": setEditingSearch(true); setView("search"); setMessage("Type a query, then press Enter."); break;
+      // The strip has no body, so the prompt is the only sign the box is listening there.
+      case "view.search": setEditingSearch(true); setView("search"); setMessage(layout.kind === "strip" ? "Type a query; results show in the full window or side pane." : ""); break;
       case "view.playlists": void loadPlaylists(); break;
       case "view.queue": setView("queue"); setSelected(Math.max(0, currentIndex(snapshot))); break;
       case "view.devices": case "play-on.open": void loadDevices(); break;
@@ -274,10 +321,17 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
       case "list.up": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index - 1))); break;
       case "list.down": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index + 1))); break;
       case "input.cancel": setEditingSearch(false); setMessage(""); break;
-      case "input.submit": setEditingSearch(false); void search(query); break;
-      case "input.backspace": setQuery((value) => value.slice(0, -1)); break;
-      // Registered for the views #823 adds; nothing to open, switch or show yet.
-      case "nav.open": case "search.scope": case "search.mode": case "app.debug": break;
+      case "input.submit": setEditingSearch(false); setSearchNonce((value) => value + 1); break;
+      case "input.backspace": editQuery((value) => value.slice(0, -1)); break;
+      case "nav.open": if (view === "search") openSelectedAlbum(); break;
+      case "search.scope": setScope((value) => value === "tracks" ? "albums" : "tracks"); setOpenAlbum(null); setSelected(0); break;
+      case "search.mode": setMode(nextSearchMode); setSelected(0); break;
+      case "search.back":
+        if (openAlbum) { setSelected(openAlbum.returnTo); setOpenAlbum(null); }
+        else { editQuery(() => ""); setEditingSearch(true); }
+        break;
+      // Registered for the views #824–#827 add; nothing to show yet.
+      case "app.debug": break;
     }
   });
 
@@ -291,7 +345,6 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   const preamble: Array<{ text: string; role: Role }> = [
     ...(notice ? wrap(`Keymap: ${notice.slice(0, 4).join(" · ")}${notice.length > 4 ? ` · +${notice.length - 4} more` : ""} (run \`groovenet player keys\`; any key dismisses)`, layout.columns).map((text) => ({ text, role: "warn" as const })) : []),
     ...(remoteMode ? wrap(`Remote keys: ${hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))} · server audio continues after ${quitKeys || "quitting"}`, layout.columns).map((text) => ({ text, role: "dim" as const })) : []),
-    ...(view === "search" && (editingSearch || query) ? [{ text: editingSearch ? `Search: ${query}▏` : `Query: ${query}`, role: "muted" as const }] : []),
   ];
   const rows = visibleWindow(items.length, selected, Math.max(1, layout.bodyRows - preamble.length));
 
@@ -301,7 +354,9 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   const position = items.length ? `${Math.min(selected + 1, items.length)}/${items.length}` : "";
   // The full queue reads `N in queue · i/N`; elsewhere `i/N` sits on the right, where a narrow pane cannot cut it.
   const inlinePosition = view === "queue" && layout.kind === "full";
-  const status: Segment[] = [
+  const status: Segment[] = view === "search"
+    ? searchStatus({ scope, mode, tracks: trackResults, albums: albumResults, albumOpen: !!openAlbum, album: openAlbum ? albumDetails[albumKey(openAlbum.album)] : undefined, selectedTrack: openAlbum || scope === "tracks" ? searchItems[selected] as Track | undefined : undefined })
+    : [
     { text: target, role: "muted" },
     { text: ` · ${connection}${remote?.player.state.checkpoint ? " · saved checkpoint" : ""} · ${snapshot.queue.length} in queue${inlinePosition && position ? ` · ${position}` : ""}`, role: "dim" },
   ];
@@ -327,21 +382,35 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
         ]}
         status={{ left: status, right: !inlinePosition && position ? [{ text: position, role: "dim" }] : [] }}
         alert={alert}
-        hints={layout.kind === "strip" && keyView !== "input" ? stripHints(keymap, keyView) : hintItems(keymap, keyView, { remote: remoteMode, omit })}
+        hints={layout.kind === "strip" && keyView !== "input" ? stripHints(keymap, keyView) : view === "search" ? searchHints(keymap, { editing: editingSearch, scope, albumOpen: !!openAlbum, remote: remoteMode, omit }) : hintItems(keymap, keyView, { remote: remoteMode, omit })}
         help={showHelp ? helpEntries(keymap, keyView, { remote: remoteMode }) : null}
         nowPlaying={(area) => <NowPlaying snapshot={snapshot} area={area} keymap={keymap} target={target} />}
       >
         {(area) => (
           <>
             {preamble.map((line, index) => <Styled key={`preamble-${index}`} role={line.role}>{line.text}</Styled>)}
-            {view === "queue" && (layout.kind === "full" || layout.kind === "side")
+            {view === "search" ? (layout.kind === "full" || layout.kind === "side") && (
+              <SearchView
+                area={{ width: area.width, rows: Math.max(0, area.rows - preamble.length) }}
+                kind={layout.kind}
+                keys={searchKeys(keymap)}
+                query={query}
+                editing={editingSearch}
+                mode={mode}
+                scope={scope}
+                tracks={trackResults}
+                albums={albumResults}
+                selected={Math.min(selected, Math.max(0, items.length - 1))}
+                openAlbum={openAlbum?.album ?? null}
+                details={albumDetails}
+              />
+            )
+            : view === "queue" && (layout.kind === "full" || layout.kind === "side")
               ? <QueueView snapshot={snapshot} selected={selected} area={{ width: area.width, rows: Math.max(1, area.rows - preamble.length) }} kind={layout.kind} />
               : items.length === 0 ? <Styled role="dim">No items.</Styled> : items.slice(rows.start, rows.end).map((item, row) => {
               const index = rows.start + row;
               const selectedItem = index === selected;
-              const label = view === "search"
-                ? `${(item as Track).artist} — ${(item as Track).title}${(item as Track).local_audio_url ? "" : " [no downloaded audio]"}`
-                : view === "playlists" ? (item as Playlist).name
+              const label = view === "playlists" ? (item as Playlist).name
                   : `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`;
               return <Styled key={`${view}-${index}`} role={selectedItem ? "selection" : "ink"}>{fit(`${selectedItem ? "› " : "  "}${label}`, area.width)}</Styled>;
             })}

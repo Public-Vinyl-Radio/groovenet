@@ -1,0 +1,87 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PlayerTui search > renders at the full, side and short sizes and follows a live resize 1`] = `
+" GROOVENET  PLAY ON LOCAL                                        ? help   q quit
+
+┏━ NOW PLAYING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ░░░░░░░░░░░░░░░░░░   Nothing playing                                       ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░ ART ░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░   0:00 ──────────────────────────────── -:--  ■ STOPPED ┃▐
+┃ ░░░░░░░░░░░░░░░░░░                                                         ┃▐
+┃ ░░░░░░░░░░░░░░░░░░    |◀ p   ▶ Space   ▶| n    VOL ━━━━━━━━━━━───── 70%    ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ / SEARCH   u QUEUE · 0   l PLAYLISTS   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FIND  / cumbia                                             KEYWORD   S-Tab mode
+ TRACKS · 2   ALBUMS · 2   Tab tracks / albums
+› Cumbia 0                     Los Demonios Del Mantaro         3:20    96  8A
+  Cumbia 1                     Los Demonios Del Mantaro         3:21    96  8A
+
+SEARCH · keyword · 2 tracks                                                  1/2
+────────────────────────────────────────────────────────────────────────────────
+↑/↓ select   Enter play   a add to queue   → open   Tab albums   Esc clear"
+`;
+
+exports[`SearchView > collapses to one-line FIND and two-line rows in the side pane 1`] = `
+" FIND  / cumbia                 KEYWORD
+ TRACKS · 2   ALBUMS · 2   Tab scope
+› Cumbia 0                          3:20
+    Los Demonios Del Mantaro
+  Cumbia 1                          3:21
+    Los Demonios Del Mantaro"
+`;
+
+exports[`SearchView > draws albums as two-line rows with the preview panel 1`] = `
+"┏━ FIND ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ / cumbia                                                                                      KEYWORD   S-Tab mode ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ TRACKS · 2   ALBUMS · 2   Tab tracks / albums
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ALBUM                             ARTIST             YEAR    ┏━ LP-031 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  Cumbia Vol. 0                     Various            2020    ┃  ░░░░░░░░░░░░░░  Cumbia Vol. 1                       ┃▐
+    LP-030 · 12 tracks                                         ┃  ░░░░░░░░░░░░░░  Various                             ┃▐
+› Cumbia Vol. 1                     Various            2021    ┃  ░░░░ ART ░░░░░  Vampi Soul · 2021                   ┃▐
+    LP-031 · 12 tracks                                         ┃  ░░░░░░░░░░░░░░  12 tracks                           ┃▐
+                                                               ┃  ░░░░░░░░░░░░░░                                      ┃▐
+                                                               ┃  ░░░░░░░░░░░░░░   Enter PLAY   a ADD ALL             ┃▐
+                                                               ┃                                                      ┃▐
+                                                               ┃  TRACKLIST ────────────────────────────────────────  ┃▐
+                                                               ┃  A1  Cumbia 0                                  3:20  ┃▐
+                                                               ┃  A2  Cumbia 1                                  3:21  ┃▐
+                                                               ┃  … 10 more · → open album                            ┃▐
+                                                               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+                                                                ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
+`;
+
+exports[`SearchView > draws an open album's whole tracklist, with positions 1`] = `
+"┏━ FIND ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ / cumbia                                                                                      KEYWORD   S-Tab mode ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Cumbia Vol. 1 · Various · Vampi Soul · 2021 · 2 tracks
+  POS TITLE                                        ARTIST                                               TIME   BPM  KEY
+› A1  Cumbia 0                                     Los Demonios Del Mantaro                             3:20    96  8A
+      Cumbia 1                                     Los Demonios Del Mantaro                             3:21    96  8A"
+`;
+
+exports[`SearchView > draws the tracks board: FIND box, scope tabs, columns and the selected row 1`] = `
+"┏━ FIND ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ / cumbia█                                                                                     KEYWORD   S-Tab mode ┃▐
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+ TRACKS · 2   ALBUMS · 2   Tab tracks / albums
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  TITLE                                          ARTIST                                                 TIME   BPM  KEY
+› Cumbia 0                                       Los Demonios Del Mantaro                               3:20    96  8A
+  Cumbia 1                                       Los Demonios Del Mantaro                               -:--    --  --"
+`;

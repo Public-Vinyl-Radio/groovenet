@@ -235,8 +235,9 @@ Rules worth knowing:
 - **A bad entry loses only itself.** Any bad key in an entry reverts that whole
   action to its default keys.
 - `→` is `nav.open` in search/playlists and seek in queue/devices; seek there
-  uses `<` / `>` (`viewKeys`). `nav.open`, `search.scope`, `search.mode` and
-  `app.debug` are registered for the #824–#827 views and do nothing yet.
+  uses `<` / `>` (`viewKeys`). `nav.open` opens an album in search (#825)
+  and does nothing in playlists yet; `app.debug` is still unused.
+  `search.back` (Esc in search) closes an open album or clears the query.
 - Problems go to an in-TUI notice, never stderr, which would corrupt the screen.
 - Ink gives capital letters `shift: true`, so characters match on `input` only;
   `ctrl+j` arrives as `enter`, not `return`, and cannot be bound.
@@ -299,6 +300,28 @@ shows the size needed. `PlayerTui` takes `fullView` so tests can stub it.
 
 `queue.move` (`{ id, to }`) works on the local daemon too, so `[`/`]` are no
 longer remote-only.
+
+### Search view (#825)
+
+`playerTuiSearch.tsx` holds the search view and its hooks; `playerTui.tsx`
+keeps the query, scope, mode and open album, and dispatches the keys.
+
+- **Queries are live.** `useDebouncedLoad` waits `SEARCH_DEBOUNCE_MS` after
+  the last key; `input.submit` bumps a nonce to query at once. Each effect run
+  marks its response stale on cleanup, so a slow older query never replaces a
+  newer one. Tracks and albums are fetched together so both tab counts show.
+- **Modes** are `TrackSearchMode` (`lexical` shown as keyword, `semantic`,
+  `hybrid`). `GET /albums` has no mode: the album scope always reads KEYWORD.
+- **Albums**: `useAlbumDetails` caches `getAlbum` per album and shares it
+  between the preview (fetched `PREVIEW_DEBOUNCE_MS` after the selection
+  settles), the open album and PLAY / ADD ALL. The preview's art slot is
+  `PREVIEW_ART` (`ART_SIDE`, 14×6), fixed so #829 can fill it.
+- **Playing**: both controllers take one track per `queue.addTrack`, so
+  `enqueue` adds in order, re-reads `status` and plays the first added entry
+  (by `index` locally, by entry `id` on a server player).
+- The preview panel needs ≥ 96 columns; the boxed FIND needs a full window
+  with ≥ 12 body rows, otherwise it is one line. The side pane uses two-line
+  rows. The strip has no body, so search is invisible there but kept.
 
 Tests force the terminal with `forceTerminal(columns, rows, { colorLevel })`
 and `resizeTerminal` from `src/tui/testing.tsx` (excluded from the build):
