@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { render, useApp, useInput, type RenderOptions } from "ink";
 import type { ReactElement } from "react";
-import { GroovenetClient, loadConfig, formatSeconds, type Playlist } from "@groovenet/client";
+import { GroovenetClient, loadConfig, formatSeconds } from "@groovenet/client";
 import { PlayerControlClient, PlayerDaemon, PlayerProtocolError, type AudioDevice, type PlaybackSnapshot, type QueueEntry } from "@groovenet/player";
 import { createPlayerDaemon, PLAYER_DAEMON_PATHS } from "./player.js";
 import { RemotePlayerController, makeRemoteApi, type PlayerController, type RemoteSnapshot } from "./remotePlayer.js";
@@ -10,6 +10,8 @@ import type { ActionId } from "./playerKeymapRegistry.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
 import { visibleWindow } from "./playerTuiView.js";
 import { currentIndex, NowPlaying, QueueView, stripHints } from "./playerTuiQueue.js";
+import { PlaylistsView, playlistHints } from "./playerTuiPlaylists.js";
+import { queuePlaylist, usePlayerPlaylists } from "./playerTuiPlaylistsState.js";
 import { SearchView, searchHints } from "./playerTuiSearch.js";
 import { queueSearchTracks, usePlayerSearch, modeLabel } from "./playerTuiSearchState.js";
 import { openFullView } from "./playerTuiFullView.js";
@@ -51,13 +53,14 @@ export interface PlayerTuiRuntime {
 }
 
 export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: PlayerTuiRuntime = {}): Promise<void> {
-  const keymap = runtime.keymap ?? buildKeymap(loadConfig().player_keymap);
+  const config = loadConfig();
+  const keymap = runtime.keymap ?? buildKeymap(config.player_keymap);
   if (options.remote) {
     if (options.backend || options.artwork || options.logPlays) throw new Error("Remote players use server engine settings; omit local backend/artwork/log-plays flags.");
     const control = runtime.createRemote?.(options.remote) ?? new RemotePlayerController(makeRemoteApi(), options.remote, { allow_unknown: options.allowUnknown, takeover: options.takeover });
     try {
       const initialSnapshot = await control.refresh();
-      const app = (runtime.render ?? render)(<PlayerTui control={control} api={runtime.createApi?.() ?? makeApiClient()} initialSnapshot={initialSnapshot} options={options} keymap={keymap} />, { alternateScreen: true, exitOnCtrlC: true });
+      const app = (runtime.render ?? render)(<PlayerTui control={control} api={runtime.createApi?.() ?? makeApiClient()} initialSnapshot={initialSnapshot} options={options} keymap={keymap} searchFriendId={config.default_friend_id} />, { alternateScreen: true, exitOnCtrlC: true });
       control.startEvents();
       await app.waitUntilExit();
     } finally { await control.close(); }
@@ -80,7 +83,7 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
 
     const api = runtime.createApi?.() ?? makeApiClient();
     const renderTui = runtime.render ?? render;
-    const app = renderTui(<PlayerTui control={control} api={api} initialSnapshot={initialSnapshot} options={options} keymap={keymap} />, {
+    const app = renderTui(<PlayerTui control={control} api={api} initialSnapshot={initialSnapshot} options={options} keymap={keymap} searchFriendId={config.default_friend_id} />, {
       alternateScreen: true,
       exitOnCtrlC: true,
     });
@@ -91,12 +94,14 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
   }
 }
 
-export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap, theme: themeOverride, fullView = openFullView }: {
+export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap, theme: themeOverride, searchFriendId, fullView = openFullView }: {
   control: PlayerController;
   api: GroovenetClient;
   initialSnapshot: PlaybackSnapshot;
   options: PlayerTuiOptions;
   keymap?: Keymap;
+  /** Collection scope from default_friend_id, shared by local and remote search. */
+  searchFriendId?: number;
   /** Colour roles; defaults to the terminal's, honouring NO_COLOR. */
   theme?: Theme;
   /** `↵` in the strip: zooms the tmux pane; resolves to a message to show, or "". */
@@ -111,9 +116,13 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   const search = usePlayerSearch(api, view === "search", options.search ?? "", async (tracks, play) => {
     await queueSearchTracks(control, tracks, play, !!options.remote);
     setSnapshot(await control.request<PlaybackSnapshot>("status"));
-  });
+  }, searchFriendId);
   const editingSearch = view === "search" && search.editing;
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const playlists = usePlayerPlaylists(api, view === "playlists", async (playlist, tracks, play) => {
+    await queuePlaylist(control, playlist, tracks, play, !!options.remote);
+    setSnapshot(await control.request<PlaybackSnapshot>("status"));
+  });
+  const editingInput = editingSearch || (view === "playlists" && playlists.editing);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   // The queue opens on the playing entry.
   const [selected, setSelected] = useState(() => Math.max(0, currentIndex(initialSnapshot)));
@@ -122,12 +131,11 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   // Keymap problems are shown once and dismissed by the next key: stderr would corrupt the screen.
   const [notice, setNotice] = useState<string[] | null>(keymap.problems.length ? keymap.problems.map((problem) => problem.message) : null);
 
-  const items = useMemo((): Array<Playlist | QueueEntry | AudioDevice> => {
-    if (view === "search") return [];
-    if (view === "playlists") return playlists;
+  const items = useMemo((): Array<QueueEntry | AudioDevice> => {
+    if (view === "search" || view === "playlists") return [];
     if (view === "devices") return devices;
     return snapshot.queue;
-  }, [devices, playlists, snapshot.queue, view]);
+  }, [devices, snapshot.queue, view]);
 
   useEffect(() => {
     const onEvent = (event: { event: string; data: unknown }) => {
@@ -177,13 +185,6 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     }
   }
 
-  async function loadPlaylists(): Promise<void> {
-    setView("playlists");
-    setSelected(0);
-    try { setPlaylists(await api.listPlaylists()); setMessage(""); }
-    catch (error) { setMessage(errorMessage(error)); }
-  }
-
   async function addPlaylist(id: string): Promise<void> {
     await runControl("queue.add", { playlistId: id });
     setView("queue");
@@ -198,16 +199,7 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     }
   }
 
-  async function addSelected(): Promise<void> {
-    const item = items[selected];
-    if (!item) return;
-    if (view === "playlists") {
-      await addPlaylist(String((item as Playlist).id));
-    }
-  }
-
   async function selectCurrent(): Promise<void> {
-    if (view === "playlists") { await addSelected(); return; }
     if (view === "devices") {
       const item = items[selected] as AudioDevice | undefined;
       if (item) await runControl("devices.select", { id: item.id });
@@ -218,10 +210,11 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
 
   useInput((input, key) => {
     setNotice(null);
-    const action = playerTuiAction(input, key, { view, editingSearch, remote: !!options.remote, keymap });
+    const action = playerTuiAction(input, key, { view, editingSearch: editingInput, remote: !!options.remote, keymap });
     if (!action) return;
-    if ("text" in action) { search.setQuery((value) => `${value}${action.text}`); return; }
+    if ("text" in action) { if (view === "playlists") playlists.updateQuery((value) => value + action.text); else search.setQuery((value) => `${value}${action.text}`); return; }
     if (view === "search" && !(action.id === "list.select" && layout.kind === "strip") && search.handle(action.id)) { setMessage(""); return; }
+    if (view === "playlists" && !(action.id === "list.select" && layout.kind === "strip") && playlists.handle(action.id)) { setMessage(""); return; }
     const device = items[selected] as AudioDevice | undefined;
     switch (action.id) {
       case "app.quit": exit(); break;
@@ -232,7 +225,7 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
       case "transport.prev": void runControl("prev"); break;
       case "transport.stop": void runControl("stop"); break;
       case "view.search": search.handle("view.search"); setView("search"); setMessage(""); break;
-      case "view.playlists": void loadPlaylists(); break;
+      case "view.playlists": setView("playlists"); setMessage(""); break;
       case "view.queue": setView("queue"); setSelected(Math.max(0, currentIndex(snapshot))); break;
       case "view.devices": case "play-on.open": void loadDevices(); break;
       case "transport.seek-forward": void runControl("seek", { seconds: snapshot.position + 10 }); break;
@@ -243,7 +236,6 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
         if (layout.kind === "strip") void fullView().then(setMessage);
         else void selectCurrent();
         break;
-      case "queue.add": void addSelected(); break;
       case "queue.remove": {
         const item = snapshot.queue[selected];
         if (item) void runControl("queue.remove", { id: item.id });
@@ -264,27 +256,27 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
       case "list.up": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index - 1))); break;
       case "list.down": setSelected((index) => Math.max(0, Math.min(Math.max(0, items.length - 1), index + 1))); break;
       case "input.cancel": case "input.submit": case "input.backspace":
-      case "nav.open": case "search.scope": case "search.mode": case "app.debug": break;
+      case "queue.add": case "playlists.filter": case "nav.open": case "search.scope": case "search.mode": case "app.debug": break;
     }
   });
 
   const remote = (snapshot as Partial<RemoteSnapshot>).remote;
   const output = remote ? devices.find((device) => device.id === (remote.player.assigned_output ?? remote.player.state.desired_output)) : undefined;
   const remoteMode = !!options.remote;
-  const keyView = editingSearch ? "input" : view;
+  const keyView = editingInput ? "input" : view;
   const quitKeys = displayKeys(keymap, "app.quit", "queue");
 
   // Lines the body shows above the list. Each is one screen row, so the list knows how many rows are left.
   const preamble: Array<{ text: string; role: Role }> = [
     ...(notice ? wrap(`Keymap: ${notice.slice(0, 4).join(" · ")}${notice.length > 4 ? ` · +${notice.length - 4} more` : ""} (run \`groovenet player keys\`; any key dismisses)`, layout.columns).map((text) => ({ text, role: "warn" as const })) : []),
-    ...(remoteMode && view !== "search" ? wrap(`Remote keys: ${hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))} · server audio continues after ${quitKeys || "quitting"}`, layout.columns).map((text) => ({ text, role: "dim" as const })) : []),
+    ...(remoteMode && view !== "search" && view !== "playlists" ? wrap(`Remote keys: ${hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))} · server audio continues after ${quitKeys || "quitting"}`, layout.columns).map((text) => ({ text, role: "dim" as const })) : []),
   ];
   const rows = visibleWindow(items.length, selected, Math.max(1, layout.bodyRows - preamble.length));
 
   // The device list names a remote output `Name · activity=… · …`; the status line wants the name.
   const target = remote ? (output?.name.split(" · ")[0] ?? "NO OUTPUT") : "LOCAL";
   const connection = remote ? (remote.connected ? "connected" : "DISCONNECTED · state may be stale") : "local daemon";
-  const position = view === "search" ? (search.count ? `${search.selected + 1}/${search.count}` : "") : items.length ? `${Math.min(selected + 1, items.length)}/${items.length}` : "";
+  const position = view === "search" ? (search.count ? `${search.selected + 1}/${search.count}` : "") : view === "playlists" ? (playlists.count ? `${playlists.selected + 1}/${playlists.count}` : "") : items.length ? `${Math.min(selected + 1, items.length)}/${items.length}` : "";
   // The full queue reads `N in queue · i/N`; elsewhere `i/N` sits on the right, where a narrow pane cannot cut it.
   const inlinePosition = view === "queue" && layout.kind === "full";
   const status: Segment[] = [
@@ -292,7 +284,7 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     { text: ` · ${connection}${remote?.player.state.checkpoint ? " · saved checkpoint" : ""} · ${snapshot.queue.length} in queue${inlinePosition && position ? ` · ${position}` : ""}`, role: "dim" },
   ];
   const searchStatus: Segment[] = [{ text: `SEARCH · ${modeLabel(search.scope === "albums" ? "lexical" : search.mode).toLowerCase()} · ${search.opened ? "album tracks" : `${search.scope === "tracks" ? search.tracks.total : search.albums.total} ${search.scope}`}${search.tracks.degraded && search.scope === "tracks" ? " · semantic unavailable, keyword fallback" : ""}`, role: "dim" }];
-  const searchMessage = view === "search" ? (search.busy ? "Adding to queue…" : search.message) : "";
+  const searchMessage = view === "search" ? (search.busy ? "Adding to queue…" : search.message) : view === "playlists" ? (playlists.busy ? "Updating queue…" : playlists.message) : "";
   const alert: Segment[] | null = message ? [{ text: message, role: "warn" }]
     : snapshot.error ? [{ text: `${snapshot.error.code}: ${snapshot.error.message}`, role: "error" }]
       : searchMessage ? [{ text: searchMessage, role: "muted" }] : null;
@@ -311,26 +303,25 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
         tabs={[
           tab("view.search", "SEARCH", "search"),
           tab("view.queue", "QUEUE", "queue", snapshot.queue.length),
-          tab("view.playlists", "PLAYLISTS", "playlists", playlists.length || undefined),
+          tab("view.playlists", "PLAYLISTS", "playlists", playlists.playlists.length || undefined),
           tab("view.devices", "DEVICES", "devices"),
         ]}
-        status={{ left: view === "search" ? searchStatus : status, right: !inlinePosition && position ? [{ text: position, role: "dim" }] : [] }}
+        status={{ left: view === "search" ? searchStatus : view === "playlists" ? [{ text: `PLAYLISTS · ${playlists.playlists.length}${playlists.opened ? " · tracks" : ""}`, role: "dim" }] : status, right: !inlinePosition && position ? [{ text: position, role: "dim" }] : [] }}
         alert={alert}
-        compactPlayback={view === "search" ? [{ text: snapshot.current ? `${snapshot.status === "playing" ? "▶" : "‖"} ${snapshot.current.track.title} · ${snapshot.current.track.artist}  ${formatSeconds(snapshot.position)}` : "Nothing playing", role: "muted" }] : undefined}
-        hints={view === "search" && layout.kind !== "strip" ? searchHints(search, keymap) : layout.kind === "strip" && keyView !== "input" ? stripHints(keymap, keyView) : hintItems(keymap, keyView, { remote: remoteMode, omit })}
+        compactPlayback={view === "search" || view === "playlists" ? [{ text: snapshot.current ? `${snapshot.status === "playing" ? "▶" : "‖"} ${snapshot.current.track.title} · ${snapshot.current.track.artist}  ${formatSeconds(snapshot.position)}` : "Nothing playing", role: "muted" }] : undefined}
+        hints={view === "playlists" && layout.kind !== "strip" ? playlistHints(playlists, keymap) : view === "search" && layout.kind !== "strip" ? searchHints(search, keymap) : layout.kind === "strip" && keyView !== "input" ? stripHints(keymap, keyView) : hintItems(keymap, keyView, { remote: remoteMode, omit })}
         help={showHelp ? helpEntries(keymap, keyView, { remote: remoteMode }) : null}
         nowPlaying={(area) => <NowPlaying snapshot={snapshot} area={area} keymap={keymap} target={target} />}
       >
         {(area) => (
           <>
             {preamble.map((line, index) => <Styled key={`preamble-${index}`} role={line.role}>{line.text}</Styled>)}
-            {view === "search" ? <SearchView search={search} keymap={keymap} area={{ width: area.width, rows: Math.max(0, area.rows - preamble.length) }} /> : view === "queue" && (layout.kind === "full" || layout.kind === "side")
+            {view === "search" ? <SearchView search={search} keymap={keymap} area={{ width: area.width, rows: Math.max(0, area.rows - preamble.length) }} /> : view === "playlists" ? <PlaylistsView state={playlists} keymap={keymap} area={{ width: area.width, rows: Math.max(0, area.rows - preamble.length) }} /> : view === "queue" && (layout.kind === "full" || layout.kind === "side")
               ? <QueueView snapshot={snapshot} selected={selected} area={{ width: area.width, rows: Math.max(1, area.rows - preamble.length) }} kind={layout.kind} />
               : items.length === 0 ? <Styled role="dim">No items.</Styled> : items.slice(rows.start, rows.end).map((item, row) => {
               const index = rows.start + row;
               const selectedItem = index === selected;
-              const label = view === "playlists" ? (item as Playlist).name
-                  : `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`;
+              const label = `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`;
               return <Styled key={`${view}-${index}`} role={selectedItem ? "selection" : "ink"}>{fit(`${selectedItem ? "› " : "  "}${label}`, area.width)}</Styled>;
             })}
           </>

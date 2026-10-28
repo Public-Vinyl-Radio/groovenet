@@ -35,7 +35,7 @@ export async function queueSearchTracks(control: PlayerController, tracks: Track
   }
 }
 
-export function usePlayerSearch(api: GroovenetClient, active: boolean, initialQuery: string, enqueue: (tracks: Track[], play: boolean) => Promise<void>) {
+export function usePlayerSearch(api: GroovenetClient, active: boolean, initialQuery: string, enqueue: (tracks: Track[], play: boolean) => Promise<void>, friendId?: number) {
   const [query, setQuery] = useState(initialQuery);
   const [editing, setEditing] = useState(false);
   const [scope, setScope] = useState<"tracks" | "albums">("tracks");
@@ -64,13 +64,13 @@ export function usePlayerSearch(api: GroovenetClient, active: boolean, initialQu
     if (!query.trim()) { setTracks(empty()); return; }
     setTracks({ ...empty(), loading: true });
     const request = () => {
-      void api.searchTracks({ query, limit: 30, mode }).then((result) => {
+      void api.searchTracks({ query, limit: 30, mode, ...(friendId === undefined ? {} : { filters: { friend_id: friendId } }) }).then((result) => {
         if (!cancelled) setTracks({ items: result.tracks, total: result.estimatedTotalHits ?? result.tracks.length, loading: false, error: "", degraded: result.degraded });
       }).catch((error: unknown) => { if (!cancelled) setTracks({ ...empty(), error: errorText(error) }); });
     };
     const timer = immediate.current ? (request(), undefined) : setTimeout(request, SEARCH_DELAY);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [api, active, query, mode, submitted]);
+  }, [api, active, query, mode, submitted, friendId]);
 
   useEffect(() => {
     if (!active) return;
@@ -79,14 +79,14 @@ export function usePlayerSearch(api: GroovenetClient, active: boolean, initialQu
     if (!query.trim()) { setAlbums(empty()); return; }
     setAlbums({ ...empty(), loading: true });
     const request = () => {
-      void api.searchAlbums({ q: query, limit: 30 }).then((result) => {
+      void api.searchAlbums({ q: query, limit: 30, ...(friendId === undefined ? {} : { friend_id: friendId }) }).then((result) => {
         if (!cancelled) setAlbums({ items: result.hits, total: result.estimatedTotalHits, loading: false, error: "" });
       }).catch((error: unknown) => { if (!cancelled) setAlbums({ ...empty(), error: errorText(error) }); });
     };
     const timer = immediate.current ? (request(), undefined) : setTimeout(request, SEARCH_DELAY);
     immediate.current = false;
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [api, active, query, submitted]);
+  }, [api, active, query, submitted, friendId]);
 
   const album = scope === "albums" ? albums.items[albumIndex] : undefined;
   useEffect(() => {

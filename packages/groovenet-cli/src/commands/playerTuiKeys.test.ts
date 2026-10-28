@@ -69,6 +69,18 @@ describe("player TUI key mapping", () => {
     expect(playerTuiAction("\r", { return: true }, { ...typing, keymap: buildKeymap({ "input.submit": ["ctrl+g"] }) })).toBeNull();
   });
 
+  it("keeps custom search scope/mode bindings as text in the playlist filter", () => {
+    const keymap = buildKeymap({ "search.scope": "b", "search.mode": "m" });
+    const context = { ...ctx("playlists", { editingSearch: true }), keymap };
+    expect(playerTuiAction("b", {}, context)).toEqual({ text: "b" });
+    expect(playerTuiAction("m", {}, context)).toEqual({ text: "m" });
+    expect(playerTuiAction("b", {}, { ...context, view: "search" })).toEqual({ id: "search.scope" });
+    expect(playerTuiAction("m", {}, { ...context, view: "search" })).toEqual({ id: "search.mode" });
+    expect(playerTuiAction("", { tab: true }, ctx("playlists", { editingSearch: true }))).toBeNull();
+    expect(playerTuiAction("", { leftArrow: true }, context)).toEqual({ id: "input.submit" });
+    expect(playerTuiAction("", { rightArrow: true }, context)).toEqual({ id: "input.submit" });
+  });
+
   it("uses the keymap it is given", () => {
     const keymap = buildKeymap({ "transport.next": ["ctrl+n"], "input.submit": ["ctrl+g"] });
     expect(playerTuiAction("n", {}, { ...ctx(), keymap })).toBeNull();

@@ -1,0 +1,124 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`playlist TUI > previews metadata/ordered tracks, opens the full table and goes back preserving selection/filter > full playlists 120x40 1`] = `
+" GROOVENET  PLAY ON LOCAL   ▶ La Borrachita · Junior Y Su Equipo  0:44                                   ? help   q quit
+
+ SEARCH   u QUEUE · 1   l PLAYLISTS · 2   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ OCT 2026                                    ┏━ PLAYLIST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+› Cumbia Hi-Energy            28     59:58   ┃ Cumbia Hi-Energy                                                       ┃▐
+ AUG 2026                                    ┃ 28 tracks · 59:58 · Oct 20, 2026                                       ┃▐
+  Inner Signals         SET   28     59:58   ┃                                                                        ┃▐
+                                             ┃ Enter PLAY  a ENQUEUE  → OPEN                                          ┃▐
+                                             ┃                                                                        ┃▐
+                                             ┃   # TITLE                        ARTIST                    BPM   KEY   ┃▐
+                                             ┃   1 Cumbia 0                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   2 Cumbia 1                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   3 Cumbia 2                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   4 Cumbia 3                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   5 Cumbia 4                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   6 Cumbia 5                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   7 Cumbia 6                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   8 Cumbia 7                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃   9 Cumbia 8                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  10 Cumbia 9                     Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  11 Cumbia 10                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  12 Cumbia 11                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  13 Cumbia 12                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  14 Cumbia 13                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  15 Cumbia 14                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  16 Cumbia 15                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  17 Cumbia 16                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  18 Cumbia 17                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  19 Cumbia 18                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  20 Cumbia 19                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  21 Cumbia 20                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  22 Cumbia 21                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃  23 Cumbia 22                    Junior Y Su Equipo         98    8A   ┃▐
+                                             ┃ 28 tracks · → open tracks                                              ┃▐
+                                             ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+                                              ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+PLAYLISTS · 2                                                                                                        1/2
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+↑/↓ select   Enter play   a enqueue   → open tracks   / filter   Esc clear   ? keys"
+`;
+
+exports[`playlist TUI > resizes across full, short, side, strip and back without overflow or losing filter/selection > short playlists 80x24 1`] = `
+" GROOVENET  PLAY ON LOCAL   ▶ La Borrachita · Junior Y Su Equip… ? help   q quit
+
+ SEARCH   u QUEUE · 1   l PLAYLISTS · 2   d DEVICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FILTER  / i
+ OCT 2026                     ┏━ PLAYLIST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  Cumbia Hi-Energy            ┃ Inner Signals                                 ┃▐
+  28 tracks · 59:58           ┃ 28 tracks · 59:58 · Aug 20, 2026              ┃▐
+ AUG 2026                     ┃                                               ┃▐
+› Inner Signals               ┃ Enter PLAY  a ENQUEUE  → OPEN                 ┃▐
+  SET · 28 tracks · 59:58     ┃                                               ┃▐
+                              ┃   # TITLE          ARTIST         BPM   KEY   ┃▐
+                              ┃   1 Cumbia 0       Junior Y Su …   98    8A   ┃▐
+                              ┃   2 Cumbia 1       Junior Y Su …   98    8A   ┃▐
+                              ┃   3 Cumbia 2       Junior Y Su …   98    8A   ┃▐
+                              ┃   4 Cumbia 3       Junior Y Su …   98    8A   ┃▐
+                              ┃   5 Cumbia 4       Junior Y Su …   98    8A   ┃▐
+                              ┃   6 Cumbia 5       Junior Y Su …   98    8A   ┃▐
+                              ┃ 28 tracks · → open tracks                     ┃▐
+                              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛▐
+                               ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+PLAYLISTS · 2                                                                2/2
+────────────────────────────────────────────────────────────────────────────────
+↑/↓ select   Enter play   a enqueue   → open tracks   / filter   Esc clear"
+`;
+
+exports[`playlist TUI > resizes across full, short, side, strip and back without overflow or losing filter/selection > side playlists 40x50 1`] = `
+" GROOVENET                         LOCAL
+
+    u   l PLAYLISTS · 2   d
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FILTER  / i
+ OCT 2026
+  Cumbia Hi-Energy
+  28 tracks · 59:58
+ AUG 2026
+› Inner Signals
+  SET · 28 tracks · 59:58
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PLAYLISTS · 2                        2/2
+────────────────────────────────────────
+↑/↓ select   Enter play   a enqueue"
+`;

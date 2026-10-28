@@ -110,7 +110,7 @@ varying by receiver. Windows has no native AirPlay route. AirPlay playback adds
 about two seconds of latency, so it is suitable for auditioning rather than
 beatmatching. The help line in the TUI lists the keyboard shortcuts: arrows or
 `j`/`k` select, Enter adds or plays, Space pauses, `n`/`p` skip, left/right seek,
-`+`/`-` change volume, `/` searches, `l` opens playlists, `u` opens the queue,
+`+`/`-` change volume, `/` searches (filters in playlists), `l` opens playlists, `u` opens the queue,
 `d` or `o` selects an output, `r` starts playback, `x` removes a queue entry,
 `[` / `]` move it, and `q` quits. In the five-row bottom strip, Enter opens the
 full view: inside tmux it zooms the pane (tmux's zoom key goes back); elsewhere
@@ -119,7 +119,10 @@ selected item, so seek with `<` / `>` there.
 
 ### Search
 
-`/` focuses FIND. Results update after a short typing pause; Enter or the up/down
+`/` focuses FIND. Track and album searches respect the configured
+`default_friend_id` in both local and remote playback. Set it with
+`groovenet config set default_friend_id 6` (using your friend ID), then reopen the player.
+Results update after a short typing pause; Enter or the up/down
 arrows move focus to results. Press `/` to edit again. Printable keys stay in the
 query while FIND has focus.
 
@@ -133,6 +136,29 @@ Esc leaves typing, returns from a tracklist, or clears the query from results.
 Search shows up to 30 results per scope, with the API's estimated total in the
 scope label. Search uses a compact playback header to leave room for results.
 Album covers use the artwork placeholder until terminal artwork support lands.
+
+### Playlists
+
+`l` opens playlists grouped by month, using the last live-set performance date
+or the creation date. Live sets carry a SET badge. Counts and total duration
+come from the API; unknown dates and durations are shown explicitly.
+Playlists can mix libraries: each track is resolved using its saved `friend_id`,
+regardless of `default_friend_id` or the search scope.
+Wide windows show a preview with metadata, actions and BPM / Camelot columns.
+`→` opens the full tracklist; up/down scroll it and Esc returns to the list
+with the filter and selection preserved.
+
+Enter replaces the queue with the selected playlist and starts playback, including
+from the full tracklist. `a` appends the whole playlist without interrupting playback.
+Server players use atomic `queue.replace`, honoring the existing availability and
+takeover policy. Local playback resolves all tracks first, then stops, removes the
+old entries, adds the playlist and plays; a failed local command stops this sequence
+and displays its error, so a daemon failure can leave a partially replaced queue.
+
+`/` focuses the playlist name filter (`playlists.filter` in the keymap). Printable
+keys type text; Enter or up/down focus the results. Esc leaves typing, goes back
+from a tracklist, or clears the filter. Use `u` then `/` to search the collection.
+The bottom strip keeps its usual Enter-to-expand behavior; resize to see the list.
 
 ### Keymap
 

@@ -2,6 +2,7 @@ import React, { act } from "react";
 import { EventEmitter } from "node:events";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as clientModule from "@groovenet/client";
 import type { GroovenetClient, Track } from "@groovenet/client";
 import { PlayerProtocolError, type PlayerControlClient, type PlayerDaemon, type PlaybackSnapshot } from "@groovenet/player";
 import { RemotePlayerController } from "./remotePlayer.js";
@@ -22,13 +23,16 @@ function makeProps(queue: PlaybackSnapshot["queue"] = []) {
   const control = new EventEmitter() as EventEmitter & { request: ReturnType<typeof vi.fn> };
   control.request = vi.fn(async (method: string) => {
     if (method === "status") return snapshot;
+    if (method === "queue.list") return snapshot.queue;
     if (method === "devices") return [{ id: "airplay", name: "Living room" }];
     return snapshot;
   });
   const api = {
     searchTracks: vi.fn(async () => ({ tracks: [track] })),
     searchAlbums: vi.fn(async () => ({ hits: [], estimatedTotalHits: 0 })),
-    listPlaylists: vi.fn(async () => [{ id: 1, name: "Late night" }]),
+    listPlaylists: vi.fn(async () => [{ id: 1, name: "Late night", created_at: "2026-10-01T12:00:00Z", tracks: [{ track_id: track.track_id, friend_id: track.friend_id, position: 0 }] }]),
+    getPlaylistTracks: vi.fn(async () => ({ track_refs: [{ track_id: track.track_id, friend_id: track.friend_id, position: 0 }] })),
+    batchGetTracks: vi.fn(async () => [track]),
   };
   return { control: control as unknown as PlayerControlClient, api: api as unknown as GroovenetClient, initialSnapshot: snapshot };
 }
@@ -102,7 +106,9 @@ describe("PlayerTui", () => {
     expect(app.lastFrame()).toContain("Late night");
     await act(async () => { app.stdin.write("\r"); await new Promise((resolve) => setImmediate(resolve)); });
     const request = (props.control as unknown as { request: ReturnType<typeof vi.fn> }).request;
-    expect(request).toHaveBeenCalledWith("queue.add", { playlistId: "1" });
+    expect(request).toHaveBeenCalledWith("queue.remove", { id: "q1" });
+    expect(request).toHaveBeenCalledWith("queue.addTrack", { track });
+    expect(request).toHaveBeenCalledWith("play", { index: 0 });
     await act(async () => { app.stdin.write("u"); });
     await act(async () => { app.stdin.write(" "); });
     await act(async () => { app.stdin.write("n"); });
@@ -697,9 +703,24 @@ describe("PlayerTui queue view", () => {
     expect(frame).toMatch(/^Lounge Room Audio · connected · 4 i… 2\/4$/m);
     expect(frame).toMatch(/^› Two +3:21$/m);
     expect(frame).toMatch(/^ {2}One +3:20$/m);
-    props.api.listPlaylists = vi.fn(async () => [{ id: 1, name: "Late night" }, { id: 2, name: "Early" }]) as unknown as GroovenetClient["listPlaylists"];
+    props.api.listPlaylists = vi.fn(async () => [{ id: 1, name: "Late night", created_at: "2026-10-01", tracks: [] }, { id: 2, name: "Early", created_at: "2026-09-01", tracks: [] }]) as unknown as GroovenetClient["listPlaylists"];
     await act(async () => { app.stdin.write("l"); await new Promise((resolve) => setImmediate(resolve)); });
     expect(app.lastFrame()).toContain("› Late night");
     expect(app.lastFrame()).toMatch(/^ {2}Early$/m);
   });
+});
+
+
+it.each([false, true])("passes the configured friend scope to the TUI (remote=%s)", async (remote) => {
+  const config = vi.spyOn(clientModule, "loadConfig").mockReturnValue({ api_base: "http://example/api", default_friend_id: 7 });
+  const props = makeProps();
+  const control = Object.assign(makeControl(async () => props.initialSnapshot), { refresh: vi.fn(async () => props.initialSnapshot), startEvents: vi.fn() });
+  const renderTui = vi.fn(() => ({ waitUntilExit: async () => undefined }));
+  try {
+    await runPlayerTui(remote ? { remote: "room" } : {}, {
+      createControl: () => control, createRemote: () => control as unknown as RemotePlayerController,
+      createApi: () => props.api, render: renderTui,
+    });
+    expect((renderTui.mock.calls[0] as unknown as [{ props: { searchFriendId: number } }])[0].props.searchFriendId).toBe(7);
+  } finally { config.mockRestore(); }
 });
