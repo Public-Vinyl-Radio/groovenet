@@ -311,8 +311,9 @@ an invalid value the browser drops, so it fails silently.
 - **Copy:** terse sentence case, DJ vocabulary ("112 BPM", "D major (10B)",
   "B2", "LP-342"), no emoji in the UI.
 - **Layout:** pages sit in `PageContainer` (`wide` for lists, `narrow` for
-  settings and forms); phones fold filters into a `RetroDialog` modal and navigation
-  into the bottom drawer.
+  settings and forms); phones use `RetroDialog` modals for filters, menus and
+  forms, and the bottom drawer for navigation. `QueueDrawer` is the other
+  intentional drawer.
 
 ## How to extend safely
 - Always use queryKeys helpers (don’t build keys by hand).
