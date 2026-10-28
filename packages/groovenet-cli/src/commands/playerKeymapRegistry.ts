@@ -32,7 +32,7 @@ export interface ActionDef {
 export const ACTIONS = [
   { id: "list.up", description: "Move the selection up", views: LISTS, keys: ["up", "k"], hint: "select" },
   { id: "list.down", description: "Move the selection down", views: LISTS, keys: ["down", "j"], hint: "select" },
-  { id: "list.select", description: "Play the queue entry, add the track or playlist, or pick the output (in the strip: open the full view)", views: LISTS, keys: ["enter"], hint: "add/play" },
+  { id: "list.select", description: "Play the queue entry, track or album; add the playlist; or pick the output (in the strip: open the full view)", views: LISTS, keys: ["enter"], hint: "add/play" },
   { id: "transport.play", description: "Start or resume playback", views: LISTS, keys: ["r"], hint: "play" },
   { id: "queue.add", description: "Add the selected track or playlist to the queue", views: ["search", "playlists"], keys: ["a"], hint: "add" },
   { id: "queue.remove", description: "Remove the selected entry from the queue", views: ["queue"], keys: ["x", "backspace"], hint: "remove" },
@@ -59,6 +59,7 @@ export const ACTIONS = [
   { id: "nav.open", description: "Open the selected album or playlist", views: ["search", "playlists"], keys: ["right"] },
   { id: "search.scope", description: "Switch between track and album results", views: ["search", "input"], keys: ["tab"] },
   { id: "search.mode", description: "Cycle the search mode", views: ["search", "input"], keys: ["shift+tab"] },
+  { id: "search.back", description: "Close the open album, or clear the search", views: ["search"], keys: ["esc"] },
   { id: "app.debug", description: "Show or hide the debug panel", views: LISTS, keys: ["~"] },
   { id: "app.help", description: "Show or hide the key list", views: LISTS, keys: ["?"], hint: "help" },
   { id: "app.quit", description: "Quit the player (a server player keeps playing)", views: LISTS, keys: ["q"], hint: "quit" },
