@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { render, Text, useApp, useInput, type RenderOptions } from "ink";
+import { render, useApp, useInput, type RenderOptions } from "ink";
 import type { ReactElement } from "react";
 import { GroovenetClient, loadConfig, type Playlist, type Track } from "@groovenet/client";
 import { PlayerControlClient, PlayerDaemon, PlayerProtocolError, type AudioDevice, type PlaybackSnapshot, type QueueEntry } from "@groovenet/player";
@@ -8,11 +8,13 @@ import { RemotePlayerController, makeRemoteApi, type PlayerController, type Remo
 import { buildKeymap, defaultKeymap, displayKeys, helpEntries, hintItems, hintLine, primaryKey, type Keymap } from "./playerKeymap.js";
 import type { ActionId } from "./playerKeymapRegistry.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
-import { formatPlayback, formatPlaybackStatus, visibleWindow } from "./playerTuiView.js";
-import { PlayerFrame, type CardArea, type TabItem } from "../tui/frame.js";
+import { visibleWindow } from "./playerTuiView.js";
+import { currentIndex, NowPlaying, QueueView, stripHints } from "./playerTuiQueue.js";
+import { openFullView } from "./playerTuiFullView.js";
+import { PlayerFrame, type TabItem } from "../tui/frame.js";
 import { pickLayout } from "../tui/layout.js";
-import { Line, progressSegments, Styled, type Segment } from "../tui/primitives.js";
-import { displayWidth, fit, wrap } from "../tui/text.js";
+import { Styled, type Segment } from "../tui/primitives.js";
+import { fit, wrap } from "../tui/text.js";
 import { ThemeContext, themeFromEnv, type Role, type Theme } from "../tui/theme.js";
 import { useTerminalSize } from "../tui/useTerminalSize.js";
 
@@ -87,7 +89,7 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
   }
 }
 
-export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap, theme: themeOverride }: {
+export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap, theme: themeOverride, fullView = openFullView }: {
   control: PlayerController;
   api: GroovenetClient;
   initialSnapshot: PlaybackSnapshot;
@@ -95,6 +97,8 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   keymap?: Keymap;
   /** Colour roles; defaults to the terminal's, honouring NO_COLOR. */
   theme?: Theme;
+  /** `↵` in the strip: zooms the tmux pane; resolves to a message to show, or "". */
+  fullView?: () => Promise<string>;
 }) {
   const { exit } = useApp();
   const size = useTerminalSize();
@@ -107,7 +111,8 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   const [searchResults, setSearchResults] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [devices, setDevices] = useState<AudioDevice[]>([]);
-  const [selected, setSelected] = useState(0);
+  // The queue opens on the playing entry.
+  const [selected, setSelected] = useState(() => Math.max(0, currentIndex(initialSnapshot)));
   const [message, setMessage] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   // Keymap problems are shown once and dismissed by the next key: stderr would corrupt the screen.
@@ -135,6 +140,11 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
     return () => { control.off("event", onEvent); };
   // The startup actions should run once; the control client and API are stable for this view.
   }, []);
+
+  // Keep the cursor on a row when the list shrinks under it (a removal, a remote edit).
+  useEffect(() => {
+    if (selected > 0 && selected >= items.length) setSelected(Math.max(0, items.length - 1));
+  }, [items.length, selected]);
 
   useEffect(() => {
     if (!options.remote) return;
@@ -233,13 +243,16 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
       case "transport.stop": void runControl("stop"); break;
       case "view.search": setEditingSearch(true); setView("search"); setMessage("Type a query, then press Enter."); break;
       case "view.playlists": void loadPlaylists(); break;
-      case "view.queue": setView("queue"); setSelected(0); break;
+      case "view.queue": setView("queue"); setSelected(Math.max(0, currentIndex(snapshot))); break;
       case "view.devices": case "play-on.open": void loadDevices(); break;
       case "transport.seek-forward": void runControl("seek", { seconds: snapshot.position + 10 }); break;
       case "transport.seek-back": void runControl("seek", { seconds: Math.max(0, snapshot.position - 10) }); break;
       case "transport.volume-up": void runControl("volume", { volume: Math.min(100, snapshot.volume + 5) }); break;
       case "transport.volume-down": void runControl("volume", { volume: Math.max(0, snapshot.volume - 5) }); break;
-      case "list.select": void selectCurrent(); break;
+      case "list.select":
+        if (layout.kind === "strip") void fullView().then(setMessage);
+        else void selectCurrent();
+        break;
       case "queue.add": void addSelected(); break;
       case "queue.remove": {
         const item = snapshot.queue[selected];
@@ -248,7 +261,9 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
       }
       case "queue.move-up": case "queue.move-down": {
         const entry = snapshot.queue[selected];
-        if (entry) void runControl("queue.move", { id: entry.id, to: Math.max(0, Math.min(snapshot.queue.length - 1, selected + (action.id === "queue.move-up" ? -1 : 1))) });
+        const to = selected + (action.id === "queue.move-up" ? -1 : 1);
+        // The cursor follows the entry it moved.
+        if (entry && to >= 0 && to < snapshot.queue.length) { setSelected(to); void runControl("queue.move", { id: entry.id, to }); }
         break;
       }
       case "devices.play-allow-unknown": void runControl("play", { allow_unknown: true }); break;
@@ -280,10 +295,16 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   ];
   const rows = visibleWindow(items.length, selected, Math.max(1, layout.bodyRows - preamble.length));
 
-  const status: Segment[] = remote
-    ? [{ text: output?.name ?? "Speaker activity=unknown · observations unavailable", role: "muted" },
-      { text: ` · ${remote.connected ? "connected" : "DISCONNECTED / state may be stale"} · ${remote.player.state.checkpoint ? "saved checkpoint" : "live state"} · revision=${remote.player.revision} · desired=${remote.player.state.desired_output ?? "none"} · assigned=${remote.player.assigned_output ?? "none"} · requested sender volume`, role: "dim" }]
-    : [{ text: "LOCAL", role: "muted" }, { text: ` · ${snapshot.status} · ${snapshot.queue.length} in queue`, role: "dim" }];
+  // The device list names a remote output `Name · activity=… · …`; the status line wants the name.
+  const target = remote ? (output?.name.split(" · ")[0] ?? "NO OUTPUT") : "LOCAL";
+  const connection = remote ? (remote.connected ? "connected" : "DISCONNECTED · state may be stale") : "local daemon";
+  const position = items.length ? `${Math.min(selected + 1, items.length)}/${items.length}` : "";
+  // The full queue reads `N in queue · i/N`; elsewhere `i/N` sits on the right, where a narrow pane cannot cut it.
+  const inlinePosition = view === "queue" && layout.kind === "full";
+  const status: Segment[] = [
+    { text: target, role: "muted" },
+    { text: ` · ${connection}${remote?.player.state.checkpoint ? " · saved checkpoint" : ""} · ${snapshot.queue.length} in queue${inlinePosition && position ? ` · ${position}` : ""}`, role: "dim" },
+  ];
   const alert: Segment[] | null = message ? [{ text: message, role: "warn" }]
     : snapshot.error ? [{ text: `${snapshot.error.code}: ${snapshot.error.message}`, role: "error" }] : null;
   // Tabs show the view keys and the full top bar shows help and quit, so the hint bar leaves them out.
@@ -304,24 +325,25 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
           tab("view.playlists", "PLAYLISTS", "playlists", playlists.length || undefined),
           tab("view.devices", "DEVICES", "devices"),
         ]}
-        status={{ left: status, right: items.length ? [{ text: `${Math.min(selected + 1, items.length)}/${items.length}`, role: "dim" }] : [] }}
+        status={{ left: status, right: !inlinePosition && position ? [{ text: position, role: "dim" }] : [] }}
         alert={alert}
-        hints={hintItems(keymap, keyView, { remote: remoteMode, omit })}
+        hints={layout.kind === "strip" && keyView !== "input" ? stripHints(keymap, keyView) : hintItems(keymap, keyView, { remote: remoteMode, omit })}
         help={showHelp ? helpEntries(keymap, keyView, { remote: remoteMode }) : null}
-        nowPlaying={(area) => <NowPlaying snapshot={snapshot} area={area} />}
+        nowPlaying={(area) => <NowPlaying snapshot={snapshot} area={area} keymap={keymap} target={target} />}
       >
         {(area) => (
           <>
             {preamble.map((line, index) => <Styled key={`preamble-${index}`} role={line.role}>{line.text}</Styled>)}
-            {items.length === 0 ? <Styled role="dim">{view === "queue" ? "Queue is empty." : "No items."}</Styled> : items.slice(rows.start, rows.end).map((item, row) => {
+            {view === "queue" && (layout.kind === "full" || layout.kind === "side")
+              ? <QueueView snapshot={snapshot} selected={selected} area={{ width: area.width, rows: Math.max(1, area.rows - preamble.length) }} kind={layout.kind} />
+              : items.length === 0 ? <Styled role="dim">No items.</Styled> : items.slice(rows.start, rows.end).map((item, row) => {
               const index = rows.start + row;
               const selectedItem = index === selected;
               const label = view === "search"
                 ? `${(item as Track).artist} — ${(item as Track).title}${(item as Track).local_audio_url ? "" : " [no downloaded audio]"}`
                 : view === "playlists" ? (item as Playlist).name
-                  : view === "devices" ? `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`
-                    : `${(item as QueueEntry).track.artist} — ${(item as QueueEntry).track.title}`;
-              return <Styled key={view === "queue" ? (item as QueueEntry).id : `${view}-${index}`} role={selectedItem ? "selection" : "ink"}>{fit(`${selectedItem ? "› " : "  "}${label}`, area.width)}</Styled>;
+                  : `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`;
+              return <Styled key={`${view}-${index}`} role={selectedItem ? "selection" : "ink"}>{fit(`${selectedItem ? "› " : "  "}${label}`, area.width)}</Styled>;
             })}
           </>
         )}
@@ -331,31 +353,6 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
 }
 
 const TAB_ACTIONS: ActionId[] = ["view.search", "view.queue", "view.playlists", "view.devices"];
-
-const STATE_ICON: Partial<Record<string, Segment>> = { playing: { text: "▶", role: "live" }, paused: { text: "‖", role: "strong" } };
-
-/** The card's text: the existing playback lines, fitted to the area the frame gives it. #824 replaces it. */
-function NowPlaying({ snapshot, area }: { snapshot: PlaybackSnapshot; area: CardArea }) {
-  const statusText = formatPlaybackStatus(snapshot);
-  if (area.kind === "strip") {
-    const track = snapshot.current?.track;
-    const barWidth = Math.max(4, Math.min(44, Math.floor(area.width / 3)));
-    const left: Segment[] = track
-      ? [STATE_ICON[snapshot.status] ?? { text: "■", role: "dim" }, { text: " " }, { text: track.title, role: "strong" }, { text: ` · ${track.artist}`, role: "muted" }]
-      : [{ text: "Nothing playing", role: "dim" }];
-    return <Line left={left} right={[...progressSegments(snapshot.position, snapshot.duration, barWidth), { text: ` ${statusText}`, role: "dim" }]} width={area.width} />;
-  }
-  const [title, metadata] = formatPlayback(snapshot);
-  const barWidth = Math.max(4, Math.min(60, area.width - displayWidth(statusText) - 1));
-  return (
-    <>
-      <Styled role="strong">{fit(title, area.width)}</Styled>
-      <Styled role="dim">{fit(metadata, area.width)}</Styled>
-      <Text> </Text>
-      <Line left={[...progressSegments(snapshot.position, snapshot.duration, barWidth), { text: ` ${statusText}`, role: snapshot.status === "playing" ? "live" : "ink" }]} width={area.width} />
-    </>
-  );
-}
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;

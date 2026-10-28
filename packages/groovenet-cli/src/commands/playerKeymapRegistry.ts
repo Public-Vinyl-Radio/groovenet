@@ -32,10 +32,12 @@ export interface ActionDef {
 export const ACTIONS = [
   { id: "list.up", description: "Move the selection up", views: LISTS, keys: ["up", "k"], hint: "select" },
   { id: "list.down", description: "Move the selection down", views: LISTS, keys: ["down", "j"], hint: "select" },
-  { id: "list.select", description: "Play the queue entry, add the track or playlist, or pick the output", views: LISTS, keys: ["enter"], hint: "add/play" },
+  { id: "list.select", description: "Play the queue entry, add the track or playlist, or pick the output (in the strip: open the full view)", views: LISTS, keys: ["enter"], hint: "add/play" },
   { id: "transport.play", description: "Start or resume playback", views: LISTS, keys: ["r"], hint: "play" },
   { id: "queue.add", description: "Add the selected track or playlist to the queue", views: ["search", "playlists"], keys: ["a"], hint: "add" },
   { id: "queue.remove", description: "Remove the selected entry from the queue", views: ["queue"], keys: ["x", "backspace"], hint: "remove" },
+  { id: "queue.move-up", description: "Move the selected queue entry up", views: ["queue"], keys: ["["], hint: "move" },
+  { id: "queue.move-down", description: "Move the selected queue entry down", views: ["queue"], keys: ["]"], hint: "move" },
   { id: "transport.toggle", description: "Pause or resume", views: LISTS, keys: ["space"], hint: "pause" },
   { id: "transport.next", description: "Skip to the next track", views: LISTS, keys: ["n"], hint: "skip" },
   { id: "transport.prev", description: "Go back to the previous track", views: LISTS, keys: ["p"], hint: "skip" },
@@ -69,8 +71,6 @@ export const ACTIONS = [
   { id: "devices.transfer-allow-unknown", description: "Transfer the selected output, allowing unknown activity", views: ["devices"], keys: ["Y"], hint: "transfer allowing unknown", remoteOnly: true },
   { id: "devices.transfer-takeover", description: "Transfer the selected output, taking over occupied activity", views: ["devices"], keys: ["!"], hint: "transfer taking over occupied", remoteOnly: true },
   { id: "transport.stop", description: "Stop playback (the server player is kept)", views: LISTS, keys: ["s"], hint: "stop", remoteOnly: true },
-  { id: "queue.move-up", description: "Move the selected queue entry up", views: ["queue"], keys: ["["], hint: "reorder queue", remoteOnly: true },
-  { id: "queue.move-down", description: "Move the selected queue entry down", views: ["queue"], keys: ["]"], hint: "reorder queue", remoteOnly: true },
 ] as const satisfies readonly ActionDef[];
 
 export type ActionId = (typeof ACTIONS)[number]["id"];

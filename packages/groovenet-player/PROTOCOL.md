@@ -48,6 +48,7 @@ event before the response to the command that caused it.
 | `queue.addTrack` | `track` | Added queue entries |
 | `queue.list` | none | Queue entries |
 | `queue.remove` | `id` or zero-based `index` | Removed queue entry |
+| `queue.move` | entry `id` and zero-based `to` | Snapshot |
 | `devices` | none | Available audio output devices |
 | `devices.select` | `id` | Available audio output devices after selection |
 | `shutdown` | none | `{ "stopping": true }`, then the daemon closes |

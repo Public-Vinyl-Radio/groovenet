@@ -180,6 +180,11 @@ describe("PlayerDaemon", () => {
       expect((await send(socket, request(8, "volume", { volume: 41 }))).result).toMatchObject({ volume: 41 });
       expect((await send(socket, request(9, "devices"))).result).toEqual([{ id: "airplay", name: "Living room" }]);
       expect((await send(socket, request(91, "devices.select", { id: "airplay" }))).result).toEqual([{ id: "airplay", name: "Living room" }]);
+      const second = player.snapshot.queue[1]!.id;
+      expect((await send(socket, request(92, "queue.move", { id, to: 1 }))).result.queue.map((entry: { id: string }) => entry.id)).toEqual([second, id]);
+      expect((await send(socket, request(93, "queue.move", { id: "missing", to: 0 }))).error).toMatchObject({ message: "No queue entry found for missing." });
+      expect((await send(socket, request(94, "queue.move", { id, to: "1" }))).error).toMatchObject({ message: "Queue move requires an integer `to`." });
+      expect((await send(socket, request(95, "queue.move", { id, to: 9 }))).error).toMatchObject({ message: "Queue move index is out of range" });
       expect((await send(socket, request(10, "queue.remove", { id }))).result).toMatchObject({ id });
       expect((await send(socket, request(11, "queue.remove", { index: 99 }))).error).toMatchObject({ code: "PLAYER_ERROR" });
       expect((await send(socket, request(12, "queue.add"))).error).toMatchObject({ code: "PLAYER_ERROR" });

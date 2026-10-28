@@ -22,8 +22,12 @@ export interface TabItem {
   active: boolean;
 }
 
-/** What the card's text column gets: right of the art in full and side, the whole first row in the strip. */
-export interface CardArea { kind: Exclude<LayoutKind, "too-small">; width: number; height: number }
+/**
+ * What the card's text gets: right of the art in full and side, the whole
+ * first row in the strip. The side pane also calls `nowPlaying` a second time
+ * with `region: "below"`, for the card's full width under the art.
+ */
+export interface CardArea { kind: Exclude<LayoutKind, "too-small">; width: number; height: number; region?: "below" }
 
 export interface BodyArea { width: number; rows: number }
 
@@ -147,15 +151,20 @@ export function PlayerFrame(props: PlayerFrameProps) {
   const inner = boxWidth - 2;
   const gap = kind === "full" ? 3 : 2;
   const cardHeight = CARD_ROWS[kind] - 2;
-  const cardText = { kind, width: Math.max(0, inner - 1 - art.width - gap - 1), height: cardHeight };
+  // Beside the art in both layouts; the side pane's taller card has rows under the art too, after a blank row.
+  const cardText = { kind, width: Math.max(0, inner - 1 - art.width - gap - 1), height: kind === "side" ? art.height : cardHeight };
+  const below = kind === "side" ? { kind, region: "below" as const, width: Math.max(0, inner - 2), height: Math.max(0, cardHeight - art.height - 1) } : null;
   return (
     <Box flexDirection="column" width={columns} height={layout.rows}>
       <TopBar kind={kind} width={columns} target={target} live={live} helpKeys={helpKeys} quitKeys={quitKeys} />
       <Text> </Text>
       <OutlinedBox width={boxWidth} height={CARD_ROWS[kind]} title={[reverseLabel("NOW PLAYING")]}>
-        <Box flexDirection="row" paddingLeft={1}>
-          <ArtSlot width={art.width} height={art.height} />
-          <Box flexDirection="column" marginLeft={gap} width={cardText.width} height={cardHeight} overflow="hidden">{nowPlaying(cardText)}</Box>
+        <Box flexDirection="column" paddingLeft={1}>
+          <Box flexDirection="row">
+            <ArtSlot width={art.width} height={art.height} />
+            <Box flexDirection="column" marginLeft={gap} width={cardText.width} height={cardText.height} overflow="hidden">{nowPlaying(cardText)}</Box>
+          </Box>
+          {below ? <Box flexDirection="column" marginTop={1} width={below.width} height={below.height} overflow="hidden">{nowPlaying(below)}</Box> : null}
         </Box>
       </OutlinedBox>
       <Text> </Text>

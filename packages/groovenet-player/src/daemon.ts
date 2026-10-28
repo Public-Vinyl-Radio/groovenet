@@ -207,6 +207,14 @@ export class PlayerDaemon {
         if (!removed) throw new Error(`No queue entry found for ${key}.`);
         return removed;
       }
+      case "queue.move": {
+        // Same params as the server player's edit: the entry id and its new index.
+        const index = player.snapshot.queue.findIndex((entry) => entry.id === params.id);
+        if (index < 0) throw new Error(`No queue entry found for ${String(params.id)}.`);
+        if (typeof params.to !== "number" || !Number.isInteger(params.to)) throw new Error("Queue move requires an integer `to`.");
+        player.move(index, params.to);
+        return player.snapshot;
+      }
       case "devices": return player.listDevices();
       case "devices.select": {
         if (typeof params.id !== "string" || !params.id) throw new Error("Device selection requires an id.");

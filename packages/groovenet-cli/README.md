@@ -112,7 +112,9 @@ beatmatching. The help line in the TUI lists the keyboard shortcuts: arrows or
 `j`/`k` select, Enter adds or plays, Space pauses, `n`/`p` skip, left/right seek,
 `+`/`-` change volume, `/` searches, `l` opens playlists, `u` opens the queue,
 `d` or `o` selects an output, `r` starts playback, `x` removes a queue entry,
-and `q` quits. In the playlists and search views `→` is reserved for opening the
+`[` / `]` move it, and `q` quits. In the five-row bottom strip, Enter opens the
+full view: inside tmux it zooms the pane (tmux's zoom key goes back); elsewhere
+it says how large the terminal needs to be. In the playlists and search views `→` is reserved for opening the
 selected item, so seek with `<` / `>` there.
 
 ### Keymap

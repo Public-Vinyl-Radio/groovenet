@@ -19,7 +19,7 @@ function props(overrides: Partial<PlayerFrameProps> = {}): PlayerFrameProps {
     tabs: [{ keys: "/", label: "SEARCH", active: false }, { keys: "u", label: "QUEUE", count: 59, active: true }],
     status: { left: [{ text: "LOUNGE ROOM AUDIO" }], right: [{ text: "17/59" }] },
     hints: [{ keys: "↑/↓", label: "select" }],
-    nowPlaying: (area) => <Text>{`card ${area.kind} ${area.width}×${area.height}`}</Text>,
+    nowPlaying: (area) => <Text>{`card ${area.region ?? ""}${area.kind} ${area.width}×${area.height}`}</Text>,
     children: (area) => <Text>{`body ${area.width}×${area.rows}`}</Text>,
     ...overrides,
   };
@@ -33,7 +33,9 @@ describe("PlayerFrame", () => {
     expect(frame.split("\n")).toHaveLength(40);
     forceTerminal(40, 50);
     const side = render(<PlayerFrame {...props({ layout: pickLayout(40, 50) })} />).lastFrame()!;
-    expect(side).toContain("card side 18×14");
+    expect(side).toContain("card side 18×6");
+    // The rows under the art span the card, after a blank row.
+    expect(side).toContain("┃ card belowside 34×7");
     expect(side).toContain("body 40×25");
   });
 
