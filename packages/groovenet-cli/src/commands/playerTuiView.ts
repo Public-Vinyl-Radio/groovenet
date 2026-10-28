@@ -1,16 +1,19 @@
 import { formatSeconds } from "@groovenet/client";
 import type { PlaybackSnapshot } from "@groovenet/player";
+import { progressBar } from "../tui/text.js";
 
-export function formatPlayback(snapshot: PlaybackSnapshot): string[] {
+/** `0:12 / 3:00 · playing · 70%`: the text after the progress bar. */
+export function formatPlaybackStatus(snapshot: PlaybackSnapshot): string {
+  const position = formatSeconds(snapshot.position);
+  const duration = snapshot.duration == null ? "--:--" : formatSeconds(snapshot.duration);
+  return `${position} / ${duration} · ${snapshot.status} · ${snapshot.volume}%`;
+}
+
+export function formatPlayback(snapshot: PlaybackSnapshot, barWidth = 24): string[] {
   const track = snapshot.current?.track;
   const title = track ? `${track.artist} — ${track.title}` : "Nothing playing";
   const metadata = track ? [track.bpm != null ? `${track.bpm} BPM` : null, track.key || null].filter(Boolean).join(" · ") : "";
-  const position = formatSeconds(snapshot.position);
-  const duration = snapshot.duration == null ? "--:--" : formatSeconds(snapshot.duration);
-  const ratio = snapshot.duration && snapshot.duration > 0 ? Math.min(1, snapshot.position / snapshot.duration) : 0;
-  const width = 24;
-  const progress = `${"━".repeat(Math.round(ratio * width))}${"─".repeat(width - Math.round(ratio * width))}`;
-  return [title, metadata, `${progress} ${position} / ${duration} · ${snapshot.status} · ${snapshot.volume}%`];
+  return [title, metadata, `${progressBar(snapshot.position, snapshot.duration, barWidth)} ${formatPlaybackStatus(snapshot)}`];
 }
 
 /** The rows of a long list to show so the selected one is always on screen. */

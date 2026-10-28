@@ -1,14 +1,19 @@
 import React, { act } from "react";
 import { EventEmitter } from "node:events";
 import { cleanup, render } from "ink-testing-library";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GroovenetClient, Track } from "@groovenet/client";
 import { PlayerProtocolError, type PlayerControlClient, type PlayerDaemon, type PlaybackSnapshot } from "@groovenet/player";
 import { RemotePlayerController } from "./remotePlayer.js";
 import { PlayerTui, runPlayerTui, type PlayerTuiRuntime } from "./playerTui.js";
 import { buildKeymap } from "./playerKeymap.js";
+import { forceTerminal, resizeTerminal } from "../tui/testing.js";
+import { makeTheme } from "../tui/theme.js";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The full window board's size, in plain text.
+beforeEach(() => { forceTerminal(120, 40); });
 
 const track = { track_id: "t1", friend_id: 1, title: "Blue Train", artist: "John Coltrane", bpm: 132, key: "A minor", local_audio_url: "blue-train.flac" } as Track;
 
@@ -58,13 +63,17 @@ describe("PlayerTui", () => {
     const props = makeProps(queue);
     const app = render(<PlayerTui {...props} options={{}} />);
     await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+    // 120×40 leaves 21 body rows.
     expect(app.lastFrame()).toContain("Song 0");
-    expect(app.lastFrame()).not.toContain("Song 12");
-    for (let i = 0; i < 20; i++) await act(async () => { app.stdin.write("j"); });
+    expect(app.lastFrame()).toContain("Song 20");
+    expect(app.lastFrame()).not.toContain("Song 21");
+    for (let i = 0; i < 25; i++) await act(async () => { app.stdin.write("j"); });
     const frame = app.lastFrame()!;
-    expect(frame).toContain("› John Coltrane — Song 20");
-    expect(frame).toContain("21/30");
-    expect(frame).not.toContain("Song 0\n");
+    expect(frame).toContain("› John Coltrane — Song 25");
+    expect(frame).toContain("26/30");
+    // Ink trims trailing padding, so a row ends at its text.
+    expect(frame).not.toMatch(/Song 4$/m);
+    expect(frame).toMatch(/Song 5$/m);
   });
 
   it("searches, renders results, and adds the selected track", async () => {
@@ -103,7 +112,7 @@ describe("PlayerTui", () => {
     await act(async () => { app.stdin.write("-"); });
     await act(async () => { app.stdin.write("?"); });
     await act(async () => { app.stdin.write("j"); });
-    expect(app.lastFrame()).toContain("Press ? for help");
+    expect(app.lastFrame()).toContain("KEYS");
     await act(async () => { app.stdin.write("r"); });
     await act(async () => { app.stdin.write("u"); });
     await act(async () => { app.stdin.write("\r"); });
@@ -281,7 +290,7 @@ describe("remote TUI", () => {
     request.mockResolvedValue(snapshot);
     const app = render(<PlayerTui {...props} initialSnapshot={snapshot} options={{ remote: "room" }} />);
     await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
-    expect(app.lastFrame()).toContain("Remote: Room [room]");
+    expect(app.lastFrame()).toContain("PLAY ON ROOM ● LIVE");
     expect(app.lastFrame()).toContain("saved checkpoint");
     await act(async () => { app.stdin.write("\r"); });
     expect(request).toHaveBeenCalledWith("play", { id: "entry-uuid" });
@@ -348,13 +357,18 @@ describe("PlayerTui keymap", () => {
   const settle = () => act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
   const requestOf = (props: ReturnType<typeof makeProps>) => (props.control as unknown as { request: ReturnType<typeof vi.fn> }).request;
 
-  it("renders the hint line from the default keymap, and the short help when toggled", async () => {
+  it("renders the hint bar from the default keymap, and the help overlay when toggled", async () => {
     const app = render(<PlayerTui {...makeProps()} options={{}} />);
     await settle();
-    expect(app.lastFrame()).toContain("↑/↓ select · Enter add/play · r play · x remove · Space pause · n/p skip");
+    expect(app.lastFrame()).toContain("↑/↓ select   Enter add/play   r play   x remove   Space pause   n/p skip");
+    expect(app.lastFrame()).toContain("? help   q quit");
+    expect(app.lastFrame()).not.toContain("KEYS");
     await act(async () => { app.stdin.write("?"); });
-    expect(app.lastFrame()).toContain("Press ? for help · q quit");
-    expect(app.lastFrame()).not.toContain("Space pause");
+    expect(app.lastFrame()).toContain(" KEYS ");
+    expect(app.lastFrame()).toMatch(/Space\s+Pause or resume/);
+    expect(app.lastFrame()).toMatch(/q\s+Quit the player/);
+    await act(async () => { app.stdin.write("?"); });
+    expect(app.lastFrame()).not.toContain("KEYS");
   });
 
   it("shows a rebound key everywhere and acts on it", async () => {
@@ -363,13 +377,14 @@ describe("PlayerTui keymap", () => {
     const app = render(<PlayerTui {...props} options={{}} keymap={keymap} />);
     await settle();
     expect(app.lastFrame()).toContain("^N/p skip");
-    expect(app.lastFrame()).toContain("h help · Q quit");
+    expect(app.lastFrame()).toContain("h help   Q quit");
     await act(async () => { app.stdin.write("n"); });
     expect(requestOf(props)).not.toHaveBeenCalledWith("next", undefined);
     await act(async () => { app.stdin.write("\u000e"); });
     expect(requestOf(props)).toHaveBeenCalledWith("next", undefined);
     await act(async () => { app.stdin.write("h"); });
-    expect(app.lastFrame()).toContain("Press h for help · Q quit");
+    expect(app.lastFrame()).toMatch(/\^N\s+Skip to the next track/);
+    expect(app.lastFrame()).toMatch(/h\s+Show or hide the key list/);
   });
 
   it("omits help text for keys that are unbound", async () => {
@@ -385,7 +400,7 @@ describe("PlayerTui keymap", () => {
     const app = render(<PlayerTui {...props} options={{}} keymap={keymap} />);
     await settle();
     await act(async () => { app.stdin.write("/"); });
-    expect(app.lastFrame()).toContain("^G search · Esc cancel");
+    expect(app.lastFrame()).toContain("^G search   Esc cancel");
     // q, n, space and capital letters are typed, not commands.
     await act(async () => { app.stdin.write("qn U"); });
     expect(app.lastFrame()).toContain("Search: qn U");
@@ -452,7 +467,9 @@ describe("PlayerTui keymap", () => {
     await settle();
     expect(app.lastFrame()).toContain("Remote keys: U play desired output allowing unknown");
     expect(app.lastFrame()).toContain("^T transfer+play");
-    expect(app.lastFrame()).toContain("[/} reorder queue · server audio continues after Q");
+    // The line wraps to the body width; "Q" lands on the next row.
+    expect(app.lastFrame()).toContain("[/} reorder queue · server audio continues after");
+    expect(app.lastFrame()).toContain("Q quit");
     await act(async () => { app.stdin.write("d"); });
     await settle();
     await act(async () => { app.stdin.write("t"); });
@@ -470,5 +487,120 @@ describe("PlayerTui keymap", () => {
     const fallback = vi.fn(() => ({ waitUntilExit: async () => undefined }));
     await runPlayerTui({}, { createControl: () => makeControl(async () => props.initialSnapshot), render: fallback });
     expect((fallback.mock.calls[0] as unknown as [{ props: { keymap: { actions: unknown[] } } }])[0].props.keymap.actions.length).toBeGreaterThan(20);
+  });
+});
+
+describe("PlayerTui layouts", () => {
+  afterEach(() => act(() => cleanup()));
+  const settle = () => act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+  const queue = [
+    { id: "q1", track },
+    { id: "q2", track: { ...track, title: "東京の夜 (Tokyo Night) — extended edit for the long-title case", artist: "坂本龍一" } as Track },
+    { id: "q3", track: { ...track, title: "Cafe\u0301 Ünïcode 🎧", artist: "Les Combine\u0301s" } as Track },
+  ];
+
+  it.each([
+    ["full window", 120, 40],
+    ["side pane", 40, 50],
+    ["bottom strip", 120, 5],
+    ["too small", 50, 4],
+  ])("renders the %s at %i×%i", async (_name, columns, rows) => {
+    forceTerminal(columns, rows);
+    const app = render(<PlayerTui {...makeProps(queue)} options={{}} />);
+    await settle();
+    expect(app.lastFrame()).toMatchSnapshot();
+  });
+
+  it("relayouts on resize, down to the size message and back", async () => {
+    const props = makeProps(queue);
+    const app = render(<PlayerTui {...props} options={{}} />);
+    await settle();
+    expect(app.lastFrame()).toContain("PLAY ON LOCAL");
+    await act(async () => { resizeTerminal(app.stdout, 40, 50); });
+    expect(app.lastFrame()!.split("\n")[0]).toMatch(/^ GROOVENET\s+LOCAL$/);
+    await act(async () => { resizeTerminal(app.stdout, 120, 5); });
+    expect(app.lastFrame()!.split("\n")[0]).toMatch(/^┏━ GROOVENET/);
+    await act(async () => { resizeTerminal(app.stdout, 50, 4); });
+    expect(app.lastFrame()).toContain("Terminal too small (50×4)");
+    await act(async () => { resizeTerminal(app.stdout, 120, 40); });
+    expect(app.lastFrame()).toContain("NOW PLAYING");
+    // Keys still work in every layout.
+    await act(async () => { resizeTerminal(app.stdout, 120, 5); });
+    await act(async () => { app.stdin.write("n"); });
+    expect(props.control.request).toHaveBeenCalledWith("next", undefined);
+  });
+
+  it("emits ANSI colours, or under NO_COLOR only inverse and bold", async () => {
+    forceTerminal(120, 40, { colorLevel: 1 });
+    const colour = render(<PlayerTui {...makeProps(queue)} options={{}} theme={makeTheme({ color: true })} />);
+    await settle();
+    const coloured = colour.lastFrame()!;
+    expect(coloured).toContain("\u001b[32m"); // live: green
+    expect(coloured).toContain("\u001b[90m"); // dim: bright black
+    expect(coloured).toContain("\u001b[2m"); // muted: dim
+    expect(coloured).toContain("\u001b[7m"); // selection and reverse labels: inverse
+    expect(coloured).not.toMatch(/\u001b\[38;[25];/); // never 256-colour or truecolour
+    colour.unmount();
+    const mono = render(<PlayerTui {...makeProps(queue)} options={{}} theme={makeTheme({ color: false })} />);
+    await settle();
+    const plain = mono.lastFrame()!;
+    expect(plain).not.toMatch(/\u001b\[(3[0-9]|9[0-7]|2)m/);
+    expect(plain).toContain("\u001b[7m");
+    expect(plain).toContain("\u001b[1m");
+  });
+
+  it("reads NO_COLOR from the environment when no theme is passed", async () => {
+    forceTerminal(120, 40, { colorLevel: 1 });
+    vi.stubEnv("NO_COLOR", "1");
+    try {
+      const app = render(<PlayerTui {...makeProps(queue)} options={{}} />);
+      await settle();
+      expect(app.lastFrame()).not.toContain("\u001b[32m");
+      expect(app.lastFrame()).toContain("\u001b[7m");
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("shows paused, stopped and empty playback in the strip, and errors in place of its hints", async () => {
+    forceTerminal(120, 5);
+    const props = makeProps();
+    const app = render(<PlayerTui {...props} options={{}} />);
+    await settle();
+    const emit = (data: Partial<PlaybackSnapshot>) => act(async () => { (props.control as unknown as EventEmitter).emit("event", { event: "state", data: { ...props.initialSnapshot, ...data } }); });
+    await emit({ status: "paused" });
+    expect(app.lastFrame()).toContain("‖ Blue Train · John Coltrane");
+    await emit({ status: "stopped" });
+    expect(app.lastFrame()).toContain("■ Blue Train");
+    await emit({ current: null, status: "stopped", error: { code: "MPV_EXITED", message: "mpv quit" } as PlaybackSnapshot["error"] });
+    expect(app.lastFrame()).toContain("Nothing playing");
+    expect(app.lastFrame()).toContain("MPV_EXITED: mpv quit");
+  });
+
+  it("shows the query, playlist count and an error alert in the full window", async () => {
+    const props = makeProps();
+    const app = render(<PlayerTui {...props} options={{ search: "jazz" }} />);
+    await settle();
+    expect(app.lastFrame()).toContain("Query: jazz");
+    expect(app.lastFrame()).toContain(" / SEARCH ");
+    await act(async () => { app.stdin.write("l"); await new Promise((resolve) => setImmediate(resolve)); });
+    expect(app.lastFrame()).toContain("PLAYLISTS · 1");
+    await act(async () => { (props.control as unknown as EventEmitter).emit("event", { event: "state", data: { ...props.initialSnapshot, status: "paused", error: { code: "E", message: "device gone" } } }); });
+    expect(app.lastFrame()).toContain("E: device gone");
+  });
+
+  it("falls back to 80×24 when the terminal reports no size", async () => {
+    forceTerminal(0, 0);
+    const app = render(<PlayerTui {...makeProps(queue)} options={{}} />);
+    await settle();
+    expect(app.lastFrame()).toContain("NOW PLAYING");
+    expect(app.lastFrame()).toContain("1/3");
+  });
+
+  it("names quitting in the remote key line when quit is unbound", async () => {
+    const props = makeProps();
+    const snapshot = { ...props.initialSnapshot, remote: { player: { id: "room", name: "Room", revision: 1, assigned_output: null, state: { desired_output: null, checkpoint: false } }, connected: true } };
+    (props.control.request as ReturnType<typeof vi.fn>).mockResolvedValue(snapshot);
+    const app = render(<PlayerTui {...props} initialSnapshot={snapshot as never} options={{ remote: "room" }} keymap={buildKeymap({ "app.quit": [] })} />);
+    await settle();
+    expect(app.lastFrame()).toMatch(/server audio continues after\s+quitting/);
   });
 });

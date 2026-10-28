@@ -1,13 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, render, Text, useApp, useInput, type RenderOptions } from "ink";
+import { render, Text, useApp, useInput, type RenderOptions } from "ink";
 import type { ReactElement } from "react";
 import { GroovenetClient, loadConfig, type Playlist, type Track } from "@groovenet/client";
 import { PlayerControlClient, PlayerDaemon, PlayerProtocolError, type AudioDevice, type PlaybackSnapshot, type QueueEntry } from "@groovenet/player";
 import { createPlayerDaemon, PLAYER_DAEMON_PATHS } from "./player.js";
 import { RemotePlayerController, makeRemoteApi, type PlayerController, type RemoteSnapshot } from "./remotePlayer.js";
-import { buildKeymap, defaultKeymap, hintItems, hintLine, displayKeys, type Keymap } from "./playerKeymap.js";
+import { buildKeymap, defaultKeymap, displayKeys, helpEntries, hintItems, hintLine, primaryKey, type Keymap } from "./playerKeymap.js";
+import type { ActionId } from "./playerKeymapRegistry.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
-import { formatPlayback, visibleWindow } from "./playerTuiView.js";
+import { formatPlayback, formatPlaybackStatus, visibleWindow } from "./playerTuiView.js";
+import { PlayerFrame, type CardArea, type TabItem } from "../tui/frame.js";
+import { pickLayout } from "../tui/layout.js";
+import { Line, progressSegments, Styled, type Segment } from "../tui/primitives.js";
+import { displayWidth, fit, wrap } from "../tui/text.js";
+import { ThemeContext, themeFromEnv, type Role, type Theme } from "../tui/theme.js";
+import { useTerminalSize } from "../tui/useTerminalSize.js";
 
 export interface PlayerTuiOptions {
   remote?: string;
@@ -21,8 +28,6 @@ export interface PlayerTuiOptions {
   /** Overrides `player_log_plays` for the daemon this TUI starts. */
   logPlays?: boolean;
 }
-
-const LIST_ROWS = 12;
 
 type View = "search" | "playlists" | "queue" | "devices";
 
@@ -82,14 +87,19 @@ export async function runPlayerTui(options: PlayerTuiOptions = {}, runtime: Play
   }
 }
 
-export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap }: {
+export function PlayerTui({ control, api, initialSnapshot, options, keymap = defaultKeymap, theme: themeOverride }: {
   control: PlayerController;
   api: GroovenetClient;
   initialSnapshot: PlaybackSnapshot;
   options: PlayerTuiOptions;
   keymap?: Keymap;
+  /** Colour roles; defaults to the terminal's, honouring NO_COLOR. */
+  theme?: Theme;
 }) {
   const { exit } = useApp();
+  const size = useTerminalSize();
+  const layout = pickLayout(size.columns, size.rows);
+  const theme = useMemo(() => themeOverride ?? themeFromEnv(), [themeOverride]);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [view, setView] = useState<View>(options.search ? "search" : "queue");
   const [query, setQuery] = useState(options.search ?? "");
@@ -99,7 +109,7 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [selected, setSelected] = useState(0);
   const [message, setMessage] = useState("");
-  const [showHelp, setShowHelp] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
   // Keymap problems are shown once and dismissed by the next key: stderr would corrupt the screen.
   const [notice, setNotice] = useState<string[] | null>(keymap.problems.length ? keymap.problems.map((problem) => problem.message) : null);
 
@@ -258,38 +268,92 @@ export function PlayerTui({ control, api, initialSnapshot, options, keymap = def
 
   const remote = (snapshot as Partial<RemoteSnapshot>).remote;
   const output = remote ? devices.find((device) => device.id === (remote.player.assigned_output ?? remote.player.state.desired_output)) : undefined;
-  const playbackLines = formatPlayback(snapshot);
-  const helpKeys = displayKeys(keymap, "app.help", "queue");
+  const remoteMode = !!options.remote;
+  const keyView = editingSearch ? "input" : view;
   const quitKeys = displayKeys(keymap, "app.quit", "queue");
-  const shortHelp = [helpKeys && `Press ${helpKeys} for help`, quitKeys && `${quitKeys} quit`].filter(Boolean).join(" · ");
-  const rows = visibleWindow(items.length, selected, LIST_ROWS);
+
+  // Lines the body shows above the list. Each is one screen row, so the list knows how many rows are left.
+  const preamble: Array<{ text: string; role: Role }> = [
+    ...(notice ? wrap(`Keymap: ${notice.slice(0, 4).join(" · ")}${notice.length > 4 ? ` · +${notice.length - 4} more` : ""} (run \`groovenet player keys\`; any key dismisses)`, layout.columns).map((text) => ({ text, role: "warn" as const })) : []),
+    ...(remoteMode ? wrap(`Remote keys: ${hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))} · server audio continues after ${quitKeys || "quitting"}`, layout.columns).map((text) => ({ text, role: "dim" as const })) : []),
+    ...(view === "search" && (editingSearch || query) ? [{ text: editingSearch ? `Search: ${query}▏` : `Query: ${query}`, role: "muted" as const }] : []),
+  ];
+  const rows = visibleWindow(items.length, selected, Math.max(1, layout.bodyRows - preamble.length));
+
+  const status: Segment[] = remote
+    ? [{ text: output?.name ?? "Speaker activity=unknown · observations unavailable", role: "muted" },
+      { text: ` · ${remote.connected ? "connected" : "DISCONNECTED / state may be stale"} · ${remote.player.state.checkpoint ? "saved checkpoint" : "live state"} · revision=${remote.player.revision} · desired=${remote.player.state.desired_output ?? "none"} · assigned=${remote.player.assigned_output ?? "none"} · requested sender volume`, role: "dim" }]
+    : [{ text: "LOCAL", role: "muted" }, { text: ` · ${snapshot.status} · ${snapshot.queue.length} in queue`, role: "dim" }];
+  const alert: Segment[] | null = message ? [{ text: message, role: "warn" }]
+    : snapshot.error ? [{ text: `${snapshot.error.code}: ${snapshot.error.message}`, role: "error" }] : null;
+  // Tabs show the view keys and the full top bar shows help and quit, so the hint bar leaves them out.
+  const omit: ActionId[] = layout.kind === "full" ? [...TAB_ACTIONS, "app.help", "app.quit"] : layout.kind === "side" ? TAB_ACTIONS : [];
+  const tab = (id: ActionId, label: string, tabView: View, count?: number): TabItem => ({ keys: primaryKey(keymap, id, view), label, count, active: view === tabView });
+
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
-      <Text bold color="cyan">Groovenet Player · {remote ? `Remote: ${remote.player.name} [${remote.player.id}]` : "Local"}</Text>
-      {remote ? <Text color="yellow">{remote.connected ? "Connected" : "DISCONNECTED / state may be stale"} · revision={remote.player.revision} · desired={remote.player.state.desired_output ?? "none"} · assigned={remote.player.assigned_output ?? "none"} · {remote.player.state.checkpoint ? "saved checkpoint" : "live state"} · requested sender volume</Text> : null}
-      {remote ? <Text dimColor>{output?.name ?? "Speaker activity=unknown · observations unavailable"}</Text> : null}
-      {options.remote ? <Text dimColor>Remote keys: {hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))} · server audio continues after {displayKeys(keymap, "app.quit", "queue") || "quitting"}</Text> : null}
-      <Text>{playbackLines[0]}</Text>
-      <Text dimColor>{playbackLines[1] || " "}</Text>
-      <Text color="green">{playbackLines[2]}</Text>
-      {snapshot.error ? <Text color="red">{snapshot.error.code}: {snapshot.error.message}</Text> : null}
-      <Text dimColor>View: {view} · {items.length} item(s){items.length > LIST_ROWS ? ` · ${selected + 1}/${items.length}` : ""}{editingSearch ? ` · Search: ${query}▏` : query ? ` · Query: ${query}` : ""}</Text>
-      <Box flexDirection="column" marginTop={1}>
-        {items.length === 0 ? <Text dimColor>{view === "queue" ? "Queue is empty." : "No items."}</Text> : items.slice(rows.start, rows.end).map((item, row) => {
-          const index = rows.start + row;
-          const selectedItem = index === selected;
-          const label = view === "search"
-            ? `${(item as Track).artist} — ${(item as Track).title}${(item as Track).local_audio_url ? "" : " [no downloaded audio]"}`
-            : view === "playlists" ? (item as Playlist).name
-              : view === "devices" ? `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`
-                : `${(item as QueueEntry).track.artist} — ${(item as QueueEntry).track.title}`;
-          return <Text key={view === "queue" ? (item as QueueEntry).id : `${view}-${index}`} color={selectedItem ? "black" : undefined} backgroundColor={selectedItem ? "cyan" : undefined}>{selectedItem ? "› " : "  "}{label}</Text>;
-        })}
-      </Box>
-      {message ? <Text color="yellow">{message}</Text> : null}
-      {notice ? <Text color="yellow">Keymap: {notice.slice(0, 4).join(" · ")}{notice.length > 4 ? ` · +${notice.length - 4} more` : ""} (run `groovenet player keys`; any key dismisses)</Text> : null}
-      {showHelp ? <Text dimColor>{hintLine(hintItems(keymap, editingSearch ? "input" : view, { remote: !!options.remote }))}</Text> : <Text dimColor>{shortHelp}</Text>}
-    </Box>
+    <ThemeContext.Provider value={theme}>
+      <PlayerFrame
+        layout={layout}
+        target={remote ? remote.player.name.toUpperCase() : "LOCAL"}
+        live={remote ? (remote.connected ? "live" : "offline") : null}
+        helpKeys={displayKeys(keymap, "app.help", "queue")}
+        quitKeys={quitKeys}
+        tabs={[
+          tab("view.search", "SEARCH", "search"),
+          tab("view.queue", "QUEUE", "queue", snapshot.queue.length),
+          tab("view.playlists", "PLAYLISTS", "playlists", playlists.length || undefined),
+          tab("view.devices", "DEVICES", "devices"),
+        ]}
+        status={{ left: status, right: items.length ? [{ text: `${Math.min(selected + 1, items.length)}/${items.length}`, role: "dim" }] : [] }}
+        alert={alert}
+        hints={hintItems(keymap, keyView, { remote: remoteMode, omit })}
+        help={showHelp ? helpEntries(keymap, keyView, { remote: remoteMode }) : null}
+        nowPlaying={(area) => <NowPlaying snapshot={snapshot} area={area} />}
+      >
+        {(area) => (
+          <>
+            {preamble.map((line, index) => <Styled key={`preamble-${index}`} role={line.role}>{line.text}</Styled>)}
+            {items.length === 0 ? <Styled role="dim">{view === "queue" ? "Queue is empty." : "No items."}</Styled> : items.slice(rows.start, rows.end).map((item, row) => {
+              const index = rows.start + row;
+              const selectedItem = index === selected;
+              const label = view === "search"
+                ? `${(item as Track).artist} — ${(item as Track).title}${(item as Track).local_audio_url ? "" : " [no downloaded audio]"}`
+                : view === "playlists" ? (item as Playlist).name
+                  : view === "devices" ? `${(item as AudioDevice).name} [${(item as AudioDevice).id}]`
+                    : `${(item as QueueEntry).track.artist} — ${(item as QueueEntry).track.title}`;
+              return <Styled key={view === "queue" ? (item as QueueEntry).id : `${view}-${index}`} role={selectedItem ? "selection" : "ink"}>{fit(`${selectedItem ? "› " : "  "}${label}`, area.width)}</Styled>;
+            })}
+          </>
+        )}
+      </PlayerFrame>
+    </ThemeContext.Provider>
+  );
+}
+
+const TAB_ACTIONS: ActionId[] = ["view.search", "view.queue", "view.playlists", "view.devices"];
+
+const STATE_ICON: Partial<Record<string, Segment>> = { playing: { text: "▶", role: "live" }, paused: { text: "‖", role: "strong" } };
+
+/** The card's text: the existing playback lines, fitted to the area the frame gives it. #824 replaces it. */
+function NowPlaying({ snapshot, area }: { snapshot: PlaybackSnapshot; area: CardArea }) {
+  const statusText = formatPlaybackStatus(snapshot);
+  if (area.kind === "strip") {
+    const track = snapshot.current?.track;
+    const barWidth = Math.max(4, Math.min(44, Math.floor(area.width / 3)));
+    const left: Segment[] = track
+      ? [STATE_ICON[snapshot.status] ?? { text: "■", role: "dim" }, { text: " " }, { text: track.title, role: "strong" }, { text: ` · ${track.artist}`, role: "muted" }]
+      : [{ text: "Nothing playing", role: "dim" }];
+    return <Line left={left} right={[...progressSegments(snapshot.position, snapshot.duration, barWidth), { text: ` ${statusText}`, role: "dim" }]} width={area.width} />;
+  }
+  const [title, metadata] = formatPlayback(snapshot);
+  const barWidth = Math.max(4, Math.min(60, area.width - displayWidth(statusText) - 1));
+  return (
+    <>
+      <Styled role="strong">{fit(title, area.width)}</Styled>
+      <Styled role="dim">{fit(metadata, area.width)}</Styled>
+      <Text> </Text>
+      <Line left={[...progressSegments(snapshot.position, snapshot.duration, barWidth), { text: ` ${statusText}`, role: snapshot.status === "playing" ? "live" : "ink" }]} width={area.width} />
+    </>
   );
 }
 
