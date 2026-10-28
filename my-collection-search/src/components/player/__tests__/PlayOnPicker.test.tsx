@@ -55,10 +55,10 @@ beforeEach(() => {
 });
 
 describe("Play on picker", () => {
-  it("lists this device and every server, LIVE or IDLE, and fetches them on open", async () => {
+  it("lists this device and every server, LIVE or IDLE, from the shared live list", async () => {
     open();
     const dialog = await screen.findByRole("dialog", { name: "Choose where audio plays" });
-    expect(api.loadPlayers).toHaveBeenCalledTimes(1);
+    expect(api.loadPlayers).not.toHaveBeenCalled();
     expect(within(dialog).getByRole("radio", { name: /This iPhone/ })).toHaveProperty("checked", true);
     expect(within(dialog).getByText("LIVE")).toBeTruthy();
     expect(within(dialog).getByText("IDLE")).toBeTruthy();
@@ -163,7 +163,7 @@ describe("Play on picker", () => {
     setTarget({ players: [], problem: "worker unavailable" });
     const { user, rerender } = open();
     await user.click(await screen.findByRole("button", { name: "Retry" }));
-    expect(api.loadPlayers).toHaveBeenCalledTimes(2);
+    expect(api.loadPlayers).toHaveBeenCalledTimes(1);
     setTarget({ players: [] });
     rerender(<PlayOnPicker />);
     expect(screen.getByText("No music servers are configured yet.")).toBeTruthy();

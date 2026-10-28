@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as list, POST as create } from "@/app/api/players/route";
+import { GET as allEvents } from "@/app/api/players/events/route";
 import { GET as engines } from "@/app/api/players/engines/route";
 import { GET as state } from "@/app/api/players/[playerId]/route";
 import { POST as command } from "@/app/api/players/[playerId]/commands/route";
@@ -45,9 +46,9 @@ describe("authenticated player API proxy", () => {
     const failure = await list(request()); expect(failure.status).toBe(503); expect(await failure.text()).not.toContain("secret");
     vi.stubEnv("PLAYER_WORKER_URL", "file:///secret"); expect((await list(request())).status).toBe(503);
   });
-  it("streams subscriptions with the client abort signal and no cache", async () => {
+  it.each([events, allEvents])("streams subscriptions with the client abort signal and no cache", async argumentsRoute => {
     transport.mockResolvedValueOnce(new Response('event: snapshot\ndata: {}\n\n', { headers: { "Content-Type": "text/event-stream" } }));
-    const result = await events(request(), context);
+    const result = await argumentsRoute(request(), context);
     expect(result.headers.get("content-type")).toBe("text/event-stream");
     expect(await result.text()).toContain("event: snapshot");
     expect(transport.mock.calls[0]![1].signal).toBeInstanceOf(AbortSignal);

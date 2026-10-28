@@ -201,14 +201,12 @@ export default function PlayOnPicker() {
     if (!open) return;
     setSelected(target.target);
     setDetails(false);
-    // Fetched each time it opens, so LIVE / IDLE is current; no all-players stream.
-    if (authorized) void loadPlayers();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per open, not per target change
-  }, [open, authorized, loadPlayers]);
+  }, [open, authorized]);
 
   const close = () => setOpen(false);
-  // The connected server's own snapshot is fresher than the list's.
-  const players = target.players.map((p) => (p.id === target.remote.player?.id ? target.remote.player : p));
+  // Prefer the newest snapshot from either subscription.
+  const players = target.players.map((p) => (p.id === target.remote.player?.id && target.remote.player.revision >= p.revision ? target.remote.player : p));
   if (target.remote.player && !players.some((p) => p.id === target.remote.player!.id)) players.push(target.remote.player);
   const chosen = players.find((p) => p.id === selected) ?? null;
   const fromLocal = target.target === LOCAL;

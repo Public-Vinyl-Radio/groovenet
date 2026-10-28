@@ -8,9 +8,9 @@ import type {
 
 type WithoutRevision<T> = T extends unknown ? Omit<T, "expected_revision"> : never;
 export type PlayerEdit = WithoutRevision<ServerPlayerCommandInput>;
-export type ConnectingEdit = Extract<PlayerEdit, { type: "play" | "resume" | "next" | "previous" | "output.select" | "output.transfer" | "queue.replace" }>;
+export type ConnectingEdit = Extract<PlayerEdit, { type: "session.join" | "play" | "resume" | "next" | "previous" | "output.select" | "output.transfer" | "queue.replace" }>;
 function connects(command: PlayerEdit): command is ConnectingEdit {
-  return (command.type === "queue.replace" && command.play === true) || ["play", "resume", "next", "previous", "output.select", "output.transfer"].includes(command.type);
+  return (command.type === "queue.replace" && command.play === true) || ["session.join", "play", "resume", "next", "previous", "output.select", "output.transfer"].includes(command.type);
 }
 
 /** A snapshot or position event off a player's stream, already validated. */
@@ -34,6 +34,8 @@ export type SessionView = {
 export type ServerPlayerSessionOptions = {
   /** Wait before reconnecting for a fresh snapshot. */
   reconnectMs?: number;
+  /** Called after a join commits, including after speaker acknowledgement. */
+  onJoined?: () => void;
   /** The problem shown while reconnecting; receives whatever ended the stream. */
   disconnectMessage?: (reason?: unknown) => string;
   /** Called each time the stream is lost, after the view shows the problem. */
@@ -74,7 +76,7 @@ export class ServerPlayerSession {
   private readonly disconnectMessage: (reason?: unknown) => string;
   private readonly onDisconnect?: (reason?: unknown) => void;
   private readonly withDevices: boolean;
-  constructor(readonly id: string, private api: ServerPlayerTransport, options: ServerPlayerSessionOptions = {}) {
+  constructor(readonly id: string, private api: ServerPlayerTransport, private readonly options: ServerPlayerSessionOptions = {}) {
     this.reconnectMs = options.reconnectMs ?? 1500;
     this.disconnectMessage = options.disconnectMessage ?? lost;
     this.onDisconnect = options.onDisconnect;
@@ -176,20 +178,10 @@ export class ServerPlayerSession {
   // The rejection that raised the confirm goes with it.
   dismissAcknowledgement = () => this.update({ acknowledgement: null, problem: null });
   dismissProblem = () => this.update({ problem: null });
-  /**
-   * Joins this server with another device's upcoming tracks: one append, then,
-   * only when the server was idle, play the first appended entry. True once the
-   * tracks are on the server, whether or not playback still awaits a confirm.
-   */
+  /** Appends and starts an idle server in one serialized command. */
   async join(tracks: PlayerTrackRef[]): Promise<boolean> {
     if (!tracks.length || !(await this.ready())) return false;
-    const before = this.view.player!;
-    const existing = new Set(before.state.queue.map(entry => entry.id));
-    const added = await this.command({ type: "queue.add", tracks });
-    if (!added) return false;
-    const first = added.state.queue.find(entry => !existing.has(entry.id));
-    if (isIdle(before) && first) await this.command({ type: "play", entry_id: first.id });
-    return true;
+    return (await this.command({ type: "session.join", tracks })) !== null;
   }
   /** Latest-wins volume: a change made while a command is in flight is sent when it finishes. */
   setVolume = (volume: number) => { this.pendingVolume = volume; void this.flushVolume(); };
@@ -213,6 +205,7 @@ export class ServerPlayerSession {
     const result = await this.api.command(this.id, expectedRevision === undefined ? command : { ...command, expected_revision: expectedRevision } as ServerPlayerCommandInput);
     if (this.closed || generation !== this.generation) return null;
     if (result.player.revision >= this.view.player!.revision) this.update({ player: result.player });
+    if (command.type === "session.join") this.options.onJoined?.();
     return result;
   }
   /**
@@ -236,7 +229,7 @@ export class ServerPlayerSession {
     } catch (error) {
       if (this.closed || generation !== this.generation) return null;
       const errorCode = code(error);
-      if ((errorCode === "AVAILABILITY_UNKNOWN" || errorCode === "SPEAKER_OCCUPIED") && connects(command)) this.update({ acknowledgement: { command, code: errorCode, revision, ...(expectedRevision === undefined ? {} : { expectedRevision }) } });
+      if ((errorCode === "AVAILABILITY_UNKNOWN" || errorCode === "SPEAKER_OCCUPIED") && connects(command)) this.update({ acknowledgement: { command, code: errorCode, revision, ...(expectedRevision === undefined && command.type !== "session.join" ? {} : { expectedRevision: expectedRevision ?? revision }) } });
       this.update({ problem: message(error) });
       await this.refresh();
       return null;
