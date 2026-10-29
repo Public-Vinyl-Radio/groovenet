@@ -136,8 +136,11 @@ the one it's running in, but anything removed another way needs
 remove the stacks and fragments it finds.
 
 Pre-commit runs file hygiene, ruff over the Python services and Python client,
-and ESLint over the web app, Node client, CLI and MCP server. CI runs the same
-hooks, so `--no-verify` only defers the failure.
+ESLint over the web app, Node client, CLI and MCP server, then Prettier and
+`ruff format`. CI runs the same hooks, so `--no-verify` only defers the failure.
+`just format` rewrites tracked files and `just format-check` only checks. Let
+the formatters own layout: don't hand-wrap lines, and don't add ESLint or ruff
+rules about style. Generated and tool-owned files belong in `.prettierignore`.
 
 ### Coverage is a required PR check
 

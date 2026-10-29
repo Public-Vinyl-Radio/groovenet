@@ -146,9 +146,33 @@ the app container and restart it.
 
 `just bootstrap` installs a git pre-commit hook that runs file hygiene checks,
 [ruff](https://docs.astral.sh/ruff/) over the Python services and Python client,
-and ESLint over changed web and Node package files. The same hooks run in CI,
-so the hook only moves the feedback earlier — skip it with `git commit
---no-verify` and CI will still catch it.
+ESLint over changed web and Node package files, and the formatters below. The
+same hooks run in CI, so the hook only moves the feedback earlier — skip it with
+`git commit --no-verify` and CI will still catch it.
+
+### Formatting
+
+[Prettier](https://prettier.io/) formats TypeScript, JavaScript, JSON, YAML,
+Markdown and CSS from one root config, `.prettierrc.json`: 100 columns, double
+quotes, semicolons and trailing commas. `ruff format` formats the Python
+services and client at the 120 columns `ruff.toml` sets. `.editorconfig` gives
+editors the same line endings and indents.
+
+```bash
+just format        # rewrite tracked files in place
+just format-check  # fail on anything unformatted, without writing
+```
+
+Both cover tracked files only. `.prettierignore` skips files a tool owns:
+lockfiles, release-please's changelogs and manifest, test fixtures, snapshots
+and vendored skills. Build output is ignored through `.gitignore`. Every ESLint
+config ends with `eslint-config-prettier`, so ESLint never reports layout.
+Prettier runs after ESLint `--fix` and `ruff format` after `ruff check --fix`,
+so a formatter always has the last word.
+
+Point your editor at the root `node_modules/.bin/prettier` so it uses the
+pinned version. After rebasing a branch across a reformat, run `just format`
+and commit the result.
 
 Useful checks:
 
@@ -157,6 +181,7 @@ just test
 just lint          # web app, client, CLI and MCP server
 just typecheck
 just lint-all      # every pre-commit hook, over the whole repo
+just format-check
 ```
 
 Worktree setup, deployment, releases, and operator-specific overrides are maintainer workflows; see [`AGENTS.md`](AGENTS.md), [`RELEASING.md`](RELEASING.md), and the package-level READMEs when you need them.

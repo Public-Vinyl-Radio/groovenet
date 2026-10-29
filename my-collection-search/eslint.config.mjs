@@ -3,6 +3,7 @@ import storybook from "eslint-plugin-storybook";
 
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import prettier from "eslint-config-prettier/flat";
 
 // Raw Chakra scales and literal white/black: fixed whatever the palette or mode.
 const COLOUR_PROPS = "/^(color|bg|background|backgroundColor|borderColor|border[A-Z][a-z]+Color|outlineColor|fill|stroke)$/";
@@ -63,6 +64,9 @@ const eslintConfig = [...nextVitals, ...nextTs, {
     "tmp/**",
     "*.min.js",
   ],
-}, ...storybook.configs["flat/recommended"]];
+}, ...storybook.configs["flat/recommended"],
+  // Last, so Prettier owns layout.
+  prettier,
+];
 
 export default eslintConfig;

@@ -21,6 +21,8 @@ op_env := "op run --env-file=.env.tpl --"
 compose_cmd := `if docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; fi`
 platform_override := if os() == "macos" { "-f docker-compose.mac.yml" } else { "" }
 mise_exec := "mise exec --"
+python_dirs := "download-worker ga-service essentia-api fingerprint-service packages/groovenet-python"
+ruff_version := "0.14.2"
 
 default:
   @just --list
@@ -62,6 +64,17 @@ bootstrap-hooks:
 # Run every pre-commit hook over the whole repo, as CI does.
 lint-all:
   uv tool run pre-commit run --all-files
+
+# Format tracked files: Prettier for web/Node/docs, ruff for the Python services.
+# The ruff version follows ruff-pre-commit's rev in .pre-commit-config.yaml.
+format:
+  git ls-files -z | xargs -0 {{mise_exec}} ./node_modules/.bin/prettier --write --ignore-unknown --log-level=warn
+  uv tool run ruff@{{ruff_version}} format {{python_dirs}}
+
+# Check formatting without writing; fails on any file the formatters would change.
+format-check:
+  git ls-files -z | xargs -0 {{mise_exec}} ./node_modules/.bin/prettier --check --ignore-unknown --log-level=warn
+  uv tool run ruff@{{ruff_version}} format --check {{python_dirs}}
 
 test: test-web test-packages
 
