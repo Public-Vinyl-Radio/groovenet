@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.9.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.8.0...groovenet-cli-v3.9.0) (2026-10-29)
+
+
+### Features
+
+* **cli:** show album art in the player TUI ([#851](https://github.com/Public-Vinyl-Radio/groovenet/issues/851)) ([85aa553](https://github.com/Public-Vinyl-Radio/groovenet/commit/85aa5532ad16d8e0cbc28652ff53fdef122790ca))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.7.0 to ^3.8.0
+    * @groovenet/player bumped from 0.1.6 to 0.1.7
+
 ## [3.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.7.0...groovenet-cli-v3.8.0) (2026-10-28)
 
 
