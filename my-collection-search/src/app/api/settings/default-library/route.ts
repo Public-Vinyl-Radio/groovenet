@@ -22,17 +22,13 @@ export async function GET() {
     if (error.code === "42P01") {
       return NextResponse.json(
         {
-          error:
-            "default_library_settings table is missing. Run migrations first.",
+          error: "default_library_settings table is missing. Run migrations first.",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    return NextResponse.json(
-      { error: "Failed to load default library settings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load default library settings" }, { status: 500 });
   }
 }
 
@@ -44,10 +40,7 @@ export async function PUT(request: Request) {
     });
 
     if (!parsed.success || parsed.data.friend_id === 0) {
-      return NextResponse.json(
-        { error: "friend_id is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id is required" }, { status: 400 });
     }
 
     const result = await settingsService.updateDefaultLibrary(parsed.data.friend_id);
@@ -57,24 +50,20 @@ export async function PUT(request: Request) {
 
     const error = err as PgLikeError;
     if (error.message.includes("does not exist")) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 404 });
     }
     if (error.code === "42P01") {
       return NextResponse.json(
         {
-          error:
-            "default_library_settings table is missing. Run migrations first.",
+          error: "default_library_settings table is missing. Run migrations first.",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to update default library settings" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -76,7 +76,10 @@ describe("verifyTick()", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     indexService.startRun.mockRejectedValueOnce(new Error("no engine registered"));
     await expect(verifyTick(NOW)).resolves.toBeUndefined();
-    expect(error).toHaveBeenCalledWith("[fingerprint-backfill] verify tick failed:", expect.any(Error));
+    expect(error).toHaveBeenCalledWith(
+      "[fingerprint-backfill] verify tick failed:",
+      expect.any(Error),
+    );
     error.mockRestore();
   });
 });
@@ -136,9 +139,7 @@ describe("backfillTick()", () => {
 
     await backfillTick(NOW);
 
-    expect(logged).toHaveBeenCalledWith(
-      expect.stringContaining("queued 29 track(s)")
-    );
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining("queued 29 track(s)"));
     logged.mockRestore();
   });
 
@@ -150,9 +151,7 @@ describe("backfillTick()", () => {
 
   it("survives a tick that throws — e.g. no fingerprint engine registered", async () => {
     // Routine when fingerprint-service is down; the next tick tries again.
-    indexService.startRun.mockRejectedValue(
-      new Error("No fingerprint engine registered")
-    );
+    indexService.startRun.mockRejectedValue(new Error("No fingerprint engine registered"));
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(backfillTick(NOW)).resolves.toBeUndefined();
@@ -178,10 +177,7 @@ describe("startFingerprintBackfill()", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     // Remember every timer registered. One test runs on real timers, and a
     // stray 60s interval would keep the suite's event loop alive.
-    vi.spyOn(globalThis, "setInterval").mockImplementation(((
-      fn: () => void,
-      ms: number
-    ) => {
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((fn: () => void, ms: number) => {
       const handle = timerImpl(fn, ms);
       timers.push(handle);
       return handle;
@@ -215,19 +211,17 @@ describe("startFingerprintBackfill()", () => {
 
     startFingerprintBackfill();
 
-    await vi.waitFor(() =>
-      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" })
-    );
-    await vi.waitFor(() =>
-      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" })
-    );
+    await vi.waitFor(() => expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" }));
+    await vi.waitFor(() => expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" }));
   });
 
   it("hands the timer a callback that ticks again", async () => {
     startFingerprintBackfill();
-    const registered = (globalThis.setInterval as unknown as {
-      mock: { calls: [() => void, number][] };
-    }).mock.calls[0][0];
+    const registered = (
+      globalThis.setInterval as unknown as {
+        mock: { calls: [() => void, number][] };
+      }
+    ).mock.calls[0][0];
 
     indexService.startRun.mockClear();
     resetBackfillClock();
@@ -235,11 +229,7 @@ describe("startFingerprintBackfill()", () => {
 
     registered();
 
-    await vi.waitFor(() =>
-      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" })
-    );
-    await vi.waitFor(() =>
-      expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" })
-    );
+    await vi.waitFor(() => expect(indexService.startRun).toHaveBeenCalledWith({ kind: "missing" }));
+    await vi.waitFor(() => expect(indexService.startRun).toHaveBeenCalledWith({ kind: "changed" }));
   });
 });

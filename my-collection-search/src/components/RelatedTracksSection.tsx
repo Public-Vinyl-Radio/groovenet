@@ -34,9 +34,7 @@ function normalizeArtwork(track: Track): Track {
   return {
     ...track,
     album_thumbnail:
-      track.album_thumbnail ||
-      track.audio_file_album_art_url ||
-      "/images/placeholder-artwork.png",
+      track.album_thumbnail || track.audio_file_album_art_url || "/images/placeholder-artwork.png",
   };
 }
 
@@ -121,7 +119,7 @@ export default function RelatedTracksSection({ track }: Props) {
         track_id: t.track_id,
         friend_id: t.friend_id,
       })),
-    [merged]
+    [merged],
   );
 
   const hydratedQuery = useQuery({
@@ -154,7 +152,7 @@ export default function RelatedTracksSection({ track }: Props) {
           _score: item._score,
         };
       }),
-    [merged, hydratedByKey]
+    [merged, hydratedByKey],
   );
 
   const shownCount = initialCount + extra;
@@ -196,7 +194,13 @@ export default function RelatedTracksSection({ track }: Props) {
               Related tracks
             </Heading>
             {!isLoading && !hasError && merged.length > 0 && (
-              <Text fontFamily="label" fontSize="11px" letterSpacing="0.08em" textTransform="uppercase" color="fg.muted">
+              <Text
+                fontFamily="label"
+                fontSize="11px"
+                letterSpacing="0.08em"
+                textTransform="uppercase"
+                color="fg.muted"
+              >
                 {displayTracks.length} of {merged.length}
               </Text>
             )}
@@ -213,7 +217,9 @@ export default function RelatedTracksSection({ track }: Props) {
           <Text fontSize="sm">Loading related tracks...</Text>
         </Flex>
       ) : hasError ? (
-        <Text color="fg.error" fontSize="sm">Could not load related tracks.</Text>
+        <Text color="fg.error" fontSize="sm">
+          Could not load related tracks.
+        </Text>
       ) : displayTracks.length === 0 ? (
         <Text color="fg.muted" fontSize="sm">
           {scope === "library"

@@ -15,7 +15,7 @@ const resolveScope = vi.hoisted(() =>
   vi.fn(async (libraryFriendId: number, requested?: "library" | "all") => {
     const scope = requested ?? savedScope.value;
     return { scope, libraryFriendId: scope === "library" ? libraryFriendId : null };
-  })
+  }),
 );
 vi.mock("@/server/services/settingsService", () => ({
   settingsService: { resolveRecommendationScope: resolveScope },
@@ -34,10 +34,27 @@ const candidate = (trackId: string) => ({
   simIdentity: 0.9,
   simAudio: null,
   metadata: {
-    title: "T", artist: "A", album: "B", year: "1999", genres: [], styles: [], tags: [], genreRefs: [],
-    bpm: null, key: null, keyConfidence: null, tempoConfidence: null, eraBucket: null,
-    energy: null, danceability: null, starRating: null, albumThumbnail: null,
-    moodHappy: null, moodSad: null, moodRelaxed: null, moodAggressive: null,
+    title: "T",
+    artist: "A",
+    album: "B",
+    year: "1999",
+    genres: [],
+    styles: [],
+    tags: [],
+    genreRefs: [],
+    bpm: null,
+    key: null,
+    keyConfidence: null,
+    tempoConfidence: null,
+    eraBucket: null,
+    energy: null,
+    danceability: null,
+    starRating: null,
+    albumThumbnail: null,
+    moodHappy: null,
+    moodSad: null,
+    moodRelaxed: null,
+    moodAggressive: null,
   },
 });
 
@@ -66,8 +83,8 @@ describe("/api/recommendations/candidates — analytics", () => {
     const res = await GET(
       new NextRequest(
         "http://localhost/api/recommendations/candidates?track_id=seed&friend_id=1&mode=identity",
-        { headers: { "X-Groovenet-Client": "mcp" } }
-      )
+        { headers: { "X-Groovenet-Client": "mcp" } },
+      ),
     );
     expect(res.status).toBe(200);
     expect(analyticsEvents.events.map((e) => [e.event, e.properties])).toEqual([
@@ -89,7 +106,7 @@ describe("/api/recommendations/candidates — analytics", () => {
             { track_id: "b", friend_id: 1 },
           ],
         }),
-      })
+      }),
     );
     expect(res.status).toBe(200);
     expect(analyticsEvents.events[0].properties).toEqual({
@@ -103,9 +120,7 @@ describe("/api/recommendations/candidates — analytics", () => {
   it("reports nothing when the seed has no embeddings", async () => {
     retriever.hasEmbeddings.mockResolvedValue({ identity: false, audio: false });
     const res = await GET(
-      new NextRequest(
-        "http://localhost/api/recommendations/candidates?track_id=seed&friend_id=1"
-      )
+      new NextRequest("http://localhost/api/recommendations/candidates?track_id=seed&friend_id=1"),
     );
     expect(res.status).toBe(404);
     expect(analyticsEvents.events).toEqual([]);
@@ -123,19 +138,33 @@ describe("/api/recommendations/candidates — library scope", () => {
   });
 
   const get = (query: string) =>
-    GET(new NextRequest(`http://localhost/api/recommendations/candidates?track_id=seed&friend_id=6&${query}`));
+    GET(
+      new NextRequest(
+        `http://localhost/api/recommendations/candidates?track_id=seed&friend_id=6&${query}`,
+      ),
+    );
   const post = (body: Record<string, unknown>) =>
     POST(
       new NextRequest("http://localhost/api/recommendations/candidates", {
         method: "POST",
-        body: JSON.stringify({ tracks: [{ track_id: "a", friend_id: 6 }, { track_id: "b", friend_id: 9 }], ...body }),
-      })
+        body: JSON.stringify({
+          tracks: [
+            { track_id: "a", friend_id: 6 },
+            { track_id: "b", friend_id: 9 },
+          ],
+          ...body,
+        }),
+      }),
     );
 
   it("keeps to the seed's library by default and says so", async () => {
     const res = await get("");
     expect(resolveScope).toHaveBeenCalledWith(6, undefined);
-    expect(retriever.retrieveCandidates).toHaveBeenCalledWith("seed", 6, expect.objectContaining({ libraryFriendId: 6 }));
+    expect(retriever.retrieveCandidates).toHaveBeenCalledWith(
+      "seed",
+      6,
+      expect.objectContaining({ libraryFriendId: 6 }),
+    );
     expect(await res.json()).toMatchObject({ scope: "library", libraryFriendId: 6 });
   });
 
@@ -143,7 +172,11 @@ describe("/api/recommendations/candidates — library scope", () => {
     savedScope.value = "all";
     const res = await get("library_friend_id=2");
     expect(resolveScope).toHaveBeenCalledWith(2, undefined);
-    expect(retriever.retrieveCandidates).toHaveBeenCalledWith("seed", 6, expect.objectContaining({ libraryFriendId: undefined }));
+    expect(retriever.retrieveCandidates).toHaveBeenCalledWith(
+      "seed",
+      6,
+      expect.objectContaining({ libraryFriendId: undefined }),
+    );
     expect(await res.json()).toMatchObject({ scope: "all", libraryFriendId: null });
   });
 
@@ -151,7 +184,11 @@ describe("/api/recommendations/candidates — library scope", () => {
     savedScope.value = "all";
     const res = await get("scope=library&library_friend_id=2");
     expect(resolveScope).toHaveBeenCalledWith(2, "library");
-    expect(retriever.retrieveCandidates).toHaveBeenCalledWith("seed", 6, expect.objectContaining({ libraryFriendId: 2 }));
+    expect(retriever.retrieveCandidates).toHaveBeenCalledWith(
+      "seed",
+      6,
+      expect.objectContaining({ libraryFriendId: 2 }),
+    );
     expect(await res.json()).toMatchObject({ scope: "library", libraryFriendId: 2 });
   });
 
@@ -164,8 +201,11 @@ describe("/api/recommendations/candidates — library scope", () => {
     const res = await post({});
     expect(resolveScope).toHaveBeenCalledWith(6, undefined);
     expect(retriever.retrieveCandidatesForSeedTracks).toHaveBeenCalledWith(
-      [{ trackId: "a", friendId: 6 }, { trackId: "b", friendId: 9 }],
-      expect.objectContaining({ libraryFriendId: 6 })
+      [
+        { trackId: "a", friendId: 6 },
+        { trackId: "b", friendId: 9 },
+      ],
+      expect.objectContaining({ libraryFriendId: 6 }),
     );
     expect(await res.json()).toMatchObject({ scope: "library", libraryFriendId: 6 });
   });
@@ -175,7 +215,7 @@ describe("/api/recommendations/candidates — library scope", () => {
     expect(resolveScope).toHaveBeenCalledWith(9, "all");
     expect(retriever.retrieveCandidatesForSeedTracks).toHaveBeenCalledWith(
       expect.any(Array),
-      expect.objectContaining({ libraryFriendId: undefined })
+      expect.objectContaining({ libraryFriendId: undefined }),
     );
   });
 });

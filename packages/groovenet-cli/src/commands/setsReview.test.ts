@@ -24,17 +24,35 @@ const plain = (s: string) => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
 
 function ref(trackId: string, title: string): SetTrackRef {
   const [release, position] = trackId.split("-");
-  return { track_id: trackId, friend_id: 1, title, artist: "Artist", release_id: release, position: position ?? null };
+  return {
+    track_id: trackId,
+    friend_id: 1,
+    title,
+    artist: "Artist",
+    release_id: release,
+    position: position ?? null,
+  };
 }
 
-function planned(index: number, trackId: string, title: string, fingerprinted = true): PlannedEntry {
+function planned(
+  index: number,
+  trackId: string,
+  title: string,
+  fingerprinted = true,
+): PlannedEntry {
   return { ...ref(trackId, title), index, fingerprinted };
 }
 
 function play(trackId: string, title: string, start: number): DerivedPlay {
   return {
-    track_id: trackId, friend_id: 1, start_seconds: start, end_seconds: start + 200,
-    confidence: 0.9, windows: 12, rate: 1, track: ref(trackId, title),
+    track_id: trackId,
+    friend_id: 1,
+    start_seconds: start,
+    end_seconds: start + 200,
+    confidence: 0.9,
+    windows: 12,
+    rate: 1,
+    track: ref(trackId, title),
   };
 }
 
@@ -55,15 +73,34 @@ const PLAN = [
 function view(overrides: Partial<SetDerivationView> = {}): SetDerivationView {
   return {
     derivation: {
-      id: "d1", recording_sha256: "a".repeat(64), fingerprint_type: "chromaprint", fingerprint_version: "1",
-      window_seconds: 15, step_seconds: 15, status: "processed", error: null, duration_seconds: 2000,
-      created_at: "", updated_at: "", completed_at: "",
+      id: "d1",
+      recording_sha256: "a".repeat(64),
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
+      window_seconds: 15,
+      step_seconds: 15,
+      status: "processed",
+      error: null,
+      duration_seconds: 2000,
+      created_at: "",
+      updated_at: "",
+      completed_at: "",
     },
     recording: {
-      sha256: "a".repeat(64), file_path: "a.mp3", original_filename: "set.mp3", format_name: "mp3",
-      duration_seconds: 2000, size_bytes: 1, created_at: "",
+      sha256: "a".repeat(64),
+      file_path: "a.mp3",
+      original_filename: "set.mp3",
+      format_name: "mp3",
+      duration_seconds: 2000,
+      size_bytes: 1,
+      created_at: "",
     },
-    summary: { plays: 7, duration_seconds: 2000, identified_seconds: 1400, identified_fraction: 0.7 },
+    summary: {
+      plays: 7,
+      duration_seconds: 2000,
+      identified_seconds: 1400,
+      identified_fraction: 0.7,
+    },
     tracklist: [
       play("99-A1", "Intro", 0),
       play("10-A1", "Soul Beat Momma", 200),
@@ -107,13 +144,15 @@ describe("changesFrom()", () => {
   const changes = changesFrom(view());
 
   it("lists replacements and insertions in play order, then removals", () => {
-    expect(changes.map((c) => [c.kind, c.kind === "remove" ? c.planned.track_id : c.play])).toEqual([
-      ["insert", 0],
-      ["replace", 2],
-      ["insert", 3],
-      ["remove", "12-A"],
-      ["remove", "14-B2"],
-    ]);
+    expect(changes.map((c) => [c.kind, c.kind === "remove" ? c.planned.track_id : c.play])).toEqual(
+      [
+        ["insert", 0],
+        ["replace", 2],
+        ["insert", 3],
+        ["remove", "12-A"],
+        ["remove", "14-B2"],
+      ],
+    );
   });
 
   it("counts a track that came back as one change", () => {
@@ -122,7 +161,9 @@ describe("changesFrom()", () => {
   });
 
   it("places an insertion after the slot played before it, or at the start", () => {
-    const inserts = changes.filter((c): c is Extract<Change, { kind: "insert" }> => c.kind === "insert");
+    const inserts = changes.filter(
+      (c): c is Extract<Change, { kind: "insert" }> => c.kind === "insert",
+    );
     expect(inserts.map((c) => [c.play, c.after])).toEqual([
       [0, null],
       [3, 1],
@@ -131,11 +172,16 @@ describe("changesFrom()", () => {
 
   it("looks past other unplanned plays for the slot to insert after", () => {
     const base = view();
-    const twoInARow = { ...base, diff: { ...base.diff!, played_not_planned: [{ play: 3 }, { play: 4 }] } };
+    const twoInARow = {
+      ...base,
+      diff: { ...base.diff!, played_not_planned: [{ play: 3 }, { play: 4 }] },
+    };
     twoInARow.tracklist = [...base.tracklist];
     twoInARow.tracklist[4] = play("15-A1", "Bridge", 800);
     twoInARow.diff.played_instead_of = [{ play: 2, planned: PLAN[1] }];
-    const inserts = changesFrom(twoInARow).filter((c): c is Extract<Change, { kind: "insert" }> => c.kind === "insert");
+    const inserts = changesFrom(twoInARow).filter(
+      (c): c is Extract<Change, { kind: "insert" }> => c.kind === "insert",
+    );
     expect(inserts.map((c) => [c.play, c.after])).toEqual([
       [3, 1],
       [4, 1],
@@ -151,12 +197,24 @@ describe("applyChanges()", () => {
   const all = changesFrom(view());
 
   it("replaces in the slot, inserts after the slot before, and removes", () => {
-    expect(ids(applyChanges(PLAN, view(), all))).toEqual(["99-A1", "10-A1", "11-A6", "13-A2", "13-B5"]);
+    expect(ids(applyChanges(PLAN, view(), all))).toEqual([
+      "99-A1",
+      "10-A1",
+      "11-A6",
+      "13-A2",
+      "13-B5",
+    ]);
   });
 
   it("changes only what was accepted", () => {
     const replaceOnly = all.filter((c) => c.kind === "replace");
-    expect(ids(applyChanges(PLAN, view(), replaceOnly))).toEqual(["10-A1", "11-A6", "12-A", "13-B5", "14-B2"]);
+    expect(ids(applyChanges(PLAN, view(), replaceOnly))).toEqual([
+      "10-A1",
+      "11-A6",
+      "12-A",
+      "13-B5",
+      "14-B2",
+    ]);
   });
 
   it("returns the plan unchanged when nothing is accepted", () => {
@@ -168,7 +226,13 @@ describe("applyChanges()", () => {
       { kind: "remove", planned: PLAN[2] },
       { kind: "insert", play: 3, after: 2 },
     ];
-    expect(ids(applyChanges(PLAN, view(), changes))).toEqual(["10-A1", "11-A5", "13-A2", "13-B5", "14-B2"]);
+    expect(ids(applyChanges(PLAN, view(), changes))).toEqual([
+      "10-A1",
+      "11-A5",
+      "13-A2",
+      "13-B5",
+      "14-B2",
+    ]);
   });
 
   it("keeps two insertions after the same slot in play order", () => {
@@ -176,7 +240,11 @@ describe("applyChanges()", () => {
       { kind: "insert", play: 3, after: 0 },
       { kind: "insert", play: 0, after: 0 },
     ];
-    expect(ids(applyChanges(PLAN, view(), changes)).slice(0, 3)).toEqual(["10-A1", "13-A2", "99-A1"]);
+    expect(ids(applyChanges(PLAN, view(), changes)).slice(0, 3)).toEqual([
+      "10-A1",
+      "13-A2",
+      "99-A1",
+    ]);
   });
 });
 
@@ -198,12 +266,16 @@ describe("describeChange()", () => {
   });
 
   it("warns before removing a track the matcher could not have recognised", () => {
-    expect(text(removeUnindexed)).toContain("    Not fingerprinted — it may have been played and not recognised.");
+    expect(text(removeUnindexed)).toContain(
+      "    Not fingerprinted — it may have been played and not recognised.",
+    );
     expect(text(removeIndexed).join("\n")).not.toContain("Not fingerprinted");
   });
 
   it("describes an insertion whose slot is missing from the plan as at the start", () => {
-    expect(describeChange(insertAfter, view(), []).map(plain)).toContain("    Add it at the start of the playlist?");
+    expect(describeChange(insertAfter, view(), []).map(plain)).toContain(
+      "    Add it at the start of the playlist?",
+    );
   });
 });
 
@@ -228,7 +300,11 @@ function client(overrides: Partial<Record<keyof ReviewClient, ReturnType<typeof 
   return {
     getSetDerivation: vi.fn().mockResolvedValue(view()),
     getPlaylistTracks: vi.fn().mockResolvedValue({
-      track_refs: PLAN.map((p, i) => ({ track_id: p.track_id, friend_id: p.friend_id, position: i })),
+      track_refs: PLAN.map((p, i) => ({
+        track_id: p.track_id,
+        friend_id: p.friend_id,
+        position: i,
+      })),
     }),
     setPlaylistTracks: vi.fn().mockResolvedValue({}),
     ...overrides,
@@ -245,7 +321,10 @@ describe("runReview()", () => {
     const code = await runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, ask, io);
 
     expect(code).toBe(0);
-    expect(c.getSetDerivation).toHaveBeenCalledWith("d1", { playlist_id: 176, live_set_id: undefined });
+    expect(c.getSetDerivation).toHaveBeenCalledWith("d1", {
+      playlist_id: 176,
+      live_set_id: undefined,
+    });
     expect(c.setPlaylistTracks).toHaveBeenCalledWith(176, [
       { track_id: "10-A1", friend_id: 1 },
       { track_id: "11-A6", friend_id: 1 },
@@ -262,14 +341,31 @@ describe("runReview()", () => {
 
   it("reads the live set's playlist when given one", async () => {
     const c = client();
-    await runReview(c as unknown as ReviewClient, "d1", { liveSet: 3 }, scripted("y", "n"), capture());
-    expect(c.getSetDerivation).toHaveBeenCalledWith("d1", { playlist_id: undefined, live_set_id: 3 });
+    await runReview(
+      c as unknown as ReviewClient,
+      "d1",
+      { liveSet: 3 },
+      scripted("y", "n"),
+      capture(),
+    );
+    expect(c.getSetDerivation).toHaveBeenCalledWith("d1", {
+      playlist_id: undefined,
+      live_set_id: 3,
+    });
   });
 
   it("stops asking on q, keeping what was accepted so far", async () => {
     const c = client();
-    await runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted("y", "q", "y"), capture());
-    expect(c.setPlaylistTracks.mock.calls[0][1].map((r: { track_id: string }) => r.track_id)[0]).toBe("99-A1");
+    await runReview(
+      c as unknown as ReviewClient,
+      "d1",
+      { playlist: 176 },
+      scripted("y", "q", "y"),
+      capture(),
+    );
+    expect(
+      c.setPlaylistTracks.mock.calls[0][1].map((r: { track_id: string }) => r.track_id)[0],
+    ).toBe("99-A1");
     expect(c.setPlaylistTracks.mock.calls[0][1]).toHaveLength(6);
   });
 
@@ -292,7 +388,13 @@ describe("runReview()", () => {
   it("shows the result but writes nothing on --dry-run", async () => {
     const c = client();
     const io = capture();
-    const code = await runReview(c as unknown as ReviewClient, "d1", { playlist: 176, dryRun: true }, scripted("y"), io);
+    const code = await runReview(
+      c as unknown as ReviewClient,
+      "d1",
+      { playlist: 176, dryRun: true },
+      scripted("y"),
+      io,
+    );
     expect(code).toBe(0);
     expect(c.getPlaylistTracks).not.toHaveBeenCalled();
     expect(c.setPlaylistTracks).not.toHaveBeenCalled();
@@ -302,17 +404,31 @@ describe("runReview()", () => {
   it("writes nothing when the final confirm is declined", async () => {
     const c = client();
     const io = capture();
-    await runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted("y", "n", "n", "n", "n", "n"), io);
+    await runReview(
+      c as unknown as ReviewClient,
+      "d1",
+      { playlist: 176 },
+      scripted("y", "n", "n", "n", "n", "n"),
+      io,
+    );
     expect(c.setPlaylistTracks).not.toHaveBeenCalled();
     expect(io.lines).toContain("Not written. The playlist is unchanged.");
   });
 
   it("refuses to write over a playlist edited since the diff", async () => {
     const c = client({
-      getPlaylistTracks: vi.fn().mockResolvedValue({ track_refs: [{ track_id: "10-A1", friend_id: 1 }] }),
+      getPlaylistTracks: vi
+        .fn()
+        .mockResolvedValue({ track_refs: [{ track_id: "10-A1", friend_id: 1 }] }),
     });
     const io = capture();
-    const code = await runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted("y", "n", "n", "n", "n", "y"), io);
+    const code = await runReview(
+      c as unknown as ReviewClient,
+      "d1",
+      { playlist: 176 },
+      scripted("y", "n", "n", "n", "n", "y"),
+      io,
+    );
     expect(code).toBe(1);
     expect(c.setPlaylistTracks).not.toHaveBeenCalled();
     expect(io.lines.join("\n")).toContain("has changed since this diff was computed");
@@ -321,44 +437,79 @@ describe("runReview()", () => {
   it("detects an edit that kept the length but changed a track", async () => {
     const edited = PLAN.map((p, i) => ({ track_id: i === 2 ? "77-X1" : p.track_id, friend_id: 1 }));
     const c = client({ getPlaylistTracks: vi.fn().mockResolvedValue({ track_refs: edited }) });
-    expect(await runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted("y", "n", "n", "n", "n", "y"), capture())).toBe(1);
+    expect(
+      await runReview(
+        c as unknown as ReviewClient,
+        "d1",
+        { playlist: 176 },
+        scripted("y", "n", "n", "n", "n", "y"),
+        capture(),
+      ),
+    ).toBe(1);
   });
 
   it("says so when the playlist already matches", async () => {
     const matched = view();
-    matched.diff = { ...matched.diff!, played_instead_of: [], played_not_planned: [], planned_not_played: [] };
+    matched.diff = {
+      ...matched.diff!,
+      played_instead_of: [],
+      played_not_planned: [],
+      planned_not_played: [],
+    };
     const io = capture();
-    expect(await runReview(client({ getSetDerivation: vi.fn().mockResolvedValue(matched) }) as unknown as ReviewClient, "d1", { playlist: 176 }, scripted(), io)).toBe(0);
+    expect(
+      await runReview(
+        client({ getSetDerivation: vi.fn().mockResolvedValue(matched) }) as unknown as ReviewClient,
+        "d1",
+        { playlist: 176 },
+        scripted(),
+        io,
+      ),
+    ).toBe(0);
     expect(io.lines).toContain("Playlist 176 already matches what was played. Nothing to review.");
   });
 
   it("needs exactly one plan", async () => {
     const c = client() as unknown as ReviewClient;
-    await expect(runReview(c, "d1", {}, scripted(), capture())).rejects.toThrow("--playlist <id> or --live-set <id>");
-    await expect(runReview(c, "d1", { playlist: 1, liveSet: 2 }, scripted(), capture())).rejects.toThrow("not both");
+    await expect(runReview(c, "d1", {}, scripted(), capture())).rejects.toThrow(
+      "--playlist <id> or --live-set <id>",
+    );
+    await expect(
+      runReview(c, "d1", { playlist: 1, liveSet: 2 }, scripted(), capture()),
+    ).rejects.toThrow("not both");
   });
 
   it("refuses a derivation that has not finished", async () => {
     const pending = view();
     pending.derivation = { ...pending.derivation, status: "processing" };
     const c = client({ getSetDerivation: vi.fn().mockResolvedValue(pending) });
-    await expect(runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted(), capture())).rejects.toThrow(
-      "is processing; there is nothing to review yet"
-    );
+    await expect(
+      runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted(), capture()),
+    ).rejects.toThrow("is processing; there is nothing to review yet");
   });
 
   it("refuses a derivation read without a diff", async () => {
     const c = client({ getSetDerivation: vi.fn().mockResolvedValue(view({ diff: null })) });
-    await expect(runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted(), capture())).rejects.toThrow(
-      "nothing to review yet"
-    );
+    await expect(
+      runReview(c as unknown as ReviewClient, "d1", { playlist: 176 }, scripted(), capture()),
+    ).rejects.toThrow("nothing to review yet");
   });
 
   it("names a track it cannot resolve by its id in the summary", async () => {
     const unresolved = view();
-    unresolved.tracklist = unresolved.tracklist.map((p) => (p.track_id === "99-A1" ? { ...p, track: null } : p));
+    unresolved.tracklist = unresolved.tracklist.map((p) =>
+      p.track_id === "99-A1" ? { ...p, track: null } : p,
+    );
     const io = capture();
-    await runReview(client({ getSetDerivation: vi.fn().mockResolvedValue(unresolved) }) as unknown as ReviewClient, "d1", { playlist: 176, dryRun: true }, scripted("y"), io);
+    await runReview(
+      client({
+        getSetDerivation: vi.fn().mockResolvedValue(unresolved),
+      }) as unknown as ReviewClient,
+      "d1",
+      { playlist: 176, dryRun: true },
+      scripted("y"),
+      io,
+    );
     expect(io.lines).toContain("  *  1  99-A1 (no longer in the library)");
   });
 });

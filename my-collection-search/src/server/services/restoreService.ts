@@ -29,7 +29,7 @@ const SCHEMA_MARKERS = ["CREATE TABLE", "CREATE SCHEMA", "ALTER TABLE"];
 const MARKER_OVERLAP = Math.max(...SCHEMA_MARKERS.map((marker) => marker.length));
 
 function quoteIdentifier(value: string): string {
-  return `"${value.replace(/"/g, "\"\"")}"`;
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 export function backupFileType(fileName: string): FileType {
@@ -54,7 +54,7 @@ export async function sqlBackupHasSchema(filePath: string): Promise<boolean> {
 
 export async function classifyBackupFile(
   fileName: string,
-  filePath: string
+  filePath: string,
 ): Promise<{ fileType: FileType; backupType: BackupType }> {
   const fileType = backupFileType(fileName);
   if (fileType === "dump") return { fileType, backupType: "schema+data" };
@@ -64,10 +64,7 @@ export async function classifyBackupFile(
   };
 }
 
-export function buildRestorePrepSql(
-  backupType: BackupType,
-  pgUser: string
-): string {
+export function buildRestorePrepSql(backupType: BackupType, pgUser: string): string {
   if (backupType === "data-only") {
     return `
 DO $$
@@ -137,9 +134,7 @@ export function withoutPublicSchemaEntry(list: string): string {
  *   CREATE SCHEMA would fail under ON_ERROR_STOP; make it idempotent.
  * - data-only: migrations run separately, so drop the pgmigrations rows.
  */
-export function createRestoreLineFilter(
-  backupType: BackupType
-): (line: string) => string | null {
+export function createRestoreLineFilter(backupType: BackupType): (line: string) => string | null {
   let state: "statement" | "copy" | "skip-copy" | "skip-insert" = "statement";
 
   return (line) => {
@@ -179,7 +174,7 @@ export function createRestoreLineFilter(
 async function filterSqlFile(
   inputPath: string,
   outputPath: string,
-  backupType: BackupType
+  backupType: BackupType,
 ): Promise<void> {
   const filter = createRestoreLineFilter(backupType);
   await pipeline(
@@ -198,7 +193,7 @@ async function filterSqlFile(
         if (last !== null) yield `${last}\n`;
       }
     },
-    fs.createWriteStream(outputPath, { encoding: "utf8" })
+    fs.createWriteStream(outputPath, { encoding: "utf8" }),
   );
 }
 
@@ -233,7 +228,7 @@ async function reindexSearch(): Promise<{
  */
 export async function restoreDatabaseFromFile(
   filePath: string,
-  fileName: string
+  fileName: string,
 ): Promise<RestoreResult> {
   const { fileType, backupType } = await classifyBackupFile(fileName, filePath);
   const pg = resolvePgConnection();
@@ -247,11 +242,9 @@ export async function restoreDatabaseFromFile(
 
     const cleanPath = path.join(workDir, "restore-clean.sql");
     await fs.promises.writeFile(cleanPath, `${buildRestorePrepSql(backupType, pg.user)}\n`);
-    await runCommand(
-      "psql",
-      [...pgConnectionArgs(pg), "-v", "ON_ERROR_STOP=1", "-f", cleanPath],
-      { env }
-    );
+    await runCommand("psql", [...pgConnectionArgs(pg), "-v", "ON_ERROR_STOP=1", "-f", cleanPath], {
+      env,
+    });
 
     if (fileType === "dump") {
       // Restore into the public schema the prep step just rebuilt, skipping the
@@ -261,7 +254,7 @@ export async function restoreDatabaseFromFile(
       const filteredListPath = path.join(workDir, "restore-filtered.list");
       await fs.promises.writeFile(
         filteredListPath,
-        withoutPublicSchemaEntry(await fs.promises.readFile(listPath, "utf8"))
+        withoutPublicSchemaEntry(await fs.promises.readFile(listPath, "utf8")),
       );
       await runCommand(
         "pg_restore",
@@ -274,7 +267,7 @@ export async function restoreDatabaseFromFile(
           filteredListPath,
           filePath,
         ],
-        { env }
+        { env },
       );
     } else {
       const filteredPath = path.join(workDir, "restore-filtered.sql");
@@ -290,7 +283,7 @@ export async function restoreDatabaseFromFile(
           "-f",
           filteredPath,
         ],
-        { env }
+        { env },
       );
     }
 
@@ -309,17 +302,17 @@ export async function restoreDatabaseFromFile(
 /** Stream an uploaded backup to a temp file, then restore from it. */
 export async function restoreDatabaseFromStream(
   body: ReadableStream<Uint8Array>,
-  fileName: string
+  fileName: string,
 ): Promise<RestoreResult> {
   const uploadDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "groovenet-restore-"));
   try {
     const uploadPath = path.join(
       uploadDir,
-      backupFileType(fileName) === "dump" ? "restore.dump" : "restore.sql"
+      backupFileType(fileName) === "dump" ? "restore.dump" : "restore.sql",
     );
     await pipeline(
       Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]),
-      fs.createWriteStream(uploadPath)
+      fs.createWriteStream(uploadPath),
     );
     return await restoreDatabaseFromFile(uploadPath, fileName);
   } finally {

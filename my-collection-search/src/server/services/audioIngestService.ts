@@ -1,11 +1,7 @@
 import { randomUUID } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import {
-  errorMessage,
-  logIngestEvent,
-  type IngestStage,
-} from "@/lib/ingestLog";
+import { errorMessage, logIngestEvent, type IngestStage } from "@/lib/ingestLog";
 import { getRedisConnection } from "@/lib/redis";
 import {
   audioIngestRepository,
@@ -30,14 +26,13 @@ import type {
  * The queue `fingerprint-service` pops. Deliberately not `download_queue`,
  * where multi-minute downloads would head-of-line block a 15-second window.
  */
-export const FINGERPRINT_QUEUE_KEY =
-  process.env.FINGERPRINT_QUEUE_KEY || "fingerprint_queue";
+export const FINGERPRINT_QUEUE_KEY = process.env.FINGERPRINT_QUEUE_KEY || "fingerprint_queue";
 
 /** Thrown for anything the device did wrong, carrying the code it will read. */
 export class IngestRejected extends Error {
   constructor(
     readonly code: IngestErrorCode,
-    message: string
+    message: string,
   ) {
     super(message);
     this.name = "IngestRejected";
@@ -53,7 +48,7 @@ export class IngestRejected extends Error {
 export class IngestFailure extends Error {
   constructor(
     readonly stage: IngestStage,
-    cause: unknown
+    cause: unknown,
   ) {
     super(errorMessage(cause), { cause });
     this.name = "IngestFailure";
@@ -143,10 +138,7 @@ export class AudioIngestService {
         const chunk = value as Uint8Array;
         written += chunk.byteLength;
         if (written > limits.maxBytes) {
-          throw new IngestRejected(
-            "audio_too_large",
-            `upload exceeds ${limits.maxBytes} bytes`
-          );
+          throw new IngestRejected("audio_too_large", `upload exceeds ${limits.maxBytes} bytes`);
         }
         await handle.write(chunk);
       }
@@ -171,19 +163,19 @@ export class AudioIngestService {
     if (!isSupported(probed)) {
       throw new IngestRejected(
         "unsupported_audio_format",
-        `${probed.formatName ?? "unknown"} is not a supported container`
+        `${probed.formatName ?? "unknown"} is not a supported container`,
       );
     }
     if (probed.durationSeconds < limits.minDurationSeconds) {
       throw new IngestRejected(
         "audio_too_short",
-        `${probed.durationSeconds.toFixed(2)}s is under the ${limits.minDurationSeconds}s minimum`
+        `${probed.durationSeconds.toFixed(2)}s is under the ${limits.minDurationSeconds}s minimum`,
       );
     }
     if (probed.durationSeconds > limits.maxDurationSeconds) {
       throw new IngestRejected(
         "audio_too_long",
-        `${probed.durationSeconds.toFixed(2)}s is over the ${limits.maxDurationSeconds}s maximum`
+        `${probed.durationSeconds.toFixed(2)}s is over the ${limits.maxDurationSeconds}s maximum`,
       );
     }
   }
@@ -198,7 +190,7 @@ export class AudioIngestService {
   async accept(
     file: File,
     fields: IngestRequestFields,
-    limits: IngestLimits = loadIngestLimits()
+    limits: IngestLimits = loadIngestLimits(),
   ): Promise<AcceptedIngest> {
     const startedAt = Date.now();
     if (!fields.source_id?.trim()) {
@@ -280,27 +272,24 @@ export class AudioIngestService {
     };
   }
 
-  private async findDuplicate(
-    fields: IngestRequestFields
-  ): Promise<AudioIngestRow | null> {
+  private async findDuplicate(fields: IngestRequestFields): Promise<AudioIngestRow | null> {
     if (!fields.session_id || fields.sequence === null || fields.sequence === undefined) {
       return null;
     }
     return audioIngestRepository.findByDedupeKey(
       fields.source_id.trim(),
       fields.session_id,
-      fields.sequence
+      fields.sequence,
     );
   }
 
   /** Move the accepted upload into its final, dated place on the volume. */
-  private async store(
-    tempPath: string,
-    ingestId: string,
-    probed: ProbedAudio
-  ): Promise<string> {
+  private async store(tempPath: string, ingestId: string, probed: ProbedAudio): Promise<string> {
     const day = new Date().toISOString().slice(0, 10);
-    const relativePath = path.join(/* turbopackIgnore: true */ day, `${ingestId}.${extensionFor(probed)}`);
+    const relativePath = path.join(
+      /* turbopackIgnore: true */ day,
+      `${ingestId}.${extensionFor(probed)}`,
+    );
     const target = path.join(/* turbopackIgnore: true */ ingestDir(), relativePath);
     await fsp.mkdir(path.dirname(target), { recursive: true });
     await fsp.rename(tempPath, target);
@@ -320,7 +309,7 @@ export class AudioIngestService {
   private async enqueue(
     row: AudioIngestRow,
     probed: ProbedAudio,
-    relativePath: string
+    relativePath: string,
   ): Promise<number | null> {
     try {
       return await this.redis.lpush(
@@ -330,9 +319,7 @@ export class AudioIngestService {
           source_id: row.source_id,
           session_id: row.session_id,
           sequence: row.sequence === null ? null : Number(row.sequence),
-          captured_at: row.captured_at
-            ? new Date(row.captured_at).toISOString()
-            : null,
+          captured_at: row.captured_at ? new Date(row.captured_at).toISOString() : null,
           file_path: relativePath,
           duration_seconds: probed.durationSeconds,
           sample_rate: probed.sampleRate,
@@ -340,14 +327,14 @@ export class AudioIngestService {
           codec: probed.codec,
           // So fingerprint-service can log how long the job waited (#280).
           enqueued_at: new Date().toISOString(),
-        })
+        }),
       );
     } catch (error) {
       ingestMetricsService.enqueueFailed();
       logIngestEvent(
         "ingest.enqueue_failed",
         { ...this.identify(row), stage: "enqueue", error: errorMessage(error) },
-        "error"
+        "error",
       );
       return null;
     }
@@ -361,9 +348,7 @@ export class AudioIngestService {
       duration_seconds: row.duration_seconds ?? 0,
       sample_rate: row.sample_rate,
       channels: row.channels,
-      captured_at: row.captured_at
-        ? new Date(row.captured_at).toISOString()
-        : null,
+      captured_at: row.captured_at ? new Date(row.captured_at).toISOString() : null,
     };
   }
 }

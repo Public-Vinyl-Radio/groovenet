@@ -55,27 +55,15 @@ export function useAirPlay({ audioRef, plVersion }: UseAirPlayArgs) {
       setIsAirPlayActive(Boolean(audio.webkitCurrentPlaybackTargetIsWireless));
     };
 
-    audio.addEventListener(
-      "webkitplaybacktargetavailabilitychanged",
-      onAvailabilityChanged
-    );
+    audio.addEventListener("webkitplaybacktargetavailabilitychanged", onAvailabilityChanged);
     const onWirelessChanged = () => {
       setIsAirPlayActive(Boolean(audio.webkitCurrentPlaybackTargetIsWireless));
     };
-    audio.addEventListener(
-      "webkitcurrentplaybacktargetiswirelesschanged",
-      onWirelessChanged
-    );
+    audio.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", onWirelessChanged);
 
     return () => {
-      audio.removeEventListener(
-        "webkitplaybacktargetavailabilitychanged",
-        onAvailabilityChanged
-      );
-      audio.removeEventListener(
-        "webkitcurrentplaybacktargetiswirelesschanged",
-        onWirelessChanged
-      );
+      audio.removeEventListener("webkitplaybacktargetavailabilitychanged", onAvailabilityChanged);
+      audio.removeEventListener("webkitcurrentplaybacktargetiswirelesschanged", onWirelessChanged);
     };
   }, [audioRef, plVersion]);
 

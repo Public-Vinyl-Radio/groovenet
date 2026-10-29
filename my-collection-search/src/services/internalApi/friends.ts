@@ -15,17 +15,12 @@ export type RemoveFriendResponse = {
   message: string;
 };
 
-export async function removeFriendStream(
-  username: string,
-  onLine: (line: string) => void
-) {
+export async function removeFriendStream(username: string, onLine: (line: string) => void) {
   const url = `/api/friends?username=${encodeURIComponent(username)}`;
   await streamLines(url, { method: "DELETE" }, onLine);
 }
 
-export async function addFriendApi(
-  username: string
-): Promise<FriendMutationResponse> {
+export async function addFriendApi(username: string): Promise<FriendMutationResponse> {
   return await http<FriendMutationResponse>("/api/friends", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,9 +28,7 @@ export async function addFriendApi(
   });
 }
 
-export async function removeFriendApi(
-  username: string
-): Promise<RemoveFriendResponse> {
+export async function removeFriendApi(username: string): Promise<RemoveFriendResponse> {
   const lines: string[] = [];
   await removeFriendStream(username, (line) => {
     lines.push(line);
@@ -44,15 +37,13 @@ export async function removeFriendApi(
 }
 
 export async function fetchFriends(
-  showCurrentUser?: FriendsListQuery["showCurrentUser"]
+  showCurrentUser?: FriendsListQuery["showCurrentUser"],
 ): Promise<Friend[]> {
   const params = new URLSearchParams();
   if (typeof showCurrentUser !== "undefined") {
     params.set(
       "showCurrentUser",
-      typeof showCurrentUser === "boolean"
-        ? String(showCurrentUser)
-        : showCurrentUser
+      typeof showCurrentUser === "boolean" ? String(showCurrentUser) : showCurrentUser,
     );
   }
   const query = params.toString();

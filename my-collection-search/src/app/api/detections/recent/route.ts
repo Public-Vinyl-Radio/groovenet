@@ -21,8 +21,7 @@ export async function GET(req: Request) {
     const rows = await playDetectionRepository.listRecent({
       source_id: url.searchParams.get("source_id") ?? undefined,
       session_id: url.searchParams.get("session_id") ?? undefined,
-      matched:
-        matchedParam === "true" ? true : matchedParam === "false" ? false : undefined,
+      matched: matchedParam === "true" ? true : matchedParam === "false" ? false : undefined,
       since: url.searchParams.get("since") ?? undefined,
       limit: Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 50,
       offset: Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0,
@@ -34,9 +33,7 @@ export async function GET(req: Request) {
         ingest_id: row.ingest_id,
         source_id: row.source_id,
         session_id: row.session_id,
-        window_start_at: row.window_start_at
-          ? new Date(row.window_start_at).toISOString()
-          : null,
+        window_start_at: row.window_start_at ? new Date(row.window_start_at).toISOString() : null,
         matched: row.track_id !== null,
         track_id: row.track_id,
         friend_id: row.friend_id,
@@ -57,7 +54,7 @@ export async function GET(req: Request) {
     console.error("Error listing detections:", err);
     return NextResponse.json(
       { error: err.message || "Failed to list detections" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

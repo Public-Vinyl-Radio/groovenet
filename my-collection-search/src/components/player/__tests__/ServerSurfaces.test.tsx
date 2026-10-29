@@ -7,19 +7,41 @@ import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 import { playerApi } from "@/services/internalApi/players";
 
 const target = vi.hoisted(() => ({ value: null as null | Record<string, unknown> }));
-vi.mock("@/providers/PlaybackTargetProvider", () => ({ useOptionalPlaybackTarget: () => target.value, usePlaybackTarget: () => target.value }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  useOptionalPlaybackTarget: () => target.value,
+  usePlaybackTarget: () => target.value,
+}));
 vi.mock("@/services/internalApi/players", () => ({ playerApi: { get: vi.fn() } }));
 
 import ServerNotice from "@/components/player/ServerNotice";
 import ServerSessionStrip from "@/components/player/ServerSessionStrip";
 import SpeakerDetails from "@/components/player/SpeakerDetails";
 
-const controller = { acknowledge: vi.fn(), dismissAcknowledgement: vi.fn(), dismissProblem: vi.fn(), command: vi.fn(), refresh: vi.fn() };
+const controller = {
+  acknowledge: vi.fn(),
+  dismissAcknowledgement: vi.fn(),
+  dismissProblem: vi.fn(),
+  command: vi.fn(),
+  refresh: vi.fn(),
+};
 const actions = { playHere: vi.fn(), reportProblem: vi.fn() };
 function server(remote: Record<string, unknown> = {}, patch: Record<string, unknown> = {}) {
   target.value = {
-    target: "lounge", authorized: true, problem: null, players: [], controller, ...actions,
-    remote: { player: player(), devices: [], connected: true, busy: false, problem: null, acknowledgement: null, ...remote },
+    target: "lounge",
+    authorized: true,
+    problem: null,
+    players: [],
+    controller,
+    ...actions,
+    remote: {
+      player: player(),
+      devices: [],
+      connected: true,
+      busy: false,
+      problem: null,
+      acknowledgement: null,
+      ...remote,
+    },
     ...patch,
   };
 }
@@ -40,24 +62,33 @@ describe("ServerNotice", () => {
   });
 
   it.each([
-    ["AVAILABILITY_UNKNOWN", "Speaker status unknown. Playing may interrupt another sender.", "Play anyway"],
+    [
+      "AVAILABILITY_UNKNOWN",
+      "Speaker status unknown. Playing may interrupt another sender.",
+      "Play anyway",
+    ],
     ["SPEAKER_OCCUPIED", "Speaker in use by another sender.", "Take over"],
-  ])("asks before playing over %s, and never acknowledges on its own", async (code, text, action) => {
-    server({ acknowledgement: { command: { type: "play" }, code, revision: 3 } });
-    const { user } = renderWithProviders(<ServerNotice />);
-    const notice = screen.getByRole("alertdialog", { name: "Confirm playback" });
-    expect(notice.textContent).toContain(text);
-    expect(controller.acknowledge).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: action }));
-    expect(controller.acknowledge).toHaveBeenCalledTimes(1);
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(controller.dismissAcknowledgement).toHaveBeenCalledTimes(1);
-  });
+  ])(
+    "asks before playing over %s, and never acknowledges on its own",
+    async (code, text, action) => {
+      server({ acknowledgement: { command: { type: "play" }, code, revision: 3 } });
+      const { user } = renderWithProviders(<ServerNotice />);
+      const notice = screen.getByRole("alertdialog", { name: "Confirm playback" });
+      expect(notice.textContent).toContain(text);
+      expect(controller.acknowledge).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: action }));
+      expect(controller.acknowledge).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(controller.dismissAcknowledgement).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("offers Unlock while access is locked, naming the server from the list", async () => {
     server({ player: null }, { authorized: false, controller: null, players: [player()] });
     const { user } = renderWithProviders(<ServerNotice />);
-    expect(screen.getByRole("alert").textContent).toContain("Unlock server access to control Lounge.");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Unlock server access to control Lounge.",
+    );
     await user.click(screen.getByRole("button", { name: "Unlock" }));
     expect(usePlaybackTargetDialog.getState().open).toBe(true);
   });
@@ -90,7 +121,9 @@ describe("ServerSessionStrip", () => {
   it("names the server's shared queue and plays here without commands", async () => {
     server({ player: null }, { players: [player()] });
     const { user } = renderWithProviders(<ServerSessionStrip />);
-    expect(screen.getByRole("region", { name: "Server session" }).textContent).toContain("SERVER SESSIONLounge · shared queue");
+    expect(screen.getByRole("region", { name: "Server session" }).textContent).toContain(
+      "SERVER SESSIONLounge · shared queue",
+    );
     await user.click(screen.getByRole("button", { name: "Play here" }));
     expect(actions.playHere).toHaveBeenCalledTimes(1);
     expect(controller.command).not.toHaveBeenCalled();
@@ -98,8 +131,15 @@ describe("ServerSessionStrip", () => {
 
   it("falls back to the player ID before anything has loaded", () => {
     server({ player: null }, { authorized: false, controller: null });
-    renderWithProviders(<><ServerSessionStrip /><ServerNotice /></>);
-    expect(screen.getByRole("region", { name: "Server session" }).textContent).toContain("lounge · shared queue");
+    renderWithProviders(
+      <>
+        <ServerSessionStrip />
+        <ServerNotice />
+      </>,
+    );
+    expect(screen.getByRole("region", { name: "Server session" }).textContent).toContain(
+      "lounge · shared queue",
+    );
     expect(screen.getByRole("alert").textContent).toContain("control lounge.");
   });
 
@@ -123,7 +163,10 @@ describe("SpeakerDetails", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: "Output" }), "speaker");
     expect(screen.getByText(/Observed unknown via unconfigured/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Remember desired output" }));
-    expect(controller.command).toHaveBeenCalledWith({ type: "output.select", output_id: "speaker" });
+    expect(controller.command).toHaveBeenCalledWith({
+      type: "output.select",
+      output_id: "speaker",
+    });
     await user.click(screen.getByRole("button", { name: "Refresh outputs" }));
     expect(controller.refresh).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole("button", { name: "Back" }));
@@ -144,13 +187,25 @@ describe("SpeakerDetails", () => {
     expect(confirm.hasAttribute("disabled")).toBe(true);
     await user.click(screen.getByRole("checkbox", { name: /play anyway/ }));
     await user.click(confirm);
-    expect(controller.command).toHaveBeenCalledWith({ type: "output.transfer", from_player_id: "aswitch", from_revision: 6, output_id: "speaker", play: true, allow_unknown: true, takeover: false });
+    expect(controller.command).toHaveBeenCalledWith({
+      type: "output.transfer",
+      from_player_id: "aswitch",
+      from_revision: 6,
+      output_id: "speaker",
+      play: true,
+      allow_unknown: true,
+      takeover: false,
+    });
     expect(screen.queryByText(/Transfer Speaker from/)).toBeNull();
   });
 
   it("asks to take over an occupied speaker, cancels, and reports an unreadable source", async () => {
-    vi.mocked(playerApi.get).mockResolvedValueOnce(player("aswitch")).mockRejectedValueOnce(new Error("offline"));
-    server({ devices: [{ ...claimed, observed: { ...claimed.observed, availability: "occupied" } }] });
+    vi.mocked(playerApi.get)
+      .mockResolvedValueOnce(player("aswitch"))
+      .mockRejectedValueOnce(new Error("offline"));
+    server({
+      devices: [{ ...claimed, observed: { ...claimed.observed, availability: "occupied" } }],
+    });
     const { user } = renderWithProviders(<SpeakerDetails onBack={vi.fn()} />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Output" }), "speaker");
     await user.click(screen.getByRole("button", { name: "Review transfer from aswitch" }));
@@ -159,7 +214,9 @@ describe("SpeakerDetails", () => {
     await user.click(screen.getByRole("button", { name: "Cancel transfer" }));
     expect(controller.command).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Review transfer from aswitch" }));
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Unable to read the source player"));
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Unable to read the source player"),
+    );
   });
 
   it("says when no outputs are reported", () => {

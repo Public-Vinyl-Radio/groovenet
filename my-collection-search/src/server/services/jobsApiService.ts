@@ -93,8 +93,8 @@ export class JobsApiService {
         jobsPage
           .map((job) => toPair(job))
           .filter((pair): pair is JobTrackPair => pair !== null)
-          .map((pair) => [`${pair.trackId}:${pair.friendId}`, pair])
-      ).values()
+          .map((pair) => [`${pair.trackId}:${pair.friendId}`, pair]),
+      ).values(),
     );
 
     const tracks = await jobRepository.findTracksByTrackAndFriendPairs(uniquePairs);
@@ -113,18 +113,12 @@ export class JobsApiService {
           track_id: job.track_id,
           friend_id: safeFriendId,
           release_id:
-            track?.release_id ||
-            (typeof job.release_id === "string" ? job.release_id : undefined),
+            track?.release_id || (typeof job.release_id === "string" ? job.release_id : undefined),
           job_type: job.job_type || job.name,
           title:
-            typeof job.result?.title === "string"
-              ? job.result.title
-              : track?.title ||
-                job.track_id,
+            typeof job.result?.title === "string" ? job.result.title : track?.title || job.track_id,
           artist:
-            typeof job.result?.artist === "string"
-              ? job.result.artist
-              : track?.artist || undefined,
+            typeof job.result?.artist === "string" ? job.result.artist : track?.artist || undefined,
           album: track?.album || undefined,
           year: track?.year || undefined,
           album_thumbnail: track?.album_thumbnail || undefined,
@@ -138,21 +132,15 @@ export class JobsApiService {
           downloader:
             typeof job.result?.downloader === "string" ? job.result.downloader : undefined,
           source_url_key:
-            typeof job.result?.source_url_key === "string"
-              ? job.result.source_url_key
-              : undefined,
+            typeof job.result?.source_url_key === "string" ? job.result.source_url_key : undefined,
         },
         returnvalue: job.result,
         finishedOn:
-          job.status === "completed" || job.status === "failed"
-            ? job.updated_at
-            : undefined,
+          job.status === "completed" || job.status === "failed" ? job.updated_at : undefined,
         failedReason: job.error,
         attemptsMade: 1,
         processedOn:
-          job.status === "processing" ||
-          job.status === "completed" ||
-          job.status === "failed"
+          job.status === "processing" || job.status === "completed" || job.status === "failed"
             ? job.started_at || job.created_at
             : undefined,
         queue: "download",

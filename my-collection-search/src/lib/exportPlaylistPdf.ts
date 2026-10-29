@@ -177,11 +177,7 @@ export async function exportPlaylistToPDF({
       doc.text(headerTitle, marginLeft, y);
       doc.setFontSize(8);
       doc.text(`Total Tracks: ${playlist.length}`, marginLeft, y + 4);
-      doc.text(
-        `Total Playtime: ${totalPlaytimeFormatted}`,
-        marginLeft,
-        y + 7
-      );
+      doc.text(`Total Playtime: ${totalPlaytimeFormatted}`, marginLeft, y + 7);
       if (headerTimestamp) {
         doc.text(`Exported: ${headerTimestamp}`, marginLeft, y + 10);
       }
@@ -192,9 +188,7 @@ export async function exportPlaylistToPDF({
 
     const indexStr = sanitizeForPdf(`${idx + 1}`);
     const position = sanitizeForPdf(
-      track.position !== undefined && track.position !== null
-        ? String(track.position)
-        : "-"
+      track.position !== undefined && track.position !== null ? String(track.position) : "-",
     );
     const artist = sanitizeForPdf(track.artist || "Unknown Artist");
     const title = sanitizeForPdf(track.title || "Untitled");
@@ -203,25 +197,10 @@ export async function exportPlaylistToPDF({
     const bpm = sanitizeForPdf(track.bpm || "-");
     const key = sanitizeForPdf(track.key || "-");
     const durSeconds = getTrackDurationSeconds(track);
-    const dur = sanitizeForPdf(
-      durSeconds ? formatSeconds(durSeconds) : "-"
-    );
-    const genre = sanitizeForPdf(
-      Array.isArray(track.genres) ? track.genres.join(", ") : ""
-    );
+    const dur = sanitizeForPdf(durSeconds ? formatSeconds(durSeconds) : "-");
+    const genre = sanitizeForPdf(Array.isArray(track.genres) ? track.genres.join(", ") : "");
 
-    const rowValues = [
-      indexStr,
-      id,
-      position,
-      artist,
-      title,
-      album,
-      bpm,
-      key,
-      dur,
-      genre,
-    ];
+    const rowValues = [indexStr, id, position, artist, title, album, bpm, key, dur, genre];
 
     rowValues.forEach((value, colIdx) => {
       const maxWidth = columns[colIdx].width - 1;

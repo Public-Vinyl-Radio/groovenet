@@ -7,19 +7,35 @@ const operations = apiContractRoutes.filter((route) => route.tags.includes("Genr
 describe("genre contracts", () => {
   it("registers every taxonomy operation explicitly", () => {
     expect(operations.map((route) => route.operationId)).toEqual([
-      "createGenre", "updateGenre", "addGenreAlias", "mergeGenres", "listGenres", "getGenre", "getSimilarGenres",
+      "createGenre",
+      "updateGenre",
+      "addGenreAlias",
+      "mergeGenres",
+      "listGenres",
+      "getGenre",
+      "getSimilarGenres",
     ]);
   });
-  it.each(operations.filter((route) => route.bodySchema))("validates the documented request example for $operationId", (route) => {
-    const content = route.openapi.requestBody?.content as Record<string, { example: unknown }>;
-    expect(route.bodySchema!.safeParse(content["application/json"].example).success).toBe(true);
-    for (const status of ["400", "404", "409", "500"]) expect(route.openapi.responses[status]).toBeDefined();
-  });
+  it.each(operations.filter((route) => route.bodySchema))(
+    "validates the documented request example for $operationId",
+    (route) => {
+      const content = route.openapi.requestBody?.content as Record<string, { example: unknown }>;
+      expect(route.bodySchema!.safeParse(content["application/json"].example).success).toBe(true);
+      for (const status of ["400", "404", "409", "500"])
+        expect(route.openapi.responses[status]).toBeDefined();
+    },
+  );
   it.each(operations)("validates documented success examples for $operationId", (route) => {
     const doc = getOpenApiDocument();
-    const operation = doc.paths[route.path][route.method] as { responses: Record<string, { content: Record<string, { example: unknown }> }> };
-    const status = route.operationId === "createGenre" || route.operationId === "addGenreAlias" ? "201" : "200";
-    expect(route.successSchema.safeParse(operation.responses[status].content["application/json"].example).success).toBe(true);
+    const operation = doc.paths[route.path][route.method] as {
+      responses: Record<string, { content: Record<string, { example: unknown }> }>;
+    };
+    const status =
+      route.operationId === "createGenre" || route.operationId === "addGenreAlias" ? "201" : "200";
+    expect(
+      route.successSchema.safeParse(operation.responses[status].content["application/json"].example)
+        .success,
+    ).toBe(true);
   });
   it("accepts either update field independently", () => {
     expect(genreUpdateBodySchema.safeParse({ name: "Dub" }).success).toBe(true);
@@ -31,9 +47,13 @@ describe("genre contracts", () => {
     expect(route.querySchema!.parse({ limit: "3" })).toEqual({ limit: 3 });
     expect(route.querySchema!.parse({})).toEqual({});
     expect(route.querySchema!.safeParse({ limit: "0" }).success).toBe(false);
-    expect(route.openapi.parameters).toContainEqual(expect.objectContaining({
-      name: "limit", in: "query", schema: { type: "integer", minimum: 1, default: 20 },
-    }));
+    expect(route.openapi.parameters).toContainEqual(
+      expect.objectContaining({
+        name: "limit",
+        in: "query",
+        schema: { type: "integer", minimum: 1, default: 20 },
+      }),
+    );
     expect(route.openapi.responses["400"]).toBeDefined();
   });
   it("documents a recursive tree with explicit fields and a resolvable reference", () => {
@@ -41,10 +61,15 @@ describe("genre contracts", () => {
     expect(doc.components.schemas.GenreTreeNode).toMatchObject({
       properties: {
         children: { items: { $ref: "#/components/schemas/GenreTreeNode" } },
-        track_count: { type: "integer" }, album_count: { type: "integer" },
+        track_count: { type: "integer" },
+        album_count: { type: "integer" },
       },
       required: expect.arrayContaining(["id", "parent_id", "children"]),
     });
-    for (const route of operations) expect(doc.paths[route.path][route.method]).toMatchObject({ operationId: route.operationId, tags: ["Genres"] });
+    for (const route of operations)
+      expect(doc.paths[route.path][route.method]).toMatchObject({
+        operationId: route.operationId,
+        tags: ["Genres"],
+      });
   });
 });

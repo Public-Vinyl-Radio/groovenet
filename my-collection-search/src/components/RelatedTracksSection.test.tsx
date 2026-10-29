@@ -6,7 +6,13 @@ import { renderWithProviders, setViewportWidth } from "@/test/renderWithProvider
 import type { Track } from "@/types/track";
 
 const mocks = vi.hoisted(() => ({
-  scope: { scope: "library" as "library" | "all", savedScope: "library", libraryFriendId: 4, ready: true, setScope: vi.fn() },
+  scope: {
+    scope: "library" as "library" | "all",
+    savedScope: "library",
+    libraryFriendId: 4,
+    ready: true,
+    setScope: vi.fn(),
+  },
   recommendations: vi.fn(),
   similar: vi.fn(),
   vibe: vi.fn(),
@@ -32,7 +38,14 @@ vi.mock("@/components/TrackActionsMenu", () => ({
 
 import RelatedTracksSection from "./RelatedTracksSection";
 
-const track = { track_id: "seed", friend_id: 9, title: "Seed", artist: "A", bpm: "148", key: "A minor" } as Track;
+const track = {
+  track_id: "seed",
+  friend_id: 9,
+  title: "Seed",
+  artist: "A",
+  bpm: "148",
+  key: "A minor",
+} as Track;
 
 const similarTracks = (count: number) => ({
   data: {
@@ -56,7 +69,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   setViewportWidth(1280);
-  mocks.scope = { scope: "library", savedScope: "library", libraryFriendId: 4, ready: true, setScope: vi.fn() };
+  mocks.scope = {
+    scope: "library",
+    savedScope: "library",
+    libraryFriendId: 4,
+    ready: true,
+    setScope: vi.fn(),
+  };
   mocks.recommendations.mockReturnValue(empty);
   mocks.similar.mockReturnValue({ data: { tracks: [] }, isLoading: false, error: null });
   mocks.vibe.mockReturnValue({ data: { tracks: [] }, isLoading: false, error: null });
@@ -66,10 +85,20 @@ describe("RelatedTracksSection scope", () => {
   it("asks every source for the selected library's scope", () => {
     renderWithProviders(<RelatedTracksSection track={track} />);
 
-    expect(mocks.recommendations).toHaveBeenCalledWith([track], 60, { scope: "library", libraryFriendId: 4, enabled: true });
+    expect(mocks.recommendations).toHaveBeenCalledWith([track], 60, {
+      scope: "library",
+      libraryFriendId: 4,
+      enabled: true,
+    });
     for (const hook of [mocks.similar, mocks.vibe]) {
       expect(hook).toHaveBeenCalledWith(
-        expect.objectContaining({ track_id: "seed", friend_id: 9, scope: "library", library_friend_id: 4, enabled: true })
+        expect.objectContaining({
+          track_id: "seed",
+          friend_id: 9,
+          scope: "library",
+          library_friend_id: 4,
+          enabled: true,
+        }),
       );
     }
   });
@@ -100,7 +129,9 @@ describe("RelatedTracksSection scope", () => {
     renderWithProviders(<RelatedTracksSection track={track} />);
     expect(await screen.findByRole("link", { name: "S" })).toBeTruthy();
     expect(screen.getByText("1 of 1")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "S" }).getAttribute("href")).toBe("/tracks/s1?friend_id=4");
+    expect(screen.getByRole("link", { name: "S" }).getAttribute("href")).toBe(
+      "/tracks/s1?friend_id=4",
+    );
   });
 
   it("reports a failed source", () => {
@@ -109,22 +140,33 @@ describe("RelatedTracksSection scope", () => {
     expect(screen.getByText("Could not load related tracks.")).toBeTruthy();
   });
 
-  it.each(["recommendations", "similar", "vibe"] as const)("shows loading while %s is still loading", (source) => {
-    mocks[source].mockReturnValue({ data: undefined, isLoading: true, error: null });
-    renderWithProviders(<RelatedTracksSection track={track} />);
-    expect(screen.getByText("Loading related tracks...")).toBeTruthy();
-  });
+  it.each(["recommendations", "similar", "vibe"] as const)(
+    "shows loading while %s is still loading",
+    (source) => {
+      mocks[source].mockReturnValue({ data: undefined, isLoading: true, error: null });
+      renderWithProviders(<RelatedTracksSection track={track} />);
+      expect(screen.getByText("Loading related tracks...")).toBeTruthy();
+    },
+  );
 
   it("shows loading, not an empty list, until the saved scope is known", () => {
     mocks.scope.ready = false;
     renderWithProviders(<RelatedTracksSection track={track} />);
     expect(screen.getByText("Loading related tracks...")).toBeTruthy();
-    expect(mocks.recommendations).toHaveBeenCalledWith([track], 60, expect.objectContaining({ enabled: false }));
+    expect(mocks.recommendations).toHaveBeenCalledWith(
+      [track],
+      60,
+      expect.objectContaining({ enabled: false }),
+    );
   });
 
   it("hides the username within one library, but shows it across all libraries (#522)", async () => {
     mocks.similar.mockReturnValue({
-      data: { tracks: [{ track_id: "s1", friend_id: 4, title: "S", artist: "A", username: "ben", distance: 0.1 }] },
+      data: {
+        tracks: [
+          { track_id: "s1", friend_id: 4, title: "S", artist: "A", username: "ben", distance: 0.1 },
+        ],
+      },
       isLoading: false,
       error: null,
     });
@@ -158,7 +200,7 @@ describe("RelatedTracksSection layout", () => {
     expect(screen.getByTestId("related-table")).toBeTruthy();
     expect(screen.queryByTestId("related-list")).toBeNull();
     expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
-      expect.arrayContaining(["Track", "Side", "Time", "BPM", "Key", "Genre", "Rating"])
+      expect.arrayContaining(["Track", "Side", "Time", "BPM", "Key", "Genre", "Rating"]),
     );
     // 150 against 148, E minor next to A minor.
     expect(screen.getAllByText("+2")).toHaveLength(2);
@@ -170,7 +212,15 @@ describe("RelatedTracksSection layout", () => {
     mocks.similar.mockReturnValue({
       data: {
         tracks: [
-          { track_id: "c1", friend_id: 4, title: "Clash", artist: "A", bpm: 143, key: "F minor", distance: 0.1 },
+          {
+            track_id: "c1",
+            friend_id: 4,
+            title: "Clash",
+            artist: "A",
+            bpm: 143,
+            key: "F minor",
+            distance: 0.1,
+          },
           { track_id: "n1", friend_id: 4, title: "Bare", artist: "A", distance: 0.2 },
         ],
       },
@@ -201,7 +251,12 @@ describe("RelatedTracksSection layout", () => {
     await user.click(screen.getAllByText("actions")[1]);
     expect(track_).toHaveBeenCalledWith(
       "recommendation_acted_on",
-      expect.objectContaining({ track_id: "s2", action: "add_to_playlist", rank: 2, sources: ["similar"] })
+      expect.objectContaining({
+        track_id: "s2",
+        action: "add_to_playlist",
+        rank: 2,
+        sources: ["similar"],
+      }),
     );
   });
 
@@ -250,7 +305,9 @@ describe("RelatedTracksSection layout", () => {
 
     expect(await screen.findByText("Cumbia")).toBeTruthy();
     expect(screen.getByText("+1")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Album One" }).getAttribute("href")).toBe("/albums/r1?friend_id=4");
+    expect(screen.getByRole("link", { name: "Album One" }).getAttribute("href")).toBe(
+      "/albums/r1?friend_id=4",
+    );
     expect(screen.getByText("2001")).toBeTruthy();
     expect(screen.getByLabelText("Rated 3 of 5")).toBeTruthy();
     // The other row has no genres: a dash.

@@ -117,7 +117,7 @@ export class TrackAudioMetadataService {
         "png",
         "pipe:1",
       ],
-      { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 }
+      { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 },
     );
     return stdout;
   }
@@ -135,7 +135,7 @@ export class TrackAudioMetadataService {
       streams.find(
         (s) =>
           s?.disposition?.attached_pic === 1 ||
-          (s?.codec_type === "video" && s?.disposition?.default === 0)
+          (s?.codec_type === "video" && s?.disposition?.default === 0),
       ) ?? null
     );
   }
@@ -146,8 +146,7 @@ export class TrackAudioMetadataService {
       typeof probe === "object" &&
       "format" in probe &&
       (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags &&
-      typeof (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags ===
-        "object"
+      typeof (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags === "object"
         ? (probe as { format: { tags: Record<string, unknown> } }).format.tags
         : null;
 
@@ -183,8 +182,7 @@ export class TrackAudioMetadataService {
       typeof probe === "object" &&
       "format" in probe &&
       (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags &&
-      typeof (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags ===
-        "object"
+      typeof (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags === "object"
         ? (probe as { format: { tags: Record<string, unknown> } }).format.tags
         : null;
 

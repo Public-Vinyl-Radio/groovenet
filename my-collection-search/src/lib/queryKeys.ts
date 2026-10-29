@@ -15,7 +15,8 @@ export const queryKeys = {
   playlists: () => ["playlists"] as const,
   genresRoot: () => ["genres"] as const,
   genreTree: () => ["genres", "tree"] as const,
-  genrePage: (slug: string, friend_id?: number) => ["genres", "page", slug, friend_id ?? null] as const,
+  genrePage: (slug: string, friend_id?: number) =>
+    ["genres", "page", slug, friend_id ?? null] as const,
   genreResults: (slug: string, friendId: number | undefined, view: "albums" | "tracks") =>
     ["genres", "results", slug, friendId ?? null, view] as const,
   friends: () => ["friends"] as const,
@@ -74,7 +75,7 @@ export const queryKeys = {
       | readonly { track_id: string; friend_id: number; position?: number }[]
       | { tracks?: readonly { track_id: string; friend_id: number; position?: number }[] }
       | null
-      | undefined
+      | undefined,
   ) => {
     type TrackRef = { track_id: string; friend_id: number; position?: number };
     const isTrackRef = (v: unknown): v is TrackRef =>
@@ -141,11 +142,6 @@ export const queryKeys = {
   // Mutation keys (optional centralization)
   tracksStatus: () => ["tracks", "status"] as const,
   appleAISearchKey(args: AppleMusicAISearchArgs) {
-    return [
-      "ai",
-      "apple-music-search",
-      args.title ?? "",
-      args.artist ?? "",
-    ] as const;
+    return ["ai", "apple-music-search", args.title ?? "", args.artist ?? ""] as const;
   },
 };

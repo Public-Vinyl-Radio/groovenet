@@ -26,7 +26,7 @@ async function cleanup() {
 
 async function search(query: string) {
   const res = await GET(
-    new NextRequest(`http://localhost/api/tracks/search?friend_id=${friendId}&${query}`)
+    new NextRequest(`http://localhost/api/tracks/search?friend_id=${friendId}&${query}`),
   );
   expect(res.status).toBe(200);
   const body = await res.json();
@@ -41,14 +41,14 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   for (const t of TRACKS) {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, bpm, key, star_rating)
        VALUES ($1, $2, $3, 'Deep Groove', 'Filter Artist', $4, $5, $6)`,
-      [t.id, USERNAME, friendId, t.bpm, t.key, t.rating]
+      [t.id, USERNAME, friendId, t.bpm, t.key, t.rating],
     );
   }
 });
@@ -61,7 +61,10 @@ afterAll(async () => {
 
 describe("lexical search filters (integration)", () => {
   dbTest("BPM bounds are inclusive and decimals work, in hits and total", async () => {
-    expect(await search("q=deep&bpm_min=120&bpm_max=124.5")).toEqual({ ids: ["deep-1", "deep-2"], total: 2 });
+    expect(await search("q=deep&bpm_min=120&bpm_max=124.5")).toEqual({
+      ids: ["deep-1", "deep-2"],
+      total: 2,
+    });
   });
 
   dbTest("key is exact but case-insensitive", async () => {
@@ -73,6 +76,9 @@ describe("lexical search filters (integration)", () => {
   });
 
   dbTest("filters combine with each other and the query", async () => {
-    expect(await search("q=groove&bpm_min=121&key=a%20minor&star_rating=3")).toEqual({ ids: ["deep-2"], total: 1 });
+    expect(await search("q=groove&bpm_min=121&key=a%20minor&star_rating=3")).toEqual({
+      ids: ["deep-2"],
+      total: 1,
+    });
   });
 });

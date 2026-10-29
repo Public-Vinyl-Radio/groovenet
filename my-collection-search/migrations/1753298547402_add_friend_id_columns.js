@@ -15,28 +15,28 @@ export const shorthands = undefined;
  */
 export function up(pgm) {
   // Add friend_id column to tracks table
-  pgm.addColumn('tracks', {
+  pgm.addColumn("tracks", {
     friend_id: {
-      type: 'integer',
-      references: 'friends(id)',
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-    }
+      type: "integer",
+      references: "friends(id)",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    },
   });
 
   // Add friend_id column to playlist_tracks table
-  pgm.addColumn('playlist_tracks', {
+  pgm.addColumn("playlist_tracks", {
     friend_id: {
-      type: 'integer',
-      references: 'friends(id)',
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-    }
+      type: "integer",
+      references: "friends(id)",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    },
   });
 
   // Create indexes on friend_id columns for performance
-  pgm.createIndex('tracks', 'friend_id', { name: 'idx_tracks_friend_id' });
-  pgm.createIndex('playlist_tracks', 'friend_id', { name: 'idx_playlist_tracks_friend_id' });
+  pgm.createIndex("tracks", "friend_id", { name: "idx_tracks_friend_id" });
+  pgm.createIndex("playlist_tracks", "friend_id", { name: "idx_playlist_tracks_friend_id" });
 
   // Create missing friends for any tracks that don't have matching friends
   pgm.sql(`
@@ -82,16 +82,16 @@ export function up(pgm) {
   `);
 
   // Add NOT NULL constraints after data population
-  pgm.alterColumn('tracks', 'friend_id', { notNull: true });
-  pgm.alterColumn('playlist_tracks', 'friend_id', { notNull: true });
+  pgm.alterColumn("tracks", "friend_id", { notNull: true });
+  pgm.alterColumn("playlist_tracks", "friend_id", { notNull: true });
 }
 
 export function down(pgm) {
   // Remove indexes
-  pgm.dropIndex('tracks', 'friend_id', { name: 'idx_tracks_friend_id' });
-  pgm.dropIndex('playlist_tracks', 'friend_id', { name: 'idx_playlist_tracks_friend_id' });
+  pgm.dropIndex("tracks", "friend_id", { name: "idx_tracks_friend_id" });
+  pgm.dropIndex("playlist_tracks", "friend_id", { name: "idx_playlist_tracks_friend_id" });
 
   // Remove friend_id columns
-  pgm.dropColumn('tracks', 'friend_id');
-  pgm.dropColumn('playlist_tracks', 'friend_id');
+  pgm.dropColumn("tracks", "friend_id");
+  pgm.dropColumn("playlist_tracks", "friend_id");
 }

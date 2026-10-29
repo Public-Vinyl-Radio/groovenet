@@ -7,7 +7,7 @@ const { mockCreate, mockGetPrompt, mockListFlat, mockFindTrack, mockReleaseCount
     mockListFlat: vi.fn(),
     mockFindTrack: vi.fn(),
     mockReleaseCounts: vi.fn(),
-  })
+  }),
 );
 
 vi.mock("openai", () => ({
@@ -120,7 +120,7 @@ describe("generateTrackMetadata — validation", () => {
 
   it("throws a 400 for an empty/whitespace prompt", async () => {
     await expect(generateTrackMetadata({ prompt: "   " })).rejects.toBeInstanceOf(
-      TrackMetadataError
+      TrackMetadataError,
     );
     await expect(generateTrackMetadata({ prompt: "   " })).rejects.toMatchObject({
       status: 400,
@@ -129,7 +129,7 @@ describe("generateTrackMetadata — validation", () => {
 
   it("throws a 400 for a non-string prompt", async () => {
     await expect(
-      generateTrackMetadata({ prompt: undefined as unknown as string })
+      generateTrackMetadata({ prompt: undefined as unknown as string }),
     ).rejects.toMatchObject({ status: 400 });
   });
 });
@@ -234,7 +234,7 @@ describe("generateTrackMetadata — genres from the taxonomy", () => {
         ...META,
         genres: ["Feminist Anthem", "deep house", "Deep House", "cumbia", 7],
         descriptors: ["Uplifting", "uplifting", "Dark", "Hypnotic", "Warm"],
-      })
+      }),
     );
     const res = await generateTrackMetadata({ prompt: "p" });
     expect(res.genres.map((genre) => genre.name)).toEqual(["Deep House", "Cumbia"]);
@@ -273,7 +273,7 @@ describe("generateTrackMetadata — genres from the taxonomy", () => {
 
   it("treats missing genre and descriptor arrays in free text as empty", async () => {
     mockCreate.mockResolvedValueOnce(
-      textContent({ notes: "n", needs_search: true, artist_match_confidence: "high" })
+      textContent({ notes: "n", needs_search: true, artist_match_confidence: "high" }),
     );
     const res = await generateTrackMetadata({ prompt: "p" });
     expect(res).toEqual({ genres: [], descriptors: [], notes: "n" });
@@ -285,7 +285,7 @@ describe("generateTrackMetadata — genres from the taxonomy", () => {
         ...META,
         descriptors: ["dub\u0000by"],
         notes: "Warm\u0000 groove.",
-      })
+      }),
     );
     const res = await generateTrackMetadata({ prompt: "p" });
     expect(res.notes).toBe("Warm groove.");
@@ -294,7 +294,7 @@ describe("generateTrackMetadata — genres from the taxonomy", () => {
 
   it("returns empty notes when free text has none", async () => {
     mockCreate.mockResolvedValueOnce(
-      textContent({ genres: [], descriptors: ["dub"], artist_match_confidence: "high" })
+      textContent({ genres: [], descriptors: ["dub"], artist_match_confidence: "high" }),
     );
     const res = await generateTrackMetadata({ prompt: "p" });
     expect(res).toEqual({ genres: [], descriptors: ["dub"], notes: "" });
@@ -334,7 +334,7 @@ describe("generateTrackMetadata — album context", () => {
         "Album Discogs genres: Latin",
         "Album Discogs styles: Cumbia, Salsa",
         "Track genres already used on this album: Cumbia (3)",
-      ].join("\n")
+      ].join("\n"),
     );
   });
 
@@ -353,7 +353,7 @@ describe("generateTrackMetadata — album context", () => {
 
     expect(mockReleaseCounts).not.toHaveBeenCalled();
     expect(promptOf()).toBe(
-      "p\nAlbum Discogs genres: Electronic\nAlbum Discogs styles: Deep House"
+      "p\nAlbum Discogs genres: Electronic\nAlbum Discogs styles: Deep House",
     );
   });
 

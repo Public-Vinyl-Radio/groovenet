@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  Flex,
-  Portal,
-  Dialog,
-  CloseButton,
-} from "@chakra-ui/react";
+import { Box, Button, Flex, Portal, Dialog, CloseButton } from "@chakra-ui/react";
 import type { Track } from "@/types/track";
 import { cleanSoundcloudUrl } from "@/lib/url";
 import TrackEditFormSkeleton from "@/components/TrackEditFormSkeleton";
@@ -63,9 +56,7 @@ export default function TrackEditForm({
     setForm((prev) => ({ ...prev, star_rating: rating }));
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 

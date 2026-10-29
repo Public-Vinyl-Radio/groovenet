@@ -35,9 +35,7 @@ def events(caplog):
 
     def _read(name: str | None = None) -> list[dict]:
         lines = [
-            json.loads(record.getMessage())
-            for record in caplog.records
-            if record.name == "fingerprint_service.events"
+            json.loads(record.getMessage()) for record in caplog.records if record.name == "fingerprint_service.events"
         ]
         return [line for line in lines if name is None or line["event"] == name]
 
@@ -64,6 +62,7 @@ def wav_file(ingest_dir):
     the ingest route's own fixtures are specified (#275). A tone rather than
     silence, so a decode that drops it is visible.
     """
+
     def _make(name="chunk.wav", seconds=1.0, sample_rate=44100, channels=1, freq=440):
         path = ingest_dir / name
         frames = []
@@ -100,13 +99,12 @@ def reference_wav(audio_dir):
     Returns the bare name rather than the path: that is what
     `tracks.local_audio_url` holds and therefore what an index job carries.
     """
+
     def _make(name="artist - title.m4a", seconds=1.0, sample_rate=44100, freq=440):
         path = audio_dir / name
         frames = []
         for i in range(int(seconds * sample_rate)):
-            frames.append(
-                struct.pack("<h", int(16000 * math.sin(2 * math.pi * freq * i / sample_rate)))
-            )
+            frames.append(struct.pack("<h", int(16000 * math.sin(2 * math.pi * freq * i / sample_rate))))
         with wave.open(str(path), "wb") as out:
             out.setnchannels(1)
             out.setsampwidth(2)
@@ -120,6 +118,7 @@ def reference_wav(audio_dir):
 @pytest.fixture
 def index_job():
     """Factory for a well-formed `fingerprint_index_queue` payload."""
+
     def _make(**overrides):
         base = {
             "run_id": "22222222-2222-2222-2222-222222222222",
@@ -151,6 +150,7 @@ def tone_pcm():
 
     `noise` degrades a capture the way a mix does, for testing recall.
     """
+
     # Many tests use the same long clips. Cache only immutable source bytes;
     # each test still constructs and exercises its own matcher and index.
     @lru_cache(maxsize=32)
@@ -158,10 +158,7 @@ def tone_pcm():
         import random
 
         rng = random.Random(int(seed * 1000))
-        partials = [
-            (rng.uniform(110, 3000), rng.uniform(0.2, 1.0), rng.uniform(0.05, 0.4))
-            for _ in range(6)
-        ]
+        partials = [(rng.uniform(110, 3000), rng.uniform(0.2, 1.0), rng.uniform(0.05, 0.4)) for _ in range(6)]
         noise_rng = random.Random(int(seed * 1000) + 7)
         out = bytearray()
         for i in range(int(seconds * sample_rate)):
@@ -185,6 +182,7 @@ def tone_pcm():
 @pytest.fixture
 def job():
     """Factory for a well-formed queue payload."""
+
     def _make(**overrides):
         base = {
             "ingest_id": "11111111-1111-1111-1111-111111111111",
@@ -219,6 +217,7 @@ def set_dir(tmp_path, monkeypatch):
 @pytest.fixture
 def set_job():
     """Factory for a well-formed `fingerprint_set_queue` payload."""
+
     def _make(**overrides):
         base = {
             "derivation_id": "33333333-3333-3333-3333-333333333333",

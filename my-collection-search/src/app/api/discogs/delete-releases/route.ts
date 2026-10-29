@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (!username || !Array.isArray(releaseIds)) {
       return NextResponse.json(
         { error: "username and releaseIds array required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 

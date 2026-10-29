@@ -53,7 +53,7 @@ export default function PlaylistSelectionDialog({
   const filteredPlaylists = React.useMemo(() => {
     if (!searchQuery.trim()) return playlists;
     return playlists.filter((playlist: Playlist) =>
-      playlist.name.toLowerCase().includes(searchQuery.toLowerCase())
+      playlist.name.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [playlists, searchQuery]);
 
@@ -147,9 +147,7 @@ export default function PlaylistSelectionDialog({
                     {filteredPlaylists.length === 0 ? (
                       <Box textAlign="center" py={4}>
                         {searchQuery.trim() ? (
-                          <Text color="fg.muted">
-                            No playlists found matching ({searchQuery})
-                          </Text>
+                          <Text color="fg.muted">No playlists found matching ({searchQuery})</Text>
                         ) : (
                           <Text color="fg.muted">No playlists found</Text>
                         )}
@@ -188,9 +186,7 @@ export default function PlaylistSelectionDialog({
                     width="full"
                   >
                     <FiPlus />
-                    {searchQuery.trim()
-                      ? `Create "${searchQuery.trim()}"`
-                      : "Create New Playlist"}
+                    {searchQuery.trim() ? `Create "${searchQuery.trim()}"` : "Create New Playlist"}
                   </Button>
                 </Box>
               </VStack>

@@ -109,7 +109,6 @@ describe("albums page genre filter (#375)", () => {
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/albums?q=blue&genre=jazz"));
   });
-
 });
 
 describe("albums page missing filter (#447)", () => {
@@ -124,18 +123,28 @@ describe("albums page missing filter (#447)", () => {
     const { user } = renderWithProviders(<AlbumsPage />);
 
     const modal = await openFilters(user);
-    expect(within(modal).getAllByRole("checkbox").map((box) => box.closest("label")?.textContent)).toEqual([
-      "Include similar",
+    expect(
+      within(modal)
+        .getAllByRole("checkbox")
+        .map((box) => box.closest("label")?.textContent),
+    ).toEqual(["Include similar"]);
+    const chips = within(
+      within(modal).getByRole("group", { name: "Only albums missing" }),
+    ).getAllByRole("button");
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "Library identifier",
+      "Local cover",
+      "Audio",
     ]);
-    const chips = within(within(modal).getByRole("group", { name: "Only albums missing" })).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual(["Library identifier", "Local cover", "Audio"]);
     await user.click(within(modal).getByRole("button", { name: "Audio" }));
 
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=jazz&missing_audio=1");
   });
 
   it("shows checks from old links as chips, which remove them", async () => {
-    mocks.searchParams = new URLSearchParams("missing_library_identifier=1&missing_local_cover_art_url=1");
+    mocks.searchParams = new URLSearchParams(
+      "missing_library_identifier=1&missing_local_cover_art_url=1",
+    );
     const { user } = renderWithProviders(<AlbumsPage />);
     expect(screen.getByRole("button", { name: "Albums actions, 2 filters on" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Missing audio/ })).toBeNull();
@@ -152,8 +161,8 @@ describe("albums page missing filter (#447)", () => {
     await user.type(input, "blue{Enter}");
     await waitFor(() =>
       expect(mocks.push).toHaveBeenCalledWith(
-        "/albums?q=blue&missing_local_cover_art_url=1&missing_audio=1"
-      )
+        "/albums?q=blue&missing_local_cover_art_url=1&missing_audio=1",
+      ),
     );
 
     await user.click(screen.getByRole("button", { name: "Clear all" }));
@@ -189,7 +198,10 @@ describe("albums page include_similar (#485)", () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
     const modal = await openFilters(user);
-    expect((within(modal).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked).toBe(true);
+    expect(
+      (within(modal).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
   });
 
   it("turns the toggle on and records it in the URL", async () => {
@@ -220,7 +232,9 @@ describe("albums page include_similar (#485)", () => {
     const chip = await screen.findByRole("button", { name: /Porro/ });
     await user.click(chip);
 
-    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia&similar=1&similar_exclude=id-porro");
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/albums?genre=cumbia&similar=1&similar_exclude=id-porro",
+    );
   });
 
   it("clears the toggle and exclusions from Clear all", async () => {
@@ -243,8 +257,12 @@ describe("albums page artwork review link (#494)", () => {
   it("opens artwork review from the desktop kebab and the phone kebab", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
 
-    await user.click(await screen.findByRole("button", { name: "More album options", hidden: true }));
-    await user.click(await screen.findByRole("menuitem", { name: "Album artwork review", hidden: true }));
+    await user.click(
+      await screen.findByRole("button", { name: "More album options", hidden: true }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Album artwork review", hidden: true }),
+    );
     await user.click(screen.getByRole("button", { name: /^Albums actions/ }));
     await user.click(await screen.findByRole("menuitem", { name: "Album artwork review" }));
 
@@ -264,8 +282,11 @@ describe("albums page view toggle (#730)", () => {
   it("switches between rows and cards, remembering the choice", async () => {
     const { user, unmount } = renderWithProviders(<AlbumsPage />);
     expect((await screen.findByTestId("results")).getAttribute("data-layout")).toBe("row");
-    const grid = () => screen.getByRole("radio", { name: "Grid", hidden: true }) as HTMLInputElement;
-    expect((screen.getByRole("radio", { name: "List", hidden: true }) as HTMLInputElement).checked).toBe(true);
+    const grid = () =>
+      screen.getByRole("radio", { name: "Grid", hidden: true }) as HTMLInputElement;
+    expect(
+      (screen.getByRole("radio", { name: "List", hidden: true }) as HTMLInputElement).checked,
+    ).toBe(true);
     await user.click(screen.getByText("Grid"));
     expect(localStorage.getItem("searchViewMode")).toBe("card");
     expect(grid().checked).toBe(true);
@@ -311,7 +332,9 @@ describe("albums page simplified search (#751)", () => {
   it("opens the modal without a badge when no filter is on", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     const modal = await openFilters(user);
-    expect((within(modal).getByRole("button", { name: "Reset" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (within(modal).getByRole("button", { name: "Reset" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("sorts through the URL, keeping the search", async () => {
@@ -323,7 +346,9 @@ describe("albums page simplified search (#751)", () => {
 
   it("sorts from SORT in the desktop search row", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
-    await user.click(await screen.findByRole("button", { name: "Sort: Recently Added", hidden: true }));
+    await user.click(
+      await screen.findByRole("button", { name: "Sort: Recently Added", hidden: true }),
+    );
     await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)", hidden: true }));
     expect(mocks.push).toHaveBeenCalledWith("/albums?sort=title%3Aasc");
   });

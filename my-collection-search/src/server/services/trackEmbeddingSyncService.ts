@@ -17,7 +17,7 @@ export type IdentityEmbeddingSyncResult = {
  * worker skips a track whose source hash is unchanged.
  */
 export async function syncIdentityEmbeddings(
-  tracks: EmbeddingTrackRef[]
+  tracks: EmbeddingTrackRef[],
 ): Promise<IdentityEmbeddingSyncResult> {
   if (tracks.length === 0) return { queued: 0 };
 
@@ -28,9 +28,9 @@ export async function syncIdentityEmbeddings(
         track_id: track.track_id,
         friend_id: track.friend_id,
         kind,
-      }))
+      })),
     ),
-    "sync"
+    "sync",
   );
 
   return { queued: tracks.length };

@@ -16,10 +16,7 @@ export async function GET() {
     return NextResponse.json(appearanceSettingsResponseSchema.parse(result));
   } catch (err) {
     console.error("Failed to load appearance settings:", err);
-    return NextResponse.json(
-      { error: "Failed to load appearance settings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load appearance settings" }, { status: 500 });
   }
 }
 
@@ -39,9 +36,9 @@ export async function PUT(request: Request) {
         ? `palette must be one of: ${[...paletteIds, "custom"].join(", ")} (custom needs a customPalette)`
         : path?.startsWith("customPalette")
           ? `customPalette must be null or { base: a preset id, light and dark: { ${customColourKeys.join(", ")} } } with every colour as #rrggbb`
-        : role
-          ? `fonts.${role} must be one of: ${fontChoiceIdsFor(role).join(", ")}`
-          : `Body may only contain palette, customPalette and fonts.{${fontRoleIds.join(",")}}`;
+          : role
+            ? `fonts.${role} must be one of: ${fontChoiceIdsFor(role).join(", ")}`
+            : `Body may only contain palette, customPalette and fonts.{${fontRoleIds.join(",")}}`;
     return NextResponse.json({ error }, { status: 400 });
   }
 
@@ -53,9 +50,6 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("Failed to update appearance settings:", err);
-    return NextResponse.json(
-      { error: "Failed to update appearance settings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update appearance settings" }, { status: 500 });
   }
 }

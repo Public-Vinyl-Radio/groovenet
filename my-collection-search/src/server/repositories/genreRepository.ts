@@ -79,7 +79,7 @@ export class GenreRepository {
     if (slugs.length === 0) return new Map();
     const { rows } = await dbQuery<{ slug: string; id: string }>(
       "SELECT slug, id::text AS id FROM genres WHERE slug = ANY($1::text[])",
-      [slugs]
+      [slugs],
     );
     return new Map(rows.map((row) => [row.slug, row.id]));
   }
@@ -104,7 +104,7 @@ export class GenreRepository {
           SELECT a.alias_normalized FROM genre_aliases a WHERE a.genre_id IN (SELECT id FROM tree)
         ) keys) AS keys
       `,
-      [genreIds]
+      [genreIds],
     );
     return { ids: rows[0]?.ids ?? [], keys: rows[0]?.keys ?? [] };
   }
@@ -114,7 +114,7 @@ export class GenreRepository {
     if (ids.length === 0) return [];
     const { rows } = await dbQuery<GenreFilterRef>(
       "SELECT id::text AS id, name, slug FROM genres WHERE id = ANY($1::uuid[])",
-      [ids]
+      [ids],
     );
     return rows;
   }
@@ -133,7 +133,7 @@ export class GenreRepository {
       // Transaction-local, so a pooled connection never carries it onward.
       await client.query("SELECT set_config('jit', 'off', true)");
       const { rows } = await client.query<GenreFacet>(
-      `
+        `
       WITH RECURSIVE matched AS (
         SELECT t.track_id, t.friend_id, t.release_id, t.genres, t.styles
         FROM tracks t
@@ -168,7 +168,7 @@ export class GenreRepository {
       GROUP BY l.ancestor_id
       ORDER BY track_count DESC, id
       `,
-        params
+        params,
       );
       return rows;
     });

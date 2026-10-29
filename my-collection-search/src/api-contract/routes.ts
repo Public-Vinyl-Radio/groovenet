@@ -286,7 +286,8 @@ const appearanceSettingsPutSchemaObject: Record<string, unknown> = {
     customPalette: {
       ...customPaletteSchemaObject,
       type: ["object", "null"],
-      description: "Replaces the saved custom palette; null deletes it (and falls back to the default palette if it was in use).",
+      description:
+        "Replaces the saved custom palette; null deletes it (and falls back to the default palette if it was in use).",
     },
     fonts: {
       type: "object",
@@ -491,35 +492,33 @@ function makeTrackRoute(
   method: HttpMethod,
   path: string,
   summary: string,
-  options: TrackRouteOptions = {}
+  options: TrackRouteOptions = {},
 ): ApiContractRoute {
-  const responses =
-    options.responses ??
-    {
-      "200": {
-        description: "Successful response",
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              additionalProperties: true,
-            },
+  const responses = options.responses ?? {
+    "200": {
+      description: "Successful response",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            additionalProperties: true,
           },
         },
       },
-      "400": {
-        description: "Validation or request error",
-        content: {
-          "application/json": { schema: errorResponseSchemaObject },
-        },
+    },
+    "400": {
+      description: "Validation or request error",
+      content: {
+        "application/json": { schema: errorResponseSchemaObject },
       },
-      "500": {
-        description: "Server error",
-        content: {
-          "application/json": { schema: errorResponseSchemaObject },
-        },
+    },
+    "500": {
+      description: "Server error",
+      content: {
+        "application/json": { schema: errorResponseSchemaObject },
       },
-    };
+    },
+  };
 
   return {
     operationId: `${method}${path.replace(/[\/{}-]+/g, "_")}`,
@@ -589,7 +588,8 @@ const remainingTracksContracts: ApiContractRoute[] = [
               },
               descriptors: {
                 type: "array",
-                description: "Replaces the track's descriptors: free text, normalised and de-duplicated.",
+                description:
+                  "Replaces the track's descriptors: free text, normalised and de-duplicated.",
                 items: { type: "string" },
               },
               genre_source: {
@@ -677,8 +677,14 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Invalid upload payload", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "500": { description: "Upload/processing error", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Invalid upload payload",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "500": {
+        description: "Upload/processing error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("post", "/api/tracks/analyze-async", "Queue async track analysis", {
@@ -719,8 +725,14 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Invalid request", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "500": { description: "Queueing error", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Invalid request",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "500": {
+        description: "Queueing error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("post", "/api/tracks/batch", "Fetch ordered batch of tracks", {
@@ -766,7 +778,10 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "500": { description: "Batch query error", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "500": {
+        description: "Batch query error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("post", "/api/tracks/playlist_counts", "Get playlist counts for tracks", {
@@ -832,8 +847,14 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "404": { description: "Track not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing required parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Track not found",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("delete", "/api/tracks/{id}", "Soft delete track by id", {
@@ -858,9 +879,18 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Missing or invalid parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "404": { description: "Track not found or already deleted", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "500": { description: "Server error", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing or invalid parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Track not found or already deleted",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "500": {
+        description: "Server error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("get", "/api/tracks/{id}/audio-metadata", "Get local audio metadata for track", {
@@ -884,13 +914,26 @@ const remainingTracksContracts: ApiContractRoute[] = [
                 embedded_cover: { type: ["object", "null"], additionalProperties: true },
                 probe: { type: "object", additionalProperties: true },
               },
-              required: ["track_id", "friend_id", "local_audio_url", "has_embedded_cover", "embedded_cover", "probe"],
+              required: [
+                "track_id",
+                "friend_id",
+                "local_audio_url",
+                "has_embedded_cover",
+                "embedded_cover",
+                "probe",
+              ],
             },
           },
         },
       },
-      "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "404": { description: "Track or audio not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing required parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Track or audio not found",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("post", "/api/tracks/{id}/audio-metadata", "Extract embedded audio cover art", {
@@ -924,8 +967,14 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "404": { description: "No embedded artwork / track not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing required parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "No embedded artwork / track not found",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("get", "/api/tracks/{id}/embedding-preview", "Preview track embedding data", {
@@ -936,7 +985,11 @@ const remainingTracksContracts: ApiContractRoute[] = [
         name: "type",
         in: "query",
         required: false,
-        schema: { type: "string", enum: ["identity", "audio_vibe", "context"], default: "identity" },
+        schema: {
+          type: "string",
+          enum: ["identity", "audio_vibe", "context"],
+          default: "identity",
+        },
       },
     ],
     responses: {
@@ -978,8 +1031,14 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "404": { description: "Track not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing required parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Track not found",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("get", "/api/tracks/{id}/essentia", "Get essentia analysis", {
@@ -1005,8 +1064,14 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
-      "404": { description: "Analysis not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing required parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Analysis not found",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
   makeTrackRoute("get", "/api/tracks/{id}/playlists", "Get playlists containing track", {
@@ -1040,7 +1105,10 @@ const remainingTracksContracts: ApiContractRoute[] = [
           },
         },
       },
-      "400": { description: "Missing required parameters", content: { "application/json": { schema: errorResponseSchemaObject } } },
+      "400": {
+        description: "Missing required parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
     },
   }),
 ];
@@ -1115,8 +1183,7 @@ const fingerprintContracts: ApiContractRoute[] = [
                 fingerprint_data: {
                   type: ["string", "null"],
                   format: "byte",
-                  description:
-                    "Base64 engine payload, or null when the engine stores none.",
+                  description: "Base64 engine payload, or null when the engine stores none.",
                 },
                 audio_sha256: { type: "string" },
                 audio_duration_seconds: { type: ["number", "null"] },
@@ -1499,7 +1566,8 @@ const embeddingsQueueContracts: ApiContractRoute[] = [
     openapi: {
       responses: {
         "200": {
-          description: "Lane depths, retry/paused/failed state, drain rate and ETA, kind breakdown and active backfill runs",
+          description:
+            "Lane depths, retry/paused/failed state, drain rate and ETA, kind breakdown and active backfill runs",
           content: {
             "application/json": { schema: { type: "object", additionalProperties: true } },
           },
@@ -1569,7 +1637,9 @@ const embeddingModelSettingsContracts: ApiContractRoute[] = [
         "200": {
           description: "One row per kind",
           content: {
-            "application/json": { schema: { type: "array", items: { type: "object", additionalProperties: true } } },
+            "application/json": {
+              schema: { type: "array", items: { type: "object", additionalProperties: true } },
+            },
           },
         },
         "500": {
@@ -1833,8 +1903,12 @@ const audioIngestContracts: ApiContractRoute[] = [
       parameters: [
         { name: "source_id", in: "query", required: false, schema: { type: "string" } },
         { name: "session_id", in: "query", required: false, schema: { type: "string" } },
-        { name: "status", in: "query", required: false,
-          schema: { type: "string", enum: ["received", "processing", "processed", "failed"] } },
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["received", "processing", "processed", "failed"] },
+        },
         { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50 } },
         { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
       ],
@@ -1874,9 +1948,20 @@ const audioIngestContracts: ApiContractRoute[] = [
                         updated_at: { type: "string", format: "date-time" },
                       },
                       required: [
-                        "ingest_id", "source_id", "session_id", "sequence", "status",
-                        "error", "duration_seconds", "sample_rate", "channels", "codec",
-                        "file_path", "captured_at", "received_at", "updated_at",
+                        "ingest_id",
+                        "source_id",
+                        "session_id",
+                        "sequence",
+                        "status",
+                        "error",
+                        "duration_seconds",
+                        "sample_rate",
+                        "channels",
+                        "codec",
+                        "file_path",
+                        "captured_at",
+                        "received_at",
+                        "updated_at",
                       ],
                     },
                   },
@@ -1936,13 +2021,18 @@ const audioIngestContracts: ApiContractRoute[] = [
                       indexed_tracks: { type: "integer" },
                       empty: {
                         type: "boolean",
-                        description: "True means nothing can ever match, however healthy the rest looks.",
+                        description:
+                          "True means nothing can ever match, however healthy the rest looks.",
                       },
                       missing_fingerprint_tracks: { type: "integer" },
                     },
                     required: [
-                      "engine_registered", "fingerprint_type", "fingerprint_version",
-                      "indexed_tracks", "empty", "missing_fingerprint_tracks",
+                      "engine_registered",
+                      "fingerprint_type",
+                      "fingerprint_version",
+                      "indexed_tracks",
+                      "empty",
+                      "missing_fingerprint_tracks",
                     ],
                   },
                   queue_depth: {
@@ -2012,8 +2102,15 @@ const audioIngestContracts: ApiContractRoute[] = [
                   },
                 },
                 required: [
-                  "since", "window_minutes", "source_id", "ingest_writable", "index",
-                  "queue_depth", "ingests", "detections", "spins",
+                  "since",
+                  "window_minutes",
+                  "source_id",
+                  "ingest_writable",
+                  "index",
+                  "queue_depth",
+                  "ingests",
+                  "detections",
+                  "spins",
                 ],
               },
             },
@@ -2038,10 +2135,19 @@ const audioIngestContracts: ApiContractRoute[] = [
       parameters: [
         { name: "source_id", in: "query", required: false, schema: { type: "string" } },
         { name: "session_id", in: "query", required: false, schema: { type: "string" } },
-        { name: "matched", in: "query", required: false,
+        {
+          name: "matched",
+          in: "query",
+          required: false,
           schema: { type: "boolean" },
-          description: "Omit for both. A no-match window is a recorded result, not an absence." },
-        { name: "since", in: "query", required: false, schema: { type: "string", format: "date-time" } },
+          description: "Omit for both. A no-match window is a recorded result, not an absence.",
+        },
+        {
+          name: "since",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date-time" },
+        },
         { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50 } },
         { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
       ],
@@ -2083,10 +2189,23 @@ const audioIngestContracts: ApiContractRoute[] = [
                         created_at: { type: "string", format: "date-time" },
                       },
                       required: [
-                        "id", "ingest_id", "source_id", "session_id", "window_start_at",
-                        "matched", "track_id", "friend_id", "title", "artist", "album",
-                        "confidence", "offset_seconds", "level_dbfs", "fingerprint_type",
-                        "fingerprint_version", "created_at",
+                        "id",
+                        "ingest_id",
+                        "source_id",
+                        "session_id",
+                        "window_start_at",
+                        "matched",
+                        "track_id",
+                        "friend_id",
+                        "title",
+                        "artist",
+                        "album",
+                        "confidence",
+                        "offset_seconds",
+                        "level_dbfs",
+                        "fingerprint_type",
+                        "fingerprint_version",
+                        "created_at",
                       ],
                     },
                   },
@@ -2273,7 +2392,8 @@ const setDerivationViewSchemaObject: Record<string, unknown> = {
     },
     diff: {
       type: ["object", "null"],
-      description: "Present when playlist_id or live_set_id is given. `play` indexes into tracklist.",
+      description:
+        "Present when playlist_id or live_set_id is given. `play` indexes into tracklist.",
       properties: {
         playlist_id: { type: "integer" },
         played_as_planned: {
@@ -2591,7 +2711,8 @@ const overdueDaysParam = {
   name: "overdue_days",
   in: "query",
   required: false,
-  description: "Days since cleaning before a copy is overdue. Default RECORD_CLEANING_OVERDUE_DAYS (365).",
+  description:
+    "Days since cleaning before a copy is overdue. Default RECORD_CLEANING_OVERDUE_DAYS (365).",
   schema: { type: "integer", minimum: 1 },
 };
 const needsSleeveParam = {
@@ -3212,48 +3333,93 @@ const genreResponseObjects: Record<string, Record<string, unknown>> = {
   mergeGenres: componentRef("GenreMergeResponse"),
 };
 
-const genreMutationContracts: ApiContractRoute[] = ([
-  {
-    operationId: "createGenre", method: "post", path: "/api/genres",
-    summary: "Create a custom genre under an existing parent",
-    bodySchema: genreCreateBodySchema, successSchema: genreMutationResponseSchema,
-  },
-  {
-    operationId: "updateGenre", method: "patch", path: "/api/genres/{id}",
-    summary: "Rename or re-parent a genre; null parent moves it to the root",
-    bodySchema: genreUpdateBodySchema, successSchema: genreMutationResponseSchema,
-  },
-  {
-    operationId: "addGenreAlias", method: "post", path: "/api/genres/{id}/aliases",
-    summary: "Add an alias without reassigning an existing alias",
-    bodySchema: genreAliasBodySchema, successSchema: genreAliasResponseSchema,
-  },
-  {
-    operationId: "mergeGenres", method: "post", path: "/api/genres/{id}/merge",
-    summary: "Merge a genre into a survivor, moving children and aliases",
-    bodySchema: genreMergeBodySchema, successSchema: genreMergeResponseSchema,
-  },
-] satisfies Array<Pick<ApiContractRoute, "operationId" | "method" | "path" | "summary" | "bodySchema" | "successSchema">>).map((operation): ApiContractRoute => {
+const genreMutationContracts: ApiContractRoute[] = (
+  [
+    {
+      operationId: "createGenre",
+      method: "post",
+      path: "/api/genres",
+      summary: "Create a custom genre under an existing parent",
+      bodySchema: genreCreateBodySchema,
+      successSchema: genreMutationResponseSchema,
+    },
+    {
+      operationId: "updateGenre",
+      method: "patch",
+      path: "/api/genres/{id}",
+      summary: "Rename or re-parent a genre; null parent moves it to the root",
+      bodySchema: genreUpdateBodySchema,
+      successSchema: genreMutationResponseSchema,
+    },
+    {
+      operationId: "addGenreAlias",
+      method: "post",
+      path: "/api/genres/{id}/aliases",
+      summary: "Add an alias without reassigning an existing alias",
+      bodySchema: genreAliasBodySchema,
+      successSchema: genreAliasResponseSchema,
+    },
+    {
+      operationId: "mergeGenres",
+      method: "post",
+      path: "/api/genres/{id}/merge",
+      summary: "Merge a genre into a survivor, moving children and aliases",
+      bodySchema: genreMergeBodySchema,
+      successSchema: genreMergeResponseSchema,
+    },
+  ] satisfies Array<
+    Pick<
+      ApiContractRoute,
+      "operationId" | "method" | "path" | "summary" | "bodySchema" | "successSchema"
+    >
+  >
+).map((operation): ApiContractRoute => {
   const hasId = operation.path.includes("{id}");
-  const status = operation.operationId === "createGenre" || operation.operationId === "addGenreAlias" ? "201" : "200";
+  const status =
+    operation.operationId === "createGenre" || operation.operationId === "addGenreAlias"
+      ? "201"
+      : "200";
   return {
-    ...operation, tags: ["Genres"], errorSchema: apiErrorSchema,
+    ...operation,
+    tags: ["Genres"],
+    errorSchema: apiErrorSchema,
     paramsSchema: hasId ? genreParamsSchema : undefined,
     openapi: {
-      parameters: hasId ? [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }] : [],
-      requestBody: { required: true, content: { "application/json": {
-        schema: genreBodyObjects[operation.operationId],
-        example: operation.operationId === "createGenre" ? { name: "Cumbia Dub", parent_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47" }
-          : operation.operationId === "updateGenre" ? { name: "Cumbia Dub", parent_id: null }
-          : operation.operationId === "addGenreAlias" ? { alias: "Cumbia-Dub" }
-          : { target_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47" },
-      } } },
+      parameters: hasId
+        ? [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }]
+        : [],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: genreBodyObjects[operation.operationId],
+            example:
+              operation.operationId === "createGenre"
+                ? { name: "Cumbia Dub", parent_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47" }
+                : operation.operationId === "updateGenre"
+                  ? { name: "Cumbia Dub", parent_id: null }
+                  : operation.operationId === "addGenreAlias"
+                    ? { alias: "Cumbia-Dub" }
+                    : { target_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47" },
+          },
+        },
+      },
       responses: {
-        [status]: { description: "Genre mutation succeeded", content: { "application/json": { schema: genreResponseObjects[operation.operationId] } } },
-        ...Object.fromEntries([
-          ["400", "Malformed request"], ["404", "Genre or parent not found"],
-          ["409", "Name, slug, alias or tree conflict"], ["500", "Server error"],
-        ].map(([code, description]) => [code, { description, content: { "application/json": { schema: errorResponseSchemaObject } } }])),
+        [status]: {
+          description: "Genre mutation succeeded",
+          content: { "application/json": { schema: genreResponseObjects[operation.operationId] } },
+        },
+        ...Object.fromEntries(
+          [
+            ["400", "Malformed request"],
+            ["404", "Genre or parent not found"],
+            ["409", "Name, slug, alias or tree conflict"],
+            ["500", "Server error"],
+          ].map(([code, description]) => [
+            code,
+            { description, content: { "application/json": { schema: errorResponseSchemaObject } } },
+          ]),
+        ),
       },
     },
   };
@@ -3277,17 +3443,28 @@ const genreReconciliationRunSchemaObject: Record<string, unknown> = {
     options: {
       type: "object",
       properties: {
-        ai: { type: "boolean" }, new_genre_min_tracks: integer,
-        limit: { type: ["integer", "null"] }, refresh: { type: "boolean" },
-        friend_id: { type: ["integer", "null"], description: "The run's scope; null for every friend" },
+        ai: { type: "boolean" },
+        new_genre_min_tracks: integer,
+        limit: { type: ["integer", "null"] },
+        refresh: { type: "boolean" },
+        friend_id: {
+          type: ["integer", "null"],
+          description: "The run's scope; null for every friend",
+        },
       },
       required: ["ai", "new_genre_min_tracks", "limit", "refresh", "friend_id"],
     },
     model: nullableString,
     distinct_values: { ...integer, description: "Distinct normalised local_tags values" },
-    exact_matches: { ...integer, description: "Values proposed by exact taxonomy name or alias match" },
+    exact_matches: {
+      ...integer,
+      description: "Values proposed by exact taxonomy name or alias match",
+    },
     kept: { ...integer, description: "Values whose reviewed or pending proposal was kept" },
-    ai_pending: { ...integer, description: "Values left for a later run (AI off, or over `limit`)" },
+    ai_pending: {
+      ...integer,
+      description: "Values left for a later run (AI off, or over `limit`)",
+    },
     ai_proposed: integer,
     ai_failed: integer,
     ai_batches: integer,
@@ -3300,9 +3477,24 @@ const genreReconciliationRunSchemaObject: Record<string, unknown> = {
     finished_at: { type: ["string", "null"], format: "date-time" },
   },
   required: [
-    "id", "status", "options", "model", "distinct_values", "exact_matches", "kept", "ai_pending",
-    "ai_proposed", "ai_failed", "ai_batches", "input_tokens", "output_tokens", "cost_usd", "error",
-    "started_at", "updated_at", "finished_at",
+    "id",
+    "status",
+    "options",
+    "model",
+    "distinct_values",
+    "exact_matches",
+    "kept",
+    "ai_pending",
+    "ai_proposed",
+    "ai_failed",
+    "ai_batches",
+    "input_tokens",
+    "output_tokens",
+    "cost_usd",
+    "error",
+    "started_at",
+    "updated_at",
+    "finished_at",
   ],
 };
 
@@ -3337,20 +3529,47 @@ const genreProposalSchemaObject: Record<string, unknown> = {
     updated_at: dateTime,
   },
   required: [
-    "id", "value_normalized", "raw_examples", "track_count", "action", "target_genre_ids",
-    "target_genres", "proposed_genre_name", "proposed_parent_id", "proposed_parent_name",
-    "confidence", "method", "status", "run_id", "created_genre_id", "applied_at", "created_at", "updated_at",
+    "id",
+    "value_normalized",
+    "raw_examples",
+    "track_count",
+    "action",
+    "target_genre_ids",
+    "target_genres",
+    "proposed_genre_name",
+    "proposed_parent_id",
+    "proposed_parent_name",
+    "confidence",
+    "method",
+    "status",
+    "run_id",
+    "created_genre_id",
+    "applied_at",
+    "created_at",
+    "updated_at",
   ],
 };
 
 const genreProposalSnapshotSchemaObject: Record<string, unknown> = {
   type: "object",
   properties: {
-    id: genreUuid, status: proposalStatusEnum, action: proposalActionEnum,
+    id: genreUuid,
+    status: proposalStatusEnum,
+    action: proposalActionEnum,
     target_genre_ids: { type: "array", items: genreUuid },
-    proposed_genre_name: nullableString, proposed_parent_id: nullableUuid, method: proposalMethodEnum,
+    proposed_genre_name: nullableString,
+    proposed_parent_id: nullableUuid,
+    method: proposalMethodEnum,
   },
-  required: ["id", "status", "action", "target_genre_ids", "proposed_genre_name", "proposed_parent_id", "method"],
+  required: [
+    "id",
+    "status",
+    "action",
+    "target_genre_ids",
+    "proposed_genre_name",
+    "proposed_parent_id",
+    "method",
+  ],
   additionalProperties: false,
 };
 
@@ -3364,13 +3583,21 @@ const genreReconciliationCoverageSchemaObject: Record<string, unknown> = {
   type: "object",
   properties: {
     tracks: {
-      ...countsObject(["with_local_tags", "with_genres", "descriptors_only", "no_genre", "unresolved"]),
+      ...countsObject([
+        "with_local_tags",
+        "with_genres",
+        "descriptors_only",
+        "no_genre",
+        "unresolved",
+      ]),
       description: "Every track with local_tags is in exactly one of the last four buckets",
     },
     values: {
       type: "object",
       properties: {
-        distinct: integer, proposed: integer, exact: integer,
+        distinct: integer,
+        proposed: integer,
+        exact: integer,
         exact_share: { type: "number", minimum: 0, maximum: 1 },
         by_status: countsObject(["pending", "accepted", "rejected", "edited"]),
         by_action: countsObject(["map", "new_genre", "descriptor", "drop"]),
@@ -3400,24 +3627,62 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: false,
-        content: { "application/json": { schema: {
-          type: "object",
-          properties: {
-            ai: { type: "boolean", default: true, description: "false proposes exact matches only" },
-            new_genre_min_tracks: { type: "integer", minimum: 1, default: 10, description: "Fewest tracks a value needs before the model may propose a new genre for it" },
-            limit: { type: ["integer", "null"], minimum: 1, description: "Most values sent to the model this run" },
-            refresh: { type: "boolean", default: false, description: "Re-ask the model for values with a pending AI proposal" },
-            friend_id: { type: ["integer", "null"], minimum: 1, description: "Only this friend's tracks; omit or null for every friend. Proposals stay global, but their track counts then describe this scope." },
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                ai: {
+                  type: "boolean",
+                  default: true,
+                  description: "false proposes exact matches only",
+                },
+                new_genre_min_tracks: {
+                  type: "integer",
+                  minimum: 1,
+                  default: 10,
+                  description:
+                    "Fewest tracks a value needs before the model may propose a new genre for it",
+                },
+                limit: {
+                  type: ["integer", "null"],
+                  minimum: 1,
+                  description: "Most values sent to the model this run",
+                },
+                refresh: {
+                  type: "boolean",
+                  default: false,
+                  description: "Re-ask the model for values with a pending AI proposal",
+                },
+                friend_id: {
+                  type: ["integer", "null"],
+                  minimum: 1,
+                  description:
+                    "Only this friend's tracks; omit or null for every friend. Proposals stay global, but their track counts then describe this scope.",
+                },
+              },
+              additionalProperties: false,
+            },
           },
-          additionalProperties: false,
-        } } },
+        },
       },
       responses: {
-        "202": { description: "Started; poll GET /api/genres/reconciliation/runs/{id}", content: { "application/json": { schema: genreReconciliationRunSchemaObject } } },
+        "202": {
+          description: "Started; poll GET /api/genres/reconciliation/runs/{id}",
+          content: { "application/json": { schema: genreReconciliationRunSchemaObject } },
+        },
         "400": reconciliationError("Invalid request"),
         "409": {
           description: "A run is already in progress; it is returned as `run`",
-          content: { "application/json": { schema: { type: "object", properties: { error: { type: "string" }, run: genreReconciliationRunSchemaObject }, required: ["error", "run"] } } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { error: { type: "string" }, run: genreReconciliationRunSchemaObject },
+                required: ["error", "run"],
+              },
+            },
+          },
         },
         "503": reconciliationError("AI requested but OPENAI_API_KEY is not set"),
       },
@@ -3435,7 +3700,10 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     openapi: {
       parameters: [reconciliationIdParam],
       responses: {
-        "200": { description: "The run", content: { "application/json": { schema: genreReconciliationRunSchemaObject } } },
+        "200": {
+          description: "The run",
+          content: { "application/json": { schema: genreReconciliationRunSchemaObject } },
+        },
         "400": reconciliationError("Invalid run ID"),
         "404": reconciliationError("No such run"),
       },
@@ -3452,10 +3720,19 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
-        { name: "friend_id", in: "query", required: false, description: "Only this friend's tracks", schema: { type: "integer", minimum: 1 } },
+        {
+          name: "friend_id",
+          in: "query",
+          required: false,
+          description: "Only this friend's tracks",
+          schema: { type: "integer", minimum: 1 },
+        },
       ],
       responses: {
-        "200": { description: "Coverage", content: { "application/json": { schema: genreReconciliationCoverageSchemaObject } } },
+        "200": {
+          description: "Coverage",
+          content: { "application/json": { schema: genreReconciliationCoverageSchemaObject } },
+        },
         "400": reconciliationError("Invalid friend_id"),
       },
     },
@@ -3474,18 +3751,41 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         { name: "status", in: "query", required: false, schema: proposalStatusEnum },
         { name: "action", in: "query", required: false, schema: proposalActionEnum },
         { name: "method", in: "query", required: false, schema: proposalMethodEnum },
-        { name: "min_tracks", in: "query", required: false, description: "Only values on at least this many tracks, as counted by the latest run", schema: { type: "integer", minimum: 0 } },
-        { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 500, default: 50 } },
-        { name: "offset", in: "query", required: false, schema: { type: "integer", minimum: 0, default: 0 } },
+        {
+          name: "min_tracks",
+          in: "query",
+          required: false,
+          description: "Only values on at least this many tracks, as counted by the latest run",
+          schema: { type: "integer", minimum: 0 },
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 500, default: 50 },
+        },
+        {
+          name: "offset",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 0, default: 0 },
+        },
       ],
       responses: {
         "200": {
           description: "A page of proposals and the total matching",
-          content: { "application/json": { schema: {
-            type: "object",
-            properties: { proposals: { type: "array", items: genreProposalSchemaObject }, total: integer },
-            required: ["proposals", "total"],
-          } } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  proposals: { type: "array", items: genreProposalSchemaObject },
+                  total: integer,
+                },
+                required: ["proposals", "total"],
+              },
+            },
+          },
         },
         "400": reconciliationError("Invalid filter"),
       },
@@ -3505,25 +3805,39 @@ const genreReconciliationContracts: ApiContractRoute[] = [
       parameters: [reconciliationIdParam],
       requestBody: {
         required: true,
-        content: { "application/json": {
-          schema: {
-            type: "object",
-            description: "Changing action, target_genres or the proposed genre marks the proposal `edited` (method `manual`), which apply treats like `accepted`.",
-            properties: {
-              status: proposalStatusEnum,
-              action: proposalActionEnum,
-              target_genres: { type: "array", maxItems: 10, items: { type: "string", minLength: 1 }, description: "Genre ids, or names resolved through the taxonomy's names and aliases" },
-              proposed_genre_name: nullableString,
-              proposed_parent_id: nullableUuid,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              description:
+                "Changing action, target_genres or the proposed genre marks the proposal `edited` (method `manual`), which apply treats like `accepted`.",
+              properties: {
+                status: proposalStatusEnum,
+                action: proposalActionEnum,
+                target_genres: {
+                  type: "array",
+                  maxItems: 10,
+                  items: { type: "string", minLength: 1 },
+                  description:
+                    "Genre ids, or names resolved through the taxonomy's names and aliases",
+                },
+                proposed_genre_name: nullableString,
+                proposed_parent_id: nullableUuid,
+              },
+              additionalProperties: false,
             },
-            additionalProperties: false,
+            example: { action: "map", target_genres: ["Cumbia"] },
           },
-          example: { action: "map", target_genres: ["Cumbia"] },
-        } },
+        },
       },
       responses: {
-        "200": { description: "The updated proposal", content: { "application/json": { schema: genreProposalSchemaObject } } },
-        "400": reconciliationError("Invalid change, an unknown genre, or an incomplete map/new_genre proposal"),
+        "200": {
+          description: "The updated proposal",
+          content: { "application/json": { schema: genreProposalSchemaObject } },
+        },
+        "400": reconciliationError(
+          "Invalid change, an unknown genre, or an incomplete map/new_genre proposal",
+        ),
         "404": reconciliationError("No such proposal"),
       },
     },
@@ -3540,27 +3854,66 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: false,
-        content: { "application/json": { schema: {
-          type: "object",
-          properties: {
-            ids: { type: "array", minItems: 1, items: genreUuid, description: "Only these proposals; all accepted and edited ones when omitted" },
-            friend_id: { type: "integer", minimum: 1, description: "Only link this friend's tracks; aliases and created genres are global either way" },
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                ids: {
+                  type: "array",
+                  minItems: 1,
+                  items: genreUuid,
+                  description: "Only these proposals; all accepted and edited ones when omitted",
+                },
+                friend_id: {
+                  type: "integer",
+                  minimum: 1,
+                  description:
+                    "Only link this friend's tracks; aliases and created genres are global either way",
+                },
+              },
+              additionalProperties: false,
+            },
           },
-          additionalProperties: false,
-        } } },
+        },
       },
       responses: {
         "200": {
           description: "What was written. Repeatable: a second apply adds only what is new.",
-          content: { "application/json": { schema: {
-            type: "object",
-            properties: {
-              proposals_applied: integer, tracks_linked: integer, descriptors_added: integer,
-              aliases_added: integer, genres_created: integer,
-              skipped: { type: "array", items: { type: "object", properties: { id: genreUuid, value: { type: "string" }, reason: { type: "string" } }, required: ["id", "value", "reason"] } },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  proposals_applied: integer,
+                  tracks_linked: integer,
+                  descriptors_added: integer,
+                  aliases_added: integer,
+                  genres_created: integer,
+                  skipped: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: genreUuid,
+                        value: { type: "string" },
+                        reason: { type: "string" },
+                      },
+                      required: ["id", "value", "reason"],
+                    },
+                  },
+                },
+                required: [
+                  "proposals_applied",
+                  "tracks_linked",
+                  "descriptors_added",
+                  "aliases_added",
+                  "genres_created",
+                  "skipped",
+                ],
+              },
             },
-            required: ["proposals_applied", "tracks_linked", "descriptors_added", "aliases_added", "genres_created", "skipped"],
-          } } },
+          },
         },
         "400": reconciliationError("Invalid request"),
       },
@@ -3578,44 +3931,64 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: { "application/json": {
-          schema: {
-            type: "object",
-            properties: {
-              decisions: {
-                type: "array", minItems: 1, maxItems: 500,
-                description: "Each is a PATCH /api/genres/proposals/{id} body plus the id. All or none are written.",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: genreUuid, status: proposalStatusEnum, action: proposalActionEnum,
-                    target_genres: { type: "array", maxItems: 10, items: { type: "string", minLength: 1 } },
-                    proposed_genre_name: nullableString, proposed_parent_id: nullableUuid,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                decisions: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 500,
+                  description:
+                    "Each is a PATCH /api/genres/proposals/{id} body plus the id. All or none are written.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: genreUuid,
+                      status: proposalStatusEnum,
+                      action: proposalActionEnum,
+                      target_genres: {
+                        type: "array",
+                        maxItems: 10,
+                        items: { type: "string", minLength: 1 },
+                      },
+                      proposed_genre_name: nullableString,
+                      proposed_parent_id: nullableUuid,
+                    },
+                    required: ["id"],
+                    additionalProperties: false,
                   },
-                  required: ["id"],
-                  additionalProperties: false,
                 },
               },
+              required: ["decisions"],
+              additionalProperties: false,
             },
-            required: ["decisions"],
-            additionalProperties: false,
+            example: {
+              decisions: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", status: "accepted" }],
+            },
           },
-          example: { decisions: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", status: "accepted" }] },
-        } },
+        },
       },
       responses: {
         "200": {
           description: "Each proposal after the decision, and its state before for undo",
-          content: { "application/json": { schema: {
-            type: "object",
-            properties: {
-              proposals: { type: "array", items: genreProposalSchemaObject },
-              previous: { type: "array", items: genreProposalSnapshotSchemaObject },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  proposals: { type: "array", items: genreProposalSchemaObject },
+                  previous: { type: "array", items: genreProposalSnapshotSchemaObject },
+                },
+                required: ["proposals", "previous"],
+              },
             },
-            required: ["proposals", "previous"],
-          } } },
+          },
         },
-        "400": reconciliationError("Invalid decision, an unknown genre, or an incomplete map/new_genre proposal; nothing written"),
+        "400": reconciliationError(
+          "Invalid decision, an unknown genre, or an incomplete map/new_genre proposal; nothing written",
+        ),
         "404": reconciliationError("A proposal does not exist; nothing written"),
       },
     },
@@ -3632,15 +4005,34 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: { "application/json": { schema: {
-          type: "object",
-          properties: { snapshots: { type: "array", minItems: 1, maxItems: 500, items: genreProposalSnapshotSchemaObject, description: "`previous` from a decisions response" } },
-          required: ["snapshots"],
-          additionalProperties: false,
-        } } },
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                snapshots: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 500,
+                  items: genreProposalSnapshotSchemaObject,
+                  description: "`previous` from a decisions response",
+                },
+              },
+              required: ["snapshots"],
+              additionalProperties: false,
+            },
+          },
+        },
       },
       responses: {
-        "200": { description: "How many proposals still existed and were restored", content: { "application/json": { schema: { type: "object", properties: { restored: integer }, required: ["restored"] } } } },
+        "200": {
+          description: "How many proposals still existed and were restored",
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { restored: integer }, required: ["restored"] },
+            },
+          },
+        },
         "400": reconciliationError("Invalid snapshots"),
       },
     },
@@ -3658,30 +4050,52 @@ const genreReconciliationContracts: ApiContractRoute[] = [
     openapi: {
       parameters: [
         reconciliationIdParam,
-        { name: "friend_id", in: "query", required: false, description: "Only this friend's tracks", schema: { type: "integer", minimum: 1 } },
-        { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 20, default: 3 } },
+        {
+          name: "friend_id",
+          in: "query",
+          required: false,
+          description: "Only this friend's tracks",
+          schema: { type: "integer", minimum: 1 },
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 20, default: 3 },
+        },
       ],
       responses: {
         "200": {
           description: "Tracks whose local_tags contain the value",
-          content: { "application/json": { schema: {
-            type: "object",
-            properties: {
-              tracks: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    track_id: { type: "string" }, friend_id: integer, title: { type: "string" },
-                    artist: { type: "string" }, album: nullableString,
-                    styles: { type: "array", items: { type: "string" }, description: "The album's Discogs styles" },
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  tracks: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        track_id: { type: "string" },
+                        friend_id: integer,
+                        title: { type: "string" },
+                        artist: { type: "string" },
+                        album: nullableString,
+                        styles: {
+                          type: "array",
+                          items: { type: "string" },
+                          description: "The album's Discogs styles",
+                        },
+                      },
+                      required: ["track_id", "friend_id", "title", "artist", "album", "styles"],
+                    },
                   },
-                  required: ["track_id", "friend_id", "title", "artist", "album", "styles"],
                 },
+                required: ["tracks"],
               },
             },
-            required: ["tracks"],
-          } } },
+          },
         },
         "400": reconciliationError("Invalid ID or query"),
         "404": reconciliationError("No such proposal"),
@@ -3702,7 +4116,8 @@ const trackSearchParameters: Record<string, unknown>[] = [
     required: false,
     schema: {
       type: "string",
-      description: "SQL-style filter expression. Multiple conditions joined with ' AND '. Supported values: 'local_audio_url IS NULL' (missing audio), '(bpm IS NULL OR key IS NULL)' (missing metadata), 'apple_music_url IS NULL' (missing Apple Music), 'youtube_url IS NULL' (missing YouTube), 'soundcloud_url IS NULL' (missing SoundCloud), '(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)' (missing all streaming URLs).",
+      description:
+        "SQL-style filter expression. Multiple conditions joined with ' AND '. Supported values: 'local_audio_url IS NULL' (missing audio), '(bpm IS NULL OR key IS NULL)' (missing metadata), 'apple_music_url IS NULL' (missing Apple Music), 'youtube_url IS NULL' (missing YouTube), 'soundcloud_url IS NULL' (missing SoundCloud), '(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)' (missing all streaming URLs).",
     },
   },
   {
@@ -3713,10 +4128,35 @@ const trackSearchParameters: Record<string, unknown>[] = [
     description:
       "'lexical' is full-text + trigram. 'semantic' ranks by the natural-language 'context' embedding of q; 'hybrid' fuses both with reciprocal rank fusion, exact title/artist/album matches first. Semantic and hybrid return a single page (offset 0, limit at most 50), at most three tracks per release, and honour friend_id and filter. With an empty q every mode lists lexically.",
   },
-  { name: "bpm_min", in: "query", required: false, schema: { type: "number" }, description: "Minimum BPM, inclusive. Applied in every mode." },
-  { name: "bpm_max", in: "query", required: false, schema: { type: "number" }, description: "Maximum BPM, inclusive. Must not be below bpm_min." },
-  { name: "key", in: "query", required: false, schema: { type: "string" }, description: "Exact musical key, case-insensitive (e.g. 'A minor'). Enharmonic spellings are not merged." },
-  { name: "star_rating", in: "query", required: false, schema: { type: "integer", minimum: 0, maximum: 5 }, description: "Minimum star rating." },
+  {
+    name: "bpm_min",
+    in: "query",
+    required: false,
+    schema: { type: "number" },
+    description: "Minimum BPM, inclusive. Applied in every mode.",
+  },
+  {
+    name: "bpm_max",
+    in: "query",
+    required: false,
+    schema: { type: "number" },
+    description: "Maximum BPM, inclusive. Must not be below bpm_min.",
+  },
+  {
+    name: "key",
+    in: "query",
+    required: false,
+    schema: { type: "string" },
+    description:
+      "Exact musical key, case-insensitive (e.g. 'A minor'). Enharmonic spellings are not merged.",
+  },
+  {
+    name: "star_rating",
+    in: "query",
+    required: false,
+    schema: { type: "integer", minimum: 0, maximum: 5 },
+    description: "Minimum star rating.",
+  },
   {
     name: "genre",
     in: "query",
@@ -3725,7 +4165,7 @@ const trackSearchParameters: Record<string, unknown>[] = [
     explode: true,
     schema: { type: "array", items: { type: "string" }, maxItems: 20 },
     description:
-      "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres, so 'latin' finds 'cumbia'. A track with genres of its own matches on those; one without falls back to its album's Discogs genres and styles. Applied in every mode. An unknown genre is a 400."
+      "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres, so 'latin' finds 'cumbia'. A track with genres of its own matches on those; one without falls back to its album's Discogs genres and styles. Applied in every mode. An unknown genre is a 400.",
   },
   {
     name: "include_similar",
@@ -3740,7 +4180,8 @@ const trackSearchParameters: Record<string, unknown>[] = [
     in: "query",
     required: false,
     schema: { type: "integer", minimum: 1 },
-    description: "Per-seed cap on related genres pulled in when include_similar is set. Defaults to 5.",
+    description:
+      "Per-seed cap on related genres pulled in when include_similar is set. Defaults to 5.",
   },
   {
     name: "similar_exclude",
@@ -3784,7 +4225,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
       responses: {
         "200": jsonOk(
           "current_url is what views display. source is null until art is chosen (by a person or the bulk matcher).",
-          ALBUM_ARTWORK_STATE_REF
+          ALBUM_ARTWORK_STATE_REF,
         ),
         "400": jsonError("Missing friend_id"),
         "404": jsonError("Album not found"),
@@ -3821,7 +4262,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
       responses: {
         "200": jsonOk(
           "Applied to the album and its tracks. The image is cached locally under /uploads/album-covers.",
-          ALBUM_ARTWORK_STATE_REF
+          ALBUM_ARTWORK_STATE_REF,
         ),
         "400": jsonError("Invalid source"),
         "404": jsonError("Album not found, no embedded art, or no Discogs art to restore"),
@@ -3916,8 +4357,15 @@ const albumArtworkContracts: ApiContractRoute[] = [
               applied: { type: "boolean" },
               apple_music_art_url: { type: ["string", "null"] },
             },
-            required: ["release_id", "friend_id", "status", "distance", "applied", "apple_music_art_url"],
-          }
+            required: [
+              "release_id",
+              "friend_id",
+              "status",
+              "distance",
+              "applied",
+              "apple_music_art_url",
+            ],
+          },
         ),
         "404": jsonError("Album not found"),
         "502": jsonError("Discogs artwork could not be downloaded"),
@@ -3960,7 +4408,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
               errors: { type: "array", items: { type: "object", additionalProperties: true } },
             },
             required: ["queued", "queuedAlbums", "tracksImpacted", "jobIds", "errors"],
-          }
+          },
         ),
         "400": jsonError("Invalid friend_id"),
         "500": jsonError("Server error"),
@@ -3979,7 +4427,12 @@ const albumArtworkContracts: ApiContractRoute[] = [
     openapi: {
       parameters: [
         { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
-        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50, maximum: 200 } },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", default: 50, maximum: 200 },
+        },
       ],
       responses: {
         "200": jsonOk("Albums whose Apple Music art differs from, or had no, Discogs art", {
@@ -4024,12 +4477,23 @@ const albumArtworkContracts: ApiContractRoute[] = [
 ];
 
 const albumOverrideIdSchemaObject = {
-  type: ["array", "null"], items: { type: "string", format: "uuid" }, maxItems: 100,
-  description: "Omitted: unchanged; null: reset to latest Discogs; []: deliberately empty replacement.",
+  type: ["array", "null"],
+  items: { type: "string", format: "uuid" },
+  maxItems: 100,
+  description:
+    "Omitted: unchanged; null: reset to latest Discogs; []: deliberately empty replacement.",
 };
 const albumTaxonomySchemaProperties = {
-  genres: { type: ["array", "null"], items: { type: "string" }, description: "Imported Discogs source genres." },
-  styles: { type: ["array", "null"], items: { type: "string" }, description: "Imported Discogs source styles." },
+  genres: {
+    type: ["array", "null"],
+    items: { type: "string" },
+    description: "Imported Discogs source genres.",
+  },
+  styles: {
+    type: ["array", "null"],
+    items: { type: "string" },
+    description: "Imported Discogs source styles.",
+  },
   effective_genres: { type: "array", items: { type: "string" } },
   effective_styles: { type: "array", items: { type: "string" } },
   genre_override_ids: albumOverrideIdSchemaObject,
@@ -4038,8 +4502,10 @@ const albumTaxonomySchemaProperties = {
 const albumWithTaxonomySchemaObject = {
   type: "object",
   properties: {
-    release_id: { type: "string" }, friend_id: { type: "integer" },
-    title: { type: "string" }, artist: { type: "string" },
+    release_id: { type: "string" },
+    friend_id: { type: "integer" },
+    title: { type: "string" },
+    artist: { type: "string" },
     ...albumTaxonomySchemaProperties,
   },
   required: ["release_id", "friend_id", "title", "artist"],
@@ -4064,10 +4530,20 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Genre roots with recursively nested children",
           content: {
             "application/json": {
-              example: { genres: [{
-                id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin",
-                parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [],
-              }] },
+              example: {
+                genres: [
+                  {
+                    id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47",
+                    name: "Latin",
+                    slug: "latin",
+                    parent_id: null,
+                    source: "discogs",
+                    track_count: 0,
+                    album_count: 0,
+                    children: [],
+                  },
+                ],
+              },
               schema: componentRef("GenreTreeResponse"),
             },
           },
@@ -4114,25 +4590,56 @@ export const apiContractRoutes: ApiContractRoute[] = [
               schema: componentRef("GenrePageResponse"),
               example: {
                 genre: {
-                  id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia",
-                  parent_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", source: "discogs", aliases: ["cumbia colombiana"],
+                  id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40",
+                  name: "Cumbia",
+                  slug: "cumbia",
+                  parent_id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47",
+                  source: "discogs",
+                  aliases: ["cumbia colombiana"],
                 },
-                ancestors: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin" }],
+                ancestors: [
+                  { id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", name: "Latin", slug: "latin" },
+                ],
                 children: [],
-                related: [{
-                  id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253,
-                  score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
-                }],
+                related: [
+                  {
+                    id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62",
+                    name: "Salsa",
+                    slug: "salsa",
+                    track_count: 253,
+                    score: 1.42,
+                    signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+                  },
+                ],
                 counts: { tracks: 412, albums: 108, tracks_total: 1029, albums_total: 108 },
-                stats: { bpm_min: 90, bpm_max: 128, added_this_year: 42, year: 2026, playable_tracks: 500, bpm_histogram: [{ min: 90, max: 100, count: 12 }] },
-                top_tracks: [{
-                  track_id: "33415451-A1", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
-                  album: "La Danza De Los Mirlos", play_count: 4, hasVectors: true,
-                }],
-                top_albums: [{
-                  release_id: "33415451", friend_id: 6, title: "La Danza De Los Mirlos", artist: "Los Mirlos",
-                  play_count: 12,
-                }],
+                stats: {
+                  bpm_min: 90,
+                  bpm_max: 128,
+                  added_this_year: 42,
+                  year: 2026,
+                  playable_tracks: 500,
+                  bpm_histogram: [{ min: 90, max: 100, count: 12 }],
+                },
+                top_tracks: [
+                  {
+                    track_id: "33415451-A1",
+                    friend_id: 6,
+                    title: "La Danza De Los Mirlos",
+                    artist: "Los Mirlos",
+                    album: "La Danza De Los Mirlos",
+                    play_count: 4,
+                    hasVectors: true,
+                  },
+                ],
+                top_albums: [
+                  {
+                    release_id: "33415451",
+                    friend_id: 6,
+                    title: "La Danza De Los Mirlos",
+                    artist: "Los Mirlos",
+                    play_count: 12,
+                  },
+                ],
               },
             },
           },
@@ -4156,7 +4663,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
     operationId: "getSimilarGenres",
     method: "get",
     path: "/api/genres/{id}/similar",
-    summary: "A genre's ranked similar genres (#377): taxonomy plus collection co-occurrence, with the signals that explain each one",
+    summary:
+      "A genre's ranked similar genres (#377): taxonomy plus collection co-occurrence, with the signals that explain each one",
     tags: ["Genres"],
     successSchema: genreSimilarResponseSchema,
     querySchema: genreSimilarQuerySchema,
@@ -4174,23 +4682,36 @@ export const apiContractRoutes: ApiContractRoute[] = [
           name: "limit",
           in: "query",
           required: false,
-          description: "Maximum related genres to return; fewer may be available (the stored ranking contains up to 20 per genre)",
+          description:
+            "Maximum related genres to return; fewer may be available (the stored ranking contains up to 20 per genre)",
           schema: { type: "integer", minimum: 1, default: 20 },
         },
       ],
       responses: {
         "400": jsonError("Invalid query parameters"),
         "200": {
-          description: "Computed over every collection; falls back to taxonomy siblings until the table has rows for this genre",
+          description:
+            "Computed over every collection; falls back to taxonomy siblings until the table has rows for this genre",
           content: {
             "application/json": {
               schema: componentRef("GenreSimilarResponse"),
               example: {
-                genre: { id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia", track_count: 412 },
-                related: [{
-                  id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253,
-                  score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
-                }],
+                genre: {
+                  id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40",
+                  name: "Cumbia",
+                  slug: "cumbia",
+                  track_count: 412,
+                },
+                related: [
+                  {
+                    id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62",
+                    name: "Salsa",
+                    slug: "salsa",
+                    track_count: 253,
+                    score: 1.42,
+                    signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+                  },
+                ],
               },
             },
           },
@@ -4451,7 +4972,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   },
                   queue: {
                     type: "string",
-                    description: "Always \"download\"; this API exposes one queue.",
+                    description: 'Always "download"; this API exposes one queue.',
                     example: "download",
                   },
                   data: {
@@ -4482,7 +5003,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
                     description: "Epoch milliseconds.",
                     example: 1771329604000,
                   },
-                  failedReason: { type: "string", example: "gamdl error: Track not found on Apple Music" },
+                  failedReason: {
+                    type: "string",
+                    example: "gamdl error: Track not found on Apple Music",
+                  },
                   attemptsMade: { type: "integer", example: 1 },
                   delay: { type: "number", example: 0 },
                   timestamp: {
@@ -4566,7 +5090,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
               schema: {
                 type: "string",
                 example:
-                  "data: connected\\n\\ndata: {\"type\":\"job_completed\",\"job_id\":\"123\",\"track_id\":\"abc\",\"friend_id\":1,\"timestamp\":1710000000000}\\n\\n",
+                  'data: connected\\n\\ndata: {"type":"job_completed","job_id":"123","track_id":"abc","friend_id":1,"timestamp":1710000000000}\\n\\n',
               },
             },
           },
@@ -4639,12 +5163,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
               properties: {
                 action: {
                   type: "string",
-                  enum: [
-                    "cookie_status",
-                    "delete_cookie",
-                    "test_connection",
-                    "reset_settings",
-                  ],
+                  enum: ["cookie_status", "delete_cookie", "test_connection", "reset_settings"],
                 },
                 friend_id: { type: "integer" },
               },
@@ -4774,11 +5293,11 @@ export const apiContractRoutes: ApiContractRoute[] = [
               properties: {
                 friend_id: { type: "integer" },
                 audio_quality: {
-                        type: "string",
-                        // Mirrors gamdlAudioQualitySchema; the OpenAPI copy had
-                        // lost the enum and rendered as a bare string.
-                        enum: ["best", "high", "standard", "lossless"],
-                      },
+                  type: "string",
+                  // Mirrors gamdlAudioQualitySchema; the OpenAPI copy had
+                  // lost the enum and rendered as a bare string.
+                  enum: ["best", "high", "standard", "lossless"],
+                },
                 audio_format: { type: "string" },
                 save_cover: { type: "boolean" },
                 cover_format: { type: "string" },
@@ -4892,14 +5411,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                                     items: { type: "string", example: "groovenet-db" },
                                   },
                                 },
-                                required: [
-                                  "id",
-                                  "short_id",
-                                  "time",
-                                  "hostname",
-                                  "paths",
-                                  "tags",
-                                ],
+                                required: ["id", "short_id", "time", "hostname", "paths", "tags"],
                               },
                               { type: "null" },
                             ],
@@ -5425,9 +5937,20 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       },
       responses: {
-        "200": { description: "Playlist spins logged (or skipped when already present)", content: { "application/json": { schema: { $ref: "#/components/schemas/PlaylistSpinsResult" } } } },
-        "400": { description: "Invalid timestamp, derivation, or playlist contents", content: { "application/json": { schema: errorResponseSchemaObject } } },
-        "404": { description: "Playlist or performance not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+        "200": {
+          description: "Playlist spins logged (or skipped when already present)",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/PlaylistSpinsResult" } },
+          },
+        },
+        "400": {
+          description: "Invalid timestamp, derivation, or playlist contents",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "404": {
+          description: "Playlist or performance not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
       },
     },
   },
@@ -5439,29 +5962,43 @@ export const apiContractRoutes: ApiContractRoute[] = [
     tags: ["Playlists", "Sets"],
     paramsSchema: playlistDetailParamsSchema,
     bodySchema: method === "put" ? liveSetUpdateBodySchema : undefined,
-    successSchema: method === "get"
-      ? liveSetResponseSchema
-      : method === "delete"
-        ? liveSetDeleteSchema
-        : liveSetMutationSchema,
+    successSchema:
+      method === "get"
+        ? liveSetResponseSchema
+        : method === "delete"
+          ? liveSetDeleteSchema
+          : liveSetMutationSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
-      ...(method === "put" ? { requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/LiveSetUpdate" } } } } } : {}),
+      ...(method === "put"
+        ? {
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/LiveSetUpdate" } },
+              },
+            },
+          }
+        : {}),
       responses: {
         [method === "post" ? "201" : "200"]: {
           description: "Set operation completed",
           content: {
             "application/json": {
-              schema: method === "get"
-                ? { $ref: "#/components/schemas/LiveSet" }
-                : method === "delete"
-                  ? { $ref: "#/components/schemas/LiveSetDeleteResponse" }
-                  : { $ref: "#/components/schemas/LiveSetMutationResponse" },
+              schema:
+                method === "get"
+                  ? { $ref: "#/components/schemas/LiveSet" }
+                  : method === "delete"
+                    ? { $ref: "#/components/schemas/LiveSetDeleteResponse" }
+                    : { $ref: "#/components/schemas/LiveSetMutationResponse" },
             },
           },
         },
-        "404": { description: "Playlist or set not found", content: { "application/json": { schema: errorResponseSchemaObject } } },
+        "404": {
+          description: "Playlist or set not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
       },
     },
   })),
@@ -5527,9 +6064,14 @@ export const apiContractRoutes: ApiContractRoute[] = [
     openapi: {
       parameters: trackSearchParameters.filter(
         (parameter) =>
-          !["limit", "offset", "genre", "include_similar", "similar_limit", "similar_exclude"].includes(
-            parameter.name as string
-          )
+          ![
+            "limit",
+            "offset",
+            "genre",
+            "include_similar",
+            "similar_limit",
+            "similar_exclude",
+          ].includes(parameter.name as string),
       ),
       responses: {
         "200": {
@@ -5537,7 +6079,9 @@ export const apiContractRoutes: ApiContractRoute[] = [
             "Per genre, the tracks adding that genre to the search would return: subgenres included, each track once, largest first. Takes /api/tracks/search's parameters; `genre`, `limit` and `offset` are ignored, so picking a genre leaves the others' counts in view. Genres with no tracks are omitted. Keyword search only: semantic or hybrid with words is a 400.",
           content: {
             "application/json": {
-              example: { genres: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", track_count: 113 }] },
+              example: {
+                genres: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", track_count: 113 }],
+              },
               schema: {
                 type: "object",
                 properties: {
@@ -5597,12 +6141,14 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   },
                   degraded: {
                     type: "boolean",
-                    description: "Hybrid fell back to lexical results because the semantic leg failed.",
+                    description:
+                      "Hybrid fell back to lexical results because the semantic leg failed.",
                   },
                   added_genres: {
                     type: "array",
                     items: genreFilterRefObject,
-                    description: "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
+                    description:
+                      "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
                   },
                 },
                 required: [...(trackSearchResponseBase.required as string[]), "hits"],
@@ -5661,21 +6207,24 @@ export const apiContractRoutes: ApiContractRoute[] = [
           in: "query",
           required: false,
           schema: { type: "string", enum: ["combined", "identity", "audio"], default: "combined" },
-          description: "Select retrieval mode. `combined` unions both embeddings, `identity` only identity embedding, `audio` only audio vibe embedding.",
+          description:
+            "Select retrieval mode. `combined` unions both embeddings, `identity` only identity embedding, `audio` only audio vibe embedding.",
         },
         {
           name: "limit_identity",
           in: "query",
           required: false,
           schema: { type: "integer", minimum: 0, maximum: 1000, default: 200 },
-          description: "Maximum candidates from identity embedding search. Ignored when `mode=audio`.",
+          description:
+            "Maximum candidates from identity embedding search. Ignored when `mode=audio`.",
         },
         {
           name: "limit_audio",
           in: "query",
           required: false,
           schema: { type: "integer", minimum: 0, maximum: 1000, default: 200 },
-          description: "Maximum candidates from audio vibe embedding search. Ignored when `mode=identity`.",
+          description:
+            "Maximum candidates from audio vibe embedding search. Ignored when `mode=identity`.",
         },
         {
           name: "ivfflat_probes",
@@ -5697,7 +6246,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
           in: "query",
           required: false,
           schema: { type: "integer" },
-          description: "The library `scope=library` keeps to, and whose saved setting applies. Defaults to `friend_id`.",
+          description:
+            "The library `scope=library` keeps to, and whose saved setting applies. Defaults to `friend_id`.",
         },
       ],
       responses: {
@@ -5721,16 +6271,26 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   scope: {
                     type: "string",
                     enum: ["library", "all"],
-                    description: "The scope these candidates came from, after applying the saved setting.",
+                    description:
+                      "The scope these candidates came from, after applying the saved setting.",
                   },
                   libraryFriendId: {
                     type: ["integer", "null"],
-                    description: "The library candidates were limited to; null when every library was searched.",
+                    description:
+                      "The library candidates were limited to; null when every library was searched.",
                   },
                   candidates: { type: "array", items: recommendationCandidateSchemaObject },
                   stats: { type: "object", additionalProperties: true },
                 },
-                required: ["seedTrackId", "seedFriendId", "seedEmbeddings", "scope", "libraryFriendId", "candidates", "stats"],
+                required: [
+                  "seedTrackId",
+                  "seedFriendId",
+                  "seedEmbeddings",
+                  "scope",
+                  "libraryFriendId",
+                  "candidates",
+                  "stats",
+                ],
                 additionalProperties: true,
               },
               examples: {
@@ -5856,16 +6416,26 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   scope: {
                     type: "string",
                     enum: ["library", "all"],
-                    description: "The scope these candidates came from, after applying the saved setting.",
+                    description:
+                      "The scope these candidates came from, after applying the saved setting.",
                   },
                   libraryFriendId: {
                     type: ["integer", "null"],
-                    description: "The library candidates were limited to; null when every library was searched.",
+                    description:
+                      "The library candidates were limited to; null when every library was searched.",
                   },
                   candidates: { type: "array", items: recommendationCandidateSchemaObject },
                   stats: { type: "object", additionalProperties: true },
                 },
-                required: ["seedTrackId", "seedFriendId", "seedEmbeddings", "scope", "libraryFriendId", "candidates", "stats"],
+                required: [
+                  "seedTrackId",
+                  "seedFriendId",
+                  "seedEmbeddings",
+                  "scope",
+                  "libraryFriendId",
+                  "candidates",
+                  "stats",
+                ],
                 additionalProperties: true,
               },
             },
@@ -6099,7 +6669,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
           "application/json": {
             schema: appearanceSettingsPutSchemaObject,
             examples: {
-              fontOnly: { summary: "Change one font; the rest stay", value: { fonts: { body: "inter" } } },
+              fontOnly: {
+                summary: "Change one font; the rest stay",
+                value: { fonts: { body: "inter" } },
+              },
               paletteOnly: { summary: "Change the palette only", value: { palette: "riso" } },
               custom: {
                 summary: "Save a custom palette and use it",
@@ -6107,12 +6680,27 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   palette: "custom",
                   customPalette: {
                     base: "sleeve",
-                    light: { ground: "#f4ede0", surface: "#fbf7ee", ink: "#1f1a17", accent: "#c8321a", shadow: "#4a3a2e" },
-                    dark: { ground: "#17130f", surface: "#221c17", ink: "#f2eadc", accent: "#e8573a", shadow: "#6e5f50" },
+                    light: {
+                      ground: "#f4ede0",
+                      surface: "#fbf7ee",
+                      ink: "#1f1a17",
+                      accent: "#c8321a",
+                      shadow: "#4a3a2e",
+                    },
+                    dark: {
+                      ground: "#17130f",
+                      surface: "#221c17",
+                      ink: "#f2eadc",
+                      accent: "#e8573a",
+                      shadow: "#6e5f50",
+                    },
                   },
                 },
               },
-              deleteCustom: { summary: "Delete the custom palette", value: { customPalette: null } },
+              deleteCustom: {
+                summary: "Delete the custom palette",
+                value: { customPalette: null },
+              },
             },
           },
         },
@@ -6128,7 +6716,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
           },
         },
         "400": {
-          description: "Unknown palette or font id, an invalid custom palette (colours must be #rrggbb), or `custom` with none saved",
+          description:
+            "Unknown palette or font id, an invalid custom palette (colours must be #rrggbb), or `custom` with none saved",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
         "500": {
@@ -6148,9 +6737,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     successSchema: recommendationSettingsResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
-      parameters: [
-        { name: "friend_id", in: "query", required: true, schema: { type: "integer" } },
-      ],
+      parameters: [{ name: "friend_id", in: "query", required: true, schema: { type: "integer" } }],
       responses: {
         "200": {
           description:
@@ -6516,13 +7103,45 @@ export const apiContractRoutes: ApiContractRoute[] = [
     openapi: {
       parameters: [
         { name: "q", in: "query", required: false, schema: { type: "string" } },
-        { name: "sort", in: "query", required: false, schema: { type: "string", default: "created_at:desc" } },
+        {
+          name: "sort",
+          in: "query",
+          required: false,
+          schema: { type: "string", default: "created_at:desc" },
+        },
         { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
         { name: "limit", in: "query", required: false, schema: { type: "integer", default: 20 } },
         { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
-        { name: "missing_library_identifier", in: "query", required: false, schema: { type: "integer", enum: [1], description: "Filter albums missing a library identifier" } },
-        { name: "missing_local_cover_art_url", in: "query", required: false, schema: { type: "integer", enum: [1], description: "Filter albums missing local cover art" } },
-        { name: "missing_audio", in: "query", required: false, schema: { type: "integer", enum: [1], description: "Filter albums with at least one track missing local audio" } },
+        {
+          name: "missing_library_identifier",
+          in: "query",
+          required: false,
+          schema: {
+            type: "integer",
+            enum: [1],
+            description: "Filter albums missing a library identifier",
+          },
+        },
+        {
+          name: "missing_local_cover_art_url",
+          in: "query",
+          required: false,
+          schema: {
+            type: "integer",
+            enum: [1],
+            description: "Filter albums missing local cover art",
+          },
+        },
+        {
+          name: "missing_audio",
+          in: "query",
+          required: false,
+          schema: {
+            type: "integer",
+            enum: [1],
+            description: "Filter albums with at least one track missing local audio",
+          },
+        },
         {
           name: "genre",
           in: "query",
@@ -6531,7 +7150,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           explode: true,
           schema: { type: "array", items: { type: "string" }, maxItems: 20 },
           description:
-            "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres. An album matches on its own Discogs genres and styles, or on any of its tracks' genres. An unknown genre is a 400."
+            "Genre slug, id or name (a name resolves through aliases); repeat for several, which combine with OR. Each includes its subgenres. An album matches on its own Discogs genres and styles, or on any of its tracks' genres. An unknown genre is a 400.",
         },
         {
           name: "include_similar",
@@ -6546,7 +7165,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
           in: "query",
           required: false,
           schema: { type: "integer", minimum: 1 },
-          description: "Per-seed cap on related genres pulled in when include_similar is set. Defaults to 5.",
+          description:
+            "Per-seed cap on related genres pulled in when include_similar is set. Defaults to 5.",
         },
         {
           name: "similar_exclude",
@@ -6576,7 +7196,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
                   added_genres: {
                     type: "array",
                     items: genreFilterRefObject,
-                    description: "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
+                    description:
+                      "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
                   },
                 },
                 required: ["hits", "estimatedTotalHits", "offset", "limit", "query", "sort"],
@@ -6641,13 +7262,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                           items: { type: "object", additionalProperties: true },
                         },
                       },
-                      required: [
-                        "side_key",
-                        "side_label",
-                        "ordinal",
-                        "track_count",
-                        "tracks",
-                      ],
+                      required: ["side_key", "side_label", "ordinal", "track_count", "tracks"],
                     },
                   },
                 },
@@ -6729,7 +7344,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
                         library_identifier: { type: ["string", "null"] },
                         hasVectors: {
                           type: "boolean",
-                          description: "Has an audio_vibe embedding; absent means the server didn't report it",
+                          description:
+                            "Has an audio_vibe embedding; absent means the server didn't report it",
                         },
                       },
                       required: ["track_id", "friend_id", "title", "artist", "album"],
@@ -7017,7 +7633,11 @@ export const apiContractRoutes: ApiContractRoute[] = [
               type: "object",
               properties: {
                 release_id: { type: "string" },
-                album: { type: "string", description: "JSON album payload. genre_override_ids/style_override_ids accept taxonomy UUID arrays, null resets, omitted preserves. Legacy genres/styles names are replacements; imported source values are preserved." },
+                album: {
+                  type: "string",
+                  description:
+                    "JSON album payload. genre_override_ids/style_override_ids accept taxonomy UUID arrays, null resets, omitted preserves. Legacy genres/styles names are replacements; imported source values are preserved.",
+                },
                 tracks: { type: "string", description: "JSON stringified tracks payload" },
                 friend_id: { type: "string" },
                 cover_art: { type: "string", format: "binary" },
@@ -7211,8 +7831,18 @@ export const apiContractRoutes: ApiContractRoute[] = [
         friendIdQueryParam,
         { name: "release_id", in: "query", required: false, schema: { type: "string" } },
         { name: "track_id", in: "query", required: false, schema: { type: "string" } },
-        { name: "from", in: "query", required: false, schema: { type: "string", format: "date-time" } },
-        { name: "to", in: "query", required: false, schema: { type: "string", format: "date-time" } },
+        {
+          name: "from",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date-time" },
+        },
+        {
+          name: "to",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date-time" },
+        },
         ...pagingParams,
       ],
       responses: {

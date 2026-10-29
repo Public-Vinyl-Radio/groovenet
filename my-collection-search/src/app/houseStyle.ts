@@ -98,7 +98,11 @@ const buttonShift = "2px";
 
 // Solid and outline buttons are labelled in the mono face; ghost buttons often
 // hold content (a playlist's name), so they keep the body face.
-const buttonLabel: SystemStyleObject = { fontFamily: "label", fontWeight: "semibold", letterSpacing: "0.02em" };
+const buttonLabel: SystemStyleObject = {
+  fontFamily: "label",
+  fontWeight: "semibold",
+  letterSpacing: "0.02em",
+};
 
 const solidButton: SystemStyleObject = {
   bg: "colorPalette.solid",
@@ -117,7 +121,9 @@ const solidButton: SystemStyleObject = {
   _disabled: { boxShadow: "none" },
 };
 
-const fieldStates = (focus: SystemStyleObject): Record<"outline" | "subtle", SystemStyleObject> => ({
+const fieldStates = (
+  focus: SystemStyleObject,
+): Record<"outline" | "subtle", SystemStyleObject> => ({
   outline: { borderWidth: "outline", borderColor: "border.ink", bg: "bg.panel", ...focus },
   subtle: { borderWidth: "outline", ...focus },
 });
@@ -167,7 +173,11 @@ export const recipes = {
   }),
 };
 
-const container: SystemStyleObject = { borderWidth: "outline", borderColor: "border.ink", boxShadow: "md" };
+const container: SystemStyleObject = {
+  borderWidth: "outline",
+  borderColor: "border.ink",
+  boxShadow: "md",
+};
 
 // The centred modal (`RetroDialog`, #735): an ink scrim under a 4px halftone dot
 // pattern instead of a blur, and a scale-in that is quick and absent for
@@ -182,7 +192,8 @@ export const retroDialog = {
   },
   backdrop: {
     bg: "color-mix(in srgb, var(--gn-ink) 38%, transparent)",
-    backgroundImage: "radial-gradient(color-mix(in srgb, var(--gn-ink) 55%, transparent) 1px, transparent 1.6px)",
+    backgroundImage:
+      "radial-gradient(color-mix(in srgb, var(--gn-ink) 55%, transparent) 1px, transparent 1.6px)",
     backgroundSize: "4px 4px",
     backdropFilter: "none",
     animationDuration: "100ms",
@@ -203,7 +214,11 @@ export const slotRecipes = {
   card: defineSlotRecipe({
     slots: cardAnatomy.keys(),
     variants: {
-      variant: { outline: { root: container }, elevated: { root: container }, subtle: { root: container } },
+      variant: {
+        outline: { root: container },
+        elevated: { root: container },
+        subtle: { root: container },
+      },
     },
   }),
   dialog: defineSlotRecipe({ slots: dialogAnatomy.keys(), base: { content: container } }),
@@ -302,7 +317,11 @@ export const slotRecipes = {
     variants: {
       variant: {
         outline: {
-          input: { ...fieldStates(outsideRing).outline, ...buttonLabel, fontSize: { base: "16px", md: "13px" } },
+          input: {
+            ...fieldStates(outsideRing).outline,
+            ...buttonLabel,
+            fontSize: { base: "16px", md: "13px" },
+          },
         },
       },
     },

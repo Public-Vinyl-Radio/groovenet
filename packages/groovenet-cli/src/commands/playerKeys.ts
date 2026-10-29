@@ -26,9 +26,17 @@ function viewsText(views: readonly KeymapView[]): string {
 }
 
 function keysText(bindings: Keymap["actions"][number]["bindings"]): string {
-  const [first, ...rest] = bindings as [Keymap["actions"][number]["bindings"][number], ...Keymap["actions"][number]["bindings"]];
+  const [first, ...rest] = bindings as [
+    Keymap["actions"][number]["bindings"][number],
+    ...Keymap["actions"][number]["bindings"],
+  ];
   const main = first.keys.length ? first.keys.join(" ") : "(unbound)";
-  return [main, ...rest.map((binding) => `${binding.views.join("/")}: ${binding.keys.join(" ") || "(unbound)"}`)].join("; ");
+  return [
+    main,
+    ...rest.map(
+      (binding) => `${binding.views.join("/")}: ${binding.keys.join(" ") || "(unbound)"}`,
+    ),
+  ].join("; ");
 }
 
 /** The table `groovenet player keys` prints; `*` marks an action overridden in config. */
@@ -40,13 +48,21 @@ export function formatKeymap(keymap: Keymap): string[] {
     description: def.description,
   }));
   const header = { id: " ACTION", keys: "KEYS", views: "VIEWS", description: "DESCRIPTION" };
-  const width = (field: "id" | "keys" | "views") => Math.max(header[field].length, ...rows.map((row) => row[field].length));
+  const width = (field: "id" | "keys" | "views") =>
+    Math.max(header[field].length, ...rows.map((row) => row[field].length));
   const [w1, w2, w3] = [width("id"), width("keys"), width("views")];
-  const line = (row: typeof header) => `${row.id.padEnd(w1)}  ${row.keys.padEnd(w2)}  ${row.views.padEnd(w3)}  ${row.description}`;
+  const line = (row: typeof header) =>
+    `${row.id.padEnd(w1)}  ${row.keys.padEnd(w2)}  ${row.views.padEnd(w3)}  ${row.description}`;
   const lines = [line(header), ...rows.map(line)];
-  lines.push("", "* = overridden by player_keymap in ~/.groovenet/config.json. Keys use that spelling, e.g. n, U, space, enter, ctrl+n, shift+tab, right.");
+  lines.push(
+    "",
+    "* = overridden by player_keymap in ~/.groovenet/config.json. Keys use that spelling, e.g. n, U, space, enter, ctrl+n, shift+tab, right.",
+  );
   if (keymap.problems.length) {
-    lines.push("", `${keymap.problems.length} problem${keymap.problems.length === 1 ? "" : "s"} in player_keymap (the defaults are used for those entries):`);
+    lines.push(
+      "",
+      `${keymap.problems.length} problem${keymap.problems.length === 1 ? "" : "s"} in player_keymap (the defaults are used for those entries):`,
+    );
     for (const problem of keymap.problems) lines.push(`  - ${problem.message}`);
   }
   return lines;

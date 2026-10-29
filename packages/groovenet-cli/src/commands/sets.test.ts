@@ -39,41 +39,106 @@ import {
   type SetsClient,
   type SetsIO,
 } from "./sets.js";
-import type { PlannedEntry, SetDerivation, SetDerivationView, SetTrackRef } from "@groovenet/client";
+import type {
+  PlannedEntry,
+  SetDerivation,
+  SetDerivationView,
+  SetTrackRef,
+} from "@groovenet/client";
 
 // Colour codes make assertions unreadable; strip them.
 const plain = (s: string) => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
 
 function ref(trackId: string, title: string, artist = "Artist"): SetTrackRef {
   const [release, position] = trackId.split("-");
-  return { track_id: trackId, friend_id: 1, title, artist, release_id: release, position: position ?? null };
+  return {
+    track_id: trackId,
+    friend_id: 1,
+    title,
+    artist,
+    release_id: release,
+    position: position ?? null,
+  };
 }
 
 function derivation(overrides: Partial<SetDerivation> = {}): SetDerivation {
   return {
-    id: "d1", recording_sha256: "a".repeat(64), fingerprint_type: "chromaprint", fingerprint_version: "1",
-    window_seconds: 15, step_seconds: 15, status: "processed", error: null, duration_seconds: 900,
-    created_at: "", updated_at: "", completed_at: "", ...overrides,
+    id: "d1",
+    recording_sha256: "a".repeat(64),
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
+    window_seconds: 15,
+    step_seconds: 15,
+    status: "processed",
+    error: null,
+    duration_seconds: 900,
+    created_at: "",
+    updated_at: "",
+    completed_at: "",
+    ...overrides,
   };
 }
 
 /** A miniature of #271: a substitution, an out-of-order pair, a gap, and a record never played. */
 function view(overrides: Partial<SetDerivationView> = {}): SetDerivationView {
   const planned = (index: number, track: SetTrackRef, fingerprinted = true): PlannedEntry => ({
-    ...track, index, fingerprinted,
+    ...track,
+    index,
+    fingerprinted,
   });
   return {
     derivation: derivation(),
     recording: {
-      sha256: "a".repeat(64), file_path: "a.mp3", original_filename: "inner-signals.mp3",
-      format_name: "mp3", duration_seconds: 900, size_bytes: 1000, created_at: "",
+      sha256: "a".repeat(64),
+      file_path: "a.mp3",
+      original_filename: "inner-signals.mp3",
+      format_name: "mp3",
+      duration_seconds: 900,
+      size_bytes: 1000,
+      created_at: "",
     },
     summary: { plays: 4, duration_seconds: 900, identified_seconds: 720, identified_fraction: 0.8 },
     tracklist: [
-      { track_id: "10-A1", friend_id: 1, start_seconds: 15, end_seconds: 200, confidence: 0.9, windows: 12, rate: 1.0, track: ref("10-A1", "Soul Beat Momma", "Herbie Mann") },
-      { track_id: "11-A6", friend_id: 1, start_seconds: 210, end_seconds: 400, confidence: 0.9, windows: 12, rate: 1.0, track: ref("11-A6", "Lovetripper", "Cuco") },
-      { track_id: "14-B1", friend_id: 1, start_seconds: 580, end_seconds: 700, confidence: 0.9, windows: 8, rate: 1.0, track: ref("14-B1", "Money Yoga") },
-      { track_id: "13-B1", friend_id: 1, start_seconds: 710, end_seconds: 880, confidence: 0.9, windows: 11, rate: 1.0, track: null },
+      {
+        track_id: "10-A1",
+        friend_id: 1,
+        start_seconds: 15,
+        end_seconds: 200,
+        confidence: 0.9,
+        windows: 12,
+        rate: 1.0,
+        track: ref("10-A1", "Soul Beat Momma", "Herbie Mann"),
+      },
+      {
+        track_id: "11-A6",
+        friend_id: 1,
+        start_seconds: 210,
+        end_seconds: 400,
+        confidence: 0.9,
+        windows: 12,
+        rate: 1.0,
+        track: ref("11-A6", "Lovetripper", "Cuco"),
+      },
+      {
+        track_id: "14-B1",
+        friend_id: 1,
+        start_seconds: 580,
+        end_seconds: 700,
+        confidence: 0.9,
+        windows: 8,
+        rate: 1.0,
+        track: ref("14-B1", "Money Yoga"),
+      },
+      {
+        track_id: "13-B1",
+        friend_id: 1,
+        start_seconds: 710,
+        end_seconds: 880,
+        confidence: 0.9,
+        windows: 11,
+        rate: 1.0,
+        track: null,
+      },
     ],
     unidentified: [
       { start_seconds: 400, end_seconds: 580, unindexed_neighbours: [ref("11-A7", "Other Side")] },
@@ -134,7 +199,9 @@ describe("formatting", () => {
 
   it("names a track by artist and title, falling back sensibly", () => {
     expect(plain(describeTrack(ref("1-A1", "Song", "Band"), "1-A1"))).toBe("Band — Song [1-A1]");
-    expect(plain(describeTrack({ ...ref("1-A1", ""), artist: null, title: null }, "1-A1"))).toBe("1-A1 [1-A1]");
+    expect(plain(describeTrack({ ...ref("1-A1", ""), artist: null, title: null }, "1-A1"))).toBe(
+      "1-A1 [1-A1]",
+    );
     expect(plain(describeTrack(null, "1-A1"))).toBe("1-A1 (no longer in the library)");
   });
 });
@@ -157,7 +224,10 @@ describe("marksFor()", () => {
         ...base.diff!,
         played_not_planned: [{ play: 3 }],
         played_instead_of: [
-          { play: 1, planned: { ...base.diff!.played_instead_of[0].planned, position: null, title: null } },
+          {
+            play: 1,
+            planned: { ...base.diff!.played_instead_of[0].planned, position: null, title: null },
+          },
         ],
       },
     });
@@ -175,36 +245,60 @@ describe("renderView()", () => {
   const text = lines.join("\n");
 
   it("heads with the plays, how much was identified, and the engine", () => {
-    expect(lines[0]).toBe("inner-signals.mp3 — 4 plays, 80.0% of 0:15:00 identified (chromaprint 1)");
+    expect(lines[0]).toBe(
+      "inner-signals.mp3 — 4 plays, 80.0% of 0:15:00 identified (chromaprint 1)",
+    );
   });
 
   it("interleaves plays and unidentified stretches in time order", () => {
     const body = lines.filter((l) => /^\s{2}\S \d:/.test(l));
-    expect(body.map((l) => l.slice(4, 11))).toEqual(["0:00:15", "0:03:30", "0:06:40", "0:09:40", "0:11:50"]);
+    expect(body.map((l) => l.slice(4, 11))).toEqual([
+      "0:00:15",
+      "0:03:30",
+      "0:06:40",
+      "0:09:40",
+      "0:11:50",
+    ]);
   });
 
   it("says what could not be identified, and what nearby is not indexed", () => {
     expect(text).toContain(
-      "? 0:06:40  0:09:40  unidentified (3m00s) — not indexed on the records either side: 11-A7 Other Side"
+      "? 0:06:40  0:09:40  unidentified (3m00s) — not indexed on the records either side: 11-A7 Other Side",
     );
   });
 
   it("marks each play against the plan", () => {
     expect(text).toContain("✓ 0:00:15  0:03:20  Herbie Mann — Soul Beat Momma [10-A1]");
-    expect(text).toContain("⇄ 0:03:30  0:06:40  Cuco — Lovetripper [11-A6]  instead of A5 Feelings");
+    expect(text).toContain(
+      "⇄ 0:03:30  0:06:40  Cuco — Lovetripper [11-A6]  instead of A5 Feelings",
+    );
     expect(text).toContain("↕ 0:09:40  0:11:40  Artist — Money Yoga [14-B1]  out of order");
   });
 
   it("summarises the diff and lists what to act on", () => {
     expect(text).toContain("Against playlist 176");
-    expect(text).toContain("3 as planned (1 out of order) · 1 played instead · 0 not planned · 1 planned but not played");
-    expect(text).toContain("0:03:30  Cuco — Lovetripper [11-A6]  instead of  Cuco — Feelings [11-A5]");
-    expect(text).toContain("Artist — El Palteado [12-A]  (not fingerprinted — may have been played)");
+    expect(text).toContain(
+      "3 as planned (1 out of order) · 1 played instead · 0 not planned · 1 planned but not played",
+    );
+    expect(text).toContain(
+      "0:03:30  Cuco — Lovetripper [11-A6]  instead of  Cuco — Feelings [11-A5]",
+    );
+    expect(text).toContain(
+      "Artist — El Palteado [12-A]  (not fingerprinted — may have been played)",
+    );
   });
 
   it("omits the diff without a plan, and handles an unknown duration", () => {
     const bare = renderView(
-      view({ diff: null, summary: { plays: 0, duration_seconds: null, identified_seconds: 0, identified_fraction: null } })
+      view({
+        diff: null,
+        summary: {
+          plays: 0,
+          duration_seconds: null,
+          identified_seconds: 0,
+          identified_fraction: null,
+        },
+      }),
     ).map(plain);
     expect(bare[0]).toContain("0 plays, ? of ? identified");
     expect(bare.join("\n")).not.toContain("Against playlist");
@@ -216,7 +310,9 @@ describe("renderView()", () => {
       ...base,
       unidentified: [{ ...base.unidentified[0], unindexed_neighbours: [] }],
       diff: { ...base.diff!, played_instead_of: [], planned_not_played: [], played_as_planned: [] },
-    }).map(plain).join("\n");
+    })
+      .map(plain)
+      .join("\n");
     expect(text).not.toContain("Played instead of the plan");
     expect(text).not.toContain("Planned but not played");
     expect(text).not.toContain("not indexed on the records");
@@ -227,9 +323,16 @@ describe("renderView()", () => {
     const base = view();
     const text = renderView({
       ...base,
-      unidentified: [{ ...base.unidentified[0], unindexed_neighbours: [{ ...ref("11-A7", ""), title: null }] }],
-      diff: { ...base.diff!, planned_not_played: [{ ...base.diff!.planned_not_played[0], fingerprinted: true }] },
-    }).map(plain).join("\n");
+      unidentified: [
+        { ...base.unidentified[0], unindexed_neighbours: [{ ...ref("11-A7", ""), title: null }] },
+      ],
+      diff: {
+        ...base.diff!,
+        planned_not_played: [{ ...base.diff!.planned_not_played[0], fingerprinted: true }],
+      },
+    })
+      .map(plain)
+      .join("\n");
     expect(text).toContain("not indexed on the records either side: 11-A7");
     expect(text).not.toContain("11-A7 null");
     expect(text).toContain("Artist — El Palteado [12-A]");
@@ -237,10 +340,14 @@ describe("renderView()", () => {
   });
 
   it("reports a failed run", () => {
-    expect(renderView(view({ derivation: derivation({ status: "failed", error: "moov atom not found" }) })).map(plain)).toEqual([
-      "✗ Derivation of inner-signals.mp3 failed: moov atom not found",
-    ]);
-    expect(plain(renderView(view({ derivation: derivation({ status: "failed" }) }))[0])).toContain("no reason given");
+    expect(
+      renderView(
+        view({ derivation: derivation({ status: "failed", error: "moov atom not found" }) }),
+      ).map(plain),
+    ).toEqual(["✗ Derivation of inner-signals.mp3 failed: moov atom not found"]);
+    expect(plain(renderView(view({ derivation: derivation({ status: "failed" }) }))[0])).toContain(
+      "no reason given",
+    );
   });
 
   it("reports a run still going, by the stored name if there is no original one", () => {
@@ -270,7 +377,9 @@ afterEach(() => {
 describe("hashFile()", () => {
   it("hashes a file as a stream, reporting progress", async () => {
     const progress: number[] = [];
-    expect(await hashFile(file, (n) => progress.push(n))).toBe(createHash("sha256").update(bytes).digest("hex"));
+    expect(await hashFile(file, (n) => progress.push(n))).toBe(
+      createHash("sha256").update(bytes).digest("hex"),
+    );
     expect(progress.at(-1)).toBe(bytes.length);
   });
 
@@ -288,7 +397,10 @@ describe("waitForDerivation()", () => {
       .mockResolvedValueOnce(view());
     const seen: string[] = [];
 
-    await waitForDerivation({ getSetDerivation }, "d1", { pollIntervalMs: 0, onProgress: (d) => seen.push(d.status) });
+    await waitForDerivation({ getSetDerivation }, "d1", {
+      pollIntervalMs: 0,
+      onProgress: (d) => seen.push(d.status),
+    });
 
     expect(seen).toEqual(["queued", "processing", "processed"]);
   });
@@ -297,14 +409,22 @@ describe("waitForDerivation()", () => {
 function client(overrides: Partial<Record<keyof SetsClient, ReturnType<typeof vi.fn>>> = {}) {
   return {
     hasSetRecording: vi.fn().mockResolvedValue(false),
-    uploadSetRecording: vi.fn(async (_sha: string, body: NodeJS.ReadableStream, opts: { onProgress?: (n: number) => void }) => {
-      for await (const chunk of body) {
-        expect(chunk).toBeDefined();
-        opts.onProgress?.(bytes.length);
-      }
-      return {};
-    }),
-    createSetDerivation: vi.fn().mockResolvedValue({ ...derivation({ status: "queued" }), reused: false }),
+    uploadSetRecording: vi.fn(
+      async (
+        _sha: string,
+        body: NodeJS.ReadableStream,
+        opts: { onProgress?: (n: number) => void },
+      ) => {
+        for await (const chunk of body) {
+          expect(chunk).toBeDefined();
+          opts.onProgress?.(bytes.length);
+        }
+        return {};
+      },
+    ),
+    createSetDerivation: vi
+      .fn()
+      .mockResolvedValue({ ...derivation({ status: "queued" }), reused: false }),
     getSetDerivation: vi.fn().mockResolvedValue(view()),
     ...overrides,
   };
@@ -317,17 +437,34 @@ describe("runDerive()", () => {
     const c = client();
     const io = capture();
 
-    const code = await runDerive(c as unknown as SetsClient, file, { playlist: 176, pollInterval: 0 }, io);
+    const code = await runDerive(
+      c as unknown as SetsClient,
+      file,
+      { playlist: 176, pollInterval: 0 },
+      io,
+    );
 
     expect(code).toBe(0);
     expect(c.hasSetRecording).toHaveBeenCalledWith(sha);
-    expect(c.uploadSetRecording).toHaveBeenCalledWith(sha, expect.anything(), expect.objectContaining({
-      size: bytes.length, filename: "Carlos Díaz live.mp3",
-    }));
+    expect(c.uploadSetRecording).toHaveBeenCalledWith(
+      sha,
+      expect.anything(),
+      expect.objectContaining({
+        size: bytes.length,
+        filename: "Carlos Díaz live.mp3",
+      }),
+    );
     expect(c.createSetDerivation).toHaveBeenCalledWith({
-      recording_sha256: sha, window_seconds: undefined, step_seconds: undefined, force: undefined, live_set_id: undefined,
+      recording_sha256: sha,
+      window_seconds: undefined,
+      step_seconds: undefined,
+      force: undefined,
+      live_set_id: undefined,
     });
-    expect(c.getSetDerivation).toHaveBeenLastCalledWith("d1", { playlist_id: 176, live_set_id: undefined });
+    expect(c.getSetDerivation).toHaveBeenLastCalledWith("d1", {
+      playlist_id: 176,
+      live_set_id: undefined,
+    });
     expect(io.lines).toContain(`  uploaded ${bytes.length} B`);
     expect(io.lines).toContain("  derivation d1 queued");
     expect(io.lines.join("\n")).toContain("Against playlist 176");
@@ -354,7 +491,9 @@ describe("runDerive()", () => {
   });
 
   it("says when it is handing back an earlier run", async () => {
-    const c = client({ createSetDerivation: vi.fn().mockResolvedValue({ ...derivation(), reused: true }) });
+    const c = client({
+      createSetDerivation: vi.fn().mockResolvedValue({ ...derivation(), reused: true }),
+    });
     const io = capture();
     await runDerive(c as unknown as SetsClient, file, { pollInterval: 0 }, io);
     expect(io.lines.join("\n")).toContain("reusing an earlier run — --force for a fresh one");
@@ -362,11 +501,23 @@ describe("runDerive()", () => {
 
   it("passes window, step, force and live set through", async () => {
     const c = client();
-    await runDerive(c as unknown as SetsClient, file, { window: 10, step: 5, force: true, liveSet: 3, pollInterval: 0 }, capture());
+    await runDerive(
+      c as unknown as SetsClient,
+      file,
+      { window: 10, step: 5, force: true, liveSet: 3, pollInterval: 0 },
+      capture(),
+    );
     expect(c.createSetDerivation).toHaveBeenCalledWith({
-      recording_sha256: sha, window_seconds: 10, step_seconds: 5, force: true, live_set_id: 3,
+      recording_sha256: sha,
+      window_seconds: 10,
+      step_seconds: 5,
+      force: true,
+      live_set_id: 3,
     });
-    expect(c.getSetDerivation).toHaveBeenLastCalledWith("d1", { playlist_id: undefined, live_set_id: 3 });
+    expect(c.getSetDerivation).toHaveBeenLastCalledWith("d1", {
+      playlist_id: undefined,
+      live_set_id: 3,
+    });
   });
 
   it("returns straight away with --no-wait", async () => {
@@ -401,9 +552,9 @@ describe("runDerive()", () => {
 
   it("refuses --playlist with --live-set before touching the file", async () => {
     const c = client();
-    await expect(runDerive(c as unknown as SetsClient, file, { playlist: 1, liveSet: 2 }, capture())).rejects.toThrow(
-      "Choose --playlist or --live-set, not both"
-    );
+    await expect(
+      runDerive(c as unknown as SetsClient, file, { playlist: 1, liveSet: 2 }, capture()),
+    ).rejects.toThrow("Choose --playlist or --live-set, not both");
     expect(c.hasSetRecording).not.toHaveBeenCalled();
   });
 });
@@ -412,20 +563,32 @@ describe("review hand-off", () => {
   it("continues into review with the derivation's id once it is shown", async () => {
     const then = vi.fn().mockResolvedValue(0);
     const io = capture();
-    expect(await runDerive(client() as unknown as SetsClient, file, { pollInterval: 0 }, io, then)).toBe(0);
+    expect(
+      await runDerive(client() as unknown as SetsClient, file, { pollInterval: 0 }, io, then),
+    ).toBe(0);
     expect(then).toHaveBeenCalledWith("d1");
   });
 
   it("passes review's exit code through", async () => {
     const then = vi.fn().mockResolvedValue(1);
-    expect(await runDerive(client() as unknown as SetsClient, file, { pollInterval: 0 }, capture(), then)).toBe(1);
+    expect(
+      await runDerive(
+        client() as unknown as SetsClient,
+        file,
+        { pollInterval: 0 },
+        capture(),
+        then,
+      ),
+    ).toBe(1);
   });
 
   it("does not review a derivation that failed", async () => {
     const failed = view({ derivation: derivation({ status: "failed" }) });
     const then = vi.fn();
     const c = client({ getSetDerivation: vi.fn().mockResolvedValue(failed) });
-    expect(await runDerive(c as unknown as SetsClient, file, { pollInterval: 0 }, capture(), then)).toBe(1);
+    expect(
+      await runDerive(c as unknown as SetsClient, file, { pollInterval: 0 }, capture(), then),
+    ).toBe(1);
     expect(then).not.toHaveBeenCalled();
   });
 
@@ -442,7 +605,10 @@ describe("runShow()", () => {
     const c = client();
     const io = capture();
     expect(await runShow(c as unknown as SetsClient, "d1", { liveSet: 3 }, io)).toBe(0);
-    expect(c.getSetDerivation).toHaveBeenCalledWith("d1", { playlist_id: undefined, live_set_id: 3 });
+    expect(c.getSetDerivation).toHaveBeenCalledWith("d1", {
+      playlist_id: undefined,
+      live_set_id: 3,
+    });
     expect(io.lines[0]).toContain("4 plays");
   });
 
@@ -453,7 +619,7 @@ describe("runShow()", () => {
       client({ getSetDerivation: vi.fn().mockResolvedValue(failed) }) as unknown as SetsClient,
       "d1",
       { json: true },
-      io
+      io,
     );
     expect(code).toBe(1);
     expect(JSON.parse(io.raw.join("")).derivation.status).toBe("failed");
@@ -466,7 +632,12 @@ describe("makeClient()", () => {
   it("builds a client from the stored config", () => {
     loadConfig.mockReturnValue({ api_base: "https://g/api", api_key: "k", insecure_tls: true });
     makeClient();
-    expect(GroovenetClientMock).toHaveBeenCalledWith({ baseUrl: "https://g/api", apiKey: "k", insecureTls: true, clientName: "cli" });
+    expect(GroovenetClientMock).toHaveBeenCalledWith({
+      baseUrl: "https://g/api",
+      apiKey: "k",
+      insecureTls: true,
+      clientName: "cli",
+    });
   });
 });
 
@@ -512,8 +683,13 @@ describe("addSetsCommands()", () => {
 
   it("derives with numeric options parsed", async () => {
     await parse("derive", file, "--playlist", "176", "--window", "10", "--poll-interval", "0");
-    expect(fake.createSetDerivation).toHaveBeenCalledWith(expect.objectContaining({ window_seconds: 10 }));
-    expect(fake.getSetDerivation).toHaveBeenLastCalledWith("d1", { playlist_id: 176, live_set_id: undefined });
+    expect(fake.createSetDerivation).toHaveBeenCalledWith(
+      expect.objectContaining({ window_seconds: 10 }),
+    );
+    expect(fake.getSetDerivation).toHaveBeenLastCalledWith("d1", {
+      playlist_id: 176,
+      live_set_id: undefined,
+    });
     expect(process.exitCode).toBe(0);
   });
 
@@ -530,7 +706,12 @@ describe("addSetsCommands()", () => {
     } finally {
       setTTY(original);
     }
-    expect(runReviewMock).toHaveBeenCalledWith(fake, "d1", { playlist: 176, dryRun: true }, askStub);
+    expect(runReviewMock).toHaveBeenCalledWith(
+      fake,
+      "d1",
+      { playlist: 176, dryRun: true },
+      askStub,
+    );
     expect(process.exitCode).toBe(0);
   });
 
@@ -545,7 +726,9 @@ describe("addSetsCommands()", () => {
       setTTY(original);
     }
     expect(runReviewMock).not.toHaveBeenCalled();
-    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("Review is interactive"));
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("Review is interactive"),
+    );
     expect(exit).toHaveBeenCalledWith(1);
   });
 
@@ -572,12 +755,20 @@ describe("addSetsCommands()", () => {
     } finally {
       setTTY(original);
     }
-    expect(runReviewMock).toHaveBeenCalledWith(fake, "d1", expect.objectContaining({ playlist: 176, review: true }), askStub);
+    expect(runReviewMock).toHaveBeenCalledWith(
+      fake,
+      "d1",
+      expect.objectContaining({ playlist: 176, review: true }),
+      askStub,
+    );
   });
 
   it("shows a run", async () => {
     await parse("show", "d1", "--playlist", "176");
-    expect(fake.getSetDerivation).toHaveBeenCalledWith("d1", { playlist_id: 176, live_set_id: undefined });
+    expect(fake.getSetDerivation).toHaveBeenCalledWith("d1", {
+      playlist_id: 176,
+      live_set_id: undefined,
+    });
   });
 
   it.each([["derive"], ["show"]])("%s reports a thrown non-Error too", async (sub) => {

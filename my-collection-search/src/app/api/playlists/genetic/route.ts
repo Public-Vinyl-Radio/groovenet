@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
-import {
-  playlistGeneticBodySchema,
-  playlistGeneticResponseSchema,
-} from "@/api-contract/schemas";
+import { playlistGeneticBodySchema, playlistGeneticResponseSchema } from "@/api-contract/schemas";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +12,7 @@ export async function POST(req: Request) {
           error: "Invalid playlist payload",
           details: parsedBody.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,17 +26,17 @@ export async function POST(req: Request) {
     const lookupRefs = inputTracks.flatMap((track) =>
       typeof track.friend_id === "number"
         ? [{ trackId: track.track_id, friendId: track.friend_id }]
-        : []
+        : [],
     );
     const { model, templateVersion } = await getServingModel("audio_vibe");
     const embeddingRows = await embeddingsRepository.findEmbeddingsForTracks(
       lookupRefs,
       "audio_vibe",
       model,
-      templateVersion
+      templateVersion,
     );
     const embeddingByTrack = new Map(
-      embeddingRows.map((row) => [`${row.friend_id}:${row.track_id}`, row.embedding])
+      embeddingRows.map((row) => [`${row.friend_id}:${row.track_id}`, row.embedding]),
     );
 
     const normalizedTracks = inputTracks
@@ -49,11 +46,10 @@ export async function POST(req: Request) {
           typeof bpmRaw === "number"
             ? bpmRaw
             : typeof bpmRaw === "string"
-            ? Number.parseFloat(bpmRaw)
-            : NaN;
+              ? Number.parseFloat(bpmRaw)
+              : NaN;
 
-        const trackId =
-          typeof track.track_id === "string" ? track.track_id : undefined;
+        const trackId = typeof track.track_id === "string" ? track.track_id : undefined;
 
         const embedding =
           typeof track.friend_id === "number"
@@ -84,14 +80,14 @@ export async function POST(req: Request) {
           invalid,
           invalid_count: invalid.length,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (normalizedTracks.length === 0) {
       return NextResponse.json(
         { error: "No valid tracks provided for genetic optimization." },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const res = await fetch(`http://ga-service:8002/optimize`, {
@@ -112,9 +108,6 @@ export async function POST(req: Request) {
     return NextResponse.json(responseJson, { status: res.status });
   } catch (error) {
     console.error("Error creating playlist:", error);
-    return NextResponse.json(
-      { error: "Failed to create playlist" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create playlist" }, { status: 500 });
   }
 }

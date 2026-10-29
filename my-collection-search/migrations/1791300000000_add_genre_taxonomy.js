@@ -135,7 +135,7 @@ export const up = (pgm) => {
       VALUES (
         ${sqlLiteral(normalizeGenreName(alias.alias))},
         (SELECT id FROM genres WHERE normalized_name = ${sqlLiteral(
-          normalizeGenreName(alias.genreName)
+          normalizeGenreName(alias.genreName),
         )}),
         ${sqlLiteral(alias.source)}
       )

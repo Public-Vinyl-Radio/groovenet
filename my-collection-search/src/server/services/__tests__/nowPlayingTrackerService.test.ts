@@ -57,7 +57,7 @@ describe("NowPlayingTrackerService", () => {
     vi.clearAllMocks();
     service = new NowPlayingTrackerService();
     findTrackByTrackIdAndFriendId.mockImplementation(async (trackId: string) =>
-      trackRow({ track_id: trackId })
+      trackRow({ track_id: trackId }),
     );
     publishSnapshot.mockResolvedValue(undefined);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -85,11 +85,20 @@ describe("NowPlayingTrackerService", () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
     publishSnapshot.mockClear();
 
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
 
     expect(publishSnapshot).toHaveBeenCalledTimes(1);
     expect(lastSnapshot()).toMatchObject({ state: "playing" });
-    expect(lastSnapshot().track).toMatchObject({ track_id: "track-a", year: "1988", label: "Rham!" });
+    expect(lastSnapshot().track).toMatchObject({
+      track_id: "track-a",
+      year: "1988",
+      label: "Rham!",
+    });
   });
 
   it("ignores a window below the confidence floor", async () => {
@@ -98,7 +107,12 @@ describe("NowPlayingTrackerService", () => {
   });
 
   it("ignores a window with no track match", async () => {
-    await service.observe("src-1", window({ track_id: null, friend_id: null, confidence: null }), T0, OPTS);
+    await service.observe(
+      "src-1",
+      window({ track_id: null, friend_id: null, confidence: null }),
+      T0,
+      OPTS,
+    );
     expect(publishSnapshot).not.toHaveBeenCalled();
   });
 
@@ -106,7 +120,12 @@ describe("NowPlayingTrackerService", () => {
     // Same offset twice, 15s of clock apart -> rate 0, outside PLAY_RATE_MIN/MAX.
     await service.observe("src-1", window({ at: T0, offset_seconds: 30 }), T0, OPTS);
     publishSnapshot.mockClear();
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 30 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 30 }),
+      T0 + 15_000,
+      OPTS,
+    );
 
     expect(publishSnapshot).not.toHaveBeenCalled();
   });
@@ -123,7 +142,7 @@ describe("NowPlayingTrackerService", () => {
       "src-1",
       window({ at: T0 + 5_000, track_id: "track-b", friend_id: 1 }),
       T0 + 5_000,
-      OPTS
+      OPTS,
     );
     expect(lastSnapshot().state).toBe("candidate");
     expect(lastSnapshot().track.track_id).toBe("track-b");
@@ -137,7 +156,12 @@ describe("NowPlayingTrackerService", () => {
 
   it("blends from track A to track B only once the new track is confirmed", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     expect(lastSnapshot()).toMatchObject({ state: "playing" });
     publishSnapshot.mockClear();
 
@@ -146,7 +170,7 @@ describe("NowPlayingTrackerService", () => {
       "src-1",
       window({ at: T0 + 30_000, track_id: "track-b", friend_id: 1, offset_seconds: 5 }),
       T0 + 30_000,
-      OPTS
+      OPTS,
     );
     expect(publishSnapshot).not.toHaveBeenCalled();
 
@@ -155,7 +179,7 @@ describe("NowPlayingTrackerService", () => {
       "src-1",
       window({ at: T0 + 45_000, track_id: "track-b", friend_id: 1, offset_seconds: 20 }),
       T0 + 45_000,
-      OPTS
+      OPTS,
     );
     expect(publishSnapshot).toHaveBeenCalledTimes(1);
     expect(lastSnapshot()).toMatchObject({ state: "playing" });
@@ -164,34 +188,54 @@ describe("NowPlayingTrackerService", () => {
 
   it("does not bounce back to the old track after a confirmed blend", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     await service.observe(
       "src-1",
       window({ at: T0 + 30_000, track_id: "track-b", friend_id: 1, offset_seconds: 5 }),
       T0 + 30_000,
-      OPTS
+      OPTS,
     );
     await service.observe(
       "src-1",
       window({ at: T0 + 45_000, track_id: "track-b", friend_id: 1, offset_seconds: 20 }),
       T0 + 45_000,
-      OPTS
+      OPTS,
     );
     publishSnapshot.mockClear();
 
     // A single stray echo of the old track must not switch the display back.
-    await service.observe("src-1", window({ at: T0 + 46_000, offset_seconds: 41 }), T0 + 46_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 46_000, offset_seconds: 41 }),
+      T0 + 46_000,
+      OPTS,
+    );
 
     expect(publishSnapshot).not.toHaveBeenCalled();
   });
 
   it("reconfirms the playing track on every matching window, resetting the stop timer", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     publishSnapshot.mockClear();
 
     const reconfirmAt = T0 + 15_000 + 30_000;
-    await service.observe("src-1", window({ at: reconfirmAt, offset_seconds: 55 }), reconfirmAt, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: reconfirmAt, offset_seconds: 55 }),
+      reconfirmAt,
+      OPTS,
+    );
     expect(publishSnapshot).not.toHaveBeenCalled();
 
     // The original gap deadline (from the last confirming window) has long
@@ -204,7 +248,12 @@ describe("NowPlayingTrackerService", () => {
 
   it("goes playing -> stopped after the gap, keeping the last track on screen", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     publishSnapshot.mockClear();
 
     await service.tick(T0 + 15_000 + OPTS.gapSeconds * 1000 - 1, OPTS);
@@ -218,16 +267,31 @@ describe("NowPlayingTrackerService", () => {
 
   it("goes stopped -> playing once the same track reconfirms", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     const stopAt = T0 + 15_000 + OPTS.gapSeconds * 1000;
     await service.tick(stopAt, OPTS);
     expect(lastSnapshot().state).toBe("stopped");
     publishSnapshot.mockClear();
 
-    await service.observe("src-1", window({ at: stopAt + 1000, offset_seconds: 60 }), stopAt + 1000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: stopAt + 1000, offset_seconds: 60 }),
+      stopAt + 1000,
+      OPTS,
+    );
     expect(publishSnapshot).not.toHaveBeenCalled(); // first window only rebuilds the run
 
-    await service.observe("src-1", window({ at: stopAt + 16_000, offset_seconds: 75 }), stopAt + 16_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: stopAt + 16_000, offset_seconds: 75 }),
+      stopAt + 16_000,
+      OPTS,
+    );
     expect(publishSnapshot).toHaveBeenCalledTimes(1);
     expect(lastSnapshot()).toMatchObject({ state: "playing" });
     expect(lastSnapshot().track.track_id).toBe("track-a");
@@ -237,7 +301,12 @@ describe("NowPlayingTrackerService", () => {
 
   it("clears stopped -> idle after NOW_PLAYING_CLEAR_SECONDS, publishing an empty track", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     const stopAt = T0 + 15_000 + OPTS.gapSeconds * 1000;
     await service.tick(stopAt, OPTS);
     publishSnapshot.mockClear();
@@ -305,25 +374,50 @@ describe("NowPlayingTrackerService", () => {
 
   it("replaces the label and year when a different track is confirmed", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
-    findTrackByTrackIdAndFriendId.mockResolvedValue(trackRow({ track_id: "track-b", year: 1990, album_label: null }));
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
+    findTrackByTrackIdAndFriendId.mockResolvedValue(
+      trackRow({ track_id: "track-b", year: 1990, album_label: null }),
+    );
 
-    await service.observe("src-1", window({ track_id: "track-b", at: T0 + 30_000, offset_seconds: 0 }), T0 + 30_000, OPTS);
-    await service.observe("src-1", window({ track_id: "track-b", at: T0 + 45_000, offset_seconds: 15 }), T0 + 45_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ track_id: "track-b", at: T0 + 30_000, offset_seconds: 0 }),
+      T0 + 30_000,
+      OPTS,
+    );
+    await service.observe(
+      "src-1",
+      window({ track_id: "track-b", at: T0 + 45_000, offset_seconds: 15 }),
+      T0 + 45_000,
+      OPTS,
+    );
 
-    expect(lastSnapshot()).toMatchObject({ state: "playing", track: { track_id: "track-b", year: 1990, label: null } });
+    expect(lastSnapshot()).toMatchObject({
+      state: "playing",
+      track: { track_id: "track-b", year: 1990, label: null },
+    });
   });
 
   it("reports a null offset when the confirming window did not carry one", async () => {
     await service.observe("src-1", window({ at: T0, offset_seconds: undefined }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: undefined }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: undefined }),
+      T0 + 15_000,
+      OPTS,
+    );
 
     expect(lastSnapshot()).toMatchObject({ state: "playing", offset_seconds: null });
   });
 
   it("prefers embedded file art over the Discogs thumbnail for cover_url", async () => {
     findTrackByTrackIdAndFriendId.mockResolvedValueOnce(
-      trackRow({ audio_file_album_art_url: "https://files.example.com/art.jpg" })
+      trackRow({ audio_file_album_art_url: "https://files.example.com/art.jpg" }),
     );
 
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
@@ -346,7 +440,7 @@ describe("NowPlayingTrackerService", () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("[now-playing] observe failed"),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
@@ -365,9 +459,19 @@ describe("NowPlayingTrackerService", () => {
 
   it("logs, but keeps going, when one source's tick throws", async () => {
     await service.observe("src-1", window({ at: T0 }), T0, OPTS);
-    await service.observe("src-1", window({ at: T0 + 15_000, offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-1",
+      window({ at: T0 + 15_000, offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     await service.observe("src-2", window({ at: T0, track_id: "track-b" }), T0, OPTS);
-    await service.observe("src-2", window({ at: T0 + 15_000, track_id: "track-b", offset_seconds: 25 }), T0 + 15_000, OPTS);
+    await service.observe(
+      "src-2",
+      window({ at: T0 + 15_000, track_id: "track-b", offset_seconds: 25 }),
+      T0 + 15_000,
+      OPTS,
+    );
     publishSnapshot.mockClear();
     publishSnapshot.mockRejectedValueOnce(new Error("broker down"));
 
@@ -376,7 +480,7 @@ describe("NowPlayingTrackerService", () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("[now-playing] tick failed for"),
-      expect.any(Error)
+      expect.any(Error),
     );
     // The second source's own transition still happened despite the first one's failure.
     expect(publishSnapshot).toHaveBeenCalledTimes(2);
@@ -454,13 +558,13 @@ describe("startNowPlayingTracker", () => {
   });
 
   it("ticks the tracker when the interval fires", async () => {
-    const { startNowPlayingTracker, nowPlayingTrackerService: trackerSingleton } = await import(
-      "../nowPlayingTrackerService"
-    );
+    const { startNowPlayingTracker, nowPlayingTrackerService: trackerSingleton } =
+      await import("../nowPlayingTrackerService");
     const tickSpy = vi.spyOn(trackerSingleton, "tick").mockResolvedValue(undefined);
 
     startNowPlayingTracker();
-    const callback = (globalThis.setInterval as ReturnType<typeof vi.fn>).mock.calls[0][0] as () => void;
+    const callback = (globalThis.setInterval as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as () => void;
     callback();
 
     expect(tickSpy).toHaveBeenCalledTimes(1);

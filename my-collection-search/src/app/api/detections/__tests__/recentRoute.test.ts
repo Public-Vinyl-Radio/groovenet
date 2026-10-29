@@ -9,12 +9,21 @@ import { GET } from "../recent/route";
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
-    id: "d1", ingest_id: "i1", source_id: "aswitch", session_id: "s1",
-    track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4,
+    id: "d1",
+    ingest_id: "i1",
+    source_id: "aswitch",
+    session_id: "s1",
+    track_id: "t1",
+    friend_id: 1,
+    confidence: 0.94,
+    offset_seconds: 12.4,
     window_start_at: "2026-09-21T02:00:00.000Z",
-    fingerprint_type: "chromaprint", fingerprint_version: "1",
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
     created_at: "2026-09-21T02:00:05.000Z",
-    track_title: "Power", track_artist: "Ray Barretto", track_album: "Power",
+    track_title: "Power",
+    track_artist: "Ray Barretto",
+    track_album: "Power",
     ...overrides,
   };
 }
@@ -32,8 +41,11 @@ describe("GET /api/detections/recent", () => {
     const body = await (await GET(req())).json();
 
     expect(body.detections[0]).toMatchObject({
-      matched: true, artist: "Ray Barretto", title: "Power",
-      confidence: 0.94, offset_seconds: 12.4,
+      matched: true,
+      artist: "Ray Barretto",
+      title: "Power",
+      confidence: 0.94,
+      offset_seconds: 12.4,
     });
   });
 
@@ -42,21 +54,33 @@ describe("GET /api/detections/recent", () => {
 
     const body = await (await GET(req())).json();
 
-    expect(body.detections.map((d: { level_dbfs: number | null }) => d.level_dbfs)).toEqual([-23.4, null]);
+    expect(body.detections.map((d: { level_dbfs: number | null }) => d.level_dbfs)).toEqual([
+      -23.4,
+      null,
+    ]);
   });
 
   it("marks a no-match window as unmatched rather than omitting it", async () => {
     // The state the pipeline is in most of the time between tracks.
     repo.listRecent.mockResolvedValue([
-      row({ track_id: null, friend_id: null, confidence: null,
-            offset_seconds: null, track_title: null, track_artist: null,
-            track_album: null }),
+      row({
+        track_id: null,
+        friend_id: null,
+        confidence: null,
+        offset_seconds: null,
+        track_title: null,
+        track_artist: null,
+        track_album: null,
+      }),
     ]);
 
     const body = await (await GET(req())).json();
 
     expect(body.detections[0]).toMatchObject({
-      matched: false, track_id: null, artist: null, confidence: null,
+      matched: false,
+      track_id: null,
+      artist: null,
+      confidence: null,
     });
   });
 
@@ -65,9 +89,10 @@ describe("GET /api/detections/recent", () => {
 
     expect(repo.listRecent).toHaveBeenCalledWith(
       expect.objectContaining({
-        source_id: "aswitch", session_id: "s1",
+        source_id: "aswitch",
+        session_id: "s1",
         since: "2026-09-21T00:00:00Z",
-      })
+      }),
     );
   });
 
@@ -96,9 +121,7 @@ describe("GET /api/detections/recent", () => {
   });
 
   it("normalises timestamps to ISO", async () => {
-    repo.listRecent.mockResolvedValue([
-      row({ window_start_at: new Date("2026-09-21T02:00:00Z") }),
-    ]);
+    repo.listRecent.mockResolvedValue([row({ window_start_at: new Date("2026-09-21T02:00:00Z") })]);
     const body = await (await GET(req())).json();
     expect(body.detections[0].window_start_at).toBe("2026-09-21T02:00:00.000Z");
   });

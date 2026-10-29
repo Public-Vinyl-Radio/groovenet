@@ -106,19 +106,12 @@ export const up = (pgm) => {
     },
   });
 
-  pgm.addConstraint(
-    "spin_session_selections",
-    "spin_session_selections_selection_type_check",
-    {
-      check: "selection_type IN ('side', 'track')",
-    }
-  );
+  pgm.addConstraint("spin_session_selections", "spin_session_selections_selection_type_check", {
+    check: "selection_type IN ('side', 'track')",
+  });
 
-  pgm.addConstraint(
-    "spin_session_selections",
-    "spin_session_selections_payload_check",
-    {
-      check: `
+  pgm.addConstraint("spin_session_selections", "spin_session_selections_payload_check", {
+    check: `
         (
           selection_type = 'side'
           AND side_key IS NOT NULL
@@ -130,8 +123,7 @@ export const up = (pgm) => {
           AND track_id IS NOT NULL
         )
       `,
-    }
-  );
+  });
 
   pgm.createTable("track_spin_events", {
     id: {

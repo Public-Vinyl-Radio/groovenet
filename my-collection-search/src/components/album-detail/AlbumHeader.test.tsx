@@ -28,9 +28,21 @@ const album = (overrides: Record<string, unknown> = {}) =>
   }) as unknown as AlbumEntity;
 
 const track = (position: string, bpm: number | null, key: string | null, duration: string) =>
-  ({ track_id: position, friend_id: 3, position, bpm, key, duration, duration_seconds: null }) as unknown as Track;
+  ({
+    track_id: position,
+    friend_id: 3,
+    position,
+    bpm,
+    key,
+    duration,
+    duration_seconds: null,
+  }) as unknown as Track;
 
-const tracks = [track("A1", 94, "A minor", "3:00"), track("A2", 150, "C major", "2:00"), track("B1", null, null, "1:00")];
+const tracks = [
+  track("A1", 94, "A minor", "3:00"),
+  track("A2", 150, "C major", "2:00"),
+  track("B1", null, null, "1:00"),
+];
 
 function renderHeader(props: Partial<React.ComponentProps<typeof AlbumHeader>> = {}) {
   const handlers = {
@@ -52,7 +64,7 @@ function renderHeader(props: Partial<React.ComponentProps<typeof AlbumHeader>> =
       menu={<button aria-label="Album actions">menu</button>}
       {...handlers}
       {...props}
-    />
+    />,
   );
   view.queryClient.setQueryData(queryKeys.genreTree(), []);
   return { ...view, ...handlers };
@@ -66,7 +78,9 @@ describe("AlbumHeader", () => {
   it("names the album, links its artist and gives the overline and byline", () => {
     renderHeader();
     expect(screen.getByRole("heading", { level: 2, name: "Corazón Amazónico" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain("Los%20Mirlos");
+    expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain(
+      "Los%20Mirlos",
+    );
     expect(screen.getByText(/Album · Vinyl/).textContent).toContain("LP0029");
     expect(screen.getByText("Discos Eternos · 2022 · Peru")).toBeTruthy();
     expect(screen.getByText("Latin")).toBeTruthy();
@@ -85,10 +99,17 @@ describe("AlbumHeader", () => {
   });
 
   it("shows dashes while spins are unknown and for an album with no tracks", () => {
-    renderHeader({ spins: null, tracks: [], sides: [], album: album({ track_count: 0, date_added: null, year: "0" }) });
+    renderHeader({
+      spins: null,
+      tracks: [],
+      sides: [],
+      album: album({ track_count: 0, date_added: null, year: "0" }),
+    });
     expect(stats().getAllByLabelText("Unknown").length).toBe(4);
     expect(screen.getByText("Discos Eternos · Peru")).toBeTruthy();
-    expect((screen.getByRole("button", { name: /Play album/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /Play album/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it("marks a capped spin count and a spin-less album", () => {
@@ -117,13 +138,18 @@ describe("AlbumHeader", () => {
   });
 
   it("falls back to the catalogue number and a placeholder cover", () => {
-    renderHeader({ artworkSrc: null, album: album({ library_identifier: null, catalog_number: "DE-9", genres: [], styles: [] }) });
+    renderHeader({
+      artworkSrc: null,
+      album: album({ library_identifier: null, catalog_number: "DE-9", genres: [], styles: [] }),
+    });
     expect(screen.getByText(/Album · Vinyl/).textContent).toContain("DE-9");
     expect(screen.queryByRole("img", { name: /cover/ })).toBeNull();
   });
 
   it("shows notes, price and condition behind the notes icon", async () => {
-    const { user } = renderHeader({ album: album({ album_notes: "Signed", purchase_price: "20", condition: "VG+" }) });
+    const { user } = renderHeader({
+      album: album({ album_notes: "Signed", purchase_price: "20", condition: "VG+" }),
+    });
     await user.click(screen.getByRole("button", { name: "Album notes" }));
     expect(await screen.findByText("Signed")).toBeTruthy();
     expect(screen.getByText("Price: $20")).toBeTruthy();

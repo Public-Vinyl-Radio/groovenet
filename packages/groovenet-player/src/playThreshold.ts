@@ -37,7 +37,7 @@ export function advanceProgress(
   progress: ListenProgress,
   position: number,
   playing: boolean,
-  maxStep: number = MAX_STEP_SECONDS
+  maxStep: number = MAX_STEP_SECONDS,
 ): ListenProgress {
   if (!Number.isFinite(position)) return progress;
   const delta = progress.lastPosition === null ? 0 : position - progress.lastPosition;

@@ -16,7 +16,8 @@ describe("AudioIngestRepository.create", () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "ingest-id", source_id: "listener-1" }] });
 
     await expect(repo().create({ source_id: "listener-1" })).resolves.toEqual({
-      id: "ingest-id", source_id: "listener-1",
+      id: "ingest-id",
+      source_id: "listener-1",
     });
 
     const [sql, params] = dbQuery.mock.calls[0];
@@ -29,15 +30,34 @@ describe("AudioIngestRepository.create", () => {
   it("persists all supplied metadata", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "provided-id" }] });
     await repo().create({
-      id: "provided-id", source_id: "listener-1", session_id: "session-1", sequence: 4,
-      captured_at: "2026-09-20T12:00:00Z", received_at: "2026-09-20T12:01:00Z",
-      duration_seconds: 10.5, sample_rate: 48_000, channels: 2, codec: "opus",
-      file_path: "/audio/chunk.opus", status: "processing", error: "retrying",
+      id: "provided-id",
+      source_id: "listener-1",
+      session_id: "session-1",
+      sequence: 4,
+      captured_at: "2026-09-20T12:00:00Z",
+      received_at: "2026-09-20T12:01:00Z",
+      duration_seconds: 10.5,
+      sample_rate: 48_000,
+      channels: 2,
+      codec: "opus",
+      file_path: "/audio/chunk.opus",
+      status: "processing",
+      error: "retrying",
     });
     expect(dbQuery.mock.calls[0][1]).toEqual([
-      "provided-id", "listener-1", "session-1", 4, "2026-09-20T12:00:00Z",
-      "2026-09-20T12:01:00Z", 10.5, 48_000, 2, "opus", "/audio/chunk.opus",
-      "processing", "retrying",
+      "provided-id",
+      "listener-1",
+      "session-1",
+      4,
+      "2026-09-20T12:00:00Z",
+      "2026-09-20T12:01:00Z",
+      10.5,
+      48_000,
+      2,
+      "opus",
+      "/audio/chunk.opus",
+      "processing",
+      "retrying",
     ]);
   });
 });
@@ -46,7 +66,8 @@ describe("AudioIngestRepository.updateStatus", () => {
   it("updates status, error, and updated_at", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "ingest-id", status: "failed" }] });
     await expect(repo().updateStatus("ingest-id", "failed", "invalid codec")).resolves.toEqual({
-      id: "ingest-id", status: "failed",
+      id: "ingest-id",
+      status: "failed",
     });
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/updated_at = current_timestamp/);
@@ -62,7 +83,9 @@ describe("AudioIngestRepository.updateStatus", () => {
 describe("AudioIngestRepository lookups", () => {
   it("finds an ingest by its complete dedupe key", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "ingest-id" }] });
-    await expect(repo().findByDedupeKey("listener-1", "session-1", 3)).resolves.toEqual({ id: "ingest-id" });
+    await expect(repo().findByDedupeKey("listener-1", "session-1", 3)).resolves.toEqual({
+      id: "ingest-id",
+    });
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/source_id = \$1 AND session_id = \$2 AND sequence = \$3/);
     expect(params).toEqual(["listener-1", "session-1", 3]);
@@ -76,7 +99,8 @@ describe("AudioIngestRepository lookups", () => {
   it("lists a source's history newest first with pagination", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "new" }, { id: "old" }] });
     await expect(repo().listBySource("listener-1", { limit: 20, offset: 5 })).resolves.toEqual([
-      { id: "new" }, { id: "old" },
+      { id: "new" },
+      { id: "old" },
     ]);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/ORDER BY received_at DESC, id DESC/);
@@ -134,11 +158,7 @@ describe("listStale()", () => {
 
     await new AudioIngestRepository().listStale(cutoff);
 
-    expect(dbQuery.mock.calls[0][1]).toEqual([
-      ["received", "processing"],
-      cutoff,
-      500,
-    ]);
+    expect(dbQuery.mock.calls[0][1]).toEqual([["received", "processing"], cutoff, 500]);
   });
 
   it("compares against updated_at, not received_at", async () => {
@@ -176,11 +196,9 @@ describe("transitionStatus()", () => {
   it("returns null when the ingest had already moved on", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    const result = await new AudioIngestRepository().transitionStatus(
-      "a",
-      "failed",
-      ["processing"]
-    );
+    const result = await new AudioIngestRepository().transitionStatus("a", "failed", [
+      "processing",
+    ]);
 
     expect(result).toBeNull();
   });
@@ -211,7 +229,11 @@ describe("listRecent()", () => {
   it("filters by source, session and status", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
     await new AudioIngestRepository().listRecent({
-      source_id: "aswitch", session_id: "s1", status: "failed", limit: 10, offset: 5,
+      source_id: "aswitch",
+      session_id: "s1",
+      status: "failed",
+      limit: 10,
+      offset: 5,
     });
     expect(dbQuery.mock.calls[0][1]).toEqual(["aswitch", "s1", "failed", 10, 5]);
   });

@@ -13,7 +13,9 @@ describe("ProgressSlider", () => {
     renderWithProviders(<ProgressSlider seek={() => {}} />);
     expect(screen.getByText("0:36")).toBeTruthy();
     expect(screen.getByText("4:02")).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "Seek" }).getAttribute("aria-valuetext")).toBe("0:36 of 4:02");
+    expect(screen.getByRole("slider", { name: "Seek" }).getAttribute("aria-valuetext")).toBe(
+      "0:36 of 4:02",
+    );
   });
 
   it("stacked: elapsed and time remaining under the slider", () => {

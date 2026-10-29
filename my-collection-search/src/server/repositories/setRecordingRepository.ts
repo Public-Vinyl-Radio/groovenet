@@ -15,7 +15,7 @@ export class SetRecordingRepository {
   async findBySha256(sha256: string): Promise<SetRecordingRow | null> {
     const { rows } = await dbQuery<SetRecordingRow>(
       "SELECT * FROM set_recordings WHERE sha256 = $1",
-      [sha256]
+      [sha256],
     );
     return rows[0] ?? null;
   }
@@ -42,7 +42,7 @@ export class SetRecordingRepository {
         input.format_name ?? null,
         input.duration_seconds ?? null,
         input.size_bytes,
-      ]
+      ],
     );
     return (await this.findBySha256(input.sha256)) as SetRecordingRow;
   }

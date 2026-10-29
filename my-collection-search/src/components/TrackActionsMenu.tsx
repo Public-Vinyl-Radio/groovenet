@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useContext, useRef, useState } from "react";
-import {
-  Button,
-  Menu,
-  Portal,
-  Box,
-  Icon,
-  Link,
-} from "@chakra-ui/react";
+import { Button, Menu, Portal, Box, Icon, Link } from "@chakra-ui/react";
 import {
   FiCode,
   FiDownload,
@@ -68,7 +61,6 @@ type Props = {
    */
   compact?: boolean;
 };
-
 
 export default function TrackActionsMenu({
   track,
@@ -202,9 +194,7 @@ export default function TrackActionsMenu({
       });
       const analysis = result.analysis;
       const uploadedUrl =
-        typeof result.local_audio_url === "string"
-          ? result.local_audio_url
-          : track.local_audio_url;
+        typeof result.local_audio_url === "string" ? result.local_audio_url : track.local_audio_url;
       if (track.friend_id != null) {
         useTrackStore.getState().updateTrack(track.track_id, track.friend_id, {
           local_audio_url: uploadedUrl,
@@ -422,7 +412,9 @@ export default function TrackActionsMenu({
                 {menuDivider}
                 {hasStreamingLinks && (
                   <Menu.Item
-                    onSelect={() => { void fetchAudio(); }}
+                    onSelect={() => {
+                      void fetchAudio();
+                    }}
                     value="fetch-audio"
                     disabled={fetchAudioLoading || fetchAudioDisabled}
                   >
@@ -430,7 +422,11 @@ export default function TrackActionsMenu({
                     {fetchAudioLoading ? "Fetching Audio..." : "Fetch Audio"}
                   </Menu.Item>
                 )}
-                <Menu.Item onSelect={handleUploadClick} value="upload-audio" disabled={uploadLoading}>
+                <Menu.Item
+                  onSelect={handleUploadClick}
+                  value="upload-audio"
+                  disabled={uploadLoading}
+                >
                   <FiUpload />
                   {uploadLoading ? "Uploading..." : "Upload Audio"}
                 </Menu.Item>
@@ -447,7 +443,11 @@ export default function TrackActionsMenu({
                     {removeAudioLoading ? "Removing..." : "Remove Audio"}
                   </Menu.Item>
                 )}
-                <Menu.Item onSelect={() => setDeleteConfirmOpen(true)} value="delete" color="fg.error">
+                <Menu.Item
+                  onSelect={() => setDeleteConfirmOpen(true)}
+                  value="delete"
+                  color="fg.error"
+                >
                   <FiTrash2 /> Delete Track
                 </Menu.Item>
                 {/* External links */}
@@ -456,7 +456,11 @@ export default function TrackActionsMenu({
                     {menuDivider}
                     {track.apple_music_url && (
                       <Menu.Item value="apple" asChild>
-                        <Link href={track.apple_music_url} target="_blank" rel="noopener noreferrer">
+                        <Link
+                          href={track.apple_music_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Icon as={SiApplemusic} /> Apple Music
                         </Link>
                       </Menu.Item>
@@ -506,8 +510,8 @@ export default function TrackActionsMenu({
         title="Delete track"
         body={
           <>
-            Delete <strong>{track.title}</strong> by {track.artist}? It is soft-deleted and won&apos;t be
-            re-imported from Discogs.
+            Delete <strong>{track.title}</strong> by {track.artist}? It is soft-deleted and
+            won&apos;t be re-imported from Discogs.
           </>
         }
         confirmLabel="Delete track"

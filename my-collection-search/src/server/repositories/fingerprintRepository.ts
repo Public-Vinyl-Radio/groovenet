@@ -41,9 +41,7 @@ export class FingerprintRepository {
    * Insert or refresh one track's fingerprint for a given engine and version.
    * Other engines and other versions of the same engine are left untouched.
    */
-  async upsertFingerprint(
-    input: UpsertTrackFingerprintInput
-  ): Promise<TrackFingerprintRow> {
+  async upsertFingerprint(input: UpsertTrackFingerprintInput): Promise<TrackFingerprintRow> {
     const { rows } = await dbQuery<TrackFingerprintRow>(
       `
       INSERT INTO track_fingerprints (
@@ -72,7 +70,7 @@ export class FingerprintRepository {
         input.audio_duration_seconds ?? null,
         input.audio_size_bytes ?? null,
         input.audio_mtime_ms ?? null,
-      ]
+      ],
     );
     return rows[0];
   }
@@ -103,15 +101,13 @@ export class FingerprintRepository {
         input.audio_sha256,
         input.audio_size_bytes,
         input.audio_mtime_ms,
-      ]
+      ],
     );
     return (rowCount ?? 0) > 0;
   }
 
   /** The stored fingerprint for one track under one engine and version. */
-  async findFingerprint(
-    identity: FingerprintIdentity
-  ): Promise<TrackFingerprintRow | null> {
+  async findFingerprint(identity: FingerprintIdentity): Promise<TrackFingerprintRow | null> {
     const { rows } = await dbQuery<TrackFingerprintRow>(
       `
       SELECT ${ROW_COLUMNS}
@@ -126,7 +122,7 @@ export class FingerprintRepository {
         identity.friend_id,
         identity.fingerprint_type,
         identity.fingerprint_version,
-      ]
+      ],
     );
     return rows[0] ?? null;
   }
@@ -138,7 +134,7 @@ export class FingerprintRepository {
    */
   async findFingerprintsByAudioSha256(
     audioSha256: string,
-    filters: { fingerprint_type?: FingerprintType; fingerprint_version?: string } = {}
+    filters: { fingerprint_type?: FingerprintType; fingerprint_version?: string } = {},
   ): Promise<TrackFingerprintRow[]> {
     const params: Array<string> = [audioSha256];
     const where = ["audio_sha256 = $1"];
@@ -159,19 +155,14 @@ export class FingerprintRepository {
       WHERE ${where.join(" AND ")}
       ORDER BY track_id, friend_id
       `,
-      params
+      params,
     );
     return rows;
   }
 
   /** Every fingerprint for one engine and version — the in-memory match index. */
-  async listFingerprintsForIndex(
-    filters: ListFingerprintsFilters
-  ): Promise<TrackFingerprintRow[]> {
-    const params: Array<string | number> = [
-      filters.fingerprint_type,
-      filters.fingerprint_version,
-    ];
+  async listFingerprintsForIndex(filters: ListFingerprintsFilters): Promise<TrackFingerprintRow[]> {
+    const params: Array<string | number> = [filters.fingerprint_type, filters.fingerprint_version];
     let query = `
       SELECT ${ROW_COLUMNS}
       FROM track_fingerprints
@@ -203,12 +194,9 @@ export class FingerprintRepository {
    * Reading thousands of blobs to compare seven-byte hashes would be wasteful.
    */
   async listFingerprintStatus(
-    filters: ListFingerprintsFilters
+    filters: ListFingerprintsFilters,
   ): Promise<TrackFingerprintStatusRow[]> {
-    const params: Array<string | number> = [
-      filters.fingerprint_type,
-      filters.fingerprint_version,
-    ];
+    const params: Array<string | number> = [filters.fingerprint_type, filters.fingerprint_version];
     let query = `
       SELECT ${STATUS_COLUMNS}
       FROM track_fingerprints
@@ -229,7 +217,7 @@ export class FingerprintRepository {
   /** Which engines and versions already cover a track. */
   async listFingerprintVersionsForTrack(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<Array<Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">>> {
     const { rows } = await dbQuery<
       Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
@@ -240,16 +228,18 @@ export class FingerprintRepository {
       WHERE track_id = $1 AND friend_id = $2
       ORDER BY fingerprint_type, fingerprint_version
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows;
   }
 
-  async countFingerprints(filters: {
-    fingerprint_type?: FingerprintType;
-    fingerprint_version?: string;
-    friend_id?: number;
-  } = {}): Promise<number> {
+  async countFingerprints(
+    filters: {
+      fingerprint_type?: FingerprintType;
+      fingerprint_version?: string;
+      friend_id?: number;
+    } = {},
+  ): Promise<number> {
     const params: Array<string | number> = [];
     const where: string[] = [];
 
@@ -272,7 +262,7 @@ export class FingerprintRepository {
       FROM track_fingerprints
       ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
       `,
-      params
+      params,
     );
     return Number(rows[0]?.count ?? 0);
   }
@@ -281,7 +271,7 @@ export class FingerprintRepository {
   async deleteFingerprintsForTrack(
     trackId: string,
     friendId: number,
-    fingerprintType?: FingerprintType
+    fingerprintType?: FingerprintType,
   ): Promise<number> {
     const params: Array<string | number> = [trackId, friendId];
     let query = `
@@ -319,7 +309,7 @@ export class FingerprintRepository {
    */
   private indexScopeWhere(
     scope: FingerprintIndexScope,
-    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
+    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">,
   ): { where: string[]; params: Array<string | number> } {
     const params: Array<string | number> = [
       identity.fingerprint_type,
@@ -368,7 +358,7 @@ export class FingerprintRepository {
 
   async listIndexCandidates(
     scope: FingerprintIndexScope,
-    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
+    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">,
   ): Promise<FingerprintIndexCandidate[]> {
     const { where, params } = this.indexScopeWhere(scope, identity);
 
@@ -392,7 +382,7 @@ export class FingerprintRepository {
       WHERE ${where.join(" AND ")}
       ORDER BY t.friend_id, t.track_id
       `,
-      params
+      params,
     );
     return rows;
   }
@@ -404,7 +394,7 @@ export class FingerprintRepository {
    */
   async countIndexCandidates(
     scope: FingerprintIndexScope,
-    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">
+    identity: Pick<FingerprintIdentity, "fingerprint_type" | "fingerprint_version">,
   ): Promise<number> {
     const { where, params } = this.indexScopeWhere(scope, identity);
 
@@ -419,7 +409,7 @@ export class FingerprintRepository {
        AND f.fingerprint_version = $2
       WHERE ${where.join(" AND ")}
       `,
-      params
+      params,
     );
     return Number(rows[0]?.count ?? 0);
   }
@@ -433,10 +423,7 @@ export class FingerprintRepository {
    */
   async countUnindexableTracks(scope: FingerprintIndexScope): Promise<number> {
     const params: Array<string | number> = [];
-    const where = [
-      "deleted_at IS NULL",
-      "(local_audio_url IS NULL OR local_audio_url = '')",
-    ];
+    const where = ["deleted_at IS NULL", "(local_audio_url IS NULL OR local_audio_url = '')"];
 
     if (scope.kind === "track") {
       params.push(scope.track_id);
@@ -464,7 +451,7 @@ export class FingerprintRepository {
       FROM tracks
       WHERE ${where.join(" AND ")}
       `,
-      params
+      params,
     );
     return Number(rows[0]?.count ?? 0);
   }
@@ -472,14 +459,14 @@ export class FingerprintRepository {
   /** Retire a superseded engine version without touching the others. */
   async deleteFingerprintsByVersion(
     fingerprintType: FingerprintType,
-    fingerprintVersion: string
+    fingerprintVersion: string,
   ): Promise<number> {
     const result = await dbQuery(
       `
       DELETE FROM track_fingerprints
       WHERE fingerprint_type = $1 AND fingerprint_version = $2
       `,
-      [fingerprintType, fingerprintVersion]
+      [fingerprintType, fingerprintVersion],
     );
     return result.rowCount ?? 0;
   }

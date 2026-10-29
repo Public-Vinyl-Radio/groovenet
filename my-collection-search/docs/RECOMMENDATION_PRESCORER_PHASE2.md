@@ -47,9 +47,11 @@ ScoredCandidate[] = [
 Three modes control how strictly candidates are filtered:
 
 ### 1. Strict Mode (`"strict"`)
+
 **Use case**: Tight DJ mixing, peak-time sets, maximum compatibility
 
 **Hard constraints:**
+
 - Reject if `|ΔBPM| > 4`
 - Reject if Camelot distance > 1
 - Reject if no tag/style overlap
@@ -57,18 +59,22 @@ Three modes control how strictly candidates are filtered:
 **Example**: Building a flawless tech-house mix where every track must be mixable.
 
 ### 2. Mixable Mode (`"mixable"`)
+
 **Use case**: General DJ sets, flexible mixing, moderate compatibility
 
 **Hard constraints:**
+
 - Reject if `|ΔBPM| > 6`
 - Reject if Camelot distance > 2
 
 **Example**: Creating a house music playlist with some genre variation.
 
 ### 3. Blend Mode (`"blend"`)
+
 **Use case**: Discovery, radio playlists, cross-genre exploration
 
 **Hard constraints:**
+
 - Only reject extremely large tempo mismatch (`|ΔBPM| > 12`)
 
 **Example**: Finding similar vibes across different genres/eras.
@@ -105,6 +111,7 @@ Other compatible          → 0.00
 **Scaled by**: `keyConfidence` (0..1, default 1.0)
 
 **Camelot Distance Logic:**
+
 - Same code: distance = 0
 - Same position, different type (relative major/minor): distance = 0.5
 - Adjacent positions, same type: distance = 1
@@ -121,6 +128,7 @@ tagBonus = 0.08 × Jaccard(seed.tags + seed.styles, cand.tags + cand.styles)
 **Jaccard formula**: `|intersection| / |union|`
 
 **Example**:
+
 ```
 Seed: {house, techno, progressive}
 Cand: {house, progressive, trance}
@@ -158,6 +166,7 @@ Else:
 ```
 
 **Example**:
+
 ```
 Seed energy: 0.5
 Cand energy: 0.95
@@ -184,8 +193,8 @@ const seed: SeedTrack = {
 
 const scored = applyConstraintsAndBonuses(
   seed,
-  candidates,  // from Phase 1
-  "mixable"    // constraint mode
+  candidates, // from Phase 1
+  "mixable", // constraint mode
 );
 
 // scored is ScoredCandidate[] with bonuses/penalties
@@ -228,11 +237,7 @@ const candidates = await retrieveCandidates("track-123", 1, {
 });
 
 // Phase 2: Apply constraints and bonuses
-const scored = applyConstraintsAndBonuses(
-  seedTrack,
-  candidates.candidates,
-  "mixable"
-);
+const scored = applyConstraintsAndBonuses(seedTrack, candidates.candidates, "mixable");
 
 console.log(`Filtered to ${scored.length} candidates`);
 console.log(`Rejected ${candidates.stats.unionCount - scored.length}`);
@@ -244,7 +249,7 @@ console.log(`Rejected ${candidates.stats.unionCount - scored.length}`);
 const scored = applyConstraintsAndBonuses(seed, candidates, "blend");
 
 // Calculate total bonus
-const withTotal = scored.map(c => ({
+const withTotal = scored.map((c) => ({
   ...c,
   totalBonus:
     c.bonuses.bpmBonus +
@@ -266,9 +271,9 @@ const top10 = withTotal.slice(0, 10);
 ```typescript
 const scored = applyConstraintsAndBonuses(seed, candidates, "mixable");
 
-const withCombinedScore = scored.map(c => {
+const withCombinedScore = scored.map((c) => {
   // Average similarity from Phase 1
-  const similarities = [c.simIdentity, c.simAudio].filter(s => s !== null);
+  const similarities = [c.simIdentity, c.simAudio].filter((s) => s !== null);
   const avgSimilarity = similarities.reduce((sum, s) => sum + s, 0) / similarities.length;
 
   // Total bonus from Phase 2
@@ -297,20 +302,17 @@ withCombinedScore.sort((a, b) => b.combinedScore - a.combinedScore);
 const scored = applyConstraintsAndBonuses(seed, candidates, "blend");
 
 // Only candidates with good BPM match (≤4 BPM)
-const goodBpm = scored.filter(c => c.bonuses.bpmBonus >= 0.02);
+const goodBpm = scored.filter((c) => c.bonuses.bpmBonus >= 0.02);
 
 // Only candidates with key compatibility
-const compatibleKey = scored.filter(c => c.bonuses.keyBonus > 0);
+const compatibleKey = scored.filter((c) => c.bonuses.keyBonus > 0);
 
 // Only candidates with tag overlap
-const sharedTags = scored.filter(c => c.bonuses.tagBonus > 0);
+const sharedTags = scored.filter((c) => c.bonuses.tagBonus > 0);
 
 // Combine multiple criteria
 const perfectMatches = scored.filter(
-  c =>
-    c.bonuses.bpmBonus >= 0.02 &&
-    c.bonuses.keyBonus > 0 &&
-    c.bonuses.tagBonus > 0
+  (c) => c.bonuses.bpmBonus >= 0.02 && c.bonuses.keyBonus > 0 && c.bonuses.tagBonus > 0,
 );
 ```
 
@@ -352,6 +354,7 @@ All tests passing! ✅
 ## Performance
 
 Typical performance:
+
 - **Constraint application**: ~0.1ms per candidate
 - **Bonus calculation**: ~0.05ms per candidate
 - **Total**: ~0.15ms per candidate
@@ -367,11 +370,7 @@ Phase 2 seamlessly integrates with Phase 1:
 const phase1Result = await retrieveCandidates(seedTrackId, seedFriendId);
 
 // Phase 2: Apply constraints and bonuses
-const phase2Result = applyConstraintsAndBonuses(
-  seedTrack,
-  phase1Result.candidates,
-  "mixable"
-);
+const phase2Result = applyConstraintsAndBonuses(seedTrack, phase1Result.candidates, "mixable");
 
 // Ready for Phase 3: Final weighted scoring
 ```
@@ -415,6 +414,7 @@ my-collection-search/
 **Cause**: Constraints too strict for the seed track's metadata.
 
 **Solution**:
+
 - Try a more permissive mode (`blend` instead of `strict`)
 - Check seed track metadata quality (BPM, key accuracy)
 - Review Phase 1 candidate quality
@@ -424,6 +424,7 @@ my-collection-search/
 **Cause**: Missing metadata on seed or candidates.
 
 **Solutions**:
+
 - Ensure BPM/key analysis has been run
 - Check that tags/styles are populated
 - Verify era buckets are computed
@@ -431,13 +432,14 @@ my-collection-search/
 ### Unexpected Rejections
 
 **Debug approach**:
+
 ```typescript
 // Check individual constraints
 const bpmDelta = Math.abs(seed.bpm - candidate.metadata.bpm);
 const camelotDist = calculateCamelotDistance(seed.key, candidate.metadata.key);
 const tagOverlap = calculateJaccardOverlap(
   [...seed.tags, ...seed.styles],
-  [...candidate.metadata.tags, ...candidate.metadata.styles]
+  [...candidate.metadata.tags, ...candidate.metadata.styles],
 );
 
 console.log({ bpmDelta, camelotDist, tagOverlap });

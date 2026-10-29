@@ -49,17 +49,22 @@ const LINK_ICONS = {
   flyer: FiImage,
 } as const;
 
-const LINK_LABELS = { recording: "Recording", post: "Website post", youtube: "YouTube", flyer: "Flyer" } as const;
+const LINK_LABELS = {
+  recording: "Recording",
+  post: "Website post",
+  youtube: "YouTube",
+  flyer: "Flyer",
+} as const;
 
 /** The links a set shows in the table: recording, post, YouTube, then the flyer. */
 export function tableSetLinks(set: NonNullable<Playlist["set"]>) {
-  const links: Array<{ key: keyof typeof LINK_ICONS; href: string; primary: boolean }> = setLinks(set).map(
-    (link) => ({
-      key: link.key as keyof typeof LINK_ICONS,
-      href: link.href,
-      primary: link.primary,
-    }),
-  );
+  const links: Array<{ key: keyof typeof LINK_ICONS; href: string; primary: boolean }> = setLinks(
+    set,
+  ).map((link) => ({
+    key: link.key as keyof typeof LINK_ICONS,
+    href: link.href,
+    primary: link.primary,
+  }));
   if (set.flyer_url) links.push({ key: "flyer", href: set.flyer_url, primary: false });
   return links;
 }
@@ -129,11 +134,16 @@ function PlaylistTableRow({
       borderBottomWidth="rule"
       borderColor="border"
       _hover={{ bg: "bg.muted" }}
-      _focusVisible={{ outline: "2px solid", outlineColor: "accent.focusRing", outlineOffset: "-2px" }}
+      _focusVisible={{
+        outline: "2px solid",
+        outlineColor: "accent.focusRing",
+        outlineOffset: "-2px",
+      }}
       onClick={(e: React.MouseEvent<HTMLElement>) => {
         const target = e.target as HTMLElement;
         // Links, the kebab and its portalled menu keep their own clicks.
-        if (!e.currentTarget.contains(target) || target.closest("a, button, [role='menuitem']")) return;
+        if (!e.currentTarget.contains(target) || target.closest("a, button, [role='menuitem']"))
+          return;
         actions.onClick();
       }}
       onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
@@ -157,7 +167,11 @@ function PlaylistTableRow({
         )}
       </Td>
       <Td {...BODY_CELL} px={0}>
-        {set?.flyer_url ? <SetFlyer url={set.flyer_url} compact /> : <CoverMosaic urls={playlistCoverUrls(playlist)} size="40px" />}
+        {set?.flyer_url ? (
+          <SetFlyer url={set.flyer_url} compact />
+        ) : (
+          <CoverMosaic urls={playlistCoverUrls(playlist)} size="40px" />
+        )}
       </Td>
       <Td {...BODY_CELL} minW={0}>
         <Box display="flex" alignItems="center" gap={2} minW={0}>
@@ -244,15 +258,26 @@ export default function PlaylistTable({
   getActions: (playlist: Playlist) => PlaylistActionHandlers;
 }) {
   return (
-    <Box mr="6px" mb="6px" borderWidth="outline" borderColor="border.ink" boxShadow="md" css={{ containerType: "inline-size" }}>
+    <Box
+      mr="6px"
+      mb="6px"
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      css={{ containerType: "inline-size" }}
+    >
       <Table
         aria-label="Playlists"
         w="100%"
         css={{
           borderCollapse: "collapse",
           tableLayout: "auto",
-          [`@container (max-width: ${WITH_MIN_WIDTH})`]: { "& [data-col=with]": { display: "none" } },
-          [`@container (max-width: ${LINKS_MIN_WIDTH})`]: { "& [data-col=links]": { display: "none" } },
+          [`@container (max-width: ${WITH_MIN_WIDTH})`]: {
+            "& [data-col=with]": { display: "none" },
+          },
+          [`@container (max-width: ${LINKS_MIN_WIDTH})`]: {
+            "& [data-col=links]": { display: "none" },
+          },
         }}
       >
         <Thead bg="bg.subtle" borderBottomWidth="outline" borderColor="border.ink">
@@ -286,7 +311,15 @@ export default function PlaylistTable({
         {groups.map((group) => (
           <tbody key={group.key} aria-label={group.label}>
             <Tr data-testid="month-group-row">
-              <Th scope="rowgroup" colSpan={COLUMNS} px={3} py={2} textAlign="left" borderBottomWidth="rule" borderColor="border">
+              <Th
+                scope="rowgroup"
+                colSpan={COLUMNS}
+                px={3}
+                py={2}
+                textAlign="left"
+                borderBottomWidth="rule"
+                borderColor="border"
+              >
                 <Box display="flex" alignItems="center" gap={3}>
                   <Text
                     as="span"

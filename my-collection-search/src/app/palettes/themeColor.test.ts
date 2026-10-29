@@ -4,12 +4,15 @@ import { customFromPreset } from "./custom";
 import { paletteGround } from "./themeColor";
 
 describe("paletteGround", () => {
-  it.each(Object.keys(palettes) as (keyof typeof palettes)[])("is the %s ground in each mode", (id) => {
-    expect(paletteGround(id, null)).toEqual({
-      light: palettes[id].light["--gn-ground"],
-      dark: palettes[id].dark["--gn-ground"],
-    });
-  });
+  it.each(Object.keys(palettes) as (keyof typeof palettes)[])(
+    "is the %s ground in each mode",
+    (id) => {
+      expect(paletteGround(id, null)).toEqual({
+        light: palettes[id].light["--gn-ground"],
+        dark: palettes[id].dark["--gn-ground"],
+      });
+    },
+  );
 
   it("uses the custom palette's own grounds", () => {
     const custom = customFromPreset("riso");

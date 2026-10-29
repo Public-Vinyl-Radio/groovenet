@@ -1,10 +1,5 @@
 import { groupWindows } from "@/server/services/playAggregationService";
-import type {
-  DerivedPlay,
-  PlannedEntry,
-  SetDiff,
-  SetWindow,
-} from "@/types/setDerivation";
+import type { DerivedPlay, PlannedEntry, SetDiff, SetWindow } from "@/types/setDerivation";
 
 /**
  * Turning a set's per-window matches into a tracklist, and a tracklist into a
@@ -40,7 +35,7 @@ type Located = { window: SetWindow; index: number };
 /** Consecutive confident windows of one track, as plays in recording order. */
 export function derivePlays(
   windows: SetWindow[],
-  { maxDriftSeconds = DEFAULT_MAX_DRIFT_SECONDS, ...options }: TracklistOptions = {}
+  { maxDriftSeconds = DEFAULT_MAX_DRIFT_SECONDS, ...options }: TracklistOptions = {},
 ): Array<Omit<DerivedPlay, "track">> {
   const located: Located[] = windows
     .map((window, index) => ({ window, index }))
@@ -58,7 +53,7 @@ export function derivePlays(
         offset_seconds: best?.offset_seconds ?? null,
       };
     },
-    { ...options, maxDriftSeconds }
+    { ...options, maxDriftSeconds },
   );
 
   return groups.map(({ first, last, confidence, members }) => {
@@ -85,12 +80,20 @@ export function derivePlays(
 export function findUnidentified(
   plays: Array<Pick<DerivedPlay, "start_seconds" | "end_seconds">>,
   durationSeconds: number,
-  minSeconds: number = DEFAULT_MIN_UNIDENTIFIED_SECONDS
-): Array<{ start_seconds: number; end_seconds: number; before: number | null; after: number | null }> {
+  minSeconds: number = DEFAULT_MIN_UNIDENTIFIED_SECONDS,
+): Array<{
+  start_seconds: number;
+  end_seconds: number;
+  before: number | null;
+  after: number | null;
+}> {
   const regions = [];
   let cursor = 0;
   let before: number | null = null;
-  const bounds = [...plays.map((p, i) => ({ ...p, i })), { start_seconds: durationSeconds, end_seconds: durationSeconds, i: null }];
+  const bounds = [
+    ...plays.map((p, i) => ({ ...p, i })),
+    { start_seconds: durationSeconds, end_seconds: durationSeconds, i: null },
+  ];
   for (const play of bounds) {
     if (play.start_seconds - cursor >= minSeconds) {
       regions.push({
@@ -108,7 +111,7 @@ export function findUnidentified(
 
 /** Seconds covered by at least one play. */
 export function identifiedSeconds(
-  plays: Array<Pick<DerivedPlay, "start_seconds" | "end_seconds">>
+  plays: Array<Pick<DerivedPlay, "start_seconds" | "end_seconds">>,
 ): number {
   let total = 0;
   let cursor = -Infinity;
@@ -124,7 +127,8 @@ type PlayRef = Pick<DerivedPlay, "track_id" | "friend_id"> & {
   track: { release_id: string | null } | null;
 };
 
-const keyOf = (ref: { track_id: string; friend_id: number }) => `${ref.track_id}\u0000${ref.friend_id}`;
+const keyOf = (ref: { track_id: string; friend_id: number }) =>
+  `${ref.track_id}\u0000${ref.friend_id}`;
 
 /**
  * How the performance differed from the plan.
@@ -143,7 +147,7 @@ const keyOf = (ref: { track_id: string; friend_id: number }) => `${ref.track_id}
 export function diffAgainstPlan(
   plays: PlayRef[],
   planned: PlannedEntry[],
-  playlistId: number
+  playlistId: number,
 ): SetDiff {
   const plannedByKey = new Map<string, PlannedEntry[]>();
   for (const entry of planned) {
@@ -202,7 +206,7 @@ export function diffAgainstPlan(
       continue;
     }
     const chosen = candidates.reduce((best, e) =>
-      Math.abs(e.index - expected) < Math.abs(best.index - expected) ? e : best
+      Math.abs(e.index - expected) < Math.abs(best.index - expected) ? e : best,
     );
     unplayed.splice(unplayed.indexOf(chosen), 1);
     matchedIndex[i] = chosen.index;

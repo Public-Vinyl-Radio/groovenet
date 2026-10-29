@@ -4,6 +4,7 @@ Exits 0 if the loop has written a recent heartbeat to Redis, else 1. The
 service is queue-driven and publishes no port, so there is no endpoint to
 probe — liveness is a key the main loop refreshes on every iteration.
 """
+
 import os
 import sys
 import time

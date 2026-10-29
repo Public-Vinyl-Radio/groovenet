@@ -13,24 +13,18 @@ const pl = (id: number, created_at: string | undefined, performed?: string) =>
     name: `P${id}`,
     tracks: [],
     created_at,
-    ...(performed !== undefined
-      ? { set: { last_performed_at: performed } }
-      : {}),
+    ...(performed !== undefined ? { set: { last_performed_at: performed } } : {}),
   }) as unknown as Playlist;
 
 describe("playlistTimelineDate", () => {
   it("prefers the played date over created", () => {
     expect(
-      playlistTimelineDate(
-        pl(1, "2026-01-01T12:00:00", "2026-03-05T12:00:00"),
-      )?.getMonth(),
+      playlistTimelineDate(pl(1, "2026-01-01T12:00:00", "2026-03-05T12:00:00"))?.getMonth(),
     ).toBe(2);
   });
 
   it("falls back to created when the set was never played", () => {
-    expect(
-      playlistTimelineDate(pl(1, "2026-01-01T12:00:00", ""))?.getMonth(),
-    ).toBe(0);
+    expect(playlistTimelineDate(pl(1, "2026-01-01T12:00:00", ""))?.getMonth()).toBe(0);
   });
 
   it("is null for missing or invalid dates", () => {
@@ -64,11 +58,7 @@ describe("groupPlaylistsByMonth", () => {
       pl(3, "2026-08-10T12:00:00"),
       pl(4, "2026-01-15T12:00:00"),
     ]);
-    expect(groups.map((g) => g.label)).toEqual([
-      "AUG 2026",
-      "JAN 2026",
-      "DEC 2025",
-    ]);
+    expect(groups.map((g) => g.label)).toEqual(["AUG 2026", "JAN 2026", "DEC 2025"]);
     expect(groups[0].key).toBe("2026-08");
     expect(groups[0].playlists.map((p) => p.id)).toEqual([3, 2]);
   });
@@ -96,14 +86,8 @@ describe("groupPlaylistsByMonth", () => {
 
 describe("formatGroupCount", () => {
   it("pluralises and drops a zero set count", () => {
-    expect(formatGroupCount({ playlistCount: 2, setCount: 2 })).toBe(
-      "2 playlists · 2 sets",
-    );
-    expect(formatGroupCount({ playlistCount: 1, setCount: 1 })).toBe(
-      "1 playlist · 1 set",
-    );
-    expect(formatGroupCount({ playlistCount: 3, setCount: 0 })).toBe(
-      "3 playlists",
-    );
+    expect(formatGroupCount({ playlistCount: 2, setCount: 2 })).toBe("2 playlists · 2 sets");
+    expect(formatGroupCount({ playlistCount: 1, setCount: 1 })).toBe("1 playlist · 1 set");
+    expect(formatGroupCount({ playlistCount: 3, setCount: 0 })).toBe("3 playlists");
   });
 });

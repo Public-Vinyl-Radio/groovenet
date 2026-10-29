@@ -72,9 +72,12 @@ function snapshot(patch: AppearancePatch, custom: CustomPalette | null): Appeara
 
 const merge = (
   settings: AppearanceSettingsResponse,
-  patch: AppearancePatch
+  patch: AppearancePatch,
 ): AppearanceSettingsResponse => ({
-  palette: resolveAppearancePalette(patch.palette ?? settings.palette, customAfter(settings, patch)),
+  palette: resolveAppearancePalette(
+    patch.palette ?? settings.palette,
+    customAfter(settings, patch),
+  ),
   fonts: { ...settings.fonts, ...patch.fonts },
   customPalette: customAfter(settings, patch),
 });
@@ -82,7 +85,7 @@ const merge = (
 /** The custom palette once `patch` is applied: replaced, deleted (null) or unchanged. */
 function customAfter(
   settings: AppearanceSettingsResponse,
-  patch: AppearancePatch
+  patch: AppearancePatch,
 ): CustomPalette | null {
   return patch.customPalette === undefined ? (settings.customPalette ?? null) : patch.customPalette;
 }
@@ -113,7 +116,9 @@ export function useUpdateAppearanceSettings() {
       if (next) queryClient.setQueryData(key, next);
       applyCustomPaletteStyle(next ? next.customPalette : (patch.customPalette ?? null));
       // Deleting the palette in use falls back to the default, as the server does.
-      applyAppearance(patch.customPalette === null && next ? { ...patch, palette: next.palette } : patch);
+      applyAppearance(
+        patch.customPalette === null && next ? { ...patch, palette: next.palette } : patch,
+      );
       return { previous, cached };
     },
     // onMutate ran first, so the snapshot is always there.

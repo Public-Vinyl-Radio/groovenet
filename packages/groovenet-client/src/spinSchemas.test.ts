@@ -10,14 +10,25 @@ import {
 
 describe("spin schemas (shapes from @groovenet/contracts, coercion here)", () => {
   it("coerces a text friend_id and applies the list page defaults", () => {
-    expect(spinListQuerySchema.parse({ friend_id: "2" })).toEqual({ friend_id: 2, limit: 50, offset: 0 });
-    expect(spinListQuerySchema.parse({ friend_id: 2, limit: "10", offset: "5" })).toMatchObject({ limit: 10, offset: 5 });
+    expect(spinListQuerySchema.parse({ friend_id: "2" })).toEqual({
+      friend_id: 2,
+      limit: 50,
+      offset: 0,
+    });
+    expect(spinListQuerySchema.parse({ friend_id: 2, limit: "10", offset: "5" })).toMatchObject({
+      limit: 10,
+      offset: 5,
+    });
     expect(spinListQuerySchema.safeParse({ friend_id: "nope" }).success).toBe(false);
     expect(spinListQuerySchema.safeParse({ friend_id: 1, limit: "-1" }).success).toBe(false);
   });
 
   it("applies the top-tracks page defaults", () => {
-    expect(spinTopTracksQuerySchema.parse({ friend_id: "2" })).toEqual({ friend_id: 2, limit: 20, offset: 0 });
+    expect(spinTopTracksQuerySchema.parse({ friend_id: "2" })).toEqual({
+      friend_id: 2,
+      limit: 20,
+      offset: 0,
+    });
     expect(spinTopTracksQuerySchema.safeParse({ friend_id: 1, offset: "x" }).success).toBe(false);
   });
 
@@ -26,7 +37,11 @@ describe("spin schemas (shapes from @groovenet/contracts, coercion here)", () =>
     expect(spinCreateBodySchema.parse({ ...base, side_keys: ["A"] }).friend_id).toBe(1);
     expect(spinCreateBodySchema.safeParse(base).success).toBe(false);
     expect(
-      spinCreateBodySchema.safeParse({ ...base, side_keys: ["A"], track_refs: [{ track_id: "t1", friend_id: 1 }] }).success
+      spinCreateBodySchema.safeParse({
+        ...base,
+        side_keys: ["A"],
+        track_refs: [{ track_id: "t1", friend_id: 1 }],
+      }).success,
     ).toBe(false);
   });
 
@@ -34,7 +49,11 @@ describe("spin schemas (shapes from @groovenet/contracts, coercion here)", () =>
     expect(spinUpdateBodySchema.parse({ friend_id: "1", note: null }).friend_id).toBe(1);
     expect(spinUpdateBodySchema.safeParse({ friend_id: 1 }).success).toBe(false);
     expect(
-      spinUpdateBodySchema.safeParse({ friend_id: 1, side_keys: ["A"], track_refs: [{ track_id: "t1", friend_id: 1 }] }).success
+      spinUpdateBodySchema.safeParse({
+        friend_id: 1,
+        side_keys: ["A"],
+        track_refs: [{ track_id: "t1", friend_id: 1 }],
+      }).success,
     ).toBe(false);
   });
 
@@ -50,9 +69,24 @@ describe("spin schemas (shapes from @groovenet/contracts, coercion here)", () =>
       created_at: "2026-10-01T20:00:00.000Z",
       updated_at: "2026-10-01T20:00:00.000Z",
     };
-    const detail = { session, selections: [], track_events: [], derived: { is_full_album_spin: false, selected_side_count: 0, album_side_count: 0, track_count: 0 } };
+    const detail = {
+      session,
+      selections: [],
+      track_events: [],
+      derived: {
+        is_full_album_spin: false,
+        selected_side_count: 0,
+        album_side_count: 0,
+        track_count: 0,
+      },
+    };
     expect(spinListItemSchema.parse(detail).session.selection_mode).toBe("playlist");
-    expect(spinListItemSchema.safeParse({ ...detail, session: { ...session, selection_mode: "shuffle" } }).success).toBe(false);
+    expect(
+      spinListItemSchema.safeParse({
+        ...detail,
+        session: { ...session, selection_mode: "shuffle" },
+      }).success,
+    ).toBe(false);
   });
 
   it("keeps the extra fields top-tracks rows carry", () => {

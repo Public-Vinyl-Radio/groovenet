@@ -6,13 +6,9 @@ import type { BackupStatus } from "@/types/backup";
 // import.meta.url-relative path, which resolves wrongly under Next standalone
 // (it points into .next/) and makes the build trace the whole project.
 const DUMPS_DIR = path.resolve(
-  /* turbopackIgnore: true */ process.env.BACKUP_STATUS_DIR ||
-    path.resolve(process.cwd(), "dumps")
+  /* turbopackIgnore: true */ process.env.BACKUP_STATUS_DIR || path.resolve(process.cwd(), "dumps"),
 );
-const STATUS_PATH = path.join(
-  /* turbopackIgnore: true */ DUMPS_DIR,
-  "backup-status.json"
-);
+const STATUS_PATH = path.join(/* turbopackIgnore: true */ DUMPS_DIR, "backup-status.json");
 
 function ensureDumpsDir(): void {
   // turbopackIgnore: DUMPS_DIR is a runtime backups volume, not project files.
@@ -42,7 +38,7 @@ export class BackupStatusService {
     fs.writeFileSync(
       /* turbopackIgnore: true */ STATUS_PATH,
       `${JSON.stringify(nextStatus, null, 2)}\n`,
-      "utf8"
+      "utf8",
     );
     return nextStatus;
   }

@@ -27,7 +27,15 @@ export interface NowPlaying {
 }
 
 export const DEFAULT_FORMAT = "{icon} {title} · {artist} {bar} {position} · {target}";
-export const SEGMENT_FIELDS = ["icon", "title", "artist", "position", "duration", "bar", "target"] as const;
+export const SEGMENT_FIELDS = [
+  "icon",
+  "title",
+  "artist",
+  "position",
+  "duration",
+  "bar",
+  "target",
+] as const;
 type Field = (typeof SEGMENT_FIELDS)[number];
 
 const ICONS: Record<SegmentState, string> = { playing: "▶", paused: "‖", loading: "…", error: "!" };
@@ -44,35 +52,65 @@ const TMUX_ICON: Record<SegmentState, [string, string]> = {
 const BOLD: [string, string] = ["#[bold]", "#[nobold]"];
 const DIM: [string, string] = ["#[dim]", "#[nodim]"];
 const TMUX_ROLE: Record<Exclude<Field, "icon" | "bar">, [string, string]> = {
-  title: BOLD, artist: DIM, position: DIM, duration: DIM, target: BOLD,
+  title: BOLD,
+  artist: DIM,
+  position: DIM,
+  duration: DIM,
+  target: BOLD,
 };
 
 /** One line of track text: control characters and runs of whitespace become a single space. */
 export function cleanText(text: string | null | undefined): string {
-  return (text ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  return (text ?? "")
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Widths for title and artist that fit `budget`, taking from the longer one first. */
 export function fitPair(title: number, artist: number, budget: number): [number, number] {
-  let a = title, b = artist;
+  let a = title,
+    b = artist;
   const target = Math.max(0, budget);
-  while (a + b > target) { if (a >= b) a--; else b--; }
+  while (a + b > target) {
+    if (a >= b) a--;
+    else b--;
+  }
   return [a, b];
 }
 
-function nowPlaying(state: string, title: string | null | undefined, artist: string | null | undefined,
-  position: number, duration: number | null, target: string): NowPlaying | null {
-  if (state !== "playing" && state !== "paused" && state !== "loading" && state !== "error") return null;
-  return { state, title: cleanText(title) || "Unknown track", artist: cleanText(artist) || "Unknown artist",
-    position: Number.isFinite(position) ? Math.max(0, position) : 0, duration, target: cleanText(target) };
+function nowPlaying(
+  state: string,
+  title: string | null | undefined,
+  artist: string | null | undefined,
+  position: number,
+  duration: number | null,
+  target: string,
+): NowPlaying | null {
+  if (state !== "playing" && state !== "paused" && state !== "loading" && state !== "error")
+    return null;
+  return {
+    state,
+    title: cleanText(title) || "Unknown track",
+    artist: cleanText(artist) || "Unknown artist",
+    position: Number.isFinite(position) ? Math.max(0, position) : 0,
+    duration,
+    target: cleanText(target),
+  };
 }
 
 /** The segment for the local daemon's snapshot; null when it is stopped, ended or has no track. */
 export function fromLocalSnapshot(snapshot: PlaybackSnapshot): NowPlaying | null {
   const track = snapshot.current?.track;
   if (!track) return null;
-  return nowPlaying(snapshot.status, track.title, track.artist, snapshot.position,
-    snapshot.duration ?? getTrackDurationSeconds(track), "LOCAL");
+  return nowPlaying(
+    snapshot.status,
+    track.title,
+    track.artist,
+    snapshot.position,
+    snapshot.duration ?? getTrackDurationSeconds(track),
+    "LOCAL",
+  );
 }
 
 /** The segment for a server player; its name, upper-cased, is the target. */
@@ -80,7 +118,14 @@ export function fromServerPlayer(player: ServerPlayer): NowPlaying | null {
   const { state } = player;
   const entry = state.queue.find((item) => item.id === state.current_entry_id);
   if (!entry) return null;
-  return nowPlaying(state.status, entry.title, entry.artist, state.position, state.duration, player.name.toUpperCase());
+  return nowPlaying(
+    state.status,
+    entry.title,
+    entry.artist,
+    state.position,
+    state.duration,
+    player.name.toUpperCase(),
+  );
 }
 
 export interface RenderOptions {
@@ -108,12 +153,17 @@ function parseFormat(format: string): Piece[] {
 }
 
 /** Escape track text for a tmux format: a literal `#` is `##`. */
-export function escapeTmux(text: string): string { return text.replace(/#/g, "##"); }
+export function escapeTmux(text: string): string {
+  return text.replace(/#/g, "##");
+}
 
 function style(piece: Piece, np: NowPlaying): string {
   if (!piece.field) return piece.text;
   const text = escapeTmux(piece.text);
-  if (piece.field === "icon") { const [on, off] = TMUX_ICON[np.state]; return `${on}${text}${off}`; }
+  if (piece.field === "icon") {
+    const [on, off] = TMUX_ICON[np.state];
+    return `${on}${text}${off}`;
+  }
   if (piece.field === "bar") {
     const filled = text.match(/^━*/)![0];
     const rest = text.slice(filled.length);
@@ -138,17 +188,23 @@ export function renderSegment(np: NowPlaying, options: RenderOptions = {}): stri
     bar: progressBar(np.position, np.duration, options.barWidth ?? 6),
     target: np.target,
   };
-  let pieces = parseFormat(options.format ?? DEFAULT_FORMAT).map((piece) => piece.field ? { ...piece, text: values[piece.field] } : piece);
+  let pieces = parseFormat(options.format ?? DEFAULT_FORMAT).map((piece) =>
+    piece.field ? { ...piece, text: values[piece.field] } : piece,
+  );
   if (options.maxWidth !== undefined) pieces = fit(pieces, options.maxWidth);
-  return pieces.map((piece) => options.tmux ? style(piece, np) : piece.text).join("");
+  return pieces.map((piece) => (options.tmux ? style(piece, np) : piece.text)).join("");
 }
 
 function fit(pieces: Piece[], maxWidth: number): Piece[] {
   const total = (list: Piece[]) => list.reduce((sum, piece) => sum + width(piece.text), 0);
   if (total(pieces) <= maxWidth) return pieces;
   const flexible = (piece: Piece) => piece.field === "title" || piece.field === "artist";
-  const titleWidth = pieces.filter((p) => p.field === "title").reduce((sum, p) => sum + width(p.text), 0);
-  const artistWidth = pieces.filter((p) => p.field === "artist").reduce((sum, p) => sum + width(p.text), 0);
+  const titleWidth = pieces
+    .filter((p) => p.field === "title")
+    .reduce((sum, p) => sum + width(p.text), 0);
+  const artistWidth = pieces
+    .filter((p) => p.field === "artist")
+    .reduce((sum, p) => sum + width(p.text), 0);
   const fixed = total(pieces.filter((piece) => !flexible(piece)));
   const [titleMax, artistMax] = fitPair(titleWidth, artistWidth, maxWidth - fixed);
   const fitted = pieces.map((piece) => {
@@ -178,12 +234,21 @@ export interface StatusSources {
  * position events to every client, and exiting with those unread makes the
  * kernel reset the connection, which the daemon does not survive.
  */
-export async function readLocalSnapshot(socketPath: string, timeoutMs: number, closeWaitMs = 250): Promise<PlaybackSnapshot> {
+export async function readLocalSnapshot(
+  socketPath: string,
+  timeoutMs: number,
+  closeWaitMs = 250,
+): Promise<PlaybackSnapshot> {
   const client = new PlayerControlClient(socketPath, timeoutMs);
   const disconnected = new Promise<void>((resolve) => client.once("disconnect", resolve));
   const snapshot = await client.request<PlaybackSnapshot>("status").finally(() => client.close());
   let timer: NodeJS.Timeout | undefined;
-  await Promise.race([disconnected, new Promise((resolve) => { timer = setTimeout(resolve, closeWaitMs); })]);
+  await Promise.race([
+    disconnected,
+    new Promise((resolve) => {
+      timer = setTimeout(resolve, closeWaitMs);
+    }),
+  ]);
   clearTimeout(timer);
   return snapshot;
 }
@@ -195,7 +260,9 @@ export const defaultStatusSources: StatusSources = {
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("timed out")), ms); });
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timed out")), ms);
+  });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
@@ -211,10 +278,14 @@ export interface StatusOptions extends RenderOptions {
  * unreachable for any reason (no daemon, no server, no key, a timeout).
  * Never throws.
  */
-export async function readNowPlaying(options: StatusOptions, sources: StatusSources = defaultStatusSources): Promise<NowPlaying | null | undefined> {
+export async function readNowPlaying(
+  options: StatusOptions,
+  sources: StatusSources = defaultStatusSources,
+): Promise<NowPlaying | null | undefined> {
   const timeoutMs = options.timeout ?? 1000;
   try {
-    if (options.remote) return fromServerPlayer(await withTimeout(sources.remote(options.remote), timeoutMs));
+    if (options.remote)
+      return fromServerPlayer(await withTimeout(sources.remote(options.remote), timeoutMs));
     return fromLocalSnapshot(await withTimeout(sources.local(timeoutMs), timeoutMs));
   } catch {
     return undefined;
@@ -222,7 +293,10 @@ export async function readNowPlaying(options: StatusOptions, sources: StatusSour
 }
 
 /** The text to print: the segment, the idle string, JSON, or "" for nothing. */
-export async function runStatus(options: StatusOptions, sources: StatusSources = defaultStatusSources): Promise<string> {
+export async function runStatus(
+  options: StatusOptions,
+  sources: StatusSources = defaultStatusSources,
+): Promise<string> {
   const np = await readNowPlaying(options, sources);
   if (options.json) return JSON.stringify(np ?? null);
   if (np === undefined) return "";
@@ -230,17 +304,36 @@ export async function runStatus(options: StatusOptions, sources: StatusSources =
   return renderSegment(np, options);
 }
 
-export function addStatusCommand(program: Command, sources: StatusSources = defaultStatusSources,
-  exit: (code: number) => void = (code) => process.exit(code)): void {
-  program.command("status")
-    .description("Print a one-line now-playing segment for tmux and status bars (quiet: prints nothing when unreachable)")
+export function addStatusCommand(
+  program: Command,
+  sources: StatusSources = defaultStatusSources,
+  exit: (code: number) => void = (code) => process.exit(code),
+): void {
+  program
+    .command("status")
+    .description(
+      "Print a one-line now-playing segment for tmux and status bars (quiet: prints nothing when unreachable)",
+    )
     .option("--remote <player-id>", "read a server player instead of the local daemon")
-    .option("--format <template>", `fields: ${SEGMENT_FIELDS.map((field) => `{${field}}`).join(" ")}`, DEFAULT_FORMAT)
-    .option("--max-width <n>", "shorten title and artist to fit this many cells", boundedIntOption(1))
+    .option(
+      "--format <template>",
+      `fields: ${SEGMENT_FIELDS.map((field) => `{${field}}`).join(" ")}`,
+      DEFAULT_FORMAT,
+    )
+    .option(
+      "--max-width <n>",
+      "shorten title and artist to fit this many cells",
+      boundedIntOption(1),
+    )
     .option("--bar-width <n>", "progress bar cells", boundedIntOption(0), 6)
     .option("--tmux", "emit tmux #[…] styles in ANSI colour names")
     .option("--idle <text>", "print this when nothing is playing (default: nothing)")
-    .option("--timeout <ms>", "give up after this long and print nothing", boundedIntOption(1), 1000)
+    .option(
+      "--timeout <ms>",
+      "give up after this long and print nothing",
+      boundedIntOption(1),
+      1000,
+    )
     .option("--json", "print the now-playing fields as JSON (null when idle or unreachable)")
     .action(async (options: StatusOptions) => {
       // A status bar that hangs up early must not get a stack trace.
@@ -248,6 +341,7 @@ export function addStatusCommand(program: Command, sources: StatusSources = defa
       const text = await runStatus(options, sources);
       // Exit explicitly: a timed-out request would otherwise hold the process
       // open, and a status bar runs this every few seconds.
-      if (text) process.stdout.write(`${text}\n`, () => exit(0)); else exit(0);
+      if (text) process.stdout.write(`${text}\n`, () => exit(0));
+      else exit(0);
     });
 }

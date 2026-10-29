@@ -4,7 +4,13 @@ import React from "react";
 import { Box, Image, Text } from "@chakra-ui/react";
 import { FiPlay, FiPlusSquare, FiList } from "react-icons/fi";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
-import { Group, TileRow, overline, type ModalAction, type ModalTile } from "@/components/ui/RetroModalParts";
+import {
+  Group,
+  TileRow,
+  overline,
+  type ModalAction,
+  type ModalTile,
+} from "@/components/ui/RetroModalParts";
 import { RatingStars } from "@/components/TrackResult";
 import { keyToCamelot } from "@/lib/playlistOrder";
 import type { Track } from "@/types/track";
@@ -89,7 +95,9 @@ export default function TrackActionsModal({
 }: Props) {
   const close = () => onOpenChange(false);
   const tiles: ModalTile[] = [
-    ...(onPlay ? [{ label: "Play", icon: <FiPlay fill="currentColor" />, solid: true, onClick: onPlay }] : []),
+    ...(onPlay
+      ? [{ label: "Play", icon: <FiPlay fill="currentColor" />, solid: true, onClick: onPlay }]
+      : []),
     { label: "Queue", icon: <FiPlusSquare />, onClick: onQueue },
     { label: "Playlist", icon: <FiList />, onClick: onPlaylist },
   ];

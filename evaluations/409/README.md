@@ -38,11 +38,12 @@ node evaluations/409/spot-check.mjs \
   - top-10 overlap with offline F.
 
   It contains no track names.
+
 - **`--output`** keeps the full rankings with track IDs. It is private, so keep
   it in `eval-data/` and never commit or upload it.
 - **`--unjudged-output`** writes a blind sheet of the pairs that no review has
   judged yet. Judge it with `node evaluations/379/review.mjs --file
-  eval-data/409-review.json`, then rerun with an extra `--review` to tighten
+eval-data/409-review.json`, then rerun with an extra `--review` to tighten
   the bounds.
 
 The 24 queries are embedded once each. Semantic and hybrid share the query

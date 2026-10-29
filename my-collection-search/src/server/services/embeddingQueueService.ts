@@ -99,7 +99,7 @@ function backoffMs(attempts: number): number {
  */
 export function isAuthError(message: string): boolean {
   return /invalid_organization|incorrect api key|invalid_api_key|unauthorized|\b401\b/i.test(
-    message
+    message,
   );
 }
 
@@ -110,7 +110,10 @@ function errorMessage(error: unknown): string {
 export class EmbeddingQueueService {
   private redis = getRedisConnection();
 
-  async enqueue(jobs: EmbeddingJob[], priority: EmbeddingQueuePriority = "interactive"): Promise<void> {
+  async enqueue(
+    jobs: EmbeddingJob[],
+    priority: EmbeddingQueuePriority = "interactive",
+  ): Promise<void> {
     if (jobs.length === 0) return;
     const pipeline = this.redis.pipeline();
     for (const job of jobs) {
@@ -131,10 +134,7 @@ export class EmbeddingQueueService {
 
   private async recordFailure(job: QueuedJob, message: string): Promise<void> {
     const pipeline = this.redis.pipeline();
-    pipeline.lpush(
-      FAILED_KEY,
-      JSON.stringify({ ...job, error: message, failedAt: Date.now() })
-    );
+    pipeline.lpush(FAILED_KEY, JSON.stringify({ ...job, error: message, failedAt: Date.now() }));
     pipeline.ltrim(FAILED_KEY, 0, MAX_FAILED_ENTRIES - 1);
     await pipeline.exec();
 
@@ -158,10 +158,7 @@ export class EmbeddingQueueService {
   }
 
   private async setLastError(message: string): Promise<void> {
-    await this.redis.set(
-      LAST_ERROR_KEY,
-      JSON.stringify({ message, at: Date.now() })
-    );
+    await this.redis.set(LAST_ERROR_KEY, JSON.stringify({ message, at: Date.now() }));
   }
 
   private async pause(message: string): Promise<void> {
@@ -191,11 +188,7 @@ export class EmbeddingQueueService {
     await pipeline.exec();
   }
 
-  private async scheduleRetry(
-    job: QueuedJob,
-    now: number,
-    message: string
-  ): Promise<void> {
+  private async scheduleRetry(job: QueuedJob, now: number, message: string): Promise<void> {
     const attempts = (job.attempts ?? 0) + 1;
     const retryJob: QueuedJob = { ...job, attempts };
 
@@ -208,11 +201,7 @@ export class EmbeddingQueueService {
       return;
     }
 
-    await this.redis.zadd(
-      RETRY_KEY,
-      now + backoffMs(attempts),
-      JSON.stringify(retryJob)
-    );
+    await this.redis.zadd(RETRY_KEY, now + backoffMs(attempts), JSON.stringify(retryJob));
   }
 
   /**
@@ -266,7 +255,7 @@ export class EmbeddingQueueService {
         // of failures never showed up in the app's own logs (#451).
         console.error(
           `[embedding-queue] job failed (track ${job.track_id}, kind ${job.kind}):`,
-          message
+          message,
         );
         if (isAuthError(message)) {
           authError = message;
@@ -349,7 +338,10 @@ export class EmbeddingQueueService {
     seedPipeline.expire(key, RUN_TTL_SECONDS);
     await seedPipeline.exec();
 
-    await this.enqueue(jobs.map((job) => ({ ...job, run_id: runId })), "bulk");
+    await this.enqueue(
+      jobs.map((job) => ({ ...job, run_id: runId })),
+      "bulk",
+    );
 
     return {
       run_id: runId,
@@ -394,20 +386,19 @@ export class EmbeddingQueueService {
   /** Depth of each priority lane, in the order `tick()` drains them. */
   private async laneDepths(): Promise<EmbeddingQueueLaneDepths> {
     const [interactive, sync, bulk] = await Promise.all(
-      QUEUE_KEYS.map((key) => this.redis.llen(key))
+      QUEUE_KEYS.map((key) => this.redis.llen(key)),
     );
     return { interactive, sync, bulk };
   }
 
   async getQueueHealth(): Promise<EmbeddingQueueHealth> {
-    const [lanes, retryLen, failedLen, pausedError, lastErrorRaw] =
-      await Promise.all([
-        this.laneDepths(),
-        this.redis.zcard(RETRY_KEY),
-        this.redis.llen(FAILED_KEY),
-        this.redis.get(PAUSED_KEY),
-        this.redis.get(LAST_ERROR_KEY),
-      ]);
+    const [lanes, retryLen, failedLen, pausedError, lastErrorRaw] = await Promise.all([
+      this.laneDepths(),
+      this.redis.zcard(RETRY_KEY),
+      this.redis.llen(FAILED_KEY),
+      this.redis.get(PAUSED_KEY),
+      this.redis.get(LAST_ERROR_KEY),
+    ]);
 
     let lastError: string | undefined;
     if (lastErrorRaw) {
@@ -446,7 +437,7 @@ export class EmbeddingQueueService {
           this.redis.lrange(key, 0, KIND_SAMPLE_SIZE - 1),
         ]);
         return { len, entries };
-      })
+      }),
     );
 
     for (const { len, entries } of perLane) {
@@ -473,7 +464,7 @@ export class EmbeddingQueueService {
         "MATCH",
         `${RUN_KEY_PREFIX}*`,
         "COUNT",
-        1000
+        1000,
       );
       cursor = nextCursor;
       keys.push(...batch.filter((key) => !key.endsWith(":errors")));
@@ -482,7 +473,9 @@ export class EmbeddingQueueService {
   }
 
   /** Backfill runs (#388) still in progress, newest first, for #451's queue view. */
-  async listActiveBackfillRuns(limit: number = MAX_ACTIVE_RUNS): Promise<EmbeddingBackfillRunSummary[]> {
+  async listActiveBackfillRuns(
+    limit: number = MAX_ACTIVE_RUNS,
+  ): Promise<EmbeddingBackfillRunSummary[]> {
     const keys = await this.scanRunKeys();
     if (keys.length === 0) return [];
 
@@ -547,7 +540,11 @@ export class EmbeddingQueueService {
     const wanted = new Set(ids);
     const raws = await this.redis.lrange(FAILED_KEY, 0, MAX_FAILED_ENTRIES - 1);
 
-    const matches: { id: string; raw: string; retryJob: EmbeddingJob & { priority: EmbeddingQueuePriority; attempts: number } }[] = [];
+    const matches: {
+      id: string;
+      raw: string;
+      retryJob: EmbeddingJob & { priority: EmbeddingQueuePriority; attempts: number };
+    }[] = [];
     for (const raw of raws) {
       const id = failedJobId(raw);
       if (!wanted.has(id)) continue;
@@ -697,7 +694,9 @@ export function startEmbeddingQueueWorker(): void {
       // The sweep must see committed embeddings, not an emptied list whose
       // popped jobs are still waiting for the provider or database.
       await sweepIfDue(now);
-    })().finally(() => { tickInFlight = false; });
+    })().finally(() => {
+      tickInFlight = false;
+    });
   };
 
   run();

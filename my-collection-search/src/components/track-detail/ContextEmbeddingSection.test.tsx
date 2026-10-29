@@ -8,13 +8,22 @@ import type { ContextEmbeddingPreviewResponse } from "@/services/internalApi/tra
 import ContextEmbeddingSection from "./ContextEmbeddingSection";
 
 type Query = UseQueryResult<ContextEmbeddingPreviewResponse, Error>;
-const query = (state: Partial<Query>) => ({ isLoading: false, error: null, data: undefined, ...state }) as Query;
+const query = (state: Partial<Query>) =>
+  ({ isLoading: false, error: null, data: undefined, ...state }) as Query;
 
 const data: ContextEmbeddingPreviewResponse = {
   contextText: "chicha, cumbia. latin music from the 1970s.\nTrack: Song — Artist",
   contextData: {
-    title: "Song", artist: "Artist", album: "Album", era: "1970s", country: "peru",
-    labels: [], composers: [], genres: ["latin"], styles: ["cumbia"], tags: ["chicha"],
+    title: "Song",
+    artist: "Artist",
+    album: "Album",
+    era: "1970s",
+    country: "peru",
+    labels: [],
+    composers: [],
+    genres: ["latin"],
+    styles: ["cumbia"],
+    tags: ["chicha"],
   },
 };
 
@@ -24,7 +33,9 @@ describe("ContextEmbeddingSection", () => {
     expect(screen.getByText("Context Embedding Preview")).toBeTruthy();
     expect(screen.getByText("Natural-language search")).toBeTruthy();
     expect(screen.getByText("1970s")).toBeTruthy();
-    expect(screen.getByText(/chicha, cumbia\. latin music from the 1970s\./).textContent).toBe(data.contextText);
+    expect(screen.getByText(/chicha, cumbia\. latin music from the 1970s\./).textContent).toBe(
+      data.contextText,
+    );
   });
 
   it("explains that the preview is built from the track as it is now", () => {
@@ -33,7 +44,9 @@ describe("ContextEmbeddingSection", () => {
   });
 
   it("shows an error", () => {
-    renderWithProviders(<ContextEmbeddingSection query={query({ error: new Error("Track not found") })} />);
+    renderWithProviders(
+      <ContextEmbeddingSection query={query({ error: new Error("Track not found") })} />,
+    );
     expect(screen.getByText("Track not found")).toBeTruthy();
   });
 

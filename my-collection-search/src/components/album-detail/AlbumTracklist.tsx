@@ -25,7 +25,8 @@ type Props = {
 
 const ALL = "all";
 
-const trackHref = (t: Track) => `/tracks/${encodeURIComponent(t.track_id)}?friend_id=${t.friend_id}`;
+const trackHref = (t: Track) =>
+  `/tracks/${encodeURIComponent(t.track_id)}?friend_id=${t.friend_id}`;
 const rowKey = (t: Track, i: number) => `${t.track_id}:${t.friend_id}:${i}`;
 
 /** "6 tracks · 21:41" */
@@ -34,7 +35,17 @@ function sideMeta(side: SideSummary<Track>) {
   return side.seconds > 0 ? `${count} · ${formatSeconds(side.seconds)}` : count;
 }
 
-function PlayTrackButton({ track, onPlay, size, children }: { track: Track; onPlay: () => void; size: string; children: React.ReactNode }) {
+function PlayTrackButton({
+  track,
+  onPlay,
+  size,
+  children,
+}: {
+  track: Track;
+  onPlay: () => void;
+  size: string;
+  children: React.ReactNode;
+}) {
   return (
     <Button
       variant="ghost"
@@ -51,10 +62,25 @@ function PlayTrackButton({ track, onPlay, size, children }: { track: Track; onPl
   );
 }
 
-function PlaySideButton({ side, onPlay, mobile }: { side: SideSummary<Track>; onPlay: () => void; mobile: boolean }) {
+function PlaySideButton({
+  side,
+  onPlay,
+  mobile,
+}: {
+  side: SideSummary<Track>;
+  onPlay: () => void;
+  mobile: boolean;
+}) {
   const label = side.key === "TRACKLIST" ? "Play all" : `Play side ${side.shortLabel}`;
   return (
-    <Button size="xs" variant="outline" aria-label={label} onClick={onPlay} minH={mobile ? "44px" : undefined} px={mobile ? 3 : undefined}>
+    <Button
+      size="xs"
+      variant="outline"
+      aria-label={label}
+      onClick={onPlay}
+      minH={mobile ? "44px" : undefined}
+      px={mobile ? 3 : undefined}
+    >
       <FaPlay /> {mobile ? "Play" : label}
     </Button>
   );
@@ -86,13 +112,34 @@ function TitleCell({ track, albumArtist }: { track: Track; albumArtist: string }
   return (
     <Box minW={0}>
       <Flex alignItems="center" gap={2} minW={0}>
-        <Link as={NextLink} href={trackHref(track)} title={track.title} display="block" minW={0} fontWeight="semibold" fontSize="17px" lineHeight="24px" _hover={{ textDecoration: "underline" }} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+        <Link
+          as={NextLink}
+          href={trackHref(track)}
+          title={track.title}
+          display="block"
+          minW={0}
+          fontWeight="semibold"
+          fontSize="17px"
+          lineHeight="24px"
+          _hover={{ textDecoration: "underline" }}
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
           {track.title}
         </Link>
         {track.notes?.trim() && <NotesIndicator notes={track.notes} />}
       </Flex>
       {showArtist && (
-        <Text title={track.artist} fontSize="12px" lineHeight="16px" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+        <Text
+          title={track.artist}
+          fontSize="12px"
+          lineHeight="16px"
+          color="fg.muted"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
           {track.artist}
         </Text>
       )}
@@ -105,7 +152,9 @@ function KeyCell({ track, showName = true }: { track: Track; showName?: boolean 
   return camelot ? (
     <KeyChip keyName={track.key} camelot={camelot} showName={showName} />
   ) : (
-    <Text as="span" color="fg.subtle">{dash}</Text>
+    <Text as="span" color="fg.subtle">
+      {dash}
+    </Text>
   );
 }
 
@@ -115,16 +164,38 @@ function TimeText({ track }: { track: Track }) {
 }
 
 /** Desktop: a ruled table, a header row per side. */
-function TrackTable({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions, showHeaders }: Omit<Props, "isMobile"> & { showHeaders: boolean }) {
+function TrackTable({
+  sides,
+  albumArtist,
+  onPlayTrack,
+  onPlaySide,
+  renderActions,
+  showHeaders,
+}: Omit<Props, "isMobile"> & { showHeaders: boolean }) {
   const rowReveal = { "& .track-result-rating": { opacity: 1 } };
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" overflowX="auto" data-testid="album-track-table">
-      <Box as="table" w="full" minW="980px" css={{ tableLayout: "fixed", borderCollapse: "collapse" }}>
+    <Box
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      overflowX="auto"
+      data-testid="album-track-table"
+    >
+      <Box
+        as="table"
+        w="full"
+        minW="980px"
+        css={{ tableLayout: "fixed", borderCollapse: "collapse" }}
+      >
         <Box as="thead" bg="bg.subtle" borderBottomWidth="outline" borderColor="border.ink">
           <tr>
-            <Th scope="col" px="16px" py="12px" w="72px" {...labelHead}>Side</Th>
+            <Th scope="col" px="16px" py="12px" w="72px" {...labelHead}>
+              Side
+            </Th>
             <Th scope="col" w="44px" p={0}>
-              <Box as="span" srOnly>Play</Box>
+              <Box as="span" srOnly>
+                Play
+              </Box>
             </Th>
             {/* Track alone takes the remaining width, so long titles shrink first. */}
             {[
@@ -140,19 +211,35 @@ function TrackTable({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions
               </Th>
             ))}
             <Th scope="col" w="56px" p={0}>
-              <Box as="span" srOnly>Actions</Box>
+              <Box as="span" srOnly>
+                Actions
+              </Box>
             </Th>
           </tr>
         </Box>
         {sides.map((side) => (
           <tbody key={side.key}>
             {showHeaders && (
-              <Box as="tr" bg="bg.subtle" borderTopWidth="rule" borderBottomWidth="rule" borderColor="border">
+              <Box
+                as="tr"
+                bg="bg.subtle"
+                borderTopWidth="rule"
+                borderBottomWidth="rule"
+                borderColor="border"
+              >
                 <Th scope="rowgroup" colSpan={9} textAlign="left" px="16px" py="10px">
                   <Flex alignItems="center" justifyContent="space-between" gap={3}>
                     <Flex alignItems="baseline" gap={3}>
-                      <Text fontSize="16px" lineHeight="24px" fontWeight="semibold">{side.label}</Text>
-                      <Text fontFamily="label" fontSize="12px" letterSpacing="0.06em" textTransform="uppercase" color="fg.muted">
+                      <Text fontSize="16px" lineHeight="24px" fontWeight="semibold">
+                        {side.label}
+                      </Text>
+                      <Text
+                        fontFamily="label"
+                        fontSize="12px"
+                        letterSpacing="0.06em"
+                        textTransform="uppercase"
+                        color="fg.muted"
+                      >
                         {sideMeta(side)}
                       </Text>
                     </Flex>
@@ -170,20 +257,38 @@ function TrackTable({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions
                 _hover={{ bg: "bg.muted" }}
                 css={{ "& > td": { padding: "14px 16px", verticalAlign: "middle" }, ...rowReveal }}
               >
-                <td><Position track={track} /></td>
+                <td>
+                  <Position track={track} />
+                </td>
                 <Box as="td" css={{ padding: "0 !important" }}>
                   <PlayTrackButton track={track} size="36px" onPlay={() => onPlayTrack(track)}>
                     <FiPlay />
                   </PlayTrackButton>
                 </Box>
-                <td><TitleCell track={track} albumArtist={albumArtist} /></td>
-                <Box as="td" fontFamily="mono" fontSize="14px" whiteSpace="nowrap" fontVariantNumeric="tabular-nums">
+                <td>
+                  <TitleCell track={track} albumArtist={albumArtist} />
+                </td>
+                <Box
+                  as="td"
+                  fontFamily="mono"
+                  fontSize="14px"
+                  whiteSpace="nowrap"
+                  fontVariantNumeric="tabular-nums"
+                >
                   <TimeText track={track} />
                 </Box>
-                <td><BpmCell track={track} delta={null} /></td>
-                <td><KeyCell track={track} /></td>
-                <td><GenreCell track={track} /></td>
-                <td><RatingCell track={track} /></td>
+                <td>
+                  <BpmCell track={track} delta={null} />
+                </td>
+                <td>
+                  <KeyCell track={track} />
+                </td>
+                <td>
+                  <GenreCell track={track} />
+                </td>
+                <td>
+                  <RatingCell track={track} />
+                </td>
                 <Box as="td" textAlign="right" css={{ paddingLeft: "0 !important" }}>
                   {renderActions(track)}
                 </Box>
@@ -197,16 +302,54 @@ function TrackTable({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions
 }
 
 /** Phone: stacked rows, the position as a 44px play button. */
-function TrackRows({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions, showHeaders }: Omit<Props, "isMobile"> & { showHeaders: boolean }) {
+function TrackRows({
+  sides,
+  albumArtist,
+  onPlayTrack,
+  onPlaySide,
+  renderActions,
+  showHeaders,
+}: Omit<Props, "isMobile"> & { showHeaders: boolean }) {
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" data-testid="album-track-list">
+    <Box
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      data-testid="album-track-list"
+    >
       {sides.map((side) => (
         <Box key={side.key}>
           {showHeaders && (
-            <Flex alignItems="center" justifyContent="space-between" gap={2} py="8px" pl="14px" pr="8px" bg="bg.subtle" borderBottomWidth="rule" borderColor="border" css={{ "&:not(:first-of-type)": { borderTopWidth: "1px", borderTopStyle: "solid", borderTopColor: "var(--gn-border)" } }}>
+            <Flex
+              alignItems="center"
+              justifyContent="space-between"
+              gap={2}
+              py="8px"
+              pl="14px"
+              pr="8px"
+              bg="bg.subtle"
+              borderBottomWidth="rule"
+              borderColor="border"
+              css={{
+                "&:not(:first-of-type)": {
+                  borderTopWidth: "1px",
+                  borderTopStyle: "solid",
+                  borderTopColor: "var(--gn-border)",
+                },
+              }}
+            >
               <Flex alignItems="baseline" gap="10px" minW={0}>
-                <Text fontSize="15px" lineHeight="22px" fontWeight="semibold">{side.label}</Text>
-                <Text fontFamily="label" fontSize="11px" letterSpacing="0.06em" textTransform="uppercase" color="fg.muted" whiteSpace="nowrap">
+                <Text fontSize="15px" lineHeight="22px" fontWeight="semibold">
+                  {side.label}
+                </Text>
+                <Text
+                  fontFamily="label"
+                  fontSize="11px"
+                  letterSpacing="0.06em"
+                  textTransform="uppercase"
+                  color="fg.muted"
+                  whiteSpace="nowrap"
+                >
                   {sideMeta(side)}
                 </Text>
               </Flex>
@@ -228,20 +371,42 @@ function TrackRows({ sides, albumArtist, onPlayTrack, onPlaySide, renderActions,
                 css={{ "&:last-of-type": { borderBottomWidth: 0 } }}
               >
                 <PlayTrackButton track={track} size="44px" onPlay={() => onPlayTrack(track)}>
-                  <Text as="span" bg="bg.subtle" boxSize="44px" display="inline-flex" alignItems="center" justifyContent="center" fontFamily="mono" fontSize="14px" fontWeight="semibold">
+                  <Text
+                    as="span"
+                    bg="bg.subtle"
+                    boxSize="44px"
+                    display="inline-flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    fontFamily="mono"
+                    fontSize="14px"
+                    fontWeight="semibold"
+                  >
                     {track.position || <FiPlay />}
                   </Text>
                 </PlayTrackButton>
                 <Flex direction="column" gap="6px" minW={0} flex={1}>
                   <TitleCell track={track} albumArtist={albumArtist} />
-                  <Flex flexWrap="wrap" alignItems="center" gap={2} fontSize="12px" lineHeight="16px" color="fg.muted">
-                    <Text as="span" fontFamily="mono" fontVariantNumeric="tabular-nums"><TimeText track={track} /></Text>
+                  <Flex
+                    flexWrap="wrap"
+                    alignItems="center"
+                    gap={2}
+                    fontSize="12px"
+                    lineHeight="16px"
+                    color="fg.muted"
+                  >
+                    <Text as="span" fontFamily="mono" fontVariantNumeric="tabular-nums">
+                      <TimeText track={track} />
+                    </Text>
                     <BpmCell track={track} delta={null} />
                     <KeyCell track={track} showName={false} />
                   </Flex>
                   <GenreCell track={track} />
                 </Flex>
-                <Box alignSelf="center" css={{ "& button": { minWidth: "44px", minHeight: "44px" } }}>
+                <Box
+                  alignSelf="center"
+                  css={{ "& button": { minWidth: "44px", minHeight: "44px" } }}
+                >
                   {renderActions(track)}
                 </Box>
               </Flex>
@@ -262,16 +427,33 @@ export default function AlbumTracklist(props: Props) {
   const shown = view === ALL ? sides : sides.filter((side) => side.key === view);
   const visible = shown.length > 0 ? shown : sides;
   const trackCount = sides.reduce((sum, side) => sum + side.tracks.length, 0);
-  const items = [{ value: ALL, label: "All" }, ...sides.map((side) => ({ value: side.key, label: side.label }))];
+  const items = [
+    { value: ALL, label: "All" },
+    ...sides.map((side) => ({ value: side.key, label: side.label })),
+  ];
   const body = { ...props, sides: visible, showHeaders: sided };
 
   return (
     <Flex as="section" aria-label="Tracklist" direction="column" gap="14px">
-      <SectionHeader title="Tracklist" count={`${trackCount} ${trackCount === 1 ? "track" : "tracks"}`}>
+      <SectionHeader
+        title="Tracklist"
+        count={`${trackCount} ${trackCount === 1 ? "track" : "tracks"}`}
+      >
         {sided && sides.length > 1 && (
           <SegmentGroup.Root
             size="sm"
-            css={isMobile ? { "& label": { minHeight: "44px", flex: 1, justifyContent: "center", whiteSpace: "nowrap" } } : undefined}
+            css={
+              isMobile
+                ? {
+                    "& label": {
+                      minHeight: "44px",
+                      flex: 1,
+                      justifyContent: "center",
+                      whiteSpace: "nowrap",
+                    },
+                  }
+                : undefined
+            }
             value={shown.length > 0 ? view : ALL}
             aria-label="Show side"
             width={isMobile ? "full" : undefined}

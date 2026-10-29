@@ -35,7 +35,7 @@ export default function AlbumSearchResults({
   const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
   const missingAudio = searchParams.get("missing_audio") === "1";
   const missingTags = (Object.keys(ALBUM_MISSING_TAGS) as AlbumMissingKey[]).filter(
-    (key) => searchParams.get(key) === "1"
+    (key) => searchParams.get(key) === "1",
   );
   const genres = searchParams.getAll("genre");
   const includeSimilar = searchParams.get("similar") === "1";
@@ -69,9 +69,7 @@ export default function AlbumSearchResults({
   const albumsFromStore = useAlbumsByRefs(albumRefs);
   const albumsFromQuery = data?.pages.flatMap((page) => page.hits) || [];
   const albums =
-    albumsFromStore.length > 0 || albumsFromQuery.length === 0
-      ? albumsFromStore
-      : albumsFromQuery;
+    albumsFromStore.length > 0 || albumsFromQuery.length === 0 ? albumsFromStore : albumsFromQuery;
 
   // Intersection observer for infinite scroll
   useEffect(() => {
@@ -81,7 +79,7 @@ export default function AlbumSearchResults({
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     const currentTarget = observerTarget.current;
@@ -115,7 +113,13 @@ export default function AlbumSearchResults({
   // Phones only: the count with the sort beside it. Desktop shows the count in
   // the chip row and sorts from the search row (#794).
   const countRow = (
-    <Flex display={{ base: "flex", md: "none" }} align="center" justify="space-between" gap={2} mb={2}>
+    <Flex
+      display={{ base: "flex", md: "none" }}
+      align="center"
+      justify="space-between"
+      gap={2}
+      mb={2}
+    >
       <Text fontSize="sm" color="fg.muted">
         {totalHits.toLocaleString()} {totalHits === 1 ? "album" : "albums"}
       </Text>
@@ -132,12 +136,12 @@ export default function AlbumSearchResults({
       <Box>
         {countRow}
         <Box p={4}>
-        <Text color="fg.muted">No albums found.</Text>
-        {query && (
-          <Text fontSize="sm" color="fg.muted" mt={2}>
-            Try adjusting your search or filters.
-          </Text>
-        )}
+          <Text color="fg.muted">No albums found.</Text>
+          {query && (
+            <Text fontSize="sm" color="fg.muted" mt={2}>
+              Try adjusting your search or filters.
+            </Text>
+          )}
         </Box>
       </Box>
     );

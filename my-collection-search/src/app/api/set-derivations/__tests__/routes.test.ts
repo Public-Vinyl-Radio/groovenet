@@ -10,7 +10,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const recordingService = vi.hoisted(() => ({ find: vi.fn(), store: vi.fn(), pathOf: vi.fn() }));
 const derivationService = vi.hoisted(() => ({
-  create: vi.fn(), view: vi.fn(), claim: vi.fn(), report: vi.fn(),
+  create: vi.fn(),
+  view: vi.fn(),
+  claim: vi.fn(),
+  report: vi.fn(),
 }));
 vi.mock("@/server/services/setRecordingService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/services/setRecordingService")>()),
@@ -85,8 +88,12 @@ describe("/api/set-recordings/{sha256}", () => {
 
   const put = (sha256 = SHA) =>
     recordingRoute.PUT(
-      new Request("http://app", { method: "PUT", body: "bytes", headers: { "x-filename": "set.mp3" } }),
-      shaParams(sha256)
+      new Request("http://app", {
+        method: "PUT",
+        body: "bytes",
+        headers: { "x-filename": "set.mp3" },
+      }),
+      shaParams(sha256),
     );
 
   it("PUT answers 201 when stored and 200 when already held", async () => {
@@ -122,7 +129,7 @@ describe("/api/set-recordings/{sha256}", () => {
           body: "bytes",
           headers: name === null ? {} : { "x-filename": name },
         }),
-        shaParams()
+        shaParams(),
       );
 
     await send("Carlos%20D%C3%ADaz.mp3");
@@ -207,7 +214,7 @@ describe("GET /api/set-derivations/{id}", () => {
     derivationService.view.mockResolvedValue({ tracklist: [] });
     const response = await viewRoute.GET(
       new Request("http://app/api/set-derivations/d1?playlist_id=176"),
-      idParams()
+      idParams(),
     );
     expect(response.status).toBe(200);
     expect(derivationService.view).toHaveBeenCalledWith("d1", { playlist_id: 176 });
@@ -216,7 +223,7 @@ describe("GET /api/set-derivations/{id}", () => {
   it("rejects a non-numeric playlist", async () => {
     const response = await viewRoute.GET(
       new Request("http://app/api/set-derivations/d1?playlist_id=abc"),
-      idParams()
+      idParams(),
     );
     expect(response.status).toBe(400);
   });
@@ -232,7 +239,10 @@ describe("GET /api/set-derivations/{id}", () => {
 describe("worker callbacks", () => {
   it("claim returns the run's status", async () => {
     derivationService.claim.mockResolvedValue({ id: "d1", status: "processing" });
-    const response = await claimRoute.POST(new Request("http://app", { method: "POST" }), idParams());
+    const response = await claimRoute.POST(
+      new Request("http://app", { method: "POST" }),
+      idParams(),
+    );
     expect(await response.json()).toEqual({ derivation_id: "d1", status: "processing" });
   });
 
@@ -263,24 +273,34 @@ describe("worker callbacks", () => {
   });
 
   it("result validates the body, and maps not-found and errors", async () => {
-    expect((await resultRoute.POST(new Request("http://app", json({ status: "meh" })), idParams())).status).toBe(400);
+    expect(
+      (await resultRoute.POST(new Request("http://app", json({ status: "meh" })), idParams()))
+        .status,
+    ).toBe(400);
     derivationService.report.mockRejectedValueOnce(new SetDerivationNotFound("derivation d1"));
-    expect((await resultRoute.POST(new Request("http://app", json(result)), idParams())).status).toBe(404);
+    expect(
+      (await resultRoute.POST(new Request("http://app", json(result)), idParams())).status,
+    ).toBe(404);
     derivationService.report.mockRejectedValueOnce(new Error("boom"));
-    expect((await resultRoute.POST(new Request("http://app", json(result)), idParams())).status).toBe(500);
+    expect(
+      (await resultRoute.POST(new Request("http://app", json(result)), idParams())).status,
+    ).toBe(500);
   });
 });
 
 describe("error fallbacks", () => {
   // A thrown non-Error, and an Error with no message, still produce a 500
   // with something to read.
-  const oddities = [["a thrown string", "boom"], ["an Error without a message", new Error("")]] as const;
+  const oddities = [
+    ["a thrown string", "boom"],
+    ["an Error without a message", new Error("")],
+  ] as const;
 
   it.each(oddities)("PUT recording answers 500 for %s", async (_label, thrown) => {
     recordingService.store.mockRejectedValue(thrown);
     const response = await recordingRoute.PUT(
       new Request("http://app", { method: "PUT", body: "x" }),
-      shaParams()
+      shaParams(),
     );
     expect(response.status).toBe(500);
     expect((await response.json()).message).toBeTruthy();
@@ -288,7 +308,9 @@ describe("error fallbacks", () => {
 
   it.each(oddities)("POST derivation answers 500 for %s", async (_label, thrown) => {
     derivationService.create.mockRejectedValue(thrown);
-    const response = await createRoute.POST(new Request("http://app", json({ recording_sha256: SHA })));
+    const response = await createRoute.POST(
+      new Request("http://app", json({ recording_sha256: SHA })),
+    );
     expect(response.status).toBe(500);
     expect((await response.json()).error).toBeTruthy();
   });
@@ -311,7 +333,7 @@ describe("error fallbacks", () => {
     derivationService.report.mockRejectedValue(thrown);
     const response = await resultRoute.POST(
       new Request("http://app", json({ status: "processed", windows: [] })),
-      idParams()
+      idParams(),
     );
     expect(response.status).toBe(500);
     expect((await response.json()).error).toBeTruthy();

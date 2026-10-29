@@ -65,32 +65,32 @@ def update_track_analysis(
         mood_relaxed = None
         mood_aggressive = None
 
-        if 'rhythm' in analysis_data and analysis_data['rhythm']:
-            rhythm = analysis_data['rhythm']
-            if 'bpm' in rhythm and isinstance(rhythm['bpm'], (int, float)):
-                bpm = int(round(rhythm['bpm']))
+        if "rhythm" in analysis_data and analysis_data["rhythm"]:
+            rhythm = analysis_data["rhythm"]
+            if "bpm" in rhythm and isinstance(rhythm["bpm"], (int, float)):
+                bpm = int(round(rhythm["bpm"]))
                 bpm_confidence = extract_bpm_confidence(rhythm)
-            if 'danceability' in rhythm and isinstance(rhythm['danceability'], (int, float)):
-                danceability = round(rhythm['danceability'], 3)
+            if "danceability" in rhythm and isinstance(rhythm["danceability"], (int, float)):
+                danceability = round(rhythm["danceability"], 3)
 
-        if 'tonal' in analysis_data and analysis_data['tonal']:
-            tonal = analysis_data['tonal']
+        if "tonal" in analysis_data and analysis_data["tonal"]:
+            tonal = analysis_data["tonal"]
             key, key_confidence = extract_key_analysis(tonal)
             log_key_profile_disagreement(tonal, track_id, friend_id)
 
-        if 'metadata' in analysis_data and analysis_data['metadata']:
-            metadata = analysis_data['metadata']
-            if 'audio_properties' in metadata and metadata['audio_properties']:
-                audio_props = metadata['audio_properties']
-                if 'length' in audio_props and isinstance(audio_props['length'], (int, float)):
-                    duration_seconds = int(round(audio_props['length']))
+        if "metadata" in analysis_data and analysis_data["metadata"]:
+            metadata = analysis_data["metadata"]
+            if "audio_properties" in metadata and metadata["audio_properties"]:
+                audio_props = metadata["audio_properties"]
+                if "length" in audio_props and isinstance(audio_props["length"], (int, float)):
+                    duration_seconds = int(round(audio_props["length"]))
 
-        if 'highlevel' in analysis_data and analysis_data['highlevel']:
-            highlevel = analysis_data['highlevel']
-            mood_happy = _extract_highlevel_mood(highlevel, 'mood_happy', 'happy')
-            mood_sad = _extract_highlevel_mood(highlevel, 'mood_sad', 'sad')
-            mood_relaxed = _extract_highlevel_mood(highlevel, 'mood_relaxed', 'relaxed')
-            mood_aggressive = _extract_highlevel_mood(highlevel, 'mood_aggressive', 'aggressive')
+        if "highlevel" in analysis_data and analysis_data["highlevel"]:
+            highlevel = analysis_data["highlevel"]
+            mood_happy = _extract_highlevel_mood(highlevel, "mood_happy", "happy")
+            mood_sad = _extract_highlevel_mood(highlevel, "mood_sad", "sad")
+            mood_relaxed = _extract_highlevel_mood(highlevel, "mood_relaxed", "relaxed")
+            mood_aggressive = _extract_highlevel_mood(highlevel, "mood_aggressive", "aggressive")
 
         body: TrackUpdate = {"track_id": track_id, "friend_id": friend_id}
         if bpm is not None:
@@ -132,7 +132,7 @@ def _extract_highlevel_mood(
     section_data = highlevel_data.get(section)
     if not isinstance(section_data, dict):
         return None
-    all_data = section_data.get('all')
+    all_data = section_data.get("all")
     if not isinstance(all_data, dict):
         return None
     value = all_data.get(key)
@@ -151,14 +151,12 @@ def analyze_audio_file(
     # the source file, which may be a worker-local /tmp download the app can't
     # see. Essentia has no access to the audio volume, so it fetches the WAV
     # from the app by filename; the file must therefore live under AUDIO_DIR.
-    audio_dir = os.getenv('AUDIO_DIR', '/app/audio')
-    wav_path = os.path.join(
-        audio_dir, os.path.splitext(os.path.basename(file_path))[0] + '.wav'
-    )
+    audio_dir = os.getenv("AUDIO_DIR", "/app/audio")
+    wav_path = os.path.join(audio_dir, os.path.splitext(os.path.basename(file_path))[0] + ".wav")
     try:
         # -vn drops any embedded cover-art/video stream, which otherwise
         # trips up the Essentia extractor on some files.
-        ffmpeg_cmd = ['ffmpeg', '-y', '-i', file_path, '-vn', '-ac', '1', wav_path]
+        ffmpeg_cmd = ["ffmpeg", "-y", "-i", file_path, "-vn", "-ac", "1", wav_path]
         result = run_subprocess(ffmpeg_cmd, timeout=120, log_sink=log_sink)
 
         if result.returncode != 0:
@@ -169,13 +167,13 @@ def analyze_audio_file(
 
         wav_filename = os.path.basename(wav_path)
         audio_url = f"http://app:3000/api/audio?filename={wav_filename}"
-        essentia_url = os.getenv('ESSENTIA_API_URL', 'http://essentia:8001/analyze')
+        essentia_url = os.getenv("ESSENTIA_API_URL", "http://essentia:8001/analyze")
 
         logger.info(f"Calling Essentia API: {essentia_url}")
         if log_sink is not None:
             log_sink.append(f"Calling Essentia: {essentia_url} with {wav_filename}")
 
-        response = requests.post(essentia_url, json={'filename': audio_url}, timeout=300)
+        response = requests.post(essentia_url, json={"filename": audio_url}, timeout=300)
         if not response.ok:
             raise Exception(f"Essentia API error: {response.status_code} {response.text}")
 
@@ -186,13 +184,11 @@ def analyze_audio_file(
         # is marked failed rather than silently storing nothing.
         if not isinstance(analysis_result, dict):
             raise Exception(f"Essentia returned unexpected payload: {analysis_result!r}")
-        if 'error' in analysis_result or 'detail' in analysis_result:
-            err = analysis_result.get('error') or analysis_result.get('detail')
+        if "error" in analysis_result or "detail" in analysis_result:
+            err = analysis_result.get("error") or analysis_result.get("detail")
             raise Exception(f"Essentia analysis error: {err}")
-        if not any(k in analysis_result for k in ('rhythm', 'tonal', 'metadata')):
-            raise Exception(
-                f"Essentia returned no analysis fields (keys: {sorted(analysis_result.keys())})"
-            )
+        if not any(k in analysis_result for k in ("rhythm", "tonal", "metadata")):
+            raise Exception(f"Essentia returned no analysis fields (keys: {sorted(analysis_result.keys())})")
 
         logger.info("Audio analysis completed successfully")
 

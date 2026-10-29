@@ -2,10 +2,7 @@ import { getRedisConnection } from "@/lib/redis";
 import { audioIngestRepository } from "@/server/repositories/audioIngestRepository";
 import { fingerprintRepository } from "@/server/repositories/fingerprintRepository";
 import { playDetectionRepository } from "@/server/repositories/playDetectionRepository";
-import {
-  ENGINE_KEY,
-  FingerprintIndexService,
-} from "@/server/services/fingerprintIndexService";
+import { ENGINE_KEY, FingerprintIndexService } from "@/server/services/fingerprintIndexService";
 import { FINGERPRINT_QUEUE_KEY } from "@/server/services/audioIngestService";
 import { ingestDirWritable } from "@/server/services/ingestSweeperService";
 import { ingestMetricsService } from "@/server/services/ingestMetricsService";
@@ -27,10 +24,7 @@ export class IngestDebugService {
   private redis = getRedisConnection();
   private indexService = new FingerprintIndexService();
 
-  async stats(
-    sinceMinutes = 60,
-    sourceId?: string
-  ): Promise<IngestPipelineStats> {
+  async stats(sinceMinutes = 60, sourceId?: string): Promise<IngestPipelineStats> {
     const since = new Date(Date.now() - sinceMinutes * 60_000);
 
     const [ingest, detections, engine, queueDepth, pendingSpins, counters] = await Promise.all([
@@ -82,9 +76,7 @@ export class IngestDebugService {
           ? {
               ingest_id: ingest.oldestInFlight.id,
               status: ingest.oldestInFlight.status,
-              received_at: new Date(
-                ingest.oldestInFlight.received_at
-              ).toISOString(),
+              received_at: new Date(ingest.oldestInFlight.received_at).toISOString(),
             }
           : null,
       },
@@ -135,16 +127,13 @@ export class IngestDebugService {
    * Reuses the exact grouping `aggregateSource` runs, so this is the true
    * count the next aggregation pass would create — not an approximation.
    */
-  private async pendingSpinCount(
-    since: Date,
-    sourceId?: string
-  ): Promise<number | null> {
+  private async pendingSpinCount(since: Date, sourceId?: string): Promise<number | null> {
     try {
       const sourceIds = sourceId
         ? [sourceId]
         : await playDetectionRepository.listActiveSourceIds(since);
       const counts = await Promise.all(
-        sourceIds.map((id) => playAggregationService.countPending(id, since))
+        sourceIds.map((id) => playAggregationService.countPending(id, since)),
       );
       return counts.reduce((sum, count) => sum + count, 0);
     } catch (error) {

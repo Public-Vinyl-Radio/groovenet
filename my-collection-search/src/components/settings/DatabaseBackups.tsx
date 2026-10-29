@@ -93,7 +93,11 @@ export default function DatabaseBackups() {
                     download
                     style={{ textDecoration: "none" }}
                   >
-                    <Button colorPalette="accent" size="xs" aria-label={`Download ${backup.filename}`}>
+                    <Button
+                      colorPalette="accent"
+                      size="xs"
+                      aria-label={`Download ${backup.filename}`}
+                    >
                       <FiDownload />
                     </Button>
                   </a>

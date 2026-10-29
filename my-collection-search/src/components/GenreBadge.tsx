@@ -33,7 +33,14 @@ export type GenreBadgeProps = {
  * taxonomy doesn't know — an unreconciled `local_tags` entry — stays plain
  * text, and an unreconciled track genre is drawn subtle so it reads as such.
  */
-export default function GenreBadge({ item, kind, scope, size = "sm", colorPalette, variant }: GenreBadgeProps) {
+export default function GenreBadge({
+  item,
+  kind,
+  scope,
+  size = "sm",
+  colorPalette,
+  variant,
+}: GenreBadgeProps) {
   if (!item.slug) {
     return (
       <Badge
@@ -143,7 +150,13 @@ export function GenreBadgeRow({
       >
         <GenreBadgeList items={mobileItems} {...badge} />
         {overflow > 0 && (
-          <Badge data-overflow="" size={size ?? "sm"} variant="subtle" colorPalette="neutral" flexShrink={0}>
+          <Badge
+            data-overflow=""
+            size={size ?? "sm"}
+            variant="subtle"
+            colorPalette="neutral"
+            flexShrink={0}
+          >
             +{overflow}
           </Badge>
         )}

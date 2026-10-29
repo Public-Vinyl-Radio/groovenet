@@ -7,17 +7,14 @@ it("debug: event dispatch state update", () => {
   const audio = document.createElement("audio") as any;
   audio.webkitCurrentPlaybackTargetIsWireless = false;
 
-  const { result } = renderHook(() =>
-    useAirPlay({ audioRef: { current: audio }, plVersion: 0 })
-  );
+  const { result } = renderHook(() => useAirPlay({ audioRef: { current: audio }, plVersion: 0 }));
 
   const before = result.current.isAirPlayAvailable;
 
   act(() => {
-    const ev = Object.assign(
-      new Event("webkitplaybacktargetavailabilitychanged"),
-      { availability: "available" }
-    );
+    const ev = Object.assign(new Event("webkitplaybacktargetavailabilitychanged"), {
+      availability: "available",
+    });
     audio.dispatchEvent(ev);
   });
 

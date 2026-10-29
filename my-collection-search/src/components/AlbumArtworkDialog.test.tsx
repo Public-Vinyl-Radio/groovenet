@@ -35,7 +35,13 @@ const baseState = {
 function renderDialog() {
   const onOpenChange = vi.fn();
   const rendered = renderWithProviders(
-    <AlbumArtworkDialog open onOpenChange={onOpenChange} releaseId="r1" friendId={7} albumTitle="Blue Lines" />
+    <AlbumArtworkDialog
+      open
+      onOpenChange={onOpenChange}
+      releaseId="r1"
+      friendId={7}
+      albumTitle="Blue Lines"
+    />,
   );
   return { ...rendered, onOpenChange };
 }
@@ -49,9 +55,11 @@ beforeEach(() => {
     artist: "Massive Attack",
     track_count: 1,
   } as Album);
-  useTrackStore.getState().setTracks([
-    { track_id: "t1", friend_id: 7, release_id: "r1", title: "Safe", artist: "MA" } as Track,
-  ]);
+  useTrackStore
+    .getState()
+    .setTracks([
+      { track_id: "t1", friend_id: 7, release_id: "r1", title: "Safe", artist: "MA" } as Track,
+    ]);
 });
 afterEach(() => vi.resetAllMocks());
 
@@ -87,13 +95,20 @@ describe("AlbumArtworkDialog", () => {
       album_art_source: "apple_music",
     });
     expect(useTrackStore.getState().getTrack("t1", 7)?.audio_file_album_art_url).toBe(
-      "/uploads/album-covers/apple.jpg"
+      "/uploads/album-covers/apple.jpg",
     );
-    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Apple Music artwork applied" }));
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Apple Music artwork applied" }),
+    );
   });
 
   it("goes back from a preview without applying", async () => {
-    api.previewAppleMusicArtwork.mockResolvedValue({ url: "/a.jpg", width: 10, height: 10, track_id: "t1" });
+    api.previewAppleMusicArtwork.mockResolvedValue({
+      url: "/a.jpg",
+      width: 10,
+      height: 10,
+      track_id: "t1",
+    });
     const { user } = renderDialog();
 
     await user.click(await screen.findByRole("button", { name: /Preview Apple Music art/ }));
@@ -104,15 +119,17 @@ describe("AlbumArtworkDialog", () => {
   });
 
   it("reports when there is no Apple Music art", async () => {
-    api.previewAppleMusicArtwork.mockRejectedValue(new Error("No downloaded track on this album has embedded cover art"));
+    api.previewAppleMusicArtwork.mockRejectedValue(
+      new Error("No downloaded track on this album has embedded cover art"),
+    );
     const { user } = renderDialog();
 
     await user.click(await screen.findByRole("button", { name: /Preview Apple Music art/ }));
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "No Apple Music artwork", type: "error" })
-      )
+        expect.objectContaining({ title: "No Apple Music artwork", type: "error" }),
+      ),
     );
   });
 
@@ -135,7 +152,9 @@ describe("AlbumArtworkDialog", () => {
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(api.applyAlbumArtwork).toHaveBeenCalledWith("r1", 7, "discogs");
-    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Discogs artwork restored" }));
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Discogs artwork restored" }),
+    );
   });
 
   it("reports a failed restore", async () => {
@@ -149,8 +168,8 @@ describe("AlbumArtworkDialog", () => {
         expect.objectContaining({
           title: "Could not restore Discogs artwork",
           description: "Could not download artwork: HTTP 404",
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -165,12 +184,18 @@ describe("AlbumArtworkDialog", () => {
     const preview = await screen.findByRole("button", { name: /Preview Apple Music art/ });
     expect((preview as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText("Needs a downloaded track with embedded artwork.")).toBeTruthy();
-    expect((screen.getByRole("button", { name: /Restore Discogs art/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: /Restore Discogs art/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     expect(screen.getByText("Discogs")).toBeTruthy();
   });
 
   it("hides restore when there is no Discogs art, and shows no image without art", async () => {
-    api.fetchAlbumArtwork.mockResolvedValue({ ...baseState, current_url: null, discogs_art_url: null });
+    api.fetchAlbumArtwork.mockResolvedValue({
+      ...baseState,
+      current_url: null,
+      discogs_art_url: null,
+    });
     renderDialog();
 
     await screen.findByRole("button", { name: /Upload image/ });
@@ -206,14 +231,14 @@ describe("AlbumArtworkDialog", () => {
     await user.click(await screen.findByRole("button", { name: /Upload image/ }));
     await user.upload(
       document.querySelector('input[type="file"]') as HTMLInputElement,
-      new File(["img"], "c.png", { type: "image/png" })
+      new File(["img"], "c.png", { type: "image/png" }),
     );
     await user.click(screen.getByRole("button", { name: "Use this image" }));
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Upload failed", description: "disk full" })
-      )
+        expect.objectContaining({ title: "Upload failed", description: "disk full" }),
+      ),
     );
   });
 
@@ -250,8 +275,13 @@ describe("AlbumArtworkDialog", () => {
     await user.click(await screen.findByRole("button", { name: /Restore Discogs art/ }));
 
     await waitFor(() =>
-      expect((screen.getByRole("button", { name: /Upload image/ }) as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole("button", { name: /Upload image/ }) as HTMLButtonElement).disabled,
+      ).toBe(true),
     );
-    expect((screen.getByRole("button", { name: /Preview Apple Music art/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: /Preview Apple Music art/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 });

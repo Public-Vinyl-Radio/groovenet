@@ -30,10 +30,7 @@ export type ListRecordActionsFilters = {
 };
 
 export class RecordActionRepository {
-  async insertAction(
-    client: Queryable,
-    input: CreateRecordActionInput
-  ): Promise<RecordActionRow> {
+  async insertAction(client: Queryable, input: CreateRecordActionInput): Promise<RecordActionRow> {
     const { rows } = await client.query<RecordActionRow>(
       `
       INSERT INTO record_actions (
@@ -50,7 +47,7 @@ export class RecordActionRepository {
         input.notes ?? null,
         input.sleeve_type ?? null,
         JSON.stringify(input.details ?? {}),
-      ]
+      ],
     );
     return rows[0];
   }
@@ -77,7 +74,7 @@ export class RecordActionRepository {
       ORDER BY occurred_at DESC, id DESC
       LIMIT ${limitRef} OFFSET ${offsetRef}
       `,
-      params
+      params,
     );
     return rows;
   }
@@ -86,11 +83,11 @@ export class RecordActionRepository {
   async findAction(
     client: Queryable,
     actionId: number,
-    friendId: number
+    friendId: number,
   ): Promise<RecordActionRow | null> {
     const { rows } = await client.query<RecordActionRow>(
       "SELECT * FROM record_actions WHERE id = $1 AND friend_id = $2",
-      [actionId, friendId]
+      [actionId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -100,7 +97,7 @@ export class RecordActionRepository {
     const { rows } = await client.query<RecordActionRow>(
       `UPDATE record_actions SET voided_at = COALESCE(voided_at, NOW())
        WHERE id = $1 RETURNING *`,
-      [actionId]
+      [actionId],
     );
     return rows[0];
   }

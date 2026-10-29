@@ -28,9 +28,7 @@ let friendId = 0;
 
 async function cleanup() {
   // Copies and actions cascade from the friend.
-  await dbQuery(`DELETE FROM albums WHERE release_id = ANY($1::text[])`, [
-    Object.values(RELEASES),
-  ]);
+  await dbQuery(`DELETE FROM albums WHERE release_id = ANY($1::text[])`, [Object.values(RELEASES)]);
   await dbQuery(`DELETE FROM friends WHERE username = $1`, [USERNAME]);
 }
 
@@ -42,13 +40,13 @@ beforeAll(async () => {
 
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   for (const [key, releaseId] of Object.entries(RELEASES)) {
     await dbQuery(
       `INSERT INTO albums (release_id, friend_id, title, artist) VALUES ($1, $2, $3, 'Artist')`,
-      [releaseId, friendId, `Album ${key}`]
+      [releaseId, friendId, `Album ${key}`],
     );
   }
 });
@@ -68,8 +66,8 @@ describe("default copies", () => {
           release_id: RELEASES.race,
           action_type: "cleaned",
           occurred_at: `2026-0${i + 1}-01T00:00:00Z`,
-        })
-      )
+        }),
+      ),
     );
 
     const copies = await service.listCopies(friendId, RELEASES.race);
@@ -132,87 +130,94 @@ describe("cached care state", () => {
   dbTest("the database refuses what the API would never send", async () => {
     const { rows } = await dbQuery<{ id: number }>(
       `SELECT id FROM record_copies WHERE friend_id = $1 AND release_id = $2`,
-      [friendId, RELEASES.history]
+      [friendId, RELEASES.history],
     );
     const copyId = rows[0].id;
     const insert = (actionType: string, sleeve: string | null) =>
       dbQuery(
         `INSERT INTO record_actions (copy_id, friend_id, action_type, occurred_at, sleeve_type)
          VALUES ($1, $2, $3, NOW(), $4)`,
-        [copyId, friendId, actionType, sleeve]
+        [copyId, friendId, actionType, sleeve],
       );
 
     await expect(insert("sleeved", null)).rejects.toThrow(/record_actions_sleeve_payload_check/);
     await expect(insert("cleaned", "paper")).rejects.toThrow(/record_actions_sleeve_payload_check/);
-    await expect(insert("sleeved", "rice-paper")).rejects.toThrow(/record_actions_sleeve_type_check/);
+    await expect(insert("sleeved", "rice-paper")).rejects.toThrow(
+      /record_actions_sleeve_type_check/,
+    );
     await expect(insert("played", null)).rejects.toThrow(/record_actions_action_type_check/);
     await expect(
-      dbQuery(`UPDATE record_copies SET inner_sleeve_type = 'vinyl' WHERE id = $1`, [copyId])
+      dbQuery(`UPDATE record_copies SET inner_sleeve_type = 'vinyl' WHERE id = $1`, [copyId]),
     ).rejects.toThrow(/record_copies_inner_sleeve_type_check/);
   });
 });
 
 describe("copies", () => {
-  dbTest("adding a copy means one more; the default goes last; deleting keeps history", async () => {
-    // Untouched, the release lists its implicit default copy.
-    const [implicit] = await service.listCopies(friendId, RELEASES.copies);
-    expect(implicit).toMatchObject({ id: null, is_default: true });
+  dbTest(
+    "adding a copy means one more; the default goes last; deleting keeps history",
+    async () => {
+      // Untouched, the release lists its implicit default copy.
+      const [implicit] = await service.listCopies(friendId, RELEASES.copies);
+      expect(implicit).toMatchObject({ id: null, is_default: true });
 
-    // Adding a copy makes the implicit one real first: two copies, not one.
-    const second = await service.createCopy({
-      friend_id: friendId,
-      release_id: RELEASES.copies,
-      label: "Copy 2",
-    });
-    expect(second.is_default).toBe(false);
-    const listed = await service.listCopies(friendId, RELEASES.copies);
-    expect(listed.map((c) => [c.is_default, c.label])).toEqual([
-      [true, null],
-      [false, "Copy 2"],
-    ]);
+      // Adding a copy makes the implicit one real first: two copies, not one.
+      const second = await service.createCopy({
+        friend_id: friendId,
+        release_id: RELEASES.copies,
+        label: "Copy 2",
+      });
+      expect(second.is_default).toBe(false);
+      const listed = await service.listCopies(friendId, RELEASES.copies);
+      expect(listed.map((c) => [c.is_default, c.label])).toEqual([
+        [true, null],
+        [false, "Copy 2"],
+      ]);
 
-    // The default is labelled by release, and is the same row.
-    const first = await service.updateDefaultCopy(friendId, RELEASES.copies, {
-      label: "DJ copy",
-    });
-    expect(first.id).toBe(listed[0].id);
-    expect(first.label).toBe("DJ copy");
+      // The default is labelled by release, and is the same row.
+      const first = await service.updateDefaultCopy(friendId, RELEASES.copies, {
+        label: "DJ copy",
+      });
+      expect(first.id).toBe(listed[0].id);
+      expect(first.label).toBe("DJ copy");
 
-    // Release-level actions land on the default, not on the newer copy.
-    const logged = await service.logAction({
-      friend_id: friendId,
-      release_id: RELEASES.copies,
-      action_type: "inspected",
-    });
-    expect(logged.copy.id).toBe(first.id);
-    await service.logAction({
-      friend_id: friendId,
-      copy_id: second.id,
-      action_type: "repaired",
-      notes: "Flattened",
-    });
+      // Release-level actions land on the default, not on the newer copy.
+      const logged = await service.logAction({
+        friend_id: friendId,
+        release_id: RELEASES.copies,
+        action_type: "inspected",
+      });
+      expect(logged.copy.id).toBe(first.id);
+      await service.logAction({
+        friend_id: friendId,
+        copy_id: second.id,
+        action_type: "repaired",
+        notes: "Flattened",
+      });
 
-    await expect(service.deleteCopy(first.id, friendId)).rejects.toThrow(/default copy/);
-    const deleted = await service.deleteCopy(second.id, friendId);
-    expect(deleted?.deleted_at).not.toBeNull();
-    expect(await service.listCopies(friendId, RELEASES.copies)).toHaveLength(1);
-    await expect(
-      service.logAction({ friend_id: friendId, copy_id: second.id, action_type: "cleaned" })
-    ).rejects.toThrow("Record copy not found");
-    expect(await service.listActions({ copy_id: second.id, friend_id: friendId })).toHaveLength(1);
+      await expect(service.deleteCopy(first.id, friendId)).rejects.toThrow(/default copy/);
+      const deleted = await service.deleteCopy(second.id, friendId);
+      expect(deleted?.deleted_at).not.toBeNull();
+      expect(await service.listCopies(friendId, RELEASES.copies)).toHaveLength(1);
+      await expect(
+        service.logAction({ friend_id: friendId, copy_id: second.id, action_type: "cleaned" }),
+      ).rejects.toThrow("Record copy not found");
+      expect(await service.listActions({ copy_id: second.id, friend_id: friendId })).toHaveLength(
+        1,
+      );
 
-    // With the extra gone, the default can go too: the release is back to an
-    // implicit copy, and a later action makes a new one.
-    await service.deleteCopy(first.id, friendId);
-    expect((await service.listCopies(friendId, RELEASES.copies))[0].id).toBeNull();
-    const fresh = await service.logAction({
-      friend_id: friendId,
-      release_id: RELEASES.copies,
-      action_type: "inspected",
-    });
-    expect(fresh.copy.id).not.toBe(first.id);
-    expect(fresh.copy.is_default).toBe(true);
-  });
+      // With the extra gone, the default can go too: the release is back to an
+      // implicit copy, and a later action makes a new one.
+      await service.deleteCopy(first.id, friendId);
+      expect((await service.listCopies(friendId, RELEASES.copies))[0].id).toBeNull();
+      const fresh = await service.logAction({
+        friend_id: friendId,
+        release_id: RELEASES.copies,
+        action_type: "inspected",
+      });
+      expect(fresh.copy.id).not.toBe(first.id);
+      expect(fresh.copy.is_default).toBe(true);
+    },
+  );
 
   dbTest("another friend cannot see or touch the copies", async () => {
     const [copy] = await service.listCopies(friendId, RELEASES.copies);
@@ -286,7 +291,11 @@ describe("care views", () => {
 
     const paper = await service.listCare({ friend_id: friendId, sleeve_type: "paper" });
     expect(releaseIds(paper.items)).toEqual([RELEASES.history]);
-    const unknown = await service.listCare({ friend_id: friendId, sleeve_type: "unknown", limit: 500 });
+    const unknown = await service.listCare({
+      friend_id: friendId,
+      sleeve_type: "unknown",
+      limit: 500,
+    });
     expect(releaseIds(unknown.items)).toContain(RELEASES.untouched);
   });
 

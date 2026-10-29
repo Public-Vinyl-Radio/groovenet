@@ -32,10 +32,7 @@ function getDistanceLabel(distance: number): string {
   return "Distant";
 }
 
-export default function SimilarVibeTracks({
-  track,
-  limit = 50,
-}: SimilarVibeTracksProps) {
+export default function SimilarVibeTracks({ track, limit = 50 }: SimilarVibeTracksProps) {
   const { data, isLoading, error } = useSimilarVibeTracks({
     track_id: track.track_id,
     friend_id: track.friend_id,
@@ -62,8 +59,8 @@ export default function SimilarVibeTracks({
         </Text>
         {String(error).includes("no audio vibe embedding") && (
           <Text fontSize="sm" mt={2} color="fg.muted">
-            This track does not have an audio vibe embedding yet. Run the
-            backfill command to generate embeddings.
+            This track does not have an audio vibe embedding yet. Run the backfill command to
+            generate embeddings.
           </Text>
         )}
       </Box>
@@ -97,16 +94,11 @@ export default function SimilarVibeTracks({
           const trackWithArtwork = {
             ...similarTrack,
             album_thumbnail:
-              similarTrack.album_thumbnail ||
-              similarTrack.audio_file_album_art_url ||
-              undefined,
+              similarTrack.album_thumbnail || similarTrack.audio_file_album_art_url || undefined,
           };
 
           return (
-            <Box
-              key={`${similarTrack.track_id}-${similarTrack.friend_id}`}
-              mb={2}
-            >
+            <Box key={`${similarTrack.track_id}-${similarTrack.friend_id}`} mb={2}>
               <TrackResult
                 track={trackWithArtwork}
                 showUsername={true}
@@ -145,9 +137,9 @@ export default function SimilarVibeTracks({
           🎵 About Similar Vibe Tracks
         </Text>
         <Text fontSize="sm" color="fg.muted">
-          Tracks are ranked by audio vibe similarity based on BPM, key, energy,
-          mood, danceability, acoustic/electronic balance, vocal presence, and
-          percussiveness. Lower distance = more similar sound and feel.
+          Tracks are ranked by audio vibe similarity based on BPM, key, energy, mood, danceability,
+          acoustic/electronic balance, vocal presence, and percussiveness. Lower distance = more
+          similar sound and feel.
         </Text>
       </Box>
     </Box>

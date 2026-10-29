@@ -45,7 +45,14 @@ const item = (n: number, extra: Record<string, unknown> = {}) => ({
 });
 
 function careResponse(items: unknown[], total = items.length, offset = 0) {
-  return { items, total, limit: 50, offset, overdue_days: 365, needs_sleeve_type: "poly-rice-paper-poly" };
+  return {
+    items,
+    total,
+    limit: 50,
+    offset,
+    overdue_days: 365,
+    needs_sleeve_type: "poly-rice-paper-poly",
+  };
 }
 
 const lastCareParams = () => api.listRecordCare.mock.calls.at(-1)?.[0];
@@ -54,7 +61,10 @@ beforeEach(() => {
   username.current = { friend: { id: 7 }, isHydrated: true };
   api.getRecordCareSummary.mockResolvedValue(summary);
   api.listRecordCare.mockResolvedValue(
-    careResponse([item(1, { label: "DJ copy", album_thumbnail: "/a.jpg" }), item(2, { copy_id: null, is_default: true })])
+    careResponse([
+      item(1, { label: "DJ copy", album_thumbnail: "/a.jpg" }),
+      item(2, { copy_id: null, is_default: true }),
+    ]),
   );
   api.listRecordCopies.mockResolvedValue({ items: [], overdue_days: 365 });
   api.createRecordAction.mockResolvedValue({});
@@ -64,7 +74,11 @@ afterEach(() => vi.resetAllMocks());
 describe("chore layout", () => {
   it("titles the page and renders its children", () => {
     expect(metadata.title).toBe("Chores");
-    renderWithProviders(<ChoreLayout><p>child</p></ChoreLayout>);
+    renderWithProviders(
+      <ChoreLayout>
+        <p>child</p>
+      </ChoreLayout>,
+    );
     expect(screen.getByText("child")).toBeTruthy();
   });
 });
@@ -90,11 +104,16 @@ describe("ChorePage", () => {
 
     expect(await screen.findByRole("link", { name: "Album 1" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Album 1" }).getAttribute("href")).toBe(
-      "/albums/rel-1?friend_id=7"
+      "/albums/rel-1?friend_id=7",
     );
     expect(screen.getByText("DJ copy")).toBeTruthy();
     expect(screen.getAllByText("Never cleaned").length).toBeGreaterThan(1);
-    expect(lastCareParams()).toEqual({ friend_id: 7, status: "never_cleaned", limit: 50, offset: 0 });
+    expect(lastCareParams()).toEqual({
+      friend_id: 7,
+      status: "never_cleaned",
+      limit: 50,
+      offset: 0,
+    });
   });
 
   it("switches chore from the counts", async () => {
@@ -102,8 +121,12 @@ describe("ChorePage", () => {
 
     await user.click(await screen.findByRole("button", { name: /Needs a sleeve/ }));
 
-    await waitFor(() => expect(lastCareParams()).toMatchObject({ status: "needs_sleeve", offset: 0 }));
-    expect(await screen.findByRole("button", { name: "Log sleeve change for Album 1" })).toBeTruthy();
+    await waitFor(() =>
+      expect(lastCareParams()).toMatchObject({ status: "needs_sleeve", offset: 0 }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Log sleeve change for Album 1" }),
+    ).toBeTruthy();
   });
 
   it("logs the chore's action against the row's copy", async () => {
@@ -115,8 +138,8 @@ describe("ChorePage", () => {
     // Album 2's copy is its implicit default, so it is logged by release.
     await waitFor(() =>
       expect(api.createRecordAction).toHaveBeenCalledWith(
-        expect.objectContaining({ release_id: "rel-2", action_type: "cleaned" })
-      )
+        expect.objectContaining({ release_id: "rel-2", action_type: "cleaned" }),
+      ),
     );
     await waitFor(() => expect(screen.queryByText("Log Record Care")).toBeNull());
   });
@@ -127,13 +150,19 @@ describe("ChorePage", () => {
       Promise.resolve(
         offset === 0
           ? careResponse(page, 60)
-          : careResponse(Array.from({ length: 10 }, (_, i) => item(i + 51)), 60, offset)
-      )
+          : careResponse(
+              Array.from({ length: 10 }, (_, i) => item(i + 51)),
+              60,
+              offset,
+            ),
+      ),
     );
     const { user } = renderWithProviders(<ChorePage />);
 
     expect(await screen.findByText("1–50 of 60")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Previous" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Previous" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     await user.click(screen.getByRole("button", { name: "Next" }));
     expect(await screen.findByText("51–60 of 60")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);

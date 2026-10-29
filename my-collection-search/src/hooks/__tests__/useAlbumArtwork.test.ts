@@ -15,7 +15,12 @@ describe("syncArtworkIntoStores", () => {
       audio_file_album_art_url: "/uploads/album-covers/old.jpg",
     } as Album);
     useTrackStore.getState().setTracks([
-      { track_id: "t1", friend_id: 7, release_id: "r1", audio_file_album_art_url: "/old.jpg" } as Track,
+      {
+        track_id: "t1",
+        friend_id: 7,
+        release_id: "r1",
+        audio_file_album_art_url: "/old.jpg",
+      } as Track,
     ]);
 
     syncArtworkIntoStores({

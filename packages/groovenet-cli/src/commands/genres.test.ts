@@ -39,10 +39,16 @@ const strip = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, "");
 
 const similar: GenreSimilarResponse = {
   genre: { id: "cumbia-id", name: "Cumbia", slug: "cumbia", track_count: 412 },
-  related: [{
-    id: "salsa-id", name: "Salsa", slug: "salsa", track_count: 253,
-    score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
-  }],
+  related: [
+    {
+      id: "salsa-id",
+      name: "Salsa",
+      slug: "salsa",
+      track_count: 253,
+      score: 1.42,
+      signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+    },
+  ],
 };
 
 function run(overrides: Partial<GenreReconciliationRun> = {}): GenreReconciliationRun {
@@ -72,7 +78,10 @@ function run(overrides: Partial<GenreReconciliationRun> = {}): GenreReconciliati
 const coverage: GenreReconciliationCoverage = {
   tracks: { with_local_tags: 10, with_genres: 4, descriptors_only: 1, no_genre: 1, unresolved: 4 },
   values: {
-    distinct: 8, proposed: 6, exact: 2, exact_share: 0.25,
+    distinct: 8,
+    proposed: 6,
+    exact: 2,
+    exact_share: 0.25,
     by_status: { pending: 3, accepted: 2, rejected: 0, edited: 1 },
     by_action: { map: 4, new_genre: 1, descriptor: 1, drop: 0 },
   },
@@ -124,7 +133,11 @@ describe("toRequest()", () => {
     expect(toRequest({})).toEqual({});
     expect(toRequest({ ai: true })).toEqual({});
     expect(toRequest({ ai: false, newGenreMinTracks: 3, limit: 50, refresh: true }, 6)).toEqual({
-      ai: false, new_genre_min_tracks: 3, limit: 50, refresh: true, friend_id: 6,
+      ai: false,
+      new_genre_min_tracks: 3,
+      limit: 50,
+      refresh: true,
+      friend_id: 6,
     });
   });
 });
@@ -147,16 +160,25 @@ describe("resolveFriendId()", () => {
 describe("formatting", () => {
   it("shows AI progress against the values actually sent", () => {
     expect(formatRunProgress(run({ ai_proposed: 30, ai_failed: 5, cost_usd: 0.0123 }))).toBe(
-      "  mapping  35/70 values  $0.0123"
+      "  mapping  35/70 values  $0.0123",
     );
     expect(formatRunProgress(run({ distinct_values: 1, exact_matches: 5 }))).toContain("0/0");
   });
 
   it("summarises a run, including unsent values, cost and errors", () => {
-    const lines = formatRunSummary(run({
-      status: "completed", ai_proposed: 60, ai_failed: 2, ai_pending: 8, ai_batches: 2,
-      input_tokens: 1000, output_tokens: 500, cost_usd: 0.5, error: "Model output incomplete",
-    })).map(strip);
+    const lines = formatRunSummary(
+      run({
+        status: "completed",
+        ai_proposed: 60,
+        ai_failed: 2,
+        ai_pending: 8,
+        ai_batches: 2,
+        input_tokens: 1000,
+        output_tokens: 500,
+        cost_usd: 0.5,
+        error: "Model output incomplete",
+      }),
+    ).map(strip);
     expect(lines).toEqual([
       "  100 distinct values",
       "  = 20 exact matches",
@@ -180,21 +202,41 @@ describe("formatting", () => {
     expect(strip(formatCoverage(coverage, 6)[0])).toBe("Coverage — friend 6");
     expect(lines[1]).toBe("  exact matches  2/8 values (25.0%)");
     expect(lines[2]).toBe("  proposals      3 pending, 2 accepted, 1 edited, 0 rejected");
-    expect(lines[3]).toContain("4 with genres, 1 descriptors only, 1 no genre, 4 unresolved — of 10");
+    expect(lines[3]).toContain(
+      "4 with genres, 1 descriptors only, 1 no genre, 4 unresolved — of 10",
+    );
   });
 
   it("describes each kind of proposal", () => {
     expect(strip(describeProposal(proposal()))).toBe("Cumbia (Latin)");
-    expect(strip(describeProposal(proposal({ target_genres: [{ id: "g", name: "Latin", parent_name: null }] })))).toBe("Latin");
+    expect(
+      strip(
+        describeProposal(
+          proposal({ target_genres: [{ id: "g", name: "Latin", parent_name: null }] }),
+        ),
+      ),
+    ).toBe("Latin");
     expect(strip(describeProposal(proposal({ target_genres: [] })))).toBe("(targets gone)");
-    expect(strip(describeProposal(proposal({ action: "new_genre", proposed_genre_name: "Chicha", proposed_parent_name: "Cumbia" })))).toBe("new: Chicha under Cumbia");
+    expect(
+      strip(
+        describeProposal(
+          proposal({
+            action: "new_genre",
+            proposed_genre_name: "Chicha",
+            proposed_parent_name: "Cumbia",
+          }),
+        ),
+      ),
+    ).toBe("new: Chicha under Cumbia");
     expect(strip(describeProposal(proposal({ action: "new_genre" })))).toBe("new: ? under ?");
     expect(strip(describeProposal(proposal({ action: "descriptor" })))).toBe("descriptor");
     expect(strip(describeProposal(proposal({ action: "drop" })))).toBe("drop");
   });
 
   it("renders a page of proposals, or says there are none", () => {
-    const table = strip(renderProposals([proposal(), proposal({ id: "p-2", confidence: null })], 40, 10));
+    const table = strip(
+      renderProposals([proposal(), proposal({ id: "p-2", confidence: null })], 40, 10),
+    );
     expect(table).toContain("psychedelic cumbia");
     expect(table).toContain("0.90");
     expect(table).toContain("11-12 of 40");
@@ -205,7 +247,8 @@ describe("formatting", () => {
 describe("waitForReconciliation()", () => {
   it("polls until the run leaves running", async () => {
     vi.useFakeTimers();
-    const getGenreReconciliationRun = vi.fn()
+    const getGenreReconciliationRun = vi
+      .fn()
       .mockResolvedValueOnce(run())
       .mockResolvedValueOnce(run({ status: "completed" }));
     const seen: string[] = [];
@@ -223,9 +266,9 @@ describe("waitForReconciliation()", () => {
 describe("runReconcile()", () => {
   const client = () => ({
     startGenreReconciliation: vi.fn().mockResolvedValue(run()),
-    getGenreReconciliationRun: vi.fn().mockResolvedValue(
-      run({ status: "completed", ai_batches: 1, ai_proposed: 70 })
-    ),
+    getGenreReconciliationRun: vi
+      .fn()
+      .mockResolvedValue(run({ status: "completed", ai_batches: 1, ai_proposed: 70 })),
     getGenreReconciliationCoverage: vi.fn().mockResolvedValue(coverage),
   });
 
@@ -288,7 +331,14 @@ describe("runProposals() and runCoverage()", () => {
   });
 });
 
-const applied = { proposals_applied: 1, tracks_linked: 2, descriptors_added: 0, aliases_added: 0, genres_created: 0, skipped: [] };
+const applied = {
+  proposals_applied: 1,
+  tracks_linked: 2,
+  descriptors_added: 0,
+  aliases_added: 0,
+  genres_created: 0,
+  skipped: [],
+};
 
 describe("runApply()", () => {
   it("asks first, and applies to the resolved friend on y", async () => {
@@ -297,7 +347,9 @@ describe("runApply()", () => {
     const readKey = vi.fn().mockResolvedValue("y");
     const out = captureIO();
     await expect(runApply({ applyGenreProposals }, {}, readKey, true, out)).resolves.toBe(0);
-    expect(readKey).toHaveBeenCalledWith("Apply all approved proposals to friend 6's tracks? [y/N] ");
+    expect(readKey).toHaveBeenCalledWith(
+      "Apply all approved proposals to friend 6's tracks? [y/N] ",
+    );
     expect(applyGenreProposals).toHaveBeenCalledWith(undefined, 6);
     expect(out.lines[0]).toContain("1 proposals applied");
   });
@@ -305,16 +357,30 @@ describe("runApply()", () => {
   it("applies nothing on any other answer", async () => {
     const applyGenreProposals = vi.fn();
     const out = captureIO();
-    await runApply({ applyGenreProposals }, { allFriends: true }, vi.fn().mockResolvedValue("n"), true, out);
+    await runApply(
+      { applyGenreProposals },
+      { allFriends: true },
+      vi.fn().mockResolvedValue("n"),
+      true,
+      out,
+    );
     expect(applyGenreProposals).not.toHaveBeenCalled();
     expect(out.lines).toEqual(["Nothing applied."]);
   });
 
   it("needs --yes without a terminal, and prints JSON when asked", async () => {
     const applyGenreProposals = vi.fn().mockResolvedValue(applied);
-    await expect(runApply({ applyGenreProposals }, {}, vi.fn(), false)).rejects.toThrow("pass --yes");
+    await expect(runApply({ applyGenreProposals }, {}, vi.fn(), false)).rejects.toThrow(
+      "pass --yes",
+    );
     const out = captureIO();
-    await runApply({ applyGenreProposals }, { yes: true, json: true, friendId: 2 }, vi.fn(), false, out);
+    await runApply(
+      { applyGenreProposals },
+      { yes: true, json: true, friendId: 2 },
+      vi.fn(),
+      false,
+      out,
+    );
     expect(applyGenreProposals).toHaveBeenCalledWith(undefined, 2);
     expect(JSON.parse(out.written)).toEqual(applied);
   });
@@ -331,8 +397,15 @@ describe("runReviewCommand()", () => {
       listGenreProposals: vi.fn().mockResolvedValue({ proposals: [], total: 0 }),
     };
     const out = captureIO();
-    await expect(runReviewCommand(client as never, { minTracks: 3 }, true, vi.fn(), vi.fn(), out)).resolves.toBe(0);
-    expect(client.listGenreProposals).toHaveBeenCalledWith({ status: "pending", min_tracks: 3, limit: 500, offset: 0 });
+    await expect(
+      runReviewCommand(client as never, { minTracks: 3 }, true, vi.fn(), vi.fn(), out),
+    ).resolves.toBe(0);
+    expect(client.listGenreProposals).toHaveBeenCalledWith({
+      status: "pending",
+      min_tracks: 3,
+      limit: 500,
+      offset: 0,
+    });
     expect(out.lines).toContain("No pending proposals to review.");
   });
 });
@@ -340,7 +413,19 @@ describe("runReviewCommand()", () => {
 describe("similar genres", () => {
   it("renders genre, slug, score, and all signals", () => {
     const rendered = strip(renderSimilarGenres(similar));
-    for (const text of ["Similar genres for Cumbia", "Genre", "Slug", "Score", "Signals", "Salsa", "salsa", "1.42", "sibling", "NPMI 0.42", "7 shared albums"]) {
+    for (const text of [
+      "Similar genres for Cumbia",
+      "Genre",
+      "Slug",
+      "Score",
+      "Signals",
+      "Salsa",
+      "salsa",
+      "1.42",
+      "sibling",
+      "NPMI 0.42",
+      "7 shared albums",
+    ]) {
       expect(rendered).toContain(text);
     }
   });
@@ -359,7 +444,16 @@ describe("similar genres", () => {
       ],
     };
     const rendered = strip(renderSimilarGenres(result));
-    for (const text of ["0.00", "NPMI 0.00", "0 shared albums", "NPMI -0.25", "parent", "child", "Porro", "No signals"]) {
+    for (const text of [
+      "0.00",
+      "NPMI 0.00",
+      "0 shared albums",
+      "NPMI -0.25",
+      "parent",
+      "child",
+      "Porro",
+      "No signals",
+    ]) {
       expect(rendered).toContain(text);
     }
     expect(rendered).toMatch(/Porro\s+│ porro\s+│ -\s+│ -/);
@@ -367,7 +461,9 @@ describe("similar genres", () => {
   });
 
   it("handles empty results", () => {
-    expect(renderSimilarGenres({ ...similar, related: [] })).toBe("No similar genres found for Cumbia.");
+    expect(renderSimilarGenres({ ...similar, related: [] })).toBe(
+      "No similar genres found for Cumbia.",
+    );
   });
 
   it("prints a table and passes the slug and limit to the client", async () => {
@@ -390,8 +486,12 @@ describe("similar genres", () => {
   });
 
   it("propagates API errors", async () => {
-    const client = { getSimilarGenres: vi.fn().mockRejectedValue(new Error("Unknown genre: polka")) };
-    await expect(runSimilarGenres(client, "polka", {}, captureIO())).rejects.toThrow("Unknown genre: polka");
+    const client = {
+      getSimilarGenres: vi.fn().mockRejectedValue(new Error("Unknown genre: polka")),
+    };
+    await expect(runSimilarGenres(client, "polka", {}, captureIO())).rejects.toThrow(
+      "Unknown genre: polka",
+    );
   });
 });
 
@@ -456,13 +556,27 @@ describe("addGenresCommands()", () => {
     const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
     await parse("similar", "polka");
     expect(exit).toHaveBeenCalledWith(1);
-    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("Unknown genre: polka"));
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("Unknown genre: polka"),
+    );
   });
 
   it("reconcile passes its flags through", async () => {
-    await parse("reconcile", "--no-ai", "--new-genre-min-tracks", "3", "--limit", "20", "--refresh", "--no-wait");
+    await parse(
+      "reconcile",
+      "--no-ai",
+      "--new-genre-min-tracks",
+      "3",
+      "--limit",
+      "20",
+      "--refresh",
+      "--no-wait",
+    );
     expect(methods.startGenreReconciliation).toHaveBeenCalledWith({
-      ai: false, new_genre_min_tracks: 3, limit: 20, refresh: true,
+      ai: false,
+      new_genre_min_tracks: 3,
+      limit: 20,
+      refresh: true,
     });
     expect(process.exitCode).toBe(0);
   });
@@ -470,14 +584,27 @@ describe("addGenresCommands()", () => {
   it("proposals validates its filters and defaults the page", async () => {
     await parse("proposals", "--status", "accepted", "--method", "exact", "--action", "map");
     expect(methods.listGenreProposals).toHaveBeenCalledWith({
-      status: "accepted", method: "exact", action: "map", limit: 50, offset: 0,
+      status: "accepted",
+      method: "exact",
+      action: "map",
+      limit: 50,
+      offset: 0,
     });
     await expect(parse("proposals", "--status", "done")).rejects.toThrow(/expected one of/);
   });
 
   it("review and apply refuse to run without a terminal", async () => {
     const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
-    await parse("review", "--method", "ai", "--min-tracks", "2", "--auto-accept-exact", "--examples", "1");
+    await parse(
+      "review",
+      "--method",
+      "ai",
+      "--min-tracks",
+      "2",
+      "--auto-accept-exact",
+      "--examples",
+      "1",
+    );
     await parse("apply");
     expect(exit).toHaveBeenCalledTimes(2);
     expect(methods.applyGenreProposals).not.toHaveBeenCalled();

@@ -113,11 +113,23 @@ describe("recommendation candidate retriever", () => {
       ivfflatProbes: 10,
     });
     expect(result.stats).toMatchObject({ identityCount: 2, audioCount: 2, unionCount: 3 });
-    expect(result.candidates).toEqual(expect.arrayContaining([
-      expect.objectContaining({ trackId: "shared", friendId: 1, simIdentity: 1, simAudio: 0.6 }),
-      expect.objectContaining({ trackId: "identity-only", friendId: 2, simIdentity: 0.75, simAudio: null }),
-      expect.objectContaining({ trackId: "audio-only", friendId: 3, simIdentity: null, simAudio: 0.25 }),
-    ]));
+    expect(result.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ trackId: "shared", friendId: 1, simIdentity: 1, simAudio: 0.6 }),
+        expect.objectContaining({
+          trackId: "identity-only",
+          friendId: 2,
+          simIdentity: 0.75,
+          simAudio: null,
+        }),
+        expect.objectContaining({
+          trackId: "audio-only",
+          friendId: 3,
+          simIdentity: null,
+          simAudio: 0.25,
+        }),
+      ]),
+    );
 
     const shared = result.candidates.find((candidate) => candidate.trackId === "shared");
     expect(shared?.metadata).toMatchObject({
@@ -127,9 +139,16 @@ describe("recommendation candidate retriever", () => {
       energy: 0.5,
       albumThumbnail: "https://example.test/cover.jpg",
     });
-    expect(result.candidates.find((candidate) => candidate.trackId === "identity-only")?.metadata.eraBucket).toBeNull();
-    expect(result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.energy).toBeNull();
-    expect(result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.genreRefs).toEqual([]);
+    expect(
+      result.candidates.find((candidate) => candidate.trackId === "identity-only")?.metadata
+        .eraBucket,
+    ).toBeNull();
+    expect(
+      result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.energy,
+    ).toBeNull();
+    expect(
+      result.candidates.find((candidate) => candidate.trackId === "audio-only")?.metadata.genreRefs,
+    ).toEqual([]);
   });
 
   it("passes custom limits and IVFFlat probes to both queries", async () => {
@@ -138,8 +157,12 @@ describe("recommendation candidate retriever", () => {
 
     await retrieveCandidates("seed", 9, { limitIdentity: 20, limitAudio: 30, ivfflatProbes: 4 });
 
-    expect(findIdentitySimilar).toHaveBeenCalledWith(expect.objectContaining({ limit: 20, ivfflatProbes: 4 }));
-    expect(findAudioSimilar).toHaveBeenCalledWith(expect.objectContaining({ limit: 30, ivfflatProbes: 4 }));
+    expect(findIdentitySimilar).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 20, ivfflatProbes: 4 }),
+    );
+    expect(findAudioSimilar).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 30, ivfflatProbes: 4 }),
+    );
   });
 
   it("hands the library scope to every similarity query", async () => {
@@ -149,26 +172,41 @@ describe("recommendation candidate retriever", () => {
     findAudioSimilarByCentroid.mockResolvedValue([]);
 
     await retrieveCandidates("seed", 9, { libraryFriendId: 6 });
-    await retrieveCandidatesForSeedTracks([{ trackId: "seed", friendId: 9 }], { libraryFriendId: 6 });
+    await retrieveCandidatesForSeedTracks([{ trackId: "seed", friendId: 9 }], {
+      libraryFriendId: 6,
+    });
 
-    for (const query of [findIdentitySimilar, findAudioSimilar, findIdentitySimilarByCentroid, findAudioSimilarByCentroid]) {
+    for (const query of [
+      findIdentitySimilar,
+      findAudioSimilar,
+      findIdentitySimilarByCentroid,
+      findAudioSimilarByCentroid,
+    ]) {
       expect(query).toHaveBeenCalledWith(expect.objectContaining({ libraryFriendId: 6 }));
     }
   });
 
   it("deduplicates valid seed tracks before querying centroids", async () => {
     findIdentitySimilarByCentroid.mockResolvedValue([makeRow({ track_id: "identity-only" })]);
-    findAudioSimilarByCentroid.mockResolvedValue([makeRow({ track_id: "audio-only", friend_id: 2 })]);
+    findAudioSimilarByCentroid.mockResolvedValue([
+      makeRow({ track_id: "audio-only", friend_id: 2 }),
+    ]);
 
-    const result = await retrieveCandidatesForSeedTracks([
-      { trackId: "seed-a", friendId: 1 },
+    const result = await retrieveCandidatesForSeedTracks(
+      [
+        { trackId: "seed-a", friendId: 1 },
+        { trackId: "seed-a", friendId: 1 },
+        { trackId: "seed-b", friendId: 2 },
+        { trackId: "", friendId: 3 },
+        { trackId: "invalid", friendId: Number.NaN },
+      ],
+      { limitIdentity: 10, limitAudio: 15, ivfflatProbes: 7 },
+    );
+
+    const seedTracks = [
       { trackId: "seed-a", friendId: 1 },
       { trackId: "seed-b", friendId: 2 },
-      { trackId: "", friendId: 3 },
-      { trackId: "invalid", friendId: Number.NaN },
-    ], { limitIdentity: 10, limitAudio: 15, ivfflatProbes: 7 });
-
-    const seedTracks = [{ trackId: "seed-a", friendId: 1 }, { trackId: "seed-b", friendId: 2 }];
+    ];
     expect(findIdentitySimilarByCentroid).toHaveBeenCalledWith({
       seedTracks,
       model: "text-embedding-3-small",
@@ -188,10 +226,12 @@ describe("recommendation candidate retriever", () => {
   });
 
   it("rejects missing or wholly invalid seed tracks without querying repositories", async () => {
-    await expect(retrieveCandidatesForSeedTracks([])).rejects.toThrow("At least one seed track is required");
-    await expect(retrieveCandidatesForSeedTracks([{ trackId: "", friendId: Number.NaN }])).rejects.toThrow(
-      "No valid seed tracks provided"
+    await expect(retrieveCandidatesForSeedTracks([])).rejects.toThrow(
+      "At least one seed track is required",
     );
+    await expect(
+      retrieveCandidatesForSeedTracks([{ trackId: "", friendId: Number.NaN }]),
+    ).rejects.toThrow("No valid seed tracks provided");
     expect(findIdentitySimilarByCentroid).not.toHaveBeenCalled();
     expect(findAudioSimilarByCentroid).not.toHaveBeenCalled();
   });
@@ -201,15 +241,22 @@ describe("recommendation candidate retriever", () => {
     listEmbeddingTypesForTrackPairs.mockResolvedValue(["audio_vibe"]);
 
     await expect(hasEmbeddings("track", 1)).resolves.toEqual({ identity: true, audio: false });
-    await expect(hasEmbeddingsForSeedTracks([
+    await expect(
+      hasEmbeddingsForSeedTracks([
+        { trackId: "seed", friendId: 1 },
+        { trackId: "seed", friendId: 1 },
+      ]),
+    ).resolves.toEqual({ identity: false, audio: true });
+    expect(listEmbeddingTypesForTrackPairs).toHaveBeenCalledWith([
       { trackId: "seed", friendId: 1 },
-      { trackId: "seed", friendId: 1 },
-    ])).resolves.toEqual({ identity: false, audio: true });
-    expect(listEmbeddingTypesForTrackPairs).toHaveBeenCalledWith([{ trackId: "seed", friendId: 1 }]);
+    ]);
   });
 
   it("returns no embedding types for an empty or invalid seed collection", async () => {
-    await expect(hasEmbeddingsForSeedTracks([])).resolves.toEqual({ identity: false, audio: false });
+    await expect(hasEmbeddingsForSeedTracks([])).resolves.toEqual({
+      identity: false,
+      audio: false,
+    });
     await expect(hasEmbeddingsForSeedTracks([{ trackId: "", friendId: 1 }])).resolves.toEqual({
       identity: false,
       audio: false,

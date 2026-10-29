@@ -24,15 +24,13 @@ export async function GET(req: Request) {
     if (!fingerprintType || !fingerprintVersion) {
       return NextResponse.json(
         { error: "fingerprint_type and fingerprint_version are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const limitParam = Number(url.searchParams.get("limit") ?? 500);
     const offsetParam = Number(url.searchParams.get("offset") ?? 0);
-    const limit = Number.isFinite(limitParam)
-      ? Math.min(Math.max(limitParam, 1), 1000)
-      : 500;
+    const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 1000) : 500;
     const offset = Number.isFinite(offsetParam) ? Math.max(offsetParam, 0) : 0;
 
     const friendParam = url.searchParams.get("friend_id");
@@ -61,14 +59,14 @@ export async function GET(req: Request) {
         })),
         limit,
         offset,
-      })
+      }),
     );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error listing fingerprints:", err);
     return NextResponse.json(
       { error: err.message || "Failed to list fingerprints" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -88,7 +86,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid fingerprint", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -98,9 +96,7 @@ export async function POST(req: Request) {
       friend_id: body.friend_id,
       fingerprint_type: body.fingerprint_type,
       fingerprint_version: body.fingerprint_version,
-      fingerprint_data: body.fingerprint_data
-        ? Buffer.from(body.fingerprint_data, "base64")
-        : null,
+      fingerprint_data: body.fingerprint_data ? Buffer.from(body.fingerprint_data, "base64") : null,
       audio_sha256: body.audio_sha256,
       audio_duration_seconds: body.audio_duration_seconds ?? null,
       audio_size_bytes: body.audio_size_bytes ?? null,
@@ -116,7 +112,7 @@ export async function POST(req: Request) {
         audio_sha256: row.audio_sha256,
         audio_duration_seconds: row.audio_duration_seconds,
         updated_at: new Date(row.updated_at).toISOString(),
-      })
+      }),
     );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -124,10 +120,7 @@ export async function POST(req: Request) {
     // A fingerprint for a track that no longer exists is a foreign key
     // violation, not a server fault — the track was deleted mid-run.
     const status = /foreign key|violates/i.test(err.message) ? 409 : 500;
-    return NextResponse.json(
-      { error: err.message || "Failed to store fingerprint" },
-      { status }
-    );
+    return NextResponse.json({ error: err.message || "Failed to store fingerprint" }, { status });
   }
 }
 
@@ -148,7 +141,7 @@ export async function PATCH(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid file stats", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const updated = await fingerprintRepository.recordFileStats(parsed.data);
@@ -158,7 +151,7 @@ export async function PATCH(req: Request) {
     console.error("Error recording fingerprint file stats:", err);
     return NextResponse.json(
       { error: err.message || "Failed to record file stats" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

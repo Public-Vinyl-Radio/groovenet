@@ -5,7 +5,14 @@ import { Box, Button, Menu } from "@chakra-ui/react";
 import { menuDivider } from "@/components/ui/action-menu-primitives";
 import PlaylistRowActionsModal from "@/components/PlaylistRowActionsModal";
 import { FaPlay } from "react-icons/fa";
-import { FiCalendar, FiEdit2, FiFileText, FiMoreVertical, FiPlusSquare, FiTrash } from "react-icons/fi";
+import {
+  FiCalendar,
+  FiEdit2,
+  FiFileText,
+  FiMoreVertical,
+  FiPlusSquare,
+  FiTrash,
+} from "react-icons/fi";
 
 interface PlaylistItemActionsMenuProps {
   playlistName: string;
@@ -22,7 +29,6 @@ interface PlaylistItemActionsMenuProps {
   played?: boolean;
   collaborators?: string;
 }
-
 
 export default function PlaylistItemActionsMenu({
   playlistName,
@@ -42,7 +48,15 @@ export default function PlaylistItemActionsMenu({
     <>
       {/* Phone: centred modal (#751) */}
       <Box display={{ base: "block", md: "none" }}>
-        <Button size="xs" variant="ghost" boxSize="44px" minW="44px" px={0} aria-label="Playlist actions" onClick={() => setDrawerOpen(true)}>
+        <Button
+          size="xs"
+          variant="ghost"
+          boxSize="44px"
+          minW="44px"
+          px={0}
+          aria-label="Playlist actions"
+          onClick={() => setDrawerOpen(true)}
+        >
           <FiMoreVertical />
         </Button>
         <PlaylistRowActionsModal

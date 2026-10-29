@@ -5,15 +5,37 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 import { player } from "@/test/serverPlayerFixtures";
 
-type Target = { target: string; airPlayActive: boolean; remote: { player: ReturnType<typeof player> | null }; players: ReturnType<typeof player>[] };
+type Target = {
+  target: string;
+  airPlayActive: boolean;
+  remote: { player: ReturnType<typeof player> | null };
+  players: ReturnType<typeof player>[];
+};
 const state = vi.hoisted(() => ({ target: null as Target | null }));
-vi.mock("@/providers/PlaybackTargetProvider", () => ({ useOptionalPlaybackTarget: () => state.target }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  useOptionalPlaybackTarget: () => state.target,
+}));
 vi.mock("@/lib/deviceLabel", () => ({ useDeviceLabel: () => "This Mac" }));
 
-import { OutputButton, OutputTag, PlayOnRow, usePlaybackTargetLabel } from "@/components/player/PlaybackOutput";
+import {
+  OutputButton,
+  OutputTag,
+  PlayOnRow,
+  usePlaybackTargetLabel,
+} from "@/components/player/PlaybackOutput";
 
-const local = (airPlayActive = false): Target => ({ target: "", airPlayActive, remote: { player: null }, players: [] });
-const server = (connected = true): Target => ({ target: "lounge", airPlayActive: false, remote: { player: connected ? player() : null }, players: connected ? [] : [player()] });
+const local = (airPlayActive = false): Target => ({
+  target: "",
+  airPlayActive,
+  remote: { player: null },
+  players: [],
+});
+const server = (connected = true): Target => ({
+  target: "lounge",
+  airPlayActive: false,
+  remote: { player: connected ? player() : null },
+  players: connected ? [] : [player()],
+});
 
 describe("playback output entry points", () => {
   beforeEach(() => {
@@ -32,11 +54,14 @@ describe("playback output entry points", () => {
     expect(usePlaybackTargetDialog.getState().open).toBe(true);
   });
 
-  it.each([true, false])("names the server, from its snapshot or the list (connected: %s)", (connected) => {
-    state.target = server(connected);
-    renderWithProviders(<OutputButton />);
-    expect(screen.getByRole("button", { name: "Play on: Lounge" })).toBeTruthy();
-  });
+  it.each([true, false])(
+    "names the server, from its snapshot or the list (connected: %s)",
+    (connected) => {
+      state.target = server(connected);
+      renderWithProviders(<OutputButton />);
+      expect(screen.getByRole("button", { name: "Play on: Lounge" })).toBeTruthy();
+    },
+  );
 
   it("falls back to the player ID before anything has loaded", () => {
     state.target = { ...server(), remote: { player: null } };
@@ -61,7 +86,7 @@ describe("playback output entry points", () => {
         <PlayOnRow />
         <OutputButton />
         <OutputTag />
-      </>
+      </>,
     );
     expect(screen.queryByRole("button")).toBeNull();
     expect(renderHook(usePlaybackTargetLabel).result.current).toBeNull();

@@ -2,7 +2,10 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { audioIngestRepository } from "@/server/repositories/audioIngestRepository";
-import type { AudioIngestRow, AudioIngestStatus } from "@/server/repositories/audioIngestRepository";
+import type {
+  AudioIngestRow,
+  AudioIngestStatus,
+} from "@/server/repositories/audioIngestRepository";
 import type {
   IngestRetentionPolicy,
   IngestRetentionStatus,
@@ -40,7 +43,9 @@ type GlobalWithSweeper = typeof globalThis & {
 };
 
 export function ingestDir(): string {
-  return path.resolve(/* turbopackIgnore: true */ process.env.AUDIO_INGEST_DIR || "/app/audio-ingest");
+  return path.resolve(
+    /* turbopackIgnore: true */ process.env.AUDIO_INGEST_DIR || "/app/audio-ingest",
+  );
 }
 
 function positiveNumber(raw: string | undefined, fallback: number): number {
@@ -59,14 +64,8 @@ export function loadRetentionPolicy(): IngestRetentionPolicy {
   return {
     maxAgeHours: positiveNumber(process.env.AUDIO_INGEST_MAX_AGE_HOURS, 24),
     maxBytes: positiveNumber(process.env.AUDIO_INGEST_MAX_BYTES, 2 * 1024 * 1024 * 1024),
-    orphanGraceMinutes: positiveNumber(
-      process.env.AUDIO_INGEST_ORPHAN_GRACE_MINUTES,
-      60
-    ),
-    sweepIntervalMinutes: positiveNumber(
-      process.env.AUDIO_INGEST_SWEEP_INTERVAL_MINUTES,
-      15
-    ),
+    orphanGraceMinutes: positiveNumber(process.env.AUDIO_INGEST_ORPHAN_GRACE_MINUTES, 60),
+    sweepIntervalMinutes: positiveNumber(process.env.AUDIO_INGEST_SWEEP_INTERVAL_MINUTES, 15),
   };
 }
 
@@ -95,7 +94,7 @@ export function selectForDeletion(
   candidates: SweepCandidate[],
   records: AudioIngestRow[],
   now: number,
-  policy: IngestRetentionPolicy
+  policy: IngestRetentionPolicy,
 ): SweepDecision[] {
   const byFile = new Map<string, AudioIngestRow>();
   for (const record of records) {
@@ -136,9 +135,7 @@ export function selectForDeletion(
  * problem to alert on, not one to fix by deleting them.
  */
 function applySizeBudget(decisions: SweepDecision[], maxBytes: number): void {
-  let remaining = decisions
-    .filter((d) => !d.deleted)
-    .reduce((sum, d) => sum + d.bytes, 0);
+  let remaining = decisions.filter((d) => !d.deleted).reduce((sum, d) => sum + d.bytes, 0);
   if (remaining <= maxBytes) return;
 
   const evictable = decisions
@@ -212,13 +209,11 @@ async function listCandidates(dir: string): Promise<SweepCandidate[]> {
 async function decideForDirectory(
   dir: string,
   policy: IngestRetentionPolicy,
-  now: number
+  now: number,
 ): Promise<SweepDecision[]> {
   const candidates = await listCandidates(dir);
   if (candidates.length === 0) return [];
-  const records = await audioIngestRepository.findByFilePaths(
-    candidates.map((c) => c.fileName)
-  );
+  const records = await audioIngestRepository.findByFilePaths(candidates.map((c) => c.fileName));
   return selectForDeletion(candidates, records, now, policy);
 }
 
@@ -231,7 +226,7 @@ async function decideForDirectory(
  */
 export async function sweepIngestDirectory(
   policy: IngestRetentionPolicy = loadRetentionPolicy(),
-  now: number = Date.now()
+  now: number = Date.now(),
 ): Promise<SweepSummary> {
   const startedAt = new Date(now).toISOString();
   const dir = ingestDir();
@@ -252,7 +247,7 @@ export async function sweepIngestDirectory(
       // Someone else swept it first — the outcome we wanted either way.
       if (code === "ENOENT") continue;
       errors.push(
-        `${decision.fileName}: ${error instanceof Error ? error.message : String(error)}`
+        `${decision.fileName}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -274,7 +269,7 @@ export async function sweepIngestDirectory(
 /** What the next sweep would do, without doing any of it. */
 export async function getRetentionStatus(
   policy: IngestRetentionPolicy = loadRetentionPolicy(),
-  now: number = Date.now()
+  now: number = Date.now(),
 ): Promise<IngestRetentionStatus> {
   const decisions = await decideForDirectory(ingestDir(), policy, now);
 
@@ -304,7 +299,7 @@ export async function sweepTick(now: number = Date.now()): Promise<void> {
         `[ingest-sweeper] deleted ${summary.deleted} file(s), ` +
           `reclaimed ${summary.bytesReclaimed} bytes, ` +
           `spared ${summary.spared}` +
-          (summary.errors.length > 0 ? `, ${summary.errors.length} error(s)` : "")
+          (summary.errors.length > 0 ? `, ${summary.errors.length} error(s)` : ""),
       );
       for (const error of summary.errors) {
         console.error("[ingest-sweeper]", error);

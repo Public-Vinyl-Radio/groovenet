@@ -46,7 +46,7 @@ export interface IdentityData {
  */
 export async function fetchTrackWithAlbum(
   track_id: string,
-  friend_id: number
+  friend_id: number,
 ): Promise<TrackWithAlbumMetadataRow | null> {
   return trackRepository.findTrackWithAlbumMetadata(track_id, friend_id);
 }
@@ -74,7 +74,7 @@ export function buildIdentityData(track: TrackWithAlbumMetadataRow): IdentityDat
   const genres = combineGenres(
     track.album_genres || track.genres,
     null, // No separate Apple genre field in Track type
-    8
+    8,
   );
 
   // Styles: prefer album styles, fallback to track styles
@@ -144,7 +144,7 @@ export function computeSourceHash(data: IdentityData): string {
       tags: [...data.tags].sort(),
     },
     null,
-    0
+    0,
   );
 
   return crypto.createHash("sha256").update(canonical, "utf8").digest("hex");
@@ -155,7 +155,7 @@ export function computeSourceHash(data: IdentityData): string {
  * configured as identity's target model (#386).
  */
 export async function generateIdentityEmbedding(
-  identityText: string
+  identityText: string,
 ): Promise<{ embedding: number[]; model: string; dims: number }> {
   const provider = await getTargetProvider("identity");
   const [embedding] = await provider.embed([identityText]);
@@ -172,7 +172,7 @@ export async function storeIdentityEmbedding(
   sourceHash: string,
   identityText: string,
   model: string,
-  dims: number
+  dims: number,
 ): Promise<void> {
   await embeddingsRepository.upsertTrackEmbedding({
     trackId: track_id,
@@ -194,7 +194,7 @@ export async function storeIdentityEmbedding(
 export async function needsEmbeddingUpdate(
   track_id: string,
   friend_id: number,
-  newSourceHash: string
+  newSourceHash: string,
 ): Promise<boolean> {
   const { model } = await getTargetModel("identity");
   const sourceHash = await embeddingsRepository.findEmbeddingSourceHash(
@@ -202,7 +202,7 @@ export async function needsEmbeddingUpdate(
     friend_id,
     "identity",
     model,
-    IDENTITY_TEMPLATE_VERSION
+    IDENTITY_TEMPLATE_VERSION,
   );
   if (!sourceHash) {
     return true; // No embedding exists
@@ -217,7 +217,7 @@ export async function needsEmbeddingUpdate(
 export async function generateAndStoreIdentityEmbedding(
   track_id: string,
   friend_id: number,
-  forceUpdate = false
+  forceUpdate = false,
 ): Promise<{ updated: boolean; reason: string }> {
   // Fetch track with album data
   const track = await fetchTrackWithAlbum(track_id, friend_id);
@@ -249,7 +249,7 @@ export async function generateAndStoreIdentityEmbedding(
     sourceHash,
     identityText,
     model,
-    dims
+    dims,
   );
 
   return { updated: true, reason: "Embedding generated and stored" };
@@ -260,7 +260,7 @@ export async function generateAndStoreIdentityEmbedding(
  */
 export async function getIdentityPreview(
   track_id: string,
-  friend_id: number
+  friend_id: number,
 ): Promise<{ identityText: string; identityData: IdentityData }> {
   const track = await fetchTrackWithAlbum(track_id, friend_id);
   if (!track) {

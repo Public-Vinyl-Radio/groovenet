@@ -55,9 +55,21 @@ const CONTRACTED: Array<[method: string, path: string]> = [
 describe("OpenAPI contract coverage", () => {
   it("documents the player availability enum and bearer-only administration", () => {
     const doc = getOpenApiDocument();
-    const schemas = doc.components?.schemas as Record<string, { properties?: Record<string, { enum?: string[] }> }>;
-    expect(schemas.ServerPlayer.properties?.availability_policy?.enum).toEqual(["ask", "allow_unknown", "always"]);
-    const operation = (doc.paths["/api/players/{playerId}/commands"] as Record<string, { summary?: string; responses?: Record<string, unknown> }>).post;
+    const schemas = doc.components?.schemas as Record<
+      string,
+      { properties?: Record<string, { enum?: string[] }> }
+    >;
+    expect(schemas.ServerPlayer.properties?.availability_policy?.enum).toEqual([
+      "ask",
+      "allow_unknown",
+      "always",
+    ]);
+    const operation = (
+      doc.paths["/api/players/{playerId}/commands"] as Record<
+        string,
+        { summary?: string; responses?: Record<string, unknown> }
+      >
+    ).post;
     expect(operation.summary).toContain("bearer-only availability policy");
     expect(operation.responses).toHaveProperty("403");
   });
@@ -65,7 +77,7 @@ describe("OpenAPI contract coverage", () => {
     const op = getOperation(path, method);
     expect(op, `${method} ${path} should be present`).toBeTruthy();
     expect(op?.tags ?? [], `${method} ${path} should not be auto-discovered`).not.toContain(
-      "AutoDiscovered"
+      "AutoDiscovered",
     );
     expect(op?.summary ?? "").not.toMatch(/^Auto-discovered/);
   });
@@ -81,7 +93,7 @@ describe("OpenAPI contract coverage", () => {
       const codes = Object.keys(op.responses ?? {});
       expect(
         codes.some((code) => code === "200" || code === "201"),
-        `${method} ${path} success`
+        `${method} ${path} success`,
       ).toBe(true);
     }
   });
@@ -95,13 +107,17 @@ describe("OpenAPI contract coverage", () => {
     const update = getOperation("/api/playlists/{id}/set", "put") as {
       requestBody?: { content?: { "application/json"?: { schema?: { $ref?: string } } } };
     };
-    expect(update.requestBody?.content?.["application/json"]?.schema?.$ref)
-      .toBe("#/components/schemas/LiveSetUpdate");
+    expect(update.requestBody?.content?.["application/json"]?.schema?.$ref).toBe(
+      "#/components/schemas/LiveSetUpdate",
+    );
   });
 
   it("references shared playlist components and documents the optimizer modes", () => {
     const doc = getOpenApiDocument();
-    const schemas = doc.components.schemas as Record<string, { enum?: string[]; required?: string[] }>;
+    const schemas = doc.components.schemas as Record<
+      string,
+      { enum?: string[]; required?: string[] }
+    >;
     expect(schemas.PlaylistOptimizerMode.enum).toEqual(["genetic", "greedy", "cohesive_blocks"]);
     expect(schemas.Playlist.required).toEqual(["id", "name", "created_at", "tracks"]);
     expect(schemas.PlaylistSpinsInput).toBeDefined();
@@ -114,16 +130,32 @@ describe("OpenAPI contract coverage", () => {
         responses: Record<string, Content>;
       };
 
-    expect(ref(op("/api/playlists", "post").requestBody)).toBe("#/components/schemas/PlaylistCreate");
-    expect(ref(op("/api/playlists", "post").responses["201"])).toBe("#/components/schemas/Playlist");
-    expect(ref(op("/api/playlists", "patch").requestBody)).toBe("#/components/schemas/PlaylistUpdate");
-    expect(ref(op("/api/playlists", "delete").responses["200"])).toBe("#/components/schemas/PlaylistDeleteResponse");
-    expect(ref(op("/api/playlists/{id}/tracks", "get").responses["200"])).toBe("#/components/schemas/PlaylistDetail");
-    expect(ref(op("/api/playlists/{id}/spins", "post").requestBody)).toBe("#/components/schemas/PlaylistSpinsInput");
-    expect(ref(op("/api/playlists/{id}/spins", "post").responses["200"])).toBe("#/components/schemas/PlaylistSpinsResult");
-    expect(ref(op("/api/playlists/genetic", "post").requestBody)).toBe("#/components/schemas/PlaylistGeneticRequest");
+    expect(ref(op("/api/playlists", "post").requestBody)).toBe(
+      "#/components/schemas/PlaylistCreate",
+    );
+    expect(ref(op("/api/playlists", "post").responses["201"])).toBe(
+      "#/components/schemas/Playlist",
+    );
+    expect(ref(op("/api/playlists", "patch").requestBody)).toBe(
+      "#/components/schemas/PlaylistUpdate",
+    );
+    expect(ref(op("/api/playlists", "delete").responses["200"])).toBe(
+      "#/components/schemas/PlaylistDeleteResponse",
+    );
+    expect(ref(op("/api/playlists/{id}/tracks", "get").responses["200"])).toBe(
+      "#/components/schemas/PlaylistDetail",
+    );
+    expect(ref(op("/api/playlists/{id}/spins", "post").requestBody)).toBe(
+      "#/components/schemas/PlaylistSpinsInput",
+    );
+    expect(ref(op("/api/playlists/{id}/spins", "post").responses["200"])).toBe(
+      "#/components/schemas/PlaylistSpinsResult",
+    );
+    expect(ref(op("/api/playlists/genetic", "post").requestBody)).toBe(
+      "#/components/schemas/PlaylistGeneticRequest",
+    );
     expect(ref(op("/api/playlists/genetic", "post").responses["400"])).toBe(
-      "#/components/schemas/PlaylistGeneticValidationError"
+      "#/components/schemas/PlaylistGeneticValidationError",
     );
   });
 
@@ -135,13 +167,20 @@ describe("OpenAPI contract coverage", () => {
     >;
     expect(schemas.TrackSearchMode.enum).toEqual(["lexical", "semantic", "hybrid"]);
     expect(schemas.AlbumArtSource.enum).toEqual(["discogs", "apple_music", "upload"]);
-    expect(schemas.AlbumArtMatchStatus.enum).toEqual(["matched", "mismatch", "no_reference", "no_candidate"]);
+    expect(schemas.AlbumArtMatchStatus.enum).toEqual([
+      "matched",
+      "mismatch",
+      "no_reference",
+      "no_candidate",
+    ]);
     expect(schemas.Track.required).toEqual(["track_id", "friend_id", "title", "artist", "album"]);
     expect(schemas.Album.required).toEqual(["release_id", "friend_id", "title", "artist"]);
     expect(schemas.TrackSearchResponse).toBeDefined();
     expect(schemas.AlbumPlayableStructure).toBeDefined();
 
-    type Content = { content?: { "application/json"?: { schema?: { $ref?: string; items?: { $ref?: string } } } } };
+    type Content = {
+      content?: { "application/json"?: { schema?: { $ref?: string; items?: { $ref?: string } } } };
+    };
     const op = (path: string, method: string) =>
       getOperation(path, method) as { responses: Record<string, Content> };
     const schemaOf = (c?: Content) => c?.content?.["application/json"]?.schema;
@@ -150,7 +189,7 @@ describe("OpenAPI contract coverage", () => {
       $ref: "#/components/schemas/Track",
     });
     expect(schemaOf(op("/api/albums/{releaseId}/artwork", "get").responses["200"])?.$ref).toBe(
-      "#/components/schemas/AlbumArtworkState"
+      "#/components/schemas/AlbumArtworkState",
     );
     const search = schemaOf(op("/api/tracks/search", "get").responses["200"]) as unknown as {
       properties?: { hits?: { items?: { $ref?: string } } };
@@ -174,31 +213,45 @@ describe("OpenAPI contract coverage", () => {
     const op = (path: string, method: string) =>
       getOperation(path, method) as { requestBody?: Content; responses: Record<string, Content> };
 
-    expect(ref(op("/api/friends", "get").responses["200"])).toBe("#/components/schemas/FriendListResponse");
+    expect(ref(op("/api/friends", "get").responses["200"])).toBe(
+      "#/components/schemas/FriendListResponse",
+    );
     expect(ref(op("/api/friends", "post").requestBody)).toBe("#/components/schemas/FriendCreate");
-    expect(ref(op("/api/friends", "post").responses["200"])).toBe("#/components/schemas/FriendCreateResponse");
+    expect(ref(op("/api/friends", "post").responses["200"])).toBe(
+      "#/components/schemas/FriendCreateResponse",
+    );
     expect(ref(op("/api/settings/default-library", "get").responses["200"])).toBe(
-      "#/components/schemas/DefaultLibrarySettings"
+      "#/components/schemas/DefaultLibrarySettings",
     );
     expect(ref(op("/api/settings/default-library", "put").requestBody)).toBe(
-      "#/components/schemas/DefaultLibrarySettingsUpdate"
+      "#/components/schemas/DefaultLibrarySettingsUpdate",
     );
     expect(ref(op("/api/settings/default-library", "put").responses["200"])).toBe(
-      "#/components/schemas/DefaultLibrarySettingsUpdateResponse"
+      "#/components/schemas/DefaultLibrarySettingsUpdateResponse",
     );
   });
 
   it("references shared record-care components and documents their enums", () => {
     const doc = getOpenApiDocument();
-    const schemas = doc.components.schemas as Record<string, { enum?: string[]; required?: string[] }>;
+    const schemas = doc.components.schemas as Record<
+      string,
+      { enum?: string[]; required?: string[] }
+    >;
     expect(schemas.SleeveType.enum).toEqual(["original", "paper", "poly-rice-paper-poly", "poly"]);
     expect(schemas.RecordActionType.enum).toEqual(["cleaned", "sleeved", "inspected", "repaired"]);
-    expect(schemas.CleaningMethod.enum).toEqual(["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"]);
+    expect(schemas.CleaningMethod.enum).toEqual([
+      "dry-brush",
+      "wet-manual",
+      "vacuum",
+      "ultrasonic",
+      "other",
+    ]);
     expect(schemas.RecordCareStatus.enum).toEqual(["never_cleaned", "overdue", "needs_sleeve"]);
     expect(schemas.RecordActionCreate.required).toEqual(["friend_id", "action_type"]);
 
     type Content = { content?: { "application/json"?: { schema?: { $ref?: string } } } };
-    const ref = (c?: Content) => c?.content?.["application/json"]?.schema?.$ref?.replace("#/components/schemas/", "");
+    const ref = (c?: Content) =>
+      c?.content?.["application/json"]?.schema?.$ref?.replace("#/components/schemas/", "");
     const op = (path: string, method: string) =>
       getOperation(path, method) as {
         requestBody?: Content;
@@ -209,20 +262,36 @@ describe("OpenAPI contract coverage", () => {
     expect(ref(op("/api/record-copies", "get").responses["200"])).toBe("RecordCopyListResponse");
     expect(ref(op("/api/record-copies", "post").requestBody)).toBe("RecordCopyCreate");
     expect(ref(op("/api/record-copies", "post").responses["201"])).toBe("RecordCopyResponse");
-    expect(ref(op("/api/record-copies/default", "patch").requestBody)).toBe("RecordCopyDefaultUpdate");
+    expect(ref(op("/api/record-copies/default", "patch").requestBody)).toBe(
+      "RecordCopyDefaultUpdate",
+    );
     expect(ref(op("/api/record-copies/{id}", "patch").requestBody)).toBe("RecordCopyUpdate");
-    expect(ref(op("/api/record-copies/{id}", "delete").responses["200"])).toBe("RecordCopyDeleteResponse");
-    expect(ref(op("/api/record-copies/{id}/actions", "get").responses["200"])).toBe("RecordActionListResponse");
+    expect(ref(op("/api/record-copies/{id}", "delete").responses["200"])).toBe(
+      "RecordCopyDeleteResponse",
+    );
+    expect(ref(op("/api/record-copies/{id}/actions", "get").responses["200"])).toBe(
+      "RecordActionListResponse",
+    );
     expect(ref(op("/api/record-copies/care", "get").responses["200"])).toBe("RecordCareResponse");
-    expect(ref(op("/api/record-copies/care/summary", "get").responses["200"])).toBe("RecordCareSummary");
+    expect(ref(op("/api/record-copies/care/summary", "get").responses["200"])).toBe(
+      "RecordCareSummary",
+    );
     expect(ref(op("/api/record-actions", "post").requestBody)).toBe("RecordActionCreate");
-    expect(ref(op("/api/record-actions", "post").responses["201"])).toBe("RecordActionMutationResponse");
-    expect(ref(op("/api/record-actions/{id}", "delete").responses["200"])).toBe("RecordActionVoidResponse");
+    expect(ref(op("/api/record-actions", "post").responses["201"])).toBe(
+      "RecordActionMutationResponse",
+    );
+    expect(ref(op("/api/record-actions/{id}", "delete").responses["200"])).toBe(
+      "RecordActionVoidResponse",
+    );
 
     const param = (path: string, name: string) =>
       op(path, "get").parameters?.find((p) => p.name === name)?.schema?.$ref;
-    expect(param("/api/record-copies/care", "status")).toBe("#/components/schemas/RecordCareStatus");
-    expect(param("/api/record-copies/{id}/actions", "action_type")).toBe("#/components/schemas/RecordActionType");
+    expect(param("/api/record-copies/care", "status")).toBe(
+      "#/components/schemas/RecordCareStatus",
+    );
+    expect(param("/api/record-copies/{id}/actions", "action_type")).toBe(
+      "#/components/schemas/RecordActionType",
+    );
   });
 
   it("references shared spin components and documents their enums", () => {
@@ -284,24 +353,34 @@ describe("OpenAPI contract coverage", () => {
   it("builds response examples from the shared component a $ref points at", () => {
     type Example = { content?: { "application/json"?: { example?: unknown } } };
     const example = (path: string, method: string) =>
-      (getOperation(path, method) as { responses: Record<string, Example> }).responses["200"]?.content?.[
-        "application/json"
-      ]?.example;
+      (getOperation(path, method) as { responses: Record<string, Example> }).responses["200"]
+        ?.content?.["application/json"]?.example;
 
-    expect(example("/api/friends", "get")).toEqual({ results: [expect.objectContaining({ username: expect.any(String) })] });
-    expect(example("/api/playlists", "delete")).toEqual(expect.objectContaining({ success: expect.anything() }));
-    expect(example("/api/tracks/{id}", "get")).toEqual(expect.objectContaining({ track_id: expect.any(String) }));
+    expect(example("/api/friends", "get")).toEqual({
+      results: [expect.objectContaining({ username: expect.any(String) })],
+    });
+    expect(example("/api/playlists", "delete")).toEqual(
+      expect.objectContaining({ success: expect.anything() }),
+    );
+    expect(example("/api/tracks/{id}", "get")).toEqual(
+      expect.objectContaining({ track_id: expect.any(String) }),
+    );
   });
 
   it("stops inlining at a self-referencing or unknown component", () => {
     const components = {
-      Node: { type: "object", properties: { children: { type: "array", items: { $ref: "#/components/schemas/Node" } } } },
+      Node: {
+        type: "object",
+        properties: { children: { type: "array", items: { $ref: "#/components/schemas/Node" } } },
+      },
     };
     expect(inlineComponentRefs({ $ref: "#/components/schemas/Node" }, components)).toEqual({
       type: "object",
       properties: { children: { type: "array", items: { type: "object" } } },
     });
-    expect(inlineComponentRefs({ $ref: "#/components/schemas/Missing" }, components)).toEqual({ type: "object" });
+    expect(inlineComponentRefs({ $ref: "#/components/schemas/Missing" }, components)).toEqual({
+      type: "object",
+    });
     expect(inlineComponentRefs([{ $ref: "https://elsewhere/x" }, 3], components)).toEqual([
       { $ref: "https://elsewhere/x" },
       3,
@@ -321,21 +400,36 @@ describe("shared genre taxonomy components", () => {
   ])("references shared components for %s %s", (path, method, status, response, body) => {
     const doc = getOpenApiDocument();
     expect(doc.paths[path!][method!]).toMatchObject({
-      responses: { [status!]: { content: { "application/json": { schema: { $ref: `#/components/schemas/${response}` } } } } },
-      ...(body ? { requestBody: { content: { "application/json": { schema: { $ref: `#/components/schemas/${body}` } } } } } : {}),
+      responses: {
+        [status!]: {
+          content: { "application/json": { schema: { $ref: `#/components/schemas/${response}` } } },
+        },
+      },
+      ...(body
+        ? {
+            requestBody: {
+              content: { "application/json": { schema: { $ref: `#/components/schemas/${body}` } } },
+            },
+          }
+        : {}),
     });
   });
 
   it("exports the source enum, signal bounds and recursive tree references", () => {
     const schemas = getOpenApiDocument().components.schemas;
     expect(schemas.GenreSource).toMatchObject({ enum: ["discogs", "custom"] });
-    expect(schemas.GenreSimilaritySignals).toMatchObject({ properties: {
-      taxonomy: { enum: ["sibling", "parent", "child"] },
-      npmi: { minimum: -1, maximum: 1 }, shared_albums: { minimum: 0 },
-    } });
-    expect(schemas.GenreTreeNode).toMatchObject({ properties: {
-      source: { $ref: "#/components/schemas/GenreSource" },
-      children: { items: { $ref: "#/components/schemas/GenreTreeNode" } },
-    } });
+    expect(schemas.GenreSimilaritySignals).toMatchObject({
+      properties: {
+        taxonomy: { enum: ["sibling", "parent", "child"] },
+        npmi: { minimum: -1, maximum: 1 },
+        shared_albums: { minimum: 0 },
+      },
+    });
+    expect(schemas.GenreTreeNode).toMatchObject({
+      properties: {
+        source: { $ref: "#/components/schemas/GenreSource" },
+        children: { items: { $ref: "#/components/schemas/GenreTreeNode" } },
+      },
+    });
   });
 });

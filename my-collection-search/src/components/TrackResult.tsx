@@ -140,7 +140,14 @@ export function TrackListHeader() {
       minW={0}
     >
       <Box aria-hidden="true" flexShrink={0} w={TRACK_ROW_EDGE_WIDTH} />
-      <Grid css={trackRowGridCss} columnGap={4} alignItems="center" flex="1" minW={0} overflow="hidden">
+      <Grid
+        css={trackRowGridCss}
+        columnGap={4}
+        alignItems="center"
+        flex="1"
+        minW={0}
+        overflow="hidden"
+      >
         <Text>Track</Text>
         <Text>Release</Text>
         <Text textAlign="right">Time</Text>
@@ -196,16 +203,40 @@ export function KeyChip({
       justifySelf="start"
       title={showName ? undefined : keyName}
     >
-      <Box aria-hidden="true" boxSize="8px" borderRadius="full" bg={camelotDotColor(camelot)} flexShrink={0} />
-      <Text as="span" fontSize="xs" fontWeight="bold" color="fg" fontVariantNumeric="tabular-nums" flexShrink={0}>
+      <Box
+        aria-hidden="true"
+        boxSize="8px"
+        borderRadius="full"
+        bg={camelotDotColor(camelot)}
+        flexShrink={0}
+      />
+      <Text
+        as="span"
+        fontSize="xs"
+        fontWeight="bold"
+        color="fg"
+        fontVariantNumeric="tabular-nums"
+        flexShrink={0}
+      >
         {camelot}
       </Text>
       {showName && (
-        <Text as="span" fontSize="xs" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" minW={0} title={keyName}>
+        <Text
+          as="span"
+          fontSize="xs"
+          color="fg.muted"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+          minW={0}
+          title={keyName}
+        >
           {keyName}
         </Text>
       )}
-      {typeof keyConfidence === "number" && <KeyConfidenceIndicator keyConfidence={keyConfidence} />}
+      {typeof keyConfidence === "number" && (
+        <KeyConfidenceIndicator keyConfidence={keyConfidence} />
+      )}
     </Flex>
   );
 }
@@ -235,7 +266,9 @@ function ConfidenceIndicator({
           flexShrink={0}
           color={low ? "fg.warning" : "fg.subtle"}
           _hover={{ color: low ? "fg.warning" : "fg.muted" }}
-          aria-label={low ? `Uncertain ${subject}` : `${subject === "key" ? "Key" : "BPM"} confidence`}
+          aria-label={
+            low ? `Uncertain ${subject}` : `${subject === "key" ? "Key" : "BPM"} confidence`
+          }
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
           onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         >
@@ -347,7 +380,13 @@ function GenreList({
         },
       }}
     >
-      <GenreBadgeList items={shown} kind={kind} scope="tracks" colorPalette="status.genre" variant="subtle" />
+      <GenreBadgeList
+        items={shown}
+        kind={kind}
+        scope="tracks"
+        colorPalette="status.genre"
+        variant="subtle"
+      />
       {overflow > 0 && (
         <Badge data-overflow="" size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>
           +{overflow}
@@ -411,7 +450,14 @@ export function ArtworkPlay({
 
   if (!track.local_audio_url) {
     return (
-      <Box position="relative" flexShrink={0} width={size} height={size} borderRadius="md" overflow="hidden">
+      <Box
+        position="relative"
+        flexShrink={0}
+        width={size}
+        height={size}
+        borderRadius="md"
+        overflow="hidden"
+      >
         <Image
           src={artworkSrc}
           alt=""
@@ -445,7 +491,11 @@ export function ArtworkPlay({
       bg="transparent"
       cursor="pointer"
       _hover={{ "& .artwork-play-scrim": { opacity: 1 } }}
-      _focusVisible={{ "& .artwork-play-scrim": { opacity: 1 }, outline: "2px solid", outlineColor: "accent.focusRing" }}
+      _focusVisible={{
+        "& .artwork-play-scrim": { opacity: 1 },
+        outline: "2px solid",
+        outlineColor: "accent.focusRing",
+      }}
     >
       <Image
         src={artworkSrc}
@@ -606,16 +656,23 @@ export default function TrackResult({
   const metaExtras: React.ReactNode[] = [];
   if (track.library_identifier) {
     metaExtras.push(
-      <Badge key="lib" colorPalette="accent" size="sm" fontWeight="bold" flexShrink={0} whiteSpace="nowrap">
+      <Badge
+        key="lib"
+        colorPalette="accent"
+        size="sm"
+        fontWeight="bold"
+        flexShrink={0}
+        whiteSpace="nowrap"
+      >
         {libraryLabel}
-      </Badge>
+      </Badge>,
     );
   }
   if (sortPositionChange) {
     metaExtras.push(
       <Badge key="sort" colorPalette="status.genre" size="sm" flexShrink={0}>
         #{sortPositionChange.currentPosition} was #{sortPositionChange.previousPosition}
-      </Badge>
+      </Badge>,
     );
   }
   // No separate "No embedding" badge: it has nowhere to go without crowding the
@@ -625,7 +682,7 @@ export default function TrackResult({
     metaExtras.push(
       <Text key="username" color="fg.subtle" flexShrink={0}>
         {track.username}
-      </Text>
+      </Text>,
     );
   }
   if (showPlaylistCount && typeof playlistCount === "number" && playlistCount > 0) {
@@ -648,7 +705,11 @@ export default function TrackResult({
         tabIndex={onRowClick ? 0 : undefined}
         onClick={onRowClick}
         onKeyDown={(event) => {
-          if (onRowClick && event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+          if (
+            onRowClick &&
+            event.target === event.currentTarget &&
+            (event.key === "Enter" || event.key === " ")
+          ) {
             event.preventDefault();
             onRowClick();
           }
@@ -664,9 +725,20 @@ export default function TrackResult({
         minW={0}
         cursor={onRowClick ? "pointer" : "default"}
         _hover={{ bg: "bg.muted", ...containerHoverReveal }}
-        _focusVisible={{ outline: "2px solid", outlineColor: "accent.solid", outlineOffset: "-2px" }}
+        _focusVisible={{
+          outline: "2px solid",
+          outlineColor: "accent.solid",
+          outlineOffset: "-2px",
+        }}
       >
-        <Box flexShrink={0} width="48px" height="48px" display="flex" alignItems="center" justifyContent="center">
+        <Box
+          flexShrink={0}
+          width="48px"
+          height="48px"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
           {onToggleSelect ? (
             <Box onMouseDown={stopRowEvent}>
               <Checkbox.Root checked={isSelected} onChange={onToggleSelect}>
@@ -705,37 +777,88 @@ export default function TrackResult({
           </Flex>
           <Flex gap={1.5} align="center" minW={0} overflow="hidden" fontSize="xs" color="fg.muted">
             <ArtistLink artist={track.artist} friendId={track.friend_id}>
-              <Text as="span" onClick={stopRowEvent} onMouseDown={stopRowEvent} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+              <Text
+                as="span"
+                onClick={stopRowEvent}
+                onMouseDown={stopRowEvent}
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+              >
                 {track.artist}
               </Text>
             </ArtistLink>
-            <Text aria-hidden="true" color="fg.subtle">·</Text>
+            <Text aria-hidden="true" color="fg.subtle">
+              ·
+            </Text>
             <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
-              <Text as="span" onClick={stopRowEvent} onMouseDown={stopRowEvent} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+              <Text
+                as="span"
+                onClick={stopRowEvent}
+                onMouseDown={stopRowEvent}
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+              >
                 {track.album}
               </Text>
             </AlbumLink>
-            {showUsername && track.username && <Text flexShrink={0} color="fg.subtle">{track.username}</Text>}
+            {showUsername && track.username && (
+              <Text flexShrink={0} color="fg.subtle">
+                {track.username}
+              </Text>
+            )}
             {showPlaylistCount && typeof playlistCount === "number" && playlistCount > 0 && (
               <Box flexShrink={0} onClick={stopRowEvent} onMouseDown={stopRowEvent}>
                 <TrackPlaylistUsage track={track} count={playlistCount} />
               </Box>
             )}
           </Flex>
-          {showGenres && (discogsGenres.length > 0 || discogsStyles.length > 0 || trackGenres.length > 0) && (
-            <Flex gap={1.5} alignItems="center" flexWrap="nowrap" overflow="hidden" data-testid="track-genres" onClick={stopRowEvent} onMouseDown={stopRowEvent}>
-              <GenreBadgeList items={discogsGenres.slice(0, 4)} kind="discogs-genre" scope="tracks" size="xs" />
-              <GenreBadgeList items={discogsStyles.slice(0, 4)} kind="discogs-style" scope="tracks" size="xs" />
-              <GenreBadgeList items={trackGenres} kind="track" scope="tracks" size="xs" colorPalette="accent" />
-            </Flex>
-          )}
+          {showGenres &&
+            (discogsGenres.length > 0 || discogsStyles.length > 0 || trackGenres.length > 0) && (
+              <Flex
+                gap={1.5}
+                alignItems="center"
+                flexWrap="nowrap"
+                overflow="hidden"
+                data-testid="track-genres"
+                onClick={stopRowEvent}
+                onMouseDown={stopRowEvent}
+              >
+                <GenreBadgeList
+                  items={discogsGenres.slice(0, 4)}
+                  kind="discogs-genre"
+                  scope="tracks"
+                  size="xs"
+                />
+                <GenreBadgeList
+                  items={discogsStyles.slice(0, 4)}
+                  kind="discogs-style"
+                  scope="tracks"
+                  size="xs"
+                />
+                <GenreBadgeList
+                  items={trackGenres}
+                  kind="track"
+                  scope="tracks"
+                  size="xs"
+                  colorPalette="accent"
+                />
+              </Flex>
+            )}
         </Flex>
         {showDetails && durationSeconds ? (
           <Text fontSize="xs" color="fg.muted" flexShrink={0} fontVariantNumeric="tabular-nums">
             {formatSeconds(durationSeconds)}
           </Text>
         ) : null}
-        <Flex align="center" gap={1} flexShrink={0} onClick={stopRowEvent} onMouseDown={stopRowEvent}>
+        <Flex
+          align="center"
+          gap={1}
+          flexShrink={0}
+          onClick={stopRowEvent}
+          onMouseDown={stopRowEvent}
+        >
           {buttons}
           <AddToCrateButton track={track} />
         </Flex>
@@ -786,19 +909,41 @@ export default function TrackResult({
             </Link>
             {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
             {score !== undefined && (
-              <Badge colorPalette={score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"} size="xs" flexShrink={0}>
+              <Badge
+                colorPalette={
+                  score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"
+                }
+                size="xs"
+                flexShrink={0}
+              >
                 {score.toFixed(0)}%
               </Badge>
             )}
             {showRating && <RatingStars value={localRating} onChange={handleRatingChange} />}
           </Flex>
-          <Flex gap={1.5} fontSize="sm" color="fg.muted" flexWrap="wrap" alignItems="center" minW={0}>
+          <Flex
+            gap={1.5}
+            fontSize="sm"
+            color="fg.muted"
+            flexWrap="wrap"
+            alignItems="center"
+            minW={0}
+          >
             <ArtistLink artist={track.artist} friendId={track.friend_id} />
-            <Text aria-hidden="true" color="fg.subtle">·</Text>
+            <Text aria-hidden="true" color="fg.subtle">
+              ·
+            </Text>
             <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
-              <Text as="span">{track.album}{track.year ? ` (${track.year})` : ""}</Text>
+              <Text as="span">
+                {track.album}
+                {track.year ? ` (${track.year})` : ""}
+              </Text>
             </AlbumLink>
-            {showUsername && track.username && <Text fontSize="xs" color="fg.subtle">{track.username}</Text>}
+            {showUsername && track.username && (
+              <Text fontSize="xs" color="fg.subtle">
+                {track.username}
+              </Text>
+            )}
             {showPlaylistCount && typeof playlistCount === "number" && playlistCount > 0 && (
               <TrackPlaylistUsage track={track} count={playlistCount} />
             )}
@@ -806,19 +951,42 @@ export default function TrackResult({
           {showDetails && (
             <Flex gap={3} fontSize="xs" color="fg.muted" flexWrap="wrap" alignItems="center">
               {track.position && <Text>{track.position}</Text>}
-              {durationSeconds && <Text fontVariantNumeric="tabular-nums">{formatSeconds(durationSeconds)}</Text>}
+              {durationSeconds && (
+                <Text fontVariantNumeric="tabular-nums">{formatSeconds(durationSeconds)}</Text>
+              )}
               {track.bpm && <Text>{track.bpm} BPM</Text>}
-              {track.key && <Text>{track.key} ({camelot})</Text>}
+              {track.key && (
+                <Text>
+                  {track.key} ({camelot})
+                </Text>
+              )}
               {track.danceability && <Text>{track.danceability}</Text>}
             </Flex>
           )}
-          {showGenres && (discogsGenres.length > 0 || discogsStyles.length > 0 || trackGenres.length > 0) && (
-            <Flex gap={1.5} alignItems="center" flexWrap="wrap" data-testid="track-genres">
-              <GenreBadgeList items={discogsGenres.slice(0, 4)} kind="discogs-genre" scope="tracks" size="xs" />
-              <GenreBadgeList items={discogsStyles.slice(0, 4)} kind="discogs-style" scope="tracks" size="xs" />
-              <GenreBadgeList items={trackGenres} kind="track" scope="tracks" size="xs" colorPalette="accent" />
-            </Flex>
-          )}
+          {showGenres &&
+            (discogsGenres.length > 0 || discogsStyles.length > 0 || trackGenres.length > 0) && (
+              <Flex gap={1.5} alignItems="center" flexWrap="wrap" data-testid="track-genres">
+                <GenreBadgeList
+                  items={discogsGenres.slice(0, 4)}
+                  kind="discogs-genre"
+                  scope="tracks"
+                  size="xs"
+                />
+                <GenreBadgeList
+                  items={discogsStyles.slice(0, 4)}
+                  kind="discogs-style"
+                  scope="tracks"
+                  size="xs"
+                />
+                <GenreBadgeList
+                  items={trackGenres}
+                  kind="track"
+                  scope="tracks"
+                  size="xs"
+                  colorPalette="accent"
+                />
+              </Flex>
+            )}
           {footer && <Box mt={1}>{footer}</Box>}
         </Flex>
         <Flex direction="column" alignItems="center" gap={0.5} flexShrink={0}>
@@ -836,7 +1004,9 @@ export default function TrackResult({
           const target = event.target as HTMLElement;
           if (!event.currentTarget.contains(target)) return;
           // The drag handle around the row is itself role=button, so only look inside the row.
-          const control = target.closest("a,button,input,label,[role=button],[role=menuitem],[data-scope=popover]");
+          const control = target.closest(
+            "a,button,input,label,[role=button],[role=menuitem],[data-scope=popover]",
+          );
           if (control && event.currentTarget.contains(control)) return;
           onRowClick();
         }
@@ -907,7 +1077,17 @@ export default function TrackResult({
               </Link>
               {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
               {score !== undefined && (
-                <Badge colorPalette={score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"} size="sm" flexShrink={0}>
+                <Badge
+                  colorPalette={
+                    score > 90
+                      ? "status.success"
+                      : score > 75
+                        ? "status.analysis"
+                        : "status.missing"
+                  }
+                  size="sm"
+                  flexShrink={0}
+                >
                   {score.toFixed(1)}%
                 </Badge>
               )}
@@ -943,7 +1123,15 @@ export default function TrackResult({
           </Flex>
 
           {/* Release: what must never clip, so it wraps instead of truncating. */}
-          <Flex data-testid="track-release" minW={0} fontSize="13px" color="fg.muted" alignItems="center" gap={1} flexWrap="wrap">
+          <Flex
+            data-testid="track-release"
+            minW={0}
+            fontSize="13px"
+            color="fg.muted"
+            alignItems="center"
+            gap={1}
+            flexWrap="wrap"
+          >
             {listPosition !== undefined && (
               <Text
                 as="span"
@@ -967,7 +1155,12 @@ export default function TrackResult({
           </Flex>
 
           {showDetails ? (
-            <Text fontSize="sm" color="fg.muted" textAlign="right" fontVariantNumeric="tabular-nums">
+            <Text
+              fontSize="sm"
+              color="fg.muted"
+              textAlign="right"
+              fontVariantNumeric="tabular-nums"
+            >
               {durationSeconds ? formatSeconds(durationSeconds) : ""}
             </Text>
           ) : (
@@ -980,7 +1173,12 @@ export default function TrackResult({
                 <BpmValue bpm={track.bpm} bpmConfidence={track.bpm_confidence} align="left" />
               </Flex>
               <Box data-col="key" minW={0}>
-                <KeyChip keyName={track.key} camelot={camelot} keyConfidence={track.key_confidence} showName={false} />
+                <KeyChip
+                  keyName={track.key}
+                  camelot={camelot}
+                  keyConfidence={track.key_confidence}
+                  showName={false}
+                />
               </Box>
             </Flex>
           ) : (
@@ -1014,8 +1212,10 @@ export default function TrackResult({
   // The library ID has its own plain-text treatment in the card's meta line.
   const cardExtras = metaExtras.filter((el) => (el as React.ReactElement).key !== "lib");
   const hasCamelot = Boolean(track.key) && Boolean(camelot) && camelot !== "-";
-  const showKeyWarning = typeof track.key_confidence === "number" && isKeyConfidenceLow(track.key_confidence);
-  const showBpmWarning = typeof track.bpm_confidence === "number" && isBpmConfidenceLow(track.bpm_confidence);
+  const showKeyWarning =
+    typeof track.key_confidence === "number" && isKeyConfidenceLow(track.key_confidence);
+  const showBpmWarning =
+    typeof track.bpm_confidence === "number" && isBpmConfidenceLow(track.bpm_confidence);
   const genresShown = showGenres && genreBadges.items.length > 0;
 
   return (
@@ -1072,7 +1272,17 @@ export default function TrackResult({
                 {track.title}
               </Link>
               {score !== undefined && (
-                <Badge colorPalette={score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"} size="sm" flexShrink={0}>
+                <Badge
+                  colorPalette={
+                    score > 90
+                      ? "status.success"
+                      : score > 75
+                        ? "status.analysis"
+                        : "status.missing"
+                  }
+                  size="sm"
+                  flexShrink={0}
+                >
                   {score.toFixed(1)}%
                 </Badge>
               )}
@@ -1085,7 +1295,13 @@ export default function TrackResult({
               fontSize={{ base: "14px", md: "16px" }}
               lineHeight={{ base: "20px", md: "24px" }}
               css={{
-                "& > a": { minWidth: 0, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+                "& > a": {
+                  minWidth: 0,
+                  display: "block",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                },
                 // On a phone the artist keeps its width up to 65% of the line and the album takes the rest.
                 "@media (max-width: 47.99em)": {
                   "& > a:first-of-type": { maxWidth: "65%", flex: "0 1 auto" },
@@ -1099,7 +1315,14 @@ export default function TrackResult({
                 </Text>
               </ArtistLink>
               {track.album && (
-                <Text as="span" aria-hidden="true" display={{ base: "inline", md: "none" }} color="fg.muted" mx={1} flexShrink={0}>
+                <Text
+                  as="span"
+                  aria-hidden="true"
+                  display={{ base: "inline", md: "none" }}
+                  color="fg.muted"
+                  mx={1}
+                  flexShrink={0}
+                >
                   ·
                 </Text>
               )}
@@ -1195,7 +1418,11 @@ export default function TrackResult({
                   {bpmNum} BPM
                 </Text>
                 {showBpmWarning && (
-                  <ConfidenceIndicator subject="BPM" low percent={formatBpmConfidencePercent(track.bpm_confidence as number)} />
+                  <ConfidenceIndicator
+                    subject="BPM"
+                    low
+                    percent={formatBpmConfidencePercent(track.bpm_confidence as number)}
+                  />
                 )}
               </Flex>
             ) : (
@@ -1204,16 +1431,38 @@ export default function TrackResult({
               </Badge>
             )}
             {hasCamelot && (
-              <Flex as="span" display="inline-flex" alignItems="center" gap={1} minW={0} title={track.key as string} data-testid="track-card-key">
-                <Box aria-hidden="true" boxSize="8px" borderRadius="full" bg={camelotDotColor(camelot)} flexShrink={0} />
+              <Flex
+                as="span"
+                display="inline-flex"
+                alignItems="center"
+                gap={1}
+                minW={0}
+                title={track.key as string}
+                data-testid="track-card-key"
+              >
+                <Box
+                  aria-hidden="true"
+                  boxSize="8px"
+                  borderRadius="full"
+                  bg={camelotDotColor(camelot)}
+                  flexShrink={0}
+                />
                 <Text as="span" fontWeight="bold" color="fg" fontVariantNumeric="tabular-nums">
                   {camelot}
                 </Text>
-                <Text as="span" display={{ base: "none", md: "inline" }} data-testid="track-card-key-name">
+                <Text
+                  as="span"
+                  display={{ base: "none", md: "inline" }}
+                  data-testid="track-card-key-name"
+                >
                   {track.key}
                 </Text>
                 {showKeyWarning && (
-                  <ConfidenceIndicator subject="key" low percent={formatKeyConfidencePercent(track.key_confidence as number)} />
+                  <ConfidenceIndicator
+                    subject="key"
+                    low
+                    percent={formatKeyConfidencePercent(track.key_confidence as number)}
+                  />
                 )}
               </Flex>
             )}
@@ -1224,7 +1473,10 @@ export default function TrackResult({
 
         {/* Phones show genres only; the rating lives in the card menu there. */}
         <Flex
-          display={{ base: genresShown ? "flex" : "none", md: genresShown || showRating ? "flex" : "none" }}
+          display={{
+            base: genresShown ? "flex" : "none",
+            md: genresShown || showRating ? "flex" : "none",
+          }}
           alignItems="center"
           justifyContent="space-between"
           gap={2}

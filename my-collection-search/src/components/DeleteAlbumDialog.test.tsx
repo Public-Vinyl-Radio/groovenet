@@ -23,7 +23,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof DeleteAlbumDial
       onDeleted={onDeleted}
       notify={notify}
       {...props}
-    />
+    />,
   );
   return { ...rendered, onClose, onDeleted, notify };
 }
@@ -57,7 +57,7 @@ describe("DeleteAlbumDialog (#511)", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() =>
-      expect(notify).toHaveBeenCalledWith({ title: "Failed to delete album.", type: "error" })
+      expect(notify).toHaveBeenCalledWith({ title: "Failed to delete album.", type: "error" }),
     );
     expect(onDeleted).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();

@@ -68,7 +68,10 @@ describe("normalizePlaylistCreatedAt()", () => {
   });
 
   it("merges extra fields onto the result", () => {
-    const result = normalizePlaylistCreatedAt({ created_at: "2024-01-01T00:00:00.000Z", name: "Mix" });
+    const result = normalizePlaylistCreatedAt({
+      created_at: "2024-01-01T00:00:00.000Z",
+      name: "Mix",
+    });
     expect(result.name).toBe("Mix");
   });
 });
@@ -110,13 +113,27 @@ describe("getPlaylistTrackDetails()", () => {
 
 describe("getAllPlaylistsWithTracks()", () => {
   it("enriches playlists with batched duration and optional set summaries", async () => {
-    repo.listPlaylists.mockResolvedValue([{ id: 1, name: "Set", created_at: "2026-01-01T00:00:00.000Z" }]);
-    repo.listPlaylistTracksByPlaylistIds.mockResolvedValue([{ playlist_id: 1, track_id: "t1", friend_id: 1, position: 0 }]);
+    repo.listPlaylists.mockResolvedValue([
+      { id: 1, name: "Set", created_at: "2026-01-01T00:00:00.000Z" },
+    ]);
+    repo.listPlaylistTracksByPlaylistIds.mockResolvedValue([
+      { playlist_id: 1, track_id: "t1", friend_id: 1, position: 0 },
+    ]);
     repo.listPlaylistDurationsByPlaylistIds.mockResolvedValue({ 1: 3600 });
-    repo.listLiveSetSummariesByPlaylistIds.mockResolvedValue({ 1: { id: 7, status: "performed", collaborators: [] } });
+    repo.listLiveSetSummariesByPlaylistIds.mockResolvedValue({
+      1: { id: 7, status: "performed", collaborators: [] },
+    });
     repo.listCoverUrlsByPlaylistIds.mockResolvedValue({ 1: ["/a.jpg"] });
     const result = await makeService().getAllPlaylistsWithTracks();
-    expect(result).toMatchObject([{ id: 1, total_duration_seconds: 3600, cover_urls: ["/a.jpg"], set: { id: 7 }, tracks: [{ track_id: "t1" }] }]);
+    expect(result).toMatchObject([
+      {
+        id: 1,
+        total_duration_seconds: 3600,
+        cover_urls: ["/a.jpg"],
+        set: { id: 7 },
+        tracks: [{ track_id: "t1" }],
+      },
+    ]);
     expect(repo.listCoverUrlsByPlaylistIds).toHaveBeenCalledWith([1]);
     expect(repo.listPlaylistDurationsByPlaylistIds).toHaveBeenCalledWith([1]);
   });
@@ -205,7 +222,7 @@ describe("createPlaylistWithTracks()", () => {
       {},
       11,
       [{ track_id: "t1", friend_id: 5, position: 0 }],
-      true
+      true,
     );
     expect(result.tracks[0]).toMatchObject({ track_id: "t1", friend_id: 5, position: 0 });
   });

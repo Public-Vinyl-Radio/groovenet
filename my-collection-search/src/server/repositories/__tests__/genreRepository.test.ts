@@ -5,7 +5,8 @@ const dbQuery = vi.hoisted(() => vi.fn());
 const clientQuery = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/serverDb", () => ({
   dbQuery,
-  withDbTransaction: (fn: (client: { query: typeof clientQuery }) => unknown) => fn({ query: clientQuery }),
+  withDbTransaction: (fn: (client: { query: typeof clientQuery }) => unknown) =>
+    fn({ query: clientQuery }),
 }));
 
 const row = (overrides: Partial<GenreRow>): GenreRow => ({
@@ -28,7 +29,10 @@ describe("buildGenreTree", () => {
     ]);
 
     expect(result).toEqual([
-      expect.objectContaining({ id: "latin", children: [expect.objectContaining({ id: "cumbia" })] }),
+      expect.objectContaining({
+        id: "latin",
+        children: [expect.objectContaining({ id: "cumbia" })],
+      }),
     ]);
   });
 

@@ -51,8 +51,15 @@ export const up = (pgm) => {
   // the existing run; this is the lookup that decides it.
   pgm.createIndex(
     "set_derivations",
-    ["recording_sha256", "fingerprint_type", "fingerprint_version", "window_seconds", "step_seconds", "created_at"],
-    { name: "set_derivations_reuse_idx" }
+    [
+      "recording_sha256",
+      "fingerprint_type",
+      "fingerprint_version",
+      "window_seconds",
+      "step_seconds",
+      "created_at",
+    ],
+    { name: "set_derivations_reuse_idx" },
   );
 };
 

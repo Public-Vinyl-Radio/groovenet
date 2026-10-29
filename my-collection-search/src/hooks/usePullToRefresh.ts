@@ -11,8 +11,8 @@ function isBlockedTarget(target: EventTarget | null) {
     target instanceof Element &&
     Boolean(
       target.closest(
-        '[role="dialog"], [aria-modal="true"], [data-no-pull-to-refresh], [data-rfd-draggable-id], [data-rfd-drag-handle-draggable-id], input, textarea, select, [contenteditable="true"]'
-      )
+        '[role="dialog"], [aria-modal="true"], [data-no-pull-to-refresh], [data-rfd-draggable-id], [data-rfd-drag-handle-draggable-id], input, textarea, select, [contenteditable="true"]',
+      ),
     )
   );
 }
@@ -46,7 +46,8 @@ export function usePullToRefresh(enabled: boolean) {
     }
 
     const onTouchStart = (event: TouchEvent) => {
-      if (refreshingRef.current || event.touches.length !== 1 || isBlockedTarget(event.target)) return;
+      if (refreshingRef.current || event.touches.length !== 1 || isBlockedTarget(event.target))
+        return;
       const touch = event.touches[0];
       const scrollTop = document.scrollingElement?.scrollTop ?? window.scrollY;
       if (scrollTop > 0) return;

@@ -32,10 +32,13 @@ const STALE_TIME = 30_000;
 /** A release's copies — its implicit default (`id: null`) if none are recorded. */
 export function useRecordCopiesQuery(
   params: { friend_id: number; release_id: string },
-  options?: QueryOptions
+  options?: QueryOptions,
 ) {
   const query = useQuery<RecordCopyListResponse, Error>({
-    queryKey: queryKeys.recordCopies({ friend_id: params.friend_id, release_id: params.release_id }),
+    queryKey: queryKeys.recordCopies({
+      friend_id: params.friend_id,
+      release_id: params.release_id,
+    }),
     queryFn: () => listRecordCopies(params),
     enabled: options?.enabled ?? true,
     staleTime: STALE_TIME,
@@ -52,7 +55,7 @@ export function useRecordCopiesQuery(
 export function useRecordActionsQuery(
   copyId: number | null,
   params: { friend_id: number; include_voided?: boolean },
-  options?: QueryOptions
+  options?: QueryOptions,
 ) {
   const query = useQuery<RecordActionListResponse, Error>({
     queryKey: queryKeys.recordActions(copyId ?? 0, {

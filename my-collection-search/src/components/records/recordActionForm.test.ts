@@ -22,7 +22,10 @@ describe("initialRecordActionState", () => {
   });
 
   it("takes an action type and a copy", () => {
-    const state = initialRecordActionState({ actionType: "sleeved", copy: { id: 4, is_default: false } }, NOW);
+    const state = initialRecordActionState(
+      { actionType: "sleeved", copy: { id: 4, is_default: false } },
+      NOW,
+    );
     expect(state.actionType).toBe("sleeved");
     expect(state.copyKey).toBe("4");
   });
@@ -44,9 +47,11 @@ describe("recordActionFormError", () => {
   it("requires a valid time", () => {
     const state = initialRecordActionState({}, NOW);
     expect(recordActionFormError(state)).toBeNull();
-    expect(recordActionFormError({ ...state, occurredAtInput: "" })).toBe("Choose when it happened.");
+    expect(recordActionFormError({ ...state, occurredAtInput: "" })).toBe(
+      "Choose when it happened.",
+    );
     expect(recordActionFormError({ ...state, occurredAtInput: "nope" })).toBe(
-      "Choose when it happened."
+      "Choose when it happened.",
     );
   });
 });
@@ -67,8 +72,8 @@ describe("buildRecordActionBody", () => {
     expect(
       buildRecordActionBody(
         { ...base, copyKey: "4", method: "ultrasonic", notes: "  two passes " },
-        "rel"
-      )
+        "rel",
+      ),
     ).toEqual({
       copy_id: 4,
       action_type: "cleaned",
@@ -80,13 +85,16 @@ describe("buildRecordActionBody", () => {
 
   it("sends a sleeve only for a sleeve change, and no method", () => {
     expect(
-      buildRecordActionBody({ ...base, actionType: "sleeved", method: "vacuum", sleeveType: "poly" }, "rel")
+      buildRecordActionBody(
+        { ...base, actionType: "sleeved", method: "vacuum", sleeveType: "poly" },
+        "rel",
+      ),
     ).toEqual({ release_id: "rel", action_type: "sleeved", occurred_at, sleeve_type: "poly" });
   });
 
   it("sends neither for an inspection", () => {
-    expect(buildRecordActionBody({ ...base, actionType: "inspected", method: "vacuum" }, "rel")).toEqual(
-      { release_id: "rel", action_type: "inspected", occurred_at }
-    );
+    expect(
+      buildRecordActionBody({ ...base, actionType: "inspected", method: "vacuum" }, "rel"),
+    ).toEqual({ release_id: "rel", action_type: "inspected", occurred_at });
   });
 });

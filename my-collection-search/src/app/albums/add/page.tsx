@@ -22,27 +22,25 @@ export default function AddAlbumPage() {
   const { playlistLength } = usePlaybackPlayer();
 
   const [albumForm, setAlbumForm] = useState<AlbumFormData>({
-    title: '',
-    artist: '',
-    year: '',
+    title: "",
+    artist: "",
+    year: "",
     genres: [],
     styles: [],
-    album_notes: '',
+    album_notes: "",
     album_rating: 0,
-    purchase_price: '',
-    condition: '',
-    label: '',
-    catalog_number: '',
-    country: '',
-    format: '',
-    library_identifier: '',
+    purchase_price: "",
+    condition: "",
+    label: "",
+    catalog_number: "",
+    country: "",
+    format: "",
+    library_identifier: "",
   });
 
   const [coverArt, setCoverArt] = useState<File | null>(null);
 
-  const [tracks, setTracks] = useState<TrackFormData[]>([
-    { title: '', artist: '', position: '1' }
-  ]);
+  const [tracks, setTracks] = useState<TrackFormData[]>([{ title: "", artist: "", position: "1" }]);
 
   // Update track artists when album artist changes
   React.useEffect(() => {
@@ -51,7 +49,7 @@ export default function AddAlbumPage() {
         prev.map((track) => ({
           ...track,
           artist: track.artist || albumForm.artist,
-        }))
+        })),
       );
     }
   }, [albumForm.artist]);
@@ -60,18 +58,18 @@ export default function AddAlbumPage() {
     // Validate required fields
     if (!albumForm.title.trim()) {
       toaster.create({
-        title: 'Album title required',
-        description: 'Please enter an album title',
-        type: 'error',
+        title: "Album title required",
+        description: "Please enter an album title",
+        type: "error",
       });
       return;
     }
 
     if (!albumForm.artist.trim()) {
       toaster.create({
-        title: 'Artist required',
-        description: 'Please enter an artist name',
-        type: 'error',
+        title: "Artist required",
+        description: "Please enter an artist name",
+        type: "error",
       });
       return;
     }
@@ -79,9 +77,9 @@ export default function AddAlbumPage() {
     // Validate at least one track
     if (tracks.length === 0) {
       toaster.create({
-        title: 'No tracks',
-        description: 'Please add at least one track',
-        type: 'error',
+        title: "No tracks",
+        description: "Please add at least one track",
+        type: "error",
       });
       return;
     }
@@ -91,16 +89,16 @@ export default function AddAlbumPage() {
       if (!tracks[i].title.trim()) {
         toaster.create({
           title: `Track ${i + 1} missing title`,
-          description: 'All tracks must have a title',
-          type: 'error',
+          description: "All tracks must have a title",
+          type: "error",
         });
         return;
       }
       if (!tracks[i].artist.trim()) {
         toaster.create({
           title: `Track ${i + 1} missing artist`,
-          description: 'All tracks must have an artist',
-          type: 'error',
+          description: "All tracks must have an artist",
+          type: "error",
         });
         return;
       }
@@ -109,9 +107,9 @@ export default function AddAlbumPage() {
     // Check if we have a current user
     if (!currentUserFriend) {
       toaster.create({
-        title: 'No library selected',
-        description: 'Please select a library from the friend selector',
-        type: 'error',
+        title: "No library selected",
+        description: "Please select a library from the friend selector",
+        type: "error",
       });
       return;
     }
@@ -125,7 +123,9 @@ export default function AddAlbumPage() {
           genres: albumForm.genres.length > 0 ? albumForm.genres : undefined,
           styles: albumForm.styles.length > 0 ? albumForm.styles : undefined,
           album_rating: albumForm.album_rating || undefined,
-          purchase_price: albumForm.purchase_price ? parseFloat(albumForm.purchase_price) : undefined,
+          purchase_price: albumForm.purchase_price
+            ? parseFloat(albumForm.purchase_price)
+            : undefined,
           condition: albumForm.condition || undefined,
           label: albumForm.label || undefined,
           catalog_number: albumForm.catalog_number || undefined,
@@ -152,35 +152,33 @@ export default function AddAlbumPage() {
       });
 
       toaster.create({
-        title: 'Album created',
+        title: "Album created",
         description: `Successfully created "${albumForm.title}" with ${tracks.length} tracks`,
-        type: 'success',
+        type: "success",
       });
 
       // Navigate to albums list
-      router.push('/albums');
+      router.push("/albums");
     } catch (error) {
       toaster.create({
-        title: 'Failed to create album',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        type: 'error',
+        title: "Failed to create album",
+        description: error instanceof Error ? error.message : "An error occurred",
+        type: "error",
       });
     }
   };
 
   const handleCancel = () => {
-    router.push('/');
+    router.push("/");
   };
 
   return (
-    <PageContainer
-      size="standard"
-      py={{ base: 0, md: 4 }}
-      mb={playlistLength > 0 ? "120px" : "0"}
-    >
+    <PageContainer size="standard" py={{ base: 0, md: 4 }} mb={playlistLength > 0 ? "120px" : "0"}>
       <PageHeader
         title="Add Album"
-        leading={<HeaderCancelButton onClick={handleCancel} disabled={createAlbumMutation.isPending} />}
+        leading={
+          <HeaderCancelButton onClick={handleCancel} disabled={createAlbumMutation.isPending} />
+        }
         actions={[
           {
             label: "Save Album",
@@ -191,7 +189,6 @@ export default function AddAlbumPage() {
         ]}
       />
       <Stack gap={6}>
-
         <AlbumForm value={albumForm} onChange={setAlbumForm} />
 
         <CoverArtUpload value={coverArt} onChange={setCoverArt} />
@@ -204,11 +201,7 @@ export default function AddAlbumPage() {
         />
 
         <Flex gap={3} justify="flex-end" pt={4} display={{ base: "none", md: "flex" }}>
-          <Button
-            onClick={handleCancel}
-            variant="outline"
-            disabled={createAlbumMutation.isPending}
-          >
+          <Button onClick={handleCancel} variant="outline" disabled={createAlbumMutation.isPending}>
             Cancel
           </Button>
           <Button

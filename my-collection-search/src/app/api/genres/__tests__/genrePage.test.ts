@@ -7,7 +7,9 @@ vi.mock("@/server/services/genrePageService", () => ({ getGenrePage }));
 import { GET } from "../[id]/route";
 
 const call = (ref: string, query = "") =>
-  GET(new NextRequest(`http://localhost/api/genres/${ref}${query}`), { params: Promise.resolve({ id: ref }) });
+  GET(new NextRequest(`http://localhost/api/genres/${ref}${query}`), {
+    params: Promise.resolve({ id: ref }),
+  });
 
 const page = {
   genre: {
@@ -22,8 +24,17 @@ const page = {
   children: [],
   related: [],
   counts: { tracks: 1, albums: 0, tracks_total: 1, albums_total: 0 },
-  stats: { bpm_min: 90, bpm_max: 128, added_this_year: 3, year: 2026, playable_tracks: 12, bpm_histogram: [{ min: 90, max: 100, count: 2 }] },
-  top_tracks: [{ track_id: "t1", friend_id: 6, title: "T", artist: "A", album: "B", play_count: 2 }],
+  stats: {
+    bpm_min: 90,
+    bpm_max: 128,
+    added_this_year: 3,
+    year: 2026,
+    playable_tracks: 12,
+    bpm_histogram: [{ min: 90, max: 100, count: 2 }],
+  },
+  top_tracks: [
+    { track_id: "t1", friend_id: 6, title: "T", artist: "A", album: "B", play_count: 2 },
+  ],
   top_albums: [],
 };
 

@@ -71,15 +71,21 @@ describe.each(Object.entries(palettes))("palette %s", (_id, palette) => {
       expect(c["--gn-shadow"].toLowerCase()).not.toBe(c["--gn-ground"].toLowerCase());
     });
 
-    it.each(["fg", "subtle"] as const)("separates status %s colours by lightness, not only hue", (part) => {
-      const colours = statusNames.map((s) => c[`--gn-status-${s}-${part}`]);
-      for (let i = 0; i < colours.length; i++) {
-        for (let j = i + 1; j < colours.length; j++) {
-          // A luminance ratio, so the dark end of the scale is held to the same standard.
-          expect(contrastRatio(colours[i], colours[j]), `${statusNames[i]} vs ${statusNames[j]}`).toBeGreaterThanOrEqual(1.1);
+    it.each(["fg", "subtle"] as const)(
+      "separates status %s colours by lightness, not only hue",
+      (part) => {
+        const colours = statusNames.map((s) => c[`--gn-status-${s}-${part}`]);
+        for (let i = 0; i < colours.length; i++) {
+          for (let j = i + 1; j < colours.length; j++) {
+            // A luminance ratio, so the dark end of the scale is held to the same standard.
+            expect(
+              contrastRatio(colours[i], colours[j]),
+              `${statusNames[i]} vs ${statusNames[j]}`,
+            ).toBeGreaterThanOrEqual(1.1);
+          }
         }
-      }
-    });
+      },
+    );
   });
 });
 
@@ -99,10 +105,13 @@ describe("palette lookup", () => {
     expect(isPaletteId(defaultPaletteId)).toBe(true);
   });
 
-  it.each([undefined, null, 3, "", "nope", "constructor", "__proto__"])("treats %j as the default", (value) => {
-    expect(isPaletteId(value)).toBe(false);
-    expect(resolvePaletteId(value)).toBe(defaultPaletteId);
-  });
+  it.each([undefined, null, 3, "", "nope", "constructor", "__proto__"])(
+    "treats %j as the default",
+    (value) => {
+      expect(isPaletteId(value)).toBe(false);
+      expect(resolvePaletteId(value)).toBe(defaultPaletteId);
+    },
+  );
 
   it("keeps a registered id", () => {
     expect(resolvePaletteId("sleeve")).toBe("sleeve");

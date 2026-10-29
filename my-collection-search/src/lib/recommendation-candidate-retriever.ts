@@ -135,7 +135,7 @@ type EmbeddingQueryResult = RecommendationCandidateRow;
  * similarity: 1 = identical, 0 = opposite
  */
 function distanceToSimilarity(distance: number): number {
-  return 1 - (distance / 2);
+  return 1 - distance / 2;
 }
 
 /**
@@ -161,14 +161,17 @@ function computeEraBucket(year: string | null): string | null {
 /**
  * Calculate energy from danceability and aggressive mood
  */
-function calculateEnergy(danceability: number | null, moodAggressive: number | null): number | null {
+function calculateEnergy(
+  danceability: number | null,
+  moodAggressive: number | null,
+): number | null {
   if (danceability === null && moodAggressive === null) return null;
 
   const dance = danceability ?? 0.5;
   const aggression = moodAggressive ?? 0.5;
 
   // Simple energy calculation (can be refined)
-  return (dance * 0.6 + aggression * 0.4);
+  return dance * 0.6 + aggression * 0.4;
 }
 
 /**
@@ -176,7 +179,10 @@ function calculateEnergy(danceability: number | null, moodAggressive: number | n
  */
 function parseTags(localTags: string): string[] {
   if (!localTags) return [];
-  return localTags.split(",").map(tag => tag.trim()).filter(Boolean);
+  return localTags
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 }
 
 async function queryIdentitySimilar(
@@ -184,7 +190,7 @@ async function queryIdentitySimilar(
   seedFriendId: number,
   limit: number,
   ivfflatProbes: number,
-  libraryFriendId?: number
+  libraryFriendId?: number,
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("identity");
   const rows = await recommendationRepository.findIdentitySimilar({
@@ -199,7 +205,7 @@ async function queryIdentitySimilar(
   });
   if (rows.length === 0) {
     console.warn(
-      `[RecommendationCandidateRetriever] No identity embedding for seed track ${seedTrackId}`
+      `[RecommendationCandidateRetriever] No identity embedding for seed track ${seedTrackId}`,
     );
   }
   return rows;
@@ -209,7 +215,7 @@ async function queryIdentitySimilarByCentroid(
   seedTracks: SeedTrackRef[],
   limit: number,
   ivfflatProbes: number,
-  libraryFriendId?: number
+  libraryFriendId?: number,
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("identity");
   return recommendationRepository.findIdentitySimilarByCentroid({
@@ -228,7 +234,7 @@ async function queryAudioSimilar(
   seedFriendId: number,
   limit: number,
   ivfflatProbes: number,
-  libraryFriendId?: number
+  libraryFriendId?: number,
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("audio_vibe");
   const rows = await recommendationRepository.findAudioSimilar({
@@ -243,7 +249,7 @@ async function queryAudioSimilar(
   });
   if (rows.length === 0) {
     console.warn(
-      `[RecommendationCandidateRetriever] No audio_vibe embedding for seed track ${seedTrackId}`
+      `[RecommendationCandidateRetriever] No audio_vibe embedding for seed track ${seedTrackId}`,
     );
   }
   return rows;
@@ -253,7 +259,7 @@ async function queryAudioSimilarByCentroid(
   seedTracks: SeedTrackRef[],
   limit: number,
   ivfflatProbes: number,
-  libraryFriendId?: number
+  libraryFriendId?: number,
 ): Promise<EmbeddingQueryResult[]> {
   const { model, dims, templateVersion } = await getServingModel("audio_vibe");
   return recommendationRepository.findAudioSimilarByCentroid({
@@ -307,19 +313,18 @@ function buildCandidateMetadata(row: EmbeddingQueryResult): CandidateTrackMetada
 export async function retrieveCandidates(
   seedTrackId: string,
   seedFriendId: number,
-  options: RetrieveCandidatesOptions = {}
+  options: RetrieveCandidatesOptions = {},
 ): Promise<RetrieveCandidatesResult> {
   const startTime = Date.now();
 
-  const {
-    limitIdentity = 200,
-    limitAudio = 200,
-    ivfflatProbes = 10,
-    libraryFriendId,
-  } = options;
+  const { limitIdentity = 200, limitAudio = 200, ivfflatProbes = 10, libraryFriendId } = options;
 
   console.log(`[RecommendationCandidateRetriever] Retrieving candidates for track ${seedTrackId}`);
-  console.log(`[RecommendationCandidateRetriever] Options:`, { limitIdentity, limitAudio, ivfflatProbes });
+  console.log(`[RecommendationCandidateRetriever] Options:`, {
+    limitIdentity,
+    limitAudio,
+    ivfflatProbes,
+  });
 
   // Query identity similar tracks
   const identityStartTime = Date.now();
@@ -328,10 +333,12 @@ export async function retrieveCandidates(
     seedFriendId,
     limitIdentity,
     ivfflatProbes,
-    libraryFriendId
+    libraryFriendId,
   );
   const identityTime = Date.now() - identityStartTime;
-  console.log(`[RecommendationCandidateRetriever] Identity query returned ${identityResults.length} tracks in ${identityTime}ms`);
+  console.log(
+    `[RecommendationCandidateRetriever] Identity query returned ${identityResults.length} tracks in ${identityTime}ms`,
+  );
 
   // Query audio vibe similar tracks
   const audioStartTime = Date.now();
@@ -340,10 +347,12 @@ export async function retrieveCandidates(
     seedFriendId,
     limitAudio,
     ivfflatProbes,
-    libraryFriendId
+    libraryFriendId,
   );
   const audioTime = Date.now() - audioStartTime;
-  console.log(`[RecommendationCandidateRetriever] Audio query returned ${audioResults.length} tracks in ${audioTime}ms`);
+  console.log(
+    `[RecommendationCandidateRetriever] Audio query returned ${audioResults.length} tracks in ${audioTime}ms`,
+  );
 
   // Build union with deduplication
   // Use Map to track unique tracks by composite key
@@ -384,7 +393,9 @@ export async function retrieveCandidates(
   const candidates = Array.from(candidateMap.values());
   const totalTime = Date.now() - startTime;
 
-  console.log(`[RecommendationCandidateRetriever] Union produced ${candidates.length} unique candidates`);
+  console.log(
+    `[RecommendationCandidateRetriever] Union produced ${candidates.length} unique candidates`,
+  );
   console.log(`[RecommendationCandidateRetriever] Total time: ${totalTime}ms`);
 
   return {
@@ -406,7 +417,7 @@ export async function retrieveCandidates(
 
 export async function retrieveCandidatesForSeedTracks(
   seedTracks: SeedTrackRef[],
-  options: RetrieveCandidatesOptions = {}
+  options: RetrieveCandidatesOptions = {},
 ): Promise<RetrieveCandidatesResult> {
   if (!Array.isArray(seedTracks) || seedTracks.length === 0) {
     throw new Error("At least one seed track is required");
@@ -416,8 +427,8 @@ export async function retrieveCandidatesForSeedTracks(
     new Map(
       seedTracks
         .filter((seed) => seed.trackId && Number.isFinite(seed.friendId))
-        .map((seed) => [`${seed.trackId}:${seed.friendId}`, seed] as const)
-    ).values()
+        .map((seed) => [`${seed.trackId}:${seed.friendId}`, seed] as const),
+    ).values(),
   );
 
   if (dedupedSeedTracks.length === 0) {
@@ -432,7 +443,7 @@ export async function retrieveCandidatesForSeedTracks(
     dedupedSeedTracks,
     limitIdentity,
     ivfflatProbes,
-    libraryFriendId
+    libraryFriendId,
   );
   const identityTime = Date.now() - identityStartTime;
 
@@ -441,7 +452,7 @@ export async function retrieveCandidatesForSeedTracks(
     dedupedSeedTracks,
     limitAudio,
     ivfflatProbes,
-    libraryFriendId
+    libraryFriendId,
   );
   const audioTime = Date.now() - audioStartTime;
 
@@ -499,11 +510,9 @@ export async function retrieveCandidatesForSeedTracks(
  */
 export async function hasEmbeddings(
   trackId: string,
-  friendId: number
+  friendId: number,
 ): Promise<{ identity: boolean; audio: boolean }> {
-  const types = new Set(
-    await embeddingsRepository.listEmbeddingTypesForTrack(trackId, friendId)
-  );
+  const types = new Set(await embeddingsRepository.listEmbeddingTypesForTrack(trackId, friendId));
 
   return {
     identity: types.has("identity"),
@@ -512,14 +521,14 @@ export async function hasEmbeddings(
 }
 
 export async function hasEmbeddingsForSeedTracks(
-  seedTracks: SeedTrackRef[]
+  seedTracks: SeedTrackRef[],
 ): Promise<{ identity: boolean; audio: boolean }> {
   const dedupedSeedTracks = Array.from(
     new Map(
       seedTracks
         .filter((seed) => seed.trackId && Number.isFinite(seed.friendId))
-        .map((seed) => [`${seed.trackId}:${seed.friendId}`, seed] as const)
-    ).values()
+        .map((seed) => [`${seed.trackId}:${seed.friendId}`, seed] as const),
+    ).values(),
   );
 
   if (dedupedSeedTracks.length === 0) {
@@ -527,7 +536,7 @@ export async function hasEmbeddingsForSeedTracks(
   }
 
   const types = new Set(
-    await embeddingsRepository.listEmbeddingTypesForTrackPairs(dedupedSeedTracks)
+    await embeddingsRepository.listEmbeddingTypesForTrackPairs(dedupedSeedTracks),
   );
   return {
     identity: types.has("identity"),

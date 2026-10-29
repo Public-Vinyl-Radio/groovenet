@@ -47,10 +47,7 @@ export function useSpinsQuery(params: SpinListParams, options?: UseSpinsOptions)
   };
 }
 
-export function useSpinTopTracksQuery(
-  params: SpinTopTracksParams,
-  options?: UseSpinsOptions
-) {
+export function useSpinTopTracksQuery(params: SpinTopTracksParams, options?: UseSpinsOptions) {
   const query = useQuery<SpinTopTracksResponse, Error>({
     queryKey: queryKeys.spinTopTracks({
       friend_id: params.friend_id,

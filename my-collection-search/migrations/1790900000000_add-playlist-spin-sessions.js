@@ -54,17 +54,13 @@ export const up = (pgm) => {
       name: "spin_sessions_playlist_performance_unique",
       unique: true,
       where: "provenance = 'playlist' AND live_set_performance_id IS NOT NULL",
-    }
+    },
   );
-  pgm.createIndex(
-    "spin_sessions",
-    ["playlist_id", "playlist_played_at", "playlist_position"],
-    {
-      name: "spin_sessions_playlist_timestamp_unique",
-      unique: true,
-      where: "provenance = 'playlist' AND live_set_performance_id IS NULL",
-    }
-  );
+  pgm.createIndex("spin_sessions", ["playlist_id", "playlist_played_at", "playlist_position"], {
+    name: "spin_sessions_playlist_timestamp_unique",
+    unique: true,
+    where: "provenance = 'playlist' AND live_set_performance_id IS NULL",
+  });
 };
 
 export const down = (pgm) => {
@@ -82,7 +78,8 @@ export const down = (pgm) => {
     "playlist_position",
   ]);
   pgm.addConstraint("spin_sessions", "spin_sessions_automatic_payload_check", {
-    check: "(provenance = 'manual' AND source_id IS NULL AND detection_id IS NULL) OR (provenance = 'automatic' AND source_id IS NOT NULL AND detection_id IS NOT NULL)",
+    check:
+      "(provenance = 'manual' AND source_id IS NULL AND detection_id IS NULL) OR (provenance = 'automatic' AND source_id IS NOT NULL AND detection_id IS NOT NULL)",
   });
   pgm.dropConstraint("spin_sessions", "spin_sessions_provenance_check");
   pgm.addConstraint("spin_sessions", "spin_sessions_provenance_check", {

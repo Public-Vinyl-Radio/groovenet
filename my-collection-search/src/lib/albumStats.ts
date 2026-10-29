@@ -24,9 +24,9 @@ const sumSeconds = (tracks: StatTrack[]) =>
   tracks.reduce((total, track) => total + (getTrackDurationSeconds(track) ?? 0), 0);
 
 /** The album's tracks grouped by side (or disc), each with its runtime. */
-export function summarizeSides<T extends StatTrack & { position: string | number | null | undefined }>(
-  tracks: T[]
-): SideSummary<T>[] {
+export function summarizeSides<
+  T extends StatTrack & { position: string | number | null | undefined },
+>(tracks: T[]): SideSummary<T>[] {
   return normalizeAlbumTrackSides(tracks).map((group) => ({
     key: group.side_key,
     label: group.side_label,
@@ -58,7 +58,9 @@ export function formatSideSplit(sides: SideSummary<unknown>[]): string {
 
 /** The slowest and fastest tempo among tracks that have one. */
 export function bpmRange(tracks: StatTrack[]): { min: number; max: number } | null {
-  const bpms = tracks.map((track) => parseBpm(track.bpm)).filter((bpm): bpm is number => bpm !== null);
+  const bpms = tracks
+    .map((track) => parseBpm(track.bpm))
+    .filter((bpm): bpm is number => bpm !== null);
   if (bpms.length === 0) return null;
   return { min: Math.min(...bpms), max: Math.max(...bpms) };
 }

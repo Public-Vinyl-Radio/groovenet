@@ -29,7 +29,11 @@ const track = (position: string, overrides: Partial<Track> = {}) =>
     ...overrides,
   }) as Track;
 
-const tracks = [track("A1"), track("A2", { local_audio_url: undefined, notes: "Open with this" }), track("B1", { artist: "Guest" })];
+const tracks = [
+  track("A1"),
+  track("A2", { local_audio_url: undefined, notes: "Open with this" }),
+  track("B1", { artist: "Guest" }),
+];
 
 function setup(isMobile: boolean, list: Track[] = tracks) {
   const onPlayTrack = vi.fn();
@@ -42,7 +46,7 @@ function setup(isMobile: boolean, list: Track[] = tracks) {
       onPlayTrack={onPlayTrack}
       onPlaySide={onPlaySide}
       renderActions={(t) => <button aria-label={`Actions for ${t.title}`}>menu</button>}
-    />
+    />,
   );
   view.queryClient.setQueryData(queryKeys.genreTree(), []);
   return { ...view, onPlayTrack, onPlaySide };
@@ -53,15 +57,19 @@ beforeEach(() => vi.clearAllMocks());
 describe("AlbumTracklist table", () => {
   it("constrains long titles while keeping metadata and the notes button available", async () => {
     const title = "You Probably Couldn't See For The Lights But You Were Staring Straight At Me";
-    const { user } = setup(false, [track("A5", {
-      title,
-      notes: "Open with this",
-      local_tags: "Garage Rock, Indie Rock",
-    })]);
+    const { user } = setup(false, [
+      track("A5", {
+        title,
+        notes: "Open with this",
+        local_tags: "Garage Rock, Indie Rock",
+      }),
+    ]);
     const table = screen.getByRole("table");
     expect(getComputedStyle(table).tableLayout).toBe("fixed");
     for (const name of ["Time", "BPM", "Key", "Genre", "Rating"]) {
-      expect(getComputedStyle(within(table).getByRole("columnheader", { name })).width).toMatch(/^\d+px$/);
+      expect(getComputedStyle(within(table).getByRole("columnheader", { name })).width).toMatch(
+        /^\d+px$/,
+      );
     }
     const link = screen.getByRole("link", { name: title });
     expect(link.title).toBe(title);
@@ -85,7 +93,9 @@ describe("AlbumTracklist table", () => {
     expect(within(table).getByText("Side A")).toBeTruthy();
     expect(within(table).getByText("2 tracks · 6:00")).toBeTruthy();
     expect(within(table).getByText("1 track · 3:00")).toBeTruthy();
-    expect(within(table).getByRole("link", { name: "Song A1" }).getAttribute("href")).toBe("/tracks/t-A1?friend_id=1");
+    expect(within(table).getByRole("link", { name: "Song A1" }).getAttribute("href")).toBe(
+      "/tracks/t-A1?friend_id=1",
+    );
     expect(screen.getByText("3 tracks")).toBeTruthy();
   });
 
@@ -100,7 +110,9 @@ describe("AlbumTracklist table", () => {
     const { user, onPlayTrack, onPlaySide } = setup(false);
     await user.click(screen.getByRole("button", { name: "Play Song A1" }));
     expect(onPlayTrack).toHaveBeenCalledWith(expect.objectContaining({ track_id: "t-A1" }));
-    expect((screen.getByRole("button", { name: "Play Song A2" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Play Song A2" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
 
     await user.click(screen.getByRole("button", { name: "Play side B" }));
     expect(onPlaySide).toHaveBeenCalledWith(expect.objectContaining({ key: "B" }));
@@ -117,7 +129,9 @@ describe("AlbumTracklist table", () => {
   });
 
   it("shows dashes for a track with no key or time", () => {
-    setup(false, [track("A1", { key: null, duration: "", duration_seconds: undefined, bpm: undefined })]);
+    setup(false, [
+      track("A1", { key: null, duration: "", duration_seconds: undefined, bpm: undefined }),
+    ]);
     expect(screen.getAllByText("–").length).toBeGreaterThanOrEqual(3);
   });
 

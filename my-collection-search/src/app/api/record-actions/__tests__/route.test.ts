@@ -50,7 +50,7 @@ function post(body: unknown) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }) as never
+    }) as never,
   );
 }
 
@@ -62,14 +62,32 @@ beforeEach(() => {
 describe("POST /api/record-actions", () => {
   it.each([
     ["neither copy_id nor release_id", { friend_id: 7, action_type: "cleaned" }],
-    ["both copy_id and release_id", { friend_id: 7, copy_id: 3, release_id: "rel", action_type: "cleaned" }],
+    [
+      "both copy_id and release_id",
+      { friend_id: 7, copy_id: 3, release_id: "rel", action_type: "cleaned" },
+    ],
     ["a sleeved action without a sleeve", { friend_id: 7, copy_id: 3, action_type: "sleeved" }],
-    ["a sleeve on a cleaning", { friend_id: 7, copy_id: 3, action_type: "cleaned", sleeve_type: "poly" }],
-    ["a cleaning method on an inspection", { friend_id: 7, copy_id: 3, action_type: "inspected", details: { method: "vacuum" } }],
-    ["an unknown detail", { friend_id: 7, copy_id: 3, action_type: "cleaned", details: { solution: "isopropyl" } }],
-    ["an unknown sleeve", { friend_id: 7, copy_id: 3, action_type: "sleeved", sleeve_type: "rice-paper" }],
+    [
+      "a sleeve on a cleaning",
+      { friend_id: 7, copy_id: 3, action_type: "cleaned", sleeve_type: "poly" },
+    ],
+    [
+      "a cleaning method on an inspection",
+      { friend_id: 7, copy_id: 3, action_type: "inspected", details: { method: "vacuum" } },
+    ],
+    [
+      "an unknown detail",
+      { friend_id: 7, copy_id: 3, action_type: "cleaned", details: { solution: "isopropyl" } },
+    ],
+    [
+      "an unknown sleeve",
+      { friend_id: 7, copy_id: 3, action_type: "sleeved", sleeve_type: "rice-paper" },
+    ],
     ["played, which is not yet an action", { friend_id: 7, copy_id: 3, action_type: "played" }],
-    ["a date that is not one", { friend_id: 7, copy_id: 3, action_type: "cleaned", occurred_at: "last week" }],
+    [
+      "a date that is not one",
+      { friend_id: 7, copy_id: 3, action_type: "cleaned", occurred_at: "last week" },
+    ],
   ])("rejects %s", async (_label, body) => {
     const res = await post(body);
     expect(res.status).toBe(400);
@@ -98,7 +116,12 @@ describe("POST /api/record-actions", () => {
 
   it("logs a backdated cleaning against a copy", async () => {
     service.logAction.mockResolvedValue({
-      action: { ...action, action_type: "cleaned", sleeve_type: null, details: { method: "wet-manual" } },
+      action: {
+        ...action,
+        action_type: "cleaned",
+        sleeve_type: null,
+        details: { method: "wet-manual" },
+      },
       copy,
     });
 
@@ -160,8 +183,10 @@ describe("DELETE /api/record-actions/:id", () => {
 describe("record-actions error paths", () => {
   it("returns 400 voiding a non-numeric id", async () => {
     const res = await DELETE(
-      new Request("http://localhost/api/record-actions/x?friend_id=7", { method: "DELETE" }) as never,
-      { params: Promise.resolve({ id: "x" }) }
+      new Request("http://localhost/api/record-actions/x?friend_id=7", {
+        method: "DELETE",
+      }) as never,
+      { params: Promise.resolve({ id: "x" }) },
     );
     expect(res.status).toBe(400);
   });
@@ -169,8 +194,10 @@ describe("record-actions error paths", () => {
   it("returns 500 when voiding fails", async () => {
     service.voidAction.mockRejectedValue(new Error("connection reset"));
     const res = await DELETE(
-      new Request("http://localhost/api/record-actions/11?friend_id=7", { method: "DELETE" }) as never,
-      { params: Promise.resolve({ id: "11" }) }
+      new Request("http://localhost/api/record-actions/11?friend_id=7", {
+        method: "DELETE",
+      }) as never,
+      { params: Promise.resolve({ id: "11" }) },
     );
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("connection reset");
@@ -190,7 +217,12 @@ describe("record-actions analytics", () => {
   it("reports a logged sleeve change with its sleeve and no method", async () => {
     service.logAction.mockResolvedValue({ action, copy });
 
-    await post({ friend_id: 7, release_id: "rel", action_type: "sleeved", sleeve_type: "poly-rice-paper-poly" });
+    await post({
+      friend_id: 7,
+      release_id: "rel",
+      action_type: "sleeved",
+      sleeve_type: "poly-rice-paper-poly",
+    });
 
     expect(recorded()).toEqual([
       [
@@ -244,13 +276,18 @@ describe("record-actions analytics", () => {
     service.voidAction.mockResolvedValueOnce({ action: { ...action, voided_at: TS }, copy });
     service.voidAction.mockResolvedValueOnce(null);
     const voidRequest = () =>
-      new Request("http://localhost/api/record-actions/11?friend_id=7", { method: "DELETE" }) as never;
+      new Request("http://localhost/api/record-actions/11?friend_id=7", {
+        method: "DELETE",
+      }) as never;
 
     await DELETE(voidRequest(), { params: Promise.resolve({ id: "11" }) });
     await DELETE(voidRequest(), { params: Promise.resolve({ id: "11" }) });
 
     expect(recorded()).toEqual([
-      ["record_action_voided", { action_id: 11, copy_id: 3, action_type: "sleeved", source: "web" }],
+      [
+        "record_action_voided",
+        { action_id: 11, copy_id: 3, action_type: "sleeved", source: "web" },
+      ],
     ]);
   });
 });

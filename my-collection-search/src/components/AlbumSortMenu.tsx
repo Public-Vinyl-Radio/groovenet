@@ -43,7 +43,14 @@ export default function AlbumSortMenu({ value, onChange, trigger }: Props) {
             <LuChevronDown aria-hidden="true" />
           </HeaderButton>
         ) : (
-          <Button aria-label={`Sort: ${current.label}`} variant="ghost" size="sm" minH="44px" px={2} color="fg.muted">
+          <Button
+            aria-label={`Sort: ${current.label}`}
+            variant="ghost"
+            size="sm"
+            minH="44px"
+            px={2}
+            color="fg.muted"
+          >
             {current.label}
             <LuChevronDown />
           </Button>

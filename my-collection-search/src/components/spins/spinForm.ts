@@ -76,7 +76,7 @@ function sameMembers(a: string[], b: string[]): boolean {
  */
 export function buildSpinChanges(
   initial: SpinFormState,
-  current: SpinFormState
+  current: SpinFormState,
 ): SpinChanges | null {
   const changes: SpinChanges = {};
 

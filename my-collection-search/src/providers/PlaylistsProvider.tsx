@@ -50,8 +50,7 @@ function useLocalStorageState<T>(key: string, initial: T) {
   const set = useCallback(
     (next: React.SetStateAction<T>) => {
       setState((prev) => {
-        const value =
-          typeof next === "function" ? (next as (p: T) => T)(prev) : next;
+        const value = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
         if (typeof window !== "undefined") {
           try {
             localStorage.setItem(key, JSON.stringify(value));
@@ -60,7 +59,7 @@ function useLocalStorageState<T>(key: string, initial: T) {
         return value;
       });
     },
-    [key]
+    [key],
   );
 
   const clear = useCallback(() => {
@@ -110,8 +109,8 @@ function playlistReducer(state: TrackWithEmbedding[], action: Action) {
       const exists = state.some((t) =>
         sameIdentity(
           t as TrackWithEmbedding & WithUser,
-          action.track as TrackWithEmbedding & WithUser
-        )
+          action.track as TrackWithEmbedding & WithUser,
+        ),
       );
       return exists ? state : [...state, action.track];
     }
@@ -168,9 +167,7 @@ interface PlaylistsContextType {
   sortGenetic: () => void;
 }
 
-const PlaylistsContext = createContext<PlaylistsContextType | undefined>(
-  undefined
-);
+const PlaylistsContext = createContext<PlaylistsContextType | undefined>(undefined);
 
 /** ---------- provider ---------- */
 export function PlaylistsProvider({ children }: { children: ReactNode }) {
@@ -179,17 +176,15 @@ export function PlaylistsProvider({ children }: { children: ReactNode }) {
     enabled: true,
     staleTime: 30_000,
   });
-  const [playlist, setPlaylistLS, clearLS] = useLocalStorageState<
-    TrackWithEmbedding[]
-  >("playlist", []);
+  const [playlist, setPlaylistLS, clearLS] = useLocalStorageState<TrackWithEmbedding[]>(
+    "playlist",
+    [],
+  );
   const [state, dispatch] = useReducer(playlistReducer, playlist);
   const [playlistName, setPlaylistName] = useState("");
   const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo>({ name: "" });
-  const [loadingPlaylists, setLoadingPlaylists] = useState<
-    { id: number } | false
-  >(false);
-  const { mutateAsync: sortGeneticMutation } =
-    useGenerateGeneticPlaylistMutation();
+  const [loadingPlaylists, setLoadingPlaylists] = useState<{ id: number } | false>(false);
+  const { mutateAsync: sortGeneticMutation } = useGenerateGeneticPlaylistMutation();
 
   // keep localStorage in sync with reducer state
   useMemo(() => {
@@ -211,10 +206,7 @@ export function PlaylistsProvider({ children }: { children: ReactNode }) {
     }
   }, [state, orderMode]);
 
-  const playlistAvgEmbedding = useMemo(
-    () => averageEmbedding(orderedPlaylist),
-    [orderedPlaylist]
-  );
+  const playlistAvgEmbedding = useMemo(() => averageEmbedding(orderedPlaylist), [orderedPlaylist]);
 
   const fetchPlaylists = useCallback(async () => {
     await refetch();
@@ -233,10 +225,7 @@ export function PlaylistsProvider({ children }: { children: ReactNode }) {
       };
     });
 
-    const greedyPlaylist = greedyPath(
-      enrichedPlaylist,
-      buildCompatibilityGraph(enrichedPlaylist)
-    );
+    const greedyPlaylist = greedyPath(enrichedPlaylist, buildCompatibilityGraph(enrichedPlaylist));
 
     dispatch({
       type: "REPLACE",
@@ -262,17 +251,13 @@ export function PlaylistsProvider({ children }: { children: ReactNode }) {
   const savePlaylist = useCallback(async () => {
     await importPlaylist(
       playlistInfo.name || playlistName,
-      orderedPlaylist.map((t) => t.track_id)
+      orderedPlaylist.map((t) => t.track_id),
     );
   }, [playlistInfo.name, playlistName, orderedPlaylist]);
 
   const exportPlaylist = useCallback(() => {
     const base = orderedPlaylist;
-    const json = JSON.stringify(
-      base,
-      (k, v) => (k === "_vectors" ? undefined : v),
-      2
-    );
+    const json = JSON.stringify(base, (k, v) => (k === "_vectors" ? undefined : v), 2);
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(json);
     const a = document.createElement("a");
     a.setAttribute("href", dataStr);
@@ -304,7 +289,7 @@ export function PlaylistsProvider({ children }: { children: ReactNode }) {
   const getRecommendations = useCallback(
     async (k: number = 25) =>
       getRecommendationsRaw(k, orderedPlaylist as TrackWithEmbeddingFromHook[]),
-    [getRecommendationsRaw, orderedPlaylist]
+    [getRecommendationsRaw, orderedPlaylist],
   );
 
   const value: PlaylistsContextType = {
@@ -333,18 +318,13 @@ export function PlaylistsProvider({ children }: { children: ReactNode }) {
     sortGenetic,
   };
 
-  return (
-    <PlaylistsContext.Provider value={value}>
-      {children}
-    </PlaylistsContext.Provider>
-  );
+  return <PlaylistsContext.Provider value={value}>{children}</PlaylistsContext.Provider>;
 }
 
 /** ---------- hook ---------- */
 export function usePlaylists() {
   const ctx = useContext(PlaylistsContext);
-  if (!ctx)
-    throw new Error("usePlaylists must be used within a PlaylistsProvider");
+  if (!ctx) throw new Error("usePlaylists must be used within a PlaylistsProvider");
   return ctx;
 }
 

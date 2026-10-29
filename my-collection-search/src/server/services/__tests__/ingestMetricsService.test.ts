@@ -56,7 +56,7 @@ vi.mock("@/lib/redis", () => ({
           return keys.map((key) => [
             null,
             Object.fromEntries(
-              [...(store.get(key) ?? new Map()).entries()].map(([f, v]) => [f, String(v)])
+              [...(store.get(key) ?? new Map()).entries()].map(([f, v]) => [f, String(v)]),
             ),
           ]);
         },

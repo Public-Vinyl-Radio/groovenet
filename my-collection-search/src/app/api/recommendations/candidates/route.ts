@@ -38,7 +38,7 @@ import {
 export async function GET(request: NextRequest) {
   try {
     const parsedQuery = recommendationsQuerySchema.safeParse(
-      Object.fromEntries(request.nextUrl.searchParams.entries())
+      Object.fromEntries(request.nextUrl.searchParams.entries()),
     );
     if (!parsedQuery.success) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
           error: "Invalid recommendation query parameters",
           details: parsedQuery.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,8 +59,7 @@ export async function GET(request: NextRequest) {
       ivfflat_probes,
       scope: requestedScope,
       library_friend_id,
-    } =
-      parsedQuery.data;
+    } = parsedQuery.data;
     const friendIdNum = friend_id;
     let limitIdentity = limit_identity;
     let limitAudio = limit_audio;
@@ -76,13 +75,13 @@ export async function GET(request: NextRequest) {
     if (limitIdentity < 0 || limitIdentity > 1000) {
       return NextResponse.json(
         { error: "limit_identity must be between 0 and 1000" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (limitAudio < 0 || limitAudio > 1000) {
       return NextResponse.json(
         { error: "limit_audio must be between 0 and 1000" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -96,13 +95,13 @@ export async function GET(request: NextRequest) {
           message: `Track ${track_id} (friend_id: ${friendIdNum}) has neither identity nor audio vibe embeddings. Run backfill first.`,
           embeddings,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const { scope, libraryFriendId } = await settingsService.resolveRecommendationScope(
       library_friend_id ?? friendIdNum,
-      requestedScope
+      requestedScope,
     );
 
     // Retrieve candidates
@@ -115,7 +114,7 @@ export async function GET(request: NextRequest) {
     analytics.track(
       "recommendations_requested",
       { mode, seed_count: 1, result_count: result.candidates.length },
-      { request }
+      { request },
     );
 
     // Add embeddings info to response
@@ -127,7 +126,6 @@ export async function GET(request: NextRequest) {
     };
     const validated = recommendationsResponseSchema.parse(response);
     return NextResponse.json(validated);
-
   } catch (error) {
     console.error("[Recommendation Candidates] Error:", error);
     return NextResponse.json(
@@ -135,7 +133,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to retrieve recommendation candidates",
         message: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -149,7 +147,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid recommendation body",
           details: parsedBody.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -165,13 +163,13 @@ export async function POST(request: NextRequest) {
     if (limit_identity < 1 || limit_identity > 1000) {
       return NextResponse.json(
         { error: "limit_identity must be between 1 and 1000" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (limit_audio < 1 || limit_audio > 1000) {
       return NextResponse.json(
         { error: "limit_audio must be between 1 and 1000" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -188,13 +186,13 @@ export async function POST(request: NextRequest) {
           message: "None of the provided tracks have identity or audio vibe embeddings.",
           embeddings,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const { scope, libraryFriendId } = await settingsService.resolveRecommendationScope(
       library_friend_id ?? seedTracks[0].friendId,
-      requestedScope
+      requestedScope,
     );
 
     const result = await retrieveCandidatesForSeedTracks(seedTracks, {
@@ -210,7 +208,7 @@ export async function POST(request: NextRequest) {
         seed_count: seedTracks.length,
         result_count: result.candidates.length,
       },
-      { request }
+      { request },
     );
 
     const response = {
@@ -228,7 +226,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to retrieve recommendation candidates",
         message: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

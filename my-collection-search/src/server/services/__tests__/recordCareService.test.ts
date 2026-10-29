@@ -99,7 +99,7 @@ describe("RecordCareService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.withDbTransaction.mockImplementation(async (fn: (c: object) => Promise<unknown>) =>
-      fn(client)
+      fn(client),
     );
     mocks.getAlbumByReleaseAndFriend.mockResolvedValue({ release_id: "rel", friend_id: 7 });
   });
@@ -180,7 +180,7 @@ describe("RecordCareService", () => {
       mocks.getAlbumByReleaseAndFriend.mockResolvedValue(null);
 
       await expect(
-        service.logAction({ friend_id: 7, release_id: "gone", action_type: "cleaned" })
+        service.logAction({ friend_id: 7, release_id: "gone", action_type: "cleaned" }),
       ).rejects.toThrow(ALBUM_NOT_FOUND);
       expect(mocks.withDbTransaction).not.toHaveBeenCalled();
     });
@@ -189,7 +189,7 @@ describe("RecordCareService", () => {
       mocks.findCopyForUpdate.mockResolvedValue(null);
 
       await expect(
-        service.logAction({ friend_id: 7, copy_id: 99, action_type: "cleaned" })
+        service.logAction({ friend_id: 7, copy_id: 99, action_type: "cleaned" }),
       ).rejects.toThrow(RECORD_COPY_NOT_FOUND);
       expect(mocks.insertAction).not.toHaveBeenCalled();
     });
@@ -245,7 +245,7 @@ describe("RecordCareService", () => {
     it("creates a copy only for a release in the collection", async () => {
       mocks.getAlbumByReleaseAndFriend.mockResolvedValue(null);
       await expect(service.createCopy({ friend_id: 7, release_id: "gone" })).rejects.toThrow(
-        ALBUM_NOT_FOUND
+        ALBUM_NOT_FOUND,
       );
       expect(mocks.withDbTransaction).not.toHaveBeenCalled();
     });
@@ -264,7 +264,7 @@ describe("RecordCareService", () => {
 
       mocks.getAlbumByReleaseAndFriend.mockResolvedValue(null);
       await expect(service.updateDefaultCopy(7, "gone", { label: "x" })).rejects.toThrow(
-        ALBUM_NOT_FOUND
+        ALBUM_NOT_FOUND,
       );
     });
 
@@ -369,7 +369,10 @@ describe("RecordCareService", () => {
         overdue_days: 180,
         needs_sleeve: "poly-rice-paper-poly",
       });
-      expect(result).toMatchObject({ overdue_days: 180, needs_sleeve_type: "poly-rice-paper-poly" });
+      expect(result).toMatchObject({
+        overdue_days: 180,
+        needs_sleeve_type: "poly-rice-paper-poly",
+      });
     });
 
     it("returns care rows with last_cleaned_at as ISO strings", async () => {
@@ -400,7 +403,12 @@ describe("RecordCareService", () => {
 
     it("lets a request override both", async () => {
       process.env.RECORD_CLEANING_OVERDUE_DAYS = "180";
-      mocks.careCounts.mockResolvedValue({ total: 0, never_cleaned: 0, overdue: 0, needs_sleeve: 0 });
+      mocks.careCounts.mockResolvedValue({
+        total: 0,
+        never_cleaned: 0,
+        overdue: 0,
+        needs_sleeve: 0,
+      });
       mocks.countBySleeveType.mockResolvedValue([]);
 
       await service.careSummary(7, { overdue_days: 30, needs_sleeve: "paper" });
@@ -409,7 +417,12 @@ describe("RecordCareService", () => {
     });
 
     it("zero-fills every sleeve type and counts none logged as unknown", async () => {
-      mocks.careCounts.mockResolvedValue({ total: 5, never_cleaned: 4, overdue: 1, needs_sleeve: 4 });
+      mocks.careCounts.mockResolvedValue({
+        total: 5,
+        never_cleaned: 4,
+        overdue: 1,
+        needs_sleeve: 4,
+      });
       mocks.countBySleeveType.mockResolvedValue([
         { sleeve_type: null, count: 4 },
         { sleeve_type: "poly-rice-paper-poly", count: 1 },

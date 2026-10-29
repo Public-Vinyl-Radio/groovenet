@@ -59,7 +59,10 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
   // The cached setting already holds a change that is still saving, so the
   // selection follows the click at once.
   const customPalette = settings.data?.customPalette ?? null;
-  const selected: AppearancePaletteId = resolveAppearancePalette(settings.data?.palette, customPalette);
+  const selected: AppearancePaletteId = resolveAppearancePalette(
+    settings.data?.palette,
+    customPalette,
+  );
   const [editing, setEditing] = React.useState(false);
 
   const save = (patch: AppearancePatch, what: string) =>
@@ -87,7 +90,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
             description: err instanceof Error ? err.message : String(err),
             type: "error",
           }),
-      }
+      },
     );
 
   const deleteCustom = () =>
@@ -104,7 +107,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
             description: err instanceof Error ? err.message : String(err),
             type: "error",
           }),
-      }
+      },
     );
 
   const chooseFont = (role: FontRoleId, choice: FontChoiceId) => {
@@ -271,7 +274,13 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
                     _hover={{ bg: "bg.muted" }}
                     style={{ fontFamily: fontChoiceFamily(role, id) }}
                   >
-                    <Text as="span" display="block" fontSize="lg" fontWeight="semibold" lineHeight="1.2">
+                    <Text
+                      as="span"
+                      display="block"
+                      fontSize="lg"
+                      fontWeight="semibold"
+                      lineHeight="1.2"
+                    >
                       {choiceLabel}
                     </Text>
                     <Text as="span" display="block" fontSize="sm" color="fg.muted">

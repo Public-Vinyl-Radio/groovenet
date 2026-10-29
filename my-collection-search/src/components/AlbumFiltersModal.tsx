@@ -5,12 +5,20 @@ import { Box, Field } from "@chakra-ui/react";
 import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { ChipToggle, FiltersFooter, ModalSection as Section } from "@/components/ui/RetroModalParts";
+import {
+  ChipToggle,
+  FiltersFooter,
+  ModalSection as Section,
+} from "@/components/ui/RetroModalParts";
 import type { MissingFilterOption } from "@/lib/trackFilters";
 
 /** The album missing checks; each key is its URL parameter, as before #447. */
 export const ALBUM_MISSING_OPTIONS: MissingFilterOption[] = [
-  { key: "missing_library_identifier", label: "Library identifier", chipLabel: "Missing identifier" },
+  {
+    key: "missing_library_identifier",
+    label: "Library identifier",
+    chipLabel: "Missing identifier",
+  },
   { key: "missing_local_cover_art_url", label: "Local cover", chipLabel: "Missing local cover" },
   { key: "missing_audio", label: "Audio", chipLabel: "Missing audio" },
 ];
@@ -62,7 +70,9 @@ export function AlbumFilterSections({
           <GenreFilter selected={genres} onAdd={onAddGenre} inSheet />
         </Field.Root>
         <SelectedGenreTags selected={genres} onRemove={onRemoveGenre} />
-        {genres.length > 0 && <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />}
+        {genres.length > 0 && (
+          <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />
+        )}
       </Section>
 
       <Section label="Only albums missing">

@@ -54,7 +54,9 @@ beforeEach(() => {
     oldestInFlight: null,
   });
   detections.statsSince.mockResolvedValue({
-    windows: 10, matched: 8, noMatch: 2,
+    windows: 10,
+    matched: 8,
+    noMatch: 2,
     bands: [{ band: "0.90-1.00", count: 8 }],
   });
   fingerprints.countFingerprints.mockResolvedValue(3783);
@@ -87,7 +89,7 @@ describe("stats() — the index", () => {
     });
     expect(fingerprints.countIndexCandidates).toHaveBeenCalledWith(
       { kind: "missing" },
-      { fingerprint_type: "chromaprint", fingerprint_version: "1" }
+      { fingerprint_type: "chromaprint", fingerprint_version: "1" },
     );
   });
 
@@ -136,7 +138,10 @@ describe("stats() — counters", () => {
 
   it("reports a null match rate rather than dividing by zero", async () => {
     detections.statsSince.mockResolvedValue({
-      windows: 0, matched: 0, noMatch: 0, bands: [],
+      windows: 0,
+      matched: 0,
+      noMatch: 0,
+      bands: [],
     });
 
     const s = await service.stats();
@@ -151,9 +156,11 @@ describe("stats() — counters", () => {
 
   it("surfaces the oldest in-flight chunk", async () => {
     ingests.statsSince.mockResolvedValue({
-      byStatus: {}, failures: [],
+      byStatus: {},
+      failures: [],
       oldestInFlight: {
-        id: "i9", status: "processing",
+        id: "i9",
+        status: "processing",
         received_at: new Date("2026-09-21T02:00:00Z"),
       },
     });
@@ -161,7 +168,8 @@ describe("stats() — counters", () => {
     const s = await service.stats();
 
     expect(s.ingests.oldest_in_flight).toEqual({
-      ingest_id: "i9", status: "processing",
+      ingest_id: "i9",
+      status: "processing",
       received_at: "2026-09-21T02:00:00.000Z",
     });
   });

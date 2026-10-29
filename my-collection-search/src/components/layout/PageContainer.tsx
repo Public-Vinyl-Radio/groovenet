@@ -16,12 +16,7 @@ const SIZE_TO_MAX_WIDTH: Record<NonNullable<PageContainerProps["size"]>, string>
   wide: "1360px",
 };
 
-export default function PageContainer({
-  children,
-  size = "wide",
-  py,
-  mb,
-}: PageContainerProps) {
+export default function PageContainer({ children, size = "wide", py, mb }: PageContainerProps) {
   return (
     <Box w="full" maxW={SIZE_TO_MAX_WIDTH[size]} mx="auto" py={py} mb={mb}>
       {children}

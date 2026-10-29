@@ -20,9 +20,7 @@ function isMobileFullscreenEditRoute(pathname: string) {
   );
 }
 
-export const PlayerContainer: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const PlayerContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <Box
       data-testid="floating-player"
@@ -52,7 +50,6 @@ export const PlayerContainer: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-
 const PlaylistPlayer: React.FC = () => {
   const target = useOptionalPlaybackTarget();
   const { isOpen, toggle } = useQueueDrawer();
@@ -73,12 +70,24 @@ const PlaylistPlayer: React.FC = () => {
     <>
       {/* One stable position, so the picker survives the player appearing or hiding under it. */}
       {target && <PlayOnPicker />}
-      {visible && <VisiblePlayer notice={notice} isOpen={isOpen} isMobile={isMobile} toggle={toggle} />}
+      {visible && (
+        <VisiblePlayer notice={notice} isOpen={isOpen} isMobile={isMobile} toggle={toggle} />
+      )}
     </>
   );
 };
 
-function VisiblePlayer({ notice, isOpen, isMobile, toggle }: { notice: ReturnType<typeof useServerNotice>; isOpen: boolean; isMobile: boolean; toggle: () => void }) {
+function VisiblePlayer({
+  notice,
+  isOpen,
+  isMobile,
+  toggle,
+}: {
+  notice: ReturnType<typeof useServerNotice>;
+  isOpen: boolean;
+  isMobile: boolean;
+  toggle: () => void;
+}) {
   return (
     <>
       {/* On phones Now playing covers the screen (and shows the notice itself); the desktop bar stays under the queue panel. */}

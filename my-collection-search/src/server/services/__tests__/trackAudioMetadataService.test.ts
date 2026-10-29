@@ -24,9 +24,9 @@ describe("normalizeAudioFilename", () => {
   });
 
   it("uses ?filename= query param when present in URL", () => {
-    expect(
-      svc.normalizeAudioFilename("https://example.com/proxy?filename=my%20song.mp3")
-    ).toBe("my song.mp3");
+    expect(svc.normalizeAudioFilename("https://example.com/proxy?filename=my%20song.mp3")).toBe(
+      "my song.mp3",
+    );
   });
 
   it("strips leading slashes", () => {
@@ -127,15 +127,15 @@ describe("extractYearFromProbe", () => {
   });
 
   it("prefers 'date' over 'year' tag", () => {
-    expect(
-      svc.extractYearFromProbe({ format: { tags: { date: "1995", year: "2000" } } })
-    ).toBe(1995);
+    expect(svc.extractYearFromProbe({ format: { tags: { date: "1995", year: "2000" } } })).toBe(
+      1995,
+    );
   });
 
   it("falls back to scanning other tag values", () => {
-    expect(
-      svc.extractYearFromProbe({ format: { tags: { comment: "Recorded in 2003" } } })
-    ).toBe(2003);
+    expect(svc.extractYearFromProbe({ format: { tags: { comment: "Recorded in 2003" } } })).toBe(
+      2003,
+    );
   });
 
   it("returns null when no tag contains a valid year", () => {
@@ -165,44 +165,36 @@ describe("extractComposerFromProbe", () => {
   });
 
   it("returns composer from 'composer' tag (lowercase)", () => {
-    expect(
-      svc.extractComposerFromProbe({ format: { tags: { composer: "Bach" } } })
-    ).toBe("Bach");
+    expect(svc.extractComposerFromProbe({ format: { tags: { composer: "Bach" } } })).toBe("Bach");
   });
 
   it("returns composer from 'COMPOSER' tag (uppercase)", () => {
-    expect(
-      svc.extractComposerFromProbe({ format: { tags: { COMPOSER: "Beethoven" } } })
-    ).toBe("Beethoven");
+    expect(svc.extractComposerFromProbe({ format: { tags: { COMPOSER: "Beethoven" } } })).toBe(
+      "Beethoven",
+    );
   });
 
   it("returns composer from TPE2 tag", () => {
-    expect(
-      svc.extractComposerFromProbe({ format: { tags: { TPE2: "Mozart" } } })
-    ).toBe("Mozart");
+    expect(svc.extractComposerFromProbe({ format: { tags: { TPE2: "Mozart" } } })).toBe("Mozart");
   });
 
   it("returns composer from TCOM tag", () => {
-    expect(
-      svc.extractComposerFromProbe({ format: { tags: { TCOM: "Handel" } } })
-    ).toBe("Handel");
+    expect(svc.extractComposerFromProbe({ format: { tags: { TCOM: "Handel" } } })).toBe("Handel");
   });
 
   it("trims whitespace from composer value", () => {
-    expect(
-      svc.extractComposerFromProbe({ format: { tags: { composer: "  Bach  " } } })
-    ).toBe("Bach");
+    expect(svc.extractComposerFromProbe({ format: { tags: { composer: "  Bach  " } } })).toBe(
+      "Bach",
+    );
   });
 
   it("returns null for empty composer string", () => {
-    expect(
-      svc.extractComposerFromProbe({ format: { tags: { composer: "   " } } })
-    ).toBeNull();
+    expect(svc.extractComposerFromProbe({ format: { tags: { composer: "   " } } })).toBeNull();
   });
 
   it("prefers 'composer' key over TPE2", () => {
     expect(
-      svc.extractComposerFromProbe({ format: { tags: { composer: "Bach", TPE2: "Other" } } })
+      svc.extractComposerFromProbe({ format: { tags: { composer: "Bach", TPE2: "Other" } } }),
     ).toBe("Bach");
   });
 });

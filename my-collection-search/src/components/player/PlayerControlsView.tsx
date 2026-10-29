@@ -12,7 +12,11 @@ import AlbumLink from "@/components/AlbumLink";
 import MiniProgressLine from "@/components/player/MiniProgressLine";
 import RetroSlider from "@/components/player/RetroSlider";
 import { OutputButton, OutputTag } from "@/components/player/PlaybackOutput";
-import { BareTransportButton, SquarePlayButton, TransportStrip } from "@/components/player/TransportControls";
+import {
+  BareTransportButton,
+  SquarePlayButton,
+  TransportStrip,
+} from "@/components/player/TransportControls";
 import { artworkAlt, artworkOf, trackMetaLine } from "@/components/player/trackMeta";
 
 interface PlayerControlsViewProps {
@@ -132,7 +136,13 @@ export default function PlayerControlsView({
           >
             <Artwork src={artworkOf(currentTrack)} alt={artworkAlt(currentTrack)} size="48px" />
             <VStack align="start" gap={0} flex="1" minW={0}>
-              <Text fontWeight="semibold" fontSize="14px" lineHeight="20px" lineClamp={1} maxW="100%">
+              <Text
+                fontWeight="semibold"
+                fontSize="14px"
+                lineHeight="20px"
+                lineClamp={1}
+                maxW="100%"
+              >
                 {primaryText}
               </Text>
               <Text color="fg.muted" fontSize="12px" lineHeight="16px" lineClamp={1} maxW="100%">
@@ -166,7 +176,14 @@ export default function PlayerControlsView({
           <Artwork src={artworkOf(currentTrack)} alt={artworkAlt(currentTrack)} size="60px" />
         </AlbumLink>
         <VStack align="start" gap={0} minW={0}>
-          <Text fontWeight="semibold" fontSize="15px" lineHeight="20px" maxW="100%" lineClamp={1} title={primaryText}>
+          <Text
+            fontWeight="semibold"
+            fontSize="15px"
+            lineHeight="20px"
+            maxW="100%"
+            lineClamp={1}
+            title={primaryText}
+          >
             {primaryText}
           </Text>
           <Text
@@ -188,7 +205,14 @@ export default function PlayerControlsView({
             )}
           </Text>
           {meta && (
-            <Text fontFamily="mono" fontSize="11px" lineHeight="15px" color="fg.muted" lineClamp={1} maxW="100%">
+            <Text
+              fontFamily="mono"
+              fontSize="11px"
+              lineHeight="15px"
+              color="fg.muted"
+              lineClamp={1}
+              maxW="100%"
+            >
               {meta}
             </Text>
           )}

@@ -107,9 +107,7 @@ class TestBuildResult:
         assert result["sample_rate"] == 22050
 
     def test_optional_job_fields_come_back_as_null(self, job, matcher):
-        result = build_result(
-            {"ingest_id": "i1", "source_id": "s1", "file_path": "c.wav"}, matcher
-        )
+        result = build_result({"ingest_id": "i1", "source_id": "s1", "file_path": "c.wav"}, matcher)
         assert result["session_id"] is None
         assert result["sequence"] is None
         assert result["window_start_at"] is None
@@ -124,9 +122,7 @@ class TestReportResult:
         assert posted[0]["json"] == result
 
     def test_raises_when_the_app_rejects_it(self, job, matcher, monkeypatch):
-        monkeypatch.setattr(
-            requests.Session, "request", lambda *a, **k: FakeResponse(500, "boom")
-        )
+        monkeypatch.setattr(requests.Session, "request", lambda *a, **k: FakeResponse(500, "boom"))
         with pytest.raises(ResultReportError, match="returned 500"):
             report_result(build_result(job(), matcher))
 
@@ -143,9 +139,7 @@ class TestTryReportResult:
     def test_returns_true_when_accepted(self, job, matcher, posted):
         assert try_report_result(build_result(job(), matcher)) is True
 
-    def test_logs_rather_than_raising_when_the_app_is_down(
-        self, job, matcher, monkeypatch, events
-    ):
+    def test_logs_rather_than_raising_when_the_app_is_down(self, job, matcher, monkeypatch, events):
         def boom(*args, **kwargs):
             raise requests.ConnectionError("no route to host")
 
@@ -188,9 +182,7 @@ class TestPersistFingerprint:
         assert posted[0]["json"] == upsert
 
     def test_raises_when_the_app_refuses(self, monkeypatch, upsert):
-        monkeypatch.setattr(
-            requests.Session, "request", lambda *a, **k: FakeResponse(422, "bad friend_id")
-        )
+        monkeypatch.setattr(requests.Session, "request", lambda *a, **k: FakeResponse(422, "bad friend_id"))
         with pytest.raises(ResultReportError, match="422"):
             persist_fingerprint(upsert)
 
@@ -213,9 +205,7 @@ class TestTryPersistFingerprint:
         The next run regenerates it anyway: with no row, there is no stored hash
         to skip on.
         """
-        monkeypatch.setattr(
-            requests.Session, "request", lambda *a, **k: FakeResponse(500, "boom")
-        )
+        monkeypatch.setattr(requests.Session, "request", lambda *a, **k: FakeResponse(500, "boom"))
         assert try_persist_fingerprint(upsert) is False
 
 
@@ -280,9 +270,7 @@ class TestClaimIngest:
     def test_a_refused_claim_is_not_fatal(self, monkeypatch):
         # A 404 means the app does not know this ingest. Worth a warning, not
         # worth refusing to process audio we are already holding.
-        monkeypatch.setattr(
-            requests.Session, "request", lambda *a, **k: FakeResponse(404, "gone")
-        )
+        monkeypatch.setattr(requests.Session, "request", lambda *a, **k: FakeResponse(404, "gone"))
         assert try_claim_ingest("abc") is False
 
     def test_an_unreachable_app_is_not_fatal(self, monkeypatch):
@@ -304,8 +292,13 @@ class TestSetResults:
     def test_a_result_with_windows_is_processed(self, set_job, matcher):
         window = {"start_seconds": 0.0, "duration_seconds": 15.0, "candidates": []}
         result = build_set_result(
-            set_job(), matcher, window_seconds=15.0, step_seconds=15.0,
-            windows=[window], duration_seconds=15.0, sample_rate=22050,
+            set_job(),
+            matcher,
+            window_seconds=15.0,
+            step_seconds=15.0,
+            windows=[window],
+            duration_seconds=15.0,
+            sample_rate=22050,
         )
         assert result["status"] == "processed"
         assert result["error"] is None
@@ -356,11 +349,14 @@ class TestSetResults:
         assert try_claim_set("d1") is False
 
 
-@pytest.mark.parametrize("operation, path, method", [
-    (lambda: try_claim_ingest("i1"), "/api/audio/ingest/i1/claim", "POST"),
-    (lambda: try_claim_set("d1"), "/api/set-derivations/d1/claim", "POST"),
-    (lambda: try_record_file_stats(TestTryRecordFileStats.stats), "/api/fingerprints", "PATCH"),
-])
+@pytest.mark.parametrize(
+    "operation, path, method",
+    [
+        (lambda: try_claim_ingest("i1"), "/api/audio/ingest/i1/claim", "POST"),
+        (lambda: try_claim_set("d1"), "/api/set-derivations/d1/claim", "POST"),
+        (lambda: try_record_file_stats(TestTryRecordFileStats.stats), "/api/fingerprints", "PATCH"),
+    ],
+)
 def test_best_effort_calls_preserve_timeout_and_pipeline_identity(monkeypatch, operation, path, method):
     calls = []
 

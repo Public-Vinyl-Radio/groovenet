@@ -17,14 +17,37 @@ export function useGenreResults(slug: string, friendId: number | undefined, view
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       if (view === "albums") {
-        const page = await searchAlbums({ genre: [slug], friend_id: friendId, limit: 24, offset: pageParam });
+        const page = await searchAlbums({
+          genre: [slug],
+          friend_id: friendId,
+          limit: 24,
+          offset: pageParam,
+        });
         useAlbumStore.getState().setAlbums(page.hits);
-        return { refs: page.hits.map(({ release_id, friend_id }) => ({ id: release_id, friend_id })), total: page.estimatedTotalHits, offset: page.offset, limit: page.limit };
+        return {
+          refs: page.hits.map(({ release_id, friend_id }) => ({ id: release_id, friend_id })),
+          total: page.estimatedTotalHits,
+          offset: page.offset,
+          limit: page.limit,
+        };
       }
-      const page = await searchTracks({ genre: [slug], filter: `friend_id = ${friendId}`, limit: 24, offset: pageParam });
+      const page = await searchTracks({
+        genre: [slug],
+        filter: `friend_id = ${friendId}`,
+        limit: 24,
+        offset: pageParam,
+      });
       useTrackStore.getState().setTracks(page.hits);
-      return { refs: page.hits.map(({ track_id, friend_id }) => ({ id: track_id, friend_id })), total: page.estimatedTotalHits, offset: page.offset, limit: page.limit };
+      return {
+        refs: page.hits.map(({ track_id, friend_id }) => ({ id: track_id, friend_id })),
+        total: page.estimatedTotalHits,
+        offset: page.offset,
+        limit: page.limit,
+      };
     },
-    getNextPageParam: (page) => page.refs.length && page.offset + page.limit < page.total ? page.offset + page.limit : undefined,
+    getNextPageParam: (page) =>
+      page.refs.length && page.offset + page.limit < page.total
+        ? page.offset + page.limit
+        : undefined,
   });
 }

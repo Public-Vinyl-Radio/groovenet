@@ -13,7 +13,8 @@ const exec = promisify(execFile);
 const name = `groovenet-692-smoke-${process.pid}`;
 const dir = mkdtempSync(join(tmpdir(), "groovenet-692-"));
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const docker = (...args) => execFileSync("docker", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+const docker = (...args) =>
+  execFileSync("docker", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 const config = `general {
  uid = "nobody"
  db_path = "/tmp/engine/library.db"
@@ -35,8 +36,20 @@ mpd { port = 0 }
 `;
 writeFileSync(join(dir, "engine.conf"), config);
 const transport = async (input, init = {}) => {
-  const args = ["exec", name, "curl", "-sS", "--max-time", "5", "-X", init.method ?? "GET", "-w", "\n%{http_code}"];
-  for (const [key, value] of Object.entries(init.headers ?? {})) args.push("-H", `${key}: ${value}`);
+  const args = [
+    "exec",
+    name,
+    "curl",
+    "-sS",
+    "--max-time",
+    "5",
+    "-X",
+    init.method ?? "GET",
+    "-w",
+    "\n%{http_code}",
+  ];
+  for (const [key, value] of Object.entries(init.headers ?? {}))
+    args.push("-H", `${key}: ${value}`);
   if (init.body) args.push("-d", String(init.body));
   args.push(String(input));
   const { stdout } = await exec("docker", args, { signal: init.signal });
@@ -56,7 +69,20 @@ const wait = async (predicate, message) => {
 };
 let backend;
 try {
-  docker("run", "-d", "--name", name, "--network", "none", "--mount", `type=bind,src=${join(dir, "engine.conf")},dst=/tmp/engine.conf,readonly`, "--entrypoint", "/bin/sh", "groovenet-owntone:692-test", "-ec", `
+  docker(
+    "run",
+    "-d",
+    "--name",
+    name,
+    "--network",
+    "none",
+    "--mount",
+    `type=bind,src=${join(dir, "engine.conf")},dst=/tmp/engine.conf,readonly`,
+    "--entrypoint",
+    "/bin/sh",
+    "groovenet-owntone:692-test",
+    "-ec",
+    `
     mkdir -p /tmp/engine /tmp/media /run/dbus
     chown nobody /tmp/engine /tmp/media
     ffmpeg -y -v error -f lavfi -i 'sine=frequency=440:duration=3' -af volume=0.01 /tmp/media/short.wav
@@ -66,19 +92,34 @@ try {
     dbus-daemon --system --fork
     avahi-daemon --daemonize --no-drop-root
     exec /usr/sbin/owntone -f -c /tmp/engine.conf
-  `);
+  `,
+  );
   await wait(async () => {
-    try { return (await read("search?type=tracks&expression=media_kind%20is%20music")).tracks.items.length === 2; }
-    catch { return false; }
+    try {
+      return (
+        (await read("search?type=tracks&expression=media_kind%20is%20music")).tracks.items
+          .length === 2
+      );
+    } catch {
+      return false;
+    }
   }, "fixture index");
   const devices = await read("outputs");
   assert.equal(devices.outputs.length, 1);
   const outputId = devices.outputs[0].id;
-  backend = new OwnToneBackend({ apiUrl: "http://127.0.0.1:13689/api", outputId, fetch: transport, pollIntervalMs: 100 });
+  backend = new OwnToneBackend({
+    apiUrl: "http://127.0.0.1:13689/api",
+    outputId,
+    fetch: transport,
+    pollIntervalMs: 100,
+  });
   let ended = 0;
   const errors = [];
   const positions = [];
-  backend.on("ended", () => ended++).on("error", (error) => errors.push(error)).on("position", (position) => positions.push(position));
+  backend
+    .on("ended", () => ended++)
+    .on("error", (error) => errors.push(error))
+    .on("position", (position) => positions.push(position));
   await backend.load({ url: "file:///tmp/media/short.wav" });
   await wait(() => ended === 1 || errors.length > 0, "natural completion");
   assert.deepEqual(errors, []);
@@ -108,17 +149,28 @@ try {
   backend = undefined;
   // Restart the same container: its DB survives, but its signal epoch must not.
   const beforeRestart = (await read("player")).groovenet_terminal.instance;
-  backend = new OwnToneBackend({ apiUrl: "http://127.0.0.1:13689/api", outputId, fetch: transport, pollIntervalMs: 100 });
+  backend = new OwnToneBackend({
+    apiUrl: "http://127.0.0.1:13689/api",
+    outputId,
+    fetch: transport,
+    pollIntervalMs: 100,
+  });
   let restartEnded = 0;
   const restartErrors = [];
   backend.on("ended", () => restartEnded++).on("error", (error) => restartErrors.push(error));
   await backend.load({ url: "file:///tmp/media/long.wav" });
   docker("restart", name);
   await wait(async () => {
-    try { return (await read("player")).groovenet_terminal.instance !== beforeRestart; }
-    catch { return false; }
+    try {
+      return (await read("player")).groovenet_terminal.instance !== beforeRestart;
+    } catch {
+      return false;
+    }
   }, "new engine epoch");
-  await wait(() => restartErrors.some((error) => error.code === "PLAYBACK_INTERRUPTED"), "restart reconciliation");
+  await wait(
+    () => restartErrors.some((error) => error.code === "PLAYBACK_INTERRUPTED"),
+    "restart reconciliation",
+  );
   assert.equal(restartEnded, 0);
   assert.equal((await read("player")).state, "stop");
   console.log("PASS: engine restart changes epoch and never replays or advances");
@@ -126,10 +178,18 @@ try {
   backend = undefined;
   console.log("PASS: isolated smoke complete (dummy output only; no audible hardware validation)");
 } catch (error) {
-  try { execFileSync("docker", ["logs", "--tail", "50", name], { stdio: "inherit" }); } catch { /* not started */ }
+  try {
+    execFileSync("docker", ["logs", "--tail", "50", name], { stdio: "inherit" });
+  } catch {
+    /* not started */
+  }
   throw error;
 } finally {
   await backend?.close().catch(() => {});
-  try { docker("rm", "-f", name); } catch { /* already gone */ }
+  try {
+    docker("rm", "-f", name);
+  } catch {
+    /* already gone */
+  }
   rmSync(dir, { recursive: true, force: true });
 }

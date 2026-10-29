@@ -111,10 +111,7 @@ export function useAudioEngine({
     const onTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
     const onLoadedMetadata = () => {
       setDuration(audio.duration || 0);
-      if (
-        pendingSeekRef.current != null &&
-        Number.isFinite(pendingSeekRef.current)
-      ) {
+      if (pendingSeekRef.current != null && Number.isFinite(pendingSeekRef.current)) {
         const dur = audio.duration || 0;
         const clamped = Math.max(0, Math.min(dur || 0, pendingSeekRef.current));
         try {
@@ -153,17 +150,14 @@ export function useAudioEngine({
     (time: number) => {
       const audio = audioRef.current;
       if (!audio) return;
-      const dur =
-        Number.isFinite(duration) && duration > 0
-          ? duration
-          : audio.duration || 0;
+      const dur = Number.isFinite(duration) && duration > 0 ? duration : audio.duration || 0;
       const clamped = Math.max(0, Math.min(dur || 0, time));
       try {
         audio.currentTime = clamped;
         setCurrentTime(clamped);
       } catch {}
     },
-    [audioRef, duration]
+    [audioRef, duration],
   );
 
   useEffect(() => {
@@ -186,7 +180,7 @@ export function useAudioEngine({
         style={{ display: "none" }}
       />
     ),
-    [audioRef]
+    [audioRef],
   );
 
   return {

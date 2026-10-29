@@ -27,8 +27,7 @@ function localGitSha(): string | null {
 //   - GIT_SHA                 : commit sha, baked in at image build time
 //   - BUILD_TIME              : ISO timestamp, baked in at image build time
 export async function GET() {
-  const version =
-    process.env.APP_VERSION || process.env.IMAGE_TAG || pkg.version || "unknown";
+  const version = process.env.APP_VERSION || process.env.IMAGE_TAG || pkg.version || "unknown";
 
   return NextResponse.json({
     version,

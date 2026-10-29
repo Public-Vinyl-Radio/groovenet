@@ -6,11 +6,7 @@ import type { GamdlConnectionTestDetails } from "@/types/gamdl";
 
 export const runtime = "nodejs";
 
-type GamdlAction =
-  | "cookie_status"
-  | "delete_cookie"
-  | "test_connection"
-  | "reset_settings";
+type GamdlAction = "cookie_status" | "delete_cookie" | "test_connection" | "reset_settings";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,10 +38,7 @@ export async function POST(req: NextRequest) {
     if (action === "reset_settings") {
       const friendIdNum = Number(body?.friend_id);
       if (!friendIdNum || Number.isNaN(friendIdNum)) {
-        return NextResponse.json(
-          { error: "friend_id must be a number" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "friend_id must be a number" }, { status: 400 });
       }
       const settings = await settingsService.resetGamdlSettings(friendIdNum);
       return NextResponse.json({
@@ -55,10 +48,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      { error: "Unsupported action" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   } catch (error) {
     console.error("Failed to run GAMDL action:", error);
     const details: GamdlConnectionTestDetails = {
@@ -76,7 +66,7 @@ export async function POST(req: NextRequest) {
         message: error instanceof Error ? error.message : String(error),
         details,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

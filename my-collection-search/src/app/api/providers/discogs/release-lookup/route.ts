@@ -14,10 +14,7 @@ function findReleaseFile(releaseId: string, username?: string): string | null {
   if (fs.existsSync(main)) return main;
 
   if (username) {
-    const alt = path.join(
-      DISCOGS_EXPORTS_DIR,
-      `${username}_release_${releaseId}.json`
-    );
+    const alt = path.join(DISCOGS_EXPORTS_DIR, `${username}_release_${releaseId}.json`);
     if (fs.existsSync(alt)) return alt;
   }
 
@@ -38,7 +35,7 @@ export async function GET(req: Request) {
     if (!trackIdParam) {
       return NextResponse.json(
         { error: "Missing required query param: track_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -47,29 +44,24 @@ export async function GET(req: Request) {
     if (dashIdx <= 0) {
       return NextResponse.json(
         { error: "track_id format invalid. Expected '<releaseId>-<position>'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const releaseId = trackId.slice(0, dashIdx);
 
     if (!fs.existsSync(DISCOGS_EXPORTS_DIR)) {
-      return NextResponse.json(
-        { error: "discogs_exports directory not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "discogs_exports directory not found" }, { status: 404 });
     }
 
     const filePath = findReleaseFile(releaseId, username);
     if (!filePath) {
       return NextResponse.json(
         { error: `Release JSON not found for id ${releaseId}` },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    const release: DiscogsRelease = JSON.parse(
-      fs.readFileSync(filePath, "utf-8")
-    );
+    const release: DiscogsRelease = JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
     const matchedTrack = (release.tracklist || []).find((tr) => {
       const composed = sanitizeId(`${release.id}-${tr.position}`);

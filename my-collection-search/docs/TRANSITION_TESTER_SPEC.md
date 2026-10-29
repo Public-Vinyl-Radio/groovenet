@@ -1,11 +1,13 @@
 # DJ Transition Tester - Implementation Spec
 
 ## Overview
+
 Build a dual-deck audio player for testing track transitions in playlists, similar to Logic Pro X's interface.
 
 ## Features
 
 ### MVP (Phase 1) - 1-2 days
+
 - [x] Dual audio player (Deck A + Deck B)
 - [x] Load two consecutive tracks from playlist
 - [x] Play/pause controls per deck
@@ -15,18 +17,21 @@ Build a dual-deck audio player for testing track transitions in playlists, simil
 - [x] BPM display
 
 ### Phase 2 - Add Visualization (1 day)
+
 - [ ] Waveform display for both tracks
 - [ ] Playhead position indicator
 - [ ] Zoom in/out on waveform
 - [ ] Click waveform to seek
 
 ### Phase 3 - Advanced Controls (1-2 days)
+
 - [ ] Pitch/tempo slider per deck
 - [ ] BPM sync button (auto-match tempo)
 - [ ] Key detection and harmonic mixing indicator
 - [ ] Cue points (set/jump to position)
 
 ### Phase 4 - Polish (1-2 days)
+
 - [ ] Logic X-style dark theme
 - [ ] Keyboard shortcuts
 - [ ] Save transition points
@@ -36,16 +41,19 @@ Build a dual-deck audio player for testing track transitions in playlists, simil
 ## Tech Stack
 
 ### Core Audio
+
 - **Web Audio API** - Playback, volume, routing
 - **Tone.js** (optional) - Advanced pitch/tempo control
 - **Wavesurfer.js** - Waveform visualization
 
 ### UI
+
 - **Chakra UI** - Sliders, buttons, layout
 - **React hooks** - State management
 - **Framer Motion** - Smooth animations
 
 ### Data
+
 - Fetch track audio from `/audio/{track_id}.m4a`
 - Use existing track metadata (BPM, key, duration)
 - Load from playlist context
@@ -135,12 +143,12 @@ class AudioEngine {
     this.deckB.gainNode.connect(this.context.destination);
   }
 
-  async loadTrack(deck: 'A' | 'B', audioUrl: string) {
+  async loadTrack(deck: "A" | "B", audioUrl: string) {
     const response = await fetch(audioUrl);
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 
-    const deckRef = deck === 'A' ? this.deckA : this.deckB;
+    const deckRef = deck === "A" ? this.deckA : this.deckB;
 
     // Stop existing source
     if (deckRef.source) {
@@ -157,20 +165,20 @@ class AudioEngine {
     return audioBuffer;
   }
 
-  play(deck: 'A' | 'B') {
-    const deckRef = deck === 'A' ? this.deckA : this.deckB;
+  play(deck: "A" | "B") {
+    const deckRef = deck === "A" ? this.deckA : this.deckB;
     if (deckRef.source) {
       deckRef.source.start(0);
     }
   }
 
-  setVolume(deck: 'A' | 'B', volume: number) {
-    const deckRef = deck === 'A' ? this.deckA : this.deckB;
+  setVolume(deck: "A" | "B", volume: number) {
+    const deckRef = deck === "A" ? this.deckA : this.deckB;
     deckRef.gainNode.gain.value = volume;
   }
 
-  setPitch(deck: 'A' | 'B', rate: number) {
-    const deckRef = deck === 'A' ? this.deckA : this.deckB;
+  setPitch(deck: "A" | "B", rate: number) {
+    const deckRef = deck === "A" ? this.deckA : this.deckB;
     if (deckRef.source) {
       deckRef.source.playbackRate.value = rate;
     }
@@ -195,9 +203,9 @@ export function calculatePlaybackRate(sourceBPM: number, targetBPM: number): num
 export function syncTracks(
   trackA: { bpm: number },
   trackB: { bpm: number },
-  masterDeck: 'A' | 'B'
+  masterDeck: "A" | "B",
 ): { deckARate: number; deckBRate: number } {
-  if (masterDeck === 'A') {
+  if (masterDeck === "A") {
     return {
       deckARate: 1.0,
       deckBRate: calculatePlaybackRate(trackB.bpm, trackA.bpm),
@@ -215,8 +223,8 @@ export function syncTracks(
 
 ```typescript
 // hooks/useAudioPlayer.ts
-import { useRef, useState, useCallback } from 'react';
-import { AudioEngine } from '@/lib/audio/audioEngine';
+import { useRef, useState, useCallback } from "react";
+import { AudioEngine } from "@/lib/audio/audioEngine";
 
 export function useAudioPlayer() {
   const engineRef = useRef<AudioEngine | null>(null);
@@ -231,25 +239,28 @@ export function useAudioPlayer() {
     }
   }, []);
 
-  const loadTrack = useCallback(async (deck: 'A' | 'B', trackId: string) => {
-    initEngine();
-    const audioUrl = `/api/tracks/${trackId}/audio`; // or direct file path
-    await engineRef.current!.loadTrack(deck, audioUrl);
-  }, [initEngine]);
+  const loadTrack = useCallback(
+    async (deck: "A" | "B", trackId: string) => {
+      initEngine();
+      const audioUrl = `/api/tracks/${trackId}/audio`; // or direct file path
+      await engineRef.current!.loadTrack(deck, audioUrl);
+    },
+    [initEngine],
+  );
 
-  const play = useCallback((deck: 'A' | 'B') => {
+  const play = useCallback((deck: "A" | "B") => {
     engineRef.current?.play(deck);
-    setIsPlaying(prev => ({ ...prev, [deck]: true }));
+    setIsPlaying((prev) => ({ ...prev, [deck]: true }));
   }, []);
 
-  const pause = useCallback((deck: 'A' | 'B') => {
+  const pause = useCallback((deck: "A" | "B") => {
     // Would need to implement pause/resume logic
-    setIsPlaying(prev => ({ ...prev, [deck]: false }));
+    setIsPlaying((prev) => ({ ...prev, [deck]: false }));
   }, []);
 
-  const setVolume = useCallback((deck: 'A' | 'B', volume: number) => {
+  const setVolume = useCallback((deck: "A" | "B", volume: number) => {
     engineRef.current?.setVolume(deck, volume);
-    if (deck === 'A') setDeckAVolume(volume);
+    if (deck === "A") setDeckAVolume(volume);
     else setDeckBVolume(volume);
   }, []);
 
@@ -276,9 +287,9 @@ export function useAudioPlayer() {
 
 ```tsx
 // components/TransitionTester/TransitionTester.tsx
-import { Box, VStack, HStack, Slider, Button, Text } from '@chakra-ui/react';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
-import { useEffect } from 'react';
+import { Box, VStack, HStack, Slider, Button, Text } from "@chakra-ui/react";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useEffect } from "react";
 
 interface Props {
   trackA: Track;
@@ -299,25 +310,35 @@ export function TransitionTester({ trackA, trackB }: Props) {
   } = useAudioPlayer();
 
   useEffect(() => {
-    loadTrack('A', trackA.track_id);
-    loadTrack('B', trackB.track_id);
+    loadTrack("A", trackA.track_id);
+    loadTrack("B", trackB.track_id);
   }, [trackA, trackB, loadTrack]);
 
   return (
     <VStack spacing={8} p={6} bg="gray.900" borderRadius="lg">
       {/* Deck A */}
       <Box w="full" bg="gray.800" p={4} borderRadius="md">
-        <Text color="white" mb={2}>{trackA.title} - {trackA.artist}</Text>
-        <Text color="gray.400" fontSize="sm">{trackA.bpm} BPM</Text>
+        <Text color="white" mb={2}>
+          {trackA.title} - {trackA.artist}
+        </Text>
+        <Text color="gray.400" fontSize="sm">
+          {trackA.bpm} BPM
+        </Text>
         <HStack mt={4}>
-          <Button onClick={() => play('A')} disabled={isPlaying.A}>Play</Button>
-          <Button onClick={() => pause('A')} disabled={!isPlaying.A}>Pause</Button>
+          <Button onClick={() => play("A")} disabled={isPlaying.A}>
+            Play
+          </Button>
+          <Button onClick={() => pause("A")} disabled={!isPlaying.A}>
+            Pause
+          </Button>
         </HStack>
         <Box mt={4}>
-          <Text color="white" fontSize="sm">Volume</Text>
+          <Text color="white" fontSize="sm">
+            Volume
+          </Text>
           <Slider
             value={deckAVolume}
-            onChange={(v) => setVolume('A', v)}
+            onChange={(v) => setVolume("A", v)}
             min={0}
             max={1}
             step={0.01}
@@ -327,29 +348,35 @@ export function TransitionTester({ trackA, trackB }: Props) {
 
       {/* Crossfader */}
       <Box w="full">
-        <Text color="white" fontSize="sm" textAlign="center">Crossfader</Text>
-        <Slider
-          value={crossfade}
-          onChange={handleCrossfade}
-          min={0}
-          max={1}
-          step={0.01}
-        />
+        <Text color="white" fontSize="sm" textAlign="center">
+          Crossfader
+        </Text>
+        <Slider value={crossfade} onChange={handleCrossfade} min={0} max={1} step={0.01} />
       </Box>
 
       {/* Deck B */}
       <Box w="full" bg="gray.800" p={4} borderRadius="md">
-        <Text color="white" mb={2}>{trackB.title} - {trackB.artist}</Text>
-        <Text color="gray.400" fontSize="sm">{trackB.bpm} BPM</Text>
+        <Text color="white" mb={2}>
+          {trackB.title} - {trackB.artist}
+        </Text>
+        <Text color="gray.400" fontSize="sm">
+          {trackB.bpm} BPM
+        </Text>
         <HStack mt={4}>
-          <Button onClick={() => play('B')} disabled={isPlaying.B}>Play</Button>
-          <Button onClick={() => pause('B')} disabled={!isPlaying.B}>Pause</Button>
+          <Button onClick={() => play("B")} disabled={isPlaying.B}>
+            Play
+          </Button>
+          <Button onClick={() => pause("B")} disabled={!isPlaying.B}>
+            Pause
+          </Button>
         </HStack>
         <Box mt={4}>
-          <Text color="white" fontSize="sm">Volume</Text>
+          <Text color="white" fontSize="sm">
+            Volume
+          </Text>
           <Slider
             value={deckBVolume}
-            onChange={(v) => setVolume('B', v)}
+            onChange={(v) => setVolume("B", v)}
             min={0}
             max={1}
             step={0.01}
@@ -409,7 +436,7 @@ npm install tone
 ```
 
 ```typescript
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 const pitchShift = new Tone.PitchShift(2).toDestination();
 const player = new Tone.Player(audioUrl).connect(pitchShift);
@@ -429,15 +456,12 @@ pitchShift.pitch = 3; // Shift up 3 semitones
 
 ```typescript
 // app/api/tracks/[id]/audio/route.ts
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const audioPath = `/app/audio/${params.id}.m4a`;
   // Stream audio file
   const file = await readFile(audioPath);
   return new Response(file, {
-    headers: { 'Content-Type': 'audio/mp4' },
+    headers: { "Content-Type": "audio/mp4" },
   });
 }
 ```
@@ -445,6 +469,7 @@ export async function GET(
 ## Complexity Verdict
 
 **Doable in 3-5 days** with MVP:
+
 - ✅ Day 1: Basic dual player + volume controls
 - ✅ Day 2: Waveform visualization
 - ✅ Day 3: Pitch/tempo control + BPM sync

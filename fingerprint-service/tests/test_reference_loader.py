@@ -3,6 +3,7 @@
 This service holds no database connection by design (#273), so the stored
 blobs arrive over HTTP and are rebuilt into an index here.
 """
+
 import base64
 
 import pytest
@@ -61,9 +62,7 @@ def fetched(monkeypatch):
 
     def fake_get(self, method, url, params=None, timeout=None, **kwargs):
         calls.append({"url": url, "params": params})
-        return FakeResponse(
-            {"fingerprints": pages[len(calls) - 1] if len(calls) <= len(pages) else []}
-        )
+        return FakeResponse({"fingerprints": pages[len(calls) - 1] if len(calls) <= len(pages) else []})
 
     monkeypatch.setattr(requests.Session, "request", fake_get)
     return calls, pages
@@ -94,14 +93,13 @@ class TestFetchPage:
         }
 
     def test_accepts_a_bare_list(self, monkeypatch):
-        monkeypatch.setattr(
-            requests.Session, "request", lambda *a, **k: FakeResponse([row()])
-        )
+        monkeypatch.setattr(requests.Session, "request", lambda *a, **k: FakeResponse([row()]))
         assert len(fetch_page("chromaprint", "1", limit=10, offset=0)) == 1
 
     def test_raises_when_the_app_refuses(self, monkeypatch):
         monkeypatch.setattr(
-            requests.Session, "request",
+            requests.Session,
+            "request",
             lambda *a, **k: FakeResponse(status_code=500, text="boom"),
         )
         with pytest.raises(ReferenceLoadError, match="500"):
@@ -117,7 +115,8 @@ class TestFetchPage:
 
     def test_rejects_a_payload_that_is_not_a_list(self, monkeypatch):
         monkeypatch.setattr(
-            requests.Session, "request",
+            requests.Session,
+            "request",
             lambda *a, **k: FakeResponse({"fingerprints": {"nope": True}}),
         )
         with pytest.raises(ReferenceLoadError, match="expected a list"):
@@ -175,9 +174,7 @@ class TestBuildIndex:
         pages.append([row("t1", 1, values=real.values)])
 
         index = build_index("chromaprint", "1.6.1", page_size=500)
-        hits = index.search(
-            RawFingerprint(real.values[200:330]), max_bit_error_rate=0.25
-        )
+        hits = index.search(RawFingerprint(real.values[200:330]), max_bit_error_rate=0.25)
 
         assert hits[0].track.track_id == "t1"
 
@@ -194,6 +191,7 @@ class TestTryBuildIndex:
         Serving slightly stale matches beats refusing to match at all while the
         app restarts.
         """
+
         def refuse(*a, **k):
             raise requests.ConnectionError("app is down")
 

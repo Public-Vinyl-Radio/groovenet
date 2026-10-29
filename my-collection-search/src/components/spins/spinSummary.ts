@@ -88,7 +88,11 @@ export function describeProvenance(item: SpinListItem): SpinProvenance {
         ? `Detected by the listener · ${Math.round(confidence * 100)}% confidence`
         : "Detected by the listener";
     return item.session.corrected_at
-      ? { label: "Auto · corrected", description: `${detected} · corrected by hand`, automatic: true }
+      ? {
+          label: "Auto · corrected",
+          description: `${detected} · corrected by hand`,
+          automatic: true,
+        }
       : { label: "Auto", description: detected, automatic: true };
   }
   return { label: "Manual", description: "Logged by hand", automatic: false };

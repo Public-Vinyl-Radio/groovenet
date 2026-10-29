@@ -24,7 +24,12 @@ export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: P
     <>
       {/* Mobile: centred retro modal */}
       <Box display={{ base: "block", md: "none" }} flexShrink={0}>
-        <Button variant="plain" size="xs" aria-label="Copy actions" onClick={() => setSheetOpen(true)}>
+        <Button
+          variant="plain"
+          size="xs"
+          aria-label="Copy actions"
+          onClick={() => setSheetOpen(true)}
+        >
           <FiMoreVertical size={16} />
         </Button>
         <RetroDialog
@@ -35,7 +40,12 @@ export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: P
               <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
                 Copy
               </Text>
-              <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+              <RetroDialogTitle
+                fontSize="16px"
+                lineHeight="22px"
+                fontWeight="semibold"
+                lineClamp={1}
+              >
                 {label}
               </RetroDialogTitle>
             </Box>

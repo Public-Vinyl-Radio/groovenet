@@ -16,9 +16,17 @@ vi.mock("@groovenet/player", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@groovenet/player")>();
   return {
     ...actual,
-    OwnToneBackend: vi.fn(function (options: ConstructorParameters<typeof actual.OwnToneBackend>[0]) { return new actual.OwnToneBackend(options); }),
-    MpvBackend: vi.fn(function (options: ConstructorParameters<typeof actual.MpvBackend>[0]) { return new actual.MpvBackend(options); }),
-    PlayLogger: vi.fn(function (options: ConstructorParameters<typeof actual.PlayLogger>[0]) { return new actual.PlayLogger(options); }),
+    OwnToneBackend: vi.fn(function (
+      options: ConstructorParameters<typeof actual.OwnToneBackend>[0],
+    ) {
+      return new actual.OwnToneBackend(options);
+    }),
+    MpvBackend: vi.fn(function (options: ConstructorParameters<typeof actual.MpvBackend>[0]) {
+      return new actual.MpvBackend(options);
+    }),
+    PlayLogger: vi.fn(function (options: ConstructorParameters<typeof actual.PlayLogger>[0]) {
+      return new actual.PlayLogger(options);
+    }),
   };
 });
 vi.mock("./playerTui.js", () => ({ runPlayerTui: vi.fn() }));
@@ -31,10 +39,20 @@ function makeProgram() {
 }
 
 describe("player keys", () => {
-  afterEach(() => { vi.restoreAllMocks(); vi.mocked(loadConfig).mockReturnValue({ api_base: "http://localhost:3000/api", default_friend_id: 1 }); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(loadConfig).mockReturnValue({
+      api_base: "http://localhost:3000/api",
+      default_friend_id: 1,
+    });
+  });
 
   it("prints the keymap table from config alone, with overrides marked and problems listed", async () => {
-    vi.mocked(loadConfig).mockReturnValue({ api_base: "x", default_friend_id: 1, player_keymap: { "transport.next": ["ctrl+n"], "nope.nope": ["x"] } });
+    vi.mocked(loadConfig).mockReturnValue({
+      api_base: "x",
+      default_friend_id: 1,
+      player_keymap: { "transport.next": ["ctrl+n"], "nope.nope": ["x"] },
+    });
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const request = vi.spyOn(PlayerControlClient.prototype, "request");
     await makeProgram().parseAsync(["node", "test", "player", "keys"]);
@@ -50,7 +68,9 @@ describe("player keys", () => {
     await makeProgram().parseAsync(["node", "test", "player", "keys", "--json"]);
     const json = JSON.parse(String(write.mock.calls[0]![0]));
     expect(json.problems).toEqual([]);
-    expect(json.actions.find((action: { id: string }) => action.id === "transport.toggle").keys).toEqual(["space"]);
+    expect(
+      json.actions.find((action: { id: string }) => action.id === "transport.toggle").keys,
+    ).toEqual(["space"]);
   });
 });
 
@@ -62,7 +82,9 @@ describe("player CLI commands", () => {
 
   it("prints status as JSON and closes the control connection", async () => {
     const close = vi.spyOn(PlayerControlClient.prototype, "close").mockResolvedValue();
-    const request = vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue({ status: "playing" });
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockResolvedValue({ status: "playing" });
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "status", "--json"]);
     expect(request).toHaveBeenCalledWith("status");
@@ -71,7 +93,8 @@ describe("player CLI commands", () => {
   });
 
   it("renders sparse queue, device, and status results with safe defaults", async () => {
-    const request = vi.spyOn(PlayerControlClient.prototype, "request")
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
       .mockResolvedValueOnce([
         { id: "entry-1", track: { title: "Unknown artist" } },
         { track: {} },
@@ -94,17 +117,28 @@ describe("player CLI commands", () => {
   });
 
   it("uses playlist queue options and renders queue entries", async () => {
-    const request = vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue([
-      { id: "entry-1", track: { title: "Blue Train", artist: "John Coltrane" } },
-    ]);
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockResolvedValue([
+        { id: "entry-1", track: { title: "Blue Train", artist: "John Coltrane" } },
+      ]);
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await makeProgram().parseAsync(["node", "test", "player", "queue", "add", "--playlist-id", "18"]);
+    await makeProgram().parseAsync([
+      "node",
+      "test",
+      "player",
+      "queue",
+      "add",
+      "--playlist-id",
+      "18",
+    ]);
     expect(request).toHaveBeenCalledWith("queue.add", { playlistId: "18" });
     expect(log).toHaveBeenCalledWith("1. Blue Train — John Coltrane [entry-1]");
   });
 
   it("toggles pause to resume when playback is already paused", async () => {
-    const request = vi.spyOn(PlayerControlClient.prototype, "request")
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
       .mockResolvedValueOnce({ status: "paused" })
       .mockResolvedValueOnce({ status: "playing" });
     await makeProgram().parseAsync(["node", "test", "player", "pause", "--json"]);
@@ -112,7 +146,9 @@ describe("player CLI commands", () => {
   });
 
   it("returns a non-zero exit code when the daemon is unavailable", async () => {
-    const request = vi.spyOn(PlayerControlClient.prototype, "request").mockRejectedValue(new Error("daemon down"));
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockRejectedValue(new Error("daemon down"));
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "next"]);
     expect(request).toHaveBeenCalledWith("next");
@@ -121,16 +157,31 @@ describe("player CLI commands", () => {
   });
 
   it("routes the remaining control commands and renders human output", async () => {
-    const request = vi.spyOn(PlayerControlClient.prototype, "request")
-      .mockResolvedValue({ status: "playing", current: { track: { title: "Blue Train", artist: "John Coltrane" } }, position: 12.4, duration: 180, volume: 70 })
-      .mockResolvedValueOnce({ status: "playing", current: { track: { title: "Blue Train", artist: "John Coltrane" } }, position: 12.4, duration: 180, volume: 70 })
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockResolvedValue({
+        status: "playing",
+        current: { track: { title: "Blue Train", artist: "John Coltrane" } },
+        position: 12.4,
+        duration: 180,
+        volume: 70,
+      })
+      .mockResolvedValueOnce({
+        status: "playing",
+        current: { track: { title: "Blue Train", artist: "John Coltrane" } },
+        position: 12.4,
+        duration: 180,
+        volume: 70,
+      })
       .mockResolvedValueOnce({ status: "playing" })
       .mockResolvedValueOnce({ status: "playing" })
       .mockResolvedValueOnce({ status: "playing" })
       .mockResolvedValueOnce({ status: "playing" })
       .mockResolvedValueOnce({ status: "playing" })
       .mockResolvedValueOnce({ status: "playing" })
-      .mockResolvedValueOnce([{ id: "entry-1", track: { title: "Blue Train", artist: "John Coltrane" } }])
+      .mockResolvedValueOnce([
+        { id: "entry-1", track: { title: "Blue Train", artist: "John Coltrane" } },
+      ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: "airplay", name: "Living room", description: "AirPlay" }])
       .mockResolvedValueOnce([{ id: "airplay", name: "Living room", description: "AirPlay" }])
@@ -140,13 +191,38 @@ describe("player CLI commands", () => {
     const success = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     for (const args of [
-      ["play"], ["play", "2"], ["seek", "12.5"], ["volume", "72"], ["prev"],
-      ["queue", "remove", "entry-1"], ["queue", "remove", "12"], ["queue", "list"], ["queue", "list"], ["devices"], ["devices", "list"], ["devices", "select", "airplay", "--json"], ["stop"], ["stop", "--json"],
-    ]) await makeProgram().parseAsync(["node", "test", "player", ...args]);
+      ["play"],
+      ["play", "2"],
+      ["seek", "12.5"],
+      ["volume", "72"],
+      ["prev"],
+      ["queue", "remove", "entry-1"],
+      ["queue", "remove", "12"],
+      ["queue", "list"],
+      ["queue", "list"],
+      ["devices"],
+      ["devices", "list"],
+      ["devices", "select", "airplay", "--json"],
+      ["stop"],
+      ["stop", "--json"],
+    ])
+      await makeProgram().parseAsync(["node", "test", "player", ...args]);
 
     expect(request.mock.calls.map(([method, params]) => [method, params])).toEqual([
-      ["play", undefined], ["play", { index: 2 }], ["seek", { seconds: 12.5 }], ["volume", { volume: 72 }], ["prev", undefined],
-      ["queue.remove", { id: "entry-1" }], ["queue.remove", { index: 12 }], ["queue.list", undefined], ["queue.list", undefined], ["devices", undefined], ["devices", undefined], ["devices.select", { id: "airplay" }], ["shutdown", undefined], ["shutdown", undefined],
+      ["play", undefined],
+      ["play", { index: 2 }],
+      ["seek", { seconds: 12.5 }],
+      ["volume", { volume: 72 }],
+      ["prev", undefined],
+      ["queue.remove", { id: "entry-1" }],
+      ["queue.remove", { index: 12 }],
+      ["queue.list", undefined],
+      ["queue.list", undefined],
+      ["devices", undefined],
+      ["devices", undefined],
+      ["devices.select", { id: "airplay" }],
+      ["shutdown", undefined],
+      ["shutdown", undefined],
     ]);
     expect(log).toHaveBeenCalledWith("Status: playing — Blue Train / John Coltrane");
     expect(log).toHaveBeenCalledWith("Position: 12s / 180s");
@@ -168,7 +244,9 @@ describe("player CLI commands", () => {
   });
 
   it("starts a detached daemon and prints the JSON result", async () => {
-    const request = vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue({ status: "stopped" });
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockResolvedValue({ status: "stopped" });
     vi.spyOn(PlayerControlClient.prototype, "close").mockResolvedValue();
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "start", "--detach", "--json"]);
@@ -187,11 +265,19 @@ describe("player CLI commands", () => {
   });
 
   it("fails quickly when spawning the detached daemon fails", async () => {
-    const child = { unref: vi.fn(), once: (_event: string, listener: (error: Error) => void) => { listener(new Error("spawn failed")); return child; } } as unknown as ChildProcess;
+    const child = {
+      unref: vi.fn(),
+      once: (_event: string, listener: (error: Error) => void) => {
+        listener(new Error("spawn failed"));
+        return child;
+      },
+    } as unknown as ChildProcess;
     vi.mocked(spawn).mockReturnValueOnce(child);
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "start", "--detach"]);
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("Could not start the player daemon: spawn failed"));
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Could not start the player daemon: spawn failed"),
+    );
   });
 
   it("fails when a detached daemon never becomes available", async () => {
@@ -200,11 +286,15 @@ describe("player CLI commands", () => {
     vi.spyOn(Date, "now").mockReturnValueOnce(0).mockReturnValueOnce(6000);
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "start", "--detach"]);
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("Player daemon did not start: undefined"));
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Player daemon did not start: undefined"),
+    );
   });
 
   it("reports daemon startup failures from foreground and internal starts", async () => {
-    const start = vi.spyOn(PlayerDaemon.prototype, "start").mockRejectedValue(new Error("already running"));
+    const start = vi
+      .spyOn(PlayerDaemon.prototype, "start")
+      .mockRejectedValue(new Error("already running"));
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "start"]);
     expect(start).toHaveBeenCalledOnce();
@@ -236,7 +326,9 @@ describe("player CLI commands", () => {
 
   it("reports foreground shutdown failures and sets a non-zero exit code", async () => {
     vi.spyOn(PlayerDaemon.prototype, "start").mockResolvedValue();
-    const stop = vi.spyOn(PlayerDaemon.prototype, "stop").mockRejectedValue(new Error("foreground close failed"));
+    const stop = vi
+      .spyOn(PlayerDaemon.prototype, "stop")
+      .mockRejectedValue(new Error("foreground close failed"));
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     setImmediate(() => process.emit("SIGINT"));
     await makeProgram().parseAsync(["node", "test", "player", "start"]);
@@ -257,7 +349,9 @@ describe("player CLI commands", () => {
 
   it("reports detached shutdown failures that are not Error objects", async () => {
     vi.spyOn(PlayerDaemon.prototype, "start").mockResolvedValue();
-    const stop = vi.spyOn(PlayerDaemon.prototype, "stop").mockRejectedValue("detached close failed");
+    const stop = vi
+      .spyOn(PlayerDaemon.prototype, "stop")
+      .mockRejectedValue("detached close failed");
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     await makeProgram().parseAsync(["node", "test", "player", "_daemon"]);
     process.emit("SIGTERM");
@@ -286,7 +380,9 @@ describe("player CLI commands", () => {
     const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     try {
       await makeProgram().parseAsync(["node", "test", "player", "--search", "jazz"]);
-      expect(error).toHaveBeenCalledWith(expect.stringContaining("interactive player requires a TTY"));
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining("interactive player requires a TTY"),
+      );
       expect(process.exitCode).toBe(1);
     } finally {
       if (stdinDescriptor) Object.defineProperty(process.stdin, "isTTY", stdinDescriptor);
@@ -323,10 +419,16 @@ describe("player CLI commands", () => {
 
   describe("play logging", () => {
     const configWith = (player_log_plays?: boolean) =>
-      vi.mocked(loadConfig).mockReturnValue({ api_base: "http://localhost:3000/api", default_friend_id: 7, player_log_plays });
+      vi.mocked(loadConfig).mockReturnValue({
+        api_base: "http://localhost:3000/api",
+        default_friend_id: 7,
+        player_log_plays,
+      });
     const track = { track_id: "t1", friend_id: 7, release_id: "r1" };
 
-    async function logPlay(): Promise<(play: { track: typeof track; startedAt: Date; listened: number }) => Promise<void>> {
+    async function logPlay(): Promise<
+      (play: { track: typeof track; startedAt: Date; listened: number }) => Promise<void>
+    > {
       return vi.mocked(PlayLogger).mock.lastCall![0].logPlay as never;
     }
 
@@ -348,9 +450,13 @@ describe("player CLI commands", () => {
 
     it("posts a digital spin for the played track", async () => {
       configWith(true);
-      const createSpin = vi.spyOn(GroovenetClient.prototype, "createSpin").mockResolvedValue({} as never);
+      const createSpin = vi
+        .spyOn(GroovenetClient.prototype, "createSpin")
+        .mockResolvedValue({} as never);
       createPlayerDaemon();
-      await (await logPlay())({ track, startedAt: new Date("2026-10-23T12:00:00Z"), listened: 100 });
+      await (
+        await logPlay()
+      )({ track, startedAt: new Date("2026-10-23T12:00:00Z"), listened: 100 });
       expect(createSpin).toHaveBeenCalledWith({
         friend_id: 7,
         release_id: "r1",
@@ -391,10 +497,36 @@ describe("player CLI commands", () => {
 
       vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue({ status: "stopped" });
       vi.spyOn(PlayerControlClient.prototype, "close").mockResolvedValue();
-      await makeProgram().parseAsync(["node", "test", "player", "start", "--detach", "--log-plays"]);
-      expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([process.argv[1], "player", "_daemon", "--log-plays"]);
-      await makeProgram().parseAsync(["node", "test", "player", "start", "--detach", "--artwork", "--log-plays"]);
-      expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([process.argv[1], "player", "_daemon", "--artwork", "--log-plays"]);
+      await makeProgram().parseAsync([
+        "node",
+        "test",
+        "player",
+        "start",
+        "--detach",
+        "--log-plays",
+      ]);
+      expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([
+        process.argv[1],
+        "player",
+        "_daemon",
+        "--log-plays",
+      ]);
+      await makeProgram().parseAsync([
+        "node",
+        "test",
+        "player",
+        "start",
+        "--detach",
+        "--artwork",
+        "--log-plays",
+      ]);
+      expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([
+        process.argv[1],
+        "player",
+        "_daemon",
+        "--artwork",
+        "--log-plays",
+      ]);
 
       const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
       const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
@@ -416,7 +548,12 @@ describe("player CLI commands", () => {
 
   describe("cover-art window", () => {
     const configWith = (player_artwork?: boolean) =>
-      vi.mocked(loadConfig).mockReturnValue({ api_base: "http://localhost:3000/api", default_friend_id: 1, insecure_tls: true, player_artwork });
+      vi.mocked(loadConfig).mockReturnValue({
+        api_base: "http://localhost:3000/api",
+        default_friend_id: 1,
+        insecure_tls: true,
+        player_artwork,
+      });
 
     it("keeps artwork off unless the config enables it", () => {
       configWith();
@@ -452,7 +589,12 @@ describe("player CLI commands", () => {
       vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue({ status: "stopped" });
       vi.spyOn(PlayerControlClient.prototype, "close").mockResolvedValue();
       await makeProgram().parseAsync(["node", "test", "player", "start", "--detach", "--artwork"]);
-      expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([process.argv[1], "player", "_daemon", "--artwork"]);
+      expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([
+        process.argv[1],
+        "player",
+        "_daemon",
+        "--artwork",
+      ]);
       await makeProgram().parseAsync(["node", "test", "player", "start", "--detach"]);
       expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([process.argv[1], "player", "_daemon"]);
     });
@@ -477,29 +619,56 @@ describe("player CLI commands", () => {
   });
 });
 
-
 describe("OwnTone daemon selection", () => {
   afterEach(() => vi.restoreAllMocks());
-  const config = { api_base: "http://app/api", default_friend_id: 1, player_backend: "owntone" as const, owntone_url: "http://engine/api", owntone_library: "/media", owntone_output: "lounge", owntone_password: "private" };
+  const config = {
+    api_base: "http://app/api",
+    default_friend_id: 1,
+    player_backend: "owntone" as const,
+    owntone_url: "http://engine/api",
+    owntone_library: "/media",
+    owntone_output: "lounge",
+    owntone_password: "private",
+  };
   it("selects OwnTone explicitly through config, and allows an mpv override", () => {
     vi.mocked(loadConfig).mockReturnValue(config);
     createPlayerDaemon();
-    expect(OwnToneBackend).toHaveBeenLastCalledWith({ apiUrl: "http://engine/api", outputId: "lounge", password: "private" });
+    expect(OwnToneBackend).toHaveBeenLastCalledWith({
+      apiUrl: "http://engine/api",
+      outputId: "lounge",
+      password: "private",
+    });
     createPlayerDaemon({ backend: "mpv" });
     expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: undefined, artwork: undefined });
   });
   it("rejects invalid engines and missing delivery config", () => {
     vi.mocked(loadConfig).mockReturnValue({ api_base: "http://app/api", default_friend_id: 1 });
     expect(() => createPlayerDaemon({ backend: "vlc" })).toThrow(/must be mpv or owntone/);
-    expect(() => createPlayerDaemon({ backend: "owntone" })).toThrow(/requires owntone_url and owntone_library/);
+    expect(() => createPlayerDaemon({ backend: "owntone" })).toThrow(
+      /requires owntone_url and owntone_library/,
+    );
   });
   it("propagates --backend into detached and internal daemons", async () => {
     vi.mocked(loadConfig).mockReturnValue(config);
     vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue({ status: "stopped" });
     vi.spyOn(PlayerControlClient.prototype, "close").mockResolvedValue();
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    await makeProgram().parseAsync(["node", "test", "player", "start", "--detach", "--backend", "owntone"]);
-    expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([process.argv[1], "player", "_daemon", "--backend", "owntone"]);
+    await makeProgram().parseAsync([
+      "node",
+      "test",
+      "player",
+      "start",
+      "--detach",
+      "--backend",
+      "owntone",
+    ]);
+    expect(vi.mocked(spawn).mock.lastCall?.[1]).toEqual([
+      process.argv[1],
+      "player",
+      "_daemon",
+      "--backend",
+      "owntone",
+    ]);
     vi.spyOn(PlayerDaemon.prototype, "start").mockResolvedValue();
     vi.spyOn(PlayerDaemon.prototype, "stop").mockResolvedValue();
     await makeProgram().parseAsync(["node", "test", "player", "_daemon", "--backend", "owntone"]);

@@ -36,13 +36,9 @@ export default function FriendsDiscogsSection() {
   const [newFriend, setNewFriend] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const [verificationOpen, setVerificationOpen] = useState(false);
-  const [verificationResults, setVerificationResults] = useState<
-    VerificationResult[]
-  >([]);
+  const [verificationResults, setVerificationResults] = useState<VerificationResult[]>([]);
   // `undefined` username targets the default library (server-side Discogs config).
-  const [pendingSync, setPendingSync] = useState<{ username?: string } | null>(
-    null
-  );
+  const [pendingSync, setPendingSync] = useState<{ username?: string } | null>(null);
   const [removedReleasesOpen, setRemovedReleasesOpen] = useState(false);
   const [removedReleases, setRemovedReleases] = useState<string[]>([]);
   const [removedUsername, setRemovedUsername] = useState<string>("");
@@ -180,8 +176,7 @@ export default function FriendsDiscogsSection() {
   };
 
   const disableAdd = addFriendPending;
-  const defaultInFriends =
-    !!defaultUsername && friends.some((f) => f.username === defaultUsername);
+  const defaultInFriends = !!defaultUsername && friends.some((f) => f.username === defaultUsername);
   const syncBusy = discogsSync.isPending || verifyManifests.isPending;
   // Only the row being synced spins; the others are just disabled.
   const isSyncing = (username?: string) =>
@@ -193,9 +188,8 @@ export default function FriendsDiscogsSection() {
         Discogs Collections
       </Heading>
       <Text mb={2}>
-        Sync your default library, and add friends&apos; Discogs usernames to
-        sync or browse their collections for playlist collaboration or
-        borrowing albums.
+        Sync your default library, and add friends&apos; Discogs usernames to sync or browse their
+        collections for playlist collaboration or borrowing albums.
       </Text>
 
       <HStack mb={4}>
@@ -223,26 +217,26 @@ export default function FriendsDiscogsSection() {
 
       <VStack align="stretch">
         {!friendsLoading && !defaultInFriends && (
-        <HStack width="100%" justifyContent="space-between">
-          <HStack>
-            <Text fontWeight="medium">Default library</Text>
-            <Badge>default</Badge>
+          <HStack width="100%" justifyContent="space-between">
+            <HStack>
+              <Text fontWeight="medium">Default library</Text>
+              <Badge>default</Badge>
+            </HStack>
+            <HStack justifyContent="flex-end" flexGrow={1}>
+              <Tooltip content="Sync default library">
+                <IconButton
+                  aria-label="Sync default library"
+                  size="xs"
+                  variant="outline"
+                  onClick={() => handleSyncClick(undefined)}
+                  loading={isSyncing(undefined)}
+                  disabled={syncBusy}
+                >
+                  <FiRefreshCcw />
+                </IconButton>
+              </Tooltip>
+            </HStack>
           </HStack>
-          <HStack justifyContent="flex-end" flexGrow={1}>
-            <Tooltip content="Sync default library">
-              <IconButton
-                aria-label="Sync default library"
-                size="xs"
-                variant="outline"
-                onClick={() => handleSyncClick(undefined)}
-                loading={isSyncing(undefined)}
-                disabled={syncBusy}
-              >
-                <FiRefreshCcw />
-              </IconButton>
-            </Tooltip>
-          </HStack>
-        </HStack>
         )}
         {friendsLoading ? (
           [...Array(3)].map((_, i) => (
@@ -258,11 +252,7 @@ export default function FriendsDiscogsSection() {
           <Text color="fg.muted">No friends added yet.</Text>
         ) : (
           friends.map((friend) => (
-            <HStack
-              key={friend.username}
-              width="100%"
-              justifyContent="space-between"
-            >
+            <HStack key={friend.username} width="100%" justifyContent="space-between">
               <HStack>
                 <Text fontWeight="medium">{friend.username}</Text>
                 {friend.username === defaultUsername && <Badge>default</Badge>}
@@ -281,18 +271,18 @@ export default function FriendsDiscogsSection() {
                   </IconButton>
                 </Tooltip>
                 {friend.username !== defaultUsername && (
-                <Tooltip content="Remove friend">
-                  <IconButton
-                    aria-label="Remove friend"
-                    size="xs"
-                    variant="ghost"
-                    colorPalette="danger"
-                    onClick={() => handleRemoveFriendClick(friend.username)}
-                    disabled={removeFriendPending}
-                  >
-                    <FiTrash />
-                  </IconButton>
-                </Tooltip>
+                  <Tooltip content="Remove friend">
+                    <IconButton
+                      aria-label="Remove friend"
+                      size="xs"
+                      variant="ghost"
+                      colorPalette="danger"
+                      onClick={() => handleRemoveFriendClick(friend.username)}
+                      disabled={removeFriendPending}
+                    >
+                      <FiTrash />
+                    </IconButton>
+                  </Tooltip>
                 )}
               </HStack>
             </HStack>
@@ -320,10 +310,7 @@ export default function FriendsDiscogsSection() {
       />
 
       {/* Confirmation Dialog for Friend Removal */}
-      <Dialog.Root
-        open={confirmRemoveOpen}
-        onOpenChange={(e) => setConfirmRemoveOpen(e.open)}
-      >
+      <Dialog.Root open={confirmRemoveOpen} onOpenChange={(e) => setConfirmRemoveOpen(e.open)}>
         <Dialog.Backdrop />
         <Dialog.Positioner>
           <Dialog.Content>
@@ -336,21 +323,15 @@ export default function FriendsDiscogsSection() {
                 Are you sure you want to remove <strong>{friendToRemove}</strong>?
               </Text>
               <Text mt={2} color="fg.muted" fontSize="sm">
-                This will delete all tracks and albums associated with this friend from your library.
+                This will delete all tracks and albums associated with this friend from your
+                library.
               </Text>
             </Dialog.Body>
             <Dialog.Footer>
-              <Button
-                variant="outline"
-                onClick={() => setConfirmRemoveOpen(false)}
-              >
+              <Button variant="outline" onClick={() => setConfirmRemoveOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                colorPalette="danger"
-                onClick={handleConfirmRemove}
-                ml={3}
-              >
+              <Button colorPalette="danger" onClick={handleConfirmRemove} ml={3}>
                 Remove Friend
               </Button>
             </Dialog.Footer>

@@ -21,9 +21,23 @@ function config() {
   const secret = process.env.PLAYER_WEB_SESSION_SECRET;
   const origin = process.env.PLAYER_WEB_ORIGIN;
   const lifetime = sessionLifetime();
-  if (!passphrase || passphrase.length < 24 || !secret || secret.length < 32 || !origin ||
-      !lifetime || passphrase === process.env.PLAYER_API_KEY || secret === process.env.PLAYER_API_KEY || secret === passphrase) return null;
-  try { if (new URL(origin).origin !== origin || !origin.startsWith("https://")) return null; } catch { return null; }
+  if (
+    !passphrase ||
+    passphrase.length < 24 ||
+    !secret ||
+    secret.length < 32 ||
+    !origin ||
+    !lifetime ||
+    passphrase === process.env.PLAYER_API_KEY ||
+    secret === process.env.PLAYER_API_KEY ||
+    secret === passphrase
+  )
+    return null;
+  try {
+    if (new URL(origin).origin !== origin || !origin.startsWith("https://")) return null;
+  } catch {
+    return null;
+  }
   return { passphrase, secret, origin, lifetime };
 }
 
@@ -35,7 +49,10 @@ function equalSignature(actual: string, expected: string): boolean {
 // promisify's inference selects the three-argument overload; retain the
 // supported options overload so the work factors are explicit and typed.
 const derivePassword = promisify(scrypt) as (
-  password: string, salt: Buffer, keyLength: number, options: ScryptOptions
+  password: string,
+  salt: Buffer,
+  keyLength: number,
+  options: ScryptOptions,
 ) => Promise<Buffer>;
 async function verifyPassphrase(actual: string, expected: string): Promise<boolean> {
   const salt = randomBytes(16);
@@ -48,7 +65,8 @@ async function verifyPassphrase(actual: string, expected: string): Promise<boole
   ]);
   return timingSafeEqual(actualKey, expectedKey);
 }
-const sign = (value: string, secret: string) => createHmac("sha256", secret).update(value).digest("base64url");
+const sign = (value: string, secret: string) =>
+  createHmac("sha256", secret).update(value).digest("base64url");
 
 /** Returns the absolute expiry only for a valid player-only browser session. */
 export function playerWebSession(request: Request): number | null {
@@ -58,16 +76,28 @@ export function playerWebSession(request: Request): number | null {
   const origin = request.headers.get("origin");
   if ((site && site !== "same-origin") || (origin && origin !== settings.origin)) return null;
   if (request.method !== "GET" && request.headers.get("origin") !== settings.origin) return null;
-  const token = request.headers.get("cookie")?.split(";").map(part => part.trim()).find(part => part.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
+  const token = request.headers
+    .get("cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${cookieName}=`))
+    ?.slice(cookieName.length + 1);
   if (!token) return null;
   const [issued, expiry, nonce, signature, extra] = token.split(".");
   if (!issued || !expiry || !nonce || !signature || extra !== undefined) return null;
   const issuedAt = Number(issued);
   const expires = Number(expiry);
   const now = Math.floor(Date.now() / 1000);
-  if (!Number.isSafeInteger(issuedAt) || issuedAt > now || issuedAt <= 0 ||
-      !Number.isSafeInteger(expires) || expires <= now || expires - issuedAt > settings.lifetime ||
-      !equalSignature(signature, sign(`${issued}.${expiry}.${nonce}`, settings.secret))) return null;
+  if (
+    !Number.isSafeInteger(issuedAt) ||
+    issuedAt > now ||
+    issuedAt <= 0 ||
+    !Number.isSafeInteger(expires) ||
+    expires <= now ||
+    expires - issuedAt > settings.lifetime ||
+    !equalSignature(signature, sign(`${issued}.${expiry}.${nonce}`, settings.secret))
+  )
+    return null;
   return expires;
 }
 
@@ -76,13 +106,30 @@ let budget = { since: 0, attempts: 0 };
 export async function playerSessionRoute(request: Request): Promise<Response> {
   const settings = config();
   const headers = { "Cache-Control": "no-store" };
-  if (!settings || !process.env.PLAYER_WORKER_URL || (process.env.PLAYER_API_KEY?.length ?? 0) < 32) return Response.json({ error: "Web player access is not configured", code: "PLAYERS_DISABLED" }, { status: 503, headers });
-  if (request.method === "GET") return Response.json({ authorized: playerWebSession(request) !== null }, { headers });
-  if (request.headers.get("origin") !== settings.origin || request.headers.get("sec-fetch-site") === "cross-site") return Response.json({ error: "Same-origin request required" }, { status: 403, headers });
-  if (request.method === "DELETE") return Response.json({ authorized: false }, { headers: { ...headers, "Set-Cookie": `${cookieName}=; Max-Age=0; ${cookieOptions}` } });
+  if (!settings || !process.env.PLAYER_WORKER_URL || (process.env.PLAYER_API_KEY?.length ?? 0) < 32)
+    return Response.json(
+      { error: "Web player access is not configured", code: "PLAYERS_DISABLED" },
+      { status: 503, headers },
+    );
+  if (request.method === "GET")
+    return Response.json({ authorized: playerWebSession(request) !== null }, { headers });
+  if (
+    request.headers.get("origin") !== settings.origin ||
+    request.headers.get("sec-fetch-site") === "cross-site"
+  )
+    return Response.json({ error: "Same-origin request required" }, { status: 403, headers });
+  if (request.method === "DELETE")
+    return Response.json(
+      { authorized: false },
+      { headers: { ...headers, "Set-Cookie": `${cookieName}=; Max-Age=0; ${cookieOptions}` } },
+    );
   const now = Date.now();
   if (now < budget.since || now - budget.since >= 60000) budget = { since: now, attempts: 0 };
-  if (++budget.attempts > 10) return Response.json({ error: "Too many unlock attempts. Try again in a minute." }, { status: 429, headers: { ...headers, "Retry-After": "60" } });
+  if (++budget.attempts > 10)
+    return Response.json(
+      { error: "Too many unlock attempts. Try again in a minute." },
+      { status: 429, headers: { ...headers, "Retry-After": "60" } },
+    );
   // Only accept a small credential body. Never log or echo it.
   const reader = request.body?.getReader();
   let text = "";
@@ -94,19 +141,35 @@ export async function playerSessionRoute(request: Request): Promise<Response> {
         const { done, value } = await reader.read();
         if (done) break;
         bytes += value.byteLength;
-        if (bytes > 4096) { await reader.cancel(); return Response.json({ error: "Invalid credentials" }, { status: 400, headers }); }
+        if (bytes > 4096) {
+          await reader.cancel();
+          return Response.json({ error: "Invalid credentials" }, { status: 400, headers });
+        }
         text += decoder.decode(value, { stream: true });
       }
       text += decoder.decode();
-    } finally { reader.releaseLock(); }
+    } finally {
+      reader.releaseLock();
+    }
   }
   let passphrase: unknown;
   try {
     const parsed = playerWebUnlockSchema.safeParse(JSON.parse(text));
     if (parsed.success) passphrase = parsed.data.passphrase;
-  } catch { /* generic denial */ }
-  if (typeof passphrase !== "string" || !(await verifyPassphrase(passphrase, settings.passphrase))) return Response.json({ error: "Invalid credentials" }, { status: 401, headers });
+  } catch {
+    /* generic denial */
+  }
+  if (typeof passphrase !== "string" || !(await verifyPassphrase(passphrase, settings.passphrase)))
+    return Response.json({ error: "Invalid credentials" }, { status: 401, headers });
   const issuedAt = Math.floor(now / 1000);
   const payload = `${issuedAt}.${issuedAt + settings.lifetime}.${randomBytes(24).toString("base64url")}`;
-  return Response.json({ authorized: true }, { headers: { ...headers, "Set-Cookie": `${cookieName}=${payload}.${sign(payload, settings.secret)}; Max-Age=${settings.lifetime}; ${cookieOptions}` } });
+  return Response.json(
+    { authorized: true },
+    {
+      headers: {
+        ...headers,
+        "Set-Cookie": `${cookieName}=${payload}.${sign(payload, settings.secret)}; Max-Age=${settings.lifetime}; ${cookieOptions}`,
+      },
+    },
+  );
 }

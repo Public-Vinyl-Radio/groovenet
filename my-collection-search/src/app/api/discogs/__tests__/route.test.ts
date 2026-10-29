@@ -75,7 +75,7 @@ describe("GET /api/discogs — analytics", () => {
     const res = await GET(
       new Request("http://localhost/api/discogs?username=dj", {
         headers: { "X-Groovenet-Client": "mcp" },
-      }) as never
+      }) as never,
     );
     const body = res.text();
     await vi.runAllTimersAsync();
@@ -112,7 +112,8 @@ describe("GET /api/discogs — auto-ingest and streamed failures", () => {
     discogs.getCollectionPage.mockResolvedValue(page([1]));
     discogs.getReleaseDetails.mockResolvedValue({ id: 1 });
     trackUpsert.upsertTracks.mockResolvedValue({
-      upserted: [{ track_id: "t1", friend_id: 1 }], errors: [],
+      upserted: [{ track_id: "t1", friend_id: 1 }],
+      errors: [],
     });
     embeddingSync.syncIdentityEmbeddings.mockResolvedValue({ queued: 1 });
     albumUpsert.getAlbumsFromManifestReleases.mockResolvedValue([]);
@@ -127,9 +128,7 @@ describe("GET /api/discogs — auto-ingest and streamed failures", () => {
   });
 
   async function runSync() {
-    const res = await GET(
-      new Request("http://localhost/api/discogs?username=dj") as never
-    );
+    const res = await GET(new Request("http://localhost/api/discogs?username=dj") as never);
     const bodyPromise = res.text();
     await vi.runAllTimersAsync();
     return bodyPromise;
@@ -169,8 +168,10 @@ describe("GET /api/discogs — auto-ingest and streamed failures", () => {
 
   it("streams release and track failures to the UI consumer and ends with a partial-failure summary", async () => {
     discogs.getCollectionPage.mockResolvedValue(page([1, 2, 3]));
-    discogs.getReleaseDetails.mockResolvedValueOnce({ id: 1 })
-      .mockResolvedValueOnce({ id: 2 }).mockRejectedValueOnce(new Error("429"));
+    discogs.getReleaseDetails
+      .mockResolvedValueOnce({ id: 1 })
+      .mockResolvedValueOnce({ id: 2 })
+      .mockRejectedValueOnce(new Error("429"));
     const successful = [{ track_id: "1-B1", friend_id: 1 }];
     const errors = [
       { trackId: "1-A1", releaseId: "1", username: "dj", error: "constraint violation" },
@@ -181,11 +182,16 @@ describe("GET /api/discogs — auto-ingest and streamed failures", () => {
     manifest.getTracksFromManifestReleases.mockReturnValue(tracks);
     trackUpsert.upsertTracks.mockResolvedValue({ upserted: successful, errors });
     const lines: string[] = [];
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      const response = await GET(new Request("http://localhost/api/discogs?username=dj") as never);
-      expect(response.headers.get("Content-Type")).toBe("text/event-stream");
-      return response;
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const response = await GET(
+          new Request("http://localhost/api/discogs?username=dj") as never,
+        );
+        expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+        return response;
+      }),
+    );
 
     const stream = syncDiscogsStream("dj", (line) => lines.push(line));
     await vi.runAllTimersAsync();
@@ -199,31 +205,48 @@ describe("GET /api/discogs — auto-ingest and streamed failures", () => {
     expect(lines).toContain("Error for release ID 3: 429");
     expect(lines).toContain("  - Release 3: 429");
     expect(lines).toContain("Auto-ingest incomplete. Track upsert failures: 3.");
-    expect(lines.at(-1)).toBe("All operations complete with track upsert failures. Failed tracks: 3; affected releases: 2.");
+    expect(lines.at(-1)).toBe(
+      "All operations complete with track upsert failures. Failed tracks: 3; affected releases: 2.",
+    );
     expect(lines.join("\n")).not.toContain("✅ Auto-ingest complete!");
     expect(lines.join("\n")).not.toContain("🎉 All operations complete!");
     expect(trackUpsert.upsertTracks).toHaveBeenCalledWith(tracks);
     expect(albumUpsert.upsertAlbums).toHaveBeenCalledWith({}, [], { preserveManualFields: true });
     expect(embeddingSync.syncIdentityEmbeddings).toHaveBeenCalledWith(successful);
     expect(manifest.saveManifest).toHaveBeenCalledWith("/dev/null", ["1", "2"]);
-    expect(analyticsEvents.events.at(-1)?.properties).toMatchObject({ new_releases: 2, error_count: 4 });
+    expect(analyticsEvents.events.at(-1)?.properties).toMatchObject({
+      new_releases: 2,
+      error_count: 4,
+    });
   });
 
   it("reports an all-track failure, including an absent release ID, and closes the stream", async () => {
-    trackUpsert.upsertTracks.mockResolvedValue({ upserted: [], errors: [{
-      trackId: "t1", username: "dj", error: "Could not resolve friend_id",
-    }] });
+    trackUpsert.upsertTracks.mockResolvedValue({
+      upserted: [],
+      errors: [
+        {
+          trackId: "t1",
+          username: "dj",
+          error: "Could not resolve friend_id",
+        },
+      ],
+    });
     const body = await runSync();
     expect(body).toContain("Upserted 0 tracks to Postgres");
     expect(body).toContain("Release unknown fetched with track upsert failures (1):");
     expect(body).toContain("Track t1@dj: Could not resolve friend_id");
     expect(body).toContain("Auto-ingest incomplete. Track upsert failures: 1.");
-    expect(body).toContain("All operations complete with track upsert failures. Failed tracks: 1; affected releases: 1.");
+    expect(body).toContain(
+      "All operations complete with track upsert failures. Failed tracks: 1; affected releases: 1.",
+    );
     expect(embeddingSync.syncIdentityEmbeddings).toHaveBeenCalledWith([]);
   });
 
   it("keeps a soft-deleted no-op successful even when fewer tracks were upserted than loaded", async () => {
-    manifest.getTracksFromManifestReleases.mockReturnValue([{ track_id: "t1" }, { track_id: "deleted" }]);
+    manifest.getTracksFromManifestReleases.mockReturnValue([
+      { track_id: "t1" },
+      { track_id: "deleted" },
+    ]);
     const body = await runSync();
     expect(body).toContain("Loaded 2 tracks");
     expect(body).toContain("Upserted 1 tracks to Postgres");
@@ -274,9 +297,8 @@ describe("GET /api/discogs — collection date repair (#847)", () => {
     const body = await runSync();
 
     expect(repair.repairDiscogsCollectionFields).toHaveBeenCalledTimes(1);
-    const [username, ids, dates] = repair.repairDiscogsCollectionFields.mock.calls[0] as unknown as [
-      string, string[], Map<string, string>,
-    ];
+    const [username, ids, dates] = repair.repairDiscogsCollectionFields.mock
+      .calls[0] as unknown as [string, string[], Map<string, string>];
     expect(username).toBe("dj");
     // Release 3 is new: it gets its date when it is fetched, not here.
     expect(ids).toEqual(["1", "1", "1", "2"]);

@@ -66,9 +66,7 @@ export default function BackupStatusSection(): React.JSX.Element {
       setStatus(data.status);
       toaster.create({
         title:
-          data.status?.status === "success"
-            ? "Remote backup completed"
-            : "Remote backup finished",
+          data.status?.status === "success" ? "Remote backup completed" : "Remote backup finished",
         description: data.status
           ? `Status: ${data.status.status} (${data.status.reason})`
           : "Backup run completed without a persisted status record.",
@@ -126,9 +124,7 @@ export default function BackupStatusSection(): React.JSX.Element {
             </Text>
           </Flex>
 
-          <Text fontSize="sm">
-            Last attempt: {formatTimestamp(status.finished_at)}
-          </Text>
+          <Text fontSize="sm">Last attempt: {formatTimestamp(status.finished_at)}</Text>
           <Text fontSize="sm" color="fg.muted">
             Recorded: {formatTimestamp(status.stored_at)}
           </Text>
@@ -191,14 +187,24 @@ export default function BackupStatusSection(): React.JSX.Element {
               Backup Storage
             </Text>
             {!metrics ? (
-              <Text fontSize="sm" color="fg.muted">Loading repository metrics…</Text>
+              <Text fontSize="sm" color="fg.muted">
+                Loading repository metrics…
+              </Text>
             ) : (
               <Flex direction="column" gap={1}>
-                <Text fontSize="sm">Local selected sources: {formatBytes(metrics.local_source_bytes)}</Text>
-                <Text fontSize="sm">Remote Restic repository: {formatBytes(metrics.remote_repository_bytes)}</Text>
-                <Text fontSize="sm">Remote snapshots: {metrics.snapshot_count ?? "Unavailable"}</Text>
+                <Text fontSize="sm">
+                  Local selected sources: {formatBytes(metrics.local_source_bytes)}
+                </Text>
+                <Text fontSize="sm">
+                  Remote Restic repository: {formatBytes(metrics.remote_repository_bytes)}
+                </Text>
+                <Text fontSize="sm">
+                  Remote snapshots: {metrics.snapshot_count ?? "Unavailable"}
+                </Text>
                 {metrics.error ? (
-                  <Text fontSize="sm" color="fg.error">Repository metrics error: {metrics.error}</Text>
+                  <Text fontSize="sm" color="fg.error">
+                    Repository metrics error: {metrics.error}
+                  </Text>
                 ) : null}
               </Flex>
             )}

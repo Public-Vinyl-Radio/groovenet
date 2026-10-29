@@ -39,9 +39,7 @@ describe("DatabaseBackups", () => {
 
     expect(await screen.findByText("pg-backup-a.dump")).toBeTruthy();
     expect(screen.getByText(/3\.0 MiB/)).toBeTruthy();
-    expect(
-      screen.getByRole("link").getAttribute("href")
-    ).toBe("/api/backups/pg-backup-a.dump");
+    expect(screen.getByRole("link").getAttribute("href")).toBe("/api/backups/pg-backup-a.dump");
   });
 
   it("says so when there are no backups", async () => {
@@ -62,8 +60,8 @@ describe("DatabaseBackups", () => {
     await waitFor(() => expect(mocks.deleteBackup).toHaveBeenCalledWith("old.sql"));
     await waitFor(() =>
       expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Backup deleted", type: "success" })
-      )
+        expect.objectContaining({ title: "Backup deleted", type: "success" }),
+      ),
     );
     // The list is refetched once the delete settles.
     await waitFor(() => expect(mocks.fetchBackups).toHaveBeenCalledTimes(2));
@@ -79,8 +77,8 @@ describe("DatabaseBackups", () => {
 
     await waitFor(() =>
       expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Delete failed", description: "Backup not found" })
-      )
+        expect.objectContaining({ title: "Delete failed", description: "Backup not found" }),
+      ),
     );
   });
 
@@ -117,8 +115,12 @@ describe("DatabaseBackups", () => {
 
     await waitFor(() =>
       expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Backup Complete", type: "success", description: "Backup saved" })
-      )
+        expect.objectContaining({
+          title: "Backup Complete",
+          type: "success",
+          description: "Backup saved",
+        }),
+      ),
     );
   });
 
@@ -131,8 +133,12 @@ describe("DatabaseBackups", () => {
 
     await waitFor(() =>
       expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Backup Failed", type: "error", description: "disk full" })
-      )
+        expect.objectContaining({
+          title: "Backup Failed",
+          type: "error",
+          description: "disk full",
+        }),
+      ),
     );
   });
 });

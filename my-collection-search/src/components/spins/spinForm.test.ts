@@ -53,8 +53,14 @@ function spin(overrides: {
 
 describe("track keys", () => {
   it("round-trip, even when the track id holds a colon", () => {
-    expect(parseTrackKey(trackKey("33416876-B7", 6))).toEqual({ track_id: "33416876-B7", friend_id: 6 });
-    expect(parseTrackKey(trackKey("disc:1:A2", 12))).toEqual({ track_id: "disc:1:A2", friend_id: 12 });
+    expect(parseTrackKey(trackKey("33416876-B7", 6))).toEqual({
+      track_id: "33416876-B7",
+      friend_id: 6,
+    });
+    expect(parseTrackKey(trackKey("disc:1:A2", 12))).toEqual({
+      track_id: "disc:1:A2",
+      friend_id: 12,
+    });
   });
 });
 
@@ -73,7 +79,13 @@ describe("initialSpinFormState", () => {
 
   it("fills a side spin from its sides", () => {
     const state = initialSpinFormState(
-      spin({ selection_mode: "sides", side_keys: ["A", "B"], track_ids: ["t1", "t2"], note: "nice", context_type: "gig" })
+      spin({
+        selection_mode: "sides",
+        side_keys: ["A", "B"],
+        track_ids: ["t1", "t2"],
+        note: "nice",
+        context_type: "gig",
+      }),
     );
     expect(state).toMatchObject({
       selectionMode: "sides",
@@ -95,7 +107,7 @@ describe("initialSpinFormState", () => {
 
 describe("buildSpinChanges", () => {
   const initial = initialSpinFormState(
-    spin({ selection_mode: "tracks", track_ids: ["t1", "t2"], note: "first" })
+    spin({ selection_mode: "tracks", track_ids: ["t1", "t2"], note: "first" }),
   );
 
   it("is null when nothing changed, so a detected spin is not marked corrected", () => {
@@ -104,7 +116,7 @@ describe("buildSpinChanges", () => {
 
   it("ignores reordering and surrounding whitespace", () => {
     expect(
-      buildSpinChanges(initial, { ...initial, trackKeys: ["t2:6", "t1:6"], note: "  first " })
+      buildSpinChanges(initial, { ...initial, trackKeys: ["t2:6", "t1:6"], note: "  first " }),
     ).toBeNull();
   });
 
@@ -117,7 +129,9 @@ describe("buildSpinChanges", () => {
 
   it("sends a rewritten note, and a cleared context as null", () => {
     const withContext = { ...initial, contextType: "gig" };
-    expect(buildSpinChanges(withContext, { ...withContext, note: "second", contextType: "" })).toEqual({
+    expect(
+      buildSpinChanges(withContext, { ...withContext, note: "second", contextType: "" }),
+    ).toEqual({
       note: "second",
       context_type: null,
     });
@@ -137,8 +151,12 @@ describe("buildSpinChanges", () => {
   it("sends sides when switching from tracks, even to the same keys", () => {
     const sides = initialSpinFormState(spin({ selection_mode: "sides", side_keys: ["A"] }));
     expect(buildSpinChanges(sides, { ...sides })).toBeNull();
-    expect(buildSpinChanges(sides, { ...sides, sideKeys: ["A", "B"] })).toEqual({ side_keys: ["A", "B"] });
-    expect(buildSpinChanges(initial, { ...initial, selectionMode: "sides", sideKeys: ["A"] })).toEqual({
+    expect(buildSpinChanges(sides, { ...sides, sideKeys: ["A", "B"] })).toEqual({
+      side_keys: ["A", "B"],
+    });
+    expect(
+      buildSpinChanges(initial, { ...initial, selectionMode: "sides", sideKeys: ["A"] }),
+    ).toEqual({
       side_keys: ["A"],
     });
   });

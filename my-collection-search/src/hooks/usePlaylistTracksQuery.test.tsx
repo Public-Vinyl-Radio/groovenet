@@ -16,10 +16,9 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/stores/trackStore", () => ({
-  useTrackStore: (selector: (state: {
-    setTracks: typeof setTracksMock;
-    tracks: Map<string, Track>;
-  }) => unknown) =>
+  useTrackStore: (
+    selector: (state: { setTracks: typeof setTracksMock; tracks: Map<string, Track> }) => unknown,
+  ) =>
     selector({
       setTracks: setTracksMock,
       tracks: new Map(),

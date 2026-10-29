@@ -100,11 +100,15 @@ export async function GET(request: Request) {
         });
         nodeStream.once("end", () => {
           cleanup();
-          try { ctrl.close(); } catch {}
+          try {
+            ctrl.close();
+          } catch {}
         });
         nodeStream.once("error", (err) => {
           cleanup();
-          try { ctrl.error(err); } catch {}
+          try {
+            ctrl.error(err);
+          } catch {}
         });
       },
       cancel() {
@@ -166,11 +170,15 @@ export async function GET(request: Request) {
       });
       nodeStream.once("end", () => {
         cleanup();
-        try { ctrl.close(); } catch {}
+        try {
+          ctrl.close();
+        } catch {}
       });
       nodeStream.once("error", (err) => {
         cleanup();
-        try { ctrl.error(err); } catch {}
+        try {
+          ctrl.error(err);
+        } catch {}
       });
     },
     cancel() {

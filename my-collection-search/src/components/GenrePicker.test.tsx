@@ -11,7 +11,12 @@ vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree }));
 
 import GenrePicker from "./GenrePicker";
 
-const node = (id: string, name: string, parent_id: string | null, children: GenreTreeNode[] = []): GenreTreeNode => ({
+const node = (
+  id: string,
+  name: string,
+  parent_id: string | null,
+  children: GenreTreeNode[] = [],
+): GenreTreeNode => ({
   id,
   name,
   slug: name.toLowerCase().replace(/\s+/g, "-"),
@@ -23,12 +28,27 @@ const node = (id: string, name: string, parent_id: string | null, children: Genr
 });
 
 const TREE = [
-  node("latin", "Latin", null, [node("cumbia", "Cumbia", "latin"), { ...node("salsa", "Salsa", "latin"), track_count: 12 }]),
+  node("latin", "Latin", null, [
+    node("cumbia", "Cumbia", "latin"),
+    { ...node("salsa", "Salsa", "latin"), track_count: 12 },
+  ]),
 ];
-const CUMBIA: TrackGenre = { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" };
+const CUMBIA: TrackGenre = {
+  id: "cumbia",
+  name: "Cumbia",
+  slug: "cumbia",
+  parent_id: "latin",
+  parent_name: "Latin",
+};
 
 /** Holds the selection the way the edit form does, and reports each change. */
-function Harness({ initial, onChange }: { initial: TrackGenre[]; onChange: (g: TrackGenre[]) => void }) {
+function Harness({
+  initial,
+  onChange,
+}: {
+  initial: TrackGenre[];
+  onChange: (g: TrackGenre[]) => void;
+}) {
   const [value, setValue] = useState(initial);
   return (
     <GenrePicker

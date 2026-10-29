@@ -1,7 +1,4 @@
-export async function http<T>(
-  input: RequestInfo,
-  init?: RequestInit
-): Promise<T> {
+export async function http<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
   let data: unknown = null;
 
@@ -15,13 +12,9 @@ export async function http<T>(
 
   if (!res.ok) {
     const errorObj =
-      typeof data === "object" && data !== null
-        ? (data as Record<string, unknown>)
-        : {};
+      typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
     const message =
-      (errorObj.error as string) ||
-      (errorObj.message as string) ||
-      `HTTP ${res.status}`;
+      (errorObj.error as string) || (errorObj.message as string) || `HTTP ${res.status}`;
     const error = new Error(message) as Error & {
       status?: number;
       data?: unknown;
@@ -35,7 +28,7 @@ export async function http<T>(
 
 export async function httpArrayBuffer(
   input: RequestInfo,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<ArrayBuffer> {
   const res = await fetch(input, init);
   if (!res.ok) {
@@ -61,7 +54,7 @@ export async function httpArrayBuffer(
 export async function streamLines(
   input: RequestInfo,
   init: RequestInit = {},
-  onLine: (line: string) => void
+  onLine: (line: string) => void,
 ): Promise<void> {
   const res = await fetch(input, init);
   if (!res.body) {

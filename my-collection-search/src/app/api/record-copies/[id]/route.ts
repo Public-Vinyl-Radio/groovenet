@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (!parsedParams.success) {
       return NextResponse.json(
         { error: "Invalid record copy id", details: parsedParams.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid record copy update", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         is_default: copy.is_default,
         changed_fields: changedCopyFields(changes),
       },
-      { request }
+      { request },
     );
     return NextResponse.json(recordCopyResponseSchema.parse({ copy }));
   } catch (error) {
@@ -60,7 +60,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!parsedParams.success) {
       return NextResponse.json(
         { error: "Invalid record copy id", details: parsedParams.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -71,13 +71,13 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid delete query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const copy = await recordCareService.deleteCopy(
       parsedParams.data.id,
-      parsedQuery.data.friend_id
+      parsedQuery.data.friend_id,
     );
     if (!copy) {
       return NextResponse.json({ error: "Record copy not found" }, { status: 404 });
@@ -85,7 +85,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     analytics.track(
       "record_copy_removed",
       { copy_id: copy.id, release_id: copy.release_id },
-      { request }
+      { request },
     );
     return NextResponse.json(recordCopyDeleteResponseSchema.parse({ success: true, copy }));
   } catch (error) {

@@ -4,11 +4,7 @@ import { getAudioVibePreview } from "@/lib/audio-vibe-embedding";
 import { getContextPreview } from "@/lib/context-embedding";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { getServingModel } from "@/lib/embeddings/config";
-import type {
-  SimilarIdentityTrack,
-  SimilarityFilters,
-  SimilarVibeTrack,
-} from "@/types/embeddings";
+import type { SimilarIdentityTrack, SimilarityFilters, SimilarVibeTrack } from "@/types/embeddings";
 
 export type EmbeddingPreviewType = "identity" | "audio_vibe" | "context";
 export type EmbeddingPreviewResult = {
@@ -19,7 +15,7 @@ export type EmbeddingPreviewResult = {
 
 export function applyEraFilter(
   tracks: SimilarIdentityTrack[],
-  era?: string
+  era?: string,
 ): SimilarIdentityTrack[] {
   if (!era) return tracks;
 
@@ -47,7 +43,7 @@ export class EmbeddingsService {
   async getPreview(
     type: EmbeddingPreviewType,
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<EmbeddingPreviewResult> {
     if (type === "identity") {
       const preview = await getIdentityPreview(trackId, friendId);
@@ -93,7 +89,7 @@ export class EmbeddingsService {
         params.friendId,
         "identity",
         model,
-        templateVersion
+        templateVersion,
       );
       if (!sourceEmbedding) {
         throw new Error("missing_identity_embedding");
@@ -109,10 +105,7 @@ export class EmbeddingsService {
         limit: params.limit * 2,
         filters: params.filters,
       });
-      const filteredByEra = applyEraFilter(rawTracks, params.filters.era).slice(
-        0,
-        params.limit
-      );
+      const filteredByEra = applyEraFilter(rawTracks, params.filters.era).slice(0, params.limit);
 
       return {
         source_track_id: params.trackId,
@@ -144,7 +137,7 @@ export class EmbeddingsService {
         params.friendId,
         "audio_vibe",
         model,
-        templateVersion
+        templateVersion,
       );
       if (!sourceEmbedding) {
         throw new Error("missing_audio_vibe_embedding");

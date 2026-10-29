@@ -147,12 +147,14 @@ const BY_SUFFIX: Array<[suffix: string, value: Candidates]> = [
 
 /** Normalise camelCase, PascalCase and SCREAMING_CASE to lower snake_case. */
 function normalise(name: string): string {
-  return name
-    // camelCase boundary: trackId -> track_Id
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
-    // acronym boundary: HTTPServer -> HTTP_Server (but not TRACK_ID -> T_R_A_C_K)
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
-    .toLowerCase();
+  return (
+    name
+      // camelCase boundary: trackId -> track_Id
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      // acronym boundary: HTTPServer -> HTTP_Server (but not TRACK_ID -> T_R_A_C_K)
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+      .toLowerCase()
+  );
 }
 
 const ISO_DATE_TIME = "2026-02-17T12:00:00.000Z";
@@ -185,7 +187,7 @@ function matchesType(value: Primitive, type: unknown): boolean {
  */
 export function exampleForProperty(
   propertyName: string | undefined,
-  type: unknown
+  type: unknown,
 ): Primitive | undefined {
   if (!propertyName) return undefined;
   const key = normalise(propertyName);

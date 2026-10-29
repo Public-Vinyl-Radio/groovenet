@@ -19,35 +19,66 @@ describe("search_tracks over MCP stdio", { timeout: 15_000 }, () => {
     api.listen(0, "127.0.0.1");
     await once(api, "listening");
     client = new Client({ name: "search-tracks-test", version: "1.0.0" });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
-      env: { ...process.env, API_BASE: `http://127.0.0.1:${api.address().port}/api`, API_KEY: "", DEFAULT_FRIEND_ID: "6" },
-      stderr: "pipe",
-    }));
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
+        env: {
+          ...process.env,
+          API_BASE: `http://127.0.0.1:${api.address().port}/api`,
+          API_KEY: "",
+          DEFAULT_FRIEND_ID: "6",
+        },
+        stderr: "pipe",
+      }),
+    );
   });
 
   after(async () => {
     await client?.close();
-    if (api?.listening) await new Promise((resolve, reject) => api.close((err) => err ? reject(err) : resolve()));
+    if (api?.listening)
+      await new Promise((resolve, reject) => api.close((err) => (err ? reject(err) : resolve())));
   });
 
   beforeEach(() => {
     response = { hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 };
   });
 
-  const search = async () => (await client.callTool({ name: "search_tracks", arguments: { query: "x" } })).content[0].text;
+  const search = async () =>
+    (await client.callTool({ name: "search_tracks", arguments: { query: "x" } })).content[0].text;
 
   it("lists refs, duration and release after the summary", async () => {
-    response.hits = [{
-      track_id: "33416876-D2", friend_id: 6, title: "Song", artist: "Band", bpm: "120", key: "A minor",
-      star_rating: 4, duration: "3:45", duration_seconds: 225, release_id: "33416876",
-    }];
-    assert.match(await search(), /• Song - Band \(120 BPM\), A minor \[★4\] \| track_id=33416876-D2 friend_id=6 duration=3:45 release_id=33416876$/);
+    response.hits = [
+      {
+        track_id: "33416876-D2",
+        friend_id: 6,
+        title: "Song",
+        artist: "Band",
+        bpm: "120",
+        key: "A minor",
+        star_rating: 4,
+        duration: "3:45",
+        duration_seconds: 225,
+        release_id: "33416876",
+      },
+    ];
+    assert.match(
+      await search(),
+      /• Song - Band \(120 BPM\), A minor \[★4\] \| track_id=33416876-D2 friend_id=6 duration=3:45 release_id=33416876$/,
+    );
   });
 
   it("formats duration_seconds in preference to the duration string", async () => {
-    response.hits = [{ track_id: "t", friend_id: 1, title: "T", artist: "A", duration: "9:99", duration_seconds: 65 }];
+    response.hits = [
+      {
+        track_id: "t",
+        friend_id: 1,
+        title: "T",
+        artist: "A",
+        duration: "9:99",
+        duration_seconds: 65,
+      },
+    ];
     assert.match(await search(), /duration=1:05/);
   });
 
@@ -57,7 +88,9 @@ describe("search_tracks over MCP stdio", { timeout: 15_000 }, () => {
   });
 
   it("omits missing duration and release", async () => {
-    response.hits = [{ track_id: "t", friend_id: 1, title: "T", artist: "A", duration: "", release_id: null }];
+    response.hits = [
+      { track_id: "t", friend_id: 1, title: "T", artist: "A", duration: "", release_id: null },
+    ];
     assert.match(await search(), /• T - A \| track_id=t friend_id=1$/m);
   });
 
@@ -70,7 +103,10 @@ describe("search_tracks over MCP stdio", { timeout: 15_000 }, () => {
     response.hits = [{ track_id: "t", friend_id: 1, title: "T", artist: "A" }];
     response.estimatedTotalHits = 30;
     response.degraded = true;
-    assert.match(await search(), /^Found 1 tracks \(30 total\) \(semantic search unavailable; keyword results only\):\n\n• T/);
+    assert.match(
+      await search(),
+      /^Found 1 tracks \(30 total\) \(semantic search unavailable; keyword results only\):\n\n• T/,
+    );
   });
 
   it("reports empty results", async () => {

@@ -1,4 +1,4 @@
-import type { StorybookConfig } from '@storybook/nextjs-vite';
+import type { StorybookConfig } from "@storybook/nextjs-vite";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -9,11 +9,9 @@ function getAbsolutePath(value: string) {
 }
 
 const config: StorybookConfig = {
-  stories: [
-    "../src/stories/**/*.stories.@(js|jsx|mjs|ts|tsx)",
-  ],
+  stories: ["../src/stories/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
   addons: [],
-  framework: getAbsolutePath('@storybook/nextjs-vite'),
+  framework: getAbsolutePath("@storybook/nextjs-vite"),
   viteFinal: async (config) => {
     // The Storybook output is served from public/storybook. Disable Vite's
     // automatic public-dir copy so it does not copy public into its own child.
@@ -23,7 +21,7 @@ const config: StorybookConfig = {
       ...config.resolve.alias,
       "@/providers/PlaylistPlayerProvider": resolve(
         __dirname,
-        "../src/__storybook__/mocks/PlaylistPlayerProvider.tsx"
+        "../src/__storybook__/mocks/PlaylistPlayerProvider.tsx",
       ),
     };
     return config;

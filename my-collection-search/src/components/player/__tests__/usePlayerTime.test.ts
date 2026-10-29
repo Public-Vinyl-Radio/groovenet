@@ -3,19 +3,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { player } from "@/test/serverPlayerFixtures";
 
-vi.mock("@/providers/PlaylistPlayerProvider", () => ({ usePlaylistPlayerTime: () => ({ currentTime: 7, duration: 70 }) }));
+vi.mock("@/providers/PlaylistPlayerProvider", () => ({
+  usePlaylistPlayerTime: () => ({ currentTime: 7, duration: 70 }),
+}));
 const target = vi.hoisted(() => ({ value: null as null | Record<string, unknown> }));
-vi.mock("@/providers/PlaybackTargetProvider", () => ({ useOptionalPlaybackTarget: () => target.value }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  useOptionalPlaybackTarget: () => target.value,
+}));
 
 import { usePlayerTime } from "@/components/player/usePlayerTime";
 
 const on = (patch: Partial<ReturnType<typeof player>["state"]> | null) => {
   const p = player();
-  target.value = { target: "lounge", remote: { player: patch === null ? null : { ...p, state: { ...p.state, ...patch } } } };
+  target.value = {
+    target: "lounge",
+    remote: { player: patch === null ? null : { ...p, state: { ...p.state, ...patch } } },
+  };
 };
 
 beforeEach(() => vi.useFakeTimers());
-afterEach(() => { vi.useRealTimers(); target.value = null; });
+afterEach(() => {
+  vi.useRealTimers();
+  target.value = null;
+});
 
 describe("usePlayerTime", () => {
   it("is this browser's time without a server", () => {

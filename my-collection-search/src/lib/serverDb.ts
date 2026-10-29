@@ -7,9 +7,7 @@ declare global {
 function createPool(): Pool {
   const connectionString =
     process.env.DATABASE_URL ||
-    (process.env.NODE_ENV === "test"
-      ? "postgresql://localhost:5432/mcs_test"
-      : undefined);
+    (process.env.NODE_ENV === "test" ? "postgresql://localhost:5432/mcs_test" : undefined);
   if (!connectionString) {
     throw new Error("DATABASE_URL is not configured");
   }
@@ -35,14 +33,12 @@ export const dbPool: Pool = new Proxy({} as Pool, {
 
 export async function dbQuery<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  values?: unknown[]
+  values?: unknown[],
 ): Promise<QueryResult<T>> {
   return getPool().query<T>(text, values);
 }
 
-export async function withDbClient<T>(
-  fn: (client: PoolClient) => Promise<T>
-): Promise<T> {
+export async function withDbClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
   try {
     return await fn(client);
@@ -63,9 +59,7 @@ async function rollbackQuietly(client: PoolClient): Promise<void> {
   }
 }
 
-export async function withDbTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>
-): Promise<T> {
+export async function withDbTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return withDbClient(async (client) => {
     await client.query("BEGIN");
     let result: T;

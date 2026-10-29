@@ -29,72 +29,50 @@ import {
 import { http } from "@/services/http";
 
 export type AiPromptSettingsQuery = z.input<typeof aiPromptSettingsQuerySchema>;
-export type AiPromptSettingsResponse = z.infer<
-  typeof aiPromptSettingsGetResponseSchema
->;
-export type UpdateAiPromptSettingsBody = z.input<
-  typeof aiPromptSettingsPutBodySchema
->;
-export type UpdateAiPromptSettingsResponse = z.infer<
-  typeof aiPromptSettingsPutResponseSchema
->;
+export type AiPromptSettingsResponse = z.infer<typeof aiPromptSettingsGetResponseSchema>;
+export type UpdateAiPromptSettingsBody = z.input<typeof aiPromptSettingsPutBodySchema>;
+export type UpdateAiPromptSettingsResponse = z.infer<typeof aiPromptSettingsPutResponseSchema>;
 export type GamdlSettings = z.infer<typeof gamdlSettingsSchema>;
 export type GamdlSettingsResponse = z.infer<typeof gamdlSettingsGetResponseSchema>;
 export type UpdateGamdlSettingsBody = z.input<typeof gamdlSettingsPutBodySchema>;
-export type UpdateGamdlSettingsResponse = z.infer<
-  typeof gamdlSettingsPutResponseSchema
->;
+export type UpdateGamdlSettingsResponse = z.infer<typeof gamdlSettingsPutResponseSchema>;
 export type ResetGamdlSettingsBody = z.input<typeof gamdlSettingsResetBodySchema>;
-export type ResetGamdlSettingsResponse = z.infer<
-  typeof gamdlSettingsResetResponseSchema
->;
-export type GamdlConnectionTestResponse = z.infer<
-  typeof gamdlConnectionTestResponseSchema
->;
+export type ResetGamdlSettingsResponse = z.infer<typeof gamdlSettingsResetResponseSchema>;
+export type GamdlConnectionTestResponse = z.infer<typeof gamdlConnectionTestResponseSchema>;
 export type BackupPolicy = z.infer<typeof backupPolicySchema>;
 export type BackupPolicyResponse = z.infer<typeof backupPolicyGetResponseSchema>;
 export type UpdateBackupPolicyBody = z.input<typeof backupPolicyPutBodySchema>;
-export type UpdateBackupPolicyResponse = z.infer<
-  typeof backupPolicyPutResponseSchema
->;
+export type UpdateBackupPolicyResponse = z.infer<typeof backupPolicyPutResponseSchema>;
 export type BackupStatus = z.infer<typeof backupStatusSchema>;
 export type BackupMetrics = z.infer<typeof backupMetricsSchema>;
 export type BackupStatusResponse = z.infer<typeof backupStatusGetResponseSchema>;
 export type DefaultLibrarySettingsResponse = z.infer<
   typeof defaultLibrarySettingsGetResponseSchema
 >;
-export type UpdateDefaultLibrarySettingsBody = z.input<
-  typeof defaultLibrarySettingsPutBodySchema
->;
+export type UpdateDefaultLibrarySettingsBody = z.input<typeof defaultLibrarySettingsPutBodySchema>;
 export type UpdateDefaultLibrarySettingsResponse = z.infer<
   typeof defaultLibrarySettingsPutResponseSchema
 >;
 
 export async function fetchDefaultLibrarySettings(): Promise<DefaultLibrarySettingsResponse> {
-  return await http<DefaultLibrarySettingsResponse>(
-    "/api/settings/default-library",
-    {
-      method: "GET",
-      cache: "no-store",
-    }
-  );
+  return await http<DefaultLibrarySettingsResponse>("/api/settings/default-library", {
+    method: "GET",
+    cache: "no-store",
+  });
 }
 
 export async function updateDefaultLibrarySettings(
-  body: UpdateDefaultLibrarySettingsBody
+  body: UpdateDefaultLibrarySettingsBody,
 ): Promise<UpdateDefaultLibrarySettingsResponse> {
-  return await http<UpdateDefaultLibrarySettingsResponse>(
-    "/api/settings/default-library",
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
-  );
+  return await http<UpdateDefaultLibrarySettingsResponse>("/api/settings/default-library", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function fetchAiPromptSettings(
-  query: AiPromptSettingsQuery = {}
+  query: AiPromptSettingsQuery = {},
 ): Promise<AiPromptSettingsResponse> {
   const params = new URLSearchParams();
   if (typeof query.friend_id === "number") {
@@ -109,7 +87,7 @@ export async function fetchAiPromptSettings(
 }
 
 export async function updateAiPromptSettings(
-  body: UpdateAiPromptSettingsBody
+  body: UpdateAiPromptSettingsBody,
 ): Promise<UpdateAiPromptSettingsResponse> {
   return await http<UpdateAiPromptSettingsResponse>("/api/settings/ai-prompt", {
     method: "PUT",
@@ -118,25 +96,21 @@ export async function updateAiPromptSettings(
   });
 }
 
-export type RecommendationSettingsResponse = z.infer<
-  typeof recommendationSettingsResponseSchema
->;
-export type UpdateRecommendationSettingsBody = z.input<
-  typeof recommendationSettingsPutBodySchema
->;
+export type RecommendationSettingsResponse = z.infer<typeof recommendationSettingsResponseSchema>;
+export type UpdateRecommendationSettingsBody = z.input<typeof recommendationSettingsPutBodySchema>;
 
 /** Whether a library's suggestions stay in that library or search every library. */
 export async function fetchRecommendationSettings(
-  friendId: number
+  friendId: number,
 ): Promise<RecommendationSettingsResponse> {
   return await http<RecommendationSettingsResponse>(
     `/api/settings/recommendations?friend_id=${encodeURIComponent(String(friendId))}`,
-    { method: "GET", cache: "no-store" }
+    { method: "GET", cache: "no-store" },
   );
 }
 
 export async function updateRecommendationSettings(
-  body: UpdateRecommendationSettingsBody
+  body: UpdateRecommendationSettingsBody,
 ): Promise<RecommendationSettingsResponse> {
   return await http<RecommendationSettingsResponse>("/api/settings/recommendations", {
     method: "PUT",
@@ -145,9 +119,7 @@ export async function updateRecommendationSettings(
   });
 }
 
-export async function fetchGamdlSettings(
-  friendId: number
-): Promise<GamdlSettingsResponse> {
+export async function fetchGamdlSettings(friendId: number): Promise<GamdlSettingsResponse> {
   const params = new URLSearchParams({
     friend_id: String(friendId),
   });
@@ -158,7 +130,7 @@ export async function fetchGamdlSettings(
 }
 
 export async function updateGamdlSettings(
-  body: UpdateGamdlSettingsBody
+  body: UpdateGamdlSettingsBody,
 ): Promise<UpdateGamdlSettingsResponse> {
   return await http<UpdateGamdlSettingsResponse>("/api/settings/gamdl", {
     method: "PUT",
@@ -168,7 +140,7 @@ export async function updateGamdlSettings(
 }
 
 export async function resetGamdlSettings(
-  body: ResetGamdlSettingsBody
+  body: ResetGamdlSettingsBody,
 ): Promise<ResetGamdlSettingsResponse> {
   return await http<ResetGamdlSettingsResponse>("/api/settings/gamdl/actions", {
     method: "POST",
@@ -207,7 +179,7 @@ export async function runBackupNow(): Promise<BackupStatusResponse> {
 }
 
 export async function updateBackupPolicy(
-  body: UpdateBackupPolicyBody
+  body: UpdateBackupPolicyBody,
 ): Promise<UpdateBackupPolicyResponse> {
   return await http<UpdateBackupPolicyResponse>("/api/settings/backup", {
     method: "PUT",
@@ -227,7 +199,7 @@ export async function fetchAppearanceSettings(): Promise<AppearanceSettingsRespo
 }
 
 export async function updateAppearanceSettings(
-  body: UpdateAppearanceSettingsBody
+  body: UpdateAppearanceSettingsBody,
 ): Promise<AppearanceSettingsResponse> {
   return await http<AppearanceSettingsResponse>("/api/settings/appearance", {
     method: "PUT",

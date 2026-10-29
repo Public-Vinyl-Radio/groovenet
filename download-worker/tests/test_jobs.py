@@ -1,4 +1,5 @@
 """Tests for fix_duration, analyze_local_audio, and cover art job handlers."""
+
 import subprocess
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ def make_proc(returncode=0, stdout="", stderr=""):
 # ---------------------------------------------------------------------------
 # fix_duration
 # ---------------------------------------------------------------------------
+
 
 class TestFixDuration:
     def _job(self, **kwargs):
@@ -26,6 +28,7 @@ class TestFixDuration:
     @patch("worker.jobs.duration.ensure_local_audio_file", return_value="/app/audio/track-abc.m4a")
     def test_success_path(self, mock_ensure, mock_duration, mock_update, fake_redis):
         from worker.jobs.duration import fix_duration
+
         result = fix_duration(self._job())
 
         assert result["success"] is True
@@ -38,6 +41,7 @@ class TestFixDuration:
     @patch("worker.jobs.duration.ensure_local_audio_file", return_value="/app/audio/track-abc.m4a")
     def test_success_sets_completed_in_redis(self, mock_ensure, mock_duration, mock_update, fake_redis):
         from worker.jobs.duration import fix_duration
+
         fix_duration(self._job())
         data = fake_redis.hgetall("job:job-dur-1")
         assert data["status"] == "completed"
@@ -46,6 +50,7 @@ class TestFixDuration:
     @patch("worker.jobs.duration.ensure_local_audio_file", side_effect=Exception("file not found"))
     def test_failure_path_returns_error(self, mock_ensure, fake_redis):
         from worker.jobs.duration import fix_duration
+
         result = fix_duration(self._job())
         assert result["success"] is False
         assert "file not found" in result["error"]
@@ -53,6 +58,7 @@ class TestFixDuration:
     @patch("worker.jobs.duration.ensure_local_audio_file", side_effect=Exception("file not found"))
     def test_failure_sets_failed_in_redis(self, mock_ensure, fake_redis):
         from worker.jobs.duration import fix_duration
+
         fix_duration(self._job())
         data = fake_redis.hgetall("job:job-dur-1")
         assert data["status"] == "failed"
@@ -60,6 +66,7 @@ class TestFixDuration:
     @patch("worker.jobs.duration.ensure_local_audio_file", side_effect=Exception("fail"))
     def test_failure_stores_logs(self, mock_ensure, fake_redis):
         from worker.jobs.duration import fix_duration
+
         fix_duration(self._job())
         logs = fake_redis.lrange("job:job-dur-1:logs", 0, -1)
         assert any("fail" in line for line in logs)
@@ -68,6 +75,7 @@ class TestFixDuration:
 # ---------------------------------------------------------------------------
 # analyze_local_audio
 # ---------------------------------------------------------------------------
+
 
 class TestAnalyzeLocalAudio:
     def _job(self, **kwargs):
@@ -83,6 +91,7 @@ class TestAnalyzeLocalAudio:
     @patch("worker.jobs.analyze.ensure_local_audio_file", return_value="/app/audio/track-xyz.m4a")
     def test_success_path(self, mock_ensure, mock_analyze, fake_redis):
         from worker.jobs.analyze import analyze_local_audio
+
         result = analyze_local_audio(self._job())
         assert result["success"] is True
         assert result["analysis"] == {"rhythm": {"bpm": 128}}
@@ -91,12 +100,14 @@ class TestAnalyzeLocalAudio:
     @patch("worker.jobs.analyze.ensure_local_audio_file", return_value="/app/audio/track-xyz.m4a")
     def test_success_sets_completed_in_redis(self, mock_ensure, mock_analyze, fake_redis):
         from worker.jobs.analyze import analyze_local_audio
+
         analyze_local_audio(self._job())
         assert fake_redis.hgetall("job:job-analyze-1")["status"] == "completed"
 
     @patch("worker.jobs.analyze.ensure_local_audio_file", side_effect=Exception("no audio"))
     def test_failure_path(self, mock_ensure, fake_redis):
         from worker.jobs.analyze import analyze_local_audio
+
         result = analyze_local_audio(self._job())
         assert result["success"] is False
         assert "no audio" in result["error"]
@@ -106,6 +117,7 @@ class TestAnalyzeLocalAudio:
 # ---------------------------------------------------------------------------
 # extract_embedded_cover_art
 # ---------------------------------------------------------------------------
+
 
 class TestExtractEmbeddedCoverArt:
     def _job(self, **kwargs):
@@ -126,6 +138,7 @@ class TestExtractEmbeddedCoverArt:
         mock_run.return_value = make_proc(returncode=0)
 
         from worker.jobs.cover_art import extract_embedded_cover_art
+
         result = extract_embedded_cover_art(self._job())
 
         assert result["success"] is True
@@ -136,6 +149,7 @@ class TestExtractEmbeddedCoverArt:
     @patch("worker.jobs.cover_art.ensure_local_audio_file", return_value="/app/audio/track-cover.m4a")
     def test_no_art_stream_fails(self, mock_ensure, mock_index, fake_redis):
         from worker.jobs.cover_art import extract_embedded_cover_art
+
         result = extract_embedded_cover_art(self._job())
         assert result["success"] is False
         assert "No embedded cover art" in result["error"]
@@ -143,6 +157,7 @@ class TestExtractEmbeddedCoverArt:
     @patch("worker.jobs.cover_art.ensure_local_audio_file", side_effect=Exception("file missing"))
     def test_ensure_failure_propagates(self, mock_ensure, fake_redis):
         from worker.jobs.cover_art import extract_embedded_cover_art
+
         result = extract_embedded_cover_art(self._job())
         assert result["success"] is False
         assert fake_redis.hgetall("job:job-cover-1")["status"] == "failed"
@@ -151,6 +166,7 @@ class TestExtractEmbeddedCoverArt:
 # ---------------------------------------------------------------------------
 # extract_embedded_cover_art_album
 # ---------------------------------------------------------------------------
+
 
 class TestExtractEmbeddedCoverArtAlbum:
     def _job(self, **kwargs):
@@ -166,6 +182,7 @@ class TestExtractEmbeddedCoverArtAlbum:
     def test_success_path(self, mock_post, fake_redis):
         mock_post.return_value = {"status": "matched", "applied": True, "distance": 4}
         from worker.jobs.cover_art import extract_embedded_cover_art_album
+
         result = extract_embedded_cover_art_album(self._job(release_id="rel/99"))
         assert result["success"] is True
         assert result["status"] == "matched"
@@ -177,6 +194,7 @@ class TestExtractEmbeddedCoverArtAlbum:
     def test_missing_release_id_fails(self, fake_redis):
         job = {"track_id": "t", "friend_id": 1, "job_id": "job-album-cover-2"}
         from worker.jobs.cover_art import extract_embedded_cover_art_album
+
         result = extract_embedded_cover_art_album(job)
         assert result["success"] is False
         assert "release_id" in result["error"]
@@ -184,8 +202,10 @@ class TestExtractEmbeddedCoverArtAlbum:
     @patch("groovenet_client.GroovenetClient.extract_cover_art")
     def test_api_error_fails(self, mock_post, fake_redis):
         from groovenet_client import GroovenetApiError
+
         mock_post.side_effect = GroovenetApiError(500, "Server error")
         from worker.jobs.cover_art import extract_embedded_cover_art_album
+
         result = extract_embedded_cover_art_album(self._job())
         assert result["success"] is False
         assert fake_redis.hgetall("job:job-album-cover-1")["status"] == "failed"

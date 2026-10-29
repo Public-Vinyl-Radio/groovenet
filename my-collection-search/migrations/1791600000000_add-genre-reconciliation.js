@@ -83,15 +83,27 @@ export const up = (pgm) => {
   pgm.addConstraint("genre_reconciliation_proposals", "genre_reconciliation_proposals_value_key", {
     unique: "value_normalized",
   });
-  pgm.addConstraint("genre_reconciliation_proposals", "genre_reconciliation_proposals_action_check", {
-    check: "action IN ('map', 'new_genre', 'descriptor', 'drop')",
-  });
-  pgm.addConstraint("genre_reconciliation_proposals", "genre_reconciliation_proposals_method_check", {
-    check: "method IN ('exact', 'ai', 'manual')",
-  });
-  pgm.addConstraint("genre_reconciliation_proposals", "genre_reconciliation_proposals_status_check", {
-    check: "status IN ('pending', 'accepted', 'rejected', 'edited')",
-  });
+  pgm.addConstraint(
+    "genre_reconciliation_proposals",
+    "genre_reconciliation_proposals_action_check",
+    {
+      check: "action IN ('map', 'new_genre', 'descriptor', 'drop')",
+    },
+  );
+  pgm.addConstraint(
+    "genre_reconciliation_proposals",
+    "genre_reconciliation_proposals_method_check",
+    {
+      check: "method IN ('exact', 'ai', 'manual')",
+    },
+  );
+  pgm.addConstraint(
+    "genre_reconciliation_proposals",
+    "genre_reconciliation_proposals_status_check",
+    {
+      check: "status IN ('pending', 'accepted', 'rejected', 'edited')",
+    },
+  );
   pgm.createIndex("genre_reconciliation_proposals", ["status", "track_count"], {
     name: "idx_genre_reconciliation_proposals_status",
   });

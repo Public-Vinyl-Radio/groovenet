@@ -101,7 +101,7 @@ describe("POST /api/tracks/batch — vectors", () => {
       [{ trackId: "t1", friendId: 1 }],
       "audio_vibe",
       "vibe-model",
-      4
+      4,
     );
   });
 

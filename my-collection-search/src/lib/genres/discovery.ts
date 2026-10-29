@@ -5,7 +5,8 @@ import type { Album } from "@/types/track";
 
 /** All descendants, largest first, including deeper levels of the taxonomy. */
 export function rankedSubgenres(entry: CountedGenreNode): CountedGenreNode[] {
-  return entry.children.flatMap((child) => [child, ...rankedSubgenres(child)])
+  return entry.children
+    .flatMap((child) => [child, ...rankedSubgenres(child)])
     .sort((a, b) => b.count - a.count || a.node.name.localeCompare(b.node.name));
 }
 
@@ -18,15 +19,23 @@ export function arrivalGenreSummary(albums: Album[], tree: GenreTreeNode[]) {
     node.children.forEach((child) => visit(child, root));
   };
   tree.forEach((root) => visit(root, root));
-  return countGenreBadges(albums.map((album) => {
-    const items = discogsGenreBadges([
-      ...(album.effective_genres ?? album.genres ?? []),
-      ...(album.effective_styles ?? album.styles ?? []),
-    ], lookup);
-    const unique = new Map(items.flatMap((item) => {
-      const root = item.slug ? roots.get(item.slug) : undefined;
-      return root ? [[root.slug, { label: root.name, slug: root.slug }] as const] : [];
-    }));
-    return [...unique.values()];
-  }), tree.length);
+  return countGenreBadges(
+    albums.map((album) => {
+      const items = discogsGenreBadges(
+        [
+          ...(album.effective_genres ?? album.genres ?? []),
+          ...(album.effective_styles ?? album.styles ?? []),
+        ],
+        lookup,
+      );
+      const unique = new Map(
+        items.flatMap((item) => {
+          const root = item.slug ? roots.get(item.slug) : undefined;
+          return root ? [[root.slug, { label: root.name, slug: root.slug }] as const] : [];
+        }),
+      );
+      return [...unique.values()];
+    }),
+    tree.length,
+  );
 }

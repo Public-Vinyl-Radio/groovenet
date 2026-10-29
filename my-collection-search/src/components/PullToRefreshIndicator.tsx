@@ -33,7 +33,8 @@ export default function PullToRefreshIndicator({
         opacity: visible ? 1 : 0,
         pointerEvents: "none",
         transform: `translate(-50%, ${visible ? Math.min(distance, 72) : -56}px)`,
-        transition: refreshing || reducedMotion ? "none" : "transform 120ms ease, opacity 120ms ease",
+        transition:
+          refreshing || reducedMotion ? "none" : "transform 120ms ease, opacity 120ms ease",
       }}
     >
       <svg
@@ -44,11 +45,24 @@ export default function PullToRefreshIndicator({
         aria-hidden="true"
         style={{
           transform: `rotate(${refreshing ? 0 : Math.min(distance, 72) * 4}deg)`,
-          animation: refreshing && !reducedMotion ? "pull-to-refresh-spin 0.8s linear infinite" : "none",
+          animation:
+            refreshing && !reducedMotion ? "pull-to-refresh-spin 0.8s linear infinite" : "none",
         }}
       >
-        <path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M5.6 9a7 7 0 0 1 11.55-2L20 12M4 12l2.85 5a7 7 0 0 0 11.55-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M20 7v5h-5M4 17v-5h5"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M5.6 9a7 7 0 0 1 11.55-2L20 12M4 12l2.85 5a7 7 0 0 0 11.55-2"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
       <style>{`@keyframes pull-to-refresh-spin { to { transform: rotate(360deg); } }`}</style>
     </div>

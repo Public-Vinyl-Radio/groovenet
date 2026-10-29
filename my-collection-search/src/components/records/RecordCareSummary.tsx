@@ -53,9 +53,15 @@ export default function RecordCareSummary({ summary, status, onStatusChange }: P
             justifyContent="flex-start"
           >
             <Stack gap={0} align="start" textAlign="left">
-              <Text fontSize="2xl" fontWeight="bold" lineHeight="short">{tile.count}</Text>
-              <Text fontSize="sm" fontWeight="semibold">{tile.label}</Text>
-              <Text fontSize="xs" color="fg.muted" fontWeight="normal">{tile.hint}</Text>
+              <Text fontSize="2xl" fontWeight="bold" lineHeight="short">
+                {tile.count}
+              </Text>
+              <Text fontSize="sm" fontWeight="semibold">
+                {tile.label}
+              </Text>
+              <Text fontSize="xs" color="fg.muted" fontWeight="normal">
+                {tile.hint}
+              </Text>
             </Stack>
           </Button>
         ))}
@@ -64,7 +70,8 @@ export default function RecordCareSummary({ summary, status, onStatusChange }: P
         <Text color="fg.muted">{summary.total} copies by sleeve:</Text>
         {sleeves.map((sleeve) => (
           <Badge key={sleeve} size="sm" variant="surface">
-            {sleeve === "unknown" ? "Unknown" : sleeveLabel(sleeve)} {summary.by_sleeve_type[sleeve]}
+            {sleeve === "unknown" ? "Unknown" : sleeveLabel(sleeve)}{" "}
+            {summary.by_sleeve_type[sleeve]}
           </Badge>
         ))}
       </HStack>

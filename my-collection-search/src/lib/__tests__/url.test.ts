@@ -17,31 +17,31 @@ describe("cleanSoundcloudUrl", () => {
 
   it("strips query string from URL", () => {
     expect(cleanSoundcloudUrl("https://soundcloud.com/artist/track?in=playlist&si=abc")).toBe(
-      "https://soundcloud.com/artist/track"
+      "https://soundcloud.com/artist/track",
     );
   });
 
   it("strips hash fragment from URL", () => {
     expect(cleanSoundcloudUrl("https://soundcloud.com/artist/track#comments")).toBe(
-      "https://soundcloud.com/artist/track"
+      "https://soundcloud.com/artist/track",
     );
   });
 
   it("strips both query and hash", () => {
-    expect(
-      cleanSoundcloudUrl("https://soundcloud.com/artist/track?foo=bar#baz")
-    ).toBe("https://soundcloud.com/artist/track");
+    expect(cleanSoundcloudUrl("https://soundcloud.com/artist/track?foo=bar#baz")).toBe(
+      "https://soundcloud.com/artist/track",
+    );
   });
 
   it("leaves clean URL unchanged", () => {
     expect(cleanSoundcloudUrl("https://soundcloud.com/artist/track")).toBe(
-      "https://soundcloud.com/artist/track"
+      "https://soundcloud.com/artist/track",
     );
   });
 
   it("preserves trailing slash on the path", () => {
     expect(cleanSoundcloudUrl("https://soundcloud.com/artist/track/?foo=bar")).toBe(
-      "https://soundcloud.com/artist/track/"
+      "https://soundcloud.com/artist/track/",
     );
   });
 
@@ -52,7 +52,7 @@ describe("cleanSoundcloudUrl", () => {
 
   it("works with http URLs", () => {
     expect(cleanSoundcloudUrl("http://soundcloud.com/artist/track?ref=1")).toBe(
-      "http://soundcloud.com/artist/track"
+      "http://soundcloud.com/artist/track",
     );
   });
 });

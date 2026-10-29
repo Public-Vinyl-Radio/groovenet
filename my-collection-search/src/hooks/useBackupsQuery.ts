@@ -2,11 +2,7 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import {
-  backupDatabase,
-  deleteBackup,
-  fetchBackups,
-} from "@/services/internalApi/backup";
+import { backupDatabase, deleteBackup, fetchBackups } from "@/services/internalApi/backup";
 
 export function useBackupsQuery() {
   const qc = useQueryClient();

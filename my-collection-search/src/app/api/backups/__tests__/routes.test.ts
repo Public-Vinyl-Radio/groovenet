@@ -34,9 +34,7 @@ describe("GET /api/backups", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.files).toEqual(["a.dump"]);
-    expect(body.backups).toEqual([
-      expect.objectContaining({ filename: "a.dump", size_bytes: 3 }),
-    ]);
+    expect(body.backups).toEqual([expect.objectContaining({ filename: "a.dump", size_bytes: 3 })]);
   });
 
   it("returns 500 when the directory cannot be read", async () => {

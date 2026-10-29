@@ -96,7 +96,10 @@ export function changesFrom(view: SetDerivationView): Change[] {
   }
 
   played.sort((a, b) => a.play - b.play);
-  const removals: Change[] = diff.planned_not_played.map((planned) => ({ kind: "remove", planned }));
+  const removals: Change[] = diff.planned_not_played.map((planned) => ({
+    kind: "remove",
+    planned,
+  }));
   return [...played, ...removals];
 }
 
@@ -108,7 +111,7 @@ export function changesFrom(view: SetDerivationView): Change[] {
 export function applyChanges(
   plan: PlannedEntry[],
   view: SetDerivationView,
-  accepted: Change[]
+  accepted: Change[],
 ): TrackRef[] {
   const replaceAt = new Map<number, TrackRef>();
   const removeAt = new Set<number>();
@@ -131,7 +134,9 @@ export function applyChanges(
   const result: TrackRef[] = [...(insertAfter.get(null) ?? [])];
   for (const entry of plan) {
     if (!removeAt.has(entry.index)) {
-      result.push(replaceAt.get(entry.index) ?? { track_id: entry.track_id, friend_id: entry.friend_id });
+      result.push(
+        replaceAt.get(entry.index) ?? { track_id: entry.track_id, friend_id: entry.friend_id },
+      );
     }
     result.push(...(insertAfter.get(entry.index) ?? []));
   }
@@ -139,7 +144,11 @@ export function applyChanges(
 }
 
 /** One change, as the question put to the user. */
-export function describeChange(change: Change, view: SetDerivationView, plan: PlannedEntry[]): string[] {
+export function describeChange(
+  change: Change,
+  view: SetDerivationView,
+  plan: PlannedEntry[],
+): string[] {
   if (change.kind === "replace") {
     const play = view.tracklist[change.play];
     return [
@@ -213,7 +222,7 @@ export async function runReview(
   id: string,
   opts: ReviewOptions,
   ask: Ask,
-  io: SetsIO = consoleIO
+  io: SetsIO = consoleIO,
 ): Promise<number> {
   if (opts.playlist !== undefined && opts.liveSet !== undefined) {
     throw new Error("Choose --playlist or --live-set, not both");
@@ -222,16 +231,23 @@ export async function runReview(
     throw new Error("Review needs the plan to correct: --playlist <id> or --live-set <id>");
   }
 
-  const view = await client.getSetDerivation(id, { playlist_id: opts.playlist, live_set_id: opts.liveSet });
+  const view = await client.getSetDerivation(id, {
+    playlist_id: opts.playlist,
+    live_set_id: opts.liveSet,
+  });
   if (view.derivation.status !== "processed" || !view.diff) {
-    throw new Error(`Derivation ${id} is ${view.derivation.status}; there is nothing to review yet`);
+    throw new Error(
+      `Derivation ${id} is ${view.derivation.status}; there is nothing to review yet`,
+    );
   }
   const playlistId = view.diff.playlist_id;
   const plan = planFrom(view);
   const changes = changesFrom(view);
 
   if (changes.length === 0) {
-    io.log(chalk.green(`Playlist ${playlistId} already matches what was played. Nothing to review.`));
+    io.log(
+      chalk.green(`Playlist ${playlistId} already matches what was played. Nothing to review.`),
+    );
     return 0;
   }
 
@@ -260,7 +276,9 @@ export async function runReview(
   io.log(chalk.bold(`Playlist ${playlistId} with ${accepted.length} change(s):`));
   corrected.forEach((ref, i) => {
     const mark = original.has(keyOf(ref)) ? " " : chalk.green("*");
-    io.log(`  ${mark} ${String(i + 1).padStart(2)}  ${describeTrack(names.get(keyOf(ref)) ?? null, ref.track_id)}`);
+    io.log(
+      `  ${mark} ${String(i + 1).padStart(2)}  ${describeTrack(names.get(keyOf(ref)) ?? null, ref.track_id)}`,
+    );
   });
 
   if (opts.dryRun) {
@@ -274,15 +292,17 @@ export async function runReview(
     return 0;
   }
 
-  const current = (await client.getPlaylistTracks(playlistId)).track_refs.map(({ track_id, friend_id }) => ({
-    track_id,
-    friend_id,
-  }));
+  const current = (await client.getPlaylistTracks(playlistId)).track_refs.map(
+    ({ track_id, friend_id }) => ({
+      track_id,
+      friend_id,
+    }),
+  );
   if (!sameList(current, plan)) {
     io.log(
       chalk.red(
-        `Playlist ${playlistId} has changed since this diff was computed. Nothing written — run the review again.`
-      )
+        `Playlist ${playlistId} has changed since this diff was computed. Nothing written — run the review again.`,
+      ),
     );
     return 1;
   }

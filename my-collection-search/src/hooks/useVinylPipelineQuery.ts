@@ -19,7 +19,7 @@ import {
  */
 export function useIngestStatsQuery(
   params: IngestPipelineStatsParams,
-  options?: { enabled?: boolean; refetchInterval?: number | false }
+  options?: { enabled?: boolean; refetchInterval?: number | false },
 ) {
   return useQuery({
     queryKey: queryKeys.ingestStats(params),
@@ -36,7 +36,7 @@ export function useIngestStatsQuery(
  */
 export function useRecentDetectionsQuery(
   params: DetectionsRecentParams,
-  options?: { enabled?: boolean; refetchInterval?: number | false }
+  options?: { enabled?: boolean; refetchInterval?: number | false },
 ) {
   return useQuery({
     queryKey: queryKeys.recentDetections(params),

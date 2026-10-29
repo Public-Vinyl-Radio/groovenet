@@ -16,7 +16,7 @@ function setup(enabled = true) {
   const result = render(
     <QueryClientProvider client={client}>
       <Harness enabled={enabled} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
   return { ...result, invalidate };
 }
@@ -24,9 +24,10 @@ function setup(enabled = true) {
 function touch(type: string, x: number, y: number, target: EventTarget = window, touchCount = 1) {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, "touches", {
-    value: type === "touchend" || type === "touchcancel"
-      ? []
-      : Array.from({ length: touchCount }, () => ({ clientX: x, clientY: y })),
+    value:
+      type === "touchend" || type === "touchcancel"
+        ? []
+        : Array.from({ length: touchCount }, () => ({ clientX: x, clientY: y })),
   });
   act(() => target.dispatchEvent(event));
   return event;

@@ -7,7 +7,11 @@ import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/componen
 import { BpmFields, KeyField, RatingField } from "@/components/AttributeFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { ChipToggle, FiltersFooter, ModalSection as Section } from "@/components/ui/RetroModalParts";
+import {
+  ChipToggle,
+  FiltersFooter,
+  ModalSection as Section,
+} from "@/components/ui/RetroModalParts";
 import { SEARCH_MODE_ITEMS } from "@/components/search/searchModes";
 import {
   TRACK_MISSING_OPTIONS,
@@ -84,7 +88,9 @@ export function TrackFilterSections({
           <KeyField value={attributes} onChange={onAttributesChange} />
         </Box>
         <SelectedGenreTags selected={genres} onRemove={onRemoveGenre} />
-        {genres.length > 0 && <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />}
+        {genres.length > 0 && (
+          <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />
+        )}
       </Section>
 
       <Section label="Tempo and rating">
@@ -122,7 +128,13 @@ type Props = TrackFilterControls & {
  * one centred sheet. Changes apply as they're made, so the count on the
  * primary button follows them and "Show" just closes.
  */
-export default function TrackSearchOptionsModal({ open, onOpenChange, mode, onModeChange, ...filters }: Props) {
+export default function TrackSearchOptionsModal({
+  open,
+  onOpenChange,
+  mode,
+  onModeChange,
+  ...filters
+}: Props) {
   return (
     <RetroDialog
       open={open}

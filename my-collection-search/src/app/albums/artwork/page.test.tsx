@@ -12,8 +12,12 @@ const api = vi.hoisted(() => ({
 vi.mock("@/services/internalApi/albumArtwork", () => api);
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: toast } }));
-const friend = vi.hoisted(() => ({ current: { id: 7, username: "me" } as { id: number; username: string } | null }));
-vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => ({ friend: friend.current }) }));
+const friend = vi.hoisted(() => ({
+  current: { id: 7, username: "me" } as { id: number; username: string } | null,
+}));
+vi.mock("@/providers/UsernameProvider", () => ({
+  useUsername: () => ({ friend: friend.current }),
+}));
 const sync = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useAlbumArtwork", () => ({ syncArtworkIntoStores: sync }));
 
@@ -80,58 +84,92 @@ describe("album artwork review page", () => {
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Could not update artwork", description: "nope" })
-      )
+        expect.objectContaining({ title: "Could not update artwork", description: "nope" }),
+      ),
     );
   });
 
   it("queues artwork matching for the current library", async () => {
-    api.queueAlbumArtworkBackfill.mockResolvedValueOnce({ queuedAlbums: 3, queued: 3, tracksImpacted: 30, jobIds: [], errors: [] });
+    api.queueAlbumArtworkBackfill.mockResolvedValueOnce({
+      queuedAlbums: 3,
+      queued: 3,
+      tracksImpacted: 30,
+      jobIds: [],
+      errors: [],
+    });
     const { user } = renderWithProviders(<AlbumArtworkReviewPage />);
 
     await user.click(await screen.findByRole("button", { name: "Run artwork matching" }));
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Artwork matching queued", type: "success" })
-      )
+        expect.objectContaining({ title: "Artwork matching queued", type: "success" }),
+      ),
     );
     expect(api.queueAlbumArtworkBackfill).toHaveBeenCalledWith({ friend_id: 7 });
   });
 
   it("also offers the run from the header action, disabled until a friend is known", async () => {
-    api.queueAlbumArtworkBackfill.mockResolvedValueOnce({ queuedAlbums: 1, queued: 1, tracksImpacted: 1, jobIds: [], errors: [] });
+    api.queueAlbumArtworkBackfill.mockResolvedValueOnce({
+      queuedAlbums: 1,
+      queued: 1,
+      tracksImpacted: 1,
+      jobIds: [],
+      errors: [],
+    });
     const { user } = renderWithProviders(<AlbumArtworkReviewPage />);
     await screen.findByRole("button", { name: "Run artwork matching" });
-    const [headerAction] = screen.getAllByRole("button", { name: "Run artwork matching", hidden: true });
+    const [headerAction] = screen.getAllByRole("button", {
+      name: "Run artwork matching",
+      hidden: true,
+    });
     expect(screen.getByRole("heading", { level: 1, name: "Album artwork" })).toBeTruthy();
     await user.click(headerAction);
-    await waitFor(() => expect(api.queueAlbumArtworkBackfill).toHaveBeenCalledWith({ friend_id: 7 }));
+    await waitFor(() =>
+      expect(api.queueAlbumArtworkBackfill).toHaveBeenCalledWith({ friend_id: 7 }),
+    );
   });
 
   it("says when there is nothing to match, and when queueing fails", async () => {
     api.queueAlbumArtworkBackfill
-      .mockResolvedValueOnce({ queuedAlbums: 0, queued: 0, tracksImpacted: 0, jobIds: [], errors: [] })
-      .mockResolvedValueOnce({ queuedAlbums: 1, queued: 1, tracksImpacted: 1, jobIds: [], errors: [] })
+      .mockResolvedValueOnce({
+        queuedAlbums: 0,
+        queued: 0,
+        tracksImpacted: 0,
+        jobIds: [],
+        errors: [],
+      })
+      .mockResolvedValueOnce({
+        queuedAlbums: 1,
+        queued: 1,
+        tracksImpacted: 1,
+        jobIds: [],
+        errors: [],
+      })
       .mockRejectedValueOnce(new Error("redis down"));
     const { user } = renderWithProviders(<AlbumArtworkReviewPage />);
     const run = await screen.findByRole("button", { name: "Run artwork matching" });
 
     await user.click(run);
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Nothing to match", type: "info" }))
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Nothing to match", type: "info" }),
+      ),
     );
     await user.click(run);
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: expect.stringContaining("1 album queued") })
-      )
+        expect.objectContaining({ description: expect.stringContaining("1 album queued") }),
+      ),
     );
     await user.click(run);
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Could not queue artwork matching", description: "redis down" })
-      )
+        expect.objectContaining({
+          title: "Could not queue artwork matching",
+          description: "redis down",
+        }),
+      ),
     );
   });
 
@@ -150,7 +188,9 @@ describe("album artwork review page", () => {
     friend.current = null;
     renderWithProviders(<AlbumArtworkReviewPage />);
     expect(api.fetchAlbumArtworkReview).not.toHaveBeenCalled();
-    expect((screen.getByRole("button", { name: "Run artwork matching" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Run artwork matching" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("disables both choices while one is being applied", async () => {
@@ -161,7 +201,9 @@ describe("album artwork review page", () => {
     await user.click(await screen.findByRole("button", { name: "Keep Discogs art" }));
 
     await waitFor(() =>
-      expect((screen.getByRole("button", { name: "Use Apple Music art" }) as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole("button", { name: "Use Apple Music art" }) as HTMLButtonElement).disabled,
+      ).toBe(true),
     );
   });
 });

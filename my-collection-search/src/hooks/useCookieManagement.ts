@@ -53,7 +53,7 @@ export function useDeleteCookie() {
       queryClient.setQueryData(COOKIE_QUERY_KEY, {
         exists: false,
         isValid: false,
-        validationErrors: ["No cookie file found"]
+        validationErrors: ["No cookie file found"],
       } as CookieFileInfo);
       // Also invalidate to ensure fresh data
       queryClient.invalidateQueries({ queryKey: COOKIE_QUERY_KEY });

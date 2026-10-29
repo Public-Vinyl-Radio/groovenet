@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const state = vi.hoisted(() => ({ friend: { id: 4, username: "dj" } as { id: number; username: string } | null }));
+const state = vi.hoisted(() => ({
+  friend: { id: 4, username: "dj" } as { id: number; username: string } | null,
+}));
 const api = vi.hoisted(() => ({
   fetchRecommendationSettings: vi.fn(),
   updateRecommendationSettings: vi.fn(),
@@ -69,20 +71,34 @@ describe("useSuggestionScope", () => {
   it("defaults to the library and is ready at once when no library is selected", () => {
     state.friend = null;
     const { result } = renderHook(() => useSuggestionScope(), { wrapper });
-    expect(result.current).toMatchObject({ scope: "library", libraryFriendId: undefined, ready: true });
+    expect(result.current).toMatchObject({
+      scope: "library",
+      libraryFriendId: undefined,
+      ready: true,
+    });
     expect(api.fetchRecommendationSettings).not.toHaveBeenCalled();
   });
 });
 
 describe("useUpdateRecommendationSettings", () => {
   it("saves and refreshes the cached setting", async () => {
-    api.updateRecommendationSettings.mockResolvedValue({ friend_id: 4, scope: "library", isDefault: false });
-    const { result } = renderHook(() => ({ update: useUpdateRecommendationSettings(), scope: useSuggestionScope() }), { wrapper });
+    api.updateRecommendationSettings.mockResolvedValue({
+      friend_id: 4,
+      scope: "library",
+      isDefault: false,
+    });
+    const { result } = renderHook(
+      () => ({ update: useUpdateRecommendationSettings(), scope: useSuggestionScope() }),
+      { wrapper },
+    );
     await waitFor(() => expect(result.current.scope.savedScope).toBe("all"));
 
     await act(() => result.current.update.mutateAsync({ friend_id: 4, scope: "library" }));
 
-    expect(api.updateRecommendationSettings).toHaveBeenCalledWith({ friend_id: 4, scope: "library" });
+    expect(api.updateRecommendationSettings).toHaveBeenCalledWith({
+      friend_id: 4,
+      scope: "library",
+    });
     await waitFor(() => expect(result.current.scope.savedScope).toBe("library"));
   });
 });

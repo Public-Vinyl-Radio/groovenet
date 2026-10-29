@@ -17,9 +17,7 @@ vi.mock("@/server/services/ingestMetricsService", () => ({
   ingestMetricsService: metrics,
 }));
 vi.mock("@/server/services/audioIngestService", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@/server/services/audioIngestService")
-  >();
+  const actual = await importOriginal<typeof import("@/server/services/audioIngestService")>();
   return { ...actual, audioIngestService: service };
 });
 
@@ -84,9 +82,7 @@ function consoleText(): string {
 
 describe("POST /api/audio/ingest", () => {
   it("accepts a chunk with 202", async () => {
-    const res = await POST(
-      request({ audio: audioFile(), source_id: "living-room-vinyl" })
-    );
+    const res = await POST(request({ audio: audioFile(), source_id: "living-room-vinyl" }));
 
     // 202, not 200: what this audio *is* will not be known for a second or two.
     expect(res.status).toBe(202);
@@ -101,7 +97,7 @@ describe("POST /api/audio/ingest", () => {
         session_id: "sess-1",
         sequence: "42",
         captured_at: "2026-09-20T18:42:10.000Z",
-      })
+      }),
     );
 
     expect(service.accept.mock.calls[0][1]).toEqual({
@@ -141,9 +137,7 @@ describe("POST /api/audio/ingest", () => {
   });
 
   it("400s an empty audio part", async () => {
-    const res = await POST(
-      request({ audio: new File([], "chunk.wav"), source_id: "s" })
-    );
+    const res = await POST(request({ audio: new File([], "chunk.wav"), source_id: "s" }));
 
     expect((await res.json()).error).toBe("missing_audio_file");
   });
@@ -154,7 +148,7 @@ describe("POST /api/audio/ingest", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source_id: "s" }),
-      })
+      }),
     );
 
     expect(res.status).toBe(400);
@@ -191,9 +185,7 @@ describe("POST /api/audio/ingest", () => {
   it("413s an oversized upload", async () => {
     // Distinct from the other rejections: the device should back off its chunk
     // size, not conclude the audio was bad.
-    service.accept.mockRejectedValue(
-      new IngestRejected("audio_too_large", "too big")
-    );
+    service.accept.mockRejectedValue(new IngestRejected("audio_too_large", "too big"));
 
     const res = await POST(request({ audio: audioFile(), source_id: "s" }));
 
@@ -251,7 +243,7 @@ describe("POST /api/audio/ingest", () => {
           source_id: "living-room-vinyl",
           session_id: "sess-1",
           sequence: "42",
-        })
+        }),
       );
 
       expect(metrics.chunkRejected).toHaveBeenCalledWith("audio_too_short");
@@ -300,9 +292,14 @@ describe("POST /api/audio/ingest", () => {
     });
 
     it("never logs the audio, the request's credentials, or its form", async () => {
-      service.accept.mockRejectedValue(new IngestRejected("invalid_audio_stream", "no audio stream"));
+      service.accept.mockRejectedValue(
+        new IngestRejected("invalid_audio_stream", "no audio stream"),
+      );
       const form = new FormData();
-      form.append("audio", new File([new TextEncoder().encode("AUDIOBYTES".repeat(500))], "chunk.wav"));
+      form.append(
+        "audio",
+        new File([new TextEncoder().encode("AUDIOBYTES".repeat(500))], "chunk.wav"),
+      );
       form.append("source_id", "s");
       form.append("device_token", "form-secret-123");
 
@@ -311,7 +308,7 @@ describe("POST /api/audio/ingest", () => {
           method: "POST",
           headers: { Authorization: "Bearer header-secret-789", Cookie: "session=cookie-secret" },
           body: form,
-        })
+        }),
       );
       service.accept.mockRejectedValue(new Error("boom"));
       await POST(
@@ -319,7 +316,7 @@ describe("POST /api/audio/ingest", () => {
           method: "POST",
           headers: { Authorization: "Bearer header-secret-789" },
           body: form,
-        })
+        }),
       );
 
       expect(logged()).toHaveLength(2);

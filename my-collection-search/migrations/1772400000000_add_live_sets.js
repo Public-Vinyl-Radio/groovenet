@@ -27,7 +27,12 @@ export const up = (pgm) => {
 
   pgm.createTable("live_set_collaborators", {
     id: { type: "serial", primaryKey: true },
-    live_set_id: { type: "integer", notNull: true, references: "live_sets(id)", onDelete: "CASCADE" },
+    live_set_id: {
+      type: "integer",
+      notNull: true,
+      references: "live_sets(id)",
+      onDelete: "CASCADE",
+    },
     friend_id: { type: "integer", notNull: true, references: "friends(id)", onDelete: "CASCADE" },
     role: { type: "varchar(40)", notNull: true, default: "collaborator" },
     created_at: { type: "timestamptz", notNull: true, default: pgm.func("current_timestamp") },
@@ -38,7 +43,12 @@ export const up = (pgm) => {
 
   pgm.createTable("live_set_performances", {
     id: { type: "serial", primaryKey: true },
-    live_set_id: { type: "integer", notNull: true, references: "live_sets(id)", onDelete: "CASCADE" },
+    live_set_id: {
+      type: "integer",
+      notNull: true,
+      references: "live_sets(id)",
+      onDelete: "CASCADE",
+    },
     performed_at: { type: "timestamptz", notNull: true },
     venue_name: { type: "varchar(255)" },
     location_city: { type: "varchar(255)" },
@@ -51,7 +61,12 @@ export const up = (pgm) => {
 
   pgm.createTable("live_set_media", {
     id: { type: "serial", primaryKey: true },
-    live_set_id: { type: "integer", notNull: true, references: "live_sets(id)", onDelete: "CASCADE" },
+    live_set_id: {
+      type: "integer",
+      notNull: true,
+      references: "live_sets(id)",
+      onDelete: "CASCADE",
+    },
     media_type: { type: "varchar(20)", notNull: true },
     url: { type: "text", notNull: true },
     filename: { type: "varchar(255)" },

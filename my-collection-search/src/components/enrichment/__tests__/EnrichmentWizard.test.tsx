@@ -7,7 +7,9 @@ import { useEnrichmentStore } from "@/stores/enrichmentStore";
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
-vi.mock("@/services/internalApi/settings", () => ({ fetchAiPromptSettings: vi.fn().mockResolvedValue({}) }));
+vi.mock("@/services/internalApi/settings", () => ({
+  fetchAiPromptSettings: vi.fn().mockResolvedValue({}),
+}));
 vi.mock("@/hooks/useTrack", () => ({ useTrack: () => undefined }));
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: vi.fn() } }));
 vi.mock("../EnrichmentTrackStep", () => ({ default: () => null }));

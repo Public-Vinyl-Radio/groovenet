@@ -1,6 +1,6 @@
-import { useTrackStore } from '@/stores/trackStore';
-import type { TrackEntity } from '@/stores/trackStore';
-import { useMemo } from 'react';
+import { useTrackStore } from "@/stores/trackStore";
+import type { TrackEntity } from "@/stores/trackStore";
+import { useMemo } from "react";
 
 /**
  * Hook to get a single track from the store
@@ -22,18 +22,15 @@ export function useTrack(trackId: string, friendId: number): TrackEntity | undef
 export function useTracks(trackIds: string[], friendId: number): TrackEntity[] {
   return useTrackStore((state) =>
     trackIds
-      .map(id => {
+      .map((id) => {
         const key = `${id}:${friendId}`;
         return state.tracks.get(key);
       })
-      .filter((track): track is TrackEntity => track !== undefined)
+      .filter((track): track is TrackEntity => track !== undefined),
   );
 }
 
-export function useTracksByRelease(
-  releaseId: string,
-  friendId: number
-): TrackEntity[] {
+export function useTracksByRelease(releaseId: string, friendId: number): TrackEntity[] {
   const tracksMap = useTrackStore((state) => state.tracks);
   const trackKeysByRelease = useTrackStore((state) => state.trackKeysByRelease);
 
@@ -45,13 +42,8 @@ export function useTracksByRelease(
   }, [tracksMap, trackKeysByRelease, releaseId, friendId]);
 }
 
-export function useTracksByReleaseHydrated(
-  releaseId: string,
-  friendId: number
-): boolean {
-  return useTrackStore((state) =>
-    state.hydratedReleaseKeys.has(`${releaseId}:${friendId}`)
-  );
+export function useTracksByReleaseHydrated(releaseId: string, friendId: number): boolean {
+  return useTrackStore((state) => state.hydratedReleaseKeys.has(`${releaseId}:${friendId}`));
 }
 
 /**

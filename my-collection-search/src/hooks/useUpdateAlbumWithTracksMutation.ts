@@ -14,10 +14,12 @@ export function useUpdateAlbumWithTracksMutation() {
     onSuccess: (data, variables) => {
       if (data?.album) {
         setAlbum(data.album);
-        useTrackStore.getState().updateTracksByRelease(data.album.release_id, data.album.friend_id, {
-          album_genres: data.album.effective_genres,
-          album_styles: data.album.effective_styles,
-        });
+        useTrackStore
+          .getState()
+          .updateTracksByRelease(data.album.release_id, data.album.friend_id, {
+            album_genres: data.album.effective_genres,
+            album_styles: data.album.effective_styles,
+          });
       }
       if (Array.isArray(data?.tracks) && data.tracks.length > 0) {
         setTracks(data.tracks);
@@ -25,12 +27,12 @@ export function useUpdateAlbumWithTracksMutation() {
 
       // Invalidate album detail query
       queryClient.invalidateQueries({
-        queryKey: ['album', variables.release_id, variables.friend_id],
+        queryKey: ["album", variables.release_id, variables.friend_id],
       });
 
       // Invalidate albums list
       queryClient.invalidateQueries({
-        queryKey: ['albums'],
+        queryKey: ["albums"],
       });
 
       queryClient.invalidateQueries({ queryKey: queryKeys.genresRoot() });

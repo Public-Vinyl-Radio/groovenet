@@ -104,7 +104,7 @@ describe("createDurationJob()", () => {
     expect(mockPipeline.del).toHaveBeenCalledWith("job:test-job-id:logs");
     expect(mockPipeline.hset).toHaveBeenCalledWith(
       "job:test-job-id",
-      expect.objectContaining({ job_type: "fix-duration", track_id: "t1" })
+      expect.objectContaining({ job_type: "fix-duration", track_id: "t1" }),
     );
     expect(mockPipeline.exec).toHaveBeenCalled();
   });
@@ -118,7 +118,7 @@ describe("createDurationJob()", () => {
 
     expect(mockRedis.lpush).toHaveBeenCalledWith(
       "download_queue",
-      expect.stringContaining('"job_type":"fix-duration"')
+      expect.stringContaining('"job_type":"fix-duration"'),
     );
     const payload = JSON.parse(mockRedis.lpush.mock.calls[0][1]);
     expect(payload).toMatchObject({
@@ -270,7 +270,7 @@ describe("getJobStatus()", () => {
 
   it("parses result JSON when present", async () => {
     mockRedis.hgetall.mockResolvedValue(
-      makeJobHash({ result: JSON.stringify({ file_path: "/audio/t1.m4a" }) })
+      makeJobHash({ result: JSON.stringify({ file_path: "/audio/t1.m4a" }) }),
     );
     const result = await makeService().getJobStatus("test-job-id");
     expect(result?.result).toEqual({ file_path: "/audio/t1.m4a" });
@@ -323,9 +323,7 @@ describe("getAllJobs()", () => {
   });
 
   it("paginates scan when cursor is non-zero on first call", async () => {
-    mockRedis.scan
-      .mockResolvedValueOnce(["42", ["job:a"]])
-      .mockResolvedValueOnce(["0", ["job:b"]]);
+    mockRedis.scan.mockResolvedValueOnce(["42", ["job:a"]]).mockResolvedValueOnce(["0", ["job:b"]]);
     mockPipeline.exec.mockResolvedValue([
       [null, makeJobHash({ job_id: "a" })],
       [null, makeJobHash({ job_id: "b" })],
@@ -398,12 +396,7 @@ describe("clearAllJobs()", () => {
 
     await makeService().clearAllJobs();
 
-    expect(mockRedis.del).toHaveBeenCalledWith(
-      "job:a",
-      "job:b",
-      "job:a:logs",
-      "job:b:logs"
-    );
+    expect(mockRedis.del).toHaveBeenCalledWith("job:a", "job:b", "job:a:logs", "job:b:logs");
   });
 
   it("deletes the queue and index keys", async () => {
@@ -423,21 +416,33 @@ describe("clearAllJobs()", () => {
 
 describe("deleteJob()", () => {
   it("returns true when the job key existed", async () => {
-    mockPipeline.exec.mockResolvedValue([[null, 1], [null, 1], [null, 1]]);
+    mockPipeline.exec.mockResolvedValue([
+      [null, 1],
+      [null, 1],
+      [null, 1],
+    ]);
 
     const result = await makeService().deleteJob("test-job-id");
     expect(result).toBe(true);
   });
 
   it("returns false when the job key did not exist", async () => {
-    mockPipeline.exec.mockResolvedValue([[null, 0], [null, 0], [null, 0]]);
+    mockPipeline.exec.mockResolvedValue([
+      [null, 0],
+      [null, 0],
+      [null, 0],
+    ]);
 
     const result = await makeService().deleteJob("missing-id");
     expect(result).toBe(false);
   });
 
   it("removes the job from the updated index", async () => {
-    mockPipeline.exec.mockResolvedValue([[null, 1], [null, 1], [null, 1]]);
+    mockPipeline.exec.mockResolvedValue([
+      [null, 1],
+      [null, 1],
+      [null, 1],
+    ]);
 
     await makeService().deleteJob("test-job-id");
 
@@ -445,7 +450,11 @@ describe("deleteJob()", () => {
   });
 
   it("deletes the per-job log list too", async () => {
-    mockPipeline.exec.mockResolvedValue([[null, 1], [null, 1], [null, 1]]);
+    mockPipeline.exec.mockResolvedValue([
+      [null, 1],
+      [null, 1],
+      [null, 1],
+    ]);
 
     await makeService().deleteJob("test-job-id");
 
@@ -472,7 +481,7 @@ describe("getJobLogs()", () => {
         status: "failed",
         progress: "0",
         error: "Download failed: auth failed",
-      })
+      }),
     );
 
     const result = await makeService().getJobLogs("test-job-id");

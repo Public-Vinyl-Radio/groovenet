@@ -8,10 +8,7 @@ import { extractKeyAnalysis } from "@/lib/essentiaKey";
 import { toaster } from "@/components/ui/toaster";
 import { useAsyncAnalyzeTrackMutation } from "@/hooks/useAsyncAnalyzeTrackMutation";
 import { useUploadTrackAudioMutation } from "@/hooks/useUploadTrackAudioMutation";
-import type {
-  TrackEditFormProps,
-  TrackEditFormState,
-} from "@/components/track-edit/types";
+import type { TrackEditFormProps, TrackEditFormState } from "@/components/track-edit/types";
 
 type UseTrackEditAudioActionsArgs = {
   form: TrackEditFormState;
@@ -19,17 +16,11 @@ type UseTrackEditAudioActionsArgs = {
   onSave: (data: TrackEditFormProps) => void | Promise<void>;
 };
 
-export function useTrackEditAudioActions({
-  form,
-  setForm,
-  onSave,
-}: UseTrackEditAudioActionsArgs) {
+export function useTrackEditAudioActions({ form, setForm, onSave }: UseTrackEditAudioActionsArgs) {
   const [removeAudioLoading, setRemoveAudioLoading] = useState(false);
 
-  const { mutateAsync: analyze, isPending: analyzeLoading } =
-    useAsyncAnalyzeTrackMutation();
-  const { mutateAsync: uploadAudio, isPending: uploadLoading } =
-    useUploadTrackAudioMutation();
+  const { mutateAsync: analyze, isPending: analyzeLoading } = useAsyncAnalyzeTrackMutation();
+  const { mutateAsync: uploadAudio, isPending: uploadLoading } = useUploadTrackAudioMutation();
 
   // Upload the file, then stage the analysis results into the form so the user
   // can review before saving (server persists local_audio_url on its own).
@@ -47,10 +38,7 @@ export function useTrackEditAudioActions({
       const { key, key_confidence } = extractKeyAnalysis(data.tonal);
       setForm((prev) => ({
         ...prev,
-        bpm:
-          typeof data.rhythm?.bpm === "number"
-            ? String(Math.round(data.rhythm.bpm))
-            : prev.bpm,
+        bpm: typeof data.rhythm?.bpm === "number" ? String(Math.round(data.rhythm.bpm)) : prev.bpm,
         bpm_confidence: bpm_confidence ?? prev.bpm_confidence,
         key: key ?? prev.key,
         key_confidence: key_confidence ?? prev.key_confidence,
@@ -101,9 +89,7 @@ export function useTrackEditAudioActions({
       console.error("Audio analysis error:", err);
       toaster.create({
         title: "Audio Analysis Failed",
-        description:
-          "Error queuing audio analysis: " +
-          (err instanceof Error ? err.message : err),
+        description: "Error queuing audio analysis: " + (err instanceof Error ? err.message : err),
         type: "error",
       });
     }
@@ -126,7 +112,7 @@ export function useTrackEditAudioActions({
           friend_id: form.friend_id,
           soundcloud_url: cleanSoundcloudUrl(form.soundcloud_url),
           local_audio_url: null,
-        })
+        }),
       );
 
       toaster.create({
@@ -147,8 +133,7 @@ export function useTrackEditAudioActions({
   };
 
   const analyzeDisabled =
-    analyzeLoading ||
-    (!form.apple_music_url && !form.youtube_url && !form.soundcloud_url);
+    analyzeLoading || (!form.apple_music_url && !form.youtube_url && !form.soundcloud_url);
 
   return {
     analyzeLoading,

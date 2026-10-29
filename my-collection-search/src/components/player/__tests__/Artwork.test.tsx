@@ -29,7 +29,7 @@ describe("Artwork", () => {
 
   it("recovers from a prior failure once a new src is provided", () => {
     const { rerender } = renderWithProviders(
-      <Artwork src="https://example.com/missing.jpg" alt="Cover" />
+      <Artwork src="https://example.com/missing.jpg" alt="Cover" />,
     );
     fireEvent.error(screen.getByRole("img", { name: "Cover" }));
     expect(screen.queryByRole("img")).toBeNull();
@@ -37,14 +37,16 @@ describe("Artwork", () => {
     rerender(<Artwork src="https://example.com/good.jpg" alt="Cover" />);
 
     expect(screen.getByRole("img", { name: "Cover" }).getAttribute("src")).toBe(
-      "https://example.com/good.jpg"
+      "https://example.com/good.jpg",
     );
   });
 });
 
 describe("Artwork — Now playing", () => {
   it("fills its column as a square with the container shadow, image or placeholder", () => {
-    const { rerender } = renderWithProviders(<Artwork src="https://example.com/art.jpg" alt="Cover" fill shadow />);
+    const { rerender } = renderWithProviders(
+      <Artwork src="https://example.com/art.jpg" alt="Cover" fill shadow />,
+    );
     const img = screen.getByRole("img", { name: "Cover" });
     const css = cssOf(img);
     expect(css).toMatch(/width:\s*100%/);

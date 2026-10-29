@@ -1,4 +1,5 @@
 """Per-run progress counters (#277)."""
+
 from fingerprint_service.runs import MAX_RECORDED_ERRORS, record_outcome, run_key
 
 
@@ -43,9 +44,7 @@ class TestRecordOutcome:
 
     def test_caps_the_recorded_errors(self, fake_redis):
         for i in range(MAX_RECORDED_ERRORS + 25):
-            record_outcome(
-                fake_redis, outcome("failed", error="broken", track_id=f"track-{i}")
-            )
+            record_outcome(fake_redis, outcome("failed", error="broken", track_id=f"track-{i}"))
 
         errors = fake_redis.lrange(f"{run_key('run-1')}:errors", 0, -1)
         assert len(errors) == MAX_RECORDED_ERRORS

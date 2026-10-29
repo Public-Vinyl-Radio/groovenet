@@ -8,10 +8,7 @@
  * production on every single track.
  */
 import { describe, it, expect } from "vitest";
-import {
-  fingerprintUpsertBodySchema,
-  fingerprintIndexBodySchema,
-} from "@/api-contract/schemas";
+import { fingerprintUpsertBodySchema, fingerprintIndexBodySchema } from "@/api-contract/schemas";
 
 // Exactly what fingerprint_service.indexer.build_upsert emits.
 describe("upsert body accepts what the worker posts", () => {
@@ -44,9 +41,12 @@ describe("upsert body accepts what the worker posts", () => {
   it("rejects an uppercase or truncated hash", () => {
     expect(
       fingerprintUpsertBodySchema.safeParse({
-        track_id: "t", friend_id: 1, fingerprint_type: "s",
-        fingerprint_version: "0", audio_sha256: "E".repeat(64),
-      }).success
+        track_id: "t",
+        friend_id: 1,
+        fingerprint_type: "s",
+        fingerprint_version: "0",
+        audio_sha256: "E".repeat(64),
+      }).success,
     ).toBe(false);
   });
 });

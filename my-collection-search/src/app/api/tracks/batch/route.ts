@@ -9,14 +9,14 @@ import { trackRepository } from "@/server/repositories/trackRepository";
  * as `_vectors.default` always has.
  */
 async function loadVectors(
-  tracks: Array<{ track_id: string; friend_id: number }>
+  tracks: Array<{ track_id: string; friend_id: number }>,
 ): Promise<Map<string, number[]>> {
   const { model, templateVersion } = await getServingModel("audio_vibe");
   const rows = await embeddingsRepository.findEmbeddingsForTracks(
     tracks.map((t) => ({ trackId: t.track_id, friendId: t.friend_id })),
     "audio_vibe",
     model,
-    templateVersion
+    templateVersion,
   );
   const vectors = new Map<string, number[]>();
   for (const row of rows) {
@@ -54,9 +54,6 @@ export async function POST(req: Request) {
     return NextResponse.json(ordered);
   } catch (error) {
     console.error("Error fetching tracks by ids:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch tracks" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch tracks" }, { status: 500 });
   }
 }

@@ -2,14 +2,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import {
-  Box,
-  Text,
-  Button,
-  Dialog,
-  Alert,
-  CloseButton,
-} from "@chakra-ui/react";
+import { Box, Text, Button, Dialog, Alert, CloseButton } from "@chakra-ui/react";
 
 import { useSettingsDialogs } from "@/providers/SettingsDialogProvider";
 import { useSyncStreams } from "@/providers/SyncStreamsProvider";
@@ -27,10 +20,7 @@ export default function RemoveFriendDialog() {
   }, [removeFriend.lines.length]);
 
   return (
-    <Dialog.Root
-      open={removeFriendOpen}
-      onOpenChange={(d) => setRemoveFriendOpen(d.open)}
-    >
+    <Dialog.Root open={removeFriendOpen} onOpenChange={(d) => setRemoveFriendOpen(d.open)}>
       <Dialog.Positioner>
         <Dialog.Content maxW="600px">
           <Dialog.Header>
@@ -68,10 +58,7 @@ export default function RemoveFriendDialog() {
           </Dialog.Body>
 
           <Dialog.Footer>
-            <Button
-              onClick={() => setRemoveFriendOpen(false)}
-              disabled={!removeFriend.done}
-            >
+            <Button onClick={() => setRemoveFriendOpen(false)} disabled={!removeFriend.done}>
               Close
             </Button>
           </Dialog.Footer>

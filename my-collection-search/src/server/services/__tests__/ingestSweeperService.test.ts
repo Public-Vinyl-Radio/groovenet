@@ -29,7 +29,10 @@ import {
   sweepIngestDirectory,
   sweepTick,
 } from "../ingestSweeperService";
-import type { AudioIngestRow, AudioIngestStatus } from "@/server/repositories/audioIngestRepository";
+import type {
+  AudioIngestRow,
+  AudioIngestStatus,
+} from "@/server/repositories/audioIngestRepository";
 import type { IngestRetentionPolicy, SweepCandidate } from "@/types/audioIngest";
 
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
@@ -75,22 +78,18 @@ function decide(candidates: SweepCandidate[], records: AudioIngestRow[] = [], p 
 // ─── the protection rule ──────────────────────────────────────────────────────
 
 describe("selectForDeletion() — files still in flight", () => {
-  it.each<AudioIngestStatus>(["received", "processing"])(
-    "spares a %s file",
-    (status) => {
-      const d = decide([file("chunk.wav")], [record("chunk.wav", status)]);
-      expect(d.get("chunk.wav")).toMatchObject({ deleted: false, reason: "in-flight" });
-    }
-  );
+  it.each<AudioIngestStatus>(["received", "processing"])("spares a %s file", (status) => {
+    const d = decide([file("chunk.wav")], [record("chunk.wav", status)]);
+    expect(d.get("chunk.wav")).toMatchObject({ deleted: false, reason: "in-flight" });
+  });
 
   it("spares an in-flight file even when the volume is over budget", () => {
     // Running out of disk is bad; corrupting the chunk being fingerprinted is
     // worse. A volume full of live uploads is something to alert on.
-    const d = decide(
-      [file("live.wav", 0, 5_000_000)],
-      [record("live.wav", "processing")],
-      { ...policy, maxBytes: 1000 }
-    );
+    const d = decide([file("live.wav", 0, 5_000_000)], [record("live.wav", "processing")], {
+      ...policy,
+      maxBytes: 1000,
+    });
     expect(d.get("live.wav")).toMatchObject({ deleted: false, reason: "in-flight" });
   });
 
@@ -110,13 +109,10 @@ describe("selectForDeletion() — files still in flight", () => {
 // ─── terminal records ─────────────────────────────────────────────────────────
 
 describe("selectForDeletion() — finished work", () => {
-  it.each<AudioIngestStatus>(["processed", "failed"])(
-    "sweeps a %s file immediately",
-    (status) => {
-      const d = decide([file("done.wav")], [record("done.wav", status)]);
-      expect(d.get("done.wav")).toMatchObject({ deleted: true, reason: "terminal" });
-    }
-  );
+  it.each<AudioIngestStatus>(["processed", "failed"])("sweeps a %s file immediately", (status) => {
+    const d = decide([file("done.wav")], [record("done.wav", status)]);
+    expect(d.get("done.wav")).toMatchObject({ deleted: true, reason: "terminal" });
+  });
 
   it("sweeps a failed file too — the error lives on the record", () => {
     const d = decide([file("bad.wav")], [record("bad.wav", "failed")]);
@@ -172,14 +168,10 @@ describe("selectForDeletion() — size budget", () => {
   });
 
   it("evicts the oldest first when over budget", () => {
-    const d = decide(
-      [
-        file("old.wav", 30 * MINUTE, 800),
-        file("new.wav", 1 * MINUTE, 800),
-      ],
-      [],
-      { ...policy, maxBytes: 1000 }
-    );
+    const d = decide([file("old.wav", 30 * MINUTE, 800), file("new.wav", 1 * MINUTE, 800)], [], {
+      ...policy,
+      maxBytes: 1000,
+    });
 
     expect(d.get("old.wav")).toMatchObject({ deleted: true, reason: "over-budget" });
     expect(d.get("new.wav")?.deleted).toBe(false);
@@ -193,7 +185,7 @@ describe("selectForDeletion() — size budget", () => {
         file("c.wav", 10 * MINUTE, 400),
       ],
       [],
-      { ...policy, maxBytes: 1000 }
+      { ...policy, maxBytes: 1000 },
     );
 
     const deleted = [...d.values()].filter((x) => x.deleted).map((x) => x.fileName);
@@ -205,7 +197,7 @@ describe("selectForDeletion() — size budget", () => {
     const d = decide(
       [file("done.wav", 1 * MINUTE, 900), file("fresh.wav", 1 * MINUTE, 400)],
       [record("done.wav", "processed")],
-      { ...policy, maxBytes: 1000 }
+      { ...policy, maxBytes: 1000 },
     );
 
     expect(d.get("done.wav")?.reason).toBe("terminal");
@@ -268,7 +260,7 @@ describe("loadRetentionPolicy()", () => {
       // A zero or negative max age would make every file instantly expired.
       process.env.AUDIO_INGEST_MAX_AGE_HOURS = value;
       expect(loadRetentionPolicy().maxAgeHours).toBe(24);
-    }
+    },
   );
 });
 
@@ -330,9 +322,9 @@ describe("sweepIngestDirectory() (real temp directory)", () => {
     // Another sweeper, or the app's own cleanup, got there first.
     write("racing.wav", 100);
     repo.findByFilePaths.mockResolvedValue([record("racing.wav", "processed")]);
-    const unlink = vi.spyOn(fsp, "unlink").mockRejectedValueOnce(
-      Object.assign(new Error("ENOENT"), { code: "ENOENT" })
-    );
+    const unlink = vi
+      .spyOn(fsp, "unlink")
+      .mockRejectedValueOnce(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
     const summary = await sweepIngestDirectory(policy, NOW);
 
@@ -349,7 +341,7 @@ describe("sweepIngestDirectory() (real temp directory)", () => {
       record("done.wav", "processed"),
     ]);
     vi.spyOn(fsp, "unlink").mockRejectedValueOnce(
-      Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" })
+      Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" }),
     );
 
     const summary = await sweepIngestDirectory(policy, NOW);
@@ -513,7 +505,7 @@ describe("sweepIngestDirectory() — listing failures", () => {
     // Distinct from a missing directory: an unreadable volume is a real fault
     // and must not be reported as "nothing to sweep".
     vi.spyOn(fsp, "readdir").mockRejectedValue(
-      Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" })
+      Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" }),
     );
 
     await expect(sweepIngestDirectory(policy, NOW)).rejects.toThrow("permission denied");
@@ -523,7 +515,7 @@ describe("sweepIngestDirectory() — listing failures", () => {
     fs.writeFileSync(path.join(dir, "a.wav"), Buffer.alloc(10));
     fs.writeFileSync(path.join(dir, "b.wav"), Buffer.alloc(10));
     vi.spyOn(fsp, "stat").mockRejectedValueOnce(
-      Object.assign(new Error("ENOENT"), { code: "ENOENT" })
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
     );
 
     const summary = await sweepIngestDirectory(policy, NOW);
@@ -534,7 +526,7 @@ describe("sweepIngestDirectory() — listing failures", () => {
   it("rethrows a stat failure that is not a missing file", async () => {
     fs.writeFileSync(path.join(dir, "a.wav"), Buffer.alloc(10));
     vi.spyOn(fsp, "stat").mockRejectedValue(
-      Object.assign(new Error("EIO: i/o error"), { code: "EIO" })
+      Object.assign(new Error("EIO: i/o error"), { code: "EIO" }),
     );
 
     await expect(sweepIngestDirectory(policy, NOW)).rejects.toThrow("i/o error");
@@ -544,7 +536,7 @@ describe("sweepIngestDirectory() — listing failures", () => {
     fs.writeFileSync(path.join(dir, "locked.wav"), Buffer.alloc(10));
     repo.findByFilePaths.mockResolvedValue([record("locked.wav", "processed")]);
     vi.spyOn(fsp, "unlink").mockRejectedValue(
-      Object.assign(new Error("EACCES"), { code: "EACCES" })
+      Object.assign(new Error("EACCES"), { code: "EACCES" }),
     );
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -578,10 +570,7 @@ describe("startIngestSweeper()", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     // Remember every timer the sweeper registers. One test runs on real timers,
     // and a stray 60s interval would keep the suite's event loop alive.
-    vi.spyOn(globalThis, "setInterval").mockImplementation(((
-      fn: () => void,
-      ms: number
-    ) => {
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((fn: () => void, ms: number) => {
       const handle = timerImpl(fn, ms);
       timers.push(handle);
       return handle;
@@ -621,9 +610,11 @@ describe("startIngestSweeper()", () => {
     fs.writeFileSync(path.join(dir, "done.wav"), Buffer.alloc(10));
     startIngestSweeper();
 
-    const registered = (globalThis.setInterval as unknown as {
-      mock: { calls: [() => void, number][] };
-    }).mock.calls[0][0];
+    const registered = (
+      globalThis.setInterval as unknown as {
+        mock: { calls: [() => void, number][] };
+      }
+    ).mock.calls[0][0];
     repo.findByFilePaths.mockClear();
     resetSweepClock();
     vi.useRealTimers();
@@ -643,7 +634,7 @@ describe("startIngestSweeper()", () => {
     expect(() => startIngestSweeper()).not.toThrow();
     expect(logged).toHaveBeenCalledWith(
       "[ingest-sweeper] could not create the ingest directory:",
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
@@ -657,8 +648,6 @@ describe("startIngestSweeper()", () => {
 
     startIngestSweeper();
 
-    await vi.waitFor(() =>
-      expect(repo.findByFilePaths).toHaveBeenCalledWith(["done.wav"])
-    );
+    await vi.waitFor(() => expect(repo.findByFilePaths).toHaveBeenCalledWith(["done.wav"]));
   });
 });

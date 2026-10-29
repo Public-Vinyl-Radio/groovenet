@@ -8,11 +8,7 @@ export interface DownloadJobData {
   friend_id: number;
   release_id?: string | null;
   job_type?:
-    | "download"
-    | "fix-duration"
-    | "extract-cover-art"
-    | "extract-cover-art-album"
-    | "analyze-local";
+    "download" | "fix-duration" | "extract-cover-art" | "extract-cover-art-album" | "analyze-local";
   apple_music_url?: string;
   youtube_url?: string;
   soundcloud_url?: string;
@@ -75,20 +71,14 @@ export class RedisJobService {
   private readonly updatedIndexKey = "jobs:updated";
   private readonly activeJobTtlSeconds = parseInt(
     process.env.JOB_TTL_ACTIVE_SECONDS || "604800",
-    10
+    10,
   );
 
   private async listJobKeys(): Promise<string[]> {
     const keys: string[] = [];
     let cursor = "0";
     do {
-      const [nextCursor, batch] = await this.redis.scan(
-        cursor,
-        "MATCH",
-        "job:*",
-        "COUNT",
-        1000
-      );
+      const [nextCursor, batch] = await this.redis.scan(cursor, "MATCH", "job:*", "COUNT", 1000);
       cursor = nextCursor;
       if (batch.length > 0) {
         keys.push(...batch.filter((key) => !key.endsWith(":logs")));
@@ -119,7 +109,7 @@ export class RedisJobService {
 
   private async persistJobMetadata(
     job_id: string,
-    payload: Record<string, string | number>
+    payload: Record<string, string | number>,
   ): Promise<void> {
     const pipeline = this.redis.pipeline();
     // Ensure each queued job starts with a clean per-job log buffer.
@@ -133,7 +123,9 @@ export class RedisJobService {
   /**
    * Fetch gamdl settings for a friend, creating defaults if not exists
    */
-  private async getGamdlSettings(friendId: number): Promise<
+  private async getGamdlSettings(
+    friendId: number,
+  ): Promise<
     Pick<
       DownloadJobData,
       | "quality"
@@ -149,9 +141,7 @@ export class RedisJobService {
   > {
     try {
       await settingsRepository.ensureGamdlSettings(friendId);
-      const settings = await settingsRepository.findGamdlSettingsByFriendId(
-        friendId
-      );
+      const settings = await settingsRepository.findGamdlSettingsByFriendId(friendId);
       if (!settings) return {};
 
       return {
@@ -182,9 +172,7 @@ export class RedisJobService {
     }
   }
 
-  async createDownloadJob(
-    data: Omit<DownloadJobData, "job_id">
-  ): Promise<string> {
+  async createDownloadJob(data: Omit<DownloadJobData, "job_id">): Promise<string> {
     const job_id = uuidv4();
 
     // Fetch gamdl settings for the friend if not already provided
@@ -317,9 +305,7 @@ export class RedisJobService {
     };
 
     await this.redis.lpush("download_queue", JSON.stringify(jobData));
-    console.log(
-      `Created album cover-art job ${job_id} for release ${data.release_id}`
-    );
+    console.log(`Created album cover-art job ${job_id} for release ${data.release_id}`);
     return job_id;
   }
 
@@ -394,10 +380,7 @@ export class RedisJobService {
     return typeof limit === "number" ? sorted.slice(0, limit) : sorted;
   }
 
-  async getJobsUpdatedSince(
-    sinceTimestampMs: number,
-    limit = 200
-  ): Promise<JobStatus[]> {
+  async getJobsUpdatedSince(sinceTimestampMs: number, limit = 200): Promise<JobStatus[]> {
     const end = Date.now();
     const jobIds = await this.redis.zrangebyscore(
       this.updatedIndexKey,
@@ -405,7 +388,7 @@ export class RedisJobService {
       end,
       "LIMIT",
       0,
-      Math.max(limit, 1)
+      Math.max(limit, 1),
     );
 
     if (jobIds.length === 0) return [];

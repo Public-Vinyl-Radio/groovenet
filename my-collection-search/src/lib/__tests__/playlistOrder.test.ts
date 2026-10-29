@@ -237,7 +237,7 @@ describe("greedyPath", () => {
     const n = 4;
     const tracks = Array.from({ length: n }, (_, i) => makeTrack({ idx: i }));
     const edges = Array.from({ length: n }, (_, i) =>
-      Array.from({ length: n }, (_, j) => (i === j ? 0 : 1))
+      Array.from({ length: n }, (_, j) => (i === j ? 0 : 1)),
     );
     const path = greedyPath(tracks, edges);
     expect(path).toHaveLength(n);

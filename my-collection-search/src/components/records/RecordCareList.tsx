@@ -77,7 +77,13 @@ export default function RecordCareList({ friendId, status }: Props) {
 
   return (
     <Stack gap={3}>
-      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" as="ul" listStyleType="none">
+      <Box
+        borderWidth="outline"
+        borderColor="border.ink"
+        boxShadow="md"
+        as="ul"
+        listStyleType="none"
+      >
         {items.map((item, index) => (
           <Flex
             as="li"
@@ -106,11 +112,21 @@ export default function RecordCareList({ friendId, status }: Props) {
                   {item.album_title}
                 </Link>
               </Text>
-              <Text fontSize="xs" color="fg.muted" lineClamp={1}>{item.album_artist}</Text>
+              <Text fontSize="xs" color="fg.muted" lineClamp={1}>
+                {item.album_artist}
+              </Text>
               <HStack gap={1.5} wrap="wrap">
-                {item.label && <Badge size="sm" variant="outline">{item.label}</Badge>}
-                <Badge size="sm" variant="surface">{sleeveLabel(item.inner_sleeve_type)}</Badge>
-                <Text fontSize="xs" color="fg.muted">{formatLastCleaned(item.last_cleaned_at)}</Text>
+                {item.label && (
+                  <Badge size="sm" variant="outline">
+                    {item.label}
+                  </Badge>
+                )}
+                <Badge size="sm" variant="surface">
+                  {sleeveLabel(item.inner_sleeve_type)}
+                </Badge>
+                <Text fontSize="xs" color="fg.muted">
+                  {formatLastCleaned(item.last_cleaned_at)}
+                </Text>
               </HStack>
             </Stack>
             <Button

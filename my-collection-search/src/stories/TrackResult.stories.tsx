@@ -1,19 +1,19 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Box } from '@chakra-ui/react';
-import TrackResult, { TrackListHeader } from '@/components/TrackResult';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box } from "@chakra-ui/react";
+import TrackResult, { TrackListHeader } from "@/components/TrackResult";
 import {
   sampleTrack,
   trackWithAudio,
   trackMinimal,
   trackInPlaylist,
   trackNoEmbeddingNoBpm,
-} from './fixtures/track';
+} from "./fixtures/track";
 
 const meta: Meta<typeof TrackResult> = {
-  title: 'Components/TrackResult',
+  title: "Components/TrackResult",
   component: TrackResult,
   parameters: {
-    layout: 'padded',
+    layout: "padded",
   },
   decorators: [
     (Story) => (
@@ -30,7 +30,7 @@ const meta: Meta<typeof TrackResult> = {
     showGenres: true,
     showNotes: true,
     showPlaylistCount: true,
-    layout: 'card',
+    layout: "card",
   },
 };
 
@@ -38,20 +38,20 @@ export default meta;
 type Story = StoryObj<typeof TrackResult>;
 
 export const Default: Story = {
-  name: 'Default (card layout)',
+  name: "Default (card layout)",
 };
 
 export const WithAudio: Story = {
-  name: 'With audio — hover artwork to play',
+  name: "With audio — hover artwork to play",
   args: {
     track: trackWithAudio,
   },
 };
 
 export const RowLayout: Story = {
-  name: 'Row layout (desktop search results)',
+  name: "Row layout (desktop search results)",
   args: {
-    layout: 'row',
+    layout: "row",
   },
   decorators: [
     (Story) => (
@@ -63,21 +63,33 @@ export const RowLayout: Story = {
 };
 
 export const RowLayoutLongValues: Story = {
-  name: 'Row layout — long identifier, album, key and genre (#685)',
+  name: "Row layout — long identifier, album, key and genre (#685)",
   args: {
-    layout: 'row',
+    layout: "row",
     track: {
       ...trackWithAudio,
-      album: 'Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)',
-      year: '1976',
-      library_identifier: 'LP-349-DELUXE-BOX-SET',
-      position: 'B2',
-      key: 'Bb minor',
+      album: "Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)",
+      year: "1976",
+      library_identifier: "LP-349-DELUXE-BOX-SET",
+      position: "B2",
+      key: "Bb minor",
       key_confidence: 0.4,
       track_genres: [
-        { id: 'r', name: 'Rock en Español', slug: 'rock-en-espanol', parent_id: null, parent_name: null },
-        { id: 'p', name: 'Psychedelic Cumbia Instrumental Fusion', slug: 'psychedelic', parent_id: null, parent_name: null },
-        { id: 'e', name: 'Electronic', slug: 'electronic', parent_id: null, parent_name: null },
+        {
+          id: "r",
+          name: "Rock en Español",
+          slug: "rock-en-espanol",
+          parent_id: null,
+          parent_name: null,
+        },
+        {
+          id: "p",
+          name: "Psychedelic Cumbia Instrumental Fusion",
+          slug: "psychedelic",
+          parent_id: null,
+          parent_name: null,
+        },
+        { id: "e", name: "Electronic", slug: "electronic", parent_id: null, parent_name: null },
       ],
     },
   },
@@ -90,10 +102,10 @@ export const RowLayoutLongValues: Story = {
 };
 
 export const RowLayoutWithIssues: Story = {
-  name: 'Row layout — missing BPM + embedding',
+  name: "Row layout — missing BPM + embedding",
   args: {
     track: trackNoEmbeddingNoBpm,
-    layout: 'row',
+    layout: "row",
   },
   decorators: [
     (Story) => (
@@ -105,41 +117,52 @@ export const RowLayoutWithIssues: Story = {
 };
 
 export const WithTrackGenres: Story = {
-  name: 'Track genres (#470)',
+  name: "Track genres (#470)",
   args: {
     track: {
       ...sampleTrack,
       track_genres: [
-        { id: 'cumbia', name: 'Cumbia', slug: 'cumbia', parent_id: null, parent_name: null },
-        { id: 'chicha', name: 'Chicha', slug: 'chicha', parent_id: 'cumbia', parent_name: 'Cumbia' },
+        { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+        {
+          id: "chicha",
+          name: "Chicha",
+          slug: "chicha",
+          parent_id: "cumbia",
+          parent_name: "Cumbia",
+        },
       ],
     },
   },
 };
 
 export const WithDiscogsFallback: Story = {
-  name: 'Discogs style fallback, unreconciled track (#470)',
+  name: "Discogs style fallback, unreconciled track (#470)",
   args: {
-    track: { ...sampleTrack, track_genres: [], local_tags: '', styles: ['Bossa Nova', 'Latin Jazz'] },
+    track: {
+      ...sampleTrack,
+      track_genres: [],
+      local_tags: "",
+      styles: ["Bossa Nova", "Latin Jazz"],
+    },
   },
 };
 
 export const WithNoGenres: Story = {
-  name: 'No genres at all (#470)',
+  name: "No genres at all (#470)",
   args: {
-    track: { ...sampleTrack, track_genres: [], local_tags: '', styles: [] },
+    track: { ...sampleTrack, track_genres: [], local_tags: "", styles: [] },
   },
 };
 
 export const WithPlaylistCount: Story = {
-  name: 'With playlist count badge',
+  name: "With playlist count badge",
   args: {
     playlistCount: 3,
   },
 };
 
 export const Selected: Story = {
-  name: 'Selected (checkbox checked)',
+  name: "Selected (checkbox checked)",
   args: {
     isSelected: true,
     onToggleSelect: () => {},
@@ -147,21 +170,21 @@ export const Selected: Story = {
 };
 
 export const HiddenUsername: Story = {
-  name: 'Username hidden (friend context)',
+  name: "Username hidden (friend context)",
   args: {
     showUsername: false,
   },
 };
 
 export const NoGenres: Story = {
-  name: 'No genres / minimal data',
+  name: "No genres / minimal data",
   args: {
     track: trackMinimal,
   },
 };
 
 export const SemanticScore: Story = {
-  name: 'With AI similarity score',
+  name: "With AI similarity score",
   args: {
     track: { ...sampleTrack, _semanticScore: 0.93 },
   },
@@ -169,36 +192,53 @@ export const SemanticScore: Story = {
 
 const longCardTrack = {
   ...trackWithAudio,
-  title: 'Cumbia Beat Experimental Guitar-Driven Tropical Sounds From Perú, Side One Opener',
-  artist: 'Los Beltons y Su Conjunto Tropical Del Perú',
-  album: 'Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)',
-  year: '1976',
-  library_identifier: 'LP-349-DELUXE-BOX-SET',
-  position: 'B2',
-  key: 'Bb minor',
+  title: "Cumbia Beat Experimental Guitar-Driven Tropical Sounds From Perú, Side One Opener",
+  artist: "Los Beltons y Su Conjunto Tropical Del Perú",
+  album: "Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)",
+  year: "1976",
+  library_identifier: "LP-349-DELUXE-BOX-SET",
+  position: "B2",
+  key: "Bb minor",
   key_confidence: 0.4,
-  track_genres: ['Rock en Español', 'Psychedelic Cumbia', 'Electronic', 'Funk', 'Soul', 'Latin'].map((name, i) => ({
+  track_genres: [
+    "Rock en Español",
+    "Psychedelic Cumbia",
+    "Electronic",
+    "Funk",
+    "Soul",
+    "Latin",
+  ].map((name, i) => ({
     id: String(i),
     name,
-    slug: name.toLowerCase().replace(/ /g, '-'),
+    slug: name.toLowerCase().replace(/ /g, "-"),
     parent_id: null,
     parent_name: null,
   })),
 };
 
 export const CardLongValues: Story = {
-  name: 'Card — long title, artist, ID and 6 genres (#722)',
+  name: "Card — long title, artist, ID and 6 genres (#722)",
   args: { track: longCardTrack, footer: <Box>#4 · 12 plays</Box> },
 };
 
 export const CardNoBpmKeyOrGenres: Story = {
-  name: 'Card — no BPM, key or genres (#722)',
-  args: { track: { ...trackMinimal, bpm: null, key: null, track_genres: [], local_tags: '', styles: [], genres: [] } },
+  name: "Card — no BPM, key or genres (#722)",
+  args: {
+    track: {
+      ...trackMinimal,
+      bpm: null,
+      key: null,
+      track_genres: [],
+      local_tags: "",
+      styles: [],
+      genres: [],
+    },
+  },
 };
 
 export const CardPhone: Story = {
-  name: 'Card — phone (#722)',
-  parameters: { viewport: { defaultViewport: 'mobile375' } },
+  name: "Card — phone (#722)",
+  parameters: { viewport: { defaultViewport: "mobile375" } },
   render: (args) => (
     <Box pr="6px">
       <TrackResult {...args} track={longCardTrack} />
@@ -208,20 +248,24 @@ export const CardPhone: Story = {
 };
 
 export const MultipleInList: Story = {
-  name: 'Multiple tracks (card layout)',
+  name: "Multiple tracks (card layout)",
   render: (args) => (
     <Box>
       <TrackResult {...args} track={sampleTrack} />
       <TrackResult {...args} track={trackWithAudio} />
-      <TrackResult {...args} track={trackInPlaylist} sortPositionChange={{ currentPosition: 3, previousPosition: 1 }} />
+      <TrackResult
+        {...args}
+        track={trackInPlaylist}
+        sortPositionChange={{ currentPosition: 3, previousPosition: 1 }}
+      />
       <TrackResult {...args} track={trackNoEmbeddingNoBpm} />
     </Box>
   ),
 };
 
 export const MultipleRows: Story = {
-  name: 'Multiple tracks (row layout)',
-  args: { layout: 'row' },
+  name: "Multiple tracks (row layout)",
+  args: { layout: "row" },
   decorators: [
     (Story) => (
       <Box maxW="1360px" mx="auto" css={{ containerType: "inline-size" }}>
@@ -240,43 +284,49 @@ export const MultipleRows: Story = {
 };
 
 export const DenseJobCard: Story = {
-  name: 'Dense card — jobs page',
+  name: "Dense card — jobs page",
   args: {
-    density: 'dense',
-    layout: 'card',
+    density: "dense",
+    layout: "card",
     showUsername: false,
     showRating: false,
     showDetails: false,
     showGenres: false,
     showNotes: false,
     showPlaylistCount: false,
-    footer: <Box borderTopWidth="1px" pt={2}>Job status and actions</Box>,
+    footer: (
+      <Box borderTopWidth="1px" pt={2}>
+        Job status and actions
+      </Box>
+    ),
     buttons: <button aria-label="Job details">Details</button>,
   },
 };
 
 export const DenseQueueRow: Story = {
-  name: 'Dense row — queue, clickable with actions',
+  name: "Dense row — queue, clickable with actions",
   args: {
     track: trackWithAudio,
-    density: 'dense',
-    layout: 'row',
+    density: "dense",
+    layout: "row",
     onRowClick: () => {},
     buttons: <button aria-label="Remove track">Remove</button>,
   },
 };
 
 export const DenseSelectedCard: Story = {
-  name: 'Dense card — selected with genre badges',
+  name: "Dense card — selected with genre badges",
   args: {
-    density: 'dense',
-    layout: 'card',
+    density: "dense",
+    layout: "card",
     isSelected: true,
     onToggleSelect: () => {},
     track: {
       ...sampleTrack,
-      track_genres: [{ id: 'cumbia', name: 'Cumbia', slug: 'cumbia', parent_id: null, parent_name: null }],
-      local_tags: 'Psychedelic Cumbia',
+      track_genres: [
+        { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+      ],
+      local_tags: "Psychedelic Cumbia",
     },
   },
 };

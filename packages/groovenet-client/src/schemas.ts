@@ -24,10 +24,7 @@ const toNumber = (value: unknown): unknown => {
   return value;
 };
 const numberFromInputSchema = z.preprocess(toNumber, z.number());
-export const nonNegativeIntFromInputSchema = z.preprocess(
-  toInt,
-  z.number().int().min(0)
-);
+export const nonNegativeIntFromInputSchema = z.preprocess(toInt, z.number().int().min(0));
 
 export {
   playlistGeneticRequestSchema as playlistGeneticBodySchema,
@@ -62,7 +59,7 @@ export const trackSearchGetQuerySchema = z.object({
   genre: z
     .preprocess(
       (value) => (typeof value === "string" ? [value] : value),
-      z.array(z.string().trim().min(1)).max(20)
+      z.array(z.string().trim().min(1)).max(20),
     )
     .optional(),
 });
@@ -158,7 +155,7 @@ export const genreTreeNodeSchema: z.ZodType<GenreTreeNode> = z.lazy(() =>
     album_count: z.number().int().nonnegative(),
     aliases: z.array(z.string()).optional(),
     children: z.array(genreTreeNodeSchema),
-  })
+  }),
 );
 
 export const genreTreeResponseSchema = z.object({ genres: z.array(genreTreeNodeSchema) });
@@ -183,10 +180,30 @@ export const genreSimilarResponseSchema = z.object({
   related: z.array(genreRelatedRefSchema),
 });
 
-export const genreSchema = z.object({ id: z.string().uuid(), name: z.string(), slug: z.string(), parent_id: z.string().uuid().nullable(), source: genreSourceSchema });
-export const genreCreateInputSchema = z.object({ name: z.string().trim().min(1), parent_id: z.string().uuid() });
-export const genreUpdateInputSchema = z.object({ name: z.string().trim().min(1).optional(), parent_id: z.string().uuid().nullable().optional() }).refine((value) => value.name !== undefined || value.parent_id !== undefined, { message: "name or parent_id is required" });
+export const genreSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  parent_id: z.string().uuid().nullable(),
+  source: genreSourceSchema,
+});
+export const genreCreateInputSchema = z.object({
+  name: z.string().trim().min(1),
+  parent_id: z.string().uuid(),
+});
+export const genreUpdateInputSchema = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    parent_id: z.string().uuid().nullable().optional(),
+  })
+  .refine((value) => value.name !== undefined || value.parent_id !== undefined, {
+    message: "name or parent_id is required",
+  });
 export const genreAliasResponseSchema = z.object({ success: z.literal(true) });
-export const genreMergeResponseSchema = z.object({ success: z.literal(true), merged_genre_id: z.string().uuid(), survivor_genre_id: z.string().uuid() });
+export const genreMergeResponseSchema = z.object({
+  success: z.literal(true),
+  merged_genre_id: z.string().uuid(),
+  survivor_genre_id: z.string().uuid(),
+});
 export const genreAliasInputSchema = z.object({ alias: z.string().trim().min(1) });
 export const genreMergeInputSchema = z.object({ target_id: z.string().uuid() });

@@ -105,7 +105,10 @@ describe("GroovenetClient constructor", () => {
 describe("GroovenetClient error handling", () => {
   it("wraps an axios error with the response `error` field", async () => {
     isAxiosErrorMock.mockReturnValue(true);
-    requestMock.mockRejectedValue({ response: { data: { error: "no such track" } }, message: "Request failed" });
+    requestMock.mockRejectedValue({
+      response: { data: { error: "no such track" } },
+      message: "Request failed",
+    });
     const client = new GroovenetClient({ baseUrl: "https://example.test" });
 
     await expect(client.listPlaylists()).rejects.toThrow("API Error: no such track");
@@ -116,23 +119,38 @@ describe("GroovenetClient error handling", () => {
     const client = new GroovenetClient({ baseUrl: "https://example.test" });
 
     requestMock.mockRejectedValueOnce({
-      response: { data: { error: "Invalid playlist payload", details: { fieldErrors: { playlist: ["Required"] } } } },
+      response: {
+        data: {
+          error: "Invalid playlist payload",
+          details: { fieldErrors: { playlist: ["Required"] } },
+        },
+      },
       message: "Request failed",
     });
     await expect(client.listPlaylists()).rejects.toThrow(
-      'API Error: Invalid playlist payload {"fieldErrors":{"playlist":["Required"]}}'
+      'API Error: Invalid playlist payload {"fieldErrors":{"playlist":["Required"]}}',
     );
 
     requestMock.mockRejectedValueOnce({
-      response: { data: { error: "Some tracks are missing", invalid: [{ track_id: "t1", reason: "missing_bpm" }] } },
+      response: {
+        data: {
+          error: "Some tracks are missing",
+          invalid: [{ track_id: "t1", reason: "missing_bpm" }],
+        },
+      },
       message: "Request failed",
     });
-    await expect(client.listPlaylists()).rejects.toThrow('[{"track_id":"t1","reason":"missing_bpm"}]');
+    await expect(client.listPlaylists()).rejects.toThrow(
+      '[{"track_id":"t1","reason":"missing_bpm"}]',
+    );
   });
 
   it("falls back to the response `message` field", async () => {
     isAxiosErrorMock.mockReturnValue(true);
-    requestMock.mockRejectedValue({ response: { data: { message: "bad request" } }, message: "Request failed" });
+    requestMock.mockRejectedValue({
+      response: { data: { message: "bad request" } },
+      message: "Request failed",
+    });
     const client = new GroovenetClient({ baseUrl: "https://example.test" });
 
     await expect(client.listPlaylists()).rejects.toThrow("API Error: bad request");
@@ -212,19 +230,27 @@ describe("GroovenetClient.searchTracks", () => {
       degraded: true,
     });
 
-    await expect(client.searchTracks({ query: "dusty cumbia", mode: "hybrid" })).resolves.toMatchObject({
+    await expect(
+      client.searchTracks({ query: "dusty cumbia", mode: "hybrid" }),
+    ).resolves.toMatchObject({
       mode: "hybrid",
       degraded: true,
     });
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         params: { q: "dusty cumbia", limit: 10, offset: 0, friend_id: undefined, mode: "hybrid" },
-      })
+      }),
     );
   });
 
   it("forwards BPM, key and rating filters as query params (#412)", async () => {
-    const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
+    const client = clientReturning({
+      hits: [],
+      estimatedTotalHits: 0,
+      offset: 0,
+      limit: 10,
+      processingTimeMs: 1,
+    });
 
     await client.searchTracks({
       query: "house",
@@ -245,7 +271,13 @@ describe("GroovenetClient.searchTracks", () => {
   });
 
   it("sends genres as a repeated param, and no param for none (#375)", async () => {
-    const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
+    const client = clientReturning({
+      hits: [],
+      estimatedTotalHits: 0,
+      offset: 0,
+      limit: 10,
+      processingTimeMs: 1,
+    });
 
     await client.searchTracks({ filters: { genre: ["latin", "jazz"] } });
     await client.searchTracks({ filters: { genre: [] } });
@@ -256,7 +288,13 @@ describe("GroovenetClient.searchTracks", () => {
   });
 
   it("leaves lexical mode implicit", async () => {
-    const client = clientReturning({ hits: [], estimatedTotalHits: 0, offset: 0, limit: 10, processingTimeMs: 1 });
+    const client = clientReturning({
+      hits: [],
+      estimatedTotalHits: 0,
+      offset: 0,
+      limit: 10,
+      processingTimeMs: 1,
+    });
 
     const result = await client.searchTracks({ query: "blue", mode: "lexical" });
 
@@ -299,7 +337,7 @@ describe("GroovenetClient track endpoints", () => {
     await client.updateTrack("t1", { star_rating: 5 });
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { track_id: "t1", friend_id: 1, star_rating: 5 } })
+      expect.objectContaining({ data: { track_id: "t1", friend_id: 1, star_rating: 5 } }),
     );
   });
 
@@ -322,7 +360,7 @@ describe("GroovenetClient track endpoints", () => {
     await client.getMissingAppleMusic(3, 25, "someone");
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ params: expect.objectContaining({ limit: 25, offset: 50 }) })
+      expect.objectContaining({ params: expect.objectContaining({ limit: 25, offset: 50 }) }),
     );
   });
 
@@ -332,7 +370,7 @@ describe("GroovenetClient track endpoints", () => {
     await client.getMissingAppleMusic(0, 10);
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ params: expect.objectContaining({ offset: 0 }) })
+      expect.objectContaining({ params: expect.objectContaining({ offset: 0 }) }),
     );
   });
 
@@ -391,7 +429,9 @@ describe("GroovenetClient track endpoints", () => {
     await client.listDeletedTracks();
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ params: { friend_id: undefined, limit: undefined, offset: undefined } })
+      expect.objectContaining({
+        params: { friend_id: undefined, limit: undefined, offset: undefined },
+      }),
     );
   });
 
@@ -426,12 +466,18 @@ describe("GroovenetClient album endpoints", () => {
   it("searchAlbums forwards an explicit query including friend_id", async () => {
     const client = clientReturning({ albums: [], total: 0 });
 
-    await client.searchAlbums({ q: "kind of blue", limit: 5, offset: 10, sort: "title:asc", friend_id: 3 });
+    await client.searchAlbums({
+      q: "kind of blue",
+      limit: 5,
+      offset: 10,
+      sort: "title:asc",
+      friend_id: 3,
+    });
 
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         params: { q: "kind of blue", limit: 5, offset: 10, sort: "title:asc", friend_id: 3 },
-      })
+      }),
     );
   });
 
@@ -481,12 +527,22 @@ describe("GroovenetClient album endpoints", () => {
   it("updateAlbum merges updates into the PATCH body", async () => {
     const client = clientReturning({ success: true, album: {} });
 
-    await client.updateAlbum("r1", 2, { album_notes: "reissue", genre_override_ids: [], style_override_ids: null });
+    await client.updateAlbum("r1", 2, {
+      album_notes: "reissue",
+      genre_override_ids: [],
+      style_override_ids: null,
+    });
 
     expect(requestMock).toHaveBeenCalledWith({
       method: "PATCH",
       url: "/albums",
-      data: { release_id: "r1", friend_id: 2, album_notes: "reissue", genre_override_ids: [], style_override_ids: null },
+      data: {
+        release_id: "r1",
+        friend_id: 2,
+        album_notes: "reissue",
+        genre_override_ids: [],
+        style_override_ids: null,
+      },
       params: undefined,
     });
   });
@@ -564,7 +620,7 @@ describe("GroovenetClient spin endpoints", () => {
           limit: 5,
           offset: 15,
         },
-      })
+      }),
     );
   });
 
@@ -632,7 +688,7 @@ describe("GroovenetClient spin endpoints", () => {
     await client.listTopSpinTracks({ friend_id: 1, release_id: "r1", limit: 3, offset: 6 });
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ params: { friend_id: 1, release_id: "r1", limit: 3, offset: 6 } })
+      expect.objectContaining({ params: { friend_id: 1, release_id: "r1", limit: 3, offset: 6 } }),
     );
   });
 });
@@ -690,13 +746,24 @@ describe("GroovenetClient playlist endpoints", () => {
   });
 
   it("checkPlaylist returns the check in playlist order and lists unresolved refs", async () => {
-    const track = (track_id: string, friend_id: number, bpm: number) => ({ track_id, friend_id, bpm, key: "A minor", duration_seconds: 100 });
+    const track = (track_id: string, friend_id: number, bpm: number) => ({
+      track_id,
+      friend_id,
+      bpm,
+      key: "A minor",
+      duration_seconds: 100,
+    });
     requestMock
-      .mockResolvedValueOnce({ data: { playlist_id: 9, tracks: [
-        { track_id: "1-A1", friend_id: 4, position: 0 },
-        { track_id: "ghost", friend_id: 4, position: 1 },
-        { track_id: "1-A2", friend_id: 4, position: 2 },
-      ] } })
+      .mockResolvedValueOnce({
+        data: {
+          playlist_id: 9,
+          tracks: [
+            { track_id: "1-A1", friend_id: 4, position: 0 },
+            { track_id: "ghost", friend_id: 4, position: 1 },
+            { track_id: "1-A2", friend_id: 4, position: 2 },
+          ],
+        },
+      })
       // Returned out of playlist order on purpose.
       .mockResolvedValueOnce({ data: [track("1-A2", 4, 150), track("1-A1", 4, 120)] });
     const client = new GroovenetClient({ baseUrl: "https://example.test" });
@@ -711,11 +778,13 @@ describe("GroovenetClient playlist endpoints", () => {
     expect(requestMock).toHaveBeenLastCalledWith({
       method: "POST",
       url: "/tracks/batch",
-      data: { tracks: [
-        { track_id: "1-A1", friend_id: 4, position: 0 },
-        { track_id: "ghost", friend_id: 4, position: 1 },
-        { track_id: "1-A2", friend_id: 4, position: 2 },
-      ] },
+      data: {
+        tracks: [
+          { track_id: "1-A1", friend_id: 4, position: 0 },
+          { track_id: "ghost", friend_id: 4, position: 1 },
+          { track_id: "1-A2", friend_id: 4, position: 2 },
+        ],
+      },
       params: undefined,
     });
   });
@@ -729,10 +798,18 @@ describe("GroovenetClient playlist endpoints", () => {
   });
 
   it("logs playlist spins with performance and derivation context", async () => {
-    const result = { playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00Z", created: 2, skipped: 0 };
+    const result = {
+      playlist_id: 9,
+      performance_id: 4,
+      performed_at: "2026-10-01T20:00:00Z",
+      created: 2,
+      skipped: 0,
+    };
     const client = clientReturning(result);
 
-    await expect(client.logPlaylistSpins(9, { performance_id: 4, derivation_id: "d1" })).resolves.toBe(result);
+    await expect(
+      client.logPlaylistSpins(9, { performance_id: 4, derivation_id: "d1" }),
+    ).resolves.toBe(result);
     expect(requestMock).toHaveBeenCalledWith({
       method: "POST",
       url: "/playlists/9/spins",
@@ -762,14 +839,18 @@ describe("GroovenetClient playlist endpoints", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { name: "Set", tracks: [{ track_id: "t1" }, { track_id: "t2" }] },
-      })
+      }),
     );
   });
 
   it("createPlaylist wraps bare ids with the default friend and keeps explicit friends", async () => {
     const client = clientReturning({ id: 1, name: "Set" });
 
-    await client.createPlaylist("Set", ["t1", { track_id: "t2", friend_id: 9 }, { track_id: "t3" }], 6);
+    await client.createPlaylist(
+      "Set",
+      ["t1", { track_id: "t2", friend_id: 9 }, { track_id: "t3" }],
+      6,
+    );
 
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -781,7 +862,7 @@ describe("GroovenetClient playlist endpoints", () => {
             { track_id: "t3", friend_id: 6 },
           ],
         },
-      })
+      }),
     );
   });
 
@@ -789,7 +870,9 @@ describe("GroovenetClient playlist endpoints", () => {
     requestMock.mockRejectedValueOnce(new Error("Invalid playlist payload"));
     const client = clientReturning({});
 
-    await expect(client.createPlaylist("Set", ["t1"], 6)).rejects.toThrow(/Invalid playlist payload/);
+    await expect(client.createPlaylist("Set", ["t1"], 6)).rejects.toThrow(
+      /Invalid playlist payload/,
+    );
   });
 
   it("generatePlaylist returns an array result as-is", async () => {
@@ -833,23 +916,40 @@ describe("GroovenetClient genres", () => {
   it("gets similar genres with an encoded slug and the requested limit, preserving the raw response", async () => {
     const response = {
       genre: { id: "g-1", name: "Cumbia", slug: "cumbia", track_count: 20 },
-      related: [{ id: "g-2", name: "Salsa", slug: "salsa", track_count: 10, score: 1.42,
-        signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 } }],
+      related: [
+        {
+          id: "g-2",
+          name: "Salsa",
+          slug: "salsa",
+          track_count: 10,
+          score: 1.42,
+          signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+        },
+      ],
     };
     const client = clientReturning(response);
 
     await expect(client.getSimilarGenres("cumbia/son?", { limit: 3 })).resolves.toBe(response);
     expect(requestMock).toHaveBeenCalledWith({
-      method: "GET", url: "/genres/cumbia%2Fson%3F/similar", data: undefined, params: { limit: 3 },
+      method: "GET",
+      url: "/genres/cumbia%2Fson%3F/similar",
+      data: undefined,
+      params: { limit: 3 },
     });
   });
 
   it("leaves the similar-genre limit to the API when omitted, including empty results", async () => {
-    const response = { genre: { id: "g-1", name: "Cumbia", slug: "cumbia", track_count: 0 }, related: [] };
+    const response = {
+      genre: { id: "g-1", name: "Cumbia", slug: "cumbia", track_count: 0 },
+      related: [],
+    };
     const client = clientReturning(response);
     await expect(client.getSimilarGenres("cumbia")).resolves.toBe(response);
     expect(requestMock).toHaveBeenCalledWith({
-      method: "GET", url: "/genres/cumbia/similar", data: undefined, params: {},
+      method: "GET",
+      url: "/genres/cumbia/similar",
+      data: undefined,
+      params: {},
     });
   });
 
@@ -1045,7 +1145,7 @@ describe("GroovenetClient.findSimilarIdentity", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         params: expect.objectContaining({ limit_identity: 3, ivfflat_probes: 20 }),
-      })
+      }),
     );
   });
 
@@ -1057,7 +1157,7 @@ describe("GroovenetClient.findSimilarIdentity", () => {
     const client = new GroovenetClient({ baseUrl: "https://example.test" });
 
     await expect(client.findSimilarIdentity("seed", 1, opts)).rejects.toThrow(
-      "Identity search filters are not supported by the current Groovenet API."
+      "Identity search filters are not supported by the current Groovenet API.",
     );
     expect(requestMock).not.toHaveBeenCalled();
   });
@@ -1095,7 +1195,7 @@ describe("GroovenetClient.getRecommendationCandidates", () => {
           limit_audio: 6,
           ivfflat_probes: 7,
         },
-      })
+      }),
     );
   });
 });
@@ -1156,7 +1256,7 @@ describe("GroovenetClient.findSimilarVibe", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         params: expect.objectContaining({ limit_audio: 4, ivfflat_probes: 30 }),
-      })
+      }),
     );
   });
 });
@@ -1189,7 +1289,7 @@ describe("GroovenetClient fingerprint endpoints", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { scope: "release", release_id: "r9", friend_id: 2, force: true },
-      })
+      }),
     );
   });
 
@@ -1213,7 +1313,7 @@ describe("GroovenetClient fingerprint endpoints", () => {
     await client.getFingerprintIndexRun("run/../secrets");
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ url: "/fingerprints/index/run%2F..%2Fsecrets" })
+      expect.objectContaining({ url: "/fingerprints/index/run%2F..%2Fsecrets" }),
     );
   });
 });
@@ -1246,7 +1346,7 @@ describe("GroovenetClient embeddings endpoints (#388)", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { scope: "release", release_id: "r9", types: ["identity"], dry_run: true },
-      })
+      }),
     );
   });
 
@@ -1270,7 +1370,7 @@ describe("GroovenetClient embeddings endpoints (#388)", () => {
     await client.getEmbeddingBackfillRun("run/../secrets");
 
     expect(requestMock).toHaveBeenCalledWith(
-      expect.objectContaining({ url: "/embeddings/backfill/run%2F..%2Fsecrets" })
+      expect.objectContaining({ url: "/embeddings/backfill/run%2F..%2Fsecrets" }),
     );
   });
 
@@ -1300,7 +1400,7 @@ describe("GroovenetClient vinyl debug endpoints", () => {
         method: "GET",
         url: "/detections/recent",
         params: expect.objectContaining({ limit: 30 }),
-      })
+      }),
     );
   });
 
@@ -1332,7 +1432,7 @@ describe("GroovenetClient vinyl debug endpoints", () => {
       expect.objectContaining({
         url: "/audio/ingest/recent",
         params: expect.objectContaining({ status: "failed" }),
-      })
+      }),
     );
   });
 
@@ -1375,7 +1475,7 @@ describe("GroovenetClient vinyl debug endpoints", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { since: "2026-08-01T00:00:00Z", source_id: "living-room-vinyl" },
-      })
+      }),
     );
   });
 });
@@ -1443,11 +1543,14 @@ describe("set derivation (#282)", () => {
 
   it("surfaces an upload the server refused", async () => {
     isAxiosErrorMock.mockReturnValue(true);
-    requestMock.mockRejectedValue({ response: { data: { error: "hash_mismatch" } }, message: "422" });
+    requestMock.mockRejectedValue({
+      response: { data: { error: "hash_mismatch" } },
+      message: "422",
+    });
     const client = new GroovenetClient({ baseUrl: "https://example.test" });
 
     await expect(client.uploadSetRecording(sha, new Uint8Array(), { size: 0 })).rejects.toThrow(
-      "API Error: hash_mismatch"
+      "API Error: hash_mismatch",
     );
   });
 
@@ -1480,7 +1583,10 @@ describe("set derivation (#282)", () => {
   it("reads a derivation with no plan", async () => {
     const client = clientReturning({ tracklist: [] });
     await client.getSetDerivation("d1");
-    expect(requestMock.mock.calls[0][0].params).toEqual({ playlist_id: undefined, live_set_id: undefined });
+    expect(requestMock.mock.calls[0][0].params).toEqual({
+      playlist_id: undefined,
+      live_set_id: undefined,
+    });
   });
 });
 
@@ -1519,10 +1625,10 @@ describe("GroovenetClient record care endpoints", () => {
     const client = clientReturning({ copy, success: true });
 
     await expect(
-      client.createRecordCopy({ friend_id: 1, release_id: "r1", label: "Copy 2" })
+      client.createRecordCopy({ friend_id: 1, release_id: "r1", label: "Copy 2" }),
     ).resolves.toEqual(copy);
     await expect(client.updateRecordCopy(3, { friend_id: 1, notes: "Warped" })).resolves.toEqual(
-      copy
+      copy,
     );
     await expect(client.deleteRecordCopy(3, 1)).resolves.toEqual(copy);
 
@@ -1547,7 +1653,7 @@ describe("GroovenetClient record care endpoints", () => {
     const client = clientReturning({ copy });
 
     await expect(
-      client.updateDefaultRecordCopy({ friend_id: 1, release_id: "r1", label: "DJ copy" })
+      client.updateDefaultRecordCopy({ friend_id: 1, release_id: "r1", label: "DJ copy" }),
     ).resolves.toEqual(copy);
     expect(requestMock).toHaveBeenCalledWith({
       method: "PATCH",
@@ -1585,7 +1691,7 @@ describe("GroovenetClient record care endpoints", () => {
         release_id: "r1",
         action_type: "sleeved",
         sleeve_type: "poly-rice-paper-poly",
-      })
+      }),
     ).resolves.toEqual({ action, copy });
     expect(requestMock).toHaveBeenCalledWith({
       method: "POST",
@@ -1648,63 +1754,124 @@ describe("genre administration", () => {
     const genre = { id: "g", name: "Dub", parent_id: "root", source: "custom", slug: "dub" };
     const client = clientReturning(genre);
     await expect(client.createGenre({ name: "Dub", parent_id: "root" })).resolves.toEqual(genre);
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres", data: { name: "Dub", parent_id: "root" } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/genres",
+        data: { name: "Dub", parent_id: "root" },
+      }),
+    );
   });
   it("renames or moves a genre to root", async () => {
     const client = clientReturning({});
     await client.updateGenre("g/1", { name: "Dub", parent_id: null });
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "PATCH", url: "/genres/g%2F1", data: { name: "Dub", parent_id: null } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PATCH",
+        url: "/genres/g%2F1",
+        data: { name: "Dub", parent_id: null },
+      }),
+    );
   });
   it("adds an alias", async () => {
     const client = clientReturning({ success: true });
     await expect(client.addGenreAlias("g/1", "Dub music")).resolves.toEqual({ success: true });
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/g%2F1/aliases", data: { alias: "Dub music" } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/genres/g%2F1/aliases",
+        data: { alias: "Dub music" },
+      }),
+    );
   });
   it("merges genres", async () => {
     const result = { success: true, merged_genre_id: "g", survivor_genre_id: "target" };
     const client = clientReturning(result);
     await expect(client.mergeGenres("g/1", "target")).resolves.toEqual(result);
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/g%2F1/merge", data: { target_id: "target" } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/genres/g%2F1/merge",
+        data: { target_id: "target" },
+      }),
+    );
   });
 });
 
 describe("genre reconciliation", () => {
   it("starts a run with options, or with none", async () => {
     const client = clientReturning({ id: "run" });
-    await expect(client.startGenreReconciliation({ ai: false, limit: 10 })).resolves.toEqual({ id: "run" });
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/reconciliation/runs", data: { ai: false, limit: 10 } }));
+    await expect(client.startGenreReconciliation({ ai: false, limit: 10 })).resolves.toEqual({
+      id: "run",
+    });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/genres/reconciliation/runs",
+        data: { ai: false, limit: 10 },
+      }),
+    );
     await client.startGenreReconciliation();
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: {} }));
   });
   it("reads a run and the coverage report", async () => {
     const client = clientReturning({});
     await client.getGenreReconciliationRun("r/1");
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/runs/r%2F1" }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "GET", url: "/genres/reconciliation/runs/r%2F1" }),
+    );
     await client.getGenreReconciliationCoverage();
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/genres/reconciliation/coverage", params: undefined }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: "GET",
+        url: "/genres/reconciliation/coverage",
+        params: undefined,
+      }),
+    );
     await client.getGenreReconciliationCoverage(6);
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: { friend_id: 6 } }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ params: { friend_id: 6 } }),
+    );
   });
   it("lists proposals with filters as query parameters", async () => {
     const client = clientReturning({ proposals: [], total: 0 });
-    await expect(client.listGenreProposals({ status: "pending", limit: 5 })).resolves.toEqual({ proposals: [], total: 0 });
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/proposals", params: { status: "pending", limit: 5 } }));
+    await expect(client.listGenreProposals({ status: "pending", limit: 5 })).resolves.toEqual({
+      proposals: [],
+      total: 0,
+    });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "GET",
+        url: "/genres/proposals",
+        params: { status: "pending", limit: 5 },
+      }),
+    );
     await client.listGenreProposals();
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: {} }));
   });
   it("updates a proposal", async () => {
     const client = clientReturning({ id: "p" });
     await client.updateGenreProposal("p/1", { status: "accepted" });
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "PATCH", url: "/genres/proposals/p%2F1", data: { status: "accepted" } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "PATCH",
+        url: "/genres/proposals/p%2F1",
+        data: { status: "accepted" },
+      }),
+    );
   });
   it("applies all approved proposals, or only the ones named", async () => {
     const client = clientReturning({ proposals_applied: 1 });
     await client.applyGenreProposals();
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/proposals/apply", data: {} }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "POST", url: "/genres/proposals/apply", data: {} }),
+    );
     await client.applyGenreProposals(["p"]);
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { ids: ["p"] } }));
     await client.applyGenreProposals(undefined, 6);
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { friend_id: 6 } }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: { friend_id: 6 } }),
+    );
   });
 });
 
@@ -1712,19 +1879,48 @@ describe("genre proposal review", () => {
   it("records decisions as one batch", async () => {
     const result = { proposals: [], previous: [] };
     const client = clientReturning(result);
-    await expect(client.decideGenreProposals([{ id: "p", status: "accepted" }])).resolves.toEqual(result);
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "POST", url: "/genres/proposals/decisions", data: { decisions: [{ id: "p", status: "accepted" }] } }));
+    await expect(client.decideGenreProposals([{ id: "p", status: "accepted" }])).resolves.toEqual(
+      result,
+    );
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/genres/proposals/decisions",
+        data: { decisions: [{ id: "p", status: "accepted" }] },
+      }),
+    );
   });
   it("restores snapshots", async () => {
     const client = clientReturning({ restored: 1 });
-    const snapshot = { id: "p", status: "pending" as const, action: "map" as const, target_genre_ids: [], proposed_genre_name: null, proposed_parent_id: null, method: "ai" as const };
+    const snapshot = {
+      id: "p",
+      status: "pending" as const,
+      action: "map" as const,
+      target_genre_ids: [],
+      proposed_genre_name: null,
+      proposed_parent_id: null,
+      method: "ai" as const,
+    };
     await expect(client.restoreGenreProposals([snapshot])).resolves.toEqual({ restored: 1 });
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ url: "/genres/proposals/restore", data: { snapshots: [snapshot] } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/genres/proposals/restore",
+        data: { snapshots: [snapshot] },
+      }),
+    );
   });
   it("unwraps a proposal's example tracks", async () => {
     const client = clientReturning({ tracks: [{ track_id: "1" }] });
-    await expect(client.getGenreProposalTracks("p/1", { friend_id: 6, limit: 3 })).resolves.toEqual([{ track_id: "1" }]);
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ method: "GET", url: "/genres/proposals/p%2F1/tracks", params: { friend_id: 6, limit: 3 } }));
+    await expect(client.getGenreProposalTracks("p/1", { friend_id: 6, limit: 3 })).resolves.toEqual(
+      [{ track_id: "1" }],
+    );
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "GET",
+        url: "/genres/proposals/p%2F1/tracks",
+        params: { friend_id: 6, limit: 3 },
+      }),
+    );
     await client.getGenreProposalTracks("p");
     expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: {} }));
   });
@@ -1734,27 +1930,65 @@ describe("server-player API", () => {
   it("lists players/engines, reads snapshots and devices, and posts revisioned commands", async () => {
     const player = { id: "lounge", revision: 2 };
     requestMock.mockResolvedValue({ data: { players: [player] } });
-    const client = new GroovenetClient({ baseUrl: "https://example.test", playerApiKey: "player-secret" });
+    const client = new GroovenetClient({
+      baseUrl: "https://example.test",
+      playerApiKey: "player-secret",
+    });
     expect(await client.listServerPlayers()).toEqual([player]);
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/players" }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/players" }),
+    );
     requestMock.mockResolvedValueOnce({ data: { engines: ["primary"] } });
     expect(await client.listPlayerEngines()).toEqual(["primary"]);
     requestMock.mockResolvedValueOnce({ data: player });
     await client.createServerPlayer({ id: "lounge", name: "Lounge", engine_id: "primary" });
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players", data: { id: "lounge", name: "Lounge", engine_id: "primary" } }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/players",
+        data: { id: "lounge", name: "Lounge", engine_id: "primary" },
+      }),
+    );
     requestMock.mockResolvedValueOnce({ data: player });
     await client.getServerPlayer("lounge");
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "GET", url: "/players/lounge" }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/players/lounge" }),
+    );
     requestMock.mockResolvedValueOnce({ data: { player } });
     await client.commandServerPlayer("lounge", { type: "pause", expected_revision: 2 });
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: { type: "pause", expected_revision: 2 } }));
-    const replacement = { type: "queue.replace" as const, expected_revision: 2, entries: [{ id: "11111111-1111-4111-8111-111111111111", track_id: "track", friend_id: 1 }], current_entry_id: "11111111-1111-4111-8111-111111111111", position: 42, play: true };
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/players/lounge/commands",
+        data: { type: "pause", expected_revision: 2 },
+      }),
+    );
+    const replacement = {
+      type: "queue.replace" as const,
+      expected_revision: 2,
+      entries: [{ id: "11111111-1111-4111-8111-111111111111", track_id: "track", friend_id: 1 }],
+      current_entry_id: "11111111-1111-4111-8111-111111111111",
+      position: 42,
+      play: true,
+    };
     requestMock.mockResolvedValueOnce({ data: { player } });
     await client.commandServerPlayer("lounge", replacement);
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: replacement }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/players/lounge/commands",
+        data: replacement,
+      }),
+    );
     requestMock.mockResolvedValueOnce({ data: { player } });
     await client.commandServerPlayer("lounge", { type: "pause" });
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ method: "POST", url: "/players/lounge/commands", data: { type: "pause" } }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/players/lounge/commands",
+        data: { type: "pause" },
+      }),
+    );
     requestMock.mockResolvedValueOnce({ data: { devices: [] } });
     expect(await client.listServerPlayerDevices("lounge")).toEqual([]);
   });
@@ -1764,39 +1998,78 @@ describe("server player credentials and events", () => {
   it("requires a separate key for reads, writes and streams", async () => {
     const client = new GroovenetClient({ baseUrl: "https://example.test", apiKey: "collection" });
     await expect(client.listServerPlayers()).rejects.toThrow("player_api_key");
-    await expect(client.commandServerPlayer("room", { type: "pause", expected_revision: 1 })).rejects.toThrow("player_api_key");
-    await expect(client.serverPlayerEvents("room", new AbortController().signal).next()).rejects.toThrow("player_api_key");
+    await expect(
+      client.commandServerPlayer("room", { type: "pause", expected_revision: 1 }),
+    ).rejects.toThrow("player_api_key");
+    await expect(
+      client.serverPlayerEvents("room", new AbortController().signal).next(),
+    ).rejects.toThrow("player_api_key");
     expect(requestMock).not.toHaveBeenCalled();
   });
 
   it("overrides collection auth and refuses redirects on player endpoints", async () => {
-    const client = new GroovenetClient({ baseUrl: "https://example.test", apiKey: "collection", playerApiKey: "household" });
+    const client = new GroovenetClient({
+      baseUrl: "https://example.test",
+      apiKey: "collection",
+      playerApiKey: "household",
+    });
     requestMock.mockResolvedValue({ data: { players: [] } });
     await client.listServerPlayers();
-    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ headers: { Authorization: "Bearer household" }, maxRedirects: 0 }));
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ headers: { Authorization: "Bearer household" }, maxRedirects: 0 }),
+    );
     await client.getTrack("track", 1);
     expect(requestMock.mock.calls.at(-1)?.[0].headers).toBeUndefined();
   });
 
   it("preserves structured server error codes", async () => {
     isAxiosErrorMock.mockReturnValue(true);
-    requestMock.mockRejectedValue({ response: { data: { error: "Stale state", code: "REVISION_CONFLICT" } } });
-    const client = new GroovenetClient({ baseUrl: "https://example.test", playerApiKey: "household" });
+    requestMock.mockRejectedValue({
+      response: { data: { error: "Stale state", code: "REVISION_CONFLICT" } },
+    });
+    const client = new GroovenetClient({
+      baseUrl: "https://example.test",
+      playerApiKey: "household",
+    });
     await expect(client.getServerPlayer("room")).rejects.toThrow("[REVISION_CONFLICT] Stale state");
   });
 
   it("parses SSE across chunks, ignores comments, validates events and closes streams", async () => {
     const { Readable } = await import("node:stream");
-    const position = { type: "position", player_id: "room", revision: 1, current_entry_id: null, position: 2, duration: null, observed_at: "now", worker_instance: "00000000-0000-4000-8000-000000000001", sequence: 1 };
-    const stream = Readable.from([": heartbeat\r\nevent: position\r\ndata:", ` ${JSON.stringify(position)}\r\n\r\n`, "\n"]);
+    const position = {
+      type: "position",
+      player_id: "room",
+      revision: 1,
+      current_entry_id: null,
+      position: 2,
+      duration: null,
+      observed_at: "now",
+      worker_instance: "00000000-0000-4000-8000-000000000001",
+      sequence: 1,
+    };
+    const stream = Readable.from([
+      ": heartbeat\r\nevent: position\r\ndata:",
+      ` ${JSON.stringify(position)}\r\n\r\n`,
+      "\n",
+    ]);
     requestMock.mockResolvedValue({ data: stream });
-    const client = new GroovenetClient({ baseUrl: "https://example.test", playerApiKey: "household" });
+    const client = new GroovenetClient({
+      baseUrl: "https://example.test",
+      playerApiKey: "household",
+    });
     const signal = new AbortController().signal;
     const events = [];
     for await (const event of client.serverPlayerEvents("room", signal)) events.push(event);
     expect(events).toEqual([position]);
     expect(stream.destroyed).toBe(true);
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ url: "/players/room/events", responseType: "stream", signal, headers: { Accept: "text/event-stream", Authorization: "Bearer household" } }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/players/room/events",
+        responseType: "stream",
+        signal,
+        headers: { Accept: "text/event-stream", Authorization: "Bearer household" },
+      }),
+    );
     const invalid = Readable.from(["data: {}\n\n"]);
     requestMock.mockResolvedValue({ data: invalid });
     await expect(client.serverPlayerEvents("room", signal).next()).rejects.toThrow();
@@ -1806,22 +2079,41 @@ describe("server player credentials and events", () => {
 
 describe("getArtwork", () => {
   it("resolves local uploads at the app origin and retains collection auth", async () => {
-    const client = new GroovenetClient({ baseUrl: "https://home.test/api", apiKey: "collection", insecureTls: true });
+    const client = new GroovenetClient({
+      baseUrl: "https://home.test/api",
+      apiKey: "collection",
+      insecureTls: true,
+    });
     requestMock.mockResolvedValue({ data: new Uint8Array([1, 2, 3]).buffer });
     expect(await client.getArtwork("/uploads/cover.png")).toEqual(Buffer.from([1, 2, 3]));
-    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
-      method: "GET", url: "https://home.test/uploads/cover.png", responseType: "arraybuffer",
-      timeout: 5000, maxContentLength: 4194304, maxRedirects: 0,
-      headers: { Authorization: "Bearer collection" },
-    }));
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "GET",
+        url: "https://home.test/uploads/cover.png",
+        responseType: "arraybuffer",
+        timeout: 5000,
+        maxContentLength: 4194304,
+        maxRedirects: 0,
+        headers: { Authorization: "Bearer collection" },
+      }),
+    );
     expect(requestMock.mock.calls[0][0]).not.toHaveProperty("httpsAgent");
   });
 
   it("omits credentials and verifies TLS for external hosts, even with internal TLS disabled", async () => {
-    const client = new GroovenetClient({ baseUrl: "https://home.test/api", apiKey: "secret", playerApiKey: "admin", insecureTls: true });
+    const client = new GroovenetClient({
+      baseUrl: "https://home.test/api",
+      apiKey: "secret",
+      playerApiKey: "admin",
+      insecureTls: true,
+    });
     requestMock.mockResolvedValue({ data: Buffer.from("png") });
     await client.getArtwork("https://cdn.test/cover.jpg");
-    expect(requestMock.mock.calls[0][0]).toMatchObject({ url: "https://cdn.test/cover.jpg", headers: { Authorization: null }, maxRedirects: 0 });
+    expect(requestMock.mock.calls[0][0]).toMatchObject({
+      url: "https://cdn.test/cover.jpg",
+      headers: { Authorization: null },
+      maxRedirects: 0,
+    });
     expect(requestMock.mock.calls[0][0].httpsAgent.options.rejectUnauthorized).not.toBe(false);
   });
 
@@ -1833,8 +2125,11 @@ describe("getArtwork", () => {
     await expect(client.getArtwork("/cover.jpg")).rejects.toThrow("offline");
   });
 
-  it.each(["file:///etc/passwd", "data:image/png;base64,aA==", "https://user:pass@cdn.test/a"])("rejects %s", async source => {
-    await expect(clientReturning(null).getArtwork(source)).rejects.toThrow("Invalid artwork URL");
-    expect(requestMock).not.toHaveBeenCalled();
-  });
+  it.each(["file:///etc/passwd", "data:image/png;base64,aA==", "https://user:pass@cdn.test/a"])(
+    "rejects %s",
+    async (source) => {
+      await expect(clientReturning(null).getArtwork(source)).rejects.toThrow("Invalid artwork URL");
+      expect(requestMock).not.toHaveBeenCalled();
+    },
+  );
 });

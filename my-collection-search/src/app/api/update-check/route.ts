@@ -24,9 +24,7 @@ function isNewer(latest: Semver, current: Semver): boolean {
 }
 
 function currentVersion(): string {
-  return (
-    process.env.APP_VERSION || process.env.IMAGE_TAG || pkg.version || "unknown"
-  );
+  return process.env.APP_VERSION || process.env.IMAGE_TAG || pkg.version || "unknown";
 }
 
 export async function GET() {
@@ -47,16 +45,13 @@ export async function GET() {
   };
 
   try {
-    const res = await fetch(
-      `https://api.github.com/repos/${REPO}/releases/latest`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "groovenet-update-check",
-        },
-        next: { revalidate: CACHE_SECONDS },
-      }
-    );
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "groovenet-update-check",
+      },
+      next: { revalidate: CACHE_SECONDS },
+    });
 
     if (res.status === 404) {
       return NextResponse.json({ ...base, error: "No published releases yet" });
@@ -84,9 +79,7 @@ export async function GET() {
       releaseName: data.name ?? latest,
       publishedAt: data.published_at ?? null,
       updateAvailable:
-        currentSemver !== null &&
-        latestSemver !== null &&
-        isNewer(latestSemver, currentSemver),
+        currentSemver !== null && latestSemver !== null && isNewer(latestSemver, currentSemver),
     });
   } catch (err) {
     return NextResponse.json({

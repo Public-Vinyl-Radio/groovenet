@@ -55,7 +55,7 @@ export type LocalTagValue = {
  */
 export function collectLocalTagValues(
   tracks: LocalTagTrack[],
-  { maxExamples = 5, maxStyles = 5 } = {}
+  { maxExamples = 5, maxStyles = 5 } = {},
 ): LocalTagValue[] {
   const byValue = new Map<
     string,
@@ -94,5 +94,8 @@ export function collectLocalTagValues(
       track_count: entry.tracks,
       styles: top(entry.styles, maxStyles),
     }))
-    .sort((a, b) => b.track_count - a.track_count || a.value_normalized.localeCompare(b.value_normalized));
+    .sort(
+      (a, b) =>
+        b.track_count - a.track_count || a.value_normalized.localeCompare(b.value_normalized),
+    );
 }

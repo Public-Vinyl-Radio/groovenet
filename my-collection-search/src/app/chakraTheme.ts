@@ -1,4 +1,9 @@
-import { defineConfig, createSystem, defaultConfig, type SystemStyleObject } from "@chakra-ui/react";
+import {
+  defineConfig,
+  createSystem,
+  defaultConfig,
+  type SystemStyleObject,
+} from "@chakra-ui/react";
 import { fontChoiceValue, fontRoleIds, fontRoles } from "./fontChoices";
 import * as house from "./houseStyle";
 import {
@@ -30,9 +35,10 @@ const statusTokens = Object.fromEntries(
 );
 
 function declarations(values: Palette["light"]) {
-  return Object.fromEntries(
-    paletteVariableNames.map((name) => [name, values[name]]),
-  ) as Record<PaletteVariable, string>;
+  return Object.fromEntries(paletteVariableNames.map((name) => [name, values[name]])) as Record<
+    PaletteVariable,
+    string
+  >;
 }
 
 // Light blocks come first so an equally specific later palette wins. The
@@ -150,7 +156,11 @@ const config = defineConfig({
         // Content drawn over album artwork or a dark scrim. Constant across
         // palettes and modes: it must stay legible on the image, not the page.
         overlay: {
-          fg: { DEFAULT: { value: "#ffffff" }, muted: { value: "rgba(255, 255, 255, 0.7)" }, subtle: { value: "rgba(255, 255, 255, 0.5)" } },
+          fg: {
+            DEFAULT: { value: "#ffffff" },
+            muted: { value: "rgba(255, 255, 255, 0.7)" },
+            subtle: { value: "rgba(255, 255, 255, 0.5)" },
+          },
           track: { value: "rgba(255, 255, 255, 0.3)" },
           scrim: { value: "rgba(0, 0, 0, 0.55)" },
           backdrop: { value: "rgba(0, 0, 0, 0.6)" },

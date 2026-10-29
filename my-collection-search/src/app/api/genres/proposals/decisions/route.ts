@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if ("response" in body) return body.response;
   try {
     return NextResponse.json(
-      genreProposalDecisionsResponseSchema.parse(await decideProposals(body.data.decisions))
+      genreProposalDecisionsResponseSchema.parse(await decideProposals(body.data.decisions)),
     );
   } catch (error) {
     return reconciliationError(error);

@@ -75,7 +75,7 @@ vi.mock("@/server/services/embeddingHealthService", () => ({
 const NOW = new Date("2026-10-03T00:00:00Z").getTime();
 
 function job(
-  overrides: Partial<EmbeddingJob & { attempts: number }> = {}
+  overrides: Partial<EmbeddingJob & { attempts: number }> = {},
 ): EmbeddingJob & { attempts?: number } {
   return { track_id: "t1", friend_id: 1, kind: "identity", ...overrides };
 }
@@ -102,15 +102,29 @@ beforeEach(() => {
   mockRunBatch.mockImplementation(async (jobs: EmbeddingJob[]) => {
     const results: { updated: boolean; error?: unknown; pending?: boolean }[] = [];
     for (const item of jobs) {
-      if (results.some((result) => result.error instanceof Error && /401|invalid_organization/.test(result.error.message))) {
+      if (
+        results.some(
+          (result) =>
+            result.error instanceof Error && /401|invalid_organization/.test(result.error.message),
+        )
+      ) {
         results.push({ updated: false, pending: true });
         continue;
       }
       try {
-        const generator = item.kind === "identity" ? mockGenerateIdentity
-          : item.kind === "audio_vibe" ? mockGenerateAudioVibe
-          : item.kind === "context" ? mockGenerateContext : null;
-        results.push(generator ? await generator(item.track_id, item.friend_id, item.force) : { updated: false });
+        const generator =
+          item.kind === "identity"
+            ? mockGenerateIdentity
+            : item.kind === "audio_vibe"
+              ? mockGenerateAudioVibe
+              : item.kind === "context"
+                ? mockGenerateContext
+                : null;
+        results.push(
+          generator
+            ? await generator(item.track_id, item.friend_id, item.force)
+            : { updated: false },
+        );
       } catch (error) {
         results.push({ updated: false, error });
       }
@@ -150,7 +164,7 @@ describe("enqueue", () => {
     expect(mockPipeline.lpush).toHaveBeenCalledTimes(2);
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue:interactive",
-      JSON.stringify(job({ track_id: "a" }))
+      JSON.stringify(job({ track_id: "a" })),
     );
   });
 
@@ -164,8 +178,14 @@ describe("enqueue", () => {
     const service = new EmbeddingQueueService();
     await service.enqueue([job({ track_id: "sync" })], "sync");
     await service.enqueue([job({ track_id: "bulk" })], "bulk");
-    expect(mockPipeline.lpush).toHaveBeenCalledWith("embedding_queue:sync", JSON.stringify(job({ track_id: "sync" })));
-    expect(mockPipeline.lpush).toHaveBeenCalledWith("embedding_queue", JSON.stringify(job({ track_id: "bulk" })));
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue:sync",
+      JSON.stringify(job({ track_id: "sync" })),
+    );
+    expect(mockPipeline.lpush).toHaveBeenCalledWith(
+      "embedding_queue",
+      JSON.stringify(job({ track_id: "bulk" })),
+    );
   });
 });
 
@@ -180,7 +200,7 @@ describe("tick", () => {
     expect(mockRedis.zadd).not.toHaveBeenCalled();
     expect(mockPipeline.lpush).not.toHaveBeenCalledWith(
       "embedding_queue:failed",
-      expect.anything()
+      expect.anything(),
     );
   });
 
@@ -225,13 +245,16 @@ describe("tick", () => {
     const entries: Record<string, string[]> = {
       "embedding_queue:interactive": [JSON.stringify(job({ track_id: "edit" }))],
       "embedding_queue:sync": [JSON.stringify(job({ track_id: "discogs" }))],
-      "embedding_queue": [JSON.stringify(job({ track_id: "backfill" }))],
+      embedding_queue: [JSON.stringify(job({ track_id: "backfill" }))],
     };
     mockRedis.rpop.mockImplementation(async (key: string) => entries[key]?.shift() ?? null);
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
-    expect(mockRunBatch.mock.calls[0][0].map((item: EmbeddingJob) => item.track_id))
-      .toEqual(["edit", "discogs", "backfill"]);
+    expect(mockRunBatch.mock.calls[0][0].map((item: EmbeddingJob) => item.track_id)).toEqual([
+      "edit",
+      "discogs",
+      "backfill",
+    ]);
   });
 });
 
@@ -262,13 +285,9 @@ describe("tick — transient failures", () => {
     expect(mockRedis.zadd).not.toHaveBeenCalled();
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue:failed",
-      expect.stringContaining('"attempts":5')
+      expect.stringContaining('"attempts":5'),
     );
-    expect(mockPipeline.ltrim).toHaveBeenCalledWith(
-      "embedding_queue:failed",
-      0,
-      99
-    );
+    expect(mockPipeline.ltrim).toHaveBeenCalledWith("embedding_queue:failed", 0, 99);
   });
 
   it("handles a non-Error rejection (a thrown string) the same as a transient failure", async () => {
@@ -285,10 +304,7 @@ describe("tick — transient failures", () => {
     mockGenerateIdentity.mockRejectedValueOnce(new Error("ETIMEDOUT"));
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
-    expect(mockRedis.set).not.toHaveBeenCalledWith(
-      "embedding_queue:paused",
-      expect.anything()
-    );
+    expect(mockRedis.set).not.toHaveBeenCalledWith("embedding_queue:paused", expect.anything());
   });
 });
 
@@ -300,26 +316,21 @@ describe("tick — auth failures", () => {
       .mockResolvedValueOnce(JSON.stringify(job({ track_id: "a" })))
       .mockResolvedValueOnce(JSON.stringify(job({ track_id: "b" })))
       .mockResolvedValue(null);
-    mockGenerateIdentity.mockRejectedValueOnce(
-      new Error("invalid_organization")
-    );
+    mockGenerateIdentity.mockRejectedValueOnce(new Error("invalid_organization"));
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
 
-    expect(mockRedis.set).toHaveBeenCalledWith(
-      "embedding_queue:paused",
-      "invalid_organization"
-    );
+    expect(mockRedis.set).toHaveBeenCalledWith("embedding_queue:paused", "invalid_organization");
     // Only the first job was attempted; the second must never have run.
     expect(mockGenerateIdentity).toHaveBeenCalledTimes(1);
     // Both the failing job and the untouched second job go back, in order.
     expect(mockPipeline.rpush).toHaveBeenCalledWith(
       "embedding_queue:interactive",
-      JSON.stringify({ ...job({ track_id: "a" }), priority: "interactive" })
+      JSON.stringify({ ...job({ track_id: "a" }), priority: "interactive" }),
     );
     expect(mockPipeline.rpush).toHaveBeenCalledWith(
       "embedding_queue:interactive",
-      JSON.stringify({ ...job({ track_id: "b" }), priority: "interactive" })
+      JSON.stringify({ ...job({ track_id: "b" }), priority: "interactive" }),
     );
   });
 
@@ -330,7 +341,7 @@ describe("tick — auth failures", () => {
     await service.tick(NOW);
     expect(mockPipeline.rpush).toHaveBeenCalledWith(
       "embedding_queue:interactive",
-      JSON.stringify({ ...job(), priority: "interactive" })
+      JSON.stringify({ ...job(), priority: "interactive" }),
     );
   });
 });
@@ -338,7 +349,7 @@ describe("tick — auth failures", () => {
 describe("tick — while paused", () => {
   it("does nothing and consumes no jobs when the provider is still broken", async () => {
     mockRedis.get.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null)
+      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null),
     );
     mockCheckProvider.mockRejectedValueOnce(new Error("still bad"));
     const service = new EmbeddingQueueService();
@@ -348,7 +359,7 @@ describe("tick — while paused", () => {
 
   it("clears the pause and resumes once the provider check succeeds", async () => {
     mockRedis.get.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null)
+      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null),
     );
     mockCheckProvider.mockResolvedValueOnce(undefined);
     mockRedis.rpop.mockResolvedValueOnce(JSON.stringify(job())).mockResolvedValue(null);
@@ -405,15 +416,15 @@ describe("sweepTick", () => {
     expect(result).toEqual({ queued: 3, pending: 0 });
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
-      JSON.stringify({ track_id: "c", friend_id: 3, kind: "context" })
+      JSON.stringify({ track_id: "c", friend_id: 3, kind: "context" }),
     );
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
-      JSON.stringify({ track_id: "a", friend_id: 1, kind: "identity" })
+      JSON.stringify({ track_id: "a", friend_id: 1, kind: "identity" }),
     );
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
-      JSON.stringify({ track_id: "b", friend_id: 2, kind: "audio_vibe" })
+      JSON.stringify({ track_id: "b", friend_id: 2, kind: "audio_vibe" }),
     );
   });
 
@@ -427,19 +438,24 @@ describe("sweepTick", () => {
   it.each([
     ["queued", 4, 0],
     ["waiting to retry", 0, 2],
-  ])("skips without looking for missing tracks while jobs are %s (#419)", async (_label, queued, retrying) => {
-    mockRedis.llen.mockImplementation((key: string) => Promise.resolve(key === "embedding_queue" ? queued : 0));
-    mockRedis.zcard.mockResolvedValue(retrying);
-    const service = new EmbeddingQueueService();
+  ])(
+    "skips without looking for missing tracks while jobs are %s (#419)",
+    async (_label, queued, retrying) => {
+      mockRedis.llen.mockImplementation((key: string) =>
+        Promise.resolve(key === "embedding_queue" ? queued : 0),
+      );
+      mockRedis.zcard.mockResolvedValue(retrying);
+      const service = new EmbeddingQueueService();
 
-    expect(await service.sweepTick()).toEqual({ queued: 0, pending: queued + retrying });
+      expect(await service.sweepTick()).toEqual({ queued: 0, pending: queued + retrying });
 
-    expect(mockRedis.llen).toHaveBeenCalledWith("embedding_queue");
-    expect(mockRedis.zcard).toHaveBeenCalledWith("embedding_retry");
-    expect(mockListIdentity).not.toHaveBeenCalled();
-    expect(mockListContext).not.toHaveBeenCalled();
-    expect(mockRedis.pipeline).not.toHaveBeenCalled();
-  });
+      expect(mockRedis.llen).toHaveBeenCalledWith("embedding_queue");
+      expect(mockRedis.zcard).toHaveBeenCalledWith("embedding_retry");
+      expect(mockListIdentity).not.toHaveBeenCalled();
+      expect(mockListContext).not.toHaveBeenCalled();
+      expect(mockRedis.pipeline).not.toHaveBeenCalled();
+    },
+  );
 });
 
 // ─── getQueueHealth ───────────────────────────────────────────────────────────
@@ -447,7 +463,7 @@ describe("sweepTick", () => {
 describe("getQueueHealth", () => {
   it("reports depth as queue length plus pending retries", async () => {
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? 3 : key === "embedding_queue:failed" ? 7 : 0)
+      Promise.resolve(key === "embedding_queue" ? 3 : key === "embedding_queue:failed" ? 7 : 0),
     );
     mockRedis.zcard.mockResolvedValueOnce(2);
     const service = new EmbeddingQueueService();
@@ -458,7 +474,7 @@ describe("getQueueHealth", () => {
 
   it("surfaces the paused error as lastError and paused:true", async () => {
     mockRedis.get.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null)
+      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null),
     );
     const service = new EmbeddingQueueService();
     const health = await service.getQueueHealth();
@@ -471,8 +487,8 @@ describe("getQueueHealth", () => {
       Promise.resolve(
         key === "embedding_queue:last_error"
           ? JSON.stringify({ message: "503 once, then recovered", at: NOW })
-          : null
-      )
+          : null,
+      ),
     );
     const service = new EmbeddingQueueService();
     const health = await service.getQueueHealth();
@@ -494,7 +510,7 @@ describe("resetQueueState", () => {
       "embedding_retry",
       "embedding_queue:failed",
       "embedding_queue:paused",
-      "embedding_queue:last_error"
+      "embedding_queue:last_error",
     );
   });
 });
@@ -510,7 +526,7 @@ describe("tick — runJob edge cases", () => {
     expect(errorSpy).toHaveBeenCalledWith(
       "[embedding-queue] dropping unparseable job:",
       "not-json{{{",
-      expect.anything()
+      expect.anything(),
     );
     expect(mockGenerateIdentity).not.toHaveBeenCalled();
     errorSpy.mockRestore();
@@ -520,7 +536,7 @@ describe("tick — runJob edge cases", () => {
 describe("getQueueHealth — last_error fallback", () => {
   it("falls back to the raw string when last_error isn't JSON", async () => {
     mockRedis.get.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue:last_error" ? "not json" : null)
+      Promise.resolve(key === "embedding_queue:last_error" ? "not json" : null),
     );
     const service = new EmbeddingQueueService();
     const health = await service.getQueueHealth();
@@ -571,10 +587,7 @@ describe("startEmbeddingQueueWorker()", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     // Remember every timer registered so a stray interval can't keep this
     // suite's event loop alive.
-    vi.spyOn(globalThis, "setInterval").mockImplementation(((
-      fn: () => void,
-      ms: number
-    ) => {
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((fn: () => void, ms: number) => {
       const handle = timerImpl(fn, ms);
       timers.push(handle);
       return handle;
@@ -618,9 +631,11 @@ describe("startEmbeddingQueueWorker()", () => {
     await vi.waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const registered = (globalThis.setInterval as unknown as {
-      mock: { calls: [() => void, number][] };
-    }).mock.calls[0][0];
+    const registered = (
+      globalThis.setInterval as unknown as {
+        mock: { calls: [() => void, number][] };
+      }
+    ).mock.calls[0][0];
 
     registered();
     await vi.waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(2));
@@ -628,14 +643,22 @@ describe("startEmbeddingQueueWorker()", () => {
 
   it("skips a timer tick while the previous tick is still running", async () => {
     let finish!: () => void;
-    const tickSpy = vi.spyOn(embeddingQueueService, "tick").mockImplementationOnce(
-      () => new Promise<void>((resolve) => { finish = resolve; })
-    ).mockResolvedValue(undefined);
+    const tickSpy = vi
+      .spyOn(embeddingQueueService, "tick")
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
     vi.spyOn(embeddingQueueService, "sweepTick").mockResolvedValue({ queued: 0, pending: 0 });
     startEmbeddingQueueWorker();
-    const registered = (globalThis.setInterval as unknown as {
-      mock: { calls: [() => void, number][] };
-    }).mock.calls[0][0];
+    const registered = (
+      globalThis.setInterval as unknown as {
+        mock: { calls: [() => void, number][] };
+      }
+    ).mock.calls[0][0];
     registered();
     expect(tickSpy).toHaveBeenCalledTimes(1);
     finish();
@@ -647,9 +670,13 @@ describe("startEmbeddingQueueWorker()", () => {
   it("does not sweep a batch until its tick has finished", async () => {
     let finish!: () => void;
     vi.spyOn(embeddingQueueService, "tick").mockImplementation(
-      () => new Promise<void>((resolve) => { finish = resolve; })
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
     );
-    const sweepSpy = vi.spyOn(embeddingQueueService, "sweepTick")
+    const sweepSpy = vi
+      .spyOn(embeddingQueueService, "sweepTick")
       .mockResolvedValue({ queued: 0, pending: 0 });
     startEmbeddingQueueWorker();
     expect(sweepSpy).not.toHaveBeenCalled();
@@ -665,10 +692,7 @@ describe("startEmbeddingQueueWorker()", () => {
     startEmbeddingQueueWorker();
 
     await vi.waitFor(() =>
-      expect(errorSpy).toHaveBeenCalledWith(
-        "[embedding-queue] tick failed:",
-        expect.any(Error)
-      )
+      expect(errorSpy).toHaveBeenCalledWith("[embedding-queue] tick failed:", expect.any(Error)),
     );
   });
 
@@ -682,8 +706,8 @@ describe("startEmbeddingQueueWorker()", () => {
     await vi.waitFor(() =>
       expect(errorSpy).toHaveBeenCalledWith(
         "[embedding-queue] sweep tick failed:",
-        expect.any(Error)
-      )
+        expect.any(Error),
+      ),
     );
   });
 
@@ -695,7 +719,9 @@ describe("startEmbeddingQueueWorker()", () => {
     startEmbeddingQueueWorker();
 
     await vi.waitFor(() =>
-      expect(logSpy).toHaveBeenCalledWith("[embedding-queue] sweep skipped: 21472 job(s) still pending")
+      expect(logSpy).toHaveBeenCalledWith(
+        "[embedding-queue] sweep skipped: 21472 job(s) still pending",
+      ),
     );
     expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining("sweep queued"));
   });
@@ -709,8 +735,8 @@ describe("startEmbeddingQueueWorker()", () => {
 
     await vi.waitFor(() =>
       expect(logSpy).toHaveBeenCalledWith(
-        "[embedding-queue] sweep queued 3 track(s) missing an embedding"
-      )
+        "[embedding-queue] sweep queued 3 track(s) missing an embedding",
+      ),
     );
   });
 });
@@ -734,11 +760,11 @@ describe("startBackfillRun", () => {
 
     expect(mockPipeline.hset).toHaveBeenCalledWith(
       `embedding_backfill_run:${run.run_id}`,
-      expect.objectContaining({ run_id: run.run_id, queued: 2 })
+      expect.objectContaining({ run_id: run.run_id, queued: 2 }),
     );
     expect(mockPipeline.expire).toHaveBeenCalledWith(
       `embedding_backfill_run:${run.run_id}`,
-      86_400
+      86_400,
     );
   });
 
@@ -754,7 +780,7 @@ describe("startBackfillRun", () => {
 
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
-      JSON.stringify({ ...job({ track_id: "a" }), run_id: run.run_id })
+      JSON.stringify({ ...job({ track_id: "a" }), run_id: run.run_id }),
     );
   });
 });
@@ -848,11 +874,7 @@ describe("tick — run progress tagging (#388)", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
 
-    expect(mockPipeline.hincrby).toHaveBeenCalledWith(
-      "embedding_backfill_run:run-1",
-      "success",
-      1
-    );
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith("embedding_backfill_run:run-1", "success", 1);
   });
 
   it("bumps the run's skipped counter when a tagged job's source hash is unchanged", async () => {
@@ -866,11 +888,7 @@ describe("tick — run progress tagging (#388)", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
 
-    expect(mockPipeline.hincrby).toHaveBeenCalledWith(
-      "embedding_backfill_run:run-1",
-      "skipped",
-      1
-    );
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith("embedding_backfill_run:run-1", "skipped", 1);
   });
 
   it("touches no run counters for a job with no run_id", async () => {
@@ -888,14 +906,10 @@ describe("tick — run progress tagging (#388)", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
 
-    expect(mockPipeline.hincrby).toHaveBeenCalledWith(
-      "embedding_backfill_run:run-2",
-      "failed",
-      1
-    );
+    expect(mockPipeline.hincrby).toHaveBeenCalledWith("embedding_backfill_run:run-2", "failed", 1);
     expect(mockPipeline.rpush).toHaveBeenCalledWith(
       "embedding_backfill_run:run-2:errors",
-      "t1: rate limited"
+      "t1: rate limited",
     );
   });
 
@@ -924,7 +938,7 @@ describe("tick — logs failures and pauses (#451)", () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       "[embedding-queue] job failed (track t9, kind audio_vibe):",
-      "503 Service Unavailable"
+      "503 Service Unavailable",
     );
   });
 
@@ -935,9 +949,7 @@ describe("tick — logs failures and pauses (#451)", () => {
     const service = new EmbeddingQueueService();
     await service.tick(NOW);
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      "[embedding-queue] pausing queue: invalid_organization"
-    );
+    expect(errorSpy).toHaveBeenCalledWith("[embedding-queue] pausing queue: invalid_organization");
   });
 });
 
@@ -948,17 +960,15 @@ describe("getQueueStatus — by_kind", () => {
     const entries: Record<string, string[]> = {
       "embedding_queue:interactive": [JSON.stringify(job({ kind: "identity" }))],
       "embedding_queue:sync": [JSON.stringify(job({ kind: "context" }))],
-      "embedding_queue": [
+      embedding_queue: [
         JSON.stringify(job({ kind: "audio_vibe" })),
         JSON.stringify(job({ kind: "audio_vibe" })),
       ],
     };
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve((entries[key] ?? []).length)
+      Promise.resolve((entries[key] ?? []).length),
     );
-    mockRedis.lrange.mockImplementation((key: string) =>
-      Promise.resolve(entries[key] ?? [])
-    );
+    mockRedis.lrange.mockImplementation((key: string) => Promise.resolve(entries[key] ?? []));
 
     const service = new EmbeddingQueueService();
     const status = await service.getQueueStatus();
@@ -969,10 +979,10 @@ describe("getQueueStatus — by_kind", () => {
 
   it("flags by_kind_sampled when a lane is longer than the sample", async () => {
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? 5_000 : 0)
+      Promise.resolve(key === "embedding_queue" ? 5_000 : 0),
     );
     mockRedis.lrange.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? [JSON.stringify(job())] : [])
+      Promise.resolve(key === "embedding_queue" ? [JSON.stringify(job())] : []),
     );
 
     const service = new EmbeddingQueueService();
@@ -983,10 +993,10 @@ describe("getQueueStatus — by_kind", () => {
 
   it("drops an unparseable entry from the sample instead of throwing", async () => {
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? 1 : 0)
+      Promise.resolve(key === "embedding_queue" ? 1 : 0),
     );
     mockRedis.lrange.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? ["not-json"] : [])
+      Promise.resolve(key === "embedding_queue" ? ["not-json"] : []),
     );
 
     const service = new EmbeddingQueueService();
@@ -1007,10 +1017,14 @@ describe("getQueueStatus", () => {
   it("reports lane depths and retrying separately", async () => {
     mockRedis.llen.mockImplementation((key: string) =>
       Promise.resolve(
-        key === "embedding_queue:interactive" ? 2 :
-        key === "embedding_queue:sync" ? 3 :
-        key === "embedding_queue" ? 4 : 0
-      )
+        key === "embedding_queue:interactive"
+          ? 2
+          : key === "embedding_queue:sync"
+            ? 3
+            : key === "embedding_queue"
+              ? 4
+              : 0,
+      ),
     );
     mockRedis.zcard.mockResolvedValue(5);
 
@@ -1025,7 +1039,7 @@ describe("getQueueStatus", () => {
     process.env.EMBEDDING_QUEUE_INTERVAL_SECONDS = "10";
     process.env.EMBEDDING_QUEUE_BATCH_SIZE = "100";
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? 1000 : 0)
+      Promise.resolve(key === "embedding_queue" ? 1000 : 0),
     );
 
     const service = new EmbeddingQueueService();
@@ -1044,10 +1058,10 @@ describe("getQueueStatus", () => {
 
   it("reports a null ETA and zero drain rate while paused", async () => {
     mockRedis.get.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null)
+      Promise.resolve(key === "embedding_queue:paused" ? "invalid_organization" : null),
     );
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue" ? 10 : 0)
+      Promise.resolve(key === "embedding_queue" ? 10 : 0),
     );
 
     const service = new EmbeddingQueueService();
@@ -1061,14 +1075,14 @@ describe("getQueueStatus", () => {
 
   it("carries failed_count and the failed list through from getQueueHealth/getFailedJobs", async () => {
     mockRedis.llen.mockImplementation((key: string) =>
-      Promise.resolve(key === "embedding_queue:failed" ? 2 : 0)
+      Promise.resolve(key === "embedding_queue:failed" ? 2 : 0),
     );
     mockRedis.lrange.mockImplementation((key: string) =>
       Promise.resolve(
         key === "embedding_queue:failed"
           ? [JSON.stringify({ ...job(), attempts: 5, error: "boom", failedAt: 123 })]
-          : []
-      )
+          : [],
+      ),
     );
 
     const service = new EmbeddingQueueService();
@@ -1145,7 +1159,15 @@ describe("listActiveBackfillRuns", () => {
     const runs = await service.listActiveBackfillRuns();
 
     expect(runs).toEqual([
-      { run_id: "run-1", queued: 10, success: 3, skipped: 1, failed: 0, started_at: 100, updated_at: 200 },
+      {
+        run_id: "run-1",
+        queued: 10,
+        success: 3,
+        skipped: 1,
+        failed: 0,
+        started_at: 100,
+        updated_at: 200,
+      },
     ]);
     expect(mockRedis.hgetall).toHaveBeenCalledTimes(1);
   });
@@ -1155,8 +1177,24 @@ describe("listActiveBackfillRuns", () => {
       .mockResolvedValueOnce(["17", ["embedding_backfill_run:a"]])
       .mockResolvedValueOnce(["0", ["embedding_backfill_run:b"]]);
     mockRedis.hgetall
-      .mockResolvedValueOnce({ run_id: "a", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "1", updated_at: "1" })
-      .mockResolvedValueOnce({ run_id: "b", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "2", updated_at: "2" });
+      .mockResolvedValueOnce({
+        run_id: "a",
+        queued: "1",
+        success: "0",
+        skipped: "0",
+        failed: "0",
+        started_at: "1",
+        updated_at: "1",
+      })
+      .mockResolvedValueOnce({
+        run_id: "b",
+        queued: "1",
+        success: "0",
+        skipped: "0",
+        failed: "0",
+        started_at: "2",
+        updated_at: "2",
+      });
 
     const service = new EmbeddingQueueService();
     const runs = await service.listActiveBackfillRuns();
@@ -1170,9 +1208,33 @@ describe("listActiveBackfillRuns", () => {
       ["embedding_backfill_run:a", "embedding_backfill_run:b", "embedding_backfill_run:c"],
     ]);
     mockRedis.hgetall
-      .mockResolvedValueOnce({ run_id: "a", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "1", updated_at: "1" })
-      .mockResolvedValueOnce({ run_id: "b", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "3", updated_at: "1" })
-      .mockResolvedValueOnce({ run_id: "c", queued: "1", success: "0", skipped: "0", failed: "0", started_at: "2", updated_at: "1" });
+      .mockResolvedValueOnce({
+        run_id: "a",
+        queued: "1",
+        success: "0",
+        skipped: "0",
+        failed: "0",
+        started_at: "1",
+        updated_at: "1",
+      })
+      .mockResolvedValueOnce({
+        run_id: "b",
+        queued: "1",
+        success: "0",
+        skipped: "0",
+        failed: "0",
+        started_at: "3",
+        updated_at: "1",
+      })
+      .mockResolvedValueOnce({
+        run_id: "c",
+        queued: "1",
+        success: "0",
+        skipped: "0",
+        failed: "0",
+        started_at: "2",
+        updated_at: "1",
+      });
 
     const service = new EmbeddingQueueService();
     const runs = await service.listActiveBackfillRuns(2);
@@ -1190,7 +1252,12 @@ describe("getFailedJobs", () => {
   });
 
   it("maps a stored failure, with a stable id derived from its content", async () => {
-    const raw = JSON.stringify({ ...job({ track_id: "t1" }), attempts: 5, error: "rate limited", failedAt: 999 });
+    const raw = JSON.stringify({
+      ...job({ track_id: "t1" }),
+      attempts: 5,
+      error: "rate limited",
+      failedAt: 999,
+    });
     mockRedis.lrange.mockResolvedValueOnce([raw]);
 
     const service = new EmbeddingQueueService();
@@ -1219,7 +1286,13 @@ describe("getFailedJobs", () => {
   });
 
   it("defaults attempts to 0 when the stored entry doesn't carry one", async () => {
-    const raw = JSON.stringify({ track_id: "t1", friend_id: 1, kind: "identity", error: "boom", failedAt: 1 });
+    const raw = JSON.stringify({
+      track_id: "t1",
+      friend_id: 1,
+      kind: "identity",
+      error: "boom",
+      failedAt: 1,
+    });
     mockRedis.lrange.mockResolvedValueOnce([raw]);
     const service = new EmbeddingQueueService();
     const [failed] = await service.getFailedJobs();
@@ -1260,7 +1333,13 @@ describe("retryFailedJobs", () => {
     expect(mockPipeline.lrem).toHaveBeenCalledWith("embedding_queue:failed", 1, raw);
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue",
-      JSON.stringify({ track_id: "t1", friend_id: 1, kind: "context", priority: "bulk", attempts: 0 })
+      JSON.stringify({
+        track_id: "t1",
+        friend_id: 1,
+        kind: "context",
+        priority: "bulk",
+        attempts: 0,
+      }),
     );
   });
 
@@ -1289,7 +1368,7 @@ describe("retryFailedJobs", () => {
         attempts: 0,
         run_id: "run-1",
         force: true,
-      })
+      }),
     );
   });
 
@@ -1327,7 +1406,14 @@ describe("retryFailedJobs", () => {
   });
 
   it("defaults the re-enqueued priority to interactive when the stored entry has none", async () => {
-    const raw = JSON.stringify({ track_id: "t1", friend_id: 1, kind: "identity", attempts: 5, error: "boom", failedAt: 1 });
+    const raw = JSON.stringify({
+      track_id: "t1",
+      friend_id: 1,
+      kind: "identity",
+      attempts: 5,
+      error: "boom",
+      failedAt: 1,
+    });
     mockRedis.lrange.mockResolvedValueOnce([raw]);
     const service = new EmbeddingQueueService();
     const id = (await service.getFailedJobs())[0].id;
@@ -1337,13 +1423,31 @@ describe("retryFailedJobs", () => {
 
     expect(mockPipeline.lpush).toHaveBeenCalledWith(
       "embedding_queue:interactive",
-      JSON.stringify({ track_id: "t1", friend_id: 1, kind: "identity", priority: "interactive", attempts: 0 })
+      JSON.stringify({
+        track_id: "t1",
+        friend_id: 1,
+        kind: "identity",
+        priority: "interactive",
+        attempts: 0,
+      }),
     );
   });
 
   it("skips a failed entry that isn't in the requested id set while still retrying the match beside it", async () => {
-    const wantedRaw = JSON.stringify({ ...job({ track_id: "wanted" }), priority: "bulk", attempts: 5, error: "boom", failedAt: 1 });
-    const otherRaw = JSON.stringify({ ...job({ track_id: "other" }), priority: "bulk", attempts: 5, error: "boom", failedAt: 2 });
+    const wantedRaw = JSON.stringify({
+      ...job({ track_id: "wanted" }),
+      priority: "bulk",
+      attempts: 5,
+      error: "boom",
+      failedAt: 1,
+    });
+    const otherRaw = JSON.stringify({
+      ...job({ track_id: "other" }),
+      priority: "bulk",
+      attempts: 5,
+      error: "boom",
+      failedAt: 2,
+    });
     mockRedis.lrange.mockResolvedValueOnce([wantedRaw, otherRaw]);
     const service = new EmbeddingQueueService();
     const wantedId = createHash("sha1").update(wantedRaw).digest("hex").slice(0, 12);

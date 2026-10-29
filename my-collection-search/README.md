@@ -5,14 +5,19 @@ Next.js app for browsing, searching, and managing a personal DJ track collection
 ## Quick start
 
 1. From the repository root, install the pinned toolchain and dependencies:
+
 ```bash
 just bootstrap
 ```
+
 2. Start local services + app (dev):
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
+
 3. Run migrations:
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
 ```
@@ -70,12 +75,14 @@ at runtime for another server. For the hot-reload app, point it at
 The app can run scheduled remote backups using policy from `config/backup-policy.yml`.
 
 Required environment variables:
+
 - `RESTIC_REPOSITORY` (B2 format: `b2:<bucket-name>:<path>`)
 - `RESTIC_PASSWORD`
 - `B2_ACCOUNT_ID`
 - `B2_ACCOUNT_KEY`
 
 Example:
+
 ```bash
 RESTIC_REPOSITORY=b2:groovenet-backups:prod/my-collection-search
 RESTIC_PASSWORD=change-this-long-secret
@@ -84,11 +91,13 @@ B2_ACCOUNT_KEY=K0000000000000000000000000000000000
 ```
 
 One-time repository initialization:
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app restic init
 ```
 
 Optional connectivity check:
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app restic snapshots
 ```

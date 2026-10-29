@@ -1,11 +1,12 @@
 // Utility functions for track duration parsing and formatting
 
-export { formatSeconds, getTrackDurationSeconds, parseDurationToSeconds } from "@groovenet/client/player-session";
+export {
+  formatSeconds,
+  getTrackDurationSeconds,
+  parseDurationToSeconds,
+} from "@groovenet/client/player-session";
 
-function collectDisplayTags(
-  values: unknown,
-  split: (value: string) => string[]
-): string[] {
+function collectDisplayTags(values: unknown, split: (value: string) => string[]): string[] {
   const rawValues = Array.isArray(values) ? values : [values];
   const tags: string[] = [];
   const seen = new Set<string>();

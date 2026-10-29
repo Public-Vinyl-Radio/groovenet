@@ -12,6 +12,7 @@ deliberate — sha256 over a 40 MB file is milliseconds and settles the question
 for the overwhelming majority of tracks on a re-run, where a decode would be
 seconds wasted.
 """
+
 import base64
 import hashlib
 import os
@@ -93,10 +94,7 @@ def unchanged_on_disk(job: IndexJob, size: int, mtime_ms: int) -> bool:
     """
     if job.get("force") or not job.get("stored_audio_sha256"):
         return False
-    return (
-        job.get("stored_audio_size_bytes") == size
-        and job.get("stored_audio_mtime_ms") == mtime_ms
-    )
+    return job.get("stored_audio_size_bytes") == size and job.get("stored_audio_mtime_ms") == mtime_ms
 
 
 def needs_index(
@@ -139,9 +137,7 @@ def build_upsert(
         "fingerprint_type": str(job["fingerprint_type"]),
         "fingerprint_version": str(job["fingerprint_version"]),
         "fingerprint_data": (
-            base64.b64encode(fingerprint_data).decode("ascii")
-            if fingerprint_data is not None
-            else None
+            base64.b64encode(fingerprint_data).decode("ascii") if fingerprint_data is not None else None
         ),
         "audio_sha256": audio_sha256,
         "audio_duration_seconds": duration_seconds,

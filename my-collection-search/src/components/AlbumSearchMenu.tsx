@@ -25,11 +25,20 @@ export default function AlbumSearchMenu({ activeCount, onOpenFilters, onOpenArtw
           boxSize="44px"
           minW="44px"
           position="relative"
-          aria-label={activeCount > 0 ? `Albums actions, ${activeCount} filters on` : "Albums actions"}
+          aria-label={
+            activeCount > 0 ? `Albums actions, ${activeCount} filters on` : "Albums actions"
+          }
         >
           <FiMoreVertical />
           {activeCount > 0 && (
-            <Badge size="xs" colorPalette="accent" variant="solid" position="absolute" top="2px" right="2px">
+            <Badge
+              size="xs"
+              colorPalette="accent"
+              variant="solid"
+              position="absolute"
+              top="2px"
+              right="2px"
+            >
               {activeCount}
             </Badge>
           )}

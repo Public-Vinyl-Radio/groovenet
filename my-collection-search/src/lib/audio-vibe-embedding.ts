@@ -70,7 +70,7 @@ export interface AudioVibeData {
  */
 function extractEnhancedFeatures(
   track_id: string,
-  friend_id: number
+  friend_id: number,
 ): Pick<AudioVibeData, "acoustic" | "vocalPresence" | "percussiveness" | "partyMood"> {
   const defaults = {
     acoustic: undefined,
@@ -111,10 +111,7 @@ function extractEnhancedFeatures(
 /**
  * Build audio vibe data from track (with optional enhanced features)
  */
-export function buildAudioVibeData(
-  track: Track,
-  includeEnhanced = true
-): AudioVibeData {
+export function buildAudioVibeData(track: Track, includeEnhanced = true): AudioVibeData {
   const bpm = normalizeBpmValue(track.bpm);
   const bpmRange = normalizeBpmRange(track.bpm);
   const key = normalizeKey(track.key);
@@ -214,7 +211,7 @@ export function computeAudioVibeHash(data: AudioVibeData): string {
       partyMood: data.partyMood,
     },
     null,
-    0
+    0,
   );
 
   return crypto.createHash("sha256").update(canonical, "utf8").digest("hex");
@@ -225,9 +222,8 @@ export function computeAudioVibeHash(data: AudioVibeData): string {
  * configured as audio_vibe's target model (#386).
  */
 export async function generateAudioVibeEmbedding(
-  vibeText: string
+  vibeText: string,
 ): Promise<{ embedding: number[]; model: string; dims: number }> {
-
   const provider = await getTargetProvider("audio_vibe");
   const [embedding] = await provider.embed([vibeText]);
   return { embedding, model: provider.model, dims: provider.dims };
@@ -243,7 +239,7 @@ export async function storeAudioVibeEmbedding(
   sourceHash: string,
   vibeText: string,
   model: string,
-  dims: number
+  dims: number,
 ): Promise<void> {
   await embeddingsRepository.upsertTrackEmbedding({
     trackId: track_id,
@@ -265,7 +261,7 @@ export async function storeAudioVibeEmbedding(
 export async function needsAudioVibeUpdate(
   track_id: string,
   friend_id: number,
-  newSourceHash: string
+  newSourceHash: string,
 ): Promise<boolean> {
   const { model } = await getTargetModel("audio_vibe");
   const sourceHash = await embeddingsRepository.findEmbeddingSourceHash(
@@ -273,7 +269,7 @@ export async function needsAudioVibeUpdate(
     friend_id,
     "audio_vibe",
     model,
-    AUDIO_VIBE_TEMPLATE_VERSION
+    AUDIO_VIBE_TEMPLATE_VERSION,
   );
   if (!sourceHash) {
     return true; // No embedding exists
@@ -303,12 +299,9 @@ export function hasAudioData(track: Track): boolean {
 export async function generateAndStoreAudioVibeEmbedding(
   track_id: string,
   friend_id: number,
-  forceUpdate = false
+  forceUpdate = false,
 ): Promise<{ updated: boolean; reason: string }> {
-  const track = await trackRepository.findTrackByTrackIdAndFriendIdRaw(
-    track_id,
-    friend_id
-  );
+  const track = await trackRepository.findTrackByTrackIdAndFriendIdRaw(track_id, friend_id);
   if (!track) {
     throw new Error(`Track not found: ${track_id} (friend_id: ${friend_id})`);
   }
@@ -338,15 +331,7 @@ export async function generateAndStoreAudioVibeEmbedding(
   const { embedding, model, dims } = await generateAudioVibeEmbedding(vibeText);
 
   // Store in database
-  await storeAudioVibeEmbedding(
-    track_id,
-    friend_id,
-    embedding,
-    sourceHash,
-    vibeText,
-    model,
-    dims
-  );
+  await storeAudioVibeEmbedding(track_id, friend_id, embedding, sourceHash, vibeText, model, dims);
 
   return { updated: true, reason: "Audio vibe embedding generated and stored" };
 }
@@ -356,12 +341,9 @@ export async function generateAndStoreAudioVibeEmbedding(
  */
 export async function getAudioVibePreview(
   track_id: string,
-  friend_id: number
+  friend_id: number,
 ): Promise<{ vibeText: string; vibeData: AudioVibeData }> {
-  const track = await trackRepository.findTrackByTrackIdAndFriendIdRaw(
-    track_id,
-    friend_id
-  );
+  const track = await trackRepository.findTrackByTrackIdAndFriendIdRaw(track_id, friend_id);
   if (!track) {
     throw new Error(`Track not found: ${track_id} (friend_id: ${friend_id})`);
   }

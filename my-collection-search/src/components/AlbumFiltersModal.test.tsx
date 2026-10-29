@@ -27,7 +27,7 @@ function setup(props: Partial<React.ComponentProps<typeof AlbumFiltersModal>> = 
       resultCount={1234}
       {...handlers}
       {...props}
-    />
+    />,
   );
   return { ...view, ...handlers };
 }
@@ -49,7 +49,9 @@ describe("AlbumFiltersModal (#751)", () => {
 
   it("disables Reset with nothing active, and resets when something is", async () => {
     const first = setup();
-    expect(((await screen.findByRole("button", { name: "Reset" })) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      ((await screen.findByRole("button", { name: "Reset" })) as HTMLButtonElement).disabled,
+    ).toBe(true);
     first.unmount();
 
     const { user, onReset } = setup({ activeCount: 2 });
@@ -62,7 +64,9 @@ describe("AlbumFiltersModal (#751)", () => {
     const group = await screen.findByRole("group", { name: "Only albums missing" });
     expect(group.querySelectorAll("button")).toHaveLength(3);
     expect(screen.getByRole("button", { name: "Audio" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "Local cover" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Local cover" }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
 
     await user.click(screen.getByRole("button", { name: "Library identifier" }));
     expect(onToggleMissing).toHaveBeenCalledWith("missing_library_identifier");

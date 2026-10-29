@@ -1,6 +1,7 @@
 # My Collection Search — Project Brief (for Claude Code)
 
 ## State Ownership
+
 - See `docs/state-ownership.md` for the canonical state model.
 - In short:
   - Zustand owns `Track`/`Album` entities
@@ -8,11 +9,13 @@
 - See `docs/frontend-api-pattern.md` for the frontend API pattern (Zod/OpenAPI route contracts, typed `internalApi/*`, and shared `http` helpers instead of inline `fetch`).
 
 ## Overview
+
 - Next.js app to browse, search, and manage a personal DJ track collection.
 - Data sources: PostgreSQL (with pgvector) + PostgreSQL full-text + trigram search.
 - Features: full-text search with infinite scroll, playlist views, track editing (rating, notes, links), audio analysis, AI helpers.
 
 ## Tech stack
+
 - Framework: Next.js 16, React 19, TypeScript
 - UI: Chakra UI v3
 - Data: TanStack Query v5; search is Postgres full-text + trigram
@@ -20,6 +23,7 @@
 - Services: optional Essentia API (audio analysis) and GA service
 
 ## Run it
+
 - Dev scripts (Node):
   - npm run dev — start Next.js
   - npm run build / npm start — production build/run
@@ -33,6 +37,7 @@
   - Apple/Discogs/OpenAI credentials as needed
 
 ## Structure (key folders)
+
 - src/components — UI (e.g., SearchResults, TrackResult, PlaylistViewer)
 - src/hooks — data hooks, mutations, cache helpers
 - src/lib — queryKeys, helpers
@@ -44,11 +49,13 @@
 - migrations — node-pg-migrate scripts
 
 ## Data model highlights
+
 - Track (src/types/track.ts):
   - star_rating?: number
   - bpm/key/danceability (string-ish), notes, tags, urls, duration_seconds, username
 
 ## Query keys (centralized)
+
 - src/lib/queryKeys.ts
   - tracks: (args) => ["tracks", args]
     - args: { q?, filter?, limit?, mode?, page? }
@@ -57,10 +64,12 @@
   - playlistCounts: ["playlistCounts", ids]
 
 ## Search results shape
+
 - Infinite search returns pages of: { hits: Track[], estimatedTotalHits, offset, limit }
 - Single-page mode uses the same page shape (no pages array).
 
 ## Caching and optimistic updates
+
 - Refer to `docs/state-ownership.md` for current rules.
 - Summary:
   - Query hooks fetch/hydrate into Zustand stores
@@ -68,6 +77,7 @@
   - React Query cache updates are for non-entity metadata/refs and invalidation
 
 ## UI notes
+
 - TrackResult renders star rating as controlled value (reflects cache updates).
 - SearchResults uses useSearchResults (infinite/page) and intersection observer for loadMore.
 - Playlist views use playlistTrackIds + playlistTracks.
@@ -84,6 +94,7 @@ generated output must stay untracked. See the root README's Storybook workflow.
 Chakra UI v3 on `src/app/chakraTheme.ts`, which makes colour palette-driven.
 Reference only tokens that exist: an undefined one (`brand.0` was) compiles to
 an invalid value the browser drops, so it fails silently.
+
 - **Colour:** semantic tokens over raw scales — `bg`, `bg.subtle` (toolbars,
   active nav), `bg.muted` (row hover), `bg.panel` (inputs, popovers, dialogs),
   `fg`, `fg.muted` (secondary text), `border` (`border.ink` for the 2px outline of
@@ -316,6 +327,7 @@ an invalid value the browser drops, so it fails silently.
   intentional drawer.
 
 ## How to extend safely
+
 - Always use queryKeys helpers (don’t build keys by hand).
 - When you change Track fields shown across lists, update useTracksCacheUpdater to patch all relevant caches.
 - Prefer predicates targeting ["tracks", {…}] to avoid over-invalidation.
@@ -324,16 +336,19 @@ an invalid value the browser drops, so it fails silently.
   - Cancel, snapshot, patch, rollback pattern
 
 ## Common tasks
+
 - Add field to Track card: change TrackResult props, map field from Track
 - Add new search filter: include in args for queryKeys.tracks, propagate to useSearchResults, backend query
 - Patch track after action (e.g., rating): call updateTracksInCache({ track_id, star_rating })
 
 ## Gotchas
+
 - defaultValue UI controls won’t reflect cache changes; use controlled value instead.
 - Mixed cache shapes: infinite queries have pages[], single-page has { hits } — handle both.
 - Keep patches narrow (avoid undefined) to prevent clobbering fields.
 
 ## Analytics
+
 - Feature code calls `analytics.track(event, props)` from `@/lib/analytics/client`
   (components, hooks) or `@/lib/analytics/server` (routes). ESLint rejects a direct
   `posthog-js`/`posthog-node` import anywhere outside `src/lib/analytics/`.
@@ -374,7 +389,7 @@ an invalid value the browser drops, so it fails silently.
   filters to one model, and a switch is two settings
   (`target_model`/`serving_model` in `embedding_model_settings`, via
   `src/lib/embeddings/config.ts` and `GET`/`PATCH
-  /api/settings/embedding-model`) so the new model's set builds alongside the
+/api/settings/embedding-model`) so the new model's set builds alongside the
   old one instead of overwriting it in place.
 - `track_embeddings.embedding` is an **unconstrained** `vector` column —
   pgvector can't index it directly, so each `(embedding_type, model)` pair
@@ -453,8 +468,7 @@ score = w_taxonomy * taxonomy_base + w_cooccur * max(npmi, 0)
   Cumbia ↔ Latin) — they always co-occur because of the hierarchy itself, so
   it says nothing new. A direct parent/child pair still gets the taxonomy
   signal; anything further apart gets no score at all.
-- **A minimum support floor** (`GENRE_SIMILARITY_MIN_SUPPORT_ALBUMS`, default
-  3) drops a non-taxonomy pair that shares too few albums to mean anything.
+- **A minimum support floor** (`GENRE_SIMILARITY_MIN_SUPPORT_ALBUMS`, default 3) drops a non-taxonomy pair that shares too few albums to mean anything.
 - The pure scoring function, `computeGenreSimilarity`
   (`src/lib/genres/genreSimilarity.ts`), takes counts in and returns a ranked
   list — no I/O, unit-tested on a fixture rather than a database.
@@ -528,6 +542,7 @@ than one process:
   immediate: `PATCH /api/tracks` queues a track's fingerprint whenever its
   `local_audio_url` gains or **changes** value (`trackFingerprintTrigger.ts`).
   Losing audio does not trigger: the fingerprint describes the record.
+
 - `startPlayAggregation()` — turns recent confident detections into spin
   sessions (`playAggregationService.ts`), the backstop for #304. The fast path
   is immediate here too: `ingestLifecycleService.report()` aggregates a
@@ -584,7 +599,7 @@ Three rules worth knowing before changing it:
 
 The `error` strings in a rejection are a contract, not prose. The device has no
 screen and uses them to tell "this chunk is bad, drop it" from "retry later" —
-don't reword them. `202` rather than `200` because what the audio *is* will not
+don't reword them. `202` rather than `200` because what the audio _is_ will not
 be known for a second or two.
 
 ### Lifecycle
@@ -639,15 +654,15 @@ across both containers:
 docker compose logs app fingerprint-service | grep <ingest_id>
 ```
 
-| event | written by | when |
-| --- | --- | --- |
-| `ingest.rejected` | route | refused; `reason` is the device's error code |
-| `ingest.error` | route | the app failed (500); `stage` says where |
-| `ingest.accepted` / `ingest.duplicate` | `audioIngestService` | stored and queued, or a retry |
-| `ingest.enqueue_failed` | `audioIngestService` | stored, but Redis refused the job |
-| `ingest.claimed` | `ingestLifecycleService` | the worker picked it up |
-| `ingest.processed` / `ingest.failed` | `ingestLifecycleService` | terminal, including `stage: "reap"` |
-| `play.confirmed` | `playAggregationService` | a spin was made; `latency_ms` from capture |
+| event                                  | written by               | when                                         |
+| -------------------------------------- | ------------------------ | -------------------------------------------- |
+| `ingest.rejected`                      | route                    | refused; `reason` is the device's error code |
+| `ingest.error`                         | route                    | the app failed (500); `stage` says where     |
+| `ingest.accepted` / `ingest.duplicate` | `audioIngestService`     | stored and queued, or a retry                |
+| `ingest.enqueue_failed`                | `audioIngestService`     | stored, but Redis refused the job            |
+| `ingest.claimed`                       | `ingestLifecycleService` | the worker picked it up                      |
+| `ingest.processed` / `ingest.failed`   | `ingestLifecycleService` | terminal, including `stage: "reap"`          |
+| `play.confirmed`                       | `playAggregationService` | a spin was made; `latency_ms` from capture   |
 
 Every failure names a `stage`: `upload`, `validation`, `store`, `enqueue`,
 `claim`, `report` or `reap` on this side; `parse`, `resolve`, `decode` or
@@ -716,7 +731,7 @@ back to the start, or played twice). Each play reports `rate` — track seconds
 per recording second, ~1.0 at pitch.
 
 Drift only splits once **`driftConfirmWindows` (4) consecutive windows agree on
-the new alignment**. Loop-based music matches a *repeat* of the same section
+the new alignment**. Loop-based music matches a _repeat_ of the same section
 now and then — one or two windows jump, then the play carries on — and the
 first cut of this split three tracks of #271's set into eleven plays. Two rules
 hold that line; `derivePlays on the #271 set` pins both against the real
@@ -731,12 +746,12 @@ matcher output in `__tests__/fixtures/set-271-windows.json` (41 plays):
 
 **The diff**, against `playlist_id` or `live_set_id`:
 
-- *played as planned* — flagged `out_of_order` when outside the longest run
+- _played as planned_ — flagged `out_of_order` when outside the longest run
   that kept the plan's order. A record resumed after a gap is the same slot.
-- *played instead of* — an unplanned play paired with an unplayed entry **on
+- _played instead of_ — an unplanned play paired with an unplayed entry **on
   the same release**, nearest in the plan to where it was played. #271's six
   wrong playlist entries were all this shape.
-- *played but not planned*, *planned but not played* — the rest. Planned
+- _played but not planned_, _planned but not played_ — the rest. Planned
   entries carry `fingerprinted`: "not played" and "not in the index" otherwise
   look the same.
 
@@ -856,17 +871,20 @@ Error shape: `http<T>()` throws `Error(message)` when `!res.ok`, taking the
 message from the body's `error` or `message` field, else `HTTP <status>`.
 
 ## Conventions
+
 - TS strict, path alias @/* (see tsconfig paths)
 - Avoid any; keep types aligned with src/types/track.ts
 - Minimal diffs; don’t reformat unrelated code
 
 ## Contact points
+
 - If you need details about auth, missing envs, ask for DATABASE_URL and provider credentials.
 - If a list doesn’t update after a mutation, check its query key and include it in useTracksCacheUpdater.
 
 ## Database schema (PostgreSQL)
 
 Tables
+
 - tracks
   - Primary key: (track_id, username) — compound PK
   - Columns:
@@ -926,15 +944,18 @@ Tables
   - added_at timestamp default current_timestamp
 
 Extensions
+
 - pgvector (vector type) enabled for track_embeddings.embedding
 
 Notes
+
 - The compound PK allows the same track_id to exist for multiple users.
 - friend_id columns added to normalize references to friends table (replacing username strings).
 - username columns kept temporarily for backwards compatibility during transition.
 - PostgreSQL is the source of truth for both storage and search.
 
 Migration Scripts
+
 - migrations/1737641200000_add_friend_id_columns.js — adds friend_id to tracks and playlist_tracks
 - scripts/validate-friend-id-migration.js — validates data integrity after migration
 

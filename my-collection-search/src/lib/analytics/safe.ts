@@ -11,10 +11,7 @@ export function safely(action: string, fn: () => void): void {
   }
 }
 
-export async function safelyAsync(
-  action: string,
-  fn: () => Promise<void>
-): Promise<void> {
+export async function safelyAsync(action: string, fn: () => Promise<void>): Promise<void> {
   try {
     await fn();
   } catch (error) {
@@ -25,10 +22,7 @@ export async function safelyAsync(
 function warnOnce(action: string, error: unknown) {
   if (warned) return;
   warned = true;
-  console.warn(
-    `[analytics] ${action} failed; further analytics errors are suppressed:`,
-    error
-  );
+  console.warn(`[analytics] ${action} failed; further analytics errors are suppressed:`, error);
 }
 
 /** Test helper: let the next error be logged again. */

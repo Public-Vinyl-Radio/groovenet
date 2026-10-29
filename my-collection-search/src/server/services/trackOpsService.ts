@@ -1,8 +1,5 @@
 import fs from "fs";
-import {
-  getEssentiaAnalysisPath,
-  readEssentiaAnalysis,
-} from "@/lib/essentia-storage";
+import { getEssentiaAnalysisPath, readEssentiaAnalysis } from "@/lib/essentia-storage";
 import {
   trackRepository,
   type CoverArtBackfillCandidateRow,
@@ -27,10 +24,7 @@ export class TrackOpsService {
     | { success: true; jobId: string; track_id: string; friend_id: number }
     | { success: false; code: 404 | 400; error: string }
   > {
-    const track = await trackRepository.findTrackWithLocalAudio(
-      params.track_id,
-      params.friend_id
-    );
+    const track = await trackRepository.findTrackWithLocalAudio(params.track_id, params.friend_id);
 
     if (!track) {
       return { success: false, code: 404, error: "Track not found" };
@@ -96,7 +90,7 @@ export class TrackOpsService {
   }> {
     const rows = await trackRepository.findTracksForEssentiaBackfill(
       params.friend_id,
-      params.limit
+      params.limit,
     );
 
     const jobIds: string[] = [];
@@ -190,7 +184,7 @@ export class TrackOpsService {
   }
 
   private assertReleaseId(
-    row: CoverArtBackfillCandidateRow
+    row: CoverArtBackfillCandidateRow,
   ): asserts row is CoverArtBackfillCandidateRow & { release_id: string } {
     if (!row.release_id) {
       throw new Error("Missing release_id");
@@ -199,10 +193,7 @@ export class TrackOpsService {
 
   private hasPersistedEssentiaMetadata(row: TrackEssentiaBackfillRow): boolean {
     return (
-      row.bpm != null &&
-      row.key != null &&
-      row.danceability != null &&
-      row.duration_seconds != null
+      row.bpm != null && row.key != null && row.danceability != null && row.duration_seconds != null
     );
   }
 
@@ -225,9 +216,9 @@ export class TrackOpsService {
 
     return Boolean(
       typedAnalysis.rhythm ||
-        typedAnalysis.tonal ||
-        typedAnalysis.metadata ||
-        typedAnalysis.highlevel
+      typedAnalysis.tonal ||
+      typedAnalysis.metadata ||
+      typedAnalysis.highlevel,
     );
   }
 }

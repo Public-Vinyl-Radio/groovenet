@@ -16,16 +16,16 @@ describe("parseTrackFilterSpec", () => {
   it("reads the friend and every chip, in emission order", () => {
     expect(
       parseTrackFilterSpec(
-        "soundcloud_url IS NULL AND friend_id = 4 AND local_audio_url IS NULL AND (bpm IS NULL OR key IS NULL)"
-      )
+        "soundcloud_url IS NULL AND friend_id = 4 AND local_audio_url IS NULL AND (bpm IS NULL OR key IS NULL)",
+      ),
     ).toEqual({ friendId: 4, missing: ["local_audio", "bpm_or_key", "soundcloud_url"] });
   });
 
   it("treats the all-streaming chip as also matching each single-url check", () => {
     expect(
       parseTrackFilterSpec(
-        "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)"
-      ).missing
+        "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)",
+      ).missing,
     ).toEqual(["all_streaming_urls", "apple_music_url", "youtube_url", "soundcloud_url"]);
   });
 });
@@ -39,7 +39,7 @@ describe("missingFilterClause", () => {
   it("qualifies every column with an alias", () => {
     expect(missingFilterClause("bpm_or_key", "t")).toBe("(t.bpm IS NULL OR t.key IS NULL)");
     expect(missingFilterClause("all_streaming_urls", "t")).toBe(
-      "(t.apple_music_url IS NULL AND t.youtube_url IS NULL AND t.soundcloud_url IS NULL)"
+      "(t.apple_music_url IS NULL AND t.youtube_url IS NULL AND t.soundcloud_url IS NULL)",
     );
     expect(missingFilterClause("apple_music_url", "t")).toBe("t.apple_music_url IS NULL");
   });
@@ -64,13 +64,12 @@ describe("attributeFilterClauses", () => {
   it("binds each set filter in order, qualified by the alias", () => {
     const { values, bind } = binder();
     expect(
-      attributeFilterClauses({ bpmMin: 120, bpmMax: 126, key: "A minor", minStarRating: 4 }, bind, "t")
-    ).toEqual([
-      "t.bpm >= $1",
-      "t.bpm <= $2",
-      "LOWER(t.key) = LOWER($3)",
-      "t.star_rating >= $4",
-    ]);
+      attributeFilterClauses(
+        { bpmMin: 120, bpmMax: 126, key: "A minor", minStarRating: 4 },
+        bind,
+        "t",
+      ),
+    ).toEqual(["t.bpm >= $1", "t.bpm <= $2", "LOWER(t.key) = LOWER($3)", "t.star_rating >= $4"]);
     expect(values).toEqual([120, 126, "A minor", 4]);
   });
 
@@ -102,7 +101,9 @@ describe("genre filter clauses (#375)", () => {
     expect(sql).toContain("tg.genre_id = ANY($1::uuid[])");
     // The Discogs fallback applies only to a track with no genre links at all.
     expect(sql).toMatch(/OR \(\s*NOT EXISTS \(SELECT 1 FROM track_genres tg/);
-    expect(sql).toContain("unnest(effective_album_taxonomy_values(t.release_id::text, t.friend_id, 'genres', t.genres) || effective_album_taxonomy_values(t.release_id::text, t.friend_id, 'styles', t.styles))");
+    expect(sql).toContain(
+      "unnest(effective_album_taxonomy_values(t.release_id::text, t.friend_id, 'genres', t.genres) || effective_album_taxonomy_values(t.release_id::text, t.friend_id, 'styles', t.styles))",
+    );
     expect(sql).toContain("genre_normalize(discogs_genre.name) = ANY($2::text[])");
   });
 
@@ -110,15 +111,16 @@ describe("genre filter clauses (#375)", () => {
     const { values, bind } = binder();
     const sql = albumGenreFilterClause(filter, bind, "a");
     expect(values).toEqual([filter.keys, filter.ids]);
-    expect(sql).toContain("unnest(effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'genres', a.genres) || effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'styles', a.styles))");
+    expect(sql).toContain(
+      "unnest(effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'genres', a.genres) || effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'styles', a.styles))",
+    );
     expect(sql).toContain("genre_normalize(discogs_genre.name) = ANY($1::text[])");
     expect(sql).toContain("gt.release_id = a.release_id");
     expect(sql).toContain("gt.deleted_at IS NULL");
     expect(sql).toContain("tg.genre_id = ANY($2::uuid[])");
     // The inner join leaves untagged tracks out of the share.
     expect(sql).toContain("JOIN track_genres tg");
-    const matching =
-      "count(DISTINCT gt.track_id) FILTER (WHERE tg.genre_id = ANY($2::uuid[]))";
+    const matching = "count(DISTINCT gt.track_id) FILTER (WHERE tg.genre_id = ANY($2::uuid[]))";
     expect(sql).toContain(`HAVING ${matching} > 0`);
     expect(sql).toContain(`${matching} * 3 >= count(DISTINCT gt.track_id) * 1`);
   });
@@ -134,7 +136,7 @@ describe("genre filter clauses (#375)", () => {
 
   it("needs the tracks alias, since its subqueries correlate with the row", () => {
     expect(() => attributeFilterClauses({ genreFilter: filter }, () => "$1")).toThrow(
-      "needs the tracks alias"
+      "needs the tracks alias",
     );
   });
 });

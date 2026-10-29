@@ -14,18 +14,23 @@ Each UTF-8 JSON object occupies one line terminated by `\\n`. Requests use an
 integer `id`, a non-empty `method`, and optional object-valued `params`:
 
 ```json
-{"jsonrpc":"2.0","version":1,"id":1,"method":"status"}
+{ "jsonrpc": "2.0", "version": 1, "id": 1, "method": "status" }
 ```
 
 A response has the same `id` and either a `result` or an `error` containing a
 machine-readable `code` and a human-readable `message`:
 
 ```json
-{"jsonrpc":"2.0","version":1,"id":1,"result":{"status":"stopped"}}
+{ "jsonrpc": "2.0", "version": 1, "id": 1, "result": { "status": "stopped" } }
 ```
 
 ```json
-{"jsonrpc":"2.0","version":1,"id":1,"error":{"code":"INVALID_ARGUMENT","message":"..."}}
+{
+  "jsonrpc": "2.0",
+  "version": 1,
+  "id": 1,
+  "error": { "code": "INVALID_ARGUMENT", "message": "..." }
+}
 ```
 
 Malformed JSON or invalid request envelopes receive `INVALID_REQUEST`. A
@@ -36,22 +41,22 @@ event before the response to the command that caused it.
 
 ## Methods
 
-| Method | Parameters | Result |
-| --- | --- | --- |
-| `status` | none | Current playback snapshot |
-| `play` | optional `index` (zero-based queue index) | Playback snapshot |
-| `pause`, `resume`, `next`, `prev` | none | Playback snapshot |
-| `stop` | none | Stop playback, retain queue and daemon; playback snapshot |
-| `seek` | `seconds` (non-negative number) | Playback snapshot |
-| `volume` | `volume` (0–100) | Playback snapshot |
-| `queue.add` | `query` or `playlistId` | Added queue entries |
-| `queue.addTrack` | `track` | Added queue entries |
-| `queue.list` | none | Queue entries |
-| `queue.remove` | `id` or zero-based `index` | Removed queue entry |
-| `queue.move` | entry `id` and zero-based `to` | Snapshot |
-| `devices` | none | Available audio output devices |
-| `devices.select` | `id` | Available audio output devices after selection |
-| `shutdown` | none | `{ "stopping": true }`, then the daemon closes |
+| Method                            | Parameters                                | Result                                                    |
+| --------------------------------- | ----------------------------------------- | --------------------------------------------------------- |
+| `status`                          | none                                      | Current playback snapshot                                 |
+| `play`                            | optional `index` (zero-based queue index) | Playback snapshot                                         |
+| `pause`, `resume`, `next`, `prev` | none                                      | Playback snapshot                                         |
+| `stop`                            | none                                      | Stop playback, retain queue and daemon; playback snapshot |
+| `seek`                            | `seconds` (non-negative number)           | Playback snapshot                                         |
+| `volume`                          | `volume` (0–100)                          | Playback snapshot                                         |
+| `queue.add`                       | `query` or `playlistId`                   | Added queue entries                                       |
+| `queue.addTrack`                  | `track`                                   | Added queue entries                                       |
+| `queue.list`                      | none                                      | Queue entries                                             |
+| `queue.remove`                    | `id` or zero-based `index`                | Removed queue entry                                       |
+| `queue.move`                      | entry `id` and zero-based `to`            | Snapshot                                                  |
+| `devices`                         | none                                      | Available audio output devices                            |
+| `devices.select`                  | `id`                                      | Available audio output devices after selection            |
+| `shutdown`                        | none                                      | `{ "stopping": true }`, then the daemon closes            |
 
 Queue entries contain an `id` and a track. Playback snapshots contain
 `status`, `current`, `queue`, `position` (seconds), `duration` (seconds or
@@ -62,14 +67,14 @@ Queue entries contain an `id` and a track. Playback snapshots contain
 Every event has the shape
 `{"jsonrpc":"2.0","version":1,"event":"...","data":...}`.
 
-| Event | `data` |
-| --- | --- |
-| `state` | Full playback snapshot, emitted whenever player state changes |
-| `position` | `{ "position": number, "duration": number|null }` |
-| `queue-change` | Current queue entries |
-| `track-change` | Queue entry that started |
-| `track-ended` | Queue entry that ended |
-| `error` | `{ "entry": queueEntry, "error": playerError }` for a skipped track |
+| Event          | `data`                                                              |
+| -------------- | ------------------------------------------------------------------- |
+| `state`        | Full playback snapshot, emitted whenever player state changes       |
+| `position`     | `{ "position": number, "duration": number                           | null }` |
+| `queue-change` | Current queue entries                                               |
+| `track-change` | Queue entry that started                                            |
+| `track-ended`  | Queue entry that ended                                              |
+| `error`        | `{ "entry": queueEntry, "error": playerError }` for a skipped track |
 
 The stream is best-effort over the same connection as request/response traffic;
 clients should reconnect and call `status` to recover the current state.

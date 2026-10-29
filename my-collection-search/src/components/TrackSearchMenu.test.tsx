@@ -9,7 +9,13 @@ function setup(props: Partial<React.ComponentProps<typeof TrackSearchMenu>> = {}
   const onOpenOptions = vi.fn();
   const onToggleSelect = vi.fn();
   const view = renderWithProviders(
-    <TrackSearchMenu activeCount={0} selectMode={false} onOpenOptions={onOpenOptions} onToggleSelect={onToggleSelect} {...props} />
+    <TrackSearchMenu
+      activeCount={0}
+      selectMode={false}
+      onOpenOptions={onOpenOptions}
+      onToggleSelect={onToggleSelect}
+      {...props}
+    />,
   );
   return { ...view, onOpenOptions, onToggleSelect };
 }

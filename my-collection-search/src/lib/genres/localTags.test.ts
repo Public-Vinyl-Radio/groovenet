@@ -5,7 +5,9 @@ import { collectLocalTagValues, localTagValues, splitLocalTags } from "./localTa
 describe("splitLocalTags", () => {
   it("splits on the middle dot, bullet and comma", () => {
     expect(splitLocalTags("psychedelic soul · desert psych · cinematic instrumental")).toEqual([
-      "psychedelic soul", "desert psych", "cinematic instrumental",
+      "psychedelic soul",
+      "desert psych",
+      "cinematic instrumental",
     ]);
     expect(splitLocalTags("Cumbia • Chicha")).toEqual(["Cumbia", "Chicha"]);
     expect(splitLocalTags("Salsa, Boogaloo")).toEqual(["Salsa", "Boogaloo"]);
@@ -19,7 +21,10 @@ describe("splitLocalTags", () => {
     expect(splitLocalTags("{}")).toEqual([]);
     expect(splitLocalTags(" { } ")).toEqual([]);
     expect(splitLocalTags("{Cumbia,Salsa}")).toEqual(["Cumbia", "Salsa"]);
-    expect(splitLocalTags('{"Funk / Soul", "Psychedelic Cumbia"}')).toEqual(["Funk / Soul", "Psychedelic Cumbia"]);
+    expect(splitLocalTags('{"Funk / Soul", "Psychedelic Cumbia"}')).toEqual([
+      "Funk / Soul",
+      "Psychedelic Cumbia",
+    ]);
   });
 
   it("drops blanks and handles empty input", () => {
@@ -41,8 +46,18 @@ describe("localTagValues", () => {
 describe("collectLocalTagValues", () => {
   const tracks = [
     { track_id: "1", friend_id: 6, local_tags: "Psychedelic Cumbia", styles: ["Cumbia"] },
-    { track_id: "2", friend_id: 6, local_tags: "psychedelic cumbia · Chicha", styles: ["Cumbia", "Psychedelic Rock"] },
-    { track_id: "3", friend_id: 6, local_tags: "Psychedelic Cumbia, Psychedelic Cumbia", styles: null },
+    {
+      track_id: "2",
+      friend_id: 6,
+      local_tags: "psychedelic cumbia · Chicha",
+      styles: ["Cumbia", "Psychedelic Rock"],
+    },
+    {
+      track_id: "3",
+      friend_id: 6,
+      local_tags: "Psychedelic Cumbia, Psychedelic Cumbia",
+      styles: null,
+    },
     { track_id: "4", friend_id: 7, local_tags: "Feminist Anthem" },
     { track_id: "5", friend_id: 7, local_tags: null },
   ];

@@ -32,7 +32,7 @@ function setup(props: Partial<React.ComponentProps<typeof TrackSearchOptionsModa
       resultCount={1234}
       {...handlers}
       {...props}
-    />
+    />,
   );
   return { ...view, ...handlers };
 }
@@ -51,7 +51,9 @@ describe("TrackSearchOptionsModal (#751)", () => {
 
   it("disables Reset with nothing active, and resets when something is", async () => {
     const first = setup();
-    expect((await screen.findByRole("button", { name: "Reset" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      ((await screen.findByRole("button", { name: "Reset" })) as HTMLButtonElement).disabled,
+    ).toBe(true);
     first.unmount();
 
     const { user, onReset } = setup({ activeCount: 2 });
@@ -83,17 +85,30 @@ describe("TrackSearchOptionsModal (#751)", () => {
         activeCount={0}
         resultCount={0}
         onReset={vi.fn()}
-      />
+      />,
     );
     expect(screen.getByTestId("search-mode-hint").textContent).toMatch(/not exact words/);
   });
 
   it("offers the missing checks as pressable chips, with the metadata one short", async () => {
-    const { user, onToggleMissing } = setup({ missing: { ...createEmptyFilters(), missingYouTube: true } });
+    const { user, onToggleMissing } = setup({
+      missing: { ...createEmptyFilters(), missingYouTube: true },
+    });
     const group = await screen.findByRole("group", { name: "Only tracks missing" });
-    const labels = within(group).getAllByRole("button").map((b) => b.textContent);
-    expect(labels).toEqual(["Audio", "BPM/key", "Any streaming URL", "Apple Music", "YouTube", "SoundCloud"]);
-    expect(within(group).getByRole("button", { name: "YouTube" }).getAttribute("aria-pressed")).toBe("true");
+    const labels = within(group)
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(labels).toEqual([
+      "Audio",
+      "BPM/key",
+      "Any streaming URL",
+      "Apple Music",
+      "YouTube",
+      "SoundCloud",
+    ]);
+    expect(
+      within(group).getByRole("button", { name: "YouTube" }).getAttribute("aria-pressed"),
+    ).toBe("true");
 
     await user.click(within(group).getByRole("button", { name: "BPM/key" }));
     expect(onToggleMissing).toHaveBeenCalledWith("missingMetadata");
@@ -102,8 +117,12 @@ describe("TrackSearchOptionsModal (#751)", () => {
   it("disables the single services while any streaming URL is on", async () => {
     setup({ missing: { ...createEmptyFilters(), missingAnyStreamingUrl: true } });
     const group = await screen.findByRole("group", { name: "Only tracks missing" });
-    expect((within(group).getByRole("button", { name: "Apple Music" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((within(group).getByRole("button", { name: "Audio" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(
+      (within(group).getByRole("button", { name: "Apple Music" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (within(group).getByRole("button", { name: "Audio" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 
   it("shows Include similar only once a genre is chosen", async () => {

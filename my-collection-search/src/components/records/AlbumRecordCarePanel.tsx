@@ -24,7 +24,7 @@ type Removing = { copy: RecordCopyListItem; name: string };
 export default function AlbumRecordCarePanel({ releaseId, friendId, albumTitle }: Props) {
   const { copies, overdueDays, isLoading, error } = useRecordCopiesQuery(
     { friend_id: friendId, release_id: releaseId },
-    { enabled: !!releaseId && !!friendId }
+    { enabled: !!releaseId && !!friendId },
   );
   const { removeCopy, removeCopyPending } = useRecordCareMutations(friendId);
 
@@ -53,7 +53,9 @@ export default function AlbumRecordCarePanel({ releaseId, friendId, albumTitle }
     <Stack gap={3}>
       <SectionHeader
         title="Copies & care"
-        count={isLoading ? undefined : `${copies.length} ${copies.length === 1 ? "copy" : "copies"}`}
+        count={
+          isLoading ? undefined : `${copies.length} ${copies.length === 1 ? "copy" : "copies"}`
+        }
         description="Cleanings and sleeves, per physical copy."
       >
         <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
@@ -70,7 +72,9 @@ export default function AlbumRecordCarePanel({ releaseId, friendId, albumTitle }
             <Spinner size="sm" />
           </Flex>
         ) : error ? (
-          <Text fontSize="xs" color="fg.error" px={3} py={2.5}>{error.message}</Text>
+          <Text fontSize="xs" color="fg.error" px={3} py={2.5}>
+            {error.message}
+          </Text>
         ) : (
           copies.map((copy, index) => (
             <RecordCopyCard

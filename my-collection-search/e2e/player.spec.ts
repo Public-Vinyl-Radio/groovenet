@@ -12,7 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
 //    the test, rather than waiting on real playback.
 test.skip(
   !process.env.RUN_E2E_TESTS,
-  "Set RUN_E2E_TESTS=1 (or run `just player-e2e`) against a running app"
+  "Set RUN_E2E_TESTS=1 (or run `just player-e2e`) against a running app",
 );
 
 const STORAGE_KEY = "mcs:player";
@@ -87,19 +87,15 @@ function silentWav(): Buffer {
 
 const PNG_1X1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-  "base64"
+  "base64",
 );
 
-async function openPlayer(
-  page: Page,
-  tracks: SeedTrack[],
-  currentTrackIndex: number | null
-) {
+async function openPlayer(page: Page, tracks: SeedTrack[], currentTrackIndex: number | null) {
   await page.route("**/api/audio?*", (route) =>
-    route.fulfill({ status: 200, contentType: "audio/wav", body: silentWav() })
+    route.fulfill({ status: 200, contentType: "audio/wav", body: silentWav() }),
   );
   await page.route("**/e2e-artwork.png", (route) =>
-    route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 })
+    route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 }),
   );
   const state = {
     playlist: tracks.map(track),
@@ -116,7 +112,7 @@ async function openPlayer(
       sessionStorage.setItem("e2e-seeded", "1");
       localStorage.setItem(key, value);
     },
-    [STORAGE_KEY, JSON.stringify(state)] as const
+    [STORAGE_KEY, JSON.stringify(state)] as const,
   );
   await page.goto(PLAYER_PAGE);
   // The dev stack's Next.js and TanStack devtools buttons sit over the bottom
@@ -131,7 +127,7 @@ async function openPlayer(
 
 async function endCurrentTrack(page: Page) {
   await page.evaluate(() =>
-    document.getElementById("playlist-audio")?.dispatchEvent(new Event("ended"))
+    document.getElementById("playlist-audio")?.dispatchEvent(new Event("ended")),
   );
 }
 
@@ -145,24 +141,16 @@ test.describe("floating player", () => {
       .toBeGreaterThan(0);
   });
 
-  test("shows the icon placeholder, not a broken image, without artwork", async ({
-    page,
-  }) => {
+  test("shows the icon placeholder, not a broken image, without artwork", async ({ page }) => {
     const player = await openPlayer(page, [TRACK_B], 0);
     await expect(player.getByText("Bravo Track")).toBeVisible();
     await expect(player.locator("img")).toHaveCount(0);
     await expect(player.locator("svg").first()).toBeVisible();
   });
 
-  test("falls back to the placeholder when artwork fails to load", async ({
-    page,
-  }) => {
+  test("falls back to the placeholder when artwork fails to load", async ({ page }) => {
     await page.route("**/e2e-broken.png", (route) => route.abort());
-    const player = await openPlayer(
-      page,
-      [{ ...TRACK_A, art: "/e2e-broken.png" }],
-      0
-    );
+    const player = await openPlayer(page, [{ ...TRACK_A, art: "/e2e-broken.png" }], 0);
     await expect(player.locator("img")).toHaveCount(0);
   });
 
@@ -183,9 +171,7 @@ test.describe("floating player", () => {
     await expect(player.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
   });
 
-  test("keeps long title and artist on a single line", async ({
-    page,
-  }, testInfo) => {
+  test("keeps long title and artist on a single line", async ({ page }, testInfo) => {
     const shortPage = await page.context().newPage();
     const short = await openPlayer(shortPage, [TRACK_A], 0);
     const shortHeight = (await short.boundingBox())!.height;
@@ -216,9 +202,7 @@ test.describe("floating player", () => {
     if (testInfo.project.name === "desktop") {
       await expect(title).toHaveAttribute("title", LONG_TITLE);
     }
-    expect((await player.boundingBox())!.height).toBeLessThanOrEqual(
-      shortHeight + 1
-    );
+    expect((await player.boundingBox())!.height).toBeLessThanOrEqual(shortHeight + 1);
   });
 
   test("mobile: the mini player has no close button and every control is at least 44px", async ({
@@ -255,8 +239,16 @@ test.describe("floating player", () => {
     await sheet.getByRole("button", { name: "Open queue, 1 up next" }).click();
     const queue = page.getByRole("dialog", { name: "Queue" });
     await expect(queue.getByTestId("queue-now-playing")).toContainText("Alpha Track");
-    await expect(queue.getByRole("button", { name: "Play Bravo Track by Bravo Artist" })).toBeVisible();
-    for (const name of ["Back to now playing", "Save", "Clear queue", "Reorder Bravo Track", "Remove Bravo Track from queue"]) {
+    await expect(
+      queue.getByRole("button", { name: "Play Bravo Track by Bravo Artist" }),
+    ).toBeVisible();
+    for (const name of [
+      "Back to now playing",
+      "Save",
+      "Clear queue",
+      "Reorder Bravo Track",
+      "Remove Bravo Track from queue",
+    ]) {
       const box = (await queue.getByRole("button", { name }).boundingBox())!;
       expect(box.width, name).toBeGreaterThanOrEqual(44);
       expect(box.height, name).toBeGreaterThanOrEqual(44);
@@ -300,7 +292,9 @@ test.describe("floating player", () => {
     expect(box.y + box.height).toBeLessThanOrEqual(bar.y + 1);
     await expect(player).toBeVisible();
     expect(
-      await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--queue-w").trim())
+      await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue("--queue-w").trim(),
+      ),
     ).toBe("400px");
 
     await panel.getByRole("button", { name: "Play Bravo Track by Bravo Artist" }).click();
@@ -311,7 +305,10 @@ test.describe("floating player", () => {
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
 
     await toggle.click();
-    await page.getByRole("complementary", { name: "Queue" }).getByRole("button", { name: "Clear" }).click();
+    await page
+      .getByRole("complementary", { name: "Queue" })
+      .getByRole("button", { name: "Clear" })
+      .click();
     await expect(page.getByTestId("floating-player")).toHaveCount(0);
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.getByTestId("floating-player")).toBeVisible();

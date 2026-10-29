@@ -1,4 +1,5 @@
 """Report results through the shared app client; delivery policy stays here."""
+
 import logging
 
 import requests

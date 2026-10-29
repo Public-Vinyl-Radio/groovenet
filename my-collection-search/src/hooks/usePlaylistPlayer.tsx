@@ -12,38 +12,29 @@ export function usePlaylistPlayer(initial: Track[] = []) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [plVersion, setPlVersion] = useState(0);
 
+  const replacePlaylist = useCallback((next: Track[], { autoplay = true, startIndex = 0 } = {}) => {
+    const nextPlaylist = [...next];
+    playlistRef.current = nextPlaylist;
+    setPlaylist(nextPlaylist);
+    setPlVersion((v) => v + 1);
 
-  const replacePlaylist = useCallback(
-    (next: Track[], { autoplay = true, startIndex = 0 } = {}) => {
-      const nextPlaylist = [...next];
-      playlistRef.current = nextPlaylist;
-      setPlaylist(nextPlaylist);
-      setPlVersion((v) => v + 1);
+    const hasTracks = playlistRef.current.length > 0;
 
-      const hasTracks = playlistRef.current.length > 0;
-
-      console.log("replacePlaylist", {
-        hasTracks,
-        autoplay,
-        startIndex,
-        playlistRef
-      });
-      setCurrentTrackIndex(hasTracks ? startIndex : null);
-      setIsPlaying(autoplay && hasTracks);
-    },
-    []
-  );
+    console.log("replacePlaylist", {
+      hasTracks,
+      autoplay,
+      startIndex,
+      playlistRef,
+    });
+    setCurrentTrackIndex(hasTracks ? startIndex : null);
+    setIsPlaying(autoplay && hasTracks);
+  }, []);
 
   // Reset when playlist content (not just reference) changes
   const prevPlaylistHashRef = useRef<string | null>(null);
   useEffect(() => {
-    const playlistHash = JSON.stringify(
-      (playlistRef.current ?? []).map((t) => t.track_id)
-    );
-    if (
-      prevPlaylistHashRef.current &&
-      prevPlaylistHashRef.current !== playlistHash
-    ) {
+    const playlistHash = JSON.stringify((playlistRef.current ?? []).map((t) => t.track_id));
+    if (prevPlaylistHashRef.current && prevPlaylistHashRef.current !== playlistHash) {
       setCurrentTrackIndex(null);
       setIsPlaying(false);
     }
@@ -115,11 +106,7 @@ export function usePlaylistPlayer(initial: Track[] = []) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (
-      isPlaying &&
-      currentTrackIndex !== null &&
-      playlistRef.current[currentTrackIndex]
-    ) {
+    if (isPlaying && currentTrackIndex !== null && playlistRef.current[currentTrackIndex]) {
       audio.play().catch(() => {});
     } else {
       audio.pause();
@@ -183,7 +170,7 @@ export function usePlaylistPlayer(initial: Track[] = []) {
     playPrev,
     playTrack,
     replacePlaylist, // new
-    appendToQueue,   // new
+    appendToQueue, // new
     playlist,
     audioElement,
   };

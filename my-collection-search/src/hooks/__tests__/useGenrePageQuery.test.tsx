@@ -19,7 +19,11 @@ function render(slug: string, friendId: number | undefined) {
 
 describe("useGenrePageQuery", () => {
   beforeEach(() => {
-    fetchGenrePage.mockReset().mockResolvedValue({ genre: { slug: "cumbia" }, top_tracks: [{ title: "sample" }], top_albums: [{ title: "sample" }] });
+    fetchGenrePage.mockReset().mockResolvedValue({
+      genre: { slug: "cumbia" },
+      top_tracks: [{ title: "sample" }],
+      top_albums: [{ title: "sample" }],
+    });
   });
 
   it("loads the page for the current collection", async () => {

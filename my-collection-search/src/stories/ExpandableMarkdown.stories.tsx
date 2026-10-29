@@ -1,11 +1,11 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Box } from '@chakra-ui/react';
-import ExpandableMarkdown from '@/components/ExpandableMarkdown';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box } from "@chakra-ui/react";
+import ExpandableMarkdown from "@/components/ExpandableMarkdown";
 
 const meta: Meta<typeof ExpandableMarkdown> = {
-  title: 'Components/ExpandableMarkdown',
+  title: "Components/ExpandableMarkdown",
   component: ExpandableMarkdown,
-  parameters: { layout: 'padded' },
+  parameters: { layout: "padded" },
   decorators: [
     (Story) => (
       <Box maxW="600px" mx="auto">
@@ -33,7 +33,7 @@ const markdownNote = `**"Baila Mi Cumbia"** by Carlos Pickling y Su Orquesta is 
 > Use a strong fade or drop to link into the next segment.`;
 
 export const Short: Story = {
-  name: 'Short (no expand needed)',
+  name: "Short (no expand needed)",
   args: {
     text: shortNote,
     maxLength: 100,
@@ -41,7 +41,7 @@ export const Short: Story = {
 };
 
 export const Long: Story = {
-  name: 'Long (truncated, expandable)',
+  name: "Long (truncated, expandable)",
   args: {
     text: longNote,
     maxLength: 100,
@@ -49,7 +49,7 @@ export const Long: Story = {
 };
 
 export const WithMarkdown: Story = {
-  name: 'With markdown formatting',
+  name: "With markdown formatting",
   args: {
     text: markdownNote,
     maxLength: 80,
@@ -57,7 +57,7 @@ export const WithMarkdown: Story = {
 };
 
 export const CustomMaxLength: Story = {
-  name: 'Custom max length (200 chars)',
+  name: "Custom max length (200 chars)",
   args: {
     text: longNote,
     maxLength: 200,

@@ -93,7 +93,7 @@ function SettingsPageContent() {
         content: <AboutSection />,
       },
     ],
-    []
+    [],
   );
 
   // The URL is the source of truth, so a reload or a shared link lands on the
@@ -130,7 +130,8 @@ function SettingsPageContent() {
                   fontSize="xs"
                   fontWeight="semibold"
                   letterSpacing="wide"
-                  fontFamily="label" textTransform="uppercase"
+                  fontFamily="label"
+                  textTransform="uppercase"
                   color="fg.muted"
                   mb={2}
                 >
@@ -168,7 +169,12 @@ function SettingsPageContent() {
                 mb={4}
               >
                 {sections.map((section) => (
-                  <Tabs.Trigger key={section.id} value={section.id} flexShrink={0} whiteSpace="nowrap">
+                  <Tabs.Trigger
+                    key={section.id}
+                    value={section.id}
+                    flexShrink={0}
+                    whiteSpace="nowrap"
+                  >
                     {section.label}
                   </Tabs.Trigger>
                 ))}

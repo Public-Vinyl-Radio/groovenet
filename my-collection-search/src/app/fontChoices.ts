@@ -81,7 +81,10 @@ export const fontRoleIds = Object.keys(fontRoles) as [FontRoleId, ...FontRoleId[
 
 /** The ids a role accepts, default first. */
 export const fontChoiceIdsFor = (role: FontRoleId) =>
-  (fontRoles[role].choices as readonly FontChoice[]).map((c) => c.id) as [FontChoiceId, ...FontChoiceId[]];
+  (fontRoles[role].choices as readonly FontChoice[]).map((c) => c.id) as [
+    FontChoiceId,
+    ...FontChoiceId[],
+  ];
 
 /** The `--face-*` variable a self-hosted face defines. */
 export const faceVariable = (face: string) => `--face-${face}`;

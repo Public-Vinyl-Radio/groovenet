@@ -42,7 +42,7 @@ export class GenreReconciliationError extends Error {
   constructor(
     message: string,
     public readonly status: 400 | 404 | 409 | 503,
-    public readonly run?: ReconciliationRun
+    public readonly run?: ReconciliationRun,
   ) {
     super(message);
   }
@@ -81,7 +81,7 @@ export function planRun(
   values: LocalTagValue[],
   existing: Map<string, { status: ProposalStatus; method: string }>,
   exactIds: Map<string, ExactMatch>,
-  options: Pick<ReconciliationRunOptions, "refresh">
+  options: Pick<ReconciliationRunOptions, "refresh">,
 ): RunPlan {
   const plan: RunPlan = { exact: [], kept: [], forAi: [] };
   for (const value of values) {
@@ -112,16 +112,25 @@ export function planRun(
   return plan;
 }
 
-export async function startRun(input: Partial<ReconciliationRunOptions>): Promise<ReconciliationRun> {
+export async function startRun(
+  input: Partial<ReconciliationRunOptions>,
+): Promise<ReconciliationRun> {
   const options = { ...defaultRunOptions, ...input };
   if (options.ai && !process.env.OPENAI_API_KEY) {
-    throw new GenreReconciliationError("OPENAI_API_KEY is not set; run with ai: false for exact matches only", 503);
+    throw new GenreReconciliationError(
+      "OPENAI_API_KEY is not set; run with ai: false for exact matches only",
+      503,
+    );
   }
   await repo.failStaleRuns(STALE_RUN_MINUTES);
   const run = await repo.createRun(options, options.ai ? RECONCILIATION_MODEL : null);
   if (!run) {
     const running = await repo.getRunningRun();
-    throw new GenreReconciliationError("A reconciliation run is already in progress", 409, running ?? undefined);
+    throw new GenreReconciliationError(
+      "A reconciliation run is already in progress",
+      409,
+      running ?? undefined,
+    );
   }
   // Not awaited: the caller polls the run. A crash mid-run leaves it
   // `running` until the stale check above writes it off.
@@ -131,7 +140,9 @@ export async function startRun(input: Partial<ReconciliationRunOptions>): Promis
 
 export async function executeRun(runId: string, options: ReconciliationRunOptions): Promise<void> {
   try {
-    const values = collectLocalTagValues(await repo.listLocalTagTracks(undefined, options.friend_id));
+    const values = collectLocalTagValues(
+      await repo.listLocalTagTracks(undefined, options.friend_id),
+    );
     const existing = await repo.listProposalStates();
     const exactIds = await repo.resolveExactValues(values.map((value) => value.value_normalized));
     const plan = planRun(values, existing, exactIds, options);
@@ -159,7 +170,11 @@ export async function executeRun(runId: string, options: ReconciliationRunOption
       for (let i = 0; i < toSend.length; i += RECONCILIATION_BATCH_SIZE) {
         const batch = toSend.slice(i, i + RECONCILIATION_BATCH_SIZE);
         try {
-          const { drafts, usage } = await mapValuesWithAi(batch, taxonomy, options.new_genre_min_tracks);
+          const { drafts, usage } = await mapValuesWithAi(
+            batch,
+            taxonomy,
+            options.new_genre_min_tracks,
+          );
           await repo.upsertProposals(drafts, runId);
           addUsage(counters, usage);
           counters.ai_proposed += drafts.length;
@@ -169,7 +184,10 @@ export async function executeRun(runId: string, options: ReconciliationRunOption
           if (usage) addUsage(counters, usage);
           counters.ai_failed += batch.length;
           lastError = error instanceof Error ? error.message : String(error);
-          console.error(`[genre-reconciliation] run ${runId} batch ${counters.ai_batches + 1} failed:`, error);
+          console.error(
+            `[genre-reconciliation] run ${runId} batch ${counters.ai_batches + 1} failed:`,
+            error,
+          );
         }
         counters.ai_batches += 1;
         await repo.updateRun(runId, counters);
@@ -181,7 +199,7 @@ export async function executeRun(runId: string, options: ReconciliationRunOption
       `[genre-reconciliation] run ${runId} completed: ${counters.distinct_values} values, ` +
         `${counters.exact_matches} exact, ${counters.ai_proposed} AI-proposed, ${counters.ai_failed} AI-failed, ` +
         `${counters.kept} kept, ${counters.ai_pending} unsent; ${counters.ai_batches} batches, ` +
-        `${counters.input_tokens}+${counters.output_tokens} tokens, $${counters.cost_usd.toFixed(4)}`
+        `${counters.input_tokens}+${counters.output_tokens} tokens, $${counters.cost_usd.toFixed(4)}`,
     );
   } catch (error) {
     console.error(`[genre-reconciliation] run ${runId} failed:`, error);
@@ -194,7 +212,10 @@ export async function executeRun(runId: string, options: ReconciliationRunOption
   }
 }
 
-function addUsage(counters: { input_tokens: number; output_tokens: number; cost_usd: number }, usage: AiUsage) {
+function addUsage(
+  counters: { input_tokens: number; output_tokens: number; cost_usd: number },
+  usage: AiUsage,
+) {
   counters.input_tokens += usage.input_tokens;
   counters.output_tokens += usage.output_tokens;
   counters.cost_usd += usage.cost_usd;
@@ -225,8 +246,13 @@ export type DecisionResult = {
 };
 
 const snapshotOf = (p: Proposal): ProposalSnapshot => ({
-  id: p.id, status: p.status, action: p.action, target_genre_ids: p.target_genre_ids,
-  proposed_genre_name: p.proposed_genre_name, proposed_parent_id: p.proposed_parent_id, method: p.method,
+  id: p.id,
+  status: p.status,
+  action: p.action,
+  target_genre_ids: p.target_genre_ids,
+  proposed_genre_name: p.proposed_genre_name,
+  proposed_parent_id: p.proposed_parent_id,
+  method: p.method,
 });
 
 /**
@@ -234,28 +260,41 @@ const snapshotOf = (p: Proposal): ProposalSnapshot => ({
  * `edited` (and `manual`), which apply treats like `accepted`; a change can
  * still be parked as `pending` or `rejected`.
  */
-function patchFor(current: Proposal, input: ProposalUpdate, targetIds: string[] | undefined): ProposalPatch {
+function patchFor(
+  current: Proposal,
+  input: ProposalUpdate,
+  targetIds: string[] | undefined,
+): ProposalPatch {
   const patch: ProposalPatch = {};
   if (targetIds !== undefined) patch.target_genre_ids = targetIds;
   if (input.action !== undefined) patch.action = input.action;
-  if (input.proposed_genre_name !== undefined) patch.proposed_genre_name = input.proposed_genre_name?.trim() || null;
+  if (input.proposed_genre_name !== undefined)
+    patch.proposed_genre_name = input.proposed_genre_name?.trim() || null;
   if (input.proposed_parent_id !== undefined) patch.proposed_parent_id = input.proposed_parent_id;
 
   const edited = Object.keys(patch).length > 0;
   const action = patch.action ?? current.action;
   const targets = patch.target_genre_ids ?? current.target_genre_ids;
-  const name = patch.proposed_genre_name !== undefined ? patch.proposed_genre_name : current.proposed_genre_name;
-  const parent = patch.proposed_parent_id !== undefined ? patch.proposed_parent_id : current.proposed_parent_id;
+  const name =
+    patch.proposed_genre_name !== undefined
+      ? patch.proposed_genre_name
+      : current.proposed_genre_name;
+  const parent =
+    patch.proposed_parent_id !== undefined ? patch.proposed_parent_id : current.proposed_parent_id;
   if (action === "map" && targets.length === 0) {
     throw new GenreReconciliationError("A map proposal needs at least one target genre", 400);
   }
   if (action === "new_genre" && (!name || !parent)) {
-    throw new GenreReconciliationError("A new_genre proposal needs proposed_genre_name and proposed_parent_id", 400);
+    throw new GenreReconciliationError(
+      "A new_genre proposal needs proposed_genre_name and proposed_parent_id",
+      400,
+    );
   }
 
   if (edited) {
     patch.method = "manual";
-    patch.status = input.status === "rejected" || input.status === "pending" ? input.status : "edited";
+    patch.status =
+      input.status === "rejected" || input.status === "pending" ? input.status : "edited";
   } else if (input.status !== undefined) {
     patch.status = input.status;
   }
@@ -275,7 +314,8 @@ export async function decideProposals(decisions: ProposalDecision[]): Promise<De
   for (const [i, decision] of decisions.entries()) {
     if (decision.target_genres === undefined) continue;
     const { ids, unknown } = await trackGenreRepository.resolveGenreRefs(decision.target_genres);
-    if (unknown.length) throw new GenreReconciliationError(`Unknown genres: ${unknown.join(", ")}`, 400);
+    if (unknown.length)
+      throw new GenreReconciliationError(`Unknown genres: ${unknown.join(", ")}`, 400);
     targetIds.set(i, ids);
   }
 
@@ -285,7 +325,11 @@ export async function decideProposals(decisions: ProposalDecision[]): Promise<De
       for (const [i, decision] of decisions.entries()) {
         const current = await repo.getProposal(decision.id, client);
         if (!current) throw new GenreReconciliationError(`Proposal not found: ${decision.id}`, 404);
-        await repo.updateProposal(decision.id, patchFor(current, decision, targetIds.get(i)), client);
+        await repo.updateProposal(
+          decision.id,
+          patchFor(current, decision, targetIds.get(i)),
+          client,
+        );
         result.previous.push(snapshotOf(current));
         result.proposals.push((await repo.getProposal(decision.id, client))!);
       }
@@ -293,7 +337,8 @@ export async function decideProposals(decisions: ProposalDecision[]): Promise<De
     });
   } catch (error) {
     // proposed_parent_id is a foreign key: an unknown parent is the caller's.
-    if (isForeignKeyError(error)) throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
+    if (isForeignKeyError(error))
+      throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
     throw error;
   }
 }
@@ -311,11 +356,16 @@ export async function updateProposal(id: string, input: ProposalUpdate): Promise
 }
 
 /** Undo: puts proposals back as decideProposals reported them before. */
-export async function restoreProposals(snapshots: ProposalSnapshot[]): Promise<{ restored: number }> {
+export async function restoreProposals(
+  snapshots: ProposalSnapshot[],
+): Promise<{ restored: number }> {
   try {
-    return { restored: await withDbTransaction((client) => repo.restoreProposals(client, snapshots)) };
+    return {
+      restored: await withDbTransaction((client) => repo.restoreProposals(client, snapshots)),
+    };
   } catch (error) {
-    if (isForeignKeyError(error)) throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
+    if (isForeignKeyError(error))
+      throw new GenreReconciliationError("proposed_parent_id is not a genre", 400);
     throw error;
   }
 }
@@ -324,7 +374,7 @@ export async function restoreProposals(snapshots: ProposalSnapshot[]): Promise<{
 export async function getProposalTracks(
   id: string,
   friendId: number | null,
-  limit: number
+  limit: number,
 ): Promise<ProposalTrack[]> {
   const proposal = await repo.getProposal(id);
   if (!proposal) throw new GenreReconciliationError("Proposal not found", 404);
@@ -341,8 +391,13 @@ export type ApplySummary = {
 };
 
 const genreSlug = (name: string) =>
-  name.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/&/g, " and ")
-    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/&/g, " and ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 /**
  * Applies accepted and edited proposals, all of them or just `ids`, to every
@@ -352,7 +407,10 @@ const genreSlug = (name: string) =>
  * replaced, so manual and enrichment genres survive. Aliases and created
  * genres are global whatever the scope, like the taxonomy.
  */
-export async function applyProposals(ids?: string[], friendId: number | null = null): Promise<ApplySummary> {
+export async function applyProposals(
+  ids?: string[],
+  friendId: number | null = null,
+): Promise<ApplySummary> {
   const summary = await withDbTransaction(async (client) => {
     // Same lock order as genreAdminService.mergeGenres, so the two serialise.
     await client.query("LOCK TABLE genres, genre_aliases IN SHARE ROW EXCLUSIVE MODE");
@@ -369,19 +427,27 @@ export async function applyProposals(ids?: string[], friendId: number | null = n
     }
 
     const summary: ApplySummary = {
-      proposals_applied: 0, tracks_linked: 0, descriptors_added: 0,
-      aliases_added: 0, genres_created: 0, skipped: [],
+      proposals_applied: 0,
+      tracks_linked: 0,
+      descriptors_added: 0,
+      aliases_added: 0,
+      genres_created: 0,
+      skipped: [],
     };
     for (const proposal of proposals) {
       const tracks = tracksByValue.get(proposal.value_normalized) ?? [];
       const outcome = await applyOne(client, proposal, tracks, summary);
       if (typeof outcome === "string") {
-        summary.skipped.push({ id: proposal.id, value: proposal.value_normalized, reason: outcome });
+        summary.skipped.push({
+          id: proposal.id,
+          value: proposal.value_normalized,
+          reason: outcome,
+        });
         continue;
       }
       await client.query(
         "UPDATE genre_reconciliation_proposals SET applied_at = now(), created_genre_id = COALESCE($2, created_genre_id) WHERE id = $1",
-        [proposal.id, outcome.createdGenreId]
+        [proposal.id, outcome.createdGenreId],
       );
       summary.proposals_applied += 1;
     }
@@ -397,7 +463,7 @@ async function applyOne(
   client: PoolClient,
   proposal: Proposal,
   tracks: Array<{ track_id: string; friend_id: number }>,
-  summary: ApplySummary
+  summary: ApplySummary,
 ): Promise<{ createdGenreId: string | null } | string> {
   const trackIds = tracks.map((t) => t.track_id);
   const friendIds = tracks.map((t) => t.friend_id);
@@ -410,7 +476,7 @@ async function applyOne(
       `UPDATE tracks t SET descriptors = array_append(t.descriptors, $3)
        FROM unnest($1::text[], $2::int[]) AS x(track_id, friend_id)
        WHERE t.track_id = x.track_id AND t.friend_id = x.friend_id AND NOT ($3 = ANY(t.descriptors))`,
-      [trackIds, friendIds, descriptor]
+      [trackIds, friendIds, descriptor],
     );
     summary.descriptors_added += rowCount ?? 0;
     return { createdGenreId: null };
@@ -440,7 +506,7 @@ async function applyOne(
        FROM unnest($1::text[], $2::int[]) AS x(track_id, friend_id)
        CROSS JOIN unnest($3::uuid[]) AS g(genre_id)
        ON CONFLICT DO NOTHING`,
-      [trackIds, friendIds, genreIds]
+      [trackIds, friendIds, genreIds],
     );
     summary.tracks_linked += rowCount ?? 0;
   }
@@ -453,7 +519,7 @@ async function applyOne(
        SELECT $1, $2, 'reconciliation'
        WHERE NOT EXISTS (SELECT 1 FROM genres WHERE normalized_name = $1)
        ON CONFLICT (alias_normalized) DO NOTHING`,
-      [proposal.value_normalized, genreIds[0]]
+      [proposal.value_normalized, genreIds[0]],
     );
     summary.aliases_added += rowCount ?? 0;
   }
@@ -462,10 +528,12 @@ async function applyOne(
 
 async function findOrCreateGenre(
   client: PoolClient,
-  proposal: Proposal
+  proposal: Proposal,
 ): Promise<{ id: string; created: boolean } | string> {
   if (proposal.created_genre_id) {
-    const { rows } = await client.query("SELECT id FROM genres WHERE id = $1", [proposal.created_genre_id]);
+    const { rows } = await client.query("SELECT id FROM genres WHERE id = $1", [
+      proposal.created_genre_id,
+    ]);
     if (rows.length) return { id: rows[0].id, created: false };
   }
   const name = proposal.proposed_genre_name?.trim();
@@ -475,7 +543,7 @@ async function findOrCreateGenre(
     `SELECT id FROM genres WHERE normalized_name = $1
      UNION ALL SELECT genre_id FROM genre_aliases WHERE alias_normalized = $1
      LIMIT 1`,
-    [normalized]
+    [normalized],
   );
   if (existing.length) return { id: existing[0].id, created: false };
   if (!proposal.proposed_parent_id) return "new_genre without an existing parent";
@@ -486,7 +554,7 @@ async function findOrCreateGenre(
   const { rows } = await client.query<{ id: string }>(
     `INSERT INTO genres (name, normalized_name, slug, parent_id, source)
      VALUES ($1, $2, $3, $4, 'custom') RETURNING id`,
-    [name, normalized, slug, proposal.proposed_parent_id]
+    [name, normalized, slug, proposal.proposed_parent_id],
   );
   return { id: rows[0].id, created: true };
 }
@@ -523,9 +591,18 @@ export async function getCoverage(friendId: number | null = null): Promise<Cover
   ]);
 
   const coverage: Coverage = {
-    tracks: { with_local_tags: tracks.length, with_genres: 0, descriptors_only: 0, no_genre: 0, unresolved: 0 },
+    tracks: {
+      with_local_tags: tracks.length,
+      with_genres: 0,
+      descriptors_only: 0,
+      no_genre: 0,
+      unresolved: 0,
+    },
     values: {
-      distinct: 0, proposed: 0, exact: 0, exact_share: 0,
+      distinct: 0,
+      proposed: 0,
+      exact: 0,
+      exact_share: 0,
       by_status: { pending: 0, accepted: 0, rejected: 0, edited: 0 },
       by_action: { map: 0, new_genre: 0, descriptor: 0, drop: 0 },
     },
@@ -544,7 +621,8 @@ export async function getCoverage(friendId: number | null = null): Promise<Cover
         const p = proposals.get(value);
         return p && (p.status === "accepted" || p.status === "edited") && p.action === "drop";
       })
-    ) coverage.tracks.no_genre += 1;
+    )
+      coverage.tracks.no_genre += 1;
     else coverage.tracks.unresolved += 1;
   }
 

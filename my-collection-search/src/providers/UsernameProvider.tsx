@@ -77,7 +77,7 @@ export function UsernameProvider({
       _setFriend(f);
       persist(f);
     },
-    [persist]
+    [persist],
   );
 
   const setFriend = useCallback(
@@ -88,7 +88,7 @@ export function UsernameProvider({
         saveDefaultLibrary.mutate({ friend_id: f.id });
       }
     },
-    [applyFriend, saveDefaultLibrary]
+    [applyFriend, saveDefaultLibrary],
   );
 
   const clearFriend = useCallback(() => setFriend(null), [setFriend]);
@@ -104,12 +104,7 @@ export function UsernameProvider({
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as unknown;
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          "id" in parsed &&
-          "username" in parsed
-        ) {
+        if (parsed && typeof parsed === "object" && "id" in parsed && "username" in parsed) {
           setStoredFriend(parsed as Friend);
         }
       }
@@ -134,22 +129,20 @@ export function UsernameProvider({
     const savedFriendId = defaultLibrary?.friend_id ?? null;
     const savedFriend =
       typeof savedFriendId === "number"
-        ? friends.find((item) => item.id === savedFriendId) ?? null
+        ? (friends.find((item) => item.id === savedFriendId) ?? null)
         : null;
     const fallbackStoredFriend = storedFriend
-      ? friends.find(
+      ? (friends.find(
           (item) =>
             item.id === storedFriend.id ||
-            item.username.trim().toLowerCase() ===
-              storedFriend.username.trim().toLowerCase()
-        ) ?? null
+            item.username.trim().toLowerCase() === storedFriend.username.trim().toLowerCase(),
+        ) ?? null)
       : null;
     const nextFriend = savedFriend ?? fallbackStoredFriend ?? friends[0] ?? null;
 
     if (nextFriend) {
       const hasValidSavedFriend =
-        typeof savedFriendId === "number" &&
-        friends.some((item) => item.id === savedFriendId);
+        typeof savedFriendId === "number" && friends.some((item) => item.id === savedFriendId);
       if (!friend || friend.id !== nextFriend.id) {
         applyFriend(nextFriend);
       }
@@ -185,12 +178,7 @@ export function UsernameProvider({
       try {
         if (e.newValue) {
           const parsed = JSON.parse(e.newValue) as unknown;
-          if (
-            parsed &&
-            typeof parsed === "object" &&
-            "id" in parsed &&
-            "username" in parsed
-          ) {
+          if (parsed && typeof parsed === "object" && "id" in parsed && "username" in parsed) {
             setStoredFriend(parsed as Friend);
             _setFriend(parsed as Friend);
           } else {
@@ -218,14 +206,10 @@ export function UsernameProvider({
       isHydrated,
       isSaving: saveDefaultLibrary.isPending,
     }),
-    [clearFriend, friend, isHydrated, saveDefaultLibrary.isPending, setFriend]
+    [clearFriend, friend, isHydrated, saveDefaultLibrary.isPending, setFriend],
   );
 
-  return (
-    <UsernameContext.Provider value={value}>
-      {children}
-    </UsernameContext.Provider>
-  );
+  return <UsernameContext.Provider value={value}>{children}</UsernameContext.Provider>;
 }
 
 export function useUsername() {

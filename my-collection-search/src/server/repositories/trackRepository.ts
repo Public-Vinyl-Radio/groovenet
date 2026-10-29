@@ -1,12 +1,12 @@
 import { dbQuery } from "@/lib/serverDb";
 import { stripNullBytes } from "@/lib/stripNullBytes";
 import type { DiscogsTrack, Track } from "@/types/track";
-import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import {
+  hasVectorsSelectSql,
+  trackGenresSelectSql,
+} from "@/server/repositories/trackGenreRepository";
 
-export type TrackLocalAudioRow = Pick<
-  Track,
-  "track_id" | "friend_id" | "local_audio_url"
->;
+export type TrackLocalAudioRow = Pick<Track, "track_id" | "friend_id" | "local_audio_url">;
 
 export type TrackKeyConfidenceBackfillRow = Pick<
   Track,
@@ -142,7 +142,7 @@ const UPDATABLE_COLUMNS = {
 export class TrackRepository {
   async upsertDiscogsTrackByTrackIdUsername(
     track: DiscogsTrack,
-    friendId: number
+    friendId: number,
   ): Promise<Track | null> {
     const { rows } = await dbQuery<Track>(
       `
@@ -200,7 +200,7 @@ export class TrackRepository {
         friendId,
         track.release_id,
         track.date_added ?? null,
-      ]
+      ],
     );
     // Returns null when the track is soft-deleted (upsert WHERE clause prevents update).
     return rows[0] ?? null;
@@ -214,7 +214,7 @@ export class TrackRepository {
       WHERE track_id = $1 AND friend_id = $2 AND deleted_at IS NULL
       RETURNING *
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -227,7 +227,7 @@ export class TrackRepository {
       WHERE track_id = $1 AND friend_id = $2 AND deleted_at IS NOT NULL
       RETURNING *
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -235,7 +235,7 @@ export class TrackRepository {
   async findDeletedTracks(
     friendId?: number,
     limit = 100,
-    offset = 0
+    offset = 0,
   ): Promise<{ tracks: Track[]; total: number }> {
     const where: string[] = ["deleted_at IS NOT NULL"];
     const params: unknown[] = [];
@@ -247,7 +247,7 @@ export class TrackRepository {
 
     const countResult = await dbQuery<{ count: string }>(
       `SELECT COUNT(*)::int AS count FROM tracks WHERE ${whereClause}`,
-      params
+      params,
     );
     const total = Number(countResult.rows[0]?.count ?? 0);
 
@@ -261,14 +261,14 @@ export class TrackRepository {
       ORDER BY deleted_at DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
       `,
-      [...params, limit, offset]
+      [...params, limit, offset],
     );
     return { tracks: rows, total };
   }
 
   async findTrackWithLocalAudio(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<TrackLocalAudioRow | null> {
     const { rows } = await dbQuery<TrackLocalAudioRow>(
       `
@@ -277,7 +277,7 @@ export class TrackRepository {
       WHERE track_id = $1 AND friend_id = $2
       LIMIT 1
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -289,14 +289,14 @@ export class TrackRepository {
       FROM tracks
       WHERE duration_seconds IS NULL
         AND local_audio_url LIKE '%.m4a'
-      `
+      `,
     );
     return rows;
   }
 
   async findTracksForEssentiaBackfill(
     friendId: number | null,
-    limit?: number
+    limit?: number,
   ): Promise<TrackEssentiaBackfillRow[]> {
     const query = `
       SELECT
@@ -321,13 +321,7 @@ export class TrackRepository {
 
     const { rows } = await dbQuery<TrackEssentiaBackfillRow>(
       query,
-      friendId !== null
-        ? limit
-          ? [friendId, limit]
-          : [friendId]
-        : limit
-        ? [limit]
-        : []
+      friendId !== null ? (limit ? [friendId, limit] : [friendId]) : limit ? [limit] : [],
     );
     return rows;
   }
@@ -339,7 +333,7 @@ export class TrackRepository {
    * album; track_id is any downloaded track on it.
    */
   async findCoverArtBackfillCandidates(
-    friendId: number | null
+    friendId: number | null,
   ): Promise<CoverArtBackfillCandidateRow[]> {
     const query = `
       SELECT
@@ -362,14 +356,12 @@ export class TrackRepository {
 
     const { rows } = await dbQuery<CoverArtBackfillCandidateRow>(
       query,
-      friendId !== null ? [friendId] : []
+      friendId !== null ? [friendId] : [],
     );
     return rows;
   }
 
-  async getPlaylistCountsForTracks(
-    trackRefs: TrackRef[]
-  ): Promise<Record<string, number>> {
+  async getPlaylistCountsForTracks(trackRefs: TrackRef[]): Promise<Record<string, number>> {
     if (!trackRefs || trackRefs.length === 0) return {};
 
     const values: string[] = [];
@@ -399,7 +391,7 @@ export class TrackRepository {
         AND EXISTS (SELECT 1 FROM playlists p WHERE p.id = pt.playlist_id)
       GROUP BY r.track_id, r.friend_id
       `,
-      params
+      params,
     );
 
     const result: Record<string, number> = {};
@@ -418,7 +410,7 @@ export class TrackRepository {
 
   async listTrackIdsByFriendAndReleaseIds(
     friendId: number,
-    releaseIds: string[]
+    releaseIds: string[],
   ): Promise<string[]> {
     if (releaseIds.length === 0) return [];
     const { rows } = await dbQuery<{ track_id: string }>(
@@ -427,26 +419,21 @@ export class TrackRepository {
       FROM tracks
       WHERE friend_id = $1 AND release_id = ANY($2::text[])
       `,
-      [friendId, releaseIds]
+      [friendId, releaseIds],
     );
     return rows.map((row) => row.track_id);
   }
 
-  async deleteTracksByFriendAndReleaseIds(
-    friendId: number,
-    releaseIds: string[]
-  ): Promise<number> {
+  async deleteTracksByFriendAndReleaseIds(friendId: number, releaseIds: string[]): Promise<number> {
     if (releaseIds.length === 0) return 0;
     const result = await dbQuery(
       "DELETE FROM tracks WHERE friend_id = $1 AND release_id = ANY($2::text[])",
-      [friendId, releaseIds]
+      [friendId, releaseIds],
     );
     return result.rowCount ?? 0;
   }
 
-  async findTracksByRefsPreservingOrder(
-    tracks: TrackRef[]
-  ): Promise<OrderedTrackRow[]> {
+  async findTracksByRefsPreservingOrder(tracks: TrackRef[]): Promise<OrderedTrackRow[]> {
     if (tracks.length === 0) return [];
 
     const values: string[] = [];
@@ -473,14 +460,14 @@ export class TrackRepository {
         ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       ORDER BY v.ord
       `,
-      params
+      params,
     );
     return rows;
   }
 
   async findTrackByTrackIdAndFriendId(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<TrackWithLibraryIdentifierRow | null> {
     const { rows } = await dbQuery<TrackWithLibraryIdentifierRow>(
       `
@@ -495,14 +482,14 @@ export class TrackRepository {
       WHERE t.track_id = $1 AND t.friend_id = $2
       LIMIT 1
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
 
   async findTrackByTrackIdAndFriendIdWithLibraryFallback(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<TrackWithLibraryIdentifierRow | null> {
     const { rows } = await dbQuery<TrackWithLibraryIdentifierRow>(
       `
@@ -517,14 +504,14 @@ export class TrackRepository {
       WHERE t.track_id = $1 AND t.friend_id = $2
       LIMIT 1
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
 
   async listPlaylistsForTrack(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<TrackPlaylistMembershipRow[]> {
     const { rows } = await dbQuery<TrackPlaylistMembershipRow>(
       `
@@ -537,7 +524,7 @@ export class TrackRepository {
       WHERE pt.track_id = $1 AND pt.friend_id = $2
       ORDER BY p.name ASC, pt.position ASC
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows;
   }
@@ -545,7 +532,7 @@ export class TrackRepository {
   /** Every track with a stored key, to recompute against the saved analysis JSON (#524). */
   async findTracksWithKeyForRecompute(
     friendId: number | null,
-    limit?: number
+    limit?: number,
   ): Promise<TrackKeyConfidenceBackfillRow[]> {
     const query = `
       SELECT track_id, friend_id, key, key_confidence
@@ -558,13 +545,7 @@ export class TrackRepository {
 
     const { rows } = await dbQuery<TrackKeyConfidenceBackfillRow>(
       query,
-      friendId !== null
-        ? limit
-          ? [friendId, limit]
-          : [friendId]
-        : limit
-        ? [limit]
-        : []
+      friendId !== null ? (limit ? [friendId, limit] : [friendId]) : limit ? [limit] : [],
     );
     return rows;
   }
@@ -572,7 +553,7 @@ export class TrackRepository {
   /** Every track with a stored BPM, to fill bpm_confidence from the saved analysis JSON (#531). */
   async findTracksWithBpmForConfidence(
     friendId: number | null,
-    limit?: number
+    limit?: number,
   ): Promise<TrackBpmConfidenceBackfillRow[]> {
     const params: number[] = [];
     if (friendId !== null) params.push(friendId);
@@ -587,14 +568,12 @@ export class TrackRepository {
       ORDER BY friend_id, track_id
       ${limit ? `LIMIT $${params.length}` : ""}
     `,
-      params
+      params,
     );
     return rows;
   }
 
-  async updateTrackFields(
-    data: UpdateTrackInput
-  ): Promise<TrackWithLibraryIdentifierRow | null> {
+  async updateTrackFields(data: UpdateTrackInput): Promise<TrackWithLibraryIdentifierRow | null> {
     const { track_id, friend_id, ...fields } = data;
     if (!track_id || !friend_id) return null;
 
@@ -630,7 +609,7 @@ export class TrackRepository {
       SET ${setClauses.join(", ")}
       WHERE track_id = $${idx} AND friend_id = $${idx + 1}
       `,
-      values
+      values,
     );
 
     return this.findTrackByTrackIdAndFriendId(track_id, friend_id);
@@ -639,28 +618,26 @@ export class TrackRepository {
   async updateTrackLocalAudioUrl(
     trackId: string,
     friendId: number,
-    localAudioUrl: string
+    localAudioUrl: string,
   ): Promise<void> {
-    await dbQuery(
-      "UPDATE tracks SET local_audio_url = $1 WHERE track_id = $2 AND friend_id = $3",
-      [localAudioUrl, trackId, friendId]
-    );
+    await dbQuery("UPDATE tracks SET local_audio_url = $1 WHERE track_id = $2 AND friend_id = $3", [
+      localAudioUrl,
+      trackId,
+      friendId,
+    ]);
   }
 
-  async findTrackByTrackIdAndFriendIdRaw(
-    trackId: string,
-    friendId: number
-  ): Promise<Track | null> {
+  async findTrackByTrackIdAndFriendIdRaw(trackId: string, friendId: number): Promise<Track | null> {
     const { rows } = await dbQuery<Track>(
       "SELECT * FROM tracks WHERE track_id = $1 AND friend_id = $2 LIMIT 1",
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
 
   async findTrackWithAlbumMetadata(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<TrackWithAlbumMetadataRow | null> {
     const { rows } = await dbQuery<TrackWithAlbumMetadataRow>(
       `
@@ -674,14 +651,14 @@ export class TrackRepository {
       WHERE t.track_id = $1 AND t.friend_id = $2
       LIMIT 1
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
 
   async findTrackAudioMetadata(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<TrackAudioMetadataRow | null> {
     const { rows } = await dbQuery<TrackAudioMetadataRow>(
       `
@@ -690,22 +667,19 @@ export class TrackRepository {
       WHERE track_id = $1 AND friend_id = $2
       LIMIT 1
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return rows[0] ?? null;
   }
 
   async findTracksByTrackId(trackId: string): Promise<Track[]> {
-    const { rows } = await dbQuery<Track>(
-      "SELECT * FROM tracks WHERE track_id = $1",
-      [trackId]
-    );
+    const { rows } = await dbQuery<Track>("SELECT * FROM tracks WHERE track_id = $1", [trackId]);
     return rows;
   }
 
   async updateTrackAnalysisByTrackId(
     trackId: string,
-    updates: TrackAnalysisBulkUpdate
+    updates: TrackAnalysisBulkUpdate,
   ): Promise<void> {
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -761,27 +735,25 @@ export class TrackRepository {
     if (sets.length === 0) return;
 
     vals.push(trackId);
-    await dbQuery(
-      `UPDATE tracks SET ${sets.join(", ")} WHERE track_id = $${i}`,
-      vals
-    );
+    await dbQuery(`UPDATE tracks SET ${sets.join(", ")} WHERE track_id = $${i}`, vals);
   }
 
   async updateTrackNotesAndTagsByTrackId(
     trackId: string,
     localTags: string,
-    notes: string
+    notes: string,
   ): Promise<void> {
-    await dbQuery(
-      `UPDATE tracks SET local_tags = $1, notes = $2 WHERE track_id = $3`,
-      [localTags, notes, trackId]
-    );
+    await dbQuery(`UPDATE tracks SET local_tags = $1, notes = $2 WHERE track_id = $3`, [
+      localTags,
+      notes,
+      trackId,
+    ]);
   }
 
   async updateTrackAudioFileAlbumArtUrl(
     trackId: string,
     friendId: number,
-    audioFileAlbumArtUrl: string
+    audioFileAlbumArtUrl: string,
   ): Promise<void> {
     await dbQuery(
       `
@@ -789,37 +761,29 @@ export class TrackRepository {
       SET audio_file_album_art_url = $1
       WHERE track_id = $2 AND friend_id = $3
       `,
-      [audioFileAlbumArtUrl, trackId, friendId]
+      [audioFileAlbumArtUrl, trackId, friendId],
     );
   }
 
-  async updateTrackYear(
-    trackId: string,
-    friendId: number,
-    year: string
-  ): Promise<void> {
+  async updateTrackYear(trackId: string, friendId: number, year: string): Promise<void> {
     await dbQuery(
       `
       UPDATE tracks
       SET year = $1
       WHERE track_id = $2 AND friend_id = $3
       `,
-      [year, trackId, friendId]
+      [year, trackId, friendId],
     );
   }
 
-  async updateTrackComposer(
-    trackId: string,
-    friendId: number,
-    composer: string
-  ): Promise<void> {
+  async updateTrackComposer(trackId: string, friendId: number, composer: string): Promise<void> {
     await dbQuery(
       `
       UPDATE tracks
       SET composer = $1
       WHERE track_id = $2 AND friend_id = $3
       `,
-      [composer, trackId, friendId]
+      [composer, trackId, friendId],
     );
   }
 
@@ -835,7 +799,7 @@ export class TrackRepository {
         ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       LEFT JOIN friends f
         ON t.friend_id = f.id
-      `
+      `,
     );
     return rows;
   }

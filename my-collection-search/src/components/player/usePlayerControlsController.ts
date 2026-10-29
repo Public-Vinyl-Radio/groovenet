@@ -34,18 +34,30 @@ export function usePlayerControlsController() {
       if (controller) void controller.command(command);
       else server?.reportProblem("Unlock server access before trying this action again.");
     },
-    [controller, server]
+    [controller, server],
   );
 
-  const serverIndex = player ? entries.findIndex((entry) => entry.id === player.state.current_entry_id) : -1;
+  const serverIndex = player
+    ? entries.findIndex((entry) => entry.id === player.state.current_entry_id)
+    : -1;
   const status = player?.state.status;
 
   const playlist = server ? serverTracks : local.playlist;
-  const currentTrackIndex = server ? (serverIndex < 0 ? null : serverIndex) : local.currentTrackIndex;
+  const currentTrackIndex = server
+    ? serverIndex < 0
+      ? null
+      : serverIndex
+    : local.currentTrackIndex;
   const isPlaying = server ? status === "playing" || status === "loading" : local.isPlaying;
-  const isQueueFinished = server ? status === "ended" && currentTrackIndex === null : local.currentTrackIndex === null && local.finishedTrack !== null;
-  const displayTrack = server ? (currentTrackIndex === null ? null : serverTracks[currentTrackIndex] ?? null) : local.currentTrack ?? local.finishedTrack;
-  const volume = server ? volumeDraft ?? (player?.state.volume ?? 0) / 100 : local.volume;
+  const isQueueFinished = server
+    ? status === "ended" && currentTrackIndex === null
+    : local.currentTrackIndex === null && local.finishedTrack !== null;
+  const displayTrack = server
+    ? currentTrackIndex === null
+      ? null
+      : (serverTracks[currentTrackIndex] ?? null)
+    : (local.currentTrack ?? local.finishedTrack);
+  const volume = server ? (volumeDraft ?? (player?.state.volume ?? 0) / 100) : local.volume;
 
   const safeLen = playlist.length;
   const canPrev = currentTrackIndex !== null && currentTrackIndex > 0;
@@ -69,15 +81,21 @@ export function usePlayerControlsController() {
     else local.pause();
   }, [server, send, local]);
 
-  const playNext = useCallback(() => (server ? send({ type: "next" }) : local.playNext()), [server, send, local]);
-  const playPrev = useCallback(() => (server ? send({ type: "previous" }) : local.playPrev()), [server, send, local]);
+  const playNext = useCallback(
+    () => (server ? send({ type: "next" }) : local.playNext()),
+    [server, send, local],
+  );
+  const playPrev = useCallback(
+    () => (server ? send({ type: "previous" }) : local.playPrev()),
+    [server, send, local],
+  );
 
   const handleSeek = useCallback(
     async (time: number) => {
       if (server) send({ type: "seek", seconds: Math.max(0, time) });
       else local.seek(time);
     },
-    [server, send, local]
+    [server, send, local],
   );
 
   const playTrack = (index: number) => {
@@ -144,18 +162,26 @@ export function usePlayerControlsController() {
             onClick: () => {
               // Do not overwrite edits made by another controller after the clear.
               if (controller.getSnapshot().player?.revision !== clearedRevision) {
-                toaster.create({ title: "Queue changed since it was cleared", description: "Undo is no longer available.", type: "warning" });
+                toaster.create({
+                  title: "Queue changed since it was cleared",
+                  description: "Undo is no longer available.",
+                  type: "warning",
+                });
                 return;
               }
               void controller.command(
                 {
                   type: "queue.replace",
-                  entries: snapshot.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })),
+                  entries: snapshot.queue.map(({ id, track_id, friend_id }) => ({
+                    id,
+                    track_id,
+                    friend_id,
+                  })),
                   current_entry_id: snapshot.current_entry_id,
                   position: snapshot.position,
                   play: snapshot.status === "playing",
                 },
-                clearedRevision
+                clearedRevision,
               );
             },
           },
@@ -184,7 +210,9 @@ export function usePlayerControlsController() {
   return {
     /** `server` while a music server is the target. */
     mode: server ? ("server" as const) : ("local" as const),
-    serverName: server ? player?.name ?? server.players.find((p) => p.id === server.target)?.name ?? server.target : null,
+    serverName: server
+      ? (player?.name ?? server.players.find((p) => p.id === server.target)?.name ?? server.target)
+      : null,
     isPlaying,
     currentTrack: displayTrack,
     currentTrackIndex,

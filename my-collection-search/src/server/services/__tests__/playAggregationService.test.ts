@@ -1,12 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const { listRecentBySource, listActiveSourceIds, findAutomaticSessionByDetectionId, createAutomaticSpinSession } = vi.hoisted(() => ({
-  listRecentBySource: vi.fn(), listActiveSourceIds: vi.fn(), findAutomaticSessionByDetectionId: vi.fn(),
+const {
+  listRecentBySource,
+  listActiveSourceIds,
+  findAutomaticSessionByDetectionId,
+  createAutomaticSpinSession,
+} = vi.hoisted(() => ({
+  listRecentBySource: vi.fn(),
+  listActiveSourceIds: vi.fn(),
+  findAutomaticSessionByDetectionId: vi.fn(),
   createAutomaticSpinSession: vi.fn().mockResolvedValue({ session: { id: 501 } }),
 }));
-vi.mock("@/server/repositories/playDetectionRepository", () => ({ playDetectionRepository: { listRecentBySource, listActiveSourceIds } }));
-vi.mock("@/server/services/spinLoggingService", () => ({ spinLoggingService: { findAutomaticSessionByDetectionId, createAutomaticSpinSession } }));
+vi.mock("@/server/repositories/playDetectionRepository", () => ({
+  playDetectionRepository: { listRecentBySource, listActiveSourceIds },
+}));
+vi.mock("@/server/services/spinLoggingService", () => ({
+  spinLoggingService: { findAutomaticSessionByDetectionId, createAutomaticSpinSession },
+}));
 const { playConfirmed } = vi.hoisted(() => ({ playConfirmed: vi.fn() }));
-vi.mock("@/server/services/ingestMetricsService", () => ({ ingestMetricsService: { playConfirmed } }));
+vi.mock("@/server/services/ingestMetricsService", () => ({
+  ingestMetricsService: { playConfirmed },
+}));
 import {
   aggregationIntervalMs,
   aggregationLookbackMs,
@@ -26,68 +39,94 @@ setAnalyticsProvider(analyticsEvents);
 
 function detection(overrides: Partial<PlayDetectionRow> = {}): PlayDetectionRow {
   return {
-    id: "d1", ingest_id: "i1", source_id: "listener", session_id: null,
-    track_id: "track-a", friend_id: 1, confidence: 0.9, offset_seconds: null, level_dbfs: null,
-    window_start_at: "2026-09-20T12:00:00Z", fingerprint_type: "chromaprint",
-    fingerprint_version: "1", created_at: "2026-09-20T12:00:00Z", ...overrides,
+    id: "d1",
+    ingest_id: "i1",
+    source_id: "listener",
+    session_id: null,
+    track_id: "track-a",
+    friend_id: 1,
+    confidence: 0.9,
+    offset_seconds: null,
+    level_dbfs: null,
+    window_start_at: "2026-09-20T12:00:00Z",
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
+    created_at: "2026-09-20T12:00:00Z",
+    ...overrides,
   };
 }
 
 describe("groupDetections", () => {
   it("groups repeated detections of one track into one play", () => {
     const plays = groupDetections([
-      detection(), detection({ id: "d2", window_start_at: "2026-09-20T12:00:15Z" }),
+      detection(),
+      detection({ id: "d2", window_start_at: "2026-09-20T12:00:15Z" }),
     ]);
     expect(plays).toHaveLength(1);
     expect(plays[0]).toMatchObject({ confidence: 0.9, first: { id: "d1" }, last: { id: "d2" } });
   });
 
   it("starts a new play after the configured gap", () => {
-    const plays = groupDetections([
-      detection(), detection({ id: "d2", window_start_at: "2026-09-20T12:01:00Z" }),
-    ], { gapSeconds: 45 });
+    const plays = groupDetections(
+      [detection(), detection({ id: "d2", window_start_at: "2026-09-20T12:01:00Z" })],
+      { gapSeconds: 45 },
+    );
     expect(plays).toHaveLength(2);
   });
 
   it("does not let an unmatched or low-confidence window create a play", () => {
-    expect(groupDetections([
-      detection({ track_id: null, friend_id: null, confidence: null }),
-      detection({ id: "low", confidence: 0.5 }),
-    ], { confidenceFloor: 0.75 })).toEqual([]);
+    expect(
+      groupDetections(
+        [
+          detection({ track_id: null, friend_id: null, confidence: null }),
+          detection({ id: "low", confidence: 0.5 }),
+        ],
+        { confidenceFloor: 0.75 },
+      ),
+    ).toEqual([]);
   });
 
   it("ignores every incomplete or invalid candidate shape", () => {
-    expect(groupDetections([
-      detection({ track_id: null }),
-      detection({ id: "no-friend", friend_id: null }),
-      detection({ id: "no-confidence", confidence: null }),
-      detection({ id: "no-window", window_start_at: null }),
-      detection({ id: "bad-window", window_start_at: "not-a-date" }),
-    ])).toEqual([]);
+    expect(
+      groupDetections([
+        detection({ track_id: null }),
+        detection({ id: "no-friend", friend_id: null }),
+        detection({ id: "no-confidence", confidence: null }),
+        detection({ id: "no-window", window_start_at: null }),
+        detection({ id: "bad-window", window_start_at: "not-a-date" }),
+      ]),
+    ).toEqual([]);
   });
 
   it("splits a play when the detected track changes", () => {
-    expect(groupDetections([
-      detection(), detection({ id: "d2", track_id: "track-b" }),
-    ])).toHaveLength(2);
+    expect(
+      groupDetections([detection(), detection({ id: "d2", track_id: "track-b" })]),
+    ).toHaveLength(2);
   });
 
   it("creates only plays that have not already been aggregated", async () => {
     listRecentBySource.mockResolvedValue([
-      detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" }),
+      detection(),
+      detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" }),
       detection({ id: "d2", track_id: "track-b", window_start_at: "2026-09-20T12:00:30Z" }),
       detection({ id: "d2b", track_id: "track-b", window_start_at: "2026-09-20T12:00:45Z" }),
     ]);
     findAutomaticSessionByDetectionId.mockResolvedValueOnce({ id: 1 }).mockResolvedValueOnce(null);
-    const result = await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
+    const result = await new PlayAggregationService().aggregateSource(
+      "listener",
+      "2026-09-20T11:00:00Z",
+    );
     expect(result).toEqual({ created: 1, skipped: 1 });
-    expect(createAutomaticSpinSession).toHaveBeenCalledWith(expect.objectContaining({ detection_id: "d2", source_id: "listener", track_id: "track-b" }));
+    expect(createAutomaticSpinSession).toHaveBeenCalledWith(
+      expect.objectContaining({ detection_id: "d2", source_id: "listener", track_id: "track-b" }),
+    );
   });
 
   it("reports each spin it makes as auto-detected, and not the ones it skips", async () => {
     analyticsEvents.reset();
     listRecentBySource.mockResolvedValue([
-      detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z", confidence: 0.95 }),
+      detection(),
+      detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z", confidence: 0.95 }),
       detection({ id: "d2", track_id: "track-b", window_start_at: "2026-09-20T12:00:30Z" }),
       detection({ id: "d2b", track_id: "track-b", window_start_at: "2026-09-20T12:00:45Z" }),
     ]);
@@ -109,7 +148,12 @@ describe("groupDetections", () => {
     try {
       listRecentBySource.mockResolvedValue([
         detection({ session_id: "sess-1" }),
-        detection({ id: "d1b", ingest_id: "i2", window_start_at: "2026-09-20T12:00:15Z", confidence: 0.95 }),
+        detection({
+          id: "d1b",
+          ingest_id: "i2",
+          window_start_at: "2026-09-20T12:00:15Z",
+          confidence: 0.95,
+        }),
       ]);
       findAutomaticSessionByDetectionId.mockResolvedValue(null);
 
@@ -138,7 +182,10 @@ describe("groupDetections", () => {
 
   it("does not count a play it skipped as already aggregated", async () => {
     vi.clearAllMocks();
-    listRecentBySource.mockResolvedValue([detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" })]);
+    listRecentBySource.mockResolvedValue([
+      detection(),
+      detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" }),
+    ]);
     findAutomaticSessionByDetectionId.mockResolvedValue({ id: 1 });
     await new PlayAggregationService().aggregateSource("listener", "2026-09-20T11:00:00Z");
     expect(playConfirmed).not.toHaveBeenCalled();
@@ -152,28 +199,39 @@ describe("countPending", () => {
 
   it("counts plays that have not yet been written to spins, without writing", async () => {
     listRecentBySource.mockResolvedValue([
-      detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" }),
+      detection(),
+      detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" }),
       detection({ id: "d2", track_id: "track-b", window_start_at: "2026-09-20T12:00:30Z" }),
       detection({ id: "d2b", track_id: "track-b", window_start_at: "2026-09-20T12:00:45Z" }),
     ]);
     findAutomaticSessionByDetectionId.mockResolvedValueOnce({ id: 1 }).mockResolvedValueOnce(null);
 
-    const count = await new PlayAggregationService().countPending("listener", "2026-09-20T11:00:00Z");
+    const count = await new PlayAggregationService().countPending(
+      "listener",
+      "2026-09-20T11:00:00Z",
+    );
 
     expect(count).toBe(1);
     expect(createAutomaticSpinSession).not.toHaveBeenCalled();
   });
 
   it("is zero when everything in scope is already aggregated", async () => {
-    listRecentBySource.mockResolvedValue([detection(), detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" })]);
+    listRecentBySource.mockResolvedValue([
+      detection(),
+      detection({ id: "d1b", window_start_at: "2026-09-20T12:00:15Z" }),
+    ]);
     findAutomaticSessionByDetectionId.mockResolvedValue({ id: 1 });
 
-    expect(await new PlayAggregationService().countPending("listener", "2026-09-20T11:00:00Z")).toBe(0);
+    expect(
+      await new PlayAggregationService().countPending("listener", "2026-09-20T11:00:00Z"),
+    ).toBe(0);
   });
 
   it("is zero when there is nothing to group into a play", async () => {
     listRecentBySource.mockResolvedValue([]);
-    expect(await new PlayAggregationService().countPending("listener", "2026-09-20T11:00:00Z")).toBe(0);
+    expect(
+      await new PlayAggregationService().countPending("listener", "2026-09-20T11:00:00Z"),
+    ).toBe(0);
     expect(findAutomaticSessionByDetectionId).not.toHaveBeenCalled();
   });
 });
@@ -190,7 +248,13 @@ describe("a play straddling since", () => {
   const at = (s: number) => new Date(T0 + s * 1000).toISOString();
   // Six minutes of Hey Tia!, a window every 15 s.
   const heyTia = Array.from({ length: 24 }, (_, i) =>
-    detection({ id: `tia-${i}`, source_id: "aswitch", track_id: "hey-tia", window_start_at: at(i * 15), offset_seconds: 10 + i * 15 })
+    detection({
+      id: `tia-${i}`,
+      source_id: "aswitch",
+      track_id: "hey-tia",
+      window_start_at: at(i * 15),
+      offset_seconds: 10 + i * 15,
+    }),
   );
   let spins: Map<string, { id: number }>;
 
@@ -198,10 +262,12 @@ describe("a play straddling since", () => {
     vi.clearAllMocks();
     // What the SQL does: every window at or after `since`.
     listRecentBySource.mockImplementation(async (_source: string, since: Date | string) =>
-      heyTia.filter((d) => new Date(d.window_start_at!).getTime() >= new Date(since).getTime())
+      heyTia.filter((d) => new Date(d.window_start_at!).getTime() >= new Date(since).getTime()),
     );
     spins = new Map();
-    findAutomaticSessionByDetectionId.mockImplementation(async (id: string) => spins.get(id) ?? null);
+    findAutomaticSessionByDetectionId.mockImplementation(
+      async (id: string) => spins.get(id) ?? null,
+    );
     createAutomaticSpinSession.mockImplementation(async (input: { detection_id: string }) => {
       const session = { id: spins.size + 1 };
       spins.set(input.detection_id, session);
@@ -226,7 +292,7 @@ describe("a play straddling since", () => {
     expect(result).toEqual({ created: 0, skipped: 1 });
     expect(createAutomaticSpinSession).toHaveBeenCalledTimes(1);
     expect(createAutomaticSpinSession).toHaveBeenCalledWith(
-      expect.objectContaining({ detection_id: "tia-0", played_at: at(0) })
+      expect.objectContaining({ detection_id: "tia-0", played_at: at(0) }),
     );
   });
 
@@ -239,13 +305,18 @@ describe("a play straddling since", () => {
   it("still makes the one spin when the first pass to see the play starts partway through it", async () => {
     const result = await new PlayAggregationService().aggregateSource("aswitch", at(151));
     expect(result).toEqual({ created: 1, skipped: 0 });
-    expect(createAutomaticSpinSession).toHaveBeenCalledWith(expect.objectContaining({ detection_id: "tia-0" }));
+    expect(createAutomaticSpinSession).toHaveBeenCalledWith(
+      expect.objectContaining({ detection_id: "tia-0" }),
+    );
   });
 
   it("leaves alone a play that ended before since", async () => {
     const service = new PlayAggregationService();
     expect(await service.countPending("aswitch", at(24 * 15))).toBe(0);
-    expect(await service.aggregateSource("aswitch", at(24 * 15))).toEqual({ created: 0, skipped: 0 });
+    expect(await service.aggregateSource("aswitch", at(24 * 15))).toEqual({
+      created: 0,
+      skipped: 0,
+    });
     expect(createAutomaticSpinSession).not.toHaveBeenCalled();
   });
 
@@ -253,15 +324,23 @@ describe("a play straddling since", () => {
     // since an hour and a minute after the play began: the read starts a
     // minute in, and the play runs on past since.
     const long = Array.from({ length: 300 }, (_, i) =>
-      detection({ id: `long-${i}`, source_id: "aswitch", window_start_at: at(i * 15), offset_seconds: 10 + i * 15 })
+      detection({
+        id: `long-${i}`,
+        source_id: "aswitch",
+        window_start_at: at(i * 15),
+        offset_seconds: 10 + i * 15,
+      }),
     );
     listRecentBySource.mockImplementation(async (_source: string, since: Date | string) =>
-      long.filter((d) => new Date(d.window_start_at!).getTime() >= new Date(since).getTime())
+      long.filter((d) => new Date(d.window_start_at!).getTime() >= new Date(since).getTime()),
     );
     const since = at(aggregationLookbackMs() / 1000 + 60);
 
     expect(await new PlayAggregationService().countPending("aswitch", since)).toBe(0);
-    expect(await new PlayAggregationService().aggregateSource("aswitch", since)).toEqual({ created: 0, skipped: 0 });
+    expect(await new PlayAggregationService().aggregateSource("aswitch", since)).toEqual({
+      created: 0,
+      skipped: 0,
+    });
   });
 });
 
@@ -339,7 +418,7 @@ describe("aggregationTick()", () => {
   it("one source's failure does not stop the others", async () => {
     listActiveSourceIds.mockResolvedValue(["bad", "good"]);
     listRecentBySource.mockImplementation((sourceId: string) =>
-      sourceId === "bad" ? Promise.reject(new Error("db exploded")) : Promise.resolve([])
+      sourceId === "bad" ? Promise.reject(new Error("db exploded")) : Promise.resolve([]),
     );
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -432,7 +511,12 @@ describe("groupDetections rate", () => {
 
   it("is the median step, so one window on a repeat cannot sink a long play", () => {
     const plays = groupDetections([
-      win("a", 0, 10), win("b", 15, 25), win("c", 30, 40), win("d", 45, -1 + 56), win("e", 60, 70), win("f", 75, 85),
+      win("a", 0, 10),
+      win("b", 15, 25),
+      win("c", 30, 40),
+      win("d", 45, -1 + 56),
+      win("e", 60, 70),
+      win("f", 75, 85),
     ]);
     expect(plays[0].windows).toBe(6);
     expect(plays[0].rate).toBeCloseTo(1.0, 5);
@@ -502,7 +586,10 @@ describe("the 2026-09-25 evening (Bandalos Chinos on aswitch)", () => {
       ["gnonnas-la-musica", 4, 0],
     ]);
 
-    const result = await new PlayAggregationService().aggregateSource("aswitch", "2026-09-26T03:00:00Z");
+    const result = await new PlayAggregationService().aggregateSource(
+      "aswitch",
+      "2026-09-26T03:00:00Z",
+    );
 
     expect(result.created).toBe(2);
     expect(createAutomaticSpinSession.mock.calls.map((c) => c[0].track_id)).toEqual([
@@ -514,7 +601,9 @@ describe("the 2026-09-25 evening (Bandalos Chinos on aswitch)", () => {
   it("counts the same two as pending", async () => {
     listRecentBySource.mockResolvedValue(evening);
     findAutomaticSessionByDetectionId.mockResolvedValue(null);
-    expect(await new PlayAggregationService().countPending("aswitch", "2026-09-26T03:00:00Z")).toBe(2);
+    expect(await new PlayAggregationService().countPending("aswitch", "2026-09-26T03:00:00Z")).toBe(
+      2,
+    );
   });
 });
 
@@ -534,13 +623,19 @@ describe("one recording on two releases (#349)", () => {
   it("a different track that holds becomes its own play, from its first window", () => {
     const tracks = ["A3", "A3", "A3", "B6", "B6", "B6", "B6", "B6"];
     const plays = groupDetections(tracks.map((t, i) => win(`d${i}`, i * 15, t)));
-    expect(plays.map((p) => [p.first.track_id, p.windows])).toEqual([["A3", 3], ["B6", 5]]);
+    expect(plays.map((p) => [p.first.track_id, p.windows])).toEqual([
+      ["A3", 3],
+      ["B6", 5],
+    ]);
     expect(plays[1].first.id).toBe("d3");
   });
 
   it("a short run of another track at the end is still a play of its own", () => {
     const tracks = ["A3", "A3", "A3", "B6", "B6"];
     const plays = groupDetections(tracks.map((t, i) => win(`d${i}`, i * 15, t)));
-    expect(plays.map((p) => [p.first.track_id, p.windows])).toEqual([["A3", 3], ["B6", 2]]);
+    expect(plays.map((p) => [p.first.track_id, p.windows])).toEqual([
+      ["A3", 3],
+      ["B6", 2],
+    ]);
   });
 });

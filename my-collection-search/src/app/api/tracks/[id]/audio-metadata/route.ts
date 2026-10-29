@@ -10,10 +10,7 @@ import { trackAudioMetadataService } from "@/server/services/trackAudioMetadataS
 
 const execFileAsync = promisify(execFile);
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const trackId = (await params).id;
     const friendIdRaw = request.nextUrl.searchParams.get("friend_id");
@@ -21,7 +18,7 @@ export async function GET(
     if (!trackId || !friendId || Number.isNaN(friendId)) {
       return NextResponse.json(
         { error: "Missing required parameters: track_id and friend_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -30,20 +27,12 @@ export async function GET(
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
     }
     if (!track.local_audio_url) {
-      return NextResponse.json(
-        { error: "Track has no local_audio_url" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Track has no local_audio_url" }, { status: 404 });
     }
 
-    const audioPath = trackAudioMetadataService.resolveAudioFilePath(
-      track.local_audio_url
-    );
+    const audioPath = trackAudioMetadataService.resolveAudioFilePath(track.local_audio_url);
     if (!audioPath) {
-      return NextResponse.json(
-        { error: "Local audio file not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Local audio file not found" }, { status: 404 });
     }
 
     const probe = await trackAudioMetadataService.runFfprobe(audioPath);
@@ -72,15 +61,12 @@ export async function GET(
       {
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const trackId = (await params).id;
     const body = await request.json().catch(() => ({}));
@@ -88,7 +74,7 @@ export async function POST(
     if (!trackId || !friendId || Number.isNaN(friendId)) {
       return NextResponse.json(
         { error: "Missing required parameters: track_id and friend_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -97,20 +83,12 @@ export async function POST(
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
     }
     if (!track.local_audio_url) {
-      return NextResponse.json(
-        { error: "Track has no local_audio_url" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Track has no local_audio_url" }, { status: 404 });
     }
 
-    const audioPath = trackAudioMetadataService.resolveAudioFilePath(
-      track.local_audio_url
-    );
+    const audioPath = trackAudioMetadataService.resolveAudioFilePath(track.local_audio_url);
     if (!audioPath) {
-      return NextResponse.json(
-        { error: "Local audio file not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Local audio file not found" }, { status: 404 });
     }
 
     const probe = await trackAudioMetadataService.runFfprobe(audioPath);
@@ -118,7 +96,7 @@ export async function POST(
     if (!attachedPic) {
       return NextResponse.json(
         { error: "No embedded cover art found in audio file" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -158,7 +136,7 @@ export async function POST(
         message: releaseId
           ? "Extracted embedded cover and updated all tracks on the album."
           : "Extracted embedded cover and saved to track.",
-      })
+      }),
     );
   } catch (error) {
     console.error("Error extracting embedded audio cover:", error);
@@ -166,7 +144,7 @@ export async function POST(
       {
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

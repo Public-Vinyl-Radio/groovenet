@@ -25,7 +25,7 @@ describe("TrackResultStore presentation forwarding", () => {
         fallbackTrack={{ ...sampleTrack, title: "Fallback title" }}
         density="dense"
         layout="card"
-      />
+      />,
     );
 
     expect(screen.getByTestId("track-result-dense-card")).toBeTruthy();

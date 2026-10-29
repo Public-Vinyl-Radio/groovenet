@@ -18,8 +18,14 @@ export function usePlaybackOutputState(): { kind: PlaybackOutputKind; label: str
   const target = useOptionalPlaybackTarget();
   const device = useDeviceLabel();
   if (!target) return null;
-  if (target.target === "") return target.airPlayActive ? { kind: "airplay", label: "AirPlay" } : { kind: "device", label: device };
-  const name = target.remote.player?.name ?? target.players.find((player) => player.id === target.target)?.name ?? target.target;
+  if (target.target === "")
+    return target.airPlayActive
+      ? { kind: "airplay", label: "AirPlay" }
+      : { kind: "device", label: device };
+  const name =
+    target.remote.player?.name ??
+    target.players.find((player) => player.id === target.target)?.name ??
+    target.target;
   return { kind: "server", label: name };
 }
 
@@ -70,7 +76,13 @@ export function PlayOnRow() {
       css={triggerCss(output.kind)}
     >
       <Icon as={FiSmartphone} boxSize="18px" />
-      <Text fontFamily="mono" fontSize="11px" letterSpacing="0.08em" fontWeight="semibold" color="fg.muted">
+      <Text
+        fontFamily="mono"
+        fontSize="11px"
+        letterSpacing="0.08em"
+        fontWeight="semibold"
+        color="fg.muted"
+      >
         PLAY ON
       </Text>
       <Text flex="1" minW={0} fontSize="15px" fontWeight="semibold" truncate>
@@ -100,7 +112,14 @@ export function OutputButton() {
       css={triggerCss(output.kind)}
     >
       <Icon as={FiSmartphone} boxSize="16px" flexShrink={0} />
-      <Text fontFamily="mono" fontSize="11px" fontWeight="semibold" letterSpacing="0.06em" textTransform="uppercase" truncate>
+      <Text
+        fontFamily="mono"
+        fontSize="11px"
+        fontWeight="semibold"
+        letterSpacing="0.06em"
+        textTransform="uppercase"
+        truncate
+      >
         {output.label}
       </Text>
       <Icon as={FiChevronDown} boxSize="12px" flexShrink={0} />

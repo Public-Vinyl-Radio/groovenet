@@ -34,7 +34,14 @@ function setup(props: Partial<React.ComponentProps<typeof PlaylistItemMenu>> = {
   const moveTrack = vi.fn();
   const removeFromPlaylist = vi.fn();
   const rendered = renderWithProviders(
-    <PlaylistItemMenu idx={1} total={5} track={track} moveTrack={moveTrack} removeFromPlaylist={removeFromPlaylist} {...props} />
+    <PlaylistItemMenu
+      idx={1}
+      total={5}
+      track={track}
+      moveTrack={moveTrack}
+      removeFromPlaylist={removeFromPlaylist}
+      {...props}
+    />,
   );
   return { ...rendered, moveTrack, removeFromPlaylist };
 }
@@ -64,13 +71,19 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
   it("disables the arrow at either end", async () => {
     const first = setup({ idx: 0 });
     await openModal(first.user);
-    expect((screen.getByRole("button", { name: "Move up" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "Move down" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Move up" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect((screen.getByRole("button", { name: "Move down" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
     first.unmount();
 
     const last = setup({ idx: 4 });
     await openModal(last.user);
-    expect((screen.getByRole("button", { name: "Move down" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Move down" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it("adds to a playlist, fetches audio and removes from the playlist", async () => {
@@ -81,7 +94,9 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
 
     await openModal(user);
     await user.click(screen.getByRole("button", { name: "Fetch audio" }));
-    expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(expect.objectContaining({ track_id: "t1", friend_id: 7 }));
+    expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ track_id: "t1", friend_id: 7 }),
+    );
 
     await openModal(user);
     await user.click(screen.getByRole("button", { name: "Remove from playlist" }));
@@ -97,7 +112,9 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
   it("links Edit to the track edit page and opens recommendations", async () => {
     const { user } = setup();
     await openModal(user);
-    expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/tracks/t1/edit?friend_id=7");
+    expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe(
+      "/tracks/t1/edit?friend_id=7",
+    );
     await user.click(screen.getByRole("button", { name: "AI recommendations" }));
     expect(await screen.findByText("recs")).toBeTruthy();
   });
@@ -107,7 +124,9 @@ describe("PlaylistItemMenu desktop dropdown", () => {
   it("opens recommendations from the menu", async () => {
     const { user } = setup();
     await user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[1]);
-    await user.click(await screen.findByRole("menuitem", { name: /AI Recommendations/, hidden: true }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /AI Recommendations/, hidden: true }),
+    );
     expect(await screen.findByText("recs")).toBeTruthy();
   });
 });

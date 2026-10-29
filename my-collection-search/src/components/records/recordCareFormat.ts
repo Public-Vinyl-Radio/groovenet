@@ -1,8 +1,4 @@
-import type {
-  CleaningMethod,
-  RecordActionType,
-  SleeveType,
-} from "@/lib/recordCare";
+import type { CleaningMethod, RecordActionType, SleeveType } from "@/lib/recordCare";
 import type { RecordAction, RecordCopyListItem } from "@/services/internalApi/recordCare";
 
 /** In menu order: the sleeve most copies are moving to comes first. */
@@ -44,7 +40,9 @@ export function actionLabel(actionType: RecordActionType): string {
 }
 
 /** "Cleaned · Vacuum machine", "Sleeve change → Poly". */
-export function describeAction(action: Pick<RecordAction, "action_type" | "sleeve_type" | "details">) {
+export function describeAction(
+  action: Pick<RecordAction, "action_type" | "sleeve_type" | "details">,
+) {
   const label = actionLabel(action.action_type);
   if (action.action_type === "sleeved" && action.sleeve_type) {
     return `${label} → ${sleeveLabel(action.sleeve_type)}`;
@@ -69,7 +67,7 @@ export type CleaningState = "never_cleaned" | "overdue" | "clean";
 export function cleaningState(
   lastCleanedAt: string | null,
   overdueDays: number | undefined,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): CleaningState {
   if (!lastCleanedAt) return "never_cleaned";
   if (overdueDays === undefined) return "clean";

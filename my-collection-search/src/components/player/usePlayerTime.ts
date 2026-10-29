@@ -12,7 +12,7 @@ import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
 export function usePlayerTime(): { currentTime: number; duration: number } {
   const local = usePlaylistPlayerTime();
   const target = useOptionalPlaybackTarget();
-  const state = target && target.target !== "" ? target.remote.player?.state ?? null : null;
+  const state = target && target.target !== "" ? (target.remote.player?.state ?? null) : null;
   const playing = state?.status === "playing";
   const [now, setNow] = useState(() => Date.now());
   const [observedAt, setObservedAt] = useState(0);

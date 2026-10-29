@@ -40,7 +40,11 @@ const labelText = {
   color: "fg.muted",
 } as const;
 
-const valueText = { fontFamily: "mono", fontWeight: "semibold", fontVariantNumeric: "tabular-nums" } as const;
+const valueText = {
+  fontFamily: "mono",
+  fontWeight: "semibold",
+  fontVariantNumeric: "tabular-nums",
+} as const;
 
 function Missing() {
   return (
@@ -57,16 +61,34 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
       px={{ base: "10px" }}
       py="8px"
       css={{
-        "&:nth-of-type(n+2)": { borderLeftWidth: "1px", borderColor: "var(--gn-border)", borderStyle: "solid" },
+        "&:nth-of-type(n+2)": {
+          borderLeftWidth: "1px",
+          borderColor: "var(--gn-border)",
+          borderStyle: "solid",
+        },
         [wide]: {
           padding: "16px 20px",
           "&:nth-of-type(n+2)": { borderLeftWidth: 0 },
-          "&:nth-of-type(odd)": { borderRightWidth: "1px", borderRightStyle: "solid", borderColor: "var(--gn-border)" },
-          "&:nth-of-type(-n+2)": { borderBottomWidth: "1px", borderBottomStyle: "solid", borderColor: "var(--gn-border)" },
+          "&:nth-of-type(odd)": {
+            borderRightWidth: "1px",
+            borderRightStyle: "solid",
+            borderColor: "var(--gn-border)",
+          },
+          "&:nth-of-type(-n+2)": {
+            borderBottomWidth: "1px",
+            borderBottomStyle: "solid",
+            borderColor: "var(--gn-border)",
+          },
         },
       }}
     >
-      <Text as="dt" {...labelText} fontSize="10px" lineHeight="14px" css={{ [wide]: { fontSize: "11px", lineHeight: "16px" } }}>
+      <Text
+        as="dt"
+        {...labelText}
+        fontSize="10px"
+        lineHeight="14px"
+        css={{ [wide]: { fontSize: "11px", lineHeight: "16px" } }}
+      >
         {label}
       </Text>
       {children}
@@ -103,20 +125,55 @@ function Facts({ track }: { track: Track }) {
         gridArea: "facts",
         display: "grid",
         gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-        [wide]: { gridTemplateColumns: "repeat(2, minmax(0, 1fr))", alignContent: "stretch", borderTopWidth: 0, borderLeftWidth: "2px" },
+        [wide]: {
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          alignContent: "stretch",
+          borderTopWidth: 0,
+          borderLeftWidth: "2px",
+        },
       }}
     >
       <Fact label="BPM">
         <Text {...factValue}>{bpm !== null ? Number(bpm.toFixed(1)) : <Missing />}</Text>
       </Fact>
       <Fact label="Key">
-        <Flex {...factValue} alignItems="center" columnGap="5px" flexWrap="wrap" css={{ [wide]: { marginTop: "4px", fontSize: "32px", lineHeight: "40px", columnGap: "8px", flexWrap: "nowrap" } }}>
+        <Flex
+          {...factValue}
+          alignItems="center"
+          columnGap="5px"
+          flexWrap="wrap"
+          css={{
+            [wide]: {
+              marginTop: "4px",
+              fontSize: "32px",
+              lineHeight: "40px",
+              columnGap: "8px",
+              flexWrap: "nowrap",
+            },
+          }}
+        >
           {camelot ? (
             <>
-              <Box aria-hidden="true" flexShrink={0} boxSize="8px" borderRadius="full" bg={camelotDotColor(camelot)} css={{ [wide]: { width: "10px", height: "10px" } }} />
+              <Box
+                aria-hidden="true"
+                flexShrink={0}
+                boxSize="8px"
+                borderRadius="full"
+                bg={camelotDotColor(camelot)}
+                css={{ [wide]: { width: "10px", height: "10px" } }}
+              />
               <span>{camelot}</span>
               {track.key && (
-                <Text as="span" fontFamily="body" fontWeight="normal" fontSize="11px" lineHeight="14px" color="fg.muted" flexBasis="100%" css={{ [wide]: { flexBasis: "auto", fontSize: "14px", lineHeight: "20px" } }}>
+                <Text
+                  as="span"
+                  fontFamily="body"
+                  fontWeight="normal"
+                  fontSize="11px"
+                  lineHeight="14px"
+                  color="fg.muted"
+                  flexBasis="100%"
+                  css={{ [wide]: { flexBasis: "auto", fontSize: "14px", lineHeight: "20px" } }}
+                >
                   {track.key}
                 </Text>
               )}
@@ -165,7 +222,12 @@ export default function TrackHeader({
       flexWrap={placement === "card" ? "wrap" : undefined}
       css={
         placement === "card"
-          ? { gridArea: "actions", alignSelf: "end", display: "none", [wide]: { display: "flex", padding: "16px 20px 20px" } }
+          ? {
+              gridArea: "actions",
+              alignSelf: "end",
+              display: "none",
+              [wide]: { display: "flex", padding: "16px 20px 20px" },
+            }
           : { marginTop: "16px", paddingRight: "6px", [wide]: { display: "none" } }
       }
     >
@@ -257,13 +319,36 @@ export default function TrackHeader({
             </Heading>
             {hasNotes && <NotesIndicator notes={track.notes as string} />}
           </Flex>
-          <Text fontWeight="medium" fontSize="15px" lineHeight="20px" overflowWrap="anywhere" css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}>
+          <Text
+            fontWeight="medium"
+            fontSize="15px"
+            lineHeight="20px"
+            overflowWrap="anywhere"
+            css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
+          >
             <ArtistLink artist={track.artist} friendId={track.friend_id} />
           </Text>
           {/* One line: a long album ends in an ellipsis and the year stays beside it. */}
-          <Flex color="fg.muted" fontSize="13px" lineHeight="18px" minW={0} css={{ [wide]: { fontSize: "14px", lineHeight: "20px" } }}>
+          <Flex
+            color="fg.muted"
+            fontSize="13px"
+            lineHeight="18px"
+            minW={0}
+            css={{ [wide]: { fontSize: "14px", lineHeight: "20px" } }}
+          >
             {track.album && (
-              <Box minW={0} title={track.album} css={{ "& a": { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
+              <Box
+                minW={0}
+                title={track.album}
+                css={{
+                  "& a": {
+                    display: "block",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  },
+                }}
+              >
                 <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
                   {track.album}
                 </AlbumLink>
@@ -292,7 +377,11 @@ export default function TrackHeader({
           minW={0}
           borderTopWidth="1px"
           borderColor="border"
-          css={{ gridArea: "genres", padding: "10px 12px", [wide]: { padding: "8px 20px 0", borderTopWidth: 0 } }}
+          css={{
+            gridArea: "genres",
+            padding: "10px 12px",
+            [wide]: { padding: "8px 20px 0", borderTopWidth: 0 },
+          }}
         >
           <TrackGenresSection trackId={trackId} friendId={friendId} fallbackTrack={fallbackTrack} />
         </Box>

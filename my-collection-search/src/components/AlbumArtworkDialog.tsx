@@ -31,9 +31,7 @@ type Props = {
 };
 
 type View =
-  | { kind: "overview" }
-  | { kind: "apple"; preview: AlbumAppleMusicArtPreview }
-  | { kind: "upload" };
+  { kind: "overview" } | { kind: "apple"; preview: AlbumAppleMusicArtPreview } | { kind: "upload" };
 
 export const ART_SOURCE_LABELS: Record<string, string> = {
   discogs: "Discogs",
@@ -45,7 +43,15 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function ArtworkFrame({ src, alt, caption }: { src: string | null; alt: string; caption?: string }) {
+function ArtworkFrame({
+  src,
+  alt,
+  caption,
+}: {
+  src: string | null;
+  alt: string;
+  caption?: string;
+}) {
   return (
     <Stack gap={1} flex="1" minW={0}>
       <Box
@@ -89,7 +95,7 @@ export default function AlbumArtworkDialog({
   const { artworkQuery, previewMutation, applyMutation, uploadMutation } = useAlbumArtwork(
     releaseId,
     friendId,
-    open
+    open,
   );
   const [view, setView] = React.useState<View>({ kind: "overview" });
   const [file, setFile] = React.useState<File | null>(null);
@@ -168,11 +174,15 @@ export default function AlbumArtworkDialog({
               ) : view.kind === "apple" ? (
                 <Stack gap={4}>
                   <Text fontSize="sm" color="fg.muted">
-                    Apple Music art comes from the digital release, which is not always the
-                    pressing you own. Check it is the same cover before using it.
+                    Apple Music art comes from the digital release, which is not always the pressing
+                    you own. Check it is the same cover before using it.
                   </Text>
                   <Flex gap={4} direction={{ base: "column", sm: "row" }}>
-                    <ArtworkFrame src={state.current_url} alt="Current cover" caption={`Current · ${sourceLabel}`} />
+                    <ArtworkFrame
+                      src={state.current_url}
+                      alt="Current cover"
+                      caption={`Current · ${sourceLabel}`}
+                    />
                     <ArtworkFrame
                       src={view.preview.url}
                       alt="Apple Music cover"
@@ -184,17 +194,23 @@ export default function AlbumArtworkDialog({
                 <CoverArtUpload value={file} onChange={setFile} label="Upload a cover image" />
               ) : (
                 <Stack gap={4}>
-                  <Flex gap={4} direction={{ base: "column", sm: "row" }} align={{ sm: "flex-start" }}>
+                  <Flex
+                    gap={4}
+                    direction={{ base: "column", sm: "row" }}
+                    align={{ sm: "flex-start" }}
+                  >
                     <ArtworkFrame src={state.current_url} alt="Current cover" />
                     <Stack gap={3} flex="1">
                       <Flex gap={2} align="center" flexWrap="wrap">
-                        <Text fontSize="sm" fontWeight="medium">Source</Text>
+                        <Text fontSize="sm" fontWeight="medium">
+                          Source
+                        </Text>
                         <Badge variant="subtle">{sourceLabel}</Badge>
                       </Flex>
                       {state.art_match_status === "mismatch" && (
                         <Text fontSize="xs" color="fg.warning">
-                          Bulk matching found Apple Music art that looks different from the
-                          Discogs cover — possibly another pressing. Preview it to decide.
+                          Bulk matching found Apple Music art that looks different from the Discogs
+                          cover — possibly another pressing. Preview it to decide.
                         </Text>
                       )}
                       <Button
@@ -237,7 +253,11 @@ export default function AlbumArtworkDialog({
             </Dialog.Body>
             {view.kind !== "overview" && (
               <Dialog.Footer>
-                <Button variant="outline" onClick={() => setView({ kind: "overview" })} disabled={busy}>
+                <Button
+                  variant="outline"
+                  onClick={() => setView({ kind: "overview" })}
+                  disabled={busy}
+                >
                   Back
                 </Button>
                 {view.kind === "apple" ? (

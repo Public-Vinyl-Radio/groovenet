@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  fingerprintIndexBodySchema,
-  fingerprintIndexRunSchema,
-} from "@/api-contract/schemas";
+import { fingerprintIndexBodySchema, fingerprintIndexRunSchema } from "@/api-contract/schemas";
 import {
   NoFingerprintEngineError,
   fingerprintIndexService,
@@ -44,7 +41,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid index request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -66,7 +63,7 @@ export async function POST(req: Request) {
     console.error("Error starting fingerprint index run:", err);
     return NextResponse.json(
       { error: err.message || "Failed to start indexing run" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

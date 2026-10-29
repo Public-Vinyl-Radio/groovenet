@@ -8,19 +8,13 @@ import { embeddingQueueService } from "@/server/services/embeddingQueueService";
  * worker settles each job, and worthless once the run is old. They expire
  * on their own (`RUN_TTL_SECONDS`).
  */
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ runId: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ runId: string }> }) {
   try {
     const { runId } = await params;
     const run = await embeddingQueueService.getBackfillRun(runId);
 
     if (!run) {
-      return NextResponse.json(
-        { error: "Backfill run not found or expired" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Backfill run not found or expired" }, { status: 404 });
     }
 
     return NextResponse.json(run);
@@ -29,7 +23,7 @@ export async function GET(
     console.error("Error reading embeddings backfill run:", err);
     return NextResponse.json(
       { error: err.message || "Failed to read backfill run" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

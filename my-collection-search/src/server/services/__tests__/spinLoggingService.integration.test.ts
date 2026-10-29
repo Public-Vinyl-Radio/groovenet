@@ -44,7 +44,7 @@ beforeAll(async () => {
 
   const friends = await dbQuery<{ id: number; username: string }>(
     `INSERT INTO friends (username) VALUES ($1), ($2) RETURNING id, username`,
-    [USERNAME, OTHER_USERNAME]
+    [USERNAME, OTHER_USERNAME],
   );
   friendId = friends.rows.find((row) => row.username === USERNAME)!.id;
   otherFriendId = friends.rows.find((row) => row.username === OTHER_USERNAME)!.id;
@@ -52,7 +52,7 @@ beforeAll(async () => {
   await dbQuery(
     `INSERT INTO albums (release_id, friend_id, title, artist)
      VALUES ($1, $2, 'Algo-Ritmo', 'Mexican Institute Of Sound')`,
-    [RELEASE_ID, friendId]
+    [RELEASE_ID, friendId],
   );
   for (const [trackId, position, title] of [
     ["edit-a1", "A1", "Mexico"],
@@ -62,19 +62,29 @@ beforeAll(async () => {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, album, release_id, position)
        VALUES ($1, $2, $3, $4, 'Mexican Institute Of Sound', 'Algo-Ritmo', $5, $6)`,
-      [trackId, USERNAME, friendId, title, RELEASE_ID, position]
+      [trackId, USERNAME, friendId, title, RELEASE_ID, position],
     );
   }
 
   const ingest = await new AudioIngestRepository().create({
-    source_id: SOURCE, session_id: "s1", sequence: 1,
-    file_path: "x/1.wav", status: "processed", duration_seconds: 15,
+    source_id: SOURCE,
+    session_id: "s1",
+    sequence: 1,
+    file_path: "x/1.wav",
+    status: "processed",
+    duration_seconds: 15,
   });
   const detection = await new PlayDetectionRepository().create({
-    ingest_id: ingest.id, source_id: SOURCE, session_id: "s1",
-    track_id: "edit-a1", friend_id: friendId, confidence: 0.82,
-    offset_seconds: 30, window_start_at: new Date("2026-09-20T21:30:00.000Z"),
-    fingerprint_type: "chromaprint", fingerprint_version: "1",
+    ingest_id: ingest.id,
+    source_id: SOURCE,
+    session_id: "s1",
+    track_id: "edit-a1",
+    friend_id: friendId,
+    confidence: 0.82,
+    offset_seconds: 30,
+    window_start_at: new Date("2026-09-20T21:30:00.000Z"),
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
   });
   detectionId = detection.id;
 });
@@ -141,10 +151,10 @@ dbTest("a spin is only editable by its friend, and a bad selection changes nothi
   });
 
   await expect(
-    service.updateSpinSession(spin.session.id, otherFriendId, { note: "not mine" })
+    service.updateSpinSession(spin.session.id, otherFriendId, { note: "not mine" }),
   ).resolves.toBeNull();
   await expect(
-    service.updateSpinSession(spin.session.id, friendId, { side_keys: ["Z"] })
+    service.updateSpinSession(spin.session.id, friendId, { side_keys: ["Z"] }),
   ).rejects.toThrow("Invalid side key: Z");
 
   const [unchanged] = await service.listSpinSessions({
@@ -155,34 +165,37 @@ dbTest("a spin is only editable by its friend, and a bad selection changes nothi
   expect(unchanged.track_events.map((event) => event.track_id)).toEqual(["edit-b1"]);
 });
 
-dbTest("a digital play is stored once, labelled, and kept out of vinyl play counts (#653)", async () => {
-  const before = await playCounts();
-  const digital = {
-    friend_id: friendId,
-    release_id: RELEASE_ID,
-    medium: "digital" as const,
-    played_at: "2026-10-23T12:00:00.000Z",
-    context_type: "player",
-    track_refs: [{ track_id: "edit-b1", friend_id: friendId }],
-  };
+dbTest(
+  "a digital play is stored once, labelled, and kept out of vinyl play counts (#653)",
+  async () => {
+    const before = await playCounts();
+    const digital = {
+      friend_id: friendId,
+      release_id: RELEASE_ID,
+      medium: "digital" as const,
+      played_at: "2026-10-23T12:00:00.000Z",
+      context_type: "player",
+      track_refs: [{ track_id: "edit-b1", friend_id: friendId }],
+    };
 
-  const logged = await service.createSpinSession(digital);
-  expect(logged.session.medium).toBe("digital");
-  expect(logged.track_events.map((event) => event.track_id)).toEqual(["edit-b1"]);
+    const logged = await service.createSpinSession(digital);
+    expect(logged.session.medium).toBe("digital");
+    expect(logged.track_events.map((event) => event.track_id)).toEqual(["edit-b1"]);
 
-  // The same play posted again is refused, and leaves one session behind.
-  await expect(service.createSpinSession(digital)).rejects.toThrow("Digital play already logged");
-  const sessions = await dbQuery(
-    `SELECT id FROM spin_sessions WHERE friend_id = $1 AND medium = 'digital'`,
-    [friendId]
-  );
-  expect(sessions.rows).toHaveLength(1);
+    // The same play posted again is refused, and leaves one session behind.
+    await expect(service.createSpinSession(digital)).rejects.toThrow("Digital play already logged");
+    const sessions = await dbQuery(
+      `SELECT id FROM spin_sessions WHERE friend_id = $1 AND medium = 'digital'`,
+      [friendId],
+    );
+    expect(sessions.rows).toHaveLength(1);
 
-  // A different start time is a different play; the same time on vinyl is not a clash.
-  await service.createSpinSession({ ...digital, played_at: "2026-10-23T13:00:00.000Z" });
-  await service.createSpinSession({ ...digital, medium: "vinyl" });
-  await service.createSpinSession({ ...digital, medium: "vinyl" });
+    // A different start time is a different play; the same time on vinyl is not a clash.
+    await service.createSpinSession({ ...digital, played_at: "2026-10-23T13:00:00.000Z" });
+    await service.createSpinSession({ ...digital, medium: "vinyl" });
+    await service.createSpinSession({ ...digital, medium: "vinyl" });
 
-  const after = await playCounts();
-  expect(after["edit-b1"]).toBe((before["edit-b1"] ?? 0) + 2);
-});
+    const after = await playCounts();
+    expect(after["edit-b1"]).toBe((before["edit-b1"] ?? 0) + 2);
+  },
+);

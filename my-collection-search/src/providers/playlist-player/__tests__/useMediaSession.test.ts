@@ -106,7 +106,7 @@ describe("metadata", () => {
         artist: "Test Artist",
         album: "Test Album",
         artwork: expect.arrayContaining([expect.objectContaining({ src: "https://img/art.jpg" })]),
-      })
+      }),
     );
   });
 

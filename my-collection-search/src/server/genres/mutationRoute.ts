@@ -15,7 +15,11 @@ export async function genreMutation<B, R>(
     let id = "";
     if (options.params) {
       const params = genreParamsSchema.safeParse(await options.params);
-      if (!params.success) return NextResponse.json({ error: "Invalid genre ID", details: params.error.flatten() }, { status: 400 });
+      if (!params.success)
+        return NextResponse.json(
+          { error: "Invalid genre ID", details: params.error.flatten() },
+          { status: 400 },
+        );
       id = params.data.id;
     }
     let raw: unknown;
@@ -25,11 +29,16 @@ export async function genreMutation<B, R>(
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     const body = bodySchema.safeParse(raw);
-    if (!body.success) return NextResponse.json({ error: "Invalid genre request", details: body.error.flatten() }, { status: 400 });
+    if (!body.success)
+      return NextResponse.json(
+        { error: "Invalid genre request", details: body.error.flatten() },
+        { status: 400 },
+      );
     const result = await action(body.data, id);
     return NextResponse.json(responseSchema.parse(result), { status: options.status ?? 200 });
   } catch (error) {
-    if (error instanceof GenreAdminError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof GenreAdminError)
+      return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Genre mutation failed:", error);
     return NextResponse.json({ error: "Failed to modify genre taxonomy" }, { status: 500 });
   }

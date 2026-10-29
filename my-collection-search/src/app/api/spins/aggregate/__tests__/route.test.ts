@@ -66,19 +66,15 @@ describe("POST /api/spins/aggregate", () => {
   it("scopes to one source, without listing active sources", async () => {
     aggregation.aggregateSource.mockResolvedValue({ created: 1, skipped: 0 });
 
-    const res = await POST(
-      post({ since: "2026-08-01T00:00:00Z", source_id: "living-room-vinyl" })
-    );
+    const res = await POST(post({ since: "2026-08-01T00:00:00Z", source_id: "living-room-vinyl" }));
     const body = await res.json();
 
     expect(detections.listActiveSourceIds).not.toHaveBeenCalled();
     expect(aggregation.aggregateSource).toHaveBeenCalledWith(
       "living-room-vinyl",
-      "2026-08-01T00:00:00Z"
+      "2026-08-01T00:00:00Z",
     );
-    expect(body.sources).toEqual([
-      { source_id: "living-room-vinyl", created: 1, skipped: 0 },
-    ]);
+    expect(body.sources).toEqual([{ source_id: "living-room-vinyl", created: 1, skipped: 0 }]);
   });
 
   it("reports nothing to do rather than erroring when no source is active", async () => {

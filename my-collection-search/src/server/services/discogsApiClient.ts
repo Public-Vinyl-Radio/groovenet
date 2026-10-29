@@ -25,11 +25,7 @@ type DiscogsCollectionPage = {
   pagination: { page: number; pages: number };
 };
 
-export async function getCollectionPage(
-  username: string,
-  page: number = 1,
-  perPage = 100
-) {
+export async function getCollectionPage(username: string, page: number = 1, perPage = 100) {
   const urlBase = `https://api.discogs.com/users/${username}/collection/folders/${FOLDER_ID}/releases`;
   const url = `${urlBase}?page=${page}&per_page=${perPage}`;
   return await http<DiscogsCollectionPage>(url, {
@@ -37,9 +33,7 @@ export async function getCollectionPage(
   });
 }
 
-export async function getReleaseDetails(
-  releaseId: string
-): Promise<DiscogsReleaseDetails> {
+export async function getReleaseDetails(releaseId: string): Promise<DiscogsReleaseDetails> {
   const url = `https://api.discogs.com/releases/${releaseId}`;
   return await http<DiscogsReleaseDetails>(url, {
     headers: { Authorization: `Discogs token=${DISCOGS_USER_TOKEN}` },

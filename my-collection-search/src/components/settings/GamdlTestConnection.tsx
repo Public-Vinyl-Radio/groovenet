@@ -26,8 +26,7 @@ import {
 } from "@/services/internalApi/settings";
 
 export default function GamdlTestConnection() {
-  const [lastResult, setLastResult] =
-    React.useState<GamdlConnectionTestResponse | null>(null);
+  const [lastResult, setLastResult] = React.useState<GamdlConnectionTestResponse | null>(null);
 
   const testMutation = useMutation({
     mutationFn: testGamdlConnection,
@@ -74,7 +73,11 @@ export default function GamdlTestConnection() {
 
   const getStatusIcon = (status?: boolean) => {
     if (status === undefined) return <LuClock />;
-    return status ? <LuCheck color="var(--chakra-colors-fg-success)" /> : <LuX color="var(--chakra-colors-fg-error)" />;
+    return status ? (
+      <LuCheck color="var(--chakra-colors-fg-success)" />
+    ) : (
+      <LuX color="var(--chakra-colors-fg-error)" />
+    );
   };
 
   const getStatusColor = (status?: boolean) => {
@@ -101,11 +104,7 @@ export default function GamdlTestConnection() {
             </Menu.Trigger>
             <Menu.Positioner>
               <Menu.Content>
-                <Menu.Item
-                  value="test"
-                  onClick={handleTest}
-                  disabled={testMutation.isPending}
-                >
+                <Menu.Item value="test" onClick={handleTest} disabled={testMutation.isPending}>
                   <LuPlay />
                   Test Connection
                 </Menu.Item>
@@ -126,13 +125,18 @@ export default function GamdlTestConnection() {
                 {/* Detailed Results */}
                 {lastResult.details && (
                   <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={2}>Test Details:</Text>
+                    <Text fontSize="sm" fontWeight="medium" mb={2}>
+                      Test Details:
+                    </Text>
                     <List.Root listStyleType="none">
                       <List.Item>
                         <HStack>
                           {getStatusIcon(lastResult.details.gamdl_available)}
                           <Text>Gamdl executable available</Text>
-                          <Badge colorPalette={getStatusColor(lastResult.details.gamdl_available)} variant="subtle">
+                          <Badge
+                            colorPalette={getStatusColor(lastResult.details.gamdl_available)}
+                            variant="subtle"
+                          >
                             {lastResult.details.gamdl_available ? "Found" : "Missing"}
                           </Badge>
                         </HStack>
@@ -142,7 +146,10 @@ export default function GamdlTestConnection() {
                         <HStack>
                           {getStatusIcon(lastResult.details.cookie_file_exists)}
                           <Text>Cookie file exists</Text>
-                          <Badge colorPalette={getStatusColor(lastResult.details.cookie_file_exists)} variant="subtle">
+                          <Badge
+                            colorPalette={getStatusColor(lastResult.details.cookie_file_exists)}
+                            variant="subtle"
+                          >
                             {lastResult.details.cookie_file_exists ? "Found" : "Missing"}
                           </Badge>
                         </HStack>
@@ -153,7 +160,10 @@ export default function GamdlTestConnection() {
                           <HStack>
                             {getStatusIcon(lastResult.details.cookie_file_valid)}
                             <Text>Cookie file valid</Text>
-                            <Badge colorPalette={getStatusColor(lastResult.details.cookie_file_valid)} variant="subtle">
+                            <Badge
+                              colorPalette={getStatusColor(lastResult.details.cookie_file_valid)}
+                              variant="subtle"
+                            >
                               {lastResult.details.cookie_file_valid ? "Valid" : "Invalid"}
                             </Badge>
                           </HStack>
@@ -165,7 +175,12 @@ export default function GamdlTestConnection() {
                           <HStack>
                             {getStatusIcon(lastResult.details.test_download_success)}
                             <Text>Test download</Text>
-                            <Badge colorPalette={getStatusColor(lastResult.details.test_download_success)} variant="subtle">
+                            <Badge
+                              colorPalette={getStatusColor(
+                                lastResult.details.test_download_success,
+                              )}
+                              variant="subtle"
+                            >
                               {lastResult.details.test_download_success ? "Success" : "Failed"}
                             </Badge>
                           </HStack>

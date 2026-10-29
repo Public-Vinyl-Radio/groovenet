@@ -88,7 +88,7 @@ describe("PUT /api/albums/[releaseId]/artwork", () => {
         method: "PUT",
         body: typeof body === "string" ? body : JSON.stringify(body),
       }),
-      params
+      params,
     );
 
   it("applies the chosen source", async () => {
@@ -106,24 +106,43 @@ describe("PUT /api/albums/[releaseId]/artwork", () => {
   });
 
   it("maps service errors", async () => {
-    service.apply.mockRejectedValue(new AlbumArtworkError("Could not download artwork: HTTP 404", 502));
+    service.apply.mockRejectedValue(
+      new AlbumArtworkError("Could not download artwork: HTTP 404", 502),
+    );
     expect((await put({ source: "discogs" })).status).toBe(502);
   });
 });
 
 describe("POST /api/albums/[releaseId]/artwork/preview", () => {
   it("returns the preview", async () => {
-    const preview = { url: "/uploads/album-covers/a.jpg", width: 1400, height: 1400, track_id: "t1" };
+    const preview = {
+      url: "/uploads/album-covers/a.jpg",
+      width: 1400,
+      height: 1400,
+      track_id: "t1",
+    };
     service.previewAppleMusicArt.mockResolvedValue(preview);
-    const res = await postPreview(req("/api/albums/r1/artwork/preview?friend_id=7", { method: "POST" }), params);
+    const res = await postPreview(
+      req("/api/albums/r1/artwork/preview?friend_id=7", { method: "POST" }),
+      params,
+    );
     expect(await res.json()).toEqual(preview);
   });
 
   it("requires friend_id and maps errors", async () => {
-    expect((await postPreview(req("/api/albums/r1/artwork/preview", { method: "POST" }), params)).status).toBe(400);
-    service.previewAppleMusicArt.mockRejectedValue(new AlbumArtworkError("No downloaded track", 404));
     expect(
-      (await postPreview(req("/api/albums/r1/artwork/preview?friend_id=7", { method: "POST" }), params)).status
+      (await postPreview(req("/api/albums/r1/artwork/preview", { method: "POST" }), params)).status,
+    ).toBe(400);
+    service.previewAppleMusicArt.mockRejectedValue(
+      new AlbumArtworkError("No downloaded track", 404),
+    );
+    expect(
+      (
+        await postPreview(
+          req("/api/albums/r1/artwork/preview?friend_id=7", { method: "POST" }),
+          params,
+        )
+      ).status,
     ).toBe(404);
   });
 });
@@ -132,7 +151,7 @@ describe("POST /api/albums/[releaseId]/artwork/upload", () => {
   const upload = (form: FormData | null, query = "?friend_id=7") =>
     postUpload(
       req(`/api/albums/r1/artwork/upload${query}`, { method: "POST", body: form ?? "plain" }),
-      params
+      params,
     );
 
   it("uploads the cover_art file", async () => {
@@ -176,15 +195,21 @@ describe("POST /api/albums/[releaseId]/artwork/match", () => {
       apple_music_art_url: "/uploads/album-covers/a.jpg",
     };
     service.match.mockResolvedValue(result);
-    const res = await postMatch(req("/api/albums/r1/artwork/match?friend_id=7", { method: "POST" }), params);
+    const res = await postMatch(
+      req("/api/albums/r1/artwork/match?friend_id=7", { method: "POST" }),
+      params,
+    );
     expect(await res.json()).toEqual(result);
   });
 
   it("requires friend_id and maps errors", async () => {
-    expect((await postMatch(req("/api/albums/r1/artwork/match", { method: "POST" }), params)).status).toBe(400);
+    expect(
+      (await postMatch(req("/api/albums/r1/artwork/match", { method: "POST" }), params)).status,
+    ).toBe(400);
     service.match.mockRejectedValue(new Error("boom"));
     expect(
-      (await postMatch(req("/api/albums/r1/artwork/match?friend_id=7", { method: "POST" }), params)).status
+      (await postMatch(req("/api/albums/r1/artwork/match?friend_id=7", { method: "POST" }), params))
+        .status,
     ).toBe(500);
   });
 });

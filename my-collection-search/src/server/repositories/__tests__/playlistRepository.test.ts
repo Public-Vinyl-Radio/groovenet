@@ -62,8 +62,26 @@ describe("PlaylistRepository — reads", () => {
 
   it("maps live set summaries back to their playlist ids", async () => {
     dbQuery.mockResolvedValueOnce({
-      rows: [{
-        playlist_id: 1,
+      rows: [
+        {
+          playlist_id: 1,
+          id: 7,
+          title: "Late night",
+          status: "performed",
+          cover_image_url: null,
+          last_performed_at: "2026-09-01T00:00:00.000Z",
+          venue_name: "The Room",
+          location_city: "Seattle",
+          collaborators: [{ friend_id: 2, username: "alex", role: "DJ" }],
+          flyer_url: "/flyer.jpg",
+          recording_url: "https://example.com/rec.mp3",
+          post_url: null,
+          youtube_url: null,
+        },
+      ],
+    });
+    await expect(repo().listLiveSetSummariesByPlaylistIds([1, 2])).resolves.toEqual({
+      1: {
         id: 7,
         title: "Late night",
         status: "performed",
@@ -76,15 +94,6 @@ describe("PlaylistRepository — reads", () => {
         recording_url: "https://example.com/rec.mp3",
         post_url: null,
         youtube_url: null,
-      }],
-    });
-    await expect(repo().listLiveSetSummariesByPlaylistIds([1, 2])).resolves.toEqual({
-      1: {
-        id: 7, title: "Late night", status: "performed", cover_image_url: null,
-        last_performed_at: "2026-09-01T00:00:00.000Z", venue_name: "The Room",
-        location_city: "Seattle", collaborators: [{ friend_id: 2, username: "alex", role: "DJ" }],
-        flyer_url: "/flyer.jpg", recording_url: "https://example.com/rec.mp3",
-        post_url: null, youtube_url: null,
       },
     });
     const [sql, params] = dbQuery.mock.calls[0];
@@ -136,7 +145,9 @@ describe("PlaylistRepository — reads", () => {
   });
 
   it("listPlaylistTracksByPlaylistIds queries with ANY($1)", async () => {
-    dbQuery.mockResolvedValueOnce({ rows: [{ playlist_id: 1, track_id: "t1", friend_id: 1, position: 0 }] });
+    dbQuery.mockResolvedValueOnce({
+      rows: [{ playlist_id: 1, track_id: "t1", friend_id: 1, position: 0 }],
+    });
     const rows = await repo().listPlaylistTracksByPlaylistIds([1, 2]);
     expect(rows).toHaveLength(1);
     const [sql, params] = dbQuery.mock.calls[0];
@@ -176,7 +187,10 @@ describe("PlaylistRepository — reads", () => {
     const entry = { track_id: "t1", friend_id: 2, playlist_position: 0, release_id: "r1" };
     dbQuery.mockResolvedValueOnce({ rows: [entry] });
     await expect(repo().listSpinEntries(7)).resolves.toEqual([entry]);
-    expect(dbQuery).toHaveBeenCalledWith(expect.stringMatching(/LEFT JOIN tracks[\s\S]*ORDER BY pt\.position/), [7]);
+    expect(dbQuery).toHaveBeenCalledWith(
+      expect.stringMatching(/LEFT JOIN tracks[\s\S]*ORDER BY pt\.position/),
+      [7],
+    );
   });
 
   it("finds the latest or a specified playlist performance", async () => {
@@ -215,7 +229,12 @@ describe("PlaylistRepository.insertPlaylistTracks", () => {
 
   it("adds ON CONFLICT DO NOTHING when requested", async () => {
     const client = fakeClient();
-    await repo().insertPlaylistTracks(client, 7, [{ track_id: "t1", friend_id: 1, position: 0 }], true);
+    await repo().insertPlaylistTracks(
+      client,
+      7,
+      [{ track_id: "t1", friend_id: 1, position: 0 }],
+      true,
+    );
     const [sql] = client.query.mock.calls[0];
     expect(sql).toMatch(/ON CONFLICT DO NOTHING/);
   });
@@ -238,7 +257,7 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
     const client = fakeClient();
     await repo().upsertTracksWithMetadata(
       [ptrack({ track_id: "" }), ptrack({ friend_id: 0 })],
-      client
+      client,
     );
     expect(client.query).not.toHaveBeenCalled();
   });
@@ -269,7 +288,7 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
     await repo().upsertTracksWithMetadata([ptrack({ title: "Song" })], client);
     expect(dbQuery).toHaveBeenCalledWith(
       expect.stringMatching(/SELECT username FROM friends/),
-      [1]
+      [1],
     );
     expect(client.query).toHaveBeenCalledTimes(2);
   });
@@ -278,7 +297,7 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
     const client = fakeClient(0);
     dbQuery.mockResolvedValueOnce({ rows: [] }); // no username found
     await expect(
-      repo().upsertTracksWithMetadata([ptrack({ title: "Song" })], client)
+      repo().upsertTracksWithMetadata([ptrack({ title: "Song" })], client),
     ).rejects.toThrow(/username is required/i);
   });
 
@@ -286,7 +305,7 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
     const client = fakeClient(0);
     await repo().upsertTracksWithMetadata(
       [ptrack({ username: "alice", title: "   ", artist: "" })],
-      client
+      client,
     );
     const insertParams = client.query.mock.calls[1][1];
     // insert column order: track_id, friend_id, then columns[] starting with title, artist
@@ -298,15 +317,31 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
     const client = fakeClient(1);
     await repo().upsertTracksWithMetadata(
       [ptrack({ bpm: "128", duration_seconds: "abc", star_rating: "4" })],
-      client
+      client,
     );
     const updateParams = client.query.mock.calls[0][1];
     // columns order: ... bpm is index 13, duration_seconds 16, star_rating 19 (0-based)
     const columns = [
-      "title", "artist", "album", "year", "styles", "genres", "duration",
-      "discogs_url", "apple_music_url", "youtube_url", "soundcloud_url",
-      "album_thumbnail", "local_tags", "bpm", "key", "danceability",
-      "duration_seconds", "notes", "local_audio_url", "star_rating",
+      "title",
+      "artist",
+      "album",
+      "year",
+      "styles",
+      "genres",
+      "duration",
+      "discogs_url",
+      "apple_music_url",
+      "youtube_url",
+      "soundcloud_url",
+      "album_thumbnail",
+      "local_tags",
+      "bpm",
+      "key",
+      "danceability",
+      "duration_seconds",
+      "notes",
+      "local_audio_url",
+      "star_rating",
     ];
     expect(updateParams[columns.indexOf("bpm")]).toBe(128);
     expect(updateParams[columns.indexOf("duration_seconds")]).toBeNull();

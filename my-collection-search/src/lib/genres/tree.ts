@@ -17,11 +17,12 @@ function byCount(a: CountedGenreNode, b: CountedGenreNode): number {
 export function countGenreTree(
   nodes: GenreTreeNode[],
   counts: ReadonlyMap<string, number>,
-  options: { showEmpty: boolean; search: string }
+  options: { showEmpty: boolean; search: string },
 ): CountedGenreNode[] {
   const query = normalizeGenreName(options.search);
   const visit = (node: GenreTreeNode, ancestorMatched: boolean): CountedGenreNode | null => {
-    const matched = ancestorMatched || query === "" || normalizeGenreName(node.name).includes(query);
+    const matched =
+      ancestorMatched || query === "" || normalizeGenreName(node.name).includes(query);
     const children = node.children
       .map((child) => visit(child, matched))
       .filter((child): child is CountedGenreNode => child !== null)

@@ -240,5 +240,6 @@ type WithoutSource<E extends ServerEventName> = Omit<AnalyticsEvents[E], "source
  * An event with nothing else is `Record<string, never>` rather than `{}`,
  * which would accept any object and let a name slip through.
  */
-export type ServerEventProperties<E extends ServerEventName> =
-  keyof WithoutSource<E> extends never ? Record<string, never> : WithoutSource<E>;
+export type ServerEventProperties<E extends ServerEventName> = keyof WithoutSource<E> extends never
+  ? Record<string, never>
+  : WithoutSource<E>;

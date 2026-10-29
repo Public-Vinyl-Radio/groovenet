@@ -4,8 +4,22 @@
  * reported and that action keeps its default keys; the rest of the config
  * still applies.
  */
-import { ACTIONS, KEYMAP_VIEWS, type ActionDef, type ActionId, type KeymapView } from "./playerKeymapRegistry.js";
-import { canonicalKey, formatKey, matchKey, parseKey, type InkKeyEvent, type KeySpec, type ParseResult } from "./playerKeyspec.js";
+import {
+  ACTIONS,
+  KEYMAP_VIEWS,
+  type ActionDef,
+  type ActionId,
+  type KeymapView,
+} from "./playerKeymapRegistry.js";
+import {
+  canonicalKey,
+  formatKey,
+  matchKey,
+  parseKey,
+  type InkKeyEvent,
+  type KeySpec,
+  type ParseResult,
+} from "./playerKeyspec.js";
 
 export interface KeymapProblem {
   kind: "bad-config" | "unknown-action" | "bad-value" | "bad-key" | "conflict";
@@ -54,7 +68,9 @@ function tidy(value: unknown): string {
 }
 
 /** Same key bound to two actions that are live in the same view. */
-function findConflicts(actions: ResolvedAction[]): Array<{ key: string; ids: string[]; views: KeymapView[] }> {
+function findConflicts(
+  actions: ResolvedAction[],
+): Array<{ key: string; ids: string[]; views: KeymapView[] }> {
   const found = new Map<string, { key: string; ids: string[]; views: KeymapView[] }>();
   for (const view of KEYMAP_VIEWS) {
     const byKey = new Map<string, string[]>();
@@ -83,27 +99,46 @@ export function buildKeymap(raw?: unknown): Keymap {
 
   if (raw !== undefined && raw !== null) {
     if (typeof raw !== "object" || Array.isArray(raw)) {
-      problems.push({ kind: "bad-config", actions: [], message: `player_keymap must be an object of action to keys, not ${tidy(raw)}; using the default keymap.` });
+      problems.push({
+        kind: "bad-config",
+        actions: [],
+        message: `player_keymap must be an object of action to keys, not ${tidy(raw)}; using the default keymap.`,
+      });
     } else {
       for (const [id, value] of Object.entries(raw)) {
         if (!known.has(id)) {
-          problems.push({ kind: "unknown-action", actions: [id], message: `Unknown action "${id}"; ignored. Run \`groovenet player keys\` for the action ids.` });
+          problems.push({
+            kind: "unknown-action",
+            actions: [id],
+            message: `Unknown action "${id}"; ignored. Run \`groovenet player keys\` for the action ids.`,
+          });
           continue;
         }
         const list = typeof value === "string" ? [value] : value;
         if (!Array.isArray(list) || list.some((item) => typeof item !== "string")) {
-          problems.push({ kind: "bad-value", actions: [id], message: `${id}: expected a key or a list of keys, got ${tidy(value)}; using the default keys.` });
+          problems.push({
+            kind: "bad-value",
+            actions: [id],
+            message: `${id}: expected a key or a list of keys, got ${tidy(value)}; using the default keys.`,
+          });
           continue;
         }
         const specs: KeySpec[] = [];
         const errors: string[] = [];
         for (const text of list as string[]) {
           const parsed = parseKey(text);
-          if (parsed.ok) { if (!specs.some((spec) => canonicalKey(spec) === canonicalKey(parsed.spec))) specs.push(parsed.spec); }
-          else errors.push(parsed.error);
+          if (parsed.ok) {
+            if (!specs.some((spec) => canonicalKey(spec) === canonicalKey(parsed.spec)))
+              specs.push(parsed.spec);
+          } else errors.push(parsed.error);
         }
         if (errors.length) {
-          for (const error of errors) problems.push({ kind: "bad-key", actions: [id], message: `${id}: ${error}; using the default keys.` });
+          for (const error of errors)
+            problems.push({
+              kind: "bad-key",
+              actions: [id],
+              message: `${id}: ${error}; using the default keys.`,
+            });
           continue;
         }
         overrides.set(id, specs);
@@ -141,10 +176,16 @@ export interface DispatchContext {
 }
 
 /** Which action, if any, this key event triggers in this view. */
-export function resolveAction(keymap: Keymap, { view, remote }: DispatchContext, input: string, key: InkKeyEvent): ActionId | null {
+export function resolveAction(
+  keymap: Keymap,
+  { view, remote }: DispatchContext,
+  input: string,
+  key: InkKeyEvent,
+): ActionId | null {
   for (const action of keymap.actions) {
     if ((action.def.remoteOnly && !remote) || !action.specs[view]) continue;
-    if (action.specs[view]!.some((spec) => matchKey(spec, input, key))) return action.def.id as ActionId;
+    if (action.specs[view]!.some((spec) => matchKey(spec, input, key)))
+      return action.def.id as ActionId;
   }
   return null;
 }
@@ -161,33 +202,62 @@ export function primaryKey(keymap: Keymap, id: ActionId, view: KeymapView): stri
   return spec ? formatKey(spec) : "";
 }
 
-export interface HelpEntry { keys: string; description: string }
-
-/** Every bound action live in a view, for the `?` overlay: all its keys and its description. */
-export function helpEntries(keymap: Keymap, view: KeymapView, { remote }: { remote: boolean }): HelpEntry[] {
-  return keymap.actions
-    .filter((action) => (!action.def.remoteOnly || remote) && action.specs[view]?.length)
-    .map((action) => ({ keys: displayKeys(keymap, action.def.id as ActionId, view), description: action.def.description }));
+export interface HelpEntry {
+  keys: string;
+  description: string;
 }
 
-export interface HintItem { keys: string; label: string }
+/** Every bound action live in a view, for the `?` overlay: all its keys and its description. */
+export function helpEntries(
+  keymap: Keymap,
+  view: KeymapView,
+  { remote }: { remote: boolean },
+): HelpEntry[] {
+  return keymap.actions
+    .filter((action) => (!action.def.remoteOnly || remote) && action.specs[view]?.length)
+    .map((action) => ({
+      keys: displayKeys(keymap, action.def.id as ActionId, view),
+      description: action.def.description,
+    }));
+}
+
+export interface HintItem {
+  keys: string;
+  label: string;
+}
 
 /**
  * The hint for each hinted action live in a view, showing its primary key and
  * merging adjacent actions with the same label (`↑/↓ select`). Unbound actions
  * are left out. `remoteOnly: true` lists the server-player actions instead.
  */
-export function hintItems(keymap: Keymap, view: KeymapView | null, { remote, remoteOnly = false, omit = [] }: {
-  remote: boolean;
-  remoteOnly?: boolean;
-  /** Actions the frame already shows elsewhere (tabs, top bar). */
-  omit?: readonly ActionId[];
-}): HintItem[] {
+export function hintItems(
+  keymap: Keymap,
+  view: KeymapView | null,
+  {
+    remote,
+    remoteOnly = false,
+    omit = [],
+  }: {
+    remote: boolean;
+    remoteOnly?: boolean;
+    /** Actions the frame already shows elsewhere (tabs, top bar). */
+    omit?: readonly ActionId[];
+  },
+): HintItem[] {
   const items: HintItem[] = [];
   for (const action of keymap.actions) {
     const { def } = action;
-    if (!def.hint || !!def.remoteOnly !== remoteOnly || (def.remoteOnly && !remote) || omit.includes(def.id as ActionId)) continue;
-    const specs = view ? action.specs[view] : Object.values(action.specs).find((list) => list?.length);
+    if (
+      !def.hint ||
+      !!def.remoteOnly !== remoteOnly ||
+      (def.remoteOnly && !remote) ||
+      omit.includes(def.id as ActionId)
+    )
+      continue;
+    const specs = view
+      ? action.specs[view]
+      : Object.values(action.specs).find((list) => list?.length);
     if (!specs?.length) continue;
     const keys = formatKey(specs[0]!);
     const last = items[items.length - 1];

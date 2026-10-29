@@ -16,18 +16,36 @@ export function audioSource(track: Track, config: ResolverConfig): PlaybackSourc
   const filename = track.local_audio_url?.trim();
   if (!filename) return null;
   if (config.audioLibraryRoot !== undefined) {
-    if (!posix.isAbsolute(config.audioLibraryRoot)) throw new PlayerError("INVALID_ARGUMENT", "OwnTone library root must be an absolute Linux path");
+    if (!posix.isAbsolute(config.audioLibraryRoot))
+      throw new PlayerError(
+        "INVALID_ARGUMENT",
+        "OwnTone library root must be an absolute Linux path",
+      );
     let relative = filename;
     if (/^https?:\/\//.test(relative)) {
       try {
         const legacy = new URL(relative);
-        relative = legacy.searchParams.get("filename") ?? posix.basename(decodeURIComponent(legacy.pathname));
-      } catch { return null; }
+        relative =
+          legacy.searchParams.get("filename") ??
+          posix.basename(decodeURIComponent(legacy.pathname));
+      } catch {
+        return null;
+      }
     } else {
-      try { relative = decodeURIComponent(relative); } catch { return null; }
+      try {
+        relative = decodeURIComponent(relative);
+      } catch {
+        return null;
+      }
     }
     relative = relative.replace(/^\/+/, "").replace(/^(?:app\/)?audio\//, "");
-    if (!relative || relative.includes("\\") || relative.includes("\0") || relative.split("/").some((part) => !part || part === "." || part === "..")) return null;
+    if (
+      !relative ||
+      relative.includes("\\") ||
+      relative.includes("\0") ||
+      relative.split("/").some((part) => !part || part === "." || part === "..")
+    )
+      return null;
     return { url: pathToFileURL(posix.join(config.audioLibraryRoot, relative)).toString() };
   }
   const base = config.apiBase.endsWith("/") ? config.apiBase : `${config.apiBase}/`;
@@ -42,7 +60,7 @@ export function audioSource(track: Track, config: ResolverConfig): PlaybackSourc
 export class TrackResolver {
   constructor(
     private readonly client: GroovenetClient,
-    private readonly config: ResolverConfig
+    private readonly config: ResolverConfig,
   ) {}
 
   async search(query: string, limit = 50): Promise<Track[]> {

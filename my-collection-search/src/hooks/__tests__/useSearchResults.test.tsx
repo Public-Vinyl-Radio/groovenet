@@ -58,12 +58,13 @@ describe("useSearchResults searchMode", () => {
 
     await waitFor(() =>
       expect(searchTracks).toHaveBeenCalledWith(
-        expect.objectContaining({ q: "dusty cumbia", offset: 0, mode: "semantic" })
-      )
+        expect.objectContaining({ q: "dusty cumbia", offset: 0, mode: "semantic" }),
+      ),
     );
-    expect(trackKeys()).toContainEqual(
-      ["tracks", expect.objectContaining({ q: "dusty cumbia", searchMode: "semantic" })]
-    );
+    expect(trackKeys()).toContainEqual([
+      "tracks",
+      expect.objectContaining({ q: "dusty cumbia", searchMode: "semantic" }),
+    ]);
     // One page: nothing more to load.
     await waitFor(() => expect(result.current.results).toHaveLength(1));
     expect(result.current.hasMore).toBe(false);
@@ -73,16 +74,21 @@ describe("useSearchResults searchMode", () => {
     renderSearch({ mode: "page", page: 1, searchMode: "hybrid" });
 
     await waitFor(() =>
-      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ mode: "hybrid", offset: 0 }))
+      expect(searchTracks).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: "hybrid", offset: 0 }),
+      ),
     );
-    expect(trackKeys()).toContainEqual(["tracks", expect.objectContaining({ page: 1, searchMode: "hybrid" })]);
+    expect(trackKeys()).toContainEqual([
+      "tracks",
+      expect.objectContaining({ page: 1, searchMode: "hybrid" }),
+    ]);
   });
 
   it("defaults to keyword, leaving the cache key as it was", async () => {
     renderSearch({});
 
     await waitFor(() =>
-      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ mode: "lexical" }))
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ mode: "lexical" })),
     );
     for (const [, args] of trackKeys()) expect(args).not.toHaveProperty("searchMode");
   });
@@ -93,7 +99,7 @@ describe("useSearchResults genres (#375)", () => {
     renderSearch({ genres: ["cumbia"] });
 
     await waitFor(() =>
-      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ genre: ["cumbia"] }))
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ genre: ["cumbia"] })),
     );
     expect(trackKeys()[0][1]).toMatchObject({ genre: ["cumbia"] });
   });
@@ -101,7 +107,7 @@ describe("useSearchResults genres (#375)", () => {
   it("sends them in page mode too", async () => {
     renderSearch({ genres: ["salsa"], mode: "page" });
     await waitFor(() =>
-      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ genre: ["salsa"] }))
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ genre: ["salsa"] })),
     );
   });
 
@@ -118,7 +124,7 @@ describe("useSearchResults attribute filters (#447)", () => {
   it("sends the attributes and keys the cache by them", async () => {
     renderSearch({ attributes });
     await waitFor(() =>
-      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining(attributes))
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining(attributes)),
     );
     expect(trackKeys()[0][1]).toMatchObject({ attributes });
   });
@@ -126,7 +132,7 @@ describe("useSearchResults attribute filters (#447)", () => {
   it("sends them in page mode too", async () => {
     renderSearch({ attributes: { key: "C major" }, mode: "page" });
     await waitFor(() =>
-      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ key: "C major" }))
+      expect(searchTracks).toHaveBeenCalledWith(expect.objectContaining({ key: "C major" })),
     );
     expect(trackKeys()[0][1]).toMatchObject({ attributes: { key: "C major" } });
   });
@@ -149,8 +155,12 @@ describe("useSearchResults includeSimilar (#485)", () => {
 
     await waitFor(() =>
       expect(searchTracks).toHaveBeenCalledWith(
-        expect.objectContaining({ include_similar: true, similar_limit: 3, similar_exclude: ["id-porro"] })
-      )
+        expect.objectContaining({
+          include_similar: true,
+          similar_limit: 3,
+          similar_exclude: ["id-porro"],
+        }),
+      ),
     );
     expect(trackKeys()[0][1]).toMatchObject({
       includeSimilar: true,
@@ -177,7 +187,9 @@ describe("useSearchResults includeSimilar (#485)", () => {
     const { result } = renderSearch({ genres: ["cumbia"], includeSimilar: true });
 
     await waitFor(() =>
-      expect(result.current.addedGenres).toEqual([{ id: "id-porro", name: "Porro", slug: "porro" }])
+      expect(result.current.addedGenres).toEqual([
+        { id: "id-porro", name: "Porro", slug: "porro" },
+      ]),
     );
   });
 

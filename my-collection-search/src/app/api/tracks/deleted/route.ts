@@ -19,19 +19,13 @@ export async function GET(request: NextRequest) {
     const limit = limitRaw ? Number(limitRaw) : 100;
     const offset = offsetRaw ? Number(offsetRaw) : 0;
     if (!Number.isFinite(limit) || !Number.isFinite(offset)) {
-      return NextResponse.json(
-        { error: "limit and offset must be numbers" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "limit and offset must be numbers" }, { status: 400 });
     }
 
     const result = await trackRepository.findDeletedTracks(friend_id, limit, offset);
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error listing deleted tracks:", error);
-    return NextResponse.json(
-      { error: "Failed to list deleted tracks" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to list deleted tracks" }, { status: 500 });
   }
 }

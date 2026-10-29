@@ -16,9 +16,7 @@ describe("GET /api/albums/{releaseId}/playable-structure", () => {
   });
 
   it("returns 400 when friend_id is invalid", async () => {
-    const req = new Request(
-      "http://localhost/api/albums/rel-1/playable-structure?friend_id=abc"
-    );
+    const req = new Request("http://localhost/api/albums/rel-1/playable-structure?friend_id=abc");
 
     const res = await GET(req as never, {
       params: Promise.resolve({ releaseId: "rel-1" }),
@@ -30,9 +28,7 @@ describe("GET /api/albums/{releaseId}/playable-structure", () => {
   it("returns 404 when album is not found", async () => {
     mockGetAlbumPlayableStructure.mockResolvedValueOnce(null);
 
-    const req = new Request(
-      "http://localhost/api/albums/rel-1/playable-structure?friend_id=1"
-    );
+    const req = new Request("http://localhost/api/albums/rel-1/playable-structure?friend_id=1");
 
     const res = await GET(req as never, {
       params: Promise.resolve({ releaseId: "rel-1" }),
@@ -71,9 +67,7 @@ describe("GET /api/albums/{releaseId}/playable-structure", () => {
       ],
     });
 
-    const req = new Request(
-      "http://localhost/api/albums/rel-1/playable-structure?friend_id=1"
-    );
+    const req = new Request("http://localhost/api/albums/rel-1/playable-structure?friend_id=1");
 
     const res = await GET(req as never, {
       params: Promise.resolve({ releaseId: "rel-1" }),

@@ -29,7 +29,7 @@ export default function TrackEditDialog({
   const { data: fetchedTrack } = useTrackByIdQuery(
     editTrack?.track_id,
     editTrack?.friend_id,
-    dialogOpen
+    dialogOpen,
   );
 
   useEffect(() => {

@@ -51,7 +51,9 @@ export class PlaylistSpinService {
     let entries: EntryToLog[];
 
     if (input.derivation_id) {
-      const view = await setDerivationService.view(input.derivation_id, { playlist_id: playlistId });
+      const view = await setDerivationService.view(input.derivation_id, {
+        playlist_id: playlistId,
+      });
       if (!view.diff || view.derivation.status !== "processed") {
         throw new Error("Set derivation is not ready for this playlist");
       }
@@ -61,7 +63,11 @@ export class PlaylistSpinService {
         .sort((a, b) => a.play - b.play)
         .map(({ play, planned }) => {
           const entry = allEntries[planned.index];
-          if (!entry || entry.track_id !== planned.track_id || entry.friend_id !== planned.friend_id) {
+          if (
+            !entry ||
+            entry.track_id !== planned.track_id ||
+            entry.friend_id !== planned.friend_id
+          ) {
             throw new Error("Playlist changed since the set derivation was reviewed");
           }
           return { ...entry, offset_seconds: view.tracklist[play]?.start_seconds ?? 0 };
@@ -83,11 +89,7 @@ export class PlaylistSpinService {
       let skipped = 0;
 
       for (const entry of entries) {
-        const offset = performance
-          ? input.derivation_id
-            ? entry.offset_seconds!
-            : elapsed
-          : 0;
+        const offset = performance ? (input.derivation_id ? entry.offset_seconds! : elapsed) : 0;
         const playedAt = new Date(baseMs + offset * 1000).toISOString();
         const session = await spinSessionRepository.createPlaylistSession(client, {
           friend_id: entry.friend_id,
@@ -104,25 +106,29 @@ export class PlaylistSpinService {
         if (!session) {
           skipped += 1;
         } else {
-          await spinSessionRepository.insertSelections(client, session.id, [{
-            ordinal: 0,
-            selection_type: "track",
-            track_id: entry.track_id,
-            friend_id: entry.friend_id,
-            position_snapshot: entry.track_position,
-          }]);
-          await trackSpinEventRepository.insertEvents(client, session.id, [{
-            friend_id: entry.friend_id,
-            release_id: entry.release_id!,
-            track_id: entry.track_id,
-            played_at: playedAt,
-            ordinal: 0,
-            side_key: null,
-            position_snapshot: entry.track_position,
-            title_snapshot: entry.title!,
-            artist_snapshot: entry.artist!,
-            album_snapshot: entry.album ?? "",
-          }]);
+          await spinSessionRepository.insertSelections(client, session.id, [
+            {
+              ordinal: 0,
+              selection_type: "track",
+              track_id: entry.track_id,
+              friend_id: entry.friend_id,
+              position_snapshot: entry.track_position,
+            },
+          ]);
+          await trackSpinEventRepository.insertEvents(client, session.id, [
+            {
+              friend_id: entry.friend_id,
+              release_id: entry.release_id!,
+              track_id: entry.track_id,
+              played_at: playedAt,
+              ordinal: 0,
+              side_key: null,
+              position_snapshot: entry.track_position,
+              title_snapshot: entry.title!,
+              artist_snapshot: entry.artist!,
+              album_snapshot: entry.album ?? "",
+            },
+          ]);
           created += 1;
         }
         elapsed += Math.max(0, entry.duration_seconds ?? 0);

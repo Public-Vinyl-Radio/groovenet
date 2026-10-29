@@ -1,5 +1,7 @@
 vi.mock("@/server/services/trackEmbeddingSyncService", () => ({ syncIdentityEmbeddings: vi.fn() }));
-vi.mock("@/server/services/genreSimilarityService", () => ({ triggerGenreSimilarityRefresh: vi.fn() }));
+vi.mock("@/server/services/genreSimilarityService", () => ({
+  triggerGenreSimilarityRefresh: vi.fn(),
+}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -79,8 +81,8 @@ describe("GET /api/albums", () => {
     await GET(
       getReq(
         "?q=jazz&limit=5&offset=10&friend_id=3&sort=year:asc" +
-          "&missing_library_identifier=1&missing_local_cover_art_url=1&missing_audio=1"
-      )
+          "&missing_library_identifier=1&missing_local_cover_art_url=1&missing_audio=1",
+      ),
     );
     expect(mockSearchAlbums).toHaveBeenCalledWith({
       q: "jazz",
@@ -139,16 +141,14 @@ describe("PATCH /api/albums — validation", () => {
 
   it("returns 400 when library_identifier exceeds 50 characters", async () => {
     const res = await PATCH(
-      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "x".repeat(51) })
+      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "x".repeat(51) }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/50 characters/i);
   });
 
   it("allows a null library_identifier (clearing the field)", async () => {
-    const res = await PATCH(
-      patchReq({ release_id: "r1", friend_id: 1, library_identifier: null })
-    );
+    const res = await PATCH(patchReq({ release_id: "r1", friend_id: 1, library_identifier: null }));
     expect(res.status).toBe(200);
     expect(mockUpdateAlbumFields).toHaveBeenCalled();
   });
@@ -164,7 +164,7 @@ describe("PATCH /api/albums — behavior", () => {
   it("returns tracksUpdated count when library_identifier changes", async () => {
     mockGetTracks.mockResolvedValueOnce([{ track_id: "t1" }, { track_id: "t2" }]);
     const res = await PATCH(
-      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "LIB-1" })
+      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "LIB-1" }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -182,7 +182,7 @@ describe("PATCH /api/albums — behavior", () => {
   it("swallows track-fetch errors and still returns 200", async () => {
     mockGetTracks.mockRejectedValueOnce(new Error("tracks boom"));
     const res = await PATCH(
-      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "LIB-1" })
+      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "LIB-1" }),
     );
     expect(res.status).toBe(200);
     expect((await res.json()).tracksUpdated).toBe(0);
@@ -190,10 +190,10 @@ describe("PATCH /api/albums — behavior", () => {
 
   it("returns 409 on a duplicate library-identifier constraint violation", async () => {
     mockWithDbTransaction.mockRejectedValueOnce(
-      new Error("duplicate key value violates idx_albums_unique_friend_library_identifier")
+      new Error("duplicate key value violates idx_albums_unique_friend_library_identifier"),
     );
     const res = await PATCH(
-      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "LIB-1" })
+      patchReq({ release_id: "r1", friend_id: 1, library_identifier: "LIB-1" }),
     );
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/duplicate library identifier/i);
@@ -210,7 +210,6 @@ describe("PATCH /api/albums — behavior", () => {
 // ─── GET — genre filter (#375) ──────────────────────────────────────────────
 
 describe("GET /api/albums — genre filter", () => {
-
   it("resolves every repeated genre and passes the filter to the search", async () => {
     const filter = { ids: ["id-latin"], keys: ["latin"] };
     mockResolveGenreFilter.mockResolvedValue({ filter, added: [] });
@@ -239,8 +238,13 @@ describe("GET /api/albums — include_similar", () => {
   const PORRO_ID = "11111111-1111-1111-1111-111111111111";
 
   it("passes include_similar, similar_limit and similar_exclude through to resolveGenreFilter", async () => {
-    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
-    await GET(getReq(`?genre=cumbia&include_similar=1&similar_limit=3&similar_exclude=${PORRO_ID}`));
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia"], keys: ["cumbia"] },
+      added: [],
+    });
+    await GET(
+      getReq(`?genre=cumbia&include_similar=1&similar_limit=3&similar_exclude=${PORRO_ID}`),
+    );
 
     expect(mockResolveGenreFilter).toHaveBeenCalledWith(["cumbia"], {
       includeSimilar: true,
@@ -250,7 +254,10 @@ describe("GET /api/albums — include_similar", () => {
   });
 
   it("is off by default", async () => {
-    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia"], keys: ["cumbia"] },
+      added: [],
+    });
     await GET(getReq("?genre=cumbia"));
 
     expect(mockResolveGenreFilter).toHaveBeenCalledWith(["cumbia"], {
@@ -272,7 +279,10 @@ describe("GET /api/albums — include_similar", () => {
   });
 
   it("omits added_genres when widening added nothing", async () => {
-    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia"], keys: ["cumbia"] },
+      added: [],
+    });
     const res = await GET(getReq("?genre=cumbia&include_similar=1"));
     const body = await res.json();
     expect(body.added_genres).toBeUndefined();
@@ -281,19 +291,35 @@ describe("GET /api/albums — include_similar", () => {
 
 describe("PATCH album taxonomy replacements", () => {
   it("accepts empty and reset replacements, scopes the write, and refreshes similarity", async () => {
-    const res = await PATCH(patchReq({ release_id: "same-release", friend_id: 7, genre_override_ids: [], style_override_ids: null }));
+    const res = await PATCH(
+      patchReq({
+        release_id: "same-release",
+        friend_id: 7,
+        genre_override_ids: [],
+        style_override_ids: null,
+      }),
+    );
     expect(res.status).toBe(200);
-    expect(mockUpdateAlbumFields).toHaveBeenCalledWith({}, expect.objectContaining({
-      release_id: "same-release", friend_id: 7, genre_override_ids: [], style_override_ids: null,
-    }));
-    const { triggerGenreSimilarityRefresh } = await import("@/server/services/genreSimilarityService");
+    expect(mockUpdateAlbumFields).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        release_id: "same-release",
+        friend_id: 7,
+        genre_override_ids: [],
+        style_override_ids: null,
+      }),
+    );
+    const { triggerGenreSimilarityRefresh } =
+      await import("@/server/services/genreSimilarityService");
     expect(triggerGenreSimilarityRefresh).toHaveBeenCalledOnce();
     expect(mockGetTracks).toHaveBeenCalledWith("same-release", 7);
     const { syncIdentityEmbeddings } = await import("@/server/services/trackEmbeddingSyncService");
     expect(syncIdentityEmbeddings).toHaveBeenCalledWith([]);
   });
   it("rejects malformed overrides before any write", async () => {
-    const res = await PATCH(patchReq({ release_id: "r1", friend_id: 7, style_override_ids: ["not-a-uuid"] }));
+    const res = await PATCH(
+      patchReq({ release_id: "r1", friend_id: 7, style_override_ids: ["not-a-uuid"] }),
+    );
     expect(res.status).toBe(400);
     expect(mockUpdateAlbumFields).not.toHaveBeenCalled();
   });

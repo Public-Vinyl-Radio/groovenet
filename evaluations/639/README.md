@@ -9,17 +9,17 @@ speedups directly.
 
 ## Local results
 
-| Scenario | Before (seconds) | After (seconds) |
-| --- | ---: | ---: |
-| Empty layer + mount caches, excluding builder bootstrap | 107.82 | 171.13 |
-| Build without layer cache, retaining cache mounts | 141.60 | 88.21 |
-| Unchanged warm production build | 1.66 | 2.79 |
-| Backend route edit, warm production build | 26.26 | 17.34 |
-| Test + documentation edit, warm production build | — | 1.46 |
-| Shared frontend edit, warm production build | — | 16.84 |
-| Fresh dependency volume, app startup | 29.44 | 28.13 |
-| Existing dependency volume, app restart | 12.88 | 1.99 |
-| Changed lockfile, app restart | — | 11.91 |
+| Scenario                                                | Before (seconds) | After (seconds) |
+| ------------------------------------------------------- | ---------------: | --------------: |
+| Empty layer + mount caches, excluding builder bootstrap |           107.82 |          171.13 |
+| Build without layer cache, retaining cache mounts       |           141.60 |           88.21 |
+| Unchanged warm production build                         |             1.66 |            2.79 |
+| Backend route edit, warm production build               |            26.26 |           17.34 |
+| Test + documentation edit, warm production build        |                — |            1.46 |
+| Shared frontend edit, warm production build             |                — |           16.84 |
+| Fresh dependency volume, app startup                    |            29.44 |           28.13 |
+| Existing dependency volume, app restart                 |            12.88 |            1.99 |
+| Changed lockfile, app restart                           |                — |           11.91 |
 
 The completely empty-cache builds used separate temporary `docker-container`
 builders, removed between revisions. Raw wall times were 119.42 and 173.73
@@ -79,11 +79,11 @@ commit `ff7dad58ed60995f00279a426e6612c3d6d7acca`.
 This is a nearby main revision, rather than the exact local baseline commit.
 Job durations exclude queueing.
 
-| Job | Before (seconds) | After |
-| --- | ---: | --- |
-| `build-webapp` | 392 | Pending PR CI |
-| `build-migrate` | 134 | Pending PR CI |
-| `test / test` | 390 | Pending PR CI |
+| Job             | Before (seconds) | After         |
+| --------------- | ---------------: | ------------- |
+| `build-webapp`  |              392 | Pending PR CI |
+| `build-migrate` |              134 | Pending PR CI |
+| `test / test`   |              390 | Pending PR CI |
 
 The web image build step itself took 309 seconds. Populate the after column
 from a successful PR run before assessing CI gains. Python base images and

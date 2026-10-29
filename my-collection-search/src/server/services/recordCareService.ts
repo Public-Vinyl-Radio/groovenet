@@ -132,15 +132,11 @@ export class RecordCareService {
   async updateDefaultCopy(
     friendId: number,
     releaseId: string,
-    input: { label?: string | null; notes?: string | null }
+    input: { label?: string | null; notes?: string | null },
   ): Promise<RecordCopy> {
     await this.assertAlbumExists(releaseId, friendId);
     const copy = await withDbTransaction(async (client) => {
-      const defaultCopy = await recordCopyRepository.ensureDefaultCopy(
-        client,
-        friendId,
-        releaseId
-      );
+      const defaultCopy = await recordCopyRepository.ensureDefaultCopy(client, friendId, releaseId);
       await recordCopyRepository.findCopyForUpdate(client, defaultCopy.id, friendId);
       return recordCopyRepository.updateCopy(client, defaultCopy.id, input);
     });
@@ -151,7 +147,7 @@ export class RecordCareService {
   async updateCopy(
     copyId: number,
     friendId: number,
-    input: { label?: string | null; notes?: string | null }
+    input: { label?: string | null; notes?: string | null },
   ): Promise<RecordCopy | null> {
     const updated = await withDbTransaction(async (client) => {
       const existing = await recordCopyRepository.findCopyForUpdate(client, copyId, friendId);
@@ -200,7 +196,7 @@ export class RecordCareService {
    * transaction.
    */
   async logAction(
-    input: LogRecordActionInput
+    input: LogRecordActionInput,
   ): Promise<{ action: RecordAction; copy: RecordCopy }> {
     if (input.release_id !== undefined) {
       await this.assertAlbumExists(input.release_id, input.friend_id);
@@ -210,13 +206,14 @@ export class RecordCareService {
       const copyId =
         input.copy_id !== undefined
           ? input.copy_id
-          : (await recordCopyRepository.ensureDefaultCopy(client, input.friend_id, input.release_id))
-              .id;
-      const locked = await recordCopyRepository.findCopyForUpdate(
-        client,
-        copyId,
-        input.friend_id
-      );
+          : (
+              await recordCopyRepository.ensureDefaultCopy(
+                client,
+                input.friend_id,
+                input.release_id,
+              )
+            ).id;
+      const locked = await recordCopyRepository.findCopyForUpdate(client, copyId, input.friend_id);
       if (!locked) throw new Error(RECORD_COPY_NOT_FOUND);
 
       const action = await recordActionRepository.insertAction(client, {
@@ -241,7 +238,7 @@ export class RecordCareService {
    */
   async voidAction(
     actionId: number,
-    friendId: number
+    friendId: number,
   ): Promise<{ action: RecordAction; copy: RecordCopy } | null> {
     const result = await withDbTransaction(async (client) => {
       const existing = await recordActionRepository.findAction(client, actionId, friendId);
@@ -291,7 +288,7 @@ export class RecordCareService {
 
   async careSummary(
     friendId: number,
-    options: { overdue_days?: number; needs_sleeve?: SleeveType } = {}
+    options: { overdue_days?: number; needs_sleeve?: SleeveType } = {},
   ): Promise<RecordCareSummary> {
     const overdueDays = options.overdue_days ?? defaultOverdueDays();
     const needsSleeve = options.needs_sleeve ?? DEFAULT_TARGET_SLEEVE;
@@ -301,7 +298,7 @@ export class RecordCareService {
     ]);
 
     const bySleeveType = Object.fromEntries(
-      [...SLEEVE_TYPES, "unknown" as const].map((type) => [type, 0])
+      [...SLEEVE_TYPES, "unknown" as const].map((type) => [type, 0]),
     ) as Record<SleeveType | "unknown", number>;
     for (const row of bySleeve) bySleeveType[row.sleeve_type ?? "unknown"] = row.count;
 

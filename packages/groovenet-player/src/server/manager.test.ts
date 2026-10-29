@@ -1,6 +1,11 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import type { ServerPlayer, ServerPlayerCommand, ServerPlayerState, SpeakerObservation } from "@groovenet/contracts";
+import type {
+  ServerPlayer,
+  ServerPlayerCommand,
+  ServerPlayerState,
+  SpeakerObservation,
+} from "@groovenet/contracts";
 import type { PlaybackBackend, PlaybackSource } from "../types.js";
 import type { Track } from "@groovenet/client";
 import { ServerPlayerManager, unknownSpeaker } from "./manager.js";
@@ -10,65 +15,152 @@ import { OwnToneBackend } from "../ownToneBackend.js";
 import { PlayerError } from "../types.js";
 
 class FakeBackend extends EventEmitter implements PlaybackBackend {
-  load = vi.fn(async (_source: PlaybackSource) => { void _source; });
-  pause = vi.fn(async (_paused: boolean) => { void _paused; });
-  seek = vi.fn(async (_seconds: number) => { void _seconds; });
-  setVolume = vi.fn(async (_volume: number) => { void _volume; });
-  listDevices = vi.fn(async () => [{ id: "speaker-a", name: "A" }, { id: "speaker-b", name: "B" }]);
-  outputConnection = vi.fn<() => Promise<"connected" | "disconnected" | "unknown">>(async () => "connected");
-  setOutputDevice = vi.fn(async (_id: string) => { void _id; });
+  load = vi.fn(async (_source: PlaybackSource) => {
+    void _source;
+  });
+  pause = vi.fn(async (_paused: boolean) => {
+    void _paused;
+  });
+  seek = vi.fn(async (_seconds: number) => {
+    void _seconds;
+  });
+  setVolume = vi.fn(async (_volume: number) => {
+    void _volume;
+  });
+  listDevices = vi.fn(async () => [
+    { id: "speaker-a", name: "A" },
+    { id: "speaker-b", name: "B" },
+  ]);
+  outputConnection = vi.fn<() => Promise<"connected" | "disconnected" | "unknown">>(
+    async () => "connected",
+  );
+  setOutputDevice = vi.fn(async (_id: string) => {
+    void _id;
+  });
   close = vi.fn(async () => {});
 }
 class MemoryStore implements PlayerStore {
   rows = new Map<string, ServerPlayer>();
-  tracks = new Map([1, 2, 3].map((id) => [String(id), { track_id: String(id), friend_id: 1, release_id: `release-${id}`, title: `Track ${id}`, artist: "Artist", local_audio_url: `${id}.wav` } as Track]));
+  tracks = new Map(
+    [1, 2, 3].map((id) => [
+      String(id),
+      {
+        track_id: String(id),
+        friend_id: 1,
+        release_id: `release-${id}`,
+        title: `Track ${id}`,
+        artist: "Artist",
+        local_audio_url: `${id}.wav`,
+      } as Track,
+    ]),
+  );
   plays = new Map<string, { play: ServerPlay; logged: boolean }>();
-  queuePlay = vi.fn(async (play: ServerPlay) => { if (!this.plays.has(play.entryId)) this.plays.set(play.entryId, { play, logged: false }); });
-  pendingPlays = vi.fn(async () => [...this.plays.values()].filter(row => !row.logged).map(row => row.play));
-  markPlayLogged = vi.fn(async (entryId: string) => { this.plays.get(entryId)!.logged = true; });
-  list = vi.fn(async () => structuredClone([...this.rows.values()]));
-  create = vi.fn(async (input: { id: string; name: string; engine_id: string }, state: ServerPlayerState) => {
-    if ([...this.rows.values()].some(p => p.id === input.id || p.engine_id === input.engine_id)) throw new ServerPlayerError("ASSIGNMENT_CONFLICT", "Already exists");
-    const row = { ...input, availability_policy: "ask" as const, state, revision: 0, assigned_output: null };
-    this.rows.set(row.id, structuredClone(row));
-    return structuredClone(row);
+  queuePlay = vi.fn(async (play: ServerPlay) => {
+    if (!this.plays.has(play.entryId)) this.plays.set(play.entryId, { play, logged: false });
   });
+  pendingPlays = vi.fn(async () =>
+    [...this.plays.values()].filter((row) => !row.logged).map((row) => row.play),
+  );
+  markPlayLogged = vi.fn(async (entryId: string) => {
+    this.plays.get(entryId)!.logged = true;
+  });
+  list = vi.fn(async () => structuredClone([...this.rows.values()]));
+  create = vi.fn(
+    async (input: { id: string; name: string; engine_id: string }, state: ServerPlayerState) => {
+      if ([...this.rows.values()].some((p) => p.id === input.id || p.engine_id === input.engine_id))
+        throw new ServerPlayerError("ASSIGNMENT_CONFLICT", "Already exists");
+      const row = {
+        ...input,
+        availability_policy: "ask" as const,
+        state,
+        revision: 0,
+        assigned_output: null,
+      };
+      this.rows.set(row.id, structuredClone(row));
+      return structuredClone(row);
+    },
+  );
   save = vi.fn(async (input: ServerPlayer, revision: number) => {
-    if (this.rows.get(input.id)?.revision !== revision) throw new ServerPlayerError("REVISION_CONFLICT", "Changed");
-    if (input.assigned_output && [...this.rows.values()].some(p => p.id !== input.id && p.assigned_output === input.assigned_output)) throw new ServerPlayerError("ASSIGNMENT_CONFLICT", "Assigned");
+    if (this.rows.get(input.id)?.revision !== revision)
+      throw new ServerPlayerError("REVISION_CONFLICT", "Changed");
+    if (
+      input.assigned_output &&
+      [...this.rows.values()].some(
+        (p) => p.id !== input.id && p.assigned_output === input.assigned_output,
+      )
+    )
+      throw new ServerPlayerError("ASSIGNMENT_CONFLICT", "Assigned");
     const row = { ...structuredClone(input), revision: revision + 1 };
     this.rows.set(row.id, structuredClone(row));
     return row;
   });
-  checkpoint = vi.fn(async (input: ServerPlayer) => { if (this.rows.get(input.id)?.revision === input.revision) this.rows.set(input.id, structuredClone(input)); });
+  checkpoint = vi.fn(async (input: ServerPlayer) => {
+    if (this.rows.get(input.id)?.revision === input.revision)
+      this.rows.set(input.id, structuredClone(input));
+  });
   resolve = vi.fn(async (ref: { track_id: string }) => this.tracks.get(ref.track_id) ?? null);
 }
-async function fixture(observed: SpeakerObservation = unknownSpeaker(), playLogging?: import("./manager.js").ServerPlayLogging) {
+async function fixture(
+  observed: SpeakerObservation = unknownSpeaker(),
+  playLogging?: import("./manager.js").ServerPlayLogging,
+) {
   const store = new MemoryStore();
   const backends: FakeBackend[] = [];
-  const create = vi.fn(() => { const backend = new FakeBackend(); backends.push(backend); return backend; });
+  const create = vi.fn(() => {
+    const backend = new FakeBackend();
+    backends.push(backend);
+    return backend;
+  });
   const observer = vi.fn<import("./manager.js").SpeakerObserver>(async () => observed);
-  const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create }, b: { libraryRoot: "/media", create } }, observer, playLogging);
+  const manager = new ServerPlayerManager(
+    store,
+    { a: { libraryRoot: "/media", create }, b: { libraryRoot: "/media", create } },
+    observer,
+    playLogging,
+  );
   const fault = vi.fn();
   manager.on("fault", fault);
   await manager.initialize();
   for (const id of ["a", "b"]) await manager.create({ id, name: id.toUpperCase(), engine_id: id });
-  const command = (id: string, value: Omit<ServerPlayerCommand, "expected_revision"> | Record<string, unknown>) => manager.command(id, { ...value, expected_revision: manager.get(id).revision } as ServerPlayerCommand);
+  const command = (
+    id: string,
+    value: Omit<ServerPlayerCommand, "expected_revision"> | Record<string, unknown>,
+  ) =>
+    manager.command(id, {
+      ...value,
+      expected_revision: manager.get(id).revision,
+    } as ServerPlayerCommand);
   const prepare = async (id: string, output = `speaker-${id}`) => {
-    await command(id, { type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "2", friend_id: 1 }] });
+    await command(id, {
+      type: "queue.add",
+      tracks: [
+        { track_id: "1", friend_id: 1 },
+        { track_id: "2", friend_id: 1 },
+      ],
+    });
     await command(id, { type: "output.select", output_id: output });
   };
   // A read-only queued command is unnecessary; settle callback microtasks.
-  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
+  const settle = async () => {
+    for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+  };
   return { store, backends, create, observer, manager, fault, command, prepare, settle };
 }
 
 describe("persistent server player manager", () => {
   it("logs each duplicate queue entry once after listening, including after seeks and repeated events", async () => {
     let clock = new Date("2026-01-01T00:00:00.000Z");
-    const logPlay = vi.fn(async (_play: ServerPlay) => { void _play; });
+    const logPlay = vi.fn(async (_play: ServerPlay) => {
+      void _play;
+    });
     const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay, now: () => clock });
-    await f.command("a", { type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "1", friend_id: 1 }] });
+    await f.command("a", {
+      type: "queue.add",
+      tracks: [
+        { track_id: "1", friend_id: 1 },
+        { track_id: "1", friend_id: 1 },
+      ],
+    });
     await f.command("a", { type: "output.select", output_id: "speaker-a" });
     await f.command("a", { type: "play", allow_unknown: true });
     const first = f.manager.get("a").state.queue[0]!;
@@ -78,7 +170,11 @@ describe("persistent server player manager", () => {
     };
     await advance(f.backends[0]!);
     expect(logPlay).toHaveBeenCalledOnce();
-    expect(logPlay.mock.calls[0]![0]).toMatchObject({ entryId: first.id, trackId: "1", friendId: 1 });
+    expect(logPlay.mock.calls[0]![0]).toMatchObject({
+      entryId: first.id,
+      trackId: "1",
+      friendId: 1,
+    });
     expect(logPlay.mock.calls[0]![0].startedAt).toEqual(clock);
     f.backends[0]!.emit("position", 15, 30);
     f.backends[0]!.emit("position", 100, 200);
@@ -93,10 +189,23 @@ describe("persistent server player manager", () => {
   });
 
   it("keeps failed plays pending across a skip and manager restart, and excludes another owner's track", async () => {
-    const logPlay = vi.fn().mockRejectedValueOnce(new Error("app unavailable")).mockResolvedValue(undefined);
-    const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay, now: () => new Date("2026-01-01") });
+    const logPlay = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("app unavailable"))
+      .mockResolvedValue(undefined);
+    const f = await fixture(unknownSpeaker(), {
+      ownerFriendId: 1,
+      logPlay,
+      now: () => new Date("2026-01-01"),
+    });
     f.store.tracks.get("2")!.friend_id = 2;
-    await f.command("a", { type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "2", friend_id: 2 }] });
+    await f.command("a", {
+      type: "queue.add",
+      tracks: [
+        { track_id: "1", friend_id: 1 },
+        { track_id: "2", friend_id: 2 },
+      ],
+    });
     await f.command("a", { type: "output.select", output_id: "speaker-a" });
     await f.command("a", { type: "play", allow_unknown: true });
     // A seek moves the reference point; only fifteen real seconds count.
@@ -114,7 +223,7 @@ describe("persistent server player manager", () => {
     await restored.initialize();
     await restored.retryPlays();
     expect(logPlay).toHaveBeenCalledTimes(2);
-    expect((await f.store.pendingPlays())).toHaveLength(0);
+    expect(await f.store.pendingPlays()).toHaveLength(0);
   });
 
   it("continues one entry's progress after a reconnect without counting a seek or replaying the log", async () => {
@@ -143,8 +252,10 @@ describe("persistent server player manager", () => {
     const logPlay = vi.fn(async () => {});
     const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay });
     f.store.queuePlay.mockRejectedValueOnce(new Error("database busy"));
-    const error = vi.fn(); f.manager.on("play-log-error", error);
-    await f.prepare("a"); await f.command("a", { type: "play", allow_unknown: true });
+    const error = vi.fn();
+    f.manager.on("play-log-error", error);
+    await f.prepare("a");
+    await f.command("a", { type: "play", allow_unknown: true });
     for (let second = 0; second <= 15; second++) f.backends[0]!.emit("position", second, 30);
     await f.settle();
     expect(error).toHaveBeenCalledOnce();
@@ -157,49 +268,91 @@ describe("persistent server player manager", () => {
 
   it("restores independent checkpoints without contacting engines or claiming outputs", async () => {
     const f = await fixture();
-    await f.prepare("a"); await f.prepare("b");
+    await f.prepare("a");
+    await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });
     f.backends[0]!.emit("position", 12, 100);
     await f.settle();
     await f.manager.shutdown();
     const create = vi.fn(() => new FakeBackend());
-    const restored = new ServerPlayerManager(f.store, { a: { libraryRoot: "/media", create }, b: { libraryRoot: "/media", create } });
+    const restored = new ServerPlayerManager(f.store, {
+      a: { libraryRoot: "/media", create },
+      b: { libraryRoot: "/media", create },
+    });
     await restored.initialize();
     expect(create).not.toHaveBeenCalled();
-    expect(restored.get("a").state).toMatchObject({ position: 12, status: "stopped", checkpoint: true });
+    expect(restored.get("a").state).toMatchObject({
+      position: 12,
+      status: "stopped",
+      checkpoint: true,
+    });
     expect(restored.get("a").assigned_output).toBeNull();
     expect(restored.get("b").state.queue).toHaveLength(2);
     expect(restored.get("a").state.queue[0]!.id).not.toBe(restored.get("b").state.queue[0]!.id);
   });
 
   it("requires an explicit acknowledgement of unknown or occupied observations", async () => {
-    const f = await fixture(); await f.prepare("a");
-    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    const f = await fixture();
+    await f.prepare("a");
+    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({
+      code: "AVAILABILITY_UNKNOWN",
+    });
     expect(f.create).not.toHaveBeenCalled();
-    const busy = await fixture({ availability: "occupied", source: "home_assistant", observed_at: "now", sender_identity: "unknown" });
+    const busy = await fixture({
+      availability: "occupied",
+      source: "home_assistant",
+      observed_at: "now",
+      sender_identity: "unknown",
+    });
     await busy.prepare("a");
-    await expect(busy.command("a", { type: "play" })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
+    await expect(busy.command("a", { type: "play" })).rejects.toMatchObject({
+      code: "SPEAKER_OCCUPIED",
+    });
     await busy.command("a", { type: "play", takeover: true });
     expect(busy.backends[0]!.load).toHaveBeenCalledWith({ url: "file:///media/1.wav" });
     await busy.manager.shutdown();
   });
 
   it("persists availability policy and applies it on connection without overriding a player claim", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b", "speaker-a");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b", "speaker-a");
     expect(f.manager.get("a").availability_policy).toBe("ask");
     await f.command("a", { type: "availability.set", availability_policy: "allow_unknown" });
     await f.command("a", { type: "play" });
     expect(f.manager.get("a").availability_policy).toBe("allow_unknown");
-    await expect(f.command("b", { type: "availability.set", availability_policy: "always" })).resolves.toMatchObject({ player: { availability_policy: "always" } });
-    await expect(f.command("b", { type: "play" })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    await expect(
+      f.command("b", { type: "availability.set", availability_policy: "always" }),
+    ).resolves.toMatchObject({ player: { availability_policy: "always" } });
+    await expect(f.command("b", { type: "play" })).rejects.toMatchObject({
+      code: "OUTPUT_ASSIGNED",
+    });
     // Cover the second guard used by reconnection paths independently of play's preflight.
-    const recheck = f.manager as unknown as { requireAvailable: (player: ServerPlayer, output: string, policy: { allow_unknown: boolean; takeover: boolean }) => Promise<void> };
-    await expect(recheck.requireAvailable(f.manager.get("b"), "speaker-a", { allow_unknown: true, takeover: true })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    const recheck = f.manager as unknown as {
+      requireAvailable: (
+        player: ServerPlayer,
+        output: string,
+        policy: { allow_unknown: boolean; takeover: boolean },
+      ) => Promise<void>;
+    };
+    await expect(
+      recheck.requireAvailable(f.manager.get("b"), "speaker-a", {
+        allow_unknown: true,
+        takeover: true,
+      }),
+    ).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
     await f.manager.shutdown();
-    const busy = await fixture({ availability: "occupied", source: "home_assistant", observed_at: "now", sender_identity: "foreign" });
+    const busy = await fixture({
+      availability: "occupied",
+      source: "home_assistant",
+      observed_at: "now",
+      sender_identity: "foreign",
+    });
     await busy.prepare("a");
     await busy.command("a", { type: "availability.set", availability_policy: "allow_unknown" });
-    await expect(busy.command("a", { type: "play" })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
+    await expect(busy.command("a", { type: "play" })).rejects.toMatchObject({
+      code: "SPEAKER_OCCUPIED",
+    });
     await busy.command("a", { type: "availability.set", availability_policy: "always" });
     await busy.command("a", { type: "play" });
     expect(busy.manager.get("a").state.status).toBe("playing");
@@ -207,12 +360,15 @@ describe("persistent server player manager", () => {
   });
 
   it("advances only the completed player's queue and discards duplicate old events", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });
     await f.command("b", { type: "play", allow_unknown: true });
     const old = f.backends[0]!;
     const other = f.manager.get("b");
-    old.emit("ended"); old.emit("ended");
+    old.emit("ended");
+    old.emit("ended");
     await f.settle();
     const a = f.manager.get("a");
     expect(a.state.current_entry_id).toBe(a.state.queue[1]!.id);
@@ -221,34 +377,54 @@ describe("persistent server player manager", () => {
     expect(f.manager.get("b")).toEqual(other);
     // The durable pointer moves before the next engine starts.
     expect(f.store.rows.get("a")!.state.current_entry_id).toBe(a.state.queue[1]!.id);
-    f.backends[2]!.emit("ended"); await f.settle();
+    f.backends[2]!.emit("ended");
+    await f.settle();
     expect(f.manager.get("a").state.status).toBe("ended");
     expect(f.manager.get("b").state.status).toBe("playing");
     await f.manager.shutdown();
   });
 
   it("preserves current and next entries on external interruption", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     const before = f.manager.get("a");
-    f.backends[0]!.emit("error", Object.assign(new Error("Taken over"), { code: "PLAYBACK_INTERRUPTED" }));
-    f.backends[0]!.emit("ended"); await f.settle();
-    expect(f.manager.get("a")).toMatchObject({ assigned_output: null, state: { current_entry_id: before.state.current_entry_id, status: "error", queue: before.state.queue } });
+    f.backends[0]!.emit(
+      "error",
+      Object.assign(new Error("Taken over"), { code: "PLAYBACK_INTERRUPTED" }),
+    );
+    f.backends[0]!.emit("ended");
+    await f.settle();
+    expect(f.manager.get("a")).toMatchObject({
+      assigned_output: null,
+      state: {
+        current_entry_id: before.state.current_entry_id,
+        status: "error",
+        queue: before.state.queue,
+      },
+    });
     expect(f.backends).toHaveLength(1);
     await f.manager.shutdown();
   });
 
   it("rejects stale edits and prevents two players claiming one speaker", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b", "speaker-a");
-    await expect(f.manager.command("a", { type: "rename", name: "Changed", expected_revision: 0 })).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b", "speaker-a");
+    await expect(
+      f.manager.command("a", { type: "rename", name: "Changed", expected_revision: 0 }),
+    ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
     await f.command("a", { type: "play", allow_unknown: true });
-    await expect(f.command("b", { type: "play", allow_unknown: true })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    await expect(f.command("b", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "OUTPUT_ASSIGNED",
+    });
     expect(f.create).toHaveBeenCalledTimes(1);
     await f.manager.shutdown();
   });
 
   it("accepts edits and transport from stale controllers when they omit expected_revision", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     const staleRevision = f.manager.get("a").revision;
     const [first, second] = f.manager.get("a").state.queue;
     await f.manager.command("a", { type: "volume", volume: 30 });
@@ -258,44 +434,91 @@ describe("persistent server player manager", () => {
     await f.manager.command("a", { type: "seek", seconds: 20 });
     await f.manager.command("a", { type: "next", allow_unknown: true });
     await f.manager.command("a", { type: "queue.remove", entry_id: second!.id });
-    expect(f.manager.get("a").state).toMatchObject({ volume: 30, queue: [expect.objectContaining({ id: first!.id })] });
-    await f.manager.command("a", { type: "queue.replace", entries: [{ id: first!.id, track_id: first!.track_id, friend_id: first!.friend_id }] });
-    await expect(f.manager.command("a", { type: "volume", volume: 50, expected_revision: staleRevision })).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    expect(f.manager.get("a").state).toMatchObject({
+      volume: 30,
+      queue: [expect.objectContaining({ id: first!.id })],
+    });
+    await f.manager.command("a", {
+      type: "queue.replace",
+      entries: [{ id: first!.id, track_id: first!.track_id, friend_id: first!.friend_id }],
+    });
+    await expect(
+      f.manager.command("a", { type: "volume", volume: 50, expected_revision: staleRevision }),
+    ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
     for (const type of ["queue.remove", "queue.move", "play"] as const) {
-      const command = type === "queue.move" ? { type, entry_id: second!.id, to: 0 } : { type, entry_id: second!.id };
-      await expect(f.manager.command("a", command)).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND", status: 404 });
+      const command =
+        type === "queue.move"
+          ? { type, entry_id: second!.id, to: 0 }
+          : { type, entry_id: second!.id };
+      await expect(f.manager.command("a", command)).rejects.toMatchObject({
+        code: "ENTRY_NOT_FOUND",
+        status: 404,
+      });
     }
     await f.manager.shutdown();
   });
 
   it("explicitly transfers a speaker after detaching its old player", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });
-    f.backends[0]!.emit("position", 9, 100); await f.settle();
-    const result = await f.command("b", { type: "output.transfer", from_player_id: "a", from_revision: f.manager.get("a").revision, output_id: "speaker-a", play: true, allow_unknown: true });
+    f.backends[0]!.emit("position", 9, 100);
+    await f.settle();
+    const result = await f.command("b", {
+      type: "output.transfer",
+      from_player_id: "a",
+      from_revision: f.manager.get("a").revision,
+      output_id: "speaker-a",
+      play: true,
+      allow_unknown: true,
+    });
     expect(result.transfer).toMatchObject({ detached: true, attached: true, error: null });
-    expect(f.manager.get("a")).toMatchObject({ assigned_output: null, state: { status: "paused", position: 9 } });
-    expect(f.manager.get("b")).toMatchObject({ assigned_output: "speaker-a", state: { status: "playing" } });
-    expect(f.backends[0]!.close.mock.invocationCallOrder[0]).toBeLessThan(f.backends[1]!.load.mock.invocationCallOrder[0]!);
+    expect(f.manager.get("a")).toMatchObject({
+      assigned_output: null,
+      state: { status: "paused", position: 9 },
+    });
+    expect(f.manager.get("b")).toMatchObject({
+      assigned_output: "speaker-a",
+      state: { status: "playing" },
+    });
+    expect(f.backends[0]!.close.mock.invocationCallOrder[0]).toBeLessThan(
+      f.backends[1]!.load.mock.invocationCallOrder[0]!,
+    );
     await f.manager.shutdown();
   });
 
   it("reports a partial transfer without reconnecting the detached source", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });
     f.store.tracks.clear();
-    const result = await f.command("b", { type: "output.transfer", from_player_id: "a", from_revision: f.manager.get("a").revision, output_id: "speaker-a", play: true, allow_unknown: true });
-    expect(result.transfer).toMatchObject({ detached: true, attached: false, error: { code: "NO_AUDIO" } });
+    const result = await f.command("b", {
+      type: "output.transfer",
+      from_player_id: "a",
+      from_revision: f.manager.get("a").revision,
+      output_id: "speaker-a",
+      play: true,
+      allow_unknown: true,
+    });
+    expect(result.transfer).toMatchObject({
+      detached: true,
+      attached: false,
+      error: { code: "NO_AUDIO" },
+    });
     expect(f.backends).toHaveLength(1);
     expect(f.manager.get("a").assigned_output).toBeNull();
     await f.manager.shutdown();
   });
 
   it("persists position checkpoints without invalidating edit revisions", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     const revision = f.manager.get("a").revision;
-    f.backends[0]!.emit("position", 12, 100); await f.settle();
+    f.backends[0]!.emit("position", 12, 100);
+    await f.settle();
     expect(f.store.checkpoint).toHaveBeenCalledTimes(1);
     expect(f.manager.get("a").revision).toBe(revision);
     await f.command("a", { type: "pause" });
@@ -307,19 +530,23 @@ describe("persistent server player manager", () => {
     await f.manager.shutdown();
   });
   it("supports queue edits, metadata changes, explicit next/previous and output reconfiguration", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "rename", name: "Lounge" });
     const first = f.manager.get("a").state.queue[0]!;
     await f.command("a", { type: "queue.move", entry_id: first.id, to: 1 });
     await f.command("a", { type: "queue.add", at: 0, tracks: [{ track_id: "3", friend_id: 1 }] });
-    expect(f.manager.get("a").state.queue.map(e => e.track_id)).toEqual(["3", "2", "1"]);
+    expect(f.manager.get("a").state.queue.map((e) => e.track_id)).toEqual(["3", "2", "1"]);
     await f.command("a", { type: "play", allow_unknown: true });
     await f.command("a", { type: "next", allow_unknown: true });
     expect(f.manager.get("a").state.current_entry_id).toBe(f.manager.get("a").state.queue[1]!.id);
     await f.command("a", { type: "previous", allow_unknown: true });
     const active = f.manager.get("a").state.current_entry_id;
     await f.command("a", { type: "output.select", output_id: "speaker-b" });
-    expect(f.manager.get("a")).toMatchObject({ assigned_output: null, state: { status: "paused", current_entry_id: active, desired_output: "speaker-b" } });
+    expect(f.manager.get("a")).toMatchObject({
+      assigned_output: null,
+      state: { status: "paused", current_entry_id: active, desired_output: "speaker-b" },
+    });
     await f.command("a", { type: "seek", seconds: 17 });
     await f.command("a", { type: "volume", volume: 25 });
     await f.command("a", { type: "resume", allow_unknown: true });
@@ -335,40 +562,76 @@ describe("persistent server player manager", () => {
   });
 
   it("reports device assignments separately from desired outputs and observations", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b", "speaker-a");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b", "speaker-a");
     await f.command("a", { type: "play", allow_unknown: true });
     const devices = await f.manager.devices("b");
-    expect(devices[0]).toMatchObject({ assigned_player_id: "a", desired_by: ["a", "b"], observed: { availability: "unknown", sender_identity: "unknown" } });
+    expect(devices[0]).toMatchObject({
+      assigned_player_id: "a",
+      desired_by: ["a", "b"],
+      observed: { availability: "unknown", sender_identity: "unknown" },
+    });
     expect(f.backends[1]!.close).toHaveBeenCalledOnce();
     await f.manager.devices("a");
     expect(f.backends[0]!.close).not.toHaveBeenCalled();
     expect(f.manager.engineIds()).toEqual(["a", "b"]);
-    const copy = f.manager.get("a"); copy.name = "Tampered";
+    const copy = f.manager.get("a");
+    copy.name = "Tampered";
     expect(f.manager.get("a").name).toBe("A");
     await f.manager.shutdown();
-    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({ code: "WORKER_STOPPING" });
-    await expect(f.manager.create({ id: "c", name: "C", engine_id: "c" })).rejects.toMatchObject({ code: "WORKER_STOPPING" });
+    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({
+      code: "WORKER_STOPPING",
+    });
+    await expect(f.manager.create({ id: "c", name: "C", engine_id: "c" })).rejects.toMatchObject({
+      code: "WORKER_STOPPING",
+    });
   });
 
   it("rejects malformed queue operations, missing tracks and unknown players/engines without effects", async () => {
     const f = await fixture();
     expect(() => f.manager.get("missing")).toThrow(/does not exist/);
-    await expect(f.manager.create({ id: "c", name: "C", engine_id: "missing" })).rejects.toMatchObject({ code: "ENGINE_NOT_CONFIGURED" });
-    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
-    await expect(f.command("a", { type: "seek", seconds: 1 })).rejects.toMatchObject({ code: "NO_CURRENT_TRACK" });
-    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({ code: "PLAYER_INACTIVE" });
-    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
-    await expect(f.command("a", { type: "queue.add", tracks: [{ track_id: "missing", friend_id: 1 }] })).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
+    await expect(
+      f.manager.create({ id: "c", name: "C", engine_id: "missing" }),
+    ).rejects.toMatchObject({ code: "ENGINE_NOT_CONFIGURED" });
+    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "ENTRY_NOT_FOUND",
+    });
+    await expect(f.command("a", { type: "seek", seconds: 1 })).rejects.toMatchObject({
+      code: "NO_CURRENT_TRACK",
+    });
+    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({
+      code: "PLAYER_INACTIVE",
+    });
+    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({
+      code: "ENTRY_NOT_FOUND",
+    });
+    await expect(
+      f.command("a", { type: "queue.add", tracks: [{ track_id: "missing", friend_id: 1 }] }),
+    ).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
     await f.command("a", { type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }] });
-    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({ code: "OUTPUT_REQUIRED" });
-    await expect(f.command("a", { type: "queue.add", at: 100, tracks: [{ track_id: "1", friend_id: 1 }] })).rejects.toMatchObject({ code: "INVALID_QUEUE" });
-    await expect(f.command("a", { type: "queue.move", entry_id: f.manager.get("a").state.queue[0]!.id, to: 100 })).rejects.toMatchObject({ code: "INVALID_QUEUE" });
-    await expect(f.command("a", { type: "queue.remove", entry_id: "00000000-0000-4000-8000-000000000001" })).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
+    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "OUTPUT_REQUIRED",
+    });
+    await expect(
+      f.command("a", { type: "queue.add", at: 100, tracks: [{ track_id: "1", friend_id: 1 }] }),
+    ).rejects.toMatchObject({ code: "INVALID_QUEUE" });
+    await expect(
+      f.command("a", {
+        type: "queue.move",
+        entry_id: f.manager.get("a").state.queue[0]!.id,
+        to: 100,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_QUEUE" });
+    await expect(
+      f.command("a", { type: "queue.remove", entry_id: "00000000-0000-4000-8000-000000000001" }),
+    ).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
     expect(f.create).not.toHaveBeenCalled();
   });
 
   it("ends an explicit next at the end of the queue and resumes restored checkpoints only on command", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     const last = f.manager.get("a").state.queue[1]!.id;
     await f.command("a", { type: "play", entry_id: last, allow_unknown: true });
     await f.command("a", { type: "next", allow_unknown: true });
@@ -377,10 +640,12 @@ describe("persistent server player manager", () => {
   });
 
   it("does not replay a completed entry if resolving the next track fails", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     f.store.tracks.delete("2");
-    f.backends[0]!.emit("ended"); await f.settle();
+    f.backends[0]!.emit("ended");
+    await f.settle();
     const current = f.manager.get("a");
     expect(current.state.current_entry_id).toBe(current.state.queue[1]!.id);
     expect(current.state.status).toBe("error");
@@ -390,26 +655,51 @@ describe("persistent server player manager", () => {
   });
 
   it("reports uncertain detach without assigning the speaker twice", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });
     f.backends[0]!.close.mockRejectedValue(new Error("offline"));
-    const transfer = await f.command("b", { type: "output.transfer", from_player_id: "a", from_revision: f.manager.get("a").revision, output_id: "speaker-a", play: true, allow_unknown: true });
-    expect(transfer.transfer).toMatchObject({ detached: false, attached: false, error: { code: "PLAYER_OPERATION_FAILED" } });
+    const transfer = await f.command("b", {
+      type: "output.transfer",
+      from_player_id: "a",
+      from_revision: f.manager.get("a").revision,
+      output_id: "speaker-a",
+      play: true,
+      allow_unknown: true,
+    });
+    expect(transfer.transfer).toMatchObject({
+      detached: false,
+      attached: false,
+      error: { code: "PLAYER_OPERATION_FAILED" },
+    });
     expect(f.manager.get("a").assigned_output).toBe("speaker-a");
-    await expect(f.command("a", { type: "stop" })).rejects.toMatchObject({ code: "RELEASE_UNCERTAIN" });
+    await expect(f.command("a", { type: "stop" })).rejects.toMatchObject({
+      code: "RELEASE_UNCERTAIN",
+    });
     expect(f.backends).toHaveLength(1);
     await f.manager.shutdown();
     expect(f.fault).toHaveBeenCalled();
   });
 
   it("requires a fresh occupancy decision when a paused engine released transport", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     await f.command("a", { type: "pause" });
     f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
-    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
-    f.observer.mockResolvedValue({ availability: "occupied", observed_at: "now", source: "home_assistant", sender_identity: "unknown" });
-    await expect(f.command("a", { type: "resume", allow_unknown: true })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
+    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({
+      code: "AVAILABILITY_UNKNOWN",
+    });
+    f.observer.mockResolvedValue({
+      availability: "occupied",
+      observed_at: "now",
+      source: "home_assistant",
+      sender_identity: "unknown",
+    });
+    await expect(f.command("a", { type: "resume", allow_unknown: true })).rejects.toMatchObject({
+      code: "SPEAKER_OCCUPIED",
+    });
     await f.command("a", { type: "resume", takeover: true });
     expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false);
     expect(f.backends[0]!.load).toHaveBeenCalledTimes(1);
@@ -417,22 +707,30 @@ describe("persistent server player manager", () => {
   });
 
   it("persists engine command failures without exposing unexpected internal errors", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     f.backends[0]!.pause.mockRejectedValueOnce(new Error("secret internal address"));
     await expect(f.command("a", { type: "pause" })).rejects.toThrow("secret internal address");
-    expect(f.manager.get("a").state.error).toEqual({ code: "PLAYER_OPERATION_FAILED", message: "Player operation failed" });
+    expect(f.manager.get("a").state.error).toEqual({
+      code: "PLAYER_OPERATION_FAILED",
+      message: "Player operation failed",
+    });
     await f.manager.shutdown();
   });
 
   it("records a load failure without advancing and cleans up its attempted engine", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     f.create.mockImplementationOnce(() => {
       const backend = new FakeBackend();
       backend.load.mockRejectedValue(new Error("load failed"));
-      f.backends.push(backend); return backend;
+      f.backends.push(backend);
+      return backend;
     });
-    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toThrow("load failed");
+    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toThrow(
+      "load failed",
+    );
     expect(f.manager.get("a").state.status).toBe("error");
     expect(f.manager.get("a").state.current_entry_id).toBe(f.manager.get("a").state.queue[0]!.id);
     expect(f.backends[0]!.close).toHaveBeenCalledOnce();
@@ -440,207 +738,369 @@ describe("persistent server player manager", () => {
   });
 
   it("emits a fatal persistence fault if checkpoint recovery cannot be saved", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     f.store.checkpoint.mockRejectedValue(new Error("DB unavailable"));
     f.store.save.mockRejectedValue(new Error("DB unavailable"));
     f.backends[0]!.emit("position", 3, 100);
-    await f.settle(); expect(f.fault).toHaveBeenCalledOnce();
+    await f.settle();
+    expect(f.fault).toHaveBeenCalledOnce();
   });
 
   it("ignores invalid positions, throttles checkpoints and clears invalid duration", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     const backend = f.backends[0]!;
-    backend.emit("position", -1, 100); backend.emit("position", NaN, 100);
-    await f.settle(); expect(f.manager.get("a").state.position).toBe(0);
-    backend.emit("position", 1, null); backend.emit("position", 2, Infinity);
-    backend.emit("position", 3, -1); await f.settle();
+    backend.emit("position", -1, 100);
+    backend.emit("position", NaN, 100);
+    await f.settle();
+    expect(f.manager.get("a").state.position).toBe(0);
+    backend.emit("position", 1, null);
+    backend.emit("position", 2, Infinity);
+    backend.emit("position", 3, -1);
+    await f.settle();
     expect(f.manager.get("a").state).toMatchObject({ position: 3, duration: null });
     expect(f.store.checkpoint).toHaveBeenCalledOnce();
     await f.manager.shutdown();
-    backend.emit("ended"); await f.settle();
+    backend.emit("ended");
+    await f.settle();
     expect(f.backends).toHaveLength(1);
   });
 
   it("rechecks occupancy before replaying a paused player with no connected transport", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     await f.command("a", { type: "pause" });
     f.backends[0]!.outputConnection.mockResolvedValue("unknown");
-    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
-    f.observer.mockResolvedValue({ availability: "idle", observed_at: "now", source: "home_assistant", sender_identity: "unknown" });
+    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({
+      code: "AVAILABILITY_UNKNOWN",
+    });
+    f.observer.mockResolvedValue({
+      availability: "idle",
+      observed_at: "now",
+      source: "home_assistant",
+      sender_identity: "unknown",
+    });
     await f.command("a", { type: "play" });
     expect(f.backends).toHaveLength(2);
     await f.manager.shutdown();
   });
 
   it("preserves typed engine errors and uncertain claims after failed error cleanup", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
     f.backends[0]!.close.mockRejectedValue(new Error("offline"));
     f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "AirPlay interrupted"));
     await f.settle();
-    expect(f.manager.get("a")).toMatchObject({ assigned_output: "speaker-a", state: { error: { code: "PLAYBACK_INTERRUPTED" } } });
+    expect(f.manager.get("a")).toMatchObject({
+      assigned_output: "speaker-a",
+      state: { error: { code: "PLAYBACK_INTERRUPTED" } },
+    });
     await f.manager.shutdown();
   });
 
   it("rejects invalid transfers before detaching and supports selecting without playback", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b");
-    const base = { type: "output.transfer", from_player_id: "a", from_revision: f.manager.get("a").revision, output_id: "speaker-a" };
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b");
+    const base = {
+      type: "output.transfer",
+      from_player_id: "a",
+      from_revision: f.manager.get("a").revision,
+      output_id: "speaker-a",
+    };
     await expect(f.command("a", base)).rejects.toMatchObject({ code: "INVALID_TRANSFER" });
     await expect(f.command("b", base)).rejects.toMatchObject({ code: "OUTPUT_NOT_ASSIGNED" });
     await f.command("a", { type: "play", allow_unknown: true });
     await expect(f.command("b", base)).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
     await f.command("b", { type: "play", allow_unknown: true });
-    const result = await f.command("b", { ...base, from_revision: f.manager.get("a").revision, play: false });
+    const result = await f.command("b", {
+      ...base,
+      from_revision: f.manager.get("a").revision,
+      play: false,
+    });
     expect(result.transfer).toMatchObject({ detached: true, attached: false, error: null });
-    expect(result.player).toMatchObject({ assigned_output: null, state: { desired_output: "speaker-a", status: "paused" } });
-    expect(f.backends.every(backend => backend.close.mock.calls.length === 1)).toBe(true);
+    expect(result.player).toMatchObject({
+      assigned_output: null,
+      state: { desired_output: "speaker-a", status: "paused" },
+    });
+    expect(f.backends.every((backend) => backend.close.mock.calls.length === 1)).toBe(true);
     await f.manager.shutdown();
   });
 
   it("retains the source's uncertain claim even when saving the transfer failure also fails", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.prepare("b");
+    const f = await fixture();
+    await f.prepare("a");
+    await f.prepare("b");
     await f.command("a", { type: "play", allow_unknown: true });
     f.backends[0]!.close.mockRejectedValue(new Error("offline"));
     f.store.save.mockRejectedValue(new Error("DB offline"));
-    const result = await f.command("b", { type: "output.transfer", from_player_id: "a", from_revision: f.manager.get("a").revision, output_id: "speaker-a" });
+    const result = await f.command("b", {
+      type: "output.transfer",
+      from_player_id: "a",
+      from_revision: f.manager.get("a").revision,
+      output_id: "speaker-a",
+    });
     expect(result.transfer).toMatchObject({ detached: false, attached: false });
     expect(result.transfer!.from_player.assigned_output).toBe("speaker-a");
     await f.manager.shutdown();
   });
 
   it("restores removed engines as stopped checkpoints but refuses to access them", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     const restored = new ServerPlayerManager(f.store, {});
     await restored.initialize();
     await expect(restored.devices("a")).rejects.toMatchObject({ code: "ENGINE_NOT_CONFIGURED" });
     // Exercise the unconfigured default observer through a restored player.
-    const defaults = new ServerPlayerManager(f.store, { a: { libraryRoot: "/media", create: () => new FakeBackend() } });
+    const defaults = new ServerPlayerManager(f.store, {
+      a: { libraryRoot: "/media", create: () => new FakeBackend() },
+    });
     await defaults.initialize();
     expect((await defaults.devices("a"))[0]!.observed.availability).toBe("unknown");
   });
 
   it("keeps the playback error visible through queue/settings edits and clears it on successful replay", async () => {
-    const f = await fixture(); await f.prepare("a");
+    const f = await fixture();
+    await f.prepare("a");
     await f.command("a", { type: "play", allow_unknown: true });
-    const failure = new PlayerError("PLAYBACK_INTERRUPTED", "Receiver output lost; explicitly play again when ready");
-    f.backends[0]!.emit("error", failure); await f.settle();
+    const failure = new PlayerError(
+      "PLAYBACK_INTERRUPTED",
+      "Receiver output lost; explicitly play again when ready",
+    );
+    f.backends[0]!.emit("error", failure);
+    await f.settle();
     const entry = f.manager.get("a").state.current_entry_id;
     for (const command of [
       { type: "rename", name: "Renamed" },
       { type: "queue.add", tracks: [{ track_id: "3", friend_id: 1 }] },
       { type: "queue.move", entry_id: entry, to: 1 },
       { type: "queue.remove", entry_id: f.manager.get("a").state.queue[1]!.id },
-      { type: "volume", volume: 20 }, { type: "seek", seconds: 10 },
+      { type: "volume", volume: 20 },
+      { type: "seek", seconds: 10 },
       { type: "output.select", output_id: "speaker-a" },
     ]) {
       await f.command("a", command);
-      expect(f.manager.get("a").state).toMatchObject({ status: "error", error: { code: failure.code, message: failure.message } });
+      expect(f.manager.get("a").state).toMatchObject({
+        status: "error",
+        error: { code: failure.code, message: failure.message },
+      });
     }
-    await expect(f.command("a", { type: "queue.remove", entry_id: "00000000-0000-4000-8000-000000000001" })).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
+    await expect(
+      f.command("a", { type: "queue.remove", entry_id: "00000000-0000-4000-8000-000000000001" }),
+    ).rejects.toMatchObject({ code: "ENTRY_NOT_FOUND" });
     expect(f.manager.get("a").state.error?.code).toBe("PLAYBACK_INTERRUPTED");
     await f.command("a", { type: "play", allow_unknown: true });
     expect(f.manager.get("a").state).toMatchObject({ status: "playing", error: null });
     await f.manager.shutdown();
   });
 
-  it.each(["stop", "queue.clear", "remove current"])("clears an old playback error after explicit %s succeeds", async (type) => {
-    const f = await fixture(); await f.prepare("a"); await f.command("a", { type: "play", allow_unknown: true });
-    f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "Lost output")); await f.settle();
-    await f.command("a", type === "remove current" ? { type: "queue.remove", entry_id: f.manager.get("a").state.current_entry_id } : { type });
-    expect(f.manager.get("a").state).toMatchObject({ status: "stopped", error: null });
-    await f.manager.shutdown();
-  });
+  it.each(["stop", "queue.clear", "remove current"])(
+    "clears an old playback error after explicit %s succeeds",
+    async (type) => {
+      const f = await fixture();
+      await f.prepare("a");
+      await f.command("a", { type: "play", allow_unknown: true });
+      f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "Lost output"));
+      await f.settle();
+      await f.command(
+        "a",
+        type === "remove current"
+          ? { type: "queue.remove", entry_id: f.manager.get("a").state.current_entry_id }
+          : { type },
+      );
+      expect(f.manager.get("a").state).toMatchObject({ status: "stopped", error: null });
+      await f.manager.shutdown();
+    },
+  );
 
-  it.each([false, true])("recovers the real OwnTone output-loss sequence through the manager (cleanup failure=%s)", async (cleanupFails) => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const terminal = { version: 1, instance: "a".repeat(32), sequence: 0, item_id: 0, reason: "none" };
-    const status = { state: "stop", item_id: 0, item_progress_ms: 0, item_length_ms: 10000, groovenet_terminal: terminal };
-    let queue = { version: 0, items: [] as { id: number; file_id: number }[] };
-    let selected: string[] = [];
-    let failStop = false;
-    let nextId = 10;
-    const writes: string[] = [];
-    const transport = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      const url = new URL(String(input)); const path = url.pathname.replace("/api/", "");
-      if (init?.method !== "GET") writes.push(path);
-      let data: unknown;
-      if (path === "library/files") data = { tracks: { items: [{ id: 1, path: "/media/1.wav", data_kind: "file", length_ms: 10000 }] } };
-      else if (path === "player") data = status;
-      else if (path === "queue") data = queue;
-      else if (path === "outputs") data = { outputs: [{ id: "speaker-a", name: "A", type: "AirPlay 2", selected: selected.includes("speaker-a"), connected: false }] };
-      else if (path === "outputs/set") selected = JSON.parse(String(init!.body)).outputs;
-      else if (path === "queue/items/add") { queue = { version: queue.version + 1, items: [{ id: nextId++, file_id: 1 }] }; status.item_id = queue.items[0]!.id; data = queue; }
-      else if (path === "queue/clear") queue = { version: queue.version + 1, items: [] };
-      else if (path === "player/play") status.state = "play";
-      else if (path === "player/stop") { if (failStop) return new Response(null, { status: 503 }); status.state = "stop"; }
-      return data === undefined ? new Response(null, { status: 204 }) : Response.json(data);
-    });
-    const store = new MemoryStore();
-    const create = vi.fn((outputId?: string) => new OwnToneBackend({ apiUrl: "http://engine/api", outputId, fetch: transport }));
-    const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create } });
-    const command = (value: Record<string, unknown>) => manager.command("a", { ...value, expected_revision: manager.get("a").revision } as ServerPlayerCommand);
-    try {
-      await manager.initialize(); await manager.create({ id: "a", name: "A", engine_id: "a" });
-      await command({ type: "queue.add", tracks: [{ track_id: "1", friend_id: 1 }, { track_id: "1", friend_id: 1 }] });
-      await command({ type: "output.select", output_id: "speaker-a" });
-      await command({ type: "play", allow_unknown: true });
-      status.item_progress_ms = 2500;
-      await vi.advanceTimersByTimeAsync(500);
-      for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
-      const before = manager.get("a"); const plays = writes.filter(path => path === "player/play").length;
-      status.state = "pause"; terminal.sequence++; terminal.item_id = status.item_id; terminal.reason = "output_lost";
-      failStop = cleanupFails;
-      await vi.advanceTimersByTimeAsync(1000);
-      for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
-      const failed = manager.get("a");
-      expect(failed.state).toMatchObject({ status: "error", position: before.state.position, current_entry_id: before.state.current_entry_id, queue: before.state.queue, error: { code: "PLAYBACK_INTERRUPTED" } });
-      expect(writes.filter(path => path === "player/play")).toHaveLength(plays);
-      await command({ type: "rename", name: "Still failed" });
-      expect(manager.get("a").state.error?.code).toBe("PLAYBACK_INTERRUPTED");
-      if (cleanupFails) {
-        expect(failed.assigned_output).toBe("speaker-a"); expect(status.state).toBe("pause");
-        await expect(command({ type: "play", allow_unknown: true })).rejects.toMatchObject({ code: "RELEASE_UNCERTAIN" });
-        expect(writes.filter(path => path === "player/play")).toHaveLength(plays);
-      } else {
-        expect(failed.assigned_output).toBeNull(); expect(status.state).toBe("stop"); expect(selected).toEqual([]);
-        await expect(command({ type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+  it.each([false, true])(
+    "recovers the real OwnTone output-loss sequence through the manager (cleanup failure=%s)",
+    async (cleanupFails) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const terminal = {
+        version: 1,
+        instance: "a".repeat(32),
+        sequence: 0,
+        item_id: 0,
+        reason: "none",
+      };
+      const status = {
+        state: "stop",
+        item_id: 0,
+        item_progress_ms: 0,
+        item_length_ms: 10000,
+        groovenet_terminal: terminal,
+      };
+      let queue = { version: 0, items: [] as { id: number; file_id: number }[] };
+      let selected: string[] = [];
+      let failStop = false;
+      let nextId = 10;
+      const writes: string[] = [];
+      const transport = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const path = url.pathname.replace("/api/", "");
+        if (init?.method !== "GET") writes.push(path);
+        let data: unknown;
+        if (path === "library/files")
+          data = {
+            tracks: {
+              items: [{ id: 1, path: "/media/1.wav", data_kind: "file", length_ms: 10000 }],
+            },
+          };
+        else if (path === "player") data = status;
+        else if (path === "queue") data = queue;
+        else if (path === "outputs")
+          data = {
+            outputs: [
+              {
+                id: "speaker-a",
+                name: "A",
+                type: "AirPlay 2",
+                selected: selected.includes("speaker-a"),
+                connected: false,
+              },
+            ],
+          };
+        else if (path === "outputs/set") selected = JSON.parse(String(init!.body)).outputs;
+        else if (path === "queue/items/add") {
+          queue = { version: queue.version + 1, items: [{ id: nextId++, file_id: 1 }] };
+          status.item_id = queue.items[0]!.id;
+          data = queue;
+        } else if (path === "queue/clear") queue = { version: queue.version + 1, items: [] };
+        else if (path === "player/play") status.state = "play";
+        else if (path === "player/stop") {
+          if (failStop) return new Response(null, { status: 503 });
+          status.state = "stop";
+        }
+        return data === undefined ? new Response(null, { status: 204 }) : Response.json(data);
+      });
+      const store = new MemoryStore();
+      const create = vi.fn(
+        (outputId?: string) =>
+          new OwnToneBackend({ apiUrl: "http://engine/api", outputId, fetch: transport }),
+      );
+      const manager = new ServerPlayerManager(store, { a: { libraryRoot: "/media", create } });
+      const command = (value: Record<string, unknown>) =>
+        manager.command("a", {
+          ...value,
+          expected_revision: manager.get("a").revision,
+        } as ServerPlayerCommand);
+      try {
+        await manager.initialize();
+        await manager.create({ id: "a", name: "A", engine_id: "a" });
+        await command({
+          type: "queue.add",
+          tracks: [
+            { track_id: "1", friend_id: 1 },
+            { track_id: "1", friend_id: 1 },
+          ],
+        });
+        await command({ type: "output.select", output_id: "speaker-a" });
         await command({ type: "play", allow_unknown: true });
-        expect(manager.get("a").state).toMatchObject({ status: "playing", error: null, position: 2.5, current_entry_id: before.state.current_entry_id, queue: before.state.queue });
-        expect(writes.filter(path => path === "player/play")).toHaveLength(plays + 1);
+        status.item_progress_ms = 2500;
+        await vi.advanceTimersByTimeAsync(500);
+        for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+        const before = manager.get("a");
+        const plays = writes.filter((path) => path === "player/play").length;
+        status.state = "pause";
+        terminal.sequence++;
+        terminal.item_id = status.item_id;
+        terminal.reason = "output_lost";
+        failStop = cleanupFails;
+        await vi.advanceTimersByTimeAsync(1000);
+        for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+        const failed = manager.get("a");
+        expect(failed.state).toMatchObject({
+          status: "error",
+          position: before.state.position,
+          current_entry_id: before.state.current_entry_id,
+          queue: before.state.queue,
+          error: { code: "PLAYBACK_INTERRUPTED" },
+        });
+        expect(writes.filter((path) => path === "player/play")).toHaveLength(plays);
+        await command({ type: "rename", name: "Still failed" });
+        expect(manager.get("a").state.error?.code).toBe("PLAYBACK_INTERRUPTED");
+        if (cleanupFails) {
+          expect(failed.assigned_output).toBe("speaker-a");
+          expect(status.state).toBe("pause");
+          await expect(command({ type: "play", allow_unknown: true })).rejects.toMatchObject({
+            code: "RELEASE_UNCERTAIN",
+          });
+          expect(writes.filter((path) => path === "player/play")).toHaveLength(plays);
+        } else {
+          expect(failed.assigned_output).toBeNull();
+          expect(status.state).toBe("stop");
+          expect(selected).toEqual([]);
+          await expect(command({ type: "play" })).rejects.toMatchObject({
+            code: "AVAILABILITY_UNKNOWN",
+          });
+          await command({ type: "play", allow_unknown: true });
+          expect(manager.get("a").state).toMatchObject({
+            status: "playing",
+            error: null,
+            position: 2.5,
+            current_entry_id: before.state.current_entry_id,
+            queue: before.state.queue,
+          });
+          expect(writes.filter((path) => path === "player/play")).toHaveLength(plays + 1);
+        }
+      } finally {
+        await manager.shutdown();
+        vi.useRealTimers();
       }
-    } finally { await manager.shutdown(); vi.useRealTimers(); }
-  });
+    },
+  );
 
   it("requires a fresh availability acknowledgement after a control failure loses transport", async () => {
-    const f = await fixture(); await f.prepare("a"); await f.command("a", { type: "play", allow_unknown: true });
-    f.backends[0]!.pause.mockRejectedValueOnce(new PlayerError("PLAYBACK_INTERRUPTED", "Output lost"));
+    const f = await fixture();
+    await f.prepare("a");
+    await f.command("a", { type: "play", allow_unknown: true });
+    f.backends[0]!.pause.mockRejectedValueOnce(
+      new PlayerError("PLAYBACK_INTERRUPTED", "Output lost"),
+    );
     f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
-    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({ code: "PLAYBACK_INTERRUPTED" });
-    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    await expect(f.command("a", { type: "pause" })).rejects.toMatchObject({
+      code: "PLAYBACK_INTERRUPTED",
+    });
+    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({
+      code: "AVAILABILITY_UNKNOWN",
+    });
     expect(f.backends[0]!.close).not.toHaveBeenCalled();
     await f.command("a", { type: "play", allow_unknown: true });
     expect(f.backends[0]!.close).toHaveBeenCalledOnce();
     expect(f.manager.get("a").state).toMatchObject({ status: "playing", error: null });
     await f.manager.shutdown();
   });
-
 });
-
 
 describe("sender-aware availability", () => {
   it("allows cold play and disconnected resume for this engine, but protects other assignments", async () => {
-    const f = await fixture({ availability: "occupied", source: "home_assistant", observed_at: "now", sender_identity: "groovenet", sender_engine_id: "a" });
-    await f.prepare("a"); await f.prepare("b", "speaker-a");
+    const f = await fixture({
+      availability: "occupied",
+      source: "home_assistant",
+      observed_at: "now",
+      sender_identity: "groovenet",
+      sender_engine_id: "a",
+    });
+    await f.prepare("a");
+    await f.prepare("b", "speaker-a");
     await f.command("a", { type: "play" });
     await f.command("a", { type: "pause" });
     f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
     await f.command("a", { type: "resume" });
     expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false);
-    await expect(f.command("b", { type: "play" })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
-    expect(f.observer).toHaveBeenLastCalledWith("speaker-a", expect.objectContaining({ fresh: true }));
+    await expect(f.command("b", { type: "play" })).rejects.toMatchObject({
+      code: "OUTPUT_ASSIGNED",
+    });
+    expect(f.observer).toHaveBeenLastCalledWith(
+      "speaker-a",
+      expect.objectContaining({ fresh: true }),
+    );
     await f.manager.shutdown();
   });
   it.each([
@@ -648,56 +1108,108 @@ describe("sender-aware availability", () => {
     { sender_identity: "groovenet" as const },
     { sender_identity: "foreign" as const },
     { sender_identity: "unknown" as const },
-  ])("requires takeover for a disconnected resume with %j", async sender => {
-    const f = await fixture({ availability: "idle", source: "home_assistant", observed_at: "now", sender_identity: "unknown" });
-    await f.prepare("a"); await f.command("a", { type: "play" }); await f.command("a", { type: "pause" });
+  ])("requires takeover for a disconnected resume with %j", async (sender) => {
+    const f = await fixture({
+      availability: "idle",
+      source: "home_assistant",
+      observed_at: "now",
+      sender_identity: "unknown",
+    });
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    await f.command("a", { type: "pause" });
     f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
-    f.observer.mockResolvedValue({ availability: "occupied", source: "home_assistant", observed_at: "now", ...sender });
-    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({ code: "SPEAKER_OCCUPIED" });
+    f.observer.mockResolvedValue({
+      availability: "occupied",
+      source: "home_assistant",
+      observed_at: "now",
+      ...sender,
+    });
+    await expect(f.command("a", { type: "resume" })).rejects.toMatchObject({
+      code: "SPEAKER_OCCUPIED",
+    });
     expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(true);
     await f.manager.shutdown();
   });
   it("resolves name mappings on cold play and runtime reconnect, and exposes mapping diagnostics", async () => {
     const f = await fixture();
-    const observe = homeAssistantObserver({ url: "http://ha", token: "token", entities: { A: "media_player.room" }, fetch: vi.fn(async () => Response.json({ state: "idle" })) });
+    const observe = homeAssistantObserver({
+      url: "http://ha",
+      token: "token",
+      entities: { A: "media_player.room" },
+      fetch: vi.fn(async () => Response.json({ state: "idle" })),
+    });
     f.observer.mockImplementation(observe);
     await f.prepare("a");
-    expect((await f.manager.devices("a"))[0]!.observed).toMatchObject({ entity_id: "media_player.room", availability: "idle" });
+    expect((await f.manager.devices("a"))[0]!.observed).toMatchObject({
+      entity_id: "media_player.room",
+      availability: "idle",
+    });
     await f.command("a", { type: "play" });
     const backend = f.backends.at(-1)!;
-    await f.command("a", { type: "pause" }); backend.outputConnection.mockResolvedValue("disconnected");
+    await f.command("a", { type: "pause" });
+    backend.outputConnection.mockResolvedValue("disconnected");
     await f.command("a", { type: "resume" });
     expect(backend.pause).toHaveBeenLastCalledWith(false);
     await f.manager.shutdown();
   });
   it("does not use an ambiguous output name for device observations or cold play", async () => {
     const f = await fixture();
-    const observe = homeAssistantObserver({ url: "http://ha", token: "token", entities: { A: "media_player.room", "speaker-a": "media_player.exact" }, fetch: vi.fn(async () => Response.json({ state: "idle" })) });
+    const observe = homeAssistantObserver({
+      url: "http://ha",
+      token: "token",
+      entities: { A: "media_player.room", "speaker-a": "media_player.exact" },
+      fetch: vi.fn(async () => Response.json({ state: "idle" })),
+    });
     f.observer.mockImplementation(observe);
     f.create.mockImplementation(() => {
       const backend = new FakeBackend();
-      backend.listDevices.mockResolvedValue([{ id: "speaker-a", name: "A" }, { id: "speaker-b", name: "A" }]);
+      backend.listDevices.mockResolvedValue([
+        { id: "speaker-a", name: "A" },
+        { id: "speaker-b", name: "A" },
+      ]);
       f.backends.push(backend);
       return backend;
     });
     await f.prepare("a");
     // The exact ID remains mapped, while the duplicate name cannot map speaker-b.
-    expect((await f.manager.devices("a")).map(device => device.observed.entity_id)).toEqual(["media_player.exact", null]);
+    expect((await f.manager.devices("a")).map((device) => device.observed.entity_id)).toEqual([
+      "media_player.exact",
+      null,
+    ]);
     await f.command("a", { type: "output.select", output_id: "speaker-b" });
-    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    await expect(f.command("a", { type: "play" })).rejects.toMatchObject({
+      code: "AVAILABILITY_UNKNOWN",
+    });
     await f.manager.shutdown();
   });
 });
 
 describe("atomic queue replacement", () => {
-  const idle = { availability: "idle" as const, source: "home_assistant" as const, observed_at: "now", sender_identity: "unknown" as const };
-  const refs = [{ track_id: "2", friend_id: 1 }, { track_id: "3", friend_id: 1 }];
+  const idle = {
+    availability: "idle" as const,
+    source: "home_assistant" as const,
+    observed_at: "now",
+    sender_identity: "unknown" as const,
+  };
+  const refs = [
+    { track_id: "2", friend_id: 1 },
+    { track_id: "3", friend_id: 1 },
+  ];
   it("replaces instead of appending, creates UUIDs, and plays the requested entry at its saved position", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
     const id = "99999999-9999-4999-8999-999999999999";
-    await f.command("a", { type: "queue.replace", entries: [refs[0], { ...refs[1], id }], current_entry_id: id, position: 42, play: true });
+    await f.command("a", {
+      type: "queue.replace",
+      entries: [refs[0], { ...refs[1], id }],
+      current_entry_id: id,
+      position: 42,
+      play: true,
+    });
     const state = f.manager.get("a").state;
-    expect(state.queue.map(e => e.track_id)).toEqual(["2", "3"]);
+    expect(state.queue.map((e) => e.track_id)).toEqual(["2", "3"]);
     expect(state.queue[0]!.id).toMatch(/^[\da-f-]{36}$/);
     expect(state).toMatchObject({ current_entry_id: id, position: 42, status: "playing" });
     expect(f.backends[0]!.close).toHaveBeenCalledOnce();
@@ -706,166 +1218,339 @@ describe("atomic queue replacement", () => {
     await f.manager.shutdown();
   });
   it("leaves queue, revision, current entry and playback untouched when any track fails to resolve", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    const before = f.manager.get("a"), saves = f.store.save.mock.calls.length;
-    await expect(f.command("a", { type: "queue.replace", entries: [refs[0], { track_id: "missing", friend_id: 1 }], play: true })).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    const before = f.manager.get("a"),
+      saves = f.store.save.mock.calls.length;
+    await expect(
+      f.command("a", {
+        type: "queue.replace",
+        entries: [refs[0], { track_id: "missing", friend_id: 1 }],
+        play: true,
+      }),
+    ).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
     expect(f.manager.get("a")).toEqual(before);
-    expect(f.store.save).toHaveBeenCalledTimes(saves); expect(f.backends[0]!.close).not.toHaveBeenCalled();
+    expect(f.store.save).toHaveBeenCalledTimes(saves);
+    expect(f.backends[0]!.close).not.toHaveBeenCalled();
     await f.manager.shutdown();
   });
-  it.each([false, true])("keeps a retained current entry playing without a reload (play=%s)", async play => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    f.backends[0]!.emit("position", 23, 100); await f.settle();
-    const entry = f.manager.get("a").state.queue[0]!;
-    await f.command("a", { type: "queue.replace", entries: [refs[1], { id: entry.id, track_id: entry.track_id, friend_id: entry.friend_id }], play });
-    expect(f.manager.get("a").state).toMatchObject({ current_entry_id: entry.id, position: 23, duration: 100, status: "playing" });
-    expect(f.backends[0]!.close).not.toHaveBeenCalled(); expect(f.backends[0]!.load).toHaveBeenCalledOnce();
-    expect(f.backends[0]!.seek).not.toHaveBeenCalled();
-    f.backends[0]!.emit("ended"); await f.settle(); expect(f.manager.get("a").state.status).toBe("ended");
-    await f.manager.shutdown();
-  });
+  it.each([false, true])(
+    "keeps a retained current entry playing without a reload (play=%s)",
+    async (play) => {
+      const f = await fixture(idle);
+      await f.prepare("a");
+      await f.command("a", { type: "play" });
+      f.backends[0]!.emit("position", 23, 100);
+      await f.settle();
+      const entry = f.manager.get("a").state.queue[0]!;
+      await f.command("a", {
+        type: "queue.replace",
+        entries: [refs[1], { id: entry.id, track_id: entry.track_id, friend_id: entry.friend_id }],
+        play,
+      });
+      expect(f.manager.get("a").state).toMatchObject({
+        current_entry_id: entry.id,
+        position: 23,
+        duration: 100,
+        status: "playing",
+      });
+      expect(f.backends[0]!.close).not.toHaveBeenCalled();
+      expect(f.backends[0]!.load).toHaveBeenCalledOnce();
+      expect(f.backends[0]!.seek).not.toHaveBeenCalled();
+      f.backends[0]!.emit("ended");
+      await f.settle();
+      expect(f.manager.get("a").state.status).toBe("ended");
+      await f.manager.shutdown();
+    },
+  );
   it("clears and restores the same UUIDs, current entry and position without starting paused audio", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    f.backends[0]!.emit("position", 17, 100); await f.settle(); await f.command("a", { type: "pause" });
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    f.backends[0]!.emit("position", 17, 100);
+    await f.settle();
+    await f.command("a", { type: "pause" });
     const before = f.manager.get("a").state;
     await f.command("a", { type: "queue.clear" });
-    await f.command("a", { type: "queue.replace", entries: before.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })), current_entry_id: before.current_entry_id, position: before.position });
-    expect(f.manager.get("a").state).toMatchObject({ queue: before.queue, current_entry_id: before.current_entry_id, position: 17, status: "stopped", checkpoint: true });
+    await f.command("a", {
+      type: "queue.replace",
+      entries: before.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })),
+      current_entry_id: before.current_entry_id,
+      position: before.position,
+    });
+    expect(f.manager.get("a").state).toMatchObject({
+      queue: before.queue,
+      current_entry_id: before.current_entry_id,
+      position: 17,
+      status: "stopped",
+      checkpoint: true,
+    });
     expect(f.create).toHaveBeenCalledOnce();
-    await f.command("a", { type: "play" }); expect(f.backends[1]!.seek).toHaveBeenCalledWith(17);
+    await f.command("a", { type: "play" });
+    expect(f.backends[1]!.seek).toHaveBeenCalledWith(17);
     await f.manager.shutdown();
   });
   it("stops a removed current entry and accepts an empty queue", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
     const old = f.backends[0]!;
     await f.command("a", { type: "queue.replace", entries: refs });
-    expect(f.manager.get("a").state).toMatchObject({ status: "stopped", current_entry_id: null, position: 0 });
-    old.emit("ended"); await f.settle(); expect(f.manager.get("a").state.queue).toHaveLength(2);
+    expect(f.manager.get("a").state).toMatchObject({
+      status: "stopped",
+      current_entry_id: null,
+      position: 0,
+    });
+    old.emit("ended");
+    await f.settle();
+    expect(f.manager.get("a").state.queue).toHaveLength(2);
     await f.command("a", { type: "queue.replace", entries: [] });
     expect(f.manager.get("a").state.queue).toEqual([]);
     await f.manager.shutdown();
   });
   it("rejects duplicate IDs, changed track identities, missing current IDs and empty play before effects", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    const before = f.manager.get("a"), entry = before.state.queue[0]!;
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    const before = f.manager.get("a"),
+      entry = before.state.queue[0]!;
     for (const replacement of [
-      { entries: [{ ...refs[0], id: entry.id }, { ...refs[1], id: entry.id }] },
+      {
+        entries: [
+          { ...refs[0], id: entry.id },
+          { ...refs[1], id: entry.id },
+        ],
+      },
       { entries: [{ ...refs[0], id: entry.id }] },
       { entries: refs, current_entry_id: entry.id },
       { entries: [], play: true },
       { entries: refs, current_entry_id: null, play: true },
     ]) {
       await expect(f.command("a", { type: "queue.replace", ...replacement })).rejects.toThrow();
-      expect(f.manager.get("a")).toEqual(before); expect(f.backends[0]!.close).not.toHaveBeenCalled();
+      expect(f.manager.get("a")).toEqual(before);
+      expect(f.backends[0]!.close).not.toHaveBeenCalled();
     }
     await f.manager.shutdown();
   });
-  it.each(["unknown", "occupied"] as const)("checks %s activity and retains the old queue when play is rejected", async availability => {
-    const f = await fixture({ ...idle, availability }); await f.prepare("a"); const before = f.manager.get("a");
-    await expect(f.command("a", { type: "queue.replace", entries: refs, play: true })).rejects.toMatchObject({ code: availability === "unknown" ? "AVAILABILITY_UNKNOWN" : "SPEAKER_OCCUPIED" });
-    expect(f.manager.get("a")).toEqual(before); expect(f.create).not.toHaveBeenCalled();
-    await f.command("a", { type: "queue.replace", entries: refs, play: true, allow_unknown: true, takeover: true });
-    expect(f.manager.get("a").state.queue).toHaveLength(2); await f.manager.shutdown();
-  });
+  it.each(["unknown", "occupied"] as const)(
+    "checks %s activity and retains the old queue when play is rejected",
+    async (availability) => {
+      const f = await fixture({ ...idle, availability });
+      await f.prepare("a");
+      const before = f.manager.get("a");
+      await expect(
+        f.command("a", { type: "queue.replace", entries: refs, play: true }),
+      ).rejects.toMatchObject({
+        code: availability === "unknown" ? "AVAILABILITY_UNKNOWN" : "SPEAKER_OCCUPIED",
+      });
+      expect(f.manager.get("a")).toEqual(before);
+      expect(f.create).not.toHaveBeenCalled();
+      await f.command("a", {
+        type: "queue.replace",
+        entries: refs,
+        play: true,
+        allow_unknown: true,
+        takeover: true,
+      });
+      expect(f.manager.get("a").state.queue).toHaveLength(2);
+      await f.manager.shutdown();
+    },
+  );
   it("resumes a retained paused entry and supports an explicit seek without replacing its backend", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" }); await f.command("a", { type: "pause" });
-    const entries = f.manager.get("a").state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id }));
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    await f.command("a", { type: "pause" });
+    const entries = f.manager
+      .get("a")
+      .state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id }));
     f.backends[0]!.outputConnection.mockResolvedValue("disconnected");
     await f.command("a", { type: "queue.replace", entries, position: 8, play: true });
-    expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false); expect(f.backends[0]!.seek).toHaveBeenCalledWith(8);
-    expect(f.manager.get("a").state.status).toBe("playing"); await f.manager.shutdown();
+    expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false);
+    expect(f.backends[0]!.seek).toHaveBeenCalledWith(8);
+    expect(f.manager.get("a").state.status).toBe("playing");
+    await f.manager.shutdown();
   });
 });
 
 describe("queue replacement recovery", () => {
-  const idle = { availability: "idle" as const, source: "home_assistant" as const, observed_at: "now", sender_identity: "unknown" as const };
+  const idle = {
+    availability: "idle" as const,
+    source: "home_assistant" as const,
+    observed_at: "now",
+    sender_identity: "unknown" as const,
+  };
   it("preserves authoritative state when track resolution throws", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    const before = f.manager.get("a"); f.store.resolve.mockRejectedValueOnce(new Error("database offline"));
-    await expect(f.command("a", { type: "queue.replace", entries: [{ track_id: "3", friend_id: 1 }], play: true })).rejects.toMatchObject({ code: "TRACK_RESOLUTION_FAILED" });
-    expect(f.manager.get("a")).toEqual(before); expect(f.backends[0]!.close).not.toHaveBeenCalled();
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    const before = f.manager.get("a");
+    f.store.resolve.mockRejectedValueOnce(new Error("database offline"));
+    await expect(
+      f.command("a", {
+        type: "queue.replace",
+        entries: [{ track_id: "3", friend_id: 1 }],
+        play: true,
+      }),
+    ).rejects.toMatchObject({ code: "TRACK_RESOLUTION_FAILED" });
+    expect(f.manager.get("a")).toEqual(before);
+    expect(f.backends[0]!.close).not.toHaveBeenCalled();
     await f.manager.shutdown();
   });
   it("retains a stopped checkpoint and persistent playback error when replacing around its current entry", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    f.backends[0]!.emit("position", 18, 100); await f.settle();
-    f.backends[0]!.emit("error", new PlayerError("LOST", "Speaker lost")); await f.settle();
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    f.backends[0]!.emit("position", 18, 100);
+    await f.settle();
+    f.backends[0]!.emit("error", new PlayerError("LOST", "Speaker lost"));
+    await f.settle();
     const state = f.manager.get("a").state;
-    await f.command("a", { type: "queue.replace", entries: state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })) });
-    expect(f.manager.get("a").state).toMatchObject({ current_entry_id: state.current_entry_id, position: 18, checkpoint: true, status: "error", error: state.error });
-    expect(f.create).toHaveBeenCalledOnce(); await f.manager.shutdown();
+    await f.command("a", {
+      type: "queue.replace",
+      entries: state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id })),
+    });
+    expect(f.manager.get("a").state).toMatchObject({
+      current_entry_id: state.current_entry_id,
+      position: 18,
+      checkpoint: true,
+      status: "error",
+      error: state.error,
+    });
+    expect(f.create).toHaveBeenCalledOnce();
+    await f.manager.shutdown();
   });
   it("resumes a connected paused entry without another availability check", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" }); await f.command("a", { type: "pause" });
-    const entries = f.manager.get("a").state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id }));
-    f.observer.mockClear(); await f.command("a", { type: "queue.replace", entries, play: true });
-    expect(f.observer).not.toHaveBeenCalled(); expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false);
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    await f.command("a", { type: "pause" });
+    const entries = f.manager
+      .get("a")
+      .state.queue.map(({ id, track_id, friend_id }) => ({ id, track_id, friend_id }));
+    f.observer.mockClear();
+    await f.command("a", { type: "queue.replace", entries, play: true });
+    expect(f.observer).not.toHaveBeenCalled();
+    expect(f.backends[0]!.pause).toHaveBeenLastCalledWith(false);
     await f.manager.shutdown();
   });
   it("rejects audio-less Play now without replacing the old queue or stopping its backend", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.command("a", { type: "play" });
-    const before = f.manager.get("a"); f.store.tracks.get("3")!.local_audio_url = null;
-    await expect(f.command("a", { type: "queue.replace", entries: [{ track_id: "3", friend_id: 1 }], play: true })).rejects.toMatchObject({ code: "NO_AUDIO" });
-    expect(f.manager.get("a")).toEqual(before); expect(f.backends[0]!.close).not.toHaveBeenCalled();
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.command("a", { type: "play" });
+    const before = f.manager.get("a");
+    f.store.tracks.get("3")!.local_audio_url = null;
+    await expect(
+      f.command("a", {
+        type: "queue.replace",
+        entries: [{ track_id: "3", friend_id: 1 }],
+        play: true,
+      }),
+    ).rejects.toMatchObject({ code: "NO_AUDIO" });
+    expect(f.manager.get("a")).toEqual(before);
+    expect(f.backends[0]!.close).not.toHaveBeenCalled();
     await f.manager.shutdown();
   });
   it("does not bypass another player's output assignment", async () => {
-    const f = await fixture(idle); await f.prepare("a"); await f.prepare("b", "speaker-a"); await f.command("a", { type: "play" });
+    const f = await fixture(idle);
+    await f.prepare("a");
+    await f.prepare("b", "speaker-a");
+    await f.command("a", { type: "play" });
     const before = f.manager.get("b");
-    await expect(f.command("b", { type: "queue.replace", entries: [{ track_id: "3", friend_id: 1 }], play: true, takeover: true })).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
-    expect(f.manager.get("b")).toEqual(before); await f.manager.shutdown();
+    await expect(
+      f.command("b", {
+        type: "queue.replace",
+        entries: [{ track_id: "3", friend_id: 1 }],
+        play: true,
+        takeover: true,
+      }),
+    ).rejects.toMatchObject({ code: "OUTPUT_ASSIGNED" });
+    expect(f.manager.get("b")).toEqual(before);
+    await f.manager.shutdown();
   });
 });
 
-
 describe("atomic session.join", () => {
   const tracks = [{ track_id: "3", friend_id: 1 }];
-  it.each(["stopped", "ended", "playing", "paused", "error"] as const)("joins a %s player using its authoritative state", async status => {
-    const f = await fixture(); await f.prepare("a");
-    if (status !== "stopped") {
-      await f.command("a", { type: "play", entry_id: f.manager.get("a").state.queue[1]!.id, allow_unknown: true });
-      if (status === "paused") await f.command("a", { type: "pause" });
-      if (status === "ended") { f.backends[0]!.emit("ended"); await f.settle(); }
-      if (status === "error") { f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "Lost speaker")); await f.settle(); }
-    }
-    f.create.mockClear();
-    const before = f.manager.get("a");
-    const result = await f.command("a", { type: "session.join", tracks, allow_unknown: true });
-    expect(result.player.state.queue).toHaveLength(3);
-    expect(result.player.state.queue.slice(0, 2)).toEqual(before.state.queue);
-    if (status === "stopped" || status === "ended") {
-      expect(result.player.state.current_entry_id).toBe(result.player.state.queue[2]!.id);
-      expect(result.player.state.status).toBe("playing");
-      expect(f.backends.at(-1)!.load).toHaveBeenCalledOnce();
-    } else {
-      expect(result.player.state.current_entry_id).toBe(before.state.current_entry_id);
-      expect(result.player.state.status).toBe(status);
-      expect(f.create).not.toHaveBeenCalled();
-    }
-    await f.manager.shutdown();
-  });
+  it.each(["stopped", "ended", "playing", "paused", "error"] as const)(
+    "joins a %s player using its authoritative state",
+    async (status) => {
+      const f = await fixture();
+      await f.prepare("a");
+      if (status !== "stopped") {
+        await f.command("a", {
+          type: "play",
+          entry_id: f.manager.get("a").state.queue[1]!.id,
+          allow_unknown: true,
+        });
+        if (status === "paused") await f.command("a", { type: "pause" });
+        if (status === "ended") {
+          f.backends[0]!.emit("ended");
+          await f.settle();
+        }
+        if (status === "error") {
+          f.backends[0]!.emit("error", new PlayerError("PLAYBACK_INTERRUPTED", "Lost speaker"));
+          await f.settle();
+        }
+      }
+      f.create.mockClear();
+      const before = f.manager.get("a");
+      const result = await f.command("a", { type: "session.join", tracks, allow_unknown: true });
+      expect(result.player.state.queue).toHaveLength(3);
+      expect(result.player.state.queue.slice(0, 2)).toEqual(before.state.queue);
+      if (status === "stopped" || status === "ended") {
+        expect(result.player.state.current_entry_id).toBe(result.player.state.queue[2]!.id);
+        expect(result.player.state.status).toBe("playing");
+        expect(f.backends.at(-1)!.load).toHaveBeenCalledOnce();
+      } else {
+        expect(result.player.state.current_entry_id).toBe(before.state.current_entry_id);
+        expect(result.player.state.status).toBe(status);
+        expect(f.create).not.toHaveBeenCalled();
+      }
+      await f.manager.shutdown();
+    },
+  );
   it("serializes concurrent joins so the second appends without restarting playback", async () => {
-    const f = await fixture(); await f.command("a", { type: "output.select", output_id: "speaker-a" });
-    const join = () => f.manager.command("a", { type: "session.join", tracks, allow_unknown: true, takeover: false });
+    const f = await fixture();
+    await f.command("a", { type: "output.select", output_id: "speaker-a" });
+    const join = () =>
+      f.manager.command("a", {
+        type: "session.join",
+        tracks,
+        allow_unknown: true,
+        takeover: false,
+      });
     const [first, second] = await Promise.all([join(), join()]);
     expect(first.player.state.queue).toHaveLength(1);
     expect(second.player.state.queue).toHaveLength(2);
     expect(second.player.state.current_entry_id).toBe(first.player.state.current_entry_id);
-    expect(new Set(second.player.state.queue.map(entry => entry.id)).size).toBe(2);
+    expect(new Set(second.player.state.queue.map((entry) => entry.id)).size).toBe(2);
     expect(f.create).toHaveBeenCalledOnce();
     await f.manager.shutdown();
   });
   it("does not append on policy, output, audio or track validation failure", async () => {
     const f = await fixture();
-    await expect(f.command("a", { type: "session.join", tracks })).rejects.toMatchObject({ code: "OUTPUT_REQUIRED" });
+    await expect(f.command("a", { type: "session.join", tracks })).rejects.toMatchObject({
+      code: "OUTPUT_REQUIRED",
+    });
     await f.command("a", { type: "output.select", output_id: "speaker-a" });
     const before = f.manager.get("a");
-    await expect(f.command("a", { type: "session.join", tracks })).rejects.toMatchObject({ code: "AVAILABILITY_UNKNOWN" });
+    await expect(f.command("a", { type: "session.join", tracks })).rejects.toMatchObject({
+      code: "AVAILABILITY_UNKNOWN",
+    });
     expect(f.manager.get("a")).toEqual(before);
-    await expect(f.command("a", { type: "session.join", tracks: [...tracks, { track_id: "missing", friend_id: 1 }] })).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
+    await expect(
+      f.command("a", {
+        type: "session.join",
+        tracks: [...tracks, { track_id: "missing", friend_id: 1 }],
+      }),
+    ).rejects.toMatchObject({ code: "TRACK_NOT_FOUND" });
     expect(f.manager.get("a")).toEqual(before);
     f.store.tracks.get("3")!.local_audio_url = null;
-    await expect(f.command("a", { type: "session.join", tracks, allow_unknown: true })).rejects.toMatchObject({ code: "NO_AUDIO" });
+    await expect(
+      f.command("a", { type: "session.join", tracks, allow_unknown: true }),
+    ).rejects.toMatchObject({ code: "NO_AUDIO" });
     expect(f.manager.get("a")).toEqual(before);
     await f.manager.shutdown();
   });

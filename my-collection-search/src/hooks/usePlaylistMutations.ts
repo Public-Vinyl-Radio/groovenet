@@ -37,16 +37,14 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
   type TrackRef = { track_id: string; friend_id: number };
   const getTrackIds = (): TrackRef[] => {
     if (!playlistId) return [];
-    const cached = queryClient.getQueryData(
-      queryKeys.playlistTrackIds(playlistId)
-    );
+    const cached = queryClient.getQueryData(queryKeys.playlistTrackIds(playlistId));
     if (!cached) return [];
     if (Array.isArray(cached)) {
       return cached.filter(
         (r): r is TrackRef =>
           !!r &&
           typeof (r as { track_id?: unknown }).track_id === "string" &&
-          typeof (r as { friend_id?: unknown }).friend_id === "number"
+          typeof (r as { friend_id?: unknown }).friend_id === "number",
       );
     }
     // If legacy shape (object with tracks)
@@ -59,7 +57,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
         (r): r is TrackRef =>
           !!r &&
           typeof (r as { track_id?: unknown }).track_id === "string" &&
-          typeof (r as { friend_id?: unknown }).friend_id === "number"
+          typeof (r as { friend_id?: unknown }).friend_id === "number",
       );
     }
     return [];
@@ -68,29 +66,26 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
   // Update track refs in cache
   const updateTrackRefs = (newTrackRefs: TrackRef[]) => {
     if (!playlistId) return;
-    queryClient.setQueryData(
-      queryKeys.playlistTrackIds(playlistId),
-      (prev: unknown) => {
-        // If previous data had playlist metadata, preserve it
-        if (
-          prev &&
-          typeof prev === "object" &&
-          !Array.isArray(prev) &&
-          "tracks" in (prev as { tracks?: unknown })
-        ) {
-          const prevObj = prev as {
-            tracks?: TrackRef[];
-            playlist_name?: string | null;
-            playlist_id?: number;
-          };
-          return {
-            ...prevObj,
-            tracks: newTrackRefs,
-          };
-        }
-        return newTrackRefs;
+    queryClient.setQueryData(queryKeys.playlistTrackIds(playlistId), (prev: unknown) => {
+      // If previous data had playlist metadata, preserve it
+      if (
+        prev &&
+        typeof prev === "object" &&
+        !Array.isArray(prev) &&
+        "tracks" in (prev as { tracks?: unknown })
+      ) {
+        const prevObj = prev as {
+          tracks?: TrackRef[];
+          playlist_name?: string | null;
+          playlist_id?: number;
+        };
+        return {
+          ...prevObj,
+          tracks: newTrackRefs,
+        };
       }
-    );
+      return newTrackRefs;
+    });
   };
 
   const clearSortPositionChanges = () => {
@@ -100,10 +95,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
   const getPositionChangeKey = (ref: TrackRef, index: number) =>
     `${ref.track_id}:${ref.friend_id}:${index}`;
 
-  const buildPositionChanges = (
-    previousRefs: TrackRef[],
-    sortedRefs: TrackRef[]
-  ) => {
+  const buildPositionChanges = (previousRefs: TrackRef[], sortedRefs: TrackRef[]) => {
     const previousPositionQueues = new Map<string, number[]>();
     previousRefs.forEach((ref, index) => {
       const key = `${ref.track_id}:${ref.friend_id}`;
@@ -131,12 +123,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
   const moveTrack = (fromIdx: number, toIdx: number) => {
     clearSortPositionChanges();
     const trackRefs = getTrackIds();
-    if (
-      fromIdx < 0 ||
-      fromIdx >= trackRefs.length ||
-      toIdx < 0 ||
-      toIdx >= trackRefs.length
-    ) {
+    if (fromIdx < 0 || fromIdx >= trackRefs.length || toIdx < 0 || toIdx >= trackRefs.length) {
       return;
     }
 
@@ -169,7 +156,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     onError: (error) => {
       console.error("Failed to remove track from playlist:", error);
       toaster.create({ title: "Failed to remove track from playlist", type: "error" });
-    }
+    },
   });
 
   // Mutation for adding track to playlist
@@ -192,7 +179,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     onError: (error) => {
       console.error("Failed to add track to playlist:", error);
       toaster.create({ title: "Failed to add track to playlist", type: "error" });
-    }
+    },
   });
 
   // Remove track from playlist (with server persistence)
@@ -224,19 +211,16 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
       .map((ref) => {
         let track = getTrack(ref.track_id, ref.friend_id); // Try without specific friend_id first
         if (!track) {
-          track = useTrackStore
-            .getState()
-            .getTrack(ref.track_id, ref.friend_id);
+          track = useTrackStore.getState().getTrack(ref.track_id, ref.friend_id);
         }
         return track;
       })
       .filter(Boolean) as Track[];
 
-
     if (tracks.length === 0) {
       console.warn(
         "No tracks found in store for IDs:",
-        trackRefs.map((r) => r.track_id)
+        trackRefs.map((r) => r.track_id),
       );
       return;
     }
@@ -288,9 +272,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
         .map((ref) => {
           let track = getTrack(ref.track_id);
           if (!track) {
-            track = useTrackStore
-              .getState()
-              .getTrack(ref.track_id, ref.friend_id);
+            track = useTrackStore.getState().getTrack(ref.track_id, ref.friend_id);
           }
           return track;
         })
@@ -307,11 +289,9 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
       if (sortedTracks.length > 0) {
         const sortedTrackRefs = sortedTracks.map((track) => ({
           track_id: track.track_id,
-          friend_id: track.friend_id!
+          friend_id: track.friend_id!,
         }));
-        setSortPositionChanges(
-          buildPositionChanges(previousRefs, sortedTrackRefs)
-        );
+        setSortPositionChanges(buildPositionChanges(previousRefs, sortedTrackRefs));
         updateTrackRefs(sortedTrackRefs);
         onModified?.(); // Mark as modified
 
@@ -348,10 +328,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
         }
       }
       toaster.create({
-        title:
-          mode === "cohesive_blocks"
-            ? "Cohesive blocks sort failed"
-            : "Genetic sort failed",
+        title: mode === "cohesive_blocks" ? "Cohesive blocks sort failed" : "Genetic sort failed",
         description: details || (error instanceof Error ? error.message : String(error)),
         type: "error",
       });
@@ -374,11 +351,9 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     sortGreedy,
     sortGenetic,
     sortCohesiveBlocks,
-    isGeneticSorting:
-      optimizerMutation.isPending && optimizerMutation.variables === "genetic",
+    isGeneticSorting: optimizerMutation.isPending && optimizerMutation.variables === "genetic",
     isCohesiveBlocksSorting:
-      optimizerMutation.isPending &&
-      optimizerMutation.variables === "cohesive_blocks",
+      optimizerMutation.isPending && optimizerMutation.variables === "cohesive_blocks",
     sortPositionChanges,
   };
 }

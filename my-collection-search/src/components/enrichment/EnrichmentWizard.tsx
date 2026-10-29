@@ -1,14 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  Progress,
-  Separator,
-  Badge,
-} from "@chakra-ui/react";
+import { Box, Flex, Text, Button, Progress, Separator, Badge } from "@chakra-ui/react";
 import { Checkbox } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { FiX } from "react-icons/fi";
@@ -54,8 +46,7 @@ function CurrentTrackStep({
 
 export default function EnrichmentWizard() {
   const router = useRouter();
-  const { queue, enrichmentTypes, results, setEnrichmentTypes, markResult } =
-    useEnrichmentStore();
+  const { queue, enrichmentTypes, results, setEnrichmentTypes, markResult } = useEnrichmentStore();
   const { setTrack } = useTrackStore();
 
   const [phase, setPhase] = useState<Phase>("setup");
@@ -150,117 +141,111 @@ export default function EnrichmentWizard() {
   if (phase === "setup") {
     return (
       <>
-      <PageHeader title="Enrich" count={`${queue.length} track${queue.length !== 1 ? "s" : ""}`} />
-      <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4}>
-        <Text color="fg.muted" fontSize="sm">
-          Choose what data to fetch for each track. You can review and edit
-          each result before saving.
-        </Text>
-
-        <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={5}>
-          <Text fontWeight="semibold" mb={4} fontSize="sm">
-            Data sources
+        <PageHeader
+          title="Enrich"
+          count={`${queue.length} track${queue.length !== 1 ? "s" : ""}`}
+        />
+        <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4}>
+          <Text color="fg.muted" fontSize="sm">
+            Choose what data to fetch for each track. You can review and edit each result before
+            saving.
           </Text>
-          <Flex direction="column" gap={4}>
-            <Flex justify="space-between" align="center">
-              <Box>
-                <Text fontSize="sm" fontWeight="medium">
-                  AI Metadata
-                </Text>
-                <Text fontSize="xs" color="fg.muted">
-                  Genres from your taxonomy, descriptors and notes, from a web search per track (about $0.02 each). Off by default.
-                </Text>
-              </Box>
-              <Checkbox.Root
-                checked={enrichmentTypes.llm}
-                onChange={() =>
-                  setEnrichmentTypes({ llm: !enrichmentTypes.llm })
-                }
-              >
-                <Checkbox.HiddenInput />
-                <Checkbox.Control />
-              </Checkbox.Root>
-            </Flex>
-            <Separator />
-            <Flex justify="space-between" align="center">
-              <Box>
-                <Text fontSize="sm" fontWeight="medium">
-                  Apple Music
-                </Text>
-                <Text fontSize="xs" color="fg.muted">
-                  Match to Apple Music for streaming URL and duration
-                </Text>
-              </Box>
-              <Checkbox.Root
-                checked={enrichmentTypes.appleMusic}
-                onChange={() =>
-                  setEnrichmentTypes({ appleMusic: !enrichmentTypes.appleMusic })
-                }
-              >
-                <Checkbox.HiddenInput />
-                <Checkbox.Control />
-              </Checkbox.Root>
-            </Flex>
-            <Separator />
-            <Flex justify="space-between" align="center">
-              <Box>
-                <Text fontSize="sm" fontWeight="medium">
-                  YouTube
-                </Text>
-                <Text fontSize="xs" color="fg.muted">
-                  Match to a YouTube video for audio download
-                </Text>
-              </Box>
-              <Checkbox.Root
-                checked={enrichmentTypes.youtube}
-                onChange={() =>
-                  setEnrichmentTypes({ youtube: !enrichmentTypes.youtube })
-                }
-              >
-                <Checkbox.HiddenInput />
-                <Checkbox.Control />
-              </Checkbox.Root>
-            </Flex>
-            <Separator />
-            <Flex justify="space-between" align="center">
-              <Box>
-                <Text fontSize="sm" fontWeight="medium">
-                  Fetch audio
-                </Text>
-                <Text fontSize="xs" color="fg.muted">
-                  Enqueue each saved track for audio download immediately
-                </Text>
-              </Box>
-              <Checkbox.Root
-                checked={enrichmentTypes.fetchAudio}
-                onChange={() =>
-                  setEnrichmentTypes({ fetchAudio: !enrichmentTypes.fetchAudio })
-                }
-              >
-                <Checkbox.HiddenInput />
-                <Checkbox.Control />
-              </Checkbox.Root>
-            </Flex>
-          </Flex>
-        </Box>
 
-        <Flex justify="space-between">
-          <Button variant="ghost" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button
-            colorPalette="accent"
-            onClick={startEnrichment}
-            disabled={
-              !enrichmentTypes.llm &&
-              !enrichmentTypes.appleMusic &&
-              !enrichmentTypes.youtube
-            }
-          >
-            Start Enrichment →
-          </Button>
+          <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={5}>
+            <Text fontWeight="semibold" mb={4} fontSize="sm">
+              Data sources
+            </Text>
+            <Flex direction="column" gap={4}>
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium">
+                    AI Metadata
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Genres from your taxonomy, descriptors and notes, from a web search per track
+                    (about $0.02 each). Off by default.
+                  </Text>
+                </Box>
+                <Checkbox.Root
+                  checked={enrichmentTypes.llm}
+                  onChange={() => setEnrichmentTypes({ llm: !enrichmentTypes.llm })}
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                </Checkbox.Root>
+              </Flex>
+              <Separator />
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium">
+                    Apple Music
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Match to Apple Music for streaming URL and duration
+                  </Text>
+                </Box>
+                <Checkbox.Root
+                  checked={enrichmentTypes.appleMusic}
+                  onChange={() => setEnrichmentTypes({ appleMusic: !enrichmentTypes.appleMusic })}
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                </Checkbox.Root>
+              </Flex>
+              <Separator />
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium">
+                    YouTube
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Match to a YouTube video for audio download
+                  </Text>
+                </Box>
+                <Checkbox.Root
+                  checked={enrichmentTypes.youtube}
+                  onChange={() => setEnrichmentTypes({ youtube: !enrichmentTypes.youtube })}
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                </Checkbox.Root>
+              </Flex>
+              <Separator />
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium">
+                    Fetch audio
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Enqueue each saved track for audio download immediately
+                  </Text>
+                </Box>
+                <Checkbox.Root
+                  checked={enrichmentTypes.fetchAudio}
+                  onChange={() => setEnrichmentTypes({ fetchAudio: !enrichmentTypes.fetchAudio })}
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                </Checkbox.Root>
+              </Flex>
+            </Flex>
+          </Box>
+
+          <Flex justify="space-between">
+            <Button variant="ghost" onClick={() => router.back()}>
+              Cancel
+            </Button>
+            <Button
+              colorPalette="accent"
+              onClick={startEnrichment}
+              disabled={
+                !enrichmentTypes.llm && !enrichmentTypes.appleMusic && !enrichmentTypes.youtube
+              }
+            >
+              Start Enrichment →
+            </Button>
+          </Flex>
         </Flex>
-      </Flex>
       </>
     );
   }
@@ -268,30 +253,30 @@ export default function EnrichmentWizard() {
   if (phase === "done") {
     return (
       <>
-      <PageHeader title="Enrich" count="Done" />
-      <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4} align="center">
-        <Flex gap={6}>
-          <Box textAlign="center">
-            <Text fontSize="3xl" fontWeight="bold" color="fg.success">
-              {savedCount}
-            </Text>
-            <Text fontSize="sm" color="fg.muted">
-              saved
-            </Text>
-          </Box>
-          <Box textAlign="center">
-            <Text fontSize="3xl" fontWeight="bold" color="fg.muted">
-              {skippedCount}
-            </Text>
-            <Text fontSize="sm" color="fg.muted">
-              skipped
-            </Text>
-          </Box>
+        <PageHeader title="Enrich" count="Done" />
+        <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4} align="center">
+          <Flex gap={6}>
+            <Box textAlign="center">
+              <Text fontSize="3xl" fontWeight="bold" color="fg.success">
+                {savedCount}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                saved
+              </Text>
+            </Box>
+            <Box textAlign="center">
+              <Text fontSize="3xl" fontWeight="bold" color="fg.muted">
+                {skippedCount}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                skipped
+              </Text>
+            </Box>
+          </Flex>
+          <Button colorPalette="accent" onClick={() => router.push("/")}>
+            Back to tracks
+          </Button>
         </Flex>
-        <Button colorPalette="accent" onClick={() => router.push("/")}>
-          Back to tracks
-        </Button>
-      </Flex>
       </>
     );
   }
@@ -301,67 +286,67 @@ export default function EnrichmentWizard() {
 
   return (
     <>
-    <PageHeader
-      title="Enrich"
-      count={`${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`}
-      actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/") }]}
-    />
-    <Flex direction="column" maxW="2xl" mx="auto" px={4}>
-      {/* Header */}
-      <Flex align="center" justify="space-between" mb={2}>
-        <Flex align="center" gap={3}>
-          <Badge size="sm" colorPalette="accent">
-            {savedCount} saved
-          </Badge>
-          {skippedCount > 0 && (
-            <Badge size="sm" variant="outline">
-              {skippedCount} skipped
+      <PageHeader
+        title="Enrich"
+        count={`${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`}
+        actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/") }]}
+      />
+      <Flex direction="column" maxW="2xl" mx="auto" px={4}>
+        {/* Header */}
+        <Flex align="center" justify="space-between" mb={2}>
+          <Flex align="center" gap={3}>
+            <Badge size="sm" colorPalette="accent">
+              {savedCount} saved
             </Badge>
-          )}
+            {skippedCount > 0 && (
+              <Badge size="sm" variant="outline">
+                {skippedCount} skipped
+              </Badge>
+            )}
+          </Flex>
+          <Button
+            size="xs"
+            variant="ghost"
+            display={{ base: "none", md: "inline-flex" }}
+            onClick={() => router.push("/")}
+          >
+            Exit
+          </Button>
         </Flex>
-        <Button
-          size="xs"
-          variant="ghost"
-          display={{ base: "none", md: "inline-flex" }}
-          onClick={() => router.push("/")}
-        >
-          Exit
-        </Button>
+
+        <Progress.Root value={progress} mb={6} size="sm">
+          <Progress.Track>
+            <Progress.Range />
+          </Progress.Track>
+        </Progress.Root>
+
+        {/* Navigation arrows */}
+        <Flex justify="space-between" mb={4}>
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={currentIndex === 0}
+            onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+          >
+            ← Prev
+          </Button>
+          <Text fontSize="xs" color="fg.subtle">
+            {isLast ? "Last track" : `${queue.length - currentIndex - 1} remaining`}
+          </Text>
+        </Flex>
+
+        {current && (
+          <CurrentTrackStep
+            key={`${current.trackId}:${current.friendId}`}
+            trackId={current.trackId}
+            friendId={current.friendId}
+            enrichmentTypes={enrichmentTypes}
+            aiPrompt={aiPrompt}
+            onSave={handleSave}
+            onSkip={handleSkip}
+          />
+        )}
       </Flex>
-
-      <Progress.Root value={progress} mb={6} size="sm">
-        <Progress.Track>
-          <Progress.Range />
-        </Progress.Track>
-      </Progress.Root>
-
-      {/* Navigation arrows */}
-      <Flex justify="space-between" mb={4}>
-        <Button
-          size="xs"
-          variant="ghost"
-          disabled={currentIndex === 0}
-          onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-        >
-          ← Prev
-        </Button>
-        <Text fontSize="xs" color="fg.subtle">
-          {isLast ? "Last track" : `${queue.length - currentIndex - 1} remaining`}
-        </Text>
-      </Flex>
-
-      {current && (
-        <CurrentTrackStep
-          key={`${current.trackId}:${current.friendId}`}
-          trackId={current.trackId}
-          friendId={current.friendId}
-          enrichmentTypes={enrichmentTypes}
-          aiPrompt={aiPrompt}
-          onSave={handleSave}
-          onSkip={handleSkip}
-        />
-      )}
-    </Flex>
     </>
   );
 }

@@ -10,7 +10,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof RetroDialog>> =
   const rendered = renderWithProviders(
     <RetroDialog open onOpenChange={onOpenChange} title="Delete track" {...props}>
       <p>Body</p>
-    </RetroDialog>
+    </RetroDialog>,
   );
   return { ...rendered, onOpenChange };
 }

@@ -69,7 +69,7 @@ describe("getTargetProvider", () => {
     findEmbeddingModelSettings.mockResolvedValue(null);
 
     await expect(getTargetProvider("identity")).rejects.toThrow(
-      'No embedding_model_settings row for "identity"'
+      'No embedding_model_settings row for "identity"',
     );
   });
 
@@ -121,7 +121,7 @@ describe("setTargetModel", () => {
     updateTargetModel.mockResolvedValue(updated);
 
     await expect(setTargetModel("identity", "text-embedding-3-small", 768)).resolves.toEqual(
-      updated
+      updated,
     );
     expect(updateTargetModel).toHaveBeenCalledWith("identity", "text-embedding-3-small", 768);
 
@@ -136,7 +136,7 @@ describe("setTargetModel", () => {
     updateTargetModel.mockResolvedValue(null);
 
     await expect(setTargetModel("identity", "m", 1)).rejects.toThrow(
-      'No embedding_model_settings row for "identity"'
+      'No embedding_model_settings row for "identity"',
     );
   });
 });
@@ -163,13 +163,13 @@ describe("setServingModel", () => {
     updateServingModel.mockResolvedValue(updated);
 
     await expect(setServingModel("identity", "text-embedding-3-small", 768)).resolves.toEqual(
-      updated
+      updated,
     );
     expect(updateServingModel).toHaveBeenCalledWith(
       "identity",
       "text-embedding-3-small",
       768,
-      undefined
+      undefined,
     );
   });
 
@@ -185,7 +185,7 @@ describe("setServingModel", () => {
     updateServingModel.mockResolvedValue(null);
 
     await expect(setServingModel("identity", "m", 1)).rejects.toThrow(
-      'No embedding_model_settings row for "identity"'
+      'No embedding_model_settings row for "identity"',
     );
   });
 });

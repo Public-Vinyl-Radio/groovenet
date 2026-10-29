@@ -60,11 +60,10 @@ export type TrackEditFormState = {
 
 export type TrackForSearch = Pick<
   TrackEditFormProps,
-  "track_id" | "year" | "duration" | "isrc" | "release_id" | "discogs_url" > | null;
+  "track_id" | "year" | "duration" | "isrc" | "release_id" | "discogs_url"
+> | null;
 
-export function toTrackEditFormState(
-  track: TrackEditFormProps | null
-): TrackEditFormState {
+export function toTrackEditFormState(track: TrackEditFormProps | null): TrackEditFormState {
   return {
     track_id: track?.track_id || "",
     album: track?.album || "",
@@ -94,7 +93,7 @@ export function toTrackEditFormState(
  */
 export function genreChanges(
   loaded: TrackGenre[] | undefined,
-  edited: TrackGenre[]
+  edited: TrackGenre[],
 ): Pick<TrackEditFormProps, "genres"> {
   if (!genreSelectionChanged(loaded ?? [], edited)) return {};
   return { genres: edited.map((genre) => genre.id) };

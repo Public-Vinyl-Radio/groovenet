@@ -38,7 +38,7 @@ function makeGaResponse(body: unknown, status = 200) {
     new Response(JSON.stringify(body), {
       status,
       headers: { "Content-Type": "application/json" },
-    })
+    }),
   );
 }
 
@@ -54,12 +54,10 @@ beforeEach(() => {
         track_id: r.trackId,
         friend_id: r.friendId,
         embedding: "[0.1,0.2,0.3]",
-      }))
+      })),
   );
   // Default: GA service returns valid response
-  mockFetch.mockImplementation(() =>
-    makeGaResponse({ result: [{ track_id: "track-1" }] })
-  );
+  mockFetch.mockImplementation(() => makeGaResponse({ result: [{ track_id: "track-1" }] }));
 });
 
 // ─── Schema validation ────────────────────────────────────────────────────────
@@ -105,7 +103,7 @@ describe("POST /api/playlists/genetic — embedding lookup", () => {
       [{ trackId: "track-1", friendId: 1 }],
       "audio_vibe",
       "vibe-model",
-      4
+      4,
     );
     const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(callBody.tracks[0].embedding).toBe("[0.1,0.2,0.3]");
@@ -262,14 +260,14 @@ describe("POST /api/playlists/genetic — GA service integration", () => {
     await POST(makeReq({ playlist: [track] }));
     expect(mockFetch).toHaveBeenCalledWith(
       "http://ga-service:8002/optimize",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
   });
 
   it("returns 200 with GA service result on success", async () => {
     const track = makeTrack();
     mockFetch.mockImplementationOnce(() =>
-      makeGaResponse({ result: [{ track_id: "track-1", bpm: 120 }] })
+      makeGaResponse({ result: [{ track_id: "track-1", bpm: 120 }] }),
     );
     const res = await POST(makeReq({ playlist: [track] }));
     expect(res.status).toBe(200);
@@ -278,7 +276,7 @@ describe("POST /api/playlists/genetic — GA service integration", () => {
   it("forwards GA service error status", async () => {
     const track = makeTrack();
     mockFetch.mockImplementationOnce(() =>
-      makeGaResponse({ error: "GA service unavailable" }, 503)
+      makeGaResponse({ error: "GA service unavailable" }, 503),
     );
     const res = await POST(makeReq({ playlist: [track] }));
     expect(res.status).toBe(503);

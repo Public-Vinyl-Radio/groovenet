@@ -1,6 +1,12 @@
 import type { DiscogsSimpleArtist, DiscogsVideo } from "@/types/discogs";
 import type { AlbumEntity, TrackEntity } from "@groovenet/contracts";
-export type { Friend, LiveSetStatus, LiveSetCollaborator, LiveSetSummary, TrackGenre } from "@groovenet/contracts";
+export type {
+  Friend,
+  LiveSetStatus,
+  LiveSetCollaborator,
+  LiveSetSummary,
+  TrackGenre,
+} from "@groovenet/contracts";
 
 /**
  * The track wire entity from @groovenet/contracts. The wire schema is honest
@@ -9,9 +15,24 @@ export type { Friend, LiveSetStatus, LiveSetCollaborator, LiveSetSummary, TrackG
  * narrowed here rather than in the contract.
  */
 type TrackNarrowedKeys =
-  | "id" | "year" | "duration" | "position" | "discogs_url" | "apple_music_url" | "youtube_url"
-  | "spotify_url" | "soundcloud_url" | "album_thumbnail" | "local_audio_url" | "star_rating"
-  | "isrc" | "bpm" | "notes" | "local_tags" | "composer" | "duration_seconds";
+  | "id"
+  | "year"
+  | "duration"
+  | "position"
+  | "discogs_url"
+  | "apple_music_url"
+  | "youtube_url"
+  | "spotify_url"
+  | "soundcloud_url"
+  | "album_thumbnail"
+  | "local_audio_url"
+  | "star_rating"
+  | "isrc"
+  | "bpm"
+  | "notes"
+  | "local_tags"
+  | "composer"
+  | "duration_seconds";
 export type Track = Omit<TrackEntity, TrackNarrowedKeys> & {
   id: number;
   year: string | number;
@@ -72,7 +93,7 @@ export interface DiscogsRelease {
   labels?: Array<{ name: string; catno: string }>;
   country?: string;
   formats?: string;
-};
+}
 
 export interface DiscogsTrack {
   track_id: string;
@@ -111,7 +132,10 @@ export interface ProcessedTrack {
   local_audio_url?: string | null;
 }
 
-export type Album = Omit<AlbumEntity, "track_count" | "year" | "audio_file_album_art_url" | "discogs_url"> & {
+export type Album = Omit<
+  AlbumEntity,
+  "track_count" | "year" | "audio_file_album_art_url" | "discogs_url"
+> & {
   track_count: number;
   year?: string | null;
   audio_file_album_art_url?: string;

@@ -5,7 +5,7 @@ import { albumRepository } from "@/server/repositories/albumRepository";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ releaseId: string }> }
+  { params }: { params: Promise<{ releaseId: string }> },
 ) {
   try {
     const { releaseId } = await params;
@@ -13,18 +13,12 @@ export async function POST(
     const friendId = parseInt(searchParams.get("friend_id") || "0");
 
     if (!friendId) {
-      return NextResponse.json(
-        { error: "friend_id parameter is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id parameter is required" }, { status: 400 });
     }
 
     // Get all tracks for this album that are missing local_audio_url
     // and have at least one music service URL
-    const tracks = await albumRepository.getTracksForAlbumDownloadQueue(
-      releaseId,
-      friendId
-    );
+    const tracks = await albumRepository.getTracksForAlbumDownloadQueue(releaseId, friendId);
 
     if (tracks.length === 0) {
       return NextResponse.json({
@@ -50,9 +44,7 @@ export async function POST(
       jobIds.push(jobId);
     }
 
-    console.log(
-      `Queued ${jobIds.length} download jobs for album ${releaseId}`
-    );
+    console.log(`Queued ${jobIds.length} download jobs for album ${releaseId}`);
 
     analytics.track(
       "album_download_queued",
@@ -61,7 +53,7 @@ export async function POST(
         friend_id: friendId,
         track_count: jobIds.length,
       },
-      { request }
+      { request },
     );
 
     return NextResponse.json({
@@ -77,7 +69,7 @@ export async function POST(
         error: "Failed to enqueue downloads",
         message: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

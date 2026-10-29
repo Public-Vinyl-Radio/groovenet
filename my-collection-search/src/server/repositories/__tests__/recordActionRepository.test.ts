@@ -20,11 +20,17 @@ describe("RecordActionRepository", () => {
         action_type: "cleaned",
         occurred_at: "2026-09-30T19:00:00.000Z",
         details: { method: "ultrasonic" },
-      }
+      },
     );
 
     expect(query.mock.calls[0][1]).toEqual([
-      3, 7, "cleaned", "2026-09-30T19:00:00.000Z", null, null, '{"method":"ultrasonic"}',
+      3,
+      7,
+      "cleaned",
+      "2026-09-30T19:00:00.000Z",
+      null,
+      null,
+      '{"method":"ultrasonic"}',
     ]);
   });
 
@@ -70,7 +76,10 @@ describe("RecordActionRepository.findAction", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("finds the friend's action, voided or not", async () => {
-    const query = vi.fn().mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({ rows: [] });
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] });
 
     await expect(repo.findAction({ query }, 1, 7)).resolves.toEqual({ id: 1 });
     await expect(repo.findAction({ query }, 1, 8)).resolves.toBeNull();
@@ -83,7 +92,13 @@ describe("RecordActionRepository.findAction", () => {
 
     await repo.insertAction(
       { query },
-      { copy_id: 3, friend_id: 7, action_type: "repaired", occurred_at: "2026-09-30", notes: "Flattened" }
+      {
+        copy_id: 3,
+        friend_id: 7,
+        action_type: "repaired",
+        occurred_at: "2026-09-30",
+        notes: "Flattened",
+      },
     );
 
     expect(query.mock.calls[0][1].slice(4)).toEqual(["Flattened", null, "{}"]);

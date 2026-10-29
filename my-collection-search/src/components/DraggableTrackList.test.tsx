@@ -30,7 +30,7 @@ describe("DraggableTrackList dense rows", () => {
           layout: "row",
           onRowClick,
         }}
-      />
+      />,
     );
 
     const rows = screen.getAllByTestId("track-result-dense-row");
@@ -57,7 +57,7 @@ describe("DraggableTrackList table rows", () => {
         droppableId="playlist-test"
         trackResultProps={{ layout: "row" }}
         {...props}
-      />
+      />,
     );
 
   it("is one outlined block under a single header, numbering each row", () => {
@@ -65,8 +65,14 @@ describe("DraggableTrackList table rows", () => {
     const table = screen.getByTestId("track-table");
     expect(within(table).getByText("Release")).toBeTruthy();
     expect(within(table).getAllByTestId("track-result-row")).toHaveLength(3);
-    expect(screen.getAllByTestId("track-list-position").map((n) => n.textContent)).toEqual(["1.", "2.", "3."]);
-    const ids = [...table.querySelectorAll("[data-rfd-draggable-id]")].map((n) => n.getAttribute("data-rfd-draggable-id"));
+    expect(screen.getAllByTestId("track-list-position").map((n) => n.textContent)).toEqual([
+      "1.",
+      "2.",
+      "3.",
+    ]);
+    const ids = [...table.querySelectorAll("[data-rfd-draggable-id]")].map((n) =>
+      n.getAttribute("data-rfd-draggable-id"),
+    );
     expect(new Set(ids).size).toBe(3);
   });
 
@@ -120,7 +126,7 @@ describe("DraggableTrackList table rows", () => {
     });
     // Lifted: the row carries its own outline and background.
     expect(handle.className).not.toBe(
-      document.querySelectorAll<HTMLElement>("[data-rfd-drag-handle-draggable-id]")[2].className
+      document.querySelectorAll<HTMLElement>("[data-rfd-drag-handle-draggable-id]")[2].className,
     );
     fireEvent.keyDown(handle, { key: "ArrowDown", keyCode: 40 });
     await act(async () => {

@@ -42,23 +42,14 @@ export function camelotDistance(a: string, b: string): number {
   return numA === numB ? 1 : 2;
 }
 
-export function transitionPenalty(
-  from: TrackWithCamelot,
-  to: TrackWithCamelot
-): number {
+export function transitionPenalty(from: TrackWithCamelot, to: TrackWithCamelot): number {
   const bpmDiff = Math.abs((from.bpm ?? 0) - (to.bpm ?? 0));
   const energyJump = Math.abs((from.energy ?? 0) - (to.energy ?? 0));
-  const harmonicPenalty = camelotDistance(
-    from.camelot_key ?? "",
-    to.camelot_key ?? ""
-  );
+  const harmonicPenalty = camelotDistance(from.camelot_key ?? "", to.camelot_key ?? "");
   return 0.1 * bpmDiff + 1.5 * energyJump + 2.0 * harmonicPenalty;
 }
 
-export function buildCompatibilityGraph(
-  tracks: TrackWithCamelot[],
-  alpha = 0.7
-): number[][] {
+export function buildCompatibilityGraph(tracks: TrackWithCamelot[], alpha = 0.7): number[][] {
   const n = tracks.length;
   const edges: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
   for (let i = 0; i < n; ++i) {

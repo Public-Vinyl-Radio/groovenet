@@ -134,7 +134,7 @@ type Level = "info" | "warn" | "error";
 export function logIngestEvent(
   event: string,
   fields: IngestLogFields = {},
-  level: Level = "info"
+  level: Level = "info",
 ): Record<string, unknown> {
   const line = {
     ts: new Date().toISOString(),

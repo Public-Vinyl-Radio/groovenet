@@ -25,7 +25,7 @@ export type QueueSnapshot = {
 export function adjustCurrentIndexAfterMove(
   currentIdx: number | null,
   fromIndex: number,
-  toIndex: number
+  toIndex: number,
 ): number | null {
   if (currentIdx === null) return null;
 
@@ -42,7 +42,7 @@ export function adjustCurrentIndexAfterMove(
 export function reorderPlaylist(
   currentPlaylist: Track[],
   fromIndex: number,
-  toIndex: number
+  toIndex: number,
 ): Track[] {
   const newPlaylist = [...currentPlaylist];
   const [movedTrack] = newPlaylist.splice(fromIndex, 1);
@@ -53,7 +53,7 @@ export function reorderPlaylist(
 export function removeFromPlaylist(
   currentPlaylist: Track[],
   removeIndex: number,
-  currentIdx: number | null
+  currentIdx: number | null,
 ): {
   nextPlaylist: Track[];
   nextCurrentTrackIndex: number | null;
@@ -172,12 +172,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
 
   const replacePlaylist = useCallback(
     (next: Track[], opts: ReplacePlaylistOptions = {}) => {
-      const {
-        preserveCurrent = true,
-        startIndex,
-        startTrackId,
-        autoplay,
-      } = opts;
+      const { preserveCurrent = true, startIndex, startTrackId, autoplay } = opts;
 
       playlistRef.current = Array.isArray(next) ? next.slice() : [];
       setPlaylist(playlistRef.current);
@@ -188,8 +183,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
       const pl = playlistRef.current;
 
       if (typeof startIndex === "number") {
-        newIndex =
-          startIndex >= 0 && startIndex < pl.length ? startIndex : null;
+        newIndex = startIndex >= 0 && startIndex < pl.length ? startIndex : null;
       } else if (typeof startTrackId === "string") {
         const idx = pl.findIndex((t) => t.track_id === startTrackId);
         newIndex = idx !== -1 ? idx : pl.length ? 0 : null;
@@ -213,7 +207,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
         setIsPlaying((was) => (newIndex !== null ? was : false));
       }
     },
-    [currentTrackIndex]
+    [currentTrackIndex],
   );
 
   const appendToQueue = useCallback((items: Track[] | Track) => {
@@ -241,7 +235,7 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
       setPlaylist(playlistRef.current);
       setPlVersion((v) => v + 1);
     },
-    [currentTrackIndex, replacePlaylist]
+    [currentTrackIndex, replacePlaylist],
   );
 
   const clearQueue = useCallback(() => {
@@ -281,26 +275,29 @@ export function useQueueState({ initial, onPauseImmediate }: UseQueueStateArgs) 
     setPlVersion((v) => v + 1);
 
     setCurrentTrackIndex((currentIdx) =>
-      adjustCurrentIndexAfterMove(currentIdx, fromIndex, toIndex)
+      adjustCurrentIndexAfterMove(currentIdx, fromIndex, toIndex),
     );
   }, []);
 
-  const removeFromQueue = useCallback((index: number) => {
-    const currentPlaylist = playlistRef.current;
-    if (index < 0 || index >= currentPlaylist.length) {
-      return;
-    }
+  const removeFromQueue = useCallback(
+    (index: number) => {
+      const currentPlaylist = playlistRef.current;
+      if (index < 0 || index >= currentPlaylist.length) {
+        return;
+      }
 
-    const result = removeFromPlaylist(currentPlaylist, index, currentTrackIndex);
-    playlistRef.current = result.nextPlaylist;
-    setPlaylist(result.nextPlaylist);
-    setPlVersion((v) => v + 1);
-    setFinishedTrack(null);
-    if (result.shouldStop) {
-      setIsPlaying(false);
-    }
-    setCurrentTrackIndex(result.nextCurrentTrackIndex);
-  }, [currentTrackIndex]);
+      const result = removeFromPlaylist(currentPlaylist, index, currentTrackIndex);
+      playlistRef.current = result.nextPlaylist;
+      setPlaylist(result.nextPlaylist);
+      setPlVersion((v) => v + 1);
+      setFinishedTrack(null);
+      if (result.shouldStop) {
+        setIsPlaying(false);
+      }
+      setCurrentTrackIndex(result.nextCurrentTrackIndex);
+    },
+    [currentTrackIndex],
+  );
 
   // Keep currentTrack state in sync with index/playlist
   useEffect(() => {

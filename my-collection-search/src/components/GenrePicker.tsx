@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import {
-  Box,
-  Combobox,
-  Flex,
-  Tag,
-  Text,
-  createListCollection,
-} from "@chakra-ui/react";
+import { Box, Combobox, Flex, Tag, Text, createListCollection } from "@chakra-ui/react";
 import type { TrackGenre } from "@/types/track";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { filterGenreOptions, type GenreOption } from "@/lib/genres/options";
@@ -48,7 +41,7 @@ export default function GenrePicker({
         itemToString: (genre) => genre.name,
         itemToValue: (genre) => genre.id,
       }),
-    [genres, input, selectedIds]
+    [genres, input, selectedIds],
   );
 
   // Chosen genres are left out of the options, so a pick is always new.
@@ -92,7 +85,10 @@ export default function GenrePicker({
                 <Tag.Label>
                   {genre.name}
                   {genre.parent_name && (
-                    <Text as="span" color="fg.muted"> · {genre.parent_name}</Text>
+                    <Text as="span" color="fg.muted">
+                      {" "}
+                      · {genre.parent_name}
+                    </Text>
                   )}
                 </Tag.Label>
                 <Tag.EndElement>
@@ -127,7 +123,10 @@ export default function GenrePicker({
                 <Combobox.ItemText>
                   {genre.name}
                   {genre.parent_name && (
-                    <Text as="span" color="fg.muted" fontSize="xs"> · {genre.parent_name}</Text>
+                    <Text as="span" color="fg.muted" fontSize="xs">
+                      {" "}
+                      · {genre.parent_name}
+                    </Text>
                   )}
                 </Combobox.ItemText>
                 {genre.track_count > 0 && (

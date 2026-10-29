@@ -27,7 +27,7 @@ export default function SuggestionScopeSettingsSection(): React.JSX.Element {
             description: err instanceof Error ? err.message : String(err),
             type: "error",
           }),
-      }
+      },
     );
   };
 
@@ -56,7 +56,9 @@ export default function SuggestionScopeSettingsSection(): React.JSX.Element {
           />
           {update.isPending ? <Spinner size="sm" /> : null}
           <Text fontSize="sm" color="fg.muted">
-            {settings.data?.isDefault ? "Default for every library." : `Saved for ${friend.username}.`}
+            {settings.data?.isDefault
+              ? "Default for every library."
+              : `Saved for ${friend.username}.`}
           </Text>
         </Flex>
       )}

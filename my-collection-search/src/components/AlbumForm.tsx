@@ -29,17 +29,20 @@ interface AlbumFormProps {
   taxonomyEditor?: React.ReactNode;
 }
 
-const CONDITIONS = ['', 'Mint', 'Near Mint', 'Very Good', 'Good', 'Fair', 'Poor'];
-const FORMATS = ['', 'Vinyl', 'CD', 'Digital', 'Cassette', 'Other'];
+const CONDITIONS = ["", "Mint", "Near Mint", "Very Good", "Good", "Fair", "Poor"];
+const FORMATS = ["", "Vinyl", "CD", "Digital", "Cassette", "Other"];
 
 export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumFormProps) {
   const handleChange = (field: keyof AlbumFormData, val: string | number | string[]) => {
     onChange({ ...value, [field]: val });
   };
 
-  const handleArrayChange = (field: 'genres' | 'styles', val: string) => {
+  const handleArrayChange = (field: "genres" | "styles", val: string) => {
     // Parse comma-separated values into array
-    const arr = val.split(',').map(s => s.trim()).filter(Boolean);
+    const arr = val
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     onChange({ ...value, [field]: arr });
   };
 
@@ -53,40 +56,44 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
           <LabeledInput
             label="Album Title *"
             value={value.title}
-            onChange={(e) => handleChange('title', e.target.value)}
+            onChange={(e) => handleChange("title", e.target.value)}
             placeholder="Album title"
           />
           <LabeledInput
             label="Artist *"
             value={value.artist}
-            onChange={(e) => handleChange('artist', e.target.value)}
+            onChange={(e) => handleChange("artist", e.target.value)}
             placeholder="Artist name"
           />
           <LabeledInput
             label="Year"
             value={value.year}
-            onChange={(e) => handleChange('year', e.target.value)}
+            onChange={(e) => handleChange("year", e.target.value)}
             placeholder="2025"
           />
-          {taxonomyEditor ? null : <LabeledInput
-            label="Genres"
-            value={value.genres.join(', ')}
-            onChange={(e) => handleArrayChange('genres', e.target.value)}
-            placeholder="Electronic, House"
-          />}
-          {taxonomyEditor ? null : <LabeledInput
-            label="Styles"
-            value={value.styles.join(', ')}
-            onChange={(e) => handleArrayChange('styles', e.target.value)}
-            placeholder="Deep House, Tech House"
-          />}
+          {taxonomyEditor ? null : (
+            <LabeledInput
+              label="Genres"
+              value={value.genres.join(", ")}
+              onChange={(e) => handleArrayChange("genres", e.target.value)}
+              placeholder="Electronic, House"
+            />
+          )}
+          {taxonomyEditor ? null : (
+            <LabeledInput
+              label="Styles"
+              value={value.styles.join(", ")}
+              onChange={(e) => handleArrayChange("styles", e.target.value)}
+              placeholder="Deep House, Tech House"
+            />
+          )}
           <Box flex="1">
             <Text mb={1} fontSize="sm">
               Album Rating
             </Text>
             <RatingGroup.Root
               value={value.album_rating}
-              onValueChange={(e) => handleChange('album_rating', e.value)}
+              onValueChange={(e) => handleChange("album_rating", e.value)}
               count={5}
               size="lg"
             >
@@ -107,24 +114,24 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
           <LabeledInput
             label="Library Identifier"
             value={value.library_identifier}
-            onChange={(e) => handleChange('library_identifier', e.target.value)}
+            onChange={(e) => handleChange("library_identifier", e.target.value)}
             placeholder="LP001"
           />
           <LabeledInput
             label="Purchase Price"
             value={value.purchase_price}
-            onChange={(e) => handleChange('purchase_price', e.target.value)}
+            onChange={(e) => handleChange("purchase_price", e.target.value)}
             placeholder="29.99"
             type="number"
           />
           <LabeledSelect
             label="Condition"
             value={value.condition}
-            onChange={(e) => handleChange('condition', e.target.value)}
+            onChange={(e) => handleChange("condition", e.target.value)}
           >
             {CONDITIONS.map((condition) => (
               <option key={condition} value={condition}>
-                {condition || 'Select condition'}
+                {condition || "Select condition"}
               </option>
             ))}
           </LabeledSelect>
@@ -139,29 +146,29 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
           <LabeledInput
             label="Label"
             value={value.label}
-            onChange={(e) => handleChange('label', e.target.value)}
+            onChange={(e) => handleChange("label", e.target.value)}
             placeholder="Record label"
           />
           <LabeledInput
             label="Catalog Number"
             value={value.catalog_number}
-            onChange={(e) => handleChange('catalog_number', e.target.value)}
+            onChange={(e) => handleChange("catalog_number", e.target.value)}
             placeholder="CAT-001"
           />
           <LabeledInput
             label="Country"
             value={value.country}
-            onChange={(e) => handleChange('country', e.target.value)}
+            onChange={(e) => handleChange("country", e.target.value)}
             placeholder="USA"
           />
           <LabeledSelect
             label="Format"
             value={value.format}
-            onChange={(e) => handleChange('format', e.target.value)}
+            onChange={(e) => handleChange("format", e.target.value)}
           >
             {FORMATS.map((format) => (
               <option key={format} value={format}>
-                {format || 'Select format'}
+                {format || "Select format"}
               </option>
             ))}
           </LabeledSelect>
@@ -172,7 +179,7 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
         <LabeledTextarea
           label="Album Notes"
           value={value.album_notes}
-          onChange={(e) => handleChange('album_notes', e.target.value)}
+          onChange={(e) => handleChange("album_notes", e.target.value)}
           placeholder="Notes about this album..."
           rows={3}
         />

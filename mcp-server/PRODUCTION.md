@@ -37,29 +37,26 @@ Your production API needs authentication to prevent unauthorized access.
 Create `/my-collection-search/src/middleware.ts`:
 
 ```typescript
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   // Skip auth for public routes
   if (
-    request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/static') ||
-    request.nextUrl.pathname === '/'
+    request.nextUrl.pathname.startsWith("/_next") ||
+    request.nextUrl.pathname.startsWith("/static") ||
+    request.nextUrl.pathname === "/"
   ) {
     return NextResponse.next();
   }
 
   // Check for API key on API routes
-  if (request.nextUrl.pathname.startsWith('/api')) {
-    const apiKey = request.headers.get('authorization')?.replace('Bearer ', '');
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    const apiKey = request.headers.get("authorization")?.replace("Bearer ", "");
     const expectedKey = process.env.API_KEY;
 
     if (!expectedKey || apiKey !== expectedKey) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
 
@@ -67,11 +64,12 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: "/api/:path*",
 };
 ```
 
 Add to your production `.env`:
+
 ```bash
 API_KEY=your-super-secret-key-here-use-strong-random-string
 ```
@@ -79,6 +77,7 @@ API_KEY=your-super-secret-key-here-use-strong-random-string
 **Option B: Use VPN/IP Whitelist**
 
 Configure your production server to only allow API access from:
+
 - Your home IP address
 - VPN IP range
 - Trusted networks
@@ -107,6 +106,7 @@ echo "groovenet-local" > .claude-mcp
 ```
 
 Then ask:
+
 - "Search for techno tracks in my local dev database"
 - "Create a test playlist"
 
@@ -121,6 +121,7 @@ echo "groovenet-prod" > .claude-mcp
 ```
 
 Then ask:
+
 - "Search for all my unreleased techno tracks"
 - "Find tracks that would mix well after Amelie Lens - Feel It"
 - "Create a 90-minute progressive house set for my Friday gig"
@@ -130,29 +131,34 @@ Then ask:
 ## Use Cases
 
 ### 1. Playlist Curation
+
 ```
 "Create a 2-hour techno set starting at 128 BPM,
 building to 135 BPM, focusing on tracks I rated 4+ stars"
 ```
 
 ### 2. Track Discovery
+
 ```
 "Find tracks in my collection that are harmonically
 compatible with 'Carl Cox - Inferno' (7A/Am)"
 ```
 
 ### 3. Collection Analysis
+
 ```
 "What percentage of my collection has been analyzed for BPM?
 Show me the breakdown by genre"
 ```
 
 ### 4. Missing Metadata
+
 ```
 "List 50 tracks missing Apple Music URLs so I can backfill them"
 ```
 
 ### 5. Gig Preparation
+
 ```
 "Generate 3 different opening sets (45 min each) for a
 progressive house night, all starting around 120 BPM"
@@ -198,16 +204,19 @@ progressive house night, all starting around 120 BPM"
 ## Troubleshooting
 
 **"Unauthorized" errors:**
+
 - Check API_KEY matches between .mcp.json and production .env
 - Verify middleware.ts is deployed and running
 - Check production logs for auth errors
 
 **"Connection refused":**
+
 - Verify production server is running
 - Check API_BASE URL is correct (https, correct domain)
 - Test with curl: `curl -H "Authorization: Bearer YOUR_KEY" https://your-server.com/api/playlists`
 
 **Slow responses:**
+
 - Production queries may be slower than local
 - Consider adding caching to frequently used endpoints
 - Use limit parameters to reduce result sizes

@@ -9,7 +9,12 @@ import { readlineAsk, type Ask } from "./setsReview.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
-  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls, clientName: "cli" });
+  return new GroovenetClient({
+    baseUrl: cfg.api_base,
+    apiKey: cfg.api_key,
+    insecureTls: cfg.insecure_tls,
+    clientName: "cli",
+  });
 }
 
 function defaultFriendId(): number {
@@ -64,7 +69,7 @@ export async function runDeleteAlbum(
   releaseId: string,
   opts: DeleteAlbumOptions,
   isTTY: boolean,
-  ask: Ask = readlineAsk()
+  ask: Ask = readlineAsk(),
 ): Promise<void> {
   const friendId = opts.friendId ?? defaultFriendId();
   if (!opts.yes) {
@@ -73,7 +78,7 @@ export async function runDeleteAlbum(
     }
     const raw = await ask(
       `Permanently delete album ${releaseId} and its tracks? If it came from Discogs, the next full ` +
-        `sync will re-add it unless you also remove it from your Discogs collection. [y/N] `
+        `sync will re-add it unless you also remove it from your Discogs collection. [y/N] `,
     );
     const answer = raw.trim().toLowerCase();
     if (answer !== "y" && answer !== "yes") {
@@ -92,14 +97,18 @@ export function addAlbumsCommands(program: Command): void {
     .command("list")
     .description("Search/list albums")
     .argument("[query]", "Search query", "")
-    .option("--sort <s>", "Sort (created_at:desc, date_added:desc, year:desc, title:asc, album_rating:desc)", "created_at:desc")
+    .option(
+      "--sort <s>",
+      "Sort (created_at:desc, date_added:desc, year:desc, title:asc, album_rating:desc)",
+      "created_at:desc",
+    )
     .option("--limit <n>", "Number of results", intOption, 20)
     .option("--offset <n>", "Offset", intOption, 0)
     .option("--friend-id <n>", "Friend ID", intOption)
     .option(
       "--genre <genre>",
       "Genre slug or name, including its subgenres; repeat for several (any of them)",
-      collectOption
+      collectOption,
     )
     .option("--json", "Output as JSON")
     .action(
@@ -112,7 +121,7 @@ export function addAlbumsCommands(program: Command): void {
           friendId?: number;
           genre?: string[];
           json?: boolean;
-        }
+        },
       ) => {
         try {
           const client = makeClient();
@@ -131,7 +140,7 @@ export function addAlbumsCommands(program: Command): void {
               `Found ${result.hits.length} album(s)` +
                 (result.estimatedTotalHits > result.hits.length
                   ? ` (${result.estimatedTotalHits} total)`
-                  : "")
+                  : ""),
             );
             printAlbums(result.hits, false);
           }
@@ -139,7 +148,7 @@ export function addAlbumsCommands(program: Command): void {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 
   albums
@@ -147,38 +156,33 @@ export function addAlbumsCommands(program: Command): void {
     .description("Show album details and track list")
     .option("--friend-id <n>", "Friend ID", intOption)
     .option("--json", "Output as JSON")
-    .action(
-      async (
-        releaseId: string,
-        opts: { friendId?: number; json?: boolean }
-      ) => {
-        try {
-          const client = makeClient();
-          const friendId = opts.friendId ?? defaultFriendId();
-          const detail = await client.getAlbum(releaseId, friendId);
-          if (opts.json) {
-            printJson(detail);
-            return;
-          }
-          const a = detail.album;
-          console.log(chalk.bold(a.title) + chalk.gray(` — ${a.artist}`));
-          if (a.year) console.log(chalk.gray(`Year: ${a.year}`));
-          if (a.genres?.length) console.log(chalk.gray(`Genres: ${a.genres.join(", ")}`));
-          if (a.styles?.length) console.log(chalk.gray(`Styles: ${a.styles.join(", ")}`));
-          if (a.album_rating != null) console.log(`Rating: ★${a.album_rating}/5`);
-          if (a.album_notes) console.log(`Notes: ${a.album_notes}`);
-          if (a.condition) console.log(`Condition: ${a.condition}`);
-          if (a.purchase_price != null) console.log(`Purchase price: $${a.purchase_price}`);
-          if (a.library_identifier) console.log(`Library ID: ${a.library_identifier}`);
-          console.log();
-          console.log(`Tracks (${detail.tracks.length}):`);
-          printTracks(detail.tracks, false);
-        } catch (err: unknown) {
-          printError(err instanceof Error ? err.message : String(err));
-          process.exit(1);
+    .action(async (releaseId: string, opts: { friendId?: number; json?: boolean }) => {
+      try {
+        const client = makeClient();
+        const friendId = opts.friendId ?? defaultFriendId();
+        const detail = await client.getAlbum(releaseId, friendId);
+        if (opts.json) {
+          printJson(detail);
+          return;
         }
+        const a = detail.album;
+        console.log(chalk.bold(a.title) + chalk.gray(` — ${a.artist}`));
+        if (a.year) console.log(chalk.gray(`Year: ${a.year}`));
+        if (a.genres?.length) console.log(chalk.gray(`Genres: ${a.genres.join(", ")}`));
+        if (a.styles?.length) console.log(chalk.gray(`Styles: ${a.styles.join(", ")}`));
+        if (a.album_rating != null) console.log(`Rating: ★${a.album_rating}/5`);
+        if (a.album_notes) console.log(`Notes: ${a.album_notes}`);
+        if (a.condition) console.log(`Condition: ${a.condition}`);
+        if (a.purchase_price != null) console.log(`Purchase price: $${a.purchase_price}`);
+        if (a.library_identifier) console.log(`Library ID: ${a.library_identifier}`);
+        console.log();
+        console.log(`Tracks (${detail.tracks.length}):`);
+        printTracks(detail.tracks, false);
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
       }
-    );
+    });
 
   albums
     .command("update <release-id>")
@@ -199,7 +203,7 @@ export function addAlbumsCommands(program: Command): void {
           price?: number;
           condition?: string;
           libraryId?: string;
-        }
+        },
       ) => {
         try {
           const client = makeClient();
@@ -212,7 +216,9 @@ export function addAlbumsCommands(program: Command): void {
           if (opts.libraryId != null) updates.library_identifier = opts.libraryId;
 
           if (Object.keys(updates).length === 0) {
-            printError("No fields to update. Use --rating, --notes, --price, --condition, or --library-id.");
+            printError(
+              "No fields to update. Use --rating, --notes, --price, --condition, or --library-id.",
+            );
             process.exit(2);
           }
 
@@ -222,7 +228,7 @@ export function addAlbumsCommands(program: Command): void {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 
   albums

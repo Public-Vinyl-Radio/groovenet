@@ -10,7 +10,7 @@ import { analytics } from "@/lib/analytics/server";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ releaseId: string }> }
+  { params }: { params: Promise<{ releaseId: string }> },
 ) {
   try {
     const { releaseId } = await params;
@@ -18,10 +18,7 @@ export async function GET(
     const friendId = searchParams.get("friend_id");
 
     if (!friendId) {
-      return NextResponse.json(
-        { error: "friend_id query parameter is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id query parameter is required" }, { status: 400 });
     }
     const parsedFriendId = Number.parseInt(friendId, 10);
     if (!Number.isFinite(parsedFriendId)) {
@@ -40,7 +37,7 @@ export async function GET(
       {
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -54,7 +51,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ releaseId: string }> }
+  { params }: { params: Promise<{ releaseId: string }> },
 ) {
   try {
     const { releaseId } = await params;
@@ -62,10 +59,7 @@ export async function DELETE(
     const friendId = searchParams.get("friend_id");
 
     if (!friendId) {
-      return NextResponse.json(
-        { error: "friend_id query parameter is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id query parameter is required" }, { status: 400 });
     }
     const parsedFriendId = Number.parseInt(friendId, 10);
     if (!Number.isFinite(parsedFriendId)) {
@@ -87,7 +81,7 @@ export async function DELETE(
     analytics.track(
       "album_deleted",
       { release_id: releaseId, friend_id: parsedFriendId, track_count: trackCount },
-      { request }
+      { request },
     );
 
     return NextResponse.json({ success: true });
@@ -97,7 +91,7 @@ export async function DELETE(
       {
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -54,6 +54,7 @@ Layout, for `n` reference values across all tracks:
 Search behaviour is identical to the tuple-based index it replaced, down to
 how ties are broken — so every measured number above still holds.
 """
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -91,10 +92,7 @@ def index_keys(value: int) -> tuple[int, ...]:
     """
     mask = (1 << CHUNK_BITS) - 1
     shifted = value >> NOISE_BITS
-    return tuple(
-        (chunk << CHUNK_BITS) | ((shifted >> (CHUNK_BITS * chunk)) & mask)
-        for chunk in range(KEY_CHUNKS)
-    )
+    return tuple((chunk << CHUNK_BITS) | ((shifted >> (CHUNK_BITS * chunk)) & mask) for chunk in range(KEY_CHUNKS))
 
 
 def _keys_of(values: np.ndarray) -> np.ndarray:
@@ -103,8 +101,7 @@ def _keys_of(values: np.ndarray) -> np.ndarray:
     shifted = values >> np.uint32(NOISE_BITS)
     return np.stack(
         [
-            np.uint32(chunk << CHUNK_BITS)
-            | ((shifted >> np.uint32(CHUNK_BITS * chunk)) & mask)
+            np.uint32(chunk << CHUNK_BITS) | ((shifted >> np.uint32(CHUNK_BITS * chunk)) & mask)
             for chunk in range(KEY_CHUNKS)
         ]
     )
@@ -177,9 +174,7 @@ class ReferenceIndex:
         library, and allocator arenas the process keeps long after.
         """
         if len(blob) % 4 != 0:
-            raise FingerprintError(
-                f"fingerprint blob is {len(blob)} bytes, not a whole number of uint32s"
-            )
+            raise FingerprintError(f"fingerprint blob is {len(blob)} bytes, not a whole number of uint32s")
         self._queue(track, np.frombuffer(blob, dtype="<u4").astype(np.uint32))
 
     def _queue(self, track: TrackRef, values: np.ndarray) -> None:
@@ -199,9 +194,7 @@ class ReferenceIndex:
             return
         lengths = [len(values) for values in self._pending]
         self._values = np.concatenate([self._values, *self._pending])
-        self._bounds = np.concatenate(
-            [self._bounds, self._bounds[-1] + np.cumsum(lengths, dtype=np.int64)]
-        )
+        self._bounds = np.concatenate([self._bounds, self._bounds[-1] + np.cumsum(lengths, dtype=np.int64)])
         self._pending = []
 
         # Chunk-major, so each key's run comes from one chunk and stays in
@@ -247,9 +240,7 @@ class ReferenceIndex:
             return []
         return [best]
 
-    def _tally(
-        self, query: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _tally(self, query: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Stage 1 votes: distinct packed pairs, their counts, first sighting.
 
         `alignment` is where in the reference this window would start, in
@@ -300,10 +291,7 @@ class ReferenceIndex:
         if len(pairs) == 0:
             return []
         ranked = pairs[np.lexsort((first, -counts))[: self.max_candidates]]
-        return [
-            (int(pair >> _ALIGNMENT_BITS), int(pair & 0xFFFFFFFF) - _ALIGNMENT_BIAS)
-            for pair in ranked
-        ]
+        return [(int(pair >> _ALIGNMENT_BITS), int(pair & 0xFFFFFFFF) - _ALIGNMENT_BIAS) for pair in ranked]
 
     def _verify(
         self,

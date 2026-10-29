@@ -51,7 +51,11 @@ function stop(handler: () => void) {
 }
 
 function PlayPauseGlyph({ isPlaying, size }: { isPlaying: boolean; size: number }) {
-  return isPlaying ? <FiPause size={size} fill="currentColor" /> : <FiPlay size={size} fill="currentColor" />;
+  return isPlaying ? (
+    <FiPause size={size} fill="currentColor" />
+  ) : (
+    <FiPlay size={size} fill="currentColor" />
+  );
 }
 
 const STRIP = {
@@ -66,7 +70,10 @@ const STRIP = {
  * outline round all three, ink rules between them, a hard shadow, and the
  * play-pause key solid. Used by Now playing and the desktop bar.
  */
-export function TransportStrip({ size = "lg", ...t }: TransportProps & { size?: keyof typeof STRIP }) {
+export function TransportStrip({
+  size = "lg",
+  ...t
+}: TransportProps & { size?: keyof typeof STRIP }) {
   const s = STRIP[size];
   return (
     <chakra.div
@@ -81,7 +88,13 @@ export function TransportStrip({ size = "lg", ...t }: TransportProps & { size?: 
       // The shadow is outside the box; keep it inside the column.
       mr={size === "lg" ? "6px" : undefined}
     >
-      <Key aria-label="Previous" h={s.h} css={keyCss} onClick={stop(t.onPrev)} disabled={!t.canPrev}>
+      <Key
+        aria-label="Previous"
+        h={s.h}
+        css={keyCss}
+        onClick={stop(t.onPrev)}
+        disabled={!t.canPrev}
+      >
         <FiSkipBack size={s.icon} />
       </Key>
       <Key
@@ -143,7 +156,11 @@ export function BareTransportButton({
       w="44px"
       h="48px"
       flexShrink={0}
-      css={{ ...keyCss, bg: "transparent", _disabled: { opacity: 0.4, cursor: "not-allowed", bg: "transparent" } }}
+      css={{
+        ...keyCss,
+        bg: "transparent",
+        _disabled: { opacity: 0.4, cursor: "not-allowed", bg: "transparent" },
+      }}
       onClick={stop(onClick)}
       disabled={disabled}
     >

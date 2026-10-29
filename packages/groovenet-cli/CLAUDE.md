@@ -46,7 +46,7 @@ output is a formatted table with ANSI colour that is painful to parse.
 exports the read-only metadata/notes, album context and playlist membership needed
 for #379. It makes no model calls and never overwrites an existing file. The
 snapshot contains private notes; `eval-data/` is ignored and output is mode 0600.
-This is a point-in-time *API pagination* export, not a database transaction;
+This is a point-in-time _API pagination_ export, not a database transaction;
 retry if pagination detects a changing collection.
 
 ## Layout
@@ -129,7 +129,7 @@ over the taxonomy), `n` new genre (then pick its parent), `d` descriptor, `k`
 drop, `s` skip, `u` undo, `q` quit. Ctrl-C is `q`.
 
 - **Decisions are written as you go**, through `POST
-  /api/genres/proposals/decisions` (one transaction per group), so quitting
+/api/genres/proposals/decisions` (one transaction per group), so quitting
   loses nothing and the next review starts with what is still pending.
 - **Undo restores exactly**: the decisions response carries each proposal's
   previous state, and `u` sends it back to `/proposals/restore`, a whole group
@@ -230,7 +230,7 @@ Rules worth knowing:
 
 - **Conflicts are per view**, over all actions including remote-only ones, so a
   config behaves the same locally and remotely. A conflict reverts the
-  *overridden* action(s) to defaults and repeats until stable; defaults never
+  _overridden_ action(s) to defaults and repeats until stable; defaults never
   conflict (a registry test enforces it).
 - **A bad entry loses only itself.** Any bad key in an entry reverts that whole
   action to its default keys.
@@ -389,7 +389,7 @@ Two things that will cost you an afternoon otherwise:
   fields absent from the table are still present in the JSON.
 - ESLint uses the shared Node config in the repository root.
 - **Never pass bare `parseInt` as a commander coercion.** Commander calls it as
-  `(value, previous)`, so a numeric default becomes the *radix*:
+  `(value, previous)`, so a numeric default becomes the _radix_:
   `.option("--limit <n>", …, parseInt, 20)` parsed `15` as **25**, and a default
   of 60 put the radix out of range and yielded `NaN`. Neither failed loudly.
   Use `intOption` / `boundedIntOption` from `src/options.ts`, which ignore the

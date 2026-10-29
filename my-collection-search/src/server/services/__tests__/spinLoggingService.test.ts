@@ -112,7 +112,7 @@ describe("SpinLoggingService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     withDbTransactionMock.mockImplementation(async (fn: (client: object) => Promise<unknown>) =>
-      fn({ query: vi.fn() })
+      fn({ query: vi.fn() }),
     );
   });
 
@@ -123,30 +123,86 @@ describe("SpinLoggingService", () => {
   it("creates an automatic session through the normal snapshot path", async () => {
     findTrackByTrackIdAndFriendIdMock.mockResolvedValue(makeTrack({ release_id: "rel-1" }));
     const create = vi.spyOn(service, "createSpinSession").mockResolvedValue({} as never);
-    await service.createAutomaticSpinSession({ detection_id: "d1", source_id: "pi", track_id: "trk-1", friend_id: 1, played_at: "2026-06-23T20:15:00.000Z", confidence: 0.9 });
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ release_id: "rel-1", provenance: "automatic", detection_id: "d1", track_refs: [{ track_id: "trk-1", friend_id: 1 }] }));
+    await service.createAutomaticSpinSession({
+      detection_id: "d1",
+      source_id: "pi",
+      track_id: "trk-1",
+      friend_id: 1,
+      played_at: "2026-06-23T20:15:00.000Z",
+      confidence: 0.9,
+    });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        release_id: "rel-1",
+        provenance: "automatic",
+        detection_id: "d1",
+        track_refs: [{ track_id: "trk-1", friend_id: 1 }],
+      }),
+    );
   });
 
   it("marks the persisted session automatic while retaining normal track snapshots", async () => {
     getAlbumByReleaseAndFriendMock.mockResolvedValue(makeAlbum());
     getTracksByReleaseAndFriendMock.mockResolvedValue([makeTrack()]);
-    createSessionMock.mockResolvedValue({ id: 101, friend_id: 1, release_id: "rel-1", medium: "vinyl", selection_mode: "automatic", played_at: "2026-06-23T20:15:00.000Z", note: null, context_type: null, created_at: "2026-06-23T20:16:00.000Z", updated_at: "2026-06-23T20:16:00.000Z" });
+    createSessionMock.mockResolvedValue({
+      id: 101,
+      friend_id: 1,
+      release_id: "rel-1",
+      medium: "vinyl",
+      selection_mode: "automatic",
+      played_at: "2026-06-23T20:15:00.000Z",
+      note: null,
+      context_type: null,
+      created_at: "2026-06-23T20:16:00.000Z",
+      updated_at: "2026-06-23T20:16:00.000Z",
+    });
     insertSelectionsMock.mockResolvedValue([]);
     insertEventsMock.mockResolvedValue([]);
-    await service.createSpinSession({ friend_id: 1, release_id: "rel-1", played_at: "2026-06-23T20:15:00.000Z", track_refs: [{ track_id: "trk-1", friend_id: 1 }], provenance: "automatic", source_id: "pi", detection_id: "d1", confidence: 0.9 });
-    expect(createSessionMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ selection_mode: "automatic", provenance: "automatic", source_id: "pi" }));
+    await service.createSpinSession({
+      friend_id: 1,
+      release_id: "rel-1",
+      played_at: "2026-06-23T20:15:00.000Z",
+      track_refs: [{ track_id: "trk-1", friend_id: 1 }],
+      provenance: "automatic",
+      source_id: "pi",
+      detection_id: "d1",
+      confidence: 0.9,
+    });
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        selection_mode: "automatic",
+        provenance: "automatic",
+        source_id: "pi",
+      }),
+    );
   });
 
   it("stores a digital play and turns a repeat into a conflict", async () => {
     getAlbumByReleaseAndFriendMock.mockResolvedValue(makeAlbum());
     getTracksByReleaseAndFriendMock.mockResolvedValue([makeTrack()]);
-    const input = { friend_id: 1, release_id: "rel-1", medium: "digital" as const, played_at: "2026-06-23T20:15:00.000Z", track_refs: [{ track_id: "trk-1", friend_id: 1 }] };
-    createSessionMock.mockRejectedValueOnce(Object.assign(new Error("duplicate key"), { code: "23505" }));
+    const input = {
+      friend_id: 1,
+      release_id: "rel-1",
+      medium: "digital" as const,
+      played_at: "2026-06-23T20:15:00.000Z",
+      track_refs: [{ track_id: "trk-1", friend_id: 1 }],
+    };
+    createSessionMock.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate key"), { code: "23505" }),
+    );
     await expect(service.createSpinSession(input)).rejects.toThrow("Digital play already logged");
-    expect(createSessionMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ medium: "digital" }));
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ medium: "digital" }),
+    );
     // Another failure, or a vinyl duplicate, is not reworded.
-    createSessionMock.mockRejectedValueOnce(Object.assign(new Error("duplicate key"), { code: "23505" }));
-    await expect(service.createSpinSession({ ...input, medium: undefined })).rejects.toThrow("duplicate key");
+    createSessionMock.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate key"), { code: "23505" }),
+    );
+    await expect(service.createSpinSession({ ...input, medium: undefined })).rejects.toThrow(
+      "duplicate key",
+    );
     createSessionMock.mockRejectedValueOnce(new Error("db down"));
     await expect(service.createSpinSession(input)).rejects.toThrow("db down");
   });
@@ -159,7 +215,16 @@ describe("SpinLoggingService", () => {
 
   it("rejects an automatic detection whose track has no release", async () => {
     findTrackByTrackIdAndFriendIdMock.mockResolvedValue(makeTrack({ release_id: undefined }));
-    await expect(service.createAutomaticSpinSession({ detection_id: "d1", source_id: "pi", track_id: "trk-1", friend_id: 1, played_at: "2026-06-23T20:15:00.000Z", confidence: 0.9 })).rejects.toThrow("Detected track has no release");
+    await expect(
+      service.createAutomaticSpinSession({
+        detection_id: "d1",
+        source_id: "pi",
+        track_id: "trk-1",
+        friend_id: 1,
+        played_at: "2026-06-23T20:15:00.000Z",
+        confidence: 0.9,
+      }),
+    ).rejects.toThrow("Detected track has no release");
   });
 
   it("creates a side-based spin session and expands track events", async () => {
@@ -194,7 +259,7 @@ describe("SpinLoggingService", () => {
           track_id: selection.track_id ?? null,
           friend_id: selection.friend_id ?? null,
           position_snapshot: selection.position_snapshot ?? null,
-        }))
+        })),
     );
     insertEventsMock.mockImplementation(
       async (_client: object, sessionId: number, events: Array<Record<string, unknown>>) =>
@@ -205,7 +270,7 @@ describe("SpinLoggingService", () => {
           ...event,
           side_key: event.side_key ?? null,
           position_snapshot: event.position_snapshot ?? null,
-        }))
+        })),
     );
 
     const result = await service.createSpinSession({
@@ -223,23 +288,19 @@ describe("SpinLoggingService", () => {
         friend_id: 1,
         release_id: "rel-1",
         selection_mode: "sides",
-      })
+      }),
     );
-    expect(insertSelectionsMock).toHaveBeenCalledWith(
-      expect.anything(),
-      101,
-      [
-        { ordinal: 0, selection_type: "side", side_key: "A" },
-        { ordinal: 1, selection_type: "side", side_key: "B" },
-      ]
-    );
+    expect(insertSelectionsMock).toHaveBeenCalledWith(expect.anything(), 101, [
+      { ordinal: 0, selection_type: "side", side_key: "A" },
+      { ordinal: 1, selection_type: "side", side_key: "B" },
+    ]);
     expect(insertEventsMock).toHaveBeenCalledWith(
       expect.anything(),
       101,
       expect.arrayContaining([
         expect.objectContaining({ track_id: "trk-a1", side_key: "A", ordinal: 0 }),
         expect.objectContaining({ track_id: "trk-b2", side_key: "B", ordinal: 3 }),
-      ])
+      ]),
     );
     expect(result.derived).toEqual({
       is_full_album_spin: true,
@@ -261,7 +322,7 @@ describe("SpinLoggingService", () => {
         release_id: "rel-1",
         played_at: "2026-06-23T20:15:00.000Z",
         side_keys: ["A", "A"],
-      })
+      }),
     ).rejects.toThrow("Duplicate side keys are not allowed");
   });
 
@@ -278,7 +339,7 @@ describe("SpinLoggingService", () => {
         release_id: "rel-1",
         played_at: "2026-06-23T20:15:00.000Z",
         track_refs: [{ track_id: "trk-missing", friend_id: 1 }],
-      })
+      }),
     ).rejects.toThrow("Track does not belong to album: trk-missing");
   });
 
@@ -419,13 +480,15 @@ describe("SpinLoggingService.updateSpinSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     withDbTransactionMock.mockImplementation(async (fn: (client: object) => Promise<unknown>) =>
-      fn({ query: vi.fn() })
+      fn({ query: vi.fn() }),
     );
     // Like UPDATE ... RETURNING *: the stored row with only the given fields changed.
     updateSessionMock.mockImplementation(async (_client, _id, input) => ({
       ...existing(),
       ...Object.fromEntries(
-        Object.entries(input).filter(([key, value]) => value !== undefined && key !== "mark_corrected")
+        Object.entries(input).filter(
+          ([key, value]) => value !== undefined && key !== "mark_corrected",
+        ),
       ),
       corrected_at: input.mark_corrected ? "2026-09-27T12:00:00.000Z" : null,
     }));
@@ -441,7 +504,7 @@ describe("SpinLoggingService.updateSpinSession", () => {
         session_id: sessionId,
         created_at: "2026-09-27T12:00:00.000Z",
         ...selection,
-      }))
+      })),
     );
     insertEventsMock.mockImplementation(async (_client, sessionId, events) =>
       events.map((event: object, i: number) => ({
@@ -449,7 +512,7 @@ describe("SpinLoggingService.updateSpinSession", () => {
         session_id: sessionId,
         created_at: "2026-09-27T12:00:00.000Z",
         ...event,
-      }))
+      })),
     );
   });
 
@@ -500,7 +563,9 @@ describe("SpinLoggingService.updateSpinSession", () => {
 
     const [, , events] = insertEventsMock.mock.calls[0];
     expect(events.map((e: { track_id: string }) => e.track_id)).toEqual(["trk-a1", "trk-a2"]);
-    expect(events.every((e: { played_at: string }) => e.played_at === "2026-09-20T20:00:00.000Z")).toBe(true);
+    expect(
+      events.every((e: { played_at: string }) => e.played_at === "2026-09-20T20:00:00.000Z"),
+    ).toBe(true);
     expect(updateSessionMock.mock.calls[0][2]).toMatchObject({
       selection_mode: "sides",
       mark_corrected: false,
@@ -513,10 +578,19 @@ describe("SpinLoggingService.updateSpinSession", () => {
     listSelectionsBySessionIdsMock.mockResolvedValue([]);
     setPlayedAtForSessionMock.mockResolvedValue([
       {
-        id: 1, session_id: 101, friend_id: 1, release_id: "rel-1", track_id: "trk-a1",
-        played_at: "2026-09-20T20:00:00.000Z", ordinal: 0, side_key: "A",
-        position_snapshot: "A1", title_snapshot: "One", artist_snapshot: "Test Artist",
-        album_snapshot: "Test LP", created_at: "2026-09-20T21:31:00.000Z",
+        id: 1,
+        session_id: 101,
+        friend_id: 1,
+        release_id: "rel-1",
+        track_id: "trk-a1",
+        played_at: "2026-09-20T20:00:00.000Z",
+        ordinal: 0,
+        side_key: "A",
+        position_snapshot: "A1",
+        title_snapshot: "One",
+        artist_snapshot: "Test Artist",
+        album_snapshot: "Test LP",
+        created_at: "2026-09-20T21:31:00.000Z",
       },
     ]);
 
@@ -527,7 +601,7 @@ describe("SpinLoggingService.updateSpinSession", () => {
     expect(setPlayedAtForSessionMock).toHaveBeenCalledWith(
       expect.anything(),
       101,
-      "2026-09-20T20:00:00.000Z"
+      "2026-09-20T20:00:00.000Z",
     );
     expect(deleteEventsBySessionIdMock).not.toHaveBeenCalled();
     expect(getAlbumByReleaseAndFriendMock).not.toHaveBeenCalled();
@@ -537,9 +611,17 @@ describe("SpinLoggingService.updateSpinSession", () => {
   it("leaves events alone for a note-only edit to a manual spin", async () => {
     findSessionForUpdateMock.mockResolvedValue(existing({ provenance: "manual" }));
     listSelectionsBySessionIdsMock.mockResolvedValue([
-      { id: 1, session_id: 101, ordinal: 0, selection_type: "side", side_key: "A",
-        track_id: null, friend_id: null, position_snapshot: null,
-        created_at: "2026-09-20T21:31:00.000Z" },
+      {
+        id: 1,
+        session_id: 101,
+        ordinal: 0,
+        selection_type: "side",
+        side_key: "A",
+        track_id: null,
+        friend_id: null,
+        position_snapshot: null,
+        created_at: "2026-09-20T21:31:00.000Z",
+      },
     ]);
     listEventsBySessionIdsMock.mockResolvedValue([]);
 
@@ -558,7 +640,7 @@ describe("SpinLoggingService.updateSpinSession", () => {
     findSessionForUpdateMock.mockResolvedValue(existing());
 
     await expect(service.updateSpinSession(101, 1, { side_keys: ["Z"] })).rejects.toThrow(
-      "Invalid side key: Z"
+      "Invalid side key: Z",
     );
     expect(deleteEventsBySessionIdMock).not.toHaveBeenCalled();
   });

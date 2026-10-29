@@ -33,14 +33,14 @@ worker/
 with the backoff. Everything else is a named function you can call directly in a
 test:
 
-| | |
-| --- | --- |
-| `normalize_job_type` | job_type as the dispatch table keys it |
-| `select_handler` | routing: explicit type, then content-based fallback |
-| `verify_redis` | startup probe, returns bool |
-| `write_heartbeat` | liveness key; failure is logged, never fatal |
-| `process_job` | parse one payload and run its handler |
-| `run_once` | one pass of the loop |
+|                      |                                                     |
+| -------------------- | --------------------------------------------------- |
+| `normalize_job_type` | job_type as the dispatch table keys it              |
+| `select_handler`     | routing: explicit type, then content-based fallback |
+| `verify_redis`       | startup probe, returns bool                         |
+| `write_heartbeat`    | liveness key; failure is logged, never fatal        |
+| `process_job`        | parse one payload and run its handler               |
+| `run_once`           | one pass of the loop                                |
 
 Routing is a `JOB_HANDLERS` dict keyed by the aliases the queue may use (both
 `fix-duration` and `fix_duration`, and so on). A job with no recognised type
@@ -73,7 +73,7 @@ with no Apple entries is skipped with a warning rather than passed through.
 
 Analysis is not run inline. After the file is moved and `local_audio_url` is
 written, `enqueue_analyze_job` (`redis_utils.py`) pushes an `analyze-local` job
-on `download_queue`, so an Essentia failure is captured and marks *that* job
+on `download_queue`, so an Essentia failure is captured and marks _that_ job
 failed. The download job still completes with `analysis_status: 'queued'` and
 `analysis_job_id`; if the enqueue itself fails it is sent to Sentry and the job
 completes with `analysis_status: 'failed'` and `analysis_error`.

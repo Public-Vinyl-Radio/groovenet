@@ -8,7 +8,13 @@ import type { TrackAttributeFilters } from "@/lib/trackFilters";
 import { BpmFields, KeyField, RatingField } from "./AttributeFilter";
 
 /** The fields as the filters modal and panel lay them out. */
-function AttributeFilter({ value, onChange }: { value: TrackAttributeFilters; onChange: (next: TrackAttributeFilters) => void }) {
+function AttributeFilter({
+  value,
+  onChange,
+}: {
+  value: TrackAttributeFilters;
+  onChange: (next: TrackAttributeFilters) => void;
+}) {
   return (
     <>
       <BpmFields value={value} onChange={onChange} />
@@ -66,7 +72,7 @@ describe("attribute fields (#447)", () => {
   it("follows the range when it's cleared from outside", async () => {
     const onChange = vi.fn();
     const { rerender } = renderWithProviders(
-      <AttributeFilter value={{ bpm_min: 120, bpm_max: 126 }} onChange={onChange} />
+      <AttributeFilter value={{ bpm_min: 120, bpm_max: 126 }} onChange={onChange} />,
     );
     rerender(<AttributeFilter value={{}} onChange={onChange} />);
 

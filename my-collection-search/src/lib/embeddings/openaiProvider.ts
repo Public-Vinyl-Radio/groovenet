@@ -26,15 +26,10 @@ function getClient(): OpenAI {
  * (`text-embedding-ada-002`) don't support the param — don't pass `dims` for
  * them.
  */
-export function createOpenAiEmbeddingProvider(
-  model: string,
-  dims?: number
-): EmbeddingProvider {
+export function createOpenAiEmbeddingProvider(model: string, dims?: number): EmbeddingProvider {
   const resolvedDims = dims ?? DEFAULT_DIMS[model];
   if (!resolvedDims) {
-    throw new Error(
-      `Unknown dims for OpenAI embedding model "${model}" — pass dims explicitly`
-    );
+    throw new Error(`Unknown dims for OpenAI embedding model "${model}" — pass dims explicitly`);
   }
 
   return {

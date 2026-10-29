@@ -42,8 +42,16 @@ export type ReconciliationRun = {
 export type RunCounters = Partial<
   Pick<
     ReconciliationRun,
-    | "distinct_values" | "exact_matches" | "kept" | "ai_pending" | "ai_proposed"
-    | "ai_failed" | "ai_batches" | "input_tokens" | "output_tokens" | "cost_usd"
+    | "distinct_values"
+    | "exact_matches"
+    | "kept"
+    | "ai_pending"
+    | "ai_proposed"
+    | "ai_failed"
+    | "ai_batches"
+    | "input_tokens"
+    | "output_tokens"
+    | "cost_usd"
   >
 >;
 
@@ -83,7 +91,10 @@ export type ProposalDraft = {
   method: ProposalMethod;
 };
 
-export type ProposalStats = Pick<ProposalDraft, "value_normalized" | "raw_examples" | "track_count">;
+export type ProposalStats = Pick<
+  ProposalDraft,
+  "value_normalized" | "raw_examples" | "track_count"
+>;
 
 export type ProposalFilter = {
   status?: ProposalStatus;
@@ -96,13 +107,22 @@ export type ProposalFilter = {
 };
 
 export type ProposalPatch = Partial<
-  Pick<Proposal, "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id">
+  Pick<
+    Proposal,
+    "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id"
+  >
 > & { method?: ProposalMethod };
 
 /** The reviewable state of a proposal, as undo restores it. */
 export type ProposalSnapshot = Pick<
   Proposal,
-  "id" | "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id" | "method"
+  | "id"
+  | "status"
+  | "action"
+  | "target_genre_ids"
+  | "proposed_genre_name"
+  | "proposed_parent_id"
+  | "method"
 >;
 
 export type ProposalTrack = {
@@ -116,7 +136,12 @@ export type ProposalTrack = {
 
 export type ExactMatch = { genre_id: string; loose: boolean };
 
-export type TaxonomyEntry = { id: string; name: string; normalized_name: string; parent_name: string | null };
+export type TaxonomyEntry = {
+  id: string;
+  name: string;
+  normalized_name: string;
+  parent_name: string | null;
+};
 
 const RUN_COLUMNS = `
   id, status, options, model, distinct_values, exact_matches, kept, ai_pending,
@@ -145,7 +170,10 @@ export class GenreReconciliationRepository {
    * album's styles as AI context (the album's Discogs styles, falling back to
    * the track's own copy, then genres when there are no styles at all).
    */
-  async listLocalTagTracks(client?: PoolClient, friendId: number | null = null): Promise<LocalTagTrack[]> {
+  async listLocalTagTracks(
+    client?: PoolClient,
+    friendId: number | null = null,
+  ): Promise<LocalTagTrack[]> {
     const sql = `
       SELECT t.track_id, t.friend_id, t.local_tags,
         COALESCE(NULLIF(a.styles, '{}'), NULLIF(t.styles, '{}'), NULLIF(a.genres, '{}'), t.genres, '{}') AS styles
@@ -205,15 +233,20 @@ export class GenreReconciliationRepository {
        SELECT value, genre_id::text AS genre_id, false AS loose FROM exact
        UNION ALL
        SELECT value, genre_id::text, true FROM loose`,
-      [values]
+      [values],
     );
     return new Map(rows.map((row) => [row.value, { genre_id: row.genre_id, loose: row.loose }]));
   }
 
-  async listProposalStates():Promise<Map<string, { status: ProposalStatus; method: ProposalMethod; action: ProposalAction }>> {
-    const { rows } = await dbQuery<{ value_normalized: string; status: ProposalStatus; method: ProposalMethod; action: ProposalAction }>(
-      "SELECT value_normalized, status, method, action FROM genre_reconciliation_proposals"
-    );
+  async listProposalStates(): Promise<
+    Map<string, { status: ProposalStatus; method: ProposalMethod; action: ProposalAction }>
+  > {
+    const { rows } = await dbQuery<{
+      value_normalized: string;
+      status: ProposalStatus;
+      method: ProposalMethod;
+      action: ProposalAction;
+    }>("SELECT value_normalized, status, method, action FROM genre_reconciliation_proposals");
     return new Map(rows.map(({ value_normalized, ...state }) => [value_normalized, state]));
   }
 
@@ -249,7 +282,7 @@ export class GenreReconciliationRepository {
         run_id = CASE WHEN p.status = 'pending' THEN EXCLUDED.run_id ELSE p.run_id END,
         updated_at = now()
       `,
-      [JSON.stringify(drafts), runId]
+      [JSON.stringify(drafts), runId],
     );
   }
 
@@ -271,7 +304,7 @@ export class GenreReconciliationRepository {
         ON s.value_normalized = p2.value_normalized
       WHERE p.id = p2.id
       `,
-      [JSON.stringify(stats)]
+      [JSON.stringify(stats)],
     );
   }
 
@@ -281,24 +314,27 @@ export class GenreReconciliationRepository {
       `UPDATE genre_reconciliation_runs
        SET status = 'failed', error = 'Stalled: no progress reported', finished_at = now()
        WHERE status = 'running' AND updated_at < now() - make_interval(mins => $1)`,
-      [staleMinutes]
+      [staleMinutes],
     );
   }
 
   /** Starts a run, or returns null when one is already running. */
-  async createRun(options: ReconciliationRunOptions, model: string | null): Promise<ReconciliationRun | null> {
+  async createRun(
+    options: ReconciliationRunOptions,
+    model: string | null,
+  ): Promise<ReconciliationRun | null> {
     const { rows } = await dbQuery<ReconciliationRun>(
       `INSERT INTO genre_reconciliation_runs (options, model) VALUES ($1::jsonb, $2)
        ON CONFLICT (status) WHERE status = 'running' DO NOTHING
        RETURNING ${RUN_COLUMNS}`,
-      [JSON.stringify(options), model]
+      [JSON.stringify(options), model],
     );
     return rows[0] ?? null;
   }
 
   async getRunningRun(): Promise<ReconciliationRun | null> {
     const { rows } = await dbQuery<ReconciliationRun>(
-      `SELECT ${RUN_COLUMNS} FROM genre_reconciliation_runs WHERE status = 'running'`
+      `SELECT ${RUN_COLUMNS} FROM genre_reconciliation_runs WHERE status = 'running'`,
     );
     return rows[0] ?? null;
   }
@@ -306,7 +342,7 @@ export class GenreReconciliationRepository {
   async getRun(id: string): Promise<ReconciliationRun | null> {
     const { rows } = await dbQuery<ReconciliationRun>(
       `SELECT ${RUN_COLUMNS} FROM genre_reconciliation_runs WHERE id = $1`,
-      [id]
+      [id],
     );
     return rows[0] ?? null;
   }
@@ -317,16 +353,20 @@ export class GenreReconciliationRepository {
     const sets = entries.map(([column], i) => `${column} = $${i + 2}`);
     await dbQuery(
       `UPDATE genre_reconciliation_runs SET ${[...sets, "updated_at = now()"].join(", ")} WHERE id = $1`,
-      [id, ...entries.map(([, value]) => value)]
+      [id, ...entries.map(([, value]) => value)],
     );
   }
 
-  async finishRun(id: string, status: Exclude<RunStatus, "running">, error: string | null = null): Promise<void> {
+  async finishRun(
+    id: string,
+    status: Exclude<RunStatus, "running">,
+    error: string | null = null,
+  ): Promise<void> {
     await dbQuery(
       `UPDATE genre_reconciliation_runs
        SET status = $2, error = $3, finished_at = now(), updated_at = now()
        WHERE id = $1`,
-      [id, status, error]
+      [id, status, error],
     );
   }
 
@@ -348,11 +388,11 @@ export class GenreReconciliationRepository {
         `${PROPOSAL_SELECT} ${where}
          ORDER BY p.track_count DESC, p.value_normalized
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-        [...params, filter.limit, filter.offset]
+        [...params, filter.limit, filter.offset],
       ),
       dbQuery<{ total: number }>(
         `SELECT COUNT(*)::integer AS total FROM genre_reconciliation_proposals p ${where}`,
-        params
+        params,
       ),
     ]);
     return { proposals: rows, total: count.rows[0].total };
@@ -369,7 +409,7 @@ export class GenreReconciliationRepository {
   async updateProposal(id: string, patch: ProposalPatch, client?: PoolClient): Promise<boolean> {
     const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
     const sets = entries.map(([column], i) =>
-      column === "target_genre_ids" ? `${column} = $${i + 2}::uuid[]` : `${column} = $${i + 2}`
+      column === "target_genre_ids" ? `${column} = $${i + 2}::uuid[]` : `${column} = $${i + 2}`,
     );
     const sql = `UPDATE genre_reconciliation_proposals SET ${[...sets, "updated_at = now()"].join(", ")} WHERE id = $1`;
     const params = [id, ...entries.map(([, value]) => value)];
@@ -393,7 +433,7 @@ export class GenreReconciliationRepository {
          proposed_genre_name text, proposed_parent_id uuid, method text
        )
        WHERE p.id = s.id`,
-      [JSON.stringify(snapshots)]
+      [JSON.stringify(snapshots)],
     );
     return rowCount ?? 0;
   }
@@ -407,11 +447,12 @@ export class GenreReconciliationRepository {
   async listProposalTracks(
     proposal: Pick<Proposal, "value_normalized" | "raw_examples">,
     friendId: number | null,
-    limit: number
+    limit: number,
   ): Promise<ProposalTrack[]> {
     const escape = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
-    const patterns = [...new Set([proposal.value_normalized, ...proposal.raw_examples])]
-      .map((spelling) => `%${escape(spelling)}%`);
+    const patterns = [...new Set([proposal.value_normalized, ...proposal.raw_examples])].map(
+      (spelling) => `%${escape(spelling)}%`,
+    );
     const { rows } = await dbQuery<ProposalTrack & { local_tags: string }>(
       `SELECT t.track_id, t.friend_id, t.title, t.artist, t.album, t.local_tags,
          COALESCE(NULLIF(a.styles, '{}'), NULLIF(t.styles, '{}'), '{}') AS styles
@@ -422,7 +463,7 @@ export class GenreReconciliationRepository {
          AND t.local_tags ILIKE ANY($2::text[])
        ORDER BY t.artist, t.title
        LIMIT 200`,
-      [friendId, patterns]
+      [friendId, patterns],
     );
     return rows
       .filter((row) => localTagValues(row.local_tags).includes(proposal.value_normalized))
@@ -437,23 +478,25 @@ export class GenreReconciliationRepository {
        WHERE p.status IN ('accepted', 'edited') AND ($1::uuid[] IS NULL OR p.id = ANY($1::uuid[]))
        ORDER BY p.track_count DESC, p.value_normalized
        FOR UPDATE OF p`,
-      [ids ?? null]
+      [ids ?? null],
     );
     return rows;
   }
 
   /** Tracks with a taxonomy link, and tracks with descriptors (one friend's, or everyone's). */
-  async listTrackGenreState(friendId: number | null = null): Promise<{ linked: Set<string>; described: Set<string> }> {
+  async listTrackGenreState(
+    friendId: number | null = null,
+  ): Promise<{ linked: Set<string>; described: Set<string> }> {
     const [linked, described] = await Promise.all([
       dbQuery<{ key: string }>(
         `SELECT DISTINCT track_id || ':' || friend_id AS key FROM track_genres
          WHERE $1::integer IS NULL OR friend_id = $1`,
-        [friendId]
+        [friendId],
       ),
       dbQuery<{ key: string }>(
         `SELECT track_id || ':' || friend_id AS key FROM tracks
          WHERE cardinality(descriptors) > 0 AND ($1::integer IS NULL OR friend_id = $1)`,
-        [friendId]
+        [friendId],
       ),
     ]);
     return {

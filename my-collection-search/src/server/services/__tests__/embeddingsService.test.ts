@@ -46,7 +46,7 @@ vi.mock("@/lib/embeddings/config", () => ({
 import { applyEraFilter, embeddingsService } from "../embeddingsService";
 
 const track = (year: unknown): SimilarIdentityTrack =>
-  ({ track_id: "t", friend_id: 1, year } as unknown as SimilarIdentityTrack);
+  ({ track_id: "t", friend_id: 1, year }) as unknown as SimilarIdentityTrack;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -149,7 +149,7 @@ describe("EmbeddingsService.findSimilarIdentity", () => {
   it("throws when the source identity embedding is missing", async () => {
     mockFindSource.mockResolvedValueOnce(null);
     await expect(embeddingsService.findSimilarIdentity(baseParams)).rejects.toThrow(
-      "missing_identity_embedding"
+      "missing_identity_embedding",
     );
     expect(mockSetProbes).toHaveBeenCalledWith({}, 10);
   });
@@ -158,7 +158,7 @@ describe("EmbeddingsService.findSimilarIdentity", () => {
     mockFindSource.mockResolvedValueOnce([0.1, 0.2]);
     // 5 candidates, era filter is a no-op (no era), sliced to limit 3
     mockFindSimilarIdentity.mockResolvedValueOnce(
-      Array.from({ length: 5 }, (_, i) => track(2000 + i))
+      Array.from({ length: 5 }, (_, i) => track(2000 + i)),
     );
     const res = await embeddingsService.findSimilarIdentity(baseParams);
     const callArgs = mockFindSimilarIdentity.mock.calls[0][1];
@@ -177,7 +177,7 @@ describe("EmbeddingsService.findSimilarVibe", () => {
   it("throws when the source audio-vibe embedding is missing", async () => {
     mockFindSource.mockResolvedValueOnce(null);
     await expect(embeddingsService.findSimilarVibe(baseParams)).rejects.toThrow(
-      "missing_audio_vibe_embedding"
+      "missing_audio_vibe_embedding",
     );
   });
 

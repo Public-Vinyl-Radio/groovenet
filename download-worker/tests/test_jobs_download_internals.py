@@ -1,5 +1,6 @@
 """Tests for download.py internals: cookie resolution, gamdl file discovery,
 the yt-dlp strategy ladder, and stderr parsing."""
+
 import os
 import subprocess
 from unittest.mock import patch
@@ -14,9 +15,7 @@ from worker.jobs.download import (
 
 
 def make_proc(returncode=0, stdout="", stderr=""):
-    return subprocess.CompletedProcess(
-        args=[], returncode=returncode, stdout=stdout, stderr=stderr
-    )
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
 def write_audio(path, size=1024):
@@ -30,6 +29,7 @@ def write_audio(path, size=1024):
 # ---------------------------------------------------------------------------
 # resolve_gamdl_cookie_file
 # ---------------------------------------------------------------------------
+
 
 class TestResolveGamdlCookieFile:
     def test_prefers_an_existing_configured_path(self, tmp_path, monkeypatch):
@@ -87,6 +87,7 @@ class TestResolveGamdlCookieFile:
 # download_with_gamdl — error classification not already covered
 # ---------------------------------------------------------------------------
 
+
 class TestGamdlErrorClassification:
     @pytest.mark.parametrize(
         "stderr,expected",
@@ -126,6 +127,7 @@ class TestGamdlErrorClassification:
 # ---------------------------------------------------------------------------
 # download_with_gamdl — cookie file handling
 # ---------------------------------------------------------------------------
+
 
 class TestGamdlCookieHandling:
     @patch("worker.jobs.download.run_subprocess")
@@ -167,9 +169,7 @@ class TestGamdlCookieHandling:
         assert "--cookies-path" not in mock_run.call_args[0][0]
 
     @patch("worker.jobs.download.run_subprocess")
-    def test_proceeds_when_the_configured_cookie_file_is_missing(
-        self, mock_run, tmp_path, monkeypatch
-    ):
+    def test_proceeds_when_the_configured_cookie_file_is_missing(self, mock_run, tmp_path, monkeypatch):
         monkeypatch.setenv("GAMDL_COOKIE_FILE", str(tmp_path / "absent.txt"))
         write_audio(str(tmp_path / "out" / "t1.m4a"))
         mock_run.return_value = make_proc(returncode=0)
@@ -183,6 +183,7 @@ class TestGamdlCookieHandling:
 # download_with_gamdl — quality and file discovery
 # ---------------------------------------------------------------------------
 
+
 class TestGamdlQuality:
     @patch("worker.jobs.download.run_subprocess")
     def test_omits_audio_quality_when_best(self, mock_run, tmp_path, monkeypatch):
@@ -191,7 +192,9 @@ class TestGamdlQuality:
         mock_run.return_value = make_proc(returncode=0)
 
         download_with_gamdl(
-            "https://music.apple.com/x", str(tmp_path / "out"), "t1",
+            "https://music.apple.com/x",
+            str(tmp_path / "out"),
+            "t1",
             job_data={"track_id": "t1", "friend_id": 1, "quality": "best"},
         )
 
@@ -204,7 +207,9 @@ class TestGamdlQuality:
         mock_run.return_value = make_proc(returncode=0)
 
         download_with_gamdl(
-            "https://music.apple.com/x", str(tmp_path / "out"), "t1",
+            "https://music.apple.com/x",
+            str(tmp_path / "out"),
+            "t1",
             job_data={"track_id": "t1", "friend_id": 1, "quality": "128k"},
         )
 
@@ -287,9 +292,7 @@ class TestGamdlAlreadyExists:
         existing = write_audio(str(tmp_path / "library" / "song.m4a"))
         out = tmp_path / "out"
         out.mkdir()
-        mock_run.return_value = make_proc(
-            returncode=0, stderr=f"Media file already exists at '{existing}'"
-        )
+        mock_run.return_value = make_proc(returncode=0, stderr=f"Media file already exists at '{existing}'")
 
         result = download_with_gamdl("https://music.apple.com/x", str(out), "t1")
 
@@ -297,15 +300,11 @@ class TestGamdlAlreadyExists:
         assert os.path.exists(result)
 
     @patch("worker.jobs.download.run_subprocess")
-    def test_falls_back_to_the_original_path_when_the_copy_fails(
-        self, mock_run, tmp_path, monkeypatch
-    ):
+    def test_falls_back_to_the_original_path_when_the_copy_fails(self, mock_run, tmp_path, monkeypatch):
         existing = write_audio(str(tmp_path / "library" / "song.m4a"))
         out = tmp_path / "out"
         out.mkdir()
-        mock_run.return_value = make_proc(
-            returncode=0, stderr=f"Media file already exists at '{existing}'"
-        )
+        mock_run.return_value = make_proc(returncode=0, stderr=f"Media file already exists at '{existing}'")
         monkeypatch.setattr(
             "worker.jobs.download.shutil.copy2",
             lambda *a, **kw: (_ for _ in ()).throw(OSError("read-only fs")),
@@ -320,9 +319,7 @@ class TestGamdlAlreadyExists:
         existing = write_audio(str(tmp_path / "library" / "song.m4a"), size=0)
         out = tmp_path / "out"
         write_audio(str(out / "real.m4a"))
-        mock_run.return_value = make_proc(
-            returncode=0, stderr=f"Media file already exists at '{existing}'"
-        )
+        mock_run.return_value = make_proc(returncode=0, stderr=f"Media file already exists at '{existing}'")
 
         result = download_with_gamdl("https://music.apple.com/x", str(out), "t1")
 
@@ -332,6 +329,7 @@ class TestGamdlAlreadyExists:
 # ---------------------------------------------------------------------------
 # download_with_ytdlp
 # ---------------------------------------------------------------------------
+
 
 class TestDownloadWithYtdlp:
     @patch("worker.jobs.download.run_subprocess")
@@ -433,6 +431,7 @@ class TestDownloadWithYtdlp:
 # ---------------------------------------------------------------------------
 # _extract_ytdlp_error
 # ---------------------------------------------------------------------------
+
 
 class TestExtractYtdlpError:
     def test_returns_the_first_error_line_without_its_prefix(self):

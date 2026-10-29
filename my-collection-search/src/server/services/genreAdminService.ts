@@ -7,15 +7,23 @@ import type { Genre, GenreUpdateInput } from "@groovenet/contracts";
 export type GenreAdminRow = Genre;
 
 export class GenreAdminError extends Error {
-  constructor(message: string, public readonly status: 404 | 409) {
+  constructor(
+    message: string,
+    public readonly status: 404 | 409,
+  ) {
     super(message);
   }
 }
 
 const columns = "id, name, slug, parent_id, source";
-const slug = (name: string) => name.normalize("NFKD")
-  .replace(/[\u0300-\u036f]/g, "").replace(/&/g, " and ")
-  .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const slug = (name: string) =>
+  name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 async function mutate<T>(action: (client: PoolClient) => Promise<T>): Promise<T> {
   try {
@@ -34,32 +42,41 @@ async function mutate<T>(action: (client: PoolClient) => Promise<T>): Promise<T>
 }
 
 async function find(client: PoolClient, id: string): Promise<GenreAdminRow> {
-  const result = await client.query<GenreAdminRow>(`SELECT ${columns} FROM genres WHERE id = $1`, [id]);
+  const result = await client.query<GenreAdminRow>(`SELECT ${columns} FROM genres WHERE id = $1`, [
+    id,
+  ]);
   const row = result.rows[0];
   if (!row) throw new GenreAdminError("Genre not found", 404);
   return row;
 }
 
 async function checkName(client: PoolClient, name: string, id?: string) {
-  if (!normalizeGenreName(name) || !slug(name)) throw new GenreAdminError("Genre name must produce a nonempty URL slug", 409);
+  if (!normalizeGenreName(name) || !slug(name))
+    throw new GenreAdminError("Genre name must produce a nonempty URL slug", 409);
   const { rows } = await client.query(
     "SELECT genre_id FROM genre_aliases WHERE alias_normalized = $1",
-    [normalizeGenreName(name)]
+    [normalizeGenreName(name)],
   );
-  if (rows.length && rows[0].genre_id !== id) throw new GenreAdminError("Genre name is already an alias", 409);
+  if (rows.length && rows[0].genre_id !== id)
+    throw new GenreAdminError("Genre name is already an alias", 409);
 }
 
 async function checkCycle(client: PoolClient, id: string, parentId: string) {
-  if (id === parentId) throw new GenreAdminError("A genre cannot be its own parent or merge target", 409);
+  if (id === parentId)
+    throw new GenreAdminError("A genre cannot be its own parent or merge target", 409);
   const { rows } = await client.query<{ cycle: boolean }>(
     `WITH RECURSIVE descendants AS (
        SELECT id FROM genres WHERE parent_id = $1
        UNION
        SELECT g.id FROM genres g JOIN descendants d ON g.parent_id = d.id
      ) SELECT EXISTS (SELECT 1 FROM descendants WHERE id = $2) AS cycle`,
-    [id, parentId]
+    [id, parentId],
   );
-  if (rows[0].cycle) throw new GenreAdminError("A genre cannot be moved or merged below one of its descendants", 409);
+  if (rows[0].cycle)
+    throw new GenreAdminError(
+      "A genre cannot be moved or merged below one of its descendants",
+      409,
+    );
 }
 
 export async function createGenre(name: string, parentId: string): Promise<GenreAdminRow> {
@@ -69,7 +86,7 @@ export async function createGenre(name: string, parentId: string): Promise<Genre
     const result = await client.query<GenreAdminRow>(
       `INSERT INTO genres (name, normalized_name, slug, parent_id, source)
        VALUES ($1, $2, $3, $4, 'custom') RETURNING ${columns}`,
-      [name.trim(), normalizeGenreName(name), slug(name), parentId]
+      [name.trim(), normalizeGenreName(name), slug(name), parentId],
     );
     return result.rows[0];
   });
@@ -89,15 +106,18 @@ export async function updateGenre(id: string, input: GenreUpdateInput): Promise<
     const result = await client.query<GenreAdminRow>(
       `UPDATE genres SET name=$1, normalized_name=$2, slug=$3, parent_id=$4
        WHERE id=$5 RETURNING ${columns}`,
-      [name, normalizeGenreName(name), slug(name), parentId, id]
+      [name, normalizeGenreName(name), slug(name), parentId, id],
     );
     // Renaming to an alias owned by this genre promotes it to canonical.
-    await client.query("DELETE FROM genre_aliases WHERE alias_normalized=$1 AND genre_id=$2", [normalizeGenreName(name), id]);
+    await client.query("DELETE FROM genre_aliases WHERE alias_normalized=$1 AND genre_id=$2", [
+      normalizeGenreName(name),
+      id,
+    ]);
     if (normalizeGenreName(name) !== normalizeGenreName(existing.name)) {
       await client.query(
         `INSERT INTO genre_aliases (alias_normalized, genre_id, source)
          VALUES ($1,$2,'manual') ON CONFLICT DO NOTHING`,
-        [normalizeGenreName(existing.name), id]
+        [normalizeGenreName(existing.name), id],
       );
     }
     reparented = parentId !== existing.parent_id;
@@ -114,16 +134,22 @@ export async function addGenreAlias(id: string, alias: string): Promise<void> {
   await mutate(async (client) => {
     await find(client, id);
     const normalized = normalizeGenreName(alias);
-    const { rows } = await client.query("SELECT id FROM genres WHERE normalized_name=$1", [normalized]);
+    const { rows } = await client.query("SELECT id FROM genres WHERE normalized_name=$1", [
+      normalized,
+    ]);
     if (rows.length) throw new GenreAdminError("Alias is already a canonical genre name", 409);
-    const existing = await client.query("SELECT genre_id FROM genre_aliases WHERE alias_normalized=$1", [normalized]);
+    const existing = await client.query(
+      "SELECT genre_id FROM genre_aliases WHERE alias_normalized=$1",
+      [normalized],
+    );
     if (existing.rows.length) {
-      if (existing.rows[0].genre_id !== id) throw new GenreAdminError("Alias already belongs to another genre", 409);
+      if (existing.rows[0].genre_id !== id)
+        throw new GenreAdminError("Alias already belongs to another genre", 409);
       return;
     }
     await client.query(
       "INSERT INTO genre_aliases (alias_normalized, genre_id, source) VALUES ($1,$2,'manual')",
-      [normalized, id]
+      [normalized, id],
     );
   });
 }
@@ -134,11 +160,14 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
     await find(client, targetId);
     await checkCycle(client, sourceId, targetId);
     await client.query("UPDATE genres SET parent_id=$1 WHERE parent_id=$2", [targetId, sourceId]);
-    await client.query("UPDATE genre_aliases SET genre_id=$1 WHERE genre_id=$2", [targetId, sourceId]);
+    await client.query("UPDATE genre_aliases SET genre_id=$1 WHERE genre_id=$2", [
+      targetId,
+      sourceId,
+    ]);
     await client.query(
       `INSERT INTO genre_aliases (alias_normalized, genre_id, source)
        VALUES ($1,$2,'manual') ON CONFLICT DO NOTHING`,
-      [normalizeGenreName(source.name), targetId]
+      [normalizeGenreName(source.name), targetId],
     );
     // Move track links to the survivor. A track linked to both keeps its
     // existing survivor link; the source's duplicate goes with the source.
@@ -148,7 +177,7 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
       `INSERT INTO track_genres (track_id, friend_id, genre_id, source, created_at)
        SELECT track_id, friend_id, $1, source, created_at FROM track_genres WHERE genre_id=$2
        ON CONFLICT DO NOTHING`,
-      [targetId, sourceId]
+      [targetId, sourceId],
     );
     await client.query("DELETE FROM track_genres WHERE genre_id=$1", [sourceId]);
     await client.query("LOCK TABLE album_taxonomy_override_genres IN SHARE ROW EXCLUSIVE MODE");
@@ -156,7 +185,7 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
       `INSERT INTO album_taxonomy_override_genres (release_id, friend_id, kind, genre_id)
        SELECT release_id, friend_id, kind, $1 FROM album_taxonomy_override_genres WHERE genre_id=$2
        ON CONFLICT DO NOTHING`,
-      [targetId, sourceId]
+      [targetId, sourceId],
     );
     await client.query("DELETE FROM album_taxonomy_override_genres WHERE genre_id=$1", [sourceId]);
     // Reconciliation proposals (#372) point at genres by id too; the uuid[]
@@ -171,7 +200,7 @@ export async function mergeGenres(sourceId: string, targetId: string): Promise<v
          proposed_parent_id = CASE WHEN proposed_parent_id=$2 THEN $1 ELSE proposed_parent_id END,
          created_genre_id = CASE WHEN created_genre_id=$2 THEN $1 ELSE created_genre_id END
        WHERE $2 = ANY(target_genre_ids) OR proposed_parent_id=$2 OR created_genre_id=$2`,
-      [targetId, sourceId]
+      [targetId, sourceId],
     );
     await client.query("DELETE FROM genres WHERE id=$1", [sourceId]);
   });

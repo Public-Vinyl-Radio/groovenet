@@ -27,7 +27,13 @@ describe.each([
     setViewportWidth(width);
     const onOpenChange = vi.fn();
     const { user } = renderWithProviders(
-      <SpinFormDialog open onOpenChange={onOpenChange} releaseId="1" friendId={1} albumTitle="Infame" />,
+      <SpinFormDialog
+        open
+        onOpenChange={onOpenChange}
+        releaseId="1"
+        friendId={1}
+        albumTitle="Infame"
+      />,
     );
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Log Vinyl Spin")).toBeTruthy();

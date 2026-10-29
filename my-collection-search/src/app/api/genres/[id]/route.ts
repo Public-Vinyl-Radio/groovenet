@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   if (!query.success) {
     return NextResponse.json(
       { error: "Invalid query parameters", details: query.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
   try {
@@ -30,7 +30,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  return genreMutation(request, genreUpdateBodySchema, genreMutationResponseSchema, async (body, id) => {
-    return updateGenre(id, body);
-  }, { params: context.params });
+  return genreMutation(
+    request,
+    genreUpdateBodySchema,
+    genreMutationResponseSchema,
+    async (body, id) => {
+      return updateGenre(id, body);
+    },
+    { params: context.params },
+  );
 }

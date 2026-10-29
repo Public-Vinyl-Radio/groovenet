@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { genreChanges, toTrackEditFormState } from "./types";
 import type { TrackGenre } from "@/types/track";
 
-const genre = (id: string): TrackGenre => ({ id, name: id, slug: id, parent_id: null, parent_name: null });
+const genre = (id: string): TrackGenre => ({
+  id,
+  name: id,
+  slug: id,
+  parent_id: null,
+  parent_name: null,
+});
 
 describe("genreChanges", () => {
   it("sends nothing when the selection is unchanged, so a save never wipes genres", () => {
@@ -19,15 +25,16 @@ describe("genreChanges", () => {
 
 describe("toTrackEditFormState", () => {
   it("starts from the track's genres, or none", () => {
-    expect(toTrackEditFormState({ track_id: "t", friend_id: 1, track_genres: [genre("a")] }).track_genres).toEqual([
-      genre("a"),
-    ]);
+    expect(
+      toTrackEditFormState({ track_id: "t", friend_id: 1, track_genres: [genre("a")] })
+        .track_genres,
+    ).toEqual([genre("a")]);
     expect(toTrackEditFormState(null).track_genres).toEqual([]);
   });
 
   it("carries bpm_confidence through, defaulting to null (#531)", () => {
     expect(
-      toTrackEditFormState({ track_id: "t", friend_id: 1, bpm_confidence: 0.02 }).bpm_confidence
+      toTrackEditFormState({ track_id: "t", friend_id: 1, bpm_confidence: 0.02 }).bpm_confidence,
     ).toBe(0.02);
     expect(toTrackEditFormState({ track_id: "t", friend_id: 1 }).bpm_confidence).toBeNull();
     expect(toTrackEditFormState(null).bpm_confidence).toBeNull();
@@ -36,7 +43,7 @@ describe("toTrackEditFormState", () => {
   it("carries key_confidence through, defaulting to null (#524)", () => {
     expect(
       toTrackEditFormState({ track_id: "t", friend_id: 1, key: "F major", key_confidence: 0.42 })
-        .key_confidence
+        .key_confidence,
     ).toBe(0.42);
     expect(toTrackEditFormState({ track_id: "t", friend_id: 1 }).key_confidence).toBeNull();
     expect(toTrackEditFormState(null).key_confidence).toBeNull();

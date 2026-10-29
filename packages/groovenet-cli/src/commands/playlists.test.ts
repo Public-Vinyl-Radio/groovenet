@@ -2,8 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   loadConfig: vi.fn(),
-  client: { logPlaylistSpins: vi.fn(), getLiveSet: vi.fn(), checkPlaylist: vi.fn(),
-    setPlaylistTracks: vi.fn(), getPlaylistTracks: vi.fn(), batchGetTracks: vi.fn(),
+  client: {
+    logPlaylistSpins: vi.fn(),
+    getLiveSet: vi.fn(),
+    checkPlaylist: vi.fn(),
+    setPlaylistTracks: vi.fn(),
+    getPlaylistTracks: vi.fn(),
+    batchGetTracks: vi.fn(),
   },
   printTracks: vi.fn(),
   readTracksSource: vi.fn(),
@@ -38,7 +43,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.exitCode = undefined;
   mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api" });
-  mocks.Client.mockImplementation(function () { return mocks.client; });
+  mocks.Client.mockImplementation(function () {
+    return mocks.client;
+  });
   mocks.client.logPlaylistSpins.mockResolvedValue({
     playlist_id: 9,
     performance_id: 4,
@@ -49,15 +56,25 @@ beforeEach(() => {
   mocks.client.getLiveSet.mockResolvedValue({ title: "Sunday set", status: "active" });
 });
 
-afterEach(() => { process.exitCode = undefined; });
+afterEach(() => {
+  process.exitCode = undefined;
+});
 
 describe("playlists log-spins", () => {
   it("forwards performance and derivation options and supports JSON", async () => {
     const program = new Command().exitOverride();
     addPlaylistsCommands(program);
     await program.parseAsync([
-      "node", "test", "playlists", "log-spins", "9",
-      "--performance", "4", "--derivation", "11111111-1111-4111-8111-111111111111", "--json",
+      "node",
+      "test",
+      "playlists",
+      "log-spins",
+      "9",
+      "--performance",
+      "4",
+      "--derivation",
+      "11111111-1111-4111-8111-111111111111",
+      "--json",
     ]);
     expect(mocks.client.logPlaylistSpins).toHaveBeenCalledWith("9", {
       performance_id: 4,
@@ -69,7 +86,15 @@ describe("playlists log-spins", () => {
   it("normalizes a supplied timestamp", async () => {
     const program = new Command().exitOverride();
     addPlaylistsCommands(program);
-    await program.parseAsync(["node", "test", "playlists", "log-spins", "9", "--at", "2026-10-01T20:00:00Z"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "playlists",
+      "log-spins",
+      "9",
+      "--at",
+      "2026-10-01T20:00:00Z",
+    ]);
     expect(mocks.client.logPlaylistSpins).toHaveBeenCalledWith("9", {
       performed_at: "2026-10-01T20:00:00.000Z",
     });
@@ -80,13 +105,21 @@ describe("playlists log-spins", () => {
     const program = new Command().exitOverride();
     addPlaylistsCommands(program);
     mocks.client.logPlaylistSpins.mockResolvedValueOnce({
-      playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00Z", created: 0, skipped: 2,
+      playlist_id: 9,
+      performance_id: 4,
+      performed_at: "2026-10-01T20:00:00Z",
+      created: 0,
+      skipped: 2,
     });
     await program.parseAsync(["node", "test", "playlists", "log-spins", "9"]);
     expect(mocks.printSuccess).toHaveBeenCalledWith("Already logged (2 spins skipped).");
 
     mocks.client.logPlaylistSpins.mockResolvedValueOnce({
-      playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00Z", created: 1, skipped: 1,
+      playlist_id: 9,
+      performance_id: 4,
+      performed_at: "2026-10-01T20:00:00Z",
+      created: 1,
+      skipped: 1,
     });
     await program.parseAsync(["node", "test", "playlists", "log-spins", "9"]);
     expect(mocks.printSuccess).toHaveBeenCalledWith("Logged 1 spins; 1 already existed.");
@@ -113,10 +146,20 @@ describe("playlists log-spins", () => {
     const program = new Command().exitOverride();
     addPlaylistsCommands(program);
     await program.parseAsync([
-      "node", "test", "playlists", "log-spins", "9", "--at", "2026-10-01", "--performance", "4",
+      "node",
+      "test",
+      "playlists",
+      "log-spins",
+      "9",
+      "--at",
+      "2026-10-01",
+      "--performance",
+      "4",
     ]);
     expect(mocks.client.logPlaylistSpins).not.toHaveBeenCalled();
-    expect(mocks.printError).toHaveBeenCalledWith("Provide either --at or --performance, not both.");
+    expect(mocks.printError).toHaveBeenCalledWith(
+      "Provide either --at or --performance, not both.",
+    );
     expect(process.exitCode).toBe(1);
   });
 });
@@ -161,14 +204,21 @@ describe("playlists set show", () => {
 });
 
 const cleanCheck = {
-  track_count: 0, total_duration_seconds: 0, missing_duration: [],
+  track_count: 0,
+  total_duration_seconds: 0,
+  missing_duration: [],
   bpm: { threshold: 8, curve: [], jumps: [], missing: [] },
   keys: { clashes: [], missing: [] },
-  repeated_releases: [], side_order_violations: [], ok: true, unresolved_track_ids: [],
+  repeated_releases: [],
+  side_order_violations: [],
+  ok: true,
+  unresolved_track_ids: [],
 };
 
 const problemCheck = {
-  track_count: 3, total_duration_seconds: 3725, missing_duration: [3],
+  track_count: 3,
+  total_duration_seconds: 3725,
+  missing_duration: [3],
   bpm: {
     threshold: 8,
     curve: [
@@ -176,25 +226,64 @@ const problemCheck = {
       { position: 2, track_id: "1-A2", bpm: 100 },
       { position: 3, track_id: "2-B1", bpm: null },
     ],
-    jumps: [{ from_position: 1, to_position: 2, from_track_id: "1-A1", to_track_id: "1-A2", from_bpm: 120, to_bpm: 100, delta: -20 }],
+    jumps: [
+      {
+        from_position: 1,
+        to_position: 2,
+        from_track_id: "1-A1",
+        to_track_id: "1-A2",
+        from_bpm: 120,
+        to_bpm: 100,
+        delta: -20,
+      },
+    ],
     missing: [3],
   },
   keys: {
-    clashes: [{ from_position: 1, to_position: 2, from_track_id: "1-A1", to_track_id: "1-A2", from_key: "A minor", to_key: "F# minor", from_camelot: "8A", to_camelot: "11A" }],
+    clashes: [
+      {
+        from_position: 1,
+        to_position: 2,
+        from_track_id: "1-A1",
+        to_track_id: "1-A2",
+        from_key: "A minor",
+        to_key: "F# minor",
+        from_camelot: "8A",
+        to_camelot: "11A",
+      },
+    ],
     missing: [3],
   },
   repeated_releases: [{ release: "1", positions: [1, 2], track_ids: ["1-A1", "1-A2"] }],
-  side_order_violations: [{ release: "1", position: 2, track_id: "1-A2", after_track_id: "1-B1", reason: "side A comes after side B was already played" }],
-  ok: false, unresolved_track_ids: ["ghost"],
+  side_order_violations: [
+    {
+      release: "1",
+      position: 2,
+      track_id: "1-A2",
+      after_track_id: "1-B1",
+      reason: "side A comes after side B was already played",
+    },
+  ],
+  ok: false,
+  unresolved_track_ids: ["ghost"],
 };
 
 describe("formatPlaylistCheck", () => {
-  const plain = (c: typeof cleanCheck) => formatPlaylistCheck(c).join("\n").replace(/\u001b\[[0-9;]*m/g, "");
+  const plain = (c: typeof cleanCheck) =>
+    formatPlaylistCheck(c)
+      .join("\n")
+      .replace(/\u001b\[[0-9;]*m/g, "");
 
   it("shows a tick for every clean section and no curve table for an empty playlist", () => {
     const out = plain(cleanCheck);
     expect(out).toContain("0 tracks · 0:00");
-    for (const h of ["BPM jumps above 8", "Key clashes", "Repeated releases", "Side-order violations"]) expect(out).toContain(`✓ ${h}`);
+    for (const h of [
+      "BPM jumps above 8",
+      "Key clashes",
+      "Repeated releases",
+      "Side-order violations",
+    ])
+      expect(out).toContain(`✓ ${h}`);
     expect(out).not.toContain("no BPM");
   });
 
@@ -213,7 +302,10 @@ describe("formatPlaylistCheck", () => {
   });
 
   it("prefixes an upward jump with a plus", () => {
-    const up = { ...problemCheck, bpm: { ...problemCheck.bpm, jumps: [{ ...problemCheck.bpm.jumps[0]!, delta: 12 }] } };
+    const up = {
+      ...problemCheck,
+      bpm: { ...problemCheck.bpm, jumps: [{ ...problemCheck.bpm.jumps[0]!, delta: 12 }] },
+    };
     expect(plain(up as unknown as typeof cleanCheck)).toContain("+12");
   });
 });
@@ -266,15 +358,22 @@ describe("playlists set-tracks", () => {
   let log: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    exit = vi.spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);
+    exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit");
+    }) as never);
     log = vi.spyOn(console, "log").mockImplementation(() => {});
     mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api", default_friend_id: 3 });
     mocks.readTracksSource.mockReturnValue("1-A1\n# note\n2-B1,9\n");
     mocks.client.setPlaylistTracks.mockResolvedValue({ id: 176 });
-    mocks.client.getPlaylistTracks.mockResolvedValue({ track_refs: [{ track_id: "1-A1", friend_id: 3 }] });
+    mocks.client.getPlaylistTracks.mockResolvedValue({
+      track_refs: [{ track_id: "1-A1", friend_id: 3 }],
+    });
     mocks.client.batchGetTracks.mockResolvedValue([{ track_id: "1-A1" }]);
   });
-  afterEach(() => { exit.mockRestore(); log.mockRestore(); });
+  afterEach(() => {
+    exit.mockRestore();
+    log.mockRestore();
+  });
 
   it("sets the ordered refs and shows the resulting playlist", async () => {
     await run("176", "--tracks-file", "refs.txt");
@@ -322,12 +421,19 @@ describe("playlists set-tracks", () => {
 });
 
 describe("playlists show", () => {
-  it.each([[new Error("nope"), "nope"], ["plain", "plain"]])("prints failure %s and exits 1", async (failure, message) => {
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);
+  it.each([
+    [new Error("nope"), "nope"],
+    ["plain", "plain"],
+  ])("prints failure %s and exits 1", async (failure, message) => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit");
+    }) as never);
     mocks.client.getPlaylistTracks.mockRejectedValue(failure);
     const program = new Command().exitOverride();
     addPlaylistsCommands(program);
-    await expect(program.parseAsync(["node", "test", "playlists", "show", "1"])).rejects.toThrow("exit");
+    await expect(program.parseAsync(["node", "test", "playlists", "show", "1"])).rejects.toThrow(
+      "exit",
+    );
     expect(mocks.printError).toHaveBeenCalledWith(message);
     exit.mockRestore();
   });

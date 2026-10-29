@@ -54,7 +54,9 @@ describe("PUT /api/settings/appearance", () => {
   it("passes on only the fonts it is sent", async () => {
     service.updateAppearance.mockResolvedValue(saved);
 
-    const res = await put(JSON.stringify({ fonts: { body: "inter", display: "barlow-condensed" } }));
+    const res = await put(
+      JSON.stringify({ fonts: { body: "inter", display: "barlow-condensed" } }),
+    );
 
     expect(res.status).toBe(200);
     expect(service.updateAppearance).toHaveBeenCalledWith({
@@ -72,9 +74,17 @@ describe("PUT /api/settings/appearance", () => {
     ["an unknown palette", { palette: "vaporwave" }, "palette must be one of: sleeve"],
     ["a non-string palette", { palette: 3 }, "palette must be one of: sleeve"],
     ["a prototype key", { palette: "constructor" }, "palette must be one of: sleeve"],
-    ["an unknown font", { fonts: { body: "comic-sans" } }, "fonts.body must be one of: default, inter, system"],
+    [
+      "an unknown font",
+      { fonts: { body: "comic-sans" } },
+      "fonts.body must be one of: default, inter, system",
+    ],
     ["another role's font", { fonts: { body: "zilla-slab" } }, "fonts.body must be one of"],
-    ["a non-string font", { fonts: { label: 4 } }, "fonts.label must be one of: default, jetbrains-mono, system"],
+    [
+      "a non-string font",
+      { fonts: { label: 4 } },
+      "fonts.label must be one of: default, jetbrains-mono, system",
+    ],
     ["an unknown role", { fonts: { heading: "inter" } }, "Body may only contain"],
     ["an unknown field", { size: "large" }, "Body may only contain"],
     ["fonts that are not an object", { fonts: "inter" }, "Body may only contain"],
@@ -101,14 +111,21 @@ describe("PUT /api/settings/appearance — custom palette", () => {
   const custom = customFromPreset("midnight");
 
   it("accepts a custom palette, normalising the hex to lowercase", async () => {
-    service.updateAppearance.mockResolvedValue({ ...saved, palette: "custom", customPalette: custom });
+    service.updateAppearance.mockResolvedValue({
+      ...saved,
+      palette: "custom",
+      customPalette: custom,
+    });
     const upper = structuredClone(custom);
     upper.light.ground = upper.light.ground.toUpperCase();
     expect(upper.light.ground).not.toBe(custom.light.ground);
     const res = await put(JSON.stringify({ palette: "custom", customPalette: upper }));
 
     expect(res.status).toBe(200);
-    expect(service.updateAppearance).toHaveBeenCalledWith({ palette: "custom", customPalette: custom });
+    expect(service.updateAppearance).toHaveBeenCalledWith({
+      palette: "custom",
+      customPalette: custom,
+    });
     expect((await res.json()).customPalette).toEqual(custom);
   });
 
@@ -151,7 +168,9 @@ describe("PUT /api/settings/appearance — custom palette", () => {
   });
 
   it("answers 400 when custom is selected but none is saved", async () => {
-    service.updateAppearance.mockRejectedValue(new AppearanceRequestError("palette custom needs a saved custom palette"));
+    service.updateAppearance.mockRejectedValue(
+      new AppearanceRequestError("palette custom needs a saved custom palette"),
+    );
     const res = await put(JSON.stringify({ palette: "custom" }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toContain("saved custom palette");

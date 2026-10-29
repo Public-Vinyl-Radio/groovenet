@@ -18,17 +18,11 @@ export async function GET(req: Request) {
       : 60;
 
     return NextResponse.json(
-      await ingestDebugService.stats(
-        minutes,
-        url.searchParams.get("source_id") ?? undefined
-      )
+      await ingestDebugService.stats(minutes, url.searchParams.get("source_id") ?? undefined),
     );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error building ingest stats:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to build stats" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to build stats" }, { status: 500 });
   }
 }

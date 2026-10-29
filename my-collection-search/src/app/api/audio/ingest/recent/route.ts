@@ -6,12 +6,7 @@ import {
 
 export const runtime = "nodejs";
 
-const STATUSES: AudioIngestStatus[] = [
-  "received",
-  "processing",
-  "processed",
-  "failed",
-];
+const STATUSES: AudioIngestStatus[] = ["received", "processing", "processed", "failed"];
 
 /**
  * The newest ingests and what became of them (#299).
@@ -26,7 +21,7 @@ export async function GET(req: Request) {
     if (statusParam && !STATUSES.includes(statusParam as AudioIngestStatus)) {
       return NextResponse.json(
         { error: `status must be one of ${STATUSES.join(", ")}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,9 +51,7 @@ export async function GET(req: Request) {
         // Whether the raw audio is still on the volume; terminal states
         // release it, so a processed ingest with a path is worth a look.
         file_path: row.file_path,
-        captured_at: row.captured_at
-          ? new Date(row.captured_at).toISOString()
-          : null,
+        captured_at: row.captured_at ? new Date(row.captured_at).toISOString() : null,
         received_at: new Date(row.received_at).toISOString(),
         updated_at: new Date(row.updated_at).toISOString(),
       })),
@@ -67,9 +60,6 @@ export async function GET(req: Request) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error listing ingests:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to list ingests" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to list ingests" }, { status: 500 });
   }
 }

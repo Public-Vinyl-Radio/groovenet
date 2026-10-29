@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
-import {
-  deleteBackup,
-  resolveBackupPath,
-} from "@/server/services/databaseBackupService";
+import { deleteBackup, resolveBackupPath } from "@/server/services/databaseBackupService";
 
 type RouteContext = { params: Promise<{ filename: string }> };
 

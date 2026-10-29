@@ -8,17 +8,17 @@ guidance. Each service has its own `CLAUDE.md` with the detail for that service;
 Claude Code loads those automatically when you work in the directory. Start
 there rather than expanding this file.
 
-| Service | Directory | Detail |
-| --- | --- | --- |
-| Next.js app + API | `my-collection-search/` | [CLAUDE.md](my-collection-search/CLAUDE.md) |
-| Download worker | `download-worker/` | [CLAUDE.md](download-worker/CLAUDE.md) |
-| Audio analysis | `essentia-api/` | [CLAUDE.md](essentia-api/CLAUDE.md) |
-| Playlist optimiser | `ga-service/` | [CLAUDE.md](ga-service/CLAUDE.md) |
-| Fingerprint matcher | `fingerprint-service/` | [CLAUDE.md](fingerprint-service/CLAUDE.md) |
-| MCP server | `mcp-server/` | [CLAUDE.md](mcp-server/CLAUDE.md) |
-| Typed API client | `packages/groovenet-client/` | [CLAUDE.md](packages/groovenet-client/CLAUDE.md) |
-| CLI | `packages/groovenet-cli/` | [CLAUDE.md](packages/groovenet-cli/CLAUDE.md) |
-| Python API client | `packages/groovenet-python/` | [CLAUDE.md](packages/groovenet-python/CLAUDE.md) |
+| Service             | Directory                    | Detail                                           |
+| ------------------- | ---------------------------- | ------------------------------------------------ |
+| Next.js app + API   | `my-collection-search/`      | [CLAUDE.md](my-collection-search/CLAUDE.md)      |
+| Download worker     | `download-worker/`           | [CLAUDE.md](download-worker/CLAUDE.md)           |
+| Audio analysis      | `essentia-api/`              | [CLAUDE.md](essentia-api/CLAUDE.md)              |
+| Playlist optimiser  | `ga-service/`                | [CLAUDE.md](ga-service/CLAUDE.md)                |
+| Fingerprint matcher | `fingerprint-service/`       | [CLAUDE.md](fingerprint-service/CLAUDE.md)       |
+| MCP server          | `mcp-server/`                | [CLAUDE.md](mcp-server/CLAUDE.md)                |
+| Typed API client    | `packages/groovenet-client/` | [CLAUDE.md](packages/groovenet-client/CLAUDE.md) |
+| CLI                 | `packages/groovenet-cli/`    | [CLAUDE.md](packages/groovenet-cli/CLAUDE.md)    |
+| Python API client   | `packages/groovenet-python/` | [CLAUDE.md](packages/groovenet-python/CLAUDE.md) |
 
 ## Architecture
 

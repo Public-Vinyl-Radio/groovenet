@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { GroovenetClient, type Track, type RecordActionInput, type RecordCareStatus, type SleeveType, type CleaningMethod, type TrackSearchMode, type TrackSearchQuery, type PlaylistOptimizerMode } from "@groovenet/client";
+  GroovenetClient,
+  type Track,
+  type RecordActionInput,
+  type RecordCareStatus,
+  type SleeveType,
+  type CleaningMethod,
+  type TrackSearchMode,
+  type TrackSearchQuery,
+  type PlaylistOptimizerMode,
+} from "@groovenet/client";
 import dotenv from "dotenv";
 import { captureException, initSentry } from "./observability.js";
 import { PLAYER_TOOL_NAMES, handlePlayerTool, playerTools } from "./player.js";
@@ -16,7 +23,9 @@ initSentry();
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000/api";
 const API_KEY = process.env.API_KEY;
-const DEFAULT_FRIEND_ID = process.env.DEFAULT_FRIEND_ID ? parseInt(process.env.DEFAULT_FRIEND_ID, 10) : 1;
+const DEFAULT_FRIEND_ID = process.env.DEFAULT_FRIEND_ID
+  ? parseInt(process.env.DEFAULT_FRIEND_ID, 10)
+  : 1;
 
 const client = new GroovenetClient({ baseUrl: API_BASE, apiKey: API_KEY, clientName: "mcp" });
 
@@ -26,36 +35,56 @@ const PLAYLIST_MODES: readonly PlaylistOptimizerMode[] = ["genetic", "greedy", "
 const tools = [
   {
     name: "get_similar_genres",
-    description: "Find ranked related genres to widen a genre choice for a playlist or explain a genre's neighbourhood. Returns the seed genre and related genres with scores and taxonomy/co-occurrence signals (sibling, parent or child; NPMI; shared albums). Computed across every collection; scores and signals can be absent in the taxonomy-sibling fallback.",
+    description:
+      "Find ranked related genres to widen a genre choice for a playlist or explain a genre's neighbourhood. Returns the seed genre and related genres with scores and taxonomy/co-occurrence signals (sibling, parent or child; NPMI; shared albums). Computed across every collection; scores and signals can be absent in the taxonomy-sibling fallback.",
     inputSchema: {
       type: "object",
       properties: {
-        slug: { type: "string", minLength: 1, description: "Genre slug (e.g. 'cumbia') or genre id" },
-        limit: { type: "integer", minimum: 1, description: "Maximum related genres to return (server default: 20; fewer may be available)" },
+        slug: {
+          type: "string",
+          minLength: 1,
+          description: "Genre slug (e.g. 'cumbia') or genre id",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          description:
+            "Maximum related genres to return (server default: 20; fewer may be available)",
+        },
       },
       required: ["slug"],
     },
   },
   {
     name: "search_tracks",
-    description: "Search for tracks in your collection by title, artist, album, genre, or tags — or, with mode 'semantic' or 'hybrid', by a natural-language description of the sound (e.g. 'dusty 70s cumbia with brass'). Supports filtering by genre (including subgenres), BPM range, key, and star rating. The query may be empty to list by filters alone. Each result line ends with refs in the form `| track_id=… friend_id=… [duration=m:ss] [release_id=…]`: pass `track_id` (and `friend_id` for a friend's track) to create_playlist, get_track_details and generate_ai_playlist.",
+    description:
+      "Search for tracks in your collection by title, artist, album, genre, or tags — or, with mode 'semantic' or 'hybrid', by a natural-language description of the sound (e.g. 'dusty 70s cumbia with brass'). Supports filtering by genre (including subgenres), BPM range, key, and star rating. The query may be empty to list by filters alone. Each result line ends with refs in the form `| track_id=… friend_id=… [duration=m:ss] [release_id=…]`: pass `track_id` (and `friend_id` for a friend's track) to create_playlist, get_track_details and generate_ai_playlist.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Search query (title, artist, album, genre, or tag), or a description of the music for semantic/hybrid mode" },
+        query: {
+          type: "string",
+          description:
+            "Search query (title, artist, album, genre, or tag), or a description of the music for semantic/hybrid mode",
+        },
         mode: {
           type: "string",
           enum: ["lexical", "semantic", "hybrid"],
-          description: "lexical (default) matches words; semantic matches meaning; hybrid fuses both, with exact title/artist/album matches first. Semantic and hybrid return at most 50 results.",
+          description:
+            "lexical (default) matches words; semantic matches meaning; hybrid fuses both, with exact title/artist/album matches first. Semantic and hybrid return at most 50 results.",
         },
         bpm_min: { type: "number", description: "Minimum BPM, inclusive" },
         bpm_max: { type: "number", description: "Maximum BPM, inclusive" },
-        key: { type: "string", description: "Exact musical key, case-insensitive (e.g., 'A minor', 'C major')" },
+        key: {
+          type: "string",
+          description: "Exact musical key, case-insensitive (e.g., 'A minor', 'C major')",
+        },
         star_rating: { type: "number", description: "Minimum star rating (0-5)" },
         genre: {
           type: "array",
           items: { type: "string" },
-          description: "Genre slugs or names (e.g. 'cumbia', 'latin'); any of them matches, and each includes its subgenres. A track matches on its own genres, or its album's Discogs genres and styles when it has none. An unknown genre is an error.",
+          description:
+            "Genre slugs or names (e.g. 'cumbia', 'latin'); any of them matches, and each includes its subgenres. A track matches on its own genres, or its album's Discogs genres and styles when it has none. An unknown genre is an error.",
         },
         limit: { type: "number", description: "Number of results to return", default: 10 },
       },
@@ -63,12 +92,16 @@ const tools = [
   },
   {
     name: "get_track_details",
-    description: "Get detailed information about a specific track including audio analysis (BPM, key, mood scores, danceability)",
+    description:
+      "Get detailed information about a specific track including audio analysis (BPM, key, mood scores, danceability)",
     inputSchema: {
       type: "object",
       properties: {
         track_id: { type: "string", description: "The track ID" },
-        friend_id: { type: "number", description: "Friend ID (owner of the track, uses default if omitted)" },
+        friend_id: {
+          type: "number",
+          description: "Friend ID (owner of the track, uses default if omitted)",
+        },
       },
       required: ["track_id"],
     },
@@ -105,21 +138,24 @@ const tools = [
   },
   {
     name: "search_albums",
-    description: "Search or list albums in the collection. Supports sorting by when added to Groovenet, Discogs date, year, title, or album_rating.",
+    description:
+      "Search or list albums in the collection. Supports sorting by when added to Groovenet, Discogs date, year, title, or album_rating.",
     inputSchema: {
       type: "object",
       properties: {
         query: { type: "string", description: "Search query (title, artist, genre)" },
         sort: {
           type: "string",
-          description: "Sort order: created_at:desc (default), date_added:desc, date_added:asc, year:desc, year:asc, title:asc, album_rating:desc",
+          description:
+            "Sort order: created_at:desc (default), date_added:desc, date_added:asc, year:desc, year:asc, title:asc, album_rating:desc",
         },
         limit: { type: "number", description: "Number of results to return", default: 20 },
         friend_id: { type: "number", description: "Filter by friend ID" },
         genre: {
           type: "array",
           items: { type: "string" },
-          description: "Genre slugs or names; any of them matches, and each includes its subgenres. An album matches on its Discogs genres and styles, or on any of its tracks' genres.",
+          description:
+            "Genre slugs or names; any of them matches, and each includes its subgenres. An album matches on its Discogs genres and styles, or on any of its tracks' genres.",
         },
       },
     },
@@ -138,7 +174,8 @@ const tools = [
   },
   {
     name: "update_album",
-    description: "Update album metadata (rating, notes, purchase price, condition, library identifier)",
+    description:
+      "Update album metadata (rating, notes, purchase price, condition, library identifier)",
     inputSchema: {
       type: "object",
       properties: {
@@ -188,15 +225,23 @@ const tools = [
       type: "object",
       properties: {
         name: { type: "string", description: "Playlist name" },
-        tracks: { type: "array", items: { type: "string" }, description: "Array of track IDs to add to playlist" },
-        friend_id: { type: "number", description: "Friend whose tracks these are (defaults to the configured default friend)" },
+        tracks: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of track IDs to add to playlist",
+        },
+        friend_id: {
+          type: "number",
+          description: "Friend whose tracks these are (defaults to the configured default friend)",
+        },
       },
       required: ["name"],
     },
   },
   {
     name: "generate_ai_playlist",
-    description: "Reorder a set of tracks into an optimized DJ playlist with smooth transitions in BPM, key and mood. Pass track references only: each item needs `track_id` (the string track ID from search_tracks, NOT the numeric `id`) and optionally `friend_id`; title, BPM, key and mood data are looked up for you. Every track needs a BPM and an audio-vibe embedding, otherwise the request is rejected and the offending track IDs are listed in the error.",
+    description:
+      "Reorder a set of tracks into an optimized DJ playlist with smooth transitions in BPM, key and mood. Pass track references only: each item needs `track_id` (the string track ID from search_tracks, NOT the numeric `id`) and optionally `friend_id`; title, BPM, key and mood data are looked up for you. Every track needs a BPM and an audio-vibe embedding, otherwise the request is rejected and the offending track IDs are listed in the error.",
     inputSchema: {
       type: "object",
       properties: {
@@ -207,9 +252,20 @@ const tools = [
           items: {
             type: "object",
             properties: {
-              track_id: { type: "string", minLength: 1, description: "The track ID (string, e.g. '33416876-D2')" },
-              friend_id: { type: "number", description: "Friend who owns the track (defaults to the configured default friend)" },
-              bpm: { type: "number", description: "Optional BPM override; otherwise the stored BPM is used" },
+              track_id: {
+                type: "string",
+                minLength: 1,
+                description: "The track ID (string, e.g. '33416876-D2')",
+              },
+              friend_id: {
+                type: "number",
+                description:
+                  "Friend who owns the track (defaults to the configured default friend)",
+              },
+              bpm: {
+                type: "number",
+                description: "Optional BPM override; otherwise the stored BPM is used",
+              },
             },
             required: ["track_id"],
           },
@@ -236,12 +292,17 @@ const tools = [
   },
   {
     name: "check_playlist",
-    description: "Review a playlist for mixing and vinyl-handling problems. Returns total duration, the BPM curve with jumps between adjacent tracks above a threshold, key clashes between adjacent tracks (not the same Camelot key, a neighbour, or the relative major/minor), releases that appear more than once, and vinyl side-order violations (tracks from one release that are not in side-and-position order). Positions are 1-based. Tracks missing a BPM, key or duration are listed, not guessed; `ok` is true when nothing was flagged.",
+    description:
+      "Review a playlist for mixing and vinyl-handling problems. Returns total duration, the BPM curve with jumps between adjacent tracks above a threshold, key clashes between adjacent tracks (not the same Camelot key, a neighbour, or the relative major/minor), releases that appear more than once, and vinyl side-order violations (tracks from one release that are not in side-and-position order). Positions are 1-based. Tracks missing a BPM, key or duration are listed, not guessed; `ok` is true when nothing was flagged.",
     inputSchema: {
       type: "object",
       properties: {
         playlist_id: { type: "string", description: "The playlist ID" },
-        bpm_jump_threshold: { type: "number", minimum: 0, description: "Flag adjacent BPM changes above this many BPM (default 8)" },
+        bpm_jump_threshold: {
+          type: "number",
+          minimum: 0,
+          description: "Flag adjacent BPM changes above this many BPM (default 8)",
+        },
       },
       required: ["playlist_id"],
     },
@@ -291,20 +352,28 @@ const tools = [
   },
   {
     name: "get_recommendations",
-    description: "Get combined recommendations for a track using both identity (genre/style/era) and audio vibe (BPM/mood/danceability) embeddings. Returns a ranked union of candidates from both indexes — the best tool for finding tracks to play next.",
+    description:
+      "Get combined recommendations for a track using both identity (genre/style/era) and audio vibe (BPM/mood/danceability) embeddings. Returns a ranked union of candidates from both indexes — the best tool for finding tracks to play next.",
     inputSchema: {
       type: "object",
       properties: {
         track_id: { type: "string", description: "The source track ID" },
-        friend_id: { type: "number", description: "Friend ID (owner of the source track, uses default if omitted)" },
-        limit: { type: "number", description: "Number of candidates from each index (default: 20)" },
+        friend_id: {
+          type: "number",
+          description: "Friend ID (owner of the source track, uses default if omitted)",
+        },
+        limit: {
+          type: "number",
+          description: "Number of candidates from each index (default: 20)",
+        },
       },
       required: ["track_id"],
     },
   },
   {
     name: "find_similar_identity",
-    description: "Find tracks with similar identity (genre, era, country, style, tags) using vector embeddings. Great for finding stylistically related music.",
+    description:
+      "Find tracks with similar identity (genre, era, country, style, tags) using vector embeddings. Great for finding stylistically related music.",
     inputSchema: {
       type: "object",
       properties: {
@@ -320,7 +389,8 @@ const tools = [
   },
   {
     name: "find_similar_vibe",
-    description: "Find tracks with similar audio vibe (BPM, mood, danceability, key) using audio analysis vectors. Great for building cohesive DJ sets.",
+    description:
+      "Find tracks with similar audio vibe (BPM, mood, danceability, key) using audio analysis vectors. Great for building cohesive DJ sets.",
     inputSchema: {
       type: "object",
       properties: {
@@ -333,56 +403,114 @@ const tools = [
   },
   {
     name: "log_record_action",
-    description: "Log a cleaning, sleeve change, inspection or repair for a physical record. Supply either release_id (uses its default copy) or copy_id. Sleeve type is required for sleeved actions; cleaning method applies only to cleaned actions.",
-    inputSchema: { type: "object", properties: {
-      release_id: { type: "string", description: "Discogs release ID; use this or copy_id" },
-      copy_id: { type: "integer", description: "Physical copy ID; use this or release_id" },
-      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
-      action_type: { type: "string", enum: ["cleaned", "sleeved", "inspected", "repaired"] },
-      occurred_at: { type: "string", description: "ISO timestamp; defaults to now" },
-      notes: { type: "string" },
-      sleeve_type: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly"] },
-      method: { type: "string", enum: ["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"] },
-    }, required: ["action_type"] },
+    description:
+      "Log a cleaning, sleeve change, inspection or repair for a physical record. Supply either release_id (uses its default copy) or copy_id. Sleeve type is required for sleeved actions; cleaning method applies only to cleaned actions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        release_id: { type: "string", description: "Discogs release ID; use this or copy_id" },
+        copy_id: { type: "integer", description: "Physical copy ID; use this or release_id" },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+        action_type: { type: "string", enum: ["cleaned", "sleeved", "inspected", "repaired"] },
+        occurred_at: { type: "string", description: "ISO timestamp; defaults to now" },
+        notes: { type: "string" },
+        sleeve_type: {
+          type: "string",
+          enum: ["original", "paper", "poly-rice-paper-poly", "poly"],
+        },
+        method: {
+          type: "string",
+          enum: ["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"],
+        },
+      },
+      required: ["action_type"],
+    },
   },
   {
     name: "list_record_care",
-    description: "Find physical copies never cleaned, overdue for cleaning, or needing a specified inner sleeve. Albums with no logged copy appear as an implicit default copy.",
-    inputSchema: { type: "object", properties: {
-      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
-      status: { type: "string", enum: ["never_cleaned", "overdue", "needs_sleeve"] },
-      overdue_days: { type: "integer", minimum: 1, description: "Cleaning interval; defaults to server setting" },
-      needs_sleeve: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly"] },
-      sleeve_type: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly", "unknown"], description: "Filter by current sleeve; unknown means none logged" },
-      limit: { type: "integer", minimum: 1, maximum: 200 },
-      offset: { type: "integer", minimum: 0 },
-    } },
+    description:
+      "Find physical copies never cleaned, overdue for cleaning, or needing a specified inner sleeve. Albums with no logged copy appear as an implicit default copy.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+        status: { type: "string", enum: ["never_cleaned", "overdue", "needs_sleeve"] },
+        overdue_days: {
+          type: "integer",
+          minimum: 1,
+          description: "Cleaning interval; defaults to server setting",
+        },
+        needs_sleeve: {
+          type: "string",
+          enum: ["original", "paper", "poly-rice-paper-poly", "poly"],
+        },
+        sleeve_type: {
+          type: "string",
+          enum: ["original", "paper", "poly-rice-paper-poly", "poly", "unknown"],
+          description: "Filter by current sleeve; unknown means none logged",
+        },
+        limit: { type: "integer", minimum: 1, maximum: 200 },
+        offset: { type: "integer", minimum: 0 },
+      },
+    },
   },
   {
     name: "get_record_care_summary",
-    description: "Count physical copies never cleaned, overdue, needing a sleeve, and by current sleeve type.",
-    inputSchema: { type: "object", properties: {
-      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
-      overdue_days: { type: "integer", minimum: 1 },
-      needs_sleeve: { type: "string", enum: ["original", "paper", "poly-rice-paper-poly", "poly"] },
-    } },
+    description:
+      "Count physical copies never cleaned, overdue, needing a sleeve, and by current sleeve type.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+        overdue_days: { type: "integer", minimum: 1 },
+        needs_sleeve: {
+          type: "string",
+          enum: ["original", "paper", "poly-rice-paper-poly", "poly"],
+        },
+      },
+    },
   },
   {
     name: "get_record_copies",
-    description: "List the physical copies of a release and their care histories, including the implicit default copy when no action has been logged.",
-    inputSchema: { type: "object", properties: {
-      release_id: { type: "string", description: "Discogs release ID" },
-      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
-      include_voided: { type: "boolean", description: "Include voided actions in each history" },
-    }, required: ["release_id"] },
+    description:
+      "List the physical copies of a release and their care histories, including the implicit default copy when no action has been logged.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        release_id: { type: "string", description: "Discogs release ID" },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+        include_voided: { type: "boolean", description: "Include voided actions in each history" },
+      },
+      required: ["release_id"],
+    },
   },
   {
     name: "void_record_action",
-    description: "Void a mistaken record care action. It remains in history and the copy's care state is recalculated.",
-    inputSchema: { type: "object", properties: {
-      action_id: { type: "integer", description: "Action to void" },
-      friend_id: { type: "integer", description: "Collection owner (default from server configuration)" },
-    }, required: ["action_id"] },
+    description:
+      "Void a mistaken record care action. It remains in history and the copy's care state is recalculated.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action_id: { type: "integer", description: "Action to void" },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+      required: ["action_id"],
+    },
   },
   ...playerTools,
 ];
@@ -456,7 +584,10 @@ async function recordHistory(copyId: number, friendId: number, includeVoided?: b
   let offset = 0;
   while (true) {
     const page = await client.listRecordActions(copyId, {
-      friend_id: friendId, include_voided: includeVoided, limit: pageSize, offset,
+      friend_id: friendId,
+      include_voided: includeVoided,
+      limit: pageSize,
+      offset,
     });
     history.push(...page.items);
     if (page.items.length < pageSize) return history;
@@ -491,15 +622,19 @@ function formatTrackSearchLine(t: Track): string {
  * so a bare `{ track_id, friend_id }` is hydrated here; fields the caller sent
  * override the stored ones.
  */
-async function hydrateTrackRefs(items: Array<Record<string, unknown>>, argName: string): Promise<Track[]> {
+async function hydrateTrackRefs(
+  items: Array<Record<string, unknown>>,
+  argName: string,
+): Promise<Track[]> {
   if (items.length === 0) {
     throw new Error(`${argName} must contain at least one track: [{ track_id, friend_id? }]`);
   }
   const refs = items.map((item, i) => {
     if (typeof item?.track_id !== "string" || item.track_id === "") {
-      const hint = item && "id" in item
-        ? " `id` is the numeric database ID, not the track ID; use the string `track_id` from search_tracks."
-        : "";
+      const hint =
+        item && "id" in item
+          ? " `id` is the numeric database ID, not the track ID; use the string `track_id` from search_tracks."
+          : "";
       throw new Error(`${argName}[${i}] is missing \`track_id\` (non-empty string).${hint}`);
     }
     const friend_id = typeof item.friend_id === "number" ? item.friend_id : DEFAULT_FRIEND_ID;
@@ -510,7 +645,7 @@ async function hydrateTrackRefs(items: Array<Record<string, unknown>>, argName: 
   const missing = refs.filter((r) => !byRef.has(`${r.friend_id}:${r.track_id}`));
   if (missing.length > 0) {
     throw new Error(
-      `Tracks not found: ${missing.map((r) => `${r.track_id} (friend_id ${r.friend_id})`).join(", ")}. Check track_id and friend_id.`
+      `Tracks not found: ${missing.map((r) => `${r.track_id} (friend_id ${r.friend_id})`).join(", ")}. Check track_id and friend_id.`,
     );
   }
   return items.map((item, i) => ({
@@ -522,7 +657,9 @@ async function hydrateTrackRefs(items: Array<Record<string, unknown>>, argName: 
 
 async function handleToolCall(name: string, args: ToolArgs) {
   if (PLAYER_TOOL_NAMES.includes(name)) {
-    return handlePlayerTool(name, args as Record<string, unknown>, { resolveTracks: hydrateTrackRefs });
+    return handlePlayerTool(name, args as Record<string, unknown>, {
+      resolveTracks: hydrateTrackRefs,
+    });
   }
   switch (name) {
     case "get_similar_genres": {
@@ -538,13 +675,18 @@ async function handleToolCall(name: string, args: ToolArgs) {
       if ((args.release_id === undefined) === (args.copy_id === undefined)) {
         throw new Error("Supply exactly one of release_id or copy_id");
       }
-      if (args.action_type === "sleeved" && !args.sleeve_type) throw new Error("sleeve_type is required for a sleeved action");
-      if (args.action_type !== "sleeved" && args.sleeve_type) throw new Error("sleeve_type is only valid for a sleeved action");
-      if (args.action_type !== "cleaned" && args.method) throw new Error("method is only valid for a cleaned action");
+      if (args.action_type === "sleeved" && !args.sleeve_type)
+        throw new Error("sleeve_type is required for a sleeved action");
+      if (args.action_type !== "sleeved" && args.sleeve_type)
+        throw new Error("sleeve_type is only valid for a sleeved action");
+      if (args.action_type !== "cleaned" && args.method)
+        throw new Error("method is only valid for a cleaned action");
       const input = {
         friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
         action_type: args.action_type!,
-        ...(args.copy_id !== undefined ? { copy_id: args.copy_id } : { release_id: args.release_id! }),
+        ...(args.copy_id !== undefined
+          ? { copy_id: args.copy_id }
+          : { release_id: args.release_id! }),
         ...(args.occurred_at ? { occurred_at: args.occurred_at } : {}),
         ...(args.notes ? { notes: args.notes } : {}),
         ...(args.sleeve_type ? { sleeve_type: args.sleeve_type } : {}),
@@ -553,26 +695,42 @@ async function handleToolCall(name: string, args: ToolArgs) {
       return jsonResult(await client.logRecordAction(input));
     }
     case "list_record_care":
-      return jsonResult(await client.listRecordCare({
-        friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
-        status: args.status, overdue_days: args.overdue_days, needs_sleeve: args.needs_sleeve,
-        sleeve_type: args.sleeve_type, limit: args.limit, offset: args.offset,
-      }));
+      return jsonResult(
+        await client.listRecordCare({
+          friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+          status: args.status,
+          overdue_days: args.overdue_days,
+          needs_sleeve: args.needs_sleeve,
+          sleeve_type: args.sleeve_type,
+          limit: args.limit,
+          offset: args.offset,
+        }),
+      );
     case "get_record_care_summary":
-      return jsonResult(await client.getRecordCareSummary({
-        friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
-        overdue_days: args.overdue_days, needs_sleeve: args.needs_sleeve,
-      }));
+      return jsonResult(
+        await client.getRecordCareSummary({
+          friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+          overdue_days: args.overdue_days,
+          needs_sleeve: args.needs_sleeve,
+        }),
+      );
     case "get_record_copies": {
       const owner = args.friend_id ?? DEFAULT_FRIEND_ID;
       const copies = await client.listRecordCopies(owner, args.release_id!);
-      return jsonResult(await Promise.all(copies.map(async (copy) => ({
-        ...copy,
-        history: copy.id === null ? [] : await recordHistory(copy.id, owner, args.include_voided),
-      }))));
+      return jsonResult(
+        await Promise.all(
+          copies.map(async (copy) => ({
+            ...copy,
+            history:
+              copy.id === null ? [] : await recordHistory(copy.id, owner, args.include_voided),
+          })),
+        ),
+      );
     }
     case "void_record_action":
-      return jsonResult(await client.voidRecordAction(args.action_id!, args.friend_id ?? DEFAULT_FRIEND_ID));
+      return jsonResult(
+        await client.voidRecordAction(args.action_id!, args.friend_id ?? DEFAULT_FRIEND_ID),
+      );
     case "search_tracks": {
       const filters: NonNullable<TrackSearchQuery["filters"]> = {};
       if (args.bpm_min != null) filters.bpm_min = args.bpm_min;
@@ -594,23 +752,20 @@ async function handleToolCall(name: string, args: ToolArgs) {
         };
       }
 
-      const list = result.tracks
-        .map(formatTrackSearchLine)
-        .join("\n");
+      const list = result.tracks.map(formatTrackSearchLine).join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: `Found ${result.tracks.length} tracks${result.estimatedTotalHits > result.tracks.length ? ` (${result.estimatedTotalHits} total)` : ""}${result.degraded ? " (semantic search unavailable; keyword results only)" : ""}:\n\n${list}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Found ${result.tracks.length} tracks${result.estimatedTotalHits > result.tracks.length ? ` (${result.estimatedTotalHits} total)` : ""}${result.degraded ? " (semantic search unavailable; keyword results only)" : ""}:\n\n${list}`,
+          },
+        ],
       };
     }
 
     case "get_track_details": {
-      const track = await client.getTrack(
-        args.track_id!,
-        args.friend_id ?? DEFAULT_FRIEND_ID
-      );
+      const track = await client.getTrack(args.track_id!, args.friend_id ?? DEFAULT_FRIEND_ID);
       const details = `
 **${track.title}** by ${track.artist}
 ${track.album ? `Album: ${track.album}` : ""}
@@ -662,7 +817,7 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       const result = await client.getMissingAppleMusic(
         args.page ?? 1,
         args.pageSize ?? 50,
-        args.username
+        args.username,
       );
 
       if (!result.tracks || result.tracks.length === 0) {
@@ -675,10 +830,12 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
         .join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: `Tracks missing Apple Music URLs (${result.total} total, showing first 10):\n\n${list}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Tracks missing Apple Music URLs (${result.total} total, showing first 10):\n\n${list}`,
+          },
+        ],
       };
     }
 
@@ -696,14 +853,19 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       }
 
       const list = result.hits
-        .map((a) => `• ${a.title} — ${a.artist}${a.year ? ` (${a.year})` : ""} [${a.release_id}]${a.album_rating != null ? ` ★${a.album_rating}` : ""}`)
+        .map(
+          (a) =>
+            `• ${a.title} — ${a.artist}${a.year ? ` (${a.year})` : ""} [${a.release_id}]${a.album_rating != null ? ` ★${a.album_rating}` : ""}`,
+        )
         .join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: `Found ${result.hits.length} albums${result.estimatedTotalHits > result.hits.length ? ` (${result.estimatedTotalHits} total)` : ""}:\n\n${list}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Found ${result.hits.length} albums${result.estimatedTotalHits > result.hits.length ? ` (${result.estimatedTotalHits} total)` : ""}:\n\n${list}`,
+          },
+        ],
       };
     }
 
@@ -721,17 +883,24 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
         a.purchase_price != null ? `Purchase price: $${a.purchase_price}` : "",
         a.library_identifier ? `Library ID: ${a.library_identifier}` : "",
         a.album_notes ? `Notes: ${a.album_notes}` : "",
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       const trackList = detail.tracks
-        .map((t, i) => `${i + 1}. ${t.title}${t.bpm ? ` (${t.bpm} BPM)` : ""}${t.local_audio_url ? " ✓" : ""}`)
+        .map(
+          (t, i) =>
+            `${i + 1}. ${t.title}${t.bpm ? ` (${t.bpm} BPM)` : ""}${t.local_audio_url ? " ✓" : ""}`,
+        )
         .join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: `${albumInfo}\n\nTracks (${detail.tracks.length}):\n${trackList}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `${albumInfo}\n\nTracks (${detail.tracks.length}):\n${trackList}`,
+          },
+        ],
       };
     }
 
@@ -749,12 +918,15 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
     case "download_album": {
       const result = await client.downloadAlbum(args.release_id!, args.friend_id!);
       return {
-        content: [{
-          type: "text",
-          text: result.tracksQueued === 0
-            ? "No tracks need downloading (all already have audio files)."
-            : `✓ Queued ${result.tracksQueued} track(s) for download.`,
-        }],
+        content: [
+          {
+            type: "text",
+            text:
+              result.tracksQueued === 0
+                ? "No tracks need downloading (all already have audio files)."
+                : `✓ Queued ${result.tracksQueued} track(s) for download.`,
+          },
+        ],
       };
     }
 
@@ -766,10 +938,12 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       }
 
       return {
-        content: [{
-          type: "text",
-          text: `Your playlists:\n\n${playlists.map((p) => `• ${p.name} (ID: ${p.id})`).join("\n")}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Your playlists:\n\n${playlists.map((p) => `• ${p.name} (ID: ${p.id})`).join("\n")}`,
+          },
+        ],
       };
     }
 
@@ -791,12 +965,18 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
     }
 
     case "create_playlist": {
-      await client.createPlaylist(args.name!, args.tracks ?? [], args.friend_id ?? DEFAULT_FRIEND_ID);
+      await client.createPlaylist(
+        args.name!,
+        args.tracks ?? [],
+        args.friend_id ?? DEFAULT_FRIEND_ID,
+      );
       return {
-        content: [{
-          type: "text",
-          text: `✓ Playlist "${args.name}" created!${args.tracks?.length ? ` Added ${args.tracks.length} tracks.` : ""}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `✓ Playlist "${args.name}" created!${args.tracks?.length ? ` Added ${args.tracks.length} tracks.` : ""}`,
+          },
+        ],
       };
     }
 
@@ -806,20 +986,30 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       if (mode !== undefined && !PLAYLIST_MODES.includes(mode as PlaylistOptimizerMode)) {
         throw new Error(`mode must be one of ${PLAYLIST_MODES.join(", ")}`);
       }
-      const tracks = await client.generatePlaylist(seeds, mode as PlaylistOptimizerMode | undefined);
+      const tracks = await client.generatePlaylist(
+        seeds,
+        mode as PlaylistOptimizerMode | undefined,
+      );
       const list = tracks
         .map((t, i) => `${i + 1}. ${t.title} - ${t.artist} (${t.bpm ?? "?"} BPM, ${t.key ?? "?"})`)
         .join("\n");
 
       return {
-        content: [{ type: "text", text: `✓ AI-generated playlist (${tracks.length} tracks):\n\n${list}` }],
+        content: [
+          { type: "text", text: `✓ AI-generated playlist (${tracks.length} tracks):\n\n${list}` },
+        ],
       };
     }
 
     case "get_playlist_tracks": {
       const { track_refs } = await client.getPlaylistTracks(args.playlist_id!);
       return {
-        content: [{ type: "text", text: `Playlist track IDs:\n${track_refs.map((r) => r.track_id).join("\n")}` }],
+        content: [
+          {
+            type: "text",
+            text: `Playlist track IDs:\n${track_refs.map((r) => r.track_id).join("\n")}`,
+          },
+        ],
       };
     }
 
@@ -827,10 +1017,17 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       if (typeof args.playlist_id !== "string" || args.playlist_id.trim().length === 0) {
         throw new Error("playlist_id is required and must be a nonempty string");
       }
-      if (args.bpm_jump_threshold !== undefined && (typeof args.bpm_jump_threshold !== "number" || !Number.isFinite(args.bpm_jump_threshold) || args.bpm_jump_threshold < 0)) {
+      if (
+        args.bpm_jump_threshold !== undefined &&
+        (typeof args.bpm_jump_threshold !== "number" ||
+          !Number.isFinite(args.bpm_jump_threshold) ||
+          args.bpm_jump_threshold < 0)
+      ) {
         throw new Error("bpm_jump_threshold must be a non-negative number");
       }
-      return jsonResult(await client.checkPlaylist(args.playlist_id, { bpmJumpThreshold: args.bpm_jump_threshold }));
+      return jsonResult(
+        await client.checkPlaylist(args.playlist_id, { bpmJumpThreshold: args.bpm_jump_threshold }),
+      );
     }
 
     case "get_friends": {
@@ -841,10 +1038,12 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       }
 
       return {
-        content: [{
-          type: "text",
-          text: `Your friends:\n${friends.map((f) => `• ${f.username} (ID: ${f.id})`).join("\n")}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Your friends:\n${friends.map((f) => `• ${f.username} (ID: ${f.id})`).join("\n")}`,
+          },
+        ],
       };
     }
 
@@ -867,7 +1066,10 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
 
       const list = (result.results as Array<Record<string, string>>)
         .slice(0, 5)
-        .map((r) => `• ${r.trackName ?? r.title} - ${r.artistName ?? r.artist} (${r.collectionName ?? r.album})`)
+        .map(
+          (r) =>
+            `• ${r.trackName ?? r.title} - ${r.artistName ?? r.artist} (${r.collectionName ?? r.album})`,
+        )
         .join("\n");
 
       return { content: [{ type: "text", text: `Apple Music results:\n\n${list}` }] };
@@ -895,7 +1097,7 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       const result = await client.getRecommendationCandidates(
         args.track_id!,
         args.friend_id ?? DEFAULT_FRIEND_ID,
-        { limit_identity: args.limit ?? 20, limit_audio: args.limit ?? 20 }
+        { limit_identity: args.limit ?? 20, limit_audio: args.limit ?? 20 },
       );
 
       if (!result.candidates || result.candidates.length === 0) {
@@ -912,10 +1114,12 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
 
       const { stats } = result;
       return {
-        content: [{
-          type: "text",
-          text: `Recommendations (${result.candidates.length} candidates, identity:${stats.identityCount} vibe:${stats.audioCount} union:${stats.unionCount}):\n\n${list}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Recommendations (${result.candidates.length} candidates, identity:${stats.identityCount} vibe:${stats.audioCount} union:${stats.unionCount}):\n\n${list}`,
+          },
+        ],
       };
     }
 
@@ -923,7 +1127,7 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       const result = await client.findSimilarIdentity(
         args.track_id!,
         args.friend_id ?? DEFAULT_FRIEND_ID,
-        { limit: args.limit, era: args.era, country: args.country, tags: args.tags }
+        { limit: args.limit, era: args.era, country: args.country, tags: args.tags },
       );
 
       if (!result.tracks || result.tracks.length === 0) {
@@ -931,14 +1135,19 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       }
 
       const list = result.tracks
-        .map((t) => `• ${t.title} — ${t.artist} (${t.album})${t.bpm ? ` BPM:${t.bpm}` : ""}${t.key ? `, ${t.key}` : ""} [dist: ${Number(t.distance).toFixed(4)}]`)
+        .map(
+          (t) =>
+            `• ${t.title} — ${t.artist} (${t.album})${t.bpm ? ` BPM:${t.bpm}` : ""}${t.key ? `, ${t.key}` : ""} [dist: ${Number(t.distance).toFixed(4)}]`,
+        )
         .join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: `Similar identity tracks (${result.count} found):\n\n${list}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Similar identity tracks (${result.count} found):\n\n${list}`,
+          },
+        ],
       };
     }
 
@@ -946,7 +1155,7 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       const result = await client.findSimilarVibe(
         args.track_id!,
         args.friend_id ?? DEFAULT_FRIEND_ID,
-        { limit: args.limit }
+        { limit: args.limit },
       );
 
       if (!result.tracks || result.tracks.length === 0) {
@@ -954,14 +1163,19 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       }
 
       const list = result.tracks
-        .map((t) => `• ${t.title} — ${t.artist} (${t.album})${t.bpm ? ` BPM:${t.bpm}` : ""}${t.key ? `, ${t.key}` : ""}${t.danceability ? `, dance:${t.danceability}` : ""} [dist: ${Number(t.distance).toFixed(4)}]`)
+        .map(
+          (t) =>
+            `• ${t.title} — ${t.artist} (${t.album})${t.bpm ? ` BPM:${t.bpm}` : ""}${t.key ? `, ${t.key}` : ""}${t.danceability ? `, dance:${t.danceability}` : ""} [dist: ${Number(t.distance).toFixed(4)}]`,
+        )
         .join("\n");
 
       return {
-        content: [{
-          type: "text",
-          text: `Similar vibe tracks (${result.count} found):\n\n${list}`,
-        }],
+        content: [
+          {
+            type: "text",
+            text: `Similar vibe tracks (${result.count} found):\n\n${list}`,
+          },
+        ],
       };
     }
 
@@ -973,24 +1187,23 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
 // Create and start server
 const server = new Server(
   { name: "groovenet-dj", version: "1.0.0" },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {} } },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    return await handleToolCall(
-      request.params.name,
-      (request.params.arguments ?? {}) as ToolArgs
-    );
+    return await handleToolCall(request.params.name, (request.params.arguments ?? {}) as ToolArgs);
   } catch (error: unknown) {
     captureException(error);
     return {
-      content: [{
-        type: "text",
-        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      }],
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
       isError: true,
     };
   }

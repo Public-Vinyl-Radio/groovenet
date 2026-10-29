@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
                 friend_id: job.friend_id,
                 result: job.result,
                 message: job.error,
-                timestamp: Date.now()
+                timestamp: Date.now(),
               });
 
               controller.enqueue(encoder.encode(`data: ${eventData}\n\n`));
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
           const errorData = JSON.stringify({
             type: "error",
             message: "Error checking job status",
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
         }
@@ -64,14 +64,14 @@ export async function GET(request: NextRequest) {
         clearInterval(checkInterval);
         controller.close();
       });
-    }
+    },
   });
 
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     },
   });
 }

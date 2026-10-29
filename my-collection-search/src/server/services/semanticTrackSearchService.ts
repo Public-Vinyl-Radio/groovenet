@@ -4,7 +4,10 @@ import { embeddingsRepository } from "@/server/repositories/embeddingsRepository
 import { embedSearchQuery, normalizeQuery } from "@/server/services/queryEmbeddingService";
 import type { TrackAttributeFilters, TrackMissingFilter } from "@/lib/trackFilterSpec";
 import { libraryIdentifierSelectSql } from "@/server/services/trackSearchWhere";
-import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import {
+  hasVectorsSelectSql,
+  trackGenresSelectSql,
+} from "@/server/repositories/trackGenreRepository";
 
 /**
  * Natural-language track search (#409): the `context` embedding (#408)
@@ -70,7 +73,7 @@ export async function semanticTrackSearch(params: {
     await client.query(
       `SELECT set_config('ivfflat.probes', $1, true),
               set_config('ivfflat.iterative_scan', 'relaxed_order', true)`,
-      [String(CONTEXT_IVFFLAT_PROBES)]
+      [String(CONTEXT_IVFFLAT_PROBES)],
     );
     const matches = await embeddingsRepository.findContextMatches(client, {
       queryEmbedding: embedding,
@@ -95,7 +98,7 @@ export async function semanticTrackSearch(params: {
         ON t.track_id = m.track_id AND t.friend_id = m.friend_id
       WHERE t.deleted_at IS NULL
       `,
-      [matches.map((m) => m.track_id), matches.map((m) => m.friend_id)]
+      [matches.map((m) => m.track_id), matches.map((m) => m.friend_id)],
     );
     const byKey = new Map(rows.map((row) => [trackKey(row), row]));
     return matches.flatMap((match) => byKey.get(trackKey(match)) ?? []);

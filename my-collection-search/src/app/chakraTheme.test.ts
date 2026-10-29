@@ -7,7 +7,9 @@ const resolved = (name: string) => system.tokens.getByName(`colors.${name}`)?.va
 
 describe("chakra theme", () => {
   it("keeps accent.solid working for existing users", () => {
-    expect(system.token("colors.accent.solid", "missing")).toBe("var(--chakra-colors-accent-solid)");
+    expect(system.token("colors.accent.solid", "missing")).toBe(
+      "var(--chakra-colors-accent-solid)",
+    );
     expect(resolved("accent.solid")).toBe("var(--gn-accent-solid)");
   });
 
@@ -33,19 +35,44 @@ describe("chakra theme", () => {
   });
 
   it("defines accent as a full virtual palette", () => {
-    for (const part of ["solid", "contrast", "fg", "subtle", "muted", "emphasized", "focusRing", "border"]) {
+    for (const part of [
+      "solid",
+      "contrast",
+      "fg",
+      "subtle",
+      "muted",
+      "emphasized",
+      "focusRing",
+      "border",
+    ]) {
       expect(resolved(`accent.${part}`), part).toMatch(/^var\(--gn-accent-/);
     }
   });
 
   it.each(["danger", "neutral"])("defines %s as a full virtual palette", (name) => {
-    for (const part of ["solid", "contrast", "fg", "subtle", "muted", "emphasized", "focusRing", "border"]) {
+    for (const part of [
+      "solid",
+      "contrast",
+      "fg",
+      "subtle",
+      "muted",
+      "emphasized",
+      "focusRing",
+      "border",
+    ]) {
       expect(resolved(`${name}.${part}`), part).toBeTruthy();
     }
   });
 
   it("keeps overlay colours constant across palettes", () => {
-    for (const token of ["overlay.fg", "overlay.fg.muted", "overlay.fg.subtle", "overlay.track", "overlay.scrim", "overlay.backdrop"]) {
+    for (const token of [
+      "overlay.fg",
+      "overlay.fg.muted",
+      "overlay.fg.subtle",
+      "overlay.track",
+      "overlay.scrim",
+      "overlay.backdrop",
+    ]) {
       expect(resolved(token), token).not.toMatch(/var\(--gn-/);
     }
   });
@@ -104,16 +131,20 @@ describe("chakra theme", () => {
       }
       expect(token("radii.full")).toBe("9999px");
       // The semantic steps recipes use point at the squared scale.
-      for (const name of ["l1", "l2", "l3"]) expect(token(`radii.${name}`), name).toMatch(/0|radii/);
+      for (const name of ["l1", "l2", "l3"])
+        expect(token(`radii.${name}`), name).toMatch(/0|radii/);
     });
 
     it("has a 2px outline width", () => {
       expect(token("borderWidths.outline")).toBe("2px");
     });
 
-    it.each(["xs", "sm", "md", "lg", "xl", "2xl", "pressed"])("makes shadow %s a hard offset with no blur", (name) => {
-      expect(token(`shadows.${name}`)).toMatch(/^\d+px \d+px 0 0 var\(--gn-shadow\)$/);
-    });
+    it.each(["xs", "sm", "md", "lg", "xl", "2xl", "pressed"])(
+      "makes shadow %s a hard offset with no blur",
+      (name) => {
+        expect(token(`shadows.${name}`)).toMatch(/^\d+px \d+px 0 0 var\(--gn-shadow\)$/);
+      },
+    );
 
     it("keeps a smaller compact step than the container step", () => {
       expect(token("shadows.sm")).toBe("3px 3px 0 0 var(--gn-shadow)");
@@ -158,16 +189,22 @@ describe("chakra theme", () => {
       expect(base).toMatchObject({ fontFamily: "label", textTransform: "uppercase" });
     });
 
-    it.each(["card", "dialog", "drawer", "popover", "menu", "select"])("outlines %s with a hard shadow", (name) => {
-      const recipe = (system._config.theme?.slotRecipes as any)[name];
-      const container = recipe.base?.content ?? recipe.variants.variant.outline.root;
-      expect(container).toMatchObject({ borderWidth: "outline", boxShadow: "md" });
-    });
+    it.each(["card", "dialog", "drawer", "popover", "menu", "select"])(
+      "outlines %s with a hard shadow",
+      (name) => {
+        const recipe = (system._config.theme?.slotRecipes as any)[name];
+        const container = recipe.base?.content ?? recipe.variants.variant.outline.root;
+        expect(container).toMatchObject({ borderWidth: "outline", boxShadow: "md" });
+      },
+    );
 
     it("gives inputs, textareas and selects a 2px outline with an offset focus ring", () => {
       const recipes = system._config.theme?.recipes as any;
       for (const name of ["input", "textarea"]) {
-        expect(recipes[name].variants.variant.outline).toMatchObject({ borderWidth: "outline", focusVisibleRing: "outside" });
+        expect(recipes[name].variants.variant.outline).toMatchObject({
+          borderWidth: "outline",
+          focusVisibleRing: "outside",
+        });
       }
       const slots = system._config.theme?.slotRecipes as any;
       expect(slots.nativeSelect.variants.variant.outline.field.borderWidth).toBe("outline");
@@ -176,7 +213,10 @@ describe("chakra theme", () => {
 
     it("fills a selected segment with ink inside an outlined strip", () => {
       const root = (system._config.theme?.slotRecipes as any).segmentGroup.base.root;
-      expect(root).toMatchObject({ borderWidth: "outline", "--segment-indicator-bg": "colors.neutral.solid" });
+      expect(root).toMatchObject({
+        borderWidth: "outline",
+        "--segment-indicator-bg": "colors.neutral.solid",
+      });
     });
 
     it("declares a global focus ring offset from the border", () => {
@@ -197,7 +237,9 @@ describe("font blocks", () => {
       for (const { id } of fontRoles[role].choices) {
         const key = selector(role, id);
         expect(key, `${role}/${id}`).toBeDefined();
-        expect(blocks[key as string]).toEqual({ [fontRoles[role].variable]: fontChoiceValue(role, id) });
+        expect(blocks[key as string]).toEqual({
+          [fontRoles[role].variable]: fontChoiceValue(role, id),
+        });
       }
     }
   });
@@ -205,7 +247,10 @@ describe("font blocks", () => {
   it("puts each role's default on :root, so a missing or unknown attribute still gets a face", () => {
     for (const role of fontRoleIds) {
       const defaults = Object.keys(blocks).filter((key) => key.startsWith(":root"));
-      expect(defaults.some((key) => key.includes(`[data-font-${role}="default"]`)), role).toBe(true);
+      expect(
+        defaults.some((key) => key.includes(`[data-font-${role}="default"]`)),
+        role,
+      ).toBe(true);
       const others = fontRoles[role].choices.slice(1).map(({ id }) => selector(role, id));
       for (const key of others) expect(key).not.toContain(":root");
     }
@@ -214,13 +259,17 @@ describe("font blocks", () => {
   it("lists the default first, so an equally specific later choice wins", () => {
     const keys = Object.keys(blocks);
     for (const role of fontRoleIds) {
-      const [first, ...rest] = fontRoles[role].choices.map(({ id }) => keys.indexOf(selector(role, id) as string));
+      const [first, ...rest] = fontRoles[role].choices.map(({ id }) =>
+        keys.indexOf(selector(role, id) as string),
+      );
       for (const index of rest) expect(index).toBeGreaterThan(first);
     }
   });
 
   it("maps a self-hosted face to its own variable, with the role's stack when it is missing", () => {
-    expect(fontChoiceValue("body", "inter")).toBe(`var(${faceVariable("inter")}, ${fontRoles.body.fallback})`);
+    expect(fontChoiceValue("body", "inter")).toBe(
+      `var(${faceVariable("inter")}, ${fontRoles.body.fallback})`,
+    );
   });
 
   it("maps System to a stack with no face", () => {

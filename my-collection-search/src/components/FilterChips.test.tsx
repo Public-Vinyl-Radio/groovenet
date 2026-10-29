@@ -14,7 +14,9 @@ describe("FilterChips", () => {
   it("toggles a chip and clears all once one is active", async () => {
     const onToggle = vi.fn();
     const onClearAll = vi.fn();
-    const { user } = renderWithProviders(<FilterChips chips={chips} onToggle={onToggle} onClearAll={onClearAll} />);
+    const { user } = renderWithProviders(
+      <FilterChips chips={chips} onToggle={onToggle} onClearAll={onClearAll} />,
+    );
 
     await user.click(screen.getByRole("button", { name: "No embedding" }));
     await user.click(screen.getByRole("button", { name: "Clear all" }));
@@ -25,7 +27,11 @@ describe("FilterChips", () => {
 
   it("offers no clear-all when nothing is active", () => {
     renderWithProviders(
-      <FilterChips chips={chips.map((c) => ({ ...c, active: false }))} onToggle={vi.fn()} onClearAll={vi.fn()} />
+      <FilterChips
+        chips={chips.map((c) => ({ ...c, active: false }))}
+        onToggle={vi.fn()}
+        onClearAll={vi.fn()}
+      />,
     );
 
     expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
@@ -39,7 +45,7 @@ describe("FilterChips", () => {
           { key: "b", label: "No BPM", active: false },
         ]}
         onToggle={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByRole("button", { name: "Missing audio · 1,041" })).toBeTruthy();
@@ -50,11 +56,15 @@ describe("FilterChips", () => {
     renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Remove filter No BPM" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "No embedding" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "No embedding" }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
   });
 
   it("puts the result count on the chip line, and leaves it out until it's known", () => {
-    const { rerender } = renderWithProviders(<FilterChips chips={chips} onToggle={vi.fn()} summary="81 albums" />);
+    const { rerender } = renderWithProviders(
+      <FilterChips chips={chips} onToggle={vi.fn()} summary="81 albums" />,
+    );
 
     const summary = screen.getByTestId("filter-summary");
     expect(summary.textContent).toBe("81 albums");
@@ -65,7 +75,9 @@ describe("FilterChips", () => {
   });
 
   it("takes no space on phones with neither chips nor a count", () => {
-    const { container, rerender } = renderWithProviders(<FilterChips chips={[]} onToggle={vi.fn()} />);
+    const { container, rerender } = renderWithProviders(
+      <FilterChips chips={[]} onToggle={vi.fn()} />,
+    );
     expect(getComputedStyle(container.firstElementChild as Element).display).toBe("none");
 
     rerender(<FilterChips chips={[]} onToggle={vi.fn()} summary="0 results" />);
@@ -74,7 +86,7 @@ describe("FilterChips", () => {
 
   it("keeps the count to desktop where the page shows it elsewhere on phones", () => {
     const { container } = renderWithProviders(
-      <FilterChips chips={[]} onToggle={vi.fn()} summary="81 albums" summaryOnPhones={false} />
+      <FilterChips chips={[]} onToggle={vi.fn()} summary="81 albums" summaryOnPhones={false} />,
     );
     expect(getComputedStyle(screen.getByTestId("filter-summary")).display).toBe("none");
     expect(getComputedStyle(container.firstElementChild as Element).display).toBe("none");

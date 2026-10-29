@@ -21,7 +21,9 @@ describe("AlbumActionsMenu delete action (#511)", () => {
     const { user } = renderWithProviders(<AlbumActionsMenu onDeleteAlbum={vi.fn()} />);
     // jsdom renders both layouts; the second trigger is the desktop dropdown.
     await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[1]);
-    expect(await screen.findByRole("menuitem", { name: /Delete Album/, hidden: true })).toBeTruthy();
+    expect(
+      await screen.findByRole("menuitem", { name: /Delete Album/, hidden: true }),
+    ).toBeTruthy();
   });
 });
 
@@ -56,11 +58,26 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
     expect(within(dialog).getByText("Album · LP-349")).toBeTruthy();
     expect(within(dialog).getByText("Infame")).toBeTruthy();
     expect(within(dialog).getByText("Babasonicos · Sony · 2024")).toBeTruthy();
-    expect(within(dialog).getByRole("link", { name: "Edit" }).getAttribute("href")).toBe("/albums/1/edit");
-    for (const label of ["Play", "Log care", "Library", "Discogs", "Danger", "Enrich album", "Cover art", "Download missing audio", "View raw Discogs file", "Delete album"]) {
+    expect(within(dialog).getByRole("link", { name: "Edit" }).getAttribute("href")).toBe(
+      "/albums/1/edit",
+    );
+    for (const label of [
+      "Play",
+      "Log care",
+      "Library",
+      "Discogs",
+      "Danger",
+      "Enrich album",
+      "Cover art",
+      "Download missing audio",
+      "View raw Discogs file",
+      "Delete album",
+    ]) {
       expect(within(dialog).getByText(label)).toBeTruthy();
     }
-    expect(within(dialog).getByRole("link", { name: "View on Discogs" }).getAttribute("target")).toBe("_blank");
+    expect(
+      within(dialog).getByRole("link", { name: "View on Discogs" }).getAttribute("target"),
+    ).toBe("_blank");
   });
 
   it("falls back to the artist and a generic label, and omits empty groups", async () => {
@@ -90,9 +107,21 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
   });
 
   it("disables the busy actions", async () => {
-    await open(<AlbumActionsMenu isDownloading isEnriching onDownloadMissing={vi.fn()} onEnrichAlbum={vi.fn()} />);
+    await open(
+      <AlbumActionsMenu
+        isDownloading
+        isEnriching
+        onDownloadMissing={vi.fn()}
+        onEnrichAlbum={vi.fn()}
+      />,
+    );
     const dialog = screen.getByRole("dialog");
-    expect((within(dialog).getByText("Downloading...").closest("button") as HTMLButtonElement).disabled).toBe(true);
-    expect((within(dialog).getByText("Opening enrichment...").closest("button") as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (within(dialog).getByText("Downloading...").closest("button") as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (within(dialog).getByText("Opening enrichment...").closest("button") as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 });

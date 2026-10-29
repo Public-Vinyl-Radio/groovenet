@@ -15,12 +15,8 @@ export class FriendService {
   async removeFriend(username: string, onProgress: ProgressFn): Promise<void> {
     // Remove manifest and release files
     try {
-      const {
-        getManifestPath,
-        getManifestReleaseIds,
-        getReleasePath,
-        DISCOGS_EXPORTS_DIR,
-      } = await import("@/server/services/discogsManifestService");
+      const { getManifestPath, getManifestReleaseIds, getReleasePath, DISCOGS_EXPORTS_DIR } =
+        await import("@/server/services/discogsManifestService");
       const fs = await import("fs");
       const path = await import("path");
 
@@ -54,7 +50,7 @@ export class FriendService {
       onProgress(
         `Error deleting manifest/release files: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
 
@@ -66,7 +62,7 @@ export class FriendService {
       onProgress(
         `Error deleting user tracks from Postgres: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
 

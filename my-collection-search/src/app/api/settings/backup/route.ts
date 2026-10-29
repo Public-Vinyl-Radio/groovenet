@@ -9,10 +9,7 @@ export async function GET() {
     return NextResponse.json({ policy });
   } catch (error) {
     console.error("Failed to get backup policy:", error);
-    return NextResponse.json(
-      { error: "Failed to get backup policy" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get backup policy" }, { status: 500 });
   }
 }
 
@@ -20,10 +17,7 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
     if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        { error: "Invalid request body" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
     const policy = backupPolicyService.updatePolicy(body);
@@ -34,14 +28,8 @@ export async function PUT(req: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    const status =
-      message.includes("Invalid") || message.includes("cannot be empty")
-        ? 400
-        : 500;
+    const status = message.includes("Invalid") || message.includes("cannot be empty") ? 400 : 500;
 
-    return NextResponse.json(
-      { error: "Failed to update backup policy", message },
-      { status }
-    );
+    return NextResponse.json({ error: "Failed to update backup policy", message }, { status });
   }
 }

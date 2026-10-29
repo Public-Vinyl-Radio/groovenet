@@ -13,7 +13,8 @@ export const genreTreeNodeSchema = z.object({
   track_count: z.number().int().nonnegative(),
   album_count: z.number().int().nonnegative(),
   aliases: z.array(z.string()).optional().meta({
-    description: "Normalised alias keys that resolve to this genre, for matching raw Discogs spellings",
+    description:
+      "Normalised alias keys that resolve to this genre, for matching raw Discogs spellings",
   }),
   get children(): z.ZodArray<typeof genreTreeNodeSchema> {
     return z.array(genreTreeNodeSchema);
@@ -27,21 +28,38 @@ export const genrePageRefSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   slug: z.string(),
-  track_count: z.number().int().nonnegative().meta({ description: "Tracks the genre filter returns, subgenres included" }),
+  track_count: z
+    .number()
+    .int()
+    .nonnegative()
+    .meta({ description: "Tracks the genre filter returns, subgenres included" }),
 });
 export type GenrePageRef = z.infer<typeof genrePageRefSchema>;
 
 /** What produced a similar-genre score (#377): a taxonomy relation, co-occurrence, or both. */
 export const genreSimilaritySignalsSchema = z.object({
   taxonomy: z.enum(["sibling", "parent", "child"]).optional(),
-  npmi: z.number().min(-1).max(1).optional().meta({ description: "Normalised PMI of the two genres’ album co-occurrence" }),
-  shared_albums: z.number().int().nonnegative().optional().meta({ description: "Distinct albums tagged with both genres" }),
+  npmi: z
+    .number()
+    .min(-1)
+    .max(1)
+    .optional()
+    .meta({ description: "Normalised PMI of the two genres’ album co-occurrence" }),
+  shared_albums: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .meta({ description: "Distinct albums tagged with both genres" }),
 });
 export type GenreSimilaritySignals = z.infer<typeof genreSimilaritySignalsSchema>;
 
 /** A related genre (#377): stored similarity when it exists, else the sibling stand-in it falls back to. */
 export const genreRelatedRefSchema = genrePageRefSchema.extend({
-  score: z.number().optional().meta({ description: "Absent for a sibling-fallback entry, which has no stored score" }),
+  score: z
+    .number()
+    .optional()
+    .meta({ description: "Absent for a sibling-fallback entry, which has no stored score" }),
   signals: genreSimilaritySignalsSchema.optional(),
 });
 export type GenreRelatedRef = z.infer<typeof genreRelatedRefSchema>;
@@ -59,30 +77,69 @@ export const genrePageResponseSchema = z.object({
     aliases: z.array(z.string()),
   }),
   /** Root first, ending with the genre's parent. */
-  ancestors: z.array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() })).meta({ description: "Root first, ending with the parent" }),
+  ancestors: z
+    .array(z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() }))
+    .meta({ description: "Root first, ending with the parent" }),
   children: z.array(genrePageRefSchema),
   /** From the genre_similarity table (#377), falling back to taxonomy siblings when it has no rows yet. */
-  related: z.array(genreRelatedRefSchema).meta({ description: "From the genre_similarity table, falling back to taxonomy siblings when it has no rows yet" }),
+  related: z.array(genreRelatedRefSchema).meta({
+    description:
+      "From the genre_similarity table, falling back to taxonomy siblings when it has no rows yet",
+  }),
   counts: z.object({
-    tracks: z.number().int().nonnegative().meta({ description: "Tracks linked to this genre itself" }),
-    albums: z.number().int().nonnegative().meta({ description: "Albums whose Discogs genres or styles name this genre" }),
-    tracks_total: z.number().int().nonnegative().meta({ description: "Tracks the genre filter returns" }),
-    albums_total: z.number().int().nonnegative().meta({ description: "Albums the genre filter returns" }),
+    tracks: z
+      .number()
+      .int()
+      .nonnegative()
+      .meta({ description: "Tracks linked to this genre itself" }),
+    albums: z
+      .number()
+      .int()
+      .nonnegative()
+      .meta({ description: "Albums whose Discogs genres or styles name this genre" }),
+    tracks_total: z
+      .number()
+      .int()
+      .nonnegative()
+      .meta({ description: "Tracks the genre filter returns" }),
+    albums_total: z
+      .number()
+      .int()
+      .nonnegative()
+      .meta({ description: "Albums the genre filter returns" }),
   }),
   stats: z.object({
     bpm_min: z.number().positive().nullable(),
     bpm_max: z.number().positive().nullable(),
-    added_this_year: z.number().int().nonnegative().meta({ description: "Matching tracks with collection date_added in the current UTC calendar year; never import/created_at time" }),
+    added_this_year: z.number().int().nonnegative().meta({
+      description:
+        "Matching tracks with collection date_added in the current UTC calendar year; never import/created_at time",
+    }),
     year: z.number().int(),
-    playable_tracks: z.number().int().nonnegative().meta({ description: "Matching live tracks with a nonblank local_audio_url" }),
-    bpm_histogram: z.array(z.object({
-      min: z.number().nonnegative(),
-      max: z.number().positive(),
-      count: z.number().int().nonnegative(),
-    })).meta({ description: "10 BPM bins [min, max), over all matching live tracks with finite positive BPM; empty bins omitted" }),
+    playable_tracks: z
+      .number()
+      .int()
+      .nonnegative()
+      .meta({ description: "Matching live tracks with a nonblank local_audio_url" }),
+    bpm_histogram: z
+      .array(
+        z.object({
+          min: z.number().nonnegative(),
+          max: z.number().positive(),
+          count: z.number().int().nonnegative(),
+        }),
+      )
+      .meta({
+        description:
+          "10 BPM bins [min, max), over all matching live tracks with finite positive BPM; empty bins omitted",
+      }),
   }),
-  top_tracks: z.array(trackSchema.extend({ play_count: z.number().int().nonnegative() })).meta({ description: "Most played first, then most recently added" }),
-  top_albums: z.array(albumSchema.extend({ play_count: z.number().int().nonnegative() })).meta({ description: "Most played first, then most recently added" }),
+  top_tracks: z
+    .array(trackSchema.extend({ play_count: z.number().int().nonnegative() }))
+    .meta({ description: "Most played first, then most recently added" }),
+  top_albums: z
+    .array(albumSchema.extend({ play_count: z.number().int().nonnegative() }))
+    .meta({ description: "Most played first, then most recently added" }),
 });
 export type GenrePageResponse = z.infer<typeof genrePageResponseSchema>;
 
@@ -102,12 +159,18 @@ export const genreCreateBodySchema = z.object({
   name: z.string().trim().min(1),
   parent_id: z.string().uuid(),
 });
-export const genreUpdateBodySchema = z.object({
-  name: z.string().trim().min(1).optional(),
-  parent_id: z.string().uuid().nullable().optional(),
-}).refine((value) => value.name !== undefined || value.parent_id !== undefined, {
-  message: "name or parent_id is required",
-}).meta({ description: "At least one of name or parent_id is required; null parent_id moves the genre to the root" });
+export const genreUpdateBodySchema = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    parent_id: z.string().uuid().nullable().optional(),
+  })
+  .refine((value) => value.name !== undefined || value.parent_id !== undefined, {
+    message: "name or parent_id is required",
+  })
+  .meta({
+    description:
+      "At least one of name or parent_id is required; null parent_id moves the genre to the root",
+  });
 export const genreAliasBodySchema = z.object({ alias: z.string().trim().min(1) });
 export const genreMergeBodySchema = z.object({ target_id: z.string().uuid() });
 export const genreMutationResponseSchema = z.object({
@@ -168,5 +231,5 @@ export const genreJsonSchemas = Object.fromEntries(
   Object.entries(jsonSchemas).map(([name, schema]) => [
     name,
     Object.fromEntries(Object.entries(schema).filter(([key]) => key !== "$id")),
-  ])
+  ]),
 );

@@ -21,7 +21,7 @@ let friendB = 0;
 async function createFriend(username: string): Promise<number> {
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [username]
+    [username],
   );
   return rows[0].id;
 }
@@ -32,14 +32,12 @@ async function createTrack(trackId: string, friendId: number, username: string) 
     INSERT INTO tracks (track_id, username, friend_id, title, artist)
     VALUES ($1, $2, $3, 'Test Title', 'Test Artist')
     `,
-    [trackId, username, friendId]
+    [trackId, username, friendId],
   );
 }
 
 async function cleanup() {
-  await dbQuery(`DELETE FROM friends WHERE username = ANY($1::text[])`, [
-    [USERNAME_A, USERNAME_B],
-  ]);
+  await dbQuery(`DELETE FROM friends WHERE username = ANY($1::text[])`, [[USERNAME_A, USERNAME_B]]);
 }
 
 beforeAll(async () => {
@@ -189,10 +187,7 @@ describe("track_fingerprints schema (DB integration)", () => {
   });
 
   dbTest("deleting a track cascades to its fingerprints only", async () => {
-    await dbQuery(`DELETE FROM tracks WHERE track_id = $1 AND friend_id = $2`, [
-      TRACK_ID,
-      friendB,
-    ]);
+    await dbQuery(`DELETE FROM tracks WHERE track_id = $1 AND friend_id = $2`, [TRACK_ID, friendB]);
 
     expect(await repo.countFingerprints({ friend_id: friendB })).toBe(0);
     expect(await repo.countFingerprints({ friend_id: friendA })).toBe(3);
@@ -219,14 +214,14 @@ describe("index candidate resolution (DB integration)", () => {
   async function createIndexTrack(
     trackId: string,
     localAudioUrl: string | null,
-    releaseId: string | null = RELEASE_ID
+    releaseId: string | null = RELEASE_ID,
   ) {
     await dbQuery(
       `
       INSERT INTO tracks (track_id, username, friend_id, title, artist, local_audio_url, release_id)
       VALUES ($1, $2, $3, 'Test Title', 'Test Artist', $4, $5)
       `,
-      [trackId, USERNAME_C, friendC, localAudioUrl, releaseId]
+      [trackId, USERNAME_C, friendC, localAudioUrl, releaseId],
     );
   }
 
@@ -320,7 +315,9 @@ describe("index candidate resolution (DB integration)", () => {
       audio_mtime_ms: 1_790_000_000_123,
     });
 
-    const byId = new Map((await repo.listIndexCandidates({ kind: "changed" }, engine)).map((r) => [r.track_id, r]));
+    const byId = new Map(
+      (await repo.listIndexCandidates({ kind: "changed" }, engine)).map((r) => [r.track_id, r]),
+    );
     // bigint columns come back from pg as strings unless cast; the worker
     // compares these with its own stat, so they must be exact numbers.
     expect(byId.get("idx-indexed")?.stored_audio_size_bytes).toBe(41_234_567);
@@ -331,10 +328,20 @@ describe("index candidate resolution (DB integration)", () => {
     const identity = { track_id: "idx-indexed", friend_id: friendC, ...engine };
 
     expect(
-      await repo.recordFileStats({ ...identity, audio_sha256: SHA_TWO, audio_size_bytes: 1, audio_mtime_ms: 2 })
+      await repo.recordFileStats({
+        ...identity,
+        audio_sha256: SHA_TWO,
+        audio_size_bytes: 1,
+        audio_mtime_ms: 2,
+      }),
     ).toBe(false);
     expect(
-      await repo.recordFileStats({ ...identity, audio_sha256: SHA_ONE, audio_size_bytes: 55, audio_mtime_ms: 66 })
+      await repo.recordFileStats({
+        ...identity,
+        audio_sha256: SHA_ONE,
+        audio_size_bytes: 55,
+        audio_mtime_ms: 66,
+      }),
     ).toBe(true);
 
     const row = await repo.findFingerprint(identity);
@@ -347,7 +354,7 @@ describe("index candidate resolution (DB integration)", () => {
   dbTest("--track narrows to one track", async () => {
     const rows = await repo.listIndexCandidates(
       { kind: "track", track_id: "idx-indexed", friend_id: friendC },
-      engine
+      engine,
     );
 
     expect(ids(rows)).toEqual(["idx-indexed"]);
@@ -356,25 +363,25 @@ describe("index candidate resolution (DB integration)", () => {
   dbTest("--release narrows to one release", async () => {
     const rows = await repo.listIndexCandidates(
       { kind: "release", release_id: RELEASE_ID, friend_id: friendC },
-      engine
+      engine,
     );
 
     expect(ids(rows)).toEqual(["idx-indexed", "idx-missing"]);
   });
 
   dbTest("excludes soft-deleted tracks", async () => {
-    await dbQuery(
-      `UPDATE tracks SET deleted_at = NOW() WHERE track_id = $1 AND friend_id = $2`,
-      ["idx-other-release", friendC]
-    );
+    await dbQuery(`UPDATE tracks SET deleted_at = NOW() WHERE track_id = $1 AND friend_id = $2`, [
+      "idx-other-release",
+      friendC,
+    ]);
 
     const rows = await repo.listIndexCandidates({ kind: "all" }, engine);
     expect(ids(rows)).not.toContain("idx-other-release");
 
-    await dbQuery(
-      `UPDATE tracks SET deleted_at = NULL WHERE track_id = $1 AND friend_id = $2`,
-      ["idx-other-release", friendC]
-    );
+    await dbQuery(`UPDATE tracks SET deleted_at = NULL WHERE track_id = $1 AND friend_id = $2`, [
+      "idx-other-release",
+      friendC,
+    ]);
   });
 
   dbTest("counts unindexable tracks rather than failing them", async () => {

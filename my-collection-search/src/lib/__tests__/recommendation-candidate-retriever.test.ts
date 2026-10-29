@@ -16,7 +16,7 @@ describe("RecommendationCandidateRetriever (DB integration)", () => {
     });
 
     expect(result.stats.unionCount).toBeLessThanOrEqual(
-      result.stats.identityCount + result.stats.audioCount
+      result.stats.identityCount + result.stats.audioCount,
     );
 
     // No duplicate track keys
@@ -54,7 +54,7 @@ describe("RecommendationCandidateRetriever (DB integration)", () => {
     });
 
     const seedInResults = result.candidates.some(
-      (c) => c.trackId === SEED_TRACK_ID && c.friendId === SEED_FRIEND_ID
+      (c) => c.trackId === SEED_TRACK_ID && c.friendId === SEED_FRIEND_ID,
     );
     expect(seedInResults).toBe(false);
   });

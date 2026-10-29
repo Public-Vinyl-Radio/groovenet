@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   if ("response" in body) return body.response;
   try {
     return NextResponse.json(
-      genreProposalRestoreResponseSchema.parse(await restoreProposals(body.data.snapshots))
+      genreProposalRestoreResponseSchema.parse(await restoreProposals(body.data.snapshots)),
     );
   } catch (error) {
     return reconciliationError(error);

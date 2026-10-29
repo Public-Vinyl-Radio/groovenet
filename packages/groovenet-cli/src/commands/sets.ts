@@ -3,12 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
-import type {
-  DerivedPlay,
-  SetDerivation,
-  SetDerivationView,
-  SetTrackRef,
-} from "@groovenet/client";
+import type { DerivedPlay, SetDerivation, SetDerivationView, SetTrackRef } from "@groovenet/client";
 import chalk from "chalk";
 import { printError } from "../output.js";
 import { intOption } from "../options.js";
@@ -119,7 +114,7 @@ export function marksFor(view: SetDerivationView): Map<number, Mark> {
       item.play,
       item.out_of_order
         ? { symbol: chalk.yellow("↕"), note: chalk.yellow("out of order") }
-        : { symbol: chalk.green("✓"), note: "" }
+        : { symbol: chalk.green("✓"), note: "" },
     );
   }
   for (const item of diff.played_instead_of) {
@@ -154,13 +149,15 @@ export function renderView(view: SetDerivationView): string[] {
 
   const duration = summary.duration_seconds;
   const identified =
-    summary.identified_fraction != null ? `${(summary.identified_fraction * 100).toFixed(1)}%` : "?";
+    summary.identified_fraction != null
+      ? `${(summary.identified_fraction * 100).toFixed(1)}%`
+      : "?";
   lines.push(
     chalk.bold(`${name}`) +
       chalk.gray(
         ` — ${summary.plays} plays, ${identified} of ${duration != null ? formatClock(duration) : "?"} identified` +
-          ` (${derivation.fingerprint_type} ${derivation.fingerprint_version})`
-      )
+          ` (${derivation.fingerprint_type} ${derivation.fingerprint_version})`,
+      ),
   );
   lines.push("");
 
@@ -181,10 +178,13 @@ export function renderView(view: SetDerivationView): string[] {
       ? chalk.gray(
           ` — not indexed on the records either side: ${region.unindexed_neighbours
             .map((t) => `${t.track_id}${t.title ? ` ${t.title}` : ""}`)
-            .join(", ")}`
+            .join(", ")}`,
         )
       : "";
-    rows.push({ at: region.start_seconds, line: chalk.gray(`  ? ${times}  unidentified (${span})`) + hint });
+    rows.push({
+      at: region.start_seconds,
+      line: chalk.gray(`  ? ${times}  unidentified (${span})`) + hint,
+    });
   }
   rows.sort((a, b) => a.at - b.at);
   lines.push(...rows.map((r) => r.line));
@@ -199,7 +199,7 @@ export function renderView(view: SetDerivationView): string[] {
         (outOfOrder ? ` (${outOfOrder} out of order)` : "") +
         ` · ${diff.played_instead_of.length} played instead` +
         ` · ${diff.played_not_planned.length} not planned` +
-        ` · ${diff.planned_not_played.length} planned but not played`
+        ` · ${diff.planned_not_played.length} planned but not played`,
     );
     if (diff.played_instead_of.length) {
       lines.push("", chalk.bold("  Played instead of the plan"));
@@ -208,7 +208,7 @@ export function renderView(view: SetDerivationView): string[] {
         lines.push(
           `    ${formatClock(played.start_seconds)}  ${describeTrack(played.track, played.track_id)}` +
             chalk.gray(`  instead of  `) +
-            describeTrack(planned, planned.track_id)
+            describeTrack(planned, planned.track_id),
         );
       }
     }
@@ -217,7 +217,9 @@ export function renderView(view: SetDerivationView): string[] {
       for (const entry of diff.planned_not_played) {
         lines.push(
           `    ${describeTrack(entry, entry.track_id)}` +
-            (entry.fingerprinted ? "" : chalk.yellow("  (not fingerprinted — may have been played)"))
+            (entry.fingerprinted
+              ? ""
+              : chalk.yellow("  (not fingerprinted — may have been played)")),
         );
       }
     }
@@ -249,7 +251,7 @@ const TERMINAL = new Set(["processed", "failed"]);
 export async function waitForDerivation(
   client: Pick<SetsClient, "getSetDerivation">,
   id: string,
-  opts: { pollIntervalMs: number; onProgress?: (derivation: SetDerivation) => void }
+  opts: { pollIntervalMs: number; onProgress?: (derivation: SetDerivation) => void },
 ): Promise<void> {
   for (;;) {
     const { derivation } = await client.getSetDerivation(id);
@@ -276,7 +278,7 @@ export async function runDerive(
   opts: DeriveOptions,
   io: SetsIO = consoleIO,
   /** Run on the derivation once it is shown — how `--review` continues. */
-  then?: (derivationId: string) => Promise<number>
+  then?: (derivationId: string) => Promise<number>,
 ): Promise<number> {
   const query = planQuery(opts);
   const size = fs.statSync(file).size;
@@ -288,7 +290,7 @@ export async function runDerive(
   say(chalk.bold(filename) + chalk.gray(` — ${formatBytes(size)}`));
 
   const sha256 = await hashFile(file, (read) =>
-    rewrite(`  hashing    ${formatBar(read, size)}  ${formatBytes(read)}`)
+    rewrite(`  hashing    ${formatBar(read, size)}  ${formatBytes(read)}`),
   );
   rewrite("");
 
@@ -303,7 +305,7 @@ export async function runDerive(
         const seconds = Math.max((Date.now() - started) / 1000, 0.001);
         rewrite(
           `  uploading  ${formatBar(sent, size)}  ${formatBytes(sent)}/${formatBytes(size)}` +
-            `  ${formatBytes(sent / seconds)}/s`
+            `  ${formatBytes(sent / seconds)}/s`,
         );
       },
     });
@@ -322,8 +324,8 @@ export async function runDerive(
     chalk.gray(
       derivation.reused
         ? `  derivation ${derivation.id} (reusing an earlier run — --force for a fresh one)`
-        : `  derivation ${derivation.id} queued`
-    )
+        : `  derivation ${derivation.id} queued`,
+    ),
   );
 
   if (opts.wait === false) {
@@ -352,7 +354,8 @@ export async function runDerive(
 /** Review needs someone at a terminal to answer; never guess for them. */
 export function assertCanReview(opts: { json?: boolean; wait?: boolean }, isTTY: boolean): void {
   if (opts.json) throw new Error("--review is interactive and cannot be combined with --json");
-  if (opts.wait === false) throw new Error("--review needs the derivation to finish; drop --no-wait");
+  if (opts.wait === false)
+    throw new Error("--review needs the derivation to finish; drop --no-wait");
   if (!isTTY) throw new Error("Review is interactive: run it in a terminal");
 }
 
@@ -361,7 +364,7 @@ export async function runShow(
   client: Pick<SetsClient, "getSetDerivation">,
   id: string,
   opts: PlanOptions & { json?: boolean },
-  io: SetsIO = consoleIO
+  io: SetsIO = consoleIO,
 ): Promise<number> {
   const view = await client.getSetDerivation(id, planQuery(opts));
   if (opts.json) io.write(JSON.stringify(view, null, 2) + "\n");
@@ -376,9 +379,15 @@ export function addSetsCommands(program: Command): void {
 
   sets
     .command("derive <file>")
-    .description("Upload a set recording, match it against the library, and diff it against the plan")
+    .description(
+      "Upload a set recording, match it against the library, and diff it against the plan",
+    )
     .option("--playlist <id>", "Diff against this playlist", intOption)
-    .option("--live-set <id>", "Diff against this live set, and list the recording in its media", intOption)
+    .option(
+      "--live-set <id>",
+      "Diff against this live set, and list the recording in its media",
+      intOption,
+    )
     .option("--window <seconds>", "Window length (default 15)", intOption)
     .option("--step <seconds>", "Step between windows (default 15)", intOption)
     .option("--force", "Start a fresh run even if an equivalent one exists")
@@ -397,7 +406,7 @@ export function addSetsCommands(program: Command): void {
           consoleIO,
           opts.review
             ? (id) => runReview(client as unknown as ReviewClient, id, opts, readlineAsk())
-            : undefined
+            : undefined,
         );
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));

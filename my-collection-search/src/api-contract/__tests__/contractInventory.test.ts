@@ -21,7 +21,7 @@ const INVENTORY_PATH = path.join(
   "..",
   "packages",
   "groovenet-contracts",
-  "INVENTORY.md"
+  "INVENTORY.md",
 );
 
 const STATUSES = ["contracts", "#550", "#551", "#552", "exception"] as const;
@@ -34,7 +34,8 @@ type InventoryRow = {
   notes: string;
 };
 
-const ROW = /^\| (GET|POST|PUT|PATCH|DELETE|HEAD) \| `([^`]+)` \| ([^|]+) \| ([^|]+) \| ([^|]*) \|$/;
+const ROW =
+  /^\| (GET|POST|PUT|PATCH|DELETE|HEAD) \| `([^`]+)` \| ([^|]+) \| ([^|]+) \| ([^|]*) \|$/;
 
 function parseInventory(markdown: string): InventoryRow[] {
   const rows: InventoryRow[] = [];
@@ -63,7 +64,7 @@ const SHARED_COMPONENTS = new Set(
     ...recordCareJsonSchemas,
     ...spinJsonSchemas,
     ...playerJsonSchemas,
-  })
+  }),
 );
 
 function operations(): Map<string, unknown> {
@@ -96,8 +97,14 @@ describe("API contract inventory", () => {
   it("accounts for every OpenAPI operation, and only those", () => {
     const listed = new Set(rows.map((row) => row.key));
     const published = [...ops.keys()];
-    expect(published.filter((key) => !listed.has(key)), "missing from INVENTORY.md").toEqual([]);
-    expect([...listed].filter((key) => !ops.has(key)), "stale rows in INVENTORY.md").toEqual([]);
+    expect(
+      published.filter((key) => !listed.has(key)),
+      "missing from INVENTORY.md",
+    ).toEqual([]);
+    expect(
+      [...listed].filter((key) => !ops.has(key)),
+      "stale rows in INVENTORY.md",
+    ).toEqual([]);
   });
 
   it("gives every exception a reason", () => {

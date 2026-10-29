@@ -77,9 +77,7 @@ async function main() {
 
   if (result.errors.length > 0) {
     result.errors.slice(0, 10).forEach((error) => {
-      console.error(
-        `Failed to queue ${error.track_id}:${error.friend_id} ${error.error}`
-      );
+      console.error(`Failed to queue ${error.track_id}:${error.friend_id} ${error.error}`);
     });
   }
 }

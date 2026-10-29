@@ -56,47 +56,90 @@ describe("record care contracts", () => {
   });
 
   it("lists a real copy beside a release's implicit default copy", () => {
-    const implicit = { ...copy, id: null, created_at: null, updated_at: null, inner_sleeve_type: null };
-    expect(recordCopyListResponseSchema.parse({ items: [copy, implicit], overdue_days: 365 }).items).toHaveLength(2);
-    expect(recordCopyListResponseSchema.safeParse({ items: [{ ...copy, inner_sleeve_type: "box" }], overdue_days: 1 }).success).toBe(false);
+    const implicit = {
+      ...copy,
+      id: null,
+      created_at: null,
+      updated_at: null,
+      inner_sleeve_type: null,
+    };
+    expect(
+      recordCopyListResponseSchema.parse({ items: [copy, implicit], overdue_days: 365 }).items,
+    ).toHaveLength(2);
+    expect(
+      recordCopyListResponseSchema.safeParse({
+        items: [{ ...copy, inner_sleeve_type: "box" }],
+        overdue_days: 1,
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects unknown action details and validates the void response", () => {
     expect(recordActionDetailsSchema.safeParse({ method: "vacuum" }).success).toBe(true);
     expect(recordActionDetailsSchema.safeParse({ brush: "carbon" }).success).toBe(false);
-    expect(recordActionVoidResponseSchema.parse({ success: true, action, copy }).action.details.method).toBe("ultrasonic");
+    expect(
+      recordActionVoidResponseSchema.parse({ success: true, action, copy }).action.details.method,
+    ).toBe("ultrasonic");
   });
 
   it("requires something to change on a copy update", () => {
-    expect(recordCopyUpdateSchema.safeParse({ friend_id: 1, label: "Original pressing" }).success).toBe(true);
+    expect(
+      recordCopyUpdateSchema.safeParse({ friend_id: 1, label: "Original pressing" }).success,
+    ).toBe(true);
     expect(recordCopyUpdateSchema.safeParse({ friend_id: 1, notes: null }).success).toBe(true);
-    expect(recordCopyUpdateSchema.safeParse({ friend_id: 1 }).error?.issues[0]?.message).toBe("Provide label or notes");
-    expect(recordCopyDefaultUpdateSchema.safeParse({ friend_id: 1, release_id: "r1" }).success).toBe(false);
-    expect(recordCopyDefaultUpdateSchema.safeParse({ friend_id: 1, release_id: "r1", label: "x".repeat(101) }).success).toBe(false);
+    expect(recordCopyUpdateSchema.safeParse({ friend_id: 1 }).error?.issues[0]?.message).toBe(
+      "Provide label or notes",
+    );
+    expect(
+      recordCopyDefaultUpdateSchema.safeParse({ friend_id: 1, release_id: "r1" }).success,
+    ).toBe(false);
+    expect(
+      recordCopyDefaultUpdateSchema.safeParse({
+        friend_id: 1,
+        release_id: "r1",
+        label: "x".repeat(101),
+      }).success,
+    ).toBe(false);
   });
 
   it("enforces the action-create rules a JSON Schema cannot state", () => {
     const messages = (body: unknown) =>
       recordActionCreateSchema.safeParse(body).error?.issues.map((issue) => issue.message) ?? [];
 
-    expect(messages({ friend_id: 1, copy_id: 7, action_type: "cleaned", details: { method: "wet-manual" } })).toEqual([]);
-    expect(messages({ friend_id: 1, release_id: "r1", action_type: "sleeved", sleeve_type: "paper" })).toEqual([]);
-    expect(messages({ friend_id: 1, action_type: "inspected" })).toEqual(["Provide exactly one of copy_id or release_id"]);
-    expect(messages({ friend_id: 1, copy_id: 7, release_id: "r1", action_type: "inspected" })).toEqual([
+    expect(
+      messages({
+        friend_id: 1,
+        copy_id: 7,
+        action_type: "cleaned",
+        details: { method: "wet-manual" },
+      }),
+    ).toEqual([]);
+    expect(
+      messages({ friend_id: 1, release_id: "r1", action_type: "sleeved", sleeve_type: "paper" }),
+    ).toEqual([]);
+    expect(messages({ friend_id: 1, action_type: "inspected" })).toEqual([
       "Provide exactly one of copy_id or release_id",
     ]);
+    expect(
+      messages({ friend_id: 1, copy_id: 7, release_id: "r1", action_type: "inspected" }),
+    ).toEqual(["Provide exactly one of copy_id or release_id"]);
     expect(messages({ friend_id: 1, copy_id: 7, action_type: "sleeved" })).toEqual([
       "sleeve_type is required for a sleeved action, and only for one",
     ]);
-    expect(messages({ friend_id: 1, copy_id: 7, action_type: "repaired", sleeve_type: "poly" })).toEqual([
-      "sleeve_type is required for a sleeved action, and only for one",
-    ]);
-    expect(messages({ friend_id: 1, copy_id: 7, action_type: "inspected", details: { method: "other" } })).toEqual([
-      "details.method is only for a cleaned action",
-    ]);
-    expect(messages({ friend_id: 1, copy_id: 7, action_type: "cleaned", occurred_at: "yesterday" })).toEqual([
-      "Must be a date-time",
-    ]);
+    expect(
+      messages({ friend_id: 1, copy_id: 7, action_type: "repaired", sleeve_type: "poly" }),
+    ).toEqual(["sleeve_type is required for a sleeved action, and only for one"]);
+    expect(
+      messages({
+        friend_id: 1,
+        copy_id: 7,
+        action_type: "inspected",
+        details: { method: "other" },
+      }),
+    ).toEqual(["details.method is only for a cleaned action"]);
+    expect(
+      messages({ friend_id: 1, copy_id: 7, action_type: "cleaned", occurred_at: "yesterday" }),
+    ).toEqual(["Must be a date-time"]);
   });
 
   it("validates care views and their wire queries", () => {
@@ -112,16 +155,36 @@ describe("record care contracts", () => {
       inner_sleeve_type: null,
       last_cleaned_at: null,
     };
-    expect(recordCareResponseSchema.safeParse({
-      items: [item], total: 1, limit: 50, offset: 0, overdue_days: 365, needs_sleeve_type: "poly-rice-paper-poly",
-    }).success).toBe(true);
+    expect(
+      recordCareResponseSchema.safeParse({
+        items: [item],
+        total: 1,
+        limit: 50,
+        offset: 0,
+        overdue_days: 365,
+        needs_sleeve_type: "poly-rice-paper-poly",
+      }).success,
+    ).toBe(true);
     const byType = { original: 1, paper: 2, "poly-rice-paper-poly": 3, poly: 4, unknown: 5 };
-    expect(recordCareSummarySchema.parse({
-      total: 15, never_cleaned: 1, overdue: 2, needs_sleeve: 3, by_sleeve_type: byType, overdue_days: 365, needs_sleeve_type: "poly",
-    }).by_sleeve_type.unknown).toBe(5);
-    expect(recordCareQuerySchema.safeParse({ friend_id: 1, status: "overdue", sleeve_type: "unknown" }).success).toBe(true);
+    expect(
+      recordCareSummarySchema.parse({
+        total: 15,
+        never_cleaned: 1,
+        overdue: 2,
+        needs_sleeve: 3,
+        by_sleeve_type: byType,
+        overdue_days: 365,
+        needs_sleeve_type: "poly",
+      }).by_sleeve_type.unknown,
+    ).toBe(5);
+    expect(
+      recordCareQuerySchema.safeParse({ friend_id: 1, status: "overdue", sleeve_type: "unknown" })
+        .success,
+    ).toBe(true);
     expect(recordCareQuerySchema.safeParse({ friend_id: 1, overdue_days: 0 }).success).toBe(false);
-    expect(recordCareSummaryQuerySchema.parse({ friend_id: 1, status: "overdue" })).toEqual({ friend_id: 1 });
+    expect(recordCareSummaryQuerySchema.parse({ friend_id: 1, status: "overdue" })).toEqual({
+      friend_id: 1,
+    });
   });
 
   it("publishes enums and request bodies for OpenAPI", () => {

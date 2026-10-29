@@ -19,9 +19,7 @@ describe("AlbumApiService.searchAlbums", () => {
   });
 
   it("sorts recently added albums by their Groovenet creation time", async () => {
-    dbQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ total: "0" }] });
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ total: "0" }] });
 
     await new AlbumApiService().searchAlbums({
       q: "",
@@ -35,9 +33,7 @@ describe("AlbumApiService.searchAlbums", () => {
   });
 
   it("binds a genre filter into the query and its count (#375)", async () => {
-    dbQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ total: "0" }] });
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ total: "0" }] });
     const genreFilter = { ids: ["id-latin"], keys: ["latin"] };
 
     await new AlbumApiService().searchAlbums({
@@ -50,7 +46,9 @@ describe("AlbumApiService.searchAlbums", () => {
     });
 
     const [sql, params] = dbQuery.mock.calls[0];
-    expect(sql).toContain("unnest(effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'genres', a.genres) || effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'styles', a.styles))");
+    expect(sql).toContain(
+      "unnest(effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'genres', a.genres) || effective_album_taxonomy_values(a.release_id::text, a.friend_id, 'styles', a.styles))",
+    );
     expect(sql).toContain("tg.genre_id = ANY($3::uuid[])");
     expect(params).toEqual([6, ["latin"], ["id-latin"], 20, 0]);
     expect(dbQuery.mock.calls[1][1]).toEqual([6, ["latin"], ["id-latin"]]);

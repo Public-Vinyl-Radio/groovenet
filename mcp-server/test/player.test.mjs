@@ -10,8 +10,31 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const track = (id, extra = {}) => ({ track_id: id, friend_id: 6, title: `Title ${id}`, artist: `Artist ${id}`, bpm: 120, key: "8A", ...extra });
-const METHODS = ["status", "play", "pause", "resume", "next", "prev", "seek", "volume", "queue.add", "queue.addTrack", "queue.list", "queue.remove", "devices", "devices.select"];
+const track = (id, extra = {}) => ({
+  track_id: id,
+  friend_id: 6,
+  title: `Title ${id}`,
+  artist: `Artist ${id}`,
+  bpm: 120,
+  key: "8A",
+  ...extra,
+});
+const METHODS = [
+  "status",
+  "play",
+  "pause",
+  "resume",
+  "next",
+  "prev",
+  "seek",
+  "volume",
+  "queue.add",
+  "queue.addTrack",
+  "queue.list",
+  "queue.remove",
+  "devices",
+  "devices.select",
+];
 const entry = (id, t) => ({ id, track: t });
 
 /** A daemon that speaks the player protocol on a unix socket and records what it saw. */
@@ -25,7 +48,10 @@ async function startFakeDaemon(socketPath) {
     snapshot: {
       status: "playing",
       current: entry("e1", track("t1")),
-      queue: [entry("e1", track("t1")), entry("e2", track("t2", { bpm: undefined, key: undefined }))],
+      queue: [
+        entry("e1", track("t1")),
+        entry("e2", track("t2", { bpm: undefined, key: undefined })),
+      ],
       position: 65.4,
       duration: 252,
       volume: 80,
@@ -35,7 +61,9 @@ async function startFakeDaemon(socketPath) {
   };
   const server = createSocketServer((socket) => {
     state.connections += 1;
-    socket.on("close", () => { state.closed += 1; });
+    socket.on("close", () => {
+      state.closed += 1;
+    });
     socket.on("error", () => {});
     let buffer = "";
     socket.on("data", (chunk) => {
@@ -46,7 +74,10 @@ async function startFakeDaemon(socketPath) {
         buffer = buffer.slice(nl + 1);
         state.requests.push({ method: req.method, params: req.params });
         if (state.mode === "silent") continue;
-        if (state.mode === "hangup") { socket.destroy(); continue; }
+        if (state.mode === "hangup") {
+          socket.destroy();
+          continue;
+        }
         const base = { jsonrpc: "2.0", version: state.version, id: req.id };
         const handler = METHODS.includes(req.method) ? state.handlers.get(req.method) : undefined;
         const outcome = handler ? handler(req.params ?? {}) : { result: state.snapshot };
@@ -57,7 +88,11 @@ async function startFakeDaemon(socketPath) {
   server.listen(socketPath);
   await once(server, "listening");
   state.server = server;
-  state.stop = () => new Promise((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); });
+  state.stop = () =>
+    new Promise((resolve) => {
+      server.close(() => resolve());
+      server.closeAllConnections?.();
+    });
   return state;
 }
 
@@ -82,19 +117,21 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
     api.listen(0, "127.0.0.1");
     await once(api, "listening");
     client = new Client({ name: "player-test", version: "1.0.0" });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
-      env: {
-        ...process.env,
-        API_BASE: `http://127.0.0.1:${api.address().port}/api`,
-        API_KEY: "",
-        DEFAULT_FRIEND_ID: "6",
-        GROOVENET_PLAYER_SOCKET: socketPath,
-        GROOVENET_PLAYER_TIMEOUT_MS: "400",
-      },
-      stderr: "pipe",
-    }));
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
+        env: {
+          ...process.env,
+          API_BASE: `http://127.0.0.1:${api.address().port}/api`,
+          API_KEY: "",
+          DEFAULT_FRIEND_ID: "6",
+          GROOVENET_PLAYER_SOCKET: socketPath,
+          GROOVENET_PLAYER_TIMEOUT_MS: "400",
+        },
+        stderr: "pipe",
+      }),
+    );
   });
 
   after(async () => {
@@ -118,7 +155,8 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
   const text = (result) => result.content[0].text;
   // The daemon sees the client's FIN asynchronously.
   const closedAll = async () => {
-    for (let i = 0; i < 50 && daemon.closed < daemon.connections; i++) await new Promise((r) => setTimeout(r, 10));
+    for (let i = 0; i < 50 && daemon.closed < daemon.connections; i++)
+      await new Promise((r) => setTimeout(r, 10));
     assert.equal(daemon.closed, daemon.connections);
   };
 
@@ -126,13 +164,24 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).filter((n) => n.startsWith("player_"));
     assert.deepEqual(names, [
-      "player_status", "player_play", "player_pause", "player_resume", "player_next", "player_previous",
-      "player_seek", "player_volume", "player_queue_list", "player_queue_add", "player_queue_remove",
-      "player_devices", "player_select_device",
+      "player_status",
+      "player_play",
+      "player_pause",
+      "player_resume",
+      "player_next",
+      "player_previous",
+      "player_seek",
+      "player_volume",
+      "player_queue_list",
+      "player_queue_add",
+      "player_queue_remove",
+      "player_devices",
+      "player_select_device",
     ]);
     for (const tool of tools.filter((t) => t.name.startsWith("player_"))) {
       assert.ok(tool.description.length > 10, tool.name);
-      for (const prop of Object.values(tool.inputSchema.properties ?? {})) assert.ok(prop.description, `${tool.name} field`);
+      for (const prop of Object.values(tool.inputSchema.properties ?? {}))
+        assert.ok(prop.description, `${tool.name} field`);
     }
     const add = tools.find((t) => t.name === "player_queue_add");
     assert.deepEqual(Object.keys(add.inputSchema.properties), ["query", "playlist_id", "tracks"]);
@@ -153,7 +202,15 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
   });
 
   it("shows an idle, errored player", async () => {
-    daemon.snapshot = { status: "error", current: null, queue: [], position: 0, duration: null, volume: 50, error: { code: "NO_AUDIO", message: "No audio for track" } };
+    daemon.snapshot = {
+      status: "error",
+      current: null,
+      queue: [],
+      position: 0,
+      duration: null,
+      volume: 50,
+      error: { code: "NO_AUDIO", message: "No audio for track" },
+    };
     const out = text(await call("player_status"));
     assert.match(out, /Status: error/);
     assert.match(out, /Error: No audio for track/);
@@ -183,35 +240,56 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
   });
 
   it("lists the queue", async () => {
-    assert.match(text(await call("player_queue_list")), /Queue \(2\):\n▶ \[0\] .*id=e1\n {2}\[1\] .*id=e2/);
+    assert.match(
+      text(await call("player_queue_list")),
+      /Queue \(2\):\n▶ \[0\] .*id=e1\n {2}\[1\] .*id=e2/,
+    );
     daemon.snapshot = { ...daemon.snapshot, queue: [], current: null };
     assert.equal(text(await call("player_queue_list")), "Queue is empty.");
   });
 
   it("queues a search and a playlist", async () => {
     daemon.handlers.set("queue.add", () => ({ result: [entry("e3", track("t3"))] }));
-    daemon.snapshot = { ...daemon.snapshot, queue: [...daemon.snapshot.queue, entry("e3", track("t3"))] };
+    daemon.snapshot = {
+      ...daemon.snapshot,
+      queue: [...daemon.snapshot.queue, entry("e3", track("t3"))],
+    };
     const byQuery = text(await call("player_queue_add", { query: "cumbia" }));
-    assert.match(byQuery, /Added 1 track to the queue:\n {2}\[2\] Title t3 - Artist t3 \(120 BPM, 8A\) \| id=e3/);
+    assert.match(
+      byQuery,
+      /Added 1 track to the queue:\n {2}\[2\] Title t3 - Artist t3 \(120 BPM, 8A\) \| id=e3/,
+    );
     await call("player_queue_add", { playlist_id: 42 });
     await call("player_queue_add", { playlist_id: "p-7" });
-    assert.deepEqual(daemon.requests.filter((r) => r.method === "queue.add").map((r) => r.params), [
-      { query: "cumbia" }, { playlistId: 42 }, { playlistId: "p-7" },
-    ]);
+    assert.deepEqual(
+      daemon.requests.filter((r) => r.method === "queue.add").map((r) => r.params),
+      [{ query: "cumbia" }, { playlistId: 42 }, { playlistId: "p-7" }],
+    );
     daemon.handlers.set("queue.add", () => ({ result: [] }));
-    assert.match(text(await call("player_queue_add", { query: "nothing" })), /No tracks were added/);
+    assert.match(
+      text(await call("player_queue_add", { query: "nothing" })),
+      /No tracks were added/,
+    );
   });
 
   it("hydrates track refs from search_tracks and queues them in order", async () => {
-    daemon.handlers.set("queue.addTrack", (p) => ({ result: [entry(`n-${p.track.track_id}`, p.track)] }));
-    const result = await call("player_queue_add", { tracks: [{ track_id: "t1" }, { track_id: "t2", friend_id: 2 }] });
+    daemon.handlers.set("queue.addTrack", (p) => ({
+      result: [entry(`n-${p.track.track_id}`, p.track)],
+    }));
+    const result = await call("player_queue_add", {
+      tracks: [{ track_id: "t1" }, { track_id: "t2", friend_id: 2 }],
+    });
     assert.ok(!result.isError, text(result));
     assert.match(text(result), /Added 2 tracks/);
     assert.match(text(result), /id=n-t1/);
     const added = daemon.requests.filter((r) => r.method === "queue.addTrack");
-    assert.deepEqual(added.map((r) => [r.params.track.track_id, r.params.track.friend_id, r.params.track.title]), [
-      ["t1", 6, "Title t1"], ["t2", 2, "Title t2"],
-    ]);
+    assert.deepEqual(
+      added.map((r) => [r.params.track.track_id, r.params.track.friend_id, r.params.track.title]),
+      [
+        ["t1", 6, "Title t1"],
+        ["t2", 2, "Title t2"],
+      ],
+    );
     assert.equal(daemon.connections, 1);
   });
 
@@ -227,17 +305,32 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
 
   it("removes by id or index", async () => {
     daemon.handlers.set("queue.remove", (p) => ({ result: entry(p.id ?? "e2", track("t2")) }));
-    assert.match(text(await call("player_queue_remove", { id: "e2" })), /Removed from the queue: Title t2 - Artist t2 \(120 BPM, 8A\) \| id=e2/);
+    assert.match(
+      text(await call("player_queue_remove", { id: "e2" })),
+      /Removed from the queue: Title t2 - Artist t2 \(120 BPM, 8A\) \| id=e2/,
+    );
     await call("player_queue_remove", { index: 0 });
-    assert.deepEqual(daemon.requests.map((r) => r.params), [{ id: "e2" }, { index: 0 }]);
+    assert.deepEqual(
+      daemon.requests.map((r) => r.params),
+      [{ id: "e2" }, { index: 0 }],
+    );
   });
 
   it("lists devices and selects one", async () => {
-    const devices = [{ id: "coreaudio/abc", name: "Headphones", description: "USB DAC" }, { id: "auto", name: "Auto" }];
+    const devices = [
+      { id: "coreaudio/abc", name: "Headphones", description: "USB DAC" },
+      { id: "auto", name: "Auto" },
+    ];
     daemon.handlers.set("devices", () => ({ result: devices }));
     daemon.handlers.set("devices.select", () => ({ result: devices }));
-    assert.match(text(await call("player_devices")), /Audio devices \(2\):\n• Headphones — USB DAC \| id=coreaudio\/abc\n• Auto \| id=auto/);
-    assert.match(text(await call("player_select_device", { device_id: "auto" })), /^Selected audio device auto\.\nAudio devices \(2\)/);
+    assert.match(
+      text(await call("player_devices")),
+      /Audio devices \(2\):\n• Headphones — USB DAC \| id=coreaudio\/abc\n• Auto \| id=auto/,
+    );
+    assert.match(
+      text(await call("player_select_device", { device_id: "auto" })),
+      /^Selected audio device auto\.\nAudio devices \(2\)/,
+    );
     assert.deepEqual(daemon.requests[1], { method: "devices.select", params: { id: "auto" } });
     daemon.handlers.set("devices", () => ({ result: [] }));
     assert.equal(text(await call("player_devices")), "No audio output devices reported.");
@@ -252,9 +345,17 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
       ["player_volume", { volume: 101 }, /volume must be a number from 0 to 100/],
       ["player_volume", { volume: "loud" }, /volume must be a number from 0 to 100/],
       ["player_queue_add", {}, /exactly one of query, playlist_id or tracks/],
-      ["player_queue_add", { query: "a", playlist_id: "1" }, /exactly one of query, playlist_id or tracks/],
+      [
+        "player_queue_add",
+        { query: "a", playlist_id: "1" },
+        /exactly one of query, playlist_id or tracks/,
+      ],
       ["player_queue_add", { query: "  " }, /query must be a nonempty string/],
-      ["player_queue_add", { playlist_id: "" }, /playlist_id must be a nonempty string or a number/],
+      [
+        "player_queue_add",
+        { playlist_id: "" },
+        /playlist_id must be a nonempty string or a number/,
+      ],
       ["player_queue_add", { tracks: "t1" }, /tracks must be an array/],
       ["player_queue_remove", {}, /exactly one of id or index/],
       ["player_queue_remove", { id: "e1", index: 0 }, /exactly one of id or index/],
@@ -271,21 +372,40 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
   });
 
   it("surfaces daemon error responses with their code", async () => {
-    daemon.handlers.set("play", () => ({ error: { code: "INVALID_ARGUMENT", message: "The playback queue is empty or the index is out of range" } }));
+    daemon.handlers.set("play", () => ({
+      error: {
+        code: "INVALID_ARGUMENT",
+        message: "The playback queue is empty or the index is out of range",
+      },
+    }));
     const result = await call("player_play", { index: 9 });
     assert.ok(result.isError);
-    assert.match(text(result), /Player daemon error \(INVALID_ARGUMENT\): The playback queue is empty/);
+    assert.match(
+      text(result),
+      /Player daemon error \(INVALID_ARGUMENT\): The playback queue is empty/,
+    );
   });
 
   it("explains a version mismatch", async () => {
     daemon.version = 2;
     const wrongVersion = await call("player_status");
     assert.ok(wrongVersion.isError);
-    assert.match(text(wrongVersion), /version mismatch.*daemon version 2, client version 1.*Update the MCP server/s);
+    assert.match(
+      text(wrongVersion),
+      /version mismatch.*daemon version 2, client version 1.*Update the MCP server/s,
+    );
 
     daemon.version = 1;
-    daemon.handlers.set("status", () => ({ error: { code: "VERSION_MISMATCH", message: "Unsupported player protocol version 1; this daemon supports version 3." } }));
-    assert.match(text(await call("player_status")), /version mismatch: Unsupported player protocol version 1/);
+    daemon.handlers.set("status", () => ({
+      error: {
+        code: "VERSION_MISMATCH",
+        message: "Unsupported player protocol version 1; this daemon supports version 3.",
+      },
+    }));
+    assert.match(
+      text(await call("player_status")),
+      /version mismatch: Unsupported player protocol version 1/,
+    );
   });
 
   it("tells the user to start the daemon when none is running or the socket is stale", async () => {
@@ -294,7 +414,10 @@ describe("player tools over MCP stdio", { timeout: 30_000 }, () => {
     await rm(socketPath, { force: true });
     const none = await call("player_status");
     assert.ok(none.isError);
-    assert.match(text(none), /player daemon is not running.*groovenet player start --detach.*never starts the daemon/s);
+    assert.match(
+      text(none),
+      /player daemon is not running.*groovenet player start --detach.*never starts the daemon/s,
+    );
     assert.ok(text(none).includes(socketPath));
 
     // A leftover file where the socket used to be refuses connections.
@@ -336,16 +459,27 @@ describe("player socket path default", () => {
   it("falls back to ~/.groovenet/player/player.sock", async () => {
     const home = await mkdtemp(join(tmpdir(), "gn-home-"));
     const c = new Client({ name: "player-default-test", version: "1.0.0" });
-    await c.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
-      env: { ...process.env, HOME: home, USERPROFILE: home, GROOVENET_PLAYER_SOCKET: "", API_BASE: "http://127.0.0.1:9/api" },
-      stderr: "pipe",
-    }));
+    await c.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
+        env: {
+          ...process.env,
+          HOME: home,
+          USERPROFILE: home,
+          GROOVENET_PLAYER_SOCKET: "",
+          API_BASE: "http://127.0.0.1:9/api",
+        },
+        stderr: "pipe",
+      }),
+    );
     try {
       const result = await c.callTool({ name: "player_status", arguments: {} });
       assert.ok(result.isError);
-      assert.ok(result.content[0].text.includes(join(home, ".groovenet", "player", "player.sock")), result.content[0].text);
+      assert.ok(
+        result.content[0].text.includes(join(home, ".groovenet", "player", "player.sock")),
+        result.content[0].text,
+      );
     } finally {
       await c.close();
       await rm(home, { recursive: true, force: true });

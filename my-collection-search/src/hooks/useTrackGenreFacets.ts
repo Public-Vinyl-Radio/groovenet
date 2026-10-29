@@ -31,7 +31,7 @@ export function useTrackGenreFacets(params: {
       enabled && query.data
         ? new Map(query.data.genres.map((genre) => [genre.id, genre.track_count]))
         : undefined,
-    [enabled, query.data]
+    [enabled, query.data],
   );
   return { ...query, counts };
 }

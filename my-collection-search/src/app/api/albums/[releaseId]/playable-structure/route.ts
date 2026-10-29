@@ -7,7 +7,7 @@ import { spinLoggingService } from "@/server/services/spinLoggingService";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ releaseId: string }> }
+  { params }: { params: Promise<{ releaseId: string }> },
 ) {
   try {
     const { releaseId } = await params;
@@ -22,13 +22,13 @@ export async function GET(
           error: "Missing or invalid required parameters",
           details: parsedQuery.success ? undefined : parsedQuery.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const structure = await spinLoggingService.getAlbumPlayableStructure(
       releaseId,
-      parsedQuery.data.friend_id
+      parsedQuery.data.friend_id,
     );
 
     if (!structure) {
@@ -40,10 +40,9 @@ export async function GET(
     console.error("Error fetching playable album structure:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to fetch playable album structure",
+        error: error instanceof Error ? error.message : "Failed to fetch playable album structure",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

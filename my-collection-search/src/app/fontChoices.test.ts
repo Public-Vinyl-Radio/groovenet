@@ -17,14 +17,17 @@ describe("font registry", () => {
     expect(fontRoleIds).toEqual(["display", "body", "label"]);
   });
 
-  it.each(fontRoleIds)("offers %s two to four choices, the default first and System last", (role) => {
-    const { choices } = fontRoles[role];
-    expect(choices.length).toBeGreaterThanOrEqual(2);
-    expect(choices.length).toBeLessThanOrEqual(4);
-    expect(choices[0].id).toBe(defaultFontChoiceId);
-    expect(choices.at(-1)?.id).toBe("system");
-    expect(new Set(choices.map((c) => c.id)).size).toBe(choices.length);
-  });
+  it.each(fontRoleIds)(
+    "offers %s two to four choices, the default first and System last",
+    (role) => {
+      const { choices } = fontRoles[role];
+      expect(choices.length).toBeGreaterThanOrEqual(2);
+      expect(choices.length).toBeLessThanOrEqual(4);
+      expect(choices[0].id).toBe(defaultFontChoiceId);
+      expect(choices.at(-1)?.id).toBe("system");
+      expect(new Set(choices.map((c) => c.id)).size).toBe(choices.length);
+    },
+  );
 
   it("makes today's faces the defaults", () => {
     expect(fontRoles.display.choices[0]).toMatchObject({ face: "plex-sans" });
@@ -38,11 +41,20 @@ describe("font registry", () => {
       expect(system.face).toBeUndefined();
       expect(system.stack).toBeTruthy();
     }
-    expect(fontRoles.label.choices.at(-1)).toMatchObject({ stack: expect.stringContaining("ui-monospace") });
+    expect(fontRoles.label.choices.at(-1)).toMatchObject({
+      stack: expect.stringContaining("ui-monospace"),
+    });
   });
 
   it("lists the faces once each", () => {
-    expect(faceIds).toEqual(["plex-sans", "barlow-condensed", "zilla-slab", "inter", "plex-mono", "jetbrains-mono"]);
+    expect(faceIds).toEqual([
+      "plex-sans",
+      "barlow-condensed",
+      "zilla-slab",
+      "inter",
+      "plex-mono",
+      "jetbrains-mono",
+    ]);
   });
 
   it("validates an id against its own role", () => {

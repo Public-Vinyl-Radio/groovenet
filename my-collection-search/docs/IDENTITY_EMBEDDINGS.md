@@ -6,6 +6,7 @@ This system implements "music identity" embeddings for tracks using OpenAI's `te
 
 It is one of three embedding types, each with its own model settings and
 template version:
+
 1. **Identity**: musical identity from metadata. Serves similar tracks.
 2. **Audio Vibe**: a text rendering of measured audio features (BPM, key, mood,
    danceability). Serves audio similarity and the playlist optimiser.
@@ -133,11 +134,12 @@ Only genre/style/scene descriptor tags are included in identity embeddings.
 ### Source Hash and Template Version
 
 A **SHA256 hash** of normalized identity data detects a change in the track's
-*data*. A change to the *template* — the text built from that data, or how its
+_data_. A change to the _template_ — the text built from that data, or how its
 inputs are normalized — is tracked separately by a template version per kind,
 in `src/lib/embeddings/templateVersions.ts`, stored on every row (#407).
 
 A track is (re-)embedded when:
+
 - it has no row at the kind's **target model** and the **current template version**;
 - its source hash differs from that row's; or
 - the force flag is set.
@@ -158,6 +160,7 @@ a pause on a bad key instead of failing outright. `groovenet embeddings status`
 reports counts without queuing anything.
 
 **Options**:
+
 - `--type identity`: Only the identity embedding (default: identity and audio_vibe)
 - `--friend-id N`: Limit to specific friend/user
 - `--force`: Force re-embedding even if the source hash is unchanged
@@ -167,6 +170,7 @@ reports counts without queuing anything.
 - `--json`: Machine-readable output
 
 **Examples**:
+
 ```bash
 # Backfill identity embeddings for all tracks without one
 groovenet embeddings backfill --type identity
@@ -182,6 +186,7 @@ groovenet embeddings backfill --type identity --dry-run
 ```
 
 **Output**:
+
 ```
 🚀 Starting identity embedding backfill
 Options: { batch_size: 5, friend_id: 1 }
@@ -204,6 +209,7 @@ Options: { batch_size: 5, friend_id: 1 }
 ```
 
 **Benefits of CLI over HTTP**:
+
 - ✅ No timeout limits
 - ✅ Real-time progress tracking
 - ✅ Can run in tmux/screen and detach
@@ -219,6 +225,7 @@ Options: { batch_size: 5, friend_id: 1 }
 **Endpoint**: `GET /api/tracks/{track_id}/embedding-preview`
 
 **Query Params**:
+
 - `friend_id` (required)
 - `type` (optional): `identity` (default) or `audio_vibe`
 
@@ -236,6 +243,7 @@ curl "http://localhost:3000/api/tracks/12345/embedding-preview?friend_id=1&type=
 **Endpoint**: `GET /api/recommendations/candidates` (or `POST` with several seed tracks)
 
 **Query Params**:
+
 - `track_id` (required): Seed track
 - `friend_id` (required): Seed track's friend_id
 - `mode` (optional, default `combined`): `combined`, `identity` or `audio`
@@ -248,10 +256,11 @@ curl "http://localhost:3000/api/recommendations/candidates?track_id=12345&friend
 
 The typed client's `findSimilarIdentity` / `findSimilarVibe`, the CLI and the
 MCP `find_similar_identity` / `find_similar_vibe` tools all call this route.
-Every read is pinned to the kind's serving model *and* serving template
+Every read is pinned to the kind's serving model _and_ serving template
 version.
 
 **Distance Interpretation**:
+
 - **0.0 - 0.2**: Very similar (near-duplicates, remixes, same artist/style)
 - **0.2 - 0.4**: Similar (same genre/style, compatible vibe)
 - **0.4 - 0.6**: Somewhat similar (related genres)
@@ -292,11 +301,13 @@ npx tsx src/lib/__tests__/identity-embedding.test.ts
 ## Usage Workflow
 
 ### 1. Run Migration
+
 ```bash
 npm run migrate up
 ```
 
 ### 2. Backfill Embeddings
+
 ```bash
 # See the counts first
 groovenet embeddings backfill --type identity --dry-run
@@ -309,6 +320,7 @@ groovenet embeddings backfill --type identity --friend-id 1
 ```
 
 ### 3. Query Similar Tracks
+
 ```bash
 # Find similar tracks
 curl "http://localhost:3000/api/recommendations/candidates?track_id=YOUR_TRACK_ID&friend_id=1&mode=identity&limit_identity=20"
@@ -326,10 +338,10 @@ Every `EMBEDDING_QUEUE_INTERVAL_SECONDS` (default 10) it takes up to
 groups the rest by kind and target model, and sends each group in one OpenAI
 request. Theoretical throughput is batch ÷ interval:
 
-| Batch size | Jobs/minute | 15,000 tracks, one kind |
-| --- | --- | --- |
-| 50 | 300 | ~50 min |
-| 100 (default) | 600 | ~25 min |
+| Batch size    | Jobs/minute | 15,000 tracks, one kind |
+| ------------- | ----------- | ----------------------- |
+| 50            | 300         | ~50 min                 |
+| 100 (default) | 600         | ~25 min                 |
 
 These are ceilings, not measured drain times: database work, provider latency,
 and rate limits can reduce throughput. A 20,000-job backfill needs about 33
@@ -353,6 +365,7 @@ production that grew the queue to 281k jobs, mostly no-op duplicates, and
 stalled a 21.5k-track backfill.
 
 ### pgvector Index Tuning
+
 - **`lists` parameter**: Currently 100 (good for <100K tracks)
   - Rule of thumb: `sqrt(total_rows)`
   - For 10K tracks: `lists = 100`
@@ -442,10 +455,10 @@ Any OpenAI embedding model works through `createOpenAiEmbeddingProvider`
 (`src/lib/embeddings/openaiProvider.ts`); `dims` is optional and uses OpenAI's
 `dimensions` param to shorten a v3 model's vector. In active use today:
 
-| Model | dims | Notes |
-| --- | --- | --- |
+| Model                    | dims | Notes                                    |
+| ------------------------ | ---- | ---------------------------------------- |
 | `text-embedding-3-small` | 1536 | Default for both identity and audio_vibe |
-| `text-embedding-3-small` | 768 | Same model, OpenAI's `dimensions` param |
+| `text-embedding-3-small` | 768  | Same model, OpenAI's `dimensions` param  |
 
 ### Switching a kind's model
 
@@ -523,8 +536,7 @@ Labels: discos fuentes, infopesa
 ```
 
 On #382's frozen 24-query evaluation this text scored precision@10
-0.89–0.90 against 0.77 for the identity text, better on 16 queries and worse on
-2. It was the worst text on the playlist-mate proxy, though, so it sits beside
+0.89–0.90 against 0.77 for the identity text, better on 16 queries and worse on 2. It was the worst text on the playlist-mate proxy, though, so it sits beside
 `identity` rather than replacing it. Release country is left out, because it is
 the pressing's country rather than the music's origin.
 
@@ -547,6 +559,7 @@ the pressing's country rather than the music's origin.
     `max(limit × 10, 200)`) so the cap and filters still leave a full page.
 
   Soft-deleted tracks are never returned. The search route below is its caller.
+
 - **Preview**: `GET /api/tracks/{id}/embedding-preview?friend_id=1&type=context`.
 - **Backfill**: `groovenet embeddings backfill --type context`.
   `GET /api/embeddings/status` reports `missing.context` and `by_model.context`.
@@ -566,7 +579,7 @@ search bar has a Keyword / Hybrid / Semantic toggle (kept in the URL as
   better than 3, with about 3 releases per top 10.
 - **hybrid** runs a 50-row lexical leg and a 50-row semantic leg in parallel
   and merges them with reciprocal rank fusion (k = 60). Lexical hits whose
-  title, artist, album or artist + title *equal* the query come first, so a
+  title, artist, album or artist + title _equal_ the query come first, so a
   known-item search can't lose to a vibe. The fused tail is capped per release
   too. If the semantic leg fails (OpenAI, rate limit), the response is the
   lexical results with `degraded: true`.
@@ -616,6 +629,7 @@ The free-text "prompt" embedding on `tracks.embedding`, its per-friend
 ### Migration Path
 
 The new system runs **in parallel** with the legacy system:
+
 - Legacy `tracks.embedding` remains unchanged
 - New `track_embeddings` table stores typed embeddings
 - No breaking changes to existing features
@@ -629,6 +643,7 @@ optimizer, tracked in #393.
 ## Roadmap
 
 ### Implemented
+
 - ✅ `track_embeddings` table with pgvector
 - ✅ Identity embedding generation with normalization
 - ✅ Source hashing for efficient updates
@@ -637,6 +652,7 @@ optimizer, tracked in #393.
 - ✅ Tests for normalization and hashing
 
 ### Future Enhancements
+
 - [ ] **Audio Vibe Embeddings**: BPM, key, danceability, mood scores
 - [ ] **DJ Function Embeddings**: DJ notes, use-case tags, set position
 - [ ] **Incremental Updates**: Auto-embed on track create/update
@@ -651,18 +667,23 @@ optimizer, tracked in #393.
 ## Troubleshooting
 
 ### Embedding Not Found Error
+
 ```json
 { "error": "Track has no identity embedding. Run backfill first." }
 ```
+
 **Solution**: Run backfill for that track/friend_id.
 
 ### OpenAI Rate Limit Errors
+
 **Solution**: Reduce `batch_size` or add retry logic with exponential backoff.
 
 ### Slow Similarity Queries
+
 **Solution**: Increase `ivfflat.probes` or rebuild index with higher `lists` value.
 
 ### Source Hash Not Updating
+
 If the builder's text changed but the track data didn't, the hash can't see
 it: bump the kind's template version (see "Changing the embedding text").
 To re-embed one track regardless, use `force=true`.
@@ -697,20 +718,22 @@ The **Similar Tracks** feature is integrated into your existing UI via the track
 
 ### Components Added
 
-| File | Purpose |
-|------|---------|
-| `hooks/useSimilarTracks.ts` | React Query hook for API calls |
-| `components/SimilarTracks.tsx` | Modal content component |
-| `components/TrackActionsMenu.tsx` | Added menu item & modal |
+| File                              | Purpose                        |
+| --------------------------------- | ------------------------------ |
+| `hooks/useSimilarTracks.ts`       | React Query hook for API calls |
+| `components/SimilarTracks.tsx`    | Modal content component        |
+| `components/TrackActionsMenu.tsx` | Added menu item & modal        |
 
 ### Screenshots
 
 **Menu Item:**
+
 - Look for "Similar Tracks" in the track actions menu (⋮)
 - Icon: 🎯 (target)
 - Positioned below "AI Recommendations"
 
 **Modal:**
+
 - Title: "Similar Tracks: {track name}"
 - Distance badges show similarity level
 - Tracks sorted by distance (closest first)
@@ -718,11 +741,11 @@ The **Similar Tracks** feature is integrated into your existing UI via the track
 
 ### Distance Interpretation
 
-| Distance | Badge | Meaning |
-|----------|-------|---------|
-| 0.0 - 0.2 | <span style="color:green">**Very Similar**</span> | Near-duplicates, remixes, same artist/style |
-| 0.2 - 0.4 | <span style="color:blue">**Similar**</span> | Same genre/style, compatible vibe |
-| 0.4 - 0.6 | <span style="color:orange">**Somewhat Similar**</span> | Related genres |
-| 0.6+ | <span style="color:gray">**Distant**</span> | Different genres/eras |
+| Distance  | Badge                                                  | Meaning                                     |
+| --------- | ------------------------------------------------------ | ------------------------------------------- |
+| 0.0 - 0.2 | <span style="color:green">**Very Similar**</span>      | Near-duplicates, remixes, same artist/style |
+| 0.2 - 0.4 | <span style="color:blue">**Similar**</span>            | Same genre/style, compatible vibe           |
+| 0.4 - 0.6 | <span style="color:orange">**Somewhat Similar**</span> | Related genres                              |
+| 0.6+      | <span style="color:gray">**Distant**</span>            | Different genres/eras                       |
 
 ---

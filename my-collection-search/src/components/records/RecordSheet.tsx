@@ -1,14 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Button,
-  Dialog,
-  HStack,
-  Portal,
-  useBreakpointValue,
-} from "@chakra-ui/react";
+import { Box, Button, Dialog, HStack, Portal, useBreakpointValue } from "@chakra-ui/react";
 import RetroDialog from "@/components/ui/RetroDialog";
 
 type Props = {
@@ -46,8 +39,12 @@ export default function RecordSheet({
             <Dialog.Body pb={6}>{children}</Dialog.Body>
             <Dialog.Footer>
               <HStack gap={2}>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button loading={saving} onClick={onSave}>{saveLabel}</Button>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button loading={saving} onClick={onSave}>
+                  {saveLabel}
+                </Button>
               </HStack>
             </Dialog.Footer>
           </Dialog.Content>
@@ -60,9 +57,18 @@ export default function RecordSheet({
       onOpenChange={onOpenChange}
       title={title}
       footer={
-        <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap="10px" p="12px 17px 12px 12px">
-          <Button variant="outline" h="44px" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant="solid" h="44px" loading={saving} onClick={onSave}>{saveLabel}</Button>
+        <Box
+          display="grid"
+          gridTemplateColumns="repeat(2, minmax(0, 1fr))"
+          gap="10px"
+          p="12px 17px 12px 12px"
+        >
+          <Button variant="outline" h="44px" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button variant="solid" h="44px" loading={saving} onClick={onSave}>
+            {saveLabel}
+          </Button>
         </Box>
       }
     >

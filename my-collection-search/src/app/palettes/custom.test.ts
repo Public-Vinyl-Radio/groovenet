@@ -58,7 +58,13 @@ describe("derivePalette", () => {
   it("never changes what the user typed", () => {
     const custom: CustomPalette = {
       base: "riso",
-      light: { ground: "#808080", surface: "#828282", ink: "#858585", accent: "#777777", shadow: "#101010" },
+      light: {
+        ground: "#808080",
+        surface: "#828282",
+        ink: "#858585",
+        accent: "#777777",
+        shadow: "#101010",
+      },
       dark: sleeve.dark,
     };
     const { light } = derivePalette(custom);
@@ -84,7 +90,9 @@ describe("derivePalette", () => {
     };
     const { light } = derivePalette({ base: "sleeve", light: pale, dark: sleeve.dark });
     expect(contrastRatio(light["--gn-accent-fg"], "#ffffff")).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio(light["--gn-accent-fg"], light["--gn-accent-subtle"])).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(light["--gn-accent-fg"], light["--gn-accent-subtle"]),
+    ).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(light["--gn-accent-focus-ring"], "#f5f5f5")).toBeGreaterThanOrEqual(3);
     expect(contrastRatio(light["--gn-border"], "#f5f5f5")).toBeGreaterThanOrEqual(3);
     expect(contrastRatio(light["--gn-ink-muted"], "#f5f5f5")).toBeGreaterThanOrEqual(4.5);
@@ -95,7 +103,9 @@ describe("derivePalette", () => {
     let seed = 7;
     const rand = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
     const colour = () =>
-      `#${Math.floor(rand() * 0xffffff).toString(16).padStart(6, "0")}`;
+      `#${Math.floor(rand() * 0xffffff)
+        .toString(16)
+        .padStart(6, "0")}`;
     const colours = (): CustomColours => ({
       ground: colour(),
       surface: colour(),
@@ -120,7 +130,9 @@ describe.each(paletteIds)("a custom palette copied from %s", (id) => {
     const derived = derivePalette(custom);
     for (const mode of modes) {
       const presetFailing = new Set(
-        checkContrast(palettes[id][mode]).filter((c) => !c.pass).map((c) => `${c.fg}|${c.bg}`),
+        checkContrast(palettes[id][mode])
+          .filter((c) => !c.pass)
+          .map((c) => `${c.fg}|${c.bg}`),
       );
       const failing = checkContrast(derived[mode]).filter(
         (c) => !c.pass && !presetFailing.has(`${c.fg}|${c.bg}`),

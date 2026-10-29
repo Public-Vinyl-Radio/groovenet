@@ -7,7 +7,13 @@ import type { IconType } from "react-icons";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 
-type Tool = { title: string; description: string; href: string; icon: IconType; external?: boolean };
+type Tool = {
+  title: string;
+  description: string;
+  href: string;
+  icon: IconType;
+  external?: boolean;
+};
 
 const tools: Tool[] = [
   {
@@ -48,7 +54,9 @@ export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: str
                 <Icon as={tool.icon} boxSize={5} color="accent.fg" mt={1} />
                 <Box>
                   <Heading size="md">{tool.title}</Heading>
-                  <Text color="fg.muted" mt={1}>{tool.description}</Text>
+                  <Text color="fg.muted" mt={1}>
+                    {tool.description}
+                  </Text>
                 </Box>
               </HStack>
               <Button asChild alignSelf="flex-start">

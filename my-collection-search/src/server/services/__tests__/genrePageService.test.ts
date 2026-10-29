@@ -55,10 +55,21 @@ describe("getGenrePage", () => {
       { id: uuid(5), track_count: 12 },
       { id: uuid(6), track_count: 12 },
     ]);
-    genrePageRepository.stats.mockResolvedValue({ bpm_min: 90, bpm_max: 128, added_this_year: 3, year: 2026, playable_tracks: 12, bpm_histogram: [{ min: 90, max: 100, count: 2 }] });
+    genrePageRepository.stats.mockResolvedValue({
+      bpm_min: 90,
+      bpm_max: 128,
+      added_this_year: 3,
+      year: 2026,
+      playable_tracks: 12,
+      bpm_histogram: [{ min: 90, max: 100, count: 2 }],
+    });
     genrePageRepository.counts.mockResolvedValue({ tracks: 25, albums: 4, albums_total: 9 });
-    genrePageRepository.topTracks.mockResolvedValue([{ track_id: "t1", play_count: 3, date_added: new Date("2026-01-02T00:00:00Z") }]);
-    genrePageRepository.topAlbums.mockResolvedValue([{ release_id: "r1", play_count: 0, date_added: "2026-01-01" }]);
+    genrePageRepository.topTracks.mockResolvedValue([
+      { track_id: "t1", play_count: 3, date_added: new Date("2026-01-02T00:00:00Z") },
+    ]);
+    genrePageRepository.topAlbums.mockResolvedValue([
+      { release_id: "r1", play_count: 0, date_added: "2026-01-01" },
+    ]);
     genreSimilarityRepository.topForGenre.mockResolvedValue([]);
   });
 
@@ -119,38 +130,45 @@ describe("getGenrePage", () => {
   it("serialises dates the way JSON would, leaving other values alone", async () => {
     const page = await getGenrePage("cumbia");
 
-    expect(page?.top_tracks[0]).toMatchObject({ track_id: "t1", date_added: "2026-01-02T00:00:00.000Z" });
+    expect(page?.top_tracks[0]).toMatchObject({
+      track_id: "t1",
+      date_added: "2026-01-02T00:00:00.000Z",
+    });
     expect(page?.top_albums[0]).toMatchObject({ release_id: "r1", date_added: "2026-01-01" });
   });
 
   it("validates a genre page when top albums have nullable database fields", async () => {
-    genrePageRepository.topTracks.mockResolvedValue([{
-      track_id: "t1",
-      friend_id: 6,
-      title: "Track",
-      artist: "Artist",
-      album: "Album",
-      play_count: 0,
-      date_added: null,
-    }]);
-    genrePageRepository.topAlbums.mockResolvedValue([{
-      release_id: "r1",
-      friend_id: 6,
-      title: "Album",
-      artist: "Artist",
-      year: null,
-      genres: null,
-      styles: null,
-      album_thumbnail: null,
-      date_added: null,
-      date_changed: null,
-      track_count: 1,
-      album_rating: null,
-      album_notes: null,
-      purchase_price: null,
-      condition: null,
-      play_count: 0,
-    }]);
+    genrePageRepository.topTracks.mockResolvedValue([
+      {
+        track_id: "t1",
+        friend_id: 6,
+        title: "Track",
+        artist: "Artist",
+        album: "Album",
+        play_count: 0,
+        date_added: null,
+      },
+    ]);
+    genrePageRepository.topAlbums.mockResolvedValue([
+      {
+        release_id: "r1",
+        friend_id: 6,
+        title: "Album",
+        artist: "Artist",
+        year: null,
+        genres: null,
+        styles: null,
+        album_thumbnail: null,
+        date_added: null,
+        date_changed: null,
+        track_count: 1,
+        album_rating: null,
+        album_notes: null,
+        purchase_price: null,
+        condition: null,
+        play_count: 0,
+      },
+    ]);
 
     const page = await getGenrePage("cumbia", 6);
     expect(() => genrePageResponseSchema.parse(page)).not.toThrow();
@@ -166,7 +184,14 @@ describe("getGenrePage", () => {
 
     expect(genreSimilarityRepository.topForGenre).toHaveBeenCalledWith(uuid(2), 12);
     expect(page?.related).toEqual([
-      { id: uuid(8), name: "Rock", slug: "rock", track_count: 0, score: 1.4, signals: { npmi: 0.4, shared_albums: 5 } },
+      {
+        id: uuid(8),
+        name: "Rock",
+        slug: "rock",
+        track_count: 0,
+        score: 1.4,
+        signals: { npmi: 0.4, shared_albums: 5 },
+      },
     ]);
   });
 
@@ -187,7 +212,8 @@ describe("getGenrePage", () => {
       vi.setSystemTime(new Date("2027-01-01T00:00:00Z"));
       await getGenrePage("cumbia", 6);
       expect(genrePageRepository.stats).toHaveBeenLastCalledWith(filter, 6, 2027);
-    } finally { vi.useRealTimers(); }
+    } finally {
+      vi.useRealTimers();
+    }
   });
-
 });

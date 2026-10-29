@@ -14,10 +14,18 @@ import { GET as stats } from "../stats/route";
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
-    id: "i1", source_id: "aswitch", session_id: "s1", sequence: "42",
-    status: "processed", error: null, duration_seconds: 15.02,
-    sample_rate: 44100, channels: 1, codec: "pcm_s16le",
-    file_path: null, captured_at: "2026-09-21T02:00:00.000Z",
+    id: "i1",
+    source_id: "aswitch",
+    session_id: "s1",
+    sequence: "42",
+    status: "processed",
+    error: null,
+    duration_seconds: 15.02,
+    sample_rate: 44100,
+    channels: 1,
+    codec: "pcm_s16le",
+    file_path: null,
+    captured_at: "2026-09-21T02:00:00.000Z",
     received_at: "2026-09-21T02:00:02.000Z",
     updated_at: "2026-09-21T02:00:05.000Z",
     ...overrides,
@@ -31,14 +39,20 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   repo.listRecent.mockResolvedValue([row()]);
   debugSvc.stats.mockResolvedValue({
-    since: "x", window_minutes: 60, source_id: null,
-    index: { engine_registered: true, fingerprint_type: "chromaprint",
-             fingerprint_version: "1", indexed_tracks: 3783, empty: false,
-             missing_fingerprint_tracks: 0 },
+    since: "x",
+    window_minutes: 60,
+    source_id: null,
+    index: {
+      engine_registered: true,
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
+      indexed_tracks: 3783,
+      empty: false,
+      missing_fingerprint_tracks: 0,
+    },
     queue_depth: 0,
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
-    detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,
-                  confidence_bands: [] },
+    detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8, confidence_bands: [] },
     spins: { pending: 0 },
   });
 });
@@ -48,7 +62,10 @@ describe("GET /api/audio/ingest/recent", () => {
     const body = await (await recent(req("/api/audio/ingest/recent"))).json();
 
     expect(body.ingests[0]).toMatchObject({
-      ingest_id: "i1", source_id: "aswitch", status: "processed", sequence: 42,
+      ingest_id: "i1",
+      source_id: "aswitch",
+      status: "processed",
+      sequence: 42,
     });
   });
 
@@ -66,9 +83,7 @@ describe("GET /api/audio/ingest/recent", () => {
   });
 
   it("surfaces the failure reason", async () => {
-    repo.listRecent.mockResolvedValue([
-      row({ status: "failed", error: "decode failed" }),
-    ]);
+    repo.listRecent.mockResolvedValue([row({ status: "failed", error: "decode failed" })]);
     const body = await (await recent(req("/api/audio/ingest/recent"))).json();
     expect(body.ingests[0]).toMatchObject({ status: "failed", error: "decode failed" });
   });
@@ -103,7 +118,8 @@ describe("GET /api/audio/ingest/recent", () => {
   it("filters by source and session", async () => {
     await recent(req("/api/audio/ingest/recent", "source_id=aswitch&session_id=s1"));
     expect(repo.listRecent.mock.calls[0][0]).toMatchObject({
-      source_id: "aswitch", session_id: "s1",
+      source_id: "aswitch",
+      session_id: "s1",
     });
   });
 

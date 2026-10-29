@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { analytics } from "@/lib/analytics/server";
-import {
-  redisJobService,
-  type JobStatus,
-} from "@/server/services/redisJobService";
+import { redisJobService, type JobStatus } from "@/server/services/redisJobService";
 
 const DOWNLOADERS = ["gamdl", "yt-dlp"] as const;
 const URL_KINDS = {
@@ -27,10 +24,7 @@ function durationMs(job: JobStatus): number | null {
  * the worker a moment earlier, is authoritative. Reporting twice is harmless —
  * only the first call is counted.
  */
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ jobId: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
   try {
     const { jobId } = await params;
     const job = await redisJobService.getJobStatus(jobId);
@@ -38,10 +32,7 @@ export async function POST(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
     if (job.status !== "completed" && job.status !== "failed") {
-      return NextResponse.json(
-        { error: `Job is ${job.status}, not finished` },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: `Job is ${job.status}, not finished` }, { status: 409 });
     }
 
     // A download job for a track with no remote URL is analysed in place and
@@ -70,13 +61,13 @@ export async function POST(
           duration_ms: durationMs(job),
           analysis_ok: job.result?.analysis_status !== "failed",
         },
-        { request }
+        { request },
       );
     } else {
       analytics.track(
         "track_download_failed",
         { track_id: job.track_id, duration_ms: durationMs(job) },
-        { request }
+        { request },
       );
     }
     return NextResponse.json({ reported: true });
@@ -85,7 +76,7 @@ export async function POST(
     console.error("Error reporting job outcome:", err);
     return NextResponse.json(
       { error: err.message || "Failed to report job outcome" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

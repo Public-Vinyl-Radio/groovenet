@@ -118,9 +118,7 @@ beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "ingest-accept-"));
   process.env.AUDIO_INGEST_DIR = dir;
   repo.findByDedupeKey.mockResolvedValue(null);
-  repo.create.mockImplementation(async (input: Record<string, unknown>) =>
-    row(input)
-  );
+  repo.create.mockImplementation(async (input: Record<string, unknown>) => row(input));
   redis.lpush.mockResolvedValue(1);
 });
 
@@ -131,9 +129,9 @@ afterEach(() => {
 
 function leftovers(): string[] {
   const walk = (d: string): string[] =>
-    fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
-      e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]
-    );
+    fs
+      .readdirSync(d, { withFileTypes: true })
+      .flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
   return fs.existsSync(dir) ? walk(dir) : [];
 }
 
@@ -143,11 +141,7 @@ describe("accept() — a valid upload", () => {
   it("creates exactly one record and returns 'accepted'", async () => {
     const { service } = makeService();
 
-    const result = await service.accept(
-      upload(wav()),
-      { source_id: "living-room-vinyl" },
-      limits
-    );
+    const result = await service.accept(upload(wav()), { source_id: "living-room-vinyl" }, limits);
 
     expect(repo.create).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({
@@ -171,7 +165,7 @@ describe("accept() — a valid upload", () => {
 
   it("records what ffprobe found, not what the filename claimed", async () => {
     const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ codec: "flac", formatName: "flac" }))
+      vi.fn().mockResolvedValue(probed({ codec: "flac", formatName: "flac" })),
     );
 
     await service.accept(upload(wav(), "lying.wav"), { source_id: "s" }, limits);
@@ -191,7 +185,7 @@ describe("accept() — a valid upload", () => {
         sequence: 42,
         captured_at: "2026-09-20T18:42:10.000Z",
       },
-      limits
+      limits,
     );
 
     expect(redis.lpush).toHaveBeenCalledTimes(1);
@@ -226,9 +220,9 @@ describe("accept() — a valid upload", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const { service } = makeService();
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "s" }, limits)
-    ).resolves.toMatchObject({ status: "accepted" });
+    await expect(service.accept(upload(wav()), { source_id: "s" }, limits)).resolves.toMatchObject({
+      status: "accepted",
+    });
     expect(logged).toHaveBeenCalled();
   });
 });
@@ -239,60 +233,64 @@ describe("accept() — rejections", () => {
   it("refuses a missing source_id", async () => {
     const { service } = makeService();
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "  " }, limits)
-    ).rejects.toMatchObject({ code: "missing_source_id" });
+    await expect(service.accept(upload(wav()), { source_id: "  " }, limits)).rejects.toMatchObject({
+      code: "missing_source_id",
+    });
     expect(repo.create).not.toHaveBeenCalled();
   });
 
   it("refuses a file that is not audio", async () => {
     const { service } = makeService(
-      vi.fn().mockRejectedValue(new InvalidAudioError("no audio stream"))
+      vi.fn().mockRejectedValue(new InvalidAudioError("no audio stream")),
     );
 
     await expect(
-      service.accept(upload(Buffer.from("not audio at all"), "chunk.wav"), { source_id: "s" }, limits)
+      service.accept(
+        upload(Buffer.from("not audio at all"), "chunk.wav"),
+        { source_id: "s" },
+        limits,
+      ),
     ).rejects.toMatchObject({ code: "invalid_audio_stream" });
   });
 
   it("refuses an unsupported container", async () => {
     const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ formatName: "mov,mp4,m4a" }))
+      vi.fn().mockResolvedValue(probed({ formatName: "mov,mp4,m4a" })),
     );
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "s" }, limits)
-    ).rejects.toMatchObject({ code: "unsupported_audio_format" });
+    await expect(service.accept(upload(wav()), { source_id: "s" }, limits)).rejects.toMatchObject({
+      code: "unsupported_audio_format",
+    });
   });
 
   it("refuses audio under the minimum duration", async () => {
-    const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ durationSeconds: 1.2 }))
-    );
+    const { service } = makeService(vi.fn().mockResolvedValue(probed({ durationSeconds: 1.2 })));
 
-    await expect(
-      service.accept(upload(wav(1)), { source_id: "s" }, limits)
-    ).rejects.toMatchObject({ code: "audio_too_short" });
+    await expect(service.accept(upload(wav(1)), { source_id: "s" }, limits)).rejects.toMatchObject({
+      code: "audio_too_short",
+    });
   });
 
   it("refuses audio over the maximum duration", async () => {
-    const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ durationSeconds: 120 }))
-    );
+    const { service } = makeService(vi.fn().mockResolvedValue(probed({ durationSeconds: 120 })));
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "s" }, limits)
-    ).rejects.toMatchObject({ code: "audio_too_long" });
+    await expect(service.accept(upload(wav()), { source_id: "s" }, limits)).rejects.toMatchObject({
+      code: "audio_too_long",
+    });
   });
 
   it("refuses an oversized upload", async () => {
     const { service } = makeService();
 
     await expect(
-      service.accept(upload(wav(15)), { source_id: "s" }, {
-        ...limits,
-        maxBytes: 1000,
-      })
+      service.accept(
+        upload(wav(15)),
+        { source_id: "s" },
+        {
+          ...limits,
+          maxBytes: 1000,
+        },
+      ),
     ).rejects.toMatchObject({ code: "audio_too_large" });
   });
 
@@ -302,7 +300,7 @@ describe("accept() — rejections", () => {
     const { service, probe } = makeService();
 
     await expect(
-      service.accept(upload(wav(60)), { source_id: "s" }, { ...limits, maxBytes: 4096 })
+      service.accept(upload(wav(60)), { source_id: "s" }, { ...limits, maxBytes: 4096 }),
     ).rejects.toMatchObject({ code: "audio_too_large" });
     expect(probe).not.toHaveBeenCalled();
   });
@@ -314,9 +312,9 @@ describe("accept() — rejections", () => {
   ])("leaves no temp file behind when rejecting: %s", async (_label, probe) => {
     const { service } = makeService(probe as never);
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "s" }, limits)
-    ).rejects.toBeInstanceOf(IngestRejected);
+    await expect(service.accept(upload(wav()), { source_id: "s" }, limits)).rejects.toBeInstanceOf(
+      IngestRejected,
+    );
 
     expect(leftovers()).toEqual([]);
   });
@@ -325,20 +323,18 @@ describe("accept() — rejections", () => {
     const { service } = makeService();
 
     await expect(
-      service.accept(upload(wav()), { source_id: "s" }, { ...limits, maxBytes: 512 })
+      service.accept(upload(wav()), { source_id: "s" }, { ...limits, maxBytes: 512 }),
     ).rejects.toBeInstanceOf(IngestRejected);
 
     expect(leftovers()).toEqual([]);
   });
 
   it("never records or queues a rejected chunk", async () => {
-    const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ durationSeconds: 0.5 }))
-    );
+    const { service } = makeService(vi.fn().mockResolvedValue(probed({ durationSeconds: 0.5 })));
 
-    await expect(
-      service.accept(upload(wav(1)), { source_id: "s" }, limits)
-    ).rejects.toBeInstanceOf(IngestRejected);
+    await expect(service.accept(upload(wav(1)), { source_id: "s" }, limits)).rejects.toBeInstanceOf(
+      IngestRejected,
+    );
 
     expect(repo.create).not.toHaveBeenCalled();
     expect(redis.lpush).not.toHaveBeenCalled();
@@ -352,9 +348,7 @@ describe("accept() — container handling", () => {
     ["ogg", "ogg", /\.ogg$/],
     ["matroska,webm", "webm", /\.webm$/],
   ])("stores %s audio with a matching extension", async (formatName, _ext, pattern) => {
-    const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ formatName }))
-    );
+    const { service } = makeService(vi.fn().mockResolvedValue(probed({ formatName })));
 
     await service.accept(upload(wav()), { source_id: "s" }, limits);
 
@@ -362,24 +356,22 @@ describe("accept() — container handling", () => {
   });
 
   it("refuses audio ffprobe could not name a container for", async () => {
-    const { service } = makeService(
-      vi.fn().mockResolvedValue(probed({ formatName: null }))
-    );
+    const { service } = makeService(vi.fn().mockResolvedValue(probed({ formatName: null })));
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "s" }, limits)
-    ).rejects.toMatchObject({ code: "unsupported_audio_format" });
+    await expect(service.accept(upload(wav()), { source_id: "s" }, limits)).rejects.toMatchObject({
+      code: "unsupported_audio_format",
+    });
   });
 
   it("re-raises an unexpected probe failure rather than blaming the device", async () => {
     // A broken ffprobe install is a 500, not a "your audio is bad".
     const { service } = makeService(
-      vi.fn().mockRejectedValue(new Error("ffprobe binary is missing"))
+      vi.fn().mockRejectedValue(new Error("ffprobe binary is missing")),
     );
 
-    await expect(
-      service.accept(upload(wav()), { source_id: "s" }, limits)
-    ).rejects.toThrow(/ffprobe binary is missing/);
+    await expect(service.accept(upload(wav()), { source_id: "s" }, limits)).rejects.toThrow(
+      /ffprobe binary is missing/,
+    );
     expect(leftovers()).toEqual([]);
   });
 
@@ -393,9 +385,7 @@ describe("accept() — container handling", () => {
   });
 
   it("returns captured_at as an ISO string", async () => {
-    repo.create.mockResolvedValue(
-      row({ captured_at: new Date("2026-09-20T18:42:10Z") })
-    );
+    repo.create.mockResolvedValue(row({ captured_at: new Date("2026-09-20T18:42:10Z") }));
     const { service } = makeService();
 
     const result = await service.accept(upload(wav()), { source_id: "s" }, limits);
@@ -416,7 +406,7 @@ describe("accept() — retries", () => {
     const result = await service.accept(
       upload(wav()),
       { source_id: "living-room-vinyl", session_id: "sess-1", sequence: 42 },
-      limits
+      limits,
     );
 
     expect(result.ingest_id).toBe("original-id");
@@ -441,7 +431,7 @@ describe("accept() — retries", () => {
     await service.accept(
       upload(wav()),
       { source_id: "living-room-vinyl", session_id: "sess-1", sequence: 7 },
-      limits
+      limits,
     );
 
     expect(repo.findByDedupeKey).toHaveBeenCalledWith("living-room-vinyl", "sess-1", 7);
@@ -479,7 +469,7 @@ describe("accept() — structured logging", () => {
         sequence: 42,
         captured_at: "2026-09-20T18:42:10.000Z",
       },
-      limits
+      limits,
     );
 
     expect(metrics.chunkAccepted).toHaveBeenCalledTimes(1);
@@ -529,14 +519,14 @@ describe("accept() — structured logging", () => {
 
   it("logs a retry as a duplicate of the original", async () => {
     repo.findByDedupeKey.mockResolvedValue(
-      row({ id: "original", session_id: "sess-1", sequence: "42", status: "processed" })
+      row({ id: "original", session_id: "sess-1", sequence: "42", status: "processed" }),
     );
     const { service } = makeService();
 
     await service.accept(
       upload(wav()),
       { source_id: "living-room-vinyl", session_id: "sess-1", sequence: 42 },
-      limits
+      limits,
     );
 
     expect(metrics.chunkDuplicate).toHaveBeenCalledTimes(1);
@@ -565,11 +555,7 @@ describe("accept() — structured logging", () => {
       () => repo.create.mockRejectedValue(new Error("connection terminated")),
       /connection terminated/,
     ],
-    [
-      "store",
-      () => repo.findByDedupeKey.mockRejectedValue(new Error("db down")),
-      /db down/,
-    ],
+    ["store", () => repo.findByDedupeKey.mockRejectedValue(new Error("db down")), /db down/],
   ])("tags an unexpected failure with the %s stage", async (stage, arrange, message) => {
     arrange();
     const { service } = makeService();
@@ -632,6 +618,6 @@ describe("loadIngestLimits()", () => {
     (value) => {
       process.env.AUDIO_INGEST_MAX_DURATION_SECONDS = value;
       expect(loadIngestLimits().maxDurationSeconds).toBe(60);
-    }
+    },
   );
 });

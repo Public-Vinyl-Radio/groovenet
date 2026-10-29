@@ -8,10 +8,7 @@ export function parseArtworkFriendId(request: NextRequest): number | NextRespons
     friend_id: request.nextUrl.searchParams.get("friend_id"),
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "friend_id query parameter is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "friend_id query parameter is required" }, { status: 400 });
   }
   return parsed.data.friend_id;
 }
@@ -23,6 +20,6 @@ export function artworkErrorResponse(error: unknown, fallback: string): NextResp
   console.error(`[Album Artwork API] ${fallback}:`, error);
   return NextResponse.json(
     { error: error instanceof Error ? error.message : fallback },
-    { status: 500 }
+    { status: 500 },
   );
 }

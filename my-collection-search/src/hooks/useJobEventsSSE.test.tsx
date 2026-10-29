@@ -53,7 +53,7 @@ function emitJobCompleted(analysis: Record<string, unknown>) {
         friend_id: 1,
         result: { analysis },
         timestamp: Date.now(),
-      })
+      }),
     );
   });
 }

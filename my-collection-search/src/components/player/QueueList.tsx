@@ -19,7 +19,14 @@ type Props = {
 };
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <Text as="span" fontFamily="mono" fontSize="11px" letterSpacing="0.08em" fontWeight="semibold" color="fg.muted">
+  <Text
+    as="span"
+    fontFamily="mono"
+    fontSize="11px"
+    letterSpacing="0.08em"
+    fontWeight="semibold"
+    color="fg.muted"
+  >
     {children}
   </Text>
 );
@@ -140,12 +147,18 @@ function QueueSection({
                     >
                       <LuGripVertical size={16} />
                     </Box>
-                    <RowButton onClick={() => playTrack(index)} aria-label={`Play ${track.title} by ${track.artist}`}>
+                    <RowButton
+                      onClick={() => playTrack(index)}
+                      aria-label={`Play ${track.title} by ${track.artist}`}
+                    >
                       <Artwork src={artworkOf(track)} alt="" size="44px" />
                       <TrackText track={track} />
                       <TrackFigures track={track} />
                     </RowButton>
-                    <IconKey aria-label={`Remove ${track.title} from queue`} onClick={() => removeTrack(index)}>
+                    <IconKey
+                      aria-label={`Remove ${track.title} from queue`}
+                      onClick={() => removeTrack(index)}
+                    >
                       <FiX size={16} />
                     </IconKey>
                   </chakra.li>
@@ -166,8 +179,14 @@ function QueueSection({
  * played. Rows are full-width title and artist, duration and key in mono,
  * a drag handle and a remove key; tapping a row plays it.
  */
-export default function QueueList({ playlist, currentTrackIndex, moveTrack, removeTrack, playTrack }: Props) {
-  const current = currentTrackIndex === null ? null : playlist[currentTrackIndex] ?? null;
+export default function QueueList({
+  playlist,
+  currentTrackIndex,
+  moveTrack,
+  removeTrack,
+  playTrack,
+}: Props) {
+  const current = currentTrackIndex === null ? null : (playlist[currentTrackIndex] ?? null);
   const nextOffset = currentTrackIndex === null ? 0 : currentTrackIndex + 1;
   const upNext = playlist.slice(nextOffset);
   const played = currentTrackIndex === null ? [] : playlist.slice(0, currentTrackIndex);
@@ -180,7 +199,7 @@ export default function QueueList({ playlist, currentTrackIndex, moveTrack, remo
       const offset = source.droppableId === "queue-up-next" ? nextOffset : 0;
       moveTrack(offset + source.index, offset + destination.index);
     },
-    [moveTrack, nextOffset]
+    [moveTrack, nextOffset],
   );
 
   if (playlist.length === 0) {
@@ -192,7 +211,9 @@ export default function QueueList({ playlist, currentTrackIndex, moveTrack, remo
           </EmptyState.Indicator>
           <VStack textAlign="center">
             <EmptyState.Title>Queue is empty</EmptyState.Title>
-            <EmptyState.Description>Add tracks to your queue to see them here.</EmptyState.Description>
+            <EmptyState.Description>
+              Add tracks to your queue to see them here.
+            </EmptyState.Description>
           </VStack>
         </EmptyState.Content>
       </EmptyState.Root>
@@ -229,13 +250,25 @@ export default function QueueList({ playlist, currentTrackIndex, moveTrack, remo
         {upNext.length > 0 && (
           <>
             <Divider label="UP NEXT" count={upNext.length} />
-            <QueueSection id="queue-up-next" offset={nextOffset} tracks={upNext} removeTrack={removeTrack} playTrack={playTrack} />
+            <QueueSection
+              id="queue-up-next"
+              offset={nextOffset}
+              tracks={upNext}
+              removeTrack={removeTrack}
+              playTrack={playTrack}
+            />
           </>
         )}
         {played.length > 0 && (
           <>
             <Divider label="PLAYED" count={played.length} />
-            <QueueSection id="queue-played" offset={0} tracks={played} removeTrack={removeTrack} playTrack={playTrack} />
+            <QueueSection
+              id="queue-played"
+              offset={0}
+              tracks={played}
+              removeTrack={removeTrack}
+              playTrack={playTrack}
+            />
           </>
         )}
       </DragDropContext>

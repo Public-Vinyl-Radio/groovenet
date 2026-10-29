@@ -7,10 +7,16 @@ import type { Track } from "@/types/track";
 
 const fetchCandidates = vi.hoisted(() => vi.fn());
 const fetchTracksByIds = vi.hoisted(() => vi.fn());
-const selected = vi.hoisted(() => ({ friend: { id: 4, username: "dj" } as { id: number; username: string } | null }));
+const selected = vi.hoisted(() => ({
+  friend: { id: 4, username: "dj" } as { id: number; username: string } | null,
+}));
 
-vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => ({ friend: selected.friend }) }));
-vi.mock("@/services/internalApi/recommendations", () => ({ fetchRecommendationCandidates: fetchCandidates }));
+vi.mock("@/providers/UsernameProvider", () => ({
+  useUsername: () => ({ friend: selected.friend }),
+}));
+vi.mock("@/services/internalApi/recommendations", () => ({
+  fetchRecommendationCandidates: fetchCandidates,
+}));
 vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds }));
 
 import useRecommendations, { toSeeds, useRecommendationsQuery } from "../useRecommendations";
@@ -55,8 +61,9 @@ describe("toSeeds", () => {
 describe("useRecommendationsQuery", () => {
   it("asks for the given scope and library and hydrates the results", async () => {
     const { result } = renderHook(
-      () => useRecommendationsQuery([track("seed", 9)], 20, { scope: "library", libraryFriendId: 4 }),
-      { wrapper }
+      () =>
+        useRecommendationsQuery([track("seed", 9)], 20, { scope: "library", libraryFriendId: 4 }),
+      { wrapper },
     );
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
@@ -67,7 +74,11 @@ describe("useRecommendationsQuery", () => {
       scope: "library",
       library_friend_id: 4,
     });
-    expect(result.current.data?.[0]).toMatchObject({ track_id: "c1", _simIdentity: 0.9, _simAudio: null });
+    expect(result.current.data?.[0]).toMatchObject({
+      track_id: "c1",
+      _simIdentity: 0.9,
+      _simAudio: null,
+    });
   });
 
   it("defaults the library to the selected one and leaves the scope to the saved setting", async () => {
@@ -89,7 +100,9 @@ describe("useRecommendationsQuery", () => {
   });
 
   it("waits while disabled", () => {
-    renderHook(() => useRecommendationsQuery([track("seed", 9)], 20, { enabled: false }), { wrapper });
+    renderHook(() => useRecommendationsQuery([track("seed", 9)], 20, { enabled: false }), {
+      wrapper,
+    });
     expect(fetchCandidates).not.toHaveBeenCalled();
   });
 

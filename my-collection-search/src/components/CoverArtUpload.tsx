@@ -27,21 +27,21 @@ export default function CoverArtUpload({
       return;
     }
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
       toaster.create({
-        title: 'Invalid file type',
-        description: 'Only JPEG, PNG, and WebP images are allowed',
-        type: 'error',
+        title: "Invalid file type",
+        description: "Only JPEG, PNG, and WebP images are allowed",
+        type: "error",
       });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       toaster.create({
-        title: 'File too large',
-        description: 'Maximum file size is 5MB',
-        type: 'error',
+        title: "File too large",
+        description: "Maximum file size is 5MB",
+        type: "error",
       });
       return;
     }
@@ -88,7 +88,7 @@ export default function CoverArtUpload({
   const handleClear = () => {
     validateAndSetFile(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -161,7 +161,7 @@ export default function CoverArtUpload({
         type="file"
         accept="image/jpeg,image/png,image/webp"
         onChange={handleChange}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       />
     </Box>
   );

@@ -38,7 +38,7 @@ describe("useTrackGenreFacets", () => {
         filter: undefined,
         bpm_min: 120,
         key: "A minor",
-      })
+      }),
     );
   });
 

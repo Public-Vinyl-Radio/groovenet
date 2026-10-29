@@ -20,20 +20,22 @@ export async function GET(request: NextRequest) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid record copy query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const items = await recordCareService.listCopies(
       parsedQuery.data.friend_id,
-      parsedQuery.data.release_id
+      parsedQuery.data.release_id,
     );
-    return NextResponse.json(recordCopyListResponseSchema.parse({ items, overdue_days: defaultOverdueDays() }));
+    return NextResponse.json(
+      recordCopyListResponseSchema.parse({ items, overdue_days: defaultOverdueDays() }),
+    );
   } catch (error) {
     console.error("Error listing record copies:", error);
     return NextResponse.json(
       { error: errorMessage(error, "Failed to list record copies") },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid record copy payload", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
     analytics.track(
       "record_copy_added",
       { copy_id: copy.id, release_id: copy.release_id, friend_id: copy.friend_id },
-      { request }
+      { request },
     );
     return NextResponse.json(recordCopyResponseSchema.parse({ copy }), { status: 201 });
   } catch (error) {

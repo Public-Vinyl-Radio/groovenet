@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FingerprintRepository } from "../fingerprintRepository";
-import type {
-  FingerprintIndexScope,
-  TrackFingerprintRow,
-} from "@/types/fingerprint";
+import type { FingerprintIndexScope, TrackFingerprintRow } from "@/types/fingerprint";
 
 const dbQuery = vi.hoisted(() => vi.fn());
 
@@ -78,8 +75,12 @@ describe("upsertFingerprint()", () => {
   it("stores null stats when none are given", async () => {
     dbQuery.mockResolvedValue({ rows: [makeRow()] });
     await makeRepo().upsertFingerprint({
-      track_id: "t1", friend_id: 1, fingerprint_type: "chromaprint", fingerprint_version: "1",
-      fingerprint_data: null, audio_sha256: "a".repeat(64),
+      track_id: "t1",
+      friend_id: 1,
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
+      fingerprint_data: null,
+      audio_sha256: "a".repeat(64),
     });
     expect(dbQuery.mock.calls[0][1].slice(7)).toEqual([null, null]);
   });
@@ -98,7 +99,7 @@ describe("upsertFingerprint()", () => {
 
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain(
-      "ON CONFLICT (track_id, friend_id, fingerprint_type, fingerprint_version)"
+      "ON CONFLICT (track_id, friend_id, fingerprint_type, fingerprint_version)",
     );
     expect(params.slice(0, 4)).toEqual(["t1", 1, "panako", "2"]);
   });
@@ -661,7 +662,15 @@ describe("recordFileStats()", () => {
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("AND audio_sha256 = $5");
     expect(sql).not.toContain("fingerprint_data");
-    expect(params).toEqual(["t1", 1, "chromaprint", "1", "a".repeat(64), 41_234_567, 1_790_000_000_000]);
+    expect(params).toEqual([
+      "t1",
+      1,
+      "chromaprint",
+      "1",
+      "a".repeat(64),
+      41_234_567,
+      1_790_000_000_000,
+    ]);
   });
 
   it("reports false when the hash no longer matches", async () => {

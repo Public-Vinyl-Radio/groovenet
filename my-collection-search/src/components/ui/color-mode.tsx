@@ -55,10 +55,7 @@ function getStoredTheme(storageKey: string, defaultTheme: ThemeSetting) {
   }
 }
 
-function applyThemeAttribute(
-  attribute: AttributeMode | AttributeMode[],
-  colorMode: ColorMode,
-) {
+function applyThemeAttribute(attribute: AttributeMode | AttributeMode[], colorMode: ColorMode) {
   const root = document.documentElement;
   const attributes = Array.isArray(attribute) ? attribute : [attribute];
 
@@ -78,11 +75,7 @@ function withoutTransitions(disabled: boolean) {
   if (!disabled) return () => {};
 
   const style = document.createElement("style");
-  style.appendChild(
-    document.createTextNode(
-      "*,*::before,*::after{transition:none!important}",
-    ),
-  );
+  style.appendChild(document.createTextNode("*,*::before,*::after{transition:none!important}"));
   document.head.appendChild(style);
 
   return () => {
@@ -122,8 +115,9 @@ export function ColorModeProvider({
     return () => media.removeEventListener("change", onChange);
   }, [defaultTheme, storageKey]);
 
-  const resolvedTheme: ColorMode = forcedTheme
-    ?? ((theme === "system" && enableSystem) ? systemColorMode : theme === "dark" ? "dark" : "light");
+  const resolvedTheme: ColorMode =
+    forcedTheme ??
+    (theme === "system" && enableSystem ? systemColorMode : theme === "dark" ? "dark" : "light");
 
   React.useEffect(() => {
     if (!mounted) return;
@@ -132,14 +126,17 @@ export function ColorModeProvider({
     cleanup();
   }, [attribute, disableTransitionOnChange, mounted, resolvedTheme]);
 
-  const setColorModeSetting = React.useCallback((setting: ThemeSetting) => {
-    setThemeState(setting);
-    try {
-      localStorage.setItem(storageKey, setting);
-    } catch {
-      // Ignore storage failures in private browsing or restricted contexts.
-    }
-  }, [storageKey]);
+  const setColorModeSetting = React.useCallback(
+    (setting: ThemeSetting) => {
+      setThemeState(setting);
+      try {
+        localStorage.setItem(storageKey, setting);
+      } catch {
+        // Ignore storage failures in private browsing or restricted contexts.
+      }
+    },
+    [storageKey],
+  );
 
   const setColorMode = setColorModeSetting;
 
@@ -147,20 +144,19 @@ export function ColorModeProvider({
     setColorMode(resolvedTheme === "dark" ? "light" : "dark");
   }, [resolvedTheme, setColorMode]);
 
-  const value = React.useMemo<ColorModeContextValue>(() => ({
-    colorMode: resolvedTheme,
-    colorModeSetting: theme,
-    setColorModeSetting,
-    setColorMode,
-    toggleColorMode,
-    mounted,
-  }), [mounted, resolvedTheme, theme, setColorModeSetting, setColorMode, toggleColorMode]);
-
-  return (
-    <ColorModeContext.Provider value={value}>
-      {children}
-    </ColorModeContext.Provider>
+  const value = React.useMemo<ColorModeContextValue>(
+    () => ({
+      colorMode: resolvedTheme,
+      colorModeSetting: theme,
+      setColorModeSetting,
+      setColorMode,
+      toggleColorMode,
+      mounted,
+    }),
+    [mounted, resolvedTheme, theme, setColorModeSetting, setColorMode, toggleColorMode],
   );
+
+  return <ColorModeContext.Provider value={value}>{children}</ColorModeContext.Provider>;
 }
 
 export function useColorMode(): UseColorModeReturn {
@@ -190,53 +186,50 @@ export function ColorModeIcon() {
 
 type ColorModeButtonProps = Omit<IconButtonProps, "aria-label">;
 
-export const ColorModeButton = React.forwardRef<
-  HTMLButtonElement,
-  ColorModeButtonProps
->(function ColorModeButton(props, ref) {
-  const { toggleColorMode } = useColorMode();
-  return (
-    <IconButton
-      onClick={toggleColorMode}
-      variant="ghost"
-      aria-label="Toggle color mode"
-      size="sm"
-      ref={ref}
-      {...props}
-      css={{
-        _icon: {
-          width: "5",
-          height: "5",
-        },
-      }}
-    >
-      <ColorModeIcon />
-    </IconButton>
-  );
-});
+export const ColorModeButton = React.forwardRef<HTMLButtonElement, ColorModeButtonProps>(
+  function ColorModeButton(props, ref) {
+    const { toggleColorMode } = useColorMode();
+    return (
+      <IconButton
+        onClick={toggleColorMode}
+        variant="ghost"
+        aria-label="Toggle color mode"
+        size="sm"
+        ref={ref}
+        {...props}
+        css={{
+          _icon: {
+            width: "5",
+            height: "5",
+          },
+        }}
+      >
+        <ColorModeIcon />
+      </IconButton>
+    );
+  },
+);
 
-export const LightMode = React.forwardRef<
-  HTMLSpanElement,
-  React.HTMLAttributes<HTMLSpanElement>
->(function LightMode({ className, ...rest }, ref) {
-  return (
-    <span
-      className={`chakra-theme light${className ? ` ${className}` : ""}`}
-      ref={ref}
-      {...rest}
-    />
-  );
-});
+export const LightMode = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>(
+  function LightMode({ className, ...rest }, ref) {
+    return (
+      <span
+        className={`chakra-theme light${className ? ` ${className}` : ""}`}
+        ref={ref}
+        {...rest}
+      />
+    );
+  },
+);
 
-export const DarkMode = React.forwardRef<
-  HTMLSpanElement,
-  React.HTMLAttributes<HTMLSpanElement>
->(function DarkMode({ className, ...rest }, ref) {
-  return (
-    <span
-      className={`chakra-theme dark${className ? ` ${className}` : ""}`}
-      ref={ref}
-      {...rest}
-    />
-  );
-});
+export const DarkMode = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>(
+  function DarkMode({ className, ...rest }, ref) {
+    return (
+      <span
+        className={`chakra-theme dark${className ? ` ${className}` : ""}`}
+        ref={ref}
+        {...rest}
+      />
+    );
+  },
+);

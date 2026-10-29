@@ -29,6 +29,8 @@ def reported_outcomes(monkeypatch):
 @pytest.fixture
 def completed_process():
     """Factory for subprocess.CompletedProcess with configurable fields."""
+
     def _make(returncode=0, stdout="", stderr=""):
         return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
+
     return _make

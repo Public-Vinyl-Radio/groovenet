@@ -33,7 +33,7 @@ export type RecordActionFormState = {
 
 export function initialRecordActionState(
   options: { actionType?: RecordActionType; copy?: CopyRef } = {},
-  now: Date = new Date()
+  now: Date = new Date(),
 ): RecordActionFormState {
   return {
     actionType: options.actionType ?? "cleaned",
@@ -60,7 +60,7 @@ export function recordActionFormError(state: RecordActionFormState): string | nu
  */
 export function buildRecordActionBody(
   state: RecordActionFormState,
-  releaseId: string
+  releaseId: string,
 ): Omit<RecordActionCreateParams, "friend_id"> {
   const target =
     state.copyKey === DEFAULT_COPY_KEY
@@ -73,6 +73,8 @@ export function buildRecordActionBody(
     occurred_at: new Date(state.occurredAtInput).toISOString(),
     ...(notes ? { notes } : {}),
     ...(state.actionType === "sleeved" ? { sleeve_type: state.sleeveType } : {}),
-    ...(state.actionType === "cleaned" && state.method ? { details: { method: state.method } } : {}),
+    ...(state.actionType === "cleaned" && state.method
+      ? { details: { method: state.method } }
+      : {}),
   };
 }

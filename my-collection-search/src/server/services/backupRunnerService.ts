@@ -47,7 +47,8 @@ function getExistingPath(p: string): string | null {
 function acquireBackupRunLock(): (() => void) | null {
   // BACKUP_STATUS_DIR is a runtime volume, not a server bundle dependency.
   const statusDir = path.resolve(
-    /* turbopackIgnore: true */ process.env.BACKUP_STATUS_DIR || path.resolve(process.cwd(), "dumps")
+    /* turbopackIgnore: true */ process.env.BACKUP_STATUS_DIR ||
+      path.resolve(process.cwd(), "dumps"),
   );
   const lockPath = path.join(statusDir, ".backup-run.lock");
   fs.mkdirSync(statusDir, { recursive: true });
@@ -64,7 +65,7 @@ function acquireBackupRunLock(): (() => void) | null {
     fs.writeFileSync(
       fd,
       `${JSON.stringify({ pid: process.pid, started_at: new Date().toISOString() })}\n`,
-      "utf8"
+      "utf8",
     );
   } catch (error) {
     fs.closeSync(fd);
@@ -167,15 +168,11 @@ function collectBackupPaths(policy: BackupPolicy): string[] {
     if (audioPath) paths.push(audioPath);
   }
   if (policy.include_album_covers) {
-    const coversPath = getExistingPath(
-      path.resolve(process.cwd(), "public/uploads/album-covers")
-    );
+    const coversPath = getExistingPath(path.resolve(process.cwd(), "public/uploads/album-covers"));
     if (coversPath) paths.push(coversPath);
   }
   if (policy.include_discogs_exports) {
-    const discogsExportsPath = getExistingPath(
-      path.resolve(process.cwd(), "discogs_exports")
-    );
+    const discogsExportsPath = getExistingPath(path.resolve(process.cwd(), "discogs_exports"));
     if (discogsExportsPath) paths.push(discogsExportsPath);
   }
   if (policy.include_essentia_files) {
@@ -200,9 +197,7 @@ function parseSnapshotsOutput(raw: string): BackupSnapshotSummary | null {
   const snapshots = parsed
     .map((entry) => {
       const obj =
-        typeof entry === "object" && entry !== null
-          ? (entry as Record<string, unknown>)
-          : null;
+        typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : null;
       if (!obj || typeof obj.id !== "string" || typeof obj.time !== "string") {
         return null;
       }
@@ -223,9 +218,7 @@ function parseSnapshotsOutput(raw: string): BackupSnapshotSummary | null {
 
   if (snapshots.length === 0) return null;
 
-  snapshots.sort(
-    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
-  );
+  snapshots.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   return snapshots[0] ?? null;
 }
 
@@ -257,7 +250,7 @@ function persistStatus(result: BackupRunResult): void {
 }
 
 export async function runBackupNow(
-  reason: "manual" | "scheduled" = "manual"
+  reason: "manual" | "scheduled" = "manual",
 ): Promise<BackupRunResult> {
   const g = globalThis as GlobalWithBackup;
   const startedAt = new Date().toISOString();
@@ -332,13 +325,13 @@ export async function runBackupNow(
     const snapshot = await execFileAsync(
       "restic",
       ["backup", ...backupPaths, "--tag", tag, "--json"],
-      { env: process.env, maxBuffer: 1024 * 1024 * 10 }
+      { env: process.env, maxBuffer: 1024 * 1024 * 10 },
     );
 
     const prune = await execFileAsync(
       "restic",
       ["forget", "--prune", ...retentionArgs(policy.retention_preset)],
-      { env: process.env, maxBuffer: 1024 * 1024 * 10 }
+      { env: process.env, maxBuffer: 1024 * 1024 * 10 },
     );
 
     const latestSnapshot = await getLatestSnapshotSummary();

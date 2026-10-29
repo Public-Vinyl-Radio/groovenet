@@ -30,40 +30,64 @@ beforeAll(async () => {
 
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   await dbQuery(
     `INSERT INTO tracks (track_id, username, friend_id, title, artist)
      VALUES ($1, $2, $3, 'Debug Title', 'Debug Artist')`,
-    [TRACK_ID, USERNAME, friendId]
+    [TRACK_ID, USERNAME, friendId],
   );
 
   // One processed chunk that matched, one that did not, one failure.
   const matched = await ingests.create({
-    source_id: SOURCE, session_id: "s1", sequence: 1,
-    file_path: "x/1.wav", status: "processed", duration_seconds: 15,
+    source_id: SOURCE,
+    session_id: "s1",
+    sequence: 1,
+    file_path: "x/1.wav",
+    status: "processed",
+    duration_seconds: 15,
   });
   const unmatched = await ingests.create({
-    source_id: SOURCE, session_id: "s1", sequence: 2,
-    file_path: "x/2.wav", status: "processed", duration_seconds: 15,
+    source_id: SOURCE,
+    session_id: "s1",
+    sequence: 2,
+    file_path: "x/2.wav",
+    status: "processed",
+    duration_seconds: 15,
   });
   await ingests.create({
-    source_id: SOURCE, session_id: "s1", sequence: 3,
-    file_path: "x/3.wav", status: "failed", error: "decode failed",
+    source_id: SOURCE,
+    session_id: "s1",
+    sequence: 3,
+    file_path: "x/3.wav",
+    status: "failed",
+    error: "decode failed",
   });
 
   await detections.create({
-    ingest_id: matched.id, source_id: SOURCE, session_id: "s1",
-    track_id: TRACK_ID, friend_id: friendId, confidence: 0.94,
-    offset_seconds: 12.4, window_start_at: new Date(),
-    fingerprint_type: "chromaprint", fingerprint_version: "1",
+    ingest_id: matched.id,
+    source_id: SOURCE,
+    session_id: "s1",
+    track_id: TRACK_ID,
+    friend_id: friendId,
+    confidence: 0.94,
+    offset_seconds: 12.4,
+    window_start_at: new Date(),
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
   });
   await detections.create({
-    ingest_id: unmatched.id, source_id: SOURCE, session_id: "s1",
-    track_id: null, friend_id: null, confidence: null,
-    offset_seconds: null, window_start_at: new Date(),
-    fingerprint_type: "chromaprint", fingerprint_version: "1",
+    ingest_id: unmatched.id,
+    source_id: SOURCE,
+    session_id: "s1",
+    track_id: null,
+    friend_id: null,
+    confidence: null,
+    offset_seconds: null,
+    window_start_at: new Date(),
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
   });
 });
 

@@ -10,10 +10,7 @@ import {
 } from "@/server/services/discogsManifestService";
 import fs from "fs";
 import { NextRequest } from "next/server";
-import {
-  getCollectionPage,
-  getReleaseDetails,
-} from "@/server/services/discogsApiClient";
+import { getCollectionPage, getReleaseDetails } from "@/server/services/discogsApiClient";
 import { analytics } from "@/lib/analytics/server";
 import { dbPool } from "@/lib/serverDb";
 import { cleanupDiscogsReleases } from "@/server/services/discogsCleanupService";
@@ -31,10 +28,9 @@ function getUsernameFromRequest(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const username = getUsernameFromRequest(request);
   if (!DISCOGS_USER_TOKEN || !username) {
-    return new Response(
-      JSON.stringify({ error: "Discogs credentials not set in environment" }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Discogs credentials not set in environment" }), {
+      status: 500,
+    });
   }
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -53,46 +49,29 @@ export async function GET(request: NextRequest) {
 
         // Use a manifest per username
         const manifestIds = getManifestReleaseIds(username);
-        console.log(
-          `[Discogs Sync] Loaded manifest IDs for ${username}:`,
-          manifestIds.length
-        );
+        console.log(`[Discogs Sync] Loaded manifest IDs for ${username}:`, manifestIds.length);
         controller.enqueue(
-          encoder.encode(
-            `Loaded manifest IDs for ${username}: ${manifestIds.length}\n\n`
-          )
+          encoder.encode(`Loaded manifest IDs for ${username}: ${manifestIds.length}\n\n`),
         );
 
         analytics.track(
           "discogs_sync_started",
           { manifest_ids_count: manifestIds.length },
-          { request }
+          { request },
         );
 
         try {
           // Step 1: Collect all collection release IDs
           while (true) {
-            console.log(
-              `[Discogs Sync] Fetching collection page ${page} for user ${username}...`
-            );
+            console.log(`[Discogs Sync] Fetching collection page ${page} for user ${username}...`);
             controller.enqueue(
-              encoder.encode(
-                `Fetching collection page ${page} for user ${username}:\n\n`
-              )
+              encoder.encode(`Fetching collection page ${page} for user ${username}:\n\n`),
             );
-            const collectionPage = await getCollectionPage(
-              username,
-              page,
-              perPage
-            );
+            const collectionPage = await getCollectionPage(username, page, perPage);
             const releases = collectionPage.releases || [];
-            console.log(
-              `[Discogs Sync] Page ${page} - releases found: ${releases.length}`
-            );
+            console.log(`[Discogs Sync] Page ${page} - releases found: ${releases.length}`);
             controller.enqueue(
-              encoder.encode(
-                `data:  Page ${page} - releases found: ${releases.length}:\n\n`
-              )
+              encoder.encode(`data:  Page ${page} - releases found: ${releases.length}:\n\n`),
             );
             if (releases.length === 0) break;
 
@@ -111,14 +90,10 @@ export async function GET(request: NextRequest) {
               }
 
               console.log(`[Discogs Sync] Found release ID: ${releaseId}`);
-              controller.enqueue(
-                encoder.encode(`Found release ID: ${releaseId}\n\n`)
-              );
+              controller.enqueue(encoder.encode(`Found release ID: ${releaseId}\n\n`));
             }
 
-            if (
-              collectionPage.pagination.page < collectionPage.pagination.pages
-            ) {
+            if (collectionPage.pagination.page < collectionPage.pagination.pages) {
               page += 1;
             } else {
               break;
@@ -128,9 +103,7 @@ export async function GET(request: NextRequest) {
           // Step 2: Determine new IDs not in manifest
           const newIds = allIds.filter((id) => !manifestIds.includes(id));
           console.log(`[Discogs Sync] New IDs to fetch: ${newIds.length}`);
-          controller.enqueue(
-            encoder.encode(`New IDs to fetch: ${newIds.length}\n\n`)
-          );
+          controller.enqueue(encoder.encode(`New IDs to fetch: ${newIds.length}\n\n`));
 
           // Step 2.25: Repair releases already imported from what the listing
           // just returned — no release fetches, so no rate-limit wait (#847).
@@ -139,17 +112,18 @@ export async function GET(request: NextRequest) {
             const repaired = await repairDiscogsCollectionFields(
               username,
               allIds.filter((id) => !newIdSet.has(id)),
-              dateAddedMap
+              dateAddedMap,
             );
             controller.enqueue(
               encoder.encode(
-                `Repaired ${repaired.albums.length} albums and ${repaired.tracks} tracks from collection dates\n\n`
-              )
+                `Repaired ${repaired.albums.length} albums and ${repaired.tracks} tracks from collection dates\n\n`,
+              ),
             );
           } catch (repairError) {
-            const errorMessage = repairError instanceof Error ? repairError.message : String(repairError);
+            const errorMessage =
+              repairError instanceof Error ? repairError.message : String(repairError);
             controller.enqueue(
-              encoder.encode(`⚠️  Collection date repair error: ${errorMessage}\n\n`)
+              encoder.encode(`⚠️  Collection date repair error: ${errorMessage}\n\n`),
             );
             console.error("[Discogs Sync] Repair error:", repairError);
           }
@@ -157,13 +131,11 @@ export async function GET(request: NextRequest) {
           // Step 2.5: Detect and delete removed IDs (in manifest but not in current collection)
           const removedIds = manifestIds.filter((id) => !allIds.includes(id));
           if (removedIds.length > 0) {
-            console.log(
-              `[Discogs Sync] Removed IDs detected: ${removedIds.length}`
-            );
+            console.log(`[Discogs Sync] Removed IDs detected: ${removedIds.length}`);
             controller.enqueue(
               encoder.encode(
-                `⚠️  Detected ${removedIds.length} releases removed from Discogs collection\n\n`
-              )
+                `⚠️  Detected ${removedIds.length} releases removed from Discogs collection\n\n`,
+              ),
             );
 
             // Delete local files first, then clean DB in one shared service
@@ -178,8 +150,8 @@ export async function GET(request: NextRequest) {
                 if (deletedFiles > 0 && deletedFiles % 10 === 0) {
                   controller.enqueue(
                     encoder.encode(
-                      `Deleted local files ${deletedFiles}/${removedIds.length}...\n\n`
-                    )
+                      `Deleted local files ${deletedFiles}/${removedIds.length}...\n\n`,
+                    ),
                   );
                 }
               }
@@ -188,39 +160,32 @@ export async function GET(request: NextRequest) {
               if (!cleanup.friendId) {
                 controller.enqueue(
                   encoder.encode(
-                    `⚠️  Could not find friend_id for ${username}, skipped DB/search deletion\n\n`
-                  )
+                    `⚠️  Could not find friend_id for ${username}, skipped DB/search deletion\n\n`,
+                  ),
                 );
               } else {
                 controller.enqueue(
                   encoder.encode(
-                    `✅ Deleted ${cleanup.deletedTracksCount} tracks and ${cleanup.deletedAlbumsCount} albums for removed releases\n\n`
-                  )
+                    `✅ Deleted ${cleanup.deletedTracksCount} tracks and ${cleanup.deletedAlbumsCount} albums for removed releases\n\n`,
+                  ),
                 );
               }
             } catch (deleteError) {
-              const errorMessage = deleteError instanceof Error ? deleteError.message : String(deleteError);
+              const errorMessage =
+                deleteError instanceof Error ? deleteError.message : String(deleteError);
               controller.enqueue(
-                encoder.encode(`⚠️  Error deleting releases: ${errorMessage}\n\n`)
+                encoder.encode(`⚠️  Error deleting releases: ${errorMessage}\n\n`),
               );
               console.error("[Discogs Sync] Delete error:", deleteError);
             }
           } else {
-            controller.enqueue(
-              encoder.encode(`No releases removed from collection\n\n`)
-            );
+            controller.enqueue(encoder.encode(`No releases removed from collection\n\n`));
           }
 
           // Step 3: Fetch and save details for new IDs only
           for (const releaseId of newIds) {
-            console.log(
-              `[Discogs Sync] Fetching details for release ID: ${releaseId}`
-            );
-            controller.enqueue(
-              encoder.encode(
-                `Fetching details for release ID: ${releaseId}\n\n`
-              )
-            );
+            console.log(`[Discogs Sync] Fetching details for release ID: ${releaseId}`);
+            controller.enqueue(encoder.encode(`Fetching details for release ID: ${releaseId}\n\n`));
 
             try {
               const details = await getReleaseDetails(releaseId);
@@ -234,20 +199,14 @@ export async function GET(request: NextRequest) {
               const filePath = getReleaseWritePath(username, releaseId);
               fs.writeFileSync(filePath, JSON.stringify(details, null, 2));
               newReleases.push(releaseId);
-              controller.enqueue(
-                encoder.encode(`Saved release ID: ${releaseId}\n\n`)
-              );
+              controller.enqueue(encoder.encode(`Saved release ID: ${releaseId}\n\n`));
               console.log(`[Discogs Sync] Saved release ID: ${releaseId}`);
             } catch (e) {
               const errorMessage = e instanceof Error ? e.message : String(e);
               errors.push({ releaseId, error: errorMessage });
-              console.log(
-                `[Discogs Sync] Error for release ID ${releaseId}: ${errorMessage}`
-              );
+              console.log(`[Discogs Sync] Error for release ID ${releaseId}: ${errorMessage}`);
               controller.enqueue(
-                encoder.encode(
-                  `Error for release ID ${releaseId}: ${errorMessage}\n\n`
-                )
+                encoder.encode(`Error for release ID ${releaseId}: ${errorMessage}\n\n`),
               );
             }
 
@@ -257,72 +216,58 @@ export async function GET(request: NextRequest) {
 
           // Step 4: Update and save manifest (exclude removed IDs, add ONLY successfully downloaded new releases)
           const updatedManifestIds = [
-            ...manifestIds.filter(id => !removedIds.includes(id)),
-            ...newReleases  // Only add successfully downloaded releases, not all newIds
+            ...manifestIds.filter((id) => !removedIds.includes(id)),
+            ...newReleases, // Only add successfully downloaded releases, not all newIds
           ];
           saveManifest(getManifestPath(username), updatedManifestIds);
           console.log(
-            `[Discogs Sync] Manifest updated for ${username}. Total IDs: ${updatedManifestIds.length} (removed: ${removedIds.length}, added: ${newReleases.length})`
+            `[Discogs Sync] Manifest updated for ${username}. Total IDs: ${updatedManifestIds.length} (removed: ${removedIds.length}, added: ${newReleases.length})`,
           );
           controller.enqueue(
             encoder.encode(
-              `Manifest updated for ${username}. Total IDs: ${updatedManifestIds.length} (added: ${newReleases.length}, failed: ${errors.length})\n\n`
-            )
+              `Manifest updated for ${username}. Total IDs: ${updatedManifestIds.length} (added: ${newReleases.length}, failed: ${errors.length})\n\n`,
+            ),
           );
 
           // Report failed downloads
           if (errors.length > 0) {
             controller.enqueue(
               encoder.encode(
-                `\n⚠️  ${errors.length} releases failed to download and were NOT added to manifest:\n`
-              )
+                `\n⚠️  ${errors.length} releases failed to download and were NOT added to manifest:\n`,
+              ),
             );
             for (const error of errors) {
               controller.enqueue(
-                encoder.encode(`  - Release ${error.releaseId}: ${error.error}\n`)
+                encoder.encode(`  - Release ${error.releaseId}: ${error.error}\n`),
               );
             }
-            controller.enqueue(encoder.encode('\n'));
+            controller.enqueue(encoder.encode("\n"));
           }
 
           controller.enqueue(
             encoder.encode(
-              `Sync complete for ${username}. New releases downloaded: ${newReleases.length}\n\n`
-            )
+              `Sync complete for ${username}. New releases downloaded: ${newReleases.length}\n\n`,
+            ),
           );
 
           // Step 5: Auto-ingest into Postgres
           if (newReleases.length > 0) {
-            controller.enqueue(
-              encoder.encode(`\n--- Starting Auto-Ingest ---\n\n`)
-            );
+            controller.enqueue(encoder.encode(`\n--- Starting Auto-Ingest ---\n\n`));
 
             try {
-              const { getTracksFromManifestReleases } = await import(
-                "@/server/services/discogsManifestService"
-              );
-              const { upsertTracks } = await import(
-                "@/server/services/trackUpsertService"
-              );
+              const { getTracksFromManifestReleases } =
+                await import("@/server/services/discogsManifestService");
+              const { upsertTracks } = await import("@/server/services/trackUpsertService");
 
-              controller.enqueue(
-                encoder.encode(`Loading tracks from new releases...\n\n`)
-              );
-              const allTracks = getTracksFromManifestReleases(
-                username,
-                newReleases
-              );
-              controller.enqueue(
-                encoder.encode(`Loaded ${allTracks.length} tracks\n\n`)
-              );
+              controller.enqueue(encoder.encode(`Loading tracks from new releases...\n\n`));
+              const allTracks = getTracksFromManifestReleases(username, newReleases);
+              controller.enqueue(encoder.encode(`Loaded ${allTracks.length} tracks\n\n`));
 
-              controller.enqueue(
-                encoder.encode(`Upserting tracks to Postgres...\n\n`)
-              );
+              controller.enqueue(encoder.encode(`Upserting tracks to Postgres...\n\n`));
               const { upserted, errors: upsertErrors } = await upsertTracks(allTracks);
               trackErrors.push(...upsertErrors);
               controller.enqueue(
-                encoder.encode(`Upserted ${upserted.length} tracks to Postgres\n\n`)
+                encoder.encode(`Upserted ${upserted.length} tracks to Postgres\n\n`),
               );
 
               const failuresByRelease = new Map<string, TrackUpsertFailure[]>();
@@ -333,59 +278,45 @@ export async function GET(request: NextRequest) {
                 failuresByRelease.set(releaseId, failures);
               }
               for (const [releaseId, failures] of failuresByRelease) {
-                controller.enqueue(encoder.encode(
-                  `Release ${releaseId} fetched with track upsert failures (${failures.length}):\n`
-                ));
+                controller.enqueue(
+                  encoder.encode(
+                    `Release ${releaseId} fetched with track upsert failures (${failures.length}):\n`,
+                  ),
+                );
                 for (const failure of failures) {
-                  controller.enqueue(encoder.encode(
-                    `  - Track ${failure.trackId}@${failure.username}: ${failure.error}\n`
-                  ));
+                  controller.enqueue(
+                    encoder.encode(
+                      `  - Track ${failure.trackId}@${failure.username}: ${failure.error}\n`,
+                    ),
+                  );
                 }
                 controller.enqueue(encoder.encode("\n"));
               }
 
               // Step 6: Ingest albums
-              controller.enqueue(
-                encoder.encode(`\n--- Ingesting Albums ---\n\n`)
-              );
+              controller.enqueue(encoder.encode(`\n--- Ingesting Albums ---\n\n`));
 
               try {
-                const {
-                  getAlbumsFromManifestReleases,
-                  upsertAlbums,
-                } = await import(
-                  "@/server/services/albumUpsertService"
-                );
+                const { getAlbumsFromManifestReleases, upsertAlbums } =
+                  await import("@/server/services/albumUpsertService");
 
-                controller.enqueue(
-                  encoder.encode(`Loading albums from new releases...\n`)
-                );
-                const allAlbums = await getAlbumsFromManifestReleases(
-                  username,
-                  newReleases
-                );
-                controller.enqueue(
-                  encoder.encode(`Loaded ${allAlbums.length} albums\n\n`)
-                );
+                controller.enqueue(encoder.encode(`Loading albums from new releases...\n`));
+                const allAlbums = await getAlbumsFromManifestReleases(username, newReleases);
+                controller.enqueue(encoder.encode(`Loaded ${allAlbums.length} albums\n\n`));
 
-                controller.enqueue(
-                  encoder.encode(`Upserting albums to Postgres...\n`)
-                );
+                controller.enqueue(encoder.encode(`Upserting albums to Postgres...\n`));
                 const upsertedAlbums = await upsertAlbums(dbPool, allAlbums, {
                   preserveManualFields: true,
                 });
                 controller.enqueue(
-                  encoder.encode(`Upserted ${upsertedAlbums.length} albums to Postgres\n\n`)
+                  encoder.encode(`Upserted ${upsertedAlbums.length} albums to Postgres\n\n`),
                 );
 
-                controller.enqueue(
-                  encoder.encode(`✅ Album ingest complete!\n\n`)
-                );
+                controller.enqueue(encoder.encode(`✅ Album ingest complete!\n\n`));
               } catch (albumError) {
-                const errorMessage = albumError instanceof Error ? albumError.message : String(albumError);
-                controller.enqueue(
-                  encoder.encode(`⚠️  Album ingest error: ${errorMessage}\n\n`)
-                );
+                const errorMessage =
+                  albumError instanceof Error ? albumError.message : String(albumError);
+                controller.enqueue(encoder.encode(`⚠️  Album ingest error: ${errorMessage}\n\n`));
                 console.error("[Album Ingest Error]", albumError);
                 // Continue even if album ingest fails
               }
@@ -396,14 +327,13 @@ export async function GET(request: NextRequest) {
               // longer makes a sync wait on OpenAI; check About → status for
               // embedding health instead of a per-sync error line.
               try {
-                const { syncIdentityEmbeddings } = await import(
-                  "@/server/services/trackEmbeddingSyncService"
-                );
+                const { syncIdentityEmbeddings } =
+                  await import("@/server/services/trackEmbeddingSyncService");
                 const embedded = await syncIdentityEmbeddings(upserted);
                 controller.enqueue(
                   encoder.encode(
-                    `Embeddings: ${embedded.queued} queued for background generation\n\n`
-                  )
+                    `Embeddings: ${embedded.queued} queued for background generation\n\n`,
+                  ),
                 );
               } catch (embeddingError) {
                 console.error("[Embedding Sync Error]", embeddingError);
@@ -413,28 +343,26 @@ export async function GET(request: NextRequest) {
                       embeddingError instanceof Error
                         ? embeddingError.message
                         : String(embeddingError)
-                    }\n\n`
-                  )
+                    }\n\n`,
+                  ),
                 );
               }
 
               controller.enqueue(
-                encoder.encode(trackErrors.length > 0
-                  ? `\nAuto-ingest incomplete. Track upsert failures: ${trackErrors.length}.\n\n`
-                  : `\n✅ Auto-ingest complete!\n\n`)
+                encoder.encode(
+                  trackErrors.length > 0
+                    ? `\nAuto-ingest incomplete. Track upsert failures: ${trackErrors.length}.\n\n`
+                    : `\n✅ Auto-ingest complete!\n\n`,
+                ),
               );
             } catch (e) {
               const errorMessage = e instanceof Error ? e.message : String(e);
-              controller.enqueue(
-                encoder.encode(`\n❌ Auto-ingest error: ${errorMessage}\n\n`)
-              );
+              controller.enqueue(encoder.encode(`\n❌ Auto-ingest error: ${errorMessage}\n\n`));
               console.error("[Auto-ingest Error]", e);
             }
           } else {
             controller.enqueue(
-              encoder.encode(
-                `\nNo new releases to ingest. Skipping auto-ingest.\n\n`
-              )
+              encoder.encode(`\nNo new releases to ingest. Skipping auto-ingest.\n\n`),
             );
           }
 
@@ -446,31 +374,27 @@ export async function GET(request: NextRequest) {
               error_count: errors.length + trackErrors.length,
               duration_ms: Date.now() - syncStartedAt,
             },
-            { request }
+            { request },
           );
 
           controller.enqueue(
-            encoder.encode(trackErrors.length > 0
-              ? `\nAll operations complete with track upsert failures. Failed tracks: ${trackErrors.length}; affected releases: ${new Set(trackErrors.map((error) => error.releaseId)).size}.\n\n`
-              : `\n🎉 All operations complete!\n\n`)
+            encoder.encode(
+              trackErrors.length > 0
+                ? `\nAll operations complete with track upsert failures. Failed tracks: ${trackErrors.length}; affected releases: ${new Set(trackErrors.map((error) => error.releaseId)).size}.\n\n`
+                : `\n🎉 All operations complete!\n\n`,
+            ),
           );
           controller.close();
         } catch (e) {
           controller.enqueue(
-            encoder.encode(
-              `Error: ${e instanceof Error ? e.message : String(e)}\n\n`
-            )
+            encoder.encode(`Error: ${e instanceof Error ? e.message : String(e)}\n\n`),
           );
           controller.close();
         }
       } catch (e) {
-        console.log(
-          `[Discogs Sync] Error: ${e instanceof Error ? e.message : String(e)}`
-        );
+        console.log(`[Discogs Sync] Error: ${e instanceof Error ? e.message : String(e)}`);
         controller.enqueue(
-          encoder.encode(
-            `Error: ${e instanceof Error ? e.message : String(e)}\n\n`
-          )
+          encoder.encode(`Error: ${e instanceof Error ? e.message : String(e)}\n\n`),
         );
       }
     },

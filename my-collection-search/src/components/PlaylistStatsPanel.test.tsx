@@ -13,9 +13,36 @@ import PlaylistStatsPanel from "./PlaylistStatsPanel";
 // visible and the desktop grid stays `display: none`. Desktop assertions
 // below query it with `{ hidden: true }` rather than fighting that.
 const taxonomy: GenreTreeNode[] = [
-  { id: "latin", name: "Latin", slug: "latin", parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [] },
-  { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [] },
-  { id: "chicha", name: "Chicha", slug: "chicha", parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [] },
+  {
+    id: "latin",
+    name: "Latin",
+    slug: "latin",
+    parent_id: null,
+    source: "discogs",
+    track_count: 0,
+    album_count: 0,
+    children: [],
+  },
+  {
+    id: "cumbia",
+    name: "Cumbia",
+    slug: "cumbia",
+    parent_id: null,
+    source: "discogs",
+    track_count: 0,
+    album_count: 0,
+    children: [],
+  },
+  {
+    id: "chicha",
+    name: "Chicha",
+    slug: "chicha",
+    parent_id: null,
+    source: "discogs",
+    track_count: 0,
+    album_count: 0,
+    children: [],
+  },
 ];
 
 let nextId = 1;
@@ -42,7 +69,9 @@ const tracks: Track[] = [
   track({
     genres: ["Latin"],
     styles: ["Unmapped Style"],
-    track_genres: [{ id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null }],
+    track_genres: [
+      { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+    ],
   }),
   track({
     genres: ["Latin"],
@@ -53,7 +82,9 @@ const tracks: Track[] = [
   track({
     genres: ["Unmapped Genre"],
     styles: [],
-    track_genres: [{ id: "chicha", name: "Chicha", slug: "chicha", parent_id: null, parent_name: null }],
+    track_genres: [
+      { id: "chicha", name: "Chicha", slug: "chicha", parent_id: null, parent_name: null },
+    ],
   }),
 ];
 
@@ -74,7 +105,10 @@ describe("PlaylistStatsPanel (#480)", () => {
     renderPanel();
 
     const genreCard = await findDesktopCard("Top Genres");
-    const link = within(genreCard).getByRole("link", { name: "Search tracks in Latin (2)", hidden: true });
+    const link = within(genreCard).getByRole("link", {
+      name: "Search tracks in Latin (2)",
+      hidden: true,
+    });
     expect(link.getAttribute("href")).toBe("/?genre=latin");
   });
 
@@ -91,9 +125,15 @@ describe("PlaylistStatsPanel (#480)", () => {
 
     const trackGenreCard = await findDesktopCard("Top track genres");
     // Track 1's track_genres "Cumbia" and track 2's style fallback "Cumbia" are the same genre.
-    const cumbia = within(trackGenreCard).getByRole("link", { name: "Search tracks in Cumbia (2)", hidden: true });
+    const cumbia = within(trackGenreCard).getByRole("link", {
+      name: "Search tracks in Cumbia (2)",
+      hidden: true,
+    });
     expect(cumbia.getAttribute("href")).toBe("/?genre=cumbia");
-    const chicha = within(trackGenreCard).getByRole("link", { name: "Search tracks in Chicha (1)", hidden: true });
+    const chicha = within(trackGenreCard).getByRole("link", {
+      name: "Search tracks in Chicha (1)",
+      hidden: true,
+    });
     expect(chicha.getAttribute("href")).toBe("/?genre=chicha");
   });
 
@@ -186,7 +226,15 @@ describe("PlaylistStatsPanel (#480)", () => {
 });
 
 it("tallies effective album genres/styles without replacing the DJ genre", async () => {
-  renderPanel([track({ genres: ["Old Genre"], styles: ["Old Style"], album_genres: ["Latin"], album_styles: ["Cumbia"], track_genres: [{ id: "s", name: "Salsa", slug: "salsa", parent_id: null, parent_name: null }] })]);
+  renderPanel([
+    track({
+      genres: ["Old Genre"],
+      styles: ["Old Style"],
+      album_genres: ["Latin"],
+      album_styles: ["Cumbia"],
+      track_genres: [{ id: "s", name: "Salsa", slug: "salsa", parent_id: null, parent_name: null }],
+    }),
+  ]);
   const genreCard = await findDesktopCard("Top Genres");
   expect(within(genreCard).getByText("Latin (1)")).toBeTruthy();
   const styleCard = await findDesktopCard("Ratings & Styles");

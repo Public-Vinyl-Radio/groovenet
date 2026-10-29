@@ -1,11 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/queryKeys";
-import {
-  fetchStatusInfo,
-  fetchUpdateInfo,
-  fetchVersionInfo,
-} from "@/services/internalApi/system";
+import { fetchStatusInfo, fetchUpdateInfo, fetchVersionInfo } from "@/services/internalApi/system";
 
 export function useVersionInfo() {
   return useQuery({

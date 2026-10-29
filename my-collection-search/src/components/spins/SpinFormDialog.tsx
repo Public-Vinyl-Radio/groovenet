@@ -73,7 +73,8 @@ export default function SpinFormDialog({
       setForm(fresh);
     }
   }
-  const update = (patch: Partial<SpinFormState>) => setForm((current) => ({ ...current, ...patch }));
+  const update = (patch: Partial<SpinFormState>) =>
+    setForm((current) => ({ ...current, ...patch }));
 
   const playableStructureQuery = useQuery({
     queryKey: queryKeys.albumPlayableStructure(releaseId, friendId),
@@ -83,7 +84,7 @@ export default function SpinFormDialog({
   });
   const sides = React.useMemo(
     () => playableStructureQuery.data?.sides ?? [],
-    [playableStructureQuery.data]
+    [playableStructureQuery.data],
   );
   const { createSpin, updateSpin, createSpinPending, updateSpinPending } =
     useSpinMutations(friendId);
@@ -91,7 +92,8 @@ export default function SpinFormDialog({
   const sideByTrackKey = React.useMemo(() => {
     const map = new Map<string, string>();
     for (const side of sides) {
-      for (const track of side.tracks) map.set(trackKey(track.track_id, track.friend_id), side.side_key);
+      for (const track of side.tracks)
+        map.set(trackKey(track.track_id, track.friend_id), side.side_key);
     }
     return map;
   }, [sides]);
@@ -120,7 +122,7 @@ export default function SpinFormDialog({
     if (form.selectionMode === "sides" ? form.sideKeys.length === 0 : form.trackKeys.length === 0) {
       fail(
         form.selectionMode === "sides" ? "No sides selected" : "No tracks selected",
-        `Choose at least one ${form.selectionMode === "sides" ? "side" : "track"}.`
+        `Choose at least one ${form.selectionMode === "sides" ? "side" : "track"}.`,
       );
       return;
     }
@@ -135,8 +137,7 @@ export default function SpinFormDialog({
         await updateSpin(spin.session.id, changes);
         toaster.create({
           title: "Spin updated",
-          description:
-            spin.session.provenance === "automatic" ? "Marked as corrected." : undefined,
+          description: spin.session.provenance === "automatic" ? "Marked as corrected." : undefined,
           type: "success",
         });
       } else {
@@ -164,7 +165,7 @@ export default function SpinFormDialog({
     } catch (error) {
       fail(
         isEdit ? "Failed to update spin" : "Failed to log spin",
-        error instanceof Error ? error.message : "Unknown error"
+        error instanceof Error ? error.message : "Unknown error",
       );
     }
   };
@@ -179,7 +180,9 @@ export default function SpinFormDialog({
 
       <SimpleGrid columns={{ base: 1, md: 2 }} gap={3}>
         <Box>
-          <Text fontSize="sm" fontWeight="medium" mb={1}>Played At</Text>
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Played At
+          </Text>
           <Input
             type="datetime-local"
             value={form.playedAtInput}
@@ -187,7 +190,9 @@ export default function SpinFormDialog({
           />
         </Box>
         <Box>
-          <Text fontSize="sm" fontWeight="medium" mb={1}>Context</Text>
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Context
+          </Text>
           <Input
             value={form.contextType}
             onChange={(event) => update({ contextType: event.target.value })}
@@ -197,7 +202,9 @@ export default function SpinFormDialog({
       </SimpleGrid>
 
       <Box>
-        <Text fontSize="sm" fontWeight="medium" mb={1}>Note</Text>
+        <Text fontSize="sm" fontWeight="medium" mb={1}>
+          Note
+        </Text>
         <Textarea
           value={form.note}
           onChange={(event) => update({ note: event.target.value })}
@@ -275,12 +282,20 @@ export default function SpinFormDialog({
       ) : (
         <Stack gap={3}>
           {sides.map((side) => (
-            <Box key={side.side_key} borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={3}>
+            <Box
+              key={side.side_key}
+              borderWidth="outline"
+              borderColor="border.ink"
+              boxShadow="sm"
+              p={3}
+            >
               <HStack gap={2}>
                 {form.selectionMode === "sides" && (
                   <Checkbox.Root
                     checked={form.sideKeys.includes(side.side_key)}
-                    onCheckedChange={() => update({ sideKeys: toggle(form.sideKeys, side.side_key) })}
+                    onCheckedChange={() =>
+                      update({ sideKeys: toggle(form.sideKeys, side.side_key) })
+                    }
                   >
                     <Checkbox.HiddenInput />
                     <Checkbox.Control />
@@ -298,7 +313,9 @@ export default function SpinFormDialog({
                         {form.selectionMode === "tracks" && (
                           <Checkbox.Root
                             checked={form.trackKeys.includes(key)}
-                            onCheckedChange={() => update({ trackKeys: toggle(form.trackKeys, key) })}
+                            onCheckedChange={() =>
+                              update({ trackKeys: toggle(form.trackKeys, key) })
+                            }
                           >
                             <Checkbox.HiddenInput />
                             <Checkbox.Control />
@@ -309,7 +326,8 @@ export default function SpinFormDialog({
                             {track.title}
                           </Text>
                           <Text fontSize="xs" color="fg.muted">
-                            {track.position ? `${track.position} · ` : ""}{track.artist}
+                            {track.position ? `${track.position} · ` : ""}
+                            {track.artist}
                           </Text>
                         </VStack>
                       </HStack>
@@ -339,8 +357,12 @@ export default function SpinFormDialog({
             <Dialog.Body pb={6}>{formBody}</Dialog.Body>
             <Dialog.Footer>
               <HStack gap={2}>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button loading={saving} onClick={handleSubmit}>{saveLabel}</Button>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button loading={saving} onClick={handleSubmit}>
+                  {saveLabel}
+                </Button>
               </HStack>
             </Dialog.Footer>
           </Dialog.Content>
@@ -353,9 +375,18 @@ export default function SpinFormDialog({
       onOpenChange={onOpenChange}
       title={title}
       footer={
-        <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap="10px" p="12px 17px 12px 12px">
-          <Button variant="outline" h="44px" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant="solid" h="44px" loading={saving} onClick={handleSubmit}>{saveLabel}</Button>
+        <Box
+          display="grid"
+          gridTemplateColumns="repeat(2, minmax(0, 1fr))"
+          gap="10px"
+          p="12px 17px 12px 12px"
+        >
+          <Button variant="outline" h="44px" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button variant="solid" h="44px" loading={saving} onClick={handleSubmit}>
+            {saveLabel}
+          </Button>
         </Box>
       }
     >

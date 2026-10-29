@@ -69,6 +69,7 @@ class Track(BaseModel):
     embedding: str | None = None
 
     if ConfigDict is None or not hasattr(BaseModel, "model_validate"):
+
         class Config:
             extra = "allow"
 

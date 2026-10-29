@@ -47,7 +47,10 @@ describe("JobsPage header", () => {
   it("disables the header refresh while loading", () => {
     jobs.isLoading = true;
     renderWithProviders(<JobsPage />);
-    expect((header().getByRole("button", { name: "Refresh jobs", hidden: true }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (header().getByRole("button", { name: "Refresh jobs", hidden: true }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 
   it("clears all jobs from the header overflow menu", async () => {

@@ -9,11 +9,11 @@ Code references are to `my-collection-search/` at the commit this file lands in.
 
 ## Roles and serving routes
 
-| Embedding | Text built by | Served by | Used for |
-| --- | --- | --- | --- |
-| `identity` | `buildIdentityText` in `src/lib/identity-embedding.ts` | `GET/POST /api/recommendations/candidates` (`mode=identity` or `combined`, single seed or seed centroid) via `src/lib/recommendation-candidate-retriever.ts` | "Similar tracks" by genre/era/country/style/tags: the client's `findSimilarIdentity`, the CLI and the MCP `find_similar_identity` tool, plus the identity half of combined recommendations |
-| `audio_vibe` | `buildAudioVibeText` in `src/lib/audio-vibe-embedding.ts` | the same candidates route (`mode=audio` or `combined`); `/api/playlists/genetic` and `/api/tracks/batch` load raw vectors for ga-service | Audio similarity (`find_similar_vibe`) and playlist ordering |
-| *(none)* | — | `/api/tracks/search` | Lexical search only: Postgres full-text + trigram. **No natural-language vector retrieval route exists.** |
+| Embedding    | Text built by                                             | Served by                                                                                                                                                    | Used for                                                                                                                                                                                   |
+| ------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `identity`   | `buildIdentityText` in `src/lib/identity-embedding.ts`    | `GET/POST /api/recommendations/candidates` (`mode=identity` or `combined`, single seed or seed centroid) via `src/lib/recommendation-candidate-retriever.ts` | "Similar tracks" by genre/era/country/style/tags: the client's `findSimilarIdentity`, the CLI and the MCP `find_similar_identity` tool, plus the identity half of combined recommendations |
+| `audio_vibe` | `buildAudioVibeText` in `src/lib/audio-vibe-embedding.ts` | the same candidates route (`mode=audio` or `combined`); `/api/playlists/genetic` and `/api/tracks/batch` load raw vectors for ga-service                     | Audio similarity (`find_similar_vibe`) and playlist ordering                                                                                                                               |
+| _(none)_     | —                                                         | `/api/tracks/search`                                                                                                                                         | Lexical search only: Postgres full-text + trigram. **No natural-language vector retrieval route exists.**                                                                                  |
 
 Both embeddings are **text** embeddings (`text-embedding-3-small`, 1536 dims,
 OpenAI): `audio_vibe` embeds a textual rendering of BPM, key, mood and
@@ -77,8 +77,8 @@ measured candidate (phase 1), not a silent fix.
 
 ## Staleness and backfill as implemented
 
-- **Source hash** (`computeSourceHash`): SHA-256 of the normalized *input
-  fields*. It does not include the template, so changing `buildIdentityText`
+- **Source hash** (`computeSourceHash`): SHA-256 of the normalized _input
+  fields_. It does not include the template, so changing `buildIdentityText`
   leaves every hash unchanged and nothing is marked stale.
 - **`template_version`**: written on every upsert (`IDENTITY_TEMPLATE_VERSION`,
   `AUDIO_VIBE_TEMPLATE_VERSION`, both `1`), but **no query reads it**.
@@ -88,7 +88,7 @@ measured candidate (phase 1), not a silent fix.
   embedding for the target model.
 - **"Missing" ignores model and version**: `listTracksForBackfill` (used by the
   periodic `sweepTick` and the non-`force` backfill scopes) treats a track as
-  covered if it has *any* row of that type. After a target-model switch or a
+  covered if it has _any_ row of that type. After a target-model switch or a
   template bump, only `scope: "all"` (which forces) re-embeds anything.
 - **Same-model re-embeds overwrite serving rows**: the unique key is
   `(track_id, friend_id, embedding_type, model)`, so a template change on the
@@ -112,13 +112,13 @@ search improvements can only be claimed once production runs current `main`.
 
 Same snapshot, `text-embedding-3-small`, exact cosine nearest-neighbour search.
 
-| Metric | A |
-| --- | --- |
-| Judged precision@10, 24 frozen queries | **0.7667–0.7708** (184 relevant, 1 unresolved of 240) |
-| — scene / style / instrumentation / crossover | 0.750 / 0.733 / 0.717 / 0.867 |
-| Playlist proxy recall@10 (103 seeds) | 0.00942 |
-| Playlist proxy MRR | 0.0881 |
-| Embedding tokens, whole collection | ≈ 0.19 M, estimated from characters (≈ $0.004 at $0.02/M) |
+| Metric                                        | A                                                         |
+| --------------------------------------------- | --------------------------------------------------------- |
+| Judged precision@10, 24 frozen queries        | **0.7667–0.7708** (184 relevant, 1 unresolved of 240)     |
+| — scene / style / instrumentation / crossover | 0.750 / 0.733 / 0.717 / 0.867                             |
+| Playlist proxy recall@10 (103 seeds)          | 0.00942                                                   |
+| Playlist proxy MRR                            | 0.0881                                                    |
+| Embedding tokens, whole collection            | ≈ 0.19 M, estimated from characters (≈ $0.004 at $0.02/M) |
 
 Notes are out: #379 found raw (B) and cleaned (C) notes both lose to A overall.
 Scene queries were the only group where B/C (0.767) edged A, which is the gap a
@@ -134,13 +134,13 @@ structured scene/region field from #380 would target.
 Builders are in `variants.mjs` and are tested in `variants.test.mjs`. A reuses
 #379's builder, so it stays identical to the app's current text.
 
-| Variant | Text |
-| --- | --- |
-| **A** | Current identity text, including the accent bug |
-| **A2** | A with `foldToken`: accents folded rather than deleted, `&` → `and`, every dash or hyphen → space, tags split on `, / ; \|` |
-| **D** | A2 without the title, artist, album and label lines: era, release country, genres, styles, tags |
-| **E** | D as one sentence (`descriptors. genres music from the 1970s.`), with no release country, because 229 of 409 albums are `US` pressings of non-US music |
-| **F** | E plus the title/artist, album and label lines |
+| Variant | Text                                                                                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A**   | Current identity text, including the accent bug                                                                                                        |
+| **A2**  | A with `foldToken`: accents folded rather than deleted, `&` → `and`, every dash or hyphen → space, tags split on `, / ; \|`                            |
+| **D**   | A2 without the title, artist, album and label lines: era, release country, genres, styles, tags                                                        |
+| **E**   | D as one sentence (`descriptors. genres music from the 1970s.`), with no release country, because 229 of 409 albums are `US` pressings of non-US music |
+| **F**   | E plus the title/artist, album and label lines                                                                                                         |
 
 Folding cuts distinct local tags from 2,186 to 1,683. D and E have only
 2,722 and 2,613 distinct texts for 4,000 tracks, because tracks on one album
@@ -183,13 +183,13 @@ A reproduces #379 exactly, both on the playlist proxy and on precision.
 
 Playlist proxy, using #379's 103 seeds:
 
-| Run | recall@10 | MRR | recall@10, other releases | MRR, other releases |
-| --- | --- | --- | --- | --- |
-| A | 0.00942 | 0.0881 | 0.01012 | 0.0959 |
-| A2 | 0.00918 | 0.0888 | 0.01012 | 0.0945 |
-| D | **0.01035** | 0.1012 | **0.01446** | **0.1249** |
-| E | 0.00935 | **0.1021** | 0.01375 | 0.1221 |
-| F | 0.00878 | 0.0826 | 0.01154 | 0.0923 |
+| Run | recall@10   | MRR        | recall@10, other releases | MRR, other releases |
+| --- | ----------- | ---------- | ------------------------- | ------------------- |
+| A   | 0.00942     | 0.0881     | 0.01012                   | 0.0959              |
+| A2  | 0.00918     | 0.0888     | 0.01012                   | 0.0945              |
+| D   | **0.01035** | 0.1012     | **0.01446**               | **0.1249**          |
+| E   | 0.00935     | **0.1021** | 0.01375                   | 0.1221              |
+| F   | 0.00878     | 0.0826     | 0.01154                   | 0.0923              |
 
 Without identifiers (D, E), MRR rises about 15% overall and about 30% once
 same-release matches are excluded, so album leakage doesn't explain the gain.
@@ -201,24 +201,24 @@ The 382 review has 288 relevant, 54 not relevant and 5 left unjudged; review
 SHA-256 `c7f5f53b586de312e3c4363faa93325054a0494c3207bbed7b51fc7b8c294027`.
 Unjudged pairs widen the bounds; they are not counted as misses.
 
-| Run | Relevant | Not relevant | Unresolved | Precision@10 | Scene | Style | Instr. | Crossover |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A | 184 | 55 | 1 | 0.7667–0.7708 | 0.750 | 0.733 | 0.717 | 0.867 |
-| A2 | 187 | 53 | 0 | 0.7792 | 0.733 | 0.783 | 0.733 | 0.867 |
-| D | 209 | 30 | 1 | 0.8708–0.8750 | **0.883** | 0.867 | 0.817 | 0.900 |
-| E | 209 | 27 | 4 | 0.8708–0.8875 | 0.767 | **0.950** | 0.867 | 0.900 |
-| F | 214 | 24 | 2 | **0.8917–0.9000** | 0.783 | 0.933 | 0.867 | **0.983** |
+| Run | Relevant | Not relevant | Unresolved | Precision@10      | Scene     | Style     | Instr. | Crossover |
+| --- | -------- | ------------ | ---------- | ----------------- | --------- | --------- | ------ | --------- |
+| A   | 184      | 55           | 1          | 0.7667–0.7708     | 0.750     | 0.733     | 0.717  | 0.867     |
+| A2  | 187      | 53           | 0          | 0.7792            | 0.733     | 0.783     | 0.733  | 0.867     |
+| D   | 209      | 30           | 1          | 0.8708–0.8750     | **0.883** | 0.867     | 0.817  | 0.900     |
+| E   | 209      | 27           | 4          | 0.8708–0.8875     | 0.767     | **0.950** | 0.867  | 0.900     |
+| F   | 214      | 24           | 2          | **0.8917–0.9000** | 0.783     | 0.933     | 0.867  | **0.983** |
 
 Group columns are lower bounds. Paired per query against A, with a 95%
 bootstrap CI over queries on the mean precision difference:
 
-| Comparison | Wins / losses / ties | Mean Δ precision@10 | 95% CI |
-| --- | --- | --- | --- |
-| A2 vs A | 5 / 2 / 17 | +0.013 | −0.008 to +0.033 |
-| D vs A | 12 / 6 / 6 | +0.100 | −0.004 to +0.204 |
-| E vs A | 13 / 7 / 4 | +0.104 | −0.008 to +0.217 |
-| **F vs A** | **16 / 2 / 6** | **+0.125** | **+0.067 to +0.188** |
-| F vs E | 7 / 4 / 13 | +0.021 | −0.063 to +0.100 |
+| Comparison | Wins / losses / ties | Mean Δ precision@10 | 95% CI               |
+| ---------- | -------------------- | ------------------- | -------------------- |
+| A2 vs A    | 5 / 2 / 17           | +0.013              | −0.008 to +0.033     |
+| D vs A     | 12 / 6 / 6           | +0.100              | −0.004 to +0.204     |
+| E vs A     | 13 / 7 / 4           | +0.104              | −0.008 to +0.217     |
+| **F vs A** | **16 / 2 / 6**       | **+0.125**          | **+0.067 to +0.188** |
+| F vs E     | 7 / 4 / 13           | +0.021              | −0.063 to +0.100     |
 
 Distinct releases per top 10, averaged over the queries: A 5.33, D 4.46,
 E 3.00, F 3.25.
@@ -256,23 +256,23 @@ The new pooled pairs got a third blind review: 284 pairs, 230 relevant, 54 not
 relevant, none unresolved; SHA-256
 `d92f9b364d3cf22a16a612726011dccf3f3451b017be7b200d037d537e2d1617`.
 
-| Run | Precision@10 | Scene | Style | Instr. | Crossover | Releases per top 10 | Playlist MRR, other releases |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| A-large | 0.7833 | 0.750 | 0.733 | 0.767 | 0.883 | 4.42 | 0.1003 |
-| D-large | 0.8292 | 0.717 | 0.850 | 0.883 | 0.867 | 4.29 | 0.1101 |
-| E-large | **0.9000** | 0.883 | 0.950 | 0.833 | 0.933 | 3.33 | **0.1440** |
-| F-large | **0.9000** | 0.833 | 0.917 | 0.883 | 0.967 | 3.58 | 0.1229 |
+| Run     | Precision@10 | Scene | Style | Instr. | Crossover | Releases per top 10 | Playlist MRR, other releases |
+| ------- | ------------ | ----- | ----- | ------ | --------- | ------------------- | ---------------------------- |
+| A-large | 0.7833       | 0.750 | 0.733 | 0.767  | 0.883     | 4.42                | 0.1003                       |
+| D-large | 0.8292       | 0.717 | 0.850 | 0.883  | 0.867     | 4.29                | 0.1101                       |
+| E-large | **0.9000**   | 0.883 | 0.950 | 0.833  | 0.933     | 3.33                | **0.1440**                   |
+| F-large | **0.9000**   | 0.833 | 0.917 | 0.883  | 0.967     | 3.58                | 0.1229                       |
 
 Same text, large vs small (paired per query, 95% bootstrap CI):
 
-| Comparison | Wins / losses / ties | Mean Δ | 95% CI |
-| --- | --- | --- | --- |
-| A-large vs A | 10 / 8 / 6 | +0.017 | −0.058 to +0.088 |
-| D-large vs D | 8 / 9 / 7 | −0.042 | −0.108 to +0.021 |
-| E-large vs E | 7 / 6 / 11 | +0.029 | −0.042 to +0.108 |
-| F-large vs F | 6 / 7 / 11 | +0.008 | −0.033 to +0.054 |
-| E-large vs A | 13 / 5 / 6 | +0.133 | +0.033 to +0.242 |
-| F-large vs A | 16 / 2 / 6 | +0.133 | +0.058 to +0.213 |
+| Comparison   | Wins / losses / ties | Mean Δ | 95% CI           |
+| ------------ | -------------------- | ------ | ---------------- |
+| A-large vs A | 10 / 8 / 6           | +0.017 | −0.058 to +0.088 |
+| D-large vs D | 8 / 9 / 7            | −0.042 | −0.108 to +0.021 |
+| E-large vs E | 7 / 6 / 11           | +0.029 | −0.042 to +0.108 |
+| F-large vs F | 6 / 7 / 11           | +0.008 | −0.033 to +0.054 |
+| E-large vs A | 13 / 5 / 6           | +0.133 | +0.033 to +0.242 |
+| F-large vs A | 16 / 2 / 6           | +0.133 | +0.058 to +0.213 |
 
 **The model makes no measurable difference.** Every same-text comparison has a
 CI spanning zero, with deltas between −0.04 and +0.03. The gains over A come
@@ -282,7 +282,7 @@ switch.
 
 Cost: 581,084 billed tokens for the four large-model texts (≈ $0.0755 at
 $0.13/M), plus 202 query tokens. **#382 total ≈ $0.086.** The character / 4
-estimate *under*-counted billed tokens by about 15–20% on both runs.
+estimate _under_-counted billed tokens by about 15–20% on both runs.
 
 ## Recommendation
 

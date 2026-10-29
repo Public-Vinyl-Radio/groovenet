@@ -16,7 +16,9 @@ vi.mock("@/hooks/useStandaloneMode", () => ({
 }));
 
 const playback = vi.hoisted(() => ({ label: null as string | null }));
-vi.mock("@/components/player/PlaybackOutput", () => ({ usePlaybackTargetLabel: () => playback.label }));
+vi.mock("@/components/player/PlaybackOutput", () => ({
+  usePlaybackTargetLabel: () => playback.label,
+}));
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 
 import AppShell from "./AppShell";
@@ -39,7 +41,8 @@ describe("AppShell", () => {
       .join("\n");
   }
 
-  const toggle = () => screen.getByRole("button", { name: /(Collapse|Expand) sidebar/, hidden: true });
+  const toggle = () =>
+    screen.getByRole("button", { name: /(Collapse|Expand) sidebar/, hidden: true });
   const sidebarOf = () => {
     let el = toggle().parentElement!;
     while (!/position:\s*fixed/.test(rulesFor(el))) el = el.parentElement!;
@@ -47,14 +50,21 @@ describe("AppShell", () => {
   };
   const contentOf = () => screen.getByText("page").parentElement!;
 
-  it.each(["/chore", "/", "/playlists", "/somewhere-else"])("renders every navigation surface at %s", async (path) => {
-    pathname.value = path;
-    const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+  it.each(["/chore", "/", "/playlists", "/somewhere-else"])(
+    "renders every navigation surface at %s",
+    async (path) => {
+      pathname.value = path;
+      const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
 
-    const more = screen.getAllByRole("button", { hidden: true }).find((b) => /menu|more/i.test(b.getAttribute("aria-label") ?? ""));
-    if (more) await user.click(more);
-    expect(screen.getAllByRole("link", { name: /Chores/, hidden: true }).length).toBeGreaterThan(0);
-  });
+      const more = screen
+        .getAllByRole("button", { hidden: true })
+        .find((b) => /menu|more/i.test(b.getAttribute("aria-label") ?? ""));
+      if (more) await user.click(more);
+      expect(screen.getAllByRole("link", { name: /Chores/, hidden: true }).length).toBeGreaterThan(
+        0,
+      );
+    },
+  );
 
   it("links to the record-care chores", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
@@ -96,7 +106,9 @@ describe("AppShell", () => {
 
   it("pads the content right by --queue-w so the desktop queue panel never covers it", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
-    expect(rulesFor(contentOf())).toMatch(/padding-right:\s*calc\(var\(--chakra-spacing-6\) \+ var\(--queue-w\)\)/);
+    expect(rulesFor(contentOf())).toMatch(
+      /padding-right:\s*calc\(var\(--chakra-spacing-6\) \+ var\(--queue-w\)\)/,
+    );
   });
 
   it("offsets the content by the sidebar width and follows its state", async () => {

@@ -1,8 +1,4 @@
-import {
-  deleteCookieFile,
-  getCookieFileInfo,
-  saveCookieFile,
-} from "@/lib/cookieUtils";
+import { deleteCookieFile, getCookieFileInfo, saveCookieFile } from "@/lib/cookieUtils";
 import type { CookieFileInfo } from "@/types/gamdl";
 
 export class GamdlCookieService {

@@ -30,7 +30,13 @@ vi.mock("@/components/TrackActionsMenu", () => ({ default: () => null }));
 
 import TrackEditPage from "./page";
 
-const CUMBIA: TrackGenre = { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" };
+const CUMBIA: TrackGenre = {
+  id: "cumbia",
+  name: "Cumbia",
+  slug: "cumbia",
+  parent_id: "latin",
+  parent_name: "Latin",
+};
 
 describe("TrackEditPage genres", () => {
   beforeEach(() => {
@@ -148,13 +154,24 @@ describe("TrackEditPage header", () => {
     mocks.fetchGenreTree.mockReset().mockResolvedValue([]);
     mocks.saveTrack.mockReset().mockResolvedValue(undefined);
     mocks.back.mockReset();
-    mocks.track = { track_id: "t1", friend_id: 1, title: "Cumbia del Sol", artist: "Los Destellos", track_genres: [] } as Partial<Track>;
+    mocks.track = {
+      track_id: "t1",
+      friend_id: 1,
+      title: "Cumbia del Sol",
+      artist: "Los Destellos",
+      track_genres: [],
+    } as Partial<Track>;
   });
 
   it("cancels back to where the user came from, without saving", async () => {
     const { user } = renderWithProviders(<TrackEditPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Edit Track" })).toBeTruthy();
-    await user.click(within(screen.getByTestId("page-header")).getByRole("button", { name: "Cancel", hidden: true }));
+    await user.click(
+      within(screen.getByTestId("page-header")).getByRole("button", {
+        name: "Cancel",
+        hidden: true,
+      }),
+    );
     expect(mocks.back).toHaveBeenCalledTimes(1);
     expect(mocks.saveTrack).not.toHaveBeenCalled();
   });

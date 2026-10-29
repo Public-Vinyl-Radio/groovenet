@@ -13,10 +13,7 @@ export async function GET(req: NextRequest) {
   const friendId = searchParams.get("friend_id");
 
   if (!friendId) {
-    return NextResponse.json(
-      { error: "friend_id parameter is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "friend_id parameter is required" }, { status: 400 });
   }
 
   try {
@@ -30,9 +27,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to get gamdl settings",
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -49,36 +46,21 @@ export async function PUT(req: NextRequest) {
     } & GamdlSettingsUpdate;
 
     if (!friend_id) {
-      return NextResponse.json(
-        { error: "friend_id is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id is required" }, { status: 400 });
     }
 
     const friendIdNum = Number(friend_id);
     if (!friendIdNum || Number.isNaN(friendIdNum)) {
-      return NextResponse.json(
-        { error: "friend_id must be a number" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id must be a number" }, { status: 400 });
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json(
-        { error: "No valid fields to update" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    const settings = await settingsService.updateGamdlSettings(
-      friendIdNum,
-      updates
-    );
+    const settings = await settingsService.updateGamdlSettings(friendIdNum, updates);
     if (!settings) {
-      return NextResponse.json(
-        { error: "No valid fields to update" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
     return NextResponse.json({
@@ -91,9 +73,9 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to update gamdl settings",
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

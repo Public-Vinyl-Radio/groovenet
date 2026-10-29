@@ -29,17 +29,18 @@ deploy: pin IMAGE_TAG=vX.Y.Z on the homelab box and pull (see below)
 
 Commit / PR title prefix → bump (repo is pre-1.0, so bumps are conservative):
 
-| Prefix | Example | Bump (pre-1.0) |
-|--------|---------|----------------|
-| `fix:` | `fix: correct BPM parsing` | patch (0.1.0 → 0.1.1) |
-| `feat:` | `feat: add about page` | patch (pre-1.0) |
-| `feat!:` / `BREAKING CHANGE:` | `feat!: drop v1 API` | minor (pre-1.0) |
-| `chore:`, `docs:`, `refactor:`, `ci:`, … | — | no release |
+| Prefix                                   | Example                    | Bump (pre-1.0)        |
+| ---------------------------------------- | -------------------------- | --------------------- |
+| `fix:`                                   | `fix: correct BPM parsing` | patch (0.1.0 → 0.1.1) |
+| `feat:`                                  | `feat: add about page`     | patch (pre-1.0)       |
+| `feat!:` / `BREAKING CHANGE:`            | `feat!: drop v1 API`       | minor (pre-1.0)       |
+| `chore:`, `docs:`, `refactor:`, `ci:`, … | —                          | no release            |
 
 Because PRs are **squash-merged**, the **PR title** is the commit message that
 release-please reads. The `PR Title` check enforces a valid prefix.
 
 ### Going 1.0 (or forcing a version)
+
 Add a footer to any commit / the Release PR:
 
 ```
@@ -137,11 +138,11 @@ the shell running the command. They also apply to `just compose-*`,
 `just worktree-up`, direct `op run --env-file=.env.tpl`, and
 `scripts/render-env.sh`:
 
-| Variable | Default | Selects |
-| --- | --- | --- |
-| `GROOVENET_OP_VAULT` | `Homelab` | Vault containing both items |
-| `GROOVENET_OP_ITEM` | `groovenet` | Application secrets item |
-| `GROOVENET_OP_MQTT_ITEM` | `MQTT` | MQTT broker item |
+| Variable                 | Default     | Selects                     |
+| ------------------------ | ----------- | --------------------------- |
+| `GROOVENET_OP_VAULT`     | `Homelab`   | Vault containing both items |
+| `GROOVENET_OP_ITEM`      | `groovenet` | Application secrets item    |
+| `GROOVENET_OP_MQTT_ITEM` | `MQTT`      | MQTT broker item            |
 
 Leave a variable unset to use its default; an explicitly empty value does not
 use the default. These variables must be exported or passed on the command
@@ -185,7 +186,7 @@ rollback is exact.
 ## Testing a release candidate on the box
 
 Every push to `main` already builds and pushes **all six** images as
-`sha-<7 hex>`, after lint and tests pass — and a release later *promotes*
+`sha-<7 hex>`, after lint and tests pass — and a release later _promotes_
 those same images rather than rebuilding them. So any merged commit is a
 complete release candidate, and what you test is byte-for-byte what ships.
 
@@ -213,7 +214,7 @@ The loop:
 
 To back out, `just deploy <previous vX.Y.Z>`. Migrations only move forward; a
 candidate that added tables leaves them in place, which the previous release
-ignores. A candidate that *changed* or dropped something needs more thought
+ignores. A candidate that _changed_ or dropped something needs more thought
 before you test it on real data.
 
 Two things a candidate is not:

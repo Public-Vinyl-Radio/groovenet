@@ -68,7 +68,7 @@ describe("DELETE /api/spins/{id}", () => {
 
     const res = await DELETE(
       new Request("http://localhost/api/spins/10?friend_id=1", { method: "DELETE" }) as never,
-      { params: Promise.resolve({ id: "10" }) }
+      { params: Promise.resolve({ id: "10" }) },
     );
 
     expect(res.status).toBe(500);
@@ -80,7 +80,7 @@ describe("DELETE /api/spins/{id}", () => {
 
     const res = await DELETE(
       new Request("http://localhost/api/spins/10?friend_id=1", { method: "DELETE" }) as never,
-      { params: Promise.resolve({ id: "10" }) }
+      { params: Promise.resolve({ id: "10" }) },
     );
 
     expect(res.status).toBe(500);
@@ -134,7 +134,7 @@ describe("DELETE /api/spins/{id}", () => {
         method: "DELETE",
         headers: { "X-Groovenet-Client": "cli" },
       }) as never,
-      { params: Promise.resolve({ id: "11" }) }
+      { params: Promise.resolve({ id: "11" }) },
     );
 
     expect(analyticsEvents.events.map((e) => [e.event, e.properties])).toEqual([
@@ -146,7 +146,7 @@ describe("DELETE /api/spins/{id}", () => {
     mockDeleteSpinSession.mockResolvedValueOnce(null);
     await DELETE(
       new Request("http://localhost/api/spins/10?friend_id=1", { method: "DELETE" }) as never,
-      { params: Promise.resolve({ id: "10" }) }
+      { params: Promise.resolve({ id: "10" }) },
     );
     expect(analyticsEvents.events).toEqual([]);
   });
@@ -159,7 +159,7 @@ describe("PATCH /api/spins/{id}", () => {
         method: "PATCH",
         body: JSON.stringify(body),
       }) as never,
-      { params: Promise.resolve({ id }) }
+      { params: Promise.resolve({ id }) },
     );
 
   const updated = {
@@ -177,7 +177,12 @@ describe("PATCH /api/spins/{id}", () => {
     },
     selections: [],
     track_events: [],
-    derived: { is_full_album_spin: false, selected_side_count: 0, album_side_count: 0, track_count: 0 },
+    derived: {
+      is_full_album_spin: false,
+      selected_side_count: 0,
+      album_side_count: 0,
+      track_count: 0,
+    },
   };
 
   beforeEach(() => {

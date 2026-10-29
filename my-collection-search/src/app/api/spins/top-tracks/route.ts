@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  spinTopTracksQuerySchema,
-  spinTopTracksResponseSchema,
-} from "@/api-contract/schemas";
+import { spinTopTracksQuerySchema, spinTopTracksResponseSchema } from "@/api-contract/schemas";
 import { spinLoggingService } from "@/server/services/spinLoggingService";
 
 export async function GET(request: NextRequest) {
@@ -18,7 +15,7 @@ export async function GET(request: NextRequest) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid spin top-tracks query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,7 +33,7 @@ export async function GET(request: NextRequest) {
       {
         error: error instanceof Error ? error.message : "Failed to list top spin tracks",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -120,7 +120,7 @@ describe("pool construction", () => {
 
       await expect(dbQuery("SELECT 1")).rejects.toThrow("DATABASE_URL is not configured");
       expect(PoolMock.instances).toHaveLength(0);
-    }
+    },
   );
 
   it("treats an empty DATABASE_URL as unset", async () => {
@@ -273,7 +273,7 @@ describe("withDbClient", () => {
     await expect(
       withDbClient(async () => {
         throw boom;
-      })
+      }),
     ).rejects.toBe(boom);
     expect(onlyPool().client.release).toHaveBeenCalledTimes(1);
   });
@@ -313,7 +313,7 @@ describe("withDbTransaction", () => {
     await expect(
       withDbTransaction(async () => {
         throw boom;
-      })
+      }),
     ).rejects.toBe(boom);
     expect(client.queries).toEqual(["BEGIN", "ROLLBACK"]);
   });
@@ -340,7 +340,7 @@ describe("withDbTransaction", () => {
     await expect(
       withDbTransaction(async () => {
         throw new Error("nope");
-      })
+      }),
     ).rejects.toThrow("nope");
 
     expect(client.release).toHaveBeenCalledTimes(2);
@@ -370,12 +370,12 @@ describe("withDbTransaction", () => {
     await expect(
       withDbTransaction(async () => {
         throw boom;
-      })
+      }),
     ).rejects.toBe(boom);
 
     expect(consoleError).toHaveBeenCalledWith(
       "[db] ROLLBACK failed after a transaction error:",
-      expect.objectContaining({ message: "ROLLBACK failed" })
+      expect.objectContaining({ message: "ROLLBACK failed" }),
     );
     expect(client.release).toHaveBeenCalledTimes(1);
   });

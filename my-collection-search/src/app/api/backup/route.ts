@@ -18,11 +18,9 @@ export async function POST() {
     console.error("[backup] POST error:", error);
     return NextResponse.json(
       {
-        error: `Failed to create backup: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        error: `Failed to create backup: ${error instanceof Error ? error.message : String(error)}`,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

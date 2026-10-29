@@ -22,7 +22,7 @@ export type SimilarTrackBase = Pick<
   | "position"
   | "discogs_url"
   | "apple_music_url"
-    | "youtube_url"
+  | "youtube_url"
   | "local_audio_url"
 >;
 
@@ -32,10 +32,7 @@ export type SimilarIdentityTrack = SimilarTrackBase & {
 };
 
 export type SimilarVibeTrack = SimilarIdentityTrack &
-  Pick<
-    Track,
-    "danceability" | "mood_happy" | "mood_sad" | "mood_relaxed" | "mood_aggressive"
-  >;
+  Pick<Track, "danceability" | "mood_happy" | "mood_sad" | "mood_relaxed" | "mood_aggressive">;
 
 export type SimilarityFilters = {
   era?: string;

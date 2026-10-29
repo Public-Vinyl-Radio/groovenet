@@ -5,7 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTrackStore } from "@/stores/trackStore";
 import type { Track } from "@/types/track";
 import { extractBpmConfidence, type EssentiaRhythm } from "@/lib/essentiaBpm";
-import { extractKeyAnalysis, logKeyProfileDisagreement, type EssentiaTonal } from "@/lib/essentiaKey";
+import {
+  extractKeyAnalysis,
+  logKeyProfileDisagreement,
+  type EssentiaTonal,
+} from "@/lib/essentiaKey";
 
 interface JobCompletedEvent {
   type: "job_completed";
@@ -78,7 +82,10 @@ export function useJobEventsSSE(enabled: boolean = true) {
           }
 
           const analysis = result?.analysis;
-          if (analysis?.metadata?.audio_properties?.length && typeof analysis.metadata.audio_properties.length === "number") {
+          if (
+            analysis?.metadata?.audio_properties?.length &&
+            typeof analysis.metadata.audio_properties.length === "number"
+          ) {
             updates.duration_seconds = Math.round(analysis.metadata.audio_properties.length);
           }
           if (analysis?.rhythm?.bpm && typeof analysis.rhythm.bpm === "number") {

@@ -1,19 +1,18 @@
 import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
 import type { SimilarTrack, RecommendationCandidate, TrackSearchQuery } from "@groovenet/client";
-import {
-  printTracks,
-  printTrack,
-  printJson,
-  printSuccess,
-  printError,
-} from "../output.js";
+import { printTracks, printTrack, printJson, printSuccess, printError } from "../output.js";
 import chalk from "chalk";
 import { collectOption, intOption, searchModeOption, type SearchModeOption } from "../options.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
-  return new GroovenetClient({ baseUrl: cfg.api_base, apiKey: cfg.api_key, insecureTls: cfg.insecure_tls, clientName: "cli" });
+  return new GroovenetClient({
+    baseUrl: cfg.api_base,
+    apiKey: cfg.api_key,
+    insecureTls: cfg.insecure_tls,
+    clientName: "cli",
+  });
 }
 
 export function addTracksCommands(program: Command): void {
@@ -29,13 +28,13 @@ export function addTracksCommands(program: Command): void {
     .option(
       "--genre <genre>",
       "Genre slug or name, including its subgenres; repeat for several (any of them)",
-      collectOption
+      collectOption,
     )
     .option("--limit <n>", "Number of results", intOption, 20)
     .option(
       "--mode <mode>",
-      "lexical (match words, default), semantic (match meaning, e.g. \"dusty 70s cumbia with brass\") or hybrid (both); semantic and hybrid return up to 50 results",
-      searchModeOption
+      'lexical (match words, default), semantic (match meaning, e.g. "dusty 70s cumbia with brass") or hybrid (both); semantic and hybrid return up to 50 results',
+      searchModeOption,
     )
     .option("--json", "Output as JSON")
     .action(
@@ -50,7 +49,7 @@ export function addTracksCommands(program: Command): void {
           genre?: string[];
           limit: number;
           json?: boolean;
-        }
+        },
       ) => {
         try {
           const client = makeClient();
@@ -75,18 +74,20 @@ export function addTracksCommands(program: Command): void {
               `Found ${result.tracks.length} track(s)` +
                 (result.estimatedTotalHits > result.tracks.length
                   ? ` (${result.estimatedTotalHits} total)`
-                  : "")
+                  : ""),
             );
             printTracks(result.tracks, false);
             if (result.degraded) {
-              console.error(chalk.yellow("Semantic search was unavailable; these are keyword results only."));
+              console.error(
+                chalk.yellow("Semantic search was unavailable; these are keyword results only."),
+              );
             }
           }
         } catch (err: unknown) {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 
   tracks
@@ -127,7 +128,7 @@ export function addTracksCommands(program: Command): void {
           spotifyUrl?: string;
           youtubeUrl?: string;
           soundcloudUrl?: string;
-        }
+        },
       ) => {
         try {
           const client = makeClient();
@@ -151,7 +152,7 @@ export function addTracksCommands(program: Command): void {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 
   tracks
@@ -161,34 +162,21 @@ export function addTracksCommands(program: Command): void {
     .option("--page-size <n>", "Results per page", intOption, 50)
     .option("--username <u>", "Username")
     .option("--json", "Output as JSON")
-    .action(
-      async (opts: {
-        page: number;
-        pageSize: number;
-        username?: string;
-        json?: boolean;
-      }) => {
-        try {
-          const client = makeClient();
-          const result = await client.getMissingAppleMusic(
-            opts.page,
-            opts.pageSize,
-            opts.username
-          );
-          if (opts.json) {
-            printJson(result);
-          } else {
-            console.log(
-              `Tracks missing Apple Music URLs: ${result.total} total`
-            );
-            printTracks(result.tracks, false);
-          }
-        } catch (err: unknown) {
-          printError(err instanceof Error ? err.message : String(err));
-          process.exit(1);
+    .action(async (opts: { page: number; pageSize: number; username?: string; json?: boolean }) => {
+      try {
+        const client = makeClient();
+        const result = await client.getMissingAppleMusic(opts.page, opts.pageSize, opts.username);
+        if (opts.json) {
+          printJson(result);
+        } else {
+          console.log(`Tracks missing Apple Music URLs: ${result.total} total`);
+          printTracks(result.tracks, false);
         }
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
       }
-    );
+    });
 
   tracks
     .command("deleted")
@@ -197,31 +185,24 @@ export function addTracksCommands(program: Command): void {
     .option("--limit <n>", "Max results", intOption, 100)
     .option("--offset <n>", "Offset", intOption, 0)
     .option("--json", "Output as JSON")
-    .action(
-      async (opts: {
-        friendId?: number;
-        limit: number;
-        offset: number;
-        json?: boolean;
-      }) => {
-        try {
-          const client = makeClient();
-          const result = await client.listDeletedTracks(opts.friendId, {
-            limit: opts.limit,
-            offset: opts.offset,
-          });
-          if (opts.json) {
-            printJson(result);
-          } else {
-            console.log(`Deleted tracks: ${result.total} total`);
-            printTracks(result.tracks, false);
-          }
-        } catch (err: unknown) {
-          printError(err instanceof Error ? err.message : String(err));
-          process.exit(1);
+    .action(async (opts: { friendId?: number; limit: number; offset: number; json?: boolean }) => {
+      try {
+        const client = makeClient();
+        const result = await client.listDeletedTracks(opts.friendId, {
+          limit: opts.limit,
+          offset: opts.offset,
+        });
+        if (opts.json) {
+          printJson(result);
+        } else {
+          console.log(`Deleted tracks: ${result.total} total`);
+          printTracks(result.tracks, false);
         }
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
       }
-    );
+    });
 
   tracks
     .command("restore <id>")
@@ -258,7 +239,9 @@ export function addTracksCommands(program: Command): void {
         } else {
           console.log(
             `Recommendations for ${chalk.cyan(id)} — ${result.candidates.length} candidates` +
-            chalk.dim(` (identity:${result.stats.identityCount} vibe:${result.stats.audioCount} union:${result.stats.unionCount})`)
+              chalk.dim(
+                ` (identity:${result.stats.identityCount} vibe:${result.stats.audioCount} union:${result.stats.unionCount})`,
+              ),
           );
           printRecommendationCandidates(result.candidates);
         }
@@ -285,7 +268,7 @@ export function addTracksCommands(program: Command): void {
           country?: string;
           tags?: string;
           json?: boolean;
-        }
+        },
       ) => {
         try {
           const cfg = loadConfig();
@@ -299,16 +282,14 @@ export function addTracksCommands(program: Command): void {
           if (opts.json) {
             printJson(result);
           } else {
-            console.log(
-              `Similar identity tracks for ${chalk.cyan(id)} (${result.count} results):`
-            );
+            console.log(`Similar identity tracks for ${chalk.cyan(id)} (${result.count} results):`);
             printSimilarTracks(result.tracks);
           }
         } catch (err: unknown) {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 
   tracks
@@ -322,7 +303,7 @@ export function addTracksCommands(program: Command): void {
         opts: {
           limit: number;
           json?: boolean;
-        }
+        },
       ) => {
         try {
           const cfg = loadConfig();
@@ -333,16 +314,14 @@ export function addTracksCommands(program: Command): void {
           if (opts.json) {
             printJson(result);
           } else {
-            console.log(
-              `Similar vibe tracks for ${chalk.cyan(id)} (${result.count} results):`
-            );
+            console.log(`Similar vibe tracks for ${chalk.cyan(id)} (${result.count} results):`);
             printSimilarTracks(result.tracks);
           }
         } catch (err: unknown) {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 }
 
@@ -353,7 +332,7 @@ function printRecommendationCandidates(candidates: RecommendationCandidate[]): v
     const identity = c.simIdentity != null ? chalk.green(` id:${c.simIdentity.toFixed(3)}`) : "";
     const audio = c.simAudio != null ? chalk.blue(` vibe:${c.simAudio.toFixed(3)}`) : "";
     console.log(
-      `  ${chalk.cyan(c.trackId)}  ${chalk.bold(c.metadata.title)} ${chalk.dim("—")} ${c.metadata.artist} ${chalk.dim("(" + c.metadata.album + ")")}${bpm}${key}${identity}${audio}`
+      `  ${chalk.cyan(c.trackId)}  ${chalk.bold(c.metadata.title)} ${chalk.dim("—")} ${c.metadata.artist} ${chalk.dim("(" + c.metadata.album + ")")}${bpm}${key}${identity}${audio}`,
     );
   }
 }
@@ -364,7 +343,7 @@ function printSimilarTracks(tracks: SimilarTrack[]): void {
     const key = t.key ? chalk.dim(` Key:${t.key}`) : "";
     const dist = chalk.yellow(` [dist: ${Number(t.distance).toFixed(4)}]`);
     console.log(
-      `  ${chalk.cyan(t.track_id)}  ${chalk.bold(t.title)} ${chalk.dim("—")} ${t.artist} ${chalk.dim("(" + t.album + ")")}${bpm}${key}${dist}`
+      `  ${chalk.cyan(t.track_id)}  ${chalk.bold(t.title)} ${chalk.dim("—")} ${t.artist} ${chalk.dim("(" + t.album + ")")}${bpm}${key}${dist}`,
     );
   }
 }

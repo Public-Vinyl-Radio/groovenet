@@ -4,7 +4,8 @@
  * nulls are filled; albums an edit had wiped are healed by the next Discogs
  * sync, which also brings their tracks along.
  */
-export const up = (pgm) => pgm.sql(`
+export const up = (pgm) =>
+  pgm.sql(`
   UPDATE tracks t
   SET date_added = a.date_added
   FROM albums a

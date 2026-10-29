@@ -31,7 +31,7 @@ export function getBackupDir(): string {
 
 // DATABASE_URL wins over the discrete POSTGRES_* variables, field by field.
 export function resolvePgConnection(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = process.env,
 ): PgConnection {
   // Empty URL parts fall through to the POSTGRES_* variables below.
   let fromUrl: Partial<PgConnection> = {};
@@ -80,7 +80,7 @@ export function pgEnv(pg: PgConnection): NodeJS.ProcessEnv {
 export function runCommand(
   command: string,
   args: string[],
-  options: { env?: NodeJS.ProcessEnv } = {}
+  options: { env?: NodeJS.ProcessEnv } = {},
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -122,7 +122,7 @@ export async function runPgDump(outPath: string, pg: PgConnection = resolvePgCon
     await runCommand(
       PG_DUMP_BIN,
       [...pgConnectionArgs(pg), "-F", "c", "--no-acl", "-n", "public", "-f", partialPath],
-      { env: pgEnv(pg) }
+      { env: pgEnv(pg) },
     );
     await fs.promises.rename(partialPath, outPath);
   } catch (error) {
@@ -133,7 +133,7 @@ export async function runPgDump(outPath: string, pg: PgConnection = resolvePgCon
 
 /** Create a new custom-format backup in the backups directory. */
 export async function createBackup(
-  options: { prefix?: string; now?: Date } = {}
+  options: { prefix?: string; now?: Date } = {},
 ): Promise<{ filename: string; path: string }> {
   const dir = getBackupDir();
   await fs.promises.mkdir(dir, { recursive: true });
@@ -184,9 +184,7 @@ export function resolveBackupPath(filename: string): string | null {
   return path.join(getBackupDir(), filename);
 }
 
-export async function deleteBackup(
-  filename: string
-): Promise<"deleted" | "not-found" | "invalid"> {
+export async function deleteBackup(filename: string): Promise<"deleted" | "not-found" | "invalid"> {
   const filePath = resolveBackupPath(filename);
   if (!filePath) return "invalid";
   try {

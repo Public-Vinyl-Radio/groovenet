@@ -64,30 +64,46 @@ does not print credentials. Keep default masking for noninteractive commands.
 
 Configure player settings:
 
-* Generate `PLAYER_API_KEY` with `openssl rand -hex 32`. It is a **shared
+- Generate `PLAYER_API_KEY` with `openssl rand -hex 32`. It is a **shared
   household/admin credential**, with access to every player and friend’s queued
   track references. All reads, commands and SSE require it. Existing browser
   cookies and the ordinary app API key do not grant player access. The opt-in
   web bridge issues a separate player-only session after web-passphrase
   authorization; it never shares this worker key with browsers. Give it only
   to trusted controllers and use HTTPS when reaching the app across a network.
-* Generate distinct hex/base64url `PLAYER_ENGINE_A_PASSWORD`,
+- Generate distinct hex/base64url `PLAYER_ENGINE_A_PASSWORD`,
   `PLAYER_ENGINE_B_PASSWORD` and `PLAYER_ENGINE_C_PASSWORD` values
   (`openssl rand -hex 24`).
-* Set `PLAYER_LAN_INTERFACE` to the Debian host's actual speaker-facing interface.
+- Set `PLAYER_LAN_INTERFACE` to the Debian host's actual speaker-facing interface.
   Engines and the shared clock use host networking for discovery/AirPlay.
   Reserve API ports 13689/13690/13692, WebSocket ports 13688/13691/13693 and PTP
   UDP 319/320.
   Restrict engine APIs to trusted host/network access; never expose them publicly.
-* Set `PLAYER_AUDIO_MOUNT=music_data` with the production overlay: this logical
+- Set `PLAYER_AUDIO_MOUNT=music_data` with the production overlay: this logical
   Compose volume maps to the existing `PROD_MUSIC_DATA_VOLUME`. Alternatively use
   an absolute directory visible to Docker. Do not supply an undeclared Docker
   volume name. The mount is read-only. OwnTone must finish indexing before play.
-* Set `PLAYER_ENGINES_JSON` to the following single-line JSON, replacing passwords
+- Set `PLAYER_ENGINES_JSON` to the following single-line JSON, replacing passwords
   to match the engine environment variables. These credentials stay server-side.
 
 ```json
-{"primary":{"apiUrl":"http://host.docker.internal:13689/api","password":"A_PASSWORD","libraryRoot":"/srv/media"},"secondary":{"apiUrl":"http://host.docker.internal:13690/api","password":"B_PASSWORD","libraryRoot":"/srv/media"},"tertiary":{"apiUrl":"http://host.docker.internal:13692/api","password":"C_PASSWORD","libraryRoot":"/srv/media"}}
+{
+  "primary": {
+    "apiUrl": "http://host.docker.internal:13689/api",
+    "password": "A_PASSWORD",
+    "libraryRoot": "/srv/media"
+  },
+  "secondary": {
+    "apiUrl": "http://host.docker.internal:13690/api",
+    "password": "B_PASSWORD",
+    "libraryRoot": "/srv/media"
+  },
+  "tertiary": {
+    "apiUrl": "http://host.docker.internal:13692/api",
+    "password": "C_PASSWORD",
+    "libraryRoot": "/srv/media"
+  }
+}
 ```
 
 For example, with the existing production environment loaded:
@@ -138,15 +154,15 @@ restrict access at the host/network boundary.
 All public paths start with `/api/players`. Supply
 `Authorization: Bearer <PLAYER_API_KEY>` on every request.
 
-| Method and path | Purpose |
-| --- | --- |
-| `GET /api/players` | List persistent players |
-| `GET /api/players/engines` | List configured engine IDs |
-| `POST /api/players` | Create `{ "id": "lounge", "name": "Lounge", "engine_id": "primary" }` |
-| `GET /api/players/lounge` | Get full state and revision |
-| `GET /api/players/lounge/devices` | Discovered outputs, assignments and observations |
-| `POST /api/players/lounge/commands` | Apply a command |
-| `GET /api/players/lounge/events` | SSE snapshots and lightweight position updates |
+| Method and path                     | Purpose                                                               |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `GET /api/players`                  | List persistent players                                               |
+| `GET /api/players/engines`          | List configured engine IDs                                            |
+| `POST /api/players`                 | Create `{ "id": "lounge", "name": "Lounge", "engine_id": "primary" }` |
+| `GET /api/players/lounge`           | Get full state and revision                                           |
+| `GET /api/players/lounge/devices`   | Discovered outputs, assignments and observations                      |
+| `POST /api/players/lounge/commands` | Apply a command                                                       |
+| `GET /api/players/lounge/events`    | SSE snapshots and lightweight position updates                        |
 
 Each engine can belong to only one named player. Names can be changed; player
 IDs and engine assignments are fixed. Engine configuration is an operator
@@ -176,18 +192,18 @@ sessions cannot change this policy.
 For example:
 
 ```json
-{"type":"queue.add","tracks":[{"track_id":"TRACK_ID","friend_id":1}]}
+{ "type": "queue.add", "tracks": [{ "track_id": "TRACK_ID", "friend_id": 1 }] }
 ```
 
 Scripts that need optimistic concurrency can use the returned player revision
 for their next command:
 
 ```json
-{"type":"output.select","expected_revision":1,"output_id":"OUTPUT_ID"}
+{ "type": "output.select", "expected_revision": 1, "output_id": "OUTPUT_ID" }
 ```
 
 ```json
-{"type":"play","allow_unknown":true}
+{ "type": "play", "allow_unknown": true }
 ```
 
 Selecting an output remembers intent; it does not connect or reserve the
@@ -208,7 +224,7 @@ in one serialized worker command; concurrent joins cannot interrupt each other.
 Playing, loading and paused sessions keep their current track and position.
 
 ```json
-{"type":"session.join","tracks":[{"track_id":"TRACK_ID","friend_id":1}]}
+{ "type": "session.join", "tracks": [{ "track_id": "TRACK_ID", "friend_id": 1 }] }
 ```
 
 Joins accept `expected_revision`, `allow_unknown` and `takeover`. Track, output
@@ -235,7 +251,16 @@ and reusing a current queue ID for another track/friend are rejected. Titles and
 artists are resolved on the server, never accepted from the caller.
 
 ```json
-{"type":"queue.replace","expected_revision":3,"entries":[{"id":"11111111-1111-4111-8111-111111111111","track_id":"TRACK_ID","friend_id":1}],"current_entry_id":"11111111-1111-4111-8111-111111111111","position":42,"play":false}
+{
+  "type": "queue.replace",
+  "expected_revision": 3,
+  "entries": [
+    { "id": "11111111-1111-4111-8111-111111111111", "track_id": "TRACK_ID", "friend_id": 1 }
+  ],
+  "current_entry_id": "11111111-1111-4111-8111-111111111111",
+  "position": 42,
+  "play": false
+}
 ```
 
 Omitting `current_entry_id` retains the current entry if present; otherwise it
@@ -281,16 +306,20 @@ mapping can be checked separately from HA connectivity.
 For example:
 
 ```json
-{"aswitch":"media_player.aswitch_streamer","Lounge Room Audio":"media_player.lounge_streamer","132116595608304":"media_player.bedroom_sonos"}
+{
+  "aswitch": "media_player.aswitch_streamer",
+  "Lounge Room Audio": "media_player.lounge_streamer",
+  "132116595608304": "media_player.bedroom_sonos"
+}
 ```
 
 Read-only inspection on beelink on 2026-10-25 confirmed both engines discover:
 
-| OwnTone output ID | Name | HA entity from the installed registry (#691) |
-| --- | --- | --- |
-| `202481599519404` | aswitch | `media_player.aswitch_streamer` |
-| `202481586338774` | Lounge Room Audio | `media_player.lounge_streamer` |
-| `132116595608304` | Bedroom | `media_player.bedroom_sonos` |
+| OwnTone output ID | Name              | HA entity from the installed registry (#691) |
+| ----------------- | ----------------- | -------------------------------------------- |
+| `202481599519404` | aswitch           | `media_player.aswitch_streamer`              |
+| `202481586338774` | Lounge Room Audio | `media_player.lounge_streamer`               |
+| `132116595608304` | Bedroom           | `media_player.bedroom_sonos`                 |
 
 The running worker had an empty HA URL/token and `{}` mappings. HA live states
 could not be queried through that worker. These settings must be supplied to
@@ -346,7 +375,14 @@ Neither acknowledgement can steal another Groovenet player's assignment.
 For that, send `output.transfer` to the destination player:
 
 ```json
-{"type":"output.transfer","from_player_id":"lounge","from_revision":12,"output_id":"OUTPUT_ID","play":true,"allow_unknown":true}
+{
+  "type": "output.transfer",
+  "from_player_id": "lounge",
+  "from_revision": 12,
+  "output_id": "OUTPUT_ID",
+  "play": true,
+  "allow_unknown": true
+}
 ```
 
 Transfer detaches the source first and keeps each player's own queue and

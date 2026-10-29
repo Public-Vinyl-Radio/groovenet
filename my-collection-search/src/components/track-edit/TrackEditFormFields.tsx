@@ -38,24 +38,9 @@ export default function TrackEditFormFields({
         marginBottom={{ base: 2, md: 4 }}
         marginTop={{ base: 2, md: 4 }}
       >
-        <LabeledInput
-          label="Title"
-          name="title"
-          value={values.title}
-          onChange={onChange}
-        />
-        <LabeledInput
-          label="Artist"
-          name="artist"
-          value={values.artist}
-          onChange={onChange}
-        />
-        <LabeledInput
-          label="Album"
-          name="album"
-          value={values.album}
-          onChange={onChange}
-        />
+        <LabeledInput label="Title" name="title" value={values.title} onChange={onChange} />
+        <LabeledInput label="Artist" name="artist" value={values.artist} onChange={onChange} />
+        <LabeledInput label="Album" name="album" value={values.album} onChange={onChange} />
         <Flex gap={2} flexWrap="wrap">
           <Box flex={{ base: "1 1 calc(50% - 4px)", md: "1" }}>
             <LabeledInput
@@ -77,12 +62,7 @@ export default function TrackEditFormFields({
               ))}
           </Box>
           <Box flex={{ base: "1 1 calc(50% - 4px)", md: "1" }}>
-            <LabeledInput
-              label="Key"
-              name="key"
-              value={values.key}
-              onChange={onChange}
-            />
+            <LabeledInput label="Key" name="key" value={values.key} onChange={onChange} />
             {formatKeyConfidencePercent(values.key_confidence) !== null &&
               (isKeyConfidenceLow(values.key_confidence) ? (
                 <Badge colorPalette="status.analysis" variant="subtle" size="sm" mt={1}>

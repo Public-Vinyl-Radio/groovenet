@@ -38,7 +38,15 @@ import { FiCheck } from "react-icons/fi";
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
-      <Text fontWeight="semibold" fontSize="sm" color="fg.muted" mb={3} fontFamily="label" textTransform="uppercase" letterSpacing="wide">
+      <Text
+        fontWeight="semibold"
+        fontSize="sm"
+        color="fg.muted"
+        mb={3}
+        fontFamily="label"
+        textTransform="uppercase"
+        letterSpacing="wide"
+      >
         {title}
       </Text>
       {children}
@@ -75,8 +83,13 @@ export default function TrackEditPage() {
   };
 
   const {
-    analyzeLoading, analyzeDisabled, uploadLoading, handleAnalyzeAudio, handleFileUpload,
-    handleRemoveAudio, removeAudioLoading,
+    analyzeLoading,
+    analyzeDisabled,
+    uploadLoading,
+    handleAnalyzeAudio,
+    handleFileUpload,
+    handleRemoveAudio,
+    removeAudioLoading,
   } = useTrackEditAudioActions({ form, setForm, onSave: handleSave });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -114,21 +127,23 @@ export default function TrackEditPage() {
         leading={<HeaderCancelButton onClick={() => router.back()} disabled={saving} />}
         actions={
           hasValidFriendId && track
-            ? [{ label: "Save", icon: <FiCheck />, onClick: () => void handleSubmit(), disabled: saving }]
+            ? [
+                {
+                  label: "Save",
+                  icon: <FiCheck />,
+                  onClick: () => void handleSubmit(),
+                  disabled: saving,
+                },
+              ]
             : []
         }
       />
-      <Flex
-        justify="space-between"
-        align={{ base: "flex-start", md: "center" }}
-        mb={6}
-        gap={3}
-      >
+      <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} mb={6} gap={3}>
         <Stack gap={1} minW={0} flex={1}>
           {track && (
             <Text color="fg.muted" fontSize={{ base: "sm", md: "md" }} lineClamp={1}>
               {form.title || track.title}
-              {(form.artist || track.artist) ? ` · ${form.artist || track.artist}` : ""}
+              {form.artist || track.artist ? ` · ${form.artist || track.artist}` : ""}
             </Text>
           )}
         </Stack>
@@ -151,7 +166,9 @@ export default function TrackEditPage() {
 
       {!hasValidFriendId && (
         <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
-          <Text>Missing <code>friend_id</code> query param.</Text>
+          <Text>
+            Missing <code>friend_id</code> query param.
+          </Text>
         </Box>
       )}
 
@@ -164,9 +181,7 @@ export default function TrackEditPage() {
         </Stack>
       )}
 
-      {hasValidFriendId && !trackQuery.isLoading && !track && (
-        <Text>Track not found.</Text>
-      )}
+      {hasValidFriendId && !trackQuery.isLoading && !track && <Text>Track not found.</Text>}
 
       {hasValidFriendId && track && (
         <Box as="form" onSubmit={handleSubmit}>
@@ -195,10 +210,14 @@ export default function TrackEditPage() {
                   />
                 </Grid>
                 <Box>
-                  <Text mb={1} fontSize="sm">Rating</Text>
+                  <Text mb={1} fontSize="sm">
+                    Rating
+                  </Text>
                   <RatingGroup.Root
                     value={form.star_rating}
-                    onValueChange={({ value }) => setForm((prev) => ({ ...prev, star_rating: value }))}
+                    onValueChange={({ value }) =>
+                      setForm((prev) => ({ ...prev, star_rating: value }))
+                    }
                     size="md"
                     count={5}
                   >
@@ -232,12 +251,7 @@ export default function TrackEditPage() {
                     ))}
                 </Box>
                 <Box>
-                  <LabeledInput
-                    label="Key"
-                    name="key"
-                    value={form.key}
-                    onChange={handleChange}
-                  />
+                  <LabeledInput label="Key" name="key" value={form.key} onChange={handleChange} />
                   {formatKeyConfidencePercent(form.key_confidence) !== null &&
                     (isKeyConfidenceLow(form.key_confidence) ? (
                       <Badge colorPalette="status.analysis" variant="subtle" size="sm" mt={1}>

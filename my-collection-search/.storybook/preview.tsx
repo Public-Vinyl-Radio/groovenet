@@ -1,11 +1,11 @@
-import type { Preview } from '@storybook/nextjs-vite';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Provider as ChakraProvider } from '@/components/ui/provider';
-import React from 'react';
-import { fontClassName } from '@/app/fonts';
-import { fontRoleIds, fontRoles, type FontRoleId } from '@/app/fontChoices';
+import type { Preview } from "@storybook/nextjs-vite";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Provider as ChakraProvider } from "@/components/ui/provider";
+import React from "react";
+import { fontClassName } from "@/app/fonts";
+import { fontRoleIds, fontRoles, type FontRoleId } from "@/app/fontChoices";
 
-const fontDataKey = { display: 'fontDisplay', body: 'fontBody', label: 'fontLabel' } as const;
+const fontDataKey = { display: "fontDisplay", body: "fontBody", label: "fontLabel" } as const;
 
 function StoryProviders({
   children,
@@ -21,20 +21,21 @@ function StoryProviders({
           queries: { retry: false, staleTime: Infinity },
           mutations: { retry: false },
         },
-      })
+      }),
   );
   // The app sets these on <html> in layout.tsx; stories need them too, so the
   // house style's faces and the default palette apply.
   React.useEffect(() => {
     const root = document.documentElement;
-    const classes = fontClassName.split(' ');
+    const classes = fontClassName.split(" ");
     root.classList.add(...classes);
-    root.dataset.palette ??= 'sleeve';
+    root.dataset.palette ??= "sleeve";
     return () => root.classList.remove(...classes);
   }, []);
   // Check a story against each face from the toolbar (Display, Body, Labels).
   React.useEffect(() => {
-    for (const role of fontRoleIds) document.documentElement.dataset[fontDataKey[role]] = fonts[role];
+    for (const role of fontRoleIds)
+      document.documentElement.dataset[fontDataKey[role]] = fonts[role];
   }, [fonts]);
   return (
     <ChakraProvider>
@@ -50,23 +51,23 @@ const fontToolbar = Object.fromEntries(
       description: `${fontRoles[role].label} font`,
       toolbar: {
         title: fontRoles[role].label,
-        icon: 'paragraph',
+        icon: "paragraph",
         items: fontRoles[role].choices.map(({ id, label }) => ({ value: id, title: label })),
         dynamicTitle: true,
       },
     },
-  ])
+  ]),
 );
 
 const preview: Preview = {
-  initialGlobals: Object.fromEntries(fontRoleIds.map((role) => [`font${role}`, 'default'])),
+  initialGlobals: Object.fromEntries(fontRoleIds.map((role) => [`font${role}`, "default"])),
   globalTypes: fontToolbar,
   decorators: [
     (Story, context) => (
       <StoryProviders
         fonts={
           Object.fromEntries(
-            fontRoleIds.map((role) => [role, context.globals[`font${role}`] ?? 'default'])
+            fontRoleIds.map((role) => [role, context.globals[`font${role}`] ?? "default"]),
           ) as Record<FontRoleId, string>
         }
       >
@@ -90,20 +91,20 @@ const preview: Preview = {
     viewport: {
       options: {
         mobile375: {
-          name: 'Mobile (375)',
-          styles: { width: '375px', height: '812px' },
+          name: "Mobile (375)",
+          styles: { width: "375px", height: "812px" },
         },
         mobile430: {
-          name: 'Mobile (430)',
-          styles: { width: '430px', height: '932px' },
+          name: "Mobile (430)",
+          styles: { width: "430px", height: "932px" },
         },
         tablet768: {
-          name: 'Tablet (768)',
-          styles: { width: '768px', height: '1024px' },
+          name: "Tablet (768)",
+          styles: { width: "768px", height: "1024px" },
         },
         desktop1280: {
-          name: 'Desktop (1280)',
-          styles: { width: '1280px', height: '900px' },
+          name: "Desktop (1280)",
+          styles: { width: "1280px", height: "900px" },
         },
       },
     },

@@ -6,6 +6,7 @@ disk: the ingest volume holds the original upload until the app sweeps it
 (#269), and a second copy of the same audio would only be one more thing to
 clean up.
 """
+
 import os
 import shlex
 import subprocess
@@ -186,21 +187,25 @@ def stream_pcm(
 def _decode_command(file_path: str, sample_rate: int) -> list[str]:
     """The one ffmpeg invocation both decoders share, after checking inputs."""
     if sample_rate not in SUPPORTED_SAMPLE_RATES:
-        raise AudioDecodeError(
-            f"sample rate {sample_rate} is not one of {SUPPORTED_SAMPLE_RATES}"
-        )
+        raise AudioDecodeError(f"sample rate {sample_rate} is not one of {SUPPORTED_SAMPLE_RATES}")
     if not os.path.isfile(file_path):
         raise AudioDecodeError(f"no such file: {file_path}")
     return [
         "ffmpeg",
         "-nostdin",
-        "-v", "error",
-        "-i", file_path,
-        "-vn",                       # cover art in a FLAC is a video stream
-        "-map", "0:a:0",             # first audio stream only
-        "-ac", "1",
-        "-ar", str(sample_rate),
-        "-f", "s16le",
+        "-v",
+        "error",
+        "-i",
+        file_path,
+        "-vn",  # cover art in a FLAC is a video stream
+        "-map",
+        "0:a:0",  # first audio stream only
+        "-ac",
+        "1",
+        "-ar",
+        str(sample_rate),
+        "-f",
+        "s16le",
         "-",
     ]
 

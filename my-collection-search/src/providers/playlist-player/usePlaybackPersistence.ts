@@ -66,10 +66,7 @@ export function usePlaybackPersistence({
         setPlaylist(data.playlist as Track[]);
         setPlVersion((v) => v + 1);
       }
-      if (
-        typeof data.currentTrackIndex === "number" ||
-        data.currentTrackIndex === null
-      ) {
+      if (typeof data.currentTrackIndex === "number" || data.currentTrackIndex === null) {
         setCurrentTrackIndex(data.currentTrackIndex ?? null);
       }
       if (typeof data.isPlaying === "boolean") {
@@ -116,15 +113,7 @@ export function usePlaybackPersistence({
         // ignore storage errors
       }
     },
-    [
-      currentTime,
-      currentTrackIndex,
-      isPlaying,
-      playlist,
-      restored,
-      storageKey,
-      volume,
-    ]
+    [currentTime, currentTrackIndex, isPlaying, playlist, restored, storageKey, volume],
   );
 
   useEffect(() => {

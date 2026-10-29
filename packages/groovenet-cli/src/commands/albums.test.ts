@@ -36,26 +36,30 @@ function runDelete(...args: string[]) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api", default_friend_id: 1 });
-  mocks.Client.mockImplementation(function () { return mocks.client; });
+  mocks.Client.mockImplementation(function () {
+    return mocks.client;
+  });
   mocks.client.searchAlbums.mockResolvedValue({ hits: [], estimatedTotalHits: 0 });
   mocks.client.deleteAlbum.mockResolvedValue({ success: true });
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("albums list --genre (#375)", () => {
   it("collects repeated genres", async () => {
     await run("--genre", "latin", "--genre", "jazz");
     expect(mocks.client.searchAlbums).toHaveBeenCalledWith(
-      expect.objectContaining({ q: "", genre: ["latin", "jazz"] })
+      expect.objectContaining({ q: "", genre: ["latin", "jazz"] }),
     );
   });
 
   it("sends no genre without the option", async () => {
     await run("blue");
     expect(mocks.client.searchAlbums).toHaveBeenCalledWith(
-      expect.objectContaining({ q: "blue", genre: undefined })
+      expect.objectContaining({ q: "blue", genre: undefined }),
     );
   });
 });
@@ -99,7 +103,7 @@ describe("runDeleteAlbum (#511)", () => {
 
   it("refuses to guess without a terminal to ask on", async () => {
     await expect(
-      runDeleteAlbum(mocks.client, "r1", { friendId: 2 }, false, vi.fn())
+      runDeleteAlbum(mocks.client, "r1", { friendId: 2 }, false, vi.fn()),
     ).rejects.toThrow(/--yes/);
     expect(mocks.client.deleteAlbum).not.toHaveBeenCalled();
   });

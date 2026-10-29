@@ -12,7 +12,12 @@
     "dev": "tsc && node build/index.js",
     "watch": "tsc --watch"
   },
-  "keywords": ["mcp", "dj", "music", "playlist"],
+  "keywords": [
+    "mcp",
+    "dj",
+    "music",
+    "playlist"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

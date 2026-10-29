@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { makeTheme, themeFromEnv, type Role } from "./theme.js";
 
-const ROLES: Role[] = ["ink", "strong", "muted", "dim", "shadow", "selection", "selectionStrong", "reverse", "live", "warn", "error"];
+const ROLES: Role[] = [
+  "ink",
+  "strong",
+  "muted",
+  "dim",
+  "shadow",
+  "selection",
+  "selectionStrong",
+  "reverse",
+  "live",
+  "warn",
+  "error",
+];
 const ANSI_NAMES = new Set(["green", "yellow", "red", "gray"]);
 
 describe("theme", () => {

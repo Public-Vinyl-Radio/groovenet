@@ -10,11 +10,11 @@ export const shorthands = undefined;
  */
 export const up = (pgm) => {
   // Enable pgvector extension (requires superuser)
-  pgm.sql('CREATE EXTENSION IF NOT EXISTS vector;');
+  pgm.sql("CREATE EXTENSION IF NOT EXISTS vector;");
   // Add embedding column to tracks table
-  pgm.addColumn('tracks', {
+  pgm.addColumn("tracks", {
     embedding: {
-      type: 'vector(1536)',
+      type: "vector(1536)",
       notNull: false,
     },
   });
@@ -26,5 +26,5 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
-  pgm.dropColumn('tracks', 'embedding');
+  pgm.dropColumn("tracks", "embedding");
 };

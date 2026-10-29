@@ -20,14 +20,14 @@ export async function GET(request: NextRequest) {
   try {
     const albums = await albumArtworkService.listReview(
       query.data.friend_id ?? null,
-      query.data.limit
+      query.data.limit,
     );
     return NextResponse.json(albumArtworkReviewResponseSchema.parse({ albums }));
   } catch (error) {
     console.error("[Album Artwork API] Failed to list artwork review:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to list artwork review" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

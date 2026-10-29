@@ -4,6 +4,7 @@ Exits 0 if the worker loop has written a recent heartbeat to Redis, else 1.
 The worker has no HTTP server, so liveness is signalled via a Redis key that
 the main loop refreshes on every iteration (see worker.main).
 """
+
 import os
 import sys
 import time

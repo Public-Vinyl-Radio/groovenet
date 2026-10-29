@@ -5,7 +5,13 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import FiltersPanel from "./FiltersPanel";
 
-function Harness({ activeCount = 0, onReset = vi.fn() }: { activeCount?: number; onReset?: () => void }) {
+function Harness({
+  activeCount = 0,
+  onReset = vi.fn(),
+}: {
+  activeCount?: number;
+  onReset?: () => void;
+}) {
   const [open, setOpen] = React.useState(false);
   return (
     <>
@@ -41,7 +47,9 @@ describe("FiltersPanel (#794)", () => {
     await user.click(screen.getByRole("button", { name: "Filters" }));
     const panel = await screen.findByRole("dialog", { name: "Filters" });
     expect(within(panel).getByText("Albums")).toBeTruthy();
-    expect((within(panel).getByRole("button", { name: "Reset" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (within(panel).getByRole("button", { name: "Reset" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("closes on Esc and gives focus back to FILTERS", async () => {

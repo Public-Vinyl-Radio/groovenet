@@ -30,7 +30,12 @@ vi.mock("@/providers/UsernameProvider", () => ({
 }));
 vi.mock("@/hooks/useTrackDetailQueries", () => ({ useTrackDetailQueries: () => queries }));
 vi.mock("@/components/AlbumArtworkDialog", () => ({
-  default: (props: { open: boolean; releaseId: string; albumTitle?: string; onOpenChange: (open: boolean) => void }) =>
+  default: (props: {
+    open: boolean;
+    releaseId: string;
+    albumTitle?: string;
+    onOpenChange: (open: boolean) => void;
+  }) =>
     props.open ? (
       <div role="dialog" aria-label="Cover art">
         {props.releaseId}:{props.albumTitle}
@@ -40,7 +45,11 @@ vi.mock("@/components/AlbumArtworkDialog", () => ({
 }));
 vi.mock("@/hooks/useTrack", () => ({ useTrack: () => undefined }));
 vi.mock("@/components/TrackActionsMenu", () => ({
-  default: (props: { prominent?: boolean; onChangeArtwork?: () => void; onOpenTrackDebug?: () => void }) => (
+  default: (props: {
+    prominent?: boolean;
+    onChangeArtwork?: () => void;
+    onOpenTrackDebug?: () => void;
+  }) => (
     <div data-testid="header-menu" data-prominent={String(props.prominent)}>
       {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Header cover art</button>}
       <button onClick={props.onOpenTrackDebug}>Header debug</button>
@@ -50,7 +59,11 @@ vi.mock("@/components/TrackActionsMenu", () => ({
 vi.mock("@/components/RelatedTracksSection", () => ({ default: () => null }));
 vi.mock("@/components/track-detail", () => ({
   TrackPlaylistsSection: () => null,
-  TrackHeader: (props: { showUsername?: boolean; onChangeArtwork?: () => void; menuInPageHeader?: boolean }) => (
+  TrackHeader: (props: {
+    showUsername?: boolean;
+    onChangeArtwork?: () => void;
+    menuInPageHeader?: boolean;
+  }) => (
     <div
       data-testid="track-result"
       data-show-username={String(props.showUsername)}
@@ -80,7 +93,7 @@ describe("TrackPage", () => {
         identityEmbeddingPreviewQuery: { id: "identity" },
         contextEmbeddingPreviewQuery: { id: "context" },
         audioVibeEmbeddingPreviewQuery: { id: "vibe" },
-      })
+      }),
     );
   });
 });
@@ -102,11 +115,19 @@ describe("TrackPage username attribution", () => {
 
 describe("TrackPage cover art (#494)", () => {
   it("opens the album artwork dialog from the track menu", async () => {
-    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song", release_id: "r9", album: "Blue Lines" };
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      release_id: "r9",
+      album: "Blue Lines",
+    };
     const { user } = renderWithProviders(<TrackPage />);
 
     await user.click(screen.getByRole("button", { name: "Cover Art..." }));
-    expect(screen.getByRole("dialog", { name: "Cover art" }).textContent).toContain("r9:Blue Lines");
+    expect(screen.getByRole("dialog", { name: "Cover art" }).textContent).toContain(
+      "r9:Blue Lines",
+    );
 
     await user.click(screen.getByRole("button", { name: "Close art" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Cover art" })).toBeNull());
@@ -121,19 +142,29 @@ describe("TrackPage cover art (#494)", () => {
 
 describe("TrackPage breadcrumbs", () => {
   it("trails Tracks > Album > Track for a track on a release", () => {
-    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song", release_id: "r9", album: "Blue Lines" };
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      release_id: "r9",
+      album: "Blue Lines",
+    };
     renderWithProviders(<TrackPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Song" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href")).toBe(
-      "/albums/r9?friend_id=6",
+    expect(
+      screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href"),
+    ).toBe("/albums/r9?friend_id=6");
+    expect(screen.getByRole("link", { name: "Tracks", hidden: true }).getAttribute("href")).toBe(
+      "/",
     );
-    expect(screen.getByRole("link", { name: "Tracks", hidden: true }).getAttribute("href")).toBe("/");
   });
 
   it("skips the album crumb when the album is unknown", () => {
     queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
     renderWithProviders(<TrackPage />);
-    expect(screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href")).toBe("/");
+    expect(
+      screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href"),
+    ).toBe("/");
     expect(screen.queryByRole("link", { name: "Blue Lines" })).toBeNull();
   });
 });
@@ -148,7 +179,13 @@ describe("TrackPage actions menu placement", () => {
 
   it("moves the menu into the page header on a phone", async () => {
     setViewportWidth(375);
-    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song", release_id: "r9", album: "Blue Lines" };
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      release_id: "r9",
+      album: "Blue Lines",
+    };
     const { user } = renderWithProviders(<TrackPage />);
     expect(screen.getByTestId("header-menu").dataset.prominent).toBe("true");
     expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("true");

@@ -128,9 +128,7 @@ describe("queueMissingDurationFixJobs()", () => {
       { track_id: "t1", friend_id: 1, local_audio_url: "/audio/t1.m4a" },
       { track_id: "t2", friend_id: 1, local_audio_url: "/audio/t2.m4a" },
     ]);
-    jobService.createDurationJob
-      .mockResolvedValueOnce("job-1")
-      .mockResolvedValueOnce("job-2");
+    jobService.createDurationJob.mockResolvedValueOnce("job-1").mockResolvedValueOnce("job-2");
 
     const result = await makeService().queueMissingDurationFixJobs();
 
@@ -339,7 +337,9 @@ describe("queueEssentiaBackfillJobs()", () => {
     mockFsExistsSync.mockReturnValue(true);
     mockReadEssentiaAnalysis.mockReturnValue({
       file_path: "/audio/1/t1.json",
-      payload: { analysis: { rhythm: { bpm: 120 }, tonal: { key_edma: { key: "C", scale: "major" } } } },
+      payload: {
+        analysis: { rhythm: { bpm: 120 }, tonal: { key_edma: { key: "C", scale: "major" } } },
+      },
     });
     jobService.createAnalyzeLocalJob.mockResolvedValue("job-1");
 
@@ -368,9 +368,7 @@ describe("queueEssentiaBackfillJobs()", () => {
     });
 
     expect(result.queued).toBe(1);
-    expect(result.errors).toEqual([
-      { track_id: "t1", friend_id: 1, error: "timeout" },
-    ]);
+    expect(result.errors).toEqual([{ track_id: "t1", friend_id: 1, error: "timeout" }]);
   });
 });
 
@@ -396,9 +394,7 @@ describe("queueCoverArtBackfillJobs()", () => {
       { track_id: "t1", friend_id: 1, release_id: "r1", missing_tracks: 3 },
       { track_id: "t2", friend_id: 1, release_id: "r2", missing_tracks: 5 },
     ]);
-    jobService.createCoverArtAlbumJob
-      .mockResolvedValueOnce("job-1")
-      .mockResolvedValueOnce("job-2");
+    jobService.createCoverArtAlbumJob.mockResolvedValueOnce("job-1").mockResolvedValueOnce("job-2");
 
     const result = await makeService().queueCoverArtBackfillJobs({ friend_id: null });
 

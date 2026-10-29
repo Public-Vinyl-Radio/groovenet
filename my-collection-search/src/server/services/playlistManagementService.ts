@@ -6,15 +6,15 @@ import type { PlaylistTrackInput } from "@/api-contract/schemas";
 import { withDbTransaction } from "@/lib/serverDb";
 
 export function normalizePlaylistCreatedAt<T extends { created_at?: unknown }>(
-  playlist: T
+  playlist: T,
 ): T & { created_at: string } {
   const raw = playlist.created_at;
   const createdAt =
     raw instanceof Date
       ? raw.toISOString()
       : typeof raw === "string"
-      ? raw
-      : new Date(raw as string | number).toISOString();
+        ? raw
+        : new Date(raw as string | number).toISOString();
   return {
     ...playlist,
     created_at: createdAt,
@@ -22,9 +22,7 @@ export function normalizePlaylistCreatedAt<T extends { created_at?: unknown }>(
 }
 
 export class PlaylistManagementService {
-  async getPlaylistTrackDetails(
-    playlistId: number
-  ): Promise<
+  async getPlaylistTrackDetails(playlistId: number): Promise<
     | { notFound: true }
     | {
         notFound: false;
@@ -50,14 +48,20 @@ export class PlaylistManagementService {
   }
 
   async getAllPlaylistsWithTracks(): Promise<
-    Array<{ id: number; name: string; created_at: string; tracks: PlaylistTrackRow[]; cover_urls: string[]; set?: import("@/types/track").LiveSetSummary }>
+    Array<{
+      id: number;
+      name: string;
+      created_at: string;
+      tracks: PlaylistTrackRow[];
+      cover_urls: string[];
+      set?: import("@/types/track").LiveSetSummary;
+    }>
   > {
     const playlists = await playlistRepository.listPlaylists();
     if (playlists.length === 0) return [];
 
     const playlistIds = playlists.map((p) => p.id);
-    const playlistTracks =
-      await playlistRepository.listPlaylistTracksByPlaylistIds(playlistIds);
+    const playlistTracks = await playlistRepository.listPlaylistTracksByPlaylistIds(playlistIds);
     const durations = await playlistRepository.listPlaylistDurationsByPlaylistIds(playlistIds);
     const liveSets = await playlistRepository.listLiveSetSummariesByPlaylistIds(playlistIds);
     const covers = await playlistRepository.listCoverUrlsByPlaylistIds(playlistIds);
@@ -75,14 +79,11 @@ export class PlaylistManagementService {
         total_duration_seconds: durations[playlist.id] || 0,
         cover_urls: covers[playlist.id] || [],
         ...(liveSets[playlist.id] ? { set: liveSets[playlist.id] } : {}),
-      })
+      }),
     );
   }
 
-  async createPlaylistWithTracks(data: {
-    name: string;
-    tracks: PlaylistTrackInput[];
-  }): Promise<{
+  async createPlaylistWithTracks(data: { name: string; tracks: PlaylistTrackInput[] }): Promise<{
     id: number;
     name: string;
     created_at: string;
@@ -94,14 +95,14 @@ export class PlaylistManagementService {
       tracks.map(async (track, i) => {
         const friendId = await this.resolveFriendIdForTrack(
           track.track_id,
-          track.username ?? undefined
+          track.username ?? undefined,
         );
         return {
           ...track,
           friend_id: friendId,
           position: i,
         };
-      })
+      }),
     );
 
     const playlist = await withDbTransaction(async (client) => {
@@ -116,7 +117,7 @@ export class PlaylistManagementService {
             friend_id: track.friend_id!,
             position: track.position ?? 0,
           })),
-          true
+          true,
         );
       }
       return created;
@@ -150,10 +151,7 @@ export class PlaylistManagementService {
       }
   > {
     const notFound = await withDbTransaction(async (client) => {
-      const exists = await playlistRepository.findPlaylistHeaderByIdWithClient(
-        client,
-        data.id
-      );
+      const exists = await playlistRepository.findPlaylistHeaderByIdWithClient(client, data.id);
       if (!exists) {
         return true;
       }
@@ -169,10 +167,9 @@ export class PlaylistManagementService {
             data.tracks.map(async (track, i) => {
               const trackId = typeof track === "string" ? track : track.track_id;
               const username =
-                typeof track === "object" ? track.username ?? undefined : undefined;
+                typeof track === "object" ? (track.username ?? undefined) : undefined;
 
-              const rawFriendId =
-                typeof track === "object" ? track.friend_id : undefined;
+              const rawFriendId = typeof track === "object" ? track.friend_id : undefined;
               let friendId =
                 typeof rawFriendId === "number" && Number.isFinite(rawFriendId)
                   ? rawFriendId
@@ -192,7 +189,7 @@ export class PlaylistManagementService {
                 friend_id: friendId,
                 position: i,
               };
-            })
+            }),
           );
 
           await playlistRepository.upsertTracksWithMetadata(resolvedTracks, client);
@@ -203,7 +200,7 @@ export class PlaylistManagementService {
               track_id: track.track_id,
               friend_id: track.friend_id!,
               position: track.position ?? 0,
-            }))
+            })),
           );
         }
       }
@@ -224,10 +221,7 @@ export class PlaylistManagementService {
     };
   }
 
-  private async resolveFriendIdForTrack(
-    trackId: string,
-    username?: string
-  ): Promise<number> {
+  private async resolveFriendIdForTrack(trackId: string, username?: string): Promise<number> {
     if (username) {
       const id = await playlistRepository.findFriendIdByUsername(username);
       if (id) return id;

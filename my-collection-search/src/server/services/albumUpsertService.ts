@@ -1,9 +1,6 @@
 import type { PoolClient } from "pg";
 import type { Album, DiscogsRelease } from "@/types/track";
-import {
-  albumRepository,
-  type AlbumUpsertInput,
-} from "@/server/repositories/albumRepository";
+import { albumRepository, type AlbumUpsertInput } from "@/server/repositories/albumRepository";
 import { friendRepository } from "@/server/repositories/friendRepository";
 
 type Queryable = Pick<PoolClient, "query">;
@@ -24,12 +21,9 @@ function stripDiscogsNumbering(name: string): string {
   return name.replace(/\s*\(\d+\)\s*$/, "").trim();
 }
 
-export function discogsReleaseToAlbum(
-  release: DiscogsRelease,
-  friendId: number
-): AlbumToUpsert {
+export function discogsReleaseToAlbum(release: DiscogsRelease, friendId: number): AlbumToUpsert {
   const artist = stripDiscogsNumbering(
-    release.artists_sort || release.artists?.[0]?.name || "Unknown Artist"
+    release.artists_sort || release.artists?.[0]?.name || "Unknown Artist",
   );
 
   return {
@@ -48,9 +42,7 @@ export function discogsReleaseToAlbum(
     label: release.labels?.[0]?.name ?? undefined,
     catalog_number: release.labels?.[0]?.catno,
     country: release.country,
-    format: Array.isArray(release.formats)
-      ? release.formats?.[0]?.name ?? undefined
-      : undefined,
+    format: Array.isArray(release.formats) ? (release.formats?.[0]?.name ?? undefined) : undefined,
   };
 }
 
@@ -60,7 +52,7 @@ export function discogsReleaseToAlbum(
 export async function upsertAlbum(
   db: Queryable,
   album: AlbumToUpsert,
-  options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean }
+  options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean },
 ): Promise<Album> {
   return albumRepository.upsertAlbumRecord(db, album, options);
 }
@@ -71,7 +63,7 @@ export async function upsertAlbum(
 export async function upsertAlbums(
   db: Queryable,
   albums: AlbumToUpsert[],
-  options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean }
+  options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean },
 ): Promise<Album[]> {
   const upsertedAlbums: Album[] = [];
 
@@ -82,7 +74,7 @@ export async function upsertAlbums(
     } catch (error) {
       console.error(
         `Error upserting album ${album.release_id}:`,
-        error instanceof Error ? error.message : error
+        error instanceof Error ? error.message : error,
       );
     }
   }
@@ -94,12 +86,8 @@ export async function upsertAlbums(
  * Get all albums from manifest files and convert to AlbumToUpsert format
  */
 export async function getAllAlbumsFromManifests(): Promise<AlbumToUpsert[]> {
-  const {
-    getManifestFiles,
-    parseManifestFile,
-    getReleasePath,
-    loadAlbum,
-  } = await import("@/server/services/discogsManifestService");
+  const { getManifestFiles, parseManifestFile, getReleasePath, loadAlbum } =
+    await import("@/server/services/discogsManifestService");
 
   const manifestFiles = getManifestFiles();
   const albums: AlbumToUpsert[] = [];
@@ -125,11 +113,9 @@ export async function getAllAlbumsFromManifests(): Promise<AlbumToUpsert[]> {
 
 export async function getAlbumsFromManifestReleases(
   username: string,
-  releaseIds: string[]
+  releaseIds: string[],
 ): Promise<AlbumToUpsert[]> {
-  const { getReleasePath, loadAlbum } = await import(
-    "@/server/services/discogsManifestService"
-  );
+  const { getReleasePath, loadAlbum } = await import("@/server/services/discogsManifestService");
 
   const friendId = await getFriendId(username);
   const albums: AlbumToUpsert[] = [];

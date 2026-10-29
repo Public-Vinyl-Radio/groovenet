@@ -1,11 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 
-import {
-  addFriendApi,
-  fetchFriends,
-  removeFriendApi,
-} from "@/services/internalApi/friends";
+import { addFriendApi, fetchFriends, removeFriendApi } from "@/services/internalApi/friends";
 
 export function useFriendsQuery({
   showCurrentUser = false,

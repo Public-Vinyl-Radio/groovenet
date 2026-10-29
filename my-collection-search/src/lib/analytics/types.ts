@@ -19,5 +19,4 @@ export interface AnalyticsProvider {
 
 /** Serialisable config the server hands to the browser at render time. */
 export type ClientAnalyticsConfig =
-  | { provider: "none" }
-  | { provider: "posthog"; key: string; uiHost: string };
+  { provider: "none" } | { provider: "posthog"; key: string; uiHost: string };

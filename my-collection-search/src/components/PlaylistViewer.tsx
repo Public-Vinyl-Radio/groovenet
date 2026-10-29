@@ -65,7 +65,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
 
   const { tracks, isPending: tracksLoading } = usePlaylistTracksQuery(
     tracksPlaylist,
-    tracksPlaylist.length > 0
+    tracksPlaylist.length > 0,
   );
 
   // New mutation and action hooks
@@ -81,15 +81,10 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     sortPositionChanges,
   } = usePlaylistMutations(playlistId, () => setHasUnsavedChanges(true));
 
-  const {
-    replacePlaylist,
-    playlist: queue,
-    currentTrackIndex: queueIndex,
-  } = usePlaybackPlayer();
+  const { replacePlaylist, playlist: queue, currentTrackIndex: queueIndex } = usePlaybackPlayer();
   const { viewMode, setViewMode, layout, isMobile } = useTrackViewMode();
 
-  const { exportPlaylist, exportToPDF, getTotalPlaytime } =
-    usePlaylistActions(playlistId);
+  const { exportPlaylist, exportToPDF, getTotalPlaytime } = usePlaylistActions(playlistId);
 
   const {
     Dialog: SaveDialog,
@@ -101,7 +96,9 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameName, setRenameName] = useState("");
   const [recommendationsModalOpen, setRecommendationsModalOpen] = useState(false);
-  const [recommendationsPlaylistSnapshot, setRecommendationsPlaylistSnapshot] = useState<Track[]>([]);
+  const [recommendationsPlaylistSnapshot, setRecommendationsPlaylistSnapshot] = useState<Track[]>(
+    [],
+  );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
@@ -120,15 +117,16 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = '';
+      e.returnValue = "";
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
   // Get total playtime for display
-  const { formatted: totalPlaytimeFormatted, missingCount: durationMissingCount } = getTotalPlaytime();
+  const { formatted: totalPlaytimeFormatted, missingCount: durationMissingCount } =
+    getTotalPlaytime();
 
   // Append tracks to the current playlist
   const appendTracksToPlaylist = async (newTracks: PlaylistTrackPayload[]) => {
@@ -168,7 +166,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           (t) =>
             typeof t.track_id === "string" &&
             t.track_id.length > 0 &&
-            typeof t.friend_id === "number"
+            typeof t.friend_id === "number",
         ) as PlaylistTrackPayload[];
 
       if (resolved.length === 0) {
@@ -207,7 +205,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         tracksPlaylist.map(({ track_id, friend_id }) => ({
           track_id,
           friend_id,
-        }))
+        })),
       );
       toaster.create({
         title: `Duplicated playlist as "${finalName}"`,
@@ -237,20 +235,17 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         title: "Playlist renamed",
         type: "success",
       });
-      queryClient.setQueryData(
-        queryKeys.playlistTrackIds(playlistId),
-        (prev: unknown) => {
-          if (
-            prev &&
-            typeof prev === "object" &&
-            !Array.isArray(prev) &&
-            "playlist_name" in (prev as Record<string, unknown>)
-          ) {
-            return { ...(prev as Record<string, unknown>), playlist_name: finalName };
-          }
-          return prev;
+      queryClient.setQueryData(queryKeys.playlistTrackIds(playlistId), (prev: unknown) => {
+        if (
+          prev &&
+          typeof prev === "object" &&
+          !Array.isArray(prev) &&
+          "playlist_name" in (prev as Record<string, unknown>)
+        ) {
+          return { ...(prev as Record<string, unknown>), playlist_name: finalName };
         }
-      );
+        return prev;
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.playlists() });
       setRenameDialogOpen(false);
     } catch (err) {
@@ -264,7 +259,10 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     if (queueIndex === null) return null;
     const playing = queue[queueIndex];
     const here = tracksPlaylist[queueIndex];
-    return playing && here && playing.track_id === here.track_id && playing.friend_id === here.friend_id
+    return playing &&
+      here &&
+      playing.track_id === here.track_id &&
+      playing.friend_id === here.friend_id
       ? queueIndex
       : null;
   }, [queue, queueIndex, tracksPlaylist]);
@@ -284,7 +282,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         />
       ) : null;
     },
-    [tracksPlaylist.length, moveTrack, removeFromPlaylist]
+    [tracksPlaylist.length, moveTrack, removeFromPlaylist],
   );
 
   // Import JSON and append to this playlist
@@ -297,8 +295,8 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       const tracksData: PlaylistTrackPayload[] = Array.isArray(data)
         ? data
         : Array.isArray(data?.tracks)
-        ? data.tracks
-        : [];
+          ? data.tracks
+          : [];
 
       const cleanTracks = tracksData
         .map((t) => ({
@@ -334,7 +332,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           (t) =>
             typeof t.track_id === "string" &&
             t.track_id.length > 0 &&
-            typeof t.friend_id === "number"
+            typeof t.friend_id === "number",
         ) as PlaylistTrackPayload[];
 
       if (cleanTracks.length === 0) {
@@ -345,9 +343,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         return;
       }
 
-      const missingFriend = cleanTracks.some(
-        (t) => typeof t.friend_id !== "number"
-      );
+      const missingFriend = cleanTracks.some((t) => typeof t.friend_id !== "number");
       if (missingFriend) {
         setPendingImport({
           tracks: cleanTracks as PlaylistTrackPayload[],
@@ -376,9 +372,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       onSortCohesiveBlocks={sortCohesiveBlocks}
       onExportJson={exportPlaylist}
       onImportJson={() => fileInputRef.current?.click()}
-      onExportPdf={() =>
-        exportToPDF(playlistName || `Playlist ${playlistId ?? ""}`.trim())
-      }
+      onExportPdf={() => exportToPDF(playlistName || `Playlist ${playlistId ?? ""}`.trim())}
       onOpenSaveDialog={playlistId ? saveExisting : openSaveDialog}
       isGeneticSorting={isGeneticSorting}
       isCohesiveBlocksSorting={isCohesiveBlocksSorting}
@@ -434,11 +428,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             <Flex key={i} align="center" gap={3} py={2}>
               <Skeleton height="36px" width="36px" borderRadius="md" />
               <Box flex="1">
-                <Skeleton
-                  height="16px"
-                  width={i % 3 === 0 ? "60%" : "75%"}
-                  mb={1}
-                />
+                <Skeleton height="16px" width={i % 3 === 0 ? "60%" : "75%"} mb={1} />
                 <Skeleton height="12px" width={i % 2 === 0 ? "35%" : "45%"} />
               </Box>
               <Skeleton height="28px" width="28px" borderRadius="full" />
@@ -490,7 +480,10 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           <Text fontSize="sm" color="fg.muted" mb={2}>
             Total Playtime: {totalPlaytimeFormatted}
             {durationMissingCount > 0 && (
-              <Text as="span" color="fg.muted"> ({durationMissingCount} track{durationMissingCount !== 1 ? "s" : ""} missing timing)</Text>
+              <Text as="span" color="fg.muted">
+                {" "}
+                ({durationMissingCount} track{durationMissingCount !== 1 ? "s" : ""} missing timing)
+              </Text>
             )}
           </Text>
         </Box>

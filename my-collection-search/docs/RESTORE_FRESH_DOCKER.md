@@ -33,6 +33,7 @@ docker compose -p dj-playlist -f docker-compose.yml -f docker-compose.prod.yml u
 ```
 
 Notes:
+
 - `SENTRY_DSN` warnings can be ignored during restore.
 - If `run --rm app restic snapshots` starts Next.js instead of running Restic, use `exec` against a running app container.
 

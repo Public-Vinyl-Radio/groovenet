@@ -4,7 +4,11 @@
 /** The duration fields of a track, in either form the catalogue stores them. */
 type Timed = { duration_seconds?: number | null; duration?: string | null };
 /** The fields behind a track's meta line. */
-type Described = { position?: string | number | null; bpm?: number | string | null; key?: string | null };
+type Described = {
+  position?: string | number | null;
+  bpm?: number | string | null;
+  key?: string | null;
+};
 
 /** A usable tempo: a positive number, whether stored as a number or a string. */
 export function parseBpm(bpm: number | string | null | undefined): number | null {
@@ -13,12 +17,36 @@ export function parseBpm(bpm: number | string | null | undefined): number | null
 }
 
 const CAMELOT_BY_KEY: Record<string, string> = {
-  "C major": "8B", "G major": "9B", "D major": "10B", "A major": "11B", "E major": "12B", "B major": "1B",
-  "F# major": "2B", "C# major": "3B", "F major": "7B", "Bb major": "6B", "Eb major": "5B", "Ab major": "4B",
-  "Db major": "3B", "Gb major": "2B", "Cb major": "1B",
-  "A minor": "8A", "E minor": "9A", "B minor": "10A", "F# minor": "11A", "C# minor": "12A", "G# minor": "1A",
-  "D# minor": "2A", "A# minor": "3A", "D minor": "7A", "G minor": "6A", "C minor": "5A", "F minor": "4A",
-  "Bb minor": "3A", "Eb minor": "2A", "Ab minor": "1A",
+  "C major": "8B",
+  "G major": "9B",
+  "D major": "10B",
+  "A major": "11B",
+  "E major": "12B",
+  "B major": "1B",
+  "F# major": "2B",
+  "C# major": "3B",
+  "F major": "7B",
+  "Bb major": "6B",
+  "Eb major": "5B",
+  "Ab major": "4B",
+  "Db major": "3B",
+  "Gb major": "2B",
+  "Cb major": "1B",
+  "A minor": "8A",
+  "E minor": "9A",
+  "B minor": "10A",
+  "F# minor": "11A",
+  "C# minor": "12A",
+  "G# minor": "1A",
+  "D# minor": "2A",
+  "A# minor": "3A",
+  "D minor": "7A",
+  "G minor": "6A",
+  "C minor": "5A",
+  "F minor": "4A",
+  "Bb minor": "3A",
+  "Eb minor": "2A",
+  "Ab minor": "1A",
 };
 
 /**
@@ -29,7 +57,9 @@ export function keyToCamelot(key: string | undefined | null): string {
   if (!key) return "-";
   const k = key.trim().replace(/\s+/g, " ");
   if (CAMELOT_BY_KEY[k]) return CAMELOT_BY_KEY[k];
-  const found = Object.entries(CAMELOT_BY_KEY).find(([std]) => std.toLowerCase() === k.toLowerCase());
+  const found = Object.entries(CAMELOT_BY_KEY).find(
+    ([std]) => std.toLowerCase() === k.toLowerCase(),
+  );
   if (found) return found[1];
   const m = k.match(/^([A-G][b#]?)(?:\s+)?(major|minor)$/i);
   if (m) {

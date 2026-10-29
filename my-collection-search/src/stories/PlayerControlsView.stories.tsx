@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Box } from '@chakra-ui/react';
-import { FiVolume2, FiVolumeX } from 'react-icons/fi';
-import PlayerControlsView from '@/components/player/PlayerControlsView';
-import { sampleTrack, trackLongTitle, trackNoArtwork } from './fixtures/track';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box } from "@chakra-ui/react";
+import { FiVolume2, FiVolumeX } from "react-icons/fi";
+import PlayerControlsView from "@/components/player/PlayerControlsView";
+import { sampleTrack, trackLongTitle, trackNoArtwork } from "./fixtures/track";
 
 const noop = () => {};
 const noopAsync = async () => {};
@@ -28,9 +28,9 @@ const baseArgs = {
 };
 
 const meta: Meta<typeof PlayerControlsView> = {
-  title: 'Components/PlayerControlsView',
+  title: "Components/PlayerControlsView",
   component: PlayerControlsView,
-  parameters: { layout: 'padded' },
+  parameters: { layout: "padded" },
   decorators: [
     (Story) => (
       <Box maxW="900px" mx="auto" borderWidth="1px" borderRadius="md" p={4}>
@@ -45,7 +45,7 @@ export default meta;
 type Story = StoryObj<typeof PlayerControlsView>;
 
 export const Paused: Story = {
-  name: 'Paused — track loaded',
+  name: "Paused — track loaded",
   args: { isPlaying: false },
 };
 
@@ -54,7 +54,7 @@ export const Playing: Story = {
 };
 
 export const MidQueue: Story = {
-  name: 'Mid-queue (prev + next enabled)',
+  name: "Mid-queue (prev + next enabled)",
   args: {
     isPlaying: true,
     canPrev: true,
@@ -70,7 +70,7 @@ export const Muted: Story = {
 };
 
 export const ServerVolume: Story = {
-  name: 'Server player (server volume, seek on release)',
+  name: "Server player (server volume, seek on release)",
   args: {
     isPlaying: true,
     serverMode: true,
@@ -79,7 +79,7 @@ export const ServerVolume: Story = {
 };
 
 export const QueueOpen: Story = {
-  name: 'Queue panel open (toggle pressed)',
+  name: "Queue panel open (toggle pressed)",
   args: {
     isQueueOpen: true,
     showQueueButton: true,
@@ -87,7 +87,7 @@ export const QueueOpen: Story = {
 };
 
 export const NoTrack: Story = {
-  name: 'No track loaded',
+  name: "No track loaded",
   args: {
     currentTrack: null,
     safeLen: 0,
@@ -97,7 +97,7 @@ export const NoTrack: Story = {
 };
 
 export const LongTitle: Story = {
-  name: 'Long title (truncates, no wrap)',
+  name: "Long title (truncates, no wrap)",
   args: {
     currentTrack: trackLongTitle,
     isPlaying: true,
@@ -105,7 +105,7 @@ export const LongTitle: Story = {
 };
 
 export const QueueFinished: Story = {
-  name: 'Queue finished',
+  name: "Queue finished",
   args: {
     isQueueFinished: true,
     currentTrack: sampleTrack,
@@ -116,7 +116,7 @@ export const QueueFinished: Story = {
   },
 };
 
-const compactDecorator: Meta<typeof PlayerControlsView>['decorators'] = [
+const compactDecorator: Meta<typeof PlayerControlsView>["decorators"] = [
   (Story) => (
     <Box maxW="400px" mx="auto" borderWidth="1px" borderRadius="md" p={3}>
       <Story />
@@ -125,7 +125,7 @@ const compactDecorator: Meta<typeof PlayerControlsView>['decorators'] = [
 ];
 
 export const Compact: Story = {
-  name: 'Mini player (phones)',
+  name: "Mini player (phones)",
   args: {
     compact: true,
     isPlaying: false,
@@ -134,7 +134,7 @@ export const Compact: Story = {
 };
 
 export const CompactPlaying: Story = {
-  name: 'Mini player — playing',
+  name: "Mini player — playing",
   args: {
     compact: true,
     isPlaying: true,
@@ -144,7 +144,7 @@ export const CompactPlaying: Story = {
 };
 
 export const CompactNoTrack: Story = {
-  name: 'Mini player — no track',
+  name: "Mini player — no track",
   args: {
     compact: true,
     currentTrack: null,
@@ -157,7 +157,7 @@ export const CompactNoTrack: Story = {
 };
 
 export const CompactQueueFinished: Story = {
-  name: 'Mini player — queue finished',
+  name: "Mini player — queue finished",
   args: {
     compact: true,
     isQueueFinished: true,
@@ -171,7 +171,7 @@ export const CompactQueueFinished: Story = {
 };
 
 export const CompactNoArtwork: Story = {
-  name: 'Mini player — no artwork',
+  name: "Mini player — no artwork",
   args: {
     compact: true,
     currentTrack: trackNoArtwork,
@@ -181,7 +181,7 @@ export const CompactNoArtwork: Story = {
 };
 
 export const CompactLongTitle: Story = {
-  name: 'Mini player — long title',
+  name: "Mini player — long title",
   args: {
     compact: true,
     currentTrack: trackLongTitle,

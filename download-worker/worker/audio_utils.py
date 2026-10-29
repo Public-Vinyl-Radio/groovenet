@@ -37,7 +37,7 @@ def extract_year_from_tag(value: str) -> int | None:
     if not value:
         return None
     for i in range(0, len(value) - 3):
-        part = value[i:i + 4]
+        part = value[i : i + 4]
         if part.isdigit():
             year = int(part)
             if 1800 <= year <= 2100:
@@ -50,9 +50,13 @@ def get_audio_metadata_year(
     log_sink: list[str] | None = None,
 ) -> int | None:
     cmd = [
-        "ffprobe", "-v", "quiet",
-        "-print_format", "json",
-        "-show_entries", "format_tags",
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_entries",
+        "format_tags",
         file_path,
     ]
     result = run_subprocess(cmd, timeout=30, log_sink=log_sink)
@@ -66,7 +70,7 @@ def get_audio_metadata_year(
         logger.warning("ffprobe metadata json parse failed: %s", e)
         return None
 
-    tags = ((payload.get("format") or {}).get("tags") or {})
+    tags = (payload.get("format") or {}).get("tags") or {}
     if not isinstance(tags, dict):
         return None
 
@@ -89,9 +93,13 @@ def get_duration_seconds(
     log_sink: list[str] | None = None,
 ) -> int:
     cmd = [
-        "ffprobe", "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1",
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
         file_path,
     ]
     result = run_subprocess(cmd, timeout=30, log_sink=log_sink)
@@ -111,8 +119,11 @@ def get_embedded_art_stream_index(
     log_sink: list[str] | None = None,
 ) -> int | None:
     cmd = [
-        "ffprobe", "-v", "quiet",
-        "-print_format", "json",
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_streams",
         file_path,
     ]

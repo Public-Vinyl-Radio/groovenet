@@ -19,7 +19,13 @@ const MODEL = "context-retrieval-test-model";
 const USERNAME = "context-retrieval-friend";
 let friendId = 0;
 
-type Fixture = { id: string; release: string | null; year: string | null; bpm: number | null; vector: number[] };
+type Fixture = {
+  id: string;
+  release: string | null;
+  year: string | null;
+  bpm: number | null;
+  vector: number[];
+};
 const TRACKS: Fixture[] = [
   { id: "cumbia-1", release: "r-cumbia", year: "1974", bpm: 95, vector: [1, 0, 0] },
   { id: "cumbia-2", release: "r-cumbia", year: "1974", bpm: 100, vector: [0.99, 0.1, 0] },
@@ -31,7 +37,10 @@ const TRACKS: Fixture[] = [
 async function cleanup() {
   await dbQuery(`DELETE FROM track_embeddings WHERE model = $1`, [MODEL]);
   await dbQuery(`DELETE FROM tracks WHERE username = $1`, [USERNAME]);
-  await dbQuery(`DELETE FROM albums WHERE release_id IN ('r-cumbia', 'r-rock') AND friend_id = $1`, [friendId]);
+  await dbQuery(
+    `DELETE FROM albums WHERE release_id IN ('r-cumbia', 'r-rock') AND friend_id = $1`,
+    [friendId],
+  );
   await dbQuery(`DELETE FROM friends WHERE username = $1`, [USERNAME]);
 }
 
@@ -46,7 +55,7 @@ function search(params: Partial<Parameters<EmbeddingsRepository["findContextMatc
       perReleaseCap: 2,
       ...params,
       filters: { friendId, ...params.filters },
-    })
+    }),
   );
 }
 
@@ -57,49 +66,68 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   await dbQuery(
     `INSERT INTO albums (release_id, friend_id, title, artist, genres, styles) VALUES
        ('r-cumbia', $1, 'Cumbia LP', 'A', ARRAY['Latin'], ARRAY['Cumbia', 'Chicha']),
        ('r-rock', $1, 'Rock LP', 'B', ARRAY['Rock'], ARRAY['New Wave'])`,
-    [friendId]
+    [friendId],
   );
   for (const t of TRACKS) {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id, year, bpm)
        VALUES ($1, $2, $3, $1, 'A', $4, $5, $6)`,
-      [t.id, USERNAME, friendId, t.release, t.year, t.bpm]
+      [t.id, USERNAME, friendId, t.release, t.year, t.bpm],
     );
     await embeddings.upsertTrackEmbedding({
-      trackId: t.id, friendId, embeddingType: "context", model: MODEL, dims: 3,
-      embedding: t.vector, sourceHash: "h", identityText: `context ${t.id}`, templateVersion: 1,
+      trackId: t.id,
+      friendId,
+      embeddingType: "context",
+      model: MODEL,
+      dims: 3,
+      embedding: t.vector,
+      sourceHash: "h",
+      identityText: `context ${t.id}`,
+      templateVersion: 1,
     });
   }
   // An exact match that was soft-deleted must never be served (#409).
   await dbQuery(
     `INSERT INTO tracks (track_id, username, friend_id, title, artist, deleted_at)
      VALUES ('deleted-1', $1, $2, 'deleted-1', 'A', now())`,
-    [USERNAME, friendId]
+    [USERNAME, friendId],
   );
   await embeddings.upsertTrackEmbedding({
-    trackId: "deleted-1", friendId, embeddingType: "context", model: MODEL, dims: 3,
-    embedding: [1, 0, 0], sourceHash: "h", identityText: "deleted", templateVersion: 1,
+    trackId: "deleted-1",
+    friendId,
+    embeddingType: "context",
+    model: MODEL,
+    dims: 3,
+    embedding: [1, 0, 0],
+    sourceHash: "h",
+    identityText: "deleted",
+    templateVersion: 1,
   });
   // Key and rating for #412's filters: cumbia-1 is the only keyed track, rock-1 the only rated one.
-  await dbQuery(`UPDATE tracks SET key = 'A minor' WHERE track_id = 'cumbia-1' AND friend_id = $1`, [friendId]);
-  await dbQuery(`UPDATE tracks SET star_rating = 4 WHERE track_id = 'rock-1' AND friend_id = $1`, [friendId]);
+  await dbQuery(
+    `UPDATE tracks SET key = 'A minor' WHERE track_id = 'cumbia-1' AND friend_id = $1`,
+    [friendId],
+  );
+  await dbQuery(`UPDATE tracks SET star_rating = 4 WHERE track_id = 'rock-1' AND friend_id = $1`, [
+    friendId,
+  ]);
   // Only cumbia-2 has audio, for the missing-audio chip.
   await dbQuery(
     `UPDATE tracks SET local_audio_url = '/audio/c2.m4a' WHERE track_id = 'cumbia-2' AND friend_id = $1`,
-    [friendId]
+    [friendId],
   );
   // Album import copies Discogs values onto tracks; the genre filter (#375) reads that copy.
   await dbQuery(
     `UPDATE tracks t SET genres = a.genres, styles = a.styles
      FROM albums a WHERE a.release_id = t.release_id AND a.friend_id = t.friend_id AND t.friend_id = $1`,
-    [friendId]
+    [friendId],
   );
   // rock-1 is reconciled to Cumbia; cumbia-3 to Salsa, despite its album's Cumbia style.
   await dbQuery(
@@ -107,12 +135,19 @@ beforeAll(async () => {
      SELECT v.track_id, $1, g.id, 'manual'
      FROM (VALUES ('rock-1', 'Cumbia'), ('cumbia-3', 'Salsa')) AS v(track_id, genre)
      JOIN genres g ON g.name = v.genre`,
-    [friendId]
+    [friendId],
   );
   // A closer match under an older template must never be served.
   await embeddings.upsertTrackEmbedding({
-    trackId: "rock-1", friendId, embeddingType: "context", model: MODEL, dims: 3,
-    embedding: [1, 0, 0], sourceHash: "h", identityText: "old", templateVersion: 0,
+    trackId: "rock-1",
+    friendId,
+    embeddingType: "context",
+    model: MODEL,
+    dims: 3,
+    embedding: [1, 0, 0],
+    sourceHash: "h",
+    identityText: "old",
+    templateVersion: 0,
   });
 });
 
@@ -178,7 +213,9 @@ describe("context retrieval (integration)", () => {
     expect(ids(await search({ filters: { key: "A major" } }))).toEqual([]);
     expect(ids(await search({ filters: { minStarRating: 4 } }))).toEqual(["rock-1"]);
     expect(ids(await search({ filters: { minStarRating: 5 } }))).toEqual([]);
-    expect(ids(await search({ filters: { bpmMin: 90, key: "A minor", minStarRating: 0 } }))).toEqual(["cumbia-1"]);
+    expect(
+      ids(await search({ filters: { bpmMin: 90, key: "A minor", minStarRating: 0 } })),
+    ).toEqual(["cumbia-1"]);
   });
 
   dbTest("the search route's missing-field chips filter on the track", async () => {
@@ -210,7 +247,7 @@ describe("context retrieval (integration)", () => {
     ]);
     const latin = await genres.expandToFilter([await idOf("Latin")]);
     expect(
-      ids(await search({ perReleaseCap: 3, filters: { genreFilter: latin, bpmMin: 100 } }))
+      ids(await search({ perReleaseCap: 3, filters: { genreFilter: latin, bpmMin: 100 } })),
     ).toEqual(["cumbia-2", "cumbia-3", "rock-1"]);
   });
 });

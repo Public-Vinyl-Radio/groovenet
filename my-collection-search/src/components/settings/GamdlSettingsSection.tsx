@@ -1,24 +1,18 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  Tabs,
-} from "@chakra-ui/react";
+import { Box, Heading, Text, Tabs } from "@chakra-ui/react";
 import GamdlCookieManager from "./GamdlCookieManager";
 import GamdlTestConnection from "./GamdlTestConnection";
-
 
 export default function GamdlSettingsSection(): React.JSX.Element {
   return (
     <Box>
       <Box mb={6} mt={4}>
-        <Heading size="lg" mb={2}>Gamdl Settings</Heading>
-        <Text color="fg.muted">
-          Configure Apple Music downloads using gamdl
-        </Text>
+        <Heading size="lg" mb={2}>
+          Gamdl Settings
+        </Heading>
+        <Text color="fg.muted">Configure Apple Music downloads using gamdl</Text>
       </Box>
 
       <Tabs.Root defaultValue="cookies" variant="enclosed">

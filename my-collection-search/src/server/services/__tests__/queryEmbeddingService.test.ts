@@ -78,7 +78,7 @@ describe("embedSearchQuery", () => {
       queryEmbeddingCacheKey("late-night cumbia", "m", 3),
       "[0.1,0.2,0.3]",
       "EX",
-      QUERY_EMBEDDING_CACHE_TTL_SECONDS
+      QUERY_EMBEDDING_CACHE_TTL_SECONDS,
     );
     const window = Math.floor(NOW / 60_000);
     expect(redis.incr).toHaveBeenCalledWith(`search:qembed:rl:friend:1:ip:x:${window}`);
@@ -136,7 +136,7 @@ describe("embedSearchQuery", () => {
     await expect(pending).resolves.toMatchObject({ cacheHit: false });
     expect(console.warn).toHaveBeenCalledWith(
       "[search] query embedding cache read failed:",
-      "Redis timed out"
+      "Redis timed out",
     );
   });
 

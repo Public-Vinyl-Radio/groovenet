@@ -17,13 +17,10 @@ export async function POST(req: Request) {
     const query = [title, artist].filter(Boolean).join(" ");
     const apiKey = process.env.YOUTUBE_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "Missing YOUTUBE_API_KEY env variable" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Missing YOUTUBE_API_KEY env variable" }, { status: 500 });
     }
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(
-      query
+      query,
     )}&key=${apiKey}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -38,9 +35,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ results: videos });
   } catch (error) {
     console.error("Error searching YouTube:", error);
-    return NextResponse.json(
-      { error: "YouTube search failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "YouTube search failed" }, { status: 500 });
   }
 }

@@ -1,19 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import {
-  Field,
-  HStack,
-  IconButton,
-  Input,
-  NativeSelect,
-  Text,
-} from "@chakra-ui/react";
+import { Field, HStack, IconButton, Input, NativeSelect, Text } from "@chakra-ui/react";
 import { LuStar } from "react-icons/lu";
-import {
-  KEY_FILTER_OPTIONS,
-  type TrackAttributeFilters,
-} from "@/lib/trackFilters";
+import { KEY_FILTER_OPTIONS, type TrackAttributeFilters } from "@/lib/trackFilters";
 
 type AttributeFilterProps = {
   value: TrackAttributeFilters;
@@ -107,7 +97,11 @@ export function KeyField({ value, onChange }: AttributeFilterProps) {
   );
 }
 
-export function RatingField({ value, onChange, touchTarget = false }: AttributeFilterProps & { touchTarget?: boolean }) {
+export function RatingField({
+  value,
+  onChange,
+  touchTarget = false,
+}: AttributeFilterProps & { touchTarget?: boolean }) {
   const setRating = (stars: number) =>
     onChange({ ...value, star_rating: value.star_rating === stars ? undefined : stars });
 

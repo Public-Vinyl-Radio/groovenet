@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import type { Track } from '@/types/track';
-import { diffObjectKeys, isStoreDebugEnabled, storeLog } from '@/lib/devLogger';
+import { create } from "zustand";
+import type { Track } from "@/types/track";
+import { diffObjectKeys, isStoreDebugEnabled, storeLog } from "@/lib/devLogger";
 
 export type TrackEntity = Track & {
   status?: "pending" | "enqueued" | "analyzing" | "success" | "error";
@@ -17,7 +17,11 @@ interface TrackStore {
   markReleaseHydrated: (releaseId: string, friendId: number) => void;
   isReleaseHydrated: (releaseId: string, friendId: number) => boolean;
   updateTrack: (trackId: string, friendId: number, updates: Partial<TrackEntity>) => void;
-  updateTracksByRelease: (releaseId: string, friendId: number, updates: Partial<TrackEntity>) => void;
+  updateTracksByRelease: (
+    releaseId: string,
+    friendId: number,
+    updates: Partial<TrackEntity>,
+  ) => void;
   getTrack: (trackId: string, friendId?: number) => TrackEntity | undefined;
   hasTrack: (trackId: string, friendId?: number) => boolean;
   clearTracks: () => void;
@@ -34,11 +38,16 @@ const isEmptyValue = (value: unknown): boolean =>
 // `genres`). Unlike `_preserveFields`, a key *present* with any value —
 // including `false` or `[]` — always wins; only a genuinely absent key
 // falls back to what the store already has.
-const SPARSE_SERVER_FIELDS: Array<keyof TrackEntity> = ['hasVectors', 'genres', 'album_genres', 'album_styles'];
+const SPARSE_SERVER_FIELDS: Array<keyof TrackEntity> = [
+  "hasVectors",
+  "genres",
+  "album_genres",
+  "album_styles",
+];
 
 function withSparseFieldFallback<T extends Partial<TrackEntity>>(
   incoming: T,
-  existing: TrackEntity | undefined
+  existing: TrackEntity | undefined,
 ): T {
   if (!existing) return incoming;
   let result: T | undefined;
@@ -52,7 +61,7 @@ function withSparseFieldFallback<T extends Partial<TrackEntity>>(
 }
 
 const createTrackKey = (trackId: string, friendId?: number): string => {
-  return `${trackId}:${friendId || 'default'}`;
+  return `${trackId}:${friendId || "default"}`;
 };
 
 const createReleaseKey = (releaseId: string, friendId: number): string => {
@@ -84,16 +93,16 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
   // Adjust this list as needed.
   // Note: server-confirmed updates should write via setTrack/updateTrack, not via setTracks.
   _preserveFields: [
-    'star_rating',
-    'notes',
-    'bpm',
-    'key',
-    'local_tags',
-    'danceability',
-    'mood_happy',
-    'mood_sad',
-    'mood_relaxed',
-    'mood_aggressive',
+    "star_rating",
+    "notes",
+    "bpm",
+    "key",
+    "local_tags",
+    "danceability",
+    "mood_happy",
+    "mood_sad",
+    "mood_relaxed",
+    "mood_aggressive",
   ] as Array<keyof TrackEntity>,
 
   setTrack: (track: TrackEntity) => {
@@ -105,12 +114,18 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
       newTracks.set(key, nextTrack);
 
       if (isStoreDebugEnabled()) {
-        storeLog('setTrack', [
-          ['key', key],
-          ['friend_id', track.friend_id],
-          ['prev', prev],
-          ['next', nextTrack],
-          ['diff', diffObjectKeys(prev as unknown as Record<string, unknown>, nextTrack as unknown as Record<string, unknown>)],
+        storeLog("setTrack", [
+          ["key", key],
+          ["friend_id", track.friend_id],
+          ["prev", prev],
+          ["next", nextTrack],
+          [
+            "diff",
+            diffObjectKeys(
+              prev as unknown as Record<string, unknown>,
+              nextTrack as unknown as Record<string, unknown>,
+            ),
+          ],
         ]);
       }
       return {
@@ -145,19 +160,22 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
           }
           nextValue = { ...incoming, ...preserved } as TrackEntity;
           // If nothing actually changed after merge, skip write
-          const diff = diffObjectKeys(existing as unknown as Record<string, unknown>, nextValue as unknown as Record<string, unknown>);
+          const diff = diffObjectKeys(
+            existing as unknown as Record<string, unknown>,
+            nextValue as unknown as Record<string, unknown>,
+          );
           const changed = Object.keys(diff).length > 0;
           if (changed) {
             newTracks.set(key, nextValue);
             hasChanges = true;
             if (isStoreDebugEnabled()) {
-              storeLog('setTracks:item', [
-                ['key', key],
-                ['friendId', friendId],
-                ['prev', existing],
-                ['incoming', track],
-                ['merged', nextValue],
-                ['diff', diff],
+              storeLog("setTracks:item", [
+                ["key", key],
+                ["friendId", friendId],
+                ["prev", existing],
+                ["incoming", track],
+                ["merged", nextValue],
+                ["diff", diff],
               ]);
             }
           }
@@ -167,10 +185,10 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
 
           hasChanges = true;
           if (isStoreDebugEnabled()) {
-            storeLog('setTracks:item:new', [
-              ['key', key],
-              ['friendId', friendId],
-              ['next', incoming],
+            storeLog("setTracks:item:new", [
+              ["key", key],
+              ["friendId", friendId],
+              ["next", incoming],
             ]);
           }
         }
@@ -179,9 +197,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
       // Only return new state if there were actual changes
       if (hasChanges) {
         if (isStoreDebugEnabled()) {
-          storeLog('setTracks:commit', [
-            ['count', tracks.length],
-          ]);
+          storeLog("setTracks:commit", [["count", tracks.length]]);
         }
         return {
           tracks: newTracks,
@@ -211,9 +227,9 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
       const existingTrack = state.tracks.get(key);
       if (!existingTrack) {
         if (isStoreDebugEnabled()) {
-          storeLog('updateTrack:miss', [
-            ['key', key],
-            ['updates', updates],
+          storeLog("updateTrack:miss", [
+            ["key", key],
+            ["updates", updates],
           ]);
         }
         return state;
@@ -225,12 +241,18 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
       newTracks.set(key, updatedTrack);
 
       if (isStoreDebugEnabled()) {
-        storeLog('updateTrack', [
-          ['key', key],
-          ['prev', existingTrack],
-          ['updates', updates],
-          ['next', updatedTrack],
-          ['diff', diffObjectKeys(existingTrack as unknown as Record<string, unknown>, updatedTrack as unknown as Record<string, unknown>)],
+        storeLog("updateTrack", [
+          ["key", key],
+          ["prev", existingTrack],
+          ["updates", updates],
+          ["next", updatedTrack],
+          [
+            "diff",
+            diffObjectKeys(
+              existingTrack as unknown as Record<string, unknown>,
+              updatedTrack as unknown as Record<string, unknown>,
+            ),
+          ],
         ]);
       }
       return {
@@ -251,7 +273,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
         const updatedTrack = { ...track, ...updates };
         const diff = diffObjectKeys(
           track as unknown as Record<string, unknown>,
-          updatedTrack as unknown as Record<string, unknown>
+          updatedTrack as unknown as Record<string, unknown>,
         );
         if (Object.keys(diff).length === 0) continue;
 
@@ -259,21 +281,21 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
         hasChanges = true;
 
         if (isStoreDebugEnabled()) {
-          storeLog('updateTracksByRelease:item', [
-            ['key', key],
-            ['release_id', releaseId],
-            ['friend_id', friendId],
-            ['updates', updates],
-            ['diff', diff],
+          storeLog("updateTracksByRelease:item", [
+            ["key", key],
+            ["release_id", releaseId],
+            ["friend_id", friendId],
+            ["updates", updates],
+            ["diff", diff],
           ]);
         }
       }
 
       if (!hasChanges) return state;
       if (isStoreDebugEnabled()) {
-        storeLog('updateTracksByRelease:commit', [
-          ['release_id', releaseId],
-          ['friend_id', friendId],
+        storeLog("updateTracksByRelease:commit", [
+          ["release_id", releaseId],
+          ["friend_id", friendId],
         ]);
       }
       return {
@@ -288,7 +310,6 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
     return get().tracks.get(key);
   },
 
-
   hasTrack: (trackId: string, friendId?: number) => {
     const key = createTrackKey(trackId, friendId);
     return get().tracks.has(key);
@@ -296,7 +317,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
 
   clearTracks: () => {
     if (isStoreDebugEnabled()) {
-      storeLog('clearTracks');
+      storeLog("clearTracks");
     }
     set({
       tracks: new Map(),

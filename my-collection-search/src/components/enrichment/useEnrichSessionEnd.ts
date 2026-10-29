@@ -7,7 +7,12 @@ export type Phase = "setup" | "enriching" | "done";
  * Reports how an enrichment session ended: finished, or left part-way — by
  * Exit or by navigating away, which both unmount the wizard mid-session.
  */
-export function useEnrichSessionEnd(phase: Phase, trackCount: number, saved: number, skipped: number) {
+export function useEnrichSessionEnd(
+  phase: Phase,
+  trackCount: number,
+  saved: number,
+  skipped: number,
+) {
   const latest = useRef({ phase, trackCount, saved, skipped });
   const reported = useRef(false);
 
@@ -35,6 +40,6 @@ export function useEnrichSessionEnd(phase: Phase, trackCount: number, saved: num
         completed: false,
       });
     },
-    []
+    [],
   );
 }

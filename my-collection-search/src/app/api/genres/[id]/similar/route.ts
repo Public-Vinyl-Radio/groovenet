@@ -8,7 +8,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   if (!query.success) {
     return NextResponse.json(
       { error: "Invalid query parameters", details: query.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
   try {

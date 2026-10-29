@@ -4,6 +4,7 @@ The design decisions here were measured on the #271 corpus and are recorded in
 the module docstring; these tests pin the behaviour those measurements bought,
 using synthetic audio so they run anywhere.
 """
+
 import numpy as np
 import pytest
 from fingerprint_service.chromaprint_engine import (
@@ -53,9 +54,7 @@ class TestIndexKeys:
 
         keys = _keys_of(np.asarray(values, dtype=np.uint32))
 
-        assert [tuple(int(k) for k in column) for column in keys.T] == [
-            index_keys(v) for v in values
-        ]
+        assert [tuple(int(k) for k in column) for column in keys.T] == [index_keys(v) for v in values]
 
 
 class TestAdd:
@@ -100,9 +99,7 @@ class TestAddBlob:
         via_blob.add_blob(TrackRef("t1", 1), reference.to_bytes())
 
         assert via_blob.posting_count == via_add.posting_count
-        assert via_blob.search(query, max_bit_error_rate=0.25) == via_add.search(
-            query, max_bit_error_rate=0.25
-        )
+        assert via_blob.search(query, max_bit_error_rate=0.25) == via_add.search(query, max_bit_error_rate=0.25)
 
     def test_rejects_a_blob_that_is_not_whole_uint32s(self):
         with pytest.raises(FingerprintError, match="whole number"):
@@ -149,9 +146,7 @@ class TestSearch:
             if i == 3:
                 wanted = fp
 
-        hits = index.search(
-            RawFingerprint(wanted.values[150:280]), max_bit_error_rate=0.25
-        )
+        hits = index.search(RawFingerprint(wanted.values[150:280]), max_bit_error_rate=0.25)
 
         assert hits[0].track.track_id == "t3"
 
@@ -187,9 +182,7 @@ class TestSearch:
         index.add(TrackRef("first", 1), reference)
         index.add(TrackRef("second", 1), reference)
 
-        hits = index.search(
-            RawFingerprint(reference.values[200:330]), max_bit_error_rate=0.25
-        )
+        hits = index.search(RawFingerprint(reference.values[200:330]), max_bit_error_rate=0.25)
 
         assert hits[0].track.track_id == "first"
 
@@ -248,10 +241,7 @@ class TestSearch:
         split = best_vote_count()
 
         assert split > single, f"split key gave {split} votes vs {single}"
-        assert split >= 2 * single, (
-            f"splitting the key should multiply the corroboration, got "
-            f"{split} vs {single}"
-        )
+        assert split >= 2 * single, f"splitting the key should multiply the corroboration, got {split} vs {single}"
 
     def test_the_threshold_is_enforced(self, tone_pcm):
         index = ReferenceIndex()
@@ -288,9 +278,7 @@ class TestSearch:
             index.add(TrackRef(f"t{i}", 1), fp_of(tone_pcm, seconds=60.0, seed=seed))
         reference = fp_of(tone_pcm, seconds=60.0, seed=2.3)
 
-        hits = index.search(
-            RawFingerprint(reference.values[150:300]), max_bit_error_rate=0.25
-        )
+        hits = index.search(RawFingerprint(reference.values[150:300]), max_bit_error_rate=0.25)
 
         assert len(hits) <= 1
 
@@ -299,8 +287,6 @@ class TestSearch:
         reference = fp_of(tone_pcm, seconds=60.0)
         index.add(TrackRef("t1", 1), reference)
 
-        hit = index.search(
-            RawFingerprint(reference.values[200:330]), max_bit_error_rate=0.25
-        )[0]
+        hit = index.search(RawFingerprint(reference.values[200:330]), max_bit_error_rate=0.25)[0]
 
         assert hit.confidence == pytest.approx(1.0 - hit.bit_error_rate)

@@ -12,11 +12,27 @@ describe("parseKey", () => {
     expect(spec("u")).toEqual({ name: "u", ctrl: false, shift: false });
     expect(spec("U")).toEqual({ name: "U", ctrl: false, shift: false });
     expect(canonicalKey(spec("U"))).not.toBe(canonicalKey(spec("u")));
-    for (const char of ["?", "/", "[", "]", "!", "~", "+", "-", "=", "<", ">"]) expect(spec(char).name).toBe(char);
+    for (const char of ["?", "/", "[", "]", "!", "~", "+", "-", "=", "<", ">"])
+      expect(spec(char).name).toBe(char);
   });
 
   it("parses every named key and its aliases, in any case", () => {
-    for (const name of ["enter", "esc", "tab", "space", "backspace", "delete", "up", "down", "left", "right", "pageup", "pagedown", "home", "end"]) {
+    for (const name of [
+      "enter",
+      "esc",
+      "tab",
+      "space",
+      "backspace",
+      "delete",
+      "up",
+      "down",
+      "left",
+      "right",
+      "pageup",
+      "pagedown",
+      "home",
+      "end",
+    ]) {
       expect(spec(name).name).toBe(name);
       expect(spec(name.toUpperCase()).name).toBe(name);
     }
@@ -44,7 +60,10 @@ describe("parseKey", () => {
   });
 
   it("explains what it cannot parse", () => {
-    const error = (text: string) => { const parsed = parseKey(text); return parsed.ok ? null : parsed.error; };
+    const error = (text: string) => {
+      const parsed = parseKey(text);
+      return parsed.ok ? null : parsed.error;
+    };
     expect(error("")).toContain("empty");
     expect(error("   ")).toContain("empty");
     expect(error("nope")).toContain("not a key");
@@ -78,9 +97,19 @@ describe("matchKey", () => {
 
   it("matches each named key by its Ink flag", () => {
     const flags: Array<[string, keyof import("./playerKeyspec.js").InkKeyEvent]> = [
-      ["enter", "return"], ["esc", "escape"], ["tab", "tab"], ["backspace", "backspace"], ["delete", "delete"],
-      ["up", "upArrow"], ["down", "downArrow"], ["left", "leftArrow"], ["right", "rightArrow"],
-      ["pageup", "pageUp"], ["pagedown", "pageDown"], ["home", "home"], ["end", "end"],
+      ["enter", "return"],
+      ["esc", "escape"],
+      ["tab", "tab"],
+      ["backspace", "backspace"],
+      ["delete", "delete"],
+      ["up", "upArrow"],
+      ["down", "downArrow"],
+      ["left", "leftArrow"],
+      ["right", "rightArrow"],
+      ["pageup", "pageUp"],
+      ["pagedown", "pageDown"],
+      ["home", "home"],
+      ["end", "end"],
     ];
     for (const [name, flag] of flags) {
       expect(matchKey(spec(name), "", { [flag]: true })).toBe(true);

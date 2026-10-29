@@ -67,7 +67,9 @@ export class SetDerivationNotFound extends Error {
 
 export class SetDerivationQueueError extends Error {
   constructor(cause: unknown) {
-    super(`could not queue the derivation: ${cause instanceof Error ? cause.message : String(cause)}`);
+    super(
+      `could not queue the derivation: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
     this.name = "SetDerivationQueueError";
   }
 }
@@ -91,7 +93,7 @@ export class SetDerivationService {
     private repository: SetDerivationRepository = setDerivationRepository,
     private recordings: Pick<SetRecordingService, "find"> = setRecordingService,
     private engines: Pick<typeof fingerprintIndexService, "getEngine"> = fingerprintIndexService,
-    private redis: Redis = getRedisConnection()
+    private redis: Redis = getRedisConnection(),
   ) {}
 
   /**
@@ -103,7 +105,7 @@ export class SetDerivationService {
    */
   async create(
     request: CreateDerivationRequest,
-    now: number = Date.now()
+    now: number = Date.now(),
   ): Promise<{ derivation: SetDerivationRow; reused: boolean }> {
     const recording = await this.recordings.find(request.recording_sha256);
     if (!recording) throw new SetDerivationNotFound(`recording ${request.recording_sha256}`);
@@ -115,7 +117,7 @@ export class SetDerivationService {
       await this.repository.attachToLiveSet(
         request.live_set_id,
         `/api/set-recordings/${recording.sha256}`,
-        recording.original_filename
+        recording.original_filename,
       );
     }
 
@@ -137,7 +139,7 @@ export class SetDerivationService {
           existing.id,
           "failed",
           ["queued", "processing"],
-          "stalled: no result from the worker"
+          "stalled: no result from the worker",
         );
       }
     }
@@ -151,12 +153,17 @@ export class SetDerivationService {
           file_path: recording.file_path,
           window_seconds: key.window_seconds,
           step_seconds: key.step_seconds,
-        })
+        }),
       );
     } catch (error) {
       // Unlike an ingest, nothing retries this on its own: fail the run so it
       // is not handed back as "running" forever, and tell the caller.
-      await this.repository.transitionStatus(derivation.id, "failed", ["queued"], "could not be queued");
+      await this.repository.transitionStatus(
+        derivation.id,
+        "failed",
+        ["queued"],
+        "could not be queued",
+      );
       throw new SetDerivationQueueError(error);
     }
     return { derivation, reused: false };
@@ -185,7 +192,7 @@ export class SetDerivationService {
     const durationSeconds = report.duration_seconds ?? null;
     const completed = await this.repository.complete(report.derivation_id, {
       status: report.status,
-      error: report.status === "failed" ? report.error ?? "failed without a reason" : null,
+      error: report.status === "failed" ? (report.error ?? "failed without a reason") : null,
       duration_seconds: durationSeconds,
       windows,
     });
@@ -222,7 +229,10 @@ export class SetDerivationService {
       return { derivation, recording, summary: null, tracklist: [], unidentified: [], diff: null };
     }
 
-    const engine = { fingerprint_type: row.fingerprint_type, fingerprint_version: row.fingerprint_version };
+    const engine = {
+      fingerprint_type: row.fingerprint_type,
+      fingerprint_version: row.fingerprint_version,
+    };
     const plays = derivePlays(windows);
     const tracks = await this.repository.findTracks(plays);
     const byKey = new Map(tracks.map((t) => [`${t.track_id}\u0000${t.friend_id}`, t]));
@@ -238,7 +248,11 @@ export class SetDerivationService {
 
     const diff =
       playlistId != null
-        ? diffAgainstPlan(tracklist, await this.repository.listPlannedEntries(playlistId, engine), playlistId)
+        ? diffAgainstPlan(
+            tracklist,
+            await this.repository.listPlannedEntries(playlistId, engine),
+            playlistId,
+          )
         : null;
 
     return {
@@ -279,22 +293,27 @@ export class SetDerivationService {
   private async withUnindexedNeighbours(
     regions: ReturnType<typeof findUnidentified>,
     tracklist: DerivedPlay[],
-    engine: { fingerprint_type: string; fingerprint_version: string }
+    engine: { fingerprint_type: string; fingerprint_version: string },
   ): Promise<SetDerivationView["unidentified"]> {
     const releasesFor = (region: (typeof regions)[number]) =>
       [region.before, region.after]
-        .map((i) => (i == null ? null : tracklist[i]?.track?.release_id ?? null))
+        .map((i) => (i == null ? null : (tracklist[i]?.track?.release_id ?? null)))
         .filter((r): r is string => r != null);
 
     const releases = [...new Set(regions.flatMap(releasesFor))];
-    const unindexed: SetTrackRef[] = await this.repository.listUnindexedOnReleases(releases, engine);
+    const unindexed: SetTrackRef[] = await this.repository.listUnindexedOnReleases(
+      releases,
+      engine,
+    );
 
     return regions.map((region) => {
       const near = new Set(releasesFor(region));
       return {
         start_seconds: region.start_seconds,
         end_seconds: region.end_seconds,
-        unindexed_neighbours: unindexed.filter((t) => t.release_id != null && near.has(t.release_id)),
+        unindexed_neighbours: unindexed.filter(
+          (t) => t.release_id != null && near.has(t.release_id),
+        ),
       };
     });
   }

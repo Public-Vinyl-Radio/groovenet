@@ -45,7 +45,7 @@ describe("createOpenAiEmbeddingProvider", () => {
 
   it("throws for an unknown model with no explicit dims", () => {
     expect(() => createOpenAiEmbeddingProvider("some-unknown-model")).toThrow(
-      /Unknown dims for OpenAI embedding model "some-unknown-model"/
+      /Unknown dims for OpenAI embedding model "some-unknown-model"/,
     );
   });
 

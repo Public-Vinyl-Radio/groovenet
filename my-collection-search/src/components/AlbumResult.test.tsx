@@ -13,7 +13,11 @@ vi.mock("@/hooks/useAlbumsQuery", () => ({
 }));
 // The care dialog has its own tests; here it only has to open, for this album.
 vi.mock("@/components/records/RecordActionDialog", () => ({
-  default: (props: { releaseId: string; friendId: number; onOpenChange: (open: boolean) => void }) => (
+  default: (props: {
+    releaseId: string;
+    friendId: number;
+    onOpenChange: (open: boolean) => void;
+  }) => (
     <div role="dialog" aria-label="Log care">
       {props.releaseId}:{props.friendId}
       <button onClick={() => props.onOpenChange(false)}>Close care</button>
@@ -51,11 +55,31 @@ describe("AlbumResult care action", () => {
 });
 
 it("badges effective album genres/styles, including intentionally empty replacements", async () => {
-  const { rerender } = renderWithProviders(<AlbumResult album={{ ...album, genres: ["Source"], styles: ["Source Style"], effective_genres: ["Jazz"], effective_styles: ["Fusion"] }} />);
+  const { rerender } = renderWithProviders(
+    <AlbumResult
+      album={{
+        ...album,
+        genres: ["Source"],
+        styles: ["Source Style"],
+        effective_genres: ["Jazz"],
+        effective_styles: ["Fusion"],
+      }}
+    />,
+  );
   expect(screen.getAllByText("Jazz").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Fusion").length).toBeGreaterThan(0);
   expect(screen.queryByText("Source")).toBeNull();
-  rerender(<AlbumResult album={{ ...album, genres: ["Source"], styles: ["Source Style"], effective_genres: [], effective_styles: [] }} />);
+  rerender(
+    <AlbumResult
+      album={{
+        ...album,
+        genres: ["Source"],
+        styles: ["Source Style"],
+        effective_genres: [],
+        effective_styles: [],
+      }}
+    />,
+  );
   expect(screen.queryByText("Source Style")).toBeNull();
   expect(screen.queryByText("Fusion")).toBeNull();
 });
@@ -75,7 +99,9 @@ describe("AlbumResult card", () => {
   it("shows label, country and year, the meta line and the genre tags", () => {
     renderWithProviders(<AlbumResult album={full} missingTags={["missing_audio"]} />);
     expect(screen.getByTestId("album-card")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe("/albums/rel?friend_id=7");
+    expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe(
+      "/albums/rel?friend_id=7",
+    );
     expect(screen.getByText(/Virgin/).textContent).toContain("UK");
     expect(screen.getByText(/Virgin/).textContent).toContain("(1991)");
     const meta = screen.getByTestId("album-card-meta").textContent;
@@ -89,7 +115,9 @@ describe("AlbumResult card", () => {
 
   it("shows at most two genre tags and counts the rest", () => {
     renderWithProviders(
-      <AlbumResult album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }} />
+      <AlbumResult
+        album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }}
+      />,
     );
     const genres = screen.getByTestId("album-genres");
     expect(genres.textContent).toContain("Electronic");
@@ -126,8 +154,11 @@ describe("AlbumResult row", () => {
   it("keeps every genre tag", () => {
     renderWithProviders(
       <AlbumTable>
-        <AlbumResult album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }} layout="row" />
-      </AlbumTable>
+        <AlbumResult
+          album={{ ...full, genres: ["Electronic", "Rock"], styles: ["Trip Hop", "Downtempo"] }}
+          layout="row"
+        />
+      </AlbumTable>,
     );
     const row = screen.getByTestId("album-row").textContent;
     expect(row).toContain("Downtempo");
@@ -140,9 +171,13 @@ describe("AlbumResult row", () => {
         <AlbumResult
           album={full}
           layout="row"
-          missingTags={["missing_library_identifier", "missing_local_cover_art_url", "missing_audio"]}
+          missingTags={[
+            "missing_library_identifier",
+            "missing_local_cover_art_url",
+            "missing_audio",
+          ]}
         />
-      </AlbumTable>
+      </AlbumTable>,
     );
     const row = screen.getByTestId("album-row");
     expect(row.textContent).toContain("Virgin · 1991");
@@ -159,17 +194,23 @@ describe("AlbumResult row", () => {
     renderWithProviders(
       <AlbumTable>
         <AlbumResult album={{ ...album, track_count: 0 }} layout="row" />
-      </AlbumTable>
+      </AlbumTable>,
     );
     expect(screen.getByTestId("album-row").textContent).not.toContain("No audio");
   });
 });
 
 it("shows a compact discovery card with linked artwork, title and effective genres", () => {
-  renderWithProviders(<AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />);
+  renderWithProviders(
+    <AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />,
+  );
   expect(screen.getByTestId("album-discovery-card")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Open Blue Lines" }).getAttribute("href")).toBe("/albums/rel?friend_id=7");
-  expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe("/albums/rel?friend_id=7");
+  expect(screen.getByRole("link", { name: "Open Blue Lines" }).getAttribute("href")).toBe(
+    "/albums/rel?friend_id=7",
+  );
+  expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe(
+    "/albums/rel?friend_id=7",
+  );
   expect(screen.getByText("Massive Attack")).toBeTruthy();
   expect(screen.getByText("Jazz")).toBeTruthy();
   expect(screen.queryByText("Electronic")).toBeNull();
@@ -177,7 +218,12 @@ it("shows a compact discovery card with linked artwork, title and effective genr
 });
 
 it("reuses album links and genre badges in the full cover-grid layout", () => {
-  renderWithProviders(<AlbumResult album={{ ...full, title: "A very long album title ".repeat(10) }} layout="cover" />);
+  renderWithProviders(
+    <AlbumResult
+      album={{ ...full, title: "A very long album title ".repeat(10) }}
+      layout="cover"
+    />,
+  );
   const coverLink = screen.getByRole("link", { name: /^Open A very long album/ });
   expect(coverLink.getAttribute("href")).toBe("/albums/rel?friend_id=7");
   expect(coverLink.querySelector("img")).toBeTruthy();

@@ -54,7 +54,13 @@ const ellipsis = {
   whiteSpace: "nowrap",
 } as const;
 
-const cell = { py: 3, px: 4, borderColor: "border", borderBottomWidth: "rule", verticalAlign: "middle" } as const;
+const cell = {
+  py: 3,
+  px: 4,
+  borderColor: "border",
+  borderBottomWidth: "rule",
+  verticalAlign: "middle",
+} as const;
 const revealRating = { "& .track-result-rating": { opacity: 1 } };
 
 export type AlbumResultProps = {
@@ -91,8 +97,7 @@ export default function AlbumResult({
   const router = useRouter();
   const [isEnriching, setIsEnriching] = useState(false);
   const [logCareOpen, setLogCareOpen] = useState(false);
-  const displayYear =
-    resolvedAlbum?.year && resolvedAlbum.year !== "0" ? resolvedAlbum.year : "";
+  const displayYear = resolvedAlbum?.year && resolvedAlbum.year !== "0" ? resolvedAlbum.year : "";
 
   React.useEffect(() => {
     if (!resolvedAlbum) return;
@@ -106,7 +111,7 @@ export default function AlbumResult({
     try {
       const { tracks } = await getAlbumWithTracks(
         resolvedAlbum.release_id,
-        resolvedAlbum.friend_id
+        resolvedAlbum.friend_id,
       );
       if (tracks.length === 0) {
         toaster.create({
@@ -120,7 +125,7 @@ export default function AlbumResult({
         tracks.map((track) => ({
           trackId: track.track_id,
           friendId: track.friend_id,
-        }))
+        })),
       );
       router.push("/enrich");
     } catch (error) {
@@ -134,8 +139,14 @@ export default function AlbumResult({
     }
   };
 
-  const displayGenres = discogsGenreBadges(resolvedAlbum.effective_genres ?? resolvedAlbum.genres, genreLookup);
-  const displayStyles = discogsGenreBadges(resolvedAlbum.effective_styles ?? resolvedAlbum.styles, genreLookup);
+  const displayGenres = discogsGenreBadges(
+    resolvedAlbum.effective_genres ?? resolvedAlbum.genres,
+    genreLookup,
+  );
+  const displayStyles = discogsGenreBadges(
+    resolvedAlbum.effective_styles ?? resolvedAlbum.styles,
+    genreLookup,
+  );
   const hasGenres = displayGenres.length > 0 || displayStyles.length > 0;
   const albumHref = `/albums/${resolvedAlbum.release_id}?friend_id=${resolvedAlbum.friend_id}`;
   const trackCount = resolvedAlbum.track_count;
@@ -167,7 +178,13 @@ export default function AlbumResult({
   const cardGenreBadges = (
     <>
       {cardGenres.slice(0, MAX_CARD_GENRES).map(({ item, kind }) => (
-        <GenreBadge key={`${kind}:${item.label}`} item={item} kind={kind} scope="albums" size="sm" />
+        <GenreBadge
+          key={`${kind}:${item.label}`}
+          item={item}
+          kind={kind}
+          scope="albums"
+          size="sm"
+        />
       ))}
       {hiddenGenres.length > 0 && (
         <Badge
@@ -185,14 +202,23 @@ export default function AlbumResult({
 
   const menu = (
     // The menu's button is sized by its own component; the phone gets a 44px target.
-    <Flex alignItems="center" css={{ "@media (max-width: 47.99em)": { "& button": { minWidth: "44px", minHeight: "44px" } } }}>
+    <Flex
+      alignItems="center"
+      css={{
+        "@media (max-width: 47.99em)": { "& button": { minWidth: "44px", minHeight: "44px" } },
+      }}
+    >
       <AlbumActionsMenu
         albumTitle={resolvedAlbum.title}
         albumArtist={resolvedAlbum.artist}
         coverUrl={resolvedAlbum.album_thumbnail ?? undefined}
         catalogue={["Album", resolvedAlbum.library_identifier].filter(Boolean).join(" · ")}
         discogsUrl={resolvedAlbum.discogs_url}
-        editAlbumHref={showEditFields ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}` : undefined}
+        editAlbumHref={
+          showEditFields
+            ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}`
+            : undefined
+        }
         onEnrichAlbum={handleEnrichAlbum}
         isEnriching={isEnriching}
         onLogCare={() => setLogCareOpen(true)}
@@ -249,17 +275,44 @@ export default function AlbumResult({
         p={layout === "cover" ? 0 : { base: 0, md: 3 }}
         gap={2}
         minW={0}
-        css={{ "@media (max-width: 47.99em)": { "& a": { minHeight: "44px", alignItems: "center" } } }}
+        css={{
+          "@media (max-width: 47.99em)": { "& a": { minHeight: "44px", alignItems: "center" } },
+        }}
       >
-        <Link asChild flexShrink={0} alignSelf="start" w={layout === "cover" ? "full" : undefined} aria-label={`Open ${resolvedAlbum.title}`}>
+        <Link
+          asChild
+          flexShrink={0}
+          alignSelf="start"
+          w={layout === "cover" ? "full" : undefined}
+          aria-label={`Open ${resolvedAlbum.title}`}
+        >
           <NextLink href={albumHref}>{cover({ base: "144px", md: "64px" })}</NextLink>
         </Link>
         <Box minW={0}>
           <Link asChild display="flex" fontWeight="semibold" title={resolvedAlbum.title}>
-            <NextLink href={albumHref}><Text truncate>{resolvedAlbum.title}</Text></NextLink>
+            <NextLink href={albumHref}>
+              <Text truncate>{resolvedAlbum.title}</Text>
+            </NextLink>
           </Link>
-          <Text fontSize="sm" color="fg.muted" truncate title={resolvedAlbum.artist}>{resolvedAlbum.artist}</Text>
-          <Flex gap={1} flexWrap="wrap" mt={1} css={layout === "cover" ? { "& > a, & > span": { maxWidth: "100%", whiteSpace: "normal", overflowWrap: "anywhere" } } : undefined}>
+          <Text fontSize="sm" color="fg.muted" truncate title={resolvedAlbum.artist}>
+            {resolvedAlbum.artist}
+          </Text>
+          <Flex
+            gap={1}
+            flexWrap="wrap"
+            mt={1}
+            css={
+              layout === "cover"
+                ? {
+                    "& > a, & > span": {
+                      maxWidth: "100%",
+                      whiteSpace: "normal",
+                      overflowWrap: "anywhere",
+                    },
+                  }
+                : undefined
+            }
+          >
             <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" size="sm" />
           </Flex>
         </Box>
@@ -269,7 +322,12 @@ export default function AlbumResult({
 
   if (layout === "row") {
     return (
-      <Table.Row data-testid="album-row" bg="transparent" _hover={{ bg: "bg.muted", ...revealRating }} _focusWithin={revealRating}>
+      <Table.Row
+        data-testid="album-row"
+        bg="transparent"
+        _hover={{ bg: "bg.muted", ...revealRating }}
+        _focusWithin={revealRating}
+      >
         {/* The table is fixed-layout, so a long title ellipsizes in its column. */}
         <Table.Cell {...cell} overflow="hidden">
           <Flex align="center" gap={4} minW={0}>
@@ -305,12 +363,24 @@ export default function AlbumResult({
         </Table.Cell>
         <Table.Cell {...cell}>
           {resolvedAlbum.library_identifier && (
-            <Badge colorPalette="accent" variant="subtle" size="sm" fontWeight="bold" whiteSpace="nowrap">
+            <Badge
+              colorPalette="accent"
+              variant="subtle"
+              size="sm"
+              fontWeight="bold"
+              whiteSpace="nowrap"
+            >
               {resolvedAlbum.library_identifier}
             </Badge>
           )}
         </Table.Cell>
-        <Table.Cell {...cell} fontFamily="label" fontSize="15px" fontWeight="600" fontVariantNumeric="tabular-nums">
+        <Table.Cell
+          {...cell}
+          fontFamily="label"
+          fontSize="15px"
+          fontWeight="600"
+          fontVariantNumeric="tabular-nums"
+        >
           {trackCount > 0 ? trackCount : ""}
         </Table.Cell>
         <Table.Cell {...cell}>
@@ -361,15 +431,28 @@ export default function AlbumResult({
           {resolvedAlbum.title}
         </Link>
         <ArtistLink artist={resolvedAlbum.artist} friendId={resolvedAlbum.friend_id}>
-          <Text fontSize={{ base: "14px", md: "16px" }} lineHeight={{ base: "20px", md: "24px" }} fontWeight="500" {...ellipsis}>
+          <Text
+            fontSize={{ base: "14px", md: "16px" }}
+            lineHeight={{ base: "20px", md: "24px" }}
+            fontWeight="500"
+            {...ellipsis}
+          >
             {resolvedAlbum.artist}
           </Text>
         </ArtistLink>
-        <Text fontSize={{ base: "13px", md: "14px" }} lineHeight={{ base: "18px", md: "20px" }} color="fg.muted" {...ellipsis}>
+        <Text
+          fontSize={{ base: "13px", md: "14px" }}
+          lineHeight={{ base: "18px", md: "20px" }}
+          color="fg.muted"
+          {...ellipsis}
+        >
           {resolvedAlbum.label}
           {/* Phones drop the country: one short line. */}
           {resolvedAlbum.country && (
-            <Text as="span" display={{ base: "none", md: "inline" }}>{` · ${resolvedAlbum.country}`}</Text>
+            <Text
+              as="span"
+              display={{ base: "none", md: "inline" }}
+            >{` · ${resolvedAlbum.country}`}</Text>
           )}
           {displayYear && ` (${displayYear})`}
         </Text>

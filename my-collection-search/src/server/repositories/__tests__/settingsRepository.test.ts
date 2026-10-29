@@ -36,7 +36,9 @@ describe("appearance", () => {
   it("upserts only the columns it is given, leaving the rest alone", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [row] });
 
-    await expect(makeRepo().upsertAppearance({ font_body: "inter" }, "sleeve")).resolves.toEqual(row);
+    await expect(makeRepo().upsertAppearance({ font_body: "inter" }, "sleeve")).resolves.toEqual(
+      row,
+    );
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("ON CONFLICT (id)");
     expect(sql).toContain("DO UPDATE SET font_body = EXCLUDED.font_body, updated_at");
@@ -62,7 +64,9 @@ describe("appearance", () => {
     await makeRepo().upsertAppearance({ custom_palette: null }, "sleeve");
     const [first, second] = dbQuery.mock.calls;
     expect(first[0]).toContain("custom_palette = EXCLUDED.custom_palette");
-    expect(first[0]).toContain("RETURNING palette, font_display, font_body, font_label, custom_palette");
+    expect(first[0]).toContain(
+      "RETURNING palette, font_display, font_body, font_label, custom_palette",
+    );
     expect(first[1]).toEqual(["sleeve", '{"base":"riso"}']);
     expect(second[1]).toEqual(["sleeve", null]);
   });
@@ -74,11 +78,16 @@ describe("recommendation scope", () => {
 
     await expect(makeRepo().findRecommendationScope(4)).resolves.toBe("all");
     await expect(makeRepo().findRecommendationScope(5)).resolves.toBeNull();
-    expect(dbQuery.mock.calls[0]).toEqual([expect.stringContaining("FROM recommendation_settings WHERE friend_id = $1"), [4]]);
+    expect(dbQuery.mock.calls[0]).toEqual([
+      expect.stringContaining("FROM recommendation_settings WHERE friend_id = $1"),
+      [4],
+    ]);
   });
 
   it("upserts a library's scope", async () => {
-    dbQuery.mockResolvedValueOnce({ rows: [{ scope: "library" }] }).mockResolvedValueOnce({ rows: [] });
+    dbQuery
+      .mockResolvedValueOnce({ rows: [{ scope: "library" }] })
+      .mockResolvedValueOnce({ rows: [] });
 
     await expect(makeRepo().upsertRecommendationScope(4, "library")).resolves.toBe("library");
     const [sql, params] = dbQuery.mock.calls[0];
@@ -125,11 +134,7 @@ describe("updateTargetModel()", () => {
     const updated = { ...ROW, target_model: "text-embedding-3-small", target_dims: 768 };
     dbQuery.mockResolvedValue({ rows: [updated] });
 
-    const result = await makeRepo().updateTargetModel(
-      "identity",
-      "text-embedding-3-small",
-      768
-    );
+    const result = await makeRepo().updateTargetModel("identity", "text-embedding-3-small", 768);
 
     expect(result).toEqual(updated);
     const [sql, params] = dbQuery.mock.calls[0];
@@ -140,9 +145,7 @@ describe("updateTargetModel()", () => {
   it("returns null when the kind has no row", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    await expect(
-      makeRepo().updateTargetModel("identity", "m", 1)
-    ).resolves.toBeNull();
+    await expect(makeRepo().updateTargetModel("identity", "m", 1)).resolves.toBeNull();
   });
 });
 
@@ -151,11 +154,7 @@ describe("updateServingModel()", () => {
     const updated = { ...ROW, serving_model: "text-embedding-3-small", serving_dims: 768 };
     dbQuery.mockResolvedValue({ rows: [updated] });
 
-    const result = await makeRepo().updateServingModel(
-      "identity",
-      "text-embedding-3-small",
-      768
-    );
+    const result = await makeRepo().updateServingModel("identity", "text-embedding-3-small", 768);
 
     expect(result).toEqual(updated);
     const [sql, params] = dbQuery.mock.calls[0];
@@ -169,7 +168,12 @@ describe("updateServingModel()", () => {
   it("moves serving to a new template version when one is given (#407)", async () => {
     dbQuery.mockResolvedValue({ rows: [{ ...ROW, serving_template_version: 2 }] });
 
-    const result = await makeRepo().updateServingModel("identity", "text-embedding-3-small", 1536, 2);
+    const result = await makeRepo().updateServingModel(
+      "identity",
+      "text-embedding-3-small",
+      1536,
+      2,
+    );
 
     expect(result?.serving_template_version).toBe(2);
     expect(dbQuery.mock.calls[0][1]).toEqual(["identity", "text-embedding-3-small", 1536, 2]);
@@ -178,8 +182,6 @@ describe("updateServingModel()", () => {
   it("returns null when the kind has no row", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    await expect(
-      makeRepo().updateServingModel("audio_vibe", "m", 1)
-    ).resolves.toBeNull();
+    await expect(makeRepo().updateServingModel("audio_vibe", "m", 1)).resolves.toBeNull();
   });
 });

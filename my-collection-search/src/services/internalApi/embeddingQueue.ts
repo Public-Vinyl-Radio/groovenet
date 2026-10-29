@@ -16,7 +16,7 @@ export async function fetchEmbeddingQueueStatus(): Promise<EmbeddingQueueStatusR
 }
 
 export async function retryFailedEmbeddingJobs(
-  ids: string[]
+  ids: string[],
 ): Promise<EmbeddingQueueRetryResponse> {
   return await http<EmbeddingQueueRetryResponse>("/api/embeddings/queue/retry", {
     method: "POST",

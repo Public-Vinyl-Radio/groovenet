@@ -7,14 +7,10 @@ interface ExpandableMarkdownProps {
   maxLength?: number;
 }
 
-export default function ExpandableMarkdown({
-  text,
-  maxLength = 100,
-}: ExpandableMarkdownProps) {
+export default function ExpandableMarkdown({ text, maxLength = 100 }: ExpandableMarkdownProps) {
   const [expanded, setExpanded] = useLocalState(false);
   const isLong = text.length > maxLength;
-  const displayText =
-    !expanded && isLong ? text.slice(0, maxLength) + "..." : text;
+  const displayText = !expanded && isLong ? text.slice(0, maxLength) + "..." : text;
   return (
     <Box>
       <Box fontSize={["xs", "sm", "sm"]}>

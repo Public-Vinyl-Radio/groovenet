@@ -18,7 +18,11 @@ describe("create_playlist over MCP stdio", { timeout: 15_000 }, () => {
       let body = "";
       req.on("data", (chunk) => (body += chunk));
       req.on("end", () => {
-        requests.push({ method: req.method, url: req.url, body: body ? JSON.parse(body) : undefined });
+        requests.push({
+          method: req.method,
+          url: req.url,
+          body: body ? JSON.parse(body) : undefined,
+        });
         res.writeHead(status, { "Content-Type": "application/json" });
         res.end(JSON.stringify(response));
       });
@@ -26,17 +30,25 @@ describe("create_playlist over MCP stdio", { timeout: 15_000 }, () => {
     api.listen(0, "127.0.0.1");
     await once(api, "listening");
     client = new Client({ name: "create-playlist-test", version: "1.0.0" });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
-      env: { ...process.env, API_BASE: `http://127.0.0.1:${api.address().port}/api`, API_KEY: "", DEFAULT_FRIEND_ID: "6" },
-      stderr: "pipe",
-    }));
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
+        env: {
+          ...process.env,
+          API_BASE: `http://127.0.0.1:${api.address().port}/api`,
+          API_KEY: "",
+          DEFAULT_FRIEND_ID: "6",
+        },
+        stderr: "pipe",
+      }),
+    );
   });
 
   after(async () => {
     await client?.close();
-    if (api?.listening) await new Promise((resolve, reject) => api.close((err) => err ? reject(err) : resolve()));
+    if (api?.listening)
+      await new Promise((resolve, reject) => api.close((err) => (err ? reject(err) : resolve())));
   });
 
   beforeEach(() => {
@@ -53,7 +65,10 @@ describe("create_playlist over MCP stdio", { timeout: 15_000 }, () => {
     assert.match(result.content[0].text, /Added 2 tracks/);
     assert.deepEqual(requests[0].body, {
       name: "Set",
-      tracks: [{ track_id: "33416876-D2", friend_id: 6 }, { track_id: "1-A1", friend_id: 6 }],
+      tracks: [
+        { track_id: "33416876-D2", friend_id: 6 },
+        { track_id: "1-A1", friend_id: 6 },
+      ],
     });
   });
 

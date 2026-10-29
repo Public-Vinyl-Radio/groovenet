@@ -75,14 +75,14 @@ export async function PUT(req: Request, { params }: Params) {
   if (!isSha256(sha256)) {
     return NextResponse.json(
       { error: "invalid_sha256", message: "expected a lowercase hex sha256" },
-      { status: 400 }
+      { status: 400 },
     );
   }
   try {
     const { recording, created } = await setRecordingService.store(
       sha256,
       req.body,
-      filenameFrom(req)
+      filenameFrom(req),
     );
     if (created) {
       analytics.track(
@@ -91,7 +91,7 @@ export async function PUT(req: Request, { params }: Params) {
           duration_seconds: recording.duration_seconds ?? null,
           size_bytes: Number(recording.size_bytes),
         },
-        { request: req }
+        { request: req },
       );
     }
     return NextResponse.json(recording, { status: created ? 201 : 200 });
@@ -105,7 +105,7 @@ export async function PUT(req: Request, { params }: Params) {
     console.error("Error storing set recording:", err);
     return NextResponse.json(
       { error: "internal_error", message: err.message || "Failed to store recording" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

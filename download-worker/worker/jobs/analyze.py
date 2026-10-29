@@ -10,32 +10,32 @@ from ..types import JobData, JobResult
 
 
 def analyze_local_audio(job_data: JobData) -> JobResult:
-    track_id = job_data['track_id']
-    friend_id = job_data['friend_id']
-    job_id = job_data.get('job_id', f"{track_id}_{int(time.time())}")
+    track_id = job_data["track_id"]
+    friend_id = job_data["friend_id"]
+    job_id = job_data.get("job_id", f"{track_id}_{int(time.time())}")
     log_sink: list[str] = []
 
     logger.info(f"Starting local analysis job {job_id} for track {track_id}")
-    update_job_status(job_id, 'processing', 10)
+    update_job_status(job_id, "processing", 10)
 
     try:
         audio_path = ensure_local_audio_file(job_data, log_sink=log_sink)
-        update_job_status(job_id, 'processing', 35)
+        update_job_status(job_id, "processing", 35)
         append_job_logs(job_id, log_sink)
         log_sink.clear()
 
         analysis_result = analyze_audio_file(audio_path, track_id, friend_id, log_sink=log_sink)
-        update_job_status(job_id, 'processing', 90)
+        update_job_status(job_id, "processing", 90)
         append_job_logs(job_id, log_sink)
         log_sink.clear()
 
         result = {
-            'success': True,
-            'track_id': track_id,
-            'friend_id': friend_id,
-            'analysis': analysis_result,
+            "success": True,
+            "track_id": track_id,
+            "friend_id": friend_id,
+            "analysis": analysis_result,
         }
-        update_job_status(job_id, 'completed', 100, result=result)
+        update_job_status(job_id, "completed", 100, result=result)
         logger.info(f"Local analysis job {job_id} completed successfully")
         return result
 
@@ -47,5 +47,5 @@ def analyze_local_audio(job_data: JobData) -> JobResult:
         log_sink.append(f"ERROR: {error_msg}")
         log_sink.append(traceback.format_exc())
         append_job_logs(job_id, log_sink)
-        update_job_status(job_id, 'failed', 0, error=error_msg)
-        return {'success': False, 'error': error_msg, 'track_id': track_id, 'friend_id': friend_id}
+        update_job_status(job_id, "failed", 0, error=error_msg)
+        return {"success": False, "error": error_msg, "track_id": track_id, "friend_id": friend_id}

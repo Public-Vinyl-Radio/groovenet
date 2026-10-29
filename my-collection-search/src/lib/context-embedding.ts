@@ -46,7 +46,7 @@ export function buildContextText(data: IdentityData): string {
 export async function needsContextUpdate(
   track_id: string,
   friend_id: number,
-  newSourceHash: string
+  newSourceHash: string,
 ): Promise<boolean> {
   const { model } = await getTargetModel("context");
   const sourceHash = await embeddingsRepository.findEmbeddingSourceHash(
@@ -54,7 +54,7 @@ export async function needsContextUpdate(
     friend_id,
     "context",
     model,
-    CONTEXT_TEMPLATE_VERSION
+    CONTEXT_TEMPLATE_VERSION,
   );
   return !sourceHash || sourceHash !== newSourceHash;
 }
@@ -63,7 +63,7 @@ export async function needsContextUpdate(
 export async function generateAndStoreContextEmbedding(
   track_id: string,
   friend_id: number,
-  forceUpdate = false
+  forceUpdate = false,
 ): Promise<{ updated: boolean; reason: string }> {
   const track = await fetchTrackWithAlbum(track_id, friend_id);
   if (!track) {
@@ -100,7 +100,7 @@ export async function generateAndStoreContextEmbedding(
 /** The exact text the pipeline embeds, for `/api/tracks/{id}/embedding-preview`. */
 export async function getContextPreview(
   track_id: string,
-  friend_id: number
+  friend_id: number,
 ): Promise<{ contextText: string; contextData: IdentityData }> {
   const track = await fetchTrackWithAlbum(track_id, friend_id);
   if (!track) {

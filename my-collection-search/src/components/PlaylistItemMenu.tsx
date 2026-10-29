@@ -2,14 +2,7 @@
 
 import React, { useState } from "react";
 import NextLink from "next/link";
-import {
-  Box,
-  Button,
-  Dialog,
-  Flex,
-  Menu,
-  Portal,
-} from "@chakra-ui/react";
+import { Box, Button, Dialog, Flex, Menu, Portal } from "@chakra-ui/react";
 import {
   FiArrowDown,
   FiArrowUp,
@@ -36,7 +29,6 @@ export interface PlaylistItemMenuProps {
   removeFromPlaylist: (indexToRemove: number) => void;
   size?: "xs" | "sm" | "md" | "lg";
 }
-
 
 export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
   idx,
@@ -102,7 +94,14 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
     <>
       {/* Phone: centred modal (#751) */}
       <Box display={{ base: "block", md: "none" }}>
-        <Button variant="plain" size={size} boxSize="44px" minW="44px" aria-label="Track actions" onClick={() => setDrawerOpen(true)}>
+        <Button
+          variant="plain"
+          size={size}
+          boxSize="44px"
+          minW="44px"
+          aria-label="Track actions"
+          onClick={() => setDrawerOpen(true)}
+        >
           <FiMoreVertical size={16} />
         </Button>
         <PlaylistTrackActionsModal
@@ -155,14 +154,15 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
                 <FiPlus /> Add to Playlist
               </Menu.Item>
               {canFetchAudio && (
-                <Menu.Item onSelect={handleFetchAudio} value="fetch-audio" disabled={fetchAudioLoading}>
+                <Menu.Item
+                  onSelect={handleFetchAudio}
+                  value="fetch-audio"
+                  disabled={fetchAudioLoading}
+                >
                   <FiDownload /> {fetchAudioLoading ? "Fetching Audio..." : "Fetch Audio"}
                 </Menu.Item>
               )}
-              <Menu.Item
-                onSelect={openRecommendations}
-                value="recommendations"
-              >
+              <Menu.Item onSelect={openRecommendations} value="recommendations">
                 <FiPlus /> AI Recommendations
               </Menu.Item>
               {menuDivider}

@@ -7,7 +7,10 @@ import {
   trackGenreFilterClause,
   type GenreFilter,
 } from "@/lib/trackFilterSpec";
-import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import {
+  hasVectorsSelectSql,
+  trackGenresSelectSql,
+} from "@/server/repositories/trackGenreRepository";
 import { VINYL_SESSIONS_SQL } from "@/server/repositories/trackSpinEventRepository";
 import type { GenrePageResponse } from "@/api-contract/schemas";
 
@@ -37,14 +40,19 @@ export class GenrePageRepository {
    * date_added is the imported collection timestamp (not created_at). The DB
    * stores it without a timezone; boundaries are explicit UTC calendar dates.
    */
-  async stats(filter: GenreFilter, friendId: number | undefined, year: number): Promise<GenrePageResponse["stats"]> {
+  async stats(
+    filter: GenreFilter,
+    friendId: number | undefined,
+    year: number,
+  ): Promise<GenrePageResponse["stats"]> {
     const params: unknown[] = [];
     const bind = binder(params);
     const where = ["t.deleted_at IS NULL", trackGenreFilterClause(filter, bind, "t")];
     if (friendId !== undefined) where.push(`t.friend_id = ${bind(friendId)}`);
     const start = bind(`${year}-01-01`);
     const end = bind(`${year + 1}-01-01`);
-    const { rows } = await dbQuery<Omit<GenrePageResponse["stats"], "year">>(`
+    const { rows } = await dbQuery<Omit<GenrePageResponse["stats"], "year">>(
+      `
       WITH matching AS MATERIALIZED (
         SELECT t.bpm, t.date_added, t.local_audio_url
         FROM tracks t WHERE ${where.join(" AND ")}
@@ -60,7 +68,9 @@ export class GenrePageRepository {
         (SELECT count(*) FROM matching WHERE date_added >= ${start}::timestamp AND date_added < ${end}::timestamp)::integer AS added_this_year,
         (SELECT count(*) FROM matching WHERE NULLIF(btrim(local_audio_url), '') IS NOT NULL)::integer AS playable_tracks,
         COALESCE((SELECT jsonb_agg(jsonb_build_object('min', min, 'max', min + 10, 'count', count) ORDER BY min) FROM bins), '[]'::jsonb) AS bpm_histogram
-    `, params);
+    `,
+      params,
+    );
     return { ...rows[0], year };
   }
 
@@ -99,7 +109,7 @@ export class GenrePageRepository {
           WHERE ${albumGenreFilterClause(input.filter, bind, "a")} ${albumFriend}
         )::integer AS albums_total
       `,
-      params
+      params,
     );
     return rows[0];
   }
@@ -109,7 +119,11 @@ export class GenrePageRepository {
    * follow, most recently added first, so a genre with no spins still shows
    * what's newest in it.
    */
-  async topTracks(filter: GenreFilter, friendId: number | undefined, limit: number): Promise<GenrePageTrackRow[]> {
+  async topTracks(
+    filter: GenreFilter,
+    friendId: number | undefined,
+    limit: number,
+  ): Promise<GenrePageTrackRow[]> {
     const params: unknown[] = [];
     const bind = binder(params);
     const where = ["t.deleted_at IS NULL", trackGenreFilterClause(filter, bind, "t")];
@@ -133,13 +147,17 @@ export class GenrePageRepository {
       ORDER BY play_count DESC, t.date_added DESC NULLS LAST, t.track_id ASC
       LIMIT ${bind(limit)}
       `,
-      params
+      params,
     );
     return rows;
   }
 
   /** Albums the genre filter returns, ordered like `topTracks` by spins of any of their tracks. */
-  async topAlbums(filter: GenreFilter, friendId: number | undefined, limit: number): Promise<GenrePageAlbumRow[]> {
+  async topAlbums(
+    filter: GenreFilter,
+    friendId: number | undefined,
+    limit: number,
+  ): Promise<GenrePageAlbumRow[]> {
     const params: unknown[] = [];
     const bind = binder(params);
     const where = [albumGenreFilterClause(filter, bind, "a")];
@@ -160,7 +178,7 @@ export class GenrePageRepository {
       ORDER BY play_count DESC, a.date_added DESC NULLS LAST, a.created_at DESC NULLS LAST, a.release_id ASC
       LIMIT ${bind(limit)}
       `,
-      params
+      params,
     );
     return rows;
   }

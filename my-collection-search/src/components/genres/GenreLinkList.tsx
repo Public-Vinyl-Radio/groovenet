@@ -5,7 +5,13 @@ import { Badge, Flex, Text } from "@chakra-ui/react";
 import type { GenrePageRef } from "@/api-contract/schemas";
 
 /** Links to genre pages (#376), each with how many tracks it holds, subgenres included. */
-export default function GenreLinkList({ genres, empty }: { genres: GenrePageRef[]; empty?: string }) {
+export default function GenreLinkList({
+  genres,
+  empty,
+}: {
+  genres: GenrePageRef[];
+  empty?: string;
+}) {
   if (genres.length === 0) {
     return empty ? (
       <Text fontSize="sm" color="fg.muted">

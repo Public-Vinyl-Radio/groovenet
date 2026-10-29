@@ -1,4 +1,9 @@
-import type { SpinMedium, SpinProvenance, SpinSelectionMode, SpinSelectionType } from "@groovenet/contracts";
+import type {
+  SpinMedium,
+  SpinProvenance,
+  SpinSelectionMode,
+  SpinSelectionType,
+} from "@groovenet/contracts";
 import { dbQuery } from "@/lib/serverDb";
 import type { PoolClient } from "pg";
 
@@ -93,10 +98,7 @@ export type ListSpinSessionsFilters = {
 };
 
 export class SpinSessionRepository {
-  async createSession(
-    client: Queryable,
-    input: CreateSpinSessionInput
-  ): Promise<SpinSessionRow> {
+  async createSession(client: Queryable, input: CreateSpinSessionInput): Promise<SpinSessionRow> {
     const { rows } = await client.query<SpinSessionRow>(
       `
       INSERT INTO spin_sessions (
@@ -123,7 +125,7 @@ export class SpinSessionRepository {
         input.live_set_performance_id ?? null,
         input.playlist_played_at ?? null,
         input.playlist_position ?? null,
-      ]
+      ],
     );
 
     return rows[0];
@@ -136,7 +138,7 @@ export class SpinSessionRepository {
       playlist_id: number;
       playlist_played_at: string | Date;
       playlist_position: number;
-    }
+    },
   ): Promise<SpinSessionRow | null> {
     const { rows } = await client.query<SpinSessionRow>(
       `INSERT INTO spin_sessions (
@@ -155,7 +157,7 @@ export class SpinSessionRepository {
         input.live_set_performance_id ?? null,
         input.playlist_played_at,
         input.playlist_position,
-      ]
+      ],
     );
     return rows[0] ?? null;
   }
@@ -163,7 +165,7 @@ export class SpinSessionRepository {
   async findAutomaticSessionByDetectionId(detectionId: string): Promise<SpinSessionRow | null> {
     const { rows } = await dbQuery<SpinSessionRow>(
       "SELECT * FROM spin_sessions WHERE detection_id = $1",
-      [detectionId]
+      [detectionId],
     );
     return rows[0] ?? null;
   }
@@ -171,7 +173,7 @@ export class SpinSessionRepository {
   async insertSelections(
     client: Queryable,
     sessionId: number,
-    selections: CreateSpinSessionSelectionInput[]
+    selections: CreateSpinSessionSelectionInput[],
   ): Promise<SpinSessionSelectionRow[]> {
     if (selections.length === 0) return [];
 
@@ -181,7 +183,7 @@ export class SpinSessionRepository {
 
     for (const selection of selections) {
       values.push(
-        `($1, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`
+        `($1, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`,
       );
       params.push(
         selection.ordinal,
@@ -189,7 +191,7 @@ export class SpinSessionRepository {
         selection.side_key ?? null,
         selection.track_id ?? null,
         selection.friend_id ?? null,
-        selection.position_snapshot ?? null
+        selection.position_snapshot ?? null,
       );
       paramIndex += 6;
     }
@@ -202,14 +204,14 @@ export class SpinSessionRepository {
       VALUES ${values.join(", ")}
       RETURNING *
       `,
-      params
+      params,
     );
 
     return rows;
   }
 
   async listSessions(
-    filters: ListSpinSessionsFilters
+    filters: ListSpinSessionsFilters,
   ): Promise<Array<SpinSessionRow & SpinSessionAlbumColumns & { track_event_count: number }>> {
     const whereClauses = ["ss.friend_id = $1"];
     const params: Array<number | string | Date> = [filters.friend_id];
@@ -226,7 +228,7 @@ export class SpinSessionRepository {
           FROM track_spin_events tse_filter
           WHERE tse_filter.session_id = ss.id
             AND tse_filter.track_id = $${params.length}
-        )`
+        )`,
       );
     }
     if (filters.from) {
@@ -263,15 +265,13 @@ export class SpinSessionRepository {
       LIMIT ${limitRef}
       OFFSET ${offsetRef}
       `,
-      params
+      params,
     );
 
     return rows;
   }
 
-  async listSelectionsBySessionIds(
-    sessionIds: number[]
-  ): Promise<SpinSessionSelectionRow[]> {
+  async listSelectionsBySessionIds(sessionIds: number[]): Promise<SpinSessionSelectionRow[]> {
     if (sessionIds.length === 0) return [];
 
     const { rows } = await dbQuery<SpinSessionSelectionRow>(
@@ -281,7 +281,7 @@ export class SpinSessionRepository {
       WHERE session_id = ANY($1::int[])
       ORDER BY session_id ASC, ordinal ASC, id ASC
       `,
-      [sessionIds]
+      [sessionIds],
     );
 
     return rows;
@@ -291,11 +291,11 @@ export class SpinSessionRepository {
   async findSessionForUpdate(
     client: Queryable,
     sessionId: number,
-    friendId: number
+    friendId: number,
   ): Promise<SpinSessionRow | null> {
     const { rows } = await client.query<SpinSessionRow>(
       "SELECT * FROM spin_sessions WHERE id = $1 AND friend_id = $2 FOR UPDATE",
-      [sessionId, friendId]
+      [sessionId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -303,7 +303,7 @@ export class SpinSessionRepository {
   async updateSession(
     client: Queryable,
     sessionId: number,
-    input: UpdateSpinSessionInput
+    input: UpdateSpinSessionInput,
   ): Promise<SpinSessionRow> {
     const assignments = ["updated_at = NOW()"];
     const params: Array<number | string | Date | null> = [sessionId];
@@ -320,7 +320,7 @@ export class SpinSessionRepository {
 
     const { rows } = await client.query<SpinSessionRow>(
       `UPDATE spin_sessions SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`,
-      params
+      params,
     );
     return rows[0];
   }
@@ -332,7 +332,7 @@ export class SpinSessionRepository {
   async deleteSession(
     client: Queryable,
     sessionId: number,
-    friendId: number
+    friendId: number,
   ): Promise<SpinSessionRow | null> {
     const { rows } = await client.query<SpinSessionRow>(
       `
@@ -340,7 +340,7 @@ export class SpinSessionRepository {
       WHERE id = $1 AND friend_id = $2
       RETURNING *
       `,
-      [sessionId, friendId]
+      [sessionId, friendId],
     );
 
     return rows[0] ?? null;

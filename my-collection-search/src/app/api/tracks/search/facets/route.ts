@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid query parameters", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const { q, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating } = parsedQuery.data;
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (mode !== "lexical" && words.length > 0) {
       return NextResponse.json(
         { error: `Genre counts are for keyword search, not mode=${mode}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (bpm_min !== undefined && bpm_max !== undefined && bpm_min > bpm_max) {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     console.error("Genre facets error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Genre facets failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

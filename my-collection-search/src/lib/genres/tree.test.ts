@@ -15,7 +15,11 @@ const node = (id: string, name: string, children: GenreTreeNode[] = []): GenreTr
 
 const tree = [
   node("rock", "Rock", [node("punk", "Punk")]),
-  node("latin", "Latin", [node("salsa", "Salsa"), node("cumbia", "Cumbia"), node("bolero", "Bolero")]),
+  node("latin", "Latin", [
+    node("salsa", "Salsa"),
+    node("cumbia", "Cumbia"),
+    node("bolero", "Bolero"),
+  ]),
 ];
 const counts = new Map([
   ["rock", 5],
@@ -27,31 +31,50 @@ const counts = new Map([
 
 /** Names, nested the way the page renders them. */
 const shape = (entries: CountedGenreNode[]): unknown =>
-  entries.map((entry) => (entry.children.length ? [entry.node.name, shape(entry.children)] : entry.node.name));
+  entries.map((entry) =>
+    entry.children.length ? [entry.node.name, shape(entry.children)] : entry.node.name,
+  );
 
 describe("countGenreTree", () => {
   it("orders every level biggest first and drops genres the collection doesn't hold", () => {
     const result = countGenreTree(tree, counts, { showEmpty: false, search: "" });
 
-    expect(shape(result)).toEqual([["Latin", ["Cumbia", "Salsa"]], ["Rock", ["Punk"]]]);
+    expect(shape(result)).toEqual([
+      ["Latin", ["Cumbia", "Salsa"]],
+      ["Rock", ["Punk"]],
+    ]);
     expect(result[0].count).toBe(40);
   });
 
   it("keeps empty genres when asked", () => {
     const result = countGenreTree(tree, counts, { showEmpty: true, search: "" });
 
-    expect(shape(result)).toEqual([["Latin", ["Cumbia", "Salsa", "Bolero"]], ["Rock", ["Punk"]]]);
+    expect(shape(result)).toEqual([
+      ["Latin", ["Cumbia", "Salsa", "Bolero"]],
+      ["Rock", ["Punk"]],
+    ]);
     expect(result[0].children[2].count).toBe(0);
   });
 
   it("orders genres with equal counts by name", () => {
-    const result = countGenreTree(tree, new Map([["rock", 7], ["latin", 7]]), { showEmpty: false, search: "" });
+    const result = countGenreTree(
+      tree,
+      new Map([
+        ["rock", 7],
+        ["latin", 7],
+      ]),
+      { showEmpty: false, search: "" },
+    );
     expect(shape(result)).toEqual(["Latin", "Rock"]);
   });
 
   it("keeps a match's parents for context, and drops the rest", () => {
-    expect(shape(countGenreTree(tree, counts, { showEmpty: false, search: "cumb" }))).toEqual([["Latin", ["Cumbia"]]]);
-    expect(shape(countGenreTree(tree, counts, { showEmpty: false, search: "punk" }))).toEqual([["Rock", ["Punk"]]]);
+    expect(shape(countGenreTree(tree, counts, { showEmpty: false, search: "cumb" }))).toEqual([
+      ["Latin", ["Cumbia"]],
+    ]);
+    expect(shape(countGenreTree(tree, counts, { showEmpty: false, search: "punk" }))).toEqual([
+      ["Rock", ["Punk"]],
+    ]);
   });
 
   it("keeps everything under a matching genre", () => {

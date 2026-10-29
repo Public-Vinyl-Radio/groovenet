@@ -11,11 +11,22 @@ vi.mock("@/services/internalApi/albums", () => ({ searchAlbums }));
 const album = { release_id: "one", friend_id: 6, title: "First", artist: "Artist", track_count: 1 };
 function setup(friendId?: number) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  return { client, ...renderHook(({ id }) => useRecentAlbumsQuery(id), { wrapper, initialProps: { id: friendId } }) };
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  return {
+    client,
+    ...renderHook(({ id }) => useRecentAlbumsQuery(id), {
+      wrapper,
+      initialProps: { id: friendId },
+    }),
+  };
 }
 describe("useRecentAlbumsQuery", () => {
-  beforeEach(() => { searchAlbums.mockReset().mockResolvedValue({ hits: [album] }); useAlbumStore.getState().clearAlbums(); });
+  beforeEach(() => {
+    searchAlbums.mockReset().mockResolvedValue({ hits: [album] });
+    useAlbumStore.getState().clearAlbums();
+  });
   it("waits for a collection then fetches the latest four and caches only refs", async () => {
     const { result, rerender, client } = setup();
     expect(result.current.fetchStatus).toBe("idle");
@@ -35,7 +46,11 @@ describe("useRecentAlbumsQuery", () => {
     searchAlbums.mockReturnValue(new Promise(() => {}));
     rerender({ id: 7 });
     expect(result.current.albums).toEqual([]);
-    expect(searchAlbums).toHaveBeenLastCalledWith({ friend_id: 7, sort: "created_at:desc", limit: 4 });
+    expect(searchAlbums).toHaveBeenLastCalledWith({
+      friend_id: 7,
+      sort: "created_at:desc",
+      limit: 4,
+    });
   });
   it("exposes fetch errors and accepts an empty collection", async () => {
     searchAlbums.mockRejectedValue(new Error("offline"));

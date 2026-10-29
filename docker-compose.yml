@@ -5,7 +5,7 @@ services:
       dockerfile: my-collection-search/Dockerfile
       target: runner
     labels:
-      - "deployed.revision=*${GIT_SHA:-dev}"  # change on every commit -> forces recreate
+      - "deployed.revision=*${GIT_SHA:-dev}" # change on every commit -> forces recreate
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-djplaylist}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-djplaylist}
       APPLE_MUSIC_TEAM_ID: ${APPLE_MUSIC_TEAM_ID}
@@ -59,7 +59,12 @@ services:
     working_dir: /repo/my-collection-search
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-djplaylist}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-djplaylist}
-    entrypoint: ["sh", "-c", "until pg_isready -h db -U ${POSTGRES_USER:-djplaylist}; do sleep 1; done && sh /repo/my-collection-search/scripts/migrate-preflight.sh && npm run migrate -- up"]
+    entrypoint:
+      [
+        "sh",
+        "-c",
+        "until pg_isready -h db -U ${POSTGRES_USER:-djplaylist}; do sleep 1; done && sh /repo/my-collection-search/scripts/migrate-preflight.sh && npm run migrate -- up",
+      ]
     depends_on:
       - db
 
@@ -94,7 +99,8 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-djplaylist} -d ${POSTGRES_DB:-djplaylist}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-djplaylist} -d ${POSTGRES_DB:-djplaylist}"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -148,7 +154,7 @@ services:
     volumes:
       - ${WORKER_AUDIO_MOUNT:-music_data:/app/audio}
       - album_covers:/app/public/uploads/album-covers
-      - cookie_data:/app/cookies  # Shared cookie storage with app service
+      - cookie_data:/app/cookies # Shared cookie storage with app service
       - essentia_data:/app/essentia-data
     restart: unless-stopped
 

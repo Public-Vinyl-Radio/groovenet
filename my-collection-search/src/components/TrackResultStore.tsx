@@ -1,11 +1,11 @@
-import React from 'react';
-import TrackResult, { type TrackResultProps } from './TrackResult';
-import { useTrack } from '@/hooks/useTrack';
-import type { Track } from '@/types/track';
-import { useTrackStore } from '@/stores/trackStore';
-import type { SortPositionChange } from '@/hooks/usePlaylistMutations';
+import React from "react";
+import TrackResult, { type TrackResultProps } from "./TrackResult";
+import { useTrack } from "@/hooks/useTrack";
+import type { Track } from "@/types/track";
+import { useTrackStore } from "@/stores/trackStore";
+import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
 
-interface TrackResultStoreProps extends Omit<TrackResultProps, 'track'> {
+interface TrackResultStoreProps extends Omit<TrackResultProps, "track"> {
   trackId: string;
   friendId: number;
   fallbackTrack?: Track;
@@ -68,11 +68,6 @@ export default function TrackResultStore({
   }
 
   return (
-    <TrackResult
-      track={track}
-      isSelected={isSelected}
-      onToggleSelect={onToggleSelect}
-      {...props}
-    />
+    <TrackResult track={track} isSelected={isSelected} onToggleSelect={onToggleSelect} {...props} />
   );
 }

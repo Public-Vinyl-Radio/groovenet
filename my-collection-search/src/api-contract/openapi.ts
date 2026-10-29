@@ -54,7 +54,7 @@ const COMPONENT_REF = /^#\/components\/schemas\/(.+)$/;
 export function inlineComponentRefs(
   schema: unknown,
   components: Record<string, unknown>,
-  resolving: ReadonlySet<string> = new Set()
+  resolving: ReadonlySet<string> = new Set(),
 ): unknown {
   if (Array.isArray(schema)) {
     return schema.map((item) => inlineComponentRefs(item, components, resolving));
@@ -67,13 +67,16 @@ export function inlineComponentRefs(
     return inlineComponentRefs(components[name], components, new Set([...resolving, name]));
   }
   return Object.fromEntries(
-    Object.entries(s).map(([key, value]) => [key, inlineComponentRefs(value, components, resolving)])
+    Object.entries(s).map(([key, value]) => [
+      key,
+      inlineComponentRefs(value, components, resolving),
+    ]),
   );
 }
 
 function addExamplesToOpenApiDocument(
   paths: Record<string, Record<string, unknown>>,
-  components: Record<string, unknown>
+  components: Record<string, unknown>,
 ): void {
   for (const pathItem of Object.values(paths)) {
     for (const operation of Object.values(pathItem)) {
@@ -235,7 +238,13 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     paths,
     components: {
       securitySchemes: {
-        PlayerWebSession: { type: "apiKey", in: "cookie", name: "__Secure-gn-player", description: "Short-lived player-only browser session. Mutations require the configured same-origin Origin header; administration still requires bearer authorization." },
+        PlayerWebSession: {
+          type: "apiKey",
+          in: "cookie",
+          name: "__Secure-gn-player",
+          description:
+            "Short-lived player-only browser session. Mutations require the configured same-origin Origin header; administration still requires bearer authorization.",
+        },
         BearerAuth: {
           type: "http",
           scheme: "bearer",
@@ -259,7 +268,7 @@ export function getOpenApiDocument(): OpenApiDocument {
 function buildMobileOpenApiDocumentInternal(): OpenApiDocument {
   const fullDoc = getOpenApiDocument();
   const mobilePaths = Object.fromEntries(
-    Object.entries(fullDoc.paths).filter(([path]) => MOBILE_OPENAPI_PATHS.has(path))
+    Object.entries(fullDoc.paths).filter(([path]) => MOBILE_OPENAPI_PATHS.has(path)),
   );
 
   return {

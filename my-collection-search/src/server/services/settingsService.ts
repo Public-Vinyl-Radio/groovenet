@@ -26,10 +26,7 @@ import {
   type AppearancePatch,
   type AppearanceRow,
 } from "@/server/repositories/settingsRepository";
-import {
-  DEFAULT_RECOMMENDATION_SCOPE,
-  type RecommendationScope,
-} from "@/types/recommendations";
+import { DEFAULT_RECOMMENDATION_SCOPE, type RecommendationScope } from "@/types/recommendations";
 
 export interface Appearance {
   palette: AppearancePaletteId;
@@ -45,8 +42,6 @@ export interface AppearanceUpdate {
   customPalette?: CustomPalette | null;
 }
 
-
-
 const FONT_COLUMNS = {
   display: "font_display",
   body: "font_body",
@@ -60,7 +55,7 @@ function toAppearance(row: AppearanceRow | null): Appearance {
     palette: resolveAppearancePalette(row?.palette, customPalette),
     customPalette,
     fonts: Object.fromEntries(
-      fontRoleIds.map((role) => [role, resolveFontChoice(role, row?.[FONT_COLUMNS[role]])])
+      fontRoleIds.map((role) => [role, resolveFontChoice(role, row?.[FONT_COLUMNS[role]])]),
     ) as FontSelection,
   };
 }
@@ -71,16 +66,12 @@ export class SettingsService {
     return { friend_id };
   }
 
-  async updateDefaultLibrary(
-    friendId: number
-  ): Promise<DefaultLibrarySettingsUpdateResponse> {
+  async updateDefaultLibrary(friendId: number): Promise<DefaultLibrarySettingsUpdateResponse> {
     const friend = await friendRepository.findById(friendId);
     if (!friend) {
       throw new Error(`Library ${friendId} does not exist`);
     }
-    const friend_id = await settingsRepository.upsertDefaultLibraryFriendId(
-      friendId
-    );
+    const friend_id = await settingsRepository.upsertDefaultLibraryFriendId(friendId);
     return { friend_id };
   }
 
@@ -101,12 +92,17 @@ export class SettingsService {
     }
     if (update.palette === customPaletteId || update.customPalette === null) {
       const current = await this.getAppearance();
-      const custom = update.customPalette === undefined ? current.customPalette : update.customPalette;
+      const custom =
+        update.customPalette === undefined ? current.customPalette : update.customPalette;
       if (update.palette === customPaletteId && !custom) {
         throw new AppearanceRequestError("palette custom needs a saved custom palette");
       }
       // Deleting the palette that is in use falls back to the default.
-      if (update.customPalette === null && update.palette === undefined && current.palette === customPaletteId) {
+      if (
+        update.customPalette === null &&
+        update.palette === undefined &&
+        current.palette === customPaletteId
+      ) {
         patch.palette = defaultPaletteId;
       }
     }
@@ -137,7 +133,10 @@ export class SettingsService {
     return { prompt: defaultPrompt, defaultPrompt, isDefault: true };
   }
 
-  async updateAiPrompt(friendId: number, promptRaw: string): Promise<{
+  async updateAiPrompt(
+    friendId: number,
+    promptRaw: string,
+  ): Promise<{
     prompt: string;
     isDefault: boolean;
   }> {
@@ -171,7 +170,7 @@ export class SettingsService {
    */
   async resolveRecommendationScope(
     libraryFriendId: number,
-    requested?: RecommendationScope
+    requested?: RecommendationScope,
   ): Promise<{ scope: RecommendationScope; libraryFriendId: number | null }> {
     const scope = requested ?? (await this.getRecommendationSettings(libraryFriendId)).scope;
     return { scope, libraryFriendId: scope === "library" ? libraryFriendId : null };
@@ -179,7 +178,7 @@ export class SettingsService {
 
   async updateRecommendationSettings(
     friendId: number,
-    scope: RecommendationScope
+    scope: RecommendationScope,
   ): Promise<{ friend_id: number; scope: RecommendationScope; isDefault: false }> {
     const friend = await friendRepository.findById(friendId);
     if (!friend) {
@@ -200,7 +199,7 @@ export class SettingsService {
 
   async updateGamdlSettings(
     friendId: number,
-    updates: GamdlSettingsUpdate
+    updates: GamdlSettingsUpdate,
   ): Promise<GamdlSettings | null> {
     await settingsRepository.ensureGamdlSettings(friendId);
     return settingsRepository.updateGamdlSettings(friendId, updates);

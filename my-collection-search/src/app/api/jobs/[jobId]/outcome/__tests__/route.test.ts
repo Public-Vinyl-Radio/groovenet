@@ -36,7 +36,7 @@ const report = (jobId = "j1") =>
       method: "POST",
       headers: { "X-Groovenet-Client": "worker" },
     }),
-    { params: Promise.resolve({ jobId }) }
+    { params: Promise.resolve({ jobId }) },
   );
 
 describe("POST /api/jobs/{jobId}/outcome", () => {
@@ -67,7 +67,9 @@ describe("POST /api/jobs/{jobId}/outcome", () => {
 
   it("flags a download whose analysis failed", async () => {
     jobs.getJobStatus.mockResolvedValue(
-      job({ result: { downloader: "yt-dlp", source_url_key: "youtube_url", analysis_status: "failed" } })
+      job({
+        result: { downloader: "yt-dlp", source_url_key: "youtube_url", analysis_status: "failed" },
+      }),
     );
     await report();
     expect(analyticsEvents.events[0].properties).toMatchObject({
@@ -79,7 +81,7 @@ describe("POST /api/jobs/{jobId}/outcome", () => {
 
   it("reports a failed download, timed from creation when it never started", async () => {
     jobs.getJobStatus.mockResolvedValue(
-      job({ status: "failed", started_at: undefined, result: undefined, error: "all failed" })
+      job({ status: "failed", started_at: undefined, result: undefined, error: "all failed" }),
     );
     await report();
     expect(analyticsEvents.events.map((e) => [e.event, e.properties])).toEqual([

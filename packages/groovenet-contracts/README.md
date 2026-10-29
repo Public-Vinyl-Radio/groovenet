@@ -125,7 +125,7 @@ fixed the conventions the rest follow:
   schema object in `routes.ts`. Use `format` rather than `z.iso.datetime()` on
   responses, so the parser stays as lenient as it was.
 - **Enum tuples come from the schema.** Export `SLEEVE_TYPES =
-  sleeveTypeSchema.options` and have app modules (`lib/recordCare.ts`)
+sleeveTypeSchema.options` and have app modules (`lib/recordCare.ts`)
   re-export it, so UI, SQL helpers and analytics share one list. Database row
   types that differ only in timestamp types derive from the wire type with
   `Omit<> & {...}` rather than repeating every column.

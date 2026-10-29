@@ -11,9 +11,7 @@ import { trackOpsService } from "@/server/services/trackOpsService";
  * that has downloaded audio. Optional `friend_id` limits it to one library.
  */
 export async function POST(request: NextRequest) {
-  const body = albumArtworkBackfillBodySchema.safeParse(
-    await request.json().catch(() => ({}))
-  );
+  const body = albumArtworkBackfillBodySchema.safeParse(await request.json().catch(() => ({})));
   if (!body.success) {
     return NextResponse.json({ error: "friend_id must be a positive integer" }, { status: 400 });
   }
@@ -26,7 +24,7 @@ export async function POST(request: NextRequest) {
     console.error("[Album Artwork API] Failed to queue artwork matching:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to queue artwork matching" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

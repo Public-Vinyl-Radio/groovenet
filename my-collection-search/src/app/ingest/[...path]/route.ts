@@ -16,7 +16,7 @@ const DROP_RESPONSE_HEADERS = [
 
 async function proxy(
   request: Request,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ): Promise<Response> {
   const config = readAnalyticsConfig();
   if (config.provider !== "posthog") {
@@ -24,8 +24,7 @@ async function proxy(
   }
 
   const { path } = await params;
-  const upstreamHost =
-    path[0] === "static" ? posthogAssetsHost(config.host) : config.host;
+  const upstreamHost = path[0] === "static" ? posthogAssetsHost(config.host) : config.host;
   const incoming = new URL(request.url);
   const target = new URL(`${upstreamHost}/${path.map(encodeURIComponent).join("/")}`);
   target.search = incoming.search;

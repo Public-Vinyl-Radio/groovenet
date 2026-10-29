@@ -23,15 +23,22 @@ export class TrackQueue {
   }
 
   remove(idOrIndex: string | number): QueueEntry | undefined {
-    const index = typeof idOrIndex === "number"
-      ? idOrIndex
-      : this.entries.findIndex((entry) => entry.id === idOrIndex);
+    const index =
+      typeof idOrIndex === "number"
+        ? idOrIndex
+        : this.entries.findIndex((entry) => entry.id === idOrIndex);
     if (!Number.isInteger(index) || index < 0 || index >= this.entries.length) return undefined;
     return this.entries.splice(index, 1)[0];
   }
 
   move(from: number, to: number): void {
-    if (![from, to].every(Number.isInteger) || from < 0 || from >= this.entries.length || to < 0 || to >= this.entries.length) {
+    if (
+      ![from, to].every(Number.isInteger) ||
+      from < 0 ||
+      from >= this.entries.length ||
+      to < 0 ||
+      to >= this.entries.length
+    ) {
       throw new RangeError("Queue move index is out of range");
     }
     const [entry] = this.entries.splice(from, 1);

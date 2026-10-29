@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  resolveTrackMenuState,
-  type TrackAudioActions,
-} from "@/components/trackActionsMenuState";
+import { resolveTrackMenuState, type TrackAudioActions } from "@/components/trackActionsMenuState";
 
 const noop = () => {};
 
@@ -58,7 +55,7 @@ describe("resolveTrackMenuState", () => {
   it("hides Edit when hideEdit is set (edit page)", () => {
     const state = resolveTrackMenuState(
       { soundcloud_url: "https://soundcloud.com/x" },
-      { hideEdit: true }
+      { hideEdit: true },
     );
     expect(state.showEdit).toBe(false);
   });
@@ -75,7 +72,7 @@ describe("resolveTrackMenuState", () => {
         defaultFetchLoading: true,
         defaultUploadLoading: true,
         defaultRemoveLoading: true,
-      }
+      },
     );
     expect(state.usingAudioOverride).toBe(false);
     expect(state.fetchAudioLoading).toBe(true);
@@ -100,7 +97,7 @@ describe("resolveTrackMenuState", () => {
         defaultFetchLoading: true,
         defaultUploadLoading: false,
         defaultRemoveLoading: true,
-      }
+      },
     );
     expect(state.usingAudioOverride).toBe(true);
     expect(state.fetchAudioLoading).toBe(false);
@@ -117,7 +114,7 @@ describe("resolveTrackMenuState", () => {
         defaultFetchLoading: true,
         defaultUploadLoading: true,
         defaultRemoveLoading: true,
-      }
+      },
     );
     expect(state.usingAudioOverride).toBe(true);
     expect(state.fetchAudioLoading).toBe(false);

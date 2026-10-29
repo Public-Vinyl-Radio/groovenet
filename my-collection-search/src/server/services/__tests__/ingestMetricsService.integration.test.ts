@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { getRedisConnection, disconnectRedis } from "@/lib/redis";
-import {
-  METRICS_TTL_SECONDS,
-  IngestMetricsService,
-  bucketKey,
-} from "../ingestMetricsService";
+import { METRICS_TTL_SECONDS, IngestMetricsService, bucketKey } from "../ingestMetricsService";
 
 // Against a REAL Redis (#280): MULTI/EXEC and pipeline reply shapes are what
 // the in-memory fake in ingestMetricsService.test.ts cannot vouch for. Only
@@ -58,9 +54,7 @@ describe.skipIf(!RUN)("IngestMetricsService (Redis integration)", () => {
     await settled(redis);
 
     const summary = await metrics.summarize(new Date(now - 60 * 60_000), now);
-    expect(summary.chunks.rejected_by_reason).toEqual([
-      { reason: "audio_too_short", count: 3 },
-    ]);
+    expect(summary.chunks.rejected_by_reason).toEqual([{ reason: "audio_too_short", count: 3 }]);
     expect(summary.plays.confirmed).toBe(1);
     expect(summary.plays.latency_ms_avg).toBe(45_000);
   });

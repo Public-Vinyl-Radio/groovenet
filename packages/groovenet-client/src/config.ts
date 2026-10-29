@@ -56,5 +56,8 @@ export function saveConfig(updates: Partial<GroovenetConfig>): void {
   const current = loadConfig();
   const merged = { ...current, ...updates };
   if (existsSync(CONFIG_PATH)) chmodSync(CONFIG_PATH, 0o600);
-  writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2) + "\n", { encoding: "utf-8", mode: 0o600 });
+  writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2) + "\n", {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
 }

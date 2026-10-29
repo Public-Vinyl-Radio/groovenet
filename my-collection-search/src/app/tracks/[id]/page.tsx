@@ -15,11 +15,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import type { Crumb } from "@/components/layout/Breadcrumbs";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
-import {
-  TrackPlaylistsSection,
-  TrackHeader,
-  TrackDebugModal,
-} from "@/components/track-detail";
+import { TrackPlaylistsSection, TrackHeader, TrackDebugModal } from "@/components/track-detail";
 
 export default function TrackPage() {
   const params = useParams<{ id: string }>();
@@ -82,9 +78,7 @@ export default function TrackPage() {
           <Text fontWeight="medium" mb={2}>
             Missing `friend_id`
           </Text>
-          <Text color="fg.muted">
-            Open this page with a `friend_id` query param, for example:
-          </Text>
+          <Text color="fg.muted">Open this page with a `friend_id` query param, for example:</Text>
           <Text fontFamily="mono" mt={2}>
             /tracks/{trackId || "{track_id}"}?friend_id=1
           </Text>

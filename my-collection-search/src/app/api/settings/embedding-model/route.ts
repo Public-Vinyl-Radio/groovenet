@@ -20,10 +20,7 @@ export async function GET() {
     return NextResponse.json(settings);
   } catch (err) {
     console.error("Failed to load embedding model settings:", err);
-    return NextResponse.json(
-      { error: "Failed to load embedding model settings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load embedding model settings" }, { status: 500 });
   }
 }
 
@@ -33,7 +30,7 @@ export async function PATCH(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid body", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +45,7 @@ export async function PATCH(request: NextRequest) {
     console.error("Failed to update embedding model settings:", err);
     return NextResponse.json(
       { error: "Failed to update embedding model settings" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

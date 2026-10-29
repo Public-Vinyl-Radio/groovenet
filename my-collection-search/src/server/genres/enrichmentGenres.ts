@@ -48,14 +48,14 @@ export function genreEnumNames(choices: GenreChoice[], context?: AlbumGenreConte
       ...(context?.albumGenres ?? []),
       ...(context?.albumStyles ?? []),
       ...(context?.releaseGenres ?? []).map((genre) => genre.name),
-    ].map(normalizeGenreName)
+    ].map(normalizeGenreName),
   );
   const ranked = [...choices].sort(
     (a, b) =>
       Number(preferred.has(normalizeGenreName(b.name))) -
         Number(preferred.has(normalizeGenreName(a.name))) ||
       b.track_count - a.track_count ||
-      a.name.localeCompare(b.name)
+      a.name.localeCompare(b.name),
   );
 
   const names: string[] = [];

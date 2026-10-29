@@ -7,8 +7,8 @@ import type { CookieFileInfo } from "@/types/gamdl";
  */
 export async function parseCookieFile(filePath: string): Promise<Partial<CookieFileInfo>> {
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+    const content = await fs.readFile(filePath, "utf-8");
+    const lines = content.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
 
     const domains = new Set<string>();
     const expiryDates: Date[] = [];
@@ -16,7 +16,7 @@ export async function parseCookieFile(filePath: string): Promise<Partial<CookieF
     const validationErrors: string[] = [];
 
     for (const line of lines) {
-      const parts = line.split('\t');
+      const parts = line.split("\t");
       if (parts.length >= 7) {
         const domain = parts[0];
         const expiryTimestamp = parseInt(parts[4]);
@@ -24,10 +24,10 @@ export async function parseCookieFile(filePath: string): Promise<Partial<CookieF
         domains.add(domain);
 
         // Normalize domain (strip leading dot)
-        const normalizedDomain = domain.startsWith('.') ? domain.slice(1) : domain;
+        const normalizedDomain = domain.startsWith(".") ? domain.slice(1) : domain;
         if (
-          normalizedDomain === 'music.apple.com' ||
-          normalizedDomain.endsWith('.music.apple.com')
+          normalizedDomain === "music.apple.com" ||
+          normalizedDomain.endsWith(".music.apple.com")
         ) {
           hasAppleMusic = true;
         }
@@ -42,14 +42,14 @@ export async function parseCookieFile(filePath: string): Promise<Partial<CookieF
 
     // Check if cookies are expired
     const now = new Date();
-    const expiredCount = expiryDates.filter(date => date < now).length;
+    const expiredCount = expiryDates.filter((date) => date < now).length;
     if (expiredCount > 0) {
       validationErrors.push(`${expiredCount} cookies are expired`);
     }
 
     // Check if we have Apple Music cookies
     if (!hasAppleMusic) {
-      validationErrors.push('No Apple Music cookies found');
+      validationErrors.push("No Apple Music cookies found");
     }
 
     return {
@@ -58,12 +58,14 @@ export async function parseCookieFile(filePath: string): Promise<Partial<CookieF
       hasAppleMusic,
       expiryDates,
       isValid: validationErrors.length === 0,
-      validationErrors: validationErrors.length > 0 ? validationErrors : undefined
+      validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
     };
   } catch (error) {
     return {
       isValid: false,
-      validationErrors: [`Failed to parse cookie file: ${error instanceof Error ? error.message : String(error)}`]
+      validationErrors: [
+        `Failed to parse cookie file: ${error instanceof Error ? error.message : String(error)}`,
+      ],
     };
   }
 }
@@ -72,8 +74,8 @@ export async function parseCookieFile(filePath: string): Promise<Partial<CookieF
  * Get information about the current cookie file
  */
 export async function getCookieFileInfo(): Promise<CookieFileInfo> {
-  const cookieDir = path.join(process.cwd(), 'cookies');
-  const cookieFile = path.join(cookieDir, 'gamdl_cookies.txt');
+  const cookieDir = path.join(process.cwd(), "cookies");
+  const cookieFile = path.join(cookieDir, "gamdl_cookies.txt");
 
   try {
     const stats = await fs.stat(cookieFile);
@@ -81,16 +83,18 @@ export async function getCookieFileInfo(): Promise<CookieFileInfo> {
 
     return {
       exists: true,
-      filename: 'gamdl_cookies.txt',
+      filename: "gamdl_cookies.txt",
       size: stats.size,
       lastModified: stats.mtime,
-      ...parseInfo
+      ...parseInfo,
     };
   } catch (error) {
     return {
       exists: false,
       isValid: false,
-      validationErrors: [`Cookie file not found: ${error instanceof Error ? error.message : String(error)}`]
+      validationErrors: [
+        `Cookie file not found: ${error instanceof Error ? error.message : String(error)}`,
+      ],
     };
   }
 }
@@ -99,19 +103,19 @@ export async function getCookieFileInfo(): Promise<CookieFileInfo> {
  * Save uploaded cookie file
  */
 export async function saveCookieFile(file: File): Promise<CookieFileInfo> {
-  const cookieDir = path.join(process.cwd(), 'cookies');
-  const cookieFile = path.join(cookieDir, 'gamdl_cookies.txt');
+  const cookieDir = path.join(process.cwd(), "cookies");
+  const cookieFile = path.join(cookieDir, "gamdl_cookies.txt");
 
   // Ensure cookies directory exists
   await fs.mkdir(cookieDir, { recursive: true });
 
   // Read and validate the uploaded file
   const buffer = Buffer.from(await file.arrayBuffer());
-  const content = buffer.toString('utf-8');
+  const content = buffer.toString("utf-8");
 
   // Basic validation
   if (!content.trim()) {
-    throw new Error('Cookie file is empty');
+    throw new Error("Cookie file is empty");
   }
 
   // Save to temporary location first for validation
@@ -123,7 +127,7 @@ export async function saveCookieFile(file: File): Promise<CookieFileInfo> {
     const parseInfo = await parseCookieFile(tempFile);
 
     if (!parseInfo.isValid && parseInfo.validationErrors) {
-      throw new Error(`Invalid cookie file: ${parseInfo.validationErrors.join(', ')}`);
+      throw new Error(`Invalid cookie file: ${parseInfo.validationErrors.join(", ")}`);
     }
 
     // If validation passes, move to final location
@@ -144,13 +148,13 @@ export async function saveCookieFile(file: File): Promise<CookieFileInfo> {
  * Delete the current cookie file
  */
 export async function deleteCookieFile(): Promise<void> {
-  const cookieDir = path.join(process.cwd(), 'cookies');
-  const cookieFile = path.join(cookieDir, 'gamdl_cookies.txt');
+  const cookieDir = path.join(process.cwd(), "cookies");
+  const cookieFile = path.join(cookieDir, "gamdl_cookies.txt");
 
   try {
     await fs.unlink(cookieFile);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") {
       throw error;
     }
     // File doesn't exist, which is fine

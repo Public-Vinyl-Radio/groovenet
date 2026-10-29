@@ -61,7 +61,8 @@ export default function PageHeader({
 }: PageHeaderProps) {
   useRootFlag("data-page-header", true);
   const shown = actions.slice(0, MAX_ACTIONS);
-  const parent = breadcrumbs && breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2] : undefined;
+  const parent =
+    breadcrumbs && breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2] : undefined;
   const back =
     !leading && parent?.href ? (
       <IconButton
@@ -142,23 +143,14 @@ export default function PageHeader({
           {overflow.length > 0 && (
             <Menu.Root>
               <Menu.Trigger asChild>
-                <IconButton
-                  aria-label="More actions"
-                  variant="ghost"
-                  boxSize="44px"
-                  minW="44px"
-                >
+                <IconButton aria-label="More actions" variant="ghost" boxSize="44px" minW="44px">
                   <FiMoreHorizontal />
                 </IconButton>
               </Menu.Trigger>
               <Menu.Positioner>
                 <Menu.Content>
                   {overflow.map((item) => (
-                    <Menu.Item
-                      key={item.label}
-                      value={item.label}
-                      onClick={item.onClick}
-                    >
+                    <Menu.Item key={item.label} value={item.label} onClick={item.onClick}>
                       {item.label}
                     </Menu.Item>
                   ))}
@@ -169,7 +161,12 @@ export default function PageHeader({
           {trailing}
         </Flex>
         {desktopActions ? (
-          <Flex data-testid="page-header-desktop-actions" display={{ base: "none", md: "flex" }} align="center" gap={3}>
+          <Flex
+            data-testid="page-header-desktop-actions"
+            display={{ base: "none", md: "flex" }}
+            align="center"
+            gap={3}
+          >
             {desktopActions}
           </Flex>
         ) : null}

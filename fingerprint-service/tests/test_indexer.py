@@ -5,6 +5,7 @@ nothing, a changed file re-indexes exactly one track, a version bump regenerates
 one engine and leaves the others alone. Those are the cases with teeth, so they
 get the most attention here.
 """
+
 import base64
 import hashlib
 import os
@@ -160,7 +161,15 @@ class TestFileStats:
             ({"stored_audio_sha256": "abc"}, False),
             # Nothing stored means nothing to be unchanged from.
             ({"stored_audio_sha256": None, "stored_audio_size_bytes": 10, "stored_audio_mtime_ms": 20}, False),
-            ({"stored_audio_sha256": "abc", "stored_audio_size_bytes": 10, "stored_audio_mtime_ms": 20, "force": True}, False),
+            (
+                {
+                    "stored_audio_sha256": "abc",
+                    "stored_audio_size_bytes": 10,
+                    "stored_audio_mtime_ms": 20,
+                    "force": True,
+                },
+                False,
+            ),
         ],
     )
     def test_unchanged_only_when_everything_stored_matches(self, index_job, stored, expected):
@@ -221,9 +230,7 @@ class TestIndexTrack:
         assert second_upsert["audio_sha256"] != upsert["audio_sha256"]
         assert len(matcher.indexed) == 2
 
-    def test_a_version_bump_regenerates_for_that_version_only(
-        self, index_job, reference_wav
-    ):
+    def test_a_version_bump_regenerates_for_that_version_only(self, index_job, reference_wav):
         """Bumping fingerprint_version regenerates that type, leaving others intact.
 
         The app resolves candidates per (type, version), so a bumped version
@@ -276,9 +283,7 @@ class TestIndexTrack:
         """A single corrupt file is reported and skipped without ending the run."""
         (audio_dir / "broken.m4a").write_bytes(b"this is not audio")
 
-        result, upsert, _ = index_track(
-            index_job(file_path="broken.m4a"), RecordingMatcher()
-        )
+        result, upsert, _ = index_track(index_job(file_path="broken.m4a"), RecordingMatcher())
 
         assert result["status"] == "failed"
         assert result["error"]
@@ -292,9 +297,7 @@ class TestIndexTrackWithoutDecoding:
     """Failure paths that never reach ffmpeg, so they need none installed."""
 
     def test_a_missing_file_fails_that_track(self, index_job, audio_dir):
-        result, upsert, _ = index_track(
-            index_job(file_path="gone.m4a"), RecordingMatcher()
-        )
+        result, upsert, _ = index_track(index_job(file_path="gone.m4a"), RecordingMatcher())
 
         assert result["status"] == "failed"
         assert "no such file" in result["error"]
@@ -308,23 +311,17 @@ class TestIndexTrackWithoutDecoding:
             lambda *a, **k: (_ for _ in ()).throw(OSError("permission denied")),
         )
 
-        result, upsert, _ = index_track(
-            index_job(file_path="locked.m4a"), RecordingMatcher()
-        )
+        result, upsert, _ = index_track(index_job(file_path="locked.m4a"), RecordingMatcher())
 
         assert result["status"] == "failed"
         assert "permission denied" in result["error"]
         assert upsert is None
 
-    def test_an_escaping_path_raises_for_the_caller_to_isolate(
-        self, index_job, audio_dir
-    ):
+    def test_an_escaping_path_raises_for_the_caller_to_isolate(self, index_job, audio_dir):
         with pytest.raises(InvalidIndexJob):
             index_track(index_job(file_path="../../etc/passwd"), RecordingMatcher())
 
-    def test_skips_without_decoding_when_unchanged(
-        self, index_job, audio_dir, monkeypatch
-    ):
+    def test_skips_without_decoding_when_unchanged(self, index_job, audio_dir, monkeypatch):
         (audio_dir / "track.m4a").write_bytes(b"audio bytes")
         stored = hashlib.sha256(b"audio bytes").hexdigest()
 
@@ -341,9 +338,7 @@ class TestIndexTrackWithoutDecoding:
         assert result["status"] == "skipped"
         assert upsert is None
 
-    def test_a_decode_failure_is_reported_not_raised(
-        self, index_job, audio_dir, monkeypatch
-    ):
+    def test_a_decode_failure_is_reported_not_raised(self, index_job, audio_dir, monkeypatch):
         (audio_dir / "track.m4a").write_bytes(b"audio bytes")
         monkeypatch.setattr(
             "fingerprint_service.indexer.decode_to_pcm",
@@ -375,9 +370,7 @@ class TestReplacedAudio:
             **overrides,
         )
 
-    def test_an_untouched_file_is_skipped_without_being_read(
-        self, index_job, reference_wav, monkeypatch
-    ):
+    def test_an_untouched_file_is_skipped_without_being_read(self, index_job, reference_wav, monkeypatch):
         name, upsert = self.fingerprinted(index_job, reference_wav)
 
         def must_not_hash(path):

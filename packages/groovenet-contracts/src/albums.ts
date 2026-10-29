@@ -2,7 +2,12 @@ import { z } from "zod";
 import { genreFilterRefSchema, trackSchema } from "./tracks.js";
 
 export const albumArtSourceSchema = z.enum(["discogs", "apple_music", "upload"]);
-export const albumArtMatchStatusSchema = z.enum(["matched", "mismatch", "no_reference", "no_candidate"]);
+export const albumArtMatchStatusSchema = z.enum([
+  "matched",
+  "mismatch",
+  "no_reference",
+  "no_candidate",
+]);
 
 /** Omitted: unchanged; null: reset to Discogs; []: deliberately empty. */
 export const albumTaxonomyOverridesSchema = z.object({
@@ -12,41 +17,41 @@ export const albumTaxonomyOverridesSchema = z.object({
 
 /** The album/release entity. Unknown database columns pass through. */
 const albumShape = z.object({
-    ...albumTaxonomyOverridesSchema.shape,
-    /** Display/search values after the per-friend replacement layer. */
-    effective_genres: z.array(z.string()).optional(),
-    effective_styles: z.array(z.string()).optional(),
-    release_id: z.string(),
-    friend_id: z.number().int(),
-    username: z.string().optional(),
-    title: z.string(),
-    artist: z.string(),
-    year: z.union([z.string(), z.number()]).nullable().optional(),
-    genres: z.array(z.string()).nullable().optional(),
-    styles: z.array(z.string()).nullable().optional(),
-    album_thumbnail: z.string().nullable().optional(),
-    audio_file_album_art_url: z.string().nullable().optional(),
-    discogs_url: z.string().nullable().optional(),
-    date_added: z.string().nullable().optional(),
-    date_changed: z.string().nullable().optional(),
-    track_count: z.number().int().optional(),
-    album_rating: z.number().nullable().optional(),
-    album_notes: z.string().nullable().optional(),
-    purchase_price: z.number().nullable().optional(),
-    condition: z.string().nullable().optional(),
-    label: z.string().nullable().optional(),
-    catalog_number: z.string().nullable().optional(),
-    country: z.string().nullable().optional(),
-    format: z.string().nullable().optional(),
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
-    library_identifier: z.string().nullable().optional(),
-    // Artwork provenance (#494); the displayed cover is still audio_file_album_art_url || album_thumbnail.
-    album_art_source: albumArtSourceSchema.nullable().optional(),
-    discogs_art_url: z.string().nullable().optional(),
-    apple_music_art_url: z.string().nullable().optional(),
-    art_match_status: albumArtMatchStatusSchema.nullable().optional(),
-    art_match_distance: z.number().nullable().optional(),
+  ...albumTaxonomyOverridesSchema.shape,
+  /** Display/search values after the per-friend replacement layer. */
+  effective_genres: z.array(z.string()).optional(),
+  effective_styles: z.array(z.string()).optional(),
+  release_id: z.string(),
+  friend_id: z.number().int(),
+  username: z.string().optional(),
+  title: z.string(),
+  artist: z.string(),
+  year: z.union([z.string(), z.number()]).nullable().optional(),
+  genres: z.array(z.string()).nullable().optional(),
+  styles: z.array(z.string()).nullable().optional(),
+  album_thumbnail: z.string().nullable().optional(),
+  audio_file_album_art_url: z.string().nullable().optional(),
+  discogs_url: z.string().nullable().optional(),
+  date_added: z.string().nullable().optional(),
+  date_changed: z.string().nullable().optional(),
+  track_count: z.number().int().optional(),
+  album_rating: z.number().nullable().optional(),
+  album_notes: z.string().nullable().optional(),
+  purchase_price: z.number().nullable().optional(),
+  condition: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+  catalog_number: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  format: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  library_identifier: z.string().nullable().optional(),
+  // Artwork provenance (#494); the displayed cover is still audio_file_album_art_url || album_thumbnail.
+  album_art_source: albumArtSourceSchema.nullable().optional(),
+  discogs_art_url: z.string().nullable().optional(),
+  apple_music_art_url: z.string().nullable().optional(),
+  art_match_status: albumArtMatchStatusSchema.nullable().optional(),
+  art_match_distance: z.number().nullable().optional(),
 });
 export const albumSchema = albumShape.passthrough();
 

@@ -50,7 +50,7 @@ export async function getTargetProvider(kind: EmbeddingModelKind): Promise<Embed
  * read until it is cut over (#386, #407).
  */
 export async function getServingModel(
-  kind: EmbeddingModelKind
+  kind: EmbeddingModelKind,
 ): Promise<{ model: string; dims: number; templateVersion: number }> {
   const settings = await getSettings(kind);
   return {
@@ -62,7 +62,7 @@ export async function getServingModel(
 
 /** The model new jobs embed with, without building a provider. */
 export async function getTargetModel(
-  kind: EmbeddingModelKind
+  kind: EmbeddingModelKind,
 ): Promise<{ model: string; dims: number }> {
   const settings = await getSettings(kind);
   return { model: settings.target_model, dims: settings.target_dims };
@@ -71,7 +71,7 @@ export async function getTargetModel(
 export async function setTargetModel(
   kind: EmbeddingModelKind,
   model: string,
-  dims: number
+  dims: number,
 ): Promise<EmbeddingModelSettings> {
   const updated = await settingsRepository.updateTargetModel(kind, model, dims);
   if (!updated) throw new Error(`No embedding_model_settings row for "${kind}"`);
@@ -84,14 +84,9 @@ export async function setServingModel(
   kind: EmbeddingModelKind,
   model: string,
   dims: number,
-  templateVersion?: number
+  templateVersion?: number,
 ): Promise<EmbeddingModelSettings> {
-  const updated = await settingsRepository.updateServingModel(
-    kind,
-    model,
-    dims,
-    templateVersion
-  );
+  const updated = await settingsRepository.updateServingModel(kind, model, dims, templateVersion);
   if (!updated) throw new Error(`No embedding_model_settings row for "${kind}"`);
   invalidateEmbeddingModelCache(kind);
   return updated;

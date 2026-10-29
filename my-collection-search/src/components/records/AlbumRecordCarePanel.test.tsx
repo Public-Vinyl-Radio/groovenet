@@ -63,7 +63,9 @@ function listCopies(items: unknown[]) {
 }
 
 function renderPanel() {
-  return renderWithProviders(<AlbumRecordCarePanel releaseId="rel" friendId={7} albumTitle="Blue Lines" />);
+  return renderWithProviders(
+    <AlbumRecordCarePanel releaseId="rel" friendId={7} albumTitle="Blue Lines" />,
+  );
 }
 
 /** The card for a copy, by its name. */
@@ -114,8 +116,8 @@ describe("AlbumRecordCarePanel", () => {
 
     await waitFor(() =>
       expect(api.createRecordAction).toHaveBeenCalledWith(
-        expect.objectContaining({ release_id: "rel", action_type: "cleaned" })
-      )
+        expect.objectContaining({ release_id: "rel", action_type: "cleaned" }),
+      ),
     );
     await waitFor(() => expect(screen.queryByText("Log Record Care")).toBeNull());
   });
@@ -125,12 +127,15 @@ describe("AlbumRecordCarePanel", () => {
     const { user } = renderPanel();
     const dj = await card("DJ copy");
 
-    const [, menuButton] = within(dj).getAllByRole("button", { name: "Copy actions", hidden: true });
+    const [, menuButton] = within(dj).getAllByRole("button", {
+      name: "Copy actions",
+      hidden: true,
+    });
     await chooseMenuItem(user, menuButton, /Log care/);
     await user.click(await screen.findByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(api.createRecordAction).toHaveBeenCalledWith(expect.objectContaining({ copy_id: 4 }))
+      expect(api.createRecordAction).toHaveBeenCalledWith(expect.objectContaining({ copy_id: 4 })),
     );
   });
 
@@ -149,7 +154,7 @@ describe("AlbumRecordCarePanel", () => {
         friend_id: 7,
         release_id: "rel",
         label: "Sealed",
-      })
+      }),
     );
     await waitFor(() => expect(screen.queryByLabelText("Label")).toBeNull());
 
@@ -162,7 +167,7 @@ describe("AlbumRecordCarePanel", () => {
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
     await waitFor(() =>
-      expect(api.updateRecordCopy).toHaveBeenCalledWith(4, { friend_id: 7, label: "Club copy" })
+      expect(api.updateRecordCopy).toHaveBeenCalledWith(4, { friend_id: 7, label: "Club copy" }),
     );
   });
 
@@ -187,7 +192,10 @@ describe("AlbumRecordCarePanel", () => {
     await user.keyboard("{Escape}");
 
     const dj = await card("DJ copy");
-    const [, menuButton] = within(dj).getAllByRole("button", { name: "Copy actions", hidden: true });
+    const [, menuButton] = within(dj).getAllByRole("button", {
+      name: "Copy actions",
+      hidden: true,
+    });
     await chooseMenuItem(user, menuButton, /Remove copy/);
     const prompt = await screen.findByRole("alertdialog");
     expect(within(prompt).getByText("DJ copy")).toBeTruthy();
@@ -210,8 +218,11 @@ describe("AlbumRecordCarePanel", () => {
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Failed to remove copy", description: "Record copy not found" })
-      )
+        expect.objectContaining({
+          title: "Failed to remove copy",
+          description: "Record copy not found",
+        }),
+      ),
     );
     expect(screen.getByRole("alertdialog")).toBeTruthy();
     await user.click(within(prompt).getByRole("button", { name: "Cancel" }));
@@ -249,10 +260,12 @@ describe("AlbumRecordCarePanel", () => {
 
     await user.click(within(dj).getAllByRole("button", { name: "Copy actions" })[0]);
     await user.click(await screen.findByRole("button", { name: /Remove copy/ }));
-    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Remove" }));
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Remove" }),
+    );
 
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: "Unknown error" }))
+      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: "Unknown error" })),
     );
   });
 });
@@ -318,12 +331,14 @@ describe("copy history", () => {
     const { user } = await openHistory();
 
     await user.click(await screen.findByRole("button", { name: "Void Cleaned · Vacuum machine" }));
-    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Void" }));
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Void" }),
+    );
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Failed to void action", description })
-      )
+        expect.objectContaining({ title: "Failed to void action", description }),
+      ),
     );
     expect(screen.getByRole("alertdialog")).toBeTruthy();
   });

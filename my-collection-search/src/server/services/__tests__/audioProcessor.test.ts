@@ -99,7 +99,7 @@ describe("AudioProcessor.probe()", () => {
     // A 1x1 PNG: a valid file ffprobe understands, with nothing to fingerprint.
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-      "base64"
+      "base64",
     );
     const target = write("chunk.png", png);
 
@@ -107,9 +107,9 @@ describe("AudioProcessor.probe()", () => {
   });
 
   probeTest("rejects a file that does not exist", async () => {
-    await expect(
-      processor.probe(path.join(dir, "absent.wav"))
-    ).rejects.toBeInstanceOf(InvalidAudioError);
+    await expect(processor.probe(path.join(dir, "absent.wav"))).rejects.toBeInstanceOf(
+      InvalidAudioError,
+    );
   });
 
   probeTest("rejects an empty file", async () => {

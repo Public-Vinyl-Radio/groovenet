@@ -24,7 +24,10 @@ describe("resolveGenreFilter", () => {
 
   it("resolves slugs first and the rest through ids, names and aliases", async () => {
     genreRepository.findIdsBySlug.mockResolvedValue(new Map([["latin", "id-latin"]]));
-    trackGenreRepository.resolveGenreRefs.mockResolvedValue({ ids: ["id-salsa", "id-latin"], unknown: [] });
+    trackGenreRepository.resolveGenreRefs.mockResolvedValue({
+      ids: ["id-salsa", "id-latin"],
+      unknown: [],
+    });
     genreRepository.expandToFilter.mockResolvedValue({ ids: ["x"], keys: ["y"] });
 
     const result = await resolveGenreFilter(["Latin", " Salsa Dura "]);
@@ -66,12 +69,22 @@ describe("resolveGenreFilter", () => {
         { id: "id-chicha", name: "Chicha", slug: "chicha" },
       ]);
 
-      const result = await resolveGenreFilter(["cumbia"], { includeSimilar: true, similarLimit: 5 });
+      const result = await resolveGenreFilter(["cumbia"], {
+        includeSimilar: true,
+        similarLimit: 5,
+      });
 
       expect(genreSimilarityRepository.topForGenre).toHaveBeenCalledWith("id-cumbia", 5);
-      expect(genreRepository.expandToFilter).toHaveBeenLastCalledWith(["id-cumbia", "id-porro", "id-chicha"]);
+      expect(genreRepository.expandToFilter).toHaveBeenLastCalledWith([
+        "id-cumbia",
+        "id-porro",
+        "id-chicha",
+      ]);
       expect(result).toEqual({
-        filter: { ids: ["id-cumbia", "id-porro", "id-chicha"], keys: ["cumbia", "porro", "chicha"] },
+        filter: {
+          ids: ["id-cumbia", "id-porro", "id-chicha"],
+          keys: ["cumbia", "porro", "chicha"],
+        },
         added: [
           { id: "id-porro", name: "Porro", slug: "porro" },
           { id: "id-chicha", name: "Chicha", slug: "chicha" },
@@ -122,7 +135,7 @@ describe("resolveGenreFilter", () => {
           ["cumbia", "id-cumbia"],
           ["salsa", "id-salsa"],
           ["merengue", "id-merengue"],
-        ])
+        ]),
       );
       genreRepository.expandToFilter
         .mockResolvedValueOnce({
@@ -142,7 +155,9 @@ describe("resolveGenreFilter", () => {
         { id: "id-porro", name: "Porro", slug: "porro" },
       ]);
 
-      const result = await resolveGenreFilter(["cumbia", "salsa", "merengue"], { includeSimilar: true });
+      const result = await resolveGenreFilter(["cumbia", "salsa", "merengue"], {
+        includeSimilar: true,
+      });
 
       // The highest of the three scores (0.9, from salsa) wins; porro is added once.
       expect(result.added).toEqual([{ id: "id-porro", name: "Porro", slug: "porro" }]);
@@ -181,6 +196,9 @@ describe("resolveGenreFilter", () => {
 
 describe("unknownGenresError", () => {
   it("names every unknown genre", () => {
-    expect(unknownGenresError(["a", "b"])).toEqual({ error: "Unknown genre: a, b", unknown: ["a", "b"] });
+    expect(unknownGenresError(["a", "b"])).toEqual({
+      error: "Unknown genre: a, b",
+      unknown: ["a", "b"],
+    });
   });
 });

@@ -16,7 +16,10 @@ beforeEach(() => {
 
 describe("POST /api/backup", () => {
   it("creates a custom-format backup", async () => {
-    mockCreateBackup.mockResolvedValue({ filename: "pg-backup-x.dump", path: "/d/pg-backup-x.dump" });
+    mockCreateBackup.mockResolvedValue({
+      filename: "pg-backup-x.dump",
+      path: "/d/pg-backup-x.dump",
+    });
     const res = await POST();
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({

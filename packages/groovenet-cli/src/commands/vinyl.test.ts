@@ -17,20 +17,25 @@ import {
   formatStats,
   makeClient,
 } from "./vinyl.js";
-import type {
-  DetectionWindow,
-  IngestPipelineStats,
-  SpinAggregateResult,
-} from "@groovenet/client";
+import type { DetectionWindow, IngestPipelineStats, SpinAggregateResult } from "@groovenet/client";
 
 function window(overrides: Partial<DetectionWindow> = {}): DetectionWindow {
   return {
-    id: "d1", ingest_id: "i1", source_id: "aswitch", session_id: "s1",
+    id: "d1",
+    ingest_id: "i1",
+    source_id: "aswitch",
+    session_id: "s1",
     window_start_at: "2026-09-21T02:00:00.000Z",
-    matched: true, track_id: "t1", friend_id: 1,
-    title: "Power", artist: "Ray Barretto", album: "Power",
-    confidence: 0.94, offset_seconds: 47.2,
-    fingerprint_type: "chromaprint", fingerprint_version: "1",
+    matched: true,
+    track_id: "t1",
+    friend_id: 1,
+    title: "Power",
+    artist: "Ray Barretto",
+    album: "Power",
+    confidence: 0.94,
+    offset_seconds: 47.2,
+    fingerprint_type: "chromaprint",
+    fingerprint_version: "1",
     created_at: "2026-09-21T02:00:05.000Z",
     ...overrides,
   };
@@ -38,23 +43,33 @@ function window(overrides: Partial<DetectionWindow> = {}): DetectionWindow {
 
 function stats(overrides: Partial<IngestPipelineStats> = {}): IngestPipelineStats {
   return {
-    since: "2026-09-21T01:00:00Z", window_minutes: 60, source_id: null,
+    since: "2026-09-21T01:00:00Z",
+    window_minutes: 60,
+    source_id: null,
     ingest_writable: true,
-    index: { engine_registered: true, fingerprint_type: "chromaprint",
-             fingerprint_version: "1", indexed_tracks: 3783, empty: false,
-             missing_fingerprint_tracks: 0 },
+    index: {
+      engine_registered: true,
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
+      indexed_tracks: 3783,
+      empty: false,
+      missing_fingerprint_tracks: 0,
+    },
     queue_depth: 0,
     ingests: { by_status: { processed: 10 }, failures: [], oldest_in_flight: null },
-    detections: { windows: 10, matched: 8, no_match: 2, match_rate: 0.8,
-                  confidence_bands: [{ band: "0.90-1.00", count: 8 }] },
+    detections: {
+      windows: 10,
+      matched: 8,
+      no_match: 2,
+      match_rate: 0.8,
+      confidence_bands: [{ band: "0.90-1.00", count: 8 }],
+    },
     spins: { pending: 0 },
     ...overrides,
   };
 }
 
-function aggregateResult(
-  overrides: Partial<SpinAggregateResult> = {}
-): SpinAggregateResult {
+function aggregateResult(overrides: Partial<SpinAggregateResult> = {}): SpinAggregateResult {
   return {
     since: "2026-08-01T00:00:00.000Z",
     created: 2,
@@ -117,8 +132,9 @@ describe("formatDetection()", () => {
   it("renders a no-match plainly, not as an error", () => {
     // It is the expected state between tracks; colouring it red would train
     // you to ignore red.
-    const row = formatDetection(window({ matched: false, artist: null, title: null,
-                                         confidence: null, offset_seconds: null }));
+    const row = formatDetection(
+      window({ matched: false, artist: null, title: null, confidence: null, offset_seconds: null }),
+    );
     expect(plain(row[1])).toBe("no match");
     expect(row[1]).not.toContain("\u001b[31m");
   });
@@ -164,33 +180,60 @@ describe("formatStats()", () => {
 
   it("shouts when the index is empty", () => {
     // The failure that otherwise looks like success.
-    const out = plain(formatStats(stats({
-      index: { engine_registered: true, fingerprint_type: "chromaprint",
-               fingerprint_version: "1", indexed_tracks: 0, empty: true,
-               missing_fingerprint_tracks: 0 },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          index: {
+            engine_registered: true,
+            fingerprint_type: "chromaprint",
+            fingerprint_version: "1",
+            indexed_tracks: 0,
+            empty: true,
+            missing_fingerprint_tracks: 0,
+          },
+        }),
+      ),
+    );
 
     expect(out).toContain("reference index is EMPTY");
     expect(out).toContain("fingerprint-library");
   });
 
   it("distinguishes a missing engine from an empty index", () => {
-    const out = plain(formatStats(stats({
-      index: { engine_registered: false, fingerprint_type: null,
-               fingerprint_version: null, indexed_tracks: 0, empty: true,
-               missing_fingerprint_tracks: 0 },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          index: {
+            engine_registered: false,
+            fingerprint_type: null,
+            fingerprint_version: null,
+            indexed_tracks: 0,
+            empty: true,
+            missing_fingerprint_tracks: 0,
+          },
+        }),
+      ),
+    );
 
     expect(out).toContain("no fingerprint engine registered");
     expect(out).toContain("fingerprint-service");
   });
 
   it("flags tracks with audio but no fingerprint", () => {
-    const out = plain(formatStats(stats({
-      index: { engine_registered: true, fingerprint_type: "chromaprint",
-               fingerprint_version: "1", indexed_tracks: 3783, empty: false,
-               missing_fingerprint_tracks: 29 },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          index: {
+            engine_registered: true,
+            fingerprint_type: "chromaprint",
+            fingerprint_version: "1",
+            indexed_tracks: 3783,
+            empty: false,
+            missing_fingerprint_tracks: 29,
+          },
+        }),
+      ),
+    );
     expect(out).toContain("29 track(s) have audio but no fingerprint");
   });
 
@@ -217,27 +260,51 @@ describe("formatStats()", () => {
   });
 
   it("shows a dash for the rate when there were windows but no rate", () => {
-    const out = plain(formatStats(stats({
-      detections: { windows: 3, matched: 0, no_match: 3, match_rate: null,
-                    confidence_bands: [] },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          detections: {
+            windows: 3,
+            matched: 0,
+            no_match: 3,
+            match_rate: null,
+            confidence_bands: [],
+          },
+        }),
+      ),
+    );
     expect(out).toContain("(—)");
   });
 
   it("says so when there were no windows at all", () => {
-    const out = plain(formatStats(stats({
-      detections: { windows: 0, matched: 0, no_match: 0, match_rate: null,
-                    confidence_bands: [] },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          detections: {
+            windows: 0,
+            matched: 0,
+            no_match: 0,
+            match_rate: null,
+            confidence_bands: [],
+          },
+        }),
+      ),
+    );
     expect(out).toContain("detections: none in this window");
   });
 
   it("lists failure reasons", () => {
-    const out = plain(formatStats(stats({
-      ingests: { by_status: { failed: 3 },
-                 failures: [{ error: "decode failed", count: 3 }],
-                 oldest_in_flight: null },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          ingests: {
+            by_status: { failed: 3 },
+            failures: [{ error: "decode failed", count: 3 }],
+            oldest_in_flight: null,
+          },
+        }),
+      ),
+    );
     expect(out).toContain("3× decode failed");
   });
 
@@ -248,18 +315,32 @@ describe("formatStats()", () => {
   });
 
   it("warns about a chunk stuck in flight", () => {
-    const out = plain(formatStats(stats({
-      ingests: { by_status: {}, failures: [],
-                 oldest_in_flight: { ingest_id: "i9", status: "processing",
-                                     received_at: "2026-09-21T02:00:00.000Z" } },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          ingests: {
+            by_status: {},
+            failures: [],
+            oldest_in_flight: {
+              ingest_id: "i9",
+              status: "processing",
+              received_at: "2026-09-21T02:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    );
     expect(out).toContain("oldest in flight: processing");
   });
 
   it("says 'none' rather than nothing for a quiet hour", () => {
-    const out = plain(formatStats(stats({
-      ingests: { by_status: {}, failures: [], oldest_in_flight: null },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          ingests: { by_status: {}, failures: [], oldest_in_flight: null },
+        }),
+      ),
+    );
     expect(out).toContain("ingests (60m): none");
   });
 });
@@ -297,34 +378,43 @@ describe("formatStats() — upload counters (#280)", () => {
 
   it("shows confirmed plays and how long after capture they landed", () => {
     expect(plain(formatStats(stats({ counters })))).toContain(
-      "plays confirmed: 6, 42s after capture on average"
+      "plays confirmed: 6, 42s after capture on average",
     );
   });
 
   it("counts plays without an average when no latency was measured", () => {
-    const out = plain(formatStats(stats({
-      counters: { ...counters, plays: { confirmed: 2, latency_ms_avg: null, latency_bands: [] } },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          counters: {
+            ...counters,
+            plays: { confirmed: 2, latency_ms_avg: null, latency_bands: [] },
+          },
+        }),
+      ),
+    );
     expect(out).toContain("plays confirmed: 2");
     expect(out).not.toContain("after capture");
   });
 
   it("says nothing about plays or the queue when there is nothing to say", () => {
-    const out = plain(formatStats(stats({
-      counters: {
-        ...counters,
-        chunks: { ...counters.chunks, enqueue_failed: 0 },
-        plays: { confirmed: 0, latency_ms_avg: null, latency_bands: [] },
-      },
-    })));
+    const out = plain(
+      formatStats(
+        stats({
+          counters: {
+            ...counters,
+            chunks: { ...counters.chunks, enqueue_failed: 0 },
+            plays: { confirmed: 0, latency_ms_avg: null, latency_bands: [] },
+          },
+        }),
+      ),
+    );
     expect(out).not.toContain("plays confirmed");
     expect(out).not.toContain("could not be queued");
   });
 
   it("flags counters it could not read", () => {
-    expect(plain(formatStats(stats({ counters: null })))).toContain(
-      "upload counters unavailable"
-    );
+    expect(plain(formatStats(stats({ counters: null })))).toContain("upload counters unavailable");
   });
 
   it("says nothing about counters an older app does not send", () => {
@@ -343,21 +433,24 @@ describe("formatAggregateResult()", () => {
   });
 
   it("says so when nothing was active in that window, rather than an empty table", () => {
-    const out = plain(formatAggregateResult(
-      aggregateResult({ sources: [] })
-    ));
+    const out = plain(formatAggregateResult(aggregateResult({ sources: [] })));
     expect(out).toContain("no active source since");
     expect(out).toContain("2026-08-01T00:00:00.000Z");
   });
 
   it("breaks totals down per source when more than one is active", () => {
-    const out = plain(formatAggregateResult(aggregateResult({
-      created: 3, skipped: 2,
-      sources: [
-        { source_id: "living-room-vinyl", created: 2, skipped: 1 },
-        { source_id: "basement-vinyl", created: 1, skipped: 1 },
-      ],
-    })));
+    const out = plain(
+      formatAggregateResult(
+        aggregateResult({
+          created: 3,
+          skipped: 2,
+          sources: [
+            { source_id: "living-room-vinyl", created: 2, skipped: 1 },
+            { source_id: "basement-vinyl", created: 1, skipped: 1 },
+          ],
+        }),
+      ),
+    );
     expect(out).toContain("living-room-vinyl: created 2, skipped 1");
     expect(out).toContain("basement-vinyl: created 1, skipped 1");
   });
@@ -378,13 +471,24 @@ describe("addVinylCommands()", () => {
     listDetections.mockReset().mockResolvedValue({ detections: [window()], count: 1 });
     aggregateSpins.mockReset().mockResolvedValue(aggregateResult());
     listIngests.mockReset().mockResolvedValue({
-      ingests: [{
-        ingest_id: "i1", source_id: "aswitch", session_id: "s1", sequence: 42,
-        status: "processed", error: null, duration_seconds: 15.02,
-        sample_rate: 44100, channels: 1, codec: "pcm_s16le", file_path: null,
-        captured_at: null, received_at: "2026-09-21T02:00:00.000Z",
-        updated_at: "2026-09-21T02:00:05.000Z",
-      }],
+      ingests: [
+        {
+          ingest_id: "i1",
+          source_id: "aswitch",
+          session_id: "s1",
+          sequence: 42,
+          status: "processed",
+          error: null,
+          duration_seconds: 15.02,
+          sample_rate: 44100,
+          channels: 1,
+          codec: "pcm_s16le",
+          file_path: null,
+          captured_at: null,
+          received_at: "2026-09-21T02:00:00.000Z",
+          updated_at: "2026-09-21T02:00:05.000Z",
+        },
+      ],
       count: 1,
     });
     loadConfig.mockReturnValue({ api_base: "http://localhost:3000/api" });
@@ -419,7 +523,10 @@ describe("addVinylCommands()", () => {
     addVinylCommands(program);
     const vinyl = program.commands.find((c) => c.name() === "vinyl")!;
     expect(vinyl.commands.map((c) => c.name()).sort()).toEqual([
-      "aggregate", "detections", "ingests", "status",
+      "aggregate",
+      "detections",
+      "ingests",
+      "status",
     ]);
   });
 
@@ -432,11 +539,18 @@ describe("addVinylCommands()", () => {
 
   it("status exits non-zero when the index is empty", async () => {
     // So it composes as a health check.
-    getIngestStats.mockResolvedValue(stats({
-      index: { engine_registered: true, fingerprint_type: "chromaprint",
-               fingerprint_version: "1", indexed_tracks: 0, empty: true,
-               missing_fingerprint_tracks: 0 },
-    }));
+    getIngestStats.mockResolvedValue(
+      stats({
+        index: {
+          engine_registered: true,
+          fingerprint_type: "chromaprint",
+          fingerprint_version: "1",
+          indexed_tracks: 0,
+          empty: true,
+          missing_fingerprint_tracks: 0,
+        },
+      }),
+    );
 
     await parse("status");
 
@@ -444,11 +558,18 @@ describe("addVinylCommands()", () => {
   });
 
   it("status exits non-zero when no engine is registered", async () => {
-    getIngestStats.mockResolvedValue(stats({
-      index: { engine_registered: false, fingerprint_type: null,
-               fingerprint_version: null, indexed_tracks: 0, empty: true,
-               missing_fingerprint_tracks: 0 },
-    }));
+    getIngestStats.mockResolvedValue(
+      stats({
+        index: {
+          engine_registered: false,
+          fingerprint_type: null,
+          fingerprint_version: null,
+          indexed_tracks: 0,
+          empty: true,
+          missing_fingerprint_tracks: 0,
+        },
+      }),
+    );
 
     await parse("status");
 
@@ -509,7 +630,9 @@ describe("addVinylCommands()", () => {
   it("detections passes source, session and limit", async () => {
     await parse("detections", "--source", "aswitch", "--session", "s1", "--limit", "5");
     expect(listDetections.mock.calls[0][0]).toMatchObject({
-      source_id: "aswitch", session_id: "s1", limit: 5,
+      source_id: "aswitch",
+      session_id: "s1",
+      limit: 5,
     });
   });
 
@@ -543,13 +666,24 @@ describe("addVinylCommands()", () => {
 
   it("ingests renders an in-flight chunk distinctly", async () => {
     listIngests.mockResolvedValue({
-      ingests: [{
-        ingest_id: "i3", source_id: "aswitch", session_id: null, sequence: null,
-        status: "processing", error: null, duration_seconds: null,
-        sample_rate: null, channels: null, codec: null, file_path: null,
-        captured_at: null, received_at: "2026-09-21T02:00:00.000Z",
-        updated_at: "2026-09-21T02:00:00.000Z",
-      }],
+      ingests: [
+        {
+          ingest_id: "i3",
+          source_id: "aswitch",
+          session_id: null,
+          sequence: null,
+          status: "processing",
+          error: null,
+          duration_seconds: null,
+          sample_rate: null,
+          channels: null,
+          codec: null,
+          file_path: null,
+          captured_at: null,
+          received_at: "2026-09-21T02:00:00.000Z",
+          updated_at: "2026-09-21T02:00:00.000Z",
+        },
+      ],
       count: 1,
     });
 
@@ -560,13 +694,24 @@ describe("addVinylCommands()", () => {
 
   it("ingests renders a failure with its reason", async () => {
     listIngests.mockResolvedValue({
-      ingests: [{
-        ingest_id: "i2", source_id: "aswitch", session_id: null, sequence: null,
-        status: "failed", error: "decode failed", duration_seconds: null,
-        sample_rate: null, channels: null, codec: null, file_path: null,
-        captured_at: null, received_at: "2026-09-21T02:00:00.000Z",
-        updated_at: "2026-09-21T02:00:00.000Z",
-      }],
+      ingests: [
+        {
+          ingest_id: "i2",
+          source_id: "aswitch",
+          session_id: null,
+          sequence: null,
+          status: "failed",
+          error: "decode failed",
+          duration_seconds: null,
+          sample_rate: null,
+          channels: null,
+          codec: null,
+          file_path: null,
+          captured_at: null,
+          received_at: "2026-09-21T02:00:00.000Z",
+          updated_at: "2026-09-21T02:00:00.000Z",
+        },
+      ],
       count: 1,
     });
 
@@ -616,9 +761,7 @@ describe("addVinylCommands()", () => {
     await parse("aggregate", "--since", "not-a-date");
 
     expect(aggregateSpins).not.toHaveBeenCalled();
-    expect(process.stderr.write).toHaveBeenCalledWith(
-      expect.stringContaining("not-a-date")
-    );
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("not-a-date"));
     expect(exit).toHaveBeenCalledWith(1);
   });
 
@@ -629,7 +772,7 @@ describe("addVinylCommands()", () => {
     await parse("aggregate", "--since", "2026-08-01");
 
     expect(process.stderr.write).toHaveBeenCalledWith(
-      expect.stringContaining("connection refused")
+      expect.stringContaining("connection refused"),
     );
     expect(exit).toHaveBeenCalledWith(1);
   });
@@ -642,17 +785,13 @@ describe("addVinylCommands()", () => {
       getIngestStats.mockRejectedValue("driver exploded");
       listDetections.mockRejectedValue("driver exploded");
       listIngests.mockRejectedValue("driver exploded");
-      const exit = vi
-        .spyOn(process, "exit")
-        .mockImplementation((() => undefined) as never);
+      const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 
       await parse(sub);
 
-      expect(process.stderr.write).toHaveBeenCalledWith(
-        expect.stringContaining("driver exploded")
-      );
+      expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("driver exploded"));
       expect(exit).toHaveBeenCalledWith(1);
-    }
+    },
   );
 
   it.each(["status", "detections", "ingests"])(
@@ -662,17 +801,15 @@ describe("addVinylCommands()", () => {
       getIngestStats.mockRejectedValue(boom);
       listDetections.mockRejectedValue(boom);
       listIngests.mockRejectedValue(boom);
-      const exit = vi
-        .spyOn(process, "exit")
-        .mockImplementation((() => undefined) as never);
+      const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 
       await parse(sub);
 
       expect(process.stderr.write).toHaveBeenCalledWith(
-        expect.stringContaining("connection refused")
+        expect.stringContaining("connection refused"),
       );
       expect(exit).toHaveBeenCalledWith(1);
-    }
+    },
   );
 });
 

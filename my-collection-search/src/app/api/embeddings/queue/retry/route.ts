@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid retry request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     console.error("Error retrying failed embedding jobs:", err);
     return NextResponse.json(
       { error: err.message || "Failed to retry failed embedding jobs" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

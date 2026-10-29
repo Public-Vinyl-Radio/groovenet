@@ -105,7 +105,7 @@ describe("DELETE /api/albums/[releaseId]", () => {
     expect(mockDeleteAlbumByReleaseAndFriend).toHaveBeenCalledWith({}, "r1", 7);
     // Tracks must be gone before the album row, inside the same transaction.
     expect(mockDeleteTracksByIds.mock.invocationCallOrder[0]).toBeLessThan(
-      mockDeleteAlbumByReleaseAndFriend.mock.invocationCallOrder[0]
+      mockDeleteAlbumByReleaseAndFriend.mock.invocationCallOrder[0],
     );
 
     expect(analyticsEvents.events).toEqual([

@@ -10,10 +10,17 @@ afterEach(() => vi.clearAllMocks());
 function setup(props: Partial<React.ComponentProps<typeof PlaylistItemActionsMenu>> = {}) {
   const h = { onPlay: vi.fn(), onDelete: vi.fn(), onOpen: vi.fn(), onEnqueue: vi.fn() };
   const rendered = renderWithProviders(
-    <PlaylistItemActionsMenu playlistName="Late Night" summary="12 tracks · 1h 4m · Today" {...h} {...props} />
+    <PlaylistItemActionsMenu
+      playlistName="Late Night"
+      summary="12 tracks · 1h 4m · Today"
+      {...h}
+      {...props}
+    />,
   );
   const open = async () => {
-    await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0],
+    );
     await screen.findByText(/12 tracks/);
   };
   return { ...rendered, h, open };
@@ -59,9 +66,17 @@ describe("PlaylistItemActionsMenu phone modal (#751)", () => {
 
   it("defaults to an empty summary", async () => {
     const rendered = renderWithProviders(
-      <PlaylistItemActionsMenu playlistName="X" onPlay={vi.fn()} onDelete={vi.fn()} onOpen={vi.fn()} onEnqueue={vi.fn()} />
+      <PlaylistItemActionsMenu
+        playlistName="X"
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onOpen={vi.fn()}
+        onEnqueue={vi.fn()}
+      />,
     );
-    await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0],
+    );
     expect(await screen.findByRole("button", { name: "Delete playlist" })).toBeTruthy();
   });
 });

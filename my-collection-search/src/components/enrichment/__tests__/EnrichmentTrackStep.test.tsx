@@ -6,7 +6,15 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Track, TrackGenre } from "@/types/track";
 
-const { fetchMetadata, fetchGenreTree, toasterCreate, searchYouTube, searchApple, lookupVideos, extractVideos } = vi.hoisted(() => ({
+const {
+  fetchMetadata,
+  fetchGenreTree,
+  toasterCreate,
+  searchYouTube,
+  searchApple,
+  lookupVideos,
+  extractVideos,
+} = vi.hoisted(() => ({
   toasterCreate: vi.fn(),
   searchYouTube: vi.fn(),
   searchApple: vi.fn(),
@@ -31,8 +39,20 @@ vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree }));
 
 import EnrichmentTrackStep from "../EnrichmentTrackStep";
 
-const CUMBIA: TrackGenre = { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" };
-const CHICHA: TrackGenre = { id: "chicha", name: "Chicha", slug: "chicha", parent_id: "latin", parent_name: "Latin" };
+const CUMBIA: TrackGenre = {
+  id: "cumbia",
+  name: "Cumbia",
+  slug: "cumbia",
+  parent_id: "latin",
+  parent_name: "Latin",
+};
+const CHICHA: TrackGenre = {
+  id: "chicha",
+  name: "Chicha",
+  slug: "chicha",
+  parent_id: "latin",
+  parent_name: "Latin",
+};
 
 const TRACK: Track = {
   track_id: "t1",
@@ -57,7 +77,7 @@ function renderStep(track: Track = TRACK, onSave = vi.fn().mockResolvedValue(und
       aiPrompt="Describe this track."
       onSave={onSave}
       onSkip={vi.fn()}
-    />
+    />,
   );
   return onSave;
 }
@@ -117,14 +137,19 @@ describe("EnrichmentTrackStep — AI genres (#374)", () => {
 
   it("works for a track with no genres or descriptors yet", async () => {
     fetchMetadata.mockResolvedValueOnce({ genres: [CUMBIA], descriptors: [], notes: "" });
-    const bare = { ...TRACK, track_genres: undefined, descriptors: undefined, local_tags: undefined };
+    const bare = {
+      ...TRACK,
+      track_genres: undefined,
+      descriptors: undefined,
+      local_tags: undefined,
+    };
     const onSave = renderStep(bare as Track);
 
     await screen.findByTestId("genre-picker-selected");
     await userEvent.click(screen.getByRole("button", { name: "Save & Next" }));
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith({ genres: ["cumbia"], genre_source: "enrichment" })
+      expect(onSave).toHaveBeenCalledWith({ genres: ["cumbia"], genre_source: "enrichment" }),
     );
   });
 
@@ -137,7 +162,7 @@ describe("EnrichmentTrackStep — AI genres (#374)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save & Next" }));
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith({ descriptors: ["sunny", "hypnotic"] })
+      expect(onSave).toHaveBeenCalledWith({ descriptors: ["sunny", "hypnotic"] }),
     );
   });
 
@@ -166,24 +191,41 @@ describe("EnrichmentTrackStep — AI genres (#374)", () => {
         title: "Failed to save track",
         description: message,
         type: "error",
-      })
+      }),
     );
     await waitFor(() =>
       expect(
-        (screen.getByRole("button", { name: "Save & Next" }) as HTMLButtonElement).disabled
-      ).toBe(false)
+        (screen.getByRole("button", { name: "Save & Next" }) as HTMLButtonElement).disabled,
+      ).toBe(false),
     );
   });
 });
 
 describe("EnrichmentTrackStep — link sources", () => {
   const ALL = { llm: true, appleMusic: true, youtube: true, fetchAudio: false };
-  const apple = (id: string) => ({ id, url: `https://music.apple.com/${id}`, title: `Apple ${id}`, artist: "A", album: "B" });
-  const video = (id: string) => ({ id, url: `https://youtube.com/${id}`, title: `Video ${id}`, channel: "Chan" });
+  const apple = (id: string) => ({
+    id,
+    url: `https://music.apple.com/${id}`,
+    title: `Apple ${id}`,
+    artist: "A",
+    album: "B",
+  });
+  const video = (id: string) => ({
+    id,
+    url: `https://youtube.com/${id}`,
+    title: `Video ${id}`,
+    channel: "Chan",
+  });
 
   function renderAll(onSave = vi.fn().mockResolvedValue(undefined)) {
     renderWithProviders(
-      <EnrichmentTrackStep track={TRACK} enrichmentTypes={ALL} aiPrompt="p" onSave={onSave} onSkip={vi.fn()} />
+      <EnrichmentTrackStep
+        track={TRACK}
+        enrichmentTypes={ALL}
+        aiPrompt="p"
+        onSave={onSave}
+        onSkip={vi.fn()}
+      />,
     );
     return onSave;
   }
@@ -207,7 +249,7 @@ describe("EnrichmentTrackStep — link sources", () => {
       expect(onSave).toHaveBeenCalledWith({
         apple_music_url: "https://music.apple.com/a2",
         youtube_url: "https://youtube.com/v2",
-      })
+      }),
     );
   });
 
@@ -249,6 +291,8 @@ describe("EnrichmentTrackStep — link sources", () => {
     await userEvent.click(await screen.findByText("Disc two"));
     await userEvent.click(screen.getByRole("button", { name: "Save & Next" }));
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ youtube_url: "https://youtube.com/d2" }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({ youtube_url: "https://youtube.com/d2" }),
+    );
   });
 });

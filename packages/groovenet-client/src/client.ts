@@ -1,7 +1,13 @@
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import { serverPlayerStreamEventSchema } from "@groovenet/contracts";
-import type { CreateServerPlayer, ServerPlayer, ServerPlayerCommandInput, ServerPlayerCommandResult, ServerPlayerDevice } from "@groovenet/contracts";
+import type {
+  CreateServerPlayer,
+  ServerPlayer,
+  ServerPlayerCommandInput,
+  ServerPlayerCommandResult,
+  ServerPlayerDevice,
+} from "@groovenet/contracts";
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Agent as HttpsAgent } from "https";
 import { checkPlaylist, type PlaylistCheck, type PlaylistCheckOptions } from "./playlistCheck.js";
@@ -21,12 +27,25 @@ import type {
   AppearanceSettings,
   AppearanceSettingsUpdate,
   GenreTreeResponse,
-  GenreSimilarResponse, GenreSimilarQuery,
-  Genre, GenreCreateInput, GenreUpdateInput, GenreAliasResponse, GenreMergeResponse,
-  GenreReconciliationRequest, GenreReconciliationRun, GenreReconciliationCoverage,
-  GenreProposal, GenreProposalQuery, GenreProposalListResponse, GenreProposalUpdate,
+  GenreSimilarResponse,
+  GenreSimilarQuery,
+  Genre,
+  GenreCreateInput,
+  GenreUpdateInput,
+  GenreAliasResponse,
+  GenreMergeResponse,
+  GenreReconciliationRequest,
+  GenreReconciliationRun,
+  GenreReconciliationCoverage,
+  GenreProposal,
+  GenreProposalQuery,
+  GenreProposalListResponse,
+  GenreProposalUpdate,
   GenreProposalApplyResult,
-  GenreProposalDecision, GenreProposalDecisionResult, GenreProposalSnapshot, GenreProposalTrack,
+  GenreProposalDecision,
+  GenreProposalDecisionResult,
+  GenreProposalSnapshot,
+  GenreProposalTrack,
   Album,
   AlbumSearchQuery,
   AlbumSearchResponse,
@@ -119,13 +138,9 @@ export class GroovenetClient {
       headers: {
         "Content-Type": "application/json",
         ...(config.clientName ? { "X-Groovenet-Client": config.clientName } : {}),
-        ...(config.apiKey
-          ? { Authorization: `Bearer ${config.apiKey}` }
-          : {}),
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       },
-      ...(config.insecureTls
-        ? { httpsAgent: new HttpsAgent({ rejectUnauthorized: false }) }
-        : {}),
+      ...(config.insecureTls ? { httpsAgent: new HttpsAgent({ rejectUnauthorized: false }) } : {}),
     });
   }
 
@@ -133,7 +148,7 @@ export class GroovenetClient {
     method: string,
     path: string,
     data?: unknown,
-    params?: Record<string, string | number | boolean | string[] | undefined>
+    params?: Record<string, string | number | boolean | string[] | undefined>,
   ): Promise<T> {
     return (await this.send<T>({ method, url: path, data, params })).data;
   }
@@ -144,8 +159,16 @@ export class GroovenetClient {
    */
   private async send<T>(config: AxiosRequestConfig): Promise<{ status: number; data: T }> {
     if (config.url?.startsWith("/players")) {
-      if (!this.playerApiKey) throw new Error("Remote players require player_api_key (PLAYER_API_KEY), separate from api_key.");
-      config = { timeout: 10000, ...config, maxRedirects: 0, headers: { ...config.headers, Authorization: `Bearer ${this.playerApiKey}` } };
+      if (!this.playerApiKey)
+        throw new Error(
+          "Remote players require player_api_key (PLAYER_API_KEY), separate from api_key.",
+        );
+      config = {
+        timeout: 10000,
+        ...config,
+        maxRedirects: 0,
+        headers: { ...config.headers, Authorization: `Bearer ${this.playerApiKey}` },
+      };
     }
     try {
       const res = await this.http.request<T>(config);
@@ -156,7 +179,9 @@ export class GroovenetClient {
         const msg = body?.error || body?.message || error.message;
         // Validation failures carry the fix in `details` / `invalid`; keep it.
         const extra = body?.details ?? body?.invalid;
-        throw new Error(`API Error: ${body?.code ? `[${body.code}] ` : ""}${msg}${extra ? ` ${JSON.stringify(extra)}` : ""}`);
+        throw new Error(
+          `API Error: ${body?.code ? `[${body.code}] ` : ""}${msg}${extra ? ` ${JSON.stringify(extra)}` : ""}`,
+        );
       }
       throw error;
     }
@@ -165,12 +190,23 @@ export class GroovenetClient {
   /** Fetch a cover, resolving app-relative uploads without leaking credentials to a CDN. */
   async getArtwork(source: string): Promise<Buffer> {
     const url = new URL(source, this.config.baseUrl);
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid artwork URL");
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
+      throw new Error("Invalid artwork URL");
     const sameOrigin = url.origin === new URL(this.config.baseUrl).origin;
     const { data } = await this.send<ArrayBuffer>({
-      method: "GET", url: url.href, responseType: "arraybuffer", timeout: 5000,
-      maxContentLength: 4 * 1024 * 1024, maxRedirects: 0,
-      headers: { Authorization: sameOrigin ? (this.config.apiKey ? `Bearer ${this.config.apiKey}` : undefined) : null },
+      method: "GET",
+      url: url.href,
+      responseType: "arraybuffer",
+      timeout: 5000,
+      maxContentLength: 4 * 1024 * 1024,
+      maxRedirects: 0,
+      headers: {
+        Authorization: sameOrigin
+          ? this.config.apiKey
+            ? `Bearer ${this.config.apiKey}`
+            : undefined
+          : null,
+      },
       // An internal CA exception must never apply to third-party artwork hosts.
       ...(sameOrigin ? {} : { httpsAgent: new HttpsAgent() }),
     });
@@ -217,11 +253,7 @@ export class GroovenetClient {
     return this.request<Track>("GET", `/tracks/${trackId}`, undefined, { friend_id: friendId });
   }
 
-  async updateTrack(
-    trackId: string,
-    updates: TrackUpdate,
-    friendId = 1
-  ): Promise<Track> {
+  async updateTrack(trackId: string, updates: TrackUpdate, friendId = 1): Promise<Track> {
     return this.request<Track>("PATCH", "/tracks", {
       track_id: trackId,
       friend_id: friendId,
@@ -232,22 +264,17 @@ export class GroovenetClient {
   async getMissingAppleMusic(
     page = 1,
     pageSize = 50,
-    username?: string
+    username?: string,
   ): Promise<{ tracks: Track[]; total: number }> {
     const result = await this.request<{
       hits: Track[];
       estimatedTotalHits: number;
-    }>(
-      "GET",
-      "/tracks/search",
-      undefined,
-      {
-        q: "",
-        limit: pageSize,
-        offset: Math.max(0, page - 1) * pageSize,
-        filter: "apple_music_url IS NULL",
-      }
-    );
+    }>("GET", "/tracks/search", undefined, {
+      q: "",
+      limit: pageSize,
+      offset: Math.max(0, page - 1) * pageSize,
+      filter: "apple_music_url IS NULL",
+    });
     // The current API does not expose a username filter. Keep the parameter
     // for backward compatibility while using the supported collection search.
     void username;
@@ -256,7 +283,7 @@ export class GroovenetClient {
 
   async batchGetTracks(
     refs: { track_id: string; friend_id: number; position?: number }[],
-    options?: { include_vectors?: boolean }
+    options?: { include_vectors?: boolean },
   ): Promise<Track[]> {
     return this.request<Track[]>("POST", "/tracks/batch", {
       tracks: refs,
@@ -266,7 +293,7 @@ export class GroovenetClient {
 
   async listDeletedTracks(
     friendId?: number,
-    options?: { limit?: number; offset?: number }
+    options?: { limit?: number; offset?: number },
   ): Promise<{ tracks: Track[]; total: number }> {
     const params: Record<string, string | number | undefined> = {
       friend_id: friendId,
@@ -277,13 +304,13 @@ export class GroovenetClient {
       "GET",
       "/tracks/deleted",
       undefined,
-      params
+      params,
     );
   }
 
   async restoreTrack(
     trackId: string,
-    friendId: number
+    friendId: number,
   ): Promise<{ success: boolean; track_id: string; friend_id: number; track: Track }> {
     return this.request<{
       success: boolean;
@@ -308,30 +335,27 @@ export class GroovenetClient {
   }
 
   async getAlbum(releaseId: string, friendId: number): Promise<AlbumDetail> {
-    return this.request<AlbumDetail>(
-      "GET",
-      `/albums/${releaseId}`,
-      undefined,
-      { friend_id: friendId }
-    );
+    return this.request<AlbumDetail>("GET", `/albums/${releaseId}`, undefined, {
+      friend_id: friendId,
+    });
   }
 
   async getAlbumPlayableStructure(
     releaseId: string,
-    friendId: number
+    friendId: number,
   ): Promise<AlbumPlayableStructure> {
     return this.request<AlbumPlayableStructure>(
       "GET",
       `/albums/${releaseId}/playable-structure`,
       undefined,
-      { friend_id: friendId }
+      { friend_id: friendId },
     );
   }
 
   async updateAlbum(
     releaseId: string,
     friendId: number,
-    updates: AlbumUpdate
+    updates: AlbumUpdate,
   ): Promise<{ success: boolean; album: Album; tracksUpdated?: number }> {
     return this.request("PATCH", "/albums", {
       release_id: releaseId,
@@ -341,21 +365,15 @@ export class GroovenetClient {
   }
 
   async downloadAlbum(releaseId: string, friendId: number): Promise<AlbumDownloadResult> {
-    return this.request<AlbumDownloadResult>(
-      "POST",
-      `/albums/${releaseId}/download`,
-      undefined,
-      { friend_id: friendId }
-    );
+    return this.request<AlbumDownloadResult>("POST", `/albums/${releaseId}/download`, undefined, {
+      friend_id: friendId,
+    });
   }
 
   async deleteAlbum(releaseId: string, friendId: number): Promise<AlbumDeleteResponse> {
-    return this.request<AlbumDeleteResponse>(
-      "DELETE",
-      `/albums/${releaseId}`,
-      undefined,
-      { friend_id: friendId }
-    );
+    return this.request<AlbumDeleteResponse>("DELETE", `/albums/${releaseId}`, undefined, {
+      friend_id: friendId,
+    });
   }
 
   // ── Spins ──────────────────────────────────────────────────────────────────
@@ -382,12 +400,9 @@ export class GroovenetClient {
   }
 
   async deleteSpin(id: number, friendId: number): Promise<SpinDeleteResponse> {
-    return this.request<SpinDeleteResponse>(
-      "DELETE",
-      `/spins/${id}`,
-      undefined,
-      { friend_id: friendId }
-    );
+    return this.request<SpinDeleteResponse>("DELETE", `/spins/${id}`, undefined, {
+      friend_id: friendId,
+    });
   }
 
   async listTopSpinTracks(query: SpinTopTracksQuery): Promise<SpinTopTracksResponse> {
@@ -397,12 +412,7 @@ export class GroovenetClient {
       limit: query.limit ?? 20,
       offset: query.offset ?? 0,
     };
-    return this.request<SpinTopTracksResponse>(
-      "GET",
-      "/spins/top-tracks",
-      undefined,
-      params
-    );
+    return this.request<SpinTopTracksResponse>("GET", "/spins/top-tracks", undefined, params);
   }
 
   // ── Playlists ───────────────────────────────────────────────────────────────
@@ -412,7 +422,7 @@ export class GroovenetClient {
   }
 
   async getPlaylistTracks(
-    playlistId: number | string
+    playlistId: number | string,
   ): Promise<{ track_refs: PlaylistTrackRef[] }> {
     const result = await this.request<PlaylistDetail>("GET", `/playlists/${playlistId}/tracks`);
     // Older servers returned entries without a friend; default them to the first friend.
@@ -432,7 +442,7 @@ export class GroovenetClient {
    */
   async checkPlaylist(
     playlistId: number | string,
-    options?: PlaylistCheckOptions
+    options?: PlaylistCheckOptions,
   ): Promise<PlaylistCheck & { unresolved_track_ids: string[] }> {
     const { track_refs } = await this.getPlaylistTracks(playlistId);
     const found = track_refs.length > 0 ? await this.batchGetTracks(track_refs) : [];
@@ -455,7 +465,7 @@ export class GroovenetClient {
   async createPlaylist(
     name: string,
     tracks: Array<string | { track_id: string; friend_id?: number }> = [],
-    defaultFriendId?: number
+    defaultFriendId?: number,
   ): Promise<Playlist> {
     const refs = tracks.map((track) => {
       const ref = typeof track === "string" ? { track_id: track } : track;
@@ -473,14 +483,14 @@ export class GroovenetClient {
    */
   async setPlaylistTracks(
     playlistId: number,
-    tracks: Array<{ track_id: string; friend_id: number }>
+    tracks: Array<{ track_id: string; friend_id: number }>,
   ): Promise<Playlist> {
     return this.request<Playlist>("PATCH", "/playlists", { id: playlistId, tracks });
   }
 
   async logPlaylistSpins(
     playlistId: number | string,
-    input: PlaylistSpinsInput = {}
+    input: PlaylistSpinsInput = {},
   ): Promise<PlaylistSpinsResult> {
     return this.request<PlaylistSpinsResult>("POST", `/playlists/${playlistId}/spins`, input);
   }
@@ -505,7 +515,7 @@ export class GroovenetClient {
     const result = await this.request<{ result: Track[] | Record<string, Track> }>(
       "POST",
       "/playlists/genetic",
-      { playlist: tracks, ...(mode ? { mode } : {}) }
+      { playlist: tracks, ...(mode ? { mode } : {}) },
     );
     const raw = result.result;
     if (Array.isArray(raw)) return raw;
@@ -523,11 +533,15 @@ export class GroovenetClient {
   }
 
   async addGenreAlias(id: string, alias: string): Promise<GenreAliasResponse> {
-    return this.request<GenreAliasResponse>("POST", `/genres/${encodeURIComponent(id)}/aliases`, { alias });
+    return this.request<GenreAliasResponse>("POST", `/genres/${encodeURIComponent(id)}/aliases`, {
+      alias,
+    });
   }
 
   async mergeGenres(id: string, target_id: string): Promise<GenreMergeResponse> {
-    return this.request<GenreMergeResponse>("POST", `/genres/${encodeURIComponent(id)}/merge`, { target_id });
+    return this.request<GenreMergeResponse>("POST", `/genres/${encodeURIComponent(id)}/merge`, {
+      target_id,
+    });
   }
 
   async getGenres(): Promise<GenreTreeResponse> {
@@ -535,9 +549,15 @@ export class GroovenetClient {
   }
 
   /** Ranked related genres and their signals, across every collection, by slug or id. */
-  async getSimilarGenres(slug: string, query: GenreSimilarQuery = {}): Promise<GenreSimilarResponse> {
+  async getSimilarGenres(
+    slug: string,
+    query: GenreSimilarQuery = {},
+  ): Promise<GenreSimilarResponse> {
     return this.request<GenreSimilarResponse>(
-      "GET", `/genres/${encodeURIComponent(slug)}/similar`, undefined, { ...query }
+      "GET",
+      `/genres/${encodeURIComponent(slug)}/similar`,
+      undefined,
+      { ...query },
     );
   }
 
@@ -546,36 +566,53 @@ export class GroovenetClient {
    * when it finishes: poll `getGenreReconciliationRun` until it is no longer
    * `running`. Fails with a 409 while another run is in progress.
    */
-  async startGenreReconciliation(request: GenreReconciliationRequest = {}): Promise<GenreReconciliationRun> {
+  async startGenreReconciliation(
+    request: GenreReconciliationRequest = {},
+  ): Promise<GenreReconciliationRun> {
     return this.request<GenreReconciliationRun>("POST", "/genres/reconciliation/runs", request);
   }
 
   async getGenreReconciliationRun(id: string): Promise<GenreReconciliationRun> {
-    return this.request<GenreReconciliationRun>("GET", `/genres/reconciliation/runs/${encodeURIComponent(id)}`);
+    return this.request<GenreReconciliationRun>(
+      "GET",
+      `/genres/reconciliation/runs/${encodeURIComponent(id)}`,
+    );
   }
 
   /** Coverage for one friend's tracks, or everyone's when `friendId` is omitted. */
   async getGenreReconciliationCoverage(friendId?: number): Promise<GenreReconciliationCoverage> {
     return this.request<GenreReconciliationCoverage>(
-      "GET", "/genres/reconciliation/coverage", undefined,
-      friendId === undefined ? undefined : { friend_id: friendId }
+      "GET",
+      "/genres/reconciliation/coverage",
+      undefined,
+      friendId === undefined ? undefined : { friend_id: friendId },
     );
   }
 
   async listGenreProposals(query: GenreProposalQuery = {}): Promise<GenreProposalListResponse> {
-    return this.request<GenreProposalListResponse>("GET", "/genres/proposals", undefined, { ...query });
+    return this.request<GenreProposalListResponse>("GET", "/genres/proposals", undefined, {
+      ...query,
+    });
   }
 
   async updateGenreProposal(id: string, update: GenreProposalUpdate): Promise<GenreProposal> {
-    return this.request<GenreProposal>("PATCH", `/genres/proposals/${encodeURIComponent(id)}`, update);
+    return this.request<GenreProposal>(
+      "PATCH",
+      `/genres/proposals/${encodeURIComponent(id)}`,
+      update,
+    );
   }
 
   /**
    * Record several review decisions in one transaction: all are written or
    * none. `previous` in the result undoes them through restoreGenreProposals.
    */
-  async decideGenreProposals(decisions: GenreProposalDecision[]): Promise<GenreProposalDecisionResult> {
-    return this.request<GenreProposalDecisionResult>("POST", "/genres/proposals/decisions", { decisions });
+  async decideGenreProposals(
+    decisions: GenreProposalDecision[],
+  ): Promise<GenreProposalDecisionResult> {
+    return this.request<GenreProposalDecisionResult>("POST", "/genres/proposals/decisions", {
+      decisions,
+    });
   }
 
   /** Undo: write proposals back as a decision's `previous` describes them. */
@@ -586,10 +623,13 @@ export class GroovenetClient {
   /** A few tracks tagged with a proposal's value, for review. */
   async getGenreProposalTracks(
     id: string,
-    query: { friend_id?: number; limit?: number } = {}
+    query: { friend_id?: number; limit?: number } = {},
   ): Promise<GenreProposalTrack[]> {
     const result = await this.request<{ tracks: GenreProposalTrack[] }>(
-      "GET", `/genres/proposals/${encodeURIComponent(id)}/tracks`, undefined, { ...query }
+      "GET",
+      `/genres/proposals/${encodeURIComponent(id)}/tracks`,
+      undefined,
+      { ...query },
     );
     return result.tracks;
   }
@@ -622,7 +662,7 @@ export class GroovenetClient {
     // Servers before the `results` shape returned bare usernames.
     const result = await this.request<Partial<FriendListResponse> & { friends?: string[] }>(
       "GET",
-      "/friends"
+      "/friends",
     );
     if (result.results) return result.results;
     if (result.friends) {
@@ -643,22 +683,11 @@ export class GroovenetClient {
     album?: string;
     isrc?: string;
   }): Promise<{ results: unknown[] }> {
-    return this.request<{ results: unknown[] }>(
-      "POST",
-      "/providers/apple-music/search",
-      opts
-    );
+    return this.request<{ results: unknown[] }>("POST", "/providers/apple-music/search", opts);
   }
 
-  async searchYoutube(opts: {
-    title?: string;
-    artist?: string;
-  }): Promise<{ results: unknown[] }> {
-    return this.request<{ results: unknown[] }>(
-      "POST",
-      "/providers/youtube/music-search",
-      opts
-    );
+  async searchYoutube(opts: { title?: string; artist?: string }): Promise<{ results: unknown[] }> {
+    return this.request<{ results: unknown[] }>("POST", "/providers/youtube/music-search", opts);
   }
 
   // ── Similarity / Recommendations ─────────────────────────────────────────────
@@ -666,7 +695,7 @@ export class GroovenetClient {
   async findSimilarIdentity(
     trackId: string,
     friendId: number,
-    opts?: IdentitySimilarityQuery
+    opts?: IdentitySimilarityQuery,
   ): Promise<SimilarIdentityResponse> {
     if (opts?.era || opts?.country || opts?.tags) {
       throw new Error("Identity search filters are not supported by the current Groovenet API.");
@@ -683,7 +712,7 @@ export class GroovenetClient {
       "GET",
       "/recommendations/candidates",
       undefined,
-      params
+      params,
     );
     return {
       source_track_id: trackId,
@@ -711,7 +740,7 @@ export class GroovenetClient {
   async getRecommendationCandidates(
     trackId: string,
     friendId: number,
-    opts?: RecommendationCandidatesQuery
+    opts?: RecommendationCandidatesQuery,
   ): Promise<RecommendationCandidatesResponse> {
     const params: Record<string, string | number> = {
       track_id: trackId,
@@ -724,14 +753,14 @@ export class GroovenetClient {
       "GET",
       "/recommendations/candidates",
       undefined,
-      params
+      params,
     );
   }
 
   async findSimilarVibe(
     trackId: string,
     friendId: number,
-    opts?: SimilarityQuery
+    opts?: SimilarityQuery,
   ): Promise<SimilarVibeResponse> {
     const params: Record<string, string | number> = {
       track_id: trackId,
@@ -745,7 +774,7 @@ export class GroovenetClient {
       "GET",
       "/recommendations/candidates",
       undefined,
-      params
+      params,
     );
     return {
       source_track_id: trackId,
@@ -777,9 +806,7 @@ export class GroovenetClient {
    * Returns as soon as the work is queued — the run itself happens in
    * `fingerprint-service`. Poll `getFingerprintIndexRun` for progress.
    */
-  async startFingerprintIndex(
-    request: FingerprintIndexRequest
-  ): Promise<FingerprintIndexRun> {
+  async startFingerprintIndex(request: FingerprintIndexRequest): Promise<FingerprintIndexRun> {
     return this.request<FingerprintIndexRun>("POST", "/fingerprints/index", request);
   }
 
@@ -787,7 +814,7 @@ export class GroovenetClient {
   async getFingerprintIndexRun(runId: string): Promise<FingerprintIndexRun> {
     return this.request<FingerprintIndexRun>(
       "GET",
-      `/fingerprints/index/${encodeURIComponent(runId)}`
+      `/fingerprints/index/${encodeURIComponent(runId)}`,
     );
   }
 
@@ -802,12 +829,12 @@ export class GroovenetClient {
    * progress. `dry_run: true` reports counts and enqueues nothing.
    */
   async startEmbeddingBackfill(
-    request: EmbeddingBackfillRequest = {}
+    request: EmbeddingBackfillRequest = {},
   ): Promise<EmbeddingBackfillRun | EmbeddingBackfillDryRun> {
     return this.request<EmbeddingBackfillRun | EmbeddingBackfillDryRun>(
       "POST",
       "/embeddings/backfill",
-      request
+      request,
     );
   }
 
@@ -815,7 +842,7 @@ export class GroovenetClient {
   async getEmbeddingBackfillRun(runId: string): Promise<EmbeddingBackfillRun> {
     return this.request<EmbeddingBackfillRun>(
       "GET",
-      `/embeddings/backfill/${encodeURIComponent(runId)}`
+      `/embeddings/backfill/${encodeURIComponent(runId)}`,
     );
   }
 
@@ -838,17 +865,12 @@ export class GroovenetClient {
       offset: query.offset,
     };
     if (query.matched !== undefined) params.matched = query.matched;
-    return this.request<DetectionListResponse>(
-      "GET",
-      "/detections/recent",
-      undefined,
-      params
-    );
+    return this.request<DetectionListResponse>("GET", "/detections/recent", undefined, params);
   }
 
   /** Recent audio chunks and what became of them. */
   async listIngests(
-    query: { source_id?: string; status?: string; limit?: number } = {}
+    query: { source_id?: string; status?: string; limit?: number } = {},
   ): Promise<IngestListResponse> {
     return this.request<IngestListResponse>("GET", "/audio/ingest/recent", undefined, {
       source_id: query.source_id,
@@ -859,7 +881,7 @@ export class GroovenetClient {
 
   /** Whether the pipeline is working, index included. */
   async getIngestStats(
-    query: { minutes?: number; source_id?: string } = {}
+    query: { minutes?: number; source_id?: string } = {},
   ): Promise<IngestPipelineStats> {
     return this.request<IngestPipelineStats>("GET", "/audio/ingest/stats", undefined, {
       minutes: query.minutes,
@@ -903,7 +925,7 @@ export class GroovenetClient {
   async uploadSetRecording(
     sha256: string,
     body: NodeJS.ReadableStream | Uint8Array,
-    opts: { size: number; filename?: string; onProgress?: (sent: number) => void }
+    opts: { size: number; filename?: string; onProgress?: (sent: number) => void },
   ): Promise<SetRecording> {
     const { data } = await this.send<SetRecording>({
       method: "PUT",
@@ -932,7 +954,7 @@ export class GroovenetClient {
    * or in progress (`reused: true`). Poll `getSetDerivation` for the result.
    */
   async createSetDerivation(
-    request: SetDerivationRequest
+    request: SetDerivationRequest,
   ): Promise<SetDerivation & { reused: boolean }> {
     return this.request("POST", "/set-derivations", request);
   }
@@ -943,7 +965,7 @@ export class GroovenetClient {
    */
   async getSetDerivation(
     id: string,
-    query: SetDerivationViewQuery = {}
+    query: SetDerivationViewQuery = {},
   ): Promise<SetDerivationView> {
     return this.request("GET", `/set-derivations/${encodeURIComponent(id)}`, undefined, {
       playlist_id: query.playlist_id,
@@ -962,7 +984,7 @@ export class GroovenetClient {
       "GET",
       "/record-copies",
       undefined,
-      { friend_id: friendId, release_id: releaseId }
+      { friend_id: friendId, release_id: releaseId },
     );
     return items;
   }
@@ -981,17 +1003,13 @@ export class GroovenetClient {
     const { copy } = await this.request<RecordCopyResponse>(
       "PATCH",
       "/record-copies/default",
-      input
+      input,
     );
     return copy;
   }
 
   async updateRecordCopy(id: number, input: RecordCopyUpdateInput): Promise<RecordCopy> {
-    const { copy } = await this.request<RecordCopyResponse>(
-      "PATCH",
-      `/record-copies/${id}`,
-      input
-    );
+    const { copy } = await this.request<RecordCopyResponse>("PATCH", `/record-copies/${id}`, input);
     return copy;
   }
 
@@ -1004,7 +1022,7 @@ export class GroovenetClient {
       "DELETE",
       `/record-copies/${id}`,
       undefined,
-      { friend_id: friendId }
+      { friend_id: friendId },
     );
     return copy;
   }
@@ -1012,7 +1030,7 @@ export class GroovenetClient {
   /** A copy's care history, newest first. */
   async listRecordActions(
     copyId: number,
-    query: RecordActionListQuery
+    query: RecordActionListQuery,
   ): Promise<RecordActionListResponse> {
     return this.request<RecordActionListResponse>(
       "GET",
@@ -1024,7 +1042,7 @@ export class GroovenetClient {
         include_voided: query.include_voided,
         limit: query.limit ?? 50,
         offset: query.offset ?? 0,
-      }
+      },
     );
   }
 
@@ -1042,7 +1060,7 @@ export class GroovenetClient {
       "DELETE",
       `/record-actions/${id}`,
       undefined,
-      { friend_id: friendId }
+      { friend_id: friendId },
     );
     return { action, copy };
   }
@@ -1073,8 +1091,12 @@ export class GroovenetClient {
   /** A subscription has no replay. Each new stream must begin with a snapshot. */
   async *serverPlayerEvents(playerId: string, signal: AbortSignal) {
     const { data: stream } = await this.send<Readable>({
-      method: "GET", url: `/players/${encodeURIComponent(playerId)}/events`,
-      responseType: "stream", timeout: 0, signal, headers: { Accept: "text/event-stream" },
+      method: "GET",
+      url: `/players/${encodeURIComponent(playerId)}/events`,
+      responseType: "stream",
+      timeout: 0,
+      signal,
+      headers: { Accept: "text/event-stream" },
     });
     const lines = createInterface({ input: stream, crlfDelay: Infinity });
     let data: string[] = [];
@@ -1085,7 +1107,10 @@ export class GroovenetClient {
           data = [];
         } else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
       }
-    } finally { lines.close(); stream.destroy(); }
+    } finally {
+      lines.close();
+      stream.destroy();
+    }
   }
 
   async listServerPlayers(): Promise<ServerPlayer[]> {
@@ -1100,11 +1125,18 @@ export class GroovenetClient {
   async getServerPlayer(playerId: string): Promise<ServerPlayer> {
     return this.request("GET", `/players/${encodeURIComponent(playerId)}`);
   }
-  async commandServerPlayer(playerId: string, command: ServerPlayerCommandInput): Promise<ServerPlayerCommandResult> {
+  async commandServerPlayer(
+    playerId: string,
+    command: ServerPlayerCommandInput,
+  ): Promise<ServerPlayerCommandResult> {
     return this.request("POST", `/players/${encodeURIComponent(playerId)}/commands`, command);
   }
   async listServerPlayerDevices(playerId: string): Promise<ServerPlayerDevice[]> {
-    return (await this.request<{ devices: ServerPlayerDevice[] }>("GET", `/players/${encodeURIComponent(playerId)}/devices`)).devices;
+    return (
+      await this.request<{ devices: ServerPlayerDevice[] }>(
+        "GET",
+        `/players/${encodeURIComponent(playerId)}/devices`,
+      )
+    ).devices;
   }
-
 }

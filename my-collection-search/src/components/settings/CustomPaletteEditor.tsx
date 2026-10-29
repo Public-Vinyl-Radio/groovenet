@@ -1,10 +1,26 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Button, chakra, Flex, Heading, Input, SegmentGroup, Text } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Button,
+  chakra,
+  Flex,
+  Heading,
+  Input,
+  SegmentGroup,
+  Text,
+} from "@chakra-ui/react";
 import { LuCheck, LuTriangleAlert, LuX } from "react-icons/lu";
 import { system } from "@/app/chakraTheme";
-import { paletteIds, paletteVariableNames, statusNames, type PaletteValues, type PaletteVariable } from "@/app/palettes";
+import {
+  paletteIds,
+  paletteVariableNames,
+  statusNames,
+  type PaletteValues,
+  type PaletteVariable,
+} from "@/app/palettes";
 import {
   checkContrast,
   customColourKeys,
@@ -156,10 +172,18 @@ function ColourField({
         </Text>
       ) : null}
       {checks.map((check) => (
-        <Flex key={`${check.fg}-${check.bg}`} gap={1} align="center" fontSize="sm" mt={1} color={check.pass ? "fg.muted" : "fg.error"}>
+        <Flex
+          key={`${check.fg}-${check.bg}`}
+          gap={1}
+          align="center"
+          fontSize="sm"
+          mt={1}
+          color={check.pass ? "fg.muted" : "fg.error"}
+        >
           {check.pass ? <LuCheck aria-hidden /> : <LuX aria-hidden />}
           <span>
-            {pairLabel(check)}: {ratioText(check.ratio)} · {check.pass ? "Pass" : "Fail"} (needs {check.min}:1)
+            {pairLabel(check)}: {ratioText(check.ratio)} · {check.pass ? "Pass" : "Fail"} (needs{" "}
+            {check.min}:1)
           </span>
         </Flex>
       ))}
@@ -173,7 +197,11 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
     <Box
       data-testid="palette-preview"
       data-preview-mode={mode}
-      style={{ ...cssVars(values), backgroundColor: values["--gn-ground"], color: values["--gn-ink"] }}
+      style={{
+        ...cssVars(values),
+        backgroundColor: values["--gn-ground"],
+        color: values["--gn-ink"],
+      }}
       p={4}
       borderWidth="outline"
       borderColor="border.ink"
@@ -194,7 +222,15 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
           </Button>
         </Flex>
       </Box>
-      <Flex bg="bg.panel" borderWidth="outline" borderColor="border.ink" p={2} mb={3} justify="space-between" gap={2}>
+      <Flex
+        bg="bg.panel"
+        borderWidth="outline"
+        borderColor="border.ink"
+        p={2}
+        mb={3}
+        justify="space-between"
+        gap={2}
+      >
         <Box minW={0}>
           <Text fontWeight="medium" truncate>
             Water No Get Enemy
@@ -239,7 +275,9 @@ export default function CustomPaletteEditor({
   onDelete,
   onClose,
 }: CustomPaletteEditorProps): React.JSX.Element {
-  const [draft, setDraft] = React.useState<CustomPalette>(() => saved ?? customFromPreset(initialBase));
+  const [draft, setDraft] = React.useState<CustomPalette>(
+    () => saved ?? customFromPreset(initialBase),
+  );
   const [mode, setMode] = React.useState<CustomMode>("light");
   const [pendingBase, setPendingBase] = React.useState<(typeof paletteIds)[number] | null>(null);
   const [confirming, setConfirming] = React.useState(false);
@@ -247,7 +285,7 @@ export default function CustomPaletteEditor({
   const derived = React.useMemo(() => derivePalette(draft), [draft]);
   const checks = React.useMemo(
     () => ({ light: checkContrast(derived.light), dark: checkContrast(derived.dark) }),
-    [derived]
+    [derived],
   );
   const failures = {
     light: checks.light.filter((c) => !c.pass),
@@ -283,12 +321,20 @@ export default function CustomPaletteEditor({
   };
 
   return (
-    <Box borderWidth="outline" borderColor="border.ink" bg="bg.panel" p={4} mb={6} data-testid="custom-palette-editor">
+    <Box
+      borderWidth="outline"
+      borderColor="border.ink"
+      bg="bg.panel"
+      p={4}
+      mb={6}
+      data-testid="custom-palette-editor"
+    >
       <Heading size="md" mb={1}>
         Custom palette
       </Heading>
       <Text color="fg.muted" fontSize="sm" mb={3}>
-        Five colours per mode. The rest, and the status colours, come from the preset it starts from.
+        Five colours per mode. The rest, and the status colours, come from the preset it starts
+        from.
       </Text>
 
       <Flex gap={3} align="center" flexWrap="wrap" mb={3}>
@@ -315,7 +361,16 @@ export default function CustomPaletteEditor({
       </Flex>
 
       {pendingBase ? (
-        <Box role="alertdialog" aria-label="Replace edits" borderWidth="outline" borderColor="status.analysis.border" bg="status.analysis.subtle" color="status.analysis.fg" p={3} mb={3}>
+        <Box
+          role="alertdialog"
+          aria-label="Replace edits"
+          borderWidth="outline"
+          borderColor="status.analysis.border"
+          bg="status.analysis.subtle"
+          color="status.analysis.fg"
+          p={3}
+          mb={3}
+        >
           <Text mb={2}>Start from {pendingBase} instead? Your edits will be replaced.</Text>
           <Flex gap={2}>
             <Button
@@ -335,9 +390,20 @@ export default function CustomPaletteEditor({
         </Box>
       ) : null}
 
-      <SegmentGroup.Root size="sm" value={mode} aria-label="Mode being edited" onValueChange={(d) => setMode(d.value as CustomMode)} mb={3}>
+      <SegmentGroup.Root
+        size="sm"
+        value={mode}
+        aria-label="Mode being edited"
+        onValueChange={(d) => setMode(d.value as CustomMode)}
+        mb={3}
+      >
         <SegmentGroup.Indicator />
-        <SegmentGroup.Items items={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
+        <SegmentGroup.Items
+          items={[
+            { value: "light", label: "Light" },
+            { value: "dark", label: "Dark" },
+          ]}
+        />
       </SegmentGroup.Root>
 
       <Flex gap={5} align="flex-start" flexWrap="wrap">
@@ -348,7 +414,9 @@ export default function CustomPaletteEditor({
               mode={mode}
               colourKey={key}
               value={draft[mode][key]}
-              checks={READOUTS[key].map(([fg, bg]) => checks[mode].find((c) => c.fg === fg && c.bg === bg) as ContrastCheck)}
+              checks={READOUTS[key].map(
+                ([fg, bg]) => checks[mode].find((c) => c.fg === fg && c.bg === bg) as ContrastCheck,
+              )}
               onChange={(value) => edit(key, value)}
             />
           ))}
@@ -371,7 +439,10 @@ export default function CustomPaletteEditor({
               <Text fontWeight="medium">
                 {customModes
                   .filter((m) => failures[m].length > 0)
-                  .map((m) => `${failures[m].length} ${failures[m].length === 1 ? "pair" : "pairs"} below AA in ${m}`)
+                  .map(
+                    (m) =>
+                      `${failures[m].length} ${failures[m].length === 1 ? "pair" : "pairs"} below AA in ${m}`,
+                  )
                   .join(" · ")}
               </Text>
             </Flex>
@@ -384,22 +455,31 @@ export default function CustomPaletteEditor({
                   <chakra.ul listStyleType="none" fontSize="sm">
                     {failures[m].map((c) => (
                       <li key={`${c.fg}-${c.bg}`}>
-                        <LuX aria-hidden style={{ display: "inline", verticalAlign: "-2px" }} /> {pairLabel(c)}:{" "}
-                        {ratioText(c.ratio)}, needs {c.min}:1
+                        <LuX aria-hidden style={{ display: "inline", verticalAlign: "-2px" }} />{" "}
+                        {pairLabel(c)}: {ratioText(c.ratio)}, needs {c.min}:1
                       </li>
                     ))}
                   </chakra.ul>
                 </Box>
-              ) : null
+              ) : null,
             )}
           </>
         )}
       </Box>
 
       {confirming ? (
-        <Box role="alert" borderWidth="outline" borderColor="status.analysis.border" bg="status.analysis.subtle" color="status.analysis.fg" p={3} mt={3}>
+        <Box
+          role="alert"
+          borderWidth="outline"
+          borderColor="status.analysis.border"
+          bg="status.analysis.subtle"
+          color="status.analysis.fg"
+          p={3}
+          mt={3}
+        >
           <Text mb={2}>
-            Some text in this palette may be hard to read. You can still save it; the contrast is your call.
+            Some text in this palette may be hard to read. You can still save it; the contrast is
+            your call.
           </Text>
           <Button size="xs" onClick={save} loading={saving}>
             Save anyway
@@ -417,7 +497,13 @@ export default function CustomPaletteEditor({
           Reset
         </Button>
         {saved ? (
-          <Button size="sm" variant="outline" colorPalette="danger" onClick={onDelete} disabled={saving}>
+          <Button
+            size="sm"
+            variant="outline"
+            colorPalette="danger"
+            onClick={onDelete}
+            disabled={saving}
+          >
             Delete custom palette
           </Button>
         ) : null}

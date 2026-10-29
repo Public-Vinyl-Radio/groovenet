@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatSeconds, type GroovenetClient, type Playlist, type PlaylistTrackRef, type Track } from "@groovenet/client";
+import {
+  formatSeconds,
+  type GroovenetClient,
+  type Playlist,
+  type PlaylistTrackRef,
+  type Track,
+} from "@groovenet/client";
 import type { QueueEntry } from "@groovenet/player";
 import type { ActionId } from "./playerKeymapRegistry.js";
 import type { PlayerController } from "./remotePlayer.js";
 
-const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /** Match the web playlist timeline: last performance, otherwise creation, in local time. */
 export function playlistDate(playlist: Playlist): Date | null {
@@ -13,15 +19,25 @@ export function playlistDate(playlist: Playlist): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 export function playlistDuration(playlist: Playlist): string {
-  return playlist.total_duration_seconds == null ? "--:--" : formatSeconds(playlist.total_duration_seconds);
+  return playlist.total_duration_seconds == null
+    ? "--:--"
+    : formatSeconds(playlist.total_duration_seconds);
 }
 export function playlistGroups(playlists: Playlist[], query: string) {
-  const sorted = playlists.filter((playlist) => playlist.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-    .sort((a, b) => (playlistDate(b)?.getTime() ?? -Infinity) - (playlistDate(a)?.getTime() ?? -Infinity));
+  const sorted = playlists
+    .filter((playlist) =>
+      playlist.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+    )
+    .sort(
+      (a, b) =>
+        (playlistDate(b)?.getTime() ?? -Infinity) - (playlistDate(a)?.getTime() ?? -Infinity),
+    );
   const groups = new Map<string, { label: string; playlists: Playlist[] }>();
   for (const playlist of sorted) {
     const date = playlistDate(playlist);
-    const label = date ? date.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "UNDATED";
+    const label = date
+      ? date.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase()
+      : "UNDATED";
     if (!groups.has(label)) groups.set(label, { label, playlists: [] });
     groups.get(label)!.playlists.push(playlist);
   }
@@ -29,11 +45,23 @@ export function playlistGroups(playlists: Playlist[], query: string) {
 }
 
 /** No implicit availability acknowledgements: the remote controller applies the user's policy. */
-export async function queuePlaylist(control: PlayerController, playlist: Playlist, tracks: Track[], play: boolean, remote: boolean): Promise<void> {
+export async function queuePlaylist(
+  control: PlayerController,
+  playlist: Playlist,
+  tracks: Track[],
+  play: boolean,
+  remote: boolean,
+): Promise<void> {
   if (!tracks.length) throw new Error("No tracks in this playlist.");
-  if (!play) { await control.request("queue.add", { playlistId: String(playlist.id) }); return; }
+  if (!play) {
+    await control.request("queue.add", { playlistId: String(playlist.id) });
+    return;
+  }
   if (remote) {
-    await control.request("queue.replace", { entries: tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id })), play: true });
+    await control.request("queue.replace", {
+      entries: tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id })),
+      play: true,
+    });
     return;
   }
   // The local protocol has stop/remove/add, but no queue.clear or queue.replace.
@@ -45,7 +73,11 @@ export async function queuePlaylist(control: PlayerController, playlist: Playlis
   await control.request("play", { index: 0 });
 }
 
-export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueue: (playlist: Playlist, tracks: Track[], play: boolean) => Promise<void>) {
+export function usePlayerPlaylists(
+  api: GroovenetClient,
+  active: boolean,
+  enqueue: (playlist: Playlist, tracks: Track[], play: boolean) => Promise<void>,
+) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,9 +87,11 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
   const [opened, setOpened] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
   const [entries, setEntries] = useState<Array<{ ref: PlaylistTrackRef; track: Track | null }>>([]);
-  const tracks = entries.flatMap(entry => entry.track ?? []);
-  const missing = entries.filter(entry => !entry.track).map(entry => entry.ref);
-  const missingMessage = missing.length ? `Playlist contains unavailable tracks (${missing.length}/${entries.length}). Play/Enqueue disabled.` : "";
+  const tracks = entries.flatMap((entry) => entry.track ?? []);
+  const missing = entries.filter((entry) => !entry.track).map((entry) => entry.ref);
+  const missingMessage = missing.length
+    ? `Playlist contains unavailable tracks (${missing.length}/${entries.length}). Play/Enqueue disabled.`
+    : "";
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [message, setMessage] = useState("");
@@ -71,17 +105,31 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    setLoading(true); setError("");
-    void api.listPlaylists().then((result) => {
-      if (!cancelled) { setPlaylists(result); setLoading(false); }
-    }).catch((error: unknown) => {
-      if (!cancelled) { setError(errorText(error)); setLoading(false); }
-    });
-    return () => { cancelled = true; };
+    setLoading(true);
+    setError("");
+    void api
+      .listPlaylists()
+      .then((result) => {
+        if (!cancelled) {
+          setPlaylists(result);
+          setLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setError(errorText(error));
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [api, active]);
 
   useEffect(() => {
-    setEntries([]); setDetailError(""); setDetailLoading(false);
+    setEntries([]);
+    setDetailError("");
+    setDetailLoading(false);
     if (!active || !playlist || loading || error) return;
     let cancelled = false;
     setDetailLoading(true);
@@ -90,59 +138,144 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
       const refs = [...track_refs].sort((a, b) => a.position - b.position);
       const found = refs.length ? await api.batchGetTracks(refs) : [];
       const byRef = new Map(found.map((track) => [`${track.friend_id}:${track.track_id}`, track]));
-      const ordered = refs.map(ref => ({ ref, track: byRef.get(`${ref.friend_id}:${ref.track_id}`) ?? null }));
-      if (!cancelled) { setEntries(ordered); setDetailLoading(false); }
+      const ordered = refs.map((ref) => ({
+        ref,
+        track: byRef.get(`${ref.friend_id}:${ref.track_id}`) ?? null,
+      }));
+      if (!cancelled) {
+        setEntries(ordered);
+        setDetailLoading(false);
+      }
     })().catch((error: unknown) => {
-      if (!cancelled) { setDetailError(errorText(error)); setDetailLoading(false); }
+      if (!cancelled) {
+        setDetailError(errorText(error));
+        setDetailLoading(false);
+      }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [api, active, playlist, loading, error]);
 
   // Ignore action notices from a view/selection that has since been left.
-  useEffect(() => { generation.current++; setMessage(""); }, [active, playlist, opened]);
-  useEffect(() => { setIndex((index) => Math.min(index, Math.max(0, filtered.length - 1))); }, [filtered.length]);
+  useEffect(() => {
+    generation.current++;
+    setMessage("");
+  }, [active, playlist, opened]);
+  useEffect(() => {
+    setIndex((index) => Math.min(index, Math.max(0, filtered.length - 1)));
+  }, [filtered.length]);
 
   useEffect(() => {
-    if (!detailLoading && entries.length && trackIndex >= entries.length) setTrackIndex(entries.length - 1);
+    if (!detailLoading && entries.length && trackIndex >= entries.length)
+      setTrackIndex(entries.length - 1);
   }, [detailLoading, entries.length, trackIndex]);
 
   async function perform(play: boolean) {
     if (busyRef.current || !playlist || loading || error) return;
     if (detailLoading || detailError || missingMessage || !tracks.length) {
-      setMessage(detailError || missingMessage || (detailLoading ? "Loading playlist…" : "No tracks in this playlist.")); return;
+      setMessage(
+        detailError ||
+          missingMessage ||
+          (detailLoading ? "Loading playlist…" : "No tracks in this playlist."),
+      );
+      return;
     }
     const current = generation.current;
-    busyRef.current = true; setBusy(true); setMessage("");
+    busyRef.current = true;
+    setBusy(true);
+    setMessage("");
     try {
       await enqueue(playlist, tracks, play);
-      if (generation.current === current) setMessage(play ? `Playing ${playlist.name}` : `Added ${tracks.length} tracks to queue.`);
-    } catch (error) { if (generation.current === current) setMessage(errorText(error)); }
-    finally { busyRef.current = false; setBusy(false); }
+      if (generation.current === current)
+        setMessage(play ? `Playing ${playlist.name}` : `Added ${tracks.length} tracks to queue.`);
+    } catch (error) {
+      if (generation.current === current) setMessage(errorText(error));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
   function move(delta: number) {
     setEditing(false);
-    const clamp = (value: number) => Math.max(0, Math.min(Math.max(0, (opened ? entries.length : filtered.length) - 1), value + delta));
-    if (opened) setTrackIndex(clamp); else setIndex(clamp);
+    const clamp = (value: number) =>
+      Math.max(
+        0,
+        Math.min(Math.max(0, (opened ? entries.length : filtered.length) - 1), value + delta),
+      );
+    if (opened) setTrackIndex(clamp);
+    else setIndex(clamp);
   }
   function handle(id: ActionId): boolean {
     switch (id) {
-      case "playlists.filter": setOpened(false); setEditing(true); setMessage(""); return true;
-      case "input.submit": setEditing(false); return true;
+      case "playlists.filter":
+        setOpened(false);
+        setEditing(true);
+        setMessage("");
+        return true;
+      case "input.submit":
+        setEditing(false);
+        return true;
       case "input.cancel":
         if (editing) setEditing(false);
         else if (opened) setOpened(false);
-        else { setQuery(""); setIndex(0); }
-        setMessage(""); return true;
-      case "input.backspace": updateQuery(Array.from(query).slice(0, -1).join("")); return true;
-      case "list.up": move(editing ? 0 : -1); return true;
-      case "list.down": move(editing ? 0 : 1); return true;
-      case "nav.open": if (playlist) { setOpened(true); setTrackIndex(0); } return true;
-      case "list.select": void perform(true); return true;
-      case "queue.add": void perform(false); return true;
-      default: return false;
+        else {
+          setQuery("");
+          setIndex(0);
+        }
+        setMessage("");
+        return true;
+      case "input.backspace":
+        updateQuery(Array.from(query).slice(0, -1).join(""));
+        return true;
+      case "list.up":
+        move(editing ? 0 : -1);
+        return true;
+      case "list.down":
+        move(editing ? 0 : 1);
+        return true;
+      case "nav.open":
+        if (playlist) {
+          setOpened(true);
+          setTrackIndex(0);
+        }
+        return true;
+      case "list.select":
+        void perform(true);
+        return true;
+      case "queue.add":
+        void perform(false);
+        return true;
+      default:
+        return false;
     }
   }
-  function updateQuery(value: string | ((query: string) => string)) { setQuery(value); setIndex(0); setOpened(false); setMessage(""); }
-  return { playlists, groups, playlist, loading, error, query, updateQuery, editing, opened, selected: opened ? trackIndex : index, count: opened ? entries.length : filtered.length, tracks, entries, missingMessage, detailLoading, detailError, busy, message, handle };
+  function updateQuery(value: string | ((query: string) => string)) {
+    setQuery(value);
+    setIndex(0);
+    setOpened(false);
+    setMessage("");
+  }
+  return {
+    playlists,
+    groups,
+    playlist,
+    loading,
+    error,
+    query,
+    updateQuery,
+    editing,
+    opened,
+    selected: opened ? trackIndex : index,
+    count: opened ? entries.length : filtered.length,
+    tracks,
+    entries,
+    missingMessage,
+    detailLoading,
+    detailError,
+    busy,
+    message,
+    handle,
+  };
 }
 export type PlayerPlaylists = ReturnType<typeof usePlayerPlaylists>;

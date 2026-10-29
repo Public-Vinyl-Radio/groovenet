@@ -57,8 +57,7 @@ function buildTopTrackFallback(track: {
     album_thumbnail: track.album_thumbnail ?? undefined,
     audio_file_album_art_url: track.audio_file_album_art_url ?? undefined,
     local_audio_url: track.local_audio_url ?? undefined,
-    bpm:
-      typeof track.bpm === "number" ? String(track.bpm) : track.bpm ?? undefined,
+    bpm: typeof track.bpm === "number" ? String(track.bpm) : (track.bpm ?? undefined),
     key: track.key ?? undefined,
     star_rating: track.star_rating ?? undefined,
     styles: track.styles,
@@ -74,17 +73,19 @@ function SpinsPageContent() {
 
   const spinsQuery = useSpinsQuery(
     { friend_id: selectedFriendId ?? 0, limit: 50, offset: 0 },
-    { enabled: typeof selectedFriendId === "number" && selectedFriendId > 0 }
+    { enabled: typeof selectedFriendId === "number" && selectedFriendId > 0 },
   );
   const topTracksQuery = useSpinTopTracksQuery(
     { friend_id: selectedFriendId ?? 0, limit: 12, offset: 0 },
-    { enabled: typeof selectedFriendId === "number" && selectedFriendId > 0 }
+    { enabled: typeof selectedFriendId === "number" && selectedFriendId > 0 },
   );
   if (!isHydrated || !selectedFriendId) {
     return (
       <PageContainer size="standard">
         <PageHeader title="Vinyl Spins" />
-        <Flex justify="center" py={10}><Spinner /></Flex>
+        <Flex justify="center" py={10}>
+          <Spinner />
+        </Flex>
       </PageContainer>
     );
   }
@@ -109,11 +110,15 @@ function SpinsPageContent() {
             </HStack>
 
             {spinsQuery.isLoading ? (
-              <Flex justify="center" py={6}><Spinner size="sm" /></Flex>
+              <Flex justify="center" py={6}>
+                <Spinner size="sm" />
+              </Flex>
             ) : spinsQuery.spins.length === 0 ? (
               <EmptyState.Root size="sm">
                 <EmptyState.Content>
-                  <EmptyState.Indicator><FiDisc /></EmptyState.Indicator>
+                  <EmptyState.Indicator>
+                    <FiDisc />
+                  </EmptyState.Indicator>
                   <VStack textAlign="center">
                     <EmptyState.Title>No spins logged yet</EmptyState.Title>
                     <EmptyState.Description>
@@ -131,12 +136,7 @@ function SpinsPageContent() {
                     </Text>
                     <Box borderWidth="outline" borderColor="border.ink" boxShadow="md">
                       {day.items.map((item) => (
-                        <SpinRow
-                          key={item.session.id}
-                          item={item}
-                          showAlbum
-                          timeOnly
-                        />
+                        <SpinRow key={item.session.id} item={item} showAlbum timeOnly />
                       ))}
                     </Box>
                   </Box>
@@ -156,11 +156,15 @@ function SpinsPageContent() {
             </HStack>
 
             {topTracksQuery.isLoading ? (
-              <Flex justify="center" py={6}><Spinner size="sm" /></Flex>
+              <Flex justify="center" py={6}>
+                <Spinner size="sm" />
+              </Flex>
             ) : topTracksQuery.topTracks.length === 0 ? (
               <EmptyState.Root size="sm">
                 <EmptyState.Content>
-                  <EmptyState.Indicator><FiDisc /></EmptyState.Indicator>
+                  <EmptyState.Indicator>
+                    <FiDisc />
+                  </EmptyState.Indicator>
                   <VStack textAlign="center">
                     <EmptyState.Title>No top tracks yet</EmptyState.Title>
                     <EmptyState.Description>
@@ -181,10 +185,16 @@ function SpinsPageContent() {
                     buttons={<TrackActionsMenu track={buildTopTrackFallback(track)} />}
                     footer={
                       <Flex gap={1} align="center" flexWrap="wrap">
-                        <Badge colorPalette="accent" size="sm">#{index + 1}</Badge>
-                        <Badge variant="outline" size="sm">{track.play_count}× played</Badge>
+                        <Badge colorPalette="accent" size="sm">
+                          #{index + 1}
+                        </Badge>
+                        <Badge variant="outline" size="sm">
+                          {track.play_count}× played
+                        </Badge>
                         {track.position_snapshot && (
-                          <Badge variant="subtle" size="sm">{track.position_snapshot}</Badge>
+                          <Badge variant="subtle" size="sm">
+                            {track.position_snapshot}
+                          </Badge>
                         )}
                       </Flex>
                     }
@@ -204,7 +214,9 @@ export default function SpinsPage() {
     <Suspense
       fallback={
         <PageContainer size="standard">
-          <Flex justify="center" py={10}><Spinner /></Flex>
+          <Flex justify="center" py={10}>
+            <Spinner />
+          </Flex>
         </PageContainer>
       }
     >

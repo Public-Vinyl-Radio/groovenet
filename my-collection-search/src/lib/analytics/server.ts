@@ -2,11 +2,7 @@
 // client code: it pulls in posthog-node.
 
 import { readAnalyticsConfig } from "./config";
-import type {
-  EventSource,
-  ServerEventName,
-  ServerEventProperties,
-} from "./events";
+import type { EventSource, ServerEventName, ServerEventProperties } from "./events";
 import { noopProvider } from "./providers/noop";
 import { createPosthogServerProvider } from "./providers/posthog-server";
 import { safely, safelyAsync } from "./safe";
@@ -63,7 +59,7 @@ export const analytics = {
   track<E extends ServerEventName>(
     event: E,
     properties: ServerEventProperties<E>,
-    options: ServerTrackOptions = {}
+    options: ServerTrackOptions = {},
   ): void {
     safely(`track(${event})`, () => {
       const p = getProvider();

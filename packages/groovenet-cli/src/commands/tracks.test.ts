@@ -42,13 +42,17 @@ function run(...args: string[]) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api" });
-  mocks.Client.mockImplementation(function () { return mocks.client; });
+  mocks.Client.mockImplementation(function () {
+    return mocks.client;
+  });
   mocks.client.searchTracks.mockResolvedValue(result());
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("tracks search --mode", () => {
   it("forwards the mode", async () => {
@@ -65,7 +69,9 @@ describe("tracks search --mode", () => {
 
   it("leaves the mode unset by default", async () => {
     await run("blue", "--json");
-    expect(mocks.client.searchTracks).toHaveBeenCalledWith(expect.objectContaining({ mode: undefined }));
+    expect(mocks.client.searchTracks).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: undefined }),
+    );
     expect(mocks.printJson).toHaveBeenCalledWith(result());
   });
 
@@ -83,7 +89,17 @@ describe("tracks search --mode", () => {
 
 describe("tracks search filters (#412)", () => {
   it("forwards BPM, key and minimum rating", async () => {
-    await run("house", "--bpm-min", "120", "--bpm-max", "126.5", "--key", "A minor", "--rating", "4");
+    await run(
+      "house",
+      "--bpm-min",
+      "120",
+      "--bpm-max",
+      "126.5",
+      "--key",
+      "A minor",
+      "--rating",
+      "4",
+    );
     expect(mocks.client.searchTracks).toHaveBeenCalledWith({
       query: "house",
       limit: 20,

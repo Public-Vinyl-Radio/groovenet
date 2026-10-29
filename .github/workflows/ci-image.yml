@@ -23,7 +23,7 @@ on:
       - my-collection-search/package.json
   schedule:
     # Refresh moving Node/Ubuntu security updates outside routine test runs.
-    - cron: '23 5 * * 1'
+    - cron: "23 5 * * 1"
 
 permissions:
   contents: read

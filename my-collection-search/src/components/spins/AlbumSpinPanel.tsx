@@ -17,17 +17,13 @@ type Props = {
   albumTitle: string;
 };
 
-export default function AlbumSpinPanel({
-  releaseId,
-  friendId,
-  albumTitle,
-}: Props) {
+export default function AlbumSpinPanel({ releaseId, friendId, albumTitle }: Props) {
   const [open, setOpen] = React.useState(false);
 
   const spinsQuery = useAlbumSpins(releaseId, friendId);
   const topTracksQuery = useSpinTopTracksQuery(
     { friend_id: friendId, release_id: releaseId, limit: 3, offset: 0 },
-    { enabled: !!releaseId && !!friendId }
+    { enabled: !!releaseId && !!friendId },
   );
   // Only worth a line once some track has been played more than once.
   const mostPlayed = topTracksQuery.topTracks.some((track) => track.play_count > 1)
@@ -38,7 +34,11 @@ export default function AlbumSpinPanel({
     <Stack gap={3}>
       <SectionHeader
         title="Vinyl spins"
-        count={spinsQuery.isLoading ? undefined : formatSpinCount(summarizeSpinStats(spinsQuery.spins, ALBUM_SPINS_PAGE))}
+        count={
+          spinsQuery.isLoading
+            ? undefined
+            : formatSpinCount(summarizeSpinStats(spinsQuery.spins, ALBUM_SPINS_PAGE))
+        }
         description="Detected automatically or logged by hand."
       >
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
@@ -69,7 +69,9 @@ export default function AlbumSpinPanel({
         ) : spinsQuery.spins.length === 0 ? (
           <Flex align="center" gap={2} px={3} py={2.5}>
             <FiClock size={13} />
-            <Text fontSize="xs" color="fg.muted">No spins logged yet</Text>
+            <Text fontSize="xs" color="fg.muted">
+              No spins logged yet
+            </Text>
           </Flex>
         ) : (
           <Stack gap={0}>

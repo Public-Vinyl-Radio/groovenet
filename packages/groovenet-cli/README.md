@@ -92,18 +92,18 @@ mpv's separate artwork window.
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `config` | Manage CLI configuration (`api_base`, `api_key`) |
-| `tracks` | Search and manage tracks |
-| `albums` | Browse and manage albums |
-| `playlists` | Manage playlists |
-| `friends` | Manage the friends system |
-| `genres` | Find similar genres and reconcile track tags onto the taxonomy |
-| `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays |
-| `sets` | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
-| `player` | Start, control, and stop local headless playback through the player daemon |
-| `status` | One-line now-playing segment for tmux and status bars |
+| Command               | Description                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `config`              | Manage CLI configuration (`api_base`, `api_key`)                                     |
+| `tracks`              | Search and manage tracks                                                             |
+| `albums`              | Browse and manage albums                                                             |
+| `playlists`           | Manage playlists                                                                     |
+| `friends`             | Manage the friends system                                                            |
+| `genres`              | Find similar genres and reconcile track tags onto the taxonomy                       |
+| `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays            |
+| `sets`                | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
+| `player`              | Start, control, and stop local headless playback through the player daemon           |
+| `status`              | One-line now-playing segment for tmux and status bars                                |
 
 ### Local player
 

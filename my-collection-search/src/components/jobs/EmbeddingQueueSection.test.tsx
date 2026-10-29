@@ -123,13 +123,19 @@ describe("EmbeddingQueueSection", () => {
     await user.click(within(row).getByRole("button", { name: "Retry" }));
 
     await waitFor(() =>
-      expect(api.retryFailedEmbeddingJobs).toHaveBeenCalledWith(["aaaaaaaaaaaa"], expect.anything())
+      expect(api.retryFailedEmbeddingJobs).toHaveBeenCalledWith(
+        ["aaaaaaaaaaaa"],
+        expect.anything(),
+      ),
     );
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Retried 1 job" }));
   });
 
   it("retries every selected job via select-all and the bulk action", async () => {
-    api.retryFailedEmbeddingJobs.mockResolvedValue({ retried: ["aaaaaaaaaaaa", "bbbbbbbbbbbb"], not_found: [] });
+    api.retryFailedEmbeddingJobs.mockResolvedValue({
+      retried: ["aaaaaaaaaaaa", "bbbbbbbbbbbb"],
+      not_found: [],
+    });
     const { user } = await renderSection({
       ...BASE,
       failed_count: 2,
@@ -142,8 +148,8 @@ describe("EmbeddingQueueSection", () => {
     await waitFor(() =>
       expect(api.retryFailedEmbeddingJobs).toHaveBeenCalledWith(
         ["aaaaaaaaaaaa", "bbbbbbbbbbbb"],
-        expect.anything()
-      )
+        expect.anything(),
+      ),
     );
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Retried 2 jobs" }));
   });
@@ -161,8 +167,8 @@ describe("EmbeddingQueueSection", () => {
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Retry failed", description: "redis is gone" })
-      )
+        expect.objectContaining({ title: "Retry failed", description: "redis is gone" }),
+      ),
     );
   });
 
@@ -173,14 +179,18 @@ describe("EmbeddingQueueSection", () => {
       failed: [failedJob()],
     });
 
-    const button = screen.getByRole("button", { name: /Retry selected \(0\)/ }) as HTMLButtonElement;
+    const button = screen.getByRole("button", {
+      name: /Retry selected \(0\)/,
+    }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
 
   it("shows a loading spinner before the first response arrives", async () => {
     let resolveFetch!: (status: EmbeddingQueueStatusResponse) => void;
     api.fetchEmbeddingQueueStatus.mockReturnValue(
-      new Promise((resolve) => { resolveFetch = resolve; })
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
     );
 
     renderWithProviders(<EmbeddingQueueSection refetchInterval={false} />);
@@ -214,8 +224,8 @@ describe("EmbeddingQueueSection", () => {
         expect.objectContaining({
           title: "Retried 0 jobs",
           description: "1 entry were no longer in the failed list.",
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -232,8 +242,8 @@ describe("EmbeddingQueueSection", () => {
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: "2 entries were no longer in the failed list." })
-      )
+        expect.objectContaining({ description: "2 entries were no longer in the failed list." }),
+      ),
     );
   });
 
@@ -250,8 +260,8 @@ describe("EmbeddingQueueSection", () => {
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Retry failed", description: "redis is gone" })
-      )
+        expect.objectContaining({ title: "Retry failed", description: "redis is gone" }),
+      ),
     );
   });
 
@@ -269,7 +279,11 @@ describe("EmbeddingQueueSection", () => {
     await renderSection({
       ...BASE,
       failed_count: 1,
-      failed: [failedJob({ kind: "mystery" as unknown as EmbeddingQueueStatusResponse["failed"][number]["kind"] })],
+      failed: [
+        failedJob({
+          kind: "mystery" as unknown as EmbeddingQueueStatusResponse["failed"][number]["kind"],
+        }),
+      ],
     });
     expect(screen.getByText("mystery")).toBeTruthy();
   });

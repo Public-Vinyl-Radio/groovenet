@@ -25,7 +25,12 @@ const tracks = [
 
 vi.mock("@/hooks/useSearchResults", () => ({ useSearchResults: () => ({ playlistCounts: {} }) }));
 vi.mock("@/hooks/usePlaylistTrackIdsQuery", () => ({
-  usePlaylistTrackIdsQuery: () => ({ tracks: mocks.empty ? [] : refs, playlistName: "Set", isPending: mocks.pending, refetch: vi.fn() }),
+  usePlaylistTrackIdsQuery: () => ({
+    tracks: mocks.empty ? [] : refs,
+    playlistName: "Set",
+    isPending: mocks.pending,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock("@/hooks/usePlaylistTracksQuery", () => ({
   usePlaylistTracksQuery: () => ({ tracks, isPending: false }),
@@ -54,15 +59,25 @@ vi.mock("@/hooks/usePlaylistActions", () => ({
   }),
 }));
 vi.mock("@/hooks/usePlaylistSaveDialog", () => ({
-  usePlaylistSaveDialog: () => ({ Dialog: () => null, open: vi.fn(), saveExisting: mocks.saveExisting }),
+  usePlaylistSaveDialog: () => ({
+    Dialog: () => null,
+    open: vi.fn(),
+    saveExisting: mocks.saveExisting,
+  }),
 }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({ replacePlaylist: mocks.replacePlaylist, playlistLength: 0, ...mocks.player }),
+  usePlaylistPlayer: () => ({
+    replacePlaylist: mocks.replacePlaylist,
+    playlistLength: 0,
+    ...mocks.player,
+  }),
 }));
 vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: vi.fn() }) }));
 vi.mock("@/components/PlaylistStatsPanel", () => ({ default: () => null }));
 vi.mock("@/components/SetDetailsPanel", () => ({ default: () => null }));
-vi.mock("@/components/PlaylistActionsMenu", () => ({ default: () => <span data-testid="actions-menu" /> }));
+vi.mock("@/components/PlaylistActionsMenu", () => ({
+  default: () => <span data-testid="actions-menu" />,
+}));
 vi.mock("@/components/PlaylistItemMenu", () => ({ default: () => <button>item menu</button> }));
 vi.mock("@/components/PlaylistRecommendations", () => ({ default: () => null }));
 vi.mock("@/components/FriendSelectDialog", () => ({ default: () => null }));
@@ -139,7 +154,9 @@ describe("PlaylistViewer page header", () => {
   it("titles the page with the playlist name and links back to Playlists", async () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     expect(await screen.findByRole("heading", { level: 1, name: "Set" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Back to Playlists", hidden: true }).getAttribute("href")).toBe("/playlists");
+    expect(
+      screen.getByRole("link", { name: "Back to Playlists", hidden: true }).getAttribute("href"),
+    ).toBe("/playlists");
   });
 
   it("puts the actions menu in the phone header as well as beside the playtime on desktop", async () => {
@@ -161,8 +178,18 @@ describe("PlaylistViewer page header", () => {
   });
 
   it.each([
-    ["while loading", () => { mocks.pending = true; }],
-    ["when empty", () => { mocks.empty = true; }],
+    [
+      "while loading",
+      () => {
+        mocks.pending = true;
+      },
+    ],
+    [
+      "when empty",
+      () => {
+        mocks.empty = true;
+      },
+    ],
   ])("keeps the header and back link %s", async (_label, arrange) => {
     arrange();
     renderWithProviders(<PlaylistViewer playlistId={1} />);

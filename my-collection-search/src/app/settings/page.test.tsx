@@ -29,8 +29,12 @@ vi.mock("@/components/settings/BackupStatusSection", () => stub("backup status")
 vi.mock("@/components/settings/BackupPolicySettingsSection", () => stub("backup policy"));
 vi.mock("@/components/settings/GamdlSettingsSection", () => stub("gamdl"));
 vi.mock("@/components/settings/AiPromptSettingsSection", () => stub("ai prompt"));
-vi.mock("@/components/settings/DefaultLibrarySettingsSection", () => stub("default library section"));
-vi.mock("@/components/settings/SuggestionScopeSettingsSection", () => stub("suggestion scope section"));
+vi.mock("@/components/settings/DefaultLibrarySettingsSection", () =>
+  stub("default library section"),
+);
+vi.mock("@/components/settings/SuggestionScopeSettingsSection", () =>
+  stub("suggestion scope section"),
+);
 vi.mock("@/components/settings/AppearanceSettingsSection", () => stub("appearance section"));
 vi.mock("@/components/settings/AboutSection", () => stub("about"));
 vi.mock("@/components/settings/dialogs/DiscogsSyncDialog", () => stub("discogs dialog"));
@@ -99,7 +103,13 @@ describe("SettingsPage", () => {
 
     const tabs = screen.getAllByRole("tab", { hidden: true });
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual([
-      "false", "false", "true", "false", "false", "false", "false",
+      "false",
+      "false",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
     ]);
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, -1, 0, -1, -1, -1, -1]);
   });

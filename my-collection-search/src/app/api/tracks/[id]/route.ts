@@ -4,7 +4,7 @@ import { trackRepository } from "@/server/repositories/trackRepository";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const track_id = (await params).id;
@@ -13,7 +13,7 @@ export async function DELETE(
     if (!track_id || !friendIdRaw) {
       return NextResponse.json(
         { error: "Missing required parameters: track_id and friend_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,21 +29,15 @@ export async function DELETE(
     }
 
     return NextResponse.json(
-      trackDeleteResponseSchema.parse({ success: true, track_id, friend_id })
+      trackDeleteResponseSchema.parse({ success: true, track_id, friend_id }),
     );
   } catch (error) {
     console.error("Error soft-deleting track:", error);
-    return NextResponse.json(
-      { error: "Failed to delete track" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete track" }, { status: 500 });
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const track_id = (await params).id;
     const friendIdRaw = request.nextUrl.searchParams.get("friend_id")?.trim();
@@ -53,7 +47,7 @@ export async function GET(
         {
           error: "Missing required parameters: track_id and friend_id ",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,7 +58,7 @@ export async function GET(
 
     const track = await trackRepository.findTrackByTrackIdAndFriendIdWithLibraryFallback(
       track_id,
-      friend_id
+      friend_id,
     );
 
     if (!track) {
@@ -74,9 +68,6 @@ export async function GET(
     return NextResponse.json(track);
   } catch (error) {
     console.error("Error fetching track by id & friend_id:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch track" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch track" }, { status: 500 });
   }
 }

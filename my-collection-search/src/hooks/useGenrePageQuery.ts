@@ -11,7 +11,11 @@ export function useGenrePageQuery(slug: string, friendId: number | undefined) {
     queryFn: async () => {
       // Samples are retained by the API for other consumers; this page reads
       // entities through paginated searches and Zustand, never the query cache.
-      const { top_tracks: _tracks, top_albums: _albums, ...metadata } = await fetchGenrePage(slug, friendId);
+      const {
+        top_tracks: _tracks,
+        top_albums: _albums,
+        ...metadata
+      } = await fetchGenrePage(slug, friendId);
       return metadata;
     },
     enabled: Boolean(slug) && friendId !== undefined,

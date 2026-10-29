@@ -12,10 +12,13 @@ export async function GET() {
     const health = evaluateBackupHealth(backup, Date.now(), maxAgeHours);
     return NextResponse.json(
       { ...health, finished_at: backup?.finished_at, max_age_hours: maxAgeHours },
-      { status: health.healthy ? 200 : 503 }
+      { status: health.healthy ? 200 : 503 },
     );
   } catch (error) {
     console.error("Failed to evaluate backup health:", error);
-    return NextResponse.json({ status: "unhealthy", reason: "status-unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { status: "unhealthy", reason: "status-unavailable" },
+      { status: 503 },
+    );
   }
 }

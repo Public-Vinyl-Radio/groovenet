@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!parsed.success) {
       return NextResponse.json(
         { error: "invalid_result", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const derivation = await setDerivationService.report({

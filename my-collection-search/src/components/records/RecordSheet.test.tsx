@@ -12,7 +12,14 @@ function setup(width: number) {
   const onOpenChange = vi.fn();
   const onSave = vi.fn();
   const view = renderWithProviders(
-    <RecordSheet open onOpenChange={onOpenChange} title="Log care" saveLabel="Save" saving={false} onSave={onSave}>
+    <RecordSheet
+      open
+      onOpenChange={onOpenChange}
+      title="Log care"
+      saveLabel="Save"
+      saving={false}
+      onSave={onSave}
+    >
       <p>form body</p>
     </RecordSheet>,
   );

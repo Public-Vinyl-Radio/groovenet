@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid spin list query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     console.error("Error listing spin sessions:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to list spin sessions" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid spin payload", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json(
         { error: "Provide exactly one of side_keys or track_refs" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 

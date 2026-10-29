@@ -47,7 +47,7 @@ export async function createSpin(params: SpinCreateParams): Promise<SpinCreateRe
 }
 
 export async function listTopSpinTracks(
-  params: SpinTopTracksParams
+  params: SpinTopTracksParams,
 ): Promise<SpinTopTracksResponse> {
   const searchParams = new URLSearchParams();
   searchParams.append("friend_id", String(params.friend_id));
@@ -55,18 +55,15 @@ export async function listTopSpinTracks(
   if (typeof params.limit === "number") searchParams.append("limit", String(params.limit));
   if (typeof params.offset === "number") searchParams.append("offset", String(params.offset));
 
-  return await http<SpinTopTracksResponse>(
-    `/api/spins/top-tracks?${searchParams.toString()}`,
-    {
-      method: "GET",
-      cache: "no-store",
-    }
-  );
+  return await http<SpinTopTracksResponse>(`/api/spins/top-tracks?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
 }
 
 export async function updateSpin(
   id: number,
-  params: SpinUpdateParams
+  params: SpinUpdateParams,
 ): Promise<SpinUpdateResponse> {
   return await http<SpinUpdateResponse>(`/api/spins/${encodeURIComponent(String(id))}`, {
     method: "PATCH",
@@ -75,14 +72,11 @@ export async function updateSpin(
   });
 }
 
-export async function deleteSpin(
-  id: number,
-  friendId: number
-): Promise<SpinDeleteResponse> {
+export async function deleteSpin(id: number, friendId: number): Promise<SpinDeleteResponse> {
   return await http<SpinDeleteResponse>(
     `/api/spins/${encodeURIComponent(String(id))}?friend_id=${friendId}`,
     {
       method: "DELETE",
-    }
+    },
   );
 }

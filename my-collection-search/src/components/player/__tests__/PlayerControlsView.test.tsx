@@ -56,7 +56,9 @@ describe("PlayerControlsView — mini player", () => {
     ["Next", 48],
   ])("keeps %s at least 44px tall", (name, height) => {
     renderWithProviders(<PlayerControlsView {...baseProps} compact onQueueToggle={noop} />);
-    expect(cssOf(screen.getByRole("button", { name }))).toMatch(new RegExp(`height:\\s*${height}px`));
+    expect(cssOf(screen.getByRole("button", { name }))).toMatch(
+      new RegExp(`height:\\s*${height}px`),
+    );
   });
 
   it("has no close button: stop and clear live in the queue", () => {
@@ -70,7 +72,13 @@ describe("PlayerControlsView — mini player", () => {
     const onPause = vi.fn();
     const playNext = vi.fn();
     const { user, rerender } = renderWithProviders(
-      <PlayerControlsView {...baseProps} compact onQueueToggle={onQueueToggle} onPlay={onPlay} playNext={playNext} />
+      <PlayerControlsView
+        {...baseProps}
+        compact
+        onQueueToggle={onQueueToggle}
+        onPlay={onPlay}
+        playNext={playNext}
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "Play" }));
@@ -80,7 +88,13 @@ describe("PlayerControlsView — mini player", () => {
     expect(onQueueToggle).not.toHaveBeenCalled();
 
     rerender(
-      <PlayerControlsView {...baseProps} compact isPlaying onQueueToggle={onQueueToggle} onPause={onPause} />
+      <PlayerControlsView
+        {...baseProps}
+        compact
+        isPlaying
+        onQueueToggle={onQueueToggle}
+        onPause={onPause}
+      />,
     );
     await user.click(screen.getByRole("button", { name: "Pause" }));
     expect(onPause).toHaveBeenCalledTimes(1);
@@ -100,18 +114,24 @@ describe("PlayerControlsView — docked desktop bar", () => {
   const renderBar = (props: Partial<React.ComponentProps<typeof PlayerControlsView>> = {}) =>
     renderWithProviders(
       <PlaylistPlayerProvider>
-        <PlayerControlsView {...baseProps} compact={false} showVolumeControls onQueueToggle={noop} {...props} />
-      </PlaylistPlayerProvider>
+        <PlayerControlsView
+          {...baseProps}
+          compact={false}
+          showVolumeControls
+          onQueueToggle={noop}
+          {...props}
+        />
+      </PlaylistPlayerProvider>,
     );
 
   it("joins previous, play-pause and next in one transport strip", () => {
     renderBar({ canPrev: true });
     const strip = screen.getByRole("group", { name: "Transport" });
-    expect(within(strip).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
-      "Previous",
-      "Play",
-      "Next",
-    ]);
+    expect(
+      within(strip)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Previous", "Play", "Next"]);
     expect(cssOf(strip)).toMatch(/box-shadow:\s*var\(--chakra-shadows-sm\)/);
   });
 
@@ -121,7 +141,10 @@ describe("PlayerControlsView — docked desktop bar", () => {
   });
 
   it("hides the meta line once the queue has finished", () => {
-    renderBar({ isQueueFinished: true, currentTrack: { ...sampleTrack, position: "A1", bpm: "134", key: null } });
+    renderBar({
+      isQueueFinished: true,
+      currentTrack: { ...sampleTrack, position: "A1", bpm: "134", key: null },
+    });
     expect(screen.queryByText(/BPM/)).toBeNull();
   });
 
@@ -137,8 +160,14 @@ describe("PlayerControlsView — docked desktop bar", () => {
 
     rerender(
       <PlaylistPlayerProvider>
-        <PlayerControlsView {...baseProps} compact={false} showVolumeControls setVolume={setVolume} volume={0} />
-      </PlaylistPlayerProvider>
+        <PlayerControlsView
+          {...baseProps}
+          compact={false}
+          showVolumeControls
+          setVolume={setVolume}
+          volume={0}
+        />
+      </PlaylistPlayerProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Unmute" }));
     expect(setVolume).toHaveBeenLastCalledWith(0.8);
@@ -172,13 +201,11 @@ describe("PlayerControlsView — queue finished state", () => {
         currentTrack={sampleTrack}
         canNext={false}
         canPrev={false}
-      />
+      />,
     );
 
     expect(screen.getByText("Queue finished")).toBeTruthy();
-    expect(
-      screen.getByText(`${sampleTrack.title} — ${sampleTrack.artist}`)
-    ).toBeTruthy();
+    expect(screen.getByText(`${sampleTrack.title} — ${sampleTrack.artist}`)).toBeTruthy();
     const artwork = screen.getByRole("img");
     expect(artwork.getAttribute("src")).toBe(sampleTrack.audio_file_album_art_url);
   });
@@ -196,7 +223,7 @@ describe("PlayerControlsView — queue finished state", () => {
         canPrev={false}
         safeLen={3}
         onPlay={onPlay}
-      />
+      />,
     );
 
     const playButton = screen.getByRole("button", { name: "Play" });
@@ -218,7 +245,7 @@ describe("PlayerControlsView — queue finished state", () => {
           canNext={false}
           canPrev={false}
         />
-      </PlaylistPlayerProvider>
+      </PlaylistPlayerProvider>,
     );
 
     const title = screen.getByText("Queue finished");
@@ -234,7 +261,7 @@ describe("PlayerControlsView — queue finished state", () => {
         currentTrack={null}
         canNext={false}
         canPrev={false}
-      />
+      />,
     );
 
     expect(screen.getByText("Queue finished")).toBeTruthy();
@@ -252,7 +279,7 @@ describe("PlayerControlsView — no current track (not finished)", () => {
         safeLen={0}
         canPrev={false}
         canNext={false}
-      />
+      />,
     );
 
     expect(screen.getByText("No track playing")).toBeTruthy();
@@ -270,7 +297,7 @@ describe("PlayerControlsView — no current track (not finished)", () => {
           canPrev={false}
           canNext={false}
         />
-      </PlaylistPlayerProvider>
+      </PlaylistPlayerProvider>,
     );
 
     expect(screen.getByText("No track playing")).toBeTruthy();
@@ -281,12 +308,10 @@ describe("PlayerControlsView — no current track (not finished)", () => {
     renderWithProviders(
       <PlaylistPlayerProvider>
         <PlayerControlsView {...baseProps} compact={false} />
-      </PlaylistPlayerProvider>
+      </PlaylistPlayerProvider>,
     );
 
-    expect(
-      screen.getByRole("link", { name: sampleTrack.artist, hidden: true })
-    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: sampleTrack.artist, hidden: true })).toBeTruthy();
   });
 });
 
@@ -298,7 +323,7 @@ describe("PlayerControlsView — no artwork", () => {
       album_thumbnail: undefined,
     };
     renderWithProviders(
-      <PlayerControlsView {...baseProps} compact currentTrack={trackWithoutArt} />
+      <PlayerControlsView {...baseProps} compact currentTrack={trackWithoutArt} />,
     );
 
     expect(screen.queryByRole("img")).toBeNull();
@@ -309,11 +334,18 @@ describe("PlayerControlsView — Queue toggle and server volume", () => {
   it.each([true, false])("renders the Queue toggle (pressed: %s)", (active) => {
     renderWithProviders(
       <PlaylistPlayerProvider>
-        <PlayerControlsView {...baseProps} compact={false} isQueueOpen={active} onQueueToggle={noop} />
-      </PlaylistPlayerProvider>
+        <PlayerControlsView
+          {...baseProps}
+          compact={false}
+          isQueueOpen={active}
+          onQueueToggle={noop}
+        />
+      </PlaylistPlayerProvider>,
     );
 
-    expect(screen.getByRole("button", { name: "Queue" }).getAttribute("aria-pressed")).toBe(String(active));
+    expect(screen.getByRole("button", { name: "Queue" }).getAttribute("aria-pressed")).toBe(
+      String(active),
+    );
     expect(screen.queryByRole("button", { name: "AirPlay" })).toBeNull();
   });
 
@@ -322,8 +354,15 @@ describe("PlayerControlsView — Queue toggle and server volume", () => {
     const onVolumeCommit = vi.fn();
     const { user } = renderWithProviders(
       <PlaylistPlayerProvider>
-        <PlayerControlsView {...baseProps} compact={false} showVolumeControls serverMode setVolume={setVolume} onVolumeCommit={onVolumeCommit} />
-      </PlaylistPlayerProvider>
+        <PlayerControlsView
+          {...baseProps}
+          compact={false}
+          showVolumeControls
+          serverMode
+          setVolume={setVolume}
+          onVolumeCommit={onVolumeCommit}
+        />
+      </PlaylistPlayerProvider>,
     );
 
     // The slider shows from `lg`; jsdom renders the base breakpoint, so it can't take focus here.

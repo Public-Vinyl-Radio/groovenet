@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { buildKeymap, defaultKeymap, displayKeys, helpEntries, hintItems, hintLine, primaryKey, resolveAction } from "./playerKeymap.js";
+import {
+  buildKeymap,
+  defaultKeymap,
+  displayKeys,
+  helpEntries,
+  hintItems,
+  hintLine,
+  primaryKey,
+  resolveAction,
+} from "./playerKeymap.js";
 import { ACTIONS, KEYMAP_VIEWS, type ActionDef } from "./playerKeymapRegistry.js";
 import { parseKey } from "./playerKeyspec.js";
 
-const bindings = (keymap: ReturnType<typeof buildKeymap>, id: string) => keymap.actions.find((action) => action.def.id === id)!.bindings;
+const bindings = (keymap: ReturnType<typeof buildKeymap>, id: string) =>
+  keymap.actions.find((action) => action.def.id === id)!.bindings;
 
 describe("keymap registry", () => {
   it("has unique ids, descriptions, views and parseable, conflict-free defaults", () => {
@@ -14,7 +24,12 @@ describe("keymap registry", () => {
       for (const view of action.views) expect(KEYMAP_VIEWS).toContain(view);
     }
     expect(defaultKeymap.problems).toEqual([]);
-    for (const action of ACTIONS) for (const text of [...action.keys, ...Object.values((action as ActionDef).viewKeys ?? {}).flat()]) expect(parseKey(text).ok, `${action.id}: ${text}`).toBe(true);
+    for (const action of ACTIONS)
+      for (const text of [
+        ...action.keys,
+        ...Object.values((action as ActionDef).viewKeys ?? {}).flat(),
+      ])
+        expect(parseKey(text).ok, `${action.id}: ${text}`).toBe(true);
     // Throws if any default is unparseable; any default conflict would be an override-free "problem" and is not reported, so check directly.
     for (const view of KEYMAP_VIEWS) {
       const seen = new Map<string, string>();
@@ -30,7 +45,19 @@ describe("keymap registry", () => {
 
   it("registers the makeover actions", () => {
     const ids = ACTIONS.map((action) => action.id);
-    for (const id of ["play-on.open", "queue.move-up", "queue.move-down", "search.scope", "search.mode", "nav.open", "app.debug", "view.search", "transport.toggle", "transport.next"]) expect(ids).toContain(id);
+    for (const id of [
+      "play-on.open",
+      "queue.move-up",
+      "queue.move-down",
+      "search.scope",
+      "search.mode",
+      "nav.open",
+      "app.debug",
+      "view.search",
+      "transport.toggle",
+      "transport.next",
+    ])
+      expect(ids).toContain(id);
     expect(displayKeys(defaultKeymap, "play-on.open", "queue")).toBe("o");
     expect(displayKeys(defaultKeymap, "search.mode", "search")).toBe("S-Tab");
     expect(displayKeys(defaultKeymap, "search.scope", "input")).toBe("Tab");
@@ -39,19 +66,27 @@ describe("keymap registry", () => {
 
   it("resolves → per view: open in lists of albums and playlists, seek elsewhere", () => {
     const right = { rightArrow: true };
-    const at = (view: "queue" | "search" | "playlists" | "devices") => resolveAction(defaultKeymap, { view, remote: false }, "", right);
+    const at = (view: "queue" | "search" | "playlists" | "devices") =>
+      resolveAction(defaultKeymap, { view, remote: false }, "", right);
     expect(at("queue")).toBe("transport.seek-forward");
     expect(at("devices")).toBe("transport.seek-forward");
     expect(at("search")).toBe("nav.open");
     expect(at("playlists")).toBe("nav.open");
-    expect(resolveAction(defaultKeymap, { view: "search", remote: false }, ">", {})).toBe("transport.seek-forward");
-    expect(resolveAction(defaultKeymap, { view: "playlists", remote: false }, "<", {})).toBe("transport.seek-back");
-    expect(resolveAction(defaultKeymap, { view: "queue", remote: false }, "", { leftArrow: true })).toBe("transport.seek-back");
+    expect(resolveAction(defaultKeymap, { view: "search", remote: false }, ">", {})).toBe(
+      "transport.seek-forward",
+    );
+    expect(resolveAction(defaultKeymap, { view: "playlists", remote: false }, "<", {})).toBe(
+      "transport.seek-back",
+    );
+    expect(
+      resolveAction(defaultKeymap, { view: "queue", remote: false }, "", { leftArrow: true }),
+    ).toBe("transport.seek-back");
   });
 });
 
 describe("resolveAction", () => {
-  const at = (view: "queue" | "devices" | "input", input: string, key = {}, remote = false) => resolveAction(defaultKeymap, { view, remote }, input, key);
+  const at = (view: "queue" | "devices" | "input", input: string, key = {}, remote = false) =>
+    resolveAction(defaultKeymap, { view, remote }, input, key);
 
   it("resolves today's defaults", () => {
     expect(at("queue", " ")).toBe("transport.toggle");
@@ -94,14 +129,30 @@ describe("overrides", () => {
     const keymap = buildKeymap({ "transport.next": ["N", "ctrl+right"] });
     expect(keymap.problems).toEqual([]);
     expect(resolveAction(keymap, { view: "queue", remote: false }, "n", {})).toBeNull();
-    expect(resolveAction(keymap, { view: "queue", remote: false }, "N", { shift: true })).toBe("transport.next");
-    expect(resolveAction(keymap, { view: "search", remote: false }, "", { rightArrow: true, ctrl: true })).toBe("transport.next");
-    expect(keymap.actions.find((action) => action.def.id === "transport.next")!.overridden).toBe(true);
-    expect(keymap.actions.find((action) => action.def.id === "transport.prev")!.overridden).toBe(false);
+    expect(resolveAction(keymap, { view: "queue", remote: false }, "N", { shift: true })).toBe(
+      "transport.next",
+    );
+    expect(
+      resolveAction(keymap, { view: "search", remote: false }, "", {
+        rightArrow: true,
+        ctrl: true,
+      }),
+    ).toBe("transport.next");
+    expect(keymap.actions.find((action) => action.def.id === "transport.next")!.overridden).toBe(
+      true,
+    );
+    expect(keymap.actions.find((action) => action.def.id === "transport.prev")!.overridden).toBe(
+      false,
+    );
   });
 
   it("accepts a single string, de-duplicates, and lets an empty list unbind", () => {
-    const keymap = buildKeymap({ "transport.next": "m", "app.quit": ["x", "x"], "app.debug": [], "queue.remove": [] });
+    const keymap = buildKeymap({
+      "transport.next": "m",
+      "app.quit": ["x", "x"],
+      "app.debug": [],
+      "queue.remove": [],
+    });
     expect(keymap.problems).toEqual([]);
     expect(bindings(keymap, "transport.next")[0]!.keys).toEqual(["m"]);
     expect(bindings(keymap, "app.quit")[0]!.keys).toEqual(["x"]);
@@ -118,12 +169,21 @@ describe("overrides", () => {
 
   it("reports unknown actions and keeps everything else", () => {
     const keymap = buildKeymap({ "transport.nxt": ["n"], "transport.prev": ["b"] });
-    expect(keymap.problems).toEqual([{ kind: "unknown-action", actions: ["transport.nxt"], message: expect.stringContaining('Unknown action "transport.nxt"') }]);
+    expect(keymap.problems).toEqual([
+      {
+        kind: "unknown-action",
+        actions: ["transport.nxt"],
+        message: expect.stringContaining('Unknown action "transport.nxt"'),
+      },
+    ]);
     expect(bindings(keymap, "transport.prev")[0]!.keys).toEqual(["b"]);
   });
 
   it("falls back to defaults for an action with an unparseable key, and names each bad key", () => {
-    const keymap = buildKeymap({ "transport.next": ["m", "bogus", "alt+x"], "transport.prev": ["b"] });
+    const keymap = buildKeymap({
+      "transport.next": ["m", "bogus", "alt+x"],
+      "transport.prev": ["b"],
+    });
     expect(keymap.problems.map((problem) => problem.kind)).toEqual(["bad-key", "bad-key"]);
     expect(keymap.problems[0]!.message).toContain("transport.next");
     expect(keymap.problems[0]!.message).toContain("bogus");
@@ -133,8 +193,18 @@ describe("overrides", () => {
   });
 
   it("rejects values that are not keys", () => {
-    const keymap = buildKeymap({ "transport.next": 5, "transport.prev": ["b", 7], "app.quit": { a: 1 }, "list.up": null });
-    expect(keymap.problems.map((problem) => problem.kind)).toEqual(["bad-value", "bad-value", "bad-value", "bad-value"]);
+    const keymap = buildKeymap({
+      "transport.next": 5,
+      "transport.prev": ["b", 7],
+      "app.quit": { a: 1 },
+      "list.up": null,
+    });
+    expect(keymap.problems.map((problem) => problem.kind)).toEqual([
+      "bad-value",
+      "bad-value",
+      "bad-value",
+      "bad-value",
+    ]);
     expect(keymap.problems[0]!.message).toContain("5");
     expect(bindings(keymap, "transport.next")[0]!.keys).toEqual(["n"]);
   });
@@ -154,7 +224,9 @@ describe("overrides", () => {
     const keymap = buildKeymap({ "transport.next": ["p"] });
     expect(keymap.problems).toHaveLength(1);
     expect(keymap.problems[0]).toMatchObject({ kind: "conflict", actions: ["transport.next"] });
-    expect(keymap.problems[0]!.message).toContain('"p" is bound to transport.next and transport.prev');
+    expect(keymap.problems[0]!.message).toContain(
+      '"p" is bound to transport.next and transport.prev',
+    );
     expect(keymap.problems[0]!.message).toContain("queue, search, playlists, devices");
     expect(bindings(keymap, "transport.next")[0]!.keys).toEqual(["n"]);
     expect(resolveAction(keymap, { view: "queue", remote: false }, "p", {})).toBe("transport.prev");
@@ -183,15 +255,20 @@ describe("overrides", () => {
 
   it("repeats until reverting one override does not expose another conflict", () => {
     // next->p collides with prev's default; reverting next to n then collides with prev->n.
-    const keymap = buildKeymap({ "transport.next": ["p"], "transport.prev": ["n"], "app.help": ["p"] });
+    const keymap = buildKeymap({
+      "transport.next": ["p"],
+      "transport.prev": ["n"],
+      "app.help": ["p"],
+    });
     expect(keymap.problems.length).toBeGreaterThan(0);
     for (const view of KEYMAP_VIEWS) {
       const seen = new Set<string>();
-      for (const action of keymap.actions) for (const spec of action.specs[view] ?? []) {
-        const key = `${spec.ctrl}${spec.shift}${spec.name}`;
-        expect(seen.has(key)).toBe(false);
-        seen.add(key);
-      }
+      for (const action of keymap.actions)
+        for (const spec of action.specs[view] ?? []) {
+          const key = `${spec.ctrl}${spec.shift}${spec.name}`;
+          expect(seen.has(key)).toBe(false);
+          seen.add(key);
+        }
     }
   });
 
@@ -204,10 +281,16 @@ describe("overrides", () => {
 });
 
 describe("hints", () => {
-  const items = (keymap = defaultKeymap, view: "queue" | "input" | "devices" = "queue", remote = false) => hintItems(keymap, view, { remote });
+  const items = (
+    keymap = defaultKeymap,
+    view: "queue" | "input" | "devices" = "queue",
+    remote = false,
+  ) => hintItems(keymap, view, { remote });
 
   it("builds the hint line from the keymap, merging paired actions", () => {
-    expect(hintLine(items())).toBe("↑/↓ select · Enter add/play · r play · x remove · [/] move · Space pause · n/p skip · ←/→ seek · +/- volume · / search · l playlists · u queue · d devices · o play on · ? help · q quit");
+    expect(hintLine(items())).toBe(
+      "↑/↓ select · Enter add/play · r play · x remove · [/] move · Space pause · n/p skip · ←/→ seek · +/- volume · / search · l playlists · u queue · d devices · o play on · ? help · q quit",
+    );
   });
 
   it("only hints what applies in the view", () => {
@@ -216,7 +299,12 @@ describe("hints", () => {
   });
 
   it("shows a rebound key's new binding and drops unbound actions", () => {
-    const keymap = buildKeymap({ "transport.next": ["ctrl+n"], "transport.toggle": ["enter"], "list.select": ["ctrl+j"], "app.quit": [] });
+    const keymap = buildKeymap({
+      "transport.next": ["ctrl+n"],
+      "transport.toggle": ["enter"],
+      "list.select": ["ctrl+j"],
+      "app.quit": [],
+    });
     const line = hintLine(items(keymap));
     expect(line).toContain("^N/p skip");
     expect(line).toContain("Enter pause");
@@ -236,13 +324,18 @@ describe("hints", () => {
 
   it("skips an action with no keys in the chosen view of a remote-only list", () => {
     const keymap = buildKeymap({ "transport.stop": [] });
-    expect(hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))).not.toContain("stop");
+    expect(hintLine(hintItems(keymap, null, { remote: true, remoteOnly: true }))).not.toContain(
+      "stop",
+    );
   });
 });
 
 describe("frame helpers", () => {
   it("leaves omitted actions out of the hints", () => {
-    const hints = hintItems(defaultKeymap, "queue", { remote: false, omit: ["view.search", "app.quit"] });
+    const hints = hintItems(defaultKeymap, "queue", {
+      remote: false,
+      omit: ["view.search", "app.quit"],
+    });
     expect(hintLine(hints)).not.toContain("/ search");
     expect(hintLine(hints)).not.toContain("q quit");
     expect(hintLine(hints)).toContain("l playlists");
@@ -258,7 +351,14 @@ describe("frame helpers", () => {
     const local = helpEntries(defaultKeymap, "queue", { remote: false });
     expect(local).toContainEqual({ keys: "Space", description: "Pause or resume" });
     expect(local.some((entry) => entry.description.startsWith("Stop playback"))).toBe(false);
-    expect(helpEntries(defaultKeymap, "queue", { remote: true })).toContainEqual({ keys: "s", description: "Stop playback (the server player is kept)" });
-    expect(helpEntries(buildKeymap({ "app.help": [] }), "queue", { remote: false }).some((entry) => entry.description.includes("key list"))).toBe(false);
+    expect(helpEntries(defaultKeymap, "queue", { remote: true })).toContainEqual({
+      keys: "s",
+      description: "Stop playback (the server player is kept)",
+    });
+    expect(
+      helpEntries(buildKeymap({ "app.help": [] }), "queue", { remote: false }).some((entry) =>
+        entry.description.includes("key list"),
+      ),
+    ).toBe(false);
   });
 });

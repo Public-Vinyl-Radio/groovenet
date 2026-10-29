@@ -49,7 +49,9 @@ describe("useEmbeddingQueueQuery", () => {
   it("fetches and returns the queue status", async () => {
     api.fetchEmbeddingQueueStatus.mockResolvedValue(STATUS);
     const { wrapper } = setup();
-    const { result } = renderHook(() => useEmbeddingQueueQuery({ refetchInterval: false }), { wrapper });
+    const { result } = renderHook(() => useEmbeddingQueueQuery({ refetchInterval: false }), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.data).toEqual(STATUS));
   });
@@ -65,7 +67,9 @@ describe("useEmbeddingQueueQuery", () => {
   it("does not fetch while disabled", async () => {
     api.fetchEmbeddingQueueStatus.mockResolvedValue(STATUS);
     const { wrapper } = setup();
-    renderHook(() => useEmbeddingQueueQuery({ enabled: false, refetchInterval: false }), { wrapper });
+    renderHook(() => useEmbeddingQueueQuery({ enabled: false, refetchInterval: false }), {
+      wrapper,
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(api.fetchEmbeddingQueueStatus).not.toHaveBeenCalled();

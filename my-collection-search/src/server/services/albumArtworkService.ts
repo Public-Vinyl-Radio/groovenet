@@ -11,11 +11,7 @@ import {
 } from "@/server/repositories/albumRepository";
 import { trackAudioMetadataService } from "@/server/services/trackAudioMetadataService";
 import { saveAlbumCover } from "@/lib/fileUpload";
-import {
-  ARTWORK_MATCH_MAX_DISTANCE,
-  hammingDistance,
-  perceptualHash,
-} from "@/lib/imageHash";
+import { ARTWORK_MATCH_MAX_DISTANCE, hammingDistance, perceptualHash } from "@/lib/imageHash";
 
 /**
  * Album artwork: choosing between Discogs, Apple Music (art embedded in the
@@ -35,7 +31,7 @@ const MAX_REMOTE_BYTES = 15 * 1024 * 1024;
 export class AlbumArtworkError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
   ) {
     super(message);
     this.name = "AlbumArtworkError";
@@ -124,10 +120,7 @@ export class AlbumArtworkService {
    * Extracts the embedded cover from the album's downloaded audio and caches
    * it, without changing what the album displays.
    */
-  async previewAppleMusicArt(
-    releaseId: string,
-    friendId: number
-  ): Promise<AppleMusicArtPreview> {
+  async previewAppleMusicArt(releaseId: string, friendId: number): Promise<AppleMusicArtPreview> {
     await this.requireAlbum(releaseId, friendId);
     const { cover, trackId } = await this.extractAppleMusicCover(releaseId, friendId);
     return { url: cover.url, width: cover.width, height: cover.height, track_id: trackId };
@@ -136,7 +129,7 @@ export class AlbumArtworkService {
   async apply(
     releaseId: string,
     friendId: number,
-    source: "apple_music" | "discogs"
+    source: "apple_music" | "discogs",
   ): Promise<AlbumArtworkState> {
     const album = await this.requireAlbum(releaseId, friendId);
 
@@ -168,7 +161,7 @@ export class AlbumArtworkService {
     } catch (error) {
       throw new AlbumArtworkError(
         error instanceof Error ? error.message : "Failed to save cover art",
-        400
+        400,
       );
     }
     await albumRepository.setAlbumDisplayArt(releaseId, friendId, url, "upload");
@@ -191,7 +184,7 @@ export class AlbumArtworkService {
       status: AlbumArtMatchStatus,
       distance: number | null,
       applied: boolean,
-      appleUrl: string | null
+      appleUrl: string | null,
     ): AlbumArtMatchResult => ({
       release_id: releaseId,
       friend_id: friendId,
@@ -263,7 +256,7 @@ export class AlbumArtworkService {
 
   private async extractAppleMusicCover(
     releaseId: string,
-    friendId: number
+    friendId: number,
   ): Promise<{ cover: CachedCover; trackId: string }> {
     const tracks = await albumRepository.getTracksForReleaseWithAudio(friendId, releaseId);
     for (const track of tracks) {
@@ -275,14 +268,14 @@ export class AlbumArtworkService {
       if (pic?.index === undefined) continue;
 
       const image = await trackAudioMetadataService.extractAttachedPic(audioPath, pic.index);
-      const cover = await this.cacheCover(image, "apple", { release_id: releaseId, friend_id: friendId });
+      const cover = await this.cacheCover(image, "apple", {
+        release_id: releaseId,
+        friend_id: friendId,
+      });
       await albumRepository.setAppleMusicArtUrl(releaseId, friendId, cover.url);
       return { cover, trackId: track.track_id };
     }
-    throw new AlbumArtworkError(
-      "No downloaded track on this album has embedded cover art",
-      404
-    );
+    throw new AlbumArtworkError("No downloaded track on this album has embedded cover art", 404);
   }
 
   /**
@@ -293,7 +286,7 @@ export class AlbumArtworkService {
   private async cacheCover(
     image: Buffer,
     prefix: "apple" | "discogs",
-    album: Pick<AlbumArtworkRow, "release_id" | "friend_id">
+    album: Pick<AlbumArtworkRow, "release_id" | "friend_id">,
   ): Promise<CachedCover> {
     let encoded: { data: Buffer; info: OutputInfo };
     try {
@@ -339,7 +332,7 @@ export class AlbumArtworkService {
     } catch (error) {
       throw new AlbumArtworkError(
         `Could not download artwork: ${error instanceof Error ? error.message : String(error)}`,
-        502
+        502,
       );
     }
     if (!response.ok) {

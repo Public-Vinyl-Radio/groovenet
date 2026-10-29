@@ -349,7 +349,13 @@ describe("extractTracksFromAlbum()", () => {
   it("parses duration string when duration_seconds is absent", () => {
     const album = makeAlbum({
       tracklist: [
-        { position: "A1", title: "T", duration: "3:00", artists: [], duration_seconds: undefined as unknown as number },
+        {
+          position: "A1",
+          title: "T",
+          duration: "3:00",
+          artists: [],
+          duration_seconds: undefined as unknown as number,
+        },
       ],
     });
     const tracks = mod.extractTracksFromAlbum(album, "owner");

@@ -16,18 +16,18 @@ export const shorthands = undefined;
  */
 export const up = (pgm) => {
   // Drop the existing foreign key constraint
-  pgm.dropConstraint('albums', 'albums_friend_id_fkey', {
-    ifExists: true
+  pgm.dropConstraint("albums", "albums_friend_id_fkey", {
+    ifExists: true,
   });
 
   // Re-add the foreign key constraint with CASCADE delete
-  pgm.addConstraint('albums', 'albums_friend_id_fkey', {
+  pgm.addConstraint("albums", "albums_friend_id_fkey", {
     foreignKeys: {
-      columns: 'friend_id',
-      references: 'friends(id)',
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-    }
+      columns: "friend_id",
+      references: "friends(id)",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    },
   });
 };
 
@@ -38,15 +38,15 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
   // Drop the CASCADE constraint
-  pgm.dropConstraint('albums', 'albums_friend_id_fkey', {
-    ifExists: true
+  pgm.dropConstraint("albums", "albums_friend_id_fkey", {
+    ifExists: true,
   });
 
   // Re-add the original constraint without CASCADE
-  pgm.addConstraint('albums', 'albums_friend_id_fkey', {
+  pgm.addConstraint("albums", "albums_friend_id_fkey", {
     foreignKeys: {
-      columns: 'friend_id',
-      references: 'friends(id)'
-    }
+      columns: "friend_id",
+      references: "friends(id)",
+    },
   });
 };

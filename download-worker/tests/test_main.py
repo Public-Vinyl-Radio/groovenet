@@ -14,6 +14,7 @@ def handlers(monkeypatch):
         def handler(job):
             calls.append((name, job))
             return {"status": name}
+
         return handler
 
     names = [
@@ -56,9 +57,7 @@ class TestNormalizeJobType:
     def test_defaults_to_download(self):
         assert worker_main.normalize_job_type(job()) == "download"
 
-    @pytest.mark.parametrize(
-        "raw", ["FIX-DURATION", "  fix-duration  ", "Fix-Duration"]
-    )
+    @pytest.mark.parametrize("raw", ["FIX-DURATION", "  fix-duration  ", "Fix-Duration"])
     def test_trims_and_lowercases(self, raw):
         assert worker_main.normalize_job_type(job(job_type=raw)) == "fix-duration"
 
@@ -98,9 +97,7 @@ class TestSelectHandler:
         worker_main.select_handler(job(job_type="not-a-real-type"))(job())
         assert handlers[0][0] == "download_audio"
 
-    def test_local_audio_without_remote_urls_is_analyzed_in_place(
-        self, handlers, monkeypatch
-    ):
+    def test_local_audio_without_remote_urls_is_analyzed_in_place(self, handlers, monkeypatch):
         monkeypatch.setattr(worker_main, "has_download_urls", lambda j: False)
 
         worker_main.select_handler(job(local_audio_url="/audio/t1.flac"))(job())
@@ -110,18 +107,14 @@ class TestSelectHandler:
     def test_local_audio_with_remote_urls_still_downloads(self, handlers, monkeypatch):
         monkeypatch.setattr(worker_main, "has_download_urls", lambda j: True)
 
-        worker_main.select_handler(
-            job(local_audio_url="/audio/t1.flac", youtube_url="https://y.test/x")
-        )(job())
+        worker_main.select_handler(job(local_audio_url="/audio/t1.flac", youtube_url="https://y.test/x"))(job())
 
         assert handlers[0][0] == "download_audio"
 
     def test_explicit_job_type_wins_over_local_audio(self, handlers, monkeypatch):
         monkeypatch.setattr(worker_main, "has_download_urls", lambda j: False)
 
-        worker_main.select_handler(
-            job(job_type="fix-duration", local_audio_url="/audio/t1.flac")
-        )(job())
+        worker_main.select_handler(job(job_type="fix-duration", local_audio_url="/audio/t1.flac"))(job())
 
         assert handlers[0][0] == "fix_duration"
 

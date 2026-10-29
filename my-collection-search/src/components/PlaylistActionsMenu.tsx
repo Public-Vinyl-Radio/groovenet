@@ -4,15 +4,7 @@ import React, { useState } from "react";
 import { Button, Menu, Box, Flex } from "@chakra-ui/react";
 import { menuDivider } from "@/components/ui/action-menu-primitives";
 import PlaylistActionsModal from "@/components/PlaylistActionsModal";
-import {
-  FiCopy,
-  FiEdit,
-  FiLayers,
-  FiMoreVertical,
-  FiPlay,
-  FiSave,
-  FiZap,
-} from "react-icons/fi";
+import { FiCopy, FiEdit, FiLayers, FiMoreVertical, FiPlay, FiSave, FiZap } from "react-icons/fi";
 import { GiTakeMyMoney } from "react-icons/gi";
 import { PiDna, PiFilePdf } from "react-icons/pi";
 import { LuFileJson, LuFileInput } from "react-icons/lu";
@@ -36,7 +28,6 @@ export interface PlaylistActionsMenuProps {
   /** The strip's catalogue line on phones: `tracks · total time`. */
   summary?: string;
 }
-
 
 export default function PlaylistActionsMenu({
   disabled,
@@ -95,7 +86,9 @@ export default function PlaylistActionsMenu({
               disabled: isCohesiveBlocksSorting,
               onClick: onSortCohesiveBlocks,
             },
-            ...(onOpenRecommendations ? [{ label: "AI recommendations", onClick: onOpenRecommendations }] : []),
+            ...(onOpenRecommendations
+              ? [{ label: "AI recommendations", onClick: onOpenRecommendations }]
+              : []),
           ]}
           exportImport={[
             { label: "Export JSON", onClick: onExportJson },
@@ -131,7 +124,11 @@ export default function PlaylistActionsMenu({
               <Menu.Item value="sort-genetic" onSelect={onSortGenetic} disabled={isGeneticSorting}>
                 <PiDna /> {isGeneticSorting ? "Sorting..." : "Genetic Order"}
               </Menu.Item>
-              <Menu.Item value="sort-cohesive-blocks" onSelect={onSortCohesiveBlocks} disabled={isCohesiveBlocksSorting}>
+              <Menu.Item
+                value="sort-cohesive-blocks"
+                onSelect={onSortCohesiveBlocks}
+                disabled={isCohesiveBlocksSorting}
+              >
                 <FiLayers /> {isCohesiveBlocksSorting ? "Sorting..." : "Cohesive Blocks"}
               </Menu.Item>
               {onOpenRecommendations && (

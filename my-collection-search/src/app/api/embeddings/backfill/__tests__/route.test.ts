@@ -48,7 +48,7 @@ describe("POST /api/embeddings/backfill", () => {
     expect(repo.listTracksForBackfill).toHaveBeenCalledTimes(3);
     for (const type of ["identity", "audio_vibe", "context"]) {
       expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
-        expect.objectContaining({ type, force: false })
+        expect.objectContaining({ type, force: false }),
       );
     }
   });
@@ -77,7 +77,7 @@ describe("POST /api/embeddings/backfill", () => {
 
     expect(repo.listTracksForBackfill).toHaveBeenCalledTimes(1);
     expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "identity" })
+      expect.objectContaining({ type: "identity" }),
     );
   });
 
@@ -85,19 +85,19 @@ describe("POST /api/embeddings/backfill", () => {
     await POST(post({ scope: "all" }));
 
     expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
-      expect.objectContaining({ force: true })
+      expect.objectContaining({ force: true }),
     );
   });
 
   it("scope=release only fills what's missing unless force is set", async () => {
     await POST(post({ scope: "release", release_id: "rel-1" }));
     expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
-      expect.objectContaining({ release_id: "rel-1", force: false })
+      expect.objectContaining({ release_id: "rel-1", force: false }),
     );
 
     await POST(post({ scope: "release", release_id: "rel-1", force: true }));
     expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
-      expect.objectContaining({ release_id: "rel-1", force: true })
+      expect.objectContaining({ release_id: "rel-1", force: true }),
     );
   });
 
@@ -110,7 +110,7 @@ describe("POST /api/embeddings/backfill", () => {
   it("scope=track passes track_ids through", async () => {
     await POST(post({ scope: "track", track_ids: ["t1", "t2"] }));
     expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
-      expect.objectContaining({ track_ids: ["t1", "t2"] })
+      expect.objectContaining({ track_ids: ["t1", "t2"] }),
     );
   });
 
@@ -127,7 +127,7 @@ describe("POST /api/embeddings/backfill", () => {
 
   it("tags every job with its kind and enqueues the combined list", async () => {
     repo.listTracksForBackfill.mockImplementation(async ({ type }: { type: string }) =>
-      type === "identity" ? refs("identity", 2) : []
+      type === "identity" ? refs("identity", 2) : [],
     );
 
     await POST(post({ types: ["identity", "audio_vibe"] }));
@@ -159,7 +159,7 @@ describe("POST /api/embeddings/backfill", () => {
 
   it("dry_run falls back to 0 for a type that wasn't requested at all", async () => {
     repo.listTracksForBackfill.mockImplementation(async ({ type }: { type: string }) =>
-      type === "identity" ? refs("identity", 2) : []
+      type === "identity" ? refs("identity", 2) : [],
     );
 
     const res = await POST(post({ types: ["identity"], dry_run: true }));

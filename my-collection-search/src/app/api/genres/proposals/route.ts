@@ -9,12 +9,12 @@ import { reconciliationError } from "@/server/genres/reconciliationRoute";
 /** Reconciliation proposals, most-used values first. */
 export async function GET(request: NextRequest) {
   const query = genreProposalListQuerySchema.safeParse(
-    Object.fromEntries(request.nextUrl.searchParams.entries())
+    Object.fromEntries(request.nextUrl.searchParams.entries()),
   );
   if (!query.success) {
     return NextResponse.json(
       { error: "Invalid proposal query", details: query.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
   try {

@@ -43,10 +43,12 @@ beforeEach(() => {
   vi.stubEnv("RESTIC_PASSWORD", "pw");
   mockGetPolicy.mockReset().mockReturnValue(policy);
   mockWriteStatus.mockReset();
-  mockExecFile.mockReset().mockImplementation(
-    (_cmd: string, _args: string[], _opts: unknown, cb: (e: Error | null, r?: unknown) => void) =>
-      cb(null, { stdout: "[]", stderr: "" })
-  );
+  mockExecFile
+    .mockReset()
+    .mockImplementation(
+      (_cmd: string, _args: string[], _opts: unknown, cb: (e: Error | null, r?: unknown) => void) =>
+        cb(null, { stdout: "[]", stderr: "" }),
+    );
   mockCreateBackup.mockReset().mockImplementation(async () => {
     const dir = path.join(tmpDir, "dumps");
     fs.mkdirSync(dir, { recursive: true });
@@ -76,7 +78,7 @@ describe("runBackupNow() database dump", () => {
   it("removes the dump when restic fails", async () => {
     mockExecFile.mockImplementation(
       (_cmd: string, _args: string[], _opts: unknown, cb: (e: Error | null) => void) =>
-        cb(new Error("restic: repository locked"))
+        cb(new Error("restic: repository locked")),
     );
     const result = await runBackupNow("manual");
 

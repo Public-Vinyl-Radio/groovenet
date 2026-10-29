@@ -47,7 +47,7 @@ describe("POST /api/embeddings/queue/retry", () => {
 
   it("rejects a body that isn't JSON with 400", async () => {
     const res = await POST(
-      new Request("http://app/api/embeddings/queue/retry", { method: "POST", body: "not json" })
+      new Request("http://app/api/embeddings/queue/retry", { method: "POST", body: "not json" }),
     );
     expect(res.status).toBe(400);
   });

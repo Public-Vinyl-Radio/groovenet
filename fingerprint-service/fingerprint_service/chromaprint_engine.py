@@ -11,6 +11,7 @@ samples in memory, and at a 12 ms/window budget a subprocess per window would
 cost more than the search it feeds. A whole set recording (#282) arrives as a
 stream of chunks instead — see `fingerprint_stream`.
 """
+
 import ctypes
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -85,14 +86,8 @@ class RawFingerprint:
     @classmethod
     def from_bytes(cls, blob: bytes) -> "RawFingerprint":
         if len(blob) % 4 != 0:
-            raise FingerprintError(
-                f"fingerprint blob is {len(blob)} bytes, not a whole number of uint32s"
-            )
-        return cls(
-            tuple(
-                int.from_bytes(blob[i : i + 4], "little") for i in range(0, len(blob), 4)
-            )
-        )
+            raise FingerprintError(f"fingerprint blob is {len(blob)} bytes, not a whole number of uint32s")
+        return cls(tuple(int.from_bytes(blob[i : i + 4], "little") for i in range(0, len(blob), 4)))
 
 
 def fingerprint_pcm(pcm: bytes, sample_rate: int, channels: int = 1) -> RawFingerprint:
@@ -105,9 +100,7 @@ def fingerprint_pcm(pcm: bytes, sample_rate: int, channels: int = 1) -> RawFinge
     return fingerprint_stream((pcm,), sample_rate, channels)
 
 
-def fingerprint_stream(
-    chunks: Iterable[bytes], sample_rate: int, channels: int = 1
-) -> RawFingerprint:
+def fingerprint_stream(chunks: Iterable[bytes], sample_rate: int, channels: int = 1) -> RawFingerprint:
     """Fingerprint PCM that arrives in pieces, in one pass (#282).
 
     Chromaprint is incremental, so a three-hour set never has to be in memory

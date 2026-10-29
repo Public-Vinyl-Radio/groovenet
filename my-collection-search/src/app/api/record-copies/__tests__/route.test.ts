@@ -82,7 +82,7 @@ describe("GET /api/record-copies", () => {
     service.listCopies.mockResolvedValue([copy]);
 
     const res = await GET(
-      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never
+      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never,
     );
 
     expect(res.status).toBe(200);
@@ -100,7 +100,7 @@ describe("POST /api/record-copies", () => {
         friend_id: 7,
         release_id: "rel",
         label: "Copy 2",
-      })
+      }),
     );
 
     expect(res.status).toBe(201);
@@ -111,7 +111,7 @@ describe("POST /api/record-copies", () => {
     service.createCopy.mockRejectedValue(new Error("Album not found"));
 
     const res = await POST(
-      jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7, release_id: "x" })
+      jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7, release_id: "x" }),
     );
 
     expect(res.status).toBe(404);
@@ -122,7 +122,7 @@ describe("PATCH /api/record-copies/:id", () => {
   it("rejects a body with nothing to change", async () => {
     const res = await PATCH(
       jsonRequest("http://localhost/api/record-copies/3", "PATCH", { friend_id: 7 }),
-      idParams("3")
+      idParams("3"),
     );
     expect(res.status).toBe(400);
     expect(service.updateCopy).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe("PATCH /api/record-copies/:id", () => {
         notes: "Warped",
         inner_sleeve_type: "poly",
       }),
-      idParams("3")
+      idParams("3"),
     );
 
     expect(service.updateCopy).toHaveBeenCalledWith(3, 7, { notes: "Warped" });
@@ -147,7 +147,7 @@ describe("PATCH /api/record-copies/:id", () => {
     service.updateCopy.mockResolvedValue(null);
     const res = await PATCH(
       jsonRequest("http://localhost/api/record-copies/3", "PATCH", { friend_id: 7, label: "x" }),
-      idParams("3")
+      idParams("3"),
     );
     expect(res.status).toBe(404);
   });
@@ -158,8 +158,10 @@ describe("DELETE /api/record-copies/:id", () => {
     service.deleteCopy.mockResolvedValue({ ...copy, deleted_at: TS });
 
     const res = await DELETE(
-      new Request("http://localhost/api/record-copies/3?friend_id=7", { method: "DELETE" }) as never,
-      idParams("3")
+      new Request("http://localhost/api/record-copies/3?friend_id=7", {
+        method: "DELETE",
+      }) as never,
+      idParams("3"),
     );
 
     expect(res.status).toBe(200);
@@ -168,12 +170,14 @@ describe("DELETE /api/record-copies/:id", () => {
 
   it("returns 409 for a default copy that still has siblings", async () => {
     service.deleteCopy.mockRejectedValue(
-      new Error("The default copy cannot be deleted while the release has other copies")
+      new Error("The default copy cannot be deleted while the release has other copies"),
     );
 
     const res = await DELETE(
-      new Request("http://localhost/api/record-copies/3?friend_id=7", { method: "DELETE" }) as never,
-      idParams("3")
+      new Request("http://localhost/api/record-copies/3?friend_id=7", {
+        method: "DELETE",
+      }) as never,
+      idParams("3"),
     );
 
     expect(res.status).toBe(409);
@@ -186,9 +190,9 @@ describe("GET /api/record-copies/:id/actions", () => {
 
     const res = await GET_ACTIONS(
       new Request(
-        "http://localhost/api/record-copies/3/actions?friend_id=7&include_voided=true&limit=5"
+        "http://localhost/api/record-copies/3/actions?friend_id=7&include_voided=true&limit=5",
       ) as never,
-      idParams("3")
+      idParams("3"),
     );
 
     expect(res.status).toBe(200);
@@ -207,7 +211,7 @@ describe("GET /api/record-copies/:id/actions", () => {
     service.listActions.mockResolvedValue(null);
     const res = await GET_ACTIONS(
       new Request("http://localhost/api/record-copies/3/actions?friend_id=8") as never,
-      idParams("3")
+      idParams("3"),
     );
     expect(res.status).toBe(404);
   });
@@ -216,13 +220,15 @@ describe("GET /api/record-copies/:id/actions", () => {
 describe("GET /api/record-copies/care", () => {
   it("rejects an unknown status or sleeve", async () => {
     const bad = await GET_CARE(
-      new Request("http://localhost/api/record-copies/care?friend_id=7&status=dusty") as never
+      new Request("http://localhost/api/record-copies/care?friend_id=7&status=dusty") as never,
     );
     const badSleeve = await GET_CARE(
-      new Request("http://localhost/api/record-copies/care?friend_id=7&needs_sleeve=rice-paper") as never
+      new Request(
+        "http://localhost/api/record-copies/care?friend_id=7&needs_sleeve=rice-paper",
+      ) as never,
     );
     const zeroDays = await GET_CARE(
-      new Request("http://localhost/api/record-copies/care?friend_id=7&overdue_days=0") as never
+      new Request("http://localhost/api/record-copies/care?friend_id=7&overdue_days=0") as never,
     );
     expect([bad.status, badSleeve.status, zeroDays.status]).toEqual([400, 400, 400]);
   });
@@ -250,8 +256,8 @@ describe("GET /api/record-copies/care", () => {
 
     const res = await GET_CARE(
       new Request(
-        "http://localhost/api/record-copies/care?friend_id=7&status=never_cleaned&sleeve_type=unknown"
-      ) as never
+        "http://localhost/api/record-copies/care?friend_id=7&status=never_cleaned&sleeve_type=unknown",
+      ) as never,
     );
 
     expect(res.status).toBe(200);
@@ -259,7 +265,7 @@ describe("GET /api/record-copies/care", () => {
     expect(body.items[0].copy_id).toBeNull();
     expect(body).toMatchObject({ total: 1, limit: 50, offset: 0 });
     expect(service.listCare).toHaveBeenCalledWith(
-      expect.objectContaining({ friend_id: 7, status: "never_cleaned", sleeve_type: "unknown" })
+      expect.objectContaining({ friend_id: 7, status: "never_cleaned", sleeve_type: "unknown" }),
     );
   });
 });
@@ -278,8 +284,8 @@ describe("GET /api/record-copies/care/summary", () => {
 
     const res = await GET_SUMMARY(
       new Request(
-        "http://localhost/api/record-copies/care/summary?friend_id=7&overdue_days=90&needs_sleeve=poly"
-      ) as never
+        "http://localhost/api/record-copies/care/summary?friend_id=7&overdue_days=90&needs_sleeve=poly",
+      ) as never,
     );
 
     expect(res.status).toBe(200);
@@ -294,20 +300,55 @@ describe("record-copies error paths", () => {
   const get = (url: string) => new Request(`http://localhost${url}`) as never;
 
   it.each([
-    ["PATCH a non-numeric id", () =>
-      PATCH(jsonRequest("http://localhost/api/record-copies/x", "PATCH", { friend_id: 7, label: "a" }), idParams("x"))],
-    ["DELETE a non-numeric id", () =>
-      DELETE(new Request("http://localhost/api/record-copies/x?friend_id=7", { method: "DELETE" }) as never, idParams("x"))],
-    ["DELETE without friend_id", () =>
-      DELETE(new Request("http://localhost/api/record-copies/3", { method: "DELETE" }) as never, idParams("3"))],
-    ["list actions of a non-numeric id", () =>
-      GET_ACTIONS(get("/api/record-copies/x/actions?friend_id=7"), idParams("x"))],
-    ["list actions of an unknown type", () =>
-      GET_ACTIONS(get("/api/record-copies/3/actions?friend_id=7&action_type=played"), idParams("3"))],
-    ["summary with an unknown sleeve", () =>
-      GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7&needs_sleeve=rice-paper"))],
-    ["POST without a release", () =>
-      POST(jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7 }))],
+    [
+      "PATCH a non-numeric id",
+      () =>
+        PATCH(
+          jsonRequest("http://localhost/api/record-copies/x", "PATCH", {
+            friend_id: 7,
+            label: "a",
+          }),
+          idParams("x"),
+        ),
+    ],
+    [
+      "DELETE a non-numeric id",
+      () =>
+        DELETE(
+          new Request("http://localhost/api/record-copies/x?friend_id=7", {
+            method: "DELETE",
+          }) as never,
+          idParams("x"),
+        ),
+    ],
+    [
+      "DELETE without friend_id",
+      () =>
+        DELETE(
+          new Request("http://localhost/api/record-copies/3", { method: "DELETE" }) as never,
+          idParams("3"),
+        ),
+    ],
+    [
+      "list actions of a non-numeric id",
+      () => GET_ACTIONS(get("/api/record-copies/x/actions?friend_id=7"), idParams("x")),
+    ],
+    [
+      "list actions of an unknown type",
+      () =>
+        GET_ACTIONS(
+          get("/api/record-copies/3/actions?friend_id=7&action_type=played"),
+          idParams("3"),
+        ),
+    ],
+    [
+      "summary with an unknown sleeve",
+      () => GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7&needs_sleeve=rice-paper")),
+    ],
+    [
+      "POST without a release",
+      () => POST(jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7 })),
+    ],
   ])("returns 400 for %s", async (_label, call) => {
     const res = await call();
     expect(res.status).toBe(400);
@@ -316,23 +357,54 @@ describe("record-copies error paths", () => {
   it("returns 404 deleting a copy that is not the friend's", async () => {
     service.deleteCopy.mockResolvedValue(null);
     const res = await DELETE(
-      new Request("http://localhost/api/record-copies/3?friend_id=8", { method: "DELETE" }) as never,
-      idParams("3")
+      new Request("http://localhost/api/record-copies/3?friend_id=8", {
+        method: "DELETE",
+      }) as never,
+      idParams("3"),
     );
     expect(res.status).toBe(404);
   });
 
   it.each([
     ["listing copies", () => service.listCopies, () => GET(get("/api/record-copies?friend_id=7"))],
-    ["updating a copy", () => service.updateCopy, () =>
-      PATCH(jsonRequest("http://localhost/api/record-copies/3", "PATCH", { friend_id: 7, label: "a" }), idParams("3"))],
-    ["deleting a copy", () => service.deleteCopy, () =>
-      DELETE(new Request("http://localhost/api/record-copies/3?friend_id=7", { method: "DELETE" }) as never, idParams("3"))],
-    ["listing actions", () => service.listActions, () =>
-      GET_ACTIONS(get("/api/record-copies/3/actions?friend_id=7"), idParams("3"))],
-    ["listing care", () => service.listCare, () => GET_CARE(get("/api/record-copies/care?friend_id=7"))],
-    ["summarising care", () => service.careSummary, () =>
-      GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7"))],
+    [
+      "updating a copy",
+      () => service.updateCopy,
+      () =>
+        PATCH(
+          jsonRequest("http://localhost/api/record-copies/3", "PATCH", {
+            friend_id: 7,
+            label: "a",
+          }),
+          idParams("3"),
+        ),
+    ],
+    [
+      "deleting a copy",
+      () => service.deleteCopy,
+      () =>
+        DELETE(
+          new Request("http://localhost/api/record-copies/3?friend_id=7", {
+            method: "DELETE",
+          }) as never,
+          idParams("3"),
+        ),
+    ],
+    [
+      "listing actions",
+      () => service.listActions,
+      () => GET_ACTIONS(get("/api/record-copies/3/actions?friend_id=7"), idParams("3")),
+    ],
+    [
+      "listing care",
+      () => service.listCare,
+      () => GET_CARE(get("/api/record-copies/care?friend_id=7")),
+    ],
+    [
+      "summarising care",
+      () => service.careSummary,
+      () => GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7")),
+    ],
   ])("returns 500 with the error's message when %s fails", async (_label, method, call) => {
     method().mockRejectedValue(new Error("connection reset"));
     const res = await call();
@@ -341,20 +413,39 @@ describe("record-copies error paths", () => {
   });
 
   it.each([
-    ["creating", () => service.createCopy, () =>
-      POST(jsonRequest("http://localhost/api/record-copies", "POST", { friend_id: 7, release_id: "rel" })),
-      "Failed to create record copy"],
-    ["listing", () => service.listCopies, () => GET(get("/api/record-copies?friend_id=7")),
-      "Failed to list record copies"],
-    ["summarising", () => service.careSummary, () =>
-      GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7")),
-      "Failed to summarise record care"],
-  ])("falls back to a generic message when %s throws a non-Error", async (_label, method, call, message) => {
-    method().mockRejectedValue("boom");
-    const res = await call();
-    expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe(message);
-  });
+    [
+      "creating",
+      () => service.createCopy,
+      () =>
+        POST(
+          jsonRequest("http://localhost/api/record-copies", "POST", {
+            friend_id: 7,
+            release_id: "rel",
+          }),
+        ),
+      "Failed to create record copy",
+    ],
+    [
+      "listing",
+      () => service.listCopies,
+      () => GET(get("/api/record-copies?friend_id=7")),
+      "Failed to list record copies",
+    ],
+    [
+      "summarising",
+      () => service.careSummary,
+      () => GET_SUMMARY(get("/api/record-copies/care/summary?friend_id=7")),
+      "Failed to summarise record care",
+    ],
+  ])(
+    "falls back to a generic message when %s throws a non-Error",
+    async (_label, method, call, message) => {
+      method().mockRejectedValue("boom");
+      const res = await call();
+      expect(res.status).toBe(500);
+      expect((await res.json()).error).toBe(message);
+    },
+  );
 });
 
 describe("PATCH /api/record-copies/default", () => {
@@ -392,11 +483,17 @@ describe("PATCH /api/record-copies/default", () => {
 
 describe("GET /api/record-copies implicit default", () => {
   it("returns a release's implicit default copy with a null id", async () => {
-    const implicit = { ...copy, id: null, created_at: null, updated_at: null, last_cleaned_at: null };
+    const implicit = {
+      ...copy,
+      id: null,
+      created_at: null,
+      updated_at: null,
+      last_cleaned_at: null,
+    };
     service.listCopies.mockResolvedValue([implicit]);
 
     const res = await GET(
-      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never
+      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never,
     );
 
     expect(res.status).toBe(200);
@@ -415,7 +512,7 @@ describe("GET /api/record-copies overdue threshold", () => {
     service.listCopies.mockResolvedValue([copy]);
 
     const res = await GET(
-      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never
+      new Request("http://localhost/api/record-copies?friend_id=7&release_id=rel") as never,
     );
 
     expect((await res.json()).overdue_days).toBe(180);
@@ -433,7 +530,7 @@ describe("record-copies analytics", () => {
         friend_id: 7,
         release_id: "rel",
         label: "Copy 2",
-      })
+      }),
     );
 
     expect(recorded()).toEqual([
@@ -446,13 +543,19 @@ describe("record-copies analytics", () => {
 
     await PATCH(
       jsonRequest("http://localhost/api/record-copies/4", "PATCH", { friend_id: 7, notes: "VG+" }),
-      idParams("4")
+      idParams("4"),
     );
 
     expect(recorded()).toEqual([
       [
         "record_copy_edited",
-        { copy_id: 4, release_id: "rel", is_default: false, changed_fields: ["notes"], source: "web" },
+        {
+          copy_id: 4,
+          release_id: "rel",
+          is_default: false,
+          changed_fields: ["notes"],
+          source: "web",
+        },
       ],
     ]);
   });
@@ -466,7 +569,7 @@ describe("record-copies analytics", () => {
         release_id: "rel",
         label: "DJ copy",
         notes: null,
-      })
+      }),
     );
 
     expect(recorded()).toEqual([
@@ -487,8 +590,10 @@ describe("record-copies analytics", () => {
     service.deleteCopy.mockResolvedValue({ ...copy, id: 4, deleted_at: TS });
 
     await DELETE(
-      new Request("http://localhost/api/record-copies/4?friend_id=7", { method: "DELETE" }) as never,
-      idParams("4")
+      new Request("http://localhost/api/record-copies/4?friend_id=7", {
+        method: "DELETE",
+      }) as never,
+      idParams("4"),
     );
 
     expect(recorded()).toEqual([
@@ -502,11 +607,13 @@ describe("record-copies analytics", () => {
 
     await PATCH(
       jsonRequest("http://localhost/api/record-copies/4", "PATCH", { friend_id: 7, label: "x" }),
-      idParams("4")
+      idParams("4"),
     );
     await DELETE(
-      new Request("http://localhost/api/record-copies/4?friend_id=7", { method: "DELETE" }) as never,
-      idParams("4")
+      new Request("http://localhost/api/record-copies/4?friend_id=7", {
+        method: "DELETE",
+      }) as never,
+      idParams("4"),
     );
 
     expect(analyticsEvents.events).toEqual([]);

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid record care query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     console.error("Error summarising record care:", error);
     return NextResponse.json(
       { error: errorMessage(error, "Failed to summarise record care") },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

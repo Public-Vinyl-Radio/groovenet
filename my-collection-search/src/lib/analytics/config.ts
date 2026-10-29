@@ -7,8 +7,7 @@ import type { ClientAnalyticsConfig } from "./types";
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
 export type AnalyticsConfig =
-  | { provider: "none" }
-  | { provider: "posthog"; key: string; host: string };
+  { provider: "none" } | { provider: "posthog"; key: string; host: string };
 
 type Env = Record<string, string | undefined>;
 
@@ -20,11 +19,10 @@ export function readAnalyticsConfig(env: Env = process.env): AnalyticsConfig {
   const key = (env.POSTHOG_KEY || env.NEXT_PUBLIC_POSTHOG_KEY)?.trim();
   if (!key) return { provider: "none" };
 
-  const host = (
-    env.POSTHOG_HOST ||
-    env.NEXT_PUBLIC_POSTHOG_HOST ||
-    DEFAULT_POSTHOG_HOST
-  ).replace(/\/+$/, "");
+  const host = (env.POSTHOG_HOST || env.NEXT_PUBLIC_POSTHOG_HOST || DEFAULT_POSTHOG_HOST).replace(
+    /\/+$/,
+    "",
+  );
   return { provider: "posthog", key, host };
 }
 
@@ -50,7 +48,7 @@ export function posthogUiHost(host: string): string {
 }
 
 export function getClientAnalyticsConfig(
-  config: AnalyticsConfig = readAnalyticsConfig()
+  config: AnalyticsConfig = readAnalyticsConfig(),
 ): ClientAnalyticsConfig {
   if (config.provider === "none") return { provider: "none" };
   return {

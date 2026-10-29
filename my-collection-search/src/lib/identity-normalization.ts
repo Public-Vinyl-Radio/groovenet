@@ -136,7 +136,7 @@ export function normalizeCountry(country: string | null | undefined): string {
  */
 export function normalizeLabels(
   labels: string[] | string | null | undefined,
-  maxLabels = 3
+  maxLabels = 3,
 ): string[] {
   const normalized = normalizeList(labels);
   return normalized.slice(0, maxLabels);
@@ -149,7 +149,7 @@ export function normalizeLabels(
 export function combineGenres(
   discogsGenres: string[] | null | undefined,
   appleGenre: string | null | undefined,
-  maxGenres = 8
+  maxGenres = 8,
 ): string[] {
   let genres: string[] = [];
 
@@ -168,7 +168,7 @@ export function combineGenres(
  */
 export function normalizeStyles(
   styles: string[] | string | null | undefined,
-  maxStyles = 12
+  maxStyles = 12,
 ): string[] {
   const normalized = normalizeList(styles);
   return normalized.slice(0, maxStyles);
@@ -179,7 +179,7 @@ export function normalizeStyles(
  */
 export function normalizeLocalTags(
   tags: string[] | string | null | undefined,
-  maxTags = 12
+  maxTags = 12,
 ): string[] {
   const filtered = filterIdentityTags(tags);
   return filtered.slice(0, maxTags);

@@ -52,13 +52,19 @@ export default function PlaylistRecommendations({
             buttons={[
               <Flex key="badges-menu" align="center" gap={1} wrap="wrap">
                 {rec._simIdentity != null && rec._simAudio != null && (
-                  <Badge colorPalette="status.genre" size="sm">Identity + Vibe</Badge>
+                  <Badge colorPalette="status.genre" size="sm">
+                    Identity + Vibe
+                  </Badge>
                 )}
                 {rec._simIdentity != null && rec._simAudio == null && (
-                  <Badge colorPalette="accent" size="sm">Identity</Badge>
+                  <Badge colorPalette="accent" size="sm">
+                    Identity
+                  </Badge>
                 )}
                 {rec._simAudio != null && rec._simIdentity == null && (
-                  <Badge colorPalette="accent" size="sm">Vibe</Badge>
+                  <Badge colorPalette="accent" size="sm">
+                    Vibe
+                  </Badge>
                 )}
                 <Menu.Root>
                   <Menu.Trigger asChild>
@@ -72,7 +78,9 @@ export default function PlaylistRecommendations({
                         <FiPlus /> Add to Playlist
                       </Menu.Item>
                       <Menu.Item value="edit" asChild>
-                        <NextLink href={`/tracks/${encodeURIComponent(rec.track_id)}/edit?friend_id=${rec.friend_id}`}>
+                        <NextLink
+                          href={`/tracks/${encodeURIComponent(rec.track_id)}/edit?friend_id=${rec.friend_id}`}
+                        >
                           <FiEdit /> Edit Track
                         </NextLink>
                       </Menu.Item>

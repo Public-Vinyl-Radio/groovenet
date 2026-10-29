@@ -94,7 +94,7 @@ describe("JobsApiService.listJobs — summary and filtering", () => {
 describe("JobsApiService.listJobs — pagination", () => {
   it("slices by offset/limit and reports has_more/total_filtered", async () => {
     mockGetAllJobs.mockResolvedValueOnce(
-      Array.from({ length: 5 }, (_, i) => job({ job_id: `j${i}`, track_id: `t${i}` }))
+      Array.from({ length: 5 }, (_, i) => job({ job_id: `j${i}`, track_id: `t${i}` })),
     );
     const res = await jobsApiService.listJobs(params({ limit: 2, offset: 0 }));
     expect(res.jobs.map((j) => j.id)).toEqual(["j0", "j1"]);
@@ -108,7 +108,7 @@ describe("JobsApiService.listJobs — pagination", () => {
 
   it("reports has_more=false on the last page", async () => {
     mockGetAllJobs.mockResolvedValueOnce(
-      Array.from({ length: 3 }, (_, i) => job({ job_id: `j${i}`, track_id: `t${i}` }))
+      Array.from({ length: 3 }, (_, i) => job({ job_id: `j${i}`, track_id: `t${i}` })),
     );
     const res = await jobsApiService.listJobs(params({ limit: 2, offset: 2 }));
     expect(res.jobs.map((j) => j.id)).toEqual(["j2"]);
@@ -168,7 +168,11 @@ describe("JobsApiService.listJobs — enrichment", () => {
 
   it("prefers job.result.title/artist over the track row", async () => {
     mockGetAllJobs.mockResolvedValueOnce([
-      job({ track_id: "t1", friend_id: 1, result: { title: "Result Title", artist: "Result Artist" } }),
+      job({
+        track_id: "t1",
+        friend_id: 1,
+        result: { title: "Result Title", artist: "Result Artist" },
+      }),
     ]);
     mockFindTracks.mockResolvedValueOnce([
       { track_id: "t1", friend_id: 1, title: "Track Title", artist: "Track Artist" },

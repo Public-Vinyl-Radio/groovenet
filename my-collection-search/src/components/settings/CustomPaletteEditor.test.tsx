@@ -26,11 +26,19 @@ const type = (name: string, value: string) => fireEvent.change(hex(name), { targ
 describe("CustomPaletteEditor", () => {
   it("starts as a copy of the chosen preset and shows a pass state", () => {
     setup({ initialBase: "midnight" });
-    expect(hex("Ground (light) hex").value).toBe(palettes.midnight.light["--gn-ground"].toLowerCase());
-    expect(hex("Accent (light) hex").value).toBe(palettes.midnight.light["--gn-accent-solid"].toLowerCase());
-    expect(screen.getByTestId("contrast-summary").textContent).toContain("passes AA in light and dark");
+    expect(hex("Ground (light) hex").value).toBe(
+      palettes.midnight.light["--gn-ground"].toLowerCase(),
+    );
+    expect(hex("Accent (light) hex").value).toBe(
+      palettes.midnight.light["--gn-accent-solid"].toLowerCase(),
+    );
+    expect(screen.getByTestId("contrast-summary").textContent).toContain(
+      "passes AA in light and dark",
+    );
     // Each input carries its ratio as text with a Pass label.
-    expect(within(screen.getByTestId("custom-palette-editor")).getAllByText(/· Pass/).length).toBeGreaterThan(3);
+    expect(
+      within(screen.getByTestId("custom-palette-editor")).getAllByText(/· Pass/).length,
+    ).toBeGreaterThan(3);
   });
 
   it("edits one mode at a time", async () => {
@@ -63,7 +71,9 @@ describe("CustomPaletteEditor", () => {
   it("says 'pair' for a single failure and lists dark failures under Dark", async () => {
     const { user } = setup();
     type("Accent (light) hex", "#f0e8da");
-    expect(screen.getByTestId("contrast-summary").textContent).toMatch(/\b1 pair below AA in light/);
+    expect(screen.getByTestId("contrast-summary").textContent).toMatch(
+      /\b1 pair below AA in light/,
+    );
     await user.click(screen.getByText("Dark"));
     type("Ink (dark) hex", "#1c1713");
     const text = screen.getByTestId("contrast-summary").textContent ?? "";
@@ -76,7 +86,9 @@ describe("CustomPaletteEditor", () => {
     type("Ink (light) hex", "red;}body{display:none");
     expect(screen.getByRole("alert").textContent).toContain("six-digit hex");
     expect(hex("Ink (light) hex").getAttribute("aria-invalid")).toBe("true");
-    expect((screen.getByLabelText("Ink (light) colour picker") as HTMLInputElement).value).toBe("#1f1a17");
+    expect((screen.getByLabelText("Ink (light) colour picker") as HTMLInputElement).value).toBe(
+      "#1f1a17",
+    );
   });
 
   it("saves a passing palette at once", () => {
@@ -143,9 +155,13 @@ describe("CustomPaletteEditor", () => {
     type("Ground (light) hex", "#102030");
     const preview = screen.getByTestId("palette-preview");
     expect(preview.style.getPropertyValue("--gn-ground")).toBe("#102030");
-    expect(preview.style.getPropertyValue("--gn-status-missing-fg")).toBe(palettes.sleeve.light["--gn-status-missing-fg"]);
+    expect(preview.style.getPropertyValue("--gn-status-missing-fg")).toBe(
+      palettes.sleeve.light["--gn-status-missing-fg"],
+    );
     // The shadow variables are resolved on the wrapper, so the shadow follows the draft.
-    expect(preview.style.getPropertyValue("--chakra-shadows-md")).toBe("6px 6px 0 0 var(--gn-shadow)");
+    expect(preview.style.getPropertyValue("--chakra-shadows-md")).toBe(
+      "6px 6px 0 0 var(--gn-shadow)",
+    );
     expect(preview.style.getPropertyValue("--chakra-colors-bg-panel")).toBe("var(--gn-surface)");
     expect(document.documentElement.style.getPropertyValue("--gn-ground")).toBe("");
     for (const status of ["missing", "analysis", "genre", "success"]) {
@@ -167,7 +183,9 @@ describe("CustomPaletteEditor", () => {
 
   it("syncs the colour picker to the draft", () => {
     setup();
-    fireEvent.change(screen.getByLabelText("Ground (light) colour picker"), { target: { value: "#aabbcc" } });
+    fireEvent.change(screen.getByLabelText("Ground (light) colour picker"), {
+      target: { value: "#aabbcc" },
+    });
     expect(hex("Ground (light) hex").value).toBe("#aabbcc");
   });
 });

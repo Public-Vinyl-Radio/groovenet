@@ -88,7 +88,7 @@ issues. Coverage is 100%.
   returned shape differ.
 - `generatePlaylist` tolerates the optimiser returning either an array or a
   keyed object, and normalises to an array.
-- `startFingerprintIndex` returns as soon as the run is *queued*, not finished.
+- `startFingerprintIndex` returns as soon as the run is _queued_, not finished.
   Poll `getFingerprintIndexRun` until `complete`.
 - `uploadSetRecording` sets `maxRedirects: 0` on purpose. Axios otherwise
   routes the body through follow-redirects, which buffers all of it to replay

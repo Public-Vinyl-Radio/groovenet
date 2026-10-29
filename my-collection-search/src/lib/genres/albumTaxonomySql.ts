@@ -1,5 +1,9 @@
 /** SQL only: callers supply trusted table aliases, never request input. */
-export function effectiveAlbumValuesSql(alias: string, kind: "genres" | "styles", fallback = `${alias}.${kind}`): string {
+export function effectiveAlbumValuesSql(
+  alias: string,
+  kind: "genres" | "styles",
+  fallback = `${alias}.${kind}`,
+): string {
   return `effective_album_taxonomy_values(${alias}.release_id::text, ${alias}.friend_id, '${kind}', ${fallback})`;
 }
 
@@ -9,7 +13,9 @@ export function effectiveAlbumTaxonomySql(alias: string): string {
 
 /** Keep source columns on Album; expose effective values and override state. */
 export function albumTaxonomySelectSql(alias: string): string {
-  return (["genres", "styles"] as const).map((kind) => `
+  return (["genres", "styles"] as const)
+    .map(
+      (kind) => `
     ${effectiveAlbumValuesSql(alias, kind)} AS effective_${kind},
     (SELECT ARRAY(
       SELECT l.genre_id::text FROM album_taxonomy_override_genres l
@@ -18,5 +24,7 @@ export function albumTaxonomySelectSql(alias: string): string {
     ) FROM album_taxonomy_overrides o
      WHERE o.release_id = ${alias}.release_id AND o.friend_id = ${alias}.friend_id AND o.kind = '${kind}')
     AS ${kind === "genres" ? "genre" : "style"}_override_ids
-  `).join(",");
+  `,
+    )
+    .join(",");
 }

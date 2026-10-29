@@ -7,17 +7,16 @@ const {
   mockStartFingerprintRun,
   mockResolveGenres,
   mockReplaceGenres,
-} =
-  vi.hoisted(() => {
-    return {
-      mockResolveGenres: vi.fn(),
-      mockReplaceGenres: vi.fn().mockResolvedValue(undefined),
-      mockFindTrack: vi.fn(),
-      mockUpdateTrack: vi.fn(),
-      mockEnqueue: vi.fn().mockResolvedValue(undefined),
-      mockStartFingerprintRun: vi.fn().mockResolvedValue({ run_id: "run-1" }),
-    };
-  });
+} = vi.hoisted(() => {
+  return {
+    mockResolveGenres: vi.fn(),
+    mockReplaceGenres: vi.fn().mockResolvedValue(undefined),
+    mockFindTrack: vi.fn(),
+    mockUpdateTrack: vi.fn(),
+    mockEnqueue: vi.fn().mockResolvedValue(undefined),
+    mockStartFingerprintRun: vi.fn().mockResolvedValue({ run_id: "run-1" }),
+  };
+});
 
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: {
@@ -191,7 +190,7 @@ describe("PATCH /api/tracks — genres and descriptors", () => {
     mockUpdateTrack.mockResolvedValueOnce(baseTrack());
 
     const res = await PATCH(
-      makeReq({ ...PATCH_BODY, genres: [CUMBIA], genre_source: "enrichment" })
+      makeReq({ ...PATCH_BODY, genres: [CUMBIA], genre_source: "enrichment" }),
     );
 
     expect(res.status).toBe(200);
@@ -209,7 +208,7 @@ describe("PATCH /api/tracks — genres and descriptors", () => {
       expect(res.status).toBe(400);
       expect(mockResolveGenres).not.toHaveBeenCalled();
       expect(mockUpdateTrack).not.toHaveBeenCalled();
-    }
+    },
   );
 });
 
@@ -379,9 +378,7 @@ describe("PATCH /api/tracks — side-effect errors are swallowed", () => {
 describe("PATCH /api/tracks — fingerprint index trigger", () => {
   it("queues a fingerprint index run when local_audio_url goes from null to a value", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: null }));
-    mockUpdateTrack.mockResolvedValueOnce(
-      baseTrack({ local_audio_url: "artist - title.m4a" })
-    );
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "artist - title.m4a" }));
     await PATCH(makeReq(PATCH_BODY));
     expect(mockStartFingerprintRun).toHaveBeenCalledWith({
       kind: "track",
@@ -391,12 +388,8 @@ describe("PATCH /api/tracks — fingerprint index trigger", () => {
   });
 
   it("does not queue a run when local_audio_url is unchanged", async () => {
-    mockFindTrack.mockResolvedValueOnce(
-      baseTrack({ local_audio_url: "artist - title.m4a" })
-    );
-    mockUpdateTrack.mockResolvedValueOnce(
-      baseTrack({ local_audio_url: "artist - title.m4a" })
-    );
+    mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "artist - title.m4a" }));
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "artist - title.m4a" }));
     await PATCH(makeReq(PATCH_BODY));
     expect(mockStartFingerprintRun).not.toHaveBeenCalled();
   });
@@ -423,9 +416,7 @@ describe("PATCH /api/tracks — fingerprint index trigger", () => {
 
   it("still returns 200 when queuing the fingerprint run throws", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: null }));
-    mockUpdateTrack.mockResolvedValueOnce(
-      baseTrack({ local_audio_url: "artist - title.m4a" })
-    );
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack({ local_audio_url: "artist - title.m4a" }));
     mockStartFingerprintRun.mockRejectedValueOnce(new Error("no engine registered"));
     const res = await PATCH(makeReq(PATCH_BODY));
     expect(res.status).toBe(200);
@@ -438,16 +429,12 @@ describe("PATCH /api/tracks — analytics", () => {
   it("captures track_edited with changed fields excluding identifiers", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack());
     mockUpdateTrack.mockResolvedValueOnce(baseTrack({ star_rating: 5, notes: "hi" }));
-    await PATCH(
-      makeReq({ track_id: "t1", friend_id: 1, star_rating: 5, notes: "hi" })
-    );
+    await PATCH(makeReq({ track_id: "t1", friend_id: 1, star_rating: 5, notes: "hi" }));
     expect(analyticsEvents.events).toHaveLength(1);
     const arg = analyticsEvents.events[0];
     expect(arg.event).toBe("track_edited");
     expect(arg.properties.track_id).toBe("t1");
-    expect(arg.properties.changed_fields).toEqual(
-      expect.arrayContaining(["star_rating", "notes"])
-    );
+    expect(arg.properties.changed_fields).toEqual(expect.arrayContaining(["star_rating", "notes"]));
     expect(arg.properties.changed_fields).not.toContain("track_id");
     expect(arg.properties.changed_fields).not.toContain("friend_id");
     expect(arg.properties.has_rating_change).toBe(true);

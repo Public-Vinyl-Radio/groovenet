@@ -6,7 +6,7 @@ import type { MissingFilterOption } from "@/lib/trackFilters";
  */
 export function optionStates<K extends string>(
   options: MissingFilterOption<K>[],
-  active: Partial<Record<K, boolean>>
+  active: Partial<Record<K, boolean>>,
 ) {
   let parentOn = false;
   return options.map((option) => {

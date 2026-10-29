@@ -1,7 +1,15 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, SegmentGroup, chakra, type ButtonProps, type FlexProps } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Flex,
+  SegmentGroup,
+  chakra,
+  type ButtonProps,
+  type FlexProps,
+} from "@chakra-ui/react";
 import { LuSearch, LuSlidersHorizontal } from "react-icons/lu";
 import type { TrackViewMode } from "@/hooks/useTrackViewMode";
 
@@ -29,7 +37,12 @@ type HeaderButtonProps = Omit<ButtonProps, "size"> & {
  * A labelled header control: mono capitals, 2px outline. `variant="solid"`
  * marks the one primary action (ADD ALBUM) or an active state (FILTERS · 4).
  */
-export function HeaderButton({ size = "page", quiet = false, variant = "outline", ...rest }: HeaderButtonProps) {
+export function HeaderButton({
+  size = "page",
+  quiet = false,
+  variant = "outline",
+  ...rest
+}: HeaderButtonProps) {
   return (
     <Button
       variant={variant}
@@ -49,13 +62,12 @@ export function HeaderButton({ size = "page", quiet = false, variant = "outline"
  * FILTERS, last in the search row: an outline while nothing is on, solid with
  * the count (`FILTERS · 4`) once anything is.
  */
-export function FiltersButton({ activeCount, ...rest }: Omit<HeaderButtonProps, "children"> & { activeCount: number }) {
+export function FiltersButton({
+  activeCount,
+  ...rest
+}: Omit<HeaderButtonProps, "children"> & { activeCount: number }) {
   return (
-    <HeaderButton
-      size="search"
-      variant={activeCount > 0 ? "solid" : "outline"}
-      {...rest}
-    >
+    <HeaderButton size="search" variant={activeCount > 0 ? "solid" : "outline"} {...rest}>
       <LuSlidersHorizontal aria-hidden="true" />
       {activeCount > 0 ? `Filters · ${activeCount}` : "Filters"}
     </HeaderButton>
@@ -106,7 +118,14 @@ type SearchFieldProps = {
  * optional control fused onto its right end. The ring goes round the whole
  * field while the input has focus.
  */
-export function SearchField({ value, onChange, onEnter, placeholder, label, endElement }: SearchFieldProps) {
+export function SearchField({
+  value,
+  onChange,
+  onEnter,
+  placeholder,
+  label,
+  endElement,
+}: SearchFieldProps) {
   return (
     <Flex
       data-testid="search-field"
@@ -149,7 +168,13 @@ export function SearchField({ value, onChange, onEnter, placeholder, label, endE
         />
       </Flex>
       {endElement ? (
-        <Flex display={{ base: "none", md: "flex" }} flexShrink={0} borderLeftWidth="outline" borderColor="border.ink" align="stretch">
+        <Flex
+          display={{ base: "none", md: "flex" }}
+          flexShrink={0}
+          borderLeftWidth="outline"
+          borderColor="border.ink"
+          align="stretch"
+        >
           {endElement}
         </Flex>
       ) : null}

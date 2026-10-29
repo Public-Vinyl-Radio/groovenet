@@ -48,7 +48,9 @@ describe("evaluateBackupHealth", () => {
   });
 
   it("does not alert when remote backups are deliberately disabled", () => {
-    expect(evaluateBackupHealth(backup({ status: "skipped", reason: "policy-disabled" }), now, 12)).toMatchObject({
+    expect(
+      evaluateBackupHealth(backup({ status: "skipped", reason: "policy-disabled" }), now, 12),
+    ).toMatchObject({
       healthy: true,
       status: "disabled",
     });

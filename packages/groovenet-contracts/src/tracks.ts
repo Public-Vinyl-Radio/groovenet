@@ -23,54 +23,54 @@ export const trackSearchModeSchema = z.enum(["lexical", "semantic", "hybrid"]);
  * the database may return more columns, so unknown keys pass through.
  */
 const trackShape = z.object({
-    id: z.number().int().optional(),
-    track_id: z.string(),
-    friend_id: z.number().int(),
-    isrc: z.string().nullable().optional(),
-    title: z.string(),
-    artist: z.string(),
-    album: z.string(),
-    year: z.union([z.string(), z.number()]).nullable().optional(),
-    styles: z.array(z.string()).optional(),
-    genres: z.array(z.string()).optional(),
-    album_genres: z.array(z.string()).optional(),
-    album_styles: z.array(z.string()).optional(),
-    duration: z.string().optional(),
-    duration_seconds: z.number().nullable().optional(),
-    position: z.union([z.string(), z.number()]).optional(),
-    discogs_url: z.string().nullable().optional(),
-    apple_music_url: z.string().nullable().optional(),
-    youtube_url: z.string().nullable().optional(),
-    spotify_url: z.string().nullable().optional(),
-    soundcloud_url: z.string().nullable().optional(),
-    album_thumbnail: z.string().nullable().optional(),
-    /** Raw free-text genres; superseded by track_genres once reconciled (#371). */
-    local_tags: z.string().nullable().optional(),
-    /** Track-level DJ genres: links to the canonical taxonomy (#371). */
-    track_genres: z.array(trackGenreSchema).optional(),
-    /** Normalised mood and description words, kept out of genres (#371). */
-    descriptors: z.array(z.string()).optional(),
-    composer: z.string().nullable().optional(),
-    bpm: z.union([z.string(), z.number()]).nullable().optional(),
-    key: z.string().nullable().optional(),
-    /** Confidence (0-1) of the EDMA key estimate stored in `key` (#524). */
-    key_confidence: z.number().nullable().optional(),
-    /** Margin (0-1) between the first and second beat-histogram peaks behind `bpm` (#531). */
-    bpm_confidence: z.number().nullable().optional(),
-    danceability: z.union([z.number(), z.string()]).nullable().optional(),
-    mood_happy: z.number().nullable().optional(),
-    mood_sad: z.number().nullable().optional(),
-    mood_relaxed: z.number().nullable().optional(),
-    mood_aggressive: z.number().nullable().optional(),
-    notes: z.string().nullable().optional(),
-    local_audio_url: z.string().nullable().optional(),
-    audio_file_album_art_url: z.string().nullable().optional(),
-    star_rating: z.number().nullable().optional(),
-    username: z.string().optional(),
-    release_id: z.string().nullable().optional(),
-    library_identifier: z.string().nullable().optional(),
-    hasVectors: z.boolean().optional(),
-    deleted_at: z.string().nullable().optional(),
+  id: z.number().int().optional(),
+  track_id: z.string(),
+  friend_id: z.number().int(),
+  isrc: z.string().nullable().optional(),
+  title: z.string(),
+  artist: z.string(),
+  album: z.string(),
+  year: z.union([z.string(), z.number()]).nullable().optional(),
+  styles: z.array(z.string()).optional(),
+  genres: z.array(z.string()).optional(),
+  album_genres: z.array(z.string()).optional(),
+  album_styles: z.array(z.string()).optional(),
+  duration: z.string().optional(),
+  duration_seconds: z.number().nullable().optional(),
+  position: z.union([z.string(), z.number()]).optional(),
+  discogs_url: z.string().nullable().optional(),
+  apple_music_url: z.string().nullable().optional(),
+  youtube_url: z.string().nullable().optional(),
+  spotify_url: z.string().nullable().optional(),
+  soundcloud_url: z.string().nullable().optional(),
+  album_thumbnail: z.string().nullable().optional(),
+  /** Raw free-text genres; superseded by track_genres once reconciled (#371). */
+  local_tags: z.string().nullable().optional(),
+  /** Track-level DJ genres: links to the canonical taxonomy (#371). */
+  track_genres: z.array(trackGenreSchema).optional(),
+  /** Normalised mood and description words, kept out of genres (#371). */
+  descriptors: z.array(z.string()).optional(),
+  composer: z.string().nullable().optional(),
+  bpm: z.union([z.string(), z.number()]).nullable().optional(),
+  key: z.string().nullable().optional(),
+  /** Confidence (0-1) of the EDMA key estimate stored in `key` (#524). */
+  key_confidence: z.number().nullable().optional(),
+  /** Margin (0-1) between the first and second beat-histogram peaks behind `bpm` (#531). */
+  bpm_confidence: z.number().nullable().optional(),
+  danceability: z.union([z.number(), z.string()]).nullable().optional(),
+  mood_happy: z.number().nullable().optional(),
+  mood_sad: z.number().nullable().optional(),
+  mood_relaxed: z.number().nullable().optional(),
+  mood_aggressive: z.number().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  local_audio_url: z.string().nullable().optional(),
+  audio_file_album_art_url: z.string().nullable().optional(),
+  star_rating: z.number().nullable().optional(),
+  username: z.string().optional(),
+  release_id: z.string().nullable().optional(),
+  library_identifier: z.string().nullable().optional(),
+  hasVectors: z.boolean().optional(),
+  deleted_at: z.string().nullable().optional(),
 });
 export const trackSchema = trackShape.passthrough();
 
@@ -181,7 +181,9 @@ export type TrackPlaylistCountsResponse = z.infer<typeof trackPlaylistCountsResp
 export type TrackPlaylistMembership = z.infer<typeof trackPlaylistMembershipSchema>;
 export type TrackPlaylistsResponse = z.infer<typeof trackPlaylistsResponseSchema>;
 export type TrackAudioMetadata = z.infer<typeof trackAudioMetadataSchema>;
-export type TrackExtractEmbeddedCoverResponse = z.infer<typeof trackExtractEmbeddedCoverResponseSchema>;
+export type TrackExtractEmbeddedCoverResponse = z.infer<
+  typeof trackExtractEmbeddedCoverResponseSchema
+>;
 export type TrackEssentia = z.infer<typeof trackEssentiaSchema>;
 export type TrackDeleteResponse = z.infer<typeof trackDeleteResponseSchema>;
 

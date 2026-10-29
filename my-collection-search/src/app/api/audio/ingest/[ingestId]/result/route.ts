@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { ingestResultBodySchema } from "@/api-contract/schemas";
-import {
-  IngestNotFound,
-  ingestLifecycleService,
-} from "@/server/services/ingestLifecycleService";
+import { IngestNotFound, ingestLifecycleService } from "@/server/services/ingestLifecycleService";
 
 export const runtime = "nodejs";
 
@@ -15,17 +12,14 @@ export const runtime = "nodejs";
  * the ones that matched nothing, because a gap in matches is how #279 finds
  * the boundary between one play and the next.
  */
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ ingestId: string }> }
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ ingestId: string }> }) {
   try {
     const { ingestId } = await params;
     const parsed = ingestResultBodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json(
         { error: "invalid_result", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -47,9 +41,6 @@ export async function POST(
     }
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error recording ingest result:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to record result" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to record result" }, { status: 500 });
   }
 }

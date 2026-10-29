@@ -9,7 +9,7 @@ import { useTrackStore } from "@/stores/trackStore";
 
 export function usePlaylistTracksQuery(
   trackRefs: { track_id: string; friend_id: number }[],
-  enabled = true
+  enabled = true,
 ) {
   const setTracks = useTrackStore((state) => state.setTracks);
   const tracksMap = useTrackStore((state) => state.tracks);
@@ -26,7 +26,7 @@ export function usePlaylistTracksQuery(
   // Populate Zustand store when tracks are fetched
   useEffect(() => {
     if (query.data && query.data.length > 0) {
-      console.log('📋 usePlaylistTracksQuery calling setTracks');
+      console.log("📋 usePlaylistTracksQuery calling setTracks");
       setTracks(query.data);
     }
   }, [query.data, setTracks]);
@@ -37,7 +37,7 @@ export function usePlaylistTracksQuery(
       trackRefs
         .map((ref) => tracksMap.get(`${ref.track_id}:${ref.friend_id}`))
         .filter((track): track is Track => track !== undefined),
-    [tracksMap, trackRefs]
+    [tracksMap, trackRefs],
   );
 
   return { ...query, tracks };

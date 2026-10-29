@@ -66,7 +66,7 @@ function withEmbeddedArt(image: Buffer) {
     { track_id: "t2", friend_id: 7, release_id: "r1", local_audio_url: "a.m4a" },
   ]);
   audio.resolveAudioFilePath.mockImplementation((name: string) =>
-    name === "a.m4a" ? "/app/audio/a.m4a" : null
+    name === "a.m4a" ? "/app/audio/a.m4a" : null,
   );
   audio.runFfprobe.mockResolvedValue({ streams: [] });
   audio.getAttachedPicStream.mockReturnValue({ index: 1 });
@@ -86,7 +86,8 @@ function imageResponse(body: Buffer): Partial<Response> {
   return {
     ok: true,
     status: 200,
-    arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer,
+    arrayBuffer: async () =>
+      body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer,
   };
 }
 
@@ -111,7 +112,10 @@ afterEach(() => {
 describe("getState", () => {
   it("reports the displayed art, its source and whether audio exists", async () => {
     repo.getAlbumArtwork.mockResolvedValue(
-      album({ audio_file_album_art_url: "/uploads/album-covers/x.jpg", album_art_source: "apple_music" })
+      album({
+        audio_file_album_art_url: "/uploads/album-covers/x.jpg",
+        album_art_source: "apple_music",
+      }),
     );
     repo.getTracksForReleaseWithAudio.mockResolvedValue([{ track_id: "t" }]);
 
@@ -130,7 +134,7 @@ describe("getState", () => {
     expect((await service.getState("r1", 7)).discogs_art_url).toBe(DISCOGS);
 
     repo.getAlbumArtwork.mockResolvedValueOnce(
-      album({ discogs_art_url: null, album_thumbnail: null })
+      album({ discogs_art_url: null, album_thumbnail: null }),
     );
     const empty = await service.getState("r1", 7);
     expect(empty.discogs_art_url).toBeNull();
@@ -178,7 +182,7 @@ describe("apply", () => {
     fs.mkdirSync(coversDir(), { recursive: true });
     fs.writeFileSync(path.join(coversDir(), "apple_r1_7_abc.jpg"), "x");
     repo.getAlbumArtwork.mockResolvedValue(
-      album({ apple_music_art_url: "/uploads/album-covers/apple_r1_7_abc.jpg" })
+      album({ apple_music_art_url: "/uploads/album-covers/apple_r1_7_abc.jpg" }),
     );
 
     await service.apply("r1", 7, "apple_music");
@@ -188,13 +192,13 @@ describe("apply", () => {
       "r1",
       7,
       "/uploads/album-covers/apple_r1_7_abc.jpg",
-      "apple_music"
+      "apple_music",
     );
   });
 
   it("re-extracts the Apple Music cover when the cached file is gone", async () => {
     repo.getAlbumArtwork.mockResolvedValue(
-      album({ apple_music_art_url: "/uploads/album-covers/missing.jpg" })
+      album({ apple_music_art_url: "/uploads/album-covers/missing.jpg" }),
     );
     withEmbeddedArt(await cover("a"));
 
@@ -206,7 +210,9 @@ describe("apply", () => {
   });
 
   it("re-extracts when the stored Apple Music URL is not a local cover", async () => {
-    repo.getAlbumArtwork.mockResolvedValue(album({ apple_music_art_url: "https://elsewhere/a.jpg" }));
+    repo.getAlbumArtwork.mockResolvedValue(
+      album({ apple_music_art_url: "https://elsewhere/a.jpg" }),
+    );
     withEmbeddedArt(await cover("a"));
 
     await service.apply("r1", 7, "apple_music");
@@ -219,7 +225,10 @@ describe("apply", () => {
 
     await service.apply("r1", 7, "discogs");
 
-    expect(fetchMock).toHaveBeenCalledWith(DISCOGS, expect.objectContaining({ headers: expect.any(Object) }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      DISCOGS,
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
     const [, , url, source] = repo.setAlbumDisplayArt.mock.calls[0];
     expect(url).toMatch(/^\/uploads\/album-covers\/discogs_r1_7_[0-9a-f]{12}\.jpg$/);
     expect(source).toBe("discogs");
@@ -228,7 +237,7 @@ describe("apply", () => {
 
   it("is a 404 to restore Discogs art an album never had", async () => {
     repo.getAlbumArtwork.mockResolvedValue(
-      album({ discogs_art_url: null, album_thumbnail: "/uploads/album-covers/u.jpg" })
+      album({ discogs_art_url: null, album_thumbnail: "/uploads/album-covers/u.jpg" }),
     );
     await expect(service.apply("r1", 7, "discogs")).rejects.toMatchObject({ status: 404 });
   });
@@ -246,7 +255,10 @@ describe("apply", () => {
       message: "Could not download artwork: timeout",
     });
 
-    vi.stubGlobal("fetch", vi.fn(() => Promise.reject("socket hang up")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject("socket hang up")),
+    );
     await expect(service.apply("r1", 7, "discogs")).rejects.toMatchObject({
       message: "Could not download artwork: socket hang up",
     });
@@ -266,7 +278,12 @@ describe("upload", () => {
     await service.upload("r1", 7, file);
 
     expect(saveAlbumCover).toHaveBeenCalledWith(file);
-    expect(repo.setAlbumDisplayArt).toHaveBeenCalledWith("r1", 7, "/uploads/album-covers/u.png", "upload");
+    expect(repo.setAlbumDisplayArt).toHaveBeenCalledWith(
+      "r1",
+      7,
+      "/uploads/album-covers/u.png",
+      "upload",
+    );
   });
 
   it("turns a rejected file into a 400", async () => {
@@ -284,21 +301,37 @@ describe("upload", () => {
 
   it("records a form upload as the displayed art", async () => {
     await service.useUploadedCover("r1", 7, "/uploads/album-covers/f.jpg");
-    expect(repo.setAlbumDisplayArt).toHaveBeenCalledWith("r1", 7, "/uploads/album-covers/f.jpg", "upload");
+    expect(repo.setAlbumDisplayArt).toHaveBeenCalledWith(
+      "r1",
+      7,
+      "/uploads/album-covers/f.jpg",
+      "upload",
+    );
   });
 });
 
 describe("match", () => {
   it("applies Apple Music art that matches the Discogs cover", async () => {
     withEmbeddedArt(await cover("a", 1000));
-    mockFetch(imageResponse(await sharp(await cover("a", 150)).jpeg({ quality: 60 }).toBuffer()));
+    mockFetch(
+      imageResponse(
+        await sharp(await cover("a", 150))
+          .jpeg({ quality: 60 })
+          .toBuffer(),
+      ),
+    );
 
     const result = await service.match("r1", 7);
 
     expect(result.status).toBe("matched");
     expect(result.applied).toBe(true);
     expect(result.distance).toBeLessThanOrEqual(10);
-    expect(repo.setAlbumDisplayArt).toHaveBeenCalledWith("r1", 7, result.apple_music_art_url, "apple_music");
+    expect(repo.setAlbumDisplayArt).toHaveBeenCalledWith(
+      "r1",
+      7,
+      result.apple_music_art_url,
+      "apple_music",
+    );
     expect(repo.recordArtMatch).toHaveBeenCalledWith("r1", 7, "matched", result.distance);
   });
 
@@ -317,7 +350,7 @@ describe("match", () => {
   it("records no_reference when there is no Discogs art to compare with", async () => {
     // A local album_thumbnail is an upload, not Discogs art.
     repo.getAlbumArtwork.mockResolvedValue(
-      album({ discogs_art_url: null, album_thumbnail: "/uploads/album-covers/d.jpg" })
+      album({ discogs_art_url: null, album_thumbnail: "/uploads/album-covers/d.jpg" }),
     );
     withEmbeddedArt(await cover("a"));
 
@@ -361,8 +394,17 @@ describe("match", () => {
 describe("listReview", () => {
   it("maps flagged albums to review items", async () => {
     repo.listArtworkReview.mockResolvedValue([
-      album({ art_match_status: "mismatch", art_match_distance: 22, apple_music_art_url: "/uploads/album-covers/a.jpg" }),
-      album({ release_id: "r2", album_thumbnail: null, discogs_art_url: null, art_match_status: "no_reference" }),
+      album({
+        art_match_status: "mismatch",
+        art_match_distance: 22,
+        apple_music_art_url: "/uploads/album-covers/a.jpg",
+      }),
+      album({
+        release_id: "r2",
+        album_thumbnail: null,
+        discogs_art_url: null,
+        art_match_status: "no_reference",
+      }),
     ]);
 
     const items = await service.listReview(7, 50);

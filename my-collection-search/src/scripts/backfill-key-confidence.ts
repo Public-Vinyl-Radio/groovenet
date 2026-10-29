@@ -83,11 +83,16 @@ async function main() {
   console.log(
     opts.apply
       ? "Writing confidence-only refreshes." +
-          (opts.applyKeyChanges ? " Also writing key changes." : " Key changes will only be reported.")
-      : "Dry run — nothing will be written. Pass --apply to write confidence-only refreshes."
+          (opts.applyKeyChanges
+            ? " Also writing key changes."
+            : " Key changes will only be reported.")
+      : "Dry run — nothing will be written. Pass --apply to write confidence-only refreshes.",
   );
 
-  const rows = await trackRepository.findTracksWithKeyForRecompute(opts.friend_id ?? null, opts.limit);
+  const rows = await trackRepository.findTracksWithKeyForRecompute(
+    opts.friend_id ?? null,
+    opts.limit,
+  );
 
   let confidenceOnlyChanges = 0;
   let keyChangedChanges = 0;
@@ -112,7 +117,9 @@ async function main() {
       }
 
       const payload = saved.payload as { analysis?: { tonal?: EssentiaTonal } };
-      const { key: newKey, key_confidence: newConfidence } = extractKeyAnalysis(payload?.analysis?.tonal);
+      const { key: newKey, key_confidence: newConfidence } = extractKeyAnalysis(
+        payload?.analysis?.tonal,
+      );
       if (newKey === null) {
         skippedNoEstimate += 1;
         continue;
@@ -177,7 +184,7 @@ async function main() {
 
   if (keyChanges.length > 0) {
     console.log(
-      `\n${keyChanges.length} track(s) would get a different key under the new consensus logic:`
+      `\n${keyChanges.length} track(s) would get a different key under the new consensus logic:`,
     );
     keyChanges.slice(0, 50).forEach((c) => {
       console.log(`  ${c.track_id}:${c.friend_id}  "${c.old_key}" -> "${c.new_key}"`);
@@ -189,7 +196,7 @@ async function main() {
       console.log(
         "\nKey changes were NOT written. Re-run with --apply --apply-key-changes to write them.\n" +
           "Review this list first — a manually-corrected key looks identical to an\n" +
-          "Essentia-derived one in the database, so this can't tell the two apart."
+          "Essentia-derived one in the database, so this can't tell the two apart.",
       );
     }
   }

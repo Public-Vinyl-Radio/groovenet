@@ -78,21 +78,18 @@ export class AudioProcessor {
       throw new InvalidAudioError(
         `ffprobe could not read the file: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
 
-    const audio = (output.streams ?? []).find(
-      (stream) => stream.codec_type === "audio"
-    );
+    const audio = (output.streams ?? []).find((stream) => stream.codec_type === "audio");
     if (!audio) {
       throw new InvalidAudioError("the file contains no audio stream");
     }
 
     // Prefer the container's duration: a stream's own is often absent for the
     // WAV a capture device produces.
-    const duration =
-      toNumber(output.format?.duration) ?? toNumber(audio.duration);
+    const duration = toNumber(output.format?.duration) ?? toNumber(audio.duration);
     if (duration === null || duration <= 0) {
       throw new InvalidAudioError("the audio stream has no usable duration");
     }

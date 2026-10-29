@@ -13,7 +13,7 @@ function contentTypeFor(fileName: string): string {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ filename: string }> }
+  { params }: { params: Promise<{ filename: string }> },
 ) {
   try {
     const { filename } = await params;

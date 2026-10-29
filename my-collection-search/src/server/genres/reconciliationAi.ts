@@ -1,7 +1,10 @@
 import OpenAI from "openai";
 import { normalizeGenreName } from "@/lib/genres/normalization";
 import type { LocalTagValue } from "@/lib/genres/localTags";
-import type { ProposalDraft, TaxonomyEntry } from "@/server/repositories/genreReconciliationRepository";
+import type {
+  ProposalDraft,
+  TaxonomyEntry,
+} from "@/server/repositories/genreReconciliationRepository";
 
 /**
  * The AI step of local_tags reconciliation (#372): values no taxonomy name or
@@ -60,7 +63,14 @@ export function buildMappingSchema(genreNames: string[]) {
               proposed_parent: { anyOf: [{ $ref: "#/$defs/genre" }, { type: "null" }] },
               confidence: { type: "number" },
             },
-            required: ["value", "action", "genres", "proposed_genre", "proposed_parent", "confidence"],
+            required: [
+              "value",
+              "action",
+              "genres",
+              "proposed_genre",
+              "proposed_parent",
+              "confidence",
+            ],
             additionalProperties: false,
           },
         },
@@ -112,7 +122,7 @@ export function buildUserPrompt(batch: LocalTagValue[], newGenreMinTracks: numbe
       tracks: value.track_count,
       album_styles: value.styles,
       may_propose_new_genre: value.track_count >= newGenreMinTracks,
-    }))
+    })),
   );
 }
 
@@ -133,14 +143,17 @@ export function toProposalDrafts(
   batch: LocalTagValue[],
   mappings: AiMapping[],
   taxonomy: TaxonomyEntry[],
-  newGenreMinTracks: number
+  newGenreMinTracks: number,
 ): ProposalDraft[] {
   const byName = new Map(taxonomy.map((g) => [g.normalized_name, g.id]));
-  const resolve = (name: string | null) => (name ? byName.get(normalizeGenreName(name)) : undefined);
+  const resolve = (name: string | null) =>
+    name ? byName.get(normalizeGenreName(name)) : undefined;
   const byValue = new Map(batch.map((value) => [value.value_normalized, value]));
   const drafts = new Map<string, ProposalDraft>();
   const roots = new Set(taxonomy.filter((g) => g.parent_name === null).map((g) => g.id));
-  const childWords = taxonomy.filter((g) => g.parent_name !== null).map((g) => asWords(g.normalized_name));
+  const childWords = taxonomy
+    .filter((g) => g.parent_name !== null)
+    .map((g) => asWords(g.normalized_name));
   const namesAChild = (value: string) => childWords.some((child) => asWords(value).includes(child));
 
   for (const mapping of mappings) {
@@ -169,9 +182,10 @@ export function toProposalDrafts(
     if (action === "map" && targets.length === 0) continue;
     if (action !== "new_genre") proposedName = null;
 
-    const tooBroad = action === "map"
-      ? targets.every((id) => roots.has(id))
-      : action === "new_genre" && parentId !== null && roots.has(parentId);
+    const tooBroad =
+      action === "map"
+        ? targets.every((id) => roots.has(id))
+        : action === "new_genre" && parentId !== null && roots.has(parentId);
     if (tooBroad && namesAChild(value.value_normalized)) confidence *= 0.5;
 
     drafts.set(value.value_normalized, {
@@ -193,7 +207,7 @@ export function toProposalDrafts(
 export async function mapValuesWithAi(
   batch: LocalTagValue[],
   taxonomy: TaxonomyEntry[],
-  newGenreMinTracks: number
+  newGenreMinTracks: number,
 ): Promise<{ drafts: ProposalDraft[]; usage: AiUsage }> {
   const response = await getOpenAI().responses.create({
     model: RECONCILIATION_MODEL,
@@ -210,7 +224,10 @@ export async function mapValuesWithAi(
   const usage = { input_tokens: input, output_tokens: output, cost_usd: costOf(input, output) };
 
   if (response.status === "incomplete") {
-    throw Object.assign(new Error(`Model output incomplete: ${response.incomplete_details?.reason ?? "unknown"}`), { usage });
+    throw Object.assign(
+      new Error(`Model output incomplete: ${response.incomplete_details?.reason ?? "unknown"}`),
+      { usage },
+    );
   }
   let parsed: { results: AiMapping[] };
   try {

@@ -35,11 +35,7 @@ type TrackLike = Partial<Record<TrackField, unknown>> | null | undefined;
  * treated as an empty array so ordering/content changes are detected but a
  * null → [] transition is not counted as a change.
  */
-function fieldsChanged(
-  current: TrackLike,
-  updated: TrackLike,
-  fields: TrackField[]
-): boolean {
+function fieldsChanged(current: TrackLike, updated: TrackLike, fields: TrackField[]): boolean {
   for (const field of fields) {
     const before = current?.[field];
     const after = updated?.[field];
@@ -65,7 +61,7 @@ export interface EmbeddingUpdatePlan {
  */
 export function computeEmbeddingUpdates(
   current: TrackLike,
-  updated: TrackLike
+  updated: TrackLike,
 ): EmbeddingUpdatePlan {
   return {
     identity: fieldsChanged(current, updated, IDENTITY_FIELDS),

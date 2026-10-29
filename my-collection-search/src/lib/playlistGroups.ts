@@ -10,20 +10,7 @@ export interface PlaylistMonthGroup {
   setCount: number;
 }
 
-const MONTHS = [
-  "JAN",
-  "FEB",
-  "MAR",
-  "APR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AUG",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DEC",
-];
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 /** The date a playlist sits at on the timeline: when it was played, else created. */
@@ -35,9 +22,7 @@ export function playlistTimelineDate(playlist: Playlist): Date | null {
 }
 
 /** Day column parts for a playlist: `{ day: "10", weekday: "MON" }`. */
-export function playlistDayParts(
-  playlist: Playlist,
-): { day: string; weekday: string } | null {
+export function playlistDayParts(playlist: Playlist): { day: string; weekday: string } | null {
   const date = playlistTimelineDate(playlist);
   if (!date) return null;
   return { day: String(date.getDate()), weekday: WEEKDAYS[date.getDay()] };
@@ -47,8 +32,7 @@ export function playlistDayParts(
 export function formatGroupCount(
   group: Pick<PlaylistMonthGroup, "playlistCount" | "setCount">,
 ): string {
-  const plural = (n: number, word: string) =>
-    `${n} ${word}${n === 1 ? "" : "s"}`;
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   return group.setCount > 0
     ? `${plural(group.playlistCount, "playlist")} · ${plural(group.setCount, "set")}`
     : plural(group.playlistCount, "playlist");
@@ -58,9 +42,7 @@ export function formatGroupCount(
  * Buckets playlists by calendar month in local time, newest month first and
  * newest playlist first within it. Undated playlists collect in a last group.
  */
-export function groupPlaylistsByMonth(
-  playlists: Playlist[],
-): PlaylistMonthGroup[] {
+export function groupPlaylistsByMonth(playlists: Playlist[]): PlaylistMonthGroup[] {
   const dated: Array<{ playlist: Playlist; date: Date }> = [];
   const undated: Playlist[] = [];
   for (const playlist of playlists) {

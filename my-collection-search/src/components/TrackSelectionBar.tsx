@@ -65,7 +65,12 @@ export default function TrackSelectionBar({
         </Flex>
         <Flex gap={2}>
           {downloadableCount > 0 && (
-            <Button size="sm" variant="outline" onClick={onDownloadAudio} flex={{ base: 1, md: "none" }}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onDownloadAudio}
+              flex={{ base: 1, md: "none" }}
+            >
               Download ({downloadableCount})
             </Button>
           )}

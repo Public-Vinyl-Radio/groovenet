@@ -47,19 +47,19 @@ fingerprint_service/
 `while True: run_once(matcher)`. Everything else is a named function you can
 call directly in a test:
 
-| | |
-| --- | --- |
-| `parse_job` | JSON → validated `IngestJob`, or `InvalidJob` |
-| `resolve_ingest_path` | job path → absolute, confined to the ingest volume |
-| `verify_redis` | startup probe, returns bool |
-| `write_heartbeat` | liveness key; failure is logged, never fatal |
-| `handle_job` | decode → match → build the result |
-| `process_job` | parse one payload, run it, report the outcome |
-| `publish_engine` | advertise this worker's engine and version |
-| `process_index_job` | fingerprint one reference track, count the outcome |
-| `process_set_job` | match every window of a set recording, report them (#282) |
-| `heartbeat_while_busy` | keeps the heartbeat fresh from a thread during a job |
-| `run_once` | one pass of the loop, across this worker's queues |
+|                        |                                                           |
+| ---------------------- | --------------------------------------------------------- |
+| `parse_job`            | JSON → validated `IngestJob`, or `InvalidJob`             |
+| `resolve_ingest_path`  | job path → absolute, confined to the ingest volume        |
+| `verify_redis`         | startup probe, returns bool                               |
+| `write_heartbeat`      | liveness key; failure is logged, never fatal              |
+| `handle_job`           | decode → match → build the result                         |
+| `process_job`          | parse one payload, run it, report the outcome             |
+| `publish_engine`       | advertise this worker's engine and version                |
+| `process_index_job`    | fingerprint one reference track, count the outcome        |
+| `process_set_job`      | match every window of a set recording, report them (#282) |
+| `heartbeat_while_busy` | keeps the heartbeat fresh from a thread during a job      |
+| `run_once`             | one pass of the loop, across this worker's queues         |
 
 Errors are caught at the same three levels as `download-worker`: a bad heartbeat
 is logged and ignored, a bad job is logged and skipped so one payload cannot
@@ -77,17 +77,17 @@ app holds the raw file until it gets one (#276).
 import: an unknown name crashes the container rather than popping nothing
 forever while reporting healthy.
 
-| service | `FINGERPRINT_QUEUES` | heartbeat key |
-| --- | --- | --- |
-| `fingerprint-service` | `fingerprint_queue,fingerprint_index_queue` (the default) | `fingerprint:heartbeat` |
-| `fingerprint-set-worker` | `fingerprint_set_queue` | `fingerprint:heartbeat:set` |
+| service                  | `FINGERPRINT_QUEUES`                                      | heartbeat key               |
+| ------------------------ | --------------------------------------------------------- | --------------------------- |
+| `fingerprint-service`    | `fingerprint_queue,fingerprint_index_queue` (the default) | `fingerprint:heartbeat`     |
+| `fingerprint-set-worker` | `fingerprint_set_queue`                                   | `fingerprint:heartbeat:set` |
 
 **Priority is ours, not the env's.** Whatever order the variable lists, the
 queues are popped live → index → set. `index,live` would otherwise starve live
 windows behind a library pass.
 
 **Why a second process, not a third queue on the first.** Preemption only
-happens *between* jobs. It is enough for indexing — one job per track, seconds
+happens _between_ jobs. It is enough for indexing — one job per track, seconds
 each — but a set is one job lasting minutes, and a live window that arrives
 during it would wait for the whole thing.
 
@@ -316,7 +316,7 @@ into plays with the same code as #279 and diffs against the planned playlist.
       "start_seconds": 15.11,
       "duration_seconds": 14.98,
       "candidates": [
-        {"track_id": "1234-A1", "friend_id": 1, "confidence": 0.91, "offset_seconds": 14.36}
+        { "track_id": "1234-A1", "friend_id": 1, "confidence": 0.91, "offset_seconds": 14.36 }
       ]
     }
   ]
@@ -357,7 +357,7 @@ A file whose size and mtime match `stored_audio_size_bytes` /
 sha256 over a 40 MB file is milliseconds, a decode is seconds. Same hash means
 the fingerprint is still right; different means replaced audio, re-fingerprinted.
 
-The stat step is what makes it affordable to re-check the *whole* index for
+The stat step is what makes it affordable to re-check the _whole_ index for
 replaced audio — the app's hourly `changed` pass. Hashing every file would read
 the entire library (~150 GB) each time; statting it is a directory walk.
 
@@ -386,7 +386,7 @@ all" is the question the first run exists to answer.
 ## Engine identity
 
 The app resolves `--missing` against a specific (`fingerprint_type`,
-`fingerprint_version`), and those values live on the matcher class *here*. So
+`fingerprint_version`), and those values live on the matcher class _here_. So
 this service advertises them:
 
 ```
@@ -440,16 +440,16 @@ window would cost more than the search it feeds.
 Both of those details were measured on the #271 corpus — 41 tracks, a 3-hour
 vinyl set, 736 windows, 788 held-out negative queries:
 
-| stage 1 keying | verify overlap | recall | false positives |
-| --- | --- | --- | --- |
-| one 28-bit key | >= 1.0 s | 90.9% | 0 / 788 |
-| two 14-bit keys | >= 1.0 s | 97.8% | 4 / 788 |
-| **two 14-bit keys** | **>= 5.0 s** | **97.4%** | **0 / 788** |
+| stage 1 keying      | verify overlap | recall    | false positives |
+| ------------------- | -------------- | --------- | --------------- |
+| one 28-bit key      | >= 1.0 s       | 90.9%     | 0 / 788         |
+| two 14-bit keys     | >= 1.0 s       | 97.8%     | 4 / 788         |
+| **two 14-bit keys** | **>= 5.0 s**   | **97.4%** | **0 / 788**     |
 
 **Do not "simplify" the key back to one.** It looks safe and quietly loses a
 seventh of the set. At a bit error rate of 0.23 — a real match buried under a
 crossfade — about 7 of 32 bits differ, so the odds all 28 top bits survive are
-~0.1%: the window generates *no postings at all* and the track is never even a
+~0.1%: the window generates _no postings at all_ and the track is never even a
 candidate. That is how a track playing for three minutes went missing. Splitting
 the key lets a value with one damaged half match on the other.
 
@@ -461,7 +461,7 @@ values to line up by luck; without the floor that cost four false positives.
 
 A query is refused before it ever reaches the search if it has too little
 spectral variety — `RawFingerprint.variety`, the fraction of its values that
-are distinct (#306). Chromaprint describes how the spectrum *moves*; a 15s
+are distinct (#306). Chromaprint describes how the spectrum _moves_; a 15s
 silent window fingerprints to one to three distinct values out of roughly a
 hundred, while real music gives 98-100. Two silences are therefore not merely
 similar, they are identical — a true bit error rate of 0.0 that no BER
@@ -469,7 +469,7 @@ threshold can tell apart from a real match, and raising `FINGERPRINT_MAX_BER`
 only makes it worse by rejecting real matches first.
 
 Checked on the query side, not the index side: reference tracks are full-side
-rips and legitimately contain silent gaps, and refusing to *store* them
+rips and legitimately contain silent gaps, and refusing to _store_ them
 wouldn't stop a live silent window from matching one anyway.
 
 `FINGERPRINT_MIN_VARIETY`, default **0.20** — silence measures 0.01-0.03 and
@@ -478,7 +478,7 @@ it to `0` to disable the check.
 
 ### The level floor
 
-The variety check refuses *digital* silence. An idle **analog** chain is not
+The variety check refuses _digital_ silence. An idle **analog** chain is not
 silent: its hiss and hum fingerprint as random, sail through the variety check,
 and on real use matched a quiet stretch near the end of a reference track at
 0.876 — twice, days apart, at the same spot (7:08). Loudness is what separates
@@ -512,7 +512,7 @@ fetches the stored blobs from `GET /api/fingerprints` in pages and rebuilds a
 because library indexing (#277) runs on its own schedule and a service that only
 saw the tracks present at boot would silently never match anything added since.
 
-A failed refresh keeps the index it already has, and an *empty* result never
+A failed refresh keeps the index it already has, and an _empty_ result never
 replaces a populated index — that is far likelier to be a bad response than the
 whole library being deleted. A failed load is retried after
 `FINGERPRINT_INDEX_RETRY_SECONDS` (30s), not a whole interval, so a worker that
@@ -524,10 +524,10 @@ As **flat numpy arrays**, not Python containers (#315). The information is
 small — ~7.6M 32-bit values for ~3,900 tracks — but the original dict of lists
 of `(track, position)` tuples cost 70-100 bytes per 4-byte posting:
 
-| | resident | rebuild | per window p50 / p95 |
-| --- | --- | --- | --- |
-| tuples (before #315) | 1.8 GiB | 6.2 s | 74 / 117 ms |
-| **numpy arrays** | **165 MiB** | **0.9 s** | **11.6 / 16.7 ms** |
+|                      | resident    | rebuild   | per window p50 / p95 |
+| -------------------- | ----------- | --------- | -------------------- |
+| tuples (before #315) | 1.8 GiB     | 6.2 s     | 74 / 117 ms          |
+| **numpy arrays**     | **165 MiB** | **0.9 s** | **11.6 / 16.7 ms**   |
 
 Measured against the full dev library (3,911 tracks, 15.2M postings), in the
 container, and over every window of the #271 set: the two implementations
@@ -567,38 +567,38 @@ end-to-end runs push the populated shape through the callback.
 
 ## Config
 
-| var | default | |
-| --- | --- | --- |
-| `REDIS_URL` | `redis://localhost:6379` | |
-| `APP_URL` | `http://app:3000` | where results are posted |
-| `AUDIO_INGEST_DIR` | `/app/audio-ingest` | shared with `app` |
-| `AUDIO_DIR` | `/app/audio` | reference library, mounted read-only |
-| `FINGERPRINT_QUEUE_KEY` | `fingerprint_queue` | |
-| `FINGERPRINT_INDEX_QUEUE_KEY` | `fingerprint_index_queue` | reference indexing |
-| `FINGERPRINT_SET_QUEUE_KEY` | `fingerprint_set_queue` | set recordings (#282) |
-| `SET_RECORDINGS_DIR` | `/app/set-recordings` | set recordings volume, read-only |
-| `FINGERPRINT_SET_WINDOW_SECONDS` | `15` | default window for set derivation |
-| `FINGERPRINT_SET_STEP_SECONDS` | `15` | default step for set derivation |
-| `FINGERPRINT_SET_DECODE_TIMEOUT` | `1800` | ceiling for decoding one whole set |
-| `FINGERPRINT_PCM_CHUNK_BYTES` | `524288` | streaming read size for set decodes |
-| `FINGERPRINT_QUEUES` | live + index | comma-separated; which lists this worker pops |
-| `FINGERPRINT_HEARTBEAT_KEY` | `fingerprint:heartbeat` | one per worker |
-| `FINGERPRINT_ENGINE_KEY` | `fingerprint:engine` | what the app reads |
-| `FINGERPRINT_INDEX_RUN_PREFIX` | `fpindex:run:` | progress counters |
-| `FINGERPRINT_INDEX_RUN_TTL` | `86400` | how long a run stays readable |
-| `FINGERPRINT_HASH_CHUNK_SIZE` | `1048576` | streaming sha256 read size |
-| `FINGERPRINT_SAMPLE_RATE` | `22050` | 22050 or 44100 only |
-| `FINGERPRINT_MATCHER` | `chromaprint` | key into `MATCHERS`; `stub` matches nothing |
-| `FINGERPRINT_MAX_BER` | `0.25` | above this, a candidate is discarded |
-| `FINGERPRINT_MIN_VARIETY` | `0.20` | below this fraction of distinct fingerprint values, a query is refused before searching (#306); `0` disables it |
-| `FINGERPRINT_MIN_LEVEL_DBFS` | unset (off) | live windows quieter than this many dBFS are not matched; tune from the stored `level_dbfs` |
-| `FINGERPRINT_VERSION` | `1` | the recipe blobs are stored under |
-| `FINGERPRINT_INDEX_REFRESH_SECONDS` | `900` | how often the index is rebuilt |
-| `FINGERPRINT_INDEX_RETRY_SECONDS` | `30` | how soon a failed index load is retried |
-| `FINGERPRINT_INDEX_PAGE_SIZE` | `500` | fingerprints per request when loading |
-| `FINGERPRINT_BRPOP_TIMEOUT` | `5` | |
-| `FINGERPRINT_HEARTBEAT_TTL` | `30` | |
-| `FINGERPRINT_FFMPEG_TIMEOUT` | `60` | |
+| var                                 | default                   |                                                                                                                 |
+| ----------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL`                         | `redis://localhost:6379`  |                                                                                                                 |
+| `APP_URL`                           | `http://app:3000`         | where results are posted                                                                                        |
+| `AUDIO_INGEST_DIR`                  | `/app/audio-ingest`       | shared with `app`                                                                                               |
+| `AUDIO_DIR`                         | `/app/audio`              | reference library, mounted read-only                                                                            |
+| `FINGERPRINT_QUEUE_KEY`             | `fingerprint_queue`       |                                                                                                                 |
+| `FINGERPRINT_INDEX_QUEUE_KEY`       | `fingerprint_index_queue` | reference indexing                                                                                              |
+| `FINGERPRINT_SET_QUEUE_KEY`         | `fingerprint_set_queue`   | set recordings (#282)                                                                                           |
+| `SET_RECORDINGS_DIR`                | `/app/set-recordings`     | set recordings volume, read-only                                                                                |
+| `FINGERPRINT_SET_WINDOW_SECONDS`    | `15`                      | default window for set derivation                                                                               |
+| `FINGERPRINT_SET_STEP_SECONDS`      | `15`                      | default step for set derivation                                                                                 |
+| `FINGERPRINT_SET_DECODE_TIMEOUT`    | `1800`                    | ceiling for decoding one whole set                                                                              |
+| `FINGERPRINT_PCM_CHUNK_BYTES`       | `524288`                  | streaming read size for set decodes                                                                             |
+| `FINGERPRINT_QUEUES`                | live + index              | comma-separated; which lists this worker pops                                                                   |
+| `FINGERPRINT_HEARTBEAT_KEY`         | `fingerprint:heartbeat`   | one per worker                                                                                                  |
+| `FINGERPRINT_ENGINE_KEY`            | `fingerprint:engine`      | what the app reads                                                                                              |
+| `FINGERPRINT_INDEX_RUN_PREFIX`      | `fpindex:run:`            | progress counters                                                                                               |
+| `FINGERPRINT_INDEX_RUN_TTL`         | `86400`                   | how long a run stays readable                                                                                   |
+| `FINGERPRINT_HASH_CHUNK_SIZE`       | `1048576`                 | streaming sha256 read size                                                                                      |
+| `FINGERPRINT_SAMPLE_RATE`           | `22050`                   | 22050 or 44100 only                                                                                             |
+| `FINGERPRINT_MATCHER`               | `chromaprint`             | key into `MATCHERS`; `stub` matches nothing                                                                     |
+| `FINGERPRINT_MAX_BER`               | `0.25`                    | above this, a candidate is discarded                                                                            |
+| `FINGERPRINT_MIN_VARIETY`           | `0.20`                    | below this fraction of distinct fingerprint values, a query is refused before searching (#306); `0` disables it |
+| `FINGERPRINT_MIN_LEVEL_DBFS`        | unset (off)               | live windows quieter than this many dBFS are not matched; tune from the stored `level_dbfs`                     |
+| `FINGERPRINT_VERSION`               | `1`                       | the recipe blobs are stored under                                                                               |
+| `FINGERPRINT_INDEX_REFRESH_SECONDS` | `900`                     | how often the index is rebuilt                                                                                  |
+| `FINGERPRINT_INDEX_RETRY_SECONDS`   | `30`                      | how soon a failed index load is retried                                                                         |
+| `FINGERPRINT_INDEX_PAGE_SIZE`       | `500`                     | fingerprints per request when loading                                                                           |
+| `FINGERPRINT_BRPOP_TIMEOUT`         | `5`                       |                                                                                                                 |
+| `FINGERPRINT_HEARTBEAT_TTL`         | `30`                      |                                                                                                                 |
+| `FINGERPRINT_FFMPEG_TIMEOUT`        | `60`                      |                                                                                                                 |
 
 An unsupported `FINGERPRINT_SAMPLE_RATE` raises at import, so the container
 fails fast instead of failing every job identically forever.
@@ -626,7 +626,7 @@ these timings after the coverage run.
 Two things worth knowing when adding tests:
 
 - `run_once` blocks for `BRPOP_TIMEOUT` on an empty queue. Monkeypatch it to a
-  small **positive** float — `0` means *block forever* in Redis, and the suite
+  small **positive** float — `0` means _block forever_ in Redis, and the suite
   will hang rather than fail.
 - The `TestAgainstRealFfmpeg` class skips itself when ffmpeg is missing.
   CI asserts ffmpeg is present so those tests cannot silently stop running.
@@ -665,10 +665,10 @@ Two things worth knowing when adding tests:
   (Debian, in the image) and 1.6.1 (Homebrew, on a dev Mac) emit byte-identical
   output for the same PCM. Keying on it would mean a base-image bump silently
   invalidated the whole index: the matcher would hunt for a version nothing was
-  indexed under and match *nothing at all* until a full re-index finished.
+  indexed under and match _nothing at all_ until a full re-index finished.
   `FINGERPRINT_VERSION` names our own recipe instead (chromaprint's default
   algorithm, raw 32-bit values, little-endian); bump it when that changes.
-- Synthetic test audio has to be *spectrally* distinct, not just parameterised
+- Synthetic test audio has to be _spectrally_ distinct, not just parameterised
   differently. An earlier `tone_pcm` built every track from one formula with a
   different scalar; they fingerprinted alike and produced a false match at BER
   0.21, which looked like a matcher bug and was not.

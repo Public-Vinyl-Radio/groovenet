@@ -33,7 +33,11 @@ export default function PlaylistTrackActionsModal({
 }: Props) {
   const close = () => onOpenChange(false);
   return (
-    <RetroDialog open={open} onOpenChange={onOpenChange} header={<TrackStripHeader track={track} />}>
+    <RetroDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      header={<TrackStripHeader track={track} />}
+    >
       <PositionStepper
         index={index}
         total={total}

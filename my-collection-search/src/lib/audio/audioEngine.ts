@@ -165,8 +165,8 @@ export class AudioEngine {
     const normalized = Math.max(0, Math.min(1, position));
 
     // Constant power crossfade (smoother than linear)
-    const aDegree = normalized * Math.PI / 2;
-    const bDegree = (1 - normalized) * Math.PI / 2;
+    const aDegree = (normalized * Math.PI) / 2;
+    const bDegree = ((1 - normalized) * Math.PI) / 2;
 
     this.deckA.gainNode.gain.value = Math.cos(aDegree);
     this.deckB.gainNode.gain.value = Math.cos(bDegree);

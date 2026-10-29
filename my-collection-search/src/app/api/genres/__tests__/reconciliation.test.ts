@@ -34,27 +34,64 @@ import { GET as proposalTracks } from "../proposals/[id]/tracks/route";
 const id = "6df3a956-f05c-4ef2-a218-0813d0ca7c47";
 const now = new Date("2026-10-05T00:00:00.000Z");
 const run = {
-  id, status: "running", options: { ai: true, new_genre_min_tracks: 5, limit: null, refresh: false },
-  model: "gpt-5-mini", distinct_values: 0, exact_matches: 0, kept: 0, ai_pending: 0, ai_proposed: 0,
-  ai_failed: 0, ai_batches: 0, input_tokens: 0, output_tokens: 0, cost_usd: 0, error: null,
-  started_at: now, updated_at: now, finished_at: null,
+  id,
+  status: "running",
+  options: { ai: true, new_genre_min_tracks: 5, limit: null, refresh: false },
+  model: "gpt-5-mini",
+  distinct_values: 0,
+  exact_matches: 0,
+  kept: 0,
+  ai_pending: 0,
+  ai_proposed: 0,
+  ai_failed: 0,
+  ai_batches: 0,
+  input_tokens: 0,
+  output_tokens: 0,
+  cost_usd: 0,
+  error: null,
+  started_at: now,
+  updated_at: now,
+  finished_at: null,
 };
 const proposal = {
-  id, value_normalized: "cumbia", raw_examples: ["Cumbia"], track_count: 2, action: "map",
-  target_genre_ids: [id], target_genres: [{ id, name: "Cumbia", parent_name: "Latin" }],
-  proposed_genre_name: null, proposed_parent_id: null, proposed_parent_name: null, confidence: 1,
-  method: "exact", status: "accepted", run_id: id, created_genre_id: null, applied_at: null,
-  created_at: now, updated_at: now,
+  id,
+  value_normalized: "cumbia",
+  raw_examples: ["Cumbia"],
+  track_count: 2,
+  action: "map",
+  target_genre_ids: [id],
+  target_genres: [{ id, name: "Cumbia", parent_name: "Latin" }],
+  proposed_genre_name: null,
+  proposed_parent_id: null,
+  proposed_parent_name: null,
+  confidence: 1,
+  method: "exact",
+  status: "accepted",
+  run_id: id,
+  created_genre_id: null,
+  applied_at: null,
+  created_at: now,
+  updated_at: now,
 };
 const coverage = {
   tracks: { with_local_tags: 1, with_genres: 1, descriptors_only: 0, no_genre: 0, unresolved: 0 },
   values: {
-    distinct: 1, proposed: 1, exact: 1, exact_share: 1,
+    distinct: 1,
+    proposed: 1,
+    exact: 1,
+    exact_share: 1,
     by_status: { pending: 0, accepted: 1, rejected: 0, edited: 0 },
     by_action: { map: 1, new_genre: 0, descriptor: 0, drop: 0 },
   },
 };
-const summary = { proposals_applied: 1, tracks_linked: 2, descriptors_added: 0, aliases_added: 0, genres_created: 0, skipped: [] };
+const summary = {
+  proposals_applied: 1,
+  tracks_linked: 2,
+  descriptors_added: 0,
+  aliases_added: 0,
+  genres_created: 0,
+  skipped: [],
+};
 
 const req = (body?: string, url = "http://localhost/api/genres") =>
   new NextRequest(url, { method: "POST", ...(body === undefined ? {} : { body }) });
@@ -71,7 +108,11 @@ describe("POST /api/genres/reconciliation/runs", () => {
     const response = await startRun(req());
     expect(response.status).toBe(202);
     // `run` predates the friend scope: its options have no friend_id.
-    expect(await response.json()).toMatchObject({ id, started_at: now.toISOString(), options: { friend_id: null } });
+    expect(await response.json()).toMatchObject({
+      id,
+      started_at: now.toISOString(),
+      options: { friend_id: null },
+    });
     expect(service.startRun).toHaveBeenCalledWith({});
   });
 
@@ -106,7 +147,9 @@ describe("POST /api/genres/reconciliation/runs", () => {
 
 describe("GET /api/genres/reconciliation/runs/{id}", () => {
   it("returns the run, 404 or 400", async () => {
-    service.getRun.mockResolvedValueOnce(run).mockRejectedValueOnce(new GenreReconciliationError("gone", 404));
+    service.getRun
+      .mockResolvedValueOnce(run)
+      .mockRejectedValueOnce(new GenreReconciliationError("gone", 404));
     expect((await getRun(req(), ctx())).status).toBe(200);
     expect((await getRun(req(), ctx())).status).toBe(404);
     expect((await getRun(req(), ctx("bad"))).status).toBe(400);
@@ -114,7 +157,8 @@ describe("GET /api/genres/reconciliation/runs/{id}", () => {
 });
 
 describe("GET /api/genres/reconciliation/coverage", () => {
-  const coverageReq = (query = "") => new NextRequest(`http://localhost/api/genres/reconciliation/coverage${query}`);
+  const coverageReq = (query = "") =>
+    new NextRequest(`http://localhost/api/genres/reconciliation/coverage${query}`);
 
   it("returns coverage for everyone or one friend, or a 500", async () => {
     service.getCoverage.mockResolvedValue(coverage);
@@ -136,7 +180,9 @@ describe("GET /api/genres/reconciliation/coverage", () => {
 describe("GET /api/genres/proposals", () => {
   it("lists with filters and default paging", async () => {
     listProposals.mockResolvedValue({ proposals: [proposal], total: 1 });
-    const response = await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals?status=pending&limit=5"));
+    const response = await listProposalsRoute(
+      new NextRequest("http://localhost/api/genres/proposals?status=pending&limit=5"),
+    );
     expect(response.status).toBe(200);
     expect(listProposals).toHaveBeenCalledWith({ status: "pending", limit: 5, offset: 0 });
     await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals"));
@@ -144,10 +190,21 @@ describe("GET /api/genres/proposals", () => {
   });
 
   it("rejects a bad filter and reports failures", async () => {
-    expect((await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals?status=done"))).status).toBe(400);
-    expect((await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals?limit=501"))).status).toBe(400);
+    expect(
+      (
+        await listProposalsRoute(
+          new NextRequest("http://localhost/api/genres/proposals?status=done"),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals?limit=501")))
+        .status,
+    ).toBe(400);
     listProposals.mockRejectedValue(new Error("x"));
-    expect((await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals"))).status).toBe(500);
+    expect(
+      (await listProposalsRoute(new NextRequest("http://localhost/api/genres/proposals"))).status,
+    ).toBe(500);
   });
 });
 
@@ -160,10 +217,14 @@ describe("PATCH /api/genres/proposals/{id}", () => {
   });
 
   it("validates the id and body, and maps service errors", async () => {
-    expect((await updateProposal(req(JSON.stringify({ status: "accepted" })), ctx("bad"))).status).toBe(400);
+    expect(
+      (await updateProposal(req(JSON.stringify({ status: "accepted" })), ctx("bad"))).status,
+    ).toBe(400);
     expect((await updateProposal(req("{}"), ctx())).status).toBe(400);
     expect((await updateProposal(req(JSON.stringify({ status: "done" })), ctx())).status).toBe(400);
-    service.updateProposal.mockRejectedValue(new GenreReconciliationError("Unknown genres: X", 400));
+    service.updateProposal.mockRejectedValue(
+      new GenreReconciliationError("Unknown genres: X", 400),
+    );
     const response = await updateProposal(req(JSON.stringify({ target_genres: ["X"] })), ctx());
     expect(await response.json()).toEqual({ error: "Unknown genres: X" });
   });
@@ -186,8 +247,13 @@ describe("POST /api/genres/proposals/apply", () => {
 });
 
 const snapshot = {
-  id, status: "pending", action: "map", target_genre_ids: [id],
-  proposed_genre_name: null, proposed_parent_id: null, method: "ai",
+  id,
+  status: "pending",
+  action: "map",
+  target_genre_ids: [id],
+  proposed_genre_name: null,
+  proposed_parent_id: null,
+  method: "ai",
 };
 
 describe("POST /api/genres/proposals/decisions", () => {
@@ -200,15 +266,24 @@ describe("POST /api/genres/proposals/decisions", () => {
   });
 
   it("rejects empty batches, empty decisions and unknown fields", async () => {
-    for (const body of [{ decisions: [] }, { decisions: [{ id }] }, { decisions: [{ id, status: "accepted", bogus: 1 }] }, {}]) {
+    for (const body of [
+      { decisions: [] },
+      { decisions: [{ id }] },
+      { decisions: [{ id, status: "accepted", bogus: 1 }] },
+      {},
+    ]) {
       expect((await decide(req(JSON.stringify(body)))).status).toBe(400);
     }
     expect(service.decideProposals).not.toHaveBeenCalled();
   });
 
   it("maps service errors", async () => {
-    service.decideProposals.mockRejectedValue(new GenreReconciliationError("Proposal not found: x", 404));
-    expect((await decide(req(JSON.stringify({ decisions: [{ id, status: "accepted" }] })))).status).toBe(404);
+    service.decideProposals.mockRejectedValue(
+      new GenreReconciliationError("Proposal not found: x", 404),
+    );
+    expect(
+      (await decide(req(JSON.stringify({ decisions: [{ id, status: "accepted" }] })))).status,
+    ).toBe(404);
   });
 });
 
@@ -228,8 +303,16 @@ describe("POST /api/genres/proposals/restore", () => {
 });
 
 describe("GET /api/genres/proposals/{id}/tracks", () => {
-  const tracksReq = (query = "") => new NextRequest(`http://localhost/api/genres/proposals/${id}/tracks${query}`);
-  const track = { track_id: "1", friend_id: 6, title: "T", artist: "A", album: null, styles: ["Cumbia"] };
+  const tracksReq = (query = "") =>
+    new NextRequest(`http://localhost/api/genres/proposals/${id}/tracks${query}`);
+  const track = {
+    track_id: "1",
+    friend_id: 6,
+    title: "T",
+    artist: "A",
+    album: null,
+    styles: ["Cumbia"],
+  };
 
   it("returns example tracks, defaulting to three for everyone", async () => {
     service.getProposalTracks.mockResolvedValue([track]);
@@ -242,7 +325,9 @@ describe("GET /api/genres/proposals/{id}/tracks", () => {
   it("validates the id and query, and maps errors", async () => {
     expect((await proposalTracks(tracksReq(), ctx("bad"))).status).toBe(400);
     expect((await proposalTracks(tracksReq("?limit=21"), ctx())).status).toBe(400);
-    service.getProposalTracks.mockRejectedValue(new GenreReconciliationError("Proposal not found", 404));
+    service.getProposalTracks.mockRejectedValue(
+      new GenreReconciliationError("Proposal not found", 404),
+    );
     expect((await proposalTracks(tracksReq(), ctx())).status).toBe(404);
   });
 });

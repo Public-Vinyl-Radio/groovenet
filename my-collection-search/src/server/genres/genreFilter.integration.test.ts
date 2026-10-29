@@ -34,15 +34,43 @@ const ALBUMS = [
 ];
 const TRACKS: Fixture[] = [
   // Reconciled to Cumbia on a Salsa album: found by cumbia, never by salsa.
-  { id: "gf-1", release: "gf-salsa-lp", genres: ["Latin"], styles: ["Salsa"], linked: ["Cumbia"], bpm: 100 },
+  {
+    id: "gf-1",
+    release: "gf-salsa-lp",
+    genres: ["Latin"],
+    styles: ["Salsa"],
+    linked: ["Cumbia"],
+    bpm: 100,
+  },
   // Not reconciled: falls back to the album's Salsa.
   { id: "gf-2", release: "gf-salsa-lp", genres: ["Latin"], styles: ["Salsa"], linked: [], bpm: 90 },
   // A Salsa track on a Punk album.
-  { id: "gf-3", release: "gf-rock-lp", genres: ["Rock"], styles: ["Punk"], linked: ["Salsa"], bpm: 140 },
+  {
+    id: "gf-3",
+    release: "gf-rock-lp",
+    genres: ["Rock"],
+    styles: ["Punk"],
+    linked: ["Salsa"],
+    bpm: 140,
+  },
   // Untidy Discogs spelling, matched through genre_normalize().
-  { id: "gf-4", release: "gf-odd-lp", genres: ["  LATIN "], styles: ["Cumbia"], linked: [], bpm: 130 },
+  {
+    id: "gf-4",
+    release: "gf-odd-lp",
+    genres: ["  LATIN "],
+    styles: ["Cumbia"],
+    linked: [],
+    bpm: 130,
+  },
   // `Bossanova` is a Latin style and also a seed alias of Jazz > Bossa Nova.
-  { id: "gf-5", release: "gf-jazz-lp", genres: ["Jazz"], styles: ["Bossanova"], linked: [], bpm: null },
+  {
+    id: "gf-5",
+    release: "gf-jazz-lp",
+    genres: ["Jazz"],
+    styles: ["Bossanova"],
+    linked: [],
+    bpm: null,
+  },
 ];
 
 /**
@@ -83,26 +111,26 @@ async function cleanup() {
 async function seedShareAlbums() {
   const { rows } = await dbQuery<{ id: number }>(
     "INSERT INTO friends (username) VALUES ($1) RETURNING id",
-    [SHARE_USERNAME]
+    [SHARE_USERNAME],
   );
   shareFriendId = rows[0].id;
   for (const album of SHARE_ALBUMS) {
     await dbQuery(
       `INSERT INTO albums (release_id, friend_id, title, artist, genres, styles)
        VALUES ($1, $2, $1, 'Artist', ARRAY['Rock'], $3)`,
-      [album.release, shareFriendId, album.styles]
+      [album.release, shareFriendId, album.styles],
     );
     for (const [i, links] of album.tracks.entries()) {
       const trackId = `${album.release}-${i}`;
       await dbQuery(
         `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id, genres, styles)
          VALUES ($1, $2, $3, $1, 'Artist', $4, ARRAY['Rock'], $5)`,
-        [trackId, SHARE_USERNAME, shareFriendId, album.release, album.styles]
+        [trackId, SHARE_USERNAME, shareFriendId, album.release, album.styles],
       );
       await dbQuery(
         `INSERT INTO track_genres (track_id, friend_id, genre_id, source)
          SELECT $1, $2, id, 'manual' FROM genres WHERE name = ANY($3)`,
-        [trackId, shareFriendId, links]
+        [trackId, shareFriendId, links],
       );
     }
   }
@@ -110,7 +138,7 @@ async function seedShareAlbums() {
 
 async function searchTracks(query: string) {
   const res = await GET(
-    new NextRequest(`http://localhost/api/tracks/search?friend_id=${friendId}&limit=50&${query}`)
+    new NextRequest(`http://localhost/api/tracks/search?friend_id=${friendId}&limit=50&${query}`),
   );
   const body = await res.json();
   if (res.status !== 200) return { status: res.status, body, ids: [], total: 0 };
@@ -125,16 +153,19 @@ async function searchTracks(query: string) {
 /** Facet counts by genre name, for readable assertions. */
 async function facets(query = "") {
   const res = await GET_FACETS(
-    new NextRequest(`http://localhost/api/tracks/search/facets?friend_id=${friendId}&${query}`)
+    new NextRequest(`http://localhost/api/tracks/search/facets?friend_id=${friendId}&${query}`),
   );
   expect(res.status).toBe(200);
   const { genres } = (await res.json()) as { genres: { id: string; track_count: number }[] };
   const { rows } = await dbQuery<{ id: string; name: string }>(
     "SELECT id::text, name FROM genres WHERE id = ANY($1::uuid[])",
-    [genres.map((g) => g.id)]
+    [genres.map((g) => g.id)],
   );
   const names = new Map(rows.map((r) => [r.id, r.name]));
-  return { genres, byName: Object.fromEntries(genres.map((g) => [names.get(g.id), g.track_count])) };
+  return {
+    genres,
+    byName: Object.fromEntries(genres.map((g) => [names.get(g.id), g.track_count])),
+  };
 }
 
 async function searchAlbums(...genres: string[]) {
@@ -159,27 +190,27 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number }>(
     "INSERT INTO friends (username) VALUES ($1) RETURNING id",
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   for (const album of ALBUMS) {
     await dbQuery(
       `INSERT INTO albums (release_id, friend_id, title, artist, genres, styles)
        VALUES ($1, $2, $1, 'Artist', $3, $4)`,
-      [album.release, friendId, album.genres, album.styles]
+      [album.release, friendId, album.genres, album.styles],
     );
   }
   for (const t of TRACKS) {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id, genres, styles, bpm)
        VALUES ($1, $2, $3, $1, 'Artist', $4, $5, $6, $7)`,
-      [t.id, USERNAME, friendId, t.release, t.genres, t.styles, t.bpm]
+      [t.id, USERNAME, friendId, t.release, t.genres, t.styles, t.bpm],
     );
     for (const name of t.linked) {
       await dbQuery(
         `INSERT INTO track_genres (track_id, friend_id, genre_id, source)
          SELECT $1, $2, id, 'manual' FROM genres WHERE name = $3`,
-        [t.id, friendId, name]
+        [t.id, friendId, name],
       );
     }
   }
@@ -187,17 +218,17 @@ beforeAll(async () => {
   await dbQuery(
     `INSERT INTO albums (release_id, friend_id, title, artist, genres, styles)
      VALUES ('gf-gone-lp', $1, 'Gone', 'Artist', ARRAY['Rock'], ARRAY['Punk'])`,
-    [friendId]
+    [friendId],
   );
   await dbQuery(
     `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id, genres, styles, deleted_at)
      VALUES ('gf-gone', $1, $2, 'gf-gone', 'Artist', 'gf-gone-lp', ARRAY['Rock'], ARRAY['Punk'], now())`,
-    [USERNAME, friendId]
+    [USERNAME, friendId],
   );
   await dbQuery(
     `INSERT INTO track_genres (track_id, friend_id, genre_id, source)
      SELECT 'gf-gone', $1, id, 'manual' FROM genres WHERE name = 'Salsa'`,
-    [friendId]
+    [friendId],
   );
   await seedShareAlbums();
 });
@@ -210,10 +241,9 @@ afterAll(async () => {
 
 describe("genre filter (integration)", () => {
   dbTest("genre_normalize() folds spellings the way normalizeGenreName does", async () => {
-    const { rows } = await dbQuery<{ key: string }>(
-      "SELECT genre_normalize($1) AS key",
-      ["  Post‑Punk   Revival "]
-    );
+    const { rows } = await dbQuery<{ key: string }>("SELECT genre_normalize($1) AS key", [
+      "  Post‑Punk   Revival ",
+    ]);
     expect(rows[0].key).toBe("post-punk revival");
   });
 
@@ -263,44 +293,47 @@ describe("genre filter (integration)", () => {
       await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [genreId]);
       await dbQuery(
         "INSERT INTO genre_similarity (genre_id, related_genre_id, score, signals) VALUES ($1, $2, $3, '{}'::jsonb)",
-        [genreId, relatedId, score]
+        [genreId, relatedId, score],
       );
     }
 
-    dbTest("widens to a stored related genre and its descendants, naming what it added", async () => {
-      const { rows } = await dbQuery<{ id: string; name: string; slug: string }>(
-        "SELECT id, name, slug FROM genres WHERE name = ANY($1)",
-        [["Salsa", "Bossa Nova"]]
-      );
-      const salsa = rows.find((r) => r.name === "Salsa")!;
-      const bossaNova = rows.find((r) => r.name === "Bossa Nova")!;
-      await soleSimilarRow(salsa.id, bossaNova.id, 0.5);
-      try {
-        // Off by default: unchanged from plain genre=salsa.
-        expect((await searchTracks("genre=salsa")).ids).toEqual(["gf-2", "gf-3"]);
+    dbTest(
+      "widens to a stored related genre and its descendants, naming what it added",
+      async () => {
+        const { rows } = await dbQuery<{ id: string; name: string; slug: string }>(
+          "SELECT id, name, slug FROM genres WHERE name = ANY($1)",
+          [["Salsa", "Bossa Nova"]],
+        );
+        const salsa = rows.find((r) => r.name === "Salsa")!;
+        const bossaNova = rows.find((r) => r.name === "Bossa Nova")!;
+        await soleSimilarRow(salsa.id, bossaNova.id, 0.5);
+        try {
+          // Off by default: unchanged from plain genre=salsa.
+          expect((await searchTracks("genre=salsa")).ids).toEqual(["gf-2", "gf-3"]);
 
-        // On: gf-5 joins through its album's Discogs 'Bossanova' style.
-        const widened = await searchTracks("genre=salsa&include_similar=1");
-        expect(widened.ids).toEqual(["gf-2", "gf-3", "gf-5"]);
-        expect(widened.body.added_genres).toEqual([
-          { id: bossaNova.id, name: "Bossa Nova", slug: bossaNova.slug },
-        ]);
-      } finally {
-        await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [salsa.id]);
-      }
-    });
+          // On: gf-5 joins through its album's Discogs 'Bossanova' style.
+          const widened = await searchTracks("genre=salsa&include_similar=1");
+          expect(widened.ids).toEqual(["gf-2", "gf-3", "gf-5"]);
+          expect(widened.body.added_genres).toEqual([
+            { id: bossaNova.id, name: "Bossa Nova", slug: bossaNova.slug },
+          ]);
+        } finally {
+          await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [salsa.id]);
+        }
+      },
+    );
 
     dbTest("a removed similar genre stays out when similar_exclude names it", async () => {
       const { rows } = await dbQuery<{ id: string; name: string }>(
         "SELECT id, name FROM genres WHERE name = ANY($1)",
-        [["Salsa", "Bossa Nova"]]
+        [["Salsa", "Bossa Nova"]],
       );
       const salsa = rows.find((r) => r.name === "Salsa")!;
       const bossaNova = rows.find((r) => r.name === "Bossa Nova")!;
       await soleSimilarRow(salsa.id, bossaNova.id, 0.5);
       try {
         const result = await searchTracks(
-          `genre=salsa&include_similar=1&similar_exclude=${bossaNova.id}`
+          `genre=salsa&include_similar=1&similar_exclude=${bossaNova.id}`,
         );
         expect(result.ids).toEqual(["gf-2", "gf-3"]);
         expect(result.body.added_genres).toBeUndefined();
@@ -309,15 +342,18 @@ describe("genre filter (integration)", () => {
       }
     });
 
-    dbTest("never falls back to taxonomy siblings when the table has no rows for the seed", async () => {
-      const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = 'Jazz'");
-      const jazzId = rows[0].id;
-      await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [jazzId]);
+    dbTest(
+      "never falls back to taxonomy siblings when the table has no rows for the seed",
+      async () => {
+        const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = 'Jazz'");
+        const jazzId = rows[0].id;
+        await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [jazzId]);
 
-      const result = await searchTracks("genre=jazz&include_similar=1");
-      expect(result.ids).toEqual(["gf-5"]);
-      expect(result.body.added_genres).toBeUndefined();
-    });
+        const result = await searchTracks("genre=jazz&include_similar=1");
+        expect(result.ids).toEqual(["gf-5"]);
+        expect(result.body.added_genres).toBeUndefined();
+      },
+    );
   });
 
   dbTest("an album matches on its Discogs values or its live tracks' genres", async () => {
@@ -333,13 +369,22 @@ describe("genre filter (integration)", () => {
     ]);
   });
 
-  dbTest("an album matches on its tracks only when a third of the tagged ones carry the genre", async () => {
-    // gs-one-lp: 1 of 10. gs-four-lp: 4 of 10, untagged tracks aside.
-    // gs-style-lp: 1 of 10, but Cumbia on Discogs. gs-bare-lp: nothing tagged.
-    expect(await searchAlbumsFor(shareFriendId, ["cumbia"])).toEqual(["gs-four-lp", "gs-style-lp"]);
-    // gs-double-lp's Salsa + Cumbia track counts once: 1 of 5.
-    expect(await searchAlbumsFor(shareFriendId, ["latin"])).toEqual(["gs-four-lp", "gs-style-lp"]);
-  });
+  dbTest(
+    "an album matches on its tracks only when a third of the tagged ones carry the genre",
+    async () => {
+      // gs-one-lp: 1 of 10. gs-four-lp: 4 of 10, untagged tracks aside.
+      // gs-style-lp: 1 of 10, but Cumbia on Discogs. gs-bare-lp: nothing tagged.
+      expect(await searchAlbumsFor(shareFriendId, ["cumbia"])).toEqual([
+        "gs-four-lp",
+        "gs-style-lp",
+      ]);
+      // gs-double-lp's Salsa + Cumbia track counts once: 1 of 5.
+      expect(await searchAlbumsFor(shareFriendId, ["latin"])).toEqual([
+        "gs-four-lp",
+        "gs-style-lp",
+      ]);
+    },
+  );
 
   dbTest("facets count each track once per genre, ancestors included", async () => {
     const { byName } = await facets();
@@ -366,6 +411,10 @@ describe("genre filter (integration)", () => {
   });
 
   dbTest("facets follow the other filters and ignore genre", async () => {
-    expect((await facets("bpm_min=120&genre=jazz")).byName).toEqual({ Latin: 2, Cumbia: 1, Salsa: 1 });
+    expect((await facets("bpm_min=120&genre=jazz")).byName).toEqual({
+      Latin: 2,
+      Cumbia: 1,
+      Salsa: 1,
+    });
   });
 });

@@ -23,7 +23,7 @@ function artworkPath(releaseId: string, friendId: number, suffix = ""): string {
 
 export async function fetchAlbumArtwork(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<AlbumArtworkState> {
   return await http<AlbumArtworkState>(artworkPath(releaseId, friendId), {
     method: "GET",
@@ -33,7 +33,7 @@ export async function fetchAlbumArtwork(
 
 export async function previewAppleMusicArtwork(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<AlbumAppleMusicArtPreview> {
   return await http<AlbumAppleMusicArtPreview>(artworkPath(releaseId, friendId, "/preview"), {
     method: "POST",
@@ -43,7 +43,7 @@ export async function previewAppleMusicArtwork(
 export async function applyAlbumArtwork(
   releaseId: string,
   friendId: number,
-  source: AlbumArtworkApplySource
+  source: AlbumArtworkApplySource,
 ): Promise<AlbumArtworkState> {
   return await http<AlbumArtworkState>(artworkPath(releaseId, friendId), {
     method: "PUT",
@@ -55,7 +55,7 @@ export async function applyAlbumArtwork(
 export async function uploadAlbumArtwork(
   releaseId: string,
   friendId: number,
-  file: File
+  file: File,
 ): Promise<AlbumArtworkState> {
   const formData = new FormData();
   formData.append("cover_art", file);
@@ -66,7 +66,7 @@ export async function uploadAlbumArtwork(
 }
 
 export async function queueAlbumArtworkBackfill(
-  params: AlbumArtworkBackfillParams = {}
+  params: AlbumArtworkBackfillParams = {},
 ): Promise<AlbumArtworkBackfillResponse> {
   return await http<AlbumArtworkBackfillResponse>("/api/albums/artwork/backfill", {
     method: "POST",
@@ -76,7 +76,7 @@ export async function queueAlbumArtworkBackfill(
 }
 
 export async function fetchAlbumArtworkReview(
-  friendId?: number
+  friendId?: number,
 ): Promise<AlbumArtworkReviewResponse> {
   const query = friendId ? `?friend_id=${friendId}` : "";
   return await http<AlbumArtworkReviewResponse>(`/api/albums/artwork/review${query}`, {

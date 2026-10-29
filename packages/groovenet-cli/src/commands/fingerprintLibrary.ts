@@ -61,9 +61,7 @@ export interface FingerprintLibraryOptions {
  * all it is `--missing`: the cheap, common case, since the alternatives re-read
  * and re-hash every already-indexed file.
  */
-export function resolveScope(
-  opts: FingerprintLibraryOptions
-): FingerprintIndexRequest {
+export function resolveScope(opts: FingerprintLibraryOptions): FingerprintIndexRequest {
   const chosen = [
     opts.missing ? "missing" : null,
     opts.changed ? "changed" : null,
@@ -74,7 +72,7 @@ export function resolveScope(
 
   if (chosen.length > 1) {
     throw new Error(
-      `Choose one scope, not ${chosen.length}: ${chosen.map((s) => `--${s}`).join(" ")}`
+      `Choose one scope, not ${chosen.length}: ${chosen.map((s) => `--${s}`).join(" ")}`,
     );
   }
 
@@ -133,7 +131,7 @@ function sleep(ms: number): Promise<void> {
 export async function waitForRun(
   client: Pick<GroovenetClient, "getFingerprintIndexRun">,
   runId: string,
-  opts: { pollIntervalMs: number; onProgress?: (run: FingerprintIndexRun) => void }
+  opts: { pollIntervalMs: number; onProgress?: (run: FingerprintIndexRun) => void },
 ): Promise<FingerprintIndexRun> {
   for (;;) {
     const run = await client.getFingerprintIndexRun(runId);
@@ -154,7 +152,7 @@ export async function waitForRun(
 export async function runFingerprintLibrary(
   client: FingerprintLibraryClient,
   opts: FingerprintLibraryOptions,
-  io: FingerprintLibraryIO = consoleIO
+  io: FingerprintLibraryIO = consoleIO,
 ): Promise<number> {
   const request = resolveScope(opts);
   const started = await client.startFingerprintIndex(request);
@@ -162,12 +160,10 @@ export async function runFingerprintLibrary(
   if (!opts.json) {
     io.log(
       chalk.bold(`Indexing ${started.scope}`) +
-        chalk.gray(` — ${started.fingerprint_type} ${started.fingerprint_version}`)
+        chalk.gray(` — ${started.fingerprint_type} ${started.fingerprint_version}`),
     );
     io.log(
-      chalk.gray(
-        `  ${started.queued} queued, ${started.unindexable} without reference audio`
-      )
+      chalk.gray(`  ${started.queued} queued, ${started.unindexable} without reference audio`),
     );
   }
 
@@ -206,9 +202,7 @@ export async function runFingerprintLibrary(
 export function addFingerprintLibraryCommand(program: Command): void {
   program
     .command("fingerprint-library")
-    .description(
-      "Build the reference fingerprint index the live vinyl matcher searches"
-    )
+    .description("Build the reference fingerprint index the live vinyl matcher searches")
     .option("--missing", "Only tracks with no fingerprint yet (default)")
     .option("--changed", "Only tracks already indexed, re-checked for edits")
     .option("--all", "Every track with reference audio")
