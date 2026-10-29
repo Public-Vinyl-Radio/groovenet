@@ -61,6 +61,22 @@ describe("upsertDiscogsTrackByTrackIdUsername()", () => {
     );
   });
 
+  it("writes the album's date_added, keeping a stored one when the import has none (#847)", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+
+    await makeRepo().upsertDiscogsTrackByTrackIdUsername(
+      { ...makeTrack(), date_added: "2024-03-01T10:20:30-08:00" } as any,
+      1
+    );
+    await makeRepo().upsertDiscogsTrackByTrackIdUsername(makeTrack() as any, 1);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("date_added       = COALESCE(EXCLUDED.date_added, tracks.date_added)");
+    expect(params).toHaveLength(21);
+    expect(params[20]).toBe("2024-03-01T10:20:30-08:00");
+    expect(dbQuery.mock.calls[1][1][20]).toBeNull();
+  });
+
   it("returns null when the track is soft-deleted (upsert WHERE clause prevents update)", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 

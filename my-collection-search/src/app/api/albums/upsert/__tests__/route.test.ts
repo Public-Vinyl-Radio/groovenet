@@ -237,6 +237,13 @@ describe("album edit taxonomy layer", () => {
     // Track source copies come from the persisted source, not the edit input.
     expect(mockUpsertTrack.mock.calls[0][1].slice(7, 9)).toEqual([["Cumbia"], ["Latin"]]);
   });
+  it("leaves the Discogs-sourced dates and URL to the stored row (#847)", async () => {
+    expect((await POST(makeReq())).status).toBe(200);
+    const albumToUpsert = mockUpsertAlbum.mock.calls[0][1];
+    expect(albumToUpsert).not.toHaveProperty("date_added");
+    expect(albumToUpsert).not.toHaveProperty("date_changed");
+    expect(albumToUpsert).not.toHaveProperty("discogs_url");
+  });
   it("returns a 400 for invalid replacements without editing the album or tracks", async () => {
     const res = await POST(makeReq({ album: { ...ALBUM, genre_override_ids: "Jazz" } }));
     expect(res.status).toBe(400);

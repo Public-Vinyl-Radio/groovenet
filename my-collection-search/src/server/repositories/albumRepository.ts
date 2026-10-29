@@ -40,6 +40,12 @@ export type AlbumUpsertInput = Pick<
   | "library_identifier"
 >;
 
+export type DiscogsCollectionRepair = {
+  release_id: string;
+  date_added: string | null;
+  discogs_url: string | null;
+};
+
 export type AlbumArtSource = "discogs" | "apple_music" | "upload";
 
 export type AlbumArtMatchStatus = "matched" | "mismatch" | "no_reference" | "no_candidate";
@@ -219,9 +225,11 @@ export class AlbumRepository {
         styles = ${options?.preserveSourceTaxonomy ? "albums.styles" : "EXCLUDED.styles"},
         album_thumbnail = EXCLUDED.album_thumbnail,
         discogs_art_url = COALESCE(EXCLUDED.discogs_art_url, albums.discogs_art_url),
-        discogs_url = EXCLUDED.discogs_url,
-        date_added = EXCLUDED.date_added,
-        date_changed = EXCLUDED.date_changed,
+        -- Discogs-sourced: an album edit doesn't send them, so a null input
+        -- keeps what the import wrote (#847). A re-sync supplies new values.
+        discogs_url = COALESCE(EXCLUDED.discogs_url, albums.discogs_url),
+        date_added = COALESCE(EXCLUDED.date_added, albums.date_added),
+        date_changed = COALESCE(EXCLUDED.date_changed, albums.date_changed),
         track_count = EXCLUDED.track_count,
         label = EXCLUDED.label,
         catalog_number = EXCLUDED.catalog_number,
@@ -257,6 +265,67 @@ export class AlbumRepository {
     );
 
     return result.rows[0] as Album;
+  }
+
+  /**
+   * Heal Discogs-sourced fields from the collection listing (#847), without
+   * fetching release details. `date_added` follows the listing wherever it
+   * differs; `discogs_url` only fills a blank. Neither is ever nulled. Every
+   * listed album's tracks then take the album's `date_added`. Leaves
+   * `updated_at` alone: that records local edits.
+   */
+  async repairDiscogsCollectionFields(
+    db: Queryable,
+    friendId: number,
+    entries: DiscogsCollectionRepair[]
+  ): Promise<{ albums: string[]; tracks: number }> {
+    if (entries.length === 0) return { albums: [], tracks: 0 };
+    const releaseIds = entries.map((e) => e.release_id);
+
+    const albums = await db.query<{ release_id: string }>(
+      `
+      WITH input AS (
+        SELECT * FROM unnest($2::text[], $3::text[], $4::text[])
+          AS i(release_id, date_added, discogs_url)
+      )
+      UPDATE albums a SET
+        date_added = COALESCE(i.date_added::timestamp, a.date_added),
+        discogs_url = COALESCE(NULLIF(a.discogs_url, ''), i.discogs_url)
+      FROM input i
+      WHERE a.friend_id = $1
+        AND a.release_id = i.release_id
+        AND (
+          (i.date_added IS NOT NULL AND a.date_added IS DISTINCT FROM i.date_added::timestamp)
+          OR (NULLIF(a.discogs_url, '') IS NULL AND i.discogs_url IS NOT NULL)
+        )
+      RETURNING a.release_id
+      `,
+      [
+        friendId,
+        releaseIds,
+        entries.map((e) => e.date_added),
+        entries.map((e) => e.discogs_url),
+      ]
+    );
+
+    const tracks = await db.query(
+      `
+      UPDATE tracks t SET date_added = a.date_added
+      FROM albums a
+      WHERE a.friend_id = $1
+        AND a.release_id = ANY($2::text[])
+        AND a.date_added IS NOT NULL
+        AND t.friend_id = a.friend_id
+        AND t.release_id = a.release_id
+        AND t.date_added IS DISTINCT FROM a.date_added
+      `,
+      [friendId, releaseIds]
+    );
+
+    return {
+      albums: albums.rows.map((row) => row.release_id),
+      tracks: tracks.rowCount ?? 0,
+    };
   }
 
   async updateAlbumFields(
@@ -385,12 +454,15 @@ export class AlbumRepository {
         styles, genres, duration, duration_seconds, position,
         discogs_url, apple_music_url, youtube_url, soundcloud_url,
         album_thumbnail, local_tags, bpm, key, notes, star_rating, release_id,
-        library_identifier
+        library_identifier, date_added
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24
+        $21, $22, $23::text, $24,
+        -- A track's date_added is its album's (#847). $23 is cast in both
+        -- places, or Postgres deduces two types for it and refuses.
+        (SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)
       )
       RETURNING *`,
       values
@@ -408,12 +480,15 @@ export class AlbumRepository {
         styles, genres, duration, duration_seconds, position,
         discogs_url, apple_music_url, youtube_url, soundcloud_url,
         album_thumbnail, local_tags, bpm, key, notes, star_rating, release_id,
-        library_identifier
+        library_identifier, date_added
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24
+        $21, $22, $23::text, $24,
+        -- A track's date_added is its album's (#847). $23 is cast in both
+        -- places, or Postgres deduces two types for it and refuses.
+        (SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)
       )
       ON CONFLICT (track_id, username)
       DO UPDATE SET
@@ -435,7 +510,8 @@ export class AlbumRepository {
         key = EXCLUDED.key,
         notes = EXCLUDED.notes,
         star_rating = EXCLUDED.star_rating,
-        library_identifier = EXCLUDED.library_identifier
+        library_identifier = EXCLUDED.library_identifier,
+        date_added = COALESCE(tracks.date_added, EXCLUDED.date_added)
       RETURNING *`,
       values
     );
