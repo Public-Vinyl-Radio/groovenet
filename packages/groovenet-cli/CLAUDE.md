@@ -266,6 +266,16 @@ state and keys and renders into it.
 - `frame.tsx`: `PlayerFrame`, plus `TopBar`, `tabSegments`, `HelpOverlay`,
   `TooSmall`.
 
+`artwork.ts` / `artworkSlot.tsx` fetch covers through `GroovenetClient.getArtwork`,
+resize with sharp, and keep bounded session caches. `ArtworkProvider` detects
+Ghostty/Kitty and checks tmux's per-pane `allow-passthrough`; native images use
+quiet Kitty Unicode virtual placements, raw stdout for uploads/deletes and Ink
+text for the cells. Each slot fences stale async completions and deletes only its
+own image ID on cleanup. True-colour terminals without Kitty/passthrough use
+half-block pixels. `NO_COLOR`/non-TTY keep `ArtSlot`. `GROOVENET_TUI_ART` overrides
+`auto` with `kitty`, `blocks` or `off`; see README for multiplexer limitations.
+Artwork colours encode pixels/protocol IDs and intentionally bypass theme roles.
+
 A view plugs in through two render props, each told the exact cells it has:
 `nowPlaying(area)` (the card's text column, right of the art; the whole first
 row in the strip) and `children(area)` (the body, `width` × `rows`). The side
@@ -282,7 +292,8 @@ The playlists view (#826) lives in `playerTuiPlaylists.tsx` and
 `playerTuiPlaylistsState.ts`: grouping follows the web timeline (last performed,
 else created, local calendar month). Existing client list / playlist refs / batch
 track methods provide all metadata; batch results are reordered by playlist
-position and missing references block playback. Preview and full tracklist share
+position. Missing references stay visible as numbered unavailable rows; available
+tracks and artwork still preview, while missing references block playback. Preview and full tracklist share
 columns; side panes use two-line rows. The filter uses `playlists.filter` and the
 shared input dispatch. Enter replaces the whole playlist even in the full table;
 `a` enqueues it. Remote replacement is one policy-preserving `queue.replace`;
@@ -306,6 +317,13 @@ means the terminal is too short for anything else, and a 24-row frame drawn into
 5 rows scrolls the screen. The resize that follows picks the full layout like
 any other; tmux's own zoom key goes back. Outside tmux (or already zoomed) it
 shows the size needed. `PlayerTui` takes `fullView` so tests can stub it.
+
+Remote snapshots contain only track refs, title and artist. `playerTuiMetadata.ts`
+uses the shared `TrackLookup` to batch/cache full collection records for rendering
+Now Playing (including cover art) and queue duration/BPM/key. It leaves playback
+state and queue identities untouched, ignores late updates after target changes,
+and does not re-fetch on position events. Failed or missing metadata retains the
+server's title/artist. Local snapshots already contain their full tracks.
 
 `queue.move` (`{ id, to }`) works on the local daemon too, so `[`/`]` are no
 longer remote-only.

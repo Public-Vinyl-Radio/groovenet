@@ -6,7 +6,7 @@ import type { GroovenetClient, Playlist, Track } from "@groovenet/client";
 import type { PlaybackSnapshot, QueueEntry } from "@groovenet/player";
 import type { PlayerController } from "./remotePlayer.js";
 import { PlayerTui } from "./playerTui.js";
-import { PlaylistsView, playlistHints, playlistRow, playlistTrackRow } from "./playerTuiPlaylists.js";
+import { PlaylistsView, playlistArtworkSources, playlistHints, playlistRow, playlistTrackRow } from "./playerTuiPlaylists.js";
 import { playlistDate, playlistDuration, playlistGroups, queuePlaylist, usePlayerPlaylists, type PlayerPlaylists } from "./playerTuiPlaylistsState.js";
 import { buildKeymap, defaultKeymap } from "./playerKeymap.js";
 import { forceTerminal, resizeTerminal } from "../tui/testing.js";
@@ -284,8 +284,12 @@ describe("playlist constrained rendering", () => {
 
   it("renders zero/one-row slots, table headers without room for tracks, and missing analysis in compact tracks", async () => {
     const { state } = await stateFixture();
+    const warningOnly = render(<PlaylistsView state={{ ...state, opened: true, tracks: [], entries: [{ ref: refs[0], track: null }], missingMessage: "Playlist contains unavailable tracks (1/1). Play/Enqueue disabled." }} area={{ width: 80, rows: 2 }} keymap={defaultKeymap} />);
+    await tick();
+    expect(warningOnly.lastFrame()).toContain("unavailable tracks (1/1)");
+    expect(warningOnly.lastFrame()!.split("\n")).toHaveLength(2);
     for (const [width, rows, editing, opened] of [[80, 0, false, false], [80, 1, true, false], [80, 1, false, true], [80, 2, false, true], [32, 2, false, true], [32, 6, false, true]] as const) {
-      const app = render(<PlaylistsView state={{ ...state, editing, opened, tracks: [{ ...track, bpm: null, key: null } as Track] }} area={{ width, rows }} keymap={defaultKeymap} />);
+      const app = render(<PlaylistsView state={{ ...state, editing, opened, tracks: [{ ...track, bpm: null, key: null } as Track], entries: [{ ref: refs[0], track: { ...track, bpm: null, key: null } as Track }] }} area={{ width, rows }} keymap={defaultKeymap} />);
       await tick();
       if (width === 32 && rows === 6) expect(app.lastFrame()).toContain("--- · ---");
       expect(app.lastFrame()!.split("\n").filter(Boolean).length).toBeLessThanOrEqual(rows);
@@ -353,4 +357,59 @@ it.each([false, true])("resolves mixed-library playlists by each entry's friend 
   } else expect(f.snapshot().queue.map((entry) => entry.track)).toEqual(mixedTracks);
   await key(app, "a");
   expect(f.control.request).toHaveBeenCalledWith("queue.add", { playlistId: "1" });
+});
+
+it.each(["set", "playlist", "track"] as const)("shows a %s cover in a roomy playlist preview and omits it in a short window", async kind => {
+  const f = fixture();
+  const covered: Playlist = { ...playlist,
+    ...(kind === "set" ? { set: { ...liveSet.set!, cover_image_url: "/set.jpg" } } : {}),
+    ...(kind === "playlist" ? { cover_urls: ["/playlist.jpg"] } : {}),
+  };
+  f.api.listPlaylists.mockResolvedValue([covered]);
+  if (kind === "track") f.api.batchGetTracks.mockResolvedValue([{ ...tracks[0], album_thumbnail: "/track.jpg" }, ...tracks.slice(1)]);
+  const app = await open(f);
+  expect(app.lastFrame()).toMatch(/░.* ART .*░/);
+  expect(app.lastFrame()).toContain("Cumbia Hi-Energy");
+  await act(async () => resizeTerminal(app.stdout as unknown as NodeJS.EventEmitter, 80, 24)); await tick();
+  expect(app.lastFrame()).not.toMatch(/░.* ART .*░/);
+  for (const line of app.lastFrame()!.split("\n")) expect(displayWidth(line)).toBeLessThanOrEqual(80);
+});
+
+
+it("prefers full track artwork, skips tracks without art, and retains alternate playlist covers", () => {
+  const sources = playlistArtworkSources({ ...playlist, set: { ...liveSet.set!, cover_image_url: "/set.jpg" }, cover_urls: ["/stale.jpg", "/local.jpg", "", "/alternate.jpg"] }, [
+    track, { ...track, audio_file_album_art_url: "/local.jpg", album_thumbnail: "/old.jpg" },
+    { ...track, album_thumbnail: "/second.jpg" },
+  ]);
+  expect(sources).toEqual(["/set.jpg", "/local.jpg", "/second.jpg", "/stale.jpg", "/alternate.jpg"]);
+  expect(playlistArtworkSources({ ...playlist, cover_urls: undefined }, [])).toEqual([]);
+});
+
+it.each([false, true])("previews mixed-friend playlists with missing entries and blocks incomplete playback (remote=%s)", async remote => {
+  const f = fixture();
+  const other = { ...track, track_id: "other", friend_id: 19, title: "Other friend's track", album_thumbnail: "/other.jpg" };
+  const own = { ...track, track_id: "own", friend_id: 6, title: "Available own track" };
+  const mixedRefs = [
+    { track_id: other.track_id, friend_id: 19, position: 0 },
+    { track_id: "missing", friend_id: 6, position: 1 },
+    { track_id: own.track_id, friend_id: 6, position: 2 },
+  ];
+  f.api.listPlaylists.mockResolvedValue([{ ...playlist, tracks: mixedRefs }]);
+  f.api.getPlaylistTracks.mockResolvedValue({ track_refs: mixedRefs });
+  f.api.batchGetTracks.mockResolvedValue([own, other]);
+  const app = render(<PlayerTui {...f.props} options={remote ? { remote: "lounge" } : {}} />);
+  await tick(); await key(app, "l"); await tick();
+  expect(app.lastFrame()).toContain("Other friend's track");
+  expect(app.lastFrame()).toContain("Available own track");
+  expect(app.lastFrame()).toContain("Unavailable track · friend 6 · missing");
+  expect(app.lastFrame()).toContain("unavailable tracks (1/3)");
+  expect(app.lastFrame()).toMatch(/3 Available own track/);
+  await key(app, "a"); await key(app, "\r");
+  expect(f.control.request.mock.calls.every(([method]) => method === "status" || method === "devices")).toBe(true);
+  await key(app, "\u001b[C"); await key(app, "j");
+  expect(app.lastFrame()).toContain("2/3");
+  await act(async () => resizeTerminal(app.stdout as unknown as NodeJS.EventEmitter, 32, 30)); await tick();
+  expect(app.lastFrame()).toContain("2 Unavailable track");
+  expect(app.lastFrame()).toContain("friend 6 · missing");
+  await key(app, "j"); expect(app.lastFrame()).toContain("3/3");
 });

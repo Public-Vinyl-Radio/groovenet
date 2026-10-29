@@ -1,3 +1,5 @@
+import { ArtworkSlot } from "../tui/artworkSlot.js";
+import { artworkSource } from "../tui/artwork.js";
 import React from "react";
 import { Box } from "ink";
 import { camelotOf, parseBpm, type Playlist, type Track } from "@groovenet/client";
@@ -40,15 +42,27 @@ function PlaylistTracks({ state, area, preview = false }: { state: PlayerPlaylis
   if (area.rows <= 0) return null;
   if (state.detailLoading) return <Line left={[{ text: "Loading playlist…", role: "dim" }]} width={area.width} />;
   if (state.detailError) return <Line left={[{ text: state.detailError, role: "error" }]} width={area.width} />;
-  if (!state.tracks.length) return <Styled role="dim">{fit("No tracks in this playlist.", area.width)}</Styled>;
+  if (!state.entries.length) return <Styled role="dim">{fit("No tracks in this playlist.", area.width)}</Styled>;
+  const warning = state.missingMessage ? <Line left={[{ text: state.missingMessage, role: "warn" }]} width={area.width} /> : null;
+  const rows = area.rows - (warning ? 1 : 0);
+  if (rows <= 0) return warning;
   const compact = area.width < 42;
-  const capacity = Math.max(0, Math.floor((area.rows - (compact ? 0 : 1)) / (compact ? 2 : 1)));
-  const window = visibleWindow(state.tracks.length, preview ? 0 : state.selected, capacity);
+  const capacity = Math.max(0, Math.floor((rows - (compact ? 0 : 1)) / (compact ? 2 : 1)));
+  const window = visibleWindow(state.entries.length, preview ? 0 : state.selected, capacity);
   return <>
+    {warning}
     {!compact ? <Line left={playlistTrackRow(null, 0, false, area.width)} width={area.width} /> : null}
-    {capacity ? state.tracks.slice(window.start, window.end).map((track, offset) => {
+    {capacity ? state.entries.slice(window.start, window.end).map(({ track, ref }, offset) => {
       const index = window.start + offset;
       const selected = !preview && index === state.selected;
+      if (!track) {
+        const role = selected ? "selection" : "warn";
+        const identity = `friend ${ref.friend_id} · ${ref.track_id}`;
+        return compact ? <React.Fragment key={index}>
+          <Line left={[{ text: `${index + 1} Unavailable track`, role }]} width={area.width} />
+          <Line left={[{ text: `  ${identity}`, role }]} width={area.width} />
+        </React.Fragment> : <Line key={index} left={[{ text: `${fitRight(String(index + 1), 3)} Unavailable track · ${identity}`, role }]} width={area.width} />;
+      }
       return compact ? <React.Fragment key={index}>
         <Line left={[{ text: `${index + 1} ${track.title}`, role: selected ? "selection" : "ink" }]} width={area.width} />
         <Line left={[{ text: `  ${track.artist} · ${parseBpm(track.bpm) ?? "---"} · ${camelotOf(track.key) ?? "---"}`, role: selected ? "selection" : "muted" }]} width={area.width} />
@@ -80,9 +94,20 @@ function PlaylistList({ state, area }: { state: PlayerPlaylists; area: BodyArea 
   </>;
 }
 
+/** Prefer full track artwork over the list endpoint’s thumbnails; try another cover if one is stale. */
+export function playlistArtworkSources(playlist: Playlist, tracks: Track[]): string[] {
+  return [...new Set([
+    playlist.set?.cover_image_url,
+    ...tracks.map(artworkSource).filter(Boolean).slice(0, 4),
+    ...(playlist.cover_urls ?? []).slice(0, 4),
+  ].filter((url): url is string => !!url))];
+}
+
 function PlaylistPreview({ state, area, keymap }: { state: PlayerPlaylists; area: BodyArea; keymap: Keymap }) {
   const playlist = state.playlist!;
   const width = area.width - 5;
+  const sources = playlistArtworkSources(playlist, state.tracks);
+  const art = sources.length > 0 && width >= 40 && area.rows >= 20;
   const date = playlistDate(playlist)?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) ?? "Undated";
   const actions: Segment[] = [];
   for (const [id, label] of [["list.select", "PLAY"], ["queue.add", "ENQUEUE"], ["nav.open", "OPEN"]] as const) {
@@ -91,13 +116,14 @@ function PlaylistPreview({ state, area, keymap }: { state: PlayerPlaylists; area
   }
   return <OutlinedBox width={area.width - 1} height={area.rows - 1} title={[reverseLabel("PLAYLIST")]}>
     <Box flexDirection="column" paddingX={1}>
+      {art ? <ArtworkSlot source={sources[0]} fallbacks={sources.slice(1)} width={12} height={6} /> : null}
       <Styled role="strong">{fit(playlist.name, width)}</Styled>
       <Styled role="dim">{fit(`${playlist.tracks.length} tracks · ${playlistDuration(playlist)} · ${date}`, width)}</Styled>
       <Styled> </Styled>
       <Line left={actions} width={width} />
       <Styled> </Styled>
-      <PlaylistTracks state={state} area={{ width, rows: Math.max(0, area.rows - 9) }} preview />
-      {state.tracks.length ? <Styled role="dim">{fit(`${state.tracks.length} tracks · ${primaryKey(keymap, "nav.open", "playlists")} open tracks`, width)}</Styled> : null}
+      <PlaylistTracks state={state} area={{ width, rows: Math.max(0, area.rows - 9 - (art ? 6 : 0)) }} preview />
+      {state.tracks.length ? <Styled role="dim">{fit(`${state.entries.length} tracks · ${primaryKey(keymap, "nav.open", "playlists")} open tracks`, width)}</Styled> : null}
     </Box>
   </OutlinedBox>;
 }

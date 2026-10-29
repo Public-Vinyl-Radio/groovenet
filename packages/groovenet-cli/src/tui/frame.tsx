@@ -8,7 +8,8 @@ import React, { type ReactNode } from "react";
 import { Box, Text } from "ink";
 import type { HelpEntry } from "../commands/playerKeymap.js";
 import { CARD_ROWS, FULL_MIN_COLUMNS, FULL_MIN_ROWS, SIDE_MIN_COLUMNS, SIDE_MIN_ROWS, STRIP_MIN_COLUMNS, STRIP_ROWS, type Layout, type LayoutKind } from "./layout.js";
-import { ArtSlot, fitSegments, HintBar, Line, OutlinedBox, reverseLabel, Rule, Styled, type Hint, type Segment } from "./primitives.js";
+import { fitSegments, HintBar, Line, OutlinedBox, reverseLabel, Rule, Styled, type Hint, type Segment } from "./primitives.js";
+import { ArtworkSlot } from "./artworkSlot.js";
 import { displayWidth, fit, wrap } from "./text.js";
 
 /** `live`: connected to a server player; `offline`: its connection dropped; null: local playback. */
@@ -48,6 +49,7 @@ export interface PlayerFrameProps {
   help?: HelpEntry[] | null;
   /** Search uses a compact playback summary in the top bar. */
   compactPlayback?: Segment[];
+  artwork?: string;
   nowPlaying: (area: CardArea) => ReactNode;
   children: (area: BodyArea) => ReactNode;
 }
@@ -167,7 +169,7 @@ export function PlayerFrame(props: PlayerFrameProps) {
           <OutlinedBox width={boxWidth} height={CARD_ROWS[kind]} title={[reverseLabel("NOW PLAYING")]}>
             <Box flexDirection="column" paddingLeft={1}>
               <Box flexDirection="row">
-                <ArtSlot width={art.width} height={art.height} />
+                <ArtworkSlot source={props.artwork} width={art.width} height={art.height} />
                 <Box flexDirection="column" marginLeft={gap} width={cardText.width} height={cardText.height} overflow="hidden">{nowPlaying(cardText)}</Box>
               </Box>
               {below ? <Box flexDirection="column" marginTop={1} width={below.width} height={below.height} overflow="hidden">{nowPlaying(below)}</Box> : null}

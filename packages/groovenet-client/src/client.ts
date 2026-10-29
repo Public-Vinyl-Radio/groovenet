@@ -110,7 +110,7 @@ export class GroovenetClient {
   private http: AxiosInstance;
   private readonly playerApiKey?: string;
 
-  constructor(config: GroovenetClientConfig) {
+  constructor(private readonly config: GroovenetClientConfig) {
     this.playerApiKey = config.playerApiKey;
     this.http = axios.create({
       baseURL: config.baseUrl,
@@ -160,6 +160,21 @@ export class GroovenetClient {
       }
       throw error;
     }
+  }
+
+  /** Fetch a cover, resolving app-relative uploads without leaking credentials to a CDN. */
+  async getArtwork(source: string): Promise<Buffer> {
+    const url = new URL(source, this.config.baseUrl);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid artwork URL");
+    const sameOrigin = url.origin === new URL(this.config.baseUrl).origin;
+    const { data } = await this.send<ArrayBuffer>({
+      method: "GET", url: url.href, responseType: "arraybuffer", timeout: 5000,
+      maxContentLength: 4 * 1024 * 1024, maxRedirects: 0,
+      headers: { Authorization: sameOrigin ? (this.config.apiKey ? `Bearer ${this.config.apiKey}` : undefined) : null },
+      // An internal CA exception must never apply to third-party artwork hosts.
+      ...(sameOrigin ? {} : { httpsAgent: new HttpsAgent() }),
+    });
+    return Buffer.from(data);
   }
 
   // ── Tracks ─────────────────────────────────────────────────────────────────

@@ -48,6 +48,48 @@ groovenet tracks search "bpm:120" --json | jq '.[].track_id'
 
 Run `groovenet --help` (or `groovenet <command> --help`) for the full command reference.
 
+## Terminal album art
+
+The player shows covers in Now Playing, album previews, and roomy playlist previews.
+Kitty artwork uses transparent padding to preserve proportions without black borders.
+Local uploaded/embedded artwork takes priority over the album thumbnail; playlists use
+the set cover, then full track artwork and list thumbnails, trying alternate covers if a URL fails. Missing or failed artwork keeps `ART`.
+
+Ghostty and Kitty use the Kitty graphics protocol with Unicode placeholders. Ink
+lays these out as text, so art moves and clears with the card on redraws, resizing,
+help, and view changes. Source images and resized results are cached in memory for
+the TUI session (16 sources of at most 4 MiB each; 32 resized results). Fetches time
+out after five seconds, and a late result cannot replace the newly selected cover.
+
+For Ghostty/Kitty inside tmux (including Herdr sessions backed by tmux), enable
+passthrough in your tmux configuration:
+
+```tmux
+set -g allow-passthrough on
+```
+
+The CLI reads this setting for its pane; it never changes it. If passthrough is
+disabled or cannot be checked, it uses colour half-blocks when true colour is
+advertised. Other true-colour terminals also use half-blocks. Non-TTY output,
+`NO_COLOR`, monochrome terminals, and the small playback strip keep the placeholder
+or omit the art slot. Native iTerm2 and Sixel image protocols are not used.
+
+Override detection for a terminal or multiplexer:
+
+```bash
+GROOVENET_TUI_ART=blocks groovenet player  # colour half-blocks, no passthrough needed
+GROOVENET_TUI_ART=off groovenet player     # placeholder only
+GROOVENET_TUI_ART=kitty groovenet player   # outer terminal supports Kitty placeholders
+```
+
+`auto` is the default. The `kitty` override still checks tmux passthrough and honours
+`NO_COLOR`. Screen/Zellij use the fallback; nested multiplexers are not detected.
+Use a current Ghostty release: [Ghostty #13056](https://github.com/ghostty-org/ghostty/issues/13056)
+reports incorrect placeholder sizing in 1.3.1. Use `blocks` if your version shows
+this. After attaching the session in a different terminal client, restart the TUI
+to upload its images there. This is independent of `player --artwork`, which opens
+mpv's separate artwork window.
+
 ## Commands
 
 | Command | Description |

@@ -1,3 +1,5 @@
+import { ArtworkSlot } from "../tui/artworkSlot.js";
+import { artworkSource } from "../tui/artwork.js";
 import React from "react";
 import { Box, Text } from "ink";
 import { camelotOf, parseBpm, trackDurationLabel, type Album, type Track } from "@groovenet/client";
@@ -6,7 +8,7 @@ import type { ActionId } from "./playerKeymapRegistry.js";
 import { modeLabel, type PlayerSearch } from "./playerTuiSearchState.js";
 import { visibleWindow } from "./playerTuiView.js";
 import type { BodyArea } from "../tui/frame.js";
-import { ArtSlot, Line, OutlinedBox, reverseLabel, Rule, segmentsWidth, Styled, type Hint, type Segment } from "../tui/primitives.js";
+import { Line, OutlinedBox, reverseLabel, Rule, segmentsWidth, Styled, type Hint, type Segment } from "../tui/primitives.js";
 import { displayWidth, fit, fitRight } from "../tui/text.js";
 
 export function searchHints(search: PlayerSearch, keymap: Keymap): Hint[] {
@@ -77,7 +79,7 @@ function AlbumPreview({ search, area, keymap }: { search: PlayerSearch; area: Bo
   return <OutlinedBox width={area.width - 1} height={Math.max(3, area.rows - 1)} title={[reverseLabel(album.library_identifier ?? "ALBUM")]}>
     <Box flexDirection="column" paddingX={1}>
       <Box flexDirection="row">
-        {art ? <Box marginRight={2}><ArtSlot width={artWidth} height={6} /></Box> : null}
+        {art ? <Box marginRight={2}><ArtworkSlot source={artworkSource(album)} width={artWidth} height={6} /></Box> : null}
         <Box flexDirection="column" width={textWidth}>
           <Styled role="strong">{fit(album.title, textWidth)}</Styled>
           <Styled role="muted">{fit(album.artist, textWidth)}</Styled>
