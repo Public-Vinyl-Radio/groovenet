@@ -17,6 +17,9 @@ import { queuePlaylist, usePlayerPlaylists } from "./playerTuiPlaylistsState.js"
 import { SearchView, searchHints } from "./playerTuiSearch.js";
 import { queueSearchTracks, usePlayerSearch, modeLabel } from "./playerTuiSearchState.js";
 import { openFullView } from "./playerTuiFullView.js";
+import { useQueueMetadata } from "./playerTuiMetadata.js";
+import { ArtworkProvider } from "../tui/artworkSlot.js";
+import { artworkSource } from "../tui/artwork.js";
 import { PlayerFrame, type TabItem } from "../tui/frame.js";
 import { pickLayout } from "../tui/layout.js";
 import { Styled, type Segment } from "../tui/primitives.js";
@@ -139,6 +142,7 @@ export function PlayerTui({ control: initialControl, api, initialSnapshot, optio
   const layout = pickLayout(size.columns, size.rows);
   const theme = useMemo(() => themeOverride ?? themeFromEnv(), [themeOverride]);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const displaySnapshot = useQueueMetadata(api, snapshot, remoteMode);
   const [view, setView] = useState<View>(options.search ? "search" : "queue");
   const search = usePlayerSearch(api, view === "search", options.search ?? "", async (tracks, play) => {
     await queueSearchTracks(control, tracks, play, remoteMode);
@@ -371,8 +375,9 @@ export function PlayerTui({ control: initialControl, api, initialSnapshot, optio
   const tab = (id: ActionId, label: string, tabView: View, count?: number): TabItem => ({ keys: primaryKey(keymap, id, view), label, count, active: view === tabView });
 
   return (
-    <ThemeContext.Provider value={theme}>
+    <ArtworkProvider api={api}><ThemeContext.Provider value={theme}>
       <PlayerFrame
+        artwork={artworkSource(displaySnapshot.current?.track)}
         layout={layout}
         target={remote ? remote.player.name.toUpperCase() : "LOCAL"}
         live={remote ? (remote.connected ? "live" : "offline") : null}
@@ -389,18 +394,18 @@ export function PlayerTui({ control: initialControl, api, initialSnapshot, optio
         compactPlayback={view === "search" || view === "playlists" ? [{ text: snapshot.current ? `${snapshot.status === "playing" ? "▶" : "‖"} ${snapshot.current.track.title} · ${snapshot.current.track.artist}  ${formatSeconds(snapshot.position)}` : "Nothing playing", role: "muted" }] : undefined}
         hints={keyContext ? targetHints(keymap, keyContext, layout.kind === "strip", acknowledgement?.code) : view === "playlists" && layout.kind !== "strip" ? playlistHints(playlists, keymap) : view === "search" && layout.kind !== "strip" ? searchHints(search, keymap) : layout.kind === "strip" && keyView !== "input" ? stripHints(keymap, keyView) : hintItems(keymap, keyView, { remote: remoteMode, omit })}
         help={showHelp ? helpEntries(keymap, keyView, { remote: remoteMode }) : null}
-        nowPlaying={(area) => <NowPlaying snapshot={snapshot} area={area} keymap={keymap} target={outputTarget} />}
+        nowPlaying={(area) => <NowPlaying snapshot={displaySnapshot} area={area} keymap={keymap} target={outputTarget} />}
       >
         {(area) => (
           <>
             {!picker && preamble.map((line, index) => <Styled key={`preamble-${index}`} role={line.role}>{line.text}</Styled>)}
             {picker ? <PlayOnView players={pickerPlayers} chosen={chosen} current={targets.active.id} preview={previewPlayer} count={remoteMode ? 0 : upcomingLocal(snapshot).length} loading={discovering || (!!chosen && chosen !== targets.active.id && !targets.preview?.player)} problem={targets.problem || targets.preview?.problem || discoveryProblem || (chosen && !players.some(player => player.id === chosen) && !discovering ? "Target is no longer available." : "")} area={area} /> : view === "search" ? <SearchView search={search} keymap={keymap} area={{ width: area.width, rows: Math.max(0, area.rows - preamble.length) }} /> : view === "playlists" ? <PlaylistsView state={playlists} keymap={keymap} area={{ width: area.width, rows: Math.max(0, area.rows - preamble.length) }} /> : view === "queue" && (layout.kind === "full" || layout.kind === "side")
-              ? <QueueView snapshot={snapshot} selected={selected} area={{ width: area.width, rows: Math.max(1, area.rows - preamble.length) }} kind={layout.kind} />
+              ? <QueueView snapshot={displaySnapshot} selected={selected} area={{ width: area.width, rows: Math.max(1, area.rows - preamble.length) }} kind={layout.kind} />
               : <DevicesView devices={devices} selected={selected} area={area} />}
           </>
         )}
       </PlayerFrame>
-    </ThemeContext.Provider>
+    </ThemeContext.Provider></ArtworkProvider>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatSeconds, type GroovenetClient, type Playlist, type Track } from "@groovenet/client";
+import { formatSeconds, type GroovenetClient, type Playlist, type PlaylistTrackRef, type Track } from "@groovenet/client";
 import type { QueueEntry } from "@groovenet/player";
 import type { ActionId } from "./playerKeymapRegistry.js";
 import type { PlayerController } from "./remotePlayer.js";
@@ -54,7 +54,10 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
   const [index, setIndex] = useState(0);
   const [opened, setOpened] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [entries, setEntries] = useState<Array<{ ref: PlaylistTrackRef; track: Track | null }>>([]);
+  const tracks = entries.flatMap(entry => entry.track ?? []);
+  const missing = entries.filter(entry => !entry.track).map(entry => entry.ref);
+  const missingMessage = missing.length ? `Playlist contains unavailable tracks (${missing.length}/${entries.length}). Play/Enqueue disabled.` : "";
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [message, setMessage] = useState("");
@@ -78,7 +81,7 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
   }, [api, active]);
 
   useEffect(() => {
-    setTracks([]); setDetailError(""); setDetailLoading(false);
+    setEntries([]); setDetailError(""); setDetailLoading(false);
     if (!active || !playlist || loading || error) return;
     let cancelled = false;
     setDetailLoading(true);
@@ -87,9 +90,8 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
       const refs = [...track_refs].sort((a, b) => a.position - b.position);
       const found = refs.length ? await api.batchGetTracks(refs) : [];
       const byRef = new Map(found.map((track) => [`${track.friend_id}:${track.track_id}`, track]));
-      const ordered = refs.map((ref) => byRef.get(`${ref.friend_id}:${ref.track_id}`));
-      if (ordered.some((track) => !track)) throw new Error("Playlist contains unavailable tracks. Refresh playlists and try again.");
-      if (!cancelled) { setTracks(ordered as Track[]); setDetailLoading(false); }
+      const ordered = refs.map(ref => ({ ref, track: byRef.get(`${ref.friend_id}:${ref.track_id}`) ?? null }));
+      if (!cancelled) { setEntries(ordered); setDetailLoading(false); }
     })().catch((error: unknown) => {
       if (!cancelled) { setDetailError(errorText(error)); setDetailLoading(false); }
     });
@@ -101,13 +103,13 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
   useEffect(() => { setIndex((index) => Math.min(index, Math.max(0, filtered.length - 1))); }, [filtered.length]);
 
   useEffect(() => {
-    if (!detailLoading && tracks.length && trackIndex >= tracks.length) setTrackIndex(tracks.length - 1);
-  }, [detailLoading, tracks.length, trackIndex]);
+    if (!detailLoading && entries.length && trackIndex >= entries.length) setTrackIndex(entries.length - 1);
+  }, [detailLoading, entries.length, trackIndex]);
 
   async function perform(play: boolean) {
     if (busyRef.current || !playlist || loading || error) return;
-    if (detailLoading || detailError || !tracks.length) {
-      setMessage(detailError || (detailLoading ? "Loading playlist…" : "No tracks in this playlist.")); return;
+    if (detailLoading || detailError || missingMessage || !tracks.length) {
+      setMessage(detailError || missingMessage || (detailLoading ? "Loading playlist…" : "No tracks in this playlist.")); return;
     }
     const current = generation.current;
     busyRef.current = true; setBusy(true); setMessage("");
@@ -119,7 +121,7 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
   }
   function move(delta: number) {
     setEditing(false);
-    const clamp = (value: number) => Math.max(0, Math.min(Math.max(0, (opened ? tracks.length : filtered.length) - 1), value + delta));
+    const clamp = (value: number) => Math.max(0, Math.min(Math.max(0, (opened ? entries.length : filtered.length) - 1), value + delta));
     if (opened) setTrackIndex(clamp); else setIndex(clamp);
   }
   function handle(id: ActionId): boolean {
@@ -141,6 +143,6 @@ export function usePlayerPlaylists(api: GroovenetClient, active: boolean, enqueu
     }
   }
   function updateQuery(value: string | ((query: string) => string)) { setQuery(value); setIndex(0); setOpened(false); setMessage(""); }
-  return { playlists, groups, playlist, loading, error, query, updateQuery, editing, opened, selected: opened ? trackIndex : index, count: opened ? tracks.length : filtered.length, tracks, detailLoading, detailError, busy, message, handle };
+  return { playlists, groups, playlist, loading, error, query, updateQuery, editing, opened, selected: opened ? trackIndex : index, count: opened ? entries.length : filtered.length, tracks, entries, missingMessage, detailLoading, detailError, busy, message, handle };
 }
 export type PlayerPlaylists = ReturnType<typeof usePlayerPlaylists>;

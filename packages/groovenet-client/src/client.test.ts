@@ -1803,3 +1803,38 @@ describe("server player credentials and events", () => {
     expect(invalid.destroyed).toBe(true);
   });
 });
+
+describe("getArtwork", () => {
+  it("resolves local uploads at the app origin and retains collection auth", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://home.test/api", apiKey: "collection", insecureTls: true });
+    requestMock.mockResolvedValue({ data: new Uint8Array([1, 2, 3]).buffer });
+    expect(await client.getArtwork("/uploads/cover.png")).toEqual(Buffer.from([1, 2, 3]));
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "GET", url: "https://home.test/uploads/cover.png", responseType: "arraybuffer",
+      timeout: 5000, maxContentLength: 4194304, maxRedirects: 0,
+      headers: { Authorization: "Bearer collection" },
+    }));
+    expect(requestMock.mock.calls[0][0]).not.toHaveProperty("httpsAgent");
+  });
+
+  it("omits credentials and verifies TLS for external hosts, even with internal TLS disabled", async () => {
+    const client = new GroovenetClient({ baseUrl: "https://home.test/api", apiKey: "secret", playerApiKey: "admin", insecureTls: true });
+    requestMock.mockResolvedValue({ data: Buffer.from("png") });
+    await client.getArtwork("https://cdn.test/cover.jpg");
+    expect(requestMock.mock.calls[0][0]).toMatchObject({ url: "https://cdn.test/cover.jpg", headers: { Authorization: null }, maxRedirects: 0 });
+    expect(requestMock.mock.calls[0][0].httpsAgent.options.rejectUnauthorized).not.toBe(false);
+  });
+
+  it("works without collection credentials and propagates load failures", async () => {
+    const client = clientReturning(Buffer.from("png"));
+    await client.getArtwork("/cover.jpg");
+    expect(requestMock.mock.calls[0][0].headers).toEqual({ Authorization: undefined });
+    requestMock.mockRejectedValueOnce(new Error("offline"));
+    await expect(client.getArtwork("/cover.jpg")).rejects.toThrow("offline");
+  });
+
+  it.each(["file:///etc/passwd", "data:image/png;base64,aA==", "https://user:pass@cdn.test/a"])("rejects %s", async source => {
+    await expect(clientReturning(null).getArtwork(source)).rejects.toThrow("Invalid artwork URL");
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+});
