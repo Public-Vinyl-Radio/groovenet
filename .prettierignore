@@ -16,6 +16,9 @@ CHANGELOG.md
 evaluations/**/*.json
 **/__snapshots__/**
 
+# Parsed by contractInventory.test.ts, which expects unpadded table cells.
+packages/groovenet-contracts/INVENTORY.md
+
 # Xcode asset catalogues.
 *.xcassets/
 
