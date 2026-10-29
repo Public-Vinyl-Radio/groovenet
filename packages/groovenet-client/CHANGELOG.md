@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.7.0...groovenet-client-v3.8.0) (2026-10-29)
+
+
+### Features
+
+* **cli:** show album art in the player TUI ([#851](https://github.com/Public-Vinyl-Radio/groovenet/issues/851)) ([85aa553](https://github.com/Public-Vinyl-Radio/groovenet/commit/85aa5532ad16d8e0cbc28652ff53fdef122790ca))
+
 ## [3.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.6.0...groovenet-client-v3.7.0) (2026-10-28)
 
 

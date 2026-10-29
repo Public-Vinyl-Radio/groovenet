@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.7](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.6...groovenet-player-v0.1.7) (2026-10-29)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.7.0 to ^3.8.0
+
 ## [0.1.6](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.5...groovenet-player-v0.1.6) (2026-10-28)
 
 

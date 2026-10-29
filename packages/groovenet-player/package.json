@@ -1,6 +1,6 @@
 {
   "name": "@groovenet/player",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Headless playback core and mpv backend for Groovenet",
   "type": "module",
   "engines": {
@@ -48,7 +48,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@groovenet/client": "^3.7.0",
+    "@groovenet/client": "^3.8.0",
     "@groovenet/contracts": "1.4.0",
     "pg": "8.23.1",
     "zod": "4.6.7"

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.12](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.11...v0.3.12) (2026-10-29)
+
+
+### Features
+
+* **cli:** show album art in the player TUI ([#851](https://github.com/Public-Vinyl-Radio/groovenet/issues/851)) ([85aa553](https://github.com/Public-Vinyl-Radio/groovenet/commit/85aa5532ad16d8e0cbc28652ff53fdef122790ca))
+
+
+### Bug Fixes
+
+* preserve Discogs date_added on album edits and import it onto tracks ([#849](https://github.com/Public-Vinyl-Radio/groovenet/issues/849)) ([2d86ab0](https://github.com/Public-Vinyl-Radio/groovenet/commit/2d86ab0a1d7882b2635c864a4a6608a7d548e1a9))
+
 ## [0.3.11](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.10...v0.3.11) (2026-10-28)
 
 
