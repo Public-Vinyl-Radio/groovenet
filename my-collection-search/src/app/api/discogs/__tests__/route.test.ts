@@ -23,6 +23,9 @@ const albumUpsert = vi.hoisted(() => ({
   upsertAlbums: vi.fn(),
 }));
 const embeddingSync = vi.hoisted(() => ({ syncIdentityEmbeddings: vi.fn() }));
+const repair = vi.hoisted(() => ({
+  repairDiscogsCollectionFields: vi.fn(async () => ({ albums: [] as string[], tracks: 0 })),
+}));
 
 vi.mock("@/server/services/discogsManifestService", () => manifest);
 vi.mock("@/server/services/discogsApiClient", () => discogs);
@@ -33,6 +36,7 @@ vi.mock("@/server/services/discogsCleanupService", () => ({
 vi.mock("@/server/services/trackUpsertService", () => trackUpsert);
 vi.mock("@/server/services/albumUpsertService", () => albumUpsert);
 vi.mock("@/server/services/trackEmbeddingSyncService", () => embeddingSync);
+vi.mock("@/server/services/discogsCollectionRepairService", () => repair);
 
 import { GET } from "../route";
 import { syncDiscogsStream } from "@/services/internalApi/discogs";
@@ -227,5 +231,75 @@ describe("GET /api/discogs — auto-ingest and streamed failures", () => {
     expect(body).toContain("🎉 All operations complete!");
     expect(body).not.toContain("track upsert failures");
     expect(analyticsEvents.events.at(-1)?.properties.error_count).toBe(0);
+  });
+});
+
+describe("GET /api/discogs — collection date repair (#847)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setAnalyticsProvider(new MemoryAnalyticsProvider());
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    manifest.getManifestReleaseIds.mockReturnValue(["1", "2"]);
+    discogs.getReleaseDetails.mockRejectedValue(new Error("429"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    setAnalyticsProvider(null);
+  });
+
+  async function runSync() {
+    const res = await GET(new Request("http://localhost/api/discogs?username=dj") as never);
+    const body = res.text();
+    await vi.runAllTimersAsync();
+    return body;
+  }
+
+  it("repairs the releases already imported, from the listing's earliest copy", async () => {
+    discogs.getCollectionPage.mockResolvedValue({
+      releases: [
+        { basic_information: { id: 1 }, date_added: "2024-05-01T00:00:00-07:00" },
+        { basic_information: { id: 1 }, date_added: "2023-02-01T00:00:00-08:00" },
+        { basic_information: { id: 1 }, date_added: "2025-01-01T00:00:00-08:00" },
+        { basic_information: { id: 2 } },
+        { basic_information: { id: 3 }, date_added: "2026-01-01T00:00:00-08:00" },
+      ],
+      pagination: { page: 1, pages: 1 },
+    });
+    repair.repairDiscogsCollectionFields.mockResolvedValueOnce({ albums: ["1"], tracks: 4 });
+
+    const body = await runSync();
+
+    expect(repair.repairDiscogsCollectionFields).toHaveBeenCalledTimes(1);
+    const [username, ids, dates] = repair.repairDiscogsCollectionFields.mock.calls[0] as unknown as [
+      string, string[], Map<string, string>,
+    ];
+    expect(username).toBe("dj");
+    // Release 3 is new: it gets its date when it is fetched, not here.
+    expect(ids).toEqual(["1", "1", "1", "2"]);
+    expect(dates.get("1")).toBe("2023-02-01T00:00:00-08:00");
+    expect(dates.has("2")).toBe(false);
+    expect(discogs.getReleaseDetails).toHaveBeenCalledTimes(1);
+    expect(body).toContain("Repaired 1 albums and 4 tracks from collection dates");
+  });
+
+  it("reports a repair failure and carries on with the sync", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page([1]));
+    repair.repairDiscogsCollectionFields.mockRejectedValueOnce(new Error("db down"));
+
+    const body = await runSync();
+
+    expect(body).toContain("Collection date repair error: db down");
+    expect(body).toContain("All operations complete");
+  });
+
+  it("names a non-Error repair failure", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page([1]));
+    repair.repairDiscogsCollectionFields.mockRejectedValueOnce("boom");
+
+    expect(await runSync()).toContain("Collection date repair error: boom");
   });
 });

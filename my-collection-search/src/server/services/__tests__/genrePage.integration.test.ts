@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { createGenre } from "@/server/services/genreAdminService";
 import { genrePageRepository } from "@/server/repositories/genrePageRepository";
+import { trackRepository } from "@/server/repositories/trackRepository";
 import { getGenrePage } from "../genrePageService";
 import { genrePageResponseSchema } from "@/api-contract/schemas";
 
@@ -169,6 +170,31 @@ describe("genre page (integration)", () => {
 
 
 describe("genre detail full statistics (integration)", () => {
+  dbTest("counts a Discogs import as added this year from the date it carries (#847)", async () => {
+    const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = 'Cumbia'");
+    const filter = { ids: rows.map((row) => row.id), keys: [] };
+    const before = await genrePageRepository.stats(filter, friendId, 2026);
+    try {
+      await trackRepository.upsertDiscogsTrackByTrackIdUsername({
+        track_id: "gp-import-A1", release_id: "gp-cumbia-lp", title: "Imported", artist: "Artist",
+        album: "gp-cumbia-lp", year: 1970, styles: ["Cumbia"], genres: ["Latin"], duration: "3:00",
+        discogs_url: "", album_thumbnail: "", position: "A1", duration_seconds: 180, bpm: null, key: null,
+        notes: null, local_tags: null, apple_music_url: null, local_audio_url: null, username: USERNAME,
+        date_added: "2026-06-01T12:00:00-07:00",
+      }, friendId);
+      await dbQuery(
+        `INSERT INTO track_genres (track_id, friend_id, genre_id, source) VALUES ('gp-import-A1', $1, $2, 'manual')`,
+        [friendId, rows[0].id]
+      );
+
+      const after = await genrePageRepository.stats(filter, friendId, 2026);
+      expect(after.added_this_year).toBeGreaterThan(0);
+      expect(after.added_this_year).toBe(before.added_this_year + 1);
+    } finally {
+      await dbQuery("DELETE FROM tracks WHERE track_id = 'gp-import-A1' AND friend_id = $1", [friendId]);
+    }
+  });
+
   dbTest("counts once across ancestor/descendant tags, excludes invalid BPM/deleted/other-friend tracks and uses calendar-year boundaries", async () => {
     const { rows } = await dbQuery<{ id: string }>("SELECT id FROM genres WHERE name = ANY($1) ORDER BY name", [["Cumbia", SUBGENRE]]);
     const filter = { ids: rows.map((row) => row.id), keys: [] };

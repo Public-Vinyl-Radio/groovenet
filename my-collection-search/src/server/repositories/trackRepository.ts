@@ -151,10 +151,11 @@ export class TrackRepository {
         styles, genres, duration, position,
         discogs_url, album_thumbnail,
         bpm, key, notes, local_tags,
-        apple_music_url, duration_seconds, username, friend_id, release_id
+        apple_music_url, duration_seconds, username, friend_id, release_id,
+        date_added
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,
-        $10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+        $10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
       )
       ON CONFLICT (track_id, username)
       DO UPDATE SET
@@ -170,7 +171,8 @@ export class TrackRepository {
         album_thumbnail  = EXCLUDED.album_thumbnail,
         duration_seconds = EXCLUDED.duration_seconds,
         friend_id        = EXCLUDED.friend_id,
-        release_id       = EXCLUDED.release_id
+        release_id       = EXCLUDED.release_id,
+        date_added       = COALESCE(EXCLUDED.date_added, tracks.date_added)
         -- URL fields intentionally excluded to preserve manually-added values.
         -- deleted_at intentionally excluded: soft-deleted tracks stay deleted on re-import.
       WHERE tracks.deleted_at IS NULL
@@ -197,6 +199,7 @@ export class TrackRepository {
         track.username,
         friendId,
         track.release_id,
+        track.date_added ?? null,
       ]
     );
     // Returns null when the track is soft-deleted (upsert WHERE clause prevents update).

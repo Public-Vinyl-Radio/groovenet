@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
         friendId
       );
 
-      // Upsert album
-      const now = new Date().toISOString();
+      // Upsert album. date_added, date_changed and discogs_url are left out:
+      // they come from Discogs, and the upsert keeps them when absent (#847).
       const albumToUpsert: AlbumToUpsert = {
         release_id: releaseId,
         friend_id: friendId,
@@ -112,7 +112,6 @@ export async function POST(request: NextRequest) {
         catalog_number: album.catalog_number,
         country: album.country,
         format: album.format,
-        date_changed: now,
         album_notes: album.album_notes,
         album_rating: album.album_rating,
         purchase_price: album.purchase_price,

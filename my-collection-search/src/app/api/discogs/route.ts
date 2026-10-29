@@ -17,6 +17,7 @@ import {
 import { analytics } from "@/lib/analytics/server";
 import { dbPool } from "@/lib/serverDb";
 import { cleanupDiscogsReleases } from "@/server/services/discogsCleanupService";
+import { repairDiscogsCollectionFields } from "@/server/services/discogsCollectionRepairService";
 import type { TrackUpsertFailure } from "@/server/services/trackUpsertService";
 
 const DISCOGS_USER_TOKEN = process.env.DISCOGS_USER_TOKEN;
@@ -99,8 +100,13 @@ export async function GET(request: NextRequest) {
               const releaseId = String(release.basic_information.id);
               allIds.push(releaseId);
 
-              // Capture date_added from collection response
-              if (release.date_added) {
+              // Capture date_added from collection response. A release can be
+              // in the collection more than once; the album is the first copy.
+              const seen = dateAddedMap.get(releaseId);
+              if (
+                release.date_added &&
+                (!seen || Date.parse(release.date_added) < Date.parse(seen))
+              ) {
                 dateAddedMap.set(releaseId, release.date_added);
               }
 
@@ -125,6 +131,28 @@ export async function GET(request: NextRequest) {
           controller.enqueue(
             encoder.encode(`New IDs to fetch: ${newIds.length}\n\n`)
           );
+
+          // Step 2.25: Repair releases already imported from what the listing
+          // just returned — no release fetches, so no rate-limit wait (#847).
+          const newIdSet = new Set(newIds);
+          try {
+            const repaired = await repairDiscogsCollectionFields(
+              username,
+              allIds.filter((id) => !newIdSet.has(id)),
+              dateAddedMap
+            );
+            controller.enqueue(
+              encoder.encode(
+                `Repaired ${repaired.albums.length} albums and ${repaired.tracks} tracks from collection dates\n\n`
+              )
+            );
+          } catch (repairError) {
+            const errorMessage = repairError instanceof Error ? repairError.message : String(repairError);
+            controller.enqueue(
+              encoder.encode(`⚠️  Collection date repair error: ${errorMessage}\n\n`)
+            );
+            console.error("[Discogs Sync] Repair error:", repairError);
+          }
 
           // Step 2.5: Detect and delete removed IDs (in manifest but not in current collection)
           const removedIds = manifestIds.filter((id) => !allIds.includes(id));

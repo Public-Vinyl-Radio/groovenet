@@ -256,6 +256,68 @@ describe("upsertAlbumRecord()", () => {
   });
 });
 
+describe("upsertAlbumRecord() Discogs-sourced fields (#847)", () => {
+  it("keeps the stored date_added, date_changed and discogs_url when the input has none", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValue({ rows: [makeAlbum()] });
+
+    await makeRepo().upsertAlbumRecord(client as any, {
+      release_id: "r1", friend_id: 1, title: "T", artist: "A", track_count: 0, genres: [], styles: [],
+    } as any);
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain("discogs_url = COALESCE(EXCLUDED.discogs_url, albums.discogs_url)");
+    expect(sql).toContain("date_added = COALESCE(EXCLUDED.date_added, albums.date_added)");
+    expect(sql).toContain("date_changed = COALESCE(EXCLUDED.date_changed, albums.date_changed)");
+    expect(params.slice(8, 11)).toEqual([undefined, undefined, undefined]);
+  });
+});
+
+describe("repairDiscogsCollectionFields()", () => {
+  const entries = [
+    { release_id: "101", date_added: "2024-01-01T10:00:00-08:00", discogs_url: "https://www.discogs.com/release/101" },
+    { release_id: "102", date_added: null, discogs_url: "https://www.discogs.com/release/102" },
+  ];
+
+  it("does nothing for an empty listing", async () => {
+    const client = makeClient();
+
+    expect(await makeRepo().repairDiscogsCollectionFields(client as any, 1, [])).toEqual({ albums: [], tracks: 0 });
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it("fills albums from the listing without nulling, then copies album dates onto tracks", async () => {
+    const client = makeClient();
+    client.query
+      .mockResolvedValueOnce({ rows: [{ release_id: "101" }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 7 });
+
+    const result = await makeRepo().repairDiscogsCollectionFields(client as any, 6, entries);
+
+    expect(result).toEqual({ albums: ["101"], tracks: 7 });
+    const [albumSql, albumParams] = client.query.mock.calls[0];
+    expect(albumSql).toContain("COALESCE(i.date_added::timestamp, a.date_added)");
+    expect(albumSql).toContain("COALESCE(NULLIF(a.discogs_url, ''), i.discogs_url)");
+    expect(albumSql).not.toContain("updated_at");
+    expect(albumParams).toEqual([
+      6,
+      ["101", "102"],
+      ["2024-01-01T10:00:00-08:00", null],
+      ["https://www.discogs.com/release/101", "https://www.discogs.com/release/102"],
+    ]);
+    const [trackSql, trackParams] = client.query.mock.calls[1];
+    expect(trackSql).toContain("UPDATE tracks t SET date_added = a.date_added");
+    expect(trackParams).toEqual([6, ["101", "102"]]);
+  });
+
+  it("reports zero tracks when the driver gives no row count", async () => {
+    const client = makeClient();
+    client.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [], rowCount: null });
+
+    expect(await makeRepo().repairDiscogsCollectionFields(client as any, 6, entries)).toEqual({ albums: [], tracks: 0 });
+  });
+});
+
 // ─── updateAlbumFields ────────────────────────────────────────────────────────
 
 describe("updateAlbumFields()", () => {
@@ -462,6 +524,9 @@ describe("insertTrack()", () => {
       expect.stringContaining("INSERT INTO tracks"),
       ["t1", 1, "alice"]
     );
+    expect(client.query.mock.calls[0][0]).toContain(
+      "(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)"
+    );
   });
 });
 
@@ -480,6 +545,9 @@ describe("upsertTrackByTrackIdUsername()", () => {
       expect.stringContaining("ON CONFLICT"),
       ["t1", 1]
     );
+    const sql: string = client.query.mock.calls[0][0];
+    expect(sql).toContain("(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)");
+    expect(sql).toContain("date_added = COALESCE(tracks.date_added, EXCLUDED.date_added)");
   });
 });
 
