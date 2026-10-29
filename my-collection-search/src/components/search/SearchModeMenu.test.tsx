@@ -16,7 +16,9 @@ describe("SearchModeMenu (#794)", () => {
 
     const semantic = await screen.findByRole("menuitemradio", { name: /^Semantic/ });
     expect(semantic.getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("menuitemradio", { name: /^Keyword/ }).textContent).toMatch(/words you type/);
+    expect(screen.getByRole("menuitemradio", { name: /^Keyword/ }).textContent).toMatch(
+      /words you type/,
+    );
 
     await user.click(screen.getByRole("menuitemradio", { name: /^Hybrid/ }));
     expect(onChange).toHaveBeenCalledWith("hybrid");

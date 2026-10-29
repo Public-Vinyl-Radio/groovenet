@@ -13,14 +13,13 @@ export function buildTrackMetadataPrompt(
     youtube_url?: string | null;
     soundcloud_url?: string | null;
   },
-  basePrompt: string
+  basePrompt: string,
 ): string {
   const title = args.title ?? "";
   const artist = args.artist ?? "";
   const album = args.album ?? "";
   const preamble = basePrompt || "";
-  const rawYear =
-    args.year === null || args.year === undefined ? "" : String(args.year).trim();
+  const rawYear = args.year === null || args.year === undefined ? "" : String(args.year).trim();
   const rawDuration = args.duration ? String(args.duration).trim() : "";
   const rawDurationSeconds =
     typeof args.duration_seconds === "number" && Number.isFinite(args.duration_seconds)
@@ -44,9 +43,7 @@ export function buildTrackMetadataPrompt(
     args.apple_music_url ? `Apple Music URL: ${args.apple_music_url}` : "",
     args.youtube_url ? `YouTube URL: ${args.youtube_url}` : "",
     args.soundcloud_url ? `SoundCloud URL: ${args.soundcloud_url}` : "",
-    versionMarkers?.length
-      ? `Version Markers: ${versionMarkers.join(", ")}`
-      : "",
+    versionMarkers?.length ? `Version Markers: ${versionMarkers.join(", ")}` : "",
   ].filter(Boolean);
 
   return (
@@ -64,7 +61,7 @@ export function buildBulkTrackMetadataPrompt(
     album?: string;
     url?: string | null | undefined;
   }>,
-  basePrompt: string
+  basePrompt: string,
 ): string {
   const preamble = basePrompt || "";
   const header =

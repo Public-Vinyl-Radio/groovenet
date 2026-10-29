@@ -8,7 +8,12 @@ import AlbumSearchResults from "@/components/AlbumSearchResults";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
-import { HeaderButton, ListSearchRow, SearchField, ViewModeSwitch } from "@/components/layout/ListHeader";
+import {
+  HeaderButton,
+  ListSearchRow,
+  SearchField,
+  ViewModeSwitch,
+} from "@/components/layout/ListHeader";
 import FilterChips from "@/components/FilterChips";
 import FiltersPanel from "@/components/FiltersPanel";
 import {
@@ -41,9 +46,7 @@ function AlbumsPageContent() {
   const { viewMode, setViewMode, layout } = useTrackViewMode();
 
   const [query, setQuery] = React.useState(searchParams.get("q") || "");
-  const [sort, setSort] = React.useState(
-    searchParams.get("sort") || DEFAULT_ALBUM_SORT
-  );
+  const [sort, setSort] = React.useState(searchParams.get("sort") || DEFAULT_ALBUM_SORT);
 
   // A genre badge (#376) navigates here with a new URL; the inputs follow it.
   const urlQuery = searchParams.get("q") || "";
@@ -52,10 +55,10 @@ function AlbumsPageContent() {
   React.useEffect(() => setSort(urlSort), [urlSort]);
 
   const missing: Record<string, boolean> = Object.fromEntries(
-    ALBUM_MISSING_OPTIONS.map(({ key }) => [key, searchParams.get(key) === "1"])
+    ALBUM_MISSING_OPTIONS.map(({ key }) => [key, searchParams.get(key) === "1"]),
   );
   const missingChips = ALBUM_MISSING_OPTIONS.filter(({ key }) => missing[key]).map(
-    ({ key, chipLabel }) => ({ key, label: chipLabel, active: true })
+    ({ key, chipLabel }) => ({ key, label: chipLabel, active: true }),
   );
   // Genre slugs (#375); no counts here, by design.
   const genres = searchParams.getAll("genre");
@@ -158,7 +161,9 @@ function AlbumsPageContent() {
     <PageContainer size="standard">
       <PageHeader
         title="Albums"
-        actions={[{ label: "Add album", icon: <LuPlus />, onClick: () => router.push("/albums/add") }]}
+        actions={[
+          { label: "Add album", icon: <LuPlus />, onClick: () => router.push("/albums/add") },
+        ]}
         desktopActions={
           <>
             <AlbumOptionsMenu onOpenArtwork={() => router.push("/albums/artwork")} />
@@ -184,67 +189,71 @@ function AlbumsPageContent() {
           </Flex>
         ) : (
           <>
-        <ListSearchRow
-          maxW="640px"
-          mb={0}
-          field={
-            <SearchField
-              value={query}
-              onChange={setQuery}
-              onEnter={handleSearch}
-              label="Search albums"
-              placeholder="Search albums"
+            <ListSearchRow
+              maxW="640px"
+              mb={0}
+              field={
+                <SearchField
+                  value={query}
+                  onChange={setQuery}
+                  onEnter={handleSearch}
+                  label="Search albums"
+                  placeholder="Search albums"
+                />
+              }
+              controls={
+                <>
+                  <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="button" />
+                  <FiltersPanel
+                    open={panelOpen}
+                    onOpenChange={setPanelOpen}
+                    scope="Albums"
+                    activeCount={filterCount}
+                    onReset={clearAll}
+                    showLabel={showAlbumsLabel(total)}
+                  >
+                    <AlbumFilterSections {...filterControls} />
+                  </FiltersPanel>
+                </>
+              }
             />
-          }
-          controls={
-            <>
-              <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="button" />
-              <FiltersPanel
-                open={panelOpen}
-                onOpenChange={setPanelOpen}
-                scope="Albums"
-                activeCount={filterCount}
-                onReset={clearAll}
-                showLabel={showAlbumsLabel(total)}
-              >
-                <AlbumFilterSections {...filterControls} />
-              </FiltersPanel>
-            </>
-          }
-        />
 
-        <AlbumFiltersModal open={filtersOpen} onOpenChange={setFiltersOpen} {...filterControls} />
+            <AlbumFiltersModal
+              open={filtersOpen}
+              onOpenChange={setFiltersOpen}
+              {...filterControls}
+            />
 
-        <FilterChips
-          chips={[
-            ...genreFilterChips(genres, taxonomy),
-            ...includeSimilarChips(includeSimilar, genres),
-            ...addedGenreChips(addedGenres),
-            ...missingChips,
-          ]}
-          onToggle={handleAlbumFilterToggle}
-          onClearAll={filterCount > 0 ? clearAll : undefined}
-          // Phones keep the count beside the sort above the results.
-          summaryOnPhones={false}
-          summary={total === null ? undefined : albumCountLabel(total)}
-        />
+            <FilterChips
+              chips={[
+                ...genreFilterChips(genres, taxonomy),
+                ...includeSimilarChips(includeSimilar, genres),
+                ...addedGenreChips(addedGenres),
+                ...missingChips,
+              ]}
+              onToggle={handleAlbumFilterToggle}
+              onClearAll={filterCount > 0 ? clearAll : undefined}
+              // Phones keep the count beside the sort above the results.
+              summaryOnPhones={false}
+              summary={total === null ? undefined : albumCountLabel(total)}
+            />
 
-        {/* Album Results */}
-        <Suspense
-          fallback={
-            <Flex justify="center" pt={6}>
-              <Spinner />
-            </Flex>
-          }
-        >
-          <AlbumSearchResults
-            friendId={currentUserFriend.id}
-            onAddedGenresChange={setAddedGenres}
-            onTotalChange={setTotal}
-            onSortChange={handleSortChange}
-            layout={layout}
-          />
-        </Suspense>
+            {/* Album Results */}
+            <Suspense
+              fallback={
+                <Flex justify="center" pt={6}>
+                  <Spinner />
+                </Flex>
+              }
+            >
+              <AlbumSearchResults
+                friendId={currentUserFriend.id}
+                onAddedGenresChange={setAddedGenres}
+                onTotalChange={setTotal}
+                onSortChange={handleSortChange}
+                layout={layout}
+              />
+            </Suspense>
           </>
         )}
       </Flex>

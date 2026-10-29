@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { analytics } from "@/lib/analytics/server";
-import {
-  trackRepository,
-  type UpdateTrackInput,
-} from "@/server/repositories/trackRepository";
+import { trackRepository, type UpdateTrackInput } from "@/server/repositories/trackRepository";
 import {
   normalizeDescriptors,
   trackGenreRepository,
@@ -30,7 +27,7 @@ export async function PATCH(req: Request) {
     if (genre_source !== undefined && !isPatchGenreSource(genre_source)) {
       return NextResponse.json(
         { error: "genre_source must be 'manual' or 'enrichment'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -38,7 +35,7 @@ export async function PATCH(req: Request) {
       if (!isStringArray(descriptors)) {
         return NextResponse.json(
           { error: "descriptors must be an array of strings" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       data.descriptors = normalizeDescriptors(descriptors);
@@ -52,7 +49,7 @@ export async function PATCH(req: Request) {
       if (!isStringArray(genres)) {
         return NextResponse.json(
           { error: "genres must be an array of genre ids or names" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       const resolved = await trackGenreRepository.resolveGenreRefs(genres);
@@ -62,7 +59,7 @@ export async function PATCH(req: Request) {
             error: `Unknown genre: ${resolved.unknown.join(", ")}`,
             unknown_genres: resolved.unknown,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
       genreIds = resolved.ids;
@@ -70,7 +67,7 @@ export async function PATCH(req: Request) {
 
     const current = await trackRepository.findTrackByTrackIdAndFriendId(
       data.track_id,
-      data.friend_id
+      data.friend_id,
     );
 
     if (genreIds !== undefined) {
@@ -81,7 +78,7 @@ export async function PATCH(req: Request) {
         data.track_id,
         data.friend_id,
         genreIds,
-        genre_source ?? "manual"
+        genre_source ?? "manual",
       );
     }
 
@@ -132,10 +129,7 @@ export async function PATCH(req: Request) {
         // NoFingerprintEngineError when fingerprint-service is down is
         // expected and must not fail the PATCH — the periodic backfill pass
         // catches this track on its next tick regardless.
-        console.error(
-          "Failed to queue fingerprint index for track:",
-          fingerprintError
-        );
+        console.error("Failed to queue fingerprint index for track:", fingerprintError);
       }
     }
 
@@ -144,22 +138,19 @@ export async function PATCH(req: Request) {
       {
         track_id: updated.track_id,
         changed_fields: Object.keys(body).filter(
-          (key) => key !== "track_id" && key !== "friend_id" && key !== "genre_source"
+          (key) => key !== "track_id" && key !== "friend_id" && key !== "genre_source",
         ),
         has_rating_change: "star_rating" in data,
         has_notes_change: "notes" in data,
         has_tags_change: "local_tags" in data,
       },
-      { request: req }
+      { request: req },
     );
 
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating track:", error);
-    return NextResponse.json(
-      { error: "Failed to update track" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update track" }, { status: 500 });
   }
 }
 

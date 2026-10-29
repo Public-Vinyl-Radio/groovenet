@@ -44,9 +44,11 @@ export class PlaylistRepository {
        LEFT JOIN tracks t ON t.track_id = pt.track_id AND t.friend_id = pt.friend_id
        WHERE pt.playlist_id = ANY($1)
        GROUP BY pt.playlist_id`,
-      [playlistIds]
+      [playlistIds],
     );
-    return Object.fromEntries(result.rows.map((row) => [row.playlist_id, Number(row.total_duration_seconds)]));
+    return Object.fromEntries(
+      result.rows.map((row) => [row.playlist_id, Number(row.total_duration_seconds)]),
+    );
   }
   async createLiveSetForPlaylist(playlistId: number): Promise<{ id: number }> {
     const result = await dbQuery<{ id: number }>(
@@ -54,13 +56,13 @@ export class PlaylistRepository {
        VALUES ($1)
        ON CONFLICT (playlist_id) DO UPDATE SET updated_at = live_sets.updated_at
        RETURNING id`,
-      [playlistId]
+      [playlistId],
     );
     return result.rows[0];
   }
 
   async listLiveSetSummariesByPlaylistIds(
-    playlistIds: number[]
+    playlistIds: number[],
   ): Promise<Record<number, LiveSetSummary>> {
     if (playlistIds.length === 0) return {};
     const result = await dbQuery<LiveSetSummary & { playlist_id: number }>(
@@ -94,11 +96,9 @@ export class PlaylistRepository {
         WHERE live_set_id = s.id
       ) media ON true
       WHERE s.playlist_id = ANY($1)`,
-      [playlistIds]
+      [playlistIds],
     );
-    return Object.fromEntries(
-      result.rows.map(({ playlist_id, ...set }) => [playlist_id, set])
-    );
+    return Object.fromEntries(result.rows.map(({ playlist_id, ...set }) => [playlist_id, set]));
   }
 
   /** Album art of each playlist's first four tracks (that have art), in position order. */
@@ -115,7 +115,7 @@ export class PlaylistRepository {
        ) ranked
        WHERE rn <= 4
        GROUP BY playlist_id`,
-      [playlistIds]
+      [playlistIds],
     );
     return Object.fromEntries(result.rows.map((row) => [row.playlist_id, row.cover_urls]));
   }
@@ -129,24 +129,19 @@ export class PlaylistRepository {
   }
 
   async findFriendIdByUsername(username: string): Promise<number | null> {
-    const result = await dbQuery("SELECT id FROM friends WHERE username = $1", [
-      username,
-    ]);
+    const result = await dbQuery("SELECT id FROM friends WHERE username = $1", [username]);
     return result.rows[0]?.id ?? null;
   }
 
   async findAnyFriendIdForTrack(trackId: string): Promise<number | null> {
-    const result = await dbQuery(
-      "SELECT friend_id FROM tracks WHERE track_id = $1 LIMIT 1",
-      [trackId]
-    );
+    const result = await dbQuery("SELECT friend_id FROM tracks WHERE track_id = $1 LIMIT 1", [
+      trackId,
+    ]);
     return result.rows[0]?.friend_id ?? null;
   }
 
   async findFriendUsernameById(friendId: number): Promise<string | null> {
-    const result = await dbQuery("SELECT username FROM friends WHERE id = $1", [
-      friendId,
-    ]);
+    const result = await dbQuery("SELECT username FROM friends WHERE id = $1", [friendId]);
     return result.rows[0]?.username ?? null;
   }
 
@@ -155,28 +150,24 @@ export class PlaylistRepository {
     return res.rows as Playlist[];
   }
 
-  async listPlaylistTracksByPlaylistIds(
-    playlistIds: number[]
-  ): Promise<PlaylistTrackRow[]> {
+  async listPlaylistTracksByPlaylistIds(playlistIds: number[]): Promise<PlaylistTrackRow[]> {
     if (playlistIds.length === 0) return [];
     const res = await dbQuery(
       "SELECT playlist_id, track_id, friend_id, position FROM playlist_tracks WHERE playlist_id = ANY($1) ORDER BY position ASC",
-      [playlistIds]
+      [playlistIds],
     );
     return res.rows as PlaylistTrackRow[];
   }
 
   async createPlaylist(name: string): Promise<Playlist> {
-    const res = await dbQuery("INSERT INTO playlists (name) VALUES ($1) RETURNING *", [
-      name,
-    ]);
+    const res = await dbQuery("INSERT INTO playlists (name) VALUES ($1) RETURNING *", [name]);
     return res.rows[0] as Playlist;
   }
 
   async createPlaylistWithClient(client: Queryable, name: string): Promise<Playlist> {
     const res = await client.query<Playlist>(
       "INSERT INTO playlists (name) VALUES ($1) RETURNING *",
-      [name]
+      [name],
     );
     return res.rows[0] as Playlist;
   }
@@ -189,18 +180,18 @@ export class PlaylistRepository {
   async findPlaylistHeaderById(id: number): Promise<{ id: number; name: string } | null> {
     const res = await dbQuery<{ id: number; name: string }>(
       "SELECT id, name FROM playlists WHERE id = $1",
-      [id]
+      [id],
     );
     return res.rows[0] ?? null;
   }
 
   async findPlaylistHeaderByIdWithClient(
     client: Queryable,
-    id: number
+    id: number,
   ): Promise<{ id: number; name: string } | null> {
     const res = await client.query<{ id: number; name: string }>(
       "SELECT id, name FROM playlists WHERE id = $1",
-      [id]
+      [id],
     );
     return res.rows[0] ?? null;
   }
@@ -217,7 +208,7 @@ export class PlaylistRepository {
     client: Queryable,
     playlistId: number,
     tracks: Array<{ track_id: string; friend_id: number; position: number }>,
-    onConflictDoNothing = false
+    onConflictDoNothing = false,
   ): Promise<void> {
     if (tracks.length === 0) return;
     const values = tracks
@@ -242,11 +233,11 @@ export class PlaylistRepository {
   }
 
   async listTrackRefsForPlaylist(
-    playlistId: number
+    playlistId: number,
   ): Promise<Array<{ track_id: string; friend_id: number; position: number }>> {
     const res = await dbQuery(
       "SELECT track_id, friend_id, position FROM playlist_tracks WHERE playlist_id = $1 ORDER BY position ASC",
-      [playlistId]
+      [playlistId],
     );
     return res.rows as Array<{ track_id: string; friend_id: number; position: number }>;
   }
@@ -260,14 +251,14 @@ export class PlaylistRepository {
        LEFT JOIN tracks t ON t.track_id = pt.track_id AND t.friend_id = pt.friend_id
        WHERE pt.playlist_id = $1
        ORDER BY pt.position ASC`,
-      [playlistId]
+      [playlistId],
     );
     return rows;
   }
 
   async findPerformance(
     playlistId: number,
-    performanceId?: number
+    performanceId?: number,
   ): Promise<PlaylistPerformance | null> {
     const params: number[] = [playlistId];
     const performanceFilter = performanceId == null ? "" : "AND p.id = $2";
@@ -279,7 +270,7 @@ export class PlaylistRepository {
        WHERE s.playlist_id = $1 ${performanceFilter}
        ORDER BY p.performed_at DESC
        LIMIT 1`,
-      params
+      params,
     );
     return rows[0] ?? null;
   }
@@ -288,10 +279,7 @@ export class PlaylistRepository {
     return dbPool.connect();
   }
 
-  async upsertTracksWithMetadata(
-    tracks: PlaylistTrackInput[],
-    db: Queryable
-  ): Promise<void> {
+  async upsertTracksWithMetadata(tracks: PlaylistTrackInput[], db: Queryable): Promise<void> {
     if (!tracks.length) return;
 
     const columns = [
@@ -338,20 +326,20 @@ export class PlaylistRepository {
         typeof rawTrack.bpm === "number"
           ? rawTrack.bpm
           : typeof rawTrack.bpm === "string"
-          ? Number(rawTrack.bpm)
-          : null;
+            ? Number(rawTrack.bpm)
+            : null;
       const durationSecondsNumber =
         typeof rawTrack.duration_seconds === "number"
           ? rawTrack.duration_seconds
           : typeof rawTrack.duration_seconds === "string"
-          ? Number(rawTrack.duration_seconds)
-          : null;
+            ? Number(rawTrack.duration_seconds)
+            : null;
       const starRatingNumber =
         typeof rawTrack.star_rating === "number"
           ? rawTrack.star_rating
           : typeof rawTrack.star_rating === "string"
-          ? Number(rawTrack.star_rating)
-          : null;
+            ? Number(rawTrack.star_rating)
+            : null;
 
       const updateValues: Record<(typeof columns)[number], unknown> = {
         title,
@@ -373,9 +361,7 @@ export class PlaylistRepository {
         bpm: Number.isFinite(bpmNumber) ? bpmNumber : null,
         key: rawTrack.key ?? null,
         danceability: rawTrack.danceability ?? null,
-        duration_seconds: Number.isFinite(durationSecondsNumber)
-          ? durationSecondsNumber
-          : null,
+        duration_seconds: Number.isFinite(durationSecondsNumber) ? durationSecondsNumber : null,
         notes: rawTrack.notes ?? null,
         local_audio_url: rawTrack.local_audio_url ?? null,
         star_rating: Number.isFinite(starRatingNumber) ? starRatingNumber : null,
@@ -415,7 +401,7 @@ export class PlaylistRepository {
 
       if (!username) {
         throw new Error(
-          `Cannot insert track ${rawTrack.track_id}: username is required but not found for friend_id ${rawTrack.friend_id}`
+          `Cannot insert track ${rawTrack.track_id}: username is required but not found for friend_id ${rawTrack.friend_id}`,
         );
       }
 

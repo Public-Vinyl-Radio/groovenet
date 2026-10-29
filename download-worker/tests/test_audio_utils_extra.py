@@ -1,5 +1,6 @@
 """Coverage for audio_utils paths the original suite left untested:
 directory cleanup, ffprobe metadata/stream parsing, and local file fetching."""
+
 import json
 import os
 import subprocess
@@ -17,9 +18,7 @@ from worker.audio_utils import (
 
 
 def make_proc(returncode=0, stdout="", stderr=""):
-    return subprocess.CompletedProcess(
-        args=[], returncode=returncode, stdout=stdout, stderr=stderr
-    )
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
 def probe(**format_tags):
@@ -29,6 +28,7 @@ def probe(**format_tags):
 # ---------------------------------------------------------------------------
 # cleanup_download_directory
 # ---------------------------------------------------------------------------
+
 
 class TestCleanupDownloadDirectory:
     def test_removes_files_and_directories(self, tmp_path):
@@ -76,6 +76,7 @@ class TestCleanupDownloadDirectory:
 # extract_year_from_tag
 # ---------------------------------------------------------------------------
 
+
 class TestExtractYearFromTag:
     @pytest.mark.parametrize(
         "value,expected",
@@ -111,6 +112,7 @@ class TestExtractYearFromTag:
 # get_audio_metadata_year
 # ---------------------------------------------------------------------------
 
+
 class TestGetAudioMetadataYear:
     @patch("worker.audio_utils.run_subprocess")
     def test_returns_none_when_ffprobe_fails(self, mock_run):
@@ -130,9 +132,7 @@ class TestGetAudioMetadataYear:
 
         assert get_audio_metadata_year("/a.m4a") is None
 
-    @pytest.mark.parametrize(
-        "key", ["date", "year", "originaldate", "original_date", "release_date", "creation_time"]
-    )
+    @pytest.mark.parametrize("key", ["date", "year", "originaldate", "original_date", "release_date", "creation_time"])
     @patch("worker.audio_utils.run_subprocess")
     def test_reads_each_preferred_tag(self, mock_run, key):
         mock_run.return_value = make_proc(stdout=probe(**{key: "1994-01-01"}))
@@ -177,6 +177,7 @@ class TestGetAudioMetadataYear:
 # get_duration_seconds
 # ---------------------------------------------------------------------------
 
+
 class TestGetDurationSeconds:
     @patch("worker.audio_utils.run_subprocess")
     def test_rounds_to_the_nearest_second(self, mock_run):
@@ -211,31 +212,50 @@ class TestGetDurationSeconds:
 # get_embedded_art_stream_index
 # ---------------------------------------------------------------------------
 
+
 class TestGetEmbeddedArtStreamIndex:
     @patch("worker.audio_utils.run_subprocess")
     def test_prefers_a_stream_marked_attached_pic(self, mock_run):
-        mock_run.return_value = make_proc(stdout=json.dumps({"streams": [
-            {"index": 0, "codec_type": "audio"},
-            {"index": 2, "codec_type": "video"},
-            {"index": 1, "codec_type": "video", "disposition": {"attached_pic": 1}},
-        ]}))
+        mock_run.return_value = make_proc(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {"index": 0, "codec_type": "audio"},
+                        {"index": 2, "codec_type": "video"},
+                        {"index": 1, "codec_type": "video", "disposition": {"attached_pic": 1}},
+                    ]
+                }
+            )
+        )
 
         assert get_embedded_art_stream_index("/a.m4a") == 1
 
     @patch("worker.audio_utils.run_subprocess")
     def test_falls_back_to_the_first_video_stream(self, mock_run):
-        mock_run.return_value = make_proc(stdout=json.dumps({"streams": [
-            {"index": 0, "codec_type": "audio"},
-            {"index": 3, "codec_type": "video"},
-        ]}))
+        mock_run.return_value = make_proc(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {"index": 0, "codec_type": "audio"},
+                        {"index": 3, "codec_type": "video"},
+                    ]
+                }
+            )
+        )
 
         assert get_embedded_art_stream_index("/a.m4a") == 3
 
     @patch("worker.audio_utils.run_subprocess")
     def test_returns_none_when_there_is_no_art(self, mock_run):
-        mock_run.return_value = make_proc(stdout=json.dumps({"streams": [
-            {"index": 0, "codec_type": "audio"},
-        ]}))
+        mock_run.return_value = make_proc(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {"index": 0, "codec_type": "audio"},
+                    ]
+                }
+            )
+        )
 
         assert get_embedded_art_stream_index("/a.m4a") is None
 
@@ -247,10 +267,16 @@ class TestGetEmbeddedArtStreamIndex:
 
     @patch("worker.audio_utils.run_subprocess")
     def test_skips_a_stream_with_a_non_integer_index(self, mock_run):
-        mock_run.return_value = make_proc(stdout=json.dumps({"streams": [
-            {"index": "one", "codec_type": "video", "disposition": {"attached_pic": 1}},
-            {"index": 4, "codec_type": "video"},
-        ]}))
+        mock_run.return_value = make_proc(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {"index": "one", "codec_type": "video", "disposition": {"attached_pic": 1}},
+                        {"index": 4, "codec_type": "video"},
+                    ]
+                }
+            )
+        )
 
         assert get_embedded_art_stream_index("/a.m4a") == 4
 
@@ -273,6 +299,7 @@ class TestGetEmbeddedArtStreamIndex:
 # ensure_local_audio_file
 # ---------------------------------------------------------------------------
 
+
 class TestEnsureLocalAudioFile:
     def test_raises_when_the_job_has_no_local_audio_url(self):
         with pytest.raises(Exception, match="missing local_audio_url"):
@@ -282,9 +309,7 @@ class TestEnsureLocalAudioFile:
         existing = tmp_path / "song.m4a"
         existing.write_text("x")
 
-        result = ensure_local_audio_file(
-            {"track_id": "t1", "friend_id": 1, "local_audio_url": str(existing)}
-        )
+        result = ensure_local_audio_file({"track_id": "t1", "friend_id": 1, "local_audio_url": str(existing)})
 
         assert result == str(existing)
 
@@ -302,9 +327,7 @@ class TestEnsureLocalAudioFile:
 
         monkeypatch.setattr("worker.audio_utils.os.path.exists", exists)
 
-        result = ensure_local_audio_file(
-            {"track_id": "t1", "friend_id": 1, "local_audio_url": "song.m4a"}
-        )
+        result = ensure_local_audio_file({"track_id": "t1", "friend_id": 1, "local_audio_url": "song.m4a"})
 
         assert result == "/app/audio/song.m4a"
 
@@ -337,9 +360,7 @@ class TestEnsureLocalAudioFile:
         monkeypatch.setattr("groovenet_client.GroovenetClient.fetch_audio", get)
         # The destination is hardcoded to /tmp; shadow `open` inside the module
         # so the bytes land in tmp_path instead of the real /tmp.
-        monkeypatch.setattr(
-            "worker.audio_utils.open", lambda p, m: open(written, m), raising=False
-        )
+        monkeypatch.setattr("worker.audio_utils.open", lambda p, m: open(written, m), raising=False)
 
         log = []
         result = ensure_local_audio_file(
@@ -363,6 +384,4 @@ class TestEnsureLocalAudioFile:
         monkeypatch.setattr("groovenet_client.GroovenetClient.fetch_audio", refuse)
 
         with pytest.raises(Exception, match="HTTP 404"):
-            ensure_local_audio_file(
-                {"track_id": "t1", "friend_id": 1, "local_audio_url": "/remote/song.m4a"}
-            )
+            ensure_local_audio_file({"track_id": "t1", "friend_id": 1, "local_audio_url": "/remote/song.m4a"})

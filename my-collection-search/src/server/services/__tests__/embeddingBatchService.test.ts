@@ -2,26 +2,45 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EmbeddingJob } from "@/types/embeddingQueue";
 
 const mock = vi.hoisted(() => ({
-  fetchTrack: vi.fn(), buildIdentityData: vi.fn(), buildIdentityText: vi.fn(),
-  computeSourceHash: vi.fn(), needsIdentity: vi.fn(), storeIdentity: vi.fn(),
-  buildContextText: vi.fn(), needsContext: vi.fn(),
-  findAudioTrack: vi.fn(), hasAudioData: vi.fn(), buildAudioVibeData: vi.fn(),
-  buildAudioVibeText: vi.fn(), computeAudioVibeHash: vi.fn(), needsAudioVibe: vi.fn(),
-  storeAudioVibe: vi.fn(), getProvider: vi.fn(), upsert: vi.fn(), embed: vi.fn(),
+  fetchTrack: vi.fn(),
+  buildIdentityData: vi.fn(),
+  buildIdentityText: vi.fn(),
+  computeSourceHash: vi.fn(),
+  needsIdentity: vi.fn(),
+  storeIdentity: vi.fn(),
+  buildContextText: vi.fn(),
+  needsContext: vi.fn(),
+  findAudioTrack: vi.fn(),
+  hasAudioData: vi.fn(),
+  buildAudioVibeData: vi.fn(),
+  buildAudioVibeText: vi.fn(),
+  computeAudioVibeHash: vi.fn(),
+  needsAudioVibe: vi.fn(),
+  storeAudioVibe: vi.fn(),
+  getProvider: vi.fn(),
+  upsert: vi.fn(),
+  embed: vi.fn(),
 }));
 
 vi.mock("@/lib/identity-embedding", () => ({
-  fetchTrackWithAlbum: mock.fetchTrack, buildIdentityData: mock.buildIdentityData,
-  buildIdentityText: mock.buildIdentityText, computeSourceHash: mock.computeSourceHash,
-  needsEmbeddingUpdate: mock.needsIdentity, storeIdentityEmbedding: mock.storeIdentity,
+  fetchTrackWithAlbum: mock.fetchTrack,
+  buildIdentityData: mock.buildIdentityData,
+  buildIdentityText: mock.buildIdentityText,
+  computeSourceHash: mock.computeSourceHash,
+  needsEmbeddingUpdate: mock.needsIdentity,
+  storeIdentityEmbedding: mock.storeIdentity,
 }));
 vi.mock("@/lib/context-embedding", () => ({
-  buildContextText: mock.buildContextText, needsContextUpdate: mock.needsContext,
+  buildContextText: mock.buildContextText,
+  needsContextUpdate: mock.needsContext,
 }));
 vi.mock("@/lib/audio-vibe-embedding", () => ({
-  buildAudioVibeData: mock.buildAudioVibeData, buildAudioVibeText: mock.buildAudioVibeText,
-  computeAudioVibeHash: mock.computeAudioVibeHash, hasAudioData: mock.hasAudioData,
-  needsAudioVibeUpdate: mock.needsAudioVibe, storeAudioVibeEmbedding: mock.storeAudioVibe,
+  buildAudioVibeData: mock.buildAudioVibeData,
+  buildAudioVibeText: mock.buildAudioVibeText,
+  computeAudioVibeHash: mock.computeAudioVibeHash,
+  hasAudioData: mock.hasAudioData,
+  needsAudioVibeUpdate: mock.needsAudioVibe,
+  storeAudioVibeEmbedding: mock.storeAudioVibe,
 }));
 vi.mock("@/lib/embeddings/config", () => ({ getTargetProvider: mock.getProvider }));
 vi.mock("@/server/repositories/trackRepository", () => ({
@@ -33,8 +52,11 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
 
 import { runEmbeddingBatch } from "../embeddingBatchService";
 
-const job = (track_id: string, kind: EmbeddingJob["kind"] = "identity", force = false): EmbeddingJob =>
-  ({ track_id, friend_id: 1, kind, force });
+const job = (
+  track_id: string,
+  kind: EmbeddingJob["kind"] = "identity",
+  force = false,
+): EmbeddingJob => ({ track_id, friend_id: 1, kind, force });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -61,16 +83,26 @@ beforeEach(() => {
 describe("runEmbeddingBatch", () => {
   it("groups by kind, embeds each text once, and maps vectors to the right tracks", async () => {
     const results = await runEmbeddingBatch([
-      job("a"), job("b", "context"), job("c"), job("d", "audio_vibe"),
+      job("a"),
+      job("b", "context"),
+      job("c"),
+      job("d", "audio_vibe"),
     ]);
     expect(results).toEqual(Array.from({ length: 4 }, () => ({ updated: true })));
     expect(mock.embed.mock.calls.map(([texts]) => texts)).toEqual([
-      ["identity:a", "identity:c"], ["context:b"], ["audio:d"],
+      ["identity:a", "identity:c"],
+      ["context:b"],
+      ["audio:d"],
     ]);
     expect(mock.storeIdentity).toHaveBeenCalledWith("c", 1, [1], "hash:c", "identity:c", "m1", 2);
-    expect(mock.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      trackId: "b", embeddingType: "context", embedding: [0], sourceHash: "hash:b",
-    }));
+    expect(mock.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trackId: "b",
+        embeddingType: "context",
+        embedding: [0],
+        sourceHash: "hash:b",
+      }),
+    );
     expect(mock.storeAudioVibe).toHaveBeenCalledWith("d", 1, [0], "hash:d", "audio:d", "m1", 2);
   });
 
@@ -78,8 +110,10 @@ describe("runEmbeddingBatch", () => {
     mock.getProvider
       .mockResolvedValueOnce({ model: "m1", dims: 2, embed: mock.embed })
       .mockResolvedValueOnce({ model: "m2", dims: 2, embed: mock.embed });
-    expect(await runEmbeddingBatch([job("a"), job("b")]))
-      .toEqual([{ updated: true }, { updated: true }]);
+    expect(await runEmbeddingBatch([job("a"), job("b")])).toEqual([
+      { updated: true },
+      { updated: true },
+    ]);
     expect(mock.embed.mock.calls.map(([texts]) => texts)).toEqual([["identity:a"], ["identity:b"]]);
     expect(mock.storeIdentity.mock.calls.map((call) => call[5])).toEqual(["m1", "m2"]);
   });
@@ -87,17 +121,21 @@ describe("runEmbeddingBatch", () => {
   it("skips unchanged or audio-less tracks and honors force", async () => {
     mock.needsIdentity.mockResolvedValue(false);
     mock.hasAudioData.mockReturnValue(false);
-    expect(await runEmbeddingBatch([job("a"), job("b", "audio_vibe"), job("c", "identity", true)]))
-      .toEqual([{ updated: false }, { updated: false }, { updated: true }]);
+    expect(
+      await runEmbeddingBatch([job("a"), job("b", "audio_vibe"), job("c", "identity", true)]),
+    ).toEqual([{ updated: false }, { updated: false }, { updated: true }]);
     expect(mock.needsIdentity).toHaveBeenCalledTimes(1);
     expect(mock.embed).toHaveBeenCalledWith(["identity:c"]);
   });
 
   it("handles missing and unchanged audio tracks independently", async () => {
-    mock.findAudioTrack.mockImplementation(async (id: string) => id === "missing" ? null : { id });
+    mock.findAudioTrack.mockImplementation(async (id: string) =>
+      id === "missing" ? null : { id },
+    );
     mock.needsAudioVibe.mockResolvedValue(false);
     const results = await runEmbeddingBatch([
-      job("missing", "audio_vibe"), job("unchanged", "audio_vibe"),
+      job("missing", "audio_vibe"),
+      job("unchanged", "audio_vibe"),
       job("forced", "audio_vibe", true),
     ]);
     expect(results[0].error).toEqual(new Error("Track not found: missing (friend_id: 1)"));
@@ -107,7 +145,7 @@ describe("runEmbeddingBatch", () => {
   });
 
   it("keeps preparation and storage errors per job", async () => {
-    mock.fetchTrack.mockImplementation(async (id: string) => id === "missing" ? null : { id });
+    mock.fetchTrack.mockImplementation(async (id: string) => (id === "missing" ? null : { id }));
     mock.storeIdentity.mockImplementation(async (id: string) => {
       if (id === "bad-store") throw new Error("db down");
     });
@@ -126,7 +164,8 @@ describe("runEmbeddingBatch", () => {
 
   it("isolates a rejected input after a 400 batch response", async () => {
     mock.embed.mockImplementation(async (texts: string[]) => {
-      if (texts.length > 1 || texts[0] === "identity:bad") throw Object.assign(new Error("bad input"), { status: 400 });
+      if (texts.length > 1 || texts[0] === "identity:bad")
+        throw Object.assign(new Error("bad input"), { status: 400 });
       return [[1]];
     });
     const results = await runEmbeddingBatch([job("good"), job("bad")]);
@@ -167,8 +206,9 @@ describe("runEmbeddingBatch", () => {
   });
 
   it("drops a legacy prompt job without a provider call", async () => {
-    expect(await runEmbeddingBatch([job("old", "prompt" as EmbeddingJob["kind"])]))
-      .toEqual([{ updated: false }]);
+    expect(await runEmbeddingBatch([job("old", "prompt" as EmbeddingJob["kind"])])).toEqual([
+      { updated: false },
+    ]);
     expect(mock.embed).not.toHaveBeenCalled();
   });
 

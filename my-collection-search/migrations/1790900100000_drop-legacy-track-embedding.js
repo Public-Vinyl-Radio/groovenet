@@ -30,9 +30,7 @@ export const down = (pgm) => {
       default: pgm.func("current_timestamp"),
     },
   });
-  pgm.addConstraint(
-    "embedding_prompt_settings",
-    "embedding_prompt_settings_pk",
-    { primaryKey: ["friend_id"] }
-  );
+  pgm.addConstraint("embedding_prompt_settings", "embedding_prompt_settings_pk", {
+    primaryKey: ["friend_id"],
+  });
 };

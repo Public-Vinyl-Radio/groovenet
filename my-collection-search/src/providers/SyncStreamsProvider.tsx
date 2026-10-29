@@ -24,20 +24,28 @@ const SyncStreamsContext = createContext<SyncStreamsContextType | null>(null);
 
 export function SyncStreamsProvider({ children }: { children: ReactNode }) {
   const [discogs, setDiscogs] = useState<StreamState>({ lines: [], done: false, error: null });
-  const [removeFriend, setRemoveFriend] = useState<StreamState>({ lines: [], done: false, error: null });
+  const [removeFriend, setRemoveFriend] = useState<StreamState>({
+    lines: [],
+    done: false,
+    error: null,
+  });
 
-  const api = useMemo(() => ({
-    discogs,
-    removeFriend,
-    resetDiscogs: () => setDiscogs({ lines: [], done: false, error: null }),
-    resetRemoveFriend: () => setRemoveFriend({ lines: [], done: false, error: null }),
-    pushDiscogsLine: (line: string) => setDiscogs(s => ({ ...s, lines: [...s.lines, line] })),
-    pushRemoveFriendLine: (line: string) => setRemoveFriend(s => ({ ...s, lines: [...s.lines, line] })),
-    setDiscogsDone: (v: boolean) => setDiscogs(s => ({ ...s, done: v })),
-    setRemoveFriendDone: (v: boolean) => setRemoveFriend(s => ({ ...s, done: v })),
-    setDiscogsError: (e: string | null) => setDiscogs(s => ({ ...s, error: e })),
-    setRemoveFriendError: (e: string | null) => setRemoveFriend(s => ({ ...s, error: e })),
-  }), [discogs, removeFriend]);
+  const api = useMemo(
+    () => ({
+      discogs,
+      removeFriend,
+      resetDiscogs: () => setDiscogs({ lines: [], done: false, error: null }),
+      resetRemoveFriend: () => setRemoveFriend({ lines: [], done: false, error: null }),
+      pushDiscogsLine: (line: string) => setDiscogs((s) => ({ ...s, lines: [...s.lines, line] })),
+      pushRemoveFriendLine: (line: string) =>
+        setRemoveFriend((s) => ({ ...s, lines: [...s.lines, line] })),
+      setDiscogsDone: (v: boolean) => setDiscogs((s) => ({ ...s, done: v })),
+      setRemoveFriendDone: (v: boolean) => setRemoveFriend((s) => ({ ...s, done: v })),
+      setDiscogsError: (e: string | null) => setDiscogs((s) => ({ ...s, error: e })),
+      setRemoveFriendError: (e: string | null) => setRemoveFriend((s) => ({ ...s, error: e })),
+    }),
+    [discogs, removeFriend],
+  );
 
   return <SyncStreamsContext.Provider value={api}>{children}</SyncStreamsContext.Provider>;
 }

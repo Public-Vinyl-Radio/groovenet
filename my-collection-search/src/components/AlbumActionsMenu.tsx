@@ -1,21 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
+import { Button, Menu, Box, Image, Link, Icon, Text } from "@chakra-ui/react";
 import {
-  Button,
-  Menu,
-  Box,
-  Image,
-  Link,
-  Icon,
-  Text,
-} from "@chakra-ui/react";
-import { FiDownload, FiDroplet, FiEdit, FiFileText, FiImage, FiMoreVertical, FiPlay, FiTrash2, FiZap } from "react-icons/fi";
+  FiDownload,
+  FiDroplet,
+  FiEdit,
+  FiFileText,
+  FiImage,
+  FiMoreVertical,
+  FiPlay,
+  FiTrash2,
+  FiZap,
+} from "react-icons/fi";
 import { SiDiscogs } from "react-icons/si";
 import NextLink from "next/link";
 import { menuDivider } from "@/components/ui/action-menu-primitives";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
-import { Group, TileRow, overline, type ModalAction, type ModalTile } from "@/components/ui/RetroModalParts";
+import {
+  Group,
+  TileRow,
+  overline,
+  type ModalAction,
+  type ModalTile,
+} from "@/components/ui/RetroModalParts";
 
 export interface AlbumActionsMenuProps {
   albumTitle?: string;
@@ -43,7 +51,6 @@ export interface AlbumActionsMenuProps {
   /** A borderless 44px trigger, for the phone's top bar. */
   prominent?: boolean;
 }
-
 
 export default function AlbumActionsMenu({
   albumTitle,
@@ -76,18 +83,32 @@ export default function AlbumActionsMenu({
   ];
   const library: ModalAction[] = [
     ...(onEnrichAlbum
-      ? [{ label: isEnriching ? "Opening enrichment..." : "Enrich album", onClick: onEnrichAlbum, disabled: isEnriching }]
+      ? [
+          {
+            label: isEnriching ? "Opening enrichment..." : "Enrich album",
+            onClick: onEnrichAlbum,
+            disabled: isEnriching,
+          },
+        ]
       : []),
     ...(onChangeArtwork ? [{ label: "Cover art", onClick: onChangeArtwork }] : []),
     ...(onDownloadMissing
-      ? [{ label: isDownloading ? "Downloading..." : "Download missing audio", onClick: onDownloadMissing, disabled: isDownloading }]
+      ? [
+          {
+            label: isDownloading ? "Downloading..." : "Download missing audio",
+            onClick: onDownloadMissing,
+            disabled: isDownloading,
+          },
+        ]
       : []),
   ];
   const discogs: ModalAction[] = [
     ...(discogsUrl ? [{ label: "View on Discogs", href: discogsUrl, external: true }] : []),
     ...(onViewRawDiscogs ? [{ label: "View raw Discogs file", onClick: onViewRawDiscogs }] : []),
   ];
-  const danger: ModalAction[] = onDeleteAlbum ? [{ label: "Delete album", onClick: onDeleteAlbum }] : [];
+  const danger: ModalAction[] = onDeleteAlbum
+    ? [{ label: "Delete album", onClick: onDeleteAlbum }]
+    : [];
 
   const hasAlbumActions =
     !!onPlayAlbum || !!onDownloadMissing || !!onEnrichAlbum || !!onLogCare || !!onChangeArtwork;
@@ -128,7 +149,12 @@ export default function AlbumActionsMenu({
                 <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8} lineClamp={1}>
                   {catalogue ?? "Album"}
                 </Text>
-                <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+                <RetroDialogTitle
+                  fontSize="16px"
+                  lineHeight="22px"
+                  fontWeight="semibold"
+                  lineClamp={1}
+                >
                   {albumTitle ?? "Album actions"}
                 </RetroDialogTitle>
                 {(subtitle ?? albumArtist) && (

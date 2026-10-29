@@ -4,7 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 
 import { useSettingsDialogs } from "@/providers/SettingsDialogProvider";
 import { useSyncStreams } from "@/providers/SyncStreamsProvider";
-import {  syncDiscogsStream,
+import {
+  syncDiscogsStream,
   verifyManifests,
   cleanupManifests,
   deleteReleases,
@@ -30,23 +31,17 @@ export function useCleanupManifests() {
 
 /** 4) Delete releases */
 export function useDeleteReleases() {
-  return useMutation<
-    DeleteReleasesResponse,
-    Error,
-    { username: string; releaseIds: string[] }
-  >({
-    mutationFn: ({ username, releaseIds }) =>
-      deleteReleases(username, releaseIds),
+  return useMutation<DeleteReleasesResponse, Error, { username: string; releaseIds: string[] }>({
+    mutationFn: ({ username, releaseIds }) => deleteReleases(username, releaseIds),
   });
 }
 
 /** 5) Streaming mutation for sync */
 export function useSyncDiscogs(
-  onRemovedReleases?: (data: { removedIds: string[]; username: string }) => void
+  onRemovedReleases?: (data: { removedIds: string[]; username: string }) => void,
 ) {
   const { setDiscogsSyncOpen } = useSettingsDialogs();
-  const { resetDiscogs, pushDiscogsLine, setDiscogsDone, setDiscogsError } =
-    useSyncStreams();
+  const { resetDiscogs, pushDiscogsLine, setDiscogsDone, setDiscogsError } = useSyncStreams();
 
   return useMutation<SyncResult | null, Error, { username?: string }>({
     mutationFn: async ({ username }) => {
@@ -80,8 +75,7 @@ export function useSyncDiscogs(
           // detect JSON summary on any line
           try {
             const obj = JSON.parse(line);
-            if (obj && (obj.newReleases || obj.alreadyHave))
-              summary = obj as SyncResult;
+            if (obj && (obj.newReleases || obj.alreadyHave)) summary = obj as SyncResult;
           } catch {}
         });
         setDiscogsDone(true);

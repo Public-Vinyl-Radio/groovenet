@@ -24,7 +24,12 @@ type FakeChild = EventEmitter & { stderr: EventEmitter };
 
 /** A spawn stand-in: runs `behave` on the next tick, then exits with its result. */
 function fakeSpawn(
-  behave: (args: string[]) => { code?: number | null; signal?: string; stderr?: string; error?: Error }
+  behave: (args: string[]) => {
+    code?: number | null;
+    signal?: string;
+    stderr?: string;
+    error?: Error;
+  },
 ) {
   mockSpawn.mockImplementation((_command: string, args: string[]) => {
     const child = new EventEmitter() as FakeChild;
@@ -60,7 +65,7 @@ afterEach(() => {
 describe("resolvePgConnection()", () => {
   it("reads and decodes DATABASE_URL", () => {
     expect(
-      resolvePgConnection({ DATABASE_URL: "postgres://us%40r:p%3Ass@host:6543/mydb" })
+      resolvePgConnection({ DATABASE_URL: "postgres://us%40r:p%3Ass@host:6543/mydb" }),
     ).toEqual({ host: "host", port: "6543", user: "us@r", password: "p:ss", database: "mydb" });
   });
 
@@ -70,7 +75,7 @@ describe("resolvePgConnection()", () => {
         DATABASE_URL: "postgres://user@host/mydb",
         POSTGRES_PASSWORD: "pw",
         POSTGRES_PORT: "5433",
-      })
+      }),
     ).toEqual({ host: "host", port: "5433", user: "user", password: "pw", database: "mydb" });
   });
 
@@ -80,16 +85,16 @@ describe("resolvePgConnection()", () => {
         DATABASE_URL: "not a url",
         POSTGRES_USER: "user",
         POSTGRES_DB: "mydb",
-      })
+      }),
     ).toEqual({ host: "localhost", port: "5432", user: "user", password: "", database: "mydb" });
   });
 
   it("throws when user or database is missing", () => {
     expect(() => resolvePgConnection({ POSTGRES_USER: "user" })).toThrow(
-      "Database connection info not available"
+      "Database connection info not available",
     );
     expect(() => resolvePgConnection({ POSTGRES_DB: "mydb" })).toThrow(
-      "Database connection info not available"
+      "Database connection info not available",
     );
   });
 });
@@ -107,7 +112,7 @@ describe("runCommand()", () => {
   it("rejects with the exit code and stderr", async () => {
     fakeSpawn(() => ({ code: 1, stderr: "connection refused\n" }));
     await expect(runCommand("/usr/bin/psql", [])).rejects.toThrow(
-      "psql exited with code 1: connection refused"
+      "psql exited with code 1: connection refused",
     );
   });
 
@@ -142,8 +147,21 @@ describe("runPgDump()", () => {
     const [command, args, options] = mockSpawn.mock.calls[0];
     expect(command).toBe(PG_DUMP_BIN);
     expect(args).toEqual([
-      "-h", "db", "-p", "5432", "-U", "u", "-d", "app",
-      "-F", "c", "--no-acl", "-n", "public", "-f", `${outPath}.partial`,
+      "-h",
+      "db",
+      "-p",
+      "5432",
+      "-U",
+      "u",
+      "-d",
+      "app",
+      "-F",
+      "c",
+      "--no-acl",
+      "-n",
+      "public",
+      "-f",
+      `${outPath}.partial`,
     ]);
     expect(args.join(" ")).not.toContain("secret");
     expect(options.env.PGPASSWORD).toBe("secret");
@@ -244,7 +262,7 @@ describe("resolveBackupPath()", () => {
     "rejects %j",
     (filename) => {
       expect(resolveBackupPath(filename)).toBeNull();
-    }
+    },
   );
 });
 

@@ -49,7 +49,7 @@ beforeEach(() => {
   processor = { probe: vi.fn().mockResolvedValue(probed) };
   service = new SetRecordingService(
     repository as unknown as ConstructorParameters<typeof SetRecordingService>[0],
-    processor as unknown as ConstructorParameters<typeof SetRecordingService>[1]
+    processor as unknown as ConstructorParameters<typeof SetRecordingService>[1],
   );
 });
 
@@ -63,12 +63,20 @@ describe("store", () => {
 
   it("keeps a body whose hash matches, under {sha256}.{ext from ffprobe}", async () => {
     const hash = sha(bytes);
-    const { recording, created } = await service.store(hash, body(bytes.slice(0, 3), bytes.slice(3)), "set.mp3");
+    const { recording, created } = await service.store(
+      hash,
+      body(bytes.slice(0, 3), bytes.slice(3)),
+      "set.mp3",
+    );
 
     expect(created).toBe(true);
     expect(recording).toMatchObject({
-      sha256: hash, file_path: `${hash}.mp3`, original_filename: "set.mp3",
-      format_name: "mp3", duration_seconds: 11044, size_bytes: 8,
+      sha256: hash,
+      file_path: `${hash}.mp3`,
+      original_filename: "set.mp3",
+      format_name: "mp3",
+      duration_seconds: 11044,
+      size_bytes: 8,
     });
     expect(fs.readFileSync(path.join(dir, `${hash}.mp3`))).toEqual(Buffer.from(bytes));
     expect(fs.readdirSync(dir)).toEqual([`${hash}.mp3`]);
@@ -105,11 +113,15 @@ describe("store", () => {
 
   it("refuses an empty body", async () => {
     const empty = new Uint8Array();
-    await expect(service.store(sha(empty), body(), null)).rejects.toMatchObject({ code: "empty_upload" });
+    await expect(service.store(sha(empty), body(), null)).rejects.toMatchObject({
+      code: "empty_upload",
+    });
   });
 
   it("refuses a missing body", async () => {
-    await expect(service.store(sha(bytes), null, null)).rejects.toMatchObject({ code: "empty_upload" });
+    await expect(service.store(sha(bytes), null, null)).rejects.toMatchObject({
+      code: "empty_upload",
+    });
   });
 
   it("refuses bytes ffprobe cannot read as audio", async () => {
@@ -170,7 +182,7 @@ describe("writeHashed failures (#282 hang)", () => {
     const big = new Uint8Array(1024 * 1024);
 
     await expect(
-      writeHashed(body(big, big, big, big), path.join(readonly, "x"), 1e9)
+      writeHashed(body(big, big, big, big), path.join(readonly, "x"), 1e9),
     ).rejects.toMatchObject({ code: "EACCES" });
   }, 5000);
 

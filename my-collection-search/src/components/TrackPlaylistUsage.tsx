@@ -66,15 +66,8 @@ export default function TrackPlaylistUsage({
                       alignItems="center"
                       gap={3}
                     >
-                      <Link
-                        asChild
-                        fontSize="sm"
-                        fontWeight="medium"
-                        lineClamp={1}
-                      >
-                        <NextLink href={`/playlists/${playlist.id}`}>
-                          {playlist.name}
-                        </NextLink>
+                      <Link asChild fontSize="sm" fontWeight="medium" lineClamp={1}>
+                        <NextLink href={`/playlists/${playlist.id}`}>{playlist.name}</NextLink>
                       </Link>
                       <Badge size="xs" colorPalette="accent" flexShrink={0}>
                         #{playlist.position}

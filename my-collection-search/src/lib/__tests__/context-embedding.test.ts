@@ -65,7 +65,7 @@ describe("buildContextText", () => {
         "Track: Song — Artist",
         "Release: Album",
         "Labels: discos fuentes, infopesa",
-      ].join("\n")
+      ].join("\n"),
     );
   });
 
@@ -77,7 +77,7 @@ describe("buildContextText", () => {
 
   it("degrades gracefully without descriptors, genres, era or labels", () => {
     const text = buildContextText(
-      data({ styles: [], tags: [], genres: [], era: "unknown-era", labels: [] })
+      data({ styles: [], tags: [], genres: [], era: "unknown-era", labels: [] }),
     );
     expect(text.split("\n")[0]).toBe("music.");
     expect(text).toContain("Labels: none");
@@ -97,7 +97,7 @@ describe("needsContextUpdate", () => {
       6,
       "context",
       "context-model",
-      CONTEXT_TEMPLATE_VERSION
+      CONTEXT_TEMPLATE_VERSION,
     );
   });
 
@@ -147,7 +147,7 @@ describe("generateAndStoreContextEmbedding", () => {
     findTrackWithAlbumMetadata.mockResolvedValue(null);
 
     await expect(generateAndStoreContextEmbedding("gone", 6)).rejects.toThrow(
-      "Track not found: gone (friend_id: 6)"
+      "Track not found: gone (friend_id: 6)",
     );
     expect(embed).not.toHaveBeenCalled();
   });

@@ -12,10 +12,7 @@ export async function DELETE() {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error clearing queues:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to clear queues" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to clear queues" }, { status: 500 });
   }
 }
 
@@ -25,9 +22,7 @@ export async function GET(request: Request) {
     const limitParam = Number(searchParams.get("limit") || 100);
     const offsetParam = Number(searchParams.get("offset") || 0);
     const stateParam = (searchParams.get("state") || "all").toLowerCase();
-    const limit = Number.isFinite(limitParam)
-      ? Math.min(Math.max(limitParam, 1), 500)
-      : 100;
+    const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 500) : 100;
     const offset = Number.isFinite(offsetParam) ? Math.max(offsetParam, 0) : 0;
 
     const state =
@@ -48,9 +43,6 @@ export async function GET(request: Request) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error fetching jobs:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to fetch jobs" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to fetch jobs" }, { status: 500 });
   }
 }

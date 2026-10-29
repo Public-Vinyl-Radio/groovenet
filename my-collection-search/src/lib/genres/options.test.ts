@@ -8,7 +8,12 @@ import {
   type GenreOption,
 } from "./options";
 
-const node = (id: string, name: string, children: GenreTreeNode[] = [], track_count = 0): GenreTreeNode => ({
+const node = (
+  id: string,
+  name: string,
+  children: GenreTreeNode[] = [],
+  track_count = 0,
+): GenreTreeNode => ({
   id,
   name,
   slug: name.toLowerCase(),
@@ -32,9 +37,30 @@ describe("flattenGenreTree", () => {
   it("lists every genre depth-first with its parent's name", () => {
     const cumbia = { ...node("cumbia", "Cumbia", [], 4), parent_id: "latin" };
     expect(flattenGenreTree([node("latin", "Latin", [cumbia]), node("jazz", "Jazz")])).toEqual([
-      { id: "latin", name: "Latin", slug: "latin", parent_id: null, parent_name: null, track_count: 0 },
-      { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin", track_count: 4 },
-      { id: "jazz", name: "Jazz", slug: "jazz", parent_id: null, parent_name: null, track_count: 0 },
+      {
+        id: "latin",
+        name: "Latin",
+        slug: "latin",
+        parent_id: null,
+        parent_name: null,
+        track_count: 0,
+      },
+      {
+        id: "cumbia",
+        name: "Cumbia",
+        slug: "cumbia",
+        parent_id: "latin",
+        parent_name: "Latin",
+        track_count: 4,
+      },
+      {
+        id: "jazz",
+        name: "Jazz",
+        slug: "jazz",
+        parent_id: null,
+        parent_name: null,
+        track_count: 0,
+      },
     ]);
   });
 });
@@ -56,7 +82,11 @@ describe("filterGenreOptions", () => {
   });
 
   it("lists the most used genres first for an empty input, leaving out chosen ones", () => {
-    expect(filterGenreOptions(options, "", new Set(["pc"])).map((o) => o.id)).toEqual(["cc", "c", "pp"]);
+    expect(filterGenreOptions(options, "", new Set(["pc"])).map((o) => o.id)).toEqual([
+      "cc",
+      "c",
+      "pp",
+    ]);
   });
 
   it("breaks ties by name and honours the limit", () => {
@@ -86,10 +116,17 @@ describe("genreSelectionChanged", () => {
 });
 
 describe("genreFilterOptions (#375)", () => {
-  const options = [option("latin", "Latin", 9), option("cumbia", "Cumbia", 4), option("jazz", "Jazz", 2)];
+  const options = [
+    option("latin", "Latin", 9),
+    option("cumbia", "Cumbia", 4),
+    option("jazz", "Jazz", 2),
+  ];
 
   it("carries the search's counts and drops genres with none", () => {
-    const counts = new Map([["latin", 3], ["cumbia", 1]]);
+    const counts = new Map([
+      ["latin", 3],
+      ["cumbia", 1],
+    ]);
     expect(genreFilterOptions(options, counts)).toEqual([
       { ...options[0], track_count: 3 },
       { ...options[1], track_count: 1 },

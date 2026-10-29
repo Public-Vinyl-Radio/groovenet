@@ -30,7 +30,11 @@ export default function AlbumTable({ children }: { children: React.ReactNode }) 
     // The padding leaves room for the block's 6px hard shadow.
     <Box pr="6px" pb="6px">
       <Box overflowX="auto" borderWidth="outline" borderColor="border.ink" boxShadow="md" bg="bg">
-        <Table.Root minW="880px" w="100%" css={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <Table.Root
+          minW="880px"
+          w="100%"
+          css={{ borderCollapse: "collapse", tableLayout: "fixed" }}
+        >
           <Table.Header>
             <Table.Row bg="bg.subtle">
               <Table.ColumnHeader {...heading} w="34%" pl={ALBUM_HEADING_INSET}>
@@ -42,9 +46,7 @@ export default function AlbumTable({ children }: { children: React.ReactNode }) 
               <Table.ColumnHeader {...heading} w="80px">
                 Tracks
               </Table.ColumnHeader>
-              <Table.ColumnHeader {...heading}>
-                Genre
-              </Table.ColumnHeader>
+              <Table.ColumnHeader {...heading}>Genre</Table.ColumnHeader>
               <Table.ColumnHeader {...heading} w="130px">
                 Rating
               </Table.ColumnHeader>

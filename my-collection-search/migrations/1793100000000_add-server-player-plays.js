@@ -1,5 +1,6 @@
 /** Durable, per-queue-entry delivery of digital server-player plays. */
-export const up = (pgm) => pgm.sql(`
+export const up = (pgm) =>
+  pgm.sql(`
   CREATE TABLE server_player_plays (
     entry_id uuid PRIMARY KEY,
     player_id text NOT NULL REFERENCES server_players(id),

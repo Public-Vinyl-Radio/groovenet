@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest) {
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid record copy update", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest) {
         is_default: true,
         changed_fields: changedCopyFields(changes),
       },
-      { request }
+      { request },
     );
     return NextResponse.json(recordCopyResponseSchema.parse({ copy }));
   } catch (error) {

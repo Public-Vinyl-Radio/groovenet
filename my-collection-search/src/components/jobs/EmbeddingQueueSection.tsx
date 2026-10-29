@@ -82,7 +82,9 @@ export default function EmbeddingQueueSection({
   };
 
   const toggleAll = () => {
-    setSelected((prev) => (prev.size === failed.length ? new Set() : new Set(failed.map((j) => j.id))));
+    setSelected((prev) =>
+      prev.size === failed.length ? new Set() : new Set(failed.map((j) => j.id)),
+    );
   };
 
   const retrySelected = async (ids: string[]) => {
@@ -144,8 +146,12 @@ export default function EmbeddingQueueSection({
         <Card.Root borderColor="border.error" borderWidth="1px">
           <Card.Body py={3}>
             <Flex gap={2} align="center" flexWrap="wrap">
-              <Badge colorPalette="status.missing" variant="solid">Paused</Badge>
-              <Text fontSize="sm" color="fg.error">{data.pause_reason}</Text>
+              <Badge colorPalette="status.missing" variant="solid">
+                Paused
+              </Badge>
+              <Text fontSize="sm" color="fg.error">
+                {data.pause_reason}
+              </Text>
             </Flex>
           </Card.Body>
         </Card.Root>
@@ -156,8 +162,16 @@ export default function EmbeddingQueueSection({
         <SummaryStat label="Sync" value={data.lanes.sync} />
         <SummaryStat label="Bulk" value={data.lanes.bulk} />
         <SummaryStat label="Retrying" value={data.retrying} color="fg.warning" />
-        <SummaryStat label="Failed" value={data.failed_count} color={data.failed_count > 0 ? "fg.error" : undefined} />
-        <SummaryStat label="Drain rate" value={`${Math.round(data.drain_rate_per_minute)}/min`} isText />
+        <SummaryStat
+          label="Failed"
+          value={data.failed_count}
+          color={data.failed_count > 0 ? "fg.error" : undefined}
+        />
+        <SummaryStat
+          label="Drain rate"
+          value={`${Math.round(data.drain_rate_per_minute)}/min`}
+          isText
+        />
         <SummaryStat label="ETA" value={formatEta(data.eta_seconds)} isText />
         <SummaryStat
           label="By kind"
@@ -167,13 +181,17 @@ export default function EmbeddingQueueSection({
       </SimpleGrid>
 
       {!data.paused && data.last_error && (
-        <Text fontSize="xs" color="fg.muted">Last error: {data.last_error}</Text>
+        <Text fontSize="xs" color="fg.muted">
+          Last error: {data.last_error}
+        </Text>
       )}
 
       {data.active_backfill_runs.length > 0 && (
         <Card.Root>
           <Card.Body>
-            <Heading size="sm" mb={3}>Active backfill runs</Heading>
+            <Heading size="sm" mb={3}>
+              Active backfill runs
+            </Heading>
             <Stack gap={3}>
               {data.active_backfill_runs.map((run) => {
                 const done = run.success + run.skipped + run.failed;
@@ -205,7 +223,9 @@ export default function EmbeddingQueueSection({
       )}
 
       {failed.length === 0 ? (
-        <Text fontSize="sm" color="fg.muted">No failed embedding jobs.</Text>
+        <Text fontSize="sm" color="fg.muted">
+          No failed embedding jobs.
+        </Text>
       ) : (
         <Card.Root>
           <Card.Body>
@@ -258,15 +278,27 @@ export default function EmbeddingQueueSection({
                         </Checkbox.Root>
                       </Table.Cell>
                       <Table.Cell>
-                        <Link as={NextLink} href={trackHref(job.track_id, job.friend_id)} _hover={{ textDecoration: "underline" }}>
+                        <Link
+                          as={NextLink}
+                          href={trackHref(job.track_id, job.friend_id)}
+                          _hover={{ textDecoration: "underline" }}
+                        >
                           {job.track_id}
                         </Link>
                       </Table.Cell>
                       <Table.Cell>
-                        <Badge variant="outline" size="sm">{KIND_LABEL[job.kind] ?? job.kind}</Badge>
+                        <Badge variant="outline" size="sm">
+                          {KIND_LABEL[job.kind] ?? job.kind}
+                        </Badge>
                       </Table.Cell>
                       <Table.Cell>{job.attempts}</Table.Cell>
-                      <Table.Cell maxW="320px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" title={job.error}>
+                      <Table.Cell
+                        maxW="320px"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        whiteSpace="nowrap"
+                        title={job.error}
+                      >
                         {job.error}
                       </Table.Cell>
                       <Table.Cell whiteSpace="nowrap" color="fg.muted" fontSize="xs">
@@ -311,7 +343,9 @@ function SummaryStat({
         <Text fontSize={isText ? "md" : "xl"} fontWeight="bold" color={color}>
           {value}
         </Text>
-        <Text fontSize="xs" color="fg.muted">{label}</Text>
+        <Text fontSize="xs" color="fg.muted">
+          {label}
+        </Text>
       </Card.Body>
     </Card.Root>
   );

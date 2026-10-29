@@ -47,7 +47,7 @@ export class AlbumApiService {
             AND t.friend_id = a.friend_id
             AND (t.local_audio_url IS NULL OR btrim(t.local_audio_url) = '')
             AND t.deleted_at IS NULL
-        )`
+        )`,
       );
     }
 
@@ -63,7 +63,7 @@ export class AlbumApiService {
               AND t.audio_file_album_art_url IS NOT NULL
               AND btrim(t.audio_file_album_art_url) <> ''
           )
-        )`
+        )`,
       );
     }
 
@@ -75,8 +75,8 @@ export class AlbumApiService {
             sqlParams.push(value);
             return `$${sqlParams.length}`;
           },
-          "a"
-        )
+          "a",
+        ),
       );
     }
 
@@ -88,7 +88,7 @@ export class AlbumApiService {
           to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(artist, '')) @@ plainto_tsquery('simple', ${queryParamRef})
           OR similarity(coalesce(title, ''), ${queryParamRef}) > 0.15
           OR similarity(coalesce(artist, ''), ${queryParamRef}) > 0.15
-        )`
+        )`,
       );
     }
 
@@ -101,13 +101,11 @@ export class AlbumApiService {
       "year:desc": "year DESC NULLS LAST, release_id DESC, friend_id DESC",
       "year:asc": "year ASC NULLS LAST, release_id ASC, friend_id ASC",
       "title:asc": "title ASC NULLS LAST, release_id ASC, friend_id ASC",
-      "album_rating:desc":
-        "album_rating DESC NULLS LAST, release_id DESC, friend_id DESC",
+      "album_rating:desc": "album_rating DESC NULLS LAST, release_id DESC, friend_id DESC",
     };
 
-    const rankSql =
-      queryParamRef
-        ? `
+    const rankSql = queryParamRef
+      ? `
           (
             ts_rank(
               to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(artist, '')),
@@ -119,7 +117,7 @@ export class AlbumApiService {
             )
           ) DESC,
         `
-        : "";
+      : "";
 
     const sortSql = sortMap[params.sort] ?? sortMap["created_at:desc"];
 
@@ -137,7 +135,7 @@ export class AlbumApiService {
       LIMIT ${limitRef}
       OFFSET ${offsetRef}
       `,
-      sqlParams
+      sqlParams,
     );
 
     const countParams = [...sqlParams.slice(0, sqlParams.length - 2)];
@@ -147,17 +145,13 @@ export class AlbumApiService {
       FROM albums a
       ${whereSql}
       `,
-      countParams
+      countParams,
     );
 
     const hits = rows;
 
     const friendIds = Array.from(
-      new Set(
-        hits
-          .map((h) => h.friend_id)
-          .filter((id): id is number => typeof id === "number")
-      )
+      new Set(hits.map((h) => h.friend_id).filter((id): id is number => typeof id === "number")),
     );
     const usernameByFriendId = await albumRepository.getFriendUsernamesByIds(friendIds);
 
@@ -174,11 +168,9 @@ export class AlbumApiService {
       .map((h) => ({ release_id: h.release_id, friend_id: h.friend_id }))
       .filter(
         (r): r is { release_id: string; friend_id: number } =>
-          typeof r.release_id === "string" && typeof r.friend_id === "number"
+          typeof r.release_id === "string" && typeof r.friend_id === "number",
       );
-    const coverByAlbumKey = await albumRepository.getFirstAudioCoverByAlbumRefs(
-      albumRefs
-    );
+    const coverByAlbumKey = await albumRepository.getFirstAudioCoverByAlbumRefs(albumRefs);
 
     const finalHits = enrichedHits.map((hit) => {
       const release_id = hit.release_id;
@@ -188,8 +180,7 @@ export class AlbumApiService {
       }
       return {
         ...hit,
-        audio_file_album_art_url:
-          coverByAlbumKey.get(`${release_id}:${friend_id}`) || undefined,
+        audio_file_album_art_url: coverByAlbumKey.get(`${release_id}:${friend_id}`) || undefined,
       };
     });
 
@@ -205,18 +196,12 @@ export class AlbumApiService {
 
   async getAlbumDetail(
     releaseId: string,
-    friendId: number
+    friendId: number,
   ): Promise<{ album: Album; tracks: Track[] } | null> {
-    const album = await albumRepository.getAlbumByReleaseAndFriend(
-      releaseId,
-      friendId
-    );
+    const album = await albumRepository.getAlbumByReleaseAndFriend(releaseId, friendId);
     if (!album) return null;
 
-    const tracks = await albumRepository.getTracksByReleaseAndFriend(
-      releaseId,
-      friendId
-    );
+    const tracks = await albumRepository.getTracksByReleaseAndFriend(releaseId, friendId);
     return { album, tracks };
   }
 }

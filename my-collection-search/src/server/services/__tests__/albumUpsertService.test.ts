@@ -106,7 +106,7 @@ describe("discogsReleaseToAlbum", () => {
   it("prefers artists_sort over artists[0].name", () => {
     const result = discogsReleaseToAlbum(
       makeRelease({ artists_sort: "Sorted Artist", artists: [{ name: "Other Artist" }] }),
-      1
+      1,
     );
     expect(result.artist).toBe("Sorted Artist");
   });
@@ -114,7 +114,7 @@ describe("discogsReleaseToAlbum", () => {
   it("falls back to artists[0].name when artists_sort is absent", () => {
     const result = discogsReleaseToAlbum(
       makeRelease({ artists_sort: undefined, artists: [{ name: "Fallback Artist" }] }),
-      1
+      1,
     );
     expect(result.artist).toBe("Fallback Artist");
   });
@@ -122,16 +122,13 @@ describe("discogsReleaseToAlbum", () => {
   it("uses 'Unknown Artist' when both artists_sort and artists are absent", () => {
     const result = discogsReleaseToAlbum(
       makeRelease({ artists_sort: undefined, artists: undefined }),
-      1
+      1,
     );
     expect(result.artist).toBe("Unknown Artist");
   });
 
   it("uses 'Unknown Artist' when artists array is empty", () => {
-    const result = discogsReleaseToAlbum(
-      makeRelease({ artists_sort: undefined, artists: [] }),
-      1
-    );
+    const result = discogsReleaseToAlbum(makeRelease({ artists_sort: undefined, artists: [] }), 1);
     expect(result.artist).toBe("Unknown Artist");
   });
 
@@ -159,18 +156,12 @@ describe("discogsReleaseToAlbum", () => {
 
   it("sets undefined format when formats is not an array", () => {
     // DiscogsRelease.formats is typed as string in some code paths
-    const result = discogsReleaseToAlbum(
-      makeRelease({ formats: "Vinyl" as unknown as string }),
-      1
-    );
+    const result = discogsReleaseToAlbum(makeRelease({ formats: "Vinyl" as unknown as string }), 1);
     expect(result.format).toBeUndefined();
   });
 
   it("sets undefined format when formats array is empty", () => {
-    const result = discogsReleaseToAlbum(
-      makeRelease({ formats: [] as unknown as string }),
-      1
-    );
+    const result = discogsReleaseToAlbum(makeRelease({ formats: [] as unknown as string }), 1);
     expect(result.format).toBeUndefined();
   });
 
@@ -180,35 +171,26 @@ describe("discogsReleaseToAlbum", () => {
   });
 
   it("uses empty arrays for absent genres and styles", () => {
-    const result = discogsReleaseToAlbum(
-      makeRelease({ genres: undefined, styles: undefined }),
-      1
-    );
+    const result = discogsReleaseToAlbum(makeRelease({ genres: undefined, styles: undefined }), 1);
     expect(result.genres).toEqual([]);
     expect(result.styles).toEqual([]);
   });
 
   it("strips Discogs disambiguation numbering from artists_sort", () => {
-    const result = discogsReleaseToAlbum(
-      makeRelease({ artists_sort: "Surgeon (2)" }),
-      1
-    );
+    const result = discogsReleaseToAlbum(makeRelease({ artists_sort: "Surgeon (2)" }), 1);
     expect(result.artist).toBe("Surgeon");
   });
 
   it("strips disambiguation when falling back to artists[0].name", () => {
     const result = discogsReleaseToAlbum(
       makeRelease({ artists_sort: undefined, artists: [{ name: "DJ Stingray 313 (2)" }] }),
-      1
+      1,
     );
     expect(result.artist).toBe("DJ Stingray 313");
   });
 
   it("does not strip numbers that are not a trailing parenthesised suffix", () => {
-    const result = discogsReleaseToAlbum(
-      makeRelease({ artists_sort: "Boards Of Canada" }),
-      1
-    );
+    const result = discogsReleaseToAlbum(makeRelease({ artists_sort: "Boards Of Canada" }), 1);
     expect(result.artist).toBe("Boards Of Canada");
   });
 });
@@ -218,7 +200,13 @@ describe("discogsReleaseToAlbum", () => {
 describe("upsertAlbum()", () => {
   it("delegates to albumRepository.upsertAlbumRecord and returns the result", async () => {
     const db = { query: vi.fn() };
-    const input = { release_id: "123", friend_id: 1, title: "Test", artist: "Artist", track_count: 0 };
+    const input = {
+      release_id: "123",
+      friend_id: 1,
+      title: "Test",
+      artist: "Artist",
+      track_count: 0,
+    };
     const saved = makeAlbum();
     albumRepo.upsertAlbumRecord.mockResolvedValue(saved);
 
@@ -302,10 +290,14 @@ describe("upsertAlbums()", () => {
     const options = { preserveManualFields: true };
     albumRepo.upsertAlbumRecord.mockResolvedValue(makeAlbum());
 
-    await upsertAlbums(db as any, [
-      { release_id: "1", friend_id: 1, title: "A", artist: "Artist", track_count: 0 } as any,
-      { release_id: "2", friend_id: 1, title: "B", artist: "Artist", track_count: 0 } as any,
-    ], options);
+    await upsertAlbums(
+      db as any,
+      [
+        { release_id: "1", friend_id: 1, title: "A", artist: "Artist", track_count: 0 } as any,
+        { release_id: "2", friend_id: 1, title: "B", artist: "Artist", track_count: 0 } as any,
+      ],
+      options,
+    );
 
     for (const call of albumRepo.upsertAlbumRecord.mock.calls) {
       expect(call[2]).toBe(options);
@@ -318,9 +310,7 @@ describe("upsertAlbums()", () => {
 describe("getAlbumsFromManifestReleases()", () => {
   it("returns albums for all found releases", async () => {
     friendRepo.ensureIdByUsername.mockResolvedValue(7);
-    manifestSvc.getReleasePath
-      .mockReturnValueOnce("/path/r1")
-      .mockReturnValueOnce("/path/r2");
+    manifestSvc.getReleasePath.mockReturnValueOnce("/path/r1").mockReturnValueOnce("/path/r2");
     manifestSvc.loadAlbum
       .mockReturnValueOnce(makeRelease({ id: 1 }))
       .mockReturnValueOnce(makeRelease({ id: 2 }));
@@ -336,9 +326,7 @@ describe("getAlbumsFromManifestReleases()", () => {
 
   it("skips releases where getReleasePath returns a falsy value", async () => {
     friendRepo.ensureIdByUsername.mockResolvedValue(5);
-    manifestSvc.getReleasePath
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce("/path/r2");
+    manifestSvc.getReleasePath.mockReturnValueOnce(null).mockReturnValueOnce("/path/r2");
     manifestSvc.loadAlbum.mockReturnValueOnce(makeRelease({ id: 2 }));
 
     const result = await getAlbumsFromManifestReleases("testuser", ["1", "2"]);
@@ -350,9 +338,7 @@ describe("getAlbumsFromManifestReleases()", () => {
   it("skips releases where loadAlbum returns a falsy value", async () => {
     friendRepo.ensureIdByUsername.mockResolvedValue(5);
     manifestSvc.getReleasePath.mockReturnValue("/path/r");
-    manifestSvc.loadAlbum
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce(makeRelease({ id: 2 }));
+    manifestSvc.loadAlbum.mockReturnValueOnce(null).mockReturnValueOnce(makeRelease({ id: 2 }));
 
     const result = await getAlbumsFromManifestReleases("testuser", ["1", "2"]);
 
@@ -389,9 +375,7 @@ describe("getAllAlbumsFromManifests()", () => {
       username: "user1",
     });
     friendRepo.ensureIdByUsername.mockResolvedValue(3);
-    manifestSvc.getReleasePath
-      .mockReturnValueOnce("/path/10")
-      .mockReturnValueOnce("/path/20");
+    manifestSvc.getReleasePath.mockReturnValueOnce("/path/10").mockReturnValueOnce("/path/20");
     manifestSvc.loadAlbum
       .mockReturnValueOnce(makeRelease({ id: 10 }))
       .mockReturnValueOnce(makeRelease({ id: 20 }));
@@ -409,9 +393,7 @@ describe("getAllAlbumsFromManifests()", () => {
     manifestSvc.parseManifestFile
       .mockReturnValueOnce({ manifest: { releaseIds: [1] }, username: "user1" })
       .mockReturnValueOnce({ manifest: { releaseIds: [2] }, username: "user2" });
-    friendRepo.ensureIdByUsername
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(2);
+    friendRepo.ensureIdByUsername.mockResolvedValueOnce(1).mockResolvedValueOnce(2);
     manifestSvc.getReleasePath.mockReturnValue("/path/r");
     manifestSvc.loadAlbum
       .mockReturnValueOnce(makeRelease({ id: 1 }))
@@ -439,9 +421,7 @@ describe("getAllAlbumsFromManifests()", () => {
       username: "user1",
     });
     friendRepo.ensureIdByUsername.mockResolvedValue(1);
-    manifestSvc.getReleasePath
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce("/path/r2");
+    manifestSvc.getReleasePath.mockReturnValueOnce(null).mockReturnValueOnce("/path/r2");
     manifestSvc.loadAlbum.mockReturnValueOnce(makeRelease({ id: 2 }));
 
     const result = await getAllAlbumsFromManifests();

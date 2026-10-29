@@ -49,7 +49,13 @@ export default function ConfirmDialog({
       <Box p="16px 14px" display="flex" flexDirection="column" gap={4}>
         <Text>{body}</Text>
         <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap="10px" pr="3px">
-          <Button ref={cancelRef} variant="outline" h="44px" onClick={() => onOpenChange(false)} disabled={pending}>
+          <Button
+            ref={cancelRef}
+            variant="outline"
+            h="44px"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
             Cancel
           </Button>
           <Button

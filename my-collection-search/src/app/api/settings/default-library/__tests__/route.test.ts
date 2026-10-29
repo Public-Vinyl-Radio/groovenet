@@ -16,7 +16,7 @@ const put = (body: unknown) =>
     new Request("http://localhost/api/settings/default-library", {
       method: "PUT",
       body: JSON.stringify(body),
-    })
+    }),
   );
 
 const pgError = (message: string, code?: string) => Object.assign(new Error(message), { code });
@@ -42,16 +42,21 @@ describe("/api/settings/default-library", () => {
     expect((await missing.json()).error).toMatch(/table is missing/);
 
     getDefaultLibrary.mockRejectedValue(pgError("boom"));
-    expect(await (await GET()).json()).toEqual({ error: "Failed to load default library settings" });
+    expect(await (await GET()).json()).toEqual({
+      error: "Failed to load default library settings",
+    });
   });
 
-  it.each([[{ friend_id: 3 }], [{ friend_id: "3" }]])("updates the default library from %j", async (body) => {
-    updateDefaultLibrary.mockResolvedValue({ friend_id: 3 });
-    const res = await put(body);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ friend_id: 3 });
-    expect(updateDefaultLibrary).toHaveBeenCalledWith(3);
-  });
+  it.each([[{ friend_id: 3 }], [{ friend_id: "3" }]])(
+    "updates the default library from %j",
+    async (body) => {
+      updateDefaultLibrary.mockResolvedValue({ friend_id: 3 });
+      const res = await put(body);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ friend_id: 3 });
+      expect(updateDefaultLibrary).toHaveBeenCalledWith(3);
+    },
+  );
 
   it.each([[{}], [{ friend_id: 0 }], [{ friend_id: "x" }], [{ friend_id: 2.5 }], [null]])(
     "rejects %j with the existing 400 message",
@@ -60,7 +65,7 @@ describe("/api/settings/default-library", () => {
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: "friend_id is required" });
       expect(updateDefaultLibrary).not.toHaveBeenCalled();
-    }
+    },
   );
 
   it("maps an unknown library to 404 and a missing table to 500", async () => {

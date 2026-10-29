@@ -32,15 +32,28 @@ async function cleanup() {
   await dbQuery(`DELETE FROM friends WHERE username IN ($1, $2)`, [MINE, THEIRS]);
 }
 
-async function addTrack(friendId: number, username: string, id: string, vector: number[], deleted = false) {
+async function addTrack(
+  friendId: number,
+  username: string,
+  id: string,
+  vector: number[],
+  deleted = false,
+) {
   await dbQuery(
     `INSERT INTO tracks (track_id, username, friend_id, title, artist, deleted_at)
      VALUES ($1, $2, $3, $1, 'A', $4)`,
-    [id, username, friendId, deleted ? new Date() : null]
+    [id, username, friendId, deleted ? new Date() : null],
   );
   await embeddings.upsertTrackEmbedding({
-    trackId: id, friendId, embeddingType: "identity", model: MODEL, dims: 3,
-    embedding: vector, sourceHash: "h", identityText: id, templateVersion: 1,
+    trackId: id,
+    friendId,
+    embeddingType: "identity",
+    model: MODEL,
+    dims: 3,
+    embedding: vector,
+    sourceHash: "h",
+    identityText: id,
+    templateVersion: 1,
   });
 }
 
@@ -49,7 +62,7 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number; username: string }>(
     `INSERT INTO friends (username) VALUES ($1), ($2) RETURNING id, username`,
-    [MINE, THEIRS]
+    [MINE, THEIRS],
   );
   mine = rows.find((r) => r.username === MINE)!.id;
   theirs = rows.find((r) => r.username === THEIRS)!.id;
@@ -70,14 +83,24 @@ afterAll(async () => {
 });
 
 describe("library-scoped suggestions (integration)", () => {
-  dbTest("without a library, every library is searched, nearest first, minus deleted tracks", async () => {
-    const rows = await recommendations.findIdentitySimilar({ ...query, seedTrackId: "seed", seedFriendId: mine });
-    expect(ids(rows)).toEqual(["theirs-closest", "theirs-near", "mine-near", "mine-far"]);
-  });
+  dbTest(
+    "without a library, every library is searched, nearest first, minus deleted tracks",
+    async () => {
+      const rows = await recommendations.findIdentitySimilar({
+        ...query,
+        seedTrackId: "seed",
+        seedFriendId: mine,
+      });
+      expect(ids(rows)).toEqual(["theirs-closest", "theirs-near", "mine-near", "mine-far"]);
+    },
+  );
 
   dbTest("a library keeps one seed's suggestions to it", async () => {
     const rows = await recommendations.findIdentitySimilar({
-      ...query, seedTrackId: "seed", seedFriendId: mine, libraryFriendId: mine,
+      ...query,
+      seedTrackId: "seed",
+      seedFriendId: mine,
+      libraryFriendId: mine,
     });
     expect(ids(rows)).toEqual(["mine-near", "mine-far"]);
     expect(rows.every((r) => r.friend_id === mine)).toBe(true);
@@ -85,23 +108,37 @@ describe("library-scoped suggestions (integration)", () => {
 
   dbTest("the seed may come from another library than the one searched", async () => {
     const rows = await recommendations.findIdentitySimilar({
-      ...query, seedTrackId: "seed", seedFriendId: mine, libraryFriendId: theirs,
+      ...query,
+      seedTrackId: "seed",
+      seedFriendId: mine,
+      libraryFriendId: theirs,
     });
     expect(ids(rows)).toEqual(["theirs-closest", "theirs-near"]);
   });
 
   dbTest("a library keeps a centroid's suggestions to it", async () => {
     const seedTracks = [{ trackId: "seed", friendId: mine }];
-    expect(ids(await recommendations.findIdentitySimilarByCentroid({ ...query, seedTracks }))).toEqual([
-      "theirs-closest", "theirs-near", "mine-near", "mine-far",
-    ]);
-    expect(ids(await recommendations.findIdentitySimilarByCentroid({ ...query, seedTracks, libraryFriendId: mine }))).toEqual([
-      "mine-near", "mine-far",
-    ]);
+    expect(
+      ids(await recommendations.findIdentitySimilarByCentroid({ ...query, seedTracks })),
+    ).toEqual(["theirs-closest", "theirs-near", "mine-near", "mine-far"]);
+    expect(
+      ids(
+        await recommendations.findIdentitySimilarByCentroid({
+          ...query,
+          seedTracks,
+          libraryFriendId: mine,
+        }),
+      ),
+    ).toEqual(["mine-near", "mine-far"]);
   });
 
   dbTest("leaves no ivfflat settings behind on pooled connections", async () => {
-    await recommendations.findIdentitySimilar({ ...query, ivfflatProbes: 37, seedTrackId: "seed", seedFriendId: mine });
+    await recommendations.findIdentitySimilar({
+      ...query,
+      ivfflatProbes: 37,
+      seedTrackId: "seed",
+      seedFriendId: mine,
+    });
     const settingsSeen = await Promise.all(
       Array.from({ length: 3 }, () =>
         withDbClient(async (client) => {
@@ -109,11 +146,11 @@ describe("library-scoped suggestions (integration)", () => {
           await client.query(`SELECT '[1]'::vector`);
           const { rows } = await client.query<{ probes: string; scan: string }>(
             `SELECT current_setting('ivfflat.probes') AS probes,
-                    current_setting('ivfflat.iterative_scan') AS scan`
+                    current_setting('ivfflat.iterative_scan') AS scan`,
           );
           return rows[0];
-        })
-      )
+        }),
+      ),
     );
     for (const row of settingsSeen) expect(row).toEqual({ probes: "1", scan: "off" });
   });
@@ -124,7 +161,9 @@ describe("library-scoped suggestions (integration)", () => {
     expect(await settings.upsertRecommendationScope(mine, "library")).toBe("library");
     expect(await settings.findRecommendationScope(mine)).toBe("library");
     await expect(
-      dbQuery(`INSERT INTO recommendation_settings (friend_id, scope) VALUES ($1, 'everyone')`, [theirs])
+      dbQuery(`INSERT INTO recommendation_settings (friend_id, scope) VALUES ($1, 'everyone')`, [
+        theirs,
+      ]),
     ).rejects.toThrow(/check constraint/);
   });
 });

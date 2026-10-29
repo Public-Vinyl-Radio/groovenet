@@ -70,19 +70,23 @@ describe("backupFileType()", () => {
 
 describe("sqlBackupHasSchema()", () => {
   it("detects schema statements", async () => {
-    expect(await sqlBackupHasSchema(writeTmp("a.sql", "SET x;\nCREATE TABLE t (id int);\n"))).toBe(true);
+    expect(await sqlBackupHasSchema(writeTmp("a.sql", "SET x;\nCREATE TABLE t (id int);\n"))).toBe(
+      true,
+    );
   });
 
   it("reports data-only files", async () => {
     expect(
-      await sqlBackupHasSchema(writeTmp("a.sql", "COPY public.tracks (id) FROM stdin;\n1\n\\.\n"))
+      await sqlBackupHasSchema(writeTmp("a.sql", "COPY public.tracks (id) FROM stdin;\n1\n\\.\n")),
     ).toBe(false);
   });
 
   it("finds a marker split across read chunks", async () => {
     // fs read streams default to 64 KiB chunks; straddle the first boundary.
     const padding = "-".repeat(64 * 1024 - 6);
-    expect(await sqlBackupHasSchema(writeTmp("a.sql", `${padding}CREATE TABLE t ();\n`))).toBe(true);
+    expect(await sqlBackupHasSchema(writeTmp("a.sql", `${padding}CREATE TABLE t ();\n`))).toBe(
+      true,
+    );
   });
 });
 
@@ -96,10 +100,10 @@ describe("classifyBackupFile()", () => {
 
   it("classifies sql by content", async () => {
     await expect(
-      classifyBackupFile("backup.sql", writeTmp("a.sql", "ALTER TABLE t ADD c int;\n"))
+      classifyBackupFile("backup.sql", writeTmp("a.sql", "ALTER TABLE t ADD c int;\n")),
     ).resolves.toEqual({ fileType: "sql", backupType: "schema+data" });
     await expect(
-      classifyBackupFile("backup.sql", writeTmp("b.sql", "INSERT INTO t VALUES (1);\n"))
+      classifyBackupFile("backup.sql", writeTmp("b.sql", "INSERT INTO t VALUES (1);\n")),
     ).resolves.toEqual({ fileType: "sql", backupType: "data-only" });
   });
 });
@@ -137,7 +141,7 @@ describe("withoutPublicSchemaEntry()", () => {
         "8; 2615 16400 SCHEMA - public_archive djplaylist",
         "4120; 0 0 COMMENT - SCHEMA public djplaylist",
         "218; 1259 16825 TABLE public friends djplaylist",
-      ].join("\n")
+      ].join("\n"),
     );
   });
 });
@@ -149,7 +153,7 @@ describe("createRestoreLineFilter()", () => {
         "SET x;",
         "CREATE SCHEMA public;",
         "ALTER SCHEMA public OWNER TO pg_database_owner;",
-      ])
+      ]),
     ).toEqual([
       "SET x;",
       "CREATE SCHEMA IF NOT EXISTS public;",
@@ -164,7 +168,7 @@ describe("createRestoreLineFilter()", () => {
         "CREATE SCHEMA public;",
         "\\.",
         "CREATE SCHEMA public;",
-      ])
+      ]),
     ).toEqual([
       "COPY public.notes (body) FROM stdin;",
       "CREATE SCHEMA public;",
@@ -182,13 +186,8 @@ describe("createRestoreLineFilter()", () => {
         "COPY public.tracks (id) FROM stdin;",
         "1",
         "\\.",
-      ])
-    ).toEqual([
-      "-- COPY pgmigrations skipped",
-      "COPY public.tracks (id) FROM stdin;",
-      "1",
-      "\\.",
-    ]);
+      ]),
+    ).toEqual(["-- COPY pgmigrations skipped", "COPY public.tracks (id) FROM stdin;", "1", "\\."]);
   });
 
   it("drops single- and multi-line pgmigrations INSERTs from data-only backups", () => {
@@ -200,7 +199,7 @@ describe("createRestoreLineFilter()", () => {
         "  (3, 'c');",
         "INSERT INTO public.tracks VALUES (1);",
         "CREATE SCHEMA public;",
-      ])
+      ]),
     ).toEqual([
       "-- INSERT pgmigrations skipped",
       "-- INSERT pgmigrations skipped",
@@ -218,7 +217,7 @@ describe("restoreDatabaseFromFile()", () => {
       if (args[0] === "-l") {
         fs.writeFileSync(
           args[2],
-          "; Archive\n7; 2615 16385 SCHEMA - public djplaylist\n218; 1259 16825 TABLE public friends djplaylist\n"
+          "; Archive\n7; 2615 16385 SCHEMA - public djplaylist\n218; 1259 16825 TABLE public friends djplaylist\n",
         );
       } else {
         restoredList = fs.readFileSync(args[args.indexOf("-L") + 1], "utf8");
@@ -233,9 +232,19 @@ describe("restoreDatabaseFromFile()", () => {
     expect(calls[1][1]).toEqual(["-l", "-f", expect.stringMatching(/restore\.list$/), file]);
     const [, args, options] = calls[2];
     expect(args).toEqual([
-      "-h", "db", "-p", "5432", "-U", "djplaylist", "-d", "app",
-      "--single-transaction", "--no-owner", "--no-acl",
-      "-L", expect.stringMatching(/restore-filtered\.list$/),
+      "-h",
+      "db",
+      "-p",
+      "5432",
+      "-U",
+      "djplaylist",
+      "-d",
+      "app",
+      "--single-transaction",
+      "--no-owner",
+      "--no-acl",
+      "-L",
+      expect.stringMatching(/restore-filtered\.list$/),
       file,
     ]);
     expect(args).not.toContain("--clean");
@@ -263,7 +272,7 @@ describe("restoreDatabaseFromFile()", () => {
     expect(mockRunCommand.mock.calls.map(([command]) => command)).toEqual(["psql", "psql"]);
     expect(seen["restore-clean.sql"]).toContain("DROP SCHEMA IF EXISTS public CASCADE;");
     expect(seen["restore-filtered.sql"]).toBe(
-      "CREATE SCHEMA IF NOT EXISTS public;\nCREATE TABLE t (id int);\n"
+      "CREATE SCHEMA IF NOT EXISTS public;\nCREATE TABLE t (id int);\n",
     );
     expect(mockRunCommand.mock.calls[1][1]).toContain("--single-transaction");
     expect(result.backupType).toBe("schema+data");
@@ -280,14 +289,14 @@ describe("restoreDatabaseFromFile()", () => {
 
     const file = writeTmp(
       "upload.sql",
-      "COPY public.pgmigrations (id) FROM stdin;\n1\n\\.\nINSERT INTO public.pgmigrations VALUES (1);\n"
+      "COPY public.pgmigrations (id) FROM stdin;\n1\n\\.\nINSERT INTO public.pgmigrations VALUES (1);\n",
     );
     const result = await restoreDatabaseFromFile(file, "backup.sql");
 
     expect(mockRunCommand.mock.calls[0].slice(0, 2)).toEqual(["npm", ["run", "migrate", "up"]]);
     expect(seen["restore-clean.sql"]).toContain("TRUNCATE TABLE");
     expect(seen["restore-filtered.sql"]).toBe(
-      "-- COPY pgmigrations skipped\n-- INSERT pgmigrations skipped\n"
+      "-- COPY pgmigrations skipped\n-- INSERT pgmigrations skipped\n",
     );
     expect(result.backupType).toBe("data-only");
   });
@@ -335,12 +344,16 @@ describe("restoreDatabaseFromFile()", () => {
   });
 
   it("propagates a failed restore command and still cleans up", async () => {
-    const before = fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith("groovenet-restore-work-"));
+    const before = fs
+      .readdirSync(os.tmpdir())
+      .filter((n) => n.startsWith("groovenet-restore-work-"));
     mockRunCommand.mockRejectedValue(new Error("pg_restore exited with code 1: bad archive"));
     await expect(restoreDatabaseFromFile(writeTmp("u.dump", ""), "b.dump")).rejects.toThrow(
-      "bad archive"
+      "bad archive",
     );
-    const after = fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith("groovenet-restore-work-"));
+    const after = fs
+      .readdirSync(os.tmpdir())
+      .filter((n) => n.startsWith("groovenet-restore-work-"));
     expect(after).toEqual(before);
   });
 });

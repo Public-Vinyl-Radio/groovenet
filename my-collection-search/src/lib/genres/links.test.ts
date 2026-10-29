@@ -11,7 +11,9 @@ import {
   trackGenreBadges,
 } from "./links";
 
-const node = (overrides: Partial<GenreTreeNode> & { name: string; slug: string }): GenreTreeNode => ({
+const node = (
+  overrides: Partial<GenreTreeNode> & { name: string; slug: string },
+): GenreTreeNode => ({
   id: overrides.slug,
   parent_id: null,
   source: "discogs",
@@ -27,7 +29,12 @@ const tree = [
     slug: "latin",
     children: [
       node({ name: "Cumbia", slug: "cumbia", parent_id: "latin", aliases: ["cumbia colombiana"] }),
-      node({ name: "Bossa Nova", slug: "bossa-nova", parent_id: "latin", aliases: ["bossanova", "post-punk"] }),
+      node({
+        name: "Bossa Nova",
+        slug: "bossa-nova",
+        parent_id: "latin",
+        aliases: ["bossanova", "post-punk"],
+      }),
     ],
   }),
   node({ name: "Post-Punk", slug: "post-punk" }),
@@ -75,7 +82,9 @@ describe("discogsGenreBadges", () => {
   });
 
   it("matches through the shared normalisation, so a non-breaking hyphen still links", () => {
-    expect(discogsGenreBadges(["Post‑Punk"], lookup)).toEqual([{ label: "Post‑Punk", slug: "post-punk" }]);
+    expect(discogsGenreBadges(["Post‑Punk"], lookup)).toEqual([
+      { label: "Post‑Punk", slug: "post-punk" },
+    ]);
   });
 
   it("de-duplicates and tolerates a missing field", () => {
@@ -85,7 +94,9 @@ describe("discogsGenreBadges", () => {
 });
 
 describe("matchGenresForPalette (#472)", () => {
-  const option = (overrides: Partial<GenreOption> & { id: string; name: string; slug: string }): GenreOption => ({
+  const option = (
+    overrides: Partial<GenreOption> & { id: string; name: string; slug: string },
+  ): GenreOption => ({
     parent_id: null,
     parent_name: null,
     track_count: 0,
@@ -93,7 +104,13 @@ describe("matchGenresForPalette (#472)", () => {
   });
   const options = [
     option({ id: "cumbia", name: "Cumbia", slug: "cumbia", parent_name: "Latin", track_count: 20 }),
-    option({ id: "bossa-nova", name: "Bossa Nova", slug: "bossa-nova", parent_name: "Latin", track_count: 0 }),
+    option({
+      id: "bossa-nova",
+      name: "Bossa Nova",
+      slug: "bossa-nova",
+      parent_name: "Latin",
+      track_count: 0,
+    }),
     option({ id: "post-punk", name: "Post-Punk", slug: "post-punk", track_count: 5 }),
   ];
 
@@ -102,13 +119,21 @@ describe("matchGenresForPalette (#472)", () => {
   });
 
   it("finds a genre by its alias", () => {
-    expect(matchGenresForPalette(lookup, options, "bossanova").map((o) => o.id)).toEqual(["bossa-nova"]);
+    expect(matchGenresForPalette(lookup, options, "bossanova").map((o) => o.id)).toEqual([
+      "bossa-nova",
+    ]);
   });
 
   it("treats spaced, hyphenated and condensed spellings as the same query", () => {
-    expect(matchGenresForPalette(lookup, options, "post punk").map((o) => o.id)).toEqual(["post-punk"]);
-    expect(matchGenresForPalette(lookup, options, "post-punk").map((o) => o.id)).toEqual(["post-punk"]);
-    expect(matchGenresForPalette(lookup, options, "postpunk").map((o) => o.id)).toEqual(["post-punk"]);
+    expect(matchGenresForPalette(lookup, options, "post punk").map((o) => o.id)).toEqual([
+      "post-punk",
+    ]);
+    expect(matchGenresForPalette(lookup, options, "post-punk").map((o) => o.id)).toEqual([
+      "post-punk",
+    ]);
+    expect(matchGenresForPalette(lookup, options, "postpunk").map((o) => o.id)).toEqual([
+      "post-punk",
+    ]);
   });
 
   it("hides a genre with no tracks once something else matches", () => {
@@ -121,12 +146,18 @@ describe("matchGenresForPalette (#472)", () => {
       option({ id: "afrobeat", name: "Afrobeat", slug: "afrobeat", track_count: 12 }),
       option({ id: "afro-pop", name: "Afro-Pop", slug: "afro-pop", track_count: 0 }),
     ];
-    expect(matchGenresForPalette(rockLookup, rockOptions, "afro").map((o) => o.id)).toEqual(["afrobeat"]);
+    expect(matchGenresForPalette(rockLookup, rockOptions, "afro").map((o) => o.id)).toEqual([
+      "afrobeat",
+    ]);
   });
 
   it("shows a genre with no tracks when it's the only match", () => {
-    const onlyEmpty = [option({ id: "bossa-nova", name: "Bossa Nova", slug: "bossa-nova", track_count: 0 })];
-    expect(matchGenresForPalette(lookup, onlyEmpty, "bossa").map((o) => o.id)).toEqual(["bossa-nova"]);
+    const onlyEmpty = [
+      option({ id: "bossa-nova", name: "Bossa Nova", slug: "bossa-nova", track_count: 0 }),
+    ];
+    expect(matchGenresForPalette(lookup, onlyEmpty, "bossa").map((o) => o.id)).toEqual([
+      "bossa-nova",
+    ]);
   });
 
   it("is empty for a blank query", () => {
@@ -142,12 +173,24 @@ describe("matchGenresForPalette (#472)", () => {
       option({ id: "b", name: "Bolero", slug: "bolero", track_count: 10 }),
       option({ id: "a", name: "Afrobeat", slug: "afrobeat", track_count: 10 }),
     ];
-    const tiedTree = [node({ name: "Bolero", slug: "bolero" }), node({ name: "Afrobeat", slug: "afrobeat" })];
-    expect(matchGenresForPalette(buildGenreLookup(tiedTree), tied, "o").map((o) => o.id)).toEqual(["a", "b"]);
+    const tiedTree = [
+      node({ name: "Bolero", slug: "bolero" }),
+      node({ name: "Afrobeat", slug: "afrobeat" }),
+    ];
+    expect(matchGenresForPalette(buildGenreLookup(tiedTree), tied, "o").map((o) => o.id)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 
   it("ignores a lookup match whose genre isn't in the given options", () => {
-    expect(matchGenresForPalette(lookup, options.filter((o) => o.id !== "post-punk"), "post punk")).toEqual([]);
+    expect(
+      matchGenresForPalette(
+        lookup,
+        options.filter((o) => o.id !== "post-punk"),
+        "post punk",
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -163,8 +206,8 @@ describe("trackGenreBadges", () => {
           ],
           local_tags: "Psychedelic Cumbia, Uplifting",
         },
-        new Map()
-      )
+        new Map(),
+      ),
     ).toEqual([
       { label: "Cumbia", slug: "cumbia" },
       { label: "Chicha", slug: "chicha" },
@@ -172,7 +215,9 @@ describe("trackGenreBadges", () => {
   });
 
   it("falls back to the split raw tags, linking only those the taxonomy already knows", () => {
-    expect(trackGenreBadges({ track_genres: [], local_tags: "Cumbia · Feminist Anthem" }, lookup)).toEqual([
+    expect(
+      trackGenreBadges({ track_genres: [], local_tags: "Cumbia · Feminist Anthem" }, lookup),
+    ).toEqual([
       { label: "Cumbia", slug: "cumbia" },
       { label: "Feminist Anthem", slug: null },
     ]);
@@ -189,8 +234,8 @@ describe("countGenreBadges (#480)", () => {
           [{ label: "Latin", slug: "latin" }],
           [{ label: "Post-Punk", slug: "post-punk" }],
         ],
-        5
-      )
+        5,
+      ),
     ).toEqual([
       { label: "Latin", slug: "latin", count: 2 },
       { label: "Post-Punk", slug: "post-punk", count: 1 },
@@ -200,19 +245,16 @@ describe("countGenreBadges (#480)", () => {
   it("keeps the slug a label first appeared with", () => {
     expect(
       countGenreBadges(
-        [
-          [{ label: "Unmapped", slug: null }],
-          [{ label: "Unmapped", slug: null }],
-        ],
-        5
-      )
+        [[{ label: "Unmapped", slug: null }], [{ label: "Unmapped", slug: null }]],
+        5,
+      ),
     ).toEqual([{ label: "Unmapped", slug: null, count: 2 }]);
   });
 
   it("limits to the top N", () => {
     const result = countGenreBadges(
       [[{ label: "A", slug: null }], [{ label: "B", slug: null }], [{ label: "C", slug: null }]],
-      2
+      2,
     );
     expect(result).toHaveLength(2);
   });
@@ -227,20 +269,20 @@ describe("primaryGenreBadges", () => {
     expect(
       primaryGenreBadges(
         { track_genres: [{ name: "Cumbia", slug: "cumbia" }], styles: ["Latin"] },
-        lookup
-      )
+        lookup,
+      ),
     ).toEqual({ items: [{ label: "Cumbia", slug: "cumbia" }], kind: "track" });
   });
 
   it("falls back to raw local_tags, still kind 'track', ahead of Discogs styles", () => {
     expect(
-      primaryGenreBadges({ track_genres: [], local_tags: "Cumbia", styles: ["Latin"] }, lookup)
+      primaryGenreBadges({ track_genres: [], local_tags: "Cumbia", styles: ["Latin"] }, lookup),
     ).toEqual({ items: [{ label: "Cumbia", slug: "cumbia" }], kind: "track" });
   });
 
   it("falls back to the album's Discogs styles, kind 'discogs-style', when the track has none", () => {
     expect(
-      primaryGenreBadges({ track_genres: [], local_tags: "", styles: ["Bossa Nova"] }, lookup)
+      primaryGenreBadges({ track_genres: [], local_tags: "", styles: ["Bossa Nova"] }, lookup),
     ).toEqual({ items: [{ label: "Bossa Nova", slug: "bossa-nova" }], kind: "discogs-style" });
   });
 
@@ -254,6 +296,9 @@ describe("primaryGenreBadges", () => {
 
 it("uses effective styles for the primary fallback, including an empty override", () => {
   const lookup = new Map([["fusion", "fusion"]]);
-  expect(primaryGenreBadges({ styles: ["Old"], album_styles: ["Fusion"] }, lookup)).toEqual({ items: [{ label: "Fusion", slug: "fusion" }], kind: "discogs-style" });
+  expect(primaryGenreBadges({ styles: ["Old"], album_styles: ["Fusion"] }, lookup)).toEqual({
+    items: [{ label: "Fusion", slug: "fusion" }],
+    kind: "discogs-style",
+  });
   expect(primaryGenreBadges({ styles: ["Old"], album_styles: [] }, lookup).items).toEqual([]);
 });

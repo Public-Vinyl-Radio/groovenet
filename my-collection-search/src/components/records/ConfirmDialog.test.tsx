@@ -18,7 +18,7 @@ function renderConfirm(props: Partial<React.ComponentProps<typeof ConfirmDialog>
       onConfirm={onConfirm}
       pending={false}
       {...props}
-    />
+    />,
   );
   return { ...rendered, onOpenChange, onConfirm };
 }
@@ -43,7 +43,9 @@ describe("ConfirmDialog", () => {
   });
 
   it("stays open when the confirm rejects", async () => {
-    const { user, onOpenChange } = renderConfirm({ onConfirm: vi.fn().mockRejectedValue(new Error("x")) });
+    const { user, onOpenChange } = renderConfirm({
+      onConfirm: vi.fn().mockRejectedValue(new Error("x")),
+    });
     await user.click(await screen.findByRole("button", { name: "Delete" }));
     await new Promise((r) => setTimeout(r, 20));
     expect(onOpenChange).not.toHaveBeenCalled();

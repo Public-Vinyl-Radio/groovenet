@@ -8,7 +8,12 @@ class FakeSocket extends EventEmitter {
   writable = true;
   failWrites = false;
 
-  constructor(private readonly respond: (request: { request_id: number; command: unknown[] }, socket: FakeSocket) => void) {
+  constructor(
+    private readonly respond: (
+      request: { request_id: number; command: unknown[] },
+      socket: FakeSocket,
+    ) => void,
+  ) {
     super();
   }
 
@@ -44,27 +49,29 @@ function makeFakeProcess() {
   return child as unknown as ChildProcess & typeof child;
 }
 
-function makeBackend(options: {
-  badDevice?: boolean | "device";
-  commandFailure?: boolean;
-  exitOnStart?: boolean;
-  errorOnQuit?: boolean;
-  emitSpawnError?: boolean;
-  ignoreTerm?: boolean;
-  failStream?: boolean;
-  finishStream?: boolean;
-  deviceData?: unknown;
-  disconnectOnCommand?: boolean;
-  noResponse?: boolean;
-  noise?: boolean;
-  unavailableSocket?: boolean;
-  writeError?: boolean;
-  spawnFailure?: boolean;
-  startupTimeoutMs?: number;
-  commandTimeoutMs?: number;
-  insecureTls?: boolean;
-  artwork?: boolean;
-} = {}) {
+function makeBackend(
+  options: {
+    badDevice?: boolean | "device";
+    commandFailure?: boolean;
+    exitOnStart?: boolean;
+    errorOnQuit?: boolean;
+    emitSpawnError?: boolean;
+    ignoreTerm?: boolean;
+    failStream?: boolean;
+    finishStream?: boolean;
+    deviceData?: unknown;
+    disconnectOnCommand?: boolean;
+    noResponse?: boolean;
+    noise?: boolean;
+    unavailableSocket?: boolean;
+    writeError?: boolean;
+    spawnFailure?: boolean;
+    startupTimeoutMs?: number;
+    commandTimeoutMs?: number;
+    insecureTls?: boolean;
+    artwork?: boolean;
+  } = {},
+) {
   const child = makeFakeProcess();
   const requests: Array<{ command: unknown[] }> = [];
   const sockets: FakeSocket[] = [];
@@ -90,7 +97,8 @@ function makeBackend(options: {
         child.exitCode = 1;
         setImmediate(() => child.emit("exit", 1, null));
       }
-      if (options.emitSpawnError) setImmediate(() => child.emit("error", new Error("spawn ENOENT")));
+      if (options.emitSpawnError)
+        setImmediate(() => child.emit("error", new Error("spawn ENOENT")));
       return child;
     },
     // Keep arguments available for checking TLS settings passed to mpv.
@@ -99,31 +107,55 @@ function makeBackend(options: {
       const socket = new FakeSocket((request, activeSocket) => {
         requests.push({ command: request.command });
         const [command, ...args] = request.command;
-        const response: Record<string, unknown> = { request_id: request.request_id, error: "success" };
+        const response: Record<string, unknown> = {
+          request_id: request.request_id,
+          error: "success",
+        };
         if (command === "get_property" && args[0] === "audio-device-list") {
-          response.data = Object.hasOwn(options, "deviceData") ? options.deviceData : [{ name: "default", description: "Built-in output" }];
+          response.data = Object.hasOwn(options, "deviceData")
+            ? options.deviceData
+            : [{ name: "default", description: "Built-in output" }];
         }
         if (command === "set_property" && args[0] === "audio-device" && options.badDevice) {
-          response.error = options.badDevice === "device" ? "audio-device unavailable" : "property unavailable";
+          response.error =
+            options.badDevice === "device" ? "audio-device unavailable" : "property unavailable";
         }
         if (command === "seek" && options.commandFailure) response.error = "invalid parameter";
         if (command === "quit" && options.errorOnQuit) response.error = "command failed";
-        if (options.noise) activeSocket.emit("data", Buffer.from(`not-json\n${JSON.stringify({ request_id: 99999, error: "success" })}\n`));
-        if (!options.noResponse && !(options.disconnectOnCommand && command === "observe_property")) {
+        if (options.noise)
+          activeSocket.emit(
+            "data",
+            Buffer.from(`not-json\n${JSON.stringify({ request_id: 99999, error: "success" })}\n`),
+          );
+        if (
+          !options.noResponse &&
+          !(options.disconnectOnCommand && command === "observe_property")
+        ) {
           activeSocket.emit("data", Buffer.from(`${JSON.stringify(response)}\n`));
         }
         if (options.disconnectOnCommand && command === "observe_property") {
           setImmediate(() => activeSocket.emit("error", new Error("simulated IPC disconnect")));
         }
         if (command === "loadfile" && options.failStream) {
-          activeSocket.emit("data", Buffer.from(`${JSON.stringify({ event: "end-file", reason: "error" })}\n`));
+          activeSocket.emit(
+            "data",
+            Buffer.from(`${JSON.stringify({ event: "end-file", reason: "error" })}\n`),
+          );
         } else if (command === "loadfile" && options.finishStream) {
-          activeSocket.emit("data", Buffer.from(`${JSON.stringify({ event: "end-file", reason: "eof" })}\n`));
+          activeSocket.emit(
+            "data",
+            Buffer.from(`${JSON.stringify({ event: "end-file", reason: "eof" })}\n`),
+          );
         } else if (command === "loadfile") {
-          activeSocket.emit("data", Buffer.from([
-            JSON.stringify({ event: "property-change", name: "duration", data: 90 }),
-            JSON.stringify({ event: "property-change", name: "time-pos", data: 12 }),
-          ].join("\n") + "\n"));
+          activeSocket.emit(
+            "data",
+            Buffer.from(
+              [
+                JSON.stringify({ event: "property-change", name: "duration", data: 90 }),
+                JSON.stringify({ event: "property-change", name: "time-pos", data: 12 }),
+              ].join("\n") + "\n",
+            ),
+          );
         } else if (command === "quit") {
           setImmediate(() => {
             child.exitCode = 0;
@@ -156,8 +188,13 @@ describe("MpvBackend", () => {
     backend.on("ended", ended);
     backend.off("ended", ended);
 
-    await backend.load({ url: "https://server.test/audio", headers: { Authorization: "Bearer key" } });
-    expect(await backend.listDevices()).toEqual([{ id: "default", name: "Built-in output", description: "Built-in output" }]);
+    await backend.load({
+      url: "https://server.test/audio",
+      headers: { Authorization: "Bearer key" },
+    });
+    expect(await backend.listDevices()).toEqual([
+      { id: "default", name: "Built-in output", description: "Built-in output" },
+    ]);
     await backend.setOutputDevice("default");
     await backend.pause(true);
     await backend.seek(16);
@@ -165,17 +202,25 @@ describe("MpvBackend", () => {
 
     expect(position).toHaveBeenCalledWith(12, 90);
     expect(ended).not.toHaveBeenCalled();
-    expect(requests).toContainEqual({ command: ["set_property", "http-header-fields", ["Authorization: Bearer key"]] });
-    expect(requests).toContainEqual({ command: ["loadfile", "https://server.test/audio", "replace"] });
+    expect(requests).toContainEqual({
+      command: ["set_property", "http-header-fields", ["Authorization: Bearer key"]],
+    });
+    expect(requests).toContainEqual({
+      command: ["loadfile", "https://server.test/audio", "replace"],
+    });
     expect(child.kill).not.toHaveBeenCalled();
     expect(spawnArgs[0]).toContain("--tls-verify=no");
-    expect(spawnArgs[0]).toEqual(expect.arrayContaining(["--vid=no", "--audio-display=no", "--force-window=no"]));
+    expect(spawnArgs[0]).toEqual(
+      expect.arrayContaining(["--vid=no", "--audio-display=no", "--force-window=no"]),
+    );
     await backend.close();
     expect(child.exitCode).toBe(0);
   });
 
   it.each([
-    [undefined, true], [false, true], [true, false],
+    [undefined, true],
+    [false, true],
+    [true, false],
   ])("artwork=%s hides the cover-art window: %s", async (artwork, hidden) => {
     const { backend, spawnArgs } = makeBackend({ artwork });
     await backend.load({ url: "https://server.test/audio", headers: {} });
@@ -186,7 +231,9 @@ describe("MpvBackend", () => {
 
   it("wraps output selection errors as actionable device errors", async () => {
     const { backend } = makeBackend({ badDevice: "device" });
-    await expect(backend.setOutputDevice("gone")).rejects.toMatchObject({ code: "DEVICE_UNAVAILABLE" });
+    await expect(backend.setOutputDevice("gone")).rejects.toMatchObject({
+      code: "DEVICE_UNAVAILABLE",
+    });
     await backend.close();
   });
 
@@ -208,18 +255,28 @@ describe("MpvBackend", () => {
 
   it("returns a typed error when mpv cannot be spawned", async () => {
     const { backend } = makeBackend({ spawnFailure: true });
-    await expect(backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_NOT_FOUND" });
+    await expect(backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({
+      code: "MPV_NOT_FOUND",
+    });
   });
 
   it("handles child startup errors and early exits", async () => {
     const missing = makeBackend({ emitSpawnError: true });
-    await expect(missing.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_NOT_FOUND" });
+    await expect(missing.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({
+      code: "MPV_NOT_FOUND",
+    });
     const exited = makeBackend({ exitOnStart: true });
-    await expect(exited.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_EXITED" });
+    await expect(exited.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({
+      code: "MPV_EXITED",
+    });
   });
 
   it("handles end-of-track and malformed device-list entries", async () => {
-    const { backend } = makeBackend({ finishStream: true, noise: true, deviceData: [null, {}, { name: 2 }, { name: "only-id" }] });
+    const { backend } = makeBackend({
+      finishStream: true,
+      noise: true,
+      deviceData: [null, {}, { name: 2 }, { name: "only-id" }],
+    });
     const ended = vi.fn();
     backend.on("ended", ended);
     await backend.load({ url: "https://server.test/audio" });
@@ -249,16 +306,23 @@ describe("MpvBackend", () => {
     backend.on("position", position);
     backend.on("error", error);
     await backend.listDevices();
-    sockets[0]!.emit("data", Buffer.from([
-      JSON.stringify({ event: "property-change", name: "duration", data: "unknown" }),
-      JSON.stringify({ event: "property-change", name: "time-pos", data: "unknown" }),
-      JSON.stringify({ event: "end-file", reason: "stop" }),
-    ].join("\n") + "\n"));
+    sockets[0]!.emit(
+      "data",
+      Buffer.from(
+        [
+          JSON.stringify({ event: "property-change", name: "duration", data: "unknown" }),
+          JSON.stringify({ event: "property-change", name: "time-pos", data: "unknown" }),
+          JSON.stringify({ event: "end-file", reason: "stop" }),
+        ].join("\n") + "\n",
+      ),
+    );
     expect(position).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
     child.signalCode = "SIGTERM";
     child.emit("exit", null, "SIGTERM");
-    expect(error).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining("SIGTERM") }));
+    expect(error).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("SIGTERM") }),
+    );
     await backend.close();
   });
 
@@ -266,20 +330,29 @@ describe("MpvBackend", () => {
     const { backend, sockets } = makeBackend();
     await backend.listDevices();
     sockets[0]!.destroy();
-    await expect(backend.seek(1)).rejects.toMatchObject({ code: "MPV_IPC", message: "mpv is not connected." });
+    await expect(backend.seek(1)).rejects.toMatchObject({
+      code: "MPV_IPC",
+      message: "mpv is not connected.",
+    });
     await backend.close();
   });
 
   it("reports failed IPC writes and times out commands that receive no response", async () => {
     const writeFailure = makeBackend({ writeError: true, startupTimeoutMs: 50 });
-    await expect(writeFailure.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_IPC" });
+    await expect(
+      writeFailure.backend.load({ url: "https://server.test/audio" }),
+    ).rejects.toMatchObject({ code: "MPV_IPC" });
     const timeout = makeBackend({ noResponse: true, startupTimeoutMs: 50, commandTimeoutMs: 10 });
-    await expect(timeout.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_IPC" });
+    await expect(timeout.backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({
+      code: "MPV_IPC",
+    });
   });
 
   it("rejects pending commands when the IPC socket disconnects", async () => {
     const { backend } = makeBackend({ disconnectOnCommand: true, startupTimeoutMs: 60 });
-    await expect(backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_IPC" });
+    await expect(backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({
+      code: "MPV_IPC",
+    });
   });
 
   it("covers close when there is no process and escalates a stuck process", async () => {
@@ -294,7 +367,9 @@ describe("MpvBackend", () => {
 
   it("kills the owned process after an IPC startup failure", async () => {
     const { backend, child } = makeBackend({ unavailableSocket: true, startupTimeoutMs: 60 });
-    await expect(backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({ code: "MPV_IPC" });
+    await expect(backend.load({ url: "https://server.test/audio" })).rejects.toMatchObject({
+      code: "MPV_IPC",
+    });
     expect(child.kill).toHaveBeenCalled();
     await backend.close();
   });

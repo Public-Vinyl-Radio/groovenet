@@ -32,7 +32,7 @@ vi.mock("@/lib/embeddings/config", async () => {
   const { createOpenAiEmbeddingProvider } = await import("@/lib/embeddings/openaiProvider");
   return {
     getTargetProvider: vi.fn(async () =>
-      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
+      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536),
     ),
     getTargetModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
   };
@@ -131,7 +131,7 @@ describe("buildIdentityData", () => {
 describe("buildIdentityData fallbacks", () => {
   it("trims surrounding whitespace from the basic fields", () => {
     const data = buildIdentityData(
-      trackWith({ title: "  Padded  ", artist: "  Artist  ", album: "  Album  " })
+      trackWith({ title: "  Padded  ", artist: "  Artist  ", album: "  Album  " }),
     );
 
     expect(data).toMatchObject({ title: "Padded", artist: "Artist", album: "Album" });
@@ -181,7 +181,7 @@ describe("buildIdentityText", () => {
       buildIdentityData({
         ...mockTrack,
         local_tags: "Cumbia Amazónica / Trip‑hop, trip-hop, Rock & Roll",
-      })
+      }),
     );
 
     expect(text).toContain("Tags: cumbia amazonica, rock and roll, trip hop");
@@ -205,7 +205,7 @@ describe("buildIdentityText", () => {
 
   it("includes a Composer line only when composers are present", () => {
     const withComposer = buildIdentityText(
-      buildIdentityData(trackWith({ composer: "Steve Reich" }))
+      buildIdentityData(trackWith({ composer: "Steve Reich" })),
     );
     expect(withComposer).toContain("Composer: steve reich");
 
@@ -215,7 +215,7 @@ describe("buildIdentityText", () => {
 
   it("places the Composer line between Release and Country", () => {
     const lines = buildIdentityText(
-      buildIdentityData(trackWith({ composer: "Steve Reich" }))
+      buildIdentityData(trackWith({ composer: "Steve Reich" })),
     ).split("\n");
 
     expect(lines[1]).toMatch(/^Release:/);
@@ -305,9 +305,7 @@ describe("computeSourceHash", () => {
   it.each(["era", "country"])("changes when %s changes", (field) => {
     const base = buildIdentityData(mockTrack);
 
-    expect(computeSourceHash({ ...base, [field]: "changed" })).not.toBe(
-      computeSourceHash(base)
-    );
+    expect(computeSourceHash({ ...base, [field]: "changed" })).not.toBe(computeSourceHash(base));
   });
 });
 
@@ -356,7 +354,7 @@ describe("storeIdentityEmbedding", () => {
       "hash-1",
       "Track: x",
       "text-embedding-3-small",
-      1536
+      1536,
     );
 
     expect(upsertTrackEmbedding).toHaveBeenCalledWith({
@@ -380,11 +378,11 @@ describe("storeIdentityEmbedding", () => {
       "hash-1",
       "Track: x",
       "text-embedding-3-large",
-      3072
+      3072,
     );
 
     expect(upsertTrackEmbedding).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "text-embedding-3-large", dims: 3072 })
+      expect.objectContaining({ model: "text-embedding-3-large", dims: 3072 }),
     );
   });
 });
@@ -401,7 +399,7 @@ describe("needsEmbeddingUpdate", () => {
       1,
       "identity",
       "text-embedding-3-small",
-      IDENTITY_TEMPLATE_VERSION
+      IDENTITY_TEMPLATE_VERSION,
     );
   });
 
@@ -429,7 +427,7 @@ describe("generateAndStoreIdentityEmbedding", () => {
     findTrackWithAlbumMetadata.mockResolvedValue(null);
 
     await expect(generateAndStoreIdentityEmbedding("missing", 4)).rejects.toThrow(
-      "Track not found: missing (friend_id: 4)"
+      "Track not found: missing (friend_id: 4)",
     );
     expect(createEmbedding).not.toHaveBeenCalled();
     expect(upsertTrackEmbedding).not.toHaveBeenCalled();
@@ -468,16 +466,17 @@ describe("generateAndStoreIdentityEmbedding", () => {
         embedding: EMBEDDING,
         sourceHash: hashFor(mockTrack),
         identityText: expectedText,
-      })
+      }),
     );
   });
 
   it("regenerates without consulting the stored hash when forced", async () => {
     findEmbeddingSourceHash.mockResolvedValue(hashFor(mockTrack));
 
-    await expect(
-      generateAndStoreIdentityEmbedding("test-123", 1, true)
-    ).resolves.toEqual({ updated: true, reason: "Embedding generated and stored" });
+    await expect(generateAndStoreIdentityEmbedding("test-123", 1, true)).resolves.toEqual({
+      updated: true,
+      reason: "Embedding generated and stored",
+    });
 
     expect(findEmbeddingSourceHash).not.toHaveBeenCalled();
     expect(upsertTrackEmbedding).toHaveBeenCalledTimes(1);
@@ -486,9 +485,7 @@ describe("generateAndStoreIdentityEmbedding", () => {
   it("does not store anything when embedding generation fails", async () => {
     createEmbedding.mockRejectedValue(new Error("rate limited"));
 
-    await expect(generateAndStoreIdentityEmbedding("test-123", 1)).rejects.toThrow(
-      "rate limited"
-    );
+    await expect(generateAndStoreIdentityEmbedding("test-123", 1)).rejects.toThrow("rate limited");
     expect(upsertTrackEmbedding).not.toHaveBeenCalled();
   });
 });
@@ -507,7 +504,7 @@ describe("getIdentityPreview", () => {
     findTrackWithAlbumMetadata.mockResolvedValue(null);
 
     await expect(getIdentityPreview("missing", 7)).rejects.toThrow(
-      "Track not found: missing (friend_id: 7)"
+      "Track not found: missing (friend_id: 7)",
     );
   });
 

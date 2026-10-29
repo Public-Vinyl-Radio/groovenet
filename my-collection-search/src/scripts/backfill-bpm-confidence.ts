@@ -61,9 +61,16 @@ async function main() {
   const opts = parseArgs();
   console.log("Starting bpm_confidence backfill (#531)...");
   console.log("Options:", opts);
-  console.log(opts.apply ? "Writing bpm_confidence." : "Dry run — nothing will be written. Pass --apply to write.");
+  console.log(
+    opts.apply
+      ? "Writing bpm_confidence."
+      : "Dry run — nothing will be written. Pass --apply to write.",
+  );
 
-  const rows = await trackRepository.findTracksWithBpmForConfidence(opts.friend_id ?? null, opts.limit);
+  const rows = await trackRepository.findTracksWithBpmForConfidence(
+    opts.friend_id ?? null,
+    opts.limit,
+  );
 
   let updated = 0;
   let skippedNoFile = 0;

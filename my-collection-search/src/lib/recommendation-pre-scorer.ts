@@ -83,10 +83,7 @@ function parseCamelotCode(camelot: string): { position: number; type: string } |
  * - Adjacent positions, different type: distance = 1.5
  * - etc.
  */
-export function calculateCamelotDistance(
-  key1: string | null,
-  key2: string | null
-): number | null {
+export function calculateCamelotDistance(key1: string | null, key2: string | null): number | null {
   if (!key1 || !key2) return null;
 
   const camelot1 = getCamelotCode(key1);
@@ -145,7 +142,7 @@ function isRelativeMajorMinor(key1: string | null, key2: string | null): boolean
 export function calculateBpmBonus(
   seedBpm: number | null,
   candBpm: number | null,
-  tempoConfidence: number | null = null
+  tempoConfidence: number | null = null,
 ): number {
   if (seedBpm === null || candBpm === null) return 0;
 
@@ -176,7 +173,7 @@ export function calculateBpmBonus(
 export function calculateKeyBonus(
   seedKey: string | null,
   candKey: string | null,
-  keyConfidence: number | null = null
+  keyConfidence: number | null = null,
 ): number {
   if (!seedKey || !candKey) return 0;
 
@@ -239,7 +236,8 @@ export const RELATED_GENRE_MAX_CREDIT = 0.8;
  * therefore earns 0.4, and a pure co-occurrence pair earns 0.4 * NPMI.
  */
 export const GENRE_SIMILARITY_MAX_SCORE =
-  DEFAULT_GENRE_SIMILARITY_WEIGHTS.taxonomyWeight * DEFAULT_GENRE_SIMILARITY_WEIGHTS.taxonomySiblingBase +
+  DEFAULT_GENRE_SIMILARITY_WEIGHTS.taxonomyWeight *
+    DEFAULT_GENRE_SIMILARITY_WEIGHTS.taxonomySiblingBase +
   DEFAULT_GENRE_SIMILARITY_WEIGHTS.coOccurrenceWeight;
 
 /**
@@ -268,7 +266,7 @@ function similarityKey(a: string, b: string): string {
 /** Builds the in-memory context from the raw `genre_similarity` rows and the taxonomy. */
 export function buildGenreOverlapContext(
   pairs: Array<{ genreId: string; relatedGenreId: string; score: number }>,
-  taxonomy: Array<{ id: string; parentId: string | null }>
+  taxonomy: Array<{ id: string; parentId: string | null }>,
 ): GenreOverlapContext {
   const similarity = new Map<string, number>();
   for (const pair of pairs) {
@@ -281,7 +279,11 @@ export function buildGenreOverlapContext(
   return { similarity, parentOf: new Map(taxonomy.map((g) => [g.id, g.parentId])) };
 }
 
-function hasAncestor(id: string, ancestorId: string, parentOf: Map<string, string | null>): boolean {
+function hasAncestor(
+  id: string,
+  ancestorId: string,
+  parentOf: Map<string, string | null>,
+): boolean {
   const seen = new Set<string>();
   let parentId = parentOf.get(id) ?? null;
   // The taxonomy forbids cycles; `seen` is a defensive bound, not a fix.
@@ -298,7 +300,12 @@ function hasAncestor(id: string, ancestorId: string, parentOf: Map<string, strin
  * ancestor/descendant, a scaled `genre_similarity` score for a related one,
  * otherwise 0.
  */
-function genreMatch(a: string, b: string, context: GenreOverlapContext, parentOf: Map<string, string | null>): number {
+function genreMatch(
+  a: string,
+  b: string,
+  context: GenreOverlapContext,
+  parentOf: Map<string, string | null>,
+): number {
   if (a === b || hasAncestor(a, b, parentOf) || hasAncestor(b, a, parentOf)) return 1;
   const score = context.similarity.get(similarityKey(a, b));
   if (!score || score <= 0) return 0;
@@ -309,7 +316,7 @@ function meanBestMatch(
   from: string[],
   to: string[],
   context: GenreOverlapContext,
-  parentOf: Map<string, string | null>
+  parentOf: Map<string, string | null>,
 ): number {
   let total = 0;
   for (const a of from) {
@@ -336,7 +343,7 @@ function meanBestMatch(
 export function calculateGenreOverlap(
   seedGenres: GenreRef[],
   candidateGenres: GenreRef[],
-  context: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT
+  context: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
 ): number {
   if (seedGenres.length === 0 || candidateGenres.length === 0) return 0;
 
@@ -359,7 +366,7 @@ export function calculateGenreOverlap(
 export function calculateTagBonus(
   seedGenres: GenreRef[],
   candidateGenres: GenreRef[],
-  context: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT
+  context: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
 ): number {
   return TAG_BONUS_WEIGHT * calculateGenreOverlap(seedGenres, candidateGenres, context);
 }
@@ -396,10 +403,7 @@ export function areErasAdjacent(era1: string | null, era2: string | null): boole
 /**
  * Calculate era bonus
  */
-export function calculateEraBonus(
-  seedEra: string | null,
-  candEra: string | null
-): number {
+export function calculateEraBonus(seedEra: string | null, candEra: string | null): number {
   if (!seedEra || !candEra) return 0;
 
   if (seedEra === candEra) {
@@ -416,7 +420,7 @@ export function calculateEraBonus(
  */
 export function calculateEnergyPenalty(
   seedEnergy: number | null,
-  candEnergy: number | null
+  candEnergy: number | null,
 ): number {
   if (seedEnergy === null || candEnergy === null) return 0;
 
@@ -437,7 +441,7 @@ function shouldRejectCandidate(
   seed: SeedTrack,
   candidate: CandidateTrack,
   mode: RecommendationMode,
-  genreContext: GenreOverlapContext
+  genreContext: GenreOverlapContext,
 ): boolean {
   const seedBpm = seed.bpm;
   const candBpm = candidate.metadata.bpm;
@@ -460,7 +464,11 @@ function shouldRejectCandidate(
     }
 
     // Reject if the genres share (next to) nothing, related genres included
-    const genreOverlap = calculateGenreOverlap(seed.genres, candidate.metadata.genreRefs, genreContext);
+    const genreOverlap = calculateGenreOverlap(
+      seed.genres,
+      candidate.metadata.genreRefs,
+      genreContext,
+    );
     if (genreOverlap < MIN_GENRE_OVERLAP) {
       return true;
     }
@@ -508,7 +516,7 @@ export function applyConstraintsAndBonuses(
   seed: SeedTrack,
   candidates: CandidateTrack[],
   mode: RecommendationMode = "blend",
-  genreContext: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT
+  genreContext: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
 ): ScoredCandidate[] {
   console.log(`[RecommendationPreScorer] Applying constraints and bonuses (mode: ${mode})`);
   console.log(`[RecommendationPreScorer] Input candidates: ${candidates.length}`);
@@ -527,27 +535,21 @@ export function applyConstraintsAndBonuses(
     const bpmBonus = calculateBpmBonus(
       seed.bpm,
       candidate.metadata.bpm,
-      candidate.metadata.tempoConfidence
+      candidate.metadata.tempoConfidence,
     );
 
     const keyBonus = calculateKeyBonus(
       seed.key,
       candidate.metadata.key,
-      candidate.metadata.keyConfidence
+      candidate.metadata.keyConfidence,
     );
 
     const tagBonus = calculateTagBonus(seed.genres, candidate.metadata.genreRefs, genreContext);
 
-    const eraBonus = calculateEraBonus(
-      seed.eraBucket,
-      candidate.metadata.eraBucket
-    );
+    const eraBonus = calculateEraBonus(seed.eraBucket, candidate.metadata.eraBucket);
 
     // Step 3: Compute penalties
-    const energyPenalty = calculateEnergyPenalty(
-      seed.energy,
-      candidate.metadata.energy
-    );
+    const energyPenalty = calculateEnergyPenalty(seed.energy, candidate.metadata.energy);
 
     // Add to scored list
     scored.push({

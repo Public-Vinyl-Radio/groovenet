@@ -22,7 +22,7 @@ export function useGenreTaxonomyQuery(options?: { enabled?: boolean }) {
   });
   const genres = useMemo<GenreOption[]>(
     () => (query.data ? flattenGenreTree(query.data) : []),
-    [query.data]
+    [query.data],
   );
   return { ...query, genres };
 }

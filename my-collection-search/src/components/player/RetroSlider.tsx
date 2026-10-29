@@ -64,10 +64,23 @@ export default function RetroSlider({
       }
     >
       <Slider.Control h={thumbH}>
-        <Slider.Track bg="bg.panel" height="10px" borderWidth="outline" borderColor="border.ink" rounded="none">
+        <Slider.Track
+          bg="bg.panel"
+          height="10px"
+          borderWidth="outline"
+          borderColor="border.ink"
+          rounded="none"
+        >
           <Slider.Range bg="accent.solid" />
         </Slider.Track>
-        <Slider.Thumbs rounded="none" width="10px" height={thumbH} bg="neutral.solid" borderWidth="0" boxShadow="none" />
+        <Slider.Thumbs
+          rounded="none"
+          width="10px"
+          height={thumbH}
+          bg="neutral.solid"
+          borderWidth="0"
+          boxShadow="none"
+        />
       </Slider.Control>
     </Slider.Root>
   );

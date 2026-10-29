@@ -10,6 +10,7 @@ is dropped, and only scalars survive, so a job payload, a PCM buffer or a
 response body cannot reach a log line by being passed in carelessly. Free text
 (`error`) is truncated and scrubbed of anything shaped like a credential.
 """
+
 import json
 import logging
 import re

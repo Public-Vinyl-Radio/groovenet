@@ -23,7 +23,9 @@ describe("TrackSpinEventRepository edits", () => {
 
     const rows = await repo.setPlayedAtForSession({ query }, 7, "2026-09-20T20:00:00.000Z");
 
-    expect(query.mock.calls[0][0]).toMatch(/UPDATE track_spin_events SET played_at = \$2 WHERE session_id = \$1/);
+    expect(query.mock.calls[0][0]).toMatch(
+      /UPDATE track_spin_events SET played_at = \$2 WHERE session_id = \$1/,
+    );
     expect(query.mock.calls[0][1]).toEqual([7, "2026-09-20T20:00:00.000Z"]);
     expect(rows.map((row) => row.ordinal)).toEqual([0, 1]);
   });
@@ -50,7 +52,9 @@ describe("TrackSpinEventRepository.listTopTracks", () => {
     await repo.listTopTracks({ friend_id: 6, limit: 12, offset: 0 });
 
     const [sql] = dbQuery.mock.calls[0];
-    expect(sql.match(/session_id IN \(SELECT id FROM spin_sessions WHERE medium = 'vinyl'\)/g)).toHaveLength(2);
+    expect(
+      sql.match(/session_id IN \(SELECT id FROM spin_sessions WHERE medium = 'vinyl'\)/g),
+    ).toHaveLength(2);
   });
 
   it("scopes to a release when given one", async () => {
@@ -72,6 +76,8 @@ describe("TrackSpinEventRepository.listTopTracks", () => {
     expect(sql).toContain("AS track_genres");
     expect(sql).toContain("tg.track_id = aggregated.track_id");
     expect(sql).toContain("tg.friend_id = aggregated.friend_id");
-    expect(sql).toContain("effective_album_taxonomy_values(aggregated.release_id::text, aggregated.friend_id, 'styles', t.styles) AS styles");
+    expect(sql).toContain(
+      "effective_album_taxonomy_values(aggregated.release_id::text, aggregated.friend_id, 'styles', t.styles) AS styles",
+    );
   });
 });

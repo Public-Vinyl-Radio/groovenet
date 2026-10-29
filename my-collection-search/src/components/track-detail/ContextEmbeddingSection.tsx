@@ -27,7 +27,9 @@ export default function ContextEmbeddingSection({ query }: Props) {
           <Skeleton height="80px" />
         </VStack>
       ) : query.error ? (
-        <Text color="fg.error">{query.error.message || "Failed to load context embedding preview"}</Text>
+        <Text color="fg.error">
+          {query.error.message || "Failed to load context embedding preview"}
+        </Text>
       ) : query.data ? (
         <VStack align="stretch" gap={3}>
           <HStack gap={2} flexWrap="wrap">

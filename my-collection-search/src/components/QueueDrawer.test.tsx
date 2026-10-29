@@ -6,7 +6,16 @@ import { renderWithProviders, setViewportWidth } from "@/test/renderWithProvider
 import type { Track } from "@/types/track";
 
 const track = (n: number) =>
-  ({ track_id: `t${n}`, friend_id: 1, title: `Title ${n}`, artist: `Artist ${n}`, duration_seconds: 60, position: "A1", bpm: "120", key: "8A" }) as unknown as Track;
+  ({
+    track_id: `t${n}`,
+    friend_id: 1,
+    title: `Title ${n}`,
+    artist: `Artist ${n}`,
+    duration_seconds: 60,
+    position: "A1",
+    bpm: "120",
+    key: "8A",
+  }) as unknown as Track;
 
 const player = vi.hoisted(() => ({
   playlist: [] as Track[],
@@ -54,9 +63,15 @@ vi.mock("@/components/player/usePlayerControlsController", () => ({
   }),
 }));
 const openSave = vi.hoisted(() => vi.fn());
-vi.mock("@/hooks/useQueueSaveDialog", () => ({ useQueueSaveDialog: () => ({ Dialog: () => null, open: openSave }) }));
-vi.mock("@/components/player/PlaybackOutput", () => ({ PlayOnRow: () => <button aria-label="Play on: This iPhone">PLAY ON</button> }));
-vi.mock("@/components/player/ServerSessionStrip", () => ({ default: () => <section aria-label="Server session">SERVER SESSION</section> }));
+vi.mock("@/hooks/useQueueSaveDialog", () => ({
+  useQueueSaveDialog: () => ({ Dialog: () => null, open: openSave }),
+}));
+vi.mock("@/components/player/PlaybackOutput", () => ({
+  PlayOnRow: () => <button aria-label="Play on: This iPhone">PLAY ON</button>,
+}));
+vi.mock("@/components/player/ServerSessionStrip", () => ({
+  default: () => <section aria-label="Server session">SERVER SESSION</section>,
+}));
 
 import QueueDrawer from "./QueueDrawer";
 
@@ -77,7 +92,9 @@ describe("QueueDrawer — phone", () => {
   beforeEach(() => setViewportWidth(390));
 
   it("opens on Now playing: solid surface, meta, seek, transport, volume and PLAY ON", async () => {
-    renderWithProviders(<QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />);
+    renderWithProviders(
+      <QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     expect(await screen.findByText("NOW PLAYING")).toBeTruthy();
     expect(screen.getByText("Title 0")).toBeTruthy();
     expect(screen.getByText("A1 · 120 BPM · 8A")).toBeTruthy();
@@ -90,7 +107,9 @@ describe("QueueDrawer — phone", () => {
 
   it("sets the volume from the keyboard and closes on Escape", async () => {
     const onClose = vi.fn();
-    const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    const { user } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     const volume = await screen.findByRole("slider", { name: "Volume" });
     volume.focus();
     await user.keyboard("{ArrowRight}");
@@ -102,7 +121,9 @@ describe("QueueDrawer — phone", () => {
   it("minimizes; AirPlay lives in the Play on picker, not beside the row", async () => {
     controller.isAirPlayAvailable = true;
     const onClose = vi.fn();
-    const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    const { user } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     expect(screen.queryByRole("button", { name: "AirPlay" })).toBeNull();
     await user.click(await screen.findByRole("button", { name: "Minimize player" }));
     expect(onClose).toHaveBeenCalled();
@@ -112,7 +133,9 @@ describe("QueueDrawer — phone", () => {
     controller.mode = "server";
     controller.volumeLabel = "SERVER VOL";
     const onClose = vi.fn();
-    const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    const { user } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     expect(await screen.findByText("SERVER VOL")).toBeTruthy();
     const volume = screen.getByRole("slider", { name: "Server player volume" });
     volume.focus();
@@ -128,7 +151,9 @@ describe("QueueDrawer — phone", () => {
 
   it("moves to the queue and back, with Save, Clear and a compact transport", async () => {
     const onClose = vi.fn();
-    const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    const { user } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     await user.click(await screen.findByRole("button", { name: "Open queue, 2 up next" }));
     expect(screen.getByText("3 tracks · 3:00")).toBeTruthy();
     expect(screen.getByText("0:45 / 4:02")).toBeTruthy();
@@ -148,7 +173,9 @@ describe("QueueDrawer — phone", () => {
   it("counts every track up next before playback starts, and shows placeholders", async () => {
     player.currentTrackIndex = null;
     player.currentTrack = null;
-    renderWithProviders(<QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />);
+    renderWithProviders(
+      <QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     expect(await screen.findByRole("button", { name: "Open queue, 3 up next" })).toBeTruthy();
     expect(screen.getByText("No track playing")).toBeTruthy();
   });
@@ -157,7 +184,9 @@ describe("QueueDrawer — phone", () => {
 describe("QueueDrawer — desktop panel", () => {
   it("is a 400px side panel while open, and makes the shell room for it", async () => {
     const onClose = vi.fn();
-    const { user, rerender } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    const { user, rerender } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     const panel = screen.getByRole("complementary", { name: "Queue" });
     expect(panel).toBeTruthy();
     expect(panelFlag()).toBe(true);
@@ -173,14 +202,18 @@ describe("QueueDrawer — desktop panel", () => {
     fireEvent.keyDown(panel, { key: "Enter" });
     expect(onClose).toHaveBeenCalledTimes(2);
 
-    rerender(<QueueDrawer isOpen={false} onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen={false} />);
+    rerender(
+      <QueueDrawer isOpen={false} onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen={false} />,
+    );
     expect(screen.queryByRole("complementary", { name: "Queue" })).toBeNull();
     expect(panelFlag()).toBe(false);
   });
 
   it("clears in one tap, with no dialog, and closes", async () => {
     const onClose = vi.fn();
-    const { user } = renderWithProviders(<QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />);
+    const { user } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(controller.handleClearQueue).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -190,7 +223,9 @@ describe("QueueDrawer — desktop panel", () => {
   it("disables Save and Clear with an empty queue", () => {
     player.playlist = [];
     player.currentTrackIndex = null;
-    renderWithProviders(<QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />);
+    renderWithProviders(
+      <QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
     expect(screen.getByRole("button", { name: "Clear" }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByText("Queue is empty")).toBeTruthy();
   });

@@ -7,7 +7,10 @@ import { useDeletePlaylistMutation } from "@/hooks/useDeletePlaylistMutation";
 import PlaylistMonthDivider, { TimelineRow } from "@/components/PlaylistMonthDivider";
 import { groupPlaylistsByMonth, playlistDayParts } from "@/lib/playlistGroups";
 import PlaylistMonthGrid, { PLAYLIST_GRID_COLUMNS } from "@/components/PlaylistMonthGrid";
-import PlaylistListItem, { formatDuration, type PlaylistActionHandlers } from "@/components/PlaylistListItem";
+import PlaylistListItem, {
+  formatDuration,
+  type PlaylistActionHandlers,
+} from "@/components/PlaylistListItem";
 import PlaylistTable from "@/components/PlaylistTable";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
 import PageHeader from "@/components/layout/PageHeader";
@@ -29,7 +32,11 @@ import { Toaster, toaster } from "@/components/ui/toaster"; // See below
 import { FiHeadphones } from "react-icons/fi";
 import { TbFileImport } from "react-icons/tb";
 import { usePlaylists } from "@/providers/PlaylistsProvider";
-import { createSetForPlaylist, importPlaylist, PlaylistTrackPayload } from "@/services/internalApi/playlists";
+import {
+  createSetForPlaylist,
+  importPlaylist,
+  PlaylistTrackPayload,
+} from "@/services/internalApi/playlists";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
@@ -47,8 +54,7 @@ export default function PlaylistManager() {
 
   const { replacePlaylist, appendToQueue } = usePlaybackPlayer();
 
-  const notify = (opts: Parameters<typeof toaster.create>[0]) =>
-    toaster.create(opts);
+  const notify = (opts: Parameters<typeof toaster.create>[0]) => toaster.create(opts);
 
   const { mutateAsync: deletePlaylist, isPending: deletePending } = useDeletePlaylistMutation();
   const [deleteDialogState, setDeleteDialogState] = useState<{
@@ -99,8 +105,16 @@ export default function PlaylistManager() {
     },
     onExportPdf: async () => {
       const tracks = await fetchTracksByIds(pl.tracks);
-      const stamp = new Date().toISOString().replace(/[:]/g, "-").replace(/\..+/, "").replace("T", "_");
-      const slug = pl.name.trim().replace(/[^a-zA-Z0-9-_]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+      const stamp = new Date()
+        .toISOString()
+        .replace(/[:]/g, "-")
+        .replace(/\..+/, "")
+        .replace("T", "_");
+      const slug = pl.name
+        .trim()
+        .replace(/[^a-zA-Z0-9-_]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .toLowerCase();
       await exportPlaylistToPDF({
         playlist: tracks,
         totalPlaytimeFormatted: formatDuration(pl.total_duration_seconds) ?? "0m",
@@ -147,10 +161,11 @@ export default function PlaylistManager() {
 
       // Check if we can resolve all usernames to friend_ids
       const hasUsernames = tracksData.some((t) => t.username);
-      const canResolveAll = hasUsernames && tracksData.every((t) =>
-        !t.username ||
-        availableFriends.some((f) => f.username === t.username)
-      );
+      const canResolveAll =
+        hasUsernames &&
+        tracksData.every(
+          (t) => !t.username || availableFriends.some((f) => f.username === t.username),
+        );
 
       if (!hasUsernames || !canResolveAll) {
         // Need user to select a friend - show friend selection dialog
@@ -254,10 +269,7 @@ export default function PlaylistManager() {
                 Save your playlists to access them here.
               </EmptyState.Description>
               <HStack>
-                <Button
-                  size="xs"
-                  onClick={openImport}
-                >
+                <Button size="xs" onClick={openImport}>
                   Import JSON
                 </Button>
               </HStack>
@@ -266,16 +278,10 @@ export default function PlaylistManager() {
         </EmptyState.Root>
       ) : filtered.length === 0 ? (
         <Text fontSize="sm" color="fg.muted" px={2} py={1}>
-          {filter.trim()
-            ? `No playlists match "${filter}"`
-            : "No playlists yet"}
+          {filter.trim() ? `No playlists match "${filter}"` : "No playlists yet"}
         </Text>
       ) : showTable ? (
-        <PlaylistTable
-          groups={groups}
-          loadingId={loadingId}
-          getActions={playlistActions}
-        />
+        <PlaylistTable groups={groups} loadingId={loadingId} getActions={playlistActions} />
       ) : (
         groups.map((group) => (
           <Box as="section" key={group.key} aria-label={group.label} mb={5}>

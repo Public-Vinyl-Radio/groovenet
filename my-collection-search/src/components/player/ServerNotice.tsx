@@ -25,23 +25,47 @@ export function useServerNotice(): Notice | null {
   const openPicker = usePlaybackTargetDialog((s) => s.setOpen);
   if (!target || target.target === "") return null;
   const { remote, controller } = target;
-  const name = remote.player?.name ?? target.players.find((p) => p.id === target.target)?.name ?? target.target;
+  const name =
+    remote.player?.name ??
+    target.players.find((p) => p.id === target.target)?.name ??
+    target.target;
   const ack = remote.acknowledgement;
   if (ack && controller) {
     const unknown = ack.code === "AVAILABILITY_UNKNOWN";
     return {
       tone: "confirm",
-      text: unknown ? "Speaker status unknown. Playing may interrupt another sender." : "Speaker in use by another sender.",
-      action: { label: unknown ? "Play anyway" : "Take over", onClick: () => void controller.acknowledge(), disabled: remote.busy },
+      text: unknown
+        ? "Speaker status unknown. Playing may interrupt another sender."
+        : "Speaker in use by another sender.",
+      action: {
+        label: unknown ? "Play anyway" : "Take over",
+        onClick: () => void controller.acknowledge(),
+        disabled: remote.busy,
+      },
       dismiss: { label: "Cancel", onClick: controller.dismissAcknowledgement },
     };
   }
   if (!target.authorized) {
-    return { tone: "error", text: `Unlock server access to control ${name}. It keeps playing meanwhile.`, action: { label: "Unlock", onClick: () => openPicker(true) } };
+    return {
+      tone: "error",
+      text: `Unlock server access to control ${name}. It keeps playing meanwhile.`,
+      action: { label: "Unlock", onClick: () => openPicker(true) },
+    };
   }
-  if (remote.player?.state.error) return { tone: "error", text: `Playback error: ${remote.player.state.error.message}` };
-  if (remote.problem && controller) return { tone: "error", text: remote.problem, dismiss: { label: "Dismiss", onClick: controller.dismissProblem } };
-  if (target.problem) return { tone: "error", text: target.problem, dismiss: { label: "Dismiss", onClick: () => target.reportProblem(null) } };
+  if (remote.player?.state.error)
+    return { tone: "error", text: `Playback error: ${remote.player.state.error.message}` };
+  if (remote.problem && controller)
+    return {
+      tone: "error",
+      text: remote.problem,
+      dismiss: { label: "Dismiss", onClick: controller.dismissProblem },
+    };
+  if (target.problem)
+    return {
+      tone: "error",
+      text: target.problem,
+      dismiss: { label: "Dismiss", onClick: () => target.reportProblem(null) },
+    };
   return null;
 }
 
@@ -69,7 +93,13 @@ export default function ServerNotice({ notice }: { notice?: Notice | null }) {
         {current.text}
       </Text>
       {current.action && (
-        <Button size="xs" variant="solid" flexShrink={0} disabled={current.action.disabled} onClick={current.action.onClick}>
+        <Button
+          size="xs"
+          variant="solid"
+          flexShrink={0}
+          disabled={current.action.disabled}
+          onClick={current.action.onClick}
+        >
           {current.action.label}
         </Button>
       )}
@@ -79,7 +109,13 @@ export default function ServerNotice({ notice }: { notice?: Notice | null }) {
             {current.dismiss.label}
           </Button>
         ) : (
-          <IconButton size="xs" variant="ghost" aria-label={current.dismiss.label} flexShrink={0} onClick={current.dismiss.onClick}>
+          <IconButton
+            size="xs"
+            variant="ghost"
+            aria-label={current.dismiss.label}
+            flexShrink={0}
+            onClick={current.dismiss.onClick}
+          >
             <FiX />
           </IconButton>
         ))}

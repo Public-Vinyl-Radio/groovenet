@@ -49,16 +49,10 @@ describe("upsertDiscogsTrackByTrackIdUsername()", () => {
     const track = makeTrack();
     dbQuery.mockResolvedValue({ rows: [track] });
 
-    const result = await makeRepo().upsertDiscogsTrackByTrackIdUsername(
-      track as any,
-      1
-    );
+    const result = await makeRepo().upsertDiscogsTrackByTrackIdUsername(track as any, 1);
 
     expect(result).toEqual(track);
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("ON CONFLICT"),
-      expect.any(Array)
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT"), expect.any(Array));
   });
 
   it("writes the album's date_added, keeping a stored one when the import has none (#847)", async () => {
@@ -66,7 +60,7 @@ describe("upsertDiscogsTrackByTrackIdUsername()", () => {
 
     await makeRepo().upsertDiscogsTrackByTrackIdUsername(
       { ...makeTrack(), date_added: "2024-03-01T10:20:30-08:00" } as any,
-      1
+      1,
     );
     await makeRepo().upsertDiscogsTrackByTrackIdUsername(makeTrack() as any, 1);
 
@@ -80,10 +74,7 @@ describe("upsertDiscogsTrackByTrackIdUsername()", () => {
   it("returns null when the track is soft-deleted (upsert WHERE clause prevents update)", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    const result = await makeRepo().upsertDiscogsTrackByTrackIdUsername(
-      makeTrack() as any,
-      1
-    );
+    const result = await makeRepo().upsertDiscogsTrackByTrackIdUsername(makeTrack() as any, 1);
 
     expect(result).toBeNull();
   });
@@ -99,10 +90,7 @@ describe("softDeleteTrack()", () => {
     const result = await makeRepo().softDeleteTrack("t1", 1);
 
     expect(result).toEqual(track);
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("deleted_at = NOW()"),
-      ["t1", 1]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("deleted_at = NOW()"), ["t1", 1]);
   });
 
   it("returns null when the track does not exist or is already deleted", async () => {
@@ -349,16 +337,14 @@ describe("getPlaylistCountsForTracks()", () => {
     await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }]);
 
     expect(dbQuery.mock.calls[0][0]).toMatch(
-      /EXISTS \(SELECT 1 FROM playlists p WHERE p\.id = pt\.playlist_id\)/
+      /EXISTS \(SELECT 1 FROM playlists p WHERE p\.id = pt\.playlist_id\)/,
     );
   });
 
   it("fills in 0 for any refs missing from the query result", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    const result = await makeRepo().getPlaylistCountsForTracks([
-      { track_id: "t1", friend_id: 1 },
-    ]);
+    const result = await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }]);
 
     expect(result["t1:1"]).toBe(0);
   });
@@ -368,9 +354,7 @@ describe("getPlaylistCountsForTracks()", () => {
       rows: [{ track_id: "t1", friend_id: 1, count: "5" }],
     });
 
-    const result = await makeRepo().getPlaylistCountsForTracks([
-      { track_id: "t1", friend_id: 1 },
-    ]);
+    const result = await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }]);
 
     expect(typeof result["t1:1"]).toBe("number");
     expect(result["t1:1"]).toBe(5);
@@ -458,10 +442,10 @@ describe("findTrackByTrackIdAndFriendId()", () => {
 
     expect(result).toEqual(track);
     expect(result?.album_label).toBe("Rham!");
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("a.label AS album_label"),
-      ["t1", 1]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("a.label AS album_label"), [
+      "t1",
+      1,
+    ]);
   });
 
   it("returns null when not found", async () => {
@@ -582,9 +566,7 @@ describe("updateTrackFields()", () => {
   });
 
   it("includes key_confidence as an updatable field", async () => {
-    dbQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [makeTrack()] });
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [makeTrack()] });
 
     await makeRepo().updateTrackFields({
       track_id: "t1",
@@ -599,9 +581,7 @@ describe("updateTrackFields()", () => {
   });
 
   it("casts bpm and duration_seconds to integer in the SET clause", async () => {
-    dbQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [makeTrack()] });
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [makeTrack()] });
 
     await makeRepo().updateTrackFields({
       track_id: "t1",
@@ -782,8 +762,15 @@ describe("findTrackWithAlbumMetadata()", () => {
 
 describe("findTrackAudioMetadata()", () => {
   it("returns audio metadata row when found", async () => {
-    const row = { track_id: "t1", friend_id: 1, local_audio_url: "/a.m4a",
-      audio_file_album_art_url: null, year: "2000", composer: null, release_id: "r1" };
+    const row = {
+      track_id: "t1",
+      friend_id: 1,
+      local_audio_url: "/a.m4a",
+      audio_file_album_art_url: null,
+      year: "2000",
+      composer: null,
+      release_id: "r1",
+    };
     dbQuery.mockResolvedValue({ rows: [row] });
 
     const result = await makeRepo().findTrackAudioMetadata("t1", 1);
@@ -822,10 +809,11 @@ describe("updateTrackLocalAudioUrl()", () => {
 
     await makeRepo().updateTrackLocalAudioUrl("t1", 1, "/new/path.m4a");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("local_audio_url"),
-      ["/new/path.m4a", "t1", 1]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("local_audio_url"), [
+      "/new/path.m4a",
+      "t1",
+      1,
+    ]);
   });
 });
 
@@ -853,10 +841,11 @@ describe("updateTrackNotesAndTagsByTrackId()", () => {
 
     await makeRepo().updateTrackNotesAndTagsByTrackId("t1", "techno", "Great track");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("local_tags"),
-      ["techno", "Great track", "t1"]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("local_tags"), [
+      "techno",
+      "Great track",
+      "t1",
+    ]);
   });
 });
 
@@ -868,10 +857,11 @@ describe("updateTrackAudioFileAlbumArtUrl()", () => {
 
     await makeRepo().updateTrackAudioFileAlbumArtUrl("t1", 1, "https://img/art.jpg");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("audio_file_album_art_url"),
-      ["https://img/art.jpg", "t1", 1]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("audio_file_album_art_url"), [
+      "https://img/art.jpg",
+      "t1",
+      1,
+    ]);
   });
 });
 
@@ -883,10 +873,7 @@ describe("updateTrackYear()", () => {
 
     await makeRepo().updateTrackYear("t1", 1, "2001");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("year = $1"),
-      ["2001", "t1", 1]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("year = $1"), ["2001", "t1", 1]);
   });
 });
 
@@ -898,9 +885,10 @@ describe("updateTrackComposer()", () => {
 
     await makeRepo().updateTrackComposer("t1", 1, "Bach");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("composer = $1"),
-      ["Bach", "t1", 1]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("composer = $1"), [
+      "Bach",
+      "t1",
+      1,
+    ]);
   });
 });

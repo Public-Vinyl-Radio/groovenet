@@ -35,7 +35,7 @@ describe("record copies", () => {
     });
     expect(httpMock).toHaveBeenCalledWith(
       "/api/record-copies?friend_id=7&release_id=r+1",
-      GET_NO_STORE
+      GET_NO_STORE,
     );
   });
 
@@ -54,7 +54,7 @@ describe("record copies", () => {
     await updateRecordCopy(4, { friend_id: 7, notes: "VG+" });
     expect(httpMock).toHaveBeenCalledWith(
       "/api/record-copies/4",
-      jsonInit("PATCH", { friend_id: 7, notes: "VG+" })
+      jsonInit("PATCH", { friend_id: 7, notes: "VG+" }),
     );
   });
 
@@ -77,7 +77,7 @@ describe("record actions", () => {
     await listRecordActions(4, { friend_id: 7, include_voided: true, limit: 20 });
     expect(httpMock).toHaveBeenCalledWith(
       "/api/record-copies/4/actions?friend_id=7&include_voided=true&limit=20",
-      GET_NO_STORE
+      GET_NO_STORE,
     );
   });
 
@@ -102,10 +102,16 @@ describe("record actions", () => {
 
 describe("care", () => {
   it("lists copies needing care", async () => {
-    await listRecordCare({ friend_id: 7, status: "overdue", overdue_days: 90, limit: 50, offset: 50 });
+    await listRecordCare({
+      friend_id: 7,
+      status: "overdue",
+      overdue_days: 90,
+      limit: 50,
+      offset: 50,
+    });
     expect(httpMock).toHaveBeenCalledWith(
       "/api/record-copies/care?friend_id=7&status=overdue&overdue_days=90&limit=50&offset=50",
-      GET_NO_STORE
+      GET_NO_STORE,
     );
   });
 
@@ -113,7 +119,7 @@ describe("care", () => {
     await getRecordCareSummary({ friend_id: 7, needs_sleeve: "poly" });
     expect(httpMock).toHaveBeenCalledWith(
       "/api/record-copies/care/summary?friend_id=7&needs_sleeve=poly",
-      GET_NO_STORE
+      GET_NO_STORE,
     );
   });
 });

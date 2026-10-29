@@ -12,7 +12,10 @@ const RELATED = 12;
 /** Dates as ISO strings, the shape JSON gives them, so rows parse the same before and after the wire. */
 function jsonDates<T extends Record<string, unknown>>(row: T): T {
   return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value])
+    Object.entries(row).map(([key, value]) => [
+      key,
+      value instanceof Date ? value.toISOString() : value,
+    ]),
   ) as T;
 }
 
@@ -22,7 +25,10 @@ function jsonDates<T extends Record<string, unknown>>(row: T): T {
  * it. Counts and lists use the same genre filter as search (#375), so each
  * number matches what "search this genre" returns. `null` for an unknown genre.
  */
-export async function getGenrePage(ref: string, friendId?: number): Promise<GenrePageResponse | null> {
+export async function getGenrePage(
+  ref: string,
+  friendId?: number,
+): Promise<GenrePageResponse | null> {
   const flat = await genreRepository.listFlat();
   const key = ref.trim().toLowerCase();
   const genre = flat.find((row) => row.slug === key || row.id === key);
@@ -54,7 +60,7 @@ export async function getGenrePage(ref: string, friendId?: number): Promise<Genr
 
   const byId = new Map(flat.map((row) => [row.id, row]));
   const ancestors: GenrePageResponse["ancestors"] = [];
-  for (let parent = genre.parent_id ? byId.get(genre.parent_id) : undefined; parent; ) {
+  for (let parent = genre.parent_id ? byId.get(genre.parent_id) : undefined; parent;) {
     ancestors.unshift({ id: parent.id, name: parent.name, slug: parent.slug });
     parent = parent.parent_id ? byId.get(parent.parent_id) : undefined;
   }
@@ -69,7 +75,10 @@ export async function getGenrePage(ref: string, friendId?: number): Promise<Genr
       aliases: genre.aliases,
     },
     ancestors,
-    children: flat.filter((row) => row.parent_id === genre.id).map(toRef).sort(byCount),
+    children: flat
+      .filter((row) => row.parent_id === genre.id)
+      .map(toRef)
+      .sort(byCount),
     related: await resolveRelated(flat, genre, totals, RELATED),
     counts: { ...counts, tracks_total: totals.get(genre.id) ?? 0 },
     stats,

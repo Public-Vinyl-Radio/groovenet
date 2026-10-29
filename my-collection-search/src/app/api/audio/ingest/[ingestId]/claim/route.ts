@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  IngestNotFound,
-  ingestLifecycleService,
-} from "@/server/services/ingestLifecycleService";
+import { IngestNotFound, ingestLifecycleService } from "@/server/services/ingestLifecycleService";
 
 export const runtime = "nodejs";
 
@@ -17,10 +14,7 @@ export const runtime = "nodejs";
  * Deliberately cheap and deliberately not fatal for the worker — losing a
  * claim costs diagnosis, not the result.
  */
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ ingestId: string }> }
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ ingestId: string }> }) {
   try {
     const { ingestId } = await params;
     const ingest = await ingestLifecycleService.claim(ingestId);
@@ -31,9 +25,6 @@ export async function POST(
     }
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error claiming ingest:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to claim ingest" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Failed to claim ingest" }, { status: 500 });
   }
 }

@@ -9,6 +9,7 @@ neither path can drift from the other.
 
 Nothing above this module knows which engine is in use.
 """
+
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
@@ -79,9 +80,7 @@ class FingerprintMatcher(Protocol):
         ...
 
 
-def window_spans(
-    total: int, window: int, step: int, minimum: int
-) -> list[tuple[int, int]]:
+def window_spans(total: int, window: int, step: int, minimum: int) -> list[tuple[int, int]]:
     """`(start, end)` spans over `total` units, keeping a short tail.
 
     A trailing window shorter than `window` is kept as long as it has at least
@@ -204,9 +203,7 @@ class ChromaprintMatcher:
         if not fingerprint.values:
             # Chromaprint needs a few seconds before it emits anything. Too
             # short to fingerprint is unmatchable, not invalid.
-            logger.warning(
-                "Audio of %.2fs produced no fingerprint values", audio.duration_seconds
-            )
+            logger.warning("Audio of %.2fs produced no fingerprint values", audio.duration_seconds)
             return None
         return fingerprint.to_bytes()
 
@@ -256,16 +253,12 @@ class ChromaprintMatcher:
         step = max(1, round(step_seconds / SECONDS_PER_VALUE))
 
         windows: list[WindowMatch] = []
-        for start, end in window_spans(
-            len(recording.values), window, step, minimum=MIN_OVERLAP_VALUES
-        ):
+        for start, end in window_spans(len(recording.values), window, step, minimum=MIN_OVERLAP_VALUES):
             windows.append(
                 {
                     "start_seconds": round(start * SECONDS_PER_VALUE, 2),
                     "duration_seconds": round((end - start) * SECONDS_PER_VALUE, 2),
-                    "candidates": self._search(
-                        RawFingerprint(recording.values[start:end])
-                    ),
+                    "candidates": self._search(RawFingerprint(recording.values[start:end])),
                 }
             )
 
@@ -286,16 +279,13 @@ class ChromaprintMatcher:
             # Not a BER problem: two silences fingerprint identically, so
             # nothing downstream can tell this apart from a real match.
             logger.debug(
-                "Window has too little variety (%.3f < %.2f) to search — "
-                "likely silence or surface noise",
+                "Window has too little variety (%.3f < %.2f) to search — likely silence or surface noise",
                 query.variety,
                 self.min_variety,
             )
             return []
 
-        matches = self.reference_index.search(
-            query, max_bit_error_rate=self.max_bit_error_rate
-        )
+        matches = self.reference_index.search(query, max_bit_error_rate=self.max_bit_error_rate)
         if not matches:
             return []
 
@@ -323,7 +313,5 @@ def build_matcher(name: str) -> FingerprintMatcher:
     try:
         factory = MATCHERS[name.strip().lower()]
     except KeyError:
-        raise ValueError(
-            f"unknown matcher {name!r}; available: {sorted(MATCHERS)}"
-        ) from None
+        raise ValueError(f"unknown matcher {name!r}; available: {sorted(MATCHERS)}") from None
     return factory()

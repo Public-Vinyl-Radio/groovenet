@@ -19,9 +19,9 @@ describe("readAnalyticsConfig", () => {
   });
 
   it("treats an unknown provider as off", () => {
-    expect(
-      readAnalyticsConfig({ ANALYTICS_PROVIDER: "mixpanel", POSTHOG_KEY: "phc_x" })
-    ).toEqual({ provider: "none" });
+    expect(readAnalyticsConfig({ ANALYTICS_PROVIDER: "mixpanel", POSTHOG_KEY: "phc_x" })).toEqual({
+      provider: "none",
+    });
   });
 
   it("reads POSTHOG_KEY and POSTHOG_HOST, trimming a trailing slash", () => {
@@ -30,13 +30,13 @@ describe("readAnalyticsConfig", () => {
         ANALYTICS_PROVIDER: " PostHog ",
         POSTHOG_KEY: "phc_x",
         POSTHOG_HOST: "https://eu.i.posthog.com/",
-      })
+      }),
     ).toEqual({ provider: "posthog", key: "phc_x", host: "https://eu.i.posthog.com" });
   });
 
   it("defaults the host to PostHog US cloud", () => {
     expect(
-      readAnalyticsConfig({ ANALYTICS_PROVIDER: "posthog", POSTHOG_KEY: "phc_x" })
+      readAnalyticsConfig({ ANALYTICS_PROVIDER: "posthog", POSTHOG_KEY: "phc_x" }),
     ).toMatchObject({ host: "https://us.i.posthog.com" });
   });
 
@@ -46,19 +46,15 @@ describe("readAnalyticsConfig", () => {
         ANALYTICS_PROVIDER: "posthog",
         NEXT_PUBLIC_POSTHOG_KEY: "phc_old",
         NEXT_PUBLIC_POSTHOG_HOST: "https://eu.i.posthog.com",
-      })
+      }),
     ).toEqual({ provider: "posthog", key: "phc_old", host: "https://eu.i.posthog.com" });
   });
 });
 
 describe("PostHog hosts", () => {
   it("derives cloud asset and UI hosts from the ingest host", () => {
-    expect(posthogAssetsHost("https://us.i.posthog.com")).toBe(
-      "https://us-assets.i.posthog.com"
-    );
-    expect(posthogAssetsHost("https://eu.i.posthog.com")).toBe(
-      "https://eu-assets.i.posthog.com"
-    );
+    expect(posthogAssetsHost("https://us.i.posthog.com")).toBe("https://us-assets.i.posthog.com");
+    expect(posthogAssetsHost("https://eu.i.posthog.com")).toBe("https://eu-assets.i.posthog.com");
     expect(posthogUiHost("https://eu.i.posthog.com")).toBe("https://eu.posthog.com");
   });
 
@@ -75,7 +71,7 @@ describe("getClientAnalyticsConfig", () => {
         provider: "posthog",
         key: "phc_x",
         host: "https://us.i.posthog.com",
-      })
+      }),
     ).toEqual({ provider: "posthog", key: "phc_x", uiHost: "https://us.posthog.com" });
     expect(getClientAnalyticsConfig({ provider: "none" })).toEqual({ provider: "none" });
   });

@@ -2,7 +2,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { CompactTransport, TransportStrip, type TransportProps } from "@/components/player/TransportControls";
+import {
+  CompactTransport,
+  TransportStrip,
+  type TransportProps,
+} from "@/components/player/TransportControls";
 
 const props = (over: Partial<TransportProps> = {}): TransportProps => ({
   isPlaying: false,
@@ -30,7 +34,8 @@ describe("TransportStrip", () => {
     renderWithProviders(<TransportStrip {...props()} />);
     const strip = screen.getByRole("group", { name: "Transport" });
     expect(cssOf(strip)).toMatch(/box-shadow:\s*var\(--chakra-shadows-md\)/);
-    for (const key of within(strip).getAllByRole("button")) expect(cssOf(key)).toMatch(/height:\s*64px/);
+    for (const key of within(strip).getAllByRole("button"))
+      expect(cssOf(key)).toMatch(/height:\s*64px/);
   });
 
   it("calls through and stops the click reaching a parent", async () => {
@@ -39,7 +44,7 @@ describe("TransportStrip", () => {
     const { user } = renderWithProviders(
       <div onClick={parent}>
         <TransportStrip {...p} />
-      </div>
+      </div>,
     );
     await user.click(screen.getByRole("button", { name: "Previous" }));
     await user.click(screen.getByRole("button", { name: "Play" }));
@@ -60,7 +65,9 @@ describe("TransportStrip", () => {
   });
 
   it("disables keys that have nowhere to go", () => {
-    renderWithProviders(<TransportStrip {...props({ canPrev: false, canNext: false, canPlay: false })} />);
+    renderWithProviders(
+      <TransportStrip {...props({ canPrev: false, canNext: false, canPlay: false })} />,
+    );
     for (const name of ["Previous", "Play", "Next"]) {
       expect(screen.getByRole("button", { name }).hasAttribute("disabled")).toBe(true);
     }

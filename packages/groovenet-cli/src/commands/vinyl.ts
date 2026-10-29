@@ -76,24 +76,24 @@ export function formatStats(s: IngestPipelineStats): string {
   if (s.ingest_writable === false) {
     lines.push(
       chalk.red("✗ ingest volume is NOT writable") +
-        chalk.gray(" — every upload will fail; check ownership of AUDIO_INGEST_DIR")
+        chalk.gray(" — every upload will fail; check ownership of AUDIO_INGEST_DIR"),
     );
   }
 
   if (!s.index.engine_registered) {
     lines.push(
       chalk.red("✗ no fingerprint engine registered") +
-        chalk.gray(" — is fingerprint-service running?")
+        chalk.gray(" — is fingerprint-service running?"),
     );
   } else if (s.index.empty) {
     lines.push(
       chalk.red("✗ reference index is EMPTY") +
-        chalk.gray(" — nothing can match; run `groovenet fingerprint-library`")
+        chalk.gray(" — nothing can match; run `groovenet fingerprint-library`"),
     );
   } else {
     lines.push(
       chalk.green(`✓ index: ${s.index.indexed_tracks} tracks`) +
-        chalk.gray(` (${s.index.fingerprint_type} ${s.index.fingerprint_version})`)
+        chalk.gray(` (${s.index.fingerprint_type} ${s.index.fingerprint_version})`),
     );
   }
 
@@ -103,8 +103,8 @@ export function formatStats(s: IngestPipelineStats): string {
   if (s.index.missing_fingerprint_tracks > 0) {
     lines.push(
       chalk.yellow(
-        `⚠ ${s.index.missing_fingerprint_tracks} track(s) have audio but no fingerprint`
-      )
+        `⚠ ${s.index.missing_fingerprint_tracks} track(s) have audio but no fingerprint`,
+      ),
     );
   }
 
@@ -112,7 +112,7 @@ export function formatStats(s: IngestPipelineStats): string {
   lines.push(
     q === null
       ? chalk.yellow("? queue depth unavailable (redis unreachable)")
-      : chalk.gray(`  queue depth: ${q}`)
+      : chalk.gray(`  queue depth: ${q}`),
   );
 
   const st = s.ingests.by_status;
@@ -133,8 +133,8 @@ export function formatStats(s: IngestPipelineStats): string {
     lines.push(
       chalk.gray(
         `  uploads: ${c.received} received, ${c.accepted} accepted, ` +
-          `${c.duplicate} duplicate, ${c.rejected} rejected`
-      )
+          `${c.duplicate} duplicate, ${c.rejected} rejected`,
+      ),
     );
     for (const r of c.rejected_by_reason) {
       lines.push(chalk.yellow(`    ⚠ ${r.count}× ${r.reason}`));
@@ -155,8 +155,8 @@ export function formatStats(s: IngestPipelineStats): string {
     lines.push(
       chalk.gray(
         `  detections: ${d.windows} windows, ${d.matched} matched, ` +
-          `${d.no_match} no-match (${rate})`
-      )
+          `${d.no_match} no-match (${rate})`,
+      ),
     );
     for (const b of d.confidence_bands) {
       lines.push(chalk.gray(`    ${b.band}  ${b.count}`));
@@ -170,25 +170,21 @@ export function formatStats(s: IngestPipelineStats): string {
   if (s.spins.pending === null) {
     lines.push(chalk.yellow("? spin aggregation backlog unavailable"));
   } else if (s.spins.pending > 0) {
-    lines.push(
-      chalk.yellow(`⚠ ${s.spins.pending} detection(s) awaiting a spin session`)
-    );
+    lines.push(chalk.yellow(`⚠ ${s.spins.pending} detection(s) awaiting a spin session`));
   }
 
   const plays = s.counters?.plays;
   if (plays && plays.confirmed > 0) {
     const avg =
-      plays.latency_ms_avg === null ? "" : `, ${(plays.latency_ms_avg / 1000).toFixed(0)}s after capture on average`;
+      plays.latency_ms_avg === null
+        ? ""
+        : `, ${(plays.latency_ms_avg / 1000).toFixed(0)}s after capture on average`;
     lines.push(chalk.gray(`  plays confirmed: ${plays.confirmed}${avg}`));
   }
 
   if (s.ingests.oldest_in_flight) {
     const o = s.ingests.oldest_in_flight;
-    lines.push(
-      chalk.yellow(
-        `  oldest in flight: ${o.status} since ${clock(o.received_at)}`
-      )
-    );
+    lines.push(chalk.yellow(`  oldest in flight: ${o.status} since ${clock(o.received_at)}`));
   }
 
   return lines.join("\n");
@@ -211,7 +207,7 @@ export function formatAggregateResult(result: SpinAggregateResult): string {
 
   lines.push(
     chalk.green(`✓ created ${result.created}`) +
-      chalk.gray(`, skipped ${result.skipped} (already aggregated)`)
+      chalk.gray(`, skipped ${result.skipped} (already aggregated)`),
   );
   for (const s of result.sources) {
     lines.push(chalk.gray(`  ${s.source_id}: created ${s.created}, skipped ${s.skipped}`));
@@ -226,7 +222,13 @@ function printDetections(rows: DetectionWindow[]): void {
     return;
   }
   const table = new Table({
-    head: [chalk.cyan("Time"), chalk.cyan("Track"), chalk.cyan("Conf"), chalk.cyan("At"), chalk.cyan("Level")],
+    head: [
+      chalk.cyan("Time"),
+      chalk.cyan("Track"),
+      chalk.cyan("Conf"),
+      chalk.cyan("At"),
+      chalk.cyan("Level"),
+    ],
     colWidths: [12, 52, 8, 8, 9],
     wordWrap: true,
   });
@@ -253,11 +255,7 @@ function printIngests(rows: IngestRecord[]): void {
   });
   for (const r of rows) {
     const paint =
-      r.status === "failed"
-        ? chalk.red
-        : r.status === "processed"
-          ? chalk.green
-          : chalk.yellow;
+      r.status === "failed" ? chalk.red : r.status === "processed" ? chalk.green : chalk.yellow;
     table.push([
       clock(r.received_at),
       r.source_id,
@@ -324,8 +322,7 @@ export function addVinylCommands(program: Command): void {
       }) => {
         try {
           // commander turns --no-match into `match: false`.
-          const matched =
-            opts.match === false ? false : opts.matched ? true : undefined;
+          const matched = opts.match === false ? false : opts.matched ? true : undefined;
           const result = await makeClient().listDetections({
             source_id: opts.source,
             session_id: opts.session,
@@ -338,7 +335,7 @@ export function addVinylCommands(program: Command): void {
           printError(err instanceof Error ? err.message : String(err));
           process.exit(1);
         }
-      }
+      },
     );
 
   vinyl
@@ -348,31 +345,29 @@ export function addVinylCommands(program: Command): void {
     .option("--status <s>", "received | processing | processed | failed")
     .option("--limit <n>", "How many", intOption, 30)
     .option("--json", "Output as JSON")
-    .action(
-      async (opts: { source?: string; status?: string; limit: number; json?: boolean }) => {
-        try {
-          const result = await makeClient().listIngests({
-            source_id: opts.source,
-            status: opts.status,
-            limit: opts.limit,
-          });
-          if (opts.json) printJson(result);
-          else printIngests(result.ingests);
-        } catch (err: unknown) {
-          printError(err instanceof Error ? err.message : String(err));
-          process.exit(1);
-        }
+    .action(async (opts: { source?: string; status?: string; limit: number; json?: boolean }) => {
+      try {
+        const result = await makeClient().listIngests({
+          source_id: opts.source,
+          status: opts.status,
+          limit: opts.limit,
+        });
+        if (opts.json) printJson(result);
+        else printIngests(result.ingests);
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
       }
-    );
+    });
 
   vinyl
     .command("aggregate")
     .description(
-      "Backfill: aggregate detections into spins from a date the automatic passes never reach (#304)"
+      "Backfill: aggregate detections into spins from a date the automatic passes never reach (#304)",
     )
     .requiredOption(
       "--since <date>",
-      "Aggregate detections at or after this date/time (anything Date can parse)"
+      "Aggregate detections at or after this date/time (anything Date can parse)",
     )
     .option("--source <id>", "Limit to one listener source")
     .option("--json", "Output as JSON")

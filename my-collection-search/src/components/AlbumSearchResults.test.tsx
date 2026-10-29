@@ -49,7 +49,7 @@ describe("AlbumSearchResults genre filter (#375)", () => {
     mocks.searchParams = new URLSearchParams("genre=latin&genre=jazz");
     renderWithProviders(<AlbumSearchResults friendId={6} />);
     expect(mocks.useAlbumsInfiniteQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ friend_id: 6, genre: ["latin", "jazz"] })
+      expect.objectContaining({ friend_id: 6, genre: ["latin", "jazz"] }),
     );
   });
 
@@ -75,12 +75,10 @@ describe("AlbumSearchResults include_similar (#485)", () => {
   });
 
   it("sends include_similar and similar_exclude from the URL", () => {
-    mocks.searchParams = new URLSearchParams(
-      "genre=cumbia&similar=1&similar_exclude=id-porro"
-    );
+    mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1&similar_exclude=id-porro");
     renderWithProviders(<AlbumSearchResults friendId={6} />);
     expect(mocks.useAlbumsInfiniteQuery).toHaveBeenCalledWith(
-      expect.objectContaining({ include_similar: true, similar_exclude: ["id-porro"] })
+      expect.objectContaining({ include_similar: true, similar_exclude: ["id-porro"] }),
     );
   });
 
@@ -94,7 +92,9 @@ describe("AlbumSearchResults include_similar (#485)", () => {
 
   it("reports the genres the server added, up to the caller", async () => {
     mocks.useAlbumsInfiniteQuery.mockReturnValue({
-      data: { pages: [{ hits: [], added_genres: [{ id: "id-porro", name: "Porro", slug: "porro" }] }] },
+      data: {
+        pages: [{ hits: [], added_genres: [{ id: "id-porro", name: "Porro", slug: "porro" }] }],
+      },
       albumRefs: [],
       fetchNextPage: vi.fn(),
       hasNextPage: false,
@@ -104,18 +104,20 @@ describe("AlbumSearchResults include_similar (#485)", () => {
     });
     const onAddedGenresChange = vi.fn();
     renderWithProviders(
-      <AlbumSearchResults friendId={6} onAddedGenresChange={onAddedGenresChange} />
+      <AlbumSearchResults friendId={6} onAddedGenresChange={onAddedGenresChange} />,
     );
 
     await vi.waitFor(() =>
-      expect(onAddedGenresChange).toHaveBeenCalledWith([{ id: "id-porro", name: "Porro", slug: "porro" }])
+      expect(onAddedGenresChange).toHaveBeenCalledWith([
+        { id: "id-porro", name: "Porro", slug: "porro" },
+      ]),
     );
   });
 
   it("reports an empty list when nothing was added", async () => {
     const onAddedGenresChange = vi.fn();
     renderWithProviders(
-      <AlbumSearchResults friendId={6} onAddedGenresChange={onAddedGenresChange} />
+      <AlbumSearchResults friendId={6} onAddedGenresChange={onAddedGenresChange} />,
     );
     await vi.waitFor(() => expect(onAddedGenresChange).toHaveBeenCalledWith([]));
   });
@@ -124,7 +126,9 @@ describe("AlbumSearchResults include_similar (#485)", () => {
 describe("AlbumSearchResults layouts (#730)", () => {
   beforeEach(() => {
     vi.stubGlobal("IntersectionObserver", NoopObserver);
-    albumsInStore.list = [{ release_id: "r1", friend_id: 6, title: "One", artist: "A", track_count: 3 }];
+    albumsInStore.list = [
+      { release_id: "r1", friend_id: 6, title: "One", artist: "A", track_count: 3 },
+    ];
     mocks.useAlbumsInfiniteQuery.mockReset().mockReturnValue({
       data: { pages: [{ hits: [], estimatedTotalHits: 1 }] },
       albumRefs: [],
@@ -146,7 +150,9 @@ describe("AlbumSearchResults layouts (#730)", () => {
   it("shows the count with the sort label, and changes the sort from it", async () => {
     mocks.searchParams = new URLSearchParams("sort=year:desc");
     const onSortChange = vi.fn();
-    const { user } = renderWithProviders(<AlbumSearchResults friendId={6} onSortChange={onSortChange} />);
+    const { user } = renderWithProviders(
+      <AlbumSearchResults friendId={6} onSortChange={onSortChange} />,
+    );
     expect(screen.getByText("1 album")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Sort: Newest Releases" }));
     await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)" }));
@@ -167,14 +173,24 @@ describe("AlbumSearchResults layouts (#730)", () => {
 
     const loading = vi.fn();
     mocks.useAlbumsInfiniteQuery.mockReturnValue({
-      data: undefined, albumRefs: [], fetchNextPage: vi.fn(), hasNextPage: false,
-      isFetchingNextPage: false, isLoading: true, error: null,
+      data: undefined,
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: true,
+      error: null,
     });
     renderWithProviders(<AlbumSearchResults friendId={6} onTotalChange={loading} />);
     const failed = vi.fn();
     mocks.useAlbumsInfiniteQuery.mockReturnValue({
-      data: undefined, albumRefs: [], fetchNextPage: vi.fn(), hasNextPage: false,
-      isFetchingNextPage: false, isLoading: false, error: new Error("boom"),
+      data: undefined,
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: false,
+      error: new Error("boom"),
     });
     renderWithProviders(<AlbumSearchResults friendId={6} onTotalChange={failed} />);
     expect(loading).not.toHaveBeenCalled();
@@ -186,8 +202,12 @@ describe("AlbumSearchResults layouts (#730)", () => {
     albumsInStore.list = [];
     mocks.useAlbumsInfiniteQuery.mockReturnValue({
       data: { pages: [{ hits: [], estimatedTotalHits: 0 }] },
-      albumRefs: [], fetchNextPage: vi.fn(), hasNextPage: false,
-      isFetchingNextPage: false, isLoading: false, error: null,
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: false,
+      error: null,
     });
     mocks.searchParams = new URLSearchParams("q=zzz");
     renderWithProviders(<AlbumSearchResults friendId={6} onSortChange={vi.fn()} />);

@@ -24,9 +24,7 @@ export type JobTrackRow = {
 };
 
 export class JobRepository {
-  async findTracksByTrackAndFriendPairs(
-    pairs: JobTrackPair[]
-  ): Promise<JobTrackRow[]> {
+  async findTracksByTrackAndFriendPairs(pairs: JobTrackPair[]): Promise<JobTrackRow[]> {
     if (pairs.length === 0) return [];
 
     const values: string[] = [];
@@ -46,7 +44,7 @@ export class JobRepository {
         FROM tracks
         WHERE (track_id, friend_id) IN (${values.join(", ")})
       `,
-      params
+      params,
     );
 
     return result.rows;

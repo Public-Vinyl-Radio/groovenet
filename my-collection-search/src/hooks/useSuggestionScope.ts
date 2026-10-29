@@ -43,7 +43,10 @@ export function useSuggestionScope() {
   const { friend } = useUsername();
   const libraryFriendId = friend?.id;
   const settings = useRecommendationSettingsQuery(libraryFriendId);
-  const [override, setOverride] = useState<{ friendId: number | undefined; scope: RecommendationScope } | null>(null);
+  const [override, setOverride] = useState<{
+    friendId: number | undefined;
+    scope: RecommendationScope;
+  } | null>(null);
 
   const savedScope = settings.data?.scope ?? DEFAULT_RECOMMENDATION_SCOPE;
   const activeOverride = override && override.friendId === libraryFriendId ? override.scope : null;

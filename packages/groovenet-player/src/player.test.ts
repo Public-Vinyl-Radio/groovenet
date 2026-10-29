@@ -5,16 +5,20 @@ import { TrackResolver } from "./resolver.js";
 import { TestPlaybackBackend } from "./testing.js";
 import { PlayerError } from "./types.js";
 
-const track = (track_id: string, local_audio_url?: string) => ({
-  track_id,
-  friend_id: 1,
-  title: track_id,
-  local_audio_url,
-}) as unknown as Track;
+const track = (track_id: string, local_audio_url?: string) =>
+  ({
+    track_id,
+    friend_id: 1,
+    title: track_id,
+    local_audio_url,
+  }) as unknown as Track;
 
 function makePlayer() {
   const backend = new TestPlaybackBackend();
-  const resolver = new TrackResolver({} as GroovenetClient, { apiBase: "http://server/api", apiKey: "key" });
+  const resolver = new TrackResolver({} as GroovenetClient, {
+    apiBase: "http://server/api",
+    apiKey: "key",
+  });
   return { player: new PlayerCore(backend, resolver), backend };
 }
 
@@ -27,7 +31,12 @@ describe("PlayerCore", () => {
     await player.play(1);
     backend.advance(20, 100);
     await player.stop();
-    expect(player.snapshot).toMatchObject({ status: "stopped", current: null, position: 0, duration: null });
+    expect(player.snapshot).toMatchObject({
+      status: "stopped",
+      current: null,
+      position: 0,
+      duration: null,
+    });
     expect(player.snapshot.queue).toHaveLength(2);
     expect(backend.paused).toBe(true);
     expect(backend.closed).toBe(false);
@@ -66,7 +75,7 @@ describe("PlayerCore", () => {
     await player.play();
     expect(skipped).toHaveBeenCalledWith(
       expect.objectContaining({ track: expect.objectContaining({ track_id: "no-audio" }) }),
-      expect.objectContaining({ code: "NO_AUDIO" })
+      expect.objectContaining({ code: "NO_AUDIO" }),
     );
     expect(player.snapshot.current?.track.track_id).toBe("ready");
     expect(backend.source?.url).toContain("ready.mp3");
@@ -90,20 +99,33 @@ describe("PlayerCore", () => {
     expect(backend.outputDevice).toBe("airplay");
     await expect(player.seek(-1)).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
     await expect(player.setVolume(101)).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
-    await expect(player.setOutputDevice("missing")).rejects.toMatchObject({ code: "DEVICE_UNAVAILABLE" });
+    await expect(player.setOutputDevice("missing")).rejects.toMatchObject({
+      code: "DEVICE_UNAVAILABLE",
+    });
   });
 
   it("enqueues search results and playlist tracks, and removes queue entries", async () => {
     const tracks = [track("a", "a.mp3"), track("b", "b.mp3")];
     const client = {
-      searchTracks: vi.fn(async () => ({ tracks, estimatedTotalHits: 2, offset: 0, limit: 50, processingTimeMs: 1 })),
-      getPlaylistTracks: vi.fn(async () => ({ track_refs: [
-        { track_id: "b", friend_id: 1, position: 1 },
-        { track_id: "a", friend_id: 1, position: 0 },
-      ] })),
+      searchTracks: vi.fn(async () => ({
+        tracks,
+        estimatedTotalHits: 2,
+        offset: 0,
+        limit: 50,
+        processingTimeMs: 1,
+      })),
+      getPlaylistTracks: vi.fn(async () => ({
+        track_refs: [
+          { track_id: "b", friend_id: 1, position: 1 },
+          { track_id: "a", friend_id: 1, position: 0 },
+        ],
+      })),
       batchGetTracks: vi.fn(async () => tracks.slice().reverse()),
     } as unknown as GroovenetClient;
-    const player = new PlayerCore(new TestPlaybackBackend(), new TrackResolver(client, { apiBase: "http://host/api" }));
+    const player = new PlayerCore(
+      new TestPlaybackBackend(),
+      new TrackResolver(client, { apiBase: "http://host/api" }),
+    );
     const searchEntries = await player.enqueueSearch("latin", 10);
     const playlistEntries = await player.enqueuePlaylist(22);
 
@@ -145,7 +167,9 @@ describe("PlayerCore", () => {
 
   it("wraps a backend load failure with track context", async () => {
     const { player, backend } = makePlayer();
-    backend.load = vi.fn(async () => { throw new Error("connection refused"); });
+    backend.load = vi.fn(async () => {
+      throw new Error("connection refused");
+    });
     player.add([track("unreachable", "remote.mp3")]);
     await expect(player.play()).rejects.toMatchObject({
       code: "STREAM_FAILED",
@@ -156,9 +180,14 @@ describe("PlayerCore", () => {
 
   it("preserves typed backend errors and handles an ended event without a current track", async () => {
     const { player, backend } = makePlayer();
-    backend.load = vi.fn(async () => { throw new PlayerError("DEVICE_UNAVAILABLE", "output disappeared"); });
+    backend.load = vi.fn(async () => {
+      throw new PlayerError("DEVICE_UNAVAILABLE", "output disappeared");
+    });
     player.add([track("unreachable", "remote.mp3")]);
-    await expect(player.play(0)).rejects.toMatchObject({ code: "DEVICE_UNAVAILABLE", message: "output disappeared" });
+    await expect(player.play(0)).rejects.toMatchObject({
+      code: "DEVICE_UNAVAILABLE",
+      message: "output disappeared",
+    });
 
     const ended = vi.fn();
     player.on("track-ended", ended);

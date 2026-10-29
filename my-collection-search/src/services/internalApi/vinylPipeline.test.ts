@@ -126,8 +126,15 @@ describe("getIngestRetentionStatus", () => {
   });
 
   it("returns whatever the route responds with", async () => {
-    const response = { files: 3, bytes: 900, sweepable: 1, orphans: 0, inFlight: 1,
-                        lastSweptAt: null, policy: {} };
+    const response = {
+      files: 3,
+      bytes: 900,
+      sweepable: 1,
+      orphans: 0,
+      inFlight: 1,
+      lastSweptAt: null,
+      policy: {},
+    };
     httpMock.mockResolvedValue(response);
     await expect(getIngestRetentionStatus()).resolves.toBe(response);
   });

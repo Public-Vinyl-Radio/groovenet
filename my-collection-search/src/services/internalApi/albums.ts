@@ -12,19 +12,12 @@ import {
   albumUpsertWithTracksResponseSchema,
   queueAlbumDownloadsResponseSchema,
 } from "@/api-contract/schemas";
-import type {
-  CreateAlbumRequest,
-  UpdateAlbumWithTracksParams,
-} from "@/types/albumMetadata";
+import type { CreateAlbumRequest, UpdateAlbumWithTracksParams } from "@/types/albumMetadata";
 import type { Album, Track } from "@/types/track";
 import { http } from "@/services/http";
 
-export type AlbumDiscogsRawResponse = z.infer<
-  typeof albumDiscogsRawResponseSchema
->;
-export type AlbumPlayableStructureResponse = z.infer<
-  typeof albumPlayableStructureResponseSchema
->;
+export type AlbumDiscogsRawResponse = z.infer<typeof albumDiscogsRawResponseSchema>;
+export type AlbumPlayableStructureResponse = z.infer<typeof albumPlayableStructureResponseSchema>;
 export type CreateAlbumApiResponse = z.infer<typeof albumCreateResponseSchema>;
 export type CreateAlbumResponse = Omit<CreateAlbumApiResponse, "album" | "tracks"> & {
   album: Album;
@@ -55,13 +48,9 @@ export type AlbumUpdateApiResponse = z.infer<typeof albumUpdateResponseSchema>;
 export type AlbumUpdateResponse = Omit<AlbumUpdateApiResponse, "album"> & {
   album: Album;
 };
-export type QueueAlbumDownloadsResponse = z.infer<
-  typeof queueAlbumDownloadsResponseSchema
->;
+export type QueueAlbumDownloadsResponse = z.infer<typeof queueAlbumDownloadsResponseSchema>;
 export type AlbumDeleteResponse = z.infer<typeof albumDeleteResponseSchema>;
-export type UpsertAlbumWithTracksApiResponse = z.infer<
-  typeof albumUpsertWithTracksResponseSchema
->;
+export type UpsertAlbumWithTracksApiResponse = z.infer<typeof albumUpsertWithTracksResponseSchema>;
 export type UpsertAlbumWithTracksResponse = Omit<
   UpsertAlbumWithTracksApiResponse,
   "album" | "tracks"
@@ -72,20 +61,18 @@ export type UpsertAlbumWithTracksResponse = Omit<
 
 export async function fetchAlbumDiscogsRawRelease(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<AlbumDiscogsRawResponse> {
   return await http<AlbumDiscogsRawResponse>(
     `/api/albums/${encodeURIComponent(releaseId)}/discogs-raw?friend_id=${friendId}`,
     {
       method: "GET",
       cache: "no-store",
-    }
+    },
   );
 }
 
-export async function createAlbum(
-  data: CreateAlbumRequest
-): Promise<CreateAlbumResponse> {
+export async function createAlbum(data: CreateAlbumRequest): Promise<CreateAlbumResponse> {
   const formData = new FormData();
   formData.append("album", JSON.stringify(data.album));
   formData.append("tracks", JSON.stringify(data.tracks));
@@ -100,9 +87,7 @@ export async function createAlbum(
   });
 }
 
-export async function searchAlbums(
-  params: AlbumSearchParams
-): Promise<AlbumSearchResponse> {
+export async function searchAlbums(params: AlbumSearchParams): Promise<AlbumSearchResponse> {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.append("q", params.q);
   if (params.sort) searchParams.append("sort", params.sort);
@@ -133,33 +118,31 @@ export async function searchAlbums(
 
 export async function getAlbumWithTracks(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<AlbumDetailResponse> {
   return await http<AlbumDetailResponse>(
     `/api/albums/${encodeURIComponent(releaseId)}?friend_id=${friendId}`,
     {
       method: "GET",
       cache: "no-store",
-    }
+    },
   );
 }
 
 export async function getAlbumPlayableStructure(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<AlbumPlayableStructureResponse> {
   return await http<AlbumPlayableStructureResponse>(
     `/api/albums/${encodeURIComponent(releaseId)}/playable-structure?friend_id=${friendId}`,
     {
       method: "GET",
       cache: "no-store",
-    }
+    },
   );
 }
 
-export async function updateAlbum(
-  params: AlbumUpdateParams
-): Promise<AlbumUpdateResponse> {
+export async function updateAlbum(params: AlbumUpdateParams): Promise<AlbumUpdateResponse> {
   return await http<AlbumUpdateResponse>("/api/albums", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -169,30 +152,30 @@ export async function updateAlbum(
 
 export async function deleteAlbum(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<AlbumDeleteResponse> {
   return await http<AlbumDeleteResponse>(
     `/api/albums/${encodeURIComponent(releaseId)}?friend_id=${friendId}`,
     {
       method: "DELETE",
-    }
+    },
   );
 }
 
 export async function queueAlbumDownloads(
   releaseId: string,
-  friendId: number
+  friendId: number,
 ): Promise<QueueAlbumDownloadsResponse> {
   return await http<QueueAlbumDownloadsResponse>(
     `/api/albums/${encodeURIComponent(releaseId)}/download?friend_id=${friendId}`,
     {
       method: "POST",
-    }
+    },
   );
 }
 
 export async function upsertAlbumWithTracks(
-  params: UpdateAlbumWithTracksParams
+  params: UpdateAlbumWithTracksParams,
 ): Promise<UpsertAlbumWithTracksResponse> {
   const formData = new FormData();
   formData.append("release_id", params.release_id);

@@ -72,7 +72,9 @@ function ReviewRow({ item }: { item: AlbumArtworkReviewItem }) {
       <Flex justify="space-between" align="flex-start" gap={2} mb={3}>
         <Box minW={0}>
           <Link asChild fontWeight="semibold">
-            <NextLink href={`/albums/${encodeURIComponent(item.release_id)}?friend_id=${item.friend_id}`}>
+            <NextLink
+              href={`/albums/${encodeURIComponent(item.release_id)}?friend_id=${item.friend_id}`}
+            >
               {item.title}
             </NextLink>
           </Link>
@@ -80,7 +82,10 @@ function ReviewRow({ item }: { item: AlbumArtworkReviewItem }) {
             {item.artist}
           </Text>
         </Box>
-        <Badge colorPalette={item.art_match_status === "mismatch" ? "status.analysis" : "neutral"} flexShrink={0}>
+        <Badge
+          colorPalette={item.art_match_status === "mismatch" ? "status.analysis" : "neutral"}
+          flexShrink={0}
+        >
           {STATUS_LABELS[item.art_match_status]}
           {item.art_match_distance !== null ? ` · ${item.art_match_distance}/64` : ""}
         </Badge>

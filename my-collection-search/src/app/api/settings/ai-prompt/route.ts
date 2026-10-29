@@ -7,20 +7,14 @@ export async function GET(request: NextRequest) {
 
   try {
     if (friendIdParam && (!friendId || Number.isNaN(friendId))) {
-      return NextResponse.json(
-        { error: "friend_id must be a number" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id must be a number" }, { status: 400 });
     }
 
     const result = await settingsService.getAiPrompt(friendId);
     return NextResponse.json(result);
   } catch (err) {
     console.error("Failed to load AI prompt settings:", err);
-    return NextResponse.json(
-      { error: "Failed to load AI prompt settings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load AI prompt settings" }, { status: 500 });
   }
 }
 
@@ -31,19 +25,13 @@ export async function PUT(request: NextRequest) {
     const prompt = String(body?.prompt ?? "");
 
     if (!friendId || Number.isNaN(friendId)) {
-      return NextResponse.json(
-        { error: "friend_id is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "friend_id is required" }, { status: 400 });
     }
 
     const result = await settingsService.updateAiPrompt(friendId, prompt);
     return NextResponse.json(result);
   } catch (err) {
     console.error("Failed to update AI prompt settings:", err);
-    return NextResponse.json(
-      { error: "Failed to update AI prompt settings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update AI prompt settings" }, { status: 500 });
   }
 }

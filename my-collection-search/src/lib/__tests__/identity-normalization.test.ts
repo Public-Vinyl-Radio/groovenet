@@ -29,9 +29,7 @@ describe("normalizeList", () => {
   });
 
   it("treats every hyphen and dash as a space, so spellings merge", () => {
-    expect(normalizeList(["Trip-Hop", "trip hop", "Trip‑hop", "Trip—Hop"])).toEqual([
-      "trip hop",
-    ]);
+    expect(normalizeList(["Trip-Hop", "trip hop", "Trip‑hop", "Trip—Hop"])).toEqual(["trip hop"]);
   });
 
   it("splits free text on , / ; and |", () => {
@@ -143,9 +141,11 @@ describe("normalizeCountry", () => {
 
 describe("normalizeLabels", () => {
   it("takes first 3 labels and lowercases", () => {
-    expect(
-      normalizeLabels(["Warp Records", "Ninja Tune", "XL Recordings", "Domino"])
-    ).toEqual(["warp records", "ninja tune", "xl recordings"]);
+    expect(normalizeLabels(["Warp Records", "Ninja Tune", "XL Recordings", "Domino"])).toEqual([
+      "warp records",
+      "ninja tune",
+      "xl recordings",
+    ]);
   });
 
   it("handles empty array", () => {
@@ -167,18 +167,22 @@ describe("combineGenres", () => {
   });
 
   it("limits to maxGenres", () => {
-    expect(
-      combineGenres(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], null, 8)
-    ).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    expect(combineGenres(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], null, 8)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+    ]);
   });
 });
 
 describe("normalizeStyles", () => {
   it("normalizes styles", () => {
-    expect(normalizeStyles(["Deep House", "Tech House"], 12)).toEqual([
-      "deep house",
-      "tech house",
-    ]);
+    expect(normalizeStyles(["Deep House", "Tech House"], 12)).toEqual(["deep house", "tech house"]);
   });
 
   it("limits to maxStyles", () => {
@@ -243,7 +247,7 @@ describe("normalizeComposer", () => {
     "drops the placeholder credit %s",
     (input) => {
       expect(normalizeComposer(input)).toEqual([]);
-    }
+    },
   );
 
   it("keeps real composers alongside a dropped placeholder", () => {

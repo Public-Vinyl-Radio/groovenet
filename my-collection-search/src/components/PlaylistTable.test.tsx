@@ -39,9 +39,20 @@ const setOf = (set: Record<string, unknown> = {}, extra: Record<string, unknown>
   });
 
 function setup(playlists: Playlist[], loadingId?: number | null) {
-  const actions = { onClick: vi.fn(), onPlay: vi.fn(), onDelete: vi.fn(), onEnqueue: vi.fn(), onExportPdf: vi.fn(), onCreateSet: vi.fn() };
+  const actions = {
+    onClick: vi.fn(),
+    onPlay: vi.fn(),
+    onDelete: vi.fn(),
+    onEnqueue: vi.fn(),
+    onExportPdf: vi.fn(),
+    onCreateSet: vi.fn(),
+  };
   const rendered = renderWithProviders(
-    <PlaylistTable groups={groupPlaylistsByMonth(playlists)} loadingId={loadingId} getActions={() => actions} />,
+    <PlaylistTable
+      groups={groupPlaylistsByMonth(playlists)}
+      loadingId={loadingId}
+      getActions={() => actions}
+    />,
   );
   return { actions, ...rendered };
 }
@@ -53,9 +64,21 @@ describe("PlaylistTable (#770)", () => {
     setup([plain(), setOf()]);
     expect(screen.getByRole("table", { name: "Playlists" })).toBeTruthy();
     const headers = screen.getAllByRole("columnheader").map((el) => el.textContent);
-    expect(headers).toEqual(["Date", "Cover", "Name", "Tracks", "Length", "With", "Set links", "Actions"]);
+    expect(headers).toEqual([
+      "Date",
+      "Cover",
+      "Name",
+      "Tracks",
+      "Length",
+      "With",
+      "Set links",
+      "Actions",
+    ]);
     const groups = screen.getAllByRole("rowheader");
-    expect(groups.map((el) => el.textContent)).toEqual(["OCT 20261 playlist", "AUG 20261 playlist · 1 set"]);
+    expect(groups.map((el) => el.textContent)).toEqual([
+      "OCT 20261 playlist",
+      "AUG 20261 playlist · 1 set",
+    ]);
     expect(groups[0].getAttribute("colspan")).toBe("8");
     expect(screen.getByRole("rowgroup", { name: "OCT 2026" })).toBeTruthy();
   });
@@ -95,16 +118,33 @@ describe("PlaylistTable (#770)", () => {
     expect(within(row).getByTestId("table-venue").textContent).toBe("Room 4 · Oakland");
     expect(within(row).getByText("ana, ben")).toBeTruthy();
     const links = within(row).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("aria-label"))).toEqual(["Recording", "Website post", "YouTube", "Flyer"]);
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["https://r", "https://p", "https://y", "/flyer.jpg"]);
+    expect(links.map((a) => a.getAttribute("aria-label"))).toEqual([
+      "Recording",
+      "Website post",
+      "YouTube",
+      "Flyer",
+    ]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "https://r",
+      "https://p",
+      "https://y",
+      "/flyer.jpg",
+    ]);
     links.forEach((a) => expect(a.getAttribute("target")).toBe("_blank"));
   });
 
   it("uses the playlist name, the mosaic and no venue or links for a bare set", () => {
     setup([
-      setOf(
-        { title: null, venue_name: null, location_city: null, flyer_url: null, recording_url: null, post_url: null, youtube_url: null, collaborators: [] },
-      ),
+      setOf({
+        title: null,
+        venue_name: null,
+        location_city: null,
+        flyer_url: null,
+        recording_url: null,
+        post_url: null,
+        youtube_url: null,
+        collaborators: [],
+      }),
     ]);
     const row = rowOf();
     expect(within(row).getByText("Fallback name")).toBeTruthy();
@@ -115,11 +155,17 @@ describe("PlaylistTable (#770)", () => {
 
   it("hides links that are missing", () => {
     setup([setOf({ flyer_url: null, post_url: null, youtube_url: null })]);
-    expect(within(rowOf()).getAllByRole("link").map((a) => a.getAttribute("aria-label"))).toEqual(["Recording"]);
+    expect(
+      within(rowOf())
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("aria-label")),
+    ).toEqual(["Recording"]);
   });
 
   it("builds the table links from a set", () => {
-    expect(tableSetLinks({ flyer_url: "/f", youtube_url: "https://y", collaborators: [] } as never)).toEqual([
+    expect(
+      tableSetLinks({ flyer_url: "/f", youtube_url: "https://y", collaborators: [] } as never),
+    ).toEqual([
       { key: "youtube", href: "https://y", primary: false },
       { key: "flyer", href: "/f", primary: false },
     ]);
@@ -153,7 +199,9 @@ describe("PlaylistTable (#770)", () => {
 
   it("keeps the kebab and its menu from opening the playlist, and wires the menu actions", async () => {
     const { user, actions } = setup([plain()]);
-    await user.click(within(rowOf()).getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
+    await user.click(
+      within(rowOf()).getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+    );
     expect(actions.onClick).not.toHaveBeenCalled();
     await user.click(await screen.findByRole("menuitem", { name: /Play now/, hidden: true }));
     expect(actions.onPlay).toHaveBeenCalledTimes(1);
@@ -162,10 +210,16 @@ describe("PlaylistTable (#770)", () => {
 
   it("offers Turn into a set only for a plain playlist", async () => {
     const { user } = setup([plain(), setOf()]);
-    await user.click(within(rowOf(0)).getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
-    expect(await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true })).toBeTruthy();
+    await user.click(
+      within(rowOf(0)).getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }),
+    ).toBeTruthy();
     await user.keyboard("{Escape}");
-    await user.click(within(rowOf(1)).getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
+    await user.click(
+      within(rowOf(1)).getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+    );
     await screen.findByRole("menuitem", { name: /Play now/, hidden: true });
     expect(screen.queryByRole("menuitem", { name: /Turn into a set/, hidden: true })).toBeNull();
   });

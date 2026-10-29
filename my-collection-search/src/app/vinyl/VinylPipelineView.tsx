@@ -76,7 +76,9 @@ function DetectionRow({ detection }: { detection: DetectionWindow }) {
         <Table.Cell color="fg.muted">no match</Table.Cell>
         <Table.Cell>—</Table.Cell>
         <Table.Cell>—</Table.Cell>
-        <Table.Cell whiteSpace="nowrap" color="fg.muted">{formatLevel(detection.level_dbfs)}</Table.Cell>
+        <Table.Cell whiteSpace="nowrap" color="fg.muted">
+          {formatLevel(detection.level_dbfs)}
+        </Table.Cell>
       </Table.Row>
     );
   }
@@ -90,9 +92,13 @@ function DetectionRow({ detection }: { detection: DetectionWindow }) {
       <Table.Cell maxW="320px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
         {detection.artist ?? "?"} — {detection.title ?? "?"}
       </Table.Cell>
-      <Table.Cell color={color} fontWeight="medium">{confidence.toFixed(3)}</Table.Cell>
+      <Table.Cell color={color} fontWeight="medium">
+        {confidence.toFixed(3)}
+      </Table.Cell>
       <Table.Cell whiteSpace="nowrap">{formatOffset(detection.offset_seconds)}</Table.Cell>
-      <Table.Cell whiteSpace="nowrap" color="fg.muted">{formatLevel(detection.level_dbfs)}</Table.Cell>
+      <Table.Cell whiteSpace="nowrap" color="fg.muted">
+        {formatLevel(detection.level_dbfs)}
+      </Table.Cell>
     </Table.Row>
   );
 }
@@ -105,11 +111,11 @@ export default function VinylPipelineView() {
 
   const stats = useIngestStatsQuery(
     { minutes, source_id: source },
-    { refetchInterval: live ? 15000 : false }
+    { refetchInterval: live ? 15000 : false },
   );
   const detections = useRecentDetectionsQuery(
     { source_id: source, limit: 30 },
-    { refetchInterval: live ? 5000 : false }
+    { refetchInterval: live ? 5000 : false },
   );
   const retention = useIngestRetentionQuery({ refetchInterval: live ? 30000 : false });
 
@@ -189,7 +195,9 @@ export default function VinylPipelineView() {
 
         {/* Index status — prominent, because zero here means nothing can ever match. */}
         {stats.isLoading ? (
-          <Flex justify="center" py={4}><Spinner size="lg" /></Flex>
+          <Flex justify="center" py={4}>
+            <Spinner size="lg" />
+          </Flex>
         ) : s ? (
           <Card.Root
             variant="outline"
@@ -231,19 +239,31 @@ export default function VinylPipelineView() {
               {(["received", "processing", "processed", "failed"] as const).map((status) => (
                 <Card.Root key={status}>
                   <Card.Body textAlign="center" py={4}>
-                    <Text fontSize="2xl" fontWeight="bold" color={`${INGEST_STATUS_COLOR[status]}.500`}>
+                    <Text
+                      fontSize="2xl"
+                      fontWeight="bold"
+                      color={`${INGEST_STATUS_COLOR[status]}.500`}
+                    >
                       {s.ingests.by_status[status] ?? 0}
                     </Text>
-                    <Text fontSize="sm" color="fg.muted" textTransform="capitalize">{status}</Text>
+                    <Text fontSize="sm" color="fg.muted" textTransform="capitalize">
+                      {status}
+                    </Text>
                   </Card.Body>
                 </Card.Root>
               ))}
               <Card.Root>
                 <Card.Body textAlign="center" py={4}>
-                  <Text fontSize="2xl" fontWeight="bold" color={s.queue_depth === null ? "fg.muted" : undefined}>
+                  <Text
+                    fontSize="2xl"
+                    fontWeight="bold"
+                    color={s.queue_depth === null ? "fg.muted" : undefined}
+                  >
                     {s.queue_depth === null ? "?" : s.queue_depth}
                   </Text>
-                  <Text fontSize="sm" color="fg.muted">Queue depth</Text>
+                  <Text fontSize="sm" color="fg.muted">
+                    Queue depth
+                  </Text>
                 </Card.Body>
               </Card.Root>
             </SimpleGrid>
@@ -274,7 +294,9 @@ export default function VinylPipelineView() {
               <Box>
                 {s.ingests.failures.map((f) => (
                   <Flex key={f.error} gap={2} fontSize="sm" color="fg.error">
-                    <Badge colorPalette="status.missing" variant="subtle">{f.count}×</Badge>
+                    <Badge colorPalette="status.missing" variant="subtle">
+                      {f.count}×
+                    </Badge>
                     <Text>{f.error}</Text>
                   </Flex>
                 ))}
@@ -285,9 +307,13 @@ export default function VinylPipelineView() {
 
         {/* Detections timeline — the main thing you watch while a record plays. */}
         <Box>
-          <Heading size="sm" mb={2}>Recent detections</Heading>
+          <Heading size="sm" mb={2}>
+            Recent detections
+          </Heading>
           {detections.isLoading ? (
-            <Flex justify="center" py={4}><Spinner size="lg" /></Flex>
+            <Flex justify="center" py={4}>
+              <Spinner size="lg" />
+            </Flex>
           ) : rows.length === 0 ? (
             <Text color="fg.muted">No detections in this window.</Text>
           ) : (

@@ -1,0 +1,35 @@
+# Prettier also reads .gitignore, so ignored build output (.next, dist, build,
+# coverage, public/storybook, storybook-static, openapi-generated.json) is
+# skipped already. This file lists tracked files that a tool owns.
+
+# Lockfiles.
+package-lock.json
+mise.lock
+*.lock
+
+# release-please owns the changelogs and its manifest.
+CHANGELOG.md
+.release-please-manifest.json
+
+# Machine-written fixtures and frozen evaluation data.
+**/fixtures/**
+evaluations/**/*.json
+**/__snapshots__/**
+
+# Parsed by contractInventory.test.ts, which expects unpadded table cells.
+packages/groovenet-contracts/INVENTORY.md
+
+# Xcode asset catalogues.
+*.xcassets/
+
+# Vendored PostHog wizard skill.
+my-collection-search/.claude/skills/posthog-*/
+
+# Build output, listed in case a path escapes .gitignore.
+.next/
+dist/
+build/
+coverage/
+storybook-static/
+my-collection-search/public/storybook/
+openapi-generated.json

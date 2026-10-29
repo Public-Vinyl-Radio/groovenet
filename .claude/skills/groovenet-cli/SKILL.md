@@ -66,11 +66,11 @@ groovenet tracks similar-vibe <track-id> [--limit N] [--json]
 
 Pick deliberately — they answer different questions:
 
-| | use for |
-| --- | --- |
+|                    | use for                                    |
+| ------------------ | ------------------------------------------ |
 | `similar-identity` | same scene: genre, era, label, style, tags |
-| `similar-vibe` | same feel: BPM, key, mood, danceability |
-| `recommend` | both embeddings combined |
+| `similar-vibe`     | same feel: BPM, key, mood, danceability    |
+| `recommend`        | both embeddings combined                   |
 
 "Something that sounds like this" is `similar-vibe`. "More like this era or
 genre" is `similar-identity`. When unsure, `recommend`.

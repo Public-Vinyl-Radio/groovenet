@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Dialog,
-  Portal,
-  CloseButton,
-  Button,
-  Text,
-  VStack,
-  Stack,
-} from "@chakra-ui/react";
+import { Dialog, Portal, CloseButton, Button, Text, VStack, Stack } from "@chakra-ui/react";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { fetchFriends } from "@/services/internalApi/friends";
 import type { Friend } from "@/types/track";
@@ -69,7 +61,8 @@ export default function FriendSelectDialog({
             <Dialog.Body>
               <VStack align="stretch" gap={3}>
                 <Text fontSize="sm" color="fg.muted">
-                  This playlist doesn&apos;t have library information, or the library doesn&apos;t exist in your system. Please select which library these tracks belong to:
+                  This playlist doesn&apos;t have library information, or the library doesn&apos;t
+                  exist in your system. Please select which library these tracks belong to:
                 </Text>
                 {typeof trackCount === "number" && (
                   <Text fontSize="sm" color="fg.muted">

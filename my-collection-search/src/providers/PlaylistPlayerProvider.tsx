@@ -1,13 +1,6 @@
 "use client";
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { Track } from "@/types/track";
 import {
   useQueueState,
@@ -61,12 +54,9 @@ type PlaylistPlayerTimeContextValue = {
   duration: number;
 };
 
-const PlaylistPlayerContext = createContext<PlaylistPlayerContextValue | null>(
-  null
-);
+const PlaylistPlayerContext = createContext<PlaylistPlayerContextValue | null>(null);
 
-const PlaylistPlayerTimeContext =
-  createContext<PlaylistPlayerTimeContextValue | null>(null);
+const PlaylistPlayerTimeContext = createContext<PlaylistPlayerTimeContextValue | null>(null);
 
 export function PlaylistPlayerProvider({
   children,
@@ -114,13 +104,7 @@ export function PlaylistPlayerProvider({
   });
   const [volume, setVolumeState] = useState(1);
 
-  const {
-    currentTime,
-    duration,
-    pendingSeekRef,
-    seek,
-    audioElement,
-  } = useAudioEngine({
+  const { currentTime, duration, pendingSeekRef, seek, audioElement } = useAudioEngine({
     audioRef,
     playlistRef,
     currentTrackIndex,
@@ -232,7 +216,7 @@ export function PlaylistPlayerProvider({
       currentTime,
       duration,
     }),
-    [currentTime, duration]
+    [currentTime, duration],
   );
 
   useMediaSession({
@@ -263,18 +247,12 @@ export function PlaylistPlayerProvider({
 
 export function usePlaylistPlayer() {
   const ctx = useContext(PlaylistPlayerContext);
-  if (!ctx)
-    throw new Error(
-      "usePlaylistPlayer must be used within PlaylistPlayerProvider"
-    );
+  if (!ctx) throw new Error("usePlaylistPlayer must be used within PlaylistPlayerProvider");
   return ctx;
 }
 
 export function usePlaylistPlayerTime() {
   const ctx = useContext(PlaylistPlayerTimeContext);
-  if (!ctx)
-    throw new Error(
-      "usePlaylistPlayerTime must be used within PlaylistPlayerProvider"
-    );
+  if (!ctx) throw new Error("usePlaylistPlayerTime must be used within PlaylistPlayerProvider");
   return ctx;
 }

@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  Dialog,
-  Portal,
-  CloseButton,
-  Button,
-  Input,
-  Text,
-} from "@chakra-ui/react";
+import { Dialog, Portal, CloseButton, Button, Input, Text } from "@chakra-ui/react";
 
 interface NamePlaylistDialogProps {
   open: boolean;
@@ -73,11 +66,7 @@ export default function NamePlaylistDialog({
               )}
             </Dialog.Body>
             <Dialog.Footer>
-              <Button
-                onClick={handleConfirm}
-                colorPalette="accent"
-                disabled={!localName.trim()}
-              >
+              <Button onClick={handleConfirm} colorPalette="accent" disabled={!localName.trim()}>
                 {confirmLabel}
               </Button>
               <Button ml={2} variant="ghost" onClick={handleCancel}>

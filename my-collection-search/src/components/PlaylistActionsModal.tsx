@@ -4,7 +4,13 @@ import React from "react";
 import { Box, Text, chakra } from "@chakra-ui/react";
 import { FiCopy, FiPlay, FiSave } from "react-icons/fi";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
-import { Group, TileRow, overline, type ModalAction, type ModalTile } from "@/components/ui/RetroModalParts";
+import {
+  Group,
+  TileRow,
+  overline,
+  type ModalAction,
+  type ModalTile,
+} from "@/components/ui/RetroModalParts";
 
 type Props = {
   open: boolean;

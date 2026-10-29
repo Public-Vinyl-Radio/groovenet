@@ -10,7 +10,7 @@ afterEach(() => vi.clearAllMocks());
 function setup(onDelete = vi.fn().mockResolvedValue(undefined)) {
   const onEdit = vi.fn();
   const rendered = renderWithProviders(
-    <SpinActionsMenu label="A1 Blue" onEdit={onEdit} onDelete={onDelete} deleting={false} />
+    <SpinActionsMenu label="A1 Blue" onEdit={onEdit} onDelete={onDelete} deleting={false} />,
   );
   // [0] opens the phone modal, [1] the desktop menu (hidden in jsdom).
   const [sheetButton, menuButton] = screen.getAllByRole("button", {

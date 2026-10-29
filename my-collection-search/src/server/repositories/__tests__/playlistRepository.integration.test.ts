@@ -25,7 +25,9 @@ beforeAll(async () => {
   if (process.env.RUN_DB_TESTS !== "1") return;
   await cleanup();
   friendId = (
-    await dbQuery<{ id: number }>(`INSERT INTO friends (username) VALUES ($1) RETURNING id`, [USERNAME])
+    await dbQuery<{ id: number }>(`INSERT INTO friends (username) VALUES ($1) RETURNING id`, [
+      USERNAME,
+    ])
   ).rows[0].id;
   for (const name of NAMES) {
     ids[name] = (
@@ -38,13 +40,13 @@ beforeAll(async () => {
   for (const [i, thumb] of thumbs.entries()) {
     await dbQuery(
       `INSERT INTO tracks (track_id, friend_id, title, artist, username, album_thumbnail) VALUES ($1, $2, 't', 'a', $4, $3)`,
-      [`plist-t${i}`, friendId, thumb ? `/${thumb}.jpg` : null, USERNAME]
+      [`plist-t${i}`, friendId, thumb ? `/${thumb}.jpg` : null, USERNAME],
     );
   }
   for (const i of [5, 3, 1, 0, 4, 2]) {
     await dbQuery(
       `INSERT INTO playlist_tracks (playlist_id, track_id, friend_id, position) VALUES ($1, $2, $3, $4)`,
-      [ids["playlist-list-covers"], `plist-t${i}`, friendId, i]
+      [ids["playlist-list-covers"], `plist-t${i}`, friendId, i],
     );
   }
 
@@ -62,7 +64,7 @@ beforeAll(async () => {
   for (const [type, url, position] of media) {
     await dbQuery(
       `INSERT INTO live_set_media (live_set_id, media_type, url, position) VALUES ($1, $2, $3, $4)`,
-      [setId, type, url, position]
+      [setId, type, url, position],
     );
   }
 });
@@ -72,11 +74,14 @@ afterAll(async () => {
   await cleanup();
 });
 
-dbTest("returns the first four covers with art in position order, one query for all playlists", async () => {
-  const covers = await repo.listCoverUrlsByPlaylistIds(Object.values(ids));
-  expect(covers[ids["playlist-list-covers"]]).toEqual(["/a.jpg", "/c.jpg", "/d.jpg", "/e.jpg"]);
-  expect(covers[ids["playlist-list-empty"]]).toBeUndefined();
-});
+dbTest(
+  "returns the first four covers with art in position order, one query for all playlists",
+  async () => {
+    const covers = await repo.listCoverUrlsByPlaylistIds(Object.values(ids));
+    expect(covers[ids["playlist-list-covers"]]).toEqual(["/a.jpg", "/c.jpg", "/d.jpg", "/e.jpg"]);
+    expect(covers[ids["playlist-list-empty"]]).toBeUndefined();
+  },
+);
 
 dbTest("returns the first media of each type, null for types the set lacks", async () => {
   const sets = await repo.listLiveSetSummariesByPlaylistIds(Object.values(ids));

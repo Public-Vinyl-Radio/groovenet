@@ -13,7 +13,7 @@ describe("extractBpmConfidence", () => {
         bpm: 103.48,
         bpm_histogram_first_peak_weight: 0.282122910023,
         bpm_histogram_second_peak_weight: 0.0241286866367,
-      })
+      }),
     ).toBe(0.258);
   });
 
@@ -22,7 +22,7 @@ describe("extractBpmConfidence", () => {
       extractBpmConfidence({
         bpm_histogram_first_peak_weight: 0.3,
         bpm_histogram_second_peak_weight: 0.28,
-      })
+      }),
     ).toBe(0.02);
   });
 
@@ -35,7 +35,7 @@ describe("extractBpmConfidence", () => {
       extractBpmConfidence({
         bpm_histogram_first_peak_weight: 0.2,
         bpm_histogram_second_peak_weight: 0.25,
-      })
+      }),
     ).toBe(0);
   });
 
@@ -50,7 +50,7 @@ describe("extractBpmConfidence", () => {
       extractBpmConfidence({
         bpm_histogram_first_peak_weight: 0.5,
         bpm_histogram_second_peak_weight: Number.POSITIVE_INFINITY,
-      })
+      }),
     ).toBe(0.5);
   });
 });

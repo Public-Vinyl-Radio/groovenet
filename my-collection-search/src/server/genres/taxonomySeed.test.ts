@@ -13,7 +13,7 @@ describe("genre taxonomy seed", () => {
         .replace(/&/g, " and ")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
+        .replace(/^-+|-+$/g, ""),
     );
 
     expect(new Set(normalizedNames).size).toBe(entries.length);

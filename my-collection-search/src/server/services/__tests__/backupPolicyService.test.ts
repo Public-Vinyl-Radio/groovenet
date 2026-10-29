@@ -101,7 +101,7 @@ describe("BackupPolicyService.getPolicy()", () => {
     fs.writeFileSync(
       policyPath(),
       yaml.stringify({ provider: "s3-bad", retention_preset: "balanced" }),
-      "utf8"
+      "utf8",
     );
     expect(() => service.getPolicy()).toThrow("Invalid backup provider");
   });
@@ -111,7 +111,7 @@ describe("BackupPolicyService.getPolicy()", () => {
     fs.writeFileSync(
       policyPath(),
       yaml.stringify({ provider: "restic-b2", retention_preset: "forever" }),
-      "utf8"
+      "utf8",
     );
     expect(() => service.getPolicy()).toThrow("Invalid retention preset");
   });
@@ -135,7 +135,7 @@ describe("BackupPolicyService.updatePolicy()", () => {
     const second = service.updatePolicy({ enabled: true });
 
     expect(new Date(second.updated_at).getTime()).toBeGreaterThan(
-      new Date(first.updated_at).getTime()
+      new Date(first.updated_at).getTime(),
     );
   });
 
@@ -150,21 +150,21 @@ describe("BackupPolicyService.updatePolicy()", () => {
   it("throws when schedule_cron is set to a whitespace-only string", () => {
     service.getPolicy();
     expect(() => service.updatePolicy({ schedule_cron: "   " })).toThrow(
-      "schedule_cron cannot be empty"
+      "schedule_cron cannot be empty",
     );
   });
 
   it("throws when provider is invalid", () => {
     service.getPolicy();
     expect(() => service.updatePolicy({ provider: "bad-provider" as never })).toThrow(
-      "Invalid backup provider"
+      "Invalid backup provider",
     );
   });
 
   it("throws when retention_preset is invalid", () => {
     service.getPolicy();
     expect(() => service.updatePolicy({ retention_preset: "never" as never })).toThrow(
-      "Invalid retention preset"
+      "Invalid retention preset",
     );
   });
 

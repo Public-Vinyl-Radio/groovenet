@@ -52,13 +52,19 @@ describe("spin contracts", () => {
     expect(SPIN_SELECTION_MODES).toEqual(["sides", "tracks", "automatic", "playlist"]);
     expect(SPIN_PROVENANCES).toEqual(["manual", "automatic", "playlist"]);
     expect(SPIN_SELECTION_TYPES).toEqual(["side", "track"]);
-    expect(spinSessionSchema.safeParse({ ...session, selection_mode: "shuffle" }).success).toBe(false);
+    expect(spinSessionSchema.safeParse({ ...session, selection_mode: "shuffle" }).success).toBe(
+      false,
+    );
     expect(spinSessionSchema.safeParse({ ...session, provenance: "imported" }).success).toBe(false);
     expect(SPIN_MEDIA).toEqual(["vinyl", "digital"]);
     expect(spinSessionSchema.safeParse({ ...session, medium: "digital" }).success).toBe(true);
     expect(spinSessionSchema.safeParse({ ...session, medium: "cassette" }).success).toBe(false);
-    expect(spinCreateSchema.safeParse({ ...create, medium: "digital", side_keys: ["A"] }).success).toBe(true);
-    expect(spinCreateSchema.safeParse({ ...create, medium: "cassette", side_keys: ["A"] }).success).toBe(false);
+    expect(
+      spinCreateSchema.safeParse({ ...create, medium: "digital", side_keys: ["A"] }).success,
+    ).toBe(true);
+    expect(
+      spinCreateSchema.safeParse({ ...create, medium: "cassette", side_keys: ["A"] }).success,
+    ).toBe(false);
   });
 
   it("accepts playlist-made sessions and nullable optional fields", () => {
@@ -94,14 +100,15 @@ describe("spin contracts", () => {
         selections: [{ ordinal: 0, selection_type: "disc" }],
         expanded_tracks: [],
         derived,
-      }).success
+      }).success,
     ).toBe(false);
   });
 
   it("requires exactly one non-empty selection to create a spin", () => {
     expect(spinCreateSchema.safeParse({ ...create, side_keys: ["A"] }).success).toBe(true);
     expect(
-      spinCreateSchema.safeParse({ ...create, track_refs: [{ track_id: "t1", friend_id: 1 }] }).success
+      spinCreateSchema.safeParse({ ...create, track_refs: [{ track_id: "t1", friend_id: 1 }] })
+        .success,
     ).toBe(true);
 
     const neither = spinCreateSchema.safeParse(create);
@@ -113,7 +120,7 @@ describe("spin contracts", () => {
         ...create,
         side_keys: ["A"],
         track_refs: [{ track_id: "t1", friend_id: 1 }],
-      }).success
+      }).success,
     ).toBe(false);
     // An empty list beside a real one is not "both": the service rejects it.
     expect(
@@ -121,7 +128,7 @@ describe("spin contracts", () => {
         ...create,
         side_keys: [],
         track_refs: [{ track_id: "t1", friend_id: 1 }],
-      }).success
+      }).success,
     ).toBe(true);
   });
 
@@ -130,10 +137,13 @@ describe("spin contracts", () => {
     expect(spinCreateObjectSchema.safeParse({ ...create, played_at: "" }).success).toBe(false);
     expect(spinCreateObjectSchema.safeParse({ ...create, side_keys: [""] }).success).toBe(false);
     expect(
-      spinCreateObjectSchema.safeParse({ ...create, track_refs: [{ track_id: "", friend_id: 1 }] }).success
+      spinCreateObjectSchema.safeParse({ ...create, track_refs: [{ track_id: "", friend_id: 1 }] })
+        .success,
     ).toBe(false);
     expect(spinCreateObjectSchema.safeParse({ ...create, friend_id: 1.5 }).success).toBe(false);
-    expect(spinCreateObjectSchema.parse({ ...create, note: null, extra: 1 })).not.toHaveProperty("extra");
+    expect(spinCreateObjectSchema.parse({ ...create, note: null, extra: 1 })).not.toHaveProperty(
+      "extra",
+    );
   });
 
   it("requires a change, and at most one selection form, on update", () => {
@@ -165,8 +175,20 @@ describe("spin contracts", () => {
       derived,
       album: { title: "Album", artist: null, thumbnail: null },
     };
-    expect(spinListResponseSchema.parse({ items: [detail, { ...detail, album: null }], limit: 50, offset: 0 }).items).toHaveLength(2);
-    expect(spinListResponseSchema.parse({ items: [{ ...detail, album: undefined }], limit: 50, offset: 0 }).items[0].album).toBeUndefined();
+    expect(
+      spinListResponseSchema.parse({
+        items: [detail, { ...detail, album: null }],
+        limit: 50,
+        offset: 0,
+      }).items,
+    ).toHaveLength(2);
+    expect(
+      spinListResponseSchema.parse({
+        items: [{ ...detail, album: undefined }],
+        limit: 50,
+        offset: 0,
+      }).items[0].album,
+    ).toBeUndefined();
     expect(spinDeleteResponseSchema.parse({ success: true, session }).session.id).toBe(4);
 
     const top = {
@@ -180,26 +202,42 @@ describe("spin contracts", () => {
       album_snapshot: "Album",
     };
     const parsed = spinTopTracksResponseSchema.parse({
-      items: [top, { ...top, bpm: "120", key: null, styles: ["House"], hasVectors: true, track_genres: [] }],
+      items: [
+        top,
+        { ...top, bpm: "120", key: null, styles: ["House"], hasVectors: true, track_genres: [] },
+      ],
       limit: 20,
       offset: 0,
     });
     expect(parsed.items[1].bpm).toBe("120");
-    expect(spinTopTracksResponseSchema.safeParse({ items: [{ ...top, play_count: "3" }], limit: 20, offset: 0 }).success).toBe(false);
+    expect(
+      spinTopTracksResponseSchema.safeParse({
+        items: [{ ...top, play_count: "3" }],
+        limit: 20,
+        offset: 0,
+      }).success,
+    ).toBe(false);
   });
 
   it("validates the aggregate request and result", () => {
-    expect(spinAggregateRequestSchema.safeParse({ since: "2026-10-01T00:00:00Z" }).success).toBe(true);
-    expect(spinAggregateRequestSchema.safeParse({ since: "2026-10-01T00:00:00Z", source_id: "pi" }).success).toBe(true);
+    expect(spinAggregateRequestSchema.safeParse({ since: "2026-10-01T00:00:00Z" }).success).toBe(
+      true,
+    );
+    expect(
+      spinAggregateRequestSchema.safeParse({ since: "2026-10-01T00:00:00Z", source_id: "pi" })
+        .success,
+    ).toBe(true);
     expect(spinAggregateRequestSchema.safeParse({ since: "" }).success).toBe(false);
-    expect(spinAggregateRequestSchema.safeParse({ since: "2026-10-01", source_id: "" }).success).toBe(false);
+    expect(
+      spinAggregateRequestSchema.safeParse({ since: "2026-10-01", source_id: "" }).success,
+    ).toBe(false);
     expect(
       spinAggregateResultSchema.parse({
         since: "2026-10-01T00:00:00Z",
         created: 2,
         skipped: 1,
         sources: [{ source_id: "pi", created: 2, skipped: 1 }],
-      }).sources
+      }).sources,
     ).toHaveLength(1);
   });
 
@@ -207,18 +245,37 @@ describe("spin contracts", () => {
     expect(spinListQuerySchema.parse({ friend_id: 1 })).toEqual({ friend_id: 1 });
     expect(spinListQuerySchema.safeParse({ friend_id: 1, limit: -1 }).success).toBe(false);
     expect(spinListQuerySchema.safeParse({ friend_id: 1, offset: 0.5 }).success).toBe(false);
-    expect(spinTopTracksQuerySchema.parse({ friend_id: 1, release_id: "r1", limit: 5, offset: 0 }).limit).toBe(5);
+    expect(
+      spinTopTracksQuerySchema.parse({ friend_id: 1, release_id: "r1", limit: 5, offset: 0 }).limit,
+    ).toBe(5);
     expect(spinTopTracksQuerySchema.safeParse({ release_id: "r1" }).success).toBe(false);
   });
 
   it("publishes enums, responses and input-shaped request bodies for OpenAPI", () => {
-    expect(spinJsonSchemas.SpinSelectionMode.enum).toEqual(["sides", "tracks", "automatic", "playlist"]);
+    expect(spinJsonSchemas.SpinSelectionMode.enum).toEqual([
+      "sides",
+      "tracks",
+      "automatic",
+      "playlist",
+    ]);
     expect(spinJsonSchemas.SpinProvenance.enum).toEqual(["manual", "automatic", "playlist"]);
     expect(spinJsonSchemas.SpinSelectionType.enum).toEqual(["side", "track"]);
-    expect(spinJsonSchemas.SpinSession.properties.selection_mode.enum).toEqual(["sides", "tracks", "automatic", "playlist"]);
+    expect(spinJsonSchemas.SpinSession.properties.selection_mode.enum).toEqual([
+      "sides",
+      "tracks",
+      "automatic",
+      "playlist",
+    ]);
     expect(spinJsonSchemas.SpinSession.properties.played_at.format).toBe("date-time");
     expect(spinJsonSchemas.SpinSession.required).toEqual(
-      expect.arrayContaining(["id", "friend_id", "release_id", "medium", "selection_mode", "played_at"])
+      expect.arrayContaining([
+        "id",
+        "friend_id",
+        "release_id",
+        "medium",
+        "selection_mode",
+        "played_at",
+      ]),
     );
     expect(spinJsonSchemas.SpinListResponse.required).toEqual(["items", "limit", "offset"]);
     expect(spinJsonSchemas.SpinTopTracksResponse.required).toEqual(["items", "limit", "offset"]);
@@ -227,7 +284,11 @@ describe("spin contracts", () => {
     for (const name of ["SpinCreateInput", "SpinUpdateInput", "SpinAggregateRequest"] as const) {
       expect(spinJsonSchemas[name].additionalProperties).not.toBe(false);
     }
-    expect(spinJsonSchemas.SpinCreateInput.required).toEqual(["friend_id", "release_id", "played_at"]);
+    expect(spinJsonSchemas.SpinCreateInput.required).toEqual([
+      "friend_id",
+      "release_id",
+      "played_at",
+    ]);
     expect(spinJsonSchemas.SpinCreateInput.properties.played_at.format).toBe("date-time");
     expect(spinJsonSchemas.SpinUpdateInput.required).toEqual(["friend_id"]);
     expect(spinJsonSchemas.SpinUpdateInput.properties.side_keys.minItems).toBe(1);

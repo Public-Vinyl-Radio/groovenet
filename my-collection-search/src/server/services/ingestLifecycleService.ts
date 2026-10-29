@@ -73,11 +73,9 @@ export class IngestLifecycleService {
    * worker that lost the race still knows what it is holding.
    */
   async claim(ingestId: string): Promise<AudioIngestRow> {
-    const claimed = await audioIngestRepository.transitionStatus(
-      ingestId,
-      "processing",
-      ["received"]
-    );
+    const claimed = await audioIngestRepository.transitionStatus(ingestId, "processing", [
+      "received",
+    ]);
     if (claimed) {
       logIngestEvent("ingest.claimed", {
         ...identify(claimed),
@@ -92,7 +90,7 @@ export class IngestLifecycleService {
       logIngestEvent(
         "ingest.claim_unknown",
         { ingest_id: ingestId, stage: "claim", error: "no such ingest" },
-        "warn"
+        "warn",
       );
       throw new IngestNotFound(ingestId);
     }
@@ -101,7 +99,7 @@ export class IngestLifecycleService {
     logIngestEvent(
       "ingest.claim_ignored",
       { ...identify(existing), status: existing.status, stage: "claim" },
-      "warn"
+      "warn",
     );
     return existing;
   }
@@ -120,7 +118,7 @@ export class IngestLifecycleService {
       logIngestEvent(
         "ingest.report_unknown",
         { ingest_id: report.ingest_id, stage: "report", error: "no such ingest" },
-        "warn"
+        "warn",
       );
       throw new IngestNotFound(report.ingest_id);
     }
@@ -133,7 +131,7 @@ export class IngestLifecycleService {
       if (report.candidates.length > 0) {
         await this.triggerAggregation(
           ingest.source_id,
-          report.window_start_at ?? ingest.captured_at ?? null
+          report.window_start_at ?? ingest.captured_at ?? null,
         );
       }
     }
@@ -142,7 +140,7 @@ export class IngestLifecycleService {
       report.ingest_id,
       report.status,
       ["received", "processing"],
-      report.error ?? null
+      report.error ?? null,
     );
 
     // Terminal either way: the audio has served its purpose, and a file kept
@@ -162,7 +160,7 @@ export class IngestLifecycleService {
   private logTerminal(
     ingest: AudioIngestRow,
     report: IngestResultReport,
-    transitioned: boolean
+    transitioned: boolean,
   ): void {
     const failed = report.status === "failed";
     const top = report.candidates[0];
@@ -191,7 +189,7 @@ export class IngestLifecycleService {
         processing_ms: msSince(ingest.received_at),
         latency_ms: msSince(report.window_start_at ?? ingest.captured_at),
       },
-      failed ? "error" : "info"
+      failed ? "error" : "info",
     );
   }
 
@@ -203,7 +201,7 @@ export class IngestLifecycleService {
    */
   private async recordDetections(
     ingest: AudioIngestRow,
-    report: IngestResultReport
+    report: IngestResultReport,
   ): Promise<void> {
     const windowStart = report.window_start_at ?? ingest.captured_at ?? null;
     const shared = {
@@ -247,7 +245,11 @@ export class IngestLifecycleService {
    * awaited here nor allowed to throw — `observe` swallows and logs its own
    * errors, and this `catch` is only a backstop.
    */
-  private updateNowPlaying(ingest: AudioIngestRow, report: IngestResultReport, windowStart: Date | string | null): void {
+  private updateNowPlaying(
+    ingest: AudioIngestRow,
+    report: IngestResultReport,
+    windowStart: Date | string | null,
+  ): void {
     const top = report.candidates[0] ?? null;
     const window = {
       at: windowStart ? new Date(windowStart).getTime() : null,
@@ -270,7 +272,7 @@ export class IngestLifecycleService {
    */
   private async triggerAggregation(
     sourceId: string,
-    capturedAt: Date | string | null
+    capturedAt: Date | string | null,
   ): Promise<void> {
     try {
       // Look back from when the window was *captured*, not from now. A
@@ -330,7 +332,7 @@ export class IngestLifecycleService {
         ingest.id,
         "failed",
         [ingest.status],
-        `stalled: ${reason}`
+        `stalled: ${reason}`,
       );
       if (!failed) continue;
 
@@ -350,7 +352,7 @@ export class IngestLifecycleService {
           captured_at: iso(ingest.captured_at),
           processing_ms: msSince(ingest.received_at, now),
         },
-        "error"
+        "error",
       );
     }
 
@@ -371,7 +373,7 @@ export async function reapTick(now: number = Date.now()): Promise<void> {
     if (summary.failed > 0) {
       console.log(
         `[ingest-reaper] failed ${summary.failed} stalled ingest(s), ` +
-          `${summary.neverClaimed} never claimed`
+          `${summary.neverClaimed} never claimed`,
       );
     }
   } catch (error) {

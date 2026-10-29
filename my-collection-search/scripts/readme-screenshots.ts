@@ -47,11 +47,14 @@ const routes = [
   { name: "enrich", path: "/enrich" },
 ] as const;
 
-const requestedRoutes = process.env.SCREENSHOT_ROUTES?.split(",").map((name) => name.trim()).filter(Boolean);
+const requestedRoutes = process.env.SCREENSHOT_ROUTES?.split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
 const activeRoutes = requestedRoutes
   ? routes.filter((route) => requestedRoutes.includes(route.name))
   : routes;
-const unknownRoutes = requestedRoutes?.filter((name) => !routes.some((route) => route.name === name)) ?? [];
+const unknownRoutes =
+  requestedRoutes?.filter((name) => !routes.some((route) => route.name === name)) ?? [];
 
 if (unknownRoutes.length > 0) {
   throw new Error(`Unknown SCREENSHOT_ROUTES value(s): ${unknownRoutes.join(", ")}.`);

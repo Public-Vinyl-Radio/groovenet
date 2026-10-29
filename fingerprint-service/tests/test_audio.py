@@ -44,9 +44,7 @@ class TestDecodeToPcm:
             decode_to_pcm(str(ingest_dir / "gone.wav"))
 
     def test_raises_when_ffmpeg_fails(self, wav_file, monkeypatch):
-        monkeypatch.setattr(
-            audio, "_run_ffmpeg", lambda cmd, timeout: completed(1, stderr=b"Invalid data")
-        )
+        monkeypatch.setattr(audio, "_run_ffmpeg", lambda cmd, timeout: completed(1, stderr=b"Invalid data"))
         with pytest.raises(AudioDecodeError, match="exited 1: Invalid data"):
             decode_to_pcm(wav_file())
 
@@ -55,9 +53,7 @@ class TestDecodeToPcm:
         with pytest.raises(AudioDecodeError, match="decoded no audio"):
             decode_to_pcm(wav_file())
 
-    def test_warns_but_succeeds_when_ffmpeg_reports_recoverable_damage(
-        self, wav_file, monkeypatch, caplog
-    ):
+    def test_warns_but_succeeds_when_ffmpeg_reports_recoverable_damage(self, wav_file, monkeypatch, caplog):
         monkeypatch.setattr(
             audio,
             "_run_ffmpeg",

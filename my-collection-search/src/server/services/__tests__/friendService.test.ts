@@ -54,9 +54,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mockGetManifestPath.mockReturnValue("/exports/alice.json");
   mockGetManifestReleaseIds.mockReturnValue([]);
-  mockGetReleasePath.mockImplementation(
-    (u: string, id: string) => `/exports/${u}_${id}.json`
-  );
+  mockGetReleasePath.mockImplementation((u: string, id: string) => `/exports/${u}_${id}.json`);
   mockExistsSync.mockReturnValue(true);
   mockReaddirSync.mockReturnValue([]);
 });

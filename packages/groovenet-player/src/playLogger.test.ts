@@ -8,7 +8,13 @@ const FRIEND = 7;
 
 const entry = (id: string, overrides: Partial<Track> = {}): QueueEntry => ({
   id,
-  track: { track_id: `t-${id}`, friend_id: FRIEND, release_id: "r1", title: id, ...overrides } as unknown as Track,
+  track: {
+    track_id: `t-${id}`,
+    friend_id: FRIEND,
+    release_id: "r1",
+    title: id,
+    ...overrides,
+  } as unknown as Track,
 });
 
 class FakeSource extends EventEmitter {
@@ -28,11 +34,22 @@ class FakeSource extends EventEmitter {
   }
 
   snap(position: number, status: PlaybackSnapshot["status"]): PlaybackSnapshot {
-    return { status, current: this.current, queue: [], position, duration: this.duration, volume: 100, error: null };
+    return {
+      status,
+      current: this.current,
+      queue: [],
+      position,
+      duration: this.duration,
+      volume: 100,
+      error: null,
+    };
   }
 }
 
-function setup(logPlay: (play: LoggedPlay) => Promise<void> = async () => undefined, extra: { onError?: () => void } = {}) {
+function setup(
+  logPlay: (play: LoggedPlay) => Promise<void> = async () => undefined,
+  extra: { onError?: () => void } = {},
+) {
   const source = new FakeSource();
   let clock = 1_000_000;
   const logger = new PlayLogger({
@@ -44,7 +61,13 @@ function setup(logPlay: (play: LoggedPlay) => Promise<void> = async () => undefi
     ...extra,
   });
   logger.start();
-  return { source, logger, advanceClock: (ms: number) => { clock += ms; } };
+  return {
+    source,
+    logger,
+    advanceClock: (ms: number) => {
+      clock += ms;
+    },
+  };
 }
 
 describe("PlayLogger", () => {
@@ -57,7 +80,11 @@ describe("PlayLogger", () => {
     expect(logPlay).not.toHaveBeenCalled();
     source.tick(100, 150);
     expect(logPlay).toHaveBeenCalledTimes(1);
-    expect(logPlay).toHaveBeenCalledWith({ track: a.track, startedAt: new Date(1_000_000), listened: 100 });
+    expect(logPlay).toHaveBeenCalledWith({
+      track: a.track,
+      startedAt: new Date(1_000_000),
+      listened: 100,
+    });
   });
 
   it("does not log a skip before the threshold", () => {
@@ -188,7 +215,8 @@ describe("PlayLogger", () => {
   });
 
   it("retries after a failure once the delay has passed, then stops", async () => {
-    const logPlay = vi.fn<(play: LoggedPlay) => Promise<void>>()
+    const logPlay = vi
+      .fn<(play: LoggedPlay) => Promise<void>>()
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValue(undefined);
     const onError = vi.fn();
@@ -207,7 +235,9 @@ describe("PlayLogger", () => {
   });
 
   it("tolerates a failure with no error handler", async () => {
-    const logPlay = vi.fn(async () => { throw new Error("offline"); });
+    const logPlay = vi.fn(async () => {
+      throw new Error("offline");
+    });
     const { source } = setup(logPlay);
     source.start(entry("a"));
     source.tick(1, 100);
@@ -217,7 +247,11 @@ describe("PlayLogger", () => {
   it("works with the real clock and default retry delay", () => {
     const source = new FakeSource();
     const logPlay = vi.fn(async () => undefined);
-    new PlayLogger({ source: source as unknown as PlayEventSource, logPlay, friendId: FRIEND }).start();
+    new PlayLogger({
+      source: source as unknown as PlayEventSource,
+      logPlay,
+      friendId: FRIEND,
+    }).start();
     source.start(entry("a"));
     source.tick(1, 100);
     expect(logPlay).toHaveBeenCalledTimes(1);

@@ -6,7 +6,8 @@ const dbQuery = vi.hoisted(() => vi.fn());
 const clientQuery = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/serverDb", () => ({
   dbQuery,
-  withDbTransaction: (fn: (client: { query: typeof clientQuery }) => unknown) => fn({ query: clientQuery }),
+  withDbTransaction: (fn: (client: { query: typeof clientQuery }) => unknown) =>
+    fn({ query: clientQuery }),
 }));
 
 describe("GenreSimilarityRepository", () => {
@@ -16,14 +17,22 @@ describe("GenreSimilarityRepository", () => {
     it("loads pairs, per-genre album counts and the collection total with separate pooled queries", async () => {
       dbQuery
         .mockResolvedValueOnce({ rows: [{ genre_id_a: "a", genre_id_b: "b", shared_albums: 4 }] })
-        .mockResolvedValueOnce({ rows: [{ genre_id: "a", album_count: 10 }, { genre_id: "b", album_count: 6 }] })
+        .mockResolvedValueOnce({
+          rows: [
+            { genre_id: "a", album_count: 10 },
+            { genre_id: "b", album_count: 6 },
+          ],
+        })
         .mockResolvedValueOnce({ rows: [{ total: 50 }] });
 
       const result = await new GenreSimilarityRepository().loadCoOccurrence();
 
       expect(result).toEqual({
         pairs: [{ genre_id_a: "a", genre_id_b: "b", shared_albums: 4 }],
-        albumCounts: [{ genre_id: "a", album_count: 10 }, { genre_id: "b", album_count: 6 }],
+        albumCounts: [
+          { genre_id: "a", album_count: 10 },
+          { genre_id: "b", album_count: 6 },
+        ],
         totalAlbums: 50,
       });
       expect(dbQuery).toHaveBeenCalledTimes(3);
@@ -79,13 +88,21 @@ describe("GenreSimilarityRepository", () => {
     it("loads the whole similarity table and every genre's parent", async () => {
       dbQuery
         .mockResolvedValueOnce({ rows: [{ genre_id: "a", related_genre_id: "b", score: 1.2 }] })
-        .mockResolvedValueOnce({ rows: [{ id: "a", parent_id: null }, { id: "b", parent_id: "a" }] });
+        .mockResolvedValueOnce({
+          rows: [
+            { id: "a", parent_id: null },
+            { id: "b", parent_id: "a" },
+          ],
+        });
 
       const result = await new GenreSimilarityRepository().loadOverlapData();
 
       expect(result).toEqual({
         pairs: [{ genre_id: "a", related_genre_id: "b", score: 1.2 }],
-        taxonomy: [{ id: "a", parent_id: null }, { id: "b", parent_id: "a" }],
+        taxonomy: [
+          { id: "a", parent_id: null },
+          { id: "b", parent_id: "a" },
+        ],
       });
       expect(dbQuery).toHaveBeenCalledTimes(2);
       expect(dbQuery.mock.calls[0][0]).toContain("FROM genre_similarity");
@@ -102,7 +119,10 @@ describe("GenreSimilarityRepository", () => {
       const result = await new GenreSimilarityRepository().topForGenre("a", 20);
 
       expect(result).toEqual([{ related_genre_id: "b", score: 1.2, signals: { npmi: 0.3 } }]);
-      expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("ORDER BY score DESC"), ["a", 20]);
+      expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("ORDER BY score DESC"), [
+        "a",
+        20,
+      ]);
     });
   });
 });

@@ -1,4 +1,5 @@
 """Set derivation: a whole recording in, one match per window out (#282)."""
+
 import math
 import struct
 import wave

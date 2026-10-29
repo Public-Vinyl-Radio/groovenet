@@ -22,9 +22,11 @@ Never keep parallel authoritative copies of the same `Track` or `Album` entity i
 2. UI renders `Track`/`Album` entity fields from Zustand selectors/hooks.
 3. Mutations update Zustand entities directly on success (and optimistic paths when needed).
 4. React Query cache writes (`setQueryData`/`setQueriesData`) are allowed only for:
-  - non-entity metadata
-  - ID/reference lists
-  - pagination/query control state
+
+- non-entity metadata
+- ID/reference lists
+- pagination/query control state
+
 5. Prefer targeted `invalidateQueries` for refetching server-backed lists after mutations.
 
 ## Hydration Semantics

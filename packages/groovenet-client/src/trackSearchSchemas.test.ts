@@ -4,16 +4,41 @@ import { trackSearchGetQuerySchema } from "./schemas.js";
 describe("trackSearchGetQuerySchema (copy of the app's)", () => {
   it("parses mode and the #412 filters from query-string values", () => {
     expect(
-      trackSearchGetQuerySchema.parse({ q: "house", mode: "hybrid", bpm_min: "120", bpm_max: 126.5, key: " A minor ", star_rating: "4" })
-    ).toEqual({ q: "house", limit: 20, offset: 0, mode: "hybrid", bpm_min: 120, bpm_max: 126.5, key: "A minor", star_rating: 4 });
+      trackSearchGetQuerySchema.parse({
+        q: "house",
+        mode: "hybrid",
+        bpm_min: "120",
+        bpm_max: 126.5,
+        key: " A minor ",
+        star_rating: "4",
+      }),
+    ).toEqual({
+      q: "house",
+      limit: 20,
+      offset: 0,
+      mode: "hybrid",
+      bpm_min: 120,
+      bpm_max: 126.5,
+      key: "A minor",
+      star_rating: 4,
+    });
   });
 
   it("reads one genre or several (#375)", () => {
     expect(trackSearchGetQuerySchema.parse({ genre: " cumbia " }).genre).toEqual(["cumbia"]);
-    expect(trackSearchGetQuerySchema.parse({ genre: ["latin", "jazz"] }).genre).toEqual(["latin", "jazz"]);
+    expect(trackSearchGetQuerySchema.parse({ genre: ["latin", "jazz"] }).genre).toEqual([
+      "latin",
+      "jazz",
+    ]);
   });
 
-  it.each([{ bpm_min: "" }, { genre: [""] }, { bpm_min: "fast" }, { star_rating: "6" }, { mode: "vibes" }])("rejects %j", (input) => {
+  it.each([
+    { bpm_min: "" },
+    { genre: [""] },
+    { bpm_min: "fast" },
+    { star_rating: "6" },
+    { mode: "vibes" },
+  ])("rejects %j", (input) => {
     expect(trackSearchGetQuerySchema.safeParse(input).success).toBe(false);
   });
 });

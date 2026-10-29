@@ -8,9 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const lifecycle = vi.hoisted(() => ({ claim: vi.fn(), report: vi.fn() }));
 vi.mock("@/server/services/ingestLifecycleService", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@/server/services/ingestLifecycleService")
-  >();
+  const actual = await importOriginal<typeof import("@/server/services/ingestLifecycleService")>();
   return { ...actual, ingestLifecycleService: lifecycle };
 });
 
@@ -110,12 +108,10 @@ describe("POST /api/audio/ingest/[id]/result", () => {
     const res = await result(
       resultRequest(
         validReport({
-          candidates: [
-            { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
-          ],
-        })
+          candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 }],
+        }),
       ),
-      params()
+      params(),
     );
 
     expect((await res.json()).detections).toBe(1);
@@ -126,9 +122,9 @@ describe("POST /api/audio/ingest/[id]/result", () => {
 
     const res = await result(
       resultRequest(
-        validReport({ status: "failed", error: "decode failed", error_stage: "decode" })
+        validReport({ status: "failed", error: "decode failed", error_stage: "decode" }),
       ),
-      params()
+      params(),
     );
 
     expect(res.status).toBe(200);
@@ -145,7 +141,7 @@ describe("POST /api/audio/ingest/[id]/result", () => {
     // honouring — otherwise one worker could close out another's chunk.
     await result(
       resultRequest(validReport({ ingest_id: "someone-elses-ingest" })),
-      params("ingest-1")
+      params("ingest-1"),
     );
 
     expect(lifecycle.report.mock.calls[0][0].ingest_id).toBe("ingest-1");
@@ -181,7 +177,7 @@ describe("POST /api/audio/ingest/[id]/result", () => {
   it("400s a malformed candidate", async () => {
     const res = await result(
       resultRequest(validReport({ candidates: [{ track_id: "t1" }] })),
-      params()
+      params(),
     );
 
     expect(res.status).toBe(400);

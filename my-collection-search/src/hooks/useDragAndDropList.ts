@@ -1,5 +1,5 @@
-import React from 'react';
-import { DropResult } from '@hello-pangea/dnd';
+import React from "react";
+import { DropResult } from "@hello-pangea/dnd";
 
 /**
  * Shared hook for drag-and-drop list operations
@@ -14,17 +14,14 @@ export function useDragAndDropList(moveTrack: (fromIndex: number, toIndex: numbe
       if (!destination) return;
 
       // Dropped in the same position
-      if (
-        destination.droppableId === source.droppableId &&
-        destination.index === source.index
-      ) {
+      if (destination.droppableId === source.droppableId && destination.index === source.index) {
         return;
       }
 
       // Perform the move operation
       moveTrack(source.index, destination.index);
     },
-    [moveTrack]
+    [moveTrack],
   );
 
   return { onDragEnd };

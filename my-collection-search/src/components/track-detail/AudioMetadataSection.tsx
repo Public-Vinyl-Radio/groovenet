@@ -1,6 +1,17 @@
 "use client";
 
-import { Badge, Box, Button, Flex, Heading, HStack, Image, Skeleton, Text, VStack } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  Heading,
+  HStack,
+  Image,
+  Skeleton,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackAudioMetadataResponse } from "@/services/internalApi/tracks";
 
@@ -33,9 +44,7 @@ export default function AudioMetadataSection({
         </VStack>
       ) : query.error ? (
         <Text color="fg.error">
-          {query.error instanceof Error
-            ? query.error.message
-            : "Failed to load audio metadata"}
+          {query.error instanceof Error ? query.error.message : "Failed to load audio metadata"}
         </Text>
       ) : query.data ? (
         <VStack align="stretch" gap={3}>

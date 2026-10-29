@@ -51,8 +51,7 @@ export function useAlbumArtwork(releaseId: string, friendId: number, enabled = t
   });
 
   const applyMutation = useMutation({
-    mutationFn: (source: AlbumArtworkApplySource) =>
-      applyAlbumArtwork(releaseId, friendId, source),
+    mutationFn: (source: AlbumArtworkApplySource) => applyAlbumArtwork(releaseId, friendId, source),
     onSuccess: onChanged,
   });
 

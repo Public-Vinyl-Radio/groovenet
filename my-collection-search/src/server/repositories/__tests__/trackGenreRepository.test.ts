@@ -45,7 +45,9 @@ describe("trackGenreIdsSelectSql", () => {
 
   it("resolves the alias's styles through genre_normalize, not raw strings", () => {
     const sql = trackGenreIdsSelectSql("tr");
-    expect(sql).toContain("unnest(effective_album_taxonomy_values(tr.release_id::text, tr.friend_id, 'styles', tr.styles))");
+    expect(sql).toContain(
+      "unnest(effective_album_taxonomy_values(tr.release_id::text, tr.friend_id, 'styles', tr.styles))",
+    );
     expect(sql).toContain("genre_normalize(d.name)");
   });
 
@@ -71,10 +73,9 @@ describe("hasVectorsSelectSql", () => {
 
 describe("normalizeDescriptors", () => {
   it("folds spelling, drops blanks and de-duplicates in first-seen order", () => {
-    expect(normalizeDescriptors(["Uplifting", " uplifting ", "", "Late‑Night", "late-night"])).toEqual([
-      "uplifting",
-      "late-night",
-    ]);
+    expect(
+      normalizeDescriptors(["Uplifting", " uplifting ", "", "Late‑Night", "late-night"]),
+    ).toEqual(["uplifting", "late-night"]);
   });
 });
 
@@ -82,7 +83,10 @@ describe("TrackGenreRepository.resolveGenreRefs", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("does not query for an empty list", async () => {
-    await expect(new TrackGenreRepository().resolveGenreRefs([])).resolves.toEqual({ ids: [], unknown: [] });
+    await expect(new TrackGenreRepository().resolveGenreRefs([])).resolves.toEqual({
+      ids: [],
+      unknown: [],
+    });
     expect(dbQuery).not.toHaveBeenCalled();
   });
 
@@ -129,17 +133,16 @@ describe("TrackGenreRepository.replaceTrackGenres", () => {
   it("removes links not kept and inserts the rest without relabelling existing ones", async () => {
     await new TrackGenreRepository().replaceTrackGenres("t1", 1, [CUMBIA], "manual");
 
-    expect(clientQuery).toHaveBeenNthCalledWith(1, expect.stringContaining("DELETE FROM track_genres"), [
-      "t1",
+    expect(clientQuery).toHaveBeenNthCalledWith(
       1,
-      [CUMBIA],
-    ]);
-    expect(clientQuery).toHaveBeenNthCalledWith(2, expect.stringContaining("ON CONFLICT DO NOTHING"), [
-      "t1",
-      1,
-      [CUMBIA],
-      "manual",
-    ]);
+      expect.stringContaining("DELETE FROM track_genres"),
+      ["t1", 1, [CUMBIA]],
+    );
+    expect(clientQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("ON CONFLICT DO NOTHING"),
+      ["t1", 1, [CUMBIA], "manual"],
+    );
   });
 
   it("clears every link when given none", async () => {
@@ -155,9 +158,9 @@ describe("TrackGenreRepository.listReleaseGenreCounts", () => {
     const counts = [{ name: "Cumbia", track_count: 3 }];
     dbQuery.mockResolvedValue({ rows: counts });
 
-    await expect(
-      new TrackGenreRepository().listReleaseGenreCounts("r1", 6, "t1")
-    ).resolves.toEqual(counts);
+    await expect(new TrackGenreRepository().listReleaseGenreCounts("r1", 6, "t1")).resolves.toEqual(
+      counts,
+    );
 
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toContain("t.track_id <> $3");

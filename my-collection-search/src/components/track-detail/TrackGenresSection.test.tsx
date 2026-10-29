@@ -24,7 +24,7 @@ const taxonomy = [
 function renderSection(track: Partial<Track>) {
   const fallbackTrack = { ...sampleTrack, track_id: "detail-1", friend_id: 99, ...track } as Track;
   const view = renderWithProviders(
-    <TrackGenresSection trackId="detail-1" friendId={99} fallbackTrack={fallbackTrack} />
+    <TrackGenresSection trackId="detail-1" friendId={99} fallbackTrack={fallbackTrack} />,
   );
   view.queryClient.setQueryData(queryKeys.genreTree(), taxonomy);
   return view;
@@ -33,18 +33,22 @@ function renderSection(track: Partial<Track>) {
 describe("TrackGenresSection", () => {
   it("links the track's genres and its album's known Discogs values to track search", async () => {
     renderSection({
-      track_genres: [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" }],
+      track_genres: [
+        { id: "c", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" },
+      ],
       genres: ["Latin"],
       styles: ["Unmapped Style"],
     });
 
     const section = screen.getByTestId("track-genres-section");
-    expect(within(section).getByRole("link", { name: "Search tracks in Cumbia" }).getAttribute("href")).toBe(
-      "/?genre=cumbia"
-    );
-    expect((await within(section).findByRole("link", { name: "Search tracks in Latin" })).getAttribute("href")).toBe(
-      "/?genre=latin"
-    );
+    expect(
+      within(section).getByRole("link", { name: "Search tracks in Cumbia" }).getAttribute("href"),
+    ).toBe("/?genre=cumbia");
+    expect(
+      (await within(section).findByRole("link", { name: "Search tracks in Latin" })).getAttribute(
+        "href",
+      ),
+    ).toBe("/?genre=latin");
     expect(within(section).getByText("Unmapped Style").closest("a")).toBeNull();
   });
 
@@ -57,7 +61,9 @@ describe("TrackGenresSection", () => {
 
   it("labels the album's values and shows each genre once", () => {
     renderSection({
-      track_genres: [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null }],
+      track_genres: [
+        { id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+      ],
       genres: ["Latin"],
       styles: ["cumbia", "Psychedelic"],
     });
@@ -75,7 +81,13 @@ describe("TrackGenresSection", () => {
 });
 
 it("shows effective album values apart from the track's own links", () => {
-  renderSection({ genres: ["Source"], styles: ["Old Style"], album_genres: [], album_styles: ["Fusion"], track_genres: [{ id: "s", name: "Salsa", slug: "salsa", parent_id: null, parent_name: null }] });
+  renderSection({
+    genres: ["Source"],
+    styles: ["Old Style"],
+    album_genres: [],
+    album_styles: ["Fusion"],
+    track_genres: [{ id: "s", name: "Salsa", slug: "salsa", parent_id: null, parent_name: null }],
+  });
   expect(screen.getByText("Fusion")).toBeTruthy();
   expect(screen.getByText("Salsa")).toBeTruthy();
   expect(screen.queryByText("Source")).toBeNull();

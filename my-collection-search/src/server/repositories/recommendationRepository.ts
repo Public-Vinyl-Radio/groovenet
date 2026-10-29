@@ -129,13 +129,13 @@ function castVector(column: string, dims: number): string {
  */
 async function withVectorScan<T>(
   ivfflatProbes: number,
-  fn: (client: PoolClient) => Promise<T>
+  fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
   return withDbTransaction(async (client) => {
     await client.query(
       `SELECT set_config('ivfflat.probes', $1, true),
               set_config('ivfflat.iterative_scan', 'relaxed_order', true)`,
-      [String(ivfflatProbes)]
+      [String(ivfflatProbes)],
     );
     return fn(client);
   });
@@ -143,39 +143,39 @@ async function withVectorScan<T>(
 
 export class RecommendationRepository {
   async findIdentitySimilar(
-    params: SimilarityParams & { seedTrackId: string; seedFriendId: number }
+    params: SimilarityParams & { seedTrackId: string; seedFriendId: number },
   ): Promise<RecommendationCandidateRow[]> {
     return this.findSimilar("identity", params);
   }
 
   async findAudioSimilar(
-    params: SimilarityParams & { seedTrackId: string; seedFriendId: number }
+    params: SimilarityParams & { seedTrackId: string; seedFriendId: number },
   ): Promise<RecommendationCandidateRow[]> {
     return this.findSimilar("audio_vibe", params);
   }
 
   async findIdentitySimilarByCentroid(
-    params: SimilarityParams & { seedTracks: SeedTrackPair[] }
+    params: SimilarityParams & { seedTracks: SeedTrackPair[] },
   ): Promise<RecommendationCandidateRow[]> {
     return this.findSimilarByCentroid("identity", params);
   }
 
   async findAudioSimilarByCentroid(
-    params: SimilarityParams & { seedTracks: SeedTrackPair[] }
+    params: SimilarityParams & { seedTracks: SeedTrackPair[] },
   ): Promise<RecommendationCandidateRow[]> {
     return this.findSimilarByCentroid("audio_vibe", params);
   }
 
   private async findSimilar(
     kind: SimilarityKind,
-    params: SimilarityParams & { seedTrackId: string; seedFriendId: number }
+    params: SimilarityParams & { seedTrackId: string; seedFriendId: number },
   ): Promise<RecommendationCandidateRow[]> {
     return withVectorScan(params.ivfflatProbes, async (client) => {
       const embeddingResult = await client.query<{ embedding: unknown }>(
         `SELECT embedding FROM track_embeddings
          WHERE track_id = $1 AND friend_id = $2 AND embedding_type = '${kind}'
            AND model = $3 AND template_version = $4`,
-        [params.seedTrackId, params.seedFriendId, params.model, params.templateVersion]
+        [params.seedTrackId, params.seedFriendId, params.model, params.templateVersion],
       );
 
       if (embeddingResult.rows.length === 0) {
@@ -215,7 +215,7 @@ export class RecommendationRepository {
         ) candidates
         ORDER BY distance
         `,
-        values
+        values,
       );
 
       return normalizeRows(result.rows);
@@ -224,18 +224,25 @@ export class RecommendationRepository {
 
   private async findSimilarByCentroid(
     kind: SimilarityKind,
-    params: SimilarityParams & { seedTracks: SeedTrackPair[] }
+    params: SimilarityParams & { seedTracks: SeedTrackPair[] },
   ): Promise<RecommendationCandidateRow[]> {
     if (params.seedTracks.length === 0) return [];
 
     return withVectorScan(params.ivfflatProbes, async (client) => {
-      const { valuesClause, params: queryParams, limitParamIndex } = buildSeedValues(
-        params.seedTracks
-      );
+      const {
+        valuesClause,
+        params: queryParams,
+        limitParamIndex,
+      } = buildSeedValues(params.seedTracks);
       const modelParamIndex = limitParamIndex + 1;
       const vector = castVector("te.embedding", params.dims);
       const seedVector = castVector("se.embedding", params.dims);
-      const values: unknown[] = [...queryParams, params.limit, params.model, params.templateVersion];
+      const values: unknown[] = [
+        ...queryParams,
+        params.limit,
+        params.model,
+        params.templateVersion,
+      ];
       const library =
         params.libraryFriendId === undefined
           ? ""
@@ -275,7 +282,7 @@ export class RecommendationRepository {
         ) candidates
         ORDER BY distance
         `,
-        values
+        values,
       );
 
       return normalizeRows(result.rows);

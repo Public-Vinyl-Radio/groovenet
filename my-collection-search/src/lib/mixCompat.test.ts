@@ -5,7 +5,10 @@ describe("describeMix", () => {
   const base = { bpm: 148, key: "A minor" };
 
   it("calls an identical key the same key", () => {
-    expect(describeMix(base, { bpm: 145, key: "A minor" })).toEqual({ bpmDelta: -3, keyRelation: "same" });
+    expect(describeMix(base, { bpm: 145, key: "A minor" })).toEqual({
+      bpmDelta: -3,
+      keyRelation: "same",
+    });
   });
 
   it.each([

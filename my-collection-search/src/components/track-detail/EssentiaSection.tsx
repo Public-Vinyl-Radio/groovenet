@@ -22,9 +22,7 @@ export default function EssentiaSection({ query }: Props) {
         </VStack>
       ) : query.error ? (
         <Text color="fg.muted">
-          {query.error instanceof Error
-            ? query.error.message
-            : "No Essentia file available yet"}
+          {query.error instanceof Error ? query.error.message : "No Essentia file available yet"}
         </Text>
       ) : query.data ? (
         <VStack align="stretch" gap={3}>

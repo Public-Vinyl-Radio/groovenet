@@ -46,10 +46,7 @@ export function useBackfillStatusMutation() {
         if (typeof fid !== "number") {
           const state = useTrackStore.getState();
           for (const t of state.tracks.values()) {
-            if (
-              t.track_id === update.track_id &&
-              typeof t.friend_id === "number"
-            ) {
+            if (t.track_id === update.track_id && typeof t.friend_id === "number") {
               fid = t.friend_id;
               break;
             }

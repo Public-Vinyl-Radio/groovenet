@@ -65,9 +65,9 @@ WITH (lists = 100);
 import { retrieveCandidates } from "@/lib/recommendation-candidate-retriever";
 
 const result = await retrieveCandidates(seedTrackId, seedFriendId, {
-  limitIdentity: 200,  // Max identity candidates
-  limitAudio: 200,     // Max audio candidates
-  ivfflatProbes: 10,   // Accuracy/speed tradeoff
+  limitIdentity: 200, // Max identity candidates
+  limitAudio: 200, // Max audio candidates
+  ivfflatProbes: 10, // Accuracy/speed tradeoff
 });
 ```
 
@@ -79,9 +79,9 @@ interface RetrieveCandidatesResult {
   seedFriendId: number;
   candidates: CandidateTrack[];
   stats: {
-    identityCount: number;    // Tracks from identity query
-    audioCount: number;        // Tracks from audio query
-    unionCount: number;        // Total unique tracks
+    identityCount: number; // Tracks from identity query
+    audioCount: number; // Tracks from audio query
+    unionCount: number; // Total unique tracks
     timingMs: {
       identityQuery: number;
       audioQuery: number;
@@ -93,8 +93,8 @@ interface RetrieveCandidatesResult {
 interface CandidateTrack {
   trackId: string;
   friendId: number;
-  simIdentity: number | null;  // [0..1] or null if not in identity results
-  simAudio: number | null;     // [0..1] or null if not in audio results
+  simIdentity: number | null; // [0..1] or null if not in identity results
+  simAudio: number | null; // [0..1] or null if not in audio results
   metadata: {
     // For reranking
     bpm: number | null;
@@ -127,6 +127,7 @@ interface CandidateTrack {
 ### GET /api/recommendations/candidates
 
 **Query Parameters:**
+
 - `track_id` (required): Seed track ID
 - `friend_id` (required): Seed track's friend ID
 - `limit_identity` (optional, default 200): Max identity candidates (1-1000)
@@ -134,11 +135,13 @@ interface CandidateTrack {
 - `ivfflat_probes` (optional, default 10): Accuracy/speed tradeoff
 
 **Example:**
+
 ```bash
 curl "http://localhost:3000/api/recommendations/candidates?track_id=123&friend_id=1&limit_identity=300&limit_audio=150"
 ```
 
 **Response:**
+
 ```json
 {
   "seedTrackId": "123",
@@ -191,7 +194,7 @@ console.log(`- ${result.stats.identityCount} from identity`);
 console.log(`- ${result.stats.audioCount} from audio`);
 
 // Show top 5
-result.candidates.slice(0, 5).forEach(c => {
+result.candidates.slice(0, 5).forEach((c) => {
   console.log(`${c.metadata.title} - ${c.metadata.artist}`);
   console.log(`  Identity: ${c.simIdentity?.toFixed(3)}`);
   console.log(`  Audio: ${c.simAudio?.toFixed(3)}`);
@@ -208,19 +211,17 @@ const result = await retrieveCandidates("track-123", 1, {
 
 // Filter: BPM range (±5 BPM)
 const seedBpm = 128;
-const bpmMatches = result.candidates.filter(c => {
+const bpmMatches = result.candidates.filter((c) => {
   if (!c.metadata.bpm) return false;
   return Math.abs(c.metadata.bpm - seedBpm) <= 5;
 });
 
 // Filter: Same era
-const eraMatches = result.candidates.filter(c =>
-  c.metadata.eraBucket === "1990s"
-);
+const eraMatches = result.candidates.filter((c) => c.metadata.eraBucket === "1990s");
 
 // Filter: High energy
-const energetic = result.candidates.filter(c =>
-  c.metadata.energy !== null && c.metadata.energy > 0.7
+const energetic = result.candidates.filter(
+  (c) => c.metadata.energy !== null && c.metadata.energy > 0.7,
 );
 ```
 
@@ -230,8 +231,8 @@ const energetic = result.candidates.filter(c =>
 const result = await retrieveCandidates("track-123", 1);
 
 // Calculate average similarity
-const withScores = result.candidates.map(c => {
-  const scores = [c.simIdentity, c.simAudio].filter(s => s !== null);
+const withScores = result.candidates.map((c) => {
+  const scores = [c.simIdentity, c.simAudio].filter((s) => s !== null);
   const avgSimilarity = scores.reduce((sum, s) => sum + s, 0) / scores.length;
 
   return { ...c, avgSimilarity };
@@ -241,7 +242,7 @@ const withScores = result.candidates.map(c => {
 withScores.sort((a, b) => b.avgSimilarity - a.avgSimilarity);
 
 console.log("Top 10 by combined similarity:");
-withScores.slice(0, 10).forEach(c => {
+withScores.slice(0, 10).forEach((c) => {
   console.log(`${c.metadata.title} - ${c.avgSimilarity.toFixed(3)}`);
 });
 ```
@@ -326,17 +327,17 @@ The existing "Similar Tracks" feature (identity-based) can be enhanced:
 ```typescript
 // Current: Only identity similarity
 const identityResult = await fetch(
-  `/api/embeddings/similar?track_id=${trackId}&friend_id=${friendId}`
+  `/api/embeddings/similar?track_id=${trackId}&friend_id=${friendId}`,
 );
 
 // Phase 1: Multi-vector candidates
 const candidates = await fetch(
-  `/api/recommendations/candidates?track_id=${trackId}&friend_id=${friendId}`
+  `/api/recommendations/candidates?track_id=${trackId}&friend_id=${friendId}`,
 );
 
 // Phase 2 (future): Reranked recommendations
 const recommendations = await fetch(
-  `/api/recommendations/rerank?track_id=${trackId}&friend_id=${friendId}`
+  `/api/recommendations/rerank?track_id=${trackId}&friend_id=${friendId}`,
 );
 ```
 
@@ -349,7 +350,7 @@ Can be used to build smarter playlists:
 const result = await retrieveCandidates(currentTrack.track_id, currentTrack.friend_id);
 
 // Filter by BPM compatibility
-const bpmMatches = result.candidates.filter(c => {
+const bpmMatches = result.candidates.filter((c) => {
   if (!c.metadata.bpm || !currentTrack.bpm) return true;
   return Math.abs(c.metadata.bpm - currentTrack.bpm) <= 10;
 });
@@ -417,11 +418,13 @@ my-collection-search/
 ### No Candidates Returned
 
 **Possible causes:**
+
 - Seed track has no embeddings → Run backfill
 - No other tracks have embeddings → Run backfill for collection
 - Limits too low → Increase `limitIdentity` / `limitAudio`
 
 **Solution:**
+
 ```bash
 # Check if seed has embeddings
 curl "http://localhost:3000/api/recommendations/candidates?track_id=123&friend_id=1"
@@ -433,11 +436,13 @@ groovenet embeddings backfill --type identity,audio_vibe
 ### Slow Queries
 
 **Possible causes:**
+
 - Large collection (>100K tracks)
 - IVFFlat index needs tuning
 - High `ivfflatProbes` value
 
 **Solution:**
+
 ```sql
 -- Check collection size
 SELECT COUNT(*) FROM track_embeddings WHERE embedding_type = 'identity';

@@ -52,15 +52,17 @@ describe("/api/friends", () => {
     expect(track).toHaveBeenCalledWith("friend_added", {}, expect.anything());
   });
 
-  it.each([["{}"], [JSON.stringify({ username: "" })], [JSON.stringify({ username: 7 })], ["null"]])(
-    "rejects %s with the existing 400 message",
-    async (body) => {
-      const res = await post(body);
-      expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: "Missing or invalid username" });
-      expect(addFriend).not.toHaveBeenCalled();
-    }
-  );
+  it.each([
+    ["{}"],
+    [JSON.stringify({ username: "" })],
+    [JSON.stringify({ username: 7 })],
+    ["null"],
+  ])("rejects %s with the existing 400 message", async (body) => {
+    const res = await post(body);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Missing or invalid username" });
+    expect(addFriend).not.toHaveBeenCalled();
+  });
 
   it("returns 500 when the body is not JSON", async () => {
     expect((await post("not json")).status).toBe(500);

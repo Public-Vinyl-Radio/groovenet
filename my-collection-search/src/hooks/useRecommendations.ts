@@ -35,15 +35,17 @@ export function toSeeds(playlist: TrackWithEmbedding[], fallbackFriendId?: numbe
     }))
     .filter(
       (track): track is Seed =>
-        typeof track.track_id === "string" && typeof track.friend_id === "number"
+        typeof track.track_id === "string" && typeof track.friend_id === "number",
     );
-  return Array.from(new Map(seeds.map((seed) => [`${seed.track_id}:${seed.friend_id}`, seed])).values());
+  return Array.from(
+    new Map(seeds.map((seed) => [`${seed.track_id}:${seed.friend_id}`, seed])).values(),
+  );
 }
 
 async function fetchRecommendationsFromApi(
   seeds: Seed[],
   limit: number,
-  scopeOptions: RecommendationScopeOptions = {}
+  scopeOptions: RecommendationScopeOptions = {},
 ): Promise<RecommendedTrack[]> {
   const payload = await fetchRecommendationCandidates({
     tracks: seeds,
@@ -61,9 +63,7 @@ async function fetchRecommendationsFromApi(
   const refs = candidates.map((c) => ({ track_id: c.trackId, friend_id: c.friendId }));
   const hydrated = await fetchTracksByIds(refs);
 
-  const hydratedMap = new Map(
-    hydrated.map((t) => [`${t.track_id}:${t.friend_id}`, t])
-  );
+  const hydratedMap = new Map(hydrated.map((t) => [`${t.track_id}:${t.friend_id}`, t]));
 
   return candidates
     .map((candidate): RecommendedTrack | null => {
@@ -93,7 +93,7 @@ export function useRecommendations() {
         return [];
       }
     },
-    [selectedFriend]
+    [selectedFriend],
   );
 
   return getRecommendations;
@@ -102,7 +102,7 @@ export function useRecommendations() {
 export function useRecommendationsQuery(
   playlist: TrackWithEmbedding[] = [],
   limit: number = 50,
-  scopeOptions: RecommendationScopeOptions & { enabled?: boolean } = {}
+  scopeOptions: RecommendationScopeOptions & { enabled?: boolean } = {},
 ) {
   const { friend: selectedFriend } = useUsername();
   const dedupedSeeds = toSeeds(playlist, selectedFriend?.id);

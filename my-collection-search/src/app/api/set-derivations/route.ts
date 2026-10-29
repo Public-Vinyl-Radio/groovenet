@@ -23,19 +23,19 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "invalid_request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const { derivation, reused } = await setDerivationService.create(parsed.data);
     analytics.track(
       "set_derivation_started",
       { derivation_id: derivation.id, reused },
-      { request: req }
+      { request: req },
     );
     // Never echo the windows: a reused run can carry hundreds of them.
     return NextResponse.json(
       { ...derivation, windows: undefined, reused },
-      { status: reused ? 200 : 202 }
+      { status: reused ? 200 : 202 },
     );
   } catch (error) {
     if (error instanceof SetDerivationNotFound) {
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     console.error("Error creating set derivation:", err);
     return NextResponse.json(
       { error: err.message || "Failed to create derivation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

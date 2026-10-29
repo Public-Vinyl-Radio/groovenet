@@ -1,4 +1,5 @@
 """The Chromaprint binding (#278)."""
+
 import pytest
 from fingerprint_service.chromaprint_engine import (
     SECONDS_PER_VALUE,
@@ -28,9 +29,7 @@ class TestRawFingerprint:
             RawFingerprint.from_bytes(b"\x01\x02\x03")
 
     def test_reports_duration_from_the_frame_hop(self):
-        assert RawFingerprint((0,) * 100).duration_seconds == pytest.approx(
-            100 * SECONDS_PER_VALUE
-        )
+        assert RawFingerprint((0,) * 100).duration_seconds == pytest.approx(100 * SECONDS_PER_VALUE)
 
     def test_an_empty_fingerprint_is_zero_length(self):
         assert RawFingerprint(()).duration_seconds == 0
@@ -86,9 +85,7 @@ class TestFingerprintFailures:
     def test_raises_when_the_library_refuses(self, tone_pcm, monkeypatch):
         import fingerprint_service.chromaprint_engine as engine
 
-        monkeypatch.setattr(
-            engine._lib, "chromaprint_get_raw_fingerprint", lambda *a: 0
-        )
+        monkeypatch.setattr(engine._lib, "chromaprint_get_raw_fingerprint", lambda *a: 0)
         with pytest.raises(FingerprintError, match="refused to produce"):
             fingerprint_pcm(tone_pcm(20.0), 22050)
 

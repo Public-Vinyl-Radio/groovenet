@@ -42,7 +42,5 @@
       "changelog-path": "CHANGELOG.md"
     }
   },
-  "plugins": [
-    "node-workspace"
-  ]
+  "plugins": ["node-workspace"]
 }

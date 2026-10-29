@@ -35,7 +35,7 @@ vi.mock("@/lib/embeddings/config", async () => {
   const { createOpenAiEmbeddingProvider } = await import("@/lib/embeddings/openaiProvider");
   return {
     getTargetProvider: vi.fn(async () =>
-      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
+      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536),
     ),
     getTargetModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
   };
@@ -91,7 +91,7 @@ describe("hasAudioData", () => {
 
   it("returns true when only danceability is present", () => {
     expect(
-      hasAudioData({ ...mockTrack, bpm: undefined, key: undefined, danceability: "0.5" } as Track)
+      hasAudioData({ ...mockTrack, bpm: undefined, key: undefined, danceability: "0.5" } as Track),
     ).toBe(true);
   });
 
@@ -103,7 +103,7 @@ describe("hasAudioData", () => {
         key: undefined,
         danceability: undefined,
         mood_happy: 0.5,
-      } as Track)
+      } as Track),
     ).toBe(true);
   });
 
@@ -118,7 +118,7 @@ describe("hasAudioData", () => {
         mood_sad: undefined,
         mood_relaxed: undefined,
         mood_aggressive: undefined,
-      } as Track)
+      } as Track),
     ).toBe(false);
   });
 });
@@ -139,7 +139,7 @@ describe("buildAudioVibeData", () => {
   it("uses unknown for missing fields", () => {
     const unknown = buildAudioVibeData(
       { ...mockTrack, bpm: undefined, key: undefined, danceability: undefined } as Track,
-      false
+      false,
     );
     expect(unknown.bpm).toBe("unknown");
     expect(unknown.key).toBe("unknown");
@@ -229,7 +229,9 @@ describe("computeAudioVibeHash", () => {
 
   it("changes when source data changes", () => {
     const hash1 = computeAudioVibeHash(buildAudioVibeData(mockTrack, false));
-    const hash2 = computeAudioVibeHash(buildAudioVibeData({ ...mockTrack, bpm: "140" } as Track, false));
+    const hash2 = computeAudioVibeHash(
+      buildAudioVibeData({ ...mockTrack, bpm: "140" } as Track, false),
+    );
     expect(hash1).not.toBe(hash2);
   });
 
@@ -263,10 +265,18 @@ describe("audio vibe embedding persistence", () => {
       4,
       "audio_vibe",
       "text-embedding-3-small",
-      AUDIO_VIBE_TEMPLATE_VERSION
+      AUDIO_VIBE_TEMPLATE_VERSION,
     );
 
-    await storeAudioVibeEmbedding("track", 4, [0.1, 0.2], "source-hash", "vibe text", "custom-model", 2);
+    await storeAudioVibeEmbedding(
+      "track",
+      4,
+      [0.1, 0.2],
+      "source-hash",
+      "vibe text",
+      "custom-model",
+      2,
+    );
     expect(upsertTrackEmbedding).toHaveBeenCalledWith({
       trackId: "track",
       friendId: 4,
@@ -294,7 +304,9 @@ describe("generateAndStoreAudioVibeEmbedding", () => {
       mood_aggressive: undefined,
     });
 
-    await expect(generateAndStoreAudioVibeEmbedding("missing", 1)).rejects.toThrow("Track not found: missing");
+    await expect(generateAndStoreAudioVibeEmbedding("missing", 1)).rejects.toThrow(
+      "Track not found: missing",
+    );
     await expect(generateAndStoreAudioVibeEmbedding("empty", 1)).resolves.toEqual({
       updated: false,
       reason: "Track missing audio analysis data (BPM, key, mood, etc.)",
@@ -327,12 +339,14 @@ describe("generateAndStoreAudioVibeEmbedding", () => {
       input: [expect.stringContaining("BPM: 128")],
       dimensions: 1536,
     });
-    expect(upsertTrackEmbedding).toHaveBeenCalledWith(expect.objectContaining({
-      trackId: "test-123",
-      friendId: 1,
-      embedding: [0.1, 0.2, 0.3],
-      embeddingType: "audio_vibe",
-    }));
+    expect(upsertTrackEmbedding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trackId: "test-123",
+        friendId: 1,
+        embedding: [0.1, 0.2, 0.3],
+        embeddingType: "audio_vibe",
+      }),
+    );
   });
 });
 
@@ -359,6 +373,8 @@ describe("getAudioVibePreview", () => {
     });
 
     await expect(getAudioVibePreview("missing", 1)).rejects.toThrow("Track not found: missing");
-    await expect(getAudioVibePreview("empty", 1)).rejects.toThrow("Track missing audio analysis data");
+    await expect(getAudioVibePreview("empty", 1)).rejects.toThrow(
+      "Track missing audio analysis data",
+    );
   });
 });

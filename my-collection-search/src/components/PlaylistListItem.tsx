@@ -116,7 +116,15 @@ function SetStub({ set }: { set: NonNullable<Playlist["set"]> }) {
   const links = setLinks(set);
   if (!venue && links.length === 0) return null;
   return (
-    <Box data-testid="set-stub" position="relative" mt={3} pt={3} borderTopWidth="rule" borderTopStyle="dashed" borderColor="border.ink">
+    <Box
+      data-testid="set-stub"
+      position="relative"
+      mt={3}
+      pt={3}
+      borderTopWidth="rule"
+      borderTopStyle="dashed"
+      borderColor="border.ink"
+    >
       <Box data-testid="set-notch" {...PERFORATION_NOTCH} left="-21px" aria-hidden="true" />
       <Box data-testid="set-notch" {...PERFORATION_NOTCH} right="-21px" aria-hidden="true" />
       <VStack align="stretch" gap={2}>

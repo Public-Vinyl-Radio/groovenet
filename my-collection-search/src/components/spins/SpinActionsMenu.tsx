@@ -41,7 +41,12 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
               <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
                 Spin
               </Text>
-              <RetroDialogTitle fontSize="16px" lineHeight="22px" fontWeight="semibold" lineClamp={1}>
+              <RetroDialogTitle
+                fontSize="16px"
+                lineHeight="22px"
+                fontWeight="semibold"
+                lineClamp={1}
+              >
                 {label}
               </RetroDialogTitle>
             </Box>

@@ -4,21 +4,21 @@
  */
 
 export const up = (pgm) => {
-  pgm.addColumn('tracks', {
+  pgm.addColumn("tracks", {
     composer: {
-      type: 'text',
+      type: "text",
       notNull: false,
-      comment: 'Composer name(s) from audio file metadata'
-    }
+      comment: "Composer name(s) from audio file metadata",
+    },
   });
 
   // Create index for searching by composer
-  pgm.createIndex('tracks', 'composer', {
-    name: 'idx_tracks_composer'
+  pgm.createIndex("tracks", "composer", {
+    name: "idx_tracks_composer",
   });
 };
 
 export const down = (pgm) => {
-  pgm.dropIndex('tracks', 'composer', { name: 'idx_tracks_composer', ifExists: true });
-  pgm.dropColumn('tracks', 'composer');
+  pgm.dropIndex("tracks", "composer", { name: "idx_tracks_composer", ifExists: true });
+  pgm.dropColumn("tracks", "composer");
 };

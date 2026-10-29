@@ -65,14 +65,22 @@ describe("appearance", () => {
 
   it("falls back to the defaults when nothing is saved", async () => {
     repo.findAppearance.mockResolvedValueOnce(null);
-    await expect(settingsService.getAppearance()).resolves.toEqual({ palette: "sleeve", fonts: defaults, customPalette: null });
+    await expect(settingsService.getAppearance()).resolves.toEqual({
+      palette: "sleeve",
+      fonts: defaults,
+      customPalette: null,
+    });
   });
 
   it("falls back to the default for an id that is no longer registered, or belongs to another role", async () => {
     repo.findAppearance.mockResolvedValueOnce(
-      row({ palette: "retired-palette", font_display: "retired-font", font_body: "zilla-slab" })
+      row({ palette: "retired-palette", font_display: "retired-font", font_body: "zilla-slab" }),
     );
-    await expect(settingsService.getAppearance()).resolves.toEqual({ palette: "sleeve", fonts: defaults, customPalette: null });
+    await expect(settingsService.getAppearance()).resolves.toEqual({
+      palette: "sleeve",
+      fonts: defaults,
+      customPalette: null,
+    });
   });
 
   it("saves only the palette when only the palette is given", async () => {
@@ -88,7 +96,10 @@ describe("appearance", () => {
   it("saves only the fonts given, storing the default as null", async () => {
     repo.upsertAppearance.mockResolvedValueOnce(row({ font_body: "inter" }));
     await settingsService.updateAppearance({ fonts: { body: "inter", label: "default" } });
-    expect(repo.upsertAppearance).toHaveBeenCalledWith({ font_body: "inter", font_label: null }, "sleeve");
+    expect(repo.upsertAppearance).toHaveBeenCalledWith(
+      { font_body: "inter", font_label: null },
+      "sleeve",
+    );
   });
 
   describe("custom palette", () => {
@@ -115,11 +126,16 @@ describe("appearance", () => {
     });
 
     it("stores the palette as JSON and selects it in the same update", async () => {
-      repo.upsertAppearance.mockResolvedValueOnce(row({ palette: "custom", custom_palette: custom }));
-      const saved = await settingsService.updateAppearance({ palette: "custom", customPalette: custom });
+      repo.upsertAppearance.mockResolvedValueOnce(
+        row({ palette: "custom", custom_palette: custom }),
+      );
+      const saved = await settingsService.updateAppearance({
+        palette: "custom",
+        customPalette: custom,
+      });
       expect(repo.upsertAppearance).toHaveBeenCalledWith(
         { palette: "custom", custom_palette: JSON.stringify(custom) },
-        "sleeve"
+        "sleeve",
       );
       expect(saved).toMatchObject({ palette: "custom", customPalette: custom });
     });
@@ -127,7 +143,7 @@ describe("appearance", () => {
     it("refuses to select custom when none is saved", async () => {
       repo.findAppearance.mockResolvedValueOnce(row());
       await expect(settingsService.updateAppearance({ palette: "custom" })).rejects.toBeInstanceOf(
-        AppearanceRequestError
+        AppearanceRequestError,
       );
       expect(repo.upsertAppearance).not.toHaveBeenCalled();
     });
@@ -135,13 +151,15 @@ describe("appearance", () => {
     it("refuses to select custom while deleting it", async () => {
       repo.findAppearance.mockResolvedValueOnce(row({ custom_palette: custom }));
       await expect(
-        settingsService.updateAppearance({ palette: "custom", customPalette: null })
+        settingsService.updateAppearance({ palette: "custom", customPalette: null }),
       ).rejects.toBeInstanceOf(AppearanceRequestError);
     });
 
     it("selects an already saved custom palette", async () => {
       repo.findAppearance.mockResolvedValueOnce(row({ custom_palette: custom }));
-      repo.upsertAppearance.mockResolvedValueOnce(row({ palette: "custom", custom_palette: custom }));
+      repo.upsertAppearance.mockResolvedValueOnce(
+        row({ palette: "custom", custom_palette: custom }),
+      );
       await settingsService.updateAppearance({ palette: "custom" });
       expect(repo.upsertAppearance).toHaveBeenCalledWith({ palette: "custom" }, "sleeve");
     });
@@ -152,7 +170,7 @@ describe("appearance", () => {
       await settingsService.updateAppearance({ customPalette: null });
       expect(repo.upsertAppearance).toHaveBeenCalledWith(
         { custom_palette: null, palette: "sleeve" },
-        "sleeve"
+        "sleeve",
       );
     });
 
@@ -233,16 +251,24 @@ describe("SettingsService — suggestion scope", () => {
 
   it("refuses a library that doesn't exist", async () => {
     mockFindById.mockResolvedValueOnce(null);
-    await expect(settingsService.updateRecommendationSettings(99, "all")).rejects.toThrow(/does not exist/);
+    await expect(settingsService.updateRecommendationSettings(99, "all")).rejects.toThrow(
+      /does not exist/,
+    );
     expect(repo.upsertRecommendationScope).not.toHaveBeenCalled();
   });
 
   it("resolves a request's scope from the saved setting when it names none", async () => {
     repo.findRecommendationScope.mockResolvedValueOnce(null);
-    await expect(settingsService.resolveRecommendationScope(4)).resolves.toEqual({ scope: "library", libraryFriendId: 4 });
+    await expect(settingsService.resolveRecommendationScope(4)).resolves.toEqual({
+      scope: "library",
+      libraryFriendId: 4,
+    });
 
     repo.findRecommendationScope.mockResolvedValueOnce("all");
-    await expect(settingsService.resolveRecommendationScope(4)).resolves.toEqual({ scope: "all", libraryFriendId: null });
+    await expect(settingsService.resolveRecommendationScope(4)).resolves.toEqual({
+      scope: "all",
+      libraryFriendId: null,
+    });
   });
 
   it("lets a request's own scope win without reading the setting", async () => {

@@ -8,7 +8,7 @@ export type GenreOption = TrackGenre & { track_count: number };
 /** Depth-first, so each subgenre carries the name of the genre above it. */
 export function flattenGenreTree(
   nodes: GenreTreeNode[],
-  parent: GenreTreeNode | null = null
+  parent: GenreTreeNode | null = null,
 ): GenreOption[] {
   return nodes.flatMap((node) => [
     {
@@ -34,7 +34,7 @@ export function filterGenreOptions(
   options: GenreOption[],
   input: string,
   excludeIds: ReadonlySet<string> = new Set(),
-  limit = 50
+  limit = 50,
 ): GenreOption[] {
   const query = normalizeGenreName(input);
   const rank = (option: GenreOption) => {
@@ -53,7 +53,7 @@ export function filterGenreOptions(
       (a, b) =>
         a.rank - b.rank ||
         b.option.track_count - a.option.track_count ||
-        a.option.name.localeCompare(b.option.name)
+        a.option.name.localeCompare(b.option.name),
     )
     .slice(0, limit)
     .map(({ option }) => option);
@@ -74,7 +74,7 @@ export function genreSelectionChanged(before: TrackGenre[], after: TrackGenre[])
  */
 export function genreFilterOptions(
   options: GenreOption[],
-  counts?: ReadonlyMap<string, number>
+  counts?: ReadonlyMap<string, number>,
 ): GenreOption[] {
   if (!counts) return options;
   return options.flatMap((option) => {

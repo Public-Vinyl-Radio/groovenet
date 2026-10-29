@@ -87,11 +87,11 @@ The first scan returned no outputs because `bind_address = "127.0.0.1"` also
 restricts OwnTone's mDNS interface to loopback. Removing that restriction while
 protecting non-loopback API requests discovered the target receivers:
 
-| OwnTone output ID | Name | Reported type | HA receiver entity |
-| --- | --- | --- | --- |
-| `202481599519404` | aswitch | AirPlay 2 | `media_player.aswitch_streamer` |
-| `202481586338774` | Lounge Room Audio | AirPlay 2 | `media_player.lounge_streamer` |
-| `132116595608304` | Bedroom | AirPlay 2 | `media_player.bedroom_sonos` |
+| OwnTone output ID | Name              | Reported type | HA receiver entity              |
+| ----------------- | ----------------- | ------------- | ------------------------------- |
+| `202481599519404` | aswitch           | AirPlay 2     | `media_player.aswitch_streamer` |
+| `202481586338774` | Lounge Room Audio | AirPlay 2     | `media_player.lounge_streamer`  |
+| `132116595608304` | Bedroom           | AirPlay 2     | `media_player.bedroom_sonos`    |
 
 These name-based mappings need hardware confirmation before being treated as
 permanent identity bindings. All outputs remained unselected and the player

@@ -81,7 +81,8 @@ function sameRef(a: NowPlayingTrackRef | null | undefined, b: NowPlayingTrackRef
   return !!a && a.track_id === b.track_id && a.friend_id === b.friend_id;
 }
 
-type Decision = { publish: true; state: NowPlayingState; track: NowPlayingTrackRef } | { publish: false };
+type Decision =
+  { publish: true; state: NowPlayingState; track: NowPlayingTrackRef } | { publish: false };
 
 /**
  * One valid window's effect on a source's run/state. Pure except for the
@@ -89,7 +90,13 @@ type Decision = { publish: true; state: NowPlayingState; track: NowPlayingTrackR
  * `displayed` are committed by the caller only once metadata for `track`
  * resolves, so a transient lookup failure can't display a track with no name.
  */
-function advance(src: SourceState, ref: NowPlayingTrackRef, window: GroupableWindow, now: number, opts: ResolvedOptions): Decision {
+function advance(
+  src: SourceState,
+  ref: NowPlayingTrackRef,
+  window: GroupableWindow,
+  now: number,
+  opts: ResolvedOptions,
+): Decision {
   src.lastMatchAt = now;
 
   if (src.state === "playing" && sameRef(src.displayed, ref)) {
@@ -107,7 +114,7 @@ function advance(src: SourceState, ref: NowPlayingTrackRef, window: GroupableWin
 
   const confirmed = isRealPlay(
     { windows: src.run.windows.length, rate: windowRate(src.run.windows, (w) => w) },
-    { minWindows: opts.minWindows }
+    { minWindows: opts.minWindows },
   );
 
   if (confirmed) {
@@ -166,7 +173,12 @@ export class NowPlayingTrackerService {
   private sources = new Map<string, SourceState>();
 
   /** Feed one window's top candidate (or a no-match placeholder) for a source. */
-  async observe(sourceId: string, window: GroupableWindow, now: number = Date.now(), options: NowPlayingTrackerOptions = {}): Promise<void> {
+  async observe(
+    sourceId: string,
+    window: GroupableWindow,
+    now: number = Date.now(),
+    options: NowPlayingTrackerOptions = {},
+  ): Promise<void> {
     try {
       const opts = resolveOptions(options);
       const isMatch =
@@ -180,7 +192,10 @@ export class NowPlayingTrackerService {
       const src = this.sources.get(sourceId) ?? freshState();
       this.sources.set(sourceId, src);
 
-      const ref: NowPlayingTrackRef = { track_id: window.track_id as string, friend_id: window.friend_id as number };
+      const ref: NowPlayingTrackRef = {
+        track_id: window.track_id as string,
+        friend_id: window.friend_id as number,
+      };
       const decision = advance(src, ref, window, now, opts);
       if (!decision.publish) return;
 
@@ -205,17 +220,29 @@ export class NowPlayingTrackerService {
     const opts = resolveOptions(options);
     for (const [sourceId, src] of this.sources) {
       try {
-        if (src.state === "playing" && src.lastMatchAt != null && now - src.lastMatchAt >= opts.gapSeconds * 1000) {
+        if (
+          src.state === "playing" &&
+          src.lastMatchAt != null &&
+          now - src.lastMatchAt >= opts.gapSeconds * 1000
+        ) {
           src.state = "stopped";
           src.stoppedAt = now;
           src.run = null;
           await this.publishBare(sourceId, src);
-        } else if (src.state === "candidate" && src.lastMatchAt != null && now - src.lastMatchAt >= opts.gapSeconds * 1000) {
+        } else if (
+          src.state === "candidate" &&
+          src.lastMatchAt != null &&
+          now - src.lastMatchAt >= opts.gapSeconds * 1000
+        ) {
           src.state = "idle";
           src.displayed = null;
           src.run = null;
           await this.publishBare(sourceId, src);
-        } else if (src.state === "stopped" && src.stoppedAt != null && now - src.stoppedAt >= opts.clearSeconds * 1000) {
+        } else if (
+          src.state === "stopped" &&
+          src.stoppedAt != null &&
+          now - src.stoppedAt >= opts.clearSeconds * 1000
+        ) {
           src.state = "idle";
           src.displayed = null;
           src.run = null;
@@ -238,7 +265,11 @@ export class NowPlayingTrackerService {
     return row ? toTrackInfo(row) : null;
   }
 
-  private async publish(sourceId: string, src: SourceState, window: GroupableWindow): Promise<void> {
+  private async publish(
+    sourceId: string,
+    src: SourceState,
+    window: GroupableWindow,
+  ): Promise<void> {
     // Only ever called with a window that already passed `observe`'s match
     // check, so `at` is never null here.
     const snapshot: NowPlayingSnapshot = {

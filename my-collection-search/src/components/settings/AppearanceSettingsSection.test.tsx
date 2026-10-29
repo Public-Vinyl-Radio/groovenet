@@ -63,25 +63,39 @@ describe("AppearanceSettingsSection palette", () => {
   it("lists every palette in the registry and applies the chosen one at once", async () => {
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe("true")
+      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
     );
 
     await user.click(screen.getByRole("radio", { name: /riso/i }));
 
     expect(document.documentElement.dataset.palette).toBe("riso");
-    await waitFor(() => expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ palette: "riso" }));
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /riso/i }).getAttribute("aria-checked")).toBe("true")
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ palette: "riso" }),
     );
-    expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe("false");
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: /riso/i }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
+    );
+    expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
+      "false",
+    );
   });
 
   it("selects the card as soon as it is clicked, before the save returns", async () => {
     let finish: (value: unknown) => void = () => {};
-    api.updateAppearanceSettings.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    api.updateAppearanceSettings.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe("true")
+      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
     );
 
     await user.click(screen.getByRole("radio", { name: /riso/i }));
@@ -94,7 +108,9 @@ describe("AppearanceSettingsSection palette", () => {
   it("doesn't save when the selected palette is clicked again", async () => {
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe("true")
+      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
     );
 
     await user.click(screen.getByRole("radio", { name: /sleeve/i }));
@@ -106,12 +122,18 @@ describe("AppearanceSettingsSection palette", () => {
     api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe("true")
+      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
     );
 
     await user.click(screen.getByRole("radio", { name: /riso/i }));
 
-    await waitFor(() => expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error", description: "db down" })));
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error", description: "db down" }),
+      ),
+    );
     expect(document.documentElement.dataset.palette).toBe("sleeve");
   });
 
@@ -119,14 +141,18 @@ describe("AppearanceSettingsSection palette", () => {
     api.updateAppearanceSettings.mockRejectedValue("nope");
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await user.click(await screen.findByRole("radio", { name: /riso/i }));
-    await waitFor(() => expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ description: "nope" })));
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ description: "nope" })),
+    );
   });
 
   it("falls back to the default selection when the saved id is unknown", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({ palette: "retired", fonts: defaults });
     renderWithProviders(<AppearanceSettingsSection />);
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe("true")
+      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
     );
   });
 
@@ -161,7 +187,9 @@ describe("AppearanceSettingsSection mode", () => {
 
     const card = await screen.findByRole("radio", { name: /riso/i });
     await waitFor(() =>
-      expect(card.querySelector<HTMLElement>("[title=Ground]")?.style.backgroundColor).toBe("rgb(26, 20, 36)")
+      expect(card.querySelector<HTMLElement>("[title=Ground]")?.style.backgroundColor).toBe(
+        "rgb(26, 20, 36)",
+      ),
     );
   });
 });
@@ -169,7 +197,9 @@ describe("AppearanceSettingsSection mode", () => {
 describe("AppearanceSettingsSection typography", () => {
   const group = (role: string) => within(screen.getByRole("radiogroup", { name: `${role} font` }));
   const checked = (role: string, name: string) =>
-    group(role).getByRole("radio", { name: new RegExp(name, "i") }).getAttribute("aria-checked");
+    group(role)
+      .getByRole("radio", { name: new RegExp(name, "i") })
+      .getAttribute("aria-checked");
 
   it("shows a group per role with every registered choice, the saved one selected", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({
@@ -193,8 +223,12 @@ describe("AppearanceSettingsSection typography", () => {
     const card = await group("Body").findByRole("radio", { name: /inter/i });
 
     expect(card.style.fontFamily).toContain("--face-inter");
-    expect(group("Body").getByRole("radio", { name: /system/i }).style.fontFamily).toMatch(/^system-ui/);
-    expect(group("Labels").getByRole("radio", { name: /jetbrains/i }).style.fontFamily).toContain("--face-jetbrains-mono");
+    expect(group("Body").getByRole("radio", { name: /system/i }).style.fontFamily).toMatch(
+      /^system-ui/,
+    );
+    expect(group("Labels").getByRole("radio", { name: /jetbrains/i }).style.fontFamily).toContain(
+      "--face-jetbrains-mono",
+    );
   });
 
   it("previews a line of DJ text in the chosen face, for every role", async () => {
@@ -218,9 +252,11 @@ describe("AppearanceSettingsSection typography", () => {
     expect(document.documentElement.dataset.fontDisplay).toBe("default");
     expect(document.documentElement.dataset.palette).toBe("sleeve");
     expect(checked("Body", "inter")).toBe("true");
-    expect(container.querySelector<HTMLElement>("[data-preview=body]")?.style.fontFamily).toContain("--face-inter");
+    expect(container.querySelector<HTMLElement>("[data-preview=body]")?.style.fontFamily).toContain(
+      "--face-inter",
+    );
     await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } })
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } }),
     );
   });
 
@@ -255,8 +291,12 @@ describe("AppearanceSettingsSection typography", () => {
 
     await waitFor(() =>
       expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "error", title: "Failed to save display font", description: "db down" })
-      )
+        expect.objectContaining({
+          type: "error",
+          title: "Failed to save display font",
+          description: "db down",
+        }),
+      ),
     );
     expect(document.documentElement.dataset.fontDisplay).toBe("default");
     await waitFor(() => expect(checked("Display", "ibm plex sans")).toBe("true"));
@@ -284,7 +324,7 @@ describe("AppearanceSettingsSection typography", () => {
 
     expect(document.documentElement.dataset.fontBody).toBe("inter");
     await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } })
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } }),
     );
   });
 
@@ -324,14 +364,18 @@ describe("AppearanceSettingsSection custom palette", () => {
       expect(api.updateAppearanceSettings).toHaveBeenCalledWith({
         palette: "custom",
         customPalette: expect.objectContaining({ base: "sleeve" }),
-      })
+      }),
     );
     expect(document.documentElement.dataset.palette).toBe("custom");
     expect(styleEl()?.textContent).toContain(':root[data-palette="custom"]{');
   });
 
   it("shows the saved palette as a card with swatches, and selects it like a preset", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({ palette: "sleeve", fonts: defaults, customPalette: custom });
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "sleeve",
+      fonts: defaults,
+      customPalette: custom,
+    });
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
 
     const card = await screen.findByRole("radio", { name: /^custom$/i });
@@ -342,30 +386,48 @@ describe("AppearanceSettingsSection custom palette", () => {
 
     expect(document.documentElement.dataset.palette).toBe("custom");
     expect(styleEl()).not.toBeNull();
-    await waitFor(() => expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ palette: "custom" }));
+    await waitFor(() =>
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ palette: "custom" }),
+    );
   });
 
   it("rolls back a failed selection of the custom card", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({ palette: "sleeve", fonts: defaults, customPalette: custom });
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "sleeve",
+      fonts: defaults,
+      customPalette: custom,
+    });
     api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
 
     await user.click(await screen.findByRole("radio", { name: /^custom$/i }));
 
-    await waitFor(() => expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })));
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })),
+    );
     expect(document.documentElement.dataset.palette).toBe("sleeve");
   });
 
   it("deletes it, falling back to the default palette and removing the style", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({ palette: "custom", fonts: defaults, customPalette: custom });
-    api.updateAppearanceSettings.mockResolvedValue({ palette: "sleeve", fonts: defaults, customPalette: null });
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "custom",
+      fonts: defaults,
+      customPalette: custom,
+    });
+    api.updateAppearanceSettings.mockResolvedValue({
+      palette: "sleeve",
+      fonts: defaults,
+      customPalette: null,
+    });
     document.documentElement.dataset.palette = "custom";
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
 
     await user.click(await screen.findByText("Edit custom palette"));
     await user.click(screen.getByText("Delete custom palette"));
 
-    await waitFor(() => expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ customPalette: null }));
+    await waitFor(() =>
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ customPalette: null }),
+    );
     expect(document.documentElement.dataset.palette).toBe("sleeve");
     expect(styleEl()).toBeNull();
     await waitFor(() => expect(screen.queryByTestId("custom-palette-editor")).toBeNull());
@@ -373,7 +435,11 @@ describe("AppearanceSettingsSection custom palette", () => {
   });
 
   it("restores the palette and the style when deleting fails", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({ palette: "custom", fonts: defaults, customPalette: custom });
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "custom",
+      fonts: defaults,
+      customPalette: custom,
+    });
     api.updateAppearanceSettings.mockRejectedValue(new Error("nope"));
     document.documentElement.dataset.palette = "custom";
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
@@ -381,7 +447,9 @@ describe("AppearanceSettingsSection custom palette", () => {
     await user.click(await screen.findByText("Edit custom palette"));
     await user.click(screen.getByText("Delete custom palette"));
 
-    await waitFor(() => expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })));
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })),
+    );
     expect(document.documentElement.dataset.palette).toBe("custom");
     expect(styleEl()).not.toBeNull();
   });
@@ -395,17 +463,31 @@ describe("AppearanceSettingsSection custom palette", () => {
   });
 
   it("reports a non-Error failure by its text, on save and on delete", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({ palette: "sleeve", fonts: defaults, customPalette: custom });
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "sleeve",
+      fonts: defaults,
+      customPalette: custom,
+    });
     api.updateAppearanceSettings.mockRejectedValue("offline");
     const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await user.click(await screen.findByText("Edit custom palette"));
     await user.click(screen.getByText("Save custom palette"));
     await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ description: "offline", title: "Failed to save the custom palette" }))
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "offline",
+          title: "Failed to save the custom palette",
+        }),
+      ),
     );
     await user.click(screen.getByText("Delete custom palette"));
     await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ description: "offline", title: "Failed to delete the custom palette" }))
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "offline",
+          title: "Failed to delete the custom palette",
+        }),
+      ),
     );
   });
 
@@ -416,8 +498,11 @@ describe("AppearanceSettingsSection custom palette", () => {
     await user.click(screen.getByText("Save custom palette"));
     await waitFor(() =>
       expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Failed to save the custom palette", description: "bad colours" })
-      )
+        expect.objectContaining({
+          title: "Failed to save the custom palette",
+          description: "bad colours",
+        }),
+      ),
     );
     expect(document.documentElement.dataset.palette).toBe("sleeve");
   });

@@ -105,7 +105,9 @@ describe("usePlayerControlsController — handleClearQueue", () => {
   it("pauses and clears the queue", () => {
     const { result } = renderHook(() => usePlayerControlsController(), { wrapper });
 
-    act(() => { result.current.handleClearQueue(); });
+    act(() => {
+      result.current.handleClearQueue();
+    });
 
     expect(pause).toHaveBeenCalledTimes(1);
     expect(clearQueue).toHaveBeenCalledTimes(1);
@@ -117,14 +119,18 @@ describe("usePlayerControlsController — handleClearQueue", () => {
     const snapshotIndex = playlistPlayerState.currentTrackIndex;
     const snapshotIsPlaying = playlistPlayerState.isPlaying;
 
-    act(() => { result.current.handleClearQueue(); });
+    act(() => {
+      result.current.handleClearQueue();
+    });
 
     expect(createMock).toHaveBeenCalledTimes(1);
     const toastArgs = createMock.mock.calls[0][0];
     expect(toastArgs.title).toMatch(/queue cleared/i);
     expect(toastArgs.action.label).toBe("Undo");
 
-    act(() => { toastArgs.action.onClick(); });
+    act(() => {
+      toastArgs.action.onClick();
+    });
 
     expect(restoreQueue).toHaveBeenCalledWith({
       playlist: snapshotPlaylist,

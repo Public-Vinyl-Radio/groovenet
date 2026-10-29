@@ -1,4 +1,7 @@
-import { genrePageQuerySchema as sharedGenrePageQuerySchema, genreSimilarQuerySchema as sharedGenreSimilarQuerySchema } from "@groovenet/contracts";
+import {
+  genrePageQuerySchema as sharedGenrePageQuerySchema,
+  genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
+} from "@groovenet/contracts";
 import { z } from "zod";
 import {
   albumArtMatchStatusSchema,
@@ -102,7 +105,12 @@ import {
   spinUpdateResponseSchema as sharedSpinUpdateResponseSchema,
   trackSpinEventSchema as sharedTrackSpinEventSchema,
 } from "@groovenet/contracts";
-import { fontChoiceIdsFor, fontRoleIds, type FontChoiceId, type FontRoleId } from "@/app/fontChoices";
+import {
+  fontChoiceIdsFor,
+  fontRoleIds,
+  type FontChoiceId,
+  type FontRoleId,
+} from "@/app/fontChoices";
 import { paletteIds } from "@/app/palettes";
 import { customPaletteId, customPaletteSchema } from "@/app/palettes/custom";
 import { RECOMMENDATION_SCOPES } from "@/types/recommendations";
@@ -127,10 +135,7 @@ const toNumber = (value: unknown): unknown => {
   return value;
 };
 const numberFromInputSchema = z.preprocess(toNumber, z.number());
-export const nonNegativeIntFromInputSchema = z.preprocess(
-  toInt,
-  z.number().int().min(0)
-);
+export const nonNegativeIntFromInputSchema = z.preprocess(toInt, z.number().int().min(0));
 
 /** A query-string flag: `1`/`true` is on, anything else (including absent) is off. */
 const toBooleanFlag = (value: unknown): unknown =>
@@ -274,12 +279,7 @@ export const gamdlCookieDeleteResponseSchema = z.object({
   message: z.string(),
 });
 
-export const gamdlAudioQualitySchema = z.enum([
-  "best",
-  "high",
-  "standard",
-  "lossless",
-]);
+export const gamdlAudioQualitySchema = z.enum(["best", "high", "standard", "lossless"]);
 
 export const gamdlAudioFormatSchema = z.enum(["m4a", "mp3", "aac", "flac"]);
 export const gamdlCoverFormatSchema = z.enum(["jpg", "png", "raw"]);
@@ -350,11 +350,7 @@ export const gamdlConnectionTestDetailsSchema = z.object({
 });
 
 export const backupProviderSchema = z.enum(["restic-b2"]);
-export const backupRetentionPresetSchema = z.enum([
-  "aggressive",
-  "balanced",
-  "archive",
-]);
+export const backupRetentionPresetSchema = z.enum(["aggressive", "balanced", "archive"]);
 
 export const backupPolicySchema = z.object({
   enabled: z.boolean(),
@@ -458,10 +454,7 @@ export const gamdlConnectionTestResponseSchema = z.object({
 export const jobsListQuerySchema = z.object({
   limit: nonNegativeIntFromInputSchema.optional().default(100),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
-  state: z
-    .enum(["all", "waiting", "active", "completed", "failed"])
-    .optional()
-    .default("all"),
+  state: z.enum(["all", "waiting", "active", "completed", "failed"]).optional().default("all"),
 });
 
 export const jobDataSchema = z
@@ -552,9 +545,7 @@ export const jobDetailsResponseSchema = jobInfoSchema.extend({
 export const friendSchema = sharedFriendSchema;
 
 export const friendsListQuerySchema = z.object({
-  showCurrentUser: z
-    .union([z.boolean(), z.enum(["true", "false"])])
-    .optional(),
+  showCurrentUser: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
 });
 
 export const friendsListResponseSchema = friendListResponseSchema;
@@ -604,7 +595,6 @@ export const playlistGeneticResponseSchema = sharedPlaylistGeneticResponseSchema
 export const playlistGeneticInvalidItemSchema = sharedPlaylistGeneticInvalidItemSchema;
 export const playlistGeneticValidationErrorSchema = sharedPlaylistGeneticValidationErrorSchema;
 
-
 // Entity and response schemas live in @groovenet/contracts; the app keeps the
 // names routes and internalApi already import, and keeps query-string coercion.
 export type { TrackSearchMode, AlbumTaxonomyOverrides } from "@groovenet/contracts";
@@ -646,7 +636,7 @@ export const trackSearchGetResponseSchema = trackSearchResponseSchema.extend({
 const genreQueryParamSchema = z
   .preprocess(
     (value) => (typeof value === "string" ? [value] : value),
-    z.array(z.string().trim().min(1)).max(20)
+    z.array(z.string().trim().min(1)).max(20),
   )
   .optional();
 
@@ -1041,7 +1031,6 @@ export const albumDiscogsRawResponseSchema = z.object({
 /** Omitted: unchanged; null: reset to Discogs; []: deliberately empty. */
 export const albumTaxonomyOverrideFields = albumTaxonomyOverridesSchema;
 
-
 export const similarVibeQuerySchema = z.object({
   track_id: z.string().min(1),
   friend_id: intFromInputSchema,
@@ -1185,7 +1174,7 @@ export const albumArtworkBackfillResponseSchema = z.object({
       friend_id: z.number().int(),
       release_id: z.string().nullable().optional(),
       error: z.string(),
-    })
+    }),
   ),
 });
 
@@ -1376,7 +1365,7 @@ export const albumUpdateBodySchema = z
       value.style_override_ids !== undefined,
     {
       message: "No fields to update",
-    }
+    },
   );
 
 export const albumUpdateResponseSchema = z.object({
@@ -1533,7 +1522,7 @@ const embeddingModelCoverageSchema = z.array(
     dims: z.number().int(),
     template_version: z.number().int(),
     count: z.number().int(),
-  })
+  }),
 );
 
 export const embeddingsStatusSchema = z.object({
@@ -1652,10 +1641,21 @@ export {
   genreAliasResponseSchema,
   genreMergeResponseSchema,
 } from "@groovenet/contracts";
-export type { GenreTreeNode, GenrePageRef, GenreSimilaritySignals, GenreRelatedRef, GenrePageResponse, GenreSimilarResponse } from "@groovenet/contracts";
+export type {
+  GenreTreeNode,
+  GenrePageRef,
+  GenreSimilaritySignals,
+  GenreRelatedRef,
+  GenrePageResponse,
+  GenreSimilarResponse,
+} from "@groovenet/contracts";
 
-export const genrePageQuerySchema = sharedGenrePageQuerySchema.extend({ friend_id: intFromInputSchema.optional() });
-export const genreSimilarQuerySchema = sharedGenreSimilarQuerySchema.extend({ limit: z.coerce.number().int().positive().optional() });
+export const genrePageQuerySchema = sharedGenrePageQuerySchema.extend({
+  friend_id: intFromInputSchema.optional(),
+});
+export const genreSimilarQuerySchema = sharedGenreSimilarQuerySchema.extend({
+  limit: z.coerce.number().int().positive().optional(),
+});
 
 /** Per-genre track counts for the current search, subgenres included (#375). */
 export const trackGenreFacetsResponseSchema = z.object({
@@ -1784,9 +1784,7 @@ export const ingestPipelineStatsSchema = z.object({
   queue_depth: z.number().int().nullable(),
   ingests: z.object({
     by_status: z.record(z.string(), z.number().int()),
-    failures: z.array(
-      z.object({ error: z.string(), count: z.number().int().nonnegative() })
-    ),
+    failures: z.array(z.object({ error: z.string(), count: z.number().int().nonnegative() })),
     oldest_in_flight: z
       .object({
         ingest_id: z.string(),
@@ -1814,10 +1812,10 @@ export const ingestPipelineStatsSchema = z.object({
         duplicate: z.number().int().nonnegative(),
         rejected: z.number().int().nonnegative(),
         rejected_by_reason: z.array(
-          z.object({ reason: z.string(), count: z.number().int().nonnegative() })
+          z.object({ reason: z.string(), count: z.number().int().nonnegative() }),
         ),
         failed_by_stage: z.array(
-          z.object({ stage: z.string(), count: z.number().int().nonnegative() })
+          z.object({ stage: z.string(), count: z.number().int().nonnegative() }),
         ),
         enqueue_failed: z.number().int().nonnegative(),
       }),
@@ -1825,7 +1823,7 @@ export const ingestPipelineStatsSchema = z.object({
         confirmed: z.number().int().nonnegative(),
         latency_ms_avg: z.number().int().nullable(),
         latency_bands: z.array(
-          z.object({ band: z.string(), count: z.number().int().nonnegative() })
+          z.object({ band: z.string(), count: z.number().int().nonnegative() }),
         ),
       }),
     })
@@ -1950,13 +1948,12 @@ export const setDerivationViewQuerySchema = z.object({
   live_set_id: intFromInputSchema.optional(),
 });
 
-
 // ─── Genre reconciliation (#372) ─────────────────────────────────────────────
 
 /** A timestamptz column: pg hands back a Date; the wire carries ISO 8601. */
 const timestampSchema = z.preprocess(
   (value) => (value instanceof Date ? value.toISOString() : value),
-  z.string()
+  z.string(),
 );
 
 export const genreProposalActionSchema = z.enum(["map", "new_genre", "descriptor", "drop"]);
@@ -2008,7 +2005,9 @@ export const genreProposalSchema = z.object({
   track_count: z.number().int(),
   action: genreProposalActionSchema,
   target_genre_ids: z.array(z.string().uuid()),
-  target_genres: z.array(z.object({ id: z.string().uuid(), name: z.string(), parent_name: z.string().nullable() })),
+  target_genres: z.array(
+    z.object({ id: z.string().uuid(), name: z.string(), parent_name: z.string().nullable() }),
+  ),
   proposed_genre_name: z.string().nullable(),
   proposed_parent_id: z.string().uuid().nullable(),
   proposed_parent_name: z.string().nullable(),
@@ -2058,7 +2057,7 @@ export const genreProposalDecisionsBodySchema = z
         z
           .object({ id: z.string().uuid(), ...genreProposalChangeFields })
           .strict()
-          .refine(hasChange, { message: "Nothing to update" })
+          .refine(hasChange, { message: "Nothing to update" }),
       )
       .min(1)
       .max(500),
@@ -2100,7 +2099,7 @@ export const genreProposalTracksResponseSchema = z.object({
       artist: z.string(),
       album: z.string().nullable(),
       styles: z.array(z.string()),
-    })
+    }),
   ),
 });
 
@@ -2125,7 +2124,9 @@ export const genreProposalApplyResponseSchema = z.object({
 });
 
 const countsOf = <T extends string>(keys: readonly T[]) =>
-  z.object(Object.fromEntries(keys.map((key) => [key, z.number().int()])) as Record<T, z.ZodNumber>);
+  z.object(
+    Object.fromEntries(keys.map((key) => [key, z.number().int()])) as Record<T, z.ZodNumber>,
+  );
 
 export const genreReconciliationCoverageSchema = z.object({
   tracks: z.object({

@@ -47,7 +47,9 @@ describe("CoverArtUpload", () => {
 
   it("shows the preview and removes it", async () => {
     const onChange = vi.fn();
-    const { user } = renderWithProviders(<CoverArtUpload value={null} onChange={onChange} preview="/cover.png" />);
+    const { user } = renderWithProviders(
+      <CoverArtUpload value={null} onChange={onChange} preview="/cover.png" />,
+    );
 
     expect(screen.getByAltText("Album cover preview")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Remove" }));

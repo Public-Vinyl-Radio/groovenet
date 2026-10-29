@@ -56,7 +56,10 @@ describe("runs", () => {
 
   it("returns the transitioned row, or null when the guard did not match", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "d1", status: "processing" }] });
-    expect(await repo().transitionStatus("d1", "processing", ["queued"])).toEqual({ id: "d1", status: "processing" });
+    expect(await repo().transitionStatus("d1", "processing", ["queued"])).toEqual({
+      id: "d1",
+      status: "processing",
+    });
     expect(await repo().transitionStatus("d1", "processing", ["queued"])).toBeNull();
     expect(dbQuery.mock.calls[1][1][2]).toBeNull();
   });
@@ -65,12 +68,26 @@ describe("runs", () => {
     const windows = [{ start_seconds: 0, duration_seconds: 15, candidates: [] }];
     dbQuery.mockResolvedValueOnce({ rows: [{ id: "d1" }] });
 
-    expect(await repo().complete("d1", { status: "processed", error: null, duration_seconds: 15, windows })).toEqual({ id: "d1" });
+    expect(
+      await repo().complete("d1", {
+        status: "processed",
+        error: null,
+        duration_seconds: 15,
+        windows,
+      }),
+    ).toEqual({ id: "d1" });
 
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/status IN \('queued', 'processing'\)/);
     expect(params).toEqual(["d1", "processed", null, 15, JSON.stringify(windows)]);
-    expect(await repo().complete("d1", { status: "failed", error: "x", duration_seconds: null, windows: [] })).toBeNull();
+    expect(
+      await repo().complete("d1", {
+        status: "failed",
+        error: "x",
+        duration_seconds: null,
+        windows: [],
+      }),
+    ).toBeNull();
   });
 });
 
@@ -80,17 +97,26 @@ describe("reads for the view", () => {
     expect(dbQuery).not.toHaveBeenCalled();
 
     dbQuery.mockResolvedValueOnce({ rows: [{ track_id: "1-A1" }] });
-    expect(await repo().findTracks([{ track_id: "1-A1", friend_id: 1 }, { track_id: "2-B1", friend_id: 2 }])).toEqual([
-      { track_id: "1-A1" },
-    ]);
+    expect(
+      await repo().findTracks([
+        { track_id: "1-A1", friend_id: 1 },
+        { track_id: "2-B1", friend_id: 2 },
+      ]),
+    ).toEqual([{ track_id: "1-A1" }]);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/unnest\(\$1::text\[\], \$2::int\[\]\)/);
-    expect(params).toEqual([["1-A1", "2-B1"], [1, 2]]);
+    expect(params).toEqual([
+      ["1-A1", "2-B1"],
+      [1, 2],
+    ]);
   });
 
   it("numbers planned entries in playlist order", async () => {
     dbQuery.mockResolvedValueOnce({
-      rows: [{ track_id: "1-A1", fingerprinted: true }, { track_id: "2-B1", fingerprinted: false }],
+      rows: [
+        { track_id: "1-A1", fingerprinted: true },
+        { track_id: "2-B1", fingerprinted: false },
+      ],
     });
     expect(await repo().listPlannedEntries(176, ENGINE)).toEqual([
       { track_id: "1-A1", fingerprinted: true, index: 0 },

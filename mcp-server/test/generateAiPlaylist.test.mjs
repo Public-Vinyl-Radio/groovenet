@@ -34,17 +34,25 @@ describe("generate_ai_playlist over MCP stdio", { timeout: 15_000 }, () => {
     api.listen(0, "127.0.0.1");
     await once(api, "listening");
     client = new Client({ name: "generate-ai-playlist-test", version: "1.0.0" });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
-      env: { ...process.env, API_BASE: `http://127.0.0.1:${api.address().port}/api`, API_KEY: "", DEFAULT_FRIEND_ID: "6" },
-      stderr: "pipe",
-    }));
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
+        env: {
+          ...process.env,
+          API_BASE: `http://127.0.0.1:${api.address().port}/api`,
+          API_KEY: "",
+          DEFAULT_FRIEND_ID: "6",
+        },
+        stderr: "pipe",
+      }),
+    );
   });
 
   after(async () => {
     await client?.close();
-    if (api?.listening) await new Promise((resolve, reject) => api.close((err) => err ? reject(err) : resolve()));
+    if (api?.listening)
+      await new Promise((resolve, reject) => api.close((err) => (err ? reject(err) : resolve())));
   });
 
   beforeEach(() => {
@@ -65,11 +73,18 @@ describe("generate_ai_playlist over MCP stdio", { timeout: 15_000 }, () => {
     const item = tool.inputSchema.properties.playlist.items;
     assert.deepEqual(item.required, ["track_id"]);
     assert.ok(item.properties.friend_id && item.properties.bpm);
-    assert.deepEqual(tool.inputSchema.properties.mode.enum, ["genetic", "greedy", "cohesive_blocks"]);
+    assert.deepEqual(tool.inputSchema.properties.mode.enum, [
+      "genetic",
+      "greedy",
+      "cohesive_blocks",
+    ]);
   });
 
   it("hydrates track refs and defaults friend_id", async () => {
-    const result = await call({ playlist: [{ track_id: "t1" }, { track_id: "t2", friend_id: 2 }], mode: "greedy" });
+    const result = await call({
+      playlist: [{ track_id: "t1" }, { track_id: "t2", friend_id: 2 }],
+      mode: "greedy",
+    });
     assert.ok(!result.isError);
     assert.match(result.content[0].text, /1\. Two - B \(124 BPM, 9A\)/);
     assert.deepEqual(requests[0].body.tracks, [
@@ -78,7 +93,13 @@ describe("generate_ai_playlist over MCP stdio", { timeout: 15_000 }, () => {
     ]);
     const sent = requests[1].body;
     assert.equal(sent.mode, "greedy");
-    assert.deepEqual(sent.playlist.map((t) => [t.track_id, t.friend_id, t.bpm]), [["t1", 6, 120], ["t2", 2, 124]]);
+    assert.deepEqual(
+      sent.playlist.map((t) => [t.track_id, t.friend_id, t.bpm]),
+      [
+        ["t1", 6, 120],
+        ["t2", 2, 124],
+      ],
+    );
   });
 
   it("lets caller-supplied fields override stored ones", async () => {
@@ -90,14 +111,20 @@ describe("generate_ai_playlist over MCP stdio", { timeout: 15_000 }, () => {
   it("rejects an item with `id` but no `track_id`, without calling the API", async () => {
     const result = await call({ playlist: [{ id: 42, title: "One" }] });
     assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /playlist\[0\] is missing `track_id`.*numeric database ID/);
+    assert.match(
+      result.content[0].text,
+      /playlist\[0\] is missing `track_id`.*numeric database ID/,
+    );
     assert.equal(requests.length, 0);
   });
 
   it("rejects an item with neither `track_id` nor `id`", async () => {
     const result = await call({ playlist: [{ title: "One" }] });
     assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /playlist\[0\] is missing `track_id` \(non-empty string\)\.$/);
+    assert.match(
+      result.content[0].text,
+      /playlist\[0\] is missing `track_id` \(non-empty string\)\.$/,
+    );
   });
 
   it("rejects an unknown mode", async () => {
@@ -129,12 +156,18 @@ describe("generate_ai_playlist over MCP stdio", { timeout: 15_000 }, () => {
     };
     const result = await call({ playlist: [{ track_id: "t1" }] });
     assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /missing required data.*"track_id":"t1","reason":"missing_embedding"/);
+    assert.match(
+      result.content[0].text,
+      /missing required data.*"track_id":"t1","reason":"missing_embedding"/,
+    );
   });
 
   it("surfaces the server's validation details", async () => {
     geneticStatus = 400;
-    geneticResponse = { error: "Invalid playlist payload", details: { fieldErrors: { mode: ["Invalid option"] } } };
+    geneticResponse = {
+      error: "Invalid playlist payload",
+      details: { fieldErrors: { mode: ["Invalid option"] } },
+    };
     const result = await call({ playlist: [{ track_id: "t1" }] });
     assert.match(result.content[0].text, /Invalid playlist payload.*"mode":\["Invalid option"\]/);
   });

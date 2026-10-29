@@ -24,7 +24,12 @@ export function minSupportAlbums(): number {
 }
 
 /** Siblings under the genre's parent that the collection uses, until the table has rows for it (#377). */
-function siblingFallback(flat: GenreRow[], genre: GenreRow, totals: Map<string, number>, limit: number): GenreRelatedRef[] {
+function siblingFallback(
+  flat: GenreRow[],
+  genre: GenreRow,
+  totals: Map<string, number>,
+  limit: number,
+): GenreRelatedRef[] {
   const toRef = (row: GenreRow): GenrePageRef => ({
     id: row.id,
     name: row.name,
@@ -47,7 +52,7 @@ export async function resolveRelated(
   flat: GenreRow[],
   genre: GenreRow,
   totals: Map<string, number>,
-  limit: number = RELATED_LIMIT
+  limit: number = RELATED_LIMIT,
 ): Promise<GenreRelatedRef[]> {
   const stored = await genreSimilarityRepository.topForGenre(genre.id, limit);
   if (stored.length === 0) return siblingFallback(flat, genre, totals, limit);
@@ -72,7 +77,7 @@ export async function resolveRelated(
 /** `GET /api/genres/{slug}/similar` (#377): computed over every collection, not scoped to one friend. */
 export async function getGenreSimilarPage(
   ref: string,
-  limit: number = RELATED_LIMIT
+  limit: number = RELATED_LIMIT,
 ): Promise<{ genre: GenrePageRef; related: GenreRelatedRef[] } | null> {
   const flat = await genreRepository.listFlat();
   const key = ref.trim().toLowerCase();
@@ -83,7 +88,12 @@ export async function getGenreSimilarPage(
   const totals = new Map(facets.map((facet) => [facet.id, facet.track_count]));
   const related = await resolveRelated(flat, genre, totals, limit);
   return {
-    genre: { id: genre.id, name: genre.name, slug: genre.slug, track_count: totals.get(genre.id) ?? 0 },
+    genre: {
+      id: genre.id,
+      name: genre.name,
+      slug: genre.slug,
+      track_count: totals.get(genre.id) ?? 0,
+    },
     related,
   };
 }
@@ -99,10 +109,14 @@ export async function recomputeGenreSimilarity(): Promise<{ genres: number; rows
 
   const entries = computeGenreSimilarity(
     flat.map((row) => ({ id: row.id, parentId: row.parent_id })),
-    pairs.map((pair) => ({ genreIdA: pair.genre_id_a, genreIdB: pair.genre_id_b, sharedAlbums: pair.shared_albums })),
+    pairs.map((pair) => ({
+      genreIdA: pair.genre_id_a,
+      genreIdB: pair.genre_id_b,
+      sharedAlbums: pair.shared_albums,
+    })),
     new Map(albumCounts.map((row) => [row.genre_id, row.album_count])),
     totalAlbums,
-    { minSupportAlbums: minSupportAlbums(), topN: RELATED_LIMIT }
+    { minSupportAlbums: minSupportAlbums(), topN: RELATED_LIMIT },
   );
 
   await genreSimilarityRepository.replaceAll(entries);
@@ -134,7 +148,9 @@ export async function refreshTick(now: number = Date.now()): Promise<void> {
 
   try {
     const result = await recomputeGenreSimilarity();
-    console.log(`[genre-similarity] recomputed ${result.rows} row(s) across ${result.genres} genre(s)`);
+    console.log(
+      `[genre-similarity] recomputed ${result.rows} row(s) across ${result.genres} genre(s)`,
+    );
   } catch (error) {
     console.error("[genre-similarity] refresh tick failed:", error);
   }
@@ -164,7 +180,11 @@ export function startGenreSimilarityRefresh(): void {
 export async function loadGenreOverlapContext(): Promise<GenreOverlapContext> {
   const { pairs, taxonomy } = await genreSimilarityRepository.loadOverlapData();
   return buildGenreOverlapContext(
-    pairs.map((row) => ({ genreId: row.genre_id, relatedGenreId: row.related_genre_id, score: row.score })),
-    taxonomy.map((row) => ({ id: row.id, parentId: row.parent_id }))
+    pairs.map((row) => ({
+      genreId: row.genre_id,
+      relatedGenreId: row.related_genre_id,
+      score: row.score,
+    })),
+    taxonomy.map((row) => ({ id: row.id, parentId: row.parent_id })),
   );
 }

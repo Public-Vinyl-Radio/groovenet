@@ -41,7 +41,9 @@ describe("parseTrackRefs", () => {
     expect(message).toContain("line 2: missing track_id");
     expect(message).toContain('line 4: friend_id must be a positive integer, got "abc"');
     expect(message).toContain('line 5: friend_id must be a positive integer, got "0"');
-    expect(message).toContain('line 6: expected "track_id" or "track_id,friend_id", got "4-D1,1,2"');
+    expect(message).toContain(
+      'line 6: expected "track_id" or "track_id,friend_id", got "4-D1,1,2"',
+    );
     expect(message).toContain('line 7: friend_id must be a positive integer, got "1.5"');
     expect(message).not.toContain("line 1:");
   });

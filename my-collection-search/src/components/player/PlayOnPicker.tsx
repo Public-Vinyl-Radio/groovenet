@@ -25,7 +25,14 @@ const tracks = (n: number) => `${n} ${n === 1 ? "track" : "tracks"}`;
 function Rule({ label }: { label: string }) {
   return (
     <Flex align="center" gap="10px" mt="4px">
-      <Text as="span" {...overline} fontSize="11px" letterSpacing="0.08em" fontWeight="semibold" color="fg.muted">
+      <Text
+        as="span"
+        {...overline}
+        fontSize="11px"
+        letterSpacing="0.08em"
+        fontWeight="semibold"
+        color="fg.muted"
+      >
         {label}
       </Text>
       <Box flex="1" h="1px" bg="border" />
@@ -63,12 +70,31 @@ function OptionRow({
       boxShadow={checked ? "sm" : "none"}
       cursor="pointer"
       _hover={{ bg: checked ? "bg.panel" : "bg.muted" }}
-      css={{ "&:has(input:focus-visible)": { outline: `${focusRing.width} solid ${focusRing.color}`, outlineOffset: focusRing.offset } }}
+      css={{
+        "&:has(input:focus-visible)": {
+          outline: `${focusRing.width} solid ${focusRing.color}`,
+          outlineOffset: focusRing.offset,
+        },
+      }}
     >
       <VisuallyHidden asChild>
-        <input type="radio" name="play-on" value={value} checked={checked} onChange={() => onSelect(value)} />
+        <input
+          type="radio"
+          name="play-on"
+          value={value}
+          checked={checked}
+          onChange={() => onSelect(value)}
+        />
       </VisuallyHidden>
-      <Box aria-hidden w="14px" h="14px" flexShrink={0} borderWidth="outline" borderColor="border.ink" bg={checked ? "border.ink" : "transparent"} />
+      <Box
+        aria-hidden
+        w="14px"
+        h="14px"
+        flexShrink={0}
+        borderWidth="outline"
+        borderColor="border.ink"
+        bg={checked ? "border.ink" : "transparent"}
+      />
       <Flex direction="column" gap="2px" flex="1" minW={0}>
         <Text fontSize="16px" lineHeight="22px" fontWeight="semibold" truncate>
           {name}
@@ -78,7 +104,14 @@ function OptionRow({
         </Text>
       </Flex>
       {status && (
-        <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="semibold" letterSpacing="0.08em" color="fg.muted">
+        <Text
+          as="span"
+          fontFamily="mono"
+          fontSize="10px"
+          fontWeight="semibold"
+          letterSpacing="0.08em"
+          color="fg.muted"
+        >
           {status}
         </Text>
       )}
@@ -86,7 +119,15 @@ function OptionRow({
   );
 }
 
-function Preview({ dashed, label, children }: { dashed?: "ink" | "rule"; label: string; children: React.ReactNode }) {
+function Preview({
+  dashed,
+  label,
+  children,
+}: {
+  dashed?: "ink" | "rule";
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <Flex
       as="section"
@@ -119,7 +160,14 @@ function LivePreview({ server, joinLine }: { server: ServerPlayer; joinLine: str
   const duration = server.state.duration;
   return (
     <Preview dashed="ink" label="Active session on the server">
-      <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="semibold" letterSpacing="0.08em" color="fg.muted">
+      <Text
+        as="span"
+        fontFamily="mono"
+        fontSize="10px"
+        fontWeight="semibold"
+        letterSpacing="0.08em"
+        color="fg.muted"
+      >
         ACTIVE SESSION · {server.name.toUpperCase()}
       </Text>
       {current && (
@@ -170,7 +218,14 @@ function UnlockForm() {
         <Text as="span" {...overline} fontSize="11px" color="fg.muted">
           Household web passphrase
         </Text>
-        <Input type="password" autoComplete="current-password" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} required fontSize="16px" />
+        <Input
+          type="password"
+          autoComplete="current-password"
+          value={passphrase}
+          onChange={(event) => setPassphrase(event.target.value)}
+          required
+          fontSize="16px"
+        />
       </chakra.label>
       <Button type="submit" variant="outline" minH="44px" disabled={unlocking}>
         Unlock music servers
@@ -206,8 +261,13 @@ export default function PlayOnPicker() {
 
   const close = () => setOpen(false);
   // Prefer the newest snapshot from either subscription.
-  const players = target.players.map((p) => (p.id === target.remote.player?.id && target.remote.player.revision >= p.revision ? target.remote.player : p));
-  if (target.remote.player && !players.some((p) => p.id === target.remote.player!.id)) players.push(target.remote.player);
+  const players = target.players.map((p) =>
+    p.id === target.remote.player?.id && target.remote.player.revision >= p.revision
+      ? target.remote.player
+      : p,
+  );
+  if (target.remote.player && !players.some((p) => p.id === target.remote.player!.id))
+    players.push(target.remote.player);
   const chosen = players.find((p) => p.id === selected) ?? null;
   const fromLocal = target.target === LOCAL;
   const upcoming = fromLocal ? upcomingLocalTracks(local).length : 0;
@@ -248,7 +308,13 @@ export default function PlayOnPicker() {
 
   const footer = details ? null : (
     <Box p="12px 14px 12px 12px">
-      <Button variant="solid" minH="44px" w="100%" onClick={confirm} disabled={selected !== LOCAL && !chosen}>
+      <Button
+        variant="solid"
+        minH="44px"
+        w="100%"
+        onClick={confirm}
+        disabled={selected !== LOCAL && !chosen}
+      >
         {isCurrent ? "Done" : selected === LOCAL ? "Play here" : `Join ${chosen?.name ?? "server"}`}
       </Button>
     </Box>
@@ -265,12 +331,22 @@ export default function PlayOnPicker() {
         </>
       ) : (
         <>
-          <Flex role="radiogroup" aria-label="Output" direction="column" gap="10px" p="14px 14px 6px 12px">
+          <Flex
+            role="radiogroup"
+            aria-label="Output"
+            direction="column"
+            gap="10px"
+            p="14px 14px 6px 12px"
+          >
             <OptionRow
               value={LOCAL}
               checked={selected === LOCAL}
               name={device}
-              description={local.isAirPlayAvailable ? "Plays here, through this device or AirPlay" : "Plays here, through this device"}
+              description={
+                local.isAirPlayAvailable
+                  ? "Plays here, through this device or AirPlay"
+                  : "Plays here, through this device"
+              }
               onSelect={setSelected}
             />
             <Rule label="MUSIC SERVERS" />
@@ -285,7 +361,11 @@ export default function PlayOnPicker() {
                       checked={selected === p.id}
                       name={p.name}
                       description={
-                        p.id === target.target ? "Connected · shared queue" : live ? "Session live · join to share its queue" : "Idle · start a session"
+                        p.id === target.target
+                          ? "Connected · shared queue"
+                          : live
+                            ? "Session live · join to share its queue"
+                            : "Idle · start a session"
                       }
                       status={live ? "LIVE" : "IDLE"}
                       onSelect={setSelected}
@@ -300,7 +380,9 @@ export default function PlayOnPicker() {
                     </Button>
                   </Flex>
                 ) : (
-                  players.length === 0 && <Text fontSize="13px">No music servers are configured yet.</Text>
+                  players.length === 0 && (
+                    <Text fontSize="13px">No music servers are configured yet.</Text>
+                  )
                 )}
               </>
             ) : (
@@ -316,19 +398,29 @@ export default function PlayOnPicker() {
           </Flex>
 
           {selected === LOCAL && players.length > 0 && (
-            <Preview label="Local playback">Playing here never stops a server. It keeps playing its queue.</Preview>
-          )}
-          {chosen && (isLive(chosen) ? <LivePreview server={chosen} joinLine={joinLine} /> : (
-            <Preview label="Idle server">
-              {fromLocal && upcoming > 0 && !isCurrent
-                ? `Nothing playing on ${chosen.name}. Joining starts a new session with your queue (${tracks(upcoming)}).`
-                : `Nothing playing on ${chosen.name}. ${joinLine}`}
+            <Preview label="Local playback">
+              Playing here never stops a server. It keeps playing its queue.
             </Preview>
-          ))}
+          )}
+          {chosen &&
+            (isLive(chosen) ? (
+              <LivePreview server={chosen} joinLine={joinLine} />
+            ) : (
+              <Preview label="Idle server">
+                {fromLocal && upcoming > 0 && !isCurrent
+                  ? `Nothing playing on ${chosen.name}. Joining starts a new session with your queue (${tracks(upcoming)}).`
+                  : `Nothing playing on ${chosen.name}. ${joinLine}`}
+              </Preview>
+            ))}
           {chosen && isCurrent && (
             <Flex direction="column" gap="8px" mx="14px" ml="12px" mb="8px">
               <ServerNotice />
-              <Button size="xs" variant="ghost" alignSelf="flex-start" onClick={() => setDetails(true)}>
+              <Button
+                size="xs"
+                variant="ghost"
+                alignSelf="flex-start"
+                onClick={() => setDetails(true)}
+              >
                 Speaker details
               </Button>
             </Flex>

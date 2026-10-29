@@ -4,14 +4,8 @@ import {
   recordActionMutationResponseSchema,
 } from "@/api-contract/schemas";
 import { analytics } from "@/lib/analytics/server";
-import {
-  recordCareService,
-  type LogRecordActionInput,
-} from "@/server/services/recordCareService";
-import {
-  errorMessage,
-  getRecordCareErrorStatus,
-} from "../record-copies/recordCareErrorStatus";
+import { recordCareService, type LogRecordActionInput } from "@/server/services/recordCareService";
+import { errorMessage, getRecordCareErrorStatus } from "../record-copies/recordCareErrorStatus";
 
 /**
  * Log a care action against a copy, or against a release — which lands on the
@@ -23,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid record action payload", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -41,7 +35,7 @@ export async function POST(request: NextRequest) {
         sleeve_type: result.action.sleeve_type,
         method: result.action.details.method ?? null,
       },
-      { request }
+      { request },
     );
     return NextResponse.json(recordActionMutationResponseSchema.parse(result), {
       status: 201,

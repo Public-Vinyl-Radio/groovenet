@@ -18,7 +18,12 @@ vi.mock("@/services/internalApi/system", () => ({
 
 import AboutSection from "./AboutSection";
 
-const version = { version: "1.2.3", gitSha: "abc1234", builtAt: "2026-10-01T00:00:00.000Z", nodeEnv: "production" };
+const version = {
+  version: "1.2.3",
+  gitSha: "abc1234",
+  builtAt: "2026-10-01T00:00:00.000Z",
+  nodeEnv: "production",
+};
 const status = {
   services: [{ service: "essentia", status: "up" as const, latencyMs: 12, detail: undefined }],
   checkedAt: "2026-10-08T00:00:00.000Z",
@@ -33,8 +38,14 @@ beforeEach(() => {
 describe("AboutSection", () => {
   it("shows build info, service health and links once loaded, with no update banner when up to date", async () => {
     mocks.fetchUpdateInfo.mockResolvedValue({
-      current: "1.2.3", comparable: true, latest: "1.2.3", updateAvailable: false,
-      releaseUrl: null, releaseName: null, publishedAt: null, error: null,
+      current: "1.2.3",
+      comparable: true,
+      latest: "1.2.3",
+      updateAvailable: false,
+      releaseUrl: null,
+      releaseName: null,
+      publishedAt: null,
+      error: null,
     });
     renderWithProviders(<AboutSection />);
 
@@ -48,9 +59,14 @@ describe("AboutSection", () => {
 
   it("shows the update banner with a release-notes link when one is available", async () => {
     mocks.fetchUpdateInfo.mockResolvedValue({
-      current: "1.2.3", comparable: true, latest: "1.3.0", updateAvailable: true,
+      current: "1.2.3",
+      comparable: true,
+      latest: "1.3.0",
+      updateAvailable: true,
       releaseUrl: "https://github.com/Public-Vinyl-Radio/groovenet/releases/tag/v1.3.0",
-      releaseName: "v1.3.0", publishedAt: "2026-10-05T00:00:00.000Z", error: null,
+      releaseName: "v1.3.0",
+      publishedAt: "2026-10-05T00:00:00.000Z",
+      error: null,
     });
     renderWithProviders(<AboutSection />);
 
@@ -58,7 +74,7 @@ describe("AboutSection", () => {
     expect(screen.getByText("1.2.3 → 1.3.0")).toBeTruthy();
     expect(screen.getByText("1.3.0 available")).toBeTruthy();
     expect(screen.getByRole("link", { name: /View release notes/ }).getAttribute("href")).toBe(
-      "https://github.com/Public-Vinyl-Radio/groovenet/releases/tag/v1.3.0"
+      "https://github.com/Public-Vinyl-Radio/groovenet/releases/tag/v1.3.0",
     );
   });
 
@@ -67,8 +83,13 @@ describe("AboutSection", () => {
     [{ comparable: true, error: "rate limited" }, "unavailable"],
   ])("explains an update check that cannot answer (%j)", async (patch, text) => {
     mocks.fetchUpdateInfo.mockResolvedValue({
-      current: "1.2.3", latest: null, updateAvailable: false,
-      releaseUrl: null, releaseName: null, publishedAt: null, ...patch,
+      current: "1.2.3",
+      latest: null,
+      updateAvailable: false,
+      releaseUrl: null,
+      releaseName: null,
+      publishedAt: null,
+      ...patch,
     });
     renderWithProviders(<AboutSection />);
 

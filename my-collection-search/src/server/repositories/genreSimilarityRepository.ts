@@ -2,7 +2,11 @@ import { effectiveAlbumTaxonomySql } from "@/lib/genres/albumTaxonomySql";
 import { dbQuery, withDbTransaction } from "@/lib/serverDb";
 import type { GenreSimilarityEntry, GenreSimilaritySignals } from "@/lib/genres/genreSimilarity";
 
-export type GenreCoOccurrenceRow = { genre_id_a: string; genre_id_b: string; shared_albums: number };
+export type GenreCoOccurrenceRow = {
+  genre_id_a: string;
+  genre_id_b: string;
+  shared_albums: number;
+};
 export type GenreAlbumCountRow = { genre_id: string; album_count: number };
 
 export type GenreCoOccurrenceData = {
@@ -16,7 +20,11 @@ export type GenreParentRow = { id: string; parent_id: string | null };
 
 export type GenreOverlapData = { pairs: GenreSimilarityPairRow[]; taxonomy: GenreParentRow[] };
 
-export type GenreSimilarityRow = { related_genre_id: string; score: number; signals: GenreSimilaritySignals };
+export type GenreSimilarityRow = {
+  related_genre_id: string;
+  score: number;
+  signals: GenreSimilaritySignals;
+};
 
 /**
  * Every album's genre set (#377): the taxonomy genres linked to any of its
@@ -63,7 +71,11 @@ export class GenreSimilarityRepository {
       `),
       dbQuery<{ total: number }>(`SELECT COUNT(*)::integer AS total FROM albums`),
     ]);
-    return { pairs: pairs.rows, albumCounts: albumCounts.rows, totalAlbums: total.rows[0]?.total ?? 0 };
+    return {
+      pairs: pairs.rows,
+      albumCounts: albumCounts.rows,
+      totalAlbums: total.rows[0]?.total ?? 0,
+    };
   }
 
   /** Recomputes the whole table in one transaction (#377): idempotent, a second run with the same inputs writes the same rows. */
@@ -80,7 +92,7 @@ export class GenreSimilarityRepository {
         INSERT INTO genre_similarity (genre_id, related_genre_id, score, signals)
         SELECT * FROM unnest($1::uuid[], $2::uuid[], $3::real[], $4::jsonb[])
         `,
-        [genreIds, relatedIds, scores, signals]
+        [genreIds, relatedIds, scores, signals],
       );
     });
   }
@@ -95,7 +107,7 @@ export class GenreSimilarityRepository {
     const [pairs, taxonomy] = await Promise.all([
       dbQuery<GenreSimilarityPairRow>(
         `SELECT genre_id::text AS genre_id, related_genre_id::text AS related_genre_id, score
-         FROM genre_similarity`
+         FROM genre_similarity`,
       ),
       dbQuery<GenreParentRow>(`SELECT id::text AS id, parent_id::text AS parent_id FROM genres`),
     ]);
@@ -107,7 +119,7 @@ export class GenreSimilarityRepository {
     const { rows } = await dbQuery<GenreSimilarityRow>(
       `SELECT related_genre_id::text AS related_genre_id, score, signals
        FROM genre_similarity WHERE genre_id = $1::uuid ORDER BY score DESC LIMIT $2`,
-      [genreId, limit]
+      [genreId, limit],
     );
     return rows;
   }

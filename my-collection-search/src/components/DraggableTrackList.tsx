@@ -26,10 +26,7 @@ interface DraggableTrackListProps {
   /** Unique ID for the droppable area */
   droppableId: string;
   /** Function to render action buttons for each track */
-  renderTrackButtons?: (
-    track: Track | undefined,
-    index: number
-  ) => React.ReactNode;
+  renderTrackButtons?: (track: Track | undefined, index: number) => React.ReactNode;
   /** Additional props for TrackResultStore */
   trackResultProps?: {
     density?: "standard" | "dense";
@@ -54,8 +51,7 @@ export default function DraggableTrackList({
 }: DraggableTrackListProps) {
   const { onDragEnd } = useDragAndDropList(moveTrack);
   // Standard-density rows are a table: one outlined block with a header. The queue's dense rows are not.
-  const isTable =
-    trackResultProps?.layout === "row" && trackResultProps?.density !== "dense";
+  const isTable = trackResultProps?.layout === "row" && trackResultProps?.density !== "dense";
 
   const list = (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -65,29 +61,19 @@ export default function DraggableTrackList({
             {tracksPlaylist.map((trackPlay, idx) => {
               // Find the track in the tracks array for fallback
               const track = tracks.find(
-                (t) =>
-                  t.track_id === trackPlay.track_id &&
-                  t.friend_id === trackPlay.friend_id
+                (t) => t.track_id === trackPlay.track_id && t.friend_id === trackPlay.friend_id,
               );
               // Playlists can contain duplicate track refs; include index to ensure uniqueness.
               const draggableKey = `${trackPlay.track_id}:${trackPlay.friend_id}:${idx}`;
               const isCurrentTrack = currentTrackIndex === idx;
-              const useDenseRow = trackResultProps?.density === "dense" && trackResultProps?.layout === "row";
+              const useDenseRow =
+                trackResultProps?.density === "dense" && trackResultProps?.layout === "row";
               const sortPositionChange =
-                sortPositionChanges[
-                  `${trackPlay.track_id}:${trackPlay.friend_id}:${idx}`
-                ];
+                sortPositionChanges[`${trackPlay.track_id}:${trackPlay.friend_id}:${idx}`];
 
               return (
-                <Draggable
-                  key={draggableKey}
-                  draggableId={draggableKey}
-                  index={idx}
-                >
-                  {(
-                    dragProvided: DraggableProvided,
-                    snapshot: DraggableStateSnapshot
-                  ) => (
+                <Draggable key={draggableKey} draggableId={draggableKey} index={idx}>
+                  {(dragProvided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                     <Box
                       ref={dragProvided.innerRef}
                       {...dragProvided.draggableProps}
@@ -101,7 +87,13 @@ export default function DraggableTrackList({
                             : undefined
                       }
                       borderRadius={
-                        isTable ? undefined : isCurrentTrack ? (useDenseRow ? "xl" : "md") : undefined
+                        isTable
+                          ? undefined
+                          : isCurrentTrack
+                            ? useDenseRow
+                              ? "xl"
+                              : "md"
+                            : undefined
                       }
                       // The block's shadow doesn't travel with a lifted row, so it gets its own.
                       {...(isTable && snapshot.isDragging
@@ -113,11 +105,7 @@ export default function DraggableTrackList({
                         trackId={trackPlay.track_id}
                         friendId={trackPlay.friend_id}
                         fallbackTrack={track}
-                        buttons={
-                          renderTrackButtons
-                            ? renderTrackButtons(track, idx)
-                            : undefined
-                        }
+                        buttons={renderTrackButtons ? renderTrackButtons(track, idx) : undefined}
                         density={trackResultProps?.density}
                         layout={trackResultProps?.layout}
                         onRowClick={

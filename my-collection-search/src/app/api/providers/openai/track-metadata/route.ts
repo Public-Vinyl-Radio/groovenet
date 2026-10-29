@@ -18,9 +18,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error("Error fetching AI metadata:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch AI metadata" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch AI metadata" }, { status: 500 });
   }
 }

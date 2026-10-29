@@ -23,7 +23,7 @@ export const up = (pgm) => {
   pgm.addConstraint(
     "default_library_settings",
     "default_library_settings_singleton_check",
-    "CHECK (id = 1)"
+    "CHECK (id = 1)",
   );
 };
 

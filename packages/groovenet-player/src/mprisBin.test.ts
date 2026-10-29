@@ -17,7 +17,9 @@ it("prints a disabled message when no platform bridge is available", async () =>
 
 it("reports startup failure with a nonzero exit status", async () => {
   const error = vi.spyOn(console, "error").mockImplementation(() => {});
-  vi.doMock("./mpris.js", () => ({ startMpris: vi.fn().mockRejectedValue(new Error("missing dependency")) }));
+  vi.doMock("./mpris.js", () => ({
+    startMpris: vi.fn().mockRejectedValue(new Error("missing dependency")),
+  }));
   await import("./mprisBin.js");
   expect(error).toHaveBeenCalledWith(expect.stringContaining("Could not start"), expect.any(Error));
   expect(process.exitCode).toBe(1);

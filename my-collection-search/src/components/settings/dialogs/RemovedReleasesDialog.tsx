@@ -1,16 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Text,
-  Button,
-  Dialog,
-  Alert,
-  HStack,
-  VStack,
-  Code,
-} from "@chakra-ui/react";
+import { Box, Text, Button, Dialog, Alert, HStack, VStack, Code } from "@chakra-ui/react";
 
 interface RemovedReleasesDialogProps {
   open: boolean;
@@ -43,13 +34,12 @@ export default function RemovedReleasesDialog({
               <Alert.Root status="warning">
                 <Alert.Indicator />
                 <Alert.Title>
-                  {removedIds.length} release{removedIds.length > 1 ? "s" : ""}{" "}
-                  removed from Discogs
+                  {removedIds.length} release{removedIds.length > 1 ? "s" : ""} removed from Discogs
                 </Alert.Title>
                 <Alert.Description>
-                  These releases are in your local manifest but no longer appear
-                  in {username}&apos;s Discogs collection. They may have been
-                  deleted or removed from the collection.
+                  These releases are in your local manifest but no longer appear in {username}
+                  &apos;s Discogs collection. They may have been deleted or removed from the
+                  collection.
                 </Alert.Description>
               </Alert.Root>
 
@@ -57,13 +47,7 @@ export default function RemovedReleasesDialog({
                 <Text fontWeight="medium" mb={2}>
                   Removed Release IDs:
                 </Text>
-                <Box
-                  maxH="300px"
-                  overflowY="auto"
-                  bg="bg.muted"
-                  p={3}
-                  borderRadius="md"
-                >
+                <Box maxH="300px" overflowY="auto" bg="bg.muted" p={3} borderRadius="md">
                   <VStack align="stretch" gap={1}>
                     {removedIds.map((releaseId) => (
                       <Code key={releaseId} fontSize="sm">
@@ -97,11 +81,7 @@ export default function RemovedReleasesDialog({
           </Dialog.Body>
           <Dialog.Footer>
             <HStack justify="space-between" width="100%">
-              <Button
-                variant="outline"
-                onClick={onSkip}
-                disabled={deletePending}
-              >
+              <Button variant="outline" onClick={onSkip} disabled={deletePending}>
                 Keep Files
               </Button>
               <Button

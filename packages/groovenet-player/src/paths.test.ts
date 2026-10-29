@@ -12,6 +12,8 @@ describe("defaultPlayerPaths", () => {
   });
 
   it("defaults to the current user's home directory", () => {
-    expect(defaultPlayerPaths().socketPath).toBe(join(homedir(), ".groovenet", "player", "player.sock"));
+    expect(defaultPlayerPaths().socketPath).toBe(
+      join(homedir(), ".groovenet", "player", "player.sock"),
+    );
   });
 });

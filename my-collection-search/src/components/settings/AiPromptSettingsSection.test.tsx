@@ -24,7 +24,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.friend = { id: 7, username: "dj-friend" };
   mocks.fetchAiPromptSettings.mockResolvedValue({
-    prompt: "", defaultPrompt: "Describe the track.", isDefault: true,
+    prompt: "",
+    defaultPrompt: "Describe the track.",
+    isDefault: true,
   });
 });
 
@@ -44,7 +46,10 @@ describe("AiPromptSettingsSection", () => {
     await user.click(screen.getByRole("button", { name: "Save Prompt" }));
 
     await waitFor(() =>
-      expect(mocks.updateAiPromptSettings).toHaveBeenCalledWith({ friend_id: 7, prompt: "Custom prompt" })
+      expect(mocks.updateAiPromptSettings).toHaveBeenCalledWith({
+        friend_id: 7,
+        prompt: "Custom prompt",
+      }),
     );
     expect(await screen.findByText("Custom prompt active")).toBeTruthy();
   });

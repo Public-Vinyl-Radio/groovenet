@@ -21,8 +21,8 @@ def extract_bpm_confidence(rhythm: dict[str, Any] | None) -> float | None:
     A missing second peak counts as 0. None when there is no first-peak weight.
     """
     rhythm = rhythm or {}
-    first = _weight(rhythm.get('bpm_histogram_first_peak_weight'))
+    first = _weight(rhythm.get("bpm_histogram_first_peak_weight"))
     if first is None:
         return None
-    second = _weight(rhythm.get('bpm_histogram_second_peak_weight')) or 0.0
+    second = _weight(rhythm.get("bpm_histogram_second_peak_weight")) or 0.0
     return round(max(0.0, first - second), 3)

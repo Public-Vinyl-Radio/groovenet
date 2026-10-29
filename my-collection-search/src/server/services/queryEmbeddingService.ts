@@ -70,8 +70,8 @@ async function writeCache(key: string, embedding: number[]): Promise<void> {
         key,
         JSON.stringify(embedding),
         "EX",
-        QUERY_EMBEDDING_CACHE_TTL_SECONDS
-      )
+        QUERY_EMBEDDING_CACHE_TTL_SECONDS,
+      ),
     );
   } catch (error) {
     console.warn("[search] query embedding cache write failed:", (error as Error).message);

@@ -63,7 +63,7 @@ function makeRequest({
   if (includeFile) {
     formData.append(
       "file",
-      new File([new Uint8Array([1, 2, 3])], "song.mp3", { type: "audio/mpeg" })
+      new File([new Uint8Array([1, 2, 3])], "song.mp3", { type: "audio/mpeg" }),
     );
   }
   formData.append("track_id", trackId);
@@ -99,7 +99,7 @@ describe("POST /api/tracks/upload", () => {
     mockUnlink.mockResolvedValue(undefined);
     mockExec.mockImplementation(
       (_cmd: string, cb: (e: unknown, stdout?: string, stderr?: string) => void) =>
-        cb(null, "", "")
+        cb(null, "", ""),
     );
     mockUpdateTrackAnalysis.mockResolvedValue(undefined);
     mockFindTracksByTrackId.mockResolvedValue([{ track_id: "t1", friend_id: 1 }]);
@@ -111,8 +111,8 @@ describe("POST /api/tracks/upload", () => {
           key_edma: { key: "F", scale: "major", strength: 0.62 },
           key_krumhansl: { key: "C", scale: "major", strength: 0.58 },
           key_temperley: { key: "C", scale: "major", strength: 0.55 },
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -123,7 +123,7 @@ describe("POST /api/tracks/upload", () => {
     expect(res.status).toBe(200);
     expect(mockUpdateTrackAnalysis).toHaveBeenCalledWith(
       "t1",
-      expect.objectContaining({ key: "C major", key_confidence: 0.565 })
+      expect.objectContaining({ key: "C major", key_confidence: 0.565 }),
     );
   });
 
@@ -132,7 +132,7 @@ describe("POST /api/tracks/upload", () => {
 
     expect(mockUpdateTrackAnalysis).toHaveBeenCalledWith(
       "t1",
-      expect.objectContaining({ bpm: 124, bpm_confidence: 0.258 })
+      expect.objectContaining({ bpm: 124, bpm_confidence: 0.258 }),
     );
   });
 
@@ -146,14 +146,14 @@ describe("POST /api/tracks/upload", () => {
           tonal: {},
           metadata: { audio_properties: { length: 245.2 } },
         }),
-      })
+      }),
     );
 
     await POST(makeRequest());
 
     expect(mockUpdateTrackAnalysis).toHaveBeenCalledWith(
       "t1",
-      expect.objectContaining({ bpm: null, bpm_confidence: null })
+      expect.objectContaining({ bpm: null, bpm_confidence: null }),
     );
   });
 
@@ -162,9 +162,7 @@ describe("POST /api/tracks/upload", () => {
 
     await POST(makeRequest());
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("stored key=C major")
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("stored key=C major"));
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("edma=F major"));
     warnSpy.mockRestore();
   });
@@ -177,16 +175,14 @@ describe("POST /api/tracks/upload", () => {
           key_edma: { key: "D", scale: "minor", strength: 0.9 },
           key_krumhansl: { key: "D", scale: "minor", strength: 0.9 },
           key_temperley: { key: "D", scale: "minor", strength: 0.9 },
-        })
-      )
+        }),
+      ),
     );
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await POST(makeRequest());
 
-    expect(warnSpy).not.toHaveBeenCalledWith(
-      expect.stringContaining("Key profile disagreement")
-    );
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("Key profile disagreement"));
     warnSpy.mockRestore();
   });
 
@@ -195,9 +191,7 @@ describe("POST /api/tracks/upload", () => {
 
     await POST(makeRequest({ friendId: null }));
 
-    expect(warnSpy).not.toHaveBeenCalledWith(
-      expect.stringContaining("Key profile disagreement")
-    );
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("Key profile disagreement"));
     warnSpy.mockRestore();
   });
 
@@ -208,7 +202,7 @@ describe("POST /api/tracks/upload", () => {
     expect(mockWriteEssentiaAnalysis).toHaveBeenCalledWith(
       "t1",
       1,
-      expect.objectContaining({ rhythm: expect.any(Object) })
+      expect.objectContaining({ rhythm: expect.any(Object) }),
     );
   });
 
@@ -266,7 +260,7 @@ describe("POST /api/tracks/upload", () => {
     expect(mockUpdateTrackAnalysis).toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("track_id=t1, friend_id=1"),
-      expect.any(Error)
+      expect.any(Error),
     );
     errorSpy.mockRestore();
   });

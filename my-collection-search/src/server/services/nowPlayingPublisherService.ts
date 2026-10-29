@@ -142,7 +142,11 @@ function publishHaDiscovery(mqttClient: MqttClient, sourceId: string): void {
   publish(mqttClient, `homeassistant/sensor/${objectId}/config`, JSON.stringify(config));
 }
 
-async function publishCover(mqttClient: MqttClient, topic: string, coverUrl: string | null): Promise<void> {
+async function publishCover(
+  mqttClient: MqttClient,
+  topic: string,
+  coverUrl: string | null,
+): Promise<void> {
   const resized = await resizeCoverArt(coverUrl);
   publish(mqttClient, topic, resized ?? "");
 }

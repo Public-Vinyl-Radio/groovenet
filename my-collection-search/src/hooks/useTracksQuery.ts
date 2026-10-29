@@ -38,17 +38,15 @@ export function useTracksQuery() {
         notes: form.notes,
         bpm: form.bpm != null ? String(form.bpm) : undefined,
         key: form.key,
-        danceability:
-          form.danceability != null ? String(form.danceability) : undefined,
+        danceability: form.danceability != null ? String(form.danceability) : undefined,
         apple_music_url: form.apple_music_url,
         youtube_url: form.youtube_url,
         soundcloud_url: form.soundcloud_url,
         star_rating: form.star_rating,
-        duration_seconds:
-          form.duration_seconds === null ? undefined : form.duration_seconds,
+        duration_seconds: form.duration_seconds === null ? undefined : form.duration_seconds,
       };
       const updates = Object.fromEntries(
-        Object.entries(raw).filter(([, v]) => v !== undefined)
+        Object.entries(raw).filter(([, v]) => v !== undefined),
       ) as Partial<Track>;
 
       // Apply optimistic update to Zustand
@@ -75,8 +73,7 @@ export function useTracksQuery() {
   });
 
   return {
-    saveTrack: (data: TrackEditFormProps) =>
-      saveTrackMutation.mutateAsync(data),
+    saveTrack: (data: TrackEditFormProps) => saveTrackMutation.mutateAsync(data),
     saveTrackLoading: saveTrackMutation.isPending,
   };
 }

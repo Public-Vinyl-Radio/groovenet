@@ -17,10 +17,7 @@ type TrackLike = { local_audio_url?: unknown } | null | undefined;
  * record, which has not changed. Same bytes behind an unchanged path is the
  * periodic verification pass's job — this route never sees it.
  */
-export function shouldTriggerFingerprintIndex(
-  current: TrackLike,
-  updated: TrackLike
-): boolean {
+export function shouldTriggerFingerprintIndex(current: TrackLike, updated: TrackLike): boolean {
   const before = current?.local_audio_url;
   const after = updated?.local_audio_url;
   return !!after && after !== before;

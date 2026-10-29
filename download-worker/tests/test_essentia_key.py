@@ -210,9 +210,7 @@ class TestLogKeyProfileDisagreement:
         assert "temperley=C major" in caplog.text
 
     def test_does_nothing_when_only_one_estimate_exists_and_nothing_disagrees(self, caplog):
-        log_key_profile_disagreement(
-            {"key_krumhansl": {"key": "C", "scale": "major"}}, "trk_001", 1
-        )
+        log_key_profile_disagreement({"key_krumhansl": {"key": "C", "scale": "major"}}, "trk_001", 1)
         assert caplog.text == ""
 
     def test_does_nothing_when_tonal_is_missing(self, caplog):

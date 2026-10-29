@@ -1,9 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
-import { ArtworkCache, artworkSource, blockRows, deleteImage, detectArtwork, passthrough, placeholderRows, transmit } from "./artwork.js";
+import {
+  ArtworkCache,
+  artworkSource,
+  blockRows,
+  deleteImage,
+  detectArtwork,
+  passthrough,
+  placeholderRows,
+  transmit,
+} from "./artwork.js";
 import { displayWidth } from "./text.js";
 
-const png = () => sharp({ create: { width: 4, height: 4, channels: 3, background: "red" } }).png().toBuffer();
+const png = () =>
+  sharp({ create: { width: 4, height: 4, channels: 3, background: "red" } })
+    .png()
+    .toBuffer();
 
 describe("artwork detection", () => {
   it.each([
@@ -29,16 +41,33 @@ describe("artwork detection", () => {
   });
 
   it("never emits graphics to redirected output", async () => {
-    expect((await detectArtwork({ env: { TERM_PROGRAM: "ghostty" }, tty: false })).mode).toBe("off");
+    expect((await detectArtwork({ env: { TERM_PROGRAM: "ghostty" }, tty: false })).mode).toBe(
+      "off",
+    );
   });
 
   it("checks the current tmux pane, accepts on/all, and falls back on failure/off", async () => {
-    const env = { TMUX: "session", TMUX_PANE: "%4", TERM_PROGRAM: "ghostty", COLORTERM: "truecolor" };
+    const env = {
+      TMUX: "session",
+      TMUX_PANE: "%4",
+      TERM_PROGRAM: "ghostty",
+      COLORTERM: "truecolor",
+    };
     const run = vi.fn().mockResolvedValue("on\n");
     expect(await detectArtwork({ env, tty: true, run })).toEqual({ mode: "kitty", tmux: true });
-    expect(run).toHaveBeenCalledWith(["show-options", "-p", "-A", "-v", "-t", "%4", "allow-passthrough"]);
+    expect(run).toHaveBeenCalledWith([
+      "show-options",
+      "-p",
+      "-A",
+      "-v",
+      "-t",
+      "%4",
+      "allow-passthrough",
+    ]);
     run.mockResolvedValueOnce("all");
-    expect((await detectArtwork({ env: { ...env, TMUX_PANE: undefined }, tty: true, run })).mode).toBe("kitty");
+    expect(
+      (await detectArtwork({ env: { ...env, TMUX_PANE: undefined }, tty: true, run })).mode,
+    ).toBe("kitty");
     run.mockResolvedValueOnce("off");
     expect((await detectArtwork({ env, tty: true, run })).mode).toBe("blocks");
     run.mockRejectedValueOnce(new Error("old tmux"));
@@ -52,10 +81,12 @@ describe("artwork encoding", () => {
     const result = transmit(bytes, 42, 18, 8, false);
     expect(result).toContain("a=T,f=100,t=d,U=1,q=2,i=42,c=18,r=8,m=1;");
     expect(result).toContain("\x1b_Gm=0;");
-    const payload = [...result.matchAll(/\x1b_G[^;]+;([^\x1b]+)\x1b\\/g)].map(match => match[1]);
-    expect(payload.map(value => value.length)).toEqual([4096, 1240]);
+    const payload = [...result.matchAll(/\x1b_G[^;]+;([^\x1b]+)\x1b\\/g)].map((match) => match[1]);
+    expect(payload.map((value) => value.length)).toEqual([4096, 1240]);
     expect(Buffer.from(payload.join(""), "base64")).toEqual(bytes);
-    expect(transmit(Buffer.from("x"), 1, 2, 2, true)).toBe(passthrough("\x1b_Ga=T,f=100,t=d,U=1,q=2,i=1,c=2,r=2,m=0;eA==\x1b\\", true));
+    expect(transmit(Buffer.from("x"), 1, 2, 2, true)).toBe(
+      passthrough("\x1b_Ga=T,f=100,t=d,U=1,q=2,i=1,c=2,r=2,m=0;eA==\x1b\\", true),
+    );
     expect(deleteImage(42, true)).toBe("\x1bPtmux;\x1b\x1b_Ga=d,d=I,i=42,q=2\x1b\x1b\\\x1b\\");
   });
 
@@ -64,12 +95,16 @@ describe("artwork encoding", () => {
     expect(rows).toHaveLength(8);
     expect(rows[0]).toContain("\x1b[38;2;18;52;86m\u{10eeee}\u0305\u0305");
     expect(rows[1]).toContain("\u{10eeee}\u030d\u0305");
-    expect(rows.every(row => displayWidth(row) === 18)).toBe(true);
+    expect(rows.every((row) => displayWidth(row) === 18)).toBe(true);
   });
 
   it("encodes upper/lower RGB pixels in the foreground/background", () => {
-    expect(blockRows(Buffer.from([255, 0, 0, 0, 0, 255]), 1, 1)).toEqual(["\x1b[38;2;255;0;0m\x1b[48;2;0;0;255m▀\x1b[39;49m"]);
-    expect(artworkSource({ audio_file_album_art_url: "/local", album_thumbnail: "/remote" })).toBe("/local");
+    expect(blockRows(Buffer.from([255, 0, 0, 0, 0, 255]), 1, 1)).toEqual([
+      "\x1b[38;2;255;0;0m\x1b[48;2;0;0;255m▀\x1b[39;49m",
+    ]);
+    expect(artworkSource({ audio_file_album_art_url: "/local", album_thumbnail: "/remote" })).toBe(
+      "/local",
+    );
     expect(artworkSource({ album_thumbnail: "/remote" })).toBe("/remote");
     expect(artworkSource(null)).toBeUndefined();
   });
@@ -82,7 +117,11 @@ describe("artwork cache", () => {
     const first = cache.get("/red", 18, 8, "kitty");
     expect(cache.get("/red", 18, 8, "kitty")).toBe(first);
     const image = await first;
-    expect(await sharp(image.png).metadata()).toMatchObject({ width: 288, height: 256, hasAlpha: true });
+    expect(await sharp(image.png).metadata()).toMatchObject({
+      width: 288,
+      height: 256,
+      hasAlpha: true,
+    });
     const { data, info } = await sharp(image.png).raw().toBuffer({ resolveWithObject: true });
     expect(info.channels).toBe(4);
     expect(data[3]).toBe(0); // Padding blends into the terminal instead of forming black borders.
@@ -90,13 +129,19 @@ describe("artwork cache", () => {
     expect([...data.subarray(center, center + 4)]).toEqual([255, 0, 0, 255]);
     const blocks = await cache.get("/red", 12, 6, "blocks");
     expect(blocks.rows).toHaveLength(6);
-    expect(blocks.rows.every(row => displayWidth(row) === 12)).toBe(true);
+    expect(blocks.rows.every((row) => displayWidth(row) === 12)).toBe(true);
     expect(blocks.rows.join("")).toContain("255;0;0");
     expect(api.getArtwork).toHaveBeenCalledTimes(1);
   });
 
   it("retries failed fetches and decoding without caching rejections", async () => {
-    const api = { getArtwork: vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(Buffer.from("invalid")).mockResolvedValue(await png()) };
+    const api = {
+      getArtwork: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValueOnce(Buffer.from("invalid"))
+        .mockResolvedValue(await png()),
+    };
     const cache = new ArtworkCache(api);
     await expect(cache.get("/a", 2, 2, "kitty")).rejects.toThrow("offline");
     await expect(cache.get("/a", 2, 2, "kitty")).rejects.toThrow();
@@ -114,22 +159,33 @@ describe("artwork cache", () => {
   });
 });
 
-it.each(["fetch", "decode"])("a late %s failure cannot evict a newer cached cover", async failure => {
-  let resolveOld!: (value: Buffer) => void;
-  let rejectOld!: (error: Error) => void;
-  const pending = new Promise<Buffer>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; });
-  const api = { getArtwork: vi.fn().mockReturnValueOnce(pending).mockResolvedValue(await png()) };
-  const cache = new ArtworkCache(api);
-  const old = cache.get("/a", 1, 1, "kitty");
-  const rejected = expect(old).rejects.toThrow();
-  // A fast scroll evicts a request that is still loading.
-  for (let i = 0; i < 34; i++) await cache.get(`/${i}`, 1, 1, "kitty");
-  const fresh = cache.get("/a", 1, 1, "kitty");
-  await fresh;
-  if (failure === "fetch") rejectOld(new Error("late network failure"));
-  else resolveOld(Buffer.from("invalid image"));
-  await rejected;
-  expect(cache.get("/a", 1, 1, "kitty")).toBe(fresh);
-  await cache.get("/a", 2, 1, "kitty");
-  expect(api.getArtwork).toHaveBeenCalledTimes(36);
-});
+it.each(["fetch", "decode"])(
+  "a late %s failure cannot evict a newer cached cover",
+  async (failure) => {
+    let resolveOld!: (value: Buffer) => void;
+    let rejectOld!: (error: Error) => void;
+    const pending = new Promise<Buffer>((resolve, reject) => {
+      resolveOld = resolve;
+      rejectOld = reject;
+    });
+    const api = {
+      getArtwork: vi
+        .fn()
+        .mockReturnValueOnce(pending)
+        .mockResolvedValue(await png()),
+    };
+    const cache = new ArtworkCache(api);
+    const old = cache.get("/a", 1, 1, "kitty");
+    const rejected = expect(old).rejects.toThrow();
+    // A fast scroll evicts a request that is still loading.
+    for (let i = 0; i < 34; i++) await cache.get(`/${i}`, 1, 1, "kitty");
+    const fresh = cache.get("/a", 1, 1, "kitty");
+    await fresh;
+    if (failure === "fetch") rejectOld(new Error("late network failure"));
+    else resolveOld(Buffer.from("invalid image"));
+    await rejected;
+    expect(cache.get("/a", 1, 1, "kitty")).toBe(fresh);
+    await cache.get("/a", 2, 1, "kitty");
+    expect(api.getArtwork).toHaveBeenCalledTimes(36);
+  },
+);

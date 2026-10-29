@@ -43,7 +43,9 @@ describe("summarizeSides", () => {
   });
 
   it("leaves a side with no durations out of the runtimes", () => {
-    expect(formatSideRuntimes(summarizeSides([t("A1", { duration: "1:00" }), t("B1")]))).toBe("A 1:00");
+    expect(formatSideRuntimes(summarizeSides([t("A1", { duration: "1:00" }), t("B1")]))).toBe(
+      "A 1:00",
+    );
   });
 });
 
@@ -63,7 +65,10 @@ describe("bpmRange", () => {
 
 describe("openingKey", () => {
   it("is the first track with a recognisable key", () => {
-    expect(openingKey([{ key: "nope" }, { key: "A minor" }, { key: "C major" }])).toEqual({ camelot: "8A", name: "A minor" });
+    expect(openingKey([{ key: "nope" }, { key: "A minor" }, { key: "C major" }])).toEqual({
+      camelot: "8A",
+      name: "A minor",
+    });
   });
 
   it("is null when no track has one", () => {
@@ -75,13 +80,21 @@ describe("spin stats", () => {
   const spin = (played_at: string) => ({ session: { played_at } });
 
   it("counts spins and finds the latest, whatever the order", () => {
-    const stats = summarizeSpinStats([spin("2026-05-01T10:00:00Z"), spin("2026-06-05T19:43:00Z"), spin("bad")], 8);
+    const stats = summarizeSpinStats(
+      [spin("2026-05-01T10:00:00Z"), spin("2026-06-05T19:43:00Z"), spin("bad")],
+      8,
+    );
     expect(stats).toEqual({ count: 3, capped: false, lastPlayedAt: "2026-06-05T19:43:00Z" });
   });
 
   it("has no last spin without spins, and flags a full page", () => {
     expect(summarizeSpinStats([], 8)).toEqual({ count: 0, capped: false, lastPlayedAt: null });
-    expect(summarizeSpinStats(Array.from({ length: 8 }, () => spin("2026-01-01T00:00:00Z")), 8).capped).toBe(true);
+    expect(
+      summarizeSpinStats(
+        Array.from({ length: 8 }, () => spin("2026-01-01T00:00:00Z")),
+        8,
+      ).capped,
+    ).toBe(true);
   });
 
   it("words the count", () => {

@@ -13,6 +13,7 @@ The connection is passed in rather than imported. `main` holds the module global
 the test suite patches, and a second module reaching for its own would quietly
 escape that.
 """
+
 import time
 
 from .config import INDEX_RUN_KEY_PREFIX, INDEX_RUN_TTL, logger

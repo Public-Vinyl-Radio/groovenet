@@ -58,14 +58,22 @@ describe("useAddToPlaylistDialog onAdded", () => {
   });
 
   it.each([
-    ["the save fails", () => api.updatePlaylist.mockRejectedValue(new Error("offline")), playlist()],
-    ["the track is already there", () => {}, playlist([{ track_id: "t1", friend_id: 1, position: 0 }])],
+    [
+      "the save fails",
+      () => api.updatePlaylist.mockRejectedValue(new Error("offline")),
+      playlist(),
+    ],
+    [
+      "the track is already there",
+      () => {},
+      playlist([{ track_id: "t1", friend_id: 1, position: 0 }]),
+    ],
   ])("does not run when %s", async (_label, arrange, target) => {
     arrange();
     const { onAdded, choose } = setup();
     choose(target);
     await waitFor(() =>
-      expect(toaster.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" }))
+      expect(toaster.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })),
     );
     expect(onAdded).not.toHaveBeenCalled();
   });
@@ -80,7 +88,11 @@ describe("useAddToPlaylistDialog with several tracks", () => {
     const { onAdded, result } = setup();
     act(() => result.current.openForTracks([track, second], "Blue Lines"));
     expect(result.current.playlistDialog.props.title).toBe('Add "Blue Lines" to Playlist');
-    act(() => result.current.playlistDialog.props.onPlaylistSelect(playlist([{ track_id: "t1", friend_id: 1, position: 0 }])));
+    act(() =>
+      result.current.playlistDialog.props.onPlaylistSelect(
+        playlist([{ track_id: "t1", friend_id: 1, position: 0 }]),
+      ),
+    );
     await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
     expect(onAdded).toHaveBeenCalledWith(second);
     expect(api.updatePlaylist).toHaveBeenCalledWith(7, {
@@ -100,13 +112,16 @@ describe("useAddToPlaylistDialog with several tracks", () => {
         playlist([
           { track_id: "t1", friend_id: 1, position: 0 },
           { track_id: "t2", friend_id: 1, position: 1 },
-        ])
-      )
+        ]),
+      ),
     );
     await waitFor(() =>
       expect(toaster.create).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'These tracks are already in playlist "Sunday"', type: "error" })
-      )
+        expect.objectContaining({
+          title: 'These tracks are already in playlist "Sunday"',
+          type: "error",
+        }),
+      ),
     );
     expect(onAdded).not.toHaveBeenCalled();
   });
@@ -123,6 +138,8 @@ describe("useAddToPlaylistDialog with several tracks", () => {
       { track_id: "t1", friend_id: 1 },
       { track_id: "t2", friend_id: 1 },
     ]);
-    expect(toaster.create).toHaveBeenCalledWith(expect.objectContaining({ title: 'Created "Monday" with 2 tracks' }));
+    expect(toaster.create).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Created "Monday" with 2 tracks' }),
+    );
   });
 });

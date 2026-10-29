@@ -36,7 +36,9 @@ async function cleanup() {
   await dbQuery("DELETE FROM genre_reconciliation_proposals");
   await dbQuery("DELETE FROM genre_reconciliation_runs");
   await dbQuery("DELETE FROM tracks WHERE username = ANY($1)", [[USERNAME, OTHER]]);
-  await dbQuery("DELETE FROM genre_aliases WHERE source = 'reconciliation' OR alias_normalized LIKE 'recon test %'");
+  await dbQuery(
+    "DELETE FROM genre_aliases WHERE source = 'reconciliation' OR alias_normalized LIKE 'recon test %'",
+  );
   await dbQuery("DELETE FROM genres WHERE name LIKE 'Recon Test %'");
   await dbQuery("DELETE FROM friends WHERE username = ANY($1)", [[USERNAME, OTHER]]);
 }
@@ -46,7 +48,7 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number }>(
     "INSERT INTO friends (username) VALUES ($1) RETURNING id",
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   const tracks: Array<[string, string | null, string[]]> = [
@@ -61,7 +63,7 @@ beforeAll(async () => {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, local_tags, styles)
        VALUES ($1, $2, $3, 'Title', 'Artist', $4, $5)`,
-      [trackId, USERNAME, friendId, localTags, styles]
+      [trackId, USERNAME, friendId, localTags, styles],
     );
   }
 });
@@ -81,7 +83,10 @@ describe("local_tags reconciliation", () => {
 
     await dbQuery("UPDATE genre_reconciliation_runs SET updated_at = now() - interval '1 hour'");
     await repo.failStaleRuns(15);
-    expect(await repo.getRun(first!.id)).toMatchObject({ status: "failed", error: expect.stringContaining("Stalled") });
+    expect(await repo.getRun(first!.id)).toMatchObject({
+      status: "failed",
+      error: expect.stringContaining("Stalled"),
+    });
     expect(await repo.createRun(defaultRunOptions, "m")).not.toBeNull();
     await dbQuery("DELETE FROM genre_reconciliation_runs");
   });
@@ -91,11 +96,19 @@ describe("local_tags reconciliation", () => {
     await executeRun(run.id, { ...defaultRunOptions, ai: false });
 
     expect(await repo.getRun(run.id)).toMatchObject({
-      status: "completed", distinct_values: 5, exact_matches: 2, ai_pending: 3, finished_at: expect.any(Date),
+      status: "completed",
+      distinct_values: 5,
+      exact_matches: 2,
+      ai_pending: 3,
+      finished_at: expect.any(Date),
     });
     const cumbia = await proposalFor("cumbia");
     expect(cumbia).toMatchObject({
-      action: "map", method: "exact", status: "pending", confidence: 1, track_count: 2,
+      action: "map",
+      method: "exact",
+      status: "pending",
+      confidence: 1,
+      track_count: 2,
       target_genre_ids: [await genreId("Cumbia")],
       target_genres: [{ name: "Cumbia", parent_name: "Latin" }],
     });
@@ -106,29 +119,62 @@ describe("local_tags reconciliation", () => {
   });
 
   dbTest("keeps reviewed decisions on a re-run, refreshing their counts", async () => {
-    await repo.upsertProposals([{
-      value_normalized: "recon test psych", raw_examples: ["Recon Test Psych"], track_count: 2,
-      action: "new_genre", target_genre_ids: [], proposed_genre_name: "Recon Test Psych",
-      proposed_parent_id: await genreId("Cumbia"), confidence: 0.8, method: "ai",
-    }, {
-      value_normalized: "uplifting", raw_examples: ["Uplifting"], track_count: 1,
-      action: "descriptor", target_genre_ids: [], proposed_genre_name: null,
-      proposed_parent_id: null, confidence: 0.9, method: "ai",
-    }, {
-      value_normalized: "recon junk", raw_examples: ["Recon Junk"], track_count: 1,
-      action: "drop", target_genre_ids: [], proposed_genre_name: null,
-      proposed_parent_id: null, confidence: 0.9, method: "ai",
-    }], (await repo.createRun(defaultRunOptions, null))!.id);
+    await repo.upsertProposals(
+      [
+        {
+          value_normalized: "recon test psych",
+          raw_examples: ["Recon Test Psych"],
+          track_count: 2,
+          action: "new_genre",
+          target_genre_ids: [],
+          proposed_genre_name: "Recon Test Psych",
+          proposed_parent_id: await genreId("Cumbia"),
+          confidence: 0.8,
+          method: "ai",
+        },
+        {
+          value_normalized: "uplifting",
+          raw_examples: ["Uplifting"],
+          track_count: 1,
+          action: "descriptor",
+          target_genre_ids: [],
+          proposed_genre_name: null,
+          proposed_parent_id: null,
+          confidence: 0.9,
+          method: "ai",
+        },
+        {
+          value_normalized: "recon junk",
+          raw_examples: ["Recon Junk"],
+          track_count: 1,
+          action: "drop",
+          target_genre_ids: [],
+          proposed_genre_name: null,
+          proposed_parent_id: null,
+          confidence: 0.9,
+          method: "ai",
+        },
+      ],
+      (await repo.createRun(defaultRunOptions, null))!.id,
+    );
     await dbQuery("UPDATE genre_reconciliation_runs SET status = 'completed'");
 
     const cumbia = await proposalFor("cumbia");
     await updateProposal(cumbia.id, { status: "accepted" });
     await updateProposal((await proposalFor("uplifting")).id, { status: "accepted" });
     await updateProposal((await proposalFor("recon junk")).id, { status: "accepted" });
-    const edited = await updateProposal((await proposalFor("recon test psych")).id, { proposed_genre_name: "Recon Test Psychedelic Cumbia" });
-    expect(edited).toMatchObject({ status: "edited", method: "manual", proposed_parent_name: "Cumbia" });
+    const edited = await updateProposal((await proposalFor("recon test psych")).id, {
+      proposed_genre_name: "Recon Test Psychedelic Cumbia",
+    });
+    expect(edited).toMatchObject({
+      status: "edited",
+      method: "manual",
+      proposed_parent_name: "Cumbia",
+    });
 
-    await dbQuery("UPDATE genre_reconciliation_proposals SET track_count = 99 WHERE value_normalized = 'cumbia'");
+    await dbQuery(
+      "UPDATE genre_reconciliation_proposals SET track_count = 99 WHERE value_normalized = 'cumbia'",
+    );
     const rerun = (await repo.createRun({ ...defaultRunOptions, ai: false }, null))!;
     await executeRun(rerun.id, { ...defaultRunOptions, ai: false });
     expect(await repo.getRun(rerun.id)).toMatchObject({ exact_matches: 1, kept: 4, ai_pending: 0 });
@@ -139,7 +185,10 @@ describe("local_tags reconciliation", () => {
   dbTest("applies accepted proposals, repeatably, and reports coverage", async () => {
     const first = await applyProposals();
     expect(first).toMatchObject({
-      proposals_applied: 4, genres_created: 1, descriptors_added: 1, skipped: [],
+      proposals_applied: 4,
+      genres_created: 1,
+      descriptors_added: 1,
+      skipped: [],
     });
     // cumbia → rc-1, rc-2; the new genre → rc-1, rc-3.
     expect(first.tracks_linked).toBe(4);
@@ -148,19 +197,35 @@ describe("local_tags reconciliation", () => {
 
     const created = await genreId("Recon Test Psychedelic Cumbia");
     const { rows: links } = await dbQuery<{ track_id: string; source: string }>(
-      "SELECT track_id, source FROM track_genres WHERE genre_id = $1 ORDER BY track_id", [created]
+      "SELECT track_id, source FROM track_genres WHERE genre_id = $1 ORDER BY track_id",
+      [created],
     );
-    expect(links).toEqual([{ track_id: "rc-1", source: "reconciliation" }, { track_id: "rc-3", source: "reconciliation" }]);
-    const { rows: [rc2] } = await dbQuery("SELECT descriptors, local_tags FROM tracks WHERE track_id = 'rc-2'");
+    expect(links).toEqual([
+      { track_id: "rc-1", source: "reconciliation" },
+      { track_id: "rc-3", source: "reconciliation" },
+    ]);
+    const {
+      rows: [rc2],
+    } = await dbQuery("SELECT descriptors, local_tags FROM tracks WHERE track_id = 'rc-2'");
     expect(rc2).toEqual({ descriptors: ["uplifting"], local_tags: "cumbia, Uplifting" });
     expect((await proposalFor("recon test psych")).created_genre_id).toBe(created);
 
     expect(await applyProposals()).toMatchObject({
-      proposals_applied: 4, tracks_linked: 0, descriptors_added: 0, aliases_added: 0, genres_created: 0,
+      proposals_applied: 4,
+      tracks_linked: 0,
+      descriptors_added: 0,
+      aliases_added: 0,
+      genres_created: 0,
     });
 
     expect(await getCoverage()).toMatchObject({
-      tracks: { with_local_tags: 5, with_genres: 3, descriptors_only: 0, no_genre: 1, unresolved: 1 },
+      tracks: {
+        with_local_tags: 5,
+        with_genres: 3,
+        descriptors_only: 0,
+        no_genre: 1,
+        unresolved: 1,
+      },
       values: { distinct: 5, proposed: 5, exact: 2, exact_share: 0.4 },
     });
   });
@@ -179,34 +244,45 @@ describe("local_tags reconciliation", () => {
   dbTest("scopes a run, an apply and coverage to one friend", async () => {
     const { rows } = await dbQuery<{ id: number }>(
       "INSERT INTO friends (username) VALUES ($1) RETURNING id",
-      [OTHER]
+      [OTHER],
     );
     const otherId = rows[0].id;
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, local_tags)
        VALUES ('rc-other', $1, $2, 'Title', 'Artist', 'Cumbia · Recon Other Only')`,
-      [OTHER, otherId]
+      [OTHER, otherId],
     );
 
     const options = { ...defaultRunOptions, ai: false, friend_id: friendId };
     const run = (await repo.createRun(options, null))!;
     await executeRun(run.id, options);
-    expect(await repo.getRun(run.id)).toMatchObject({ distinct_values: 5, options: { friend_id: friendId } });
+    expect(await repo.getRun(run.id)).toMatchObject({
+      distinct_values: 5,
+      options: { friend_id: friendId },
+    });
     // The other friend's value is neither proposed nor counted.
     expect(await proposalFor("recon other only")).toBeUndefined();
     expect((await proposalFor("cumbia")).track_count).toBe(2);
 
     await applyProposals(undefined, friendId);
-    const { rows: otherLinks } = await dbQuery("SELECT 1 FROM track_genres WHERE track_id = 'rc-other'");
+    const { rows: otherLinks } = await dbQuery(
+      "SELECT 1 FROM track_genres WHERE track_id = 'rc-other'",
+    );
     expect(otherLinks).toEqual([]);
 
     expect((await getCoverage(otherId)).tracks).toEqual({
-      with_local_tags: 1, with_genres: 0, descriptors_only: 0, no_genre: 0, unresolved: 1,
+      with_local_tags: 1,
+      with_genres: 0,
+      descriptors_only: 0,
+      no_genre: 0,
+      unresolved: 1,
     });
     expect((await getCoverage(friendId)).tracks.with_local_tags).toBe(5);
 
     await applyProposals(undefined, otherId);
-    const { rows: linked } = await dbQuery("SELECT 1 FROM track_genres WHERE track_id = 'rc-other'");
+    const { rows: linked } = await dbQuery(
+      "SELECT 1 FROM track_genres WHERE track_id = 'rc-other'",
+    );
     expect(linked).toHaveLength(1);
   });
 
@@ -215,16 +291,29 @@ describe("local_tags reconciliation", () => {
     expect(uplifting).toMatchObject({ status: "accepted", action: "descriptor", method: "ai" });
 
     // A missing id rolls back the whole batch.
-    await expect(decideProposals([
-      { id: uplifting.id, action: "drop" },
-      { id: "00000000-0000-4000-8000-000000000000", status: "accepted" },
-    ])).rejects.toMatchObject({ status: 404 });
-    expect(await proposalFor("uplifting")).toMatchObject({ action: "descriptor", status: "accepted" });
+    await expect(
+      decideProposals([
+        { id: uplifting.id, action: "drop" },
+        { id: "00000000-0000-4000-8000-000000000000", status: "accepted" },
+      ]),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(await proposalFor("uplifting")).toMatchObject({
+      action: "descriptor",
+      status: "accepted",
+    });
 
     const { previous } = await decideProposals([{ id: uplifting.id, action: "drop" }]);
-    expect(await proposalFor("uplifting")).toMatchObject({ action: "drop", status: "edited", method: "manual" });
+    expect(await proposalFor("uplifting")).toMatchObject({
+      action: "drop",
+      status: "edited",
+      method: "manual",
+    });
     expect(await restoreProposals(previous)).toEqual({ restored: 1 });
-    expect(await proposalFor("uplifting")).toMatchObject({ action: "descriptor", status: "accepted", method: "ai" });
+    expect(await proposalFor("uplifting")).toMatchObject({
+      action: "descriptor",
+      status: "accepted",
+      method: "ai",
+    });
 
     // rc-other (another friend) also says Cumbia; rc-3's tags hold no "cumbia".
     const tracks = await getProposalTracks((await proposalFor("cumbia")).id, friendId, 5);
@@ -237,11 +326,18 @@ describe("local_tags reconciliation", () => {
   });
 
   dbTest("matches spelling variants loosely, against the seeded taxonomy", async () => {
-    const matches = await repo.resolveExactValues(["blues-rock", "synth pop", "prog rock", "zzz recon nothing"]);
+    const matches = await repo.resolveExactValues([
+      "blues-rock",
+      "synth pop",
+      "prog rock",
+      "zzz recon nothing",
+    ]);
     const nameOf = async (value: string) => {
       const match = matches.get(value);
       if (!match) return undefined;
-      const { rows } = await dbQuery<{ name: string }>("SELECT name FROM genres WHERE id = $1", [match.genre_id]);
+      const { rows } = await dbQuery<{ name: string }>("SELECT name FROM genres WHERE id = $1", [
+        match.genre_id,
+      ]);
       return { name: rows[0].name, loose: match.loose };
     };
     expect(await nameOf("blues-rock")).toEqual({ name: "Blues Rock", loose: true });

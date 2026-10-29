@@ -1,20 +1,23 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  derivePlays,
-  diffAgainstPlan,
-  findUnidentified,
-  identifiedSeconds,
-} from "../setTracklist";
+import { derivePlays, diffAgainstPlan, findUnidentified, identifiedSeconds } from "../setTracklist";
 import type { PlannedEntry, SetWindow } from "@/types/setDerivation";
 
 /** Consecutive 15 s windows of one track, starting at `from` seconds. */
-function run(trackId: string, from: number, count: number, offsetAt = 0, confidence = 0.9): SetWindow[] {
+function run(
+  trackId: string,
+  from: number,
+  count: number,
+  offsetAt = 0,
+  confidence = 0.9,
+): SetWindow[] {
   return Array.from({ length: count }, (_, i) => ({
     start_seconds: from + i * 15,
     duration_seconds: 15,
-    candidates: [{ track_id: trackId, friend_id: 1, confidence, offset_seconds: offsetAt + i * 15 }],
+    candidates: [
+      { track_id: trackId, friend_id: 1, confidence, offset_seconds: offsetAt + i * 15 },
+    ],
   }));
 }
 
@@ -26,10 +29,21 @@ function silence(from: number, count: number): SetWindow[] {
   }));
 }
 
-function planned(index: number, trackId: string, releaseId: string | null, fingerprinted = true): PlannedEntry {
+function planned(
+  index: number,
+  trackId: string,
+  releaseId: string | null,
+  fingerprinted = true,
+): PlannedEntry {
   return {
-    index, track_id: trackId, friend_id: 1, title: trackId, artist: "a",
-    release_id: releaseId, position: trackId.split("-")[1] ?? null, fingerprinted,
+    index,
+    track_id: trackId,
+    friend_id: 1,
+    title: trackId,
+    artist: "a",
+    release_id: releaseId,
+    position: trackId.split("-")[1] ?? null,
+    fingerprinted,
   };
 }
 
@@ -42,7 +56,12 @@ describe("derivePlays", () => {
     const plays = derivePlays([...run("1-A1", 0, 4), ...run("2-B1", 60, 3)]);
     expect(plays).toEqual([
       expect.objectContaining({ track_id: "1-A1", start_seconds: 0, end_seconds: 60, windows: 4 }),
-      expect.objectContaining({ track_id: "2-B1", start_seconds: 60, end_seconds: 105, windows: 3 }),
+      expect.objectContaining({
+        track_id: "2-B1",
+        start_seconds: 60,
+        end_seconds: 105,
+        windows: 3,
+      }),
     ]);
   });
 
@@ -52,7 +71,11 @@ describe("derivePlays", () => {
   });
 
   it("splits a track across an unidentified stretch longer than the gap", () => {
-    const plays = derivePlays([...run("1-A1", 0, 3), ...silence(45, 10), ...run("1-A1", 195, 3, 195)]);
+    const plays = derivePlays([
+      ...run("1-A1", 0, 3),
+      ...silence(45, 10),
+      ...run("1-A1", 195, 3, 195),
+    ]);
     expect(plays.map((p) => p.start_seconds)).toEqual([0, 195]);
   });
 
@@ -75,7 +98,9 @@ describe("derivePlays", () => {
   });
 
   it("tolerates drift within the limit", () => {
-    const plays = derivePlays([...run("1-A1", 0, 4, 0), ...run("1-A1", 60, 4, 70)], { maxDriftSeconds: 20 });
+    const plays = derivePlays([...run("1-A1", 0, 4, 0), ...run("1-A1", 60, 4, 70)], {
+      maxDriftSeconds: 20,
+    });
     expect(plays).toHaveLength(1);
   });
 
@@ -111,7 +136,14 @@ function at(trackId: string, start: number, anchor: number): SetWindow {
   return {
     start_seconds: start,
     duration_seconds: 15,
-    candidates: [{ track_id: trackId, friend_id: 1, confidence: 0.9, offset_seconds: Math.max(0, start - anchor) }],
+    candidates: [
+      {
+        track_id: trackId,
+        friend_id: 1,
+        confidence: 0.9,
+        offset_seconds: Math.max(0, start - anchor),
+      },
+    ],
   };
 }
 
@@ -132,25 +164,48 @@ describe("derivePlays on repetitive music (#282)", () => {
 
   it("absorbs two windows that matched the same repeat", () => {
     // Cuco — Lover Is A Day: 7775 and 7790 s both at anchor 7469.8.
-    const windows = [...line("1-A1", 0, 3, 0), at("1-A1", 45, -256), at("1-A1", 60, -256), ...line("1-A1", 75, 7, 0)];
-    expect(derivePlays(windows)).toEqual([expect.objectContaining({ windows: 12, start_seconds: 0, end_seconds: 180 })]);
+    const windows = [
+      ...line("1-A1", 0, 3, 0),
+      at("1-A1", 45, -256),
+      at("1-A1", 60, -256),
+      ...line("1-A1", 75, 7, 0),
+    ];
+    expect(derivePlays(windows)).toEqual([
+      expect.objectContaining({ windows: 12, start_seconds: 0, end_seconds: 180 }),
+    ]);
   });
 
   it("absorbs stray windows that do not agree with each other, up to the end of the track", () => {
     // Tame Impala: two windows at one repeat, then one at another, then the next record.
-    const windows = [...line("1-A1", 0, 10, 0), at("1-A1", 150, -28), at("1-A1", 165, -28), at("1-A1", 180, 28), ...line("2-B1", 195, 4, 195)];
-    expect(derivePlays(windows).map((p) => [p.track_id, p.windows])).toEqual([["1-A1", 13], ["2-B1", 4]]);
+    const windows = [
+      ...line("1-A1", 0, 10, 0),
+      at("1-A1", 150, -28),
+      at("1-A1", 165, -28),
+      at("1-A1", 180, 28),
+      ...line("2-B1", 195, 4, 195),
+    ];
+    expect(derivePlays(windows).map((p) => [p.track_id, p.windows])).toEqual([
+      ["1-A1", 13],
+      ["2-B1", 4],
+    ]);
   });
 
   it("splits a record really dropped back to the start, from the first window of the restart", () => {
     const windows = [...line("1-A1", 0, 8, 0), ...line("1-A1", 120, 6, 120)];
     // 120 s is at offset 0, the needle drop: alignment unknown on its own, it
     // still belongs to the restart, not to the play before.
-    expect(derivePlays(windows).map((p) => [p.start_seconds, p.windows])).toEqual([[0, 8], [120, 6]]);
+    expect(derivePlays(windows).map((p) => [p.start_seconds, p.windows])).toEqual([
+      [0, 8],
+      [120, 6],
+    ]);
   });
 
   it("needs driftConfirmWindows agreeing windows to split", () => {
-    const threeOff = [...line("1-A1", 0, 8, 0), ...line("1-A1", 120, 4, 120), ...line("1-A1", 180, 2, 0)];
+    const threeOff = [
+      ...line("1-A1", 0, 8, 0),
+      ...line("1-A1", 120, 4, 120),
+      ...line("1-A1", 180, 2, 0),
+    ];
     expect(derivePlays(threeOff)).toHaveLength(1);
     expect(derivePlays(threeOff, { driftConfirmWindows: 3 })).toHaveLength(2);
   });
@@ -166,15 +221,27 @@ describe("derivePlays on repetitive music (#282)", () => {
 
 describe("derivePlays on the #271 set (real matcher output)", () => {
   const fixture = JSON.parse(
-    readFileSync(path.join(__dirname, "fixtures", "set-271-windows.json"), "utf8")
-  ) as { duration_seconds: number; windows: Array<[number, number, string | null, number | null, number | null, number | null]> };
-  const windows: SetWindow[] = fixture.windows.map(([start, duration, trackId, friendId, confidence, offset]) => ({
-    start_seconds: start,
-    duration_seconds: duration,
-    candidates: trackId
-      ? [{ track_id: trackId, friend_id: friendId as number, confidence: confidence as number, offset_seconds: offset as number }]
-      : [],
-  }));
+    readFileSync(path.join(__dirname, "fixtures", "set-271-windows.json"), "utf8"),
+  ) as {
+    duration_seconds: number;
+    windows: Array<[number, number, string | null, number | null, number | null, number | null]>;
+  };
+  const windows: SetWindow[] = fixture.windows.map(
+    ([start, duration, trackId, friendId, confidence, offset]) => ({
+      start_seconds: start,
+      duration_seconds: duration,
+      candidates: trackId
+        ? [
+            {
+              track_id: trackId,
+              friend_id: friendId as number,
+              confidence: confidence as number,
+              offset_seconds: offset as number,
+            },
+          ]
+        : [],
+    }),
+  );
   const plays = derivePlays(windows);
 
   it("groups the set into 41 plays", () => {
@@ -241,7 +308,7 @@ describe("identifiedSeconds", () => {
         { start_seconds: 0, end_seconds: 100 },
         { start_seconds: 90, end_seconds: 150 },
         { start_seconds: 200, end_seconds: 250 },
-      ])
+      ]),
     ).toBe(200);
   });
 
@@ -250,7 +317,7 @@ describe("identifiedSeconds", () => {
       identifiedSeconds([
         { start_seconds: 0, end_seconds: 100 },
         { start_seconds: 10, end_seconds: 20 },
-      ])
+      ]),
     ).toBe(100);
   });
 });
@@ -293,7 +360,7 @@ describe("diffAgainstPlan", () => {
 
   it("flags a track played out of the plan's order", () => {
     const flags = Object.fromEntries(
-      diff.played_as_planned.map((m) => [`${m.play}:${m.planned.track_id}`, m.out_of_order])
+      diff.played_as_planned.map((m) => [`${m.play}:${m.planned.track_id}`, m.out_of_order]),
     );
     // 13-B1 and 14-B1 swapped: one of the two is outside the longest in-order run.
     expect(flags["2:14-B1"] !== flags["3:13-B1"]).toBe(true);
@@ -316,7 +383,7 @@ describe("diffAgainstPlan", () => {
     const result = diffAgainstPlan(
       [play("20-A1"), play("30-A1"), play("30-A2"), play("40-A1"), play("30-B9")],
       twoOnOneRecord,
-      1
+      1,
     );
     expect(result.played_instead_of).toEqual([{ play: 4, planned: twoOnOneRecord[4] }]);
   });
@@ -334,7 +401,11 @@ describe("diffAgainstPlan", () => {
   });
 
   it("does not pair across releases or when the play's release is unknown", () => {
-    const result = diffAgainstPlan([play("50-A1", null), play("60-A1")], [planned(0, "70-A1", "70")], 1);
+    const result = diffAgainstPlan(
+      [play("50-A1", null), play("60-A1")],
+      [planned(0, "70-A1", "70")],
+      1,
+    );
     expect(result.played_instead_of).toEqual([]);
     expect(result.played_not_planned).toEqual([{ play: 0 }, { play: 1 }]);
     expect(result.planned_not_played).toHaveLength(1);
@@ -362,7 +433,7 @@ describe("diffAgainstPlan", () => {
     const result = diffAgainstPlan(
       [play("1-A2"), play("2-A1")],
       [planned(0, "1-A1", "1"), planned(1, "2-A1", "2"), planned(2, "1-B1", "1")],
-      1
+      1,
     );
     expect(result.played_instead_of[0].planned.track_id).toBe("1-A1");
   });
@@ -371,7 +442,7 @@ describe("diffAgainstPlan", () => {
     const result = diffAgainstPlan(
       [play("1-A1"), play("2-A1"), play("1-A1")],
       [planned(0, "1-A1", "1"), planned(1, "2-A1", "2"), planned(2, "1-A1", "1")],
-      1
+      1,
     );
     expect(result.played_as_planned.map((m) => m.planned.index)).toEqual([0, 1, 2]);
     expect(result.planned_not_played).toEqual([]);

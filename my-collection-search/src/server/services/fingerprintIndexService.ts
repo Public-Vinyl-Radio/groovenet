@@ -14,19 +14,14 @@ import type {
  * captured mid-run is served between two reference tracks instead of behind all
  * of them.
  */
-export const INDEX_QUEUE_KEY =
-  process.env.FINGERPRINT_INDEX_QUEUE_KEY || "fingerprint_index_queue";
+export const INDEX_QUEUE_KEY = process.env.FINGERPRINT_INDEX_QUEUE_KEY || "fingerprint_index_queue";
 
 /** Published by the worker on its heartbeat cycle; see `publish_engine`. */
 export const ENGINE_KEY = process.env.FINGERPRINT_ENGINE_KEY || "fingerprint:engine";
 
-export const RUN_KEY_PREFIX =
-  process.env.FINGERPRINT_INDEX_RUN_PREFIX || "fpindex:run:";
+export const RUN_KEY_PREFIX = process.env.FINGERPRINT_INDEX_RUN_PREFIX || "fpindex:run:";
 
-export const RUN_TTL_SECONDS = parseInt(
-  process.env.FINGERPRINT_INDEX_RUN_TTL || "86400",
-  10
-);
+export const RUN_TTL_SECONDS = parseInt(process.env.FINGERPRINT_INDEX_RUN_TTL || "86400", 10);
 
 /**
  * Pushed in batches rather than one pipeline of 3,653. Keeps a single Redis
@@ -38,7 +33,7 @@ export class NoFingerprintEngineError extends Error {
   constructor() {
     super(
       "No fingerprint engine registered. Is fingerprint-service running? " +
-        "It advertises its engine and version on its heartbeat cycle."
+        "It advertises its engine and version on its heartbeat cycle.",
     );
     this.name = "NoFingerprintEngineError";
   }
@@ -91,7 +86,7 @@ export class FingerprintIndexService {
    */
   async startRun(
     scope: FingerprintIndexScope,
-    options: { force?: boolean } = {}
+    options: { force?: boolean } = {},
   ): Promise<FingerprintIndexRun> {
     const engine = await this.getEngine();
     if (!engine) throw new NoFingerprintEngineError();
@@ -142,7 +137,7 @@ export class FingerprintIndexService {
             stored_audio_size_bytes: candidate.stored_audio_size_bytes,
             stored_audio_mtime_ms: candidate.stored_audio_mtime_ms,
             force: options.force === true,
-          })
+          }),
         );
       }
       await pipeline.exec();
@@ -150,7 +145,7 @@ export class FingerprintIndexService {
 
     console.log(
       `Started fingerprint index run ${runId} (${describeScope(scope)}): ` +
-        `${candidates.length} queued, ${unindexable} unindexable`
+        `${candidates.length} queued, ${unindexable} unindexable`,
     );
 
     return {

@@ -8,13 +8,23 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useTrackStore } from "@/stores/trackStore";
 import type { Track } from "@/types/track";
 
-const refKey = (entry: Pick<ServerQueueEntry, "track_id" | "friend_id">) => `${entry.track_id}:${entry.friend_id}`;
+const refKey = (entry: Pick<ServerQueueEntry, "track_id" | "friend_id">) =>
+  `${entry.track_id}:${entry.friend_id}`;
 
 /** A queue row before its track has loaded: the title and artist the server already sent. */
 export function placeholderTrack(entry: ServerQueueEntry): Track {
   return {
-    id: 0, track_id: entry.track_id, friend_id: entry.friend_id, title: entry.title, artist: entry.artist,
-    album: "", year: "", duration: "", position: "", discogs_url: "", apple_music_url: "",
+    id: 0,
+    track_id: entry.track_id,
+    friend_id: entry.friend_id,
+    title: entry.title,
+    artist: entry.artist,
+    album: "",
+    year: "",
+    duration: "",
+    position: "",
+    discogs_url: "",
+    apple_music_url: "",
   } as Track;
 }
 
@@ -28,7 +38,8 @@ export function useServerQueueTracks(entries: readonly ServerQueueEntry[]): Trac
   const tracksMap = useTrackStore((state) => state.tracks);
   const refs = useMemo(() => {
     const unique = new Map<string, { track_id: string; friend_id: number }>();
-    for (const { track_id, friend_id } of entries) unique.set(`${track_id}:${friend_id}`, { track_id, friend_id });
+    for (const { track_id, friend_id } of entries)
+      unique.set(`${track_id}:${friend_id}`, { track_id, friend_id });
     return [...unique.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [entries]);
   const missing = refs.filter(([key]) => !tracksMap.has(key));
@@ -44,6 +55,6 @@ export function useServerQueueTracks(entries: readonly ServerQueueEntry[]): Trac
   }, [query.data, setTracks]);
   return useMemo(
     () => entries.map((entry) => tracksMap.get(refKey(entry)) ?? placeholderTrack(entry)),
-    [entries, tracksMap]
+    [entries, tracksMap],
   );
 }

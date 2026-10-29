@@ -27,9 +27,7 @@ function req(query = "") {
 
 // Default: data query returns no rows, count query returns 0.
 function stubDb(rows: unknown[] = [], total = "0") {
-  mockDbQuery
-    .mockResolvedValueOnce({ rows })
-    .mockResolvedValueOnce({ rows: [{ total }] });
+  mockDbQuery.mockResolvedValueOnce({ rows }).mockResolvedValueOnce({ rows: [{ total }] });
 }
 
 beforeEach(() => {
@@ -63,29 +61,26 @@ describe("parseTrackFilter", () => {
   });
 
   it("adds the combined no-platform-links clause", () => {
-    const clause =
-      "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)";
+    const clause = "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)";
     const { where } = parseTrackFilter(clause);
     expect(where).toContain(clause);
   });
 
   it("adds individual platform-url clauses", () => {
     const { where } = parseTrackFilter(
-      "apple_music_url IS NULL youtube_url IS NULL soundcloud_url IS NULL"
+      "apple_music_url IS NULL youtube_url IS NULL soundcloud_url IS NULL",
     );
     expect(where).toEqual(
       expect.arrayContaining([
         "apple_music_url IS NULL",
         "youtube_url IS NULL",
         "soundcloud_url IS NULL",
-      ])
+      ]),
     );
   });
 
   it("combines friend_id with a raw clause, keeping the param index correct", () => {
-    const { where, params } = parseTrackFilter(
-      "friend_id = 3 local_audio_url IS NULL"
-    );
+    const { where, params } = parseTrackFilter("friend_id = 3 local_audio_url IS NULL");
     expect(params).toEqual([3]);
     expect(where).toEqual(["friend_id = $1", "local_audio_url IS NULL"]);
   });
@@ -216,7 +211,7 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
       expect(res.status).toBe(400);
       expect((await res.json()).error).toMatch(/single page/);
       expect(mockSemanticSearch).not.toHaveBeenCalled();
-    }
+    },
   );
 
   it("ranks by meaning alone in semantic mode, honouring friend and chips", async () => {
@@ -225,8 +220,8 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
     const res = await GET(
       req(
         "?mode=semantic&q=%20late%20night%20cumbia%20&limit=10&filter=" +
-          encodeURIComponent("friend_id = 1 AND local_audio_url IS NULL")
-      )
+          encodeURIComponent("friend_id = 1 AND local_audio_url IS NULL"),
+      ),
     );
 
     expect(res.status).toBe(200);
@@ -244,7 +239,12 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
     });
     expect(mockDbQuery).not.toHaveBeenCalled();
     const logged = JSON.parse((console.info as ReturnType<typeof vi.fn>).mock.calls[0][0]);
-    expect(logged).toMatchObject({ component: "track-search", mode: "semantic", query_length: 17, results: 2 });
+    expect(logged).toMatchObject({
+      component: "track-search",
+      mode: "semantic",
+      query_length: 17,
+      results: 2,
+    });
     expect(JSON.stringify(logged)).not.toContain("cumbia");
   });
 
@@ -253,25 +253,25 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
     await GET(
       new NextRequest("http://localhost/api/tracks/search?mode=semantic&q=x&friend_id=3", {
         headers: { "x-forwarded-for": "10.0.0.4, 172.16.0.1" },
-      })
+      }),
     );
     expect(mockSemanticSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ friendId: 3, caller: "friend:3:ip:10.0.0.4" })
+      expect.objectContaining({ friendId: 3, caller: "friend:3:ip:10.0.0.4" }),
     );
 
     await GET(
       new NextRequest("http://localhost/api/tracks/search?mode=semantic&q=x", {
         headers: { "x-real-ip": "10.0.0.9" },
-      })
+      }),
     );
     expect(mockSemanticSearch).toHaveBeenLastCalledWith(
-      expect.objectContaining({ friendId: undefined, caller: "friend:all:ip:10.0.0.9" })
+      expect.objectContaining({ friendId: undefined, caller: "friend:all:ip:10.0.0.9" }),
     );
   });
 
   it("returns nothing when the filter and the param name different friends", async () => {
     const res = await GET(
-      req("?mode=semantic&q=x&friend_id=2&filter=" + encodeURIComponent("friend_id = 1"))
+      req("?mode=semantic&q=x&friend_id=2&filter=" + encodeURIComponent("friend_id = 1")),
     );
     const body = await res.json();
     expect(body).toMatchObject({ hits: [], estimatedTotalHits: 0, mode: "semantic" });
@@ -294,12 +294,18 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
 
   it("fuses both legs in hybrid mode, with known items first", async () => {
     stubDb([hit("lex"), hit("known", { title: "Ritmo" })], "2");
-    mockSemanticSearch.mockResolvedValue(semanticResult([hit("vibe"), hit("lex")], { cacheHit: true }));
+    mockSemanticSearch.mockResolvedValue(
+      semanticResult([hit("vibe"), hit("lex")], { cacheHit: true }),
+    );
 
     const res = await GET(req("?mode=hybrid&q=ritmo&friend_id=1&limit=3"));
 
     const body = await res.json();
-    expect(body.hits.map((h: { track_id: string }) => h.track_id)).toEqual(["known", "lex", "vibe"]);
+    expect(body.hits.map((h: { track_id: string }) => h.track_id)).toEqual([
+      "known",
+      "lex",
+      "vibe",
+    ]);
     expect(body).toMatchObject({ mode: "hybrid", estimatedTotalHits: 3, limit: 3 });
     // The lexical leg asks for the full leg size at offset 0, with the friend bound.
     const [, lexParams] = mockDbQuery.mock.calls[0];
@@ -325,7 +331,10 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toMatchObject({ mode: "hybrid", degraded: true, estimatedTotalHits: 1 });
-    expect(console.warn).toHaveBeenCalledWith("[search] hybrid fell back to lexical:", "openai down");
+    expect(console.warn).toHaveBeenCalledWith(
+      "[search] hybrid fell back to lexical:",
+      "openai down",
+    );
   });
 
   it("degrades hybrid on a rate limit too, rather than refusing", async () => {
@@ -391,7 +400,9 @@ describe("GET /api/tracks/search — attribute filters", () => {
     mockSemanticSearch.mockResolvedValue(semanticResult([]));
     await GET(req("?mode=semantic&q=dub&bpm_min=70&star_rating=3"));
     expect(mockSemanticSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ attributes: { bpmMin: 70, bpmMax: undefined, key: undefined, minStarRating: 3 } })
+      expect.objectContaining({
+        attributes: { bpmMin: 70, bpmMax: undefined, key: undefined, minStarRating: 3 },
+      }),
     );
   });
 
@@ -404,7 +415,7 @@ describe("GET /api/tracks/search — attribute filters", () => {
     expect(lexSql).toContain("bpm <= $1");
     expect(lexParams).toEqual([90, "dub", 50, 0]);
     expect(mockSemanticSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ attributes: expect.objectContaining({ bpmMax: 90 }) })
+      expect.objectContaining({ attributes: expect.objectContaining({ bpmMax: 90 }) }),
     );
   });
 
@@ -461,7 +472,7 @@ describe("GET /api/tracks/search — genre filter", () => {
     mockSemanticSearch.mockResolvedValue(semanticResult([]));
     await GET(req("?mode=semantic&q=dub&genre=latin"));
     expect(mockSemanticSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ attributes: expect.objectContaining({ genreFilter: filter }) })
+      expect.objectContaining({ attributes: expect.objectContaining({ genreFilter: filter }) }),
     );
   });
 
@@ -501,7 +512,10 @@ describe("GET /api/tracks/search — include_similar", () => {
   });
 
   it("passes include_similar, similar_limit and similar_exclude through to resolveGenreFilter", async () => {
-    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia"], keys: ["cumbia"] },
+      added: [],
+    });
     stubDb([], "0");
     await GET(req(`?genre=cumbia&include_similar=1&similar_limit=3&similar_exclude=${PORRO_ID}`));
 
@@ -513,7 +527,10 @@ describe("GET /api/tracks/search — include_similar", () => {
   });
 
   it("is off by default", async () => {
-    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia"], keys: ["cumbia"] },
+      added: [],
+    });
     stubDb([], "0");
     await GET(req("?genre=cumbia"));
 
@@ -536,7 +553,10 @@ describe("GET /api/tracks/search — include_similar", () => {
   });
 
   it("omits added_genres when widening added nothing", async () => {
-    mockResolveGenreFilter.mockResolvedValue({ filter: { ids: ["id-cumbia"], keys: ["cumbia"] }, added: [] });
+    mockResolveGenreFilter.mockResolvedValue({
+      filter: { ids: ["id-cumbia"], keys: ["cumbia"] },
+      added: [],
+    });
     stubDb([], "0");
     const res = await GET(req("?genre=cumbia&include_similar=1"));
     const body = await res.json();

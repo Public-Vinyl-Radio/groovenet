@@ -3,15 +3,12 @@ import os
 
 import redis
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Live audio gets its own list. download_queue carries multi-minute downloads
 # and would head-of-line block 15-second windows behind them (#276).
-QUEUE_KEY = os.getenv('FINGERPRINT_QUEUE_KEY', 'fingerprint_queue')
+QUEUE_KEY = os.getenv("FINGERPRINT_QUEUE_KEY", "fingerprint_queue")
 
 # Reference-library indexing (#277) gets a third list rather than sharing either
 # of the others. A full library pass is long work by the same argument that kept
@@ -19,12 +16,12 @@ QUEUE_KEY = os.getenv('FINGERPRINT_QUEUE_KEY', 'fingerprint_queue')
 # both keys with QUEUE_KEY first: Redis returns the earliest non-empty key in
 # argument order, so a live window preempts between two reference tracks instead
 # of waiting out the whole pass.
-INDEX_QUEUE_KEY = os.getenv('FINGERPRINT_INDEX_QUEUE_KEY', 'fingerprint_index_queue')
+INDEX_QUEUE_KEY = os.getenv("FINGERPRINT_INDEX_QUEUE_KEY", "fingerprint_index_queue")
 
 # Whole set recordings (#282). A three-hour set is minutes of decode, and
 # preemption between jobs cannot help a live window that arrives during one —
 # so this list is popped by a second worker, never alongside the live queue.
-SET_QUEUE_KEY = os.getenv('FINGERPRINT_SET_QUEUE_KEY', 'fingerprint_set_queue')
+SET_QUEUE_KEY = os.getenv("FINGERPRINT_SET_QUEUE_KEY", "fingerprint_set_queue")
 
 #: Every list this service knows how to handle, in priority order.
 KNOWN_QUEUES = (QUEUE_KEY, INDEX_QUEUE_KEY, SET_QUEUE_KEY)
@@ -42,22 +39,19 @@ def resolve_queues(raw: str | None = None) -> tuple[str, ...]:
     a library pass. Unknown names fail at import for the same reason as the
     sample rate — a typo would otherwise pop nothing, forever, while healthy.
     """
-    value = os.getenv('FINGERPRINT_QUEUES') if raw is None else raw
-    queues = {name.strip() for name in (value or '').split(',') if name.strip()}
+    value = os.getenv("FINGERPRINT_QUEUES") if raw is None else raw
+    queues = {name.strip() for name in (value or "").split(",") if name.strip()}
     if not queues:
         return DEFAULT_QUEUES
     unknown = sorted(queues - set(KNOWN_QUEUES))
     if unknown:
-        raise ValueError(
-            f"FINGERPRINT_QUEUES has unknown queue(s) {unknown}; "
-            f"expected any of {KNOWN_QUEUES}"
-        )
+        raise ValueError(f"FINGERPRINT_QUEUES has unknown queue(s) {unknown}; expected any of {KNOWN_QUEUES}")
     return tuple(name for name in KNOWN_QUEUES if name in queues)
 
 
 QUEUES = resolve_queues()
 
-BRPOP_TIMEOUT = int(os.getenv('FINGERPRINT_BRPOP_TIMEOUT', '5'))
+BRPOP_TIMEOUT = int(os.getenv("FINGERPRINT_BRPOP_TIMEOUT", "5"))
 
 # redis-py 8 applies a 5s socket read timeout by default. Left alone that is
 # exactly BRPOP_TIMEOUT, so on every idle cycle the socket read times out racing
@@ -66,15 +60,15 @@ BRPOP_TIMEOUT = int(os.getenv('FINGERPRINT_BRPOP_TIMEOUT', '5'))
 SOCKET_TIMEOUT = BRPOP_TIMEOUT + 5
 
 redis_conn = redis.from_url(
-    os.getenv('REDIS_URL', 'redis://localhost:6379'),
+    os.getenv("REDIS_URL", "redis://localhost:6379"),
     socket_timeout=SOCKET_TIMEOUT,
 )
 
 # One key per worker. Two workers sharing it would each vouch for the other: a
 # dead live worker stays "healthy" for as long as the set worker is alive. The
 # second compose service overrides this.
-HEARTBEAT_KEY = os.getenv('FINGERPRINT_HEARTBEAT_KEY', 'fingerprint:heartbeat')
-HEARTBEAT_TTL = int(os.getenv('FINGERPRINT_HEARTBEAT_TTL', '30'))
+HEARTBEAT_KEY = os.getenv("FINGERPRINT_HEARTBEAT_KEY", "fingerprint:heartbeat")
+HEARTBEAT_TTL = int(os.getenv("FINGERPRINT_HEARTBEAT_TTL", "30"))
 
 #: How often the heartbeat is refreshed from a background thread while a job
 #: runs. The loop only refreshes between jobs, and a set decode or a long
@@ -88,40 +82,40 @@ HEARTBEAT_INTERVAL = HEARTBEAT_TTL / 3
 # the library under the wrong identity — the worker publishes them next to its
 # heartbeat and the app reads them back. Same TTL, refreshed on the same cycle,
 # so "engine unknown" and "worker down" are the same condition.
-ENGINE_KEY = os.getenv('FINGERPRINT_ENGINE_KEY', 'fingerprint:engine')
+ENGINE_KEY = os.getenv("FINGERPRINT_ENGINE_KEY", "fingerprint:engine")
 
-APP_URL = os.getenv('APP_URL', 'http://app:3000')
-RESULT_TIMEOUT = int(os.getenv('FINGERPRINT_RESULT_TIMEOUT', '30'))
+APP_URL = os.getenv("APP_URL", "http://app:3000")
+RESULT_TIMEOUT = int(os.getenv("FINGERPRINT_RESULT_TIMEOUT", "30"))
 
 # Mounted directly into this container, unlike essentia-api, so jobs carry a
 # path rather than a URL and nothing has to be re-served over HTTP (#269).
-AUDIO_INGEST_DIR = os.getenv('AUDIO_INGEST_DIR', '/app/audio-ingest')
+AUDIO_INGEST_DIR = os.getenv("AUDIO_INGEST_DIR", "/app/audio-ingest")
 
 # The reference library — `tracks.local_audio_url` is a filename inside it. A
 # second direct mount for the same reason as the first: the indexer needs whole
 # tracks, and re-serving 30 GB over HTTP to fingerprint it would be absurd.
-AUDIO_DIR = os.getenv('AUDIO_DIR', '/app/audio')
+AUDIO_DIR = os.getenv("AUDIO_DIR", "/app/audio")
 
 #: Progress counters for one indexing run live under this prefix, written by
 #: this service and read back by the app (#277). Redis rather than Postgres
 #: because they are transient and updated once per track.
-INDEX_RUN_KEY_PREFIX = os.getenv('FINGERPRINT_INDEX_RUN_PREFIX', 'fpindex:run:')
+INDEX_RUN_KEY_PREFIX = os.getenv("FINGERPRINT_INDEX_RUN_PREFIX", "fpindex:run:")
 
 #: How long a finished run's counters stick around for the CLI to read.
-INDEX_RUN_TTL = int(os.getenv('FINGERPRINT_INDEX_RUN_TTL', '86400'))
+INDEX_RUN_TTL = int(os.getenv("FINGERPRINT_INDEX_RUN_TTL", "86400"))
 
 #: Streaming read size when hashing reference audio. Tracks run to tens of MB;
 #: reading one whole into memory to sha256 it would be pointless.
-HASH_CHUNK_SIZE = int(os.getenv('FINGERPRINT_HASH_CHUNK_SIZE', str(1024 * 1024)))
+HASH_CHUNK_SIZE = int(os.getenv("FINGERPRINT_HASH_CHUNK_SIZE", str(1024 * 1024)))
 
-MATCHER_NAME = os.getenv('FINGERPRINT_MATCHER', 'chromaprint')
+MATCHER_NAME = os.getenv("FINGERPRINT_MATCHER", "chromaprint")
 
 #: Bit error rate above which a candidate is discarded (#278). Measured on the
 #: #271 corpus: true matches run 0.02–0.25 and the lowest false candidate sits
 #: at 0.298, so this has margin on both sides and produced zero false positives
 #: over 788 held-out queries. Raise it and you buy recall with false plays —
 #: #279 counts a single detection as a play, with nothing to corroborate it.
-MAX_BIT_ERROR_RATE = float(os.getenv('FINGERPRINT_MAX_BER', '0.25'))
+MAX_BIT_ERROR_RATE = float(os.getenv("FINGERPRINT_MAX_BER", "0.25"))
 
 #: Below this fraction of distinct fingerprint values, a query window is
 #: refused before it is ever searched (#306). Chromaprint values repeat when
@@ -131,7 +125,7 @@ MAX_BIT_ERROR_RATE = float(os.getenv('FINGERPRINT_MAX_BER', '0.25'))
 #: 0.0. Reference tracks are full-side rips and legitimately contain silent
 #: gaps, so this is checked on the query side, not the index side. 0 restores
 #: the old behaviour.
-MIN_FINGERPRINT_VARIETY = float(os.getenv('FINGERPRINT_MIN_VARIETY', '0.20'))
+MIN_FINGERPRINT_VARIETY = float(os.getenv("FINGERPRINT_MIN_VARIETY", "0.20"))
 
 
 def resolve_min_level(raw: str | None = None) -> float | None:
@@ -145,15 +139,13 @@ def resolve_min_level(raw: str | None = None) -> float | None:
     noise floor and the quietest records played, so it is read from real
     `level_dbfs` values before it is set.
     """
-    value = os.getenv('FINGERPRINT_MIN_LEVEL_DBFS') if raw is None else raw
+    value = os.getenv("FINGERPRINT_MIN_LEVEL_DBFS") if raw is None else raw
     if value is None or not value.strip():
         return None
     try:
         return float(value)
     except ValueError:
-        raise ValueError(
-            f"FINGERPRINT_MIN_LEVEL_DBFS must be a number of dBFS, got {value!r}"
-        ) from None
+        raise ValueError(f"FINGERPRINT_MIN_LEVEL_DBFS must be a number of dBFS, got {value!r}") from None
 
 
 MIN_LEVEL_DBFS = resolve_min_level()
@@ -170,41 +162,41 @@ MIN_LEVEL_DBFS = resolve_min_level()
 #: This names our own recipe instead: chromaprint's default algorithm, raw
 #: 32-bit values, little-endian. Bump it when that recipe changes, which is the
 #: one case where the stored bytes really are incompatible.
-FINGERPRINT_VERSION = os.getenv('FINGERPRINT_VERSION', '1')
+FINGERPRINT_VERSION = os.getenv("FINGERPRINT_VERSION", "1")
 
 #: How often the in-memory reference index is rebuilt from the app. Library
 #: indexing (#277) runs on its own schedule, and a service that only ever saw
 #: the tracks present at boot would quietly never match anything added since.
-INDEX_REFRESH_SECONDS = int(os.getenv('FINGERPRINT_INDEX_REFRESH_SECONDS', '900'))
+INDEX_REFRESH_SECONDS = int(os.getenv("FINGERPRINT_INDEX_REFRESH_SECONDS", "900"))
 
 #: How soon a *failed* index load is retried (#315). A worker that starts
 #: before the app is reachable otherwise matches nothing for a whole refresh
 #: interval — observed on a dev stack, where both came up together.
-INDEX_RETRY_SECONDS = int(os.getenv('FINGERPRINT_INDEX_RETRY_SECONDS', '30'))
+INDEX_RETRY_SECONDS = int(os.getenv("FINGERPRINT_INDEX_RETRY_SECONDS", "30"))
 
 #: Page size when fetching reference fingerprints. The whole library is ~30 MB
 #: of blobs; asking for it in one response would be a needlessly large request.
-INDEX_PAGE_SIZE = int(os.getenv('FINGERPRINT_INDEX_PAGE_SIZE', '500'))
+INDEX_PAGE_SIZE = int(os.getenv("FINGERPRINT_INDEX_PAGE_SIZE", "500"))
 
-FFMPEG_TIMEOUT = int(os.getenv('FINGERPRINT_FFMPEG_TIMEOUT', '60'))
+FFMPEG_TIMEOUT = int(os.getenv("FINGERPRINT_FFMPEG_TIMEOUT", "60"))
 
 #: Where whole set recordings live (#282), mounted into the set worker only. A
 #: volume of their own: the ingest volume is swept of anything without an
 #: `audio_ingests` row, and the reference library is not the place for them.
-SET_RECORDINGS_DIR = os.getenv('SET_RECORDINGS_DIR', '/app/set-recordings')
+SET_RECORDINGS_DIR = os.getenv("SET_RECORDINGS_DIR", "/app/set-recordings")
 
 #: Window and step for set derivation, in seconds — #271's settings. The job
 #: may override both.
-SET_WINDOW_SECONDS = float(os.getenv('FINGERPRINT_SET_WINDOW_SECONDS', '15'))
-SET_STEP_SECONDS = float(os.getenv('FINGERPRINT_SET_STEP_SECONDS', '15'))
+SET_WINDOW_SECONDS = float(os.getenv("FINGERPRINT_SET_WINDOW_SECONDS", "15"))
+SET_STEP_SECONDS = float(os.getenv("FINGERPRINT_SET_STEP_SECONDS", "15"))
 
 #: A whole-set decode, not a 15 s chunk. #271's 3h04m recording decoded in
 #: ~9 s on a laptop; this is the ceiling for a slow box and a long night.
-SET_DECODE_TIMEOUT = int(os.getenv('FINGERPRINT_SET_DECODE_TIMEOUT', '1800'))
+SET_DECODE_TIMEOUT = int(os.getenv("FINGERPRINT_SET_DECODE_TIMEOUT", "1800"))
 
 #: Read size when streaming a set's PCM out of ffmpeg — about 12 s of audio at
 #: 22050 Hz. Small enough to bound memory, large enough not to matter.
-PCM_CHUNK_BYTES = int(os.getenv('FINGERPRINT_PCM_CHUNK_BYTES', str(512 * 1024)))
+PCM_CHUNK_BYTES = int(os.getenv("FINGERPRINT_PCM_CHUNK_BYTES", str(512 * 1024)))
 
 #: Chromaprint resamples internally, so anything above 22050 Hz only costs
 #: decode time. 44100 stays available for engines that want the full band.
@@ -218,17 +210,13 @@ def resolve_sample_rate(raw: str | None = None) -> int:
     message instead of failing every job identically for the lifetime of the
     deployment.
     """
-    value = os.getenv('FINGERPRINT_SAMPLE_RATE', '22050') if raw is None else raw
+    value = os.getenv("FINGERPRINT_SAMPLE_RATE", "22050") if raw is None else raw
     try:
         rate = int(value)
     except (TypeError, ValueError):
-        raise ValueError(
-            f"FINGERPRINT_SAMPLE_RATE must be an integer, got {value!r}"
-        ) from None
+        raise ValueError(f"FINGERPRINT_SAMPLE_RATE must be an integer, got {value!r}") from None
     if rate not in SUPPORTED_SAMPLE_RATES:
-        raise ValueError(
-            f"FINGERPRINT_SAMPLE_RATE must be one of {SUPPORTED_SAMPLE_RATES}, got {rate}"
-        )
+        raise ValueError(f"FINGERPRINT_SAMPLE_RATE must be one of {SUPPORTED_SAMPLE_RATES}, got {rate}")
     return rate
 
 

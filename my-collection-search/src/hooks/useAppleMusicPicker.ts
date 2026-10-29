@@ -16,12 +16,12 @@ export function useAppleMusicPicker(opts?: {
   // Compute whether query should run
   const enabled = useMemo(
     () => isOpen && !!args?.title && !!args?.artist,
-    [isOpen, args?.title, args?.artist]
+    [isOpen, args?.title, args?.artist],
   );
 
   const { data, isPending, isFetching, refetch } = useAppleMusicAISearchQuery(
     { title: args?.title ?? "", artist: args?.artist ?? "" },
-    enabled
+    enabled,
   );
 
   const loading = isPending || isFetching;
@@ -35,7 +35,7 @@ export function useAppleMusicPicker(opts?: {
       // Optionally force immediate fetch
       refetch();
     },
-    [refetch]
+    [refetch],
   );
 
   const select = useCallback(
@@ -46,7 +46,7 @@ export function useAppleMusicPicker(opts?: {
         setIsOpen(false);
       }
     },
-    [opts]
+    [opts],
   );
 
   return { isOpen, open, close, loading, results, search, select };

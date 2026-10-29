@@ -7,16 +7,28 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
 // Drag and drop is the library's; capture the drop handler to check the index mapping.
-const dnd = vi.hoisted(() => ({ onDragEnd: null as null | ((r: DropResult) => void), dragging: false }));
+const dnd = vi.hoisted(() => ({
+  onDragEnd: null as null | ((r: DropResult) => void),
+  dragging: false,
+}));
 vi.mock("@hello-pangea/dnd", () => ({
-  DragDropContext: ({ onDragEnd, children }: { onDragEnd: (r: DropResult) => void; children: React.ReactNode }) => {
+  DragDropContext: ({
+    onDragEnd,
+    children,
+  }: {
+    onDragEnd: (r: DropResult) => void;
+    children: React.ReactNode;
+  }) => {
     dnd.onDragEnd = onDragEnd;
     return <>{children}</>;
   },
   Droppable: ({ children }: { children: (p: unknown) => React.ReactNode }) =>
     children({ innerRef: () => {}, droppableProps: {}, placeholder: null }),
   Draggable: ({ children }: { children: (p: unknown, s: unknown) => React.ReactNode }) =>
-    children({ innerRef: () => {}, draggableProps: {}, dragHandleProps: { role: "button", tabIndex: 0 } }, { isDragging: dnd.dragging }),
+    children(
+      { innerRef: () => {}, draggableProps: {}, dragHandleProps: { role: "button", tabIndex: 0 } },
+      { isDragging: dnd.dragging },
+    ),
 }));
 
 import QueueList from "@/components/player/QueueList";
@@ -36,10 +48,13 @@ const track = (n: number, over: Partial<Track> = {}) =>
 
 const playlist = [track(0), track(1), track(2), track(3), track(4)];
 
-function renderList(currentTrackIndex: number | null, over: Partial<React.ComponentProps<typeof QueueList>> = {}) {
+function renderList(
+  currentTrackIndex: number | null,
+  over: Partial<React.ComponentProps<typeof QueueList>> = {},
+) {
   const fns = { moveTrack: vi.fn(), removeTrack: vi.fn(), playTrack: vi.fn() };
   const utils = renderWithProviders(
-    <QueueList playlist={playlist} currentTrackIndex={currentTrackIndex} {...fns} {...over} />
+    <QueueList playlist={playlist} currentTrackIndex={currentTrackIndex} {...fns} {...over} />,
   );
   return { ...utils, ...fns };
 }
@@ -53,7 +68,9 @@ describe("QueueList", () => {
     expect(within(now).getByText("7A")).toBeTruthy();
     expect(screen.getByText("UP NEXT")).toBeTruthy();
     expect(screen.getByText("PLAYED")).toBeTruthy();
-    const rows = screen.getAllByRole("button", { name: /^Play / }).map((b) => b.getAttribute("aria-label"));
+    const rows = screen
+      .getAllByRole("button", { name: /^Play / })
+      .map((b) => b.getAttribute("aria-label"));
     expect(rows).toEqual([
       "Play Title 3 by Artist 3",
       "Play Title 4 by Artist 4",
@@ -117,7 +134,12 @@ describe("QueueList", () => {
     renderList(2);
     const row = screen.getByRole("button", { name: "Reorder Title 3" }).closest("li")!;
     const css = [...row.classList]
-      .flatMap((c) => Array.from(document.styleSheets).flatMap((s) => Array.from(s.cssRules)).map((r) => r.cssText).filter((t) => t.includes(`.${c}`)))
+      .flatMap((c) =>
+        Array.from(document.styleSheets)
+          .flatMap((s) => Array.from(s.cssRules))
+          .map((r) => r.cssText)
+          .filter((t) => t.includes(`.${c}`)),
+      )
       .join("\n");
     expect(css).toMatch(/box-shadow:\s*var\(--chakra-shadows-md\)/);
     dnd.dragging = false;

@@ -35,10 +35,7 @@ import path from "path";
 import { DiscogsRelease, DiscogsTrack, ProcessedTrack } from "@/types/track";
 import { parseDurationToSeconds } from "@/lib/trackUtils";
 
-export const DISCOGS_EXPORTS_DIR = path.resolve(
-  process.cwd(),
-  "discogs_exports"
-);
+export const DISCOGS_EXPORTS_DIR = path.resolve(process.cwd(), "discogs_exports");
 
 /** Strip any characters that could escape the exports directory */
 function safePart(value: string): string {
@@ -56,9 +53,7 @@ function assertWithinExportsDir(filePath: string): void {
 
 export function getManifestFiles(): string[] {
   if (!fs.existsSync(DISCOGS_EXPORTS_DIR)) return [];
-  return fs
-    .readdirSync(DISCOGS_EXPORTS_DIR)
-    .filter((f) => /^manifest(_.*)?\.json$/.test(f));
+  return fs.readdirSync(DISCOGS_EXPORTS_DIR).filter((f) => /^manifest(_.*)?\.json$/.test(f));
 }
 
 export function createExportsDir() {
@@ -67,21 +62,14 @@ export function createExportsDir() {
   }
 }
 
-export function getReleasePath(
-  username: string,
-  releaseId: string
-): string | null {
+export function getReleasePath(username: string, releaseId: string): string | null {
   const safeUsername = path.basename(safePart(username));
   const safeReleaseId = path.basename(safePart(releaseId));
   // For friends, prioritize their specific release file
-  if (
-    username &&
-    process.env.DISCOGS_USERNAME &&
-    username !== process.env.DISCOGS_USERNAME
-  ) {
+  if (username && process.env.DISCOGS_USERNAME && username !== process.env.DISCOGS_USERNAME) {
     const friendPath = path.join(
       DISCOGS_EXPORTS_DIR,
-      `${safeUsername}_release_${safeReleaseId}.json`
+      `${safeUsername}_release_${safeReleaseId}.json`,
     );
     assertWithinExportsDir(friendPath);
     if (fs.existsSync(friendPath)) {
@@ -90,10 +78,7 @@ export function getReleasePath(
   }
 
   // Fall back to current user's release file
-  const currentUserPath = path.join(
-    DISCOGS_EXPORTS_DIR,
-    `release_${safeReleaseId}.json`
-  );
+  const currentUserPath = path.join(DISCOGS_EXPORTS_DIR, `release_${safeReleaseId}.json`);
   assertWithinExportsDir(currentUserPath);
   if (fs.existsSync(currentUserPath)) {
     return currentUserPath;
@@ -102,22 +87,12 @@ export function getReleasePath(
   return null;
 }
 
-export function getReleaseWritePath(
-  username: string,
-  releaseId: string
-): string {
+export function getReleaseWritePath(username: string, releaseId: string): string {
   const safeUsername = path.basename(safePart(username));
   const safeReleaseId = path.basename(safePart(releaseId));
   // For writing new releases, determine the path based on username
-  if (
-    username &&
-    process.env.DISCOGS_USERNAME &&
-    username !== process.env.DISCOGS_USERNAME
-  ) {
-    const p = path.join(
-      DISCOGS_EXPORTS_DIR,
-      `${safeUsername}_release_${safeReleaseId}.json`
-    );
+  if (username && process.env.DISCOGS_USERNAME && username !== process.env.DISCOGS_USERNAME) {
+    const p = path.join(DISCOGS_EXPORTS_DIR, `${safeUsername}_release_${safeReleaseId}.json`);
     assertWithinExportsDir(p);
     return p;
   } else {
@@ -138,7 +113,7 @@ export function loadAlbum(releasePath: string): DiscogsRelease | null {
 export function saveManifest(
   manifestPath: string,
   releaseIds: string[],
-  deletedReleaseIds?: string[]
+  deletedReleaseIds?: string[],
 ) {
   // Read existing manifest to preserve deletedReleaseIds if not provided
   let existingDeletedIds: string[] = [];
@@ -174,17 +149,12 @@ function stripDiscogsNumbering(name: string): string {
   return name.replace(/\s*\(\d+\)\s*$/, "").trim();
 }
 
-export function extractTracksFromAlbum(
-  album: DiscogsRelease,
-  username: string
-): DiscogsTrack[] {
+export function extractTracksFromAlbum(album: DiscogsRelease, username: string): DiscogsTrack[] {
   const artist_name = stripDiscogsNumbering(
-    album.artists_sort || album.artists?.[0]?.name || "Unknown Artist"
+    album.artists_sort || album.artists?.[0]?.name || "Unknown Artist",
   );
   return album.tracklist.map((tr: ProcessedTrack) => {
-    const track_id = `${album.id}-${tr.position}`
-      .trim()
-      .replace(/[^A-Za-z0-9\-_]/g, "");
+    const track_id = `${album.id}-${tr.position}`.trim().replace(/[^A-Za-z0-9\-_]/g, "");
     return {
       track_id,
       release_id: album.id.toString(), // Add release_id for album linking
@@ -195,8 +165,8 @@ export function extractTracksFromAlbum(
       styles: album.styles || [],
       genres: album.genres || [],
       duration: tr.duration,
-  discogs_url: album.uri ?? "",
-  album_thumbnail: album.thumb ?? "",
+      discogs_url: album.uri ?? "",
+      album_thumbnail: album.thumb ?? "",
       position: tr.position,
       duration_seconds:
         typeof tr.duration_seconds === "number"
@@ -218,7 +188,7 @@ export function extractTracksFromAlbum(
 
 export function parseManifestFile(manifestFile: string) {
   const manifest = JSON.parse(
-    fs.readFileSync(path.join(DISCOGS_EXPORTS_DIR, manifestFile), "utf-8")
+    fs.readFileSync(path.join(DISCOGS_EXPORTS_DIR, manifestFile), "utf-8"),
   );
 
   // If manifest has username field, use that
@@ -256,7 +226,7 @@ export function getAllTracksFromManifests(): DiscogsTrack[] {
 
 export function getTracksFromManifestReleases(
   username: string,
-  releaseIds: string[]
+  releaseIds: string[],
 ): DiscogsTrack[] {
   const tracks: DiscogsTrack[] = [];
   for (const releaseId of releaseIds) {

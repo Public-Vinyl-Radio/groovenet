@@ -55,13 +55,13 @@ export default function DeleteAlbumDialog({
             </Dialog.Header>
             <Dialog.Body>
               <Text mb={2}>
-                This permanently deletes the album and all of its tracks. This
-                action cannot be undone.
+                This permanently deletes the album and all of its tracks. This action cannot be
+                undone.
               </Text>
               <Text color="fg.muted" fontSize="sm">
-                If this album came from Discogs, deleting it here doesn&apos;t
-                remove it from your Discogs collection — the next full sync
-                will add it back unless you also remove it there.
+                If this album came from Discogs, deleting it here doesn&apos;t remove it from your
+                Discogs collection — the next full sync will add it back unless you also remove it
+                there.
               </Text>
             </Dialog.Body>
             <Dialog.Footer>

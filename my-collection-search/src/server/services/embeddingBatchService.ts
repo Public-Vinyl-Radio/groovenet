@@ -34,7 +34,9 @@ export type BatchResult = { updated: boolean; error?: unknown; pending?: boolean
 
 function isAuthFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /invalid_organization|incorrect api key|invalid_api_key|unauthorized|\b401\b/i.test(message);
+  return /invalid_organization|incorrect api key|invalid_api_key|unauthorized|\b401\b/i.test(
+    message,
+  );
 }
 
 function isBadInput(error: unknown): boolean {
@@ -53,14 +55,32 @@ async function prepare(job: EmbeddingJob): Promise<Prepared | null> {
     const provider = await getTargetProvider(kind);
     const text = kind === "identity" ? buildIdentityText(data) : buildContextText(data);
     return {
-      job, text, sourceHash, provider,
-      store: (embedding) => kind === "identity"
-        ? storeIdentityEmbedding(track_id, friend_id, embedding, sourceHash, text, provider.model, provider.dims)
-        : embeddingsRepository.upsertTrackEmbedding({
-            trackId: track_id, friendId: friend_id, embeddingType: "context",
-            model: provider.model, dims: provider.dims, embedding, sourceHash,
-            identityText: text, templateVersion: CURRENT_TEMPLATE_VERSIONS.context,
-          }),
+      job,
+      text,
+      sourceHash,
+      provider,
+      store: (embedding) =>
+        kind === "identity"
+          ? storeIdentityEmbedding(
+              track_id,
+              friend_id,
+              embedding,
+              sourceHash,
+              text,
+              provider.model,
+              provider.dims,
+            )
+          : embeddingsRepository.upsertTrackEmbedding({
+              trackId: track_id,
+              friendId: friend_id,
+              embeddingType: "context",
+              model: provider.model,
+              dims: provider.dims,
+              embedding,
+              sourceHash,
+              identityText: text,
+              templateVersion: CURRENT_TEMPLATE_VERSIONS.context,
+            }),
     };
   }
 
@@ -74,10 +94,20 @@ async function prepare(job: EmbeddingJob): Promise<Prepared | null> {
     const provider = await getTargetProvider(kind);
     const text = buildAudioVibeText(data);
     return {
-      job, text, sourceHash, provider,
-      store: (embedding) => storeAudioVibeEmbedding(
-        track_id, friend_id, embedding, sourceHash, text, provider.model, provider.dims
-      ),
+      job,
+      text,
+      sourceHash,
+      provider,
+      store: (embedding) =>
+        storeAudioVibeEmbedding(
+          track_id,
+          friend_id,
+          embedding,
+          sourceHash,
+          text,
+          provider.model,
+          provider.dims,
+        ),
     };
   }
 
@@ -110,13 +140,16 @@ export async function runEmbeddingBatch(jobs: EmbeddingJob[]): Promise<BatchResu
     try {
       const vectors = await group[0].item.provider.embed(group.map(({ item }) => item.text));
       if (vectors.length !== group.length) {
-        throw new Error(`Embedding provider returned ${vectors.length} vectors for ${group.length} inputs`);
+        throw new Error(
+          `Embedding provider returned ${vectors.length} vectors for ${group.length} inputs`,
+        );
       }
       const stored = await Promise.allSettled(group.map(({ item }, i) => item.store(vectors[i])));
       stored.forEach((outcome, i) => {
-        results[group[i].index] = outcome.status === "fulfilled"
-          ? { updated: true }
-          : { updated: false, error: outcome.reason };
+        results[group[i].index] =
+          outcome.status === "fulfilled"
+            ? { updated: true }
+            : { updated: false, error: outcome.reason };
       });
     } catch (error) {
       if (isBadInput(error) && group.length > 1) {

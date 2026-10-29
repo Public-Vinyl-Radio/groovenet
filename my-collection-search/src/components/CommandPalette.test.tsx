@@ -58,7 +58,9 @@ vi.mock("@/lib/analytics/client", () => ({ analytics: { track: mocks.track } }))
 
 import CommandPalette from "./CommandPalette";
 
-const node = (overrides: Partial<GenreTreeNode> & { name: string; slug: string }): GenreTreeNode => ({
+const node = (
+  overrides: Partial<GenreTreeNode> & { name: string; slug: string },
+): GenreTreeNode => ({
   id: overrides.slug,
   parent_id: null,
   source: "discogs",
@@ -145,7 +147,9 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(screen.getByText("Search Tracks in Shoegaze"));
     expect(mocks.push).toHaveBeenCalledWith("/?genre=shoegaze");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "search_genre_tracks" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "search_genre_tracks",
+    });
   });
 
   it("opens the genre's album search href", async () => {
@@ -155,7 +159,9 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(screen.getByText("Search Albums in Shoegaze"));
     expect(mocks.push).toHaveBeenCalledWith("/albums?genre=shoegaze");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "search_genre_albums" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "search_genre_albums",
+    });
   });
 
   it("lists album matches and opens one", async () => {
@@ -180,7 +186,10 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(screen.getByText("Play: Loveless"));
     await waitFor(() => expect(mocks.getAlbumWithTracks).toHaveBeenCalledWith("r1", 1));
-    expect(mocks.replacePlaylist).toHaveBeenCalledWith([track()], { autoplay: true, startIndex: 0 });
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith([track()], {
+      autoplay: true,
+      startIndex: 0,
+    });
   });
 
   it("tells the user when an album has no tracks to play", async () => {
@@ -216,7 +225,9 @@ describe("CommandPalette (#472)", () => {
     const searchTracksEntry = await screen.findByText('Search tracks for "dusty cumbia"');
     await user.click(searchTracksEntry);
     expect(mocks.push).toHaveBeenCalledWith("/?q=dusty+cumbia&mode=hybrid");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "search_tracks_query" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "search_tracks_query",
+    });
   });
 
   it("keeps the current search mode for the search-everywhere track link", async () => {
@@ -234,7 +245,9 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(await screen.findByText('Search albums for "dusty cumbia"'));
     expect(mocks.push).toHaveBeenCalledWith("/albums?q=dusty%20cumbia");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "search_albums_query" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "search_albums_query",
+    });
   });
 
   it("shows a top-level genre's meta line without a breadcrumb", async () => {
@@ -268,10 +281,10 @@ describe("CommandPalette (#472)", () => {
     await screen.findByText("Loveless");
 
     expect(mocks.searchTracks).toHaveBeenCalledWith(
-      expect.not.objectContaining({ filter: expect.anything() })
+      expect.not.objectContaining({ filter: expect.anything() }),
     );
     expect(mocks.searchAlbums).toHaveBeenCalledWith(
-      expect.not.objectContaining({ friend_id: expect.anything() })
+      expect.not.objectContaining({ friend_id: expect.anything() }),
     );
   });
 
@@ -287,7 +300,10 @@ describe("CommandPalette (#472)", () => {
   it("ignores a track search that resolves after the query has already changed", async () => {
     let resolveFirst: ((value: { hits: Track[] }) => void) | undefined;
     mocks.searchTracks.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveFirst = resolve; })
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        }),
     );
     mocks.searchAlbums.mockResolvedValue({ hits: [] });
     const { user } = renderWithProviders(<CommandPalette />);

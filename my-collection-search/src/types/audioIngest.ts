@@ -34,13 +34,7 @@ export type IngestRetentionPolicy = {
 
 /** Why one file was swept, or spared. */
 export type SweepReason =
-  | "terminal"
-  | "orphaned"
-  | "expired"
-  | "over-budget"
-  | "in-flight"
-  | "within-grace"
-  | "retained";
+  "terminal" | "orphaned" | "expired" | "over-budget" | "in-flight" | "within-grace" | "retained";
 
 export type SweepCandidate = {
   /** Name as it appears on the ingest volume and in `audio_ingests.file_path`. */

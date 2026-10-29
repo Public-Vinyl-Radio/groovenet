@@ -25,7 +25,7 @@ function patch(body: unknown) {
     new Request("http://app/api/settings/embedding-model", {
       method: "PATCH",
       body: JSON.stringify(body),
-    }) as unknown as NextRequest
+    }) as unknown as NextRequest,
   );
 }
 
@@ -89,7 +89,7 @@ describe("PATCH /api/settings/embedding-model", () => {
       "identity",
       "text-embedding-3-small",
       1536,
-      2
+      2,
     );
   });
 

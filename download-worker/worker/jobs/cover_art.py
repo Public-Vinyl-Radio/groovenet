@@ -14,17 +14,17 @@ from ..types import JobData, JobResult
 
 
 def extract_embedded_cover_art(job_data: JobData) -> JobResult:
-    track_id = job_data['track_id']
-    friend_id = job_data['friend_id']
-    job_id = job_data.get('job_id', f"{track_id}_{int(time.time())}")
+    track_id = job_data["track_id"]
+    friend_id = job_data["friend_id"]
+    job_id = job_data.get("job_id", f"{track_id}_{int(time.time())}")
     log_sink: list[str] = []
 
     logger.info(f"Starting cover art extraction job {job_id} for track {track_id}")
-    update_job_status(job_id, 'processing', 10)
+    update_job_status(job_id, "processing", 10)
 
     try:
         audio_path = ensure_local_audio_file(job_data, log_sink=log_sink)
-        update_job_status(job_id, 'processing', 35)
+        update_job_status(job_id, "processing", 35)
         append_job_logs(job_id, log_sink)
         log_sink.clear()
 
@@ -39,16 +39,21 @@ def extract_embedded_cover_art(job_data: JobData) -> JobResult:
         output_path = os.path.join(output_dir, output_file)
 
         ffmpeg_cmd = [
-            "ffmpeg", "-y", "-i", audio_path,
-            "-map", f"0:{stream_index}",
-            "-frames:v", "1",
+            "ffmpeg",
+            "-y",
+            "-i",
+            audio_path,
+            "-map",
+            f"0:{stream_index}",
+            "-frames:v",
+            "1",
             output_path,
         ]
         result = run_subprocess(ffmpeg_cmd, timeout=60, log_sink=log_sink)
         if result.returncode != 0:
             raise Exception(f"ffmpeg cover extraction failed: {result.stderr}")
 
-        update_job_status(job_id, 'processing', 80)
+        update_job_status(job_id, "processing", 80)
         append_job_logs(job_id, log_sink)
         log_sink.clear()
 
@@ -65,12 +70,12 @@ def extract_embedded_cover_art(job_data: JobData) -> JobResult:
                 pass
 
         result_payload = {
-            'success': True,
-            'track_id': track_id,
-            'friend_id': friend_id,
-            'audio_file_album_art_url': public_url,
+            "success": True,
+            "track_id": track_id,
+            "friend_id": friend_id,
+            "audio_file_album_art_url": public_url,
         }
-        update_job_status(job_id, 'completed', 100, result=result_payload)
+        update_job_status(job_id, "completed", 100, result=result_payload)
         logger.info(f"Cover art job {job_id} completed successfully")
         return result_payload
 
@@ -82,22 +87,24 @@ def extract_embedded_cover_art(job_data: JobData) -> JobResult:
         log_sink.append(f"ERROR: {error_msg}")
         log_sink.append(traceback.format_exc())
         append_job_logs(job_id, log_sink)
-        update_job_status(job_id, 'failed', 0, error=error_msg)
-        return {'success': False, 'error': error_msg, 'track_id': track_id, 'friend_id': friend_id}
+        update_job_status(job_id, "failed", 0, error=error_msg)
+        return {"success": False, "error": error_msg, "track_id": track_id, "friend_id": friend_id}
 
 
 def extract_embedded_cover_art_album(job_data: JobData) -> JobResult:
-    track_id = job_data['track_id']
-    friend_id = job_data['friend_id']
-    release_id = job_data.get('release_id')
-    job_id = job_data.get('job_id', f"{track_id}_{int(time.time())}")
+    track_id = job_data["track_id"]
+    friend_id = job_data["friend_id"]
+    release_id = job_data.get("release_id")
+    job_id = job_data.get("job_id", f"{track_id}_{int(time.time())}")
     log_sink: list[str] = []
 
     logger.info(
         "Starting album cover extraction job %s for release %s (friend %s)",
-        job_id, release_id, friend_id,
+        job_id,
+        release_id,
+        friend_id,
     )
-    update_job_status(job_id, 'processing', 10)
+    update_job_status(job_id, "processing", 10)
 
     try:
         if not release_id:
@@ -107,17 +114,15 @@ def extract_embedded_cover_art_album(job_data: JobData) -> JobResult:
         # when it perceptually matches the album's Discogs art; anything else is
         # flagged for manual review rather than silently replacing the cover.
         client = get_groovenet_client()
-        endpoint = (
-            f"{client.base_url}/api/albums/{quote(str(release_id), safe='')}/artwork/match"
-        )
+        endpoint = f"{client.base_url}/api/albums/{quote(str(release_id), safe='')}/artwork/match"
 
-        update_job_status(job_id, 'processing', 60)
+        update_job_status(job_id, "processing", 60)
         log_sink.append(f"POST {endpoint}")
         append_job_logs(job_id, log_sink)
         log_sink.clear()
 
         result_payload = {**client.extract_cover_art(str(release_id), friend_id, timeout=180), "success": True}
-        update_job_status(job_id, 'completed', 100, result=result_payload)
+        update_job_status(job_id, "completed", 100, result=result_payload)
         logger.info("Album cover extraction job %s completed", job_id)
         return result_payload
 
@@ -129,11 +134,11 @@ def extract_embedded_cover_art_album(job_data: JobData) -> JobResult:
         log_sink.append(f"ERROR: {error_msg}")
         log_sink.append(traceback.format_exc())
         append_job_logs(job_id, log_sink)
-        update_job_status(job_id, 'failed', 0, error=error_msg)
+        update_job_status(job_id, "failed", 0, error=error_msg)
         return {
-            'success': False,
-            'error': error_msg,
-            'track_id': track_id,
-            'friend_id': friend_id,
-            'release_id': release_id,
+            "success": False,
+            "error": error_msg,
+            "track_id": track_id,
+            "friend_id": friend_id,
+            "release_id": release_id,
         }

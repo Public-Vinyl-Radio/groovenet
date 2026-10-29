@@ -25,7 +25,15 @@ type Props = {
  * sections, and a fixed Reset + "Show N …" footer. Esc or a click outside
  * closes it and focus goes back to FILTERS.
  */
-export default function FiltersPanel({ open, onOpenChange, scope, activeCount, onReset, showLabel, children }: Props) {
+export default function FiltersPanel({
+  open,
+  onOpenChange,
+  scope,
+  activeCount,
+  onReset,
+  showLabel,
+  children,
+}: Props) {
   return (
     <Popover.Root
       open={open}
@@ -51,7 +59,16 @@ export default function FiltersPanel({ open, onOpenChange, scope, activeCount, o
             flexDirection="column"
             overflow="hidden"
           >
-            <Flex align="center" gap={1} bg="border.ink" color="bg" pl="14px" pr="4px" py="6px" flexShrink={0}>
+            <Flex
+              align="center"
+              gap={1}
+              bg="border.ink"
+              color="bg"
+              pl="14px"
+              pr="4px"
+              py="6px"
+              flexShrink={0}
+            >
               <Flex direction="column" flex="1" minW={0}>
                 <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
                   {activeCount > 0 ? `${scope} · ${activeCount} active` : scope}
@@ -76,7 +93,13 @@ export default function FiltersPanel({ open, onOpenChange, scope, activeCount, o
             <Popover.Body p={0} flex="1" minH={0} overflowY="auto">
               {children}
             </Popover.Body>
-            <Popover.Footer p={0} flexShrink={0} display="block" borderTopWidth="outline" borderColor="border.ink">
+            <Popover.Footer
+              p={0}
+              flexShrink={0}
+              display="block"
+              borderTopWidth="outline"
+              borderColor="border.ink"
+            >
               <FiltersFooter
                 activeCount={activeCount}
                 onReset={onReset}

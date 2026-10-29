@@ -14,12 +14,8 @@ import { removeFriendStream } from "@/services/internalApi/friends";
  */
 export function useFriendsSync() {
   const qc = useQueryClient();
-  const {
-    resetRemoveFriend,
-    pushRemoveFriendLine,
-    setRemoveFriendDone,
-    setRemoveFriendError,
-  } = useSyncStreams();
+  const { resetRemoveFriend, pushRemoveFriendLine, setRemoveFriendDone, setRemoveFriendError } =
+    useSyncStreams();
   const { setRemoveFriendOpen } = useSettingsDialogs();
 
   async function handleRemoveFriend(username: string) {

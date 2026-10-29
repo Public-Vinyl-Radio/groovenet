@@ -104,7 +104,7 @@ export function groupWindows<T>(
     gapSeconds = DEFAULT_PLAY_GAP_SECONDS,
     maxDriftSeconds,
     driftConfirmWindows = DEFAULT_DRIFT_CONFIRM_WINDOWS,
-  }: GroupingOptions = {}
+  }: GroupingOptions = {},
 ): WindowGroup<T>[] {
   const groups: WindowGroup<T>[] = [];
   // The current play's established alignment: followed window by window,
@@ -127,7 +127,12 @@ export function groupWindows<T>(
     held = [];
   };
   const begin = (first: T, rest: T[] = []) => {
-    const group = { first, last: first, confidence: view(first).confidence as number, members: [first] };
+    const group = {
+      first,
+      last: first,
+      confidence: view(first).confidence as number,
+      members: [first],
+    };
     rest.forEach((item) => add(group, item));
     groups.push(group);
   };
@@ -153,7 +158,14 @@ export function groupWindows<T>(
   for (const item of items) {
     const window = view(item);
     const { at, confidence } = window;
-    if (!window.track_id || !window.friend_id || confidence == null || confidence < confidenceFloor || at == null) continue;
+    if (
+      !window.track_id ||
+      !window.friend_id ||
+      confidence == null ||
+      confidence < confidenceFloor ||
+      at == null
+    )
+      continue;
     const current = groups.at(-1);
     const first = current ? view(current.first) : null;
     const sameTrack = first?.track_id === window.track_id && first?.friend_id === window.friend_id;
@@ -247,7 +259,7 @@ function trailingUnaligned<T>(group: WindowGroup<T>, view: (item: T) => Groupabl
 /** Pure grouping rule: order by capture time, not queue arrival time. */
 export function groupDetections(
   detections: PlayDetectionRow[],
-  options: { confidenceFloor?: number; gapSeconds?: number } = {}
+  options: { confidenceFloor?: number; gapSeconds?: number } = {},
 ): AggregatedPlay[] {
   const view = (d: PlayDetectionRow) => ({
     at: timestamp(d),
@@ -302,7 +314,7 @@ export function windowRate<T>(members: T[], view: (item: T) => GroupableWindow):
  */
 export function isRealPlay(
   play: Pick<AggregatedPlay, "windows" | "rate">,
-  { minWindows = DEFAULT_PLAY_MIN_WINDOWS }: { minWindows?: number } = {}
+  { minWindows = DEFAULT_PLAY_MIN_WINDOWS }: { minWindows?: number } = {},
 ): boolean {
   if (play.windows < minWindows) return false;
   if (play.rate === null) return true;
@@ -356,27 +368,45 @@ export class PlayAggregationService {
    * be cut, so it is left alone: running across both lookbacks, it was
    * spun by an earlier pass.
    */
-  private async playsSince(sourceId: string, since: Date | string, options: AggregationOptions): Promise<AggregatedPlay[]> {
+  private async playsSince(
+    sourceId: string,
+    since: Date | string,
+    options: AggregationOptions,
+  ): Promise<AggregatedPlay[]> {
     const sinceMs = new Date(since).getTime();
     const readFrom = sinceMs - aggregationLookbackMs();
     const gapMs = (options.gapSeconds ?? DEFAULT_PLAY_GAP_SECONDS) * 1000;
-    const detections = await playDetectionRepository.listRecentBySource(sourceId, new Date(readFrom));
+    const detections = await playDetectionRepository.listRecentBySource(
+      sourceId,
+      new Date(readFrom),
+    );
     return groupDetections(detections, options).filter(
       (p) =>
         isRealPlay(p, options) &&
         new Date(p.last.window_start_at!).getTime() >= sinceMs &&
-        new Date(p.first.window_start_at!).getTime() - readFrom > gapMs
+        new Date(p.first.window_start_at!).getTime() - readFrom > gapMs,
     );
   }
 
-  async aggregateSource(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<{ created: number; skipped: number }> {
+  async aggregateSource(
+    sourceId: string,
+    since: Date | string,
+    options: AggregationOptions = {},
+  ): Promise<{ created: number; skipped: number }> {
     let created = 0;
     let skipped = 0;
     for (const play of await this.playsSince(sourceId, since, options)) {
-      if (await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id)) { skipped++; continue; }
+      if (await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id)) {
+        skipped++;
+        continue;
+      }
       const spin = await spinLoggingService.createAutomaticSpinSession({
-        detection_id: play.first.id, source_id: sourceId, track_id: play.first.track_id!,
-        friend_id: play.first.friend_id!, played_at: play.first.window_start_at!, confidence: play.confidence,
+        detection_id: play.first.id,
+        source_id: sourceId,
+        track_id: play.first.track_id!,
+        friend_id: play.first.friend_id!,
+        played_at: play.first.window_start_at!,
+        confidence: play.confidence,
       });
       created++;
       recordConfirmedPlay(sourceId, play, spin.session.id);
@@ -389,7 +419,11 @@ export class PlayAggregationService {
    * yet been written to spins (#304). Never writes — for `vinyl status`, so a
    * silent backlog is visible without waiting on the next scheduled pass.
    */
-  async countPending(sourceId: string, since: Date | string, options: AggregationOptions = {}): Promise<number> {
+  async countPending(
+    sourceId: string,
+    since: Date | string,
+    options: AggregationOptions = {},
+  ): Promise<number> {
     let pending = 0;
     for (const play of await this.playsSince(sourceId, since, options)) {
       if (!(await spinLoggingService.findAutomaticSessionByDetectionId(play.first.id))) pending++;

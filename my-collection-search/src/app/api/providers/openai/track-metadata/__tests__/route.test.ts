@@ -15,7 +15,7 @@ const post = (body: unknown) =>
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    })
+    }),
   );
 
 describe("POST /api/providers/openai/track-metadata", () => {
@@ -43,7 +43,9 @@ describe("POST /api/providers/openai/track-metadata", () => {
   });
 
   it("returns a TrackMetadataError with its status", async () => {
-    generateTrackMetadata.mockRejectedValueOnce(new TrackMetadataError("Missing or invalid prompt", 400));
+    generateTrackMetadata.mockRejectedValueOnce(
+      new TrackMetadataError("Missing or invalid prompt", 400),
+    );
     const res = await post({ prompt: "" });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Missing or invalid prompt" });

@@ -2,15 +2,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Menu,
-  Portal,
-  Spinner,
-  useBreakpointValue,
-  HStack,
-  Icon,
-  Box,
-} from "@chakra-ui/react";
+import { Menu, Portal, Spinner, useBreakpointValue, HStack, Icon, Box } from "@chakra-ui/react";
 import { FiUser, FiX } from "react-icons/fi";
 import { useUsername } from "@/providers/UsernameProvider";
 import { Friend } from "@/types/track";
@@ -84,7 +76,7 @@ export default function UsernameSelect({
         setCtxValue(null);
       }
     },
-    [isControlled, onChange, setCtxValue]
+    [isControlled, onChange, setCtxValue],
   );
 
   // Heal stale persisted selections (e.g. restored DB with new friend IDs).
@@ -101,8 +93,7 @@ export default function UsernameSelect({
       (u) =>
         typeof u.username === "string" &&
         typeof selectedFriend.username === "string" &&
-        u.username.trim().toLowerCase() ===
-          selectedFriend.username.trim().toLowerCase()
+        u.username.trim().toLowerCase() === selectedFriend.username.trim().toLowerCase(),
     );
     if (byUsername) {
       handleSelect(byUsername);
@@ -110,20 +101,13 @@ export default function UsernameSelect({
     }
 
     // If the stored selection no longer exists, fall back deterministically.
-    const fallback = includeAllOption ? null : uniqueUsernames[0] ?? null;
+    const fallback = includeAllOption ? null : (uniqueUsernames[0] ?? null);
     handleSelect(fallback);
-  }, [
-    isLoading,
-    selectedFriend,
-    uniqueUsernames,
-    includeAllOption,
-    handleSelect,
-  ]);
+  }, [isLoading, selectedFriend, uniqueUsernames, includeAllOption, handleSelect]);
 
   // Resolve responsive size to a concrete token for styling
-  const resolvedSize = useBreakpointValue(
-    Array.isArray(size) ? size : [size]
-  ) as string | undefined;
+  const resolvedSize = useBreakpointValue(Array.isArray(size) ? size : [size]) as
+    string | undefined;
 
   return (
     <Menu.Root>
@@ -180,11 +164,7 @@ export default function UsernameSelect({
               </Menu.Item>
             )}
             {uniqueUsernames.map((u) => (
-              <Menu.Item
-                key={u.id}
-                value={String(u.id)}
-                onClick={() => handleSelect(u)}
-              >
+              <Menu.Item key={u.id} value={String(u.id)} onClick={() => handleSelect(u)}>
                 {u.username}
               </Menu.Item>
             ))}

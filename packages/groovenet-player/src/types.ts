@@ -69,7 +69,7 @@ export class PlayerError extends Error {
   constructor(
     readonly code: PlayerErrorCode,
     message: string,
-    options?: ErrorOptions
+    options?: ErrorOptions,
   ) {
     super(message, options);
     this.name = "PlayerError";

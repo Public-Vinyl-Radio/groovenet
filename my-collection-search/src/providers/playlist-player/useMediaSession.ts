@@ -17,9 +17,7 @@ export type MediaSessionLike = {
       | "seekbackward"
       | "seekforward"
       | "seekto",
-    handler:
-      | ((details?: { seekOffset?: number; seekTime?: number }) => void)
-      | null
+    handler: ((details?: { seekOffset?: number; seekTime?: number }) => void) | null,
   ) => void;
   setPositionState?: (state: {
     duration: number;
@@ -93,30 +91,19 @@ export function useMediaSession({
       mediaSession.setActionHandler?.("previoustrack", playPrev);
       mediaSession.setActionHandler?.("nexttrack", playNext);
       mediaSession.setActionHandler?.("stop", stop);
-      mediaSession.setActionHandler?.(
-        "seekbackward",
-        (details?: { seekOffset?: number }) => {
-          const offset =
-            typeof details?.seekOffset === "number" ? details.seekOffset : 10;
-          seek(getNow() - offset);
+      mediaSession.setActionHandler?.("seekbackward", (details?: { seekOffset?: number }) => {
+        const offset = typeof details?.seekOffset === "number" ? details.seekOffset : 10;
+        seek(getNow() - offset);
+      });
+      mediaSession.setActionHandler?.("seekforward", (details?: { seekOffset?: number }) => {
+        const offset = typeof details?.seekOffset === "number" ? details.seekOffset : 10;
+        seek(getNow() + offset);
+      });
+      mediaSession.setActionHandler?.("seekto", (details?: { seekTime?: number }) => {
+        if (typeof details?.seekTime === "number") {
+          seek(details.seekTime);
         }
-      );
-      mediaSession.setActionHandler?.(
-        "seekforward",
-        (details?: { seekOffset?: number }) => {
-          const offset =
-            typeof details?.seekOffset === "number" ? details.seekOffset : 10;
-          seek(getNow() + offset);
-        }
-      );
-      mediaSession.setActionHandler?.(
-        "seekto",
-        (details?: { seekTime?: number }) => {
-          if (typeof details?.seekTime === "number") {
-            seek(details.seekTime);
-          }
-        }
-      );
+      });
     } catch {}
 
     return () => {
@@ -156,8 +143,7 @@ export function useMediaSession({
   useEffect(() => {
     if (!enabled) return;
     const mediaSession = getMediaSession();
-    if (!mediaSession || typeof mediaSession.setPositionState !== "function")
-      return;
+    if (!mediaSession || typeof mediaSession.setPositionState !== "function") return;
     try {
       if (Number.isFinite(duration) && duration > 0) {
         mediaSession.setPositionState({

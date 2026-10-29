@@ -1,10 +1,7 @@
 import { PostHog } from "posthog-node";
 import type { AnalyticsProperties, AnalyticsProvider } from "../types";
 
-export function createPosthogServerProvider(
-  key: string,
-  host: string
-): AnalyticsProvider {
+export function createPosthogServerProvider(key: string, host: string): AnalyticsProvider {
   const client = new PostHog(key, {
     host,
     // Route handlers are short-lived; send each event straight away.
@@ -35,7 +32,7 @@ export function createPosthogServerProvider(
  */
 export function distinctIdFromCookieHeader(
   cookieHeader: string | null | undefined,
-  key: string
+  key: string,
 ): string | undefined {
   if (!cookieHeader) return undefined;
   const name = `ph_${key}_posthog=`;

@@ -56,14 +56,12 @@ function makeReq(
     friend_id?: string;
     cover_art?: File;
     omit?: string[];
-  } = {}
+  } = {},
 ) {
   const fd = new FormData();
   const omit = fields.omit ?? [];
-  if (!omit.includes("album"))
-    fd.set("album", JSON.stringify(fields.album ?? ALBUM));
-  if (!omit.includes("tracks"))
-    fd.set("tracks", JSON.stringify(fields.tracks ?? TRACKS));
+  if (!omit.includes("album")) fd.set("album", JSON.stringify(fields.album ?? ALBUM));
+  if (!omit.includes("tracks")) fd.set("tracks", JSON.stringify(fields.tracks ?? TRACKS));
   if (!omit.includes("friend_id")) fd.set("friend_id", fields.friend_id ?? "1");
   if (fields.cover_art) fd.set("cover_art", fields.cover_art);
   return new NextRequest("http://localhost/api/albums/create", {
@@ -150,7 +148,7 @@ describe("POST /api/albums/create — success", () => {
           { title: "S1", artist: "A" },
           { title: "S2", artist: "A" },
         ],
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -170,7 +168,7 @@ describe("POST /api/albums/create — success", () => {
           { title: "S1", artist: "A" },
           { title: "S2", artist: "A" },
         ],
-      })
+      }),
     );
     expect(mockSyncEmbeddings).toHaveBeenCalledWith([
       { track_id: "a", friend_id: 1 },
@@ -197,7 +195,11 @@ describe("POST /api/albums/create — error handling", () => {
     const res = await POST(makeReq({ cover_art: cover }));
     const body = await res.json();
 
-    expect(mockUseUploadedCover).toHaveBeenCalledWith("local-rel-1", 1, "/uploads/album-covers/c.jpg");
+    expect(mockUseUploadedCover).toHaveBeenCalledWith(
+      "local-rel-1",
+      1,
+      "/uploads/album-covers/c.jpg",
+    );
     expect(body.album).toMatchObject({
       audio_file_album_art_url: "/uploads/album-covers/c.jpg",
       album_art_source: "upload",

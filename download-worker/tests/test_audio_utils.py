@@ -13,17 +13,21 @@ from worker.audio_utils import (
 # extract_year_from_tag — pure function
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("value, expected", [
-    ("2021", 2021),
-    ("2021-07-04", 2021),
-    ("Recorded in 1999", 1999),
-    ("01/15/2003", 2003),
-    ("no year here", None),
-    ("", None),
-    ("1799", None),          # before lower bound
-    ("2101", None),          # after upper bound
-    ("abcd", None),          # digits but not a valid year
-])
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("2021", 2021),
+        ("2021-07-04", 2021),
+        ("Recorded in 1999", 1999),
+        ("01/15/2003", 2003),
+        ("no year here", None),
+        ("", None),
+        ("1799", None),  # before lower bound
+        ("2101", None),  # after upper bound
+        ("abcd", None),  # digits but not a valid year
+    ],
+)
 def test_extract_year_from_tag(value, expected):
     assert extract_year_from_tag(value) == expected
 
@@ -36,6 +40,7 @@ def test_extract_year_from_tag_non_string_returns_none():
 # ---------------------------------------------------------------------------
 # get_duration_seconds
 # ---------------------------------------------------------------------------
+
 
 def make_proc(returncode=0, stdout="", stderr=""):
     return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
@@ -81,11 +86,10 @@ def test_get_duration_seconds_populates_log_sink(mock_run):
 # get_audio_metadata_year
 # ---------------------------------------------------------------------------
 
+
 @patch("worker.audio_utils.run_subprocess")
 def test_get_audio_metadata_year_from_date_tag(mock_run):
-    mock_run.return_value = make_proc(
-        stdout='{"format": {"tags": {"date": "1997-06-17"}}}'
-    )
+    mock_run.return_value = make_proc(stdout='{"format": {"tags": {"date": "1997-06-17"}}}')
     assert get_audio_metadata_year("/audio/track.m4a") == 1997
 
 
@@ -104,6 +108,7 @@ def test_get_audio_metadata_year_returns_none_when_no_year(mock_run):
 # ---------------------------------------------------------------------------
 # ensure_local_audio_file
 # ---------------------------------------------------------------------------
+
 
 def test_ensure_local_audio_file_returns_existing_path(tmp_path):
     f = tmp_path / "track.m4a"

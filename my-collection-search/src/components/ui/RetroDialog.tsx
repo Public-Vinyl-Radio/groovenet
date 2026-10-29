@@ -57,7 +57,12 @@ export default function RetroDialog({
       <Portal>
         <Dialog.Backdrop css={retroDialog.backdrop} />
         <Dialog.Positioner css={retroDialog.positioner}>
-          <Dialog.Content css={retroDialog.content} display="flex" flexDirection="column" overflow="hidden">
+          <Dialog.Content
+            css={retroDialog.content}
+            display="flex"
+            flexDirection="column"
+            overflow="hidden"
+          >
             <Flex
               align="center"
               gap={3}
@@ -70,7 +75,14 @@ export default function RetroDialog({
               flexShrink={0}
             >
               {header ?? (
-                <Dialog.Title flex={1} fontFamily="label" fontSize="13px" letterSpacing="0.06em" textTransform="uppercase" fontWeight="semibold">
+                <Dialog.Title
+                  flex={1}
+                  fontFamily="label"
+                  fontSize="13px"
+                  letterSpacing="0.06em"
+                  textTransform="uppercase"
+                  fontWeight="semibold"
+                >
                   {title}
                 </Dialog.Title>
               )}
@@ -94,7 +106,13 @@ export default function RetroDialog({
               {children}
             </Dialog.Body>
             {footer ? (
-              <Dialog.Footer p={0} flexShrink={0} display="block" borderTopWidth="outline" borderColor="border.ink">
+              <Dialog.Footer
+                p={0}
+                flexShrink={0}
+                display="block"
+                borderTopWidth="outline"
+                borderColor="border.ink"
+              >
                 {footer}
               </Dialog.Footer>
             ) : null}

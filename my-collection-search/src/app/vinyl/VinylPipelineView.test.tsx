@@ -5,7 +5,13 @@ import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const q = vi.hoisted(() => {
-  const make = () => ({ data: undefined as unknown, isLoading: false, isFetching: false, dataUpdatedAt: 0, refetch: vi.fn() });
+  const make = () => ({
+    data: undefined as unknown,
+    isLoading: false,
+    isFetching: false,
+    dataUpdatedAt: 0,
+    refetch: vi.fn(),
+  });
   return { stats: make(), detections: make(), retention: make(), make, intervals: [] as unknown[] };
 });
 vi.mock("@/hooks/useVinylPipelineQuery", () => ({

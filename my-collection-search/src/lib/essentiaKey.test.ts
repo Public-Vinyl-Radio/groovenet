@@ -11,7 +11,7 @@ describe("extractKeyAnalysis", () => {
     expect(
       extractKeyAnalysis({
         key_edma: { key: "C", scale: "major", strength: 0.6177087426190001 },
-      })
+      }),
     ).toEqual({ key: "C major", key_confidence: 0.618 });
   });
 
@@ -27,9 +27,10 @@ describe("extractKeyAnalysis", () => {
   });
 
   it("returns a null confidence when the single candidate has no strength", () => {
-    expect(
-      extractKeyAnalysis({ key_edma: { key: "D", scale: "minor" } })
-    ).toEqual({ key: "D minor", key_confidence: null });
+    expect(extractKeyAnalysis({ key_edma: { key: "D", scale: "minor" } })).toEqual({
+      key: "D minor",
+      key_confidence: null,
+    });
   });
 
   it("picks the unanimous key when all three profiles agree", () => {
@@ -38,7 +39,7 @@ describe("extractKeyAnalysis", () => {
         key_edma: { key: "D", scale: "minor", strength: 0.7 },
         key_krumhansl: { key: "D", scale: "minor", strength: 0.75 },
         key_temperley: { key: "D", scale: "minor", strength: 0.8 },
-      })
+      }),
     ).toEqual({ key: "D minor", key_confidence: 0.75 });
   });
 
@@ -53,7 +54,7 @@ describe("extractKeyAnalysis", () => {
         key_edma: { key: "F", scale: "major", strength: 0.62 },
         key_krumhansl: { key: "C", scale: "major", strength: 0.58 },
         key_temperley: { key: "C", scale: "major", strength: 0.55 },
-      })
+      }),
     ).toEqual({ key: "C major", key_confidence: 0.565 });
   });
 
@@ -71,7 +72,7 @@ describe("extractKeyAnalysis", () => {
       extractKeyAnalysis({
         key_edma: { key: "F", scale: "major" },
         key_krumhansl: { key: "F", scale: "major", strength: 0.6 },
-      })
+      }),
     ).toEqual({ key: "F major", key_confidence: 0.6 });
   });
 
@@ -81,7 +82,7 @@ describe("extractKeyAnalysis", () => {
         key_edma: { key: "F", scale: "major", strength: 0.5 },
         key_krumhansl: { key: "C", scale: "major", strength: 0.6 },
         key_temperley: { key: "G", scale: "major", strength: 0.4 },
-      })
+      }),
     ).toEqual({ key: "C major", key_confidence: 0.6 });
   });
 
@@ -91,7 +92,7 @@ describe("extractKeyAnalysis", () => {
         key_edma: { key: "F", scale: "major" },
         key_krumhansl: { key: "C", scale: "major" },
         key_temperley: { key: "G", scale: "major" },
-      })
+      }),
     ).toEqual({ key: "F major", key_confidence: null });
   });
 
@@ -100,7 +101,7 @@ describe("extractKeyAnalysis", () => {
       extractKeyAnalysis({
         key_edma: { key: "F", scale: "major", strength: 0.5 },
         key_krumhansl: { key: "F", scale: "major", strength: 0.7 },
-      })
+      }),
     ).toEqual({ key: "F major", key_confidence: 0.6 });
   });
 
@@ -109,7 +110,7 @@ describe("extractKeyAnalysis", () => {
       extractKeyAnalysis({
         key_edma: { key: "F", scale: "major", strength: 0.5 },
         key_krumhansl: { key: "C", scale: "major", strength: 0.7 },
-      })
+      }),
     ).toEqual({ key: "C major", key_confidence: 0.7 });
   });
 
@@ -122,7 +123,7 @@ describe("extractKeyAnalysis", () => {
         key_krumhansl: { key: "C", scale: "major", strength: 0.4 },
         chords_key: "F",
         chords_scale: "major",
-      })
+      }),
     ).toEqual({ key: "F major", key_confidence: 0.5 });
   });
 });
@@ -169,7 +170,7 @@ describe("logKeyProfileDisagreement", () => {
         chords_scale: "minor",
       },
       context,
-      log
+      log,
     );
     expect(log).not.toHaveBeenCalled();
   });
@@ -183,7 +184,7 @@ describe("logKeyProfileDisagreement", () => {
         key_temperley: { key: "C", scale: "major" },
       },
       context,
-      log
+      log,
     );
     expect(log).toHaveBeenCalledTimes(1);
     expect(log.mock.calls[0][0]).toContain("trk_001");
@@ -208,7 +209,7 @@ describe("logKeyProfileDisagreement", () => {
         chords_scale: "major",
       },
       context,
-      log
+      log,
     );
     expect(log).toHaveBeenCalledTimes(1);
     expect(log.mock.calls[0][0]).toContain("stored key=F major");
@@ -227,7 +228,7 @@ describe("logKeyProfileDisagreement", () => {
         key_temperley: { key: "C", scale: "major" },
       },
       context,
-      log
+      log,
     );
     expect(log.mock.calls[0][0]).not.toContain("krumhansl=");
     expect(log.mock.calls[0][0]).toContain("temperley=C major");
@@ -238,18 +239,14 @@ describe("logKeyProfileDisagreement", () => {
     logKeyProfileDisagreement(
       { key_edma: { key: "F", scale: "major" }, chords_key: "C" },
       context,
-      log
+      log,
     );
     expect(log).not.toHaveBeenCalled();
   });
 
   it("does nothing when only one estimate exists and nothing disagrees with it", () => {
     const log = vi.fn();
-    logKeyProfileDisagreement(
-      { key_krumhansl: { key: "C", scale: "major" } },
-      context,
-      log
-    );
+    logKeyProfileDisagreement({ key_krumhansl: { key: "C", scale: "major" } }, context, log);
     expect(log).not.toHaveBeenCalled();
   });
 
@@ -266,7 +263,7 @@ describe("logKeyProfileDisagreement", () => {
         key_edma: { key: "F", scale: "major" },
         key_krumhansl: { key: "C", scale: "major" },
       },
-      context
+      context,
     );
     expect(warnSpy).toHaveBeenCalledTimes(1);
     warnSpy.mockRestore();

@@ -5,16 +5,16 @@ follow-up #694. Synchronization was explicitly deferred.
 
 ## Automated checks
 
-* Unit coverage for shared contracts, TypeScript client, player manager, HTTP,
+- Unit coverage for shared contracts, TypeScript client, player manager, HTTP,
   HA observer, Postgres store, worker lifecycle and Next API proxy/routes.
-* `just server-players-test`: disposable migrated Postgres verifies independent
+- `just server-players-test`: disposable migrated Postgres verifies independent
   queues, revision CAS, unique engine/output claims and worker lease exclusion.
-* `just migrate-test`: migration up/down/up against disposable Postgres.
-* `deployment-smoke.mjs`: actual engine entrypoint, separate clock and engine
+- `just migrate-test`: migration up/down/up against disposable Postgres.
+- `deployment-smoke.mjs`: actual engine entrypoint, separate clock and engine
   containers on a Docker internal network, no published ports or audio. Verifies
   refusal without shared clock memory, working shared IPC, engine API startup,
   `/run/dbus` traversal and unprivileged D-Bus access to Avahi.
-* `isolated-smoke.mjs`: disposable Postgres, worker and two actual OwnTone
+- `isolated-smoke.mjs`: disposable Postgres, worker and two actual OwnTone
   engines with dummy/FIFO outputs. Verifies independent queues, SSE disconnect,
   EOF advancement in one player while the other stays paused past idle transport
   release, and stopped checkpoint restoration after worker restart.
@@ -37,14 +37,14 @@ Production services, music database and receiver configurations were unchanged.
 Outputs were **Lounge Room Audio** and **aswitch**, both Shairport AirPlay 2
 receivers. The user stopped the other app's stream and confirmed both ready.
 
-| Check | Result |
-| --- | --- |
-| Independent playback on both outputs | Both receiver MPRIS states were Playing simultaneously; user confirmed “yeah i hear it in both rooms” |
-| Controller/SSE disconnect | Playback continued |
-| Independent EOF advancement | Lounge advanced while aswitch stayed paused on its own first entry at 10.49 seconds, without error after 12 seconds paused |
-| Worker restart | Both two-entry queues retained stable entry IDs; restored stopped checkpoints with assignments cleared and no automatic playback/reclaim |
+| Check                                 | Result                                                                                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Independent playback on both outputs  | Both receiver MPRIS states were Playing simultaneously; user confirmed “yeah i hear it in both rooms”                                             |
+| Controller/SSE disconnect             | Playback continued                                                                                                                                |
+| Independent EOF advancement           | Lounge advanced while aswitch stayed paused on its own first entry at 10.49 seconds, without error after 12 seconds paused                        |
+| Worker restart                        | Both two-entry queues retained stable entry IDs; restored stopped checkpoints with assignments cleared and no automatic playback/reclaim          |
 | Explicit cross-engine output transfer | Source detached and paused; destination played its own queue on Lounge from its saved 5-second position; detached=true, attached=true, error=null |
-| Explicit stop after transfer | Released the transferred output |
+| Explicit stop after transfer          | Released the transferred output                                                                                                                   |
 
 Fixtures were generated PCM sine tones with attenuation around -30 dBFS peak.
 The Lounge receiver ignores sender volume. One early restart assertion expected

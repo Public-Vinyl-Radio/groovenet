@@ -32,13 +32,13 @@ beforeAll(async () => {
 
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   await dbQuery(
     `INSERT INTO albums (release_id, friend_id, title, artist, album_thumbnail)
      VALUES ($1, $2, 'Algo-Ritmo', 'Mexican Institute Of Sound', 'https://img.example/a.jpg')`,
-    [RELEASE_ID, friendId]
+    [RELEASE_ID, friendId],
   );
 
   const withAlbum = await sessions.createSession(dbPool, {
@@ -49,16 +49,28 @@ beforeAll(async () => {
   });
   await events.insertEvents(dbPool, withAlbum.id, [
     {
-      friend_id: friendId, release_id: RELEASE_ID, track_id: "t-d1",
-      played_at: "2026-09-20T21:30:00.000Z", ordinal: 0, side_key: "D",
-      position_snapshot: "D1", title_snapshot: "Bolero",
-      artist_snapshot: "Mexican Institute Of Sound", album_snapshot: "Algo-Ritmo",
+      friend_id: friendId,
+      release_id: RELEASE_ID,
+      track_id: "t-d1",
+      played_at: "2026-09-20T21:30:00.000Z",
+      ordinal: 0,
+      side_key: "D",
+      position_snapshot: "D1",
+      title_snapshot: "Bolero",
+      artist_snapshot: "Mexican Institute Of Sound",
+      album_snapshot: "Algo-Ritmo",
     },
     {
-      friend_id: friendId, release_id: RELEASE_ID, track_id: "t-d2",
-      played_at: "2026-09-20T21:30:00.000Z", ordinal: 1, side_key: "D",
-      position_snapshot: "D2", title_snapshot: "Tipo Raro",
-      artist_snapshot: "Mexican Institute Of Sound", album_snapshot: "Algo-Ritmo",
+      friend_id: friendId,
+      release_id: RELEASE_ID,
+      track_id: "t-d2",
+      played_at: "2026-09-20T21:30:00.000Z",
+      ordinal: 1,
+      side_key: "D",
+      position_snapshot: "D2",
+      title_snapshot: "Tipo Raro",
+      artist_snapshot: "Mexican Institute Of Sound",
+      album_snapshot: "Algo-Ritmo",
     },
   ]);
 

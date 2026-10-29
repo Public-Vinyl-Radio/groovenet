@@ -18,16 +18,12 @@ export function usePlaylistActions(playlistId?: number) {
   const getTracks = (): Track[] => {
     if (!playlistId) return [];
 
-    const cached = queryClient.getQueryData(
-      queryKeys.playlistTrackIds(playlistId)
-    ) as
+    const cached = queryClient.getQueryData(queryKeys.playlistTrackIds(playlistId)) as
       | { track_id: string; friend_id: number }[]
       | { tracks?: { track_id: string; friend_id: number }[] }
       | undefined;
 
-    const tracksPlaylist = Array.isArray(cached)
-      ? cached
-      : cached?.tracks ?? [];
+    const tracksPlaylist = Array.isArray(cached) ? cached : (cached?.tracks ?? []);
 
     if (!Array.isArray(tracksPlaylist) || tracksPlaylist.length === 0) {
       return [];
@@ -78,9 +74,7 @@ export function usePlaylistActions(playlistId?: number) {
     // Get playlist name
     let playlistName: string | undefined;
     if (playlistId) {
-      const cached = queryClient.getQueryData(
-        queryKeys.playlistTrackIds(playlistId)
-      ) as
+      const cached = queryClient.getQueryData(queryKeys.playlistTrackIds(playlistId)) as
         | { track_id: string; friend_id: number; playlist_name?: string }[]
         | { tracks?: { track_id: string; friend_id: number }[]; playlist_name?: string }
         | undefined;

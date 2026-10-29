@@ -64,7 +64,15 @@ export function Tile({
   );
 }
 
-export function ActionButton({ action, danger, onDone }: { action: ModalAction; danger?: boolean; onDone: () => void }) {
+export function ActionButton({
+  action,
+  danger,
+  onDone,
+}: {
+  action: ModalAction;
+  danger?: boolean;
+  onDone: () => void;
+}) {
   const style = {
     minH: "44px",
     px: "10px",
@@ -92,7 +100,13 @@ export function ActionButton({ action, danger, onDone }: { action: ModalAction; 
   );
   if (action.href && !action.disabled) {
     return action.external ? (
-      <Link {...style} href={action.href} target="_blank" rel="noopener noreferrer" onClick={onDone}>
+      <Link
+        {...style}
+        href={action.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onDone}
+      >
         {label}
       </Link>
     ) : (
@@ -128,7 +142,14 @@ export function Group({
 }) {
   if (actions.length === 0) return null;
   return (
-    <Box p="10px 14px 12px 12px" borderTopWidth="rule" borderColor="border" display="flex" flexDirection="column" gap={2}>
+    <Box
+      p="10px 14px 12px 12px"
+      borderTopWidth="rule"
+      borderColor="border"
+      display="flex"
+      flexDirection="column"
+      gap={2}
+    >
       <Text {...overline} color={danger ? "danger.fg" : "fg.muted"}>
         {label}
       </Text>
@@ -141,7 +162,6 @@ export function Group({
   );
 }
 
-
 export type ModalTile = {
   label: string;
   icon: React.ReactNode;
@@ -153,7 +173,12 @@ export type ModalTile = {
 /** Up to three primary tiles in one row; picking one runs it, then closes. */
 export function TileRow({ tiles, onDone }: { tiles: ModalTile[]; onDone: () => void }) {
   return (
-    <Box display="grid" gridTemplateColumns={`repeat(${tiles.length}, minmax(0, 1fr))`} gap="10px" p="14px 14px 12px 12px">
+    <Box
+      display="grid"
+      gridTemplateColumns={`repeat(${tiles.length}, minmax(0, 1fr))`}
+      gap="10px"
+      p="14px 14px 12px 12px"
+    >
       {tiles.map((tile) => (
         <Tile
           key={tile.label}
@@ -206,13 +231,29 @@ export function PositionStepper({
         Position
       </Text>
       <Box display="flex" alignItems="center" gap={2}>
-        <chakra.button {...arrow} aria-label="Move up" disabled={index <= 0} onClick={() => onMove(index - 1)}>
+        <chakra.button
+          {...arrow}
+          aria-label="Move up"
+          disabled={index <= 0}
+          onClick={() => onMove(index - 1)}
+        >
           <FiArrowUp />
         </chakra.button>
-        <Text fontFamily="label" fontSize="14px" minW="64px" textAlign="center" aria-label={`Position ${index + 1} of ${total}`}>
+        <Text
+          fontFamily="label"
+          fontSize="14px"
+          minW="64px"
+          textAlign="center"
+          aria-label={`Position ${index + 1} of ${total}`}
+        >
           {pad(index + 1)} / {pad(total)}
         </Text>
-        <chakra.button {...arrow} aria-label="Move down" disabled={index >= total - 1} onClick={() => onMove(index + 1)}>
+        <chakra.button
+          {...arrow}
+          aria-label="Move down"
+          disabled={index >= total - 1}
+          onClick={() => onMove(index + 1)}
+        >
           <FiArrowDown />
         </chakra.button>
       </Box>
@@ -220,7 +261,11 @@ export function PositionStepper({
   );
 }
 
-const sectionPadding = { p: "10px 14px 12px 12px", borderTopWidth: "rule", borderColor: "border" } as const;
+const sectionPadding = {
+  p: "10px 14px 12px 12px",
+  borderTopWidth: "rule",
+  borderColor: "border",
+} as const;
 
 /** A ruled block of a filter modal, with an optional overline label. */
 export function ModalSection({
@@ -233,7 +278,13 @@ export function ModalSection({
   children: React.ReactNode;
 }) {
   return (
-    <Box {...sectionPadding} borderTopWidth={first ? 0 : "rule"} display="flex" flexDirection="column" gap={3}>
+    <Box
+      {...sectionPadding}
+      borderTopWidth={first ? 0 : "rule"}
+      display="flex"
+      flexDirection="column"
+      gap={3}
+    >
       {label && (
         <Text {...overline} color="fg.muted">
           {label}
@@ -297,7 +348,13 @@ export function FiltersFooter({
 }) {
   return (
     <Box display="flex" gap={2} p="12px 14px 12px 12px">
-      <Button variant="outline" minH="44px" flexShrink={0} disabled={activeCount === 0} onClick={onReset}>
+      <Button
+        variant="outline"
+        minH="44px"
+        flexShrink={0}
+        disabled={activeCount === 0}
+        onClick={onReset}
+      >
         Reset
       </Button>
       <Button variant="solid" minH="44px" flex="1" minW={0} onClick={onShow}>

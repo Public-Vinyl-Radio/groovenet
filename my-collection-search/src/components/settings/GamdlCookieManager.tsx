@@ -35,7 +35,7 @@ export default function GamdlCookieManager() {
     if (!file) return;
 
     // Validate file type
-    if (!file.name.endsWith('.txt')) {
+    if (!file.name.endsWith(".txt")) {
       toaster.create({
         title: "Invalid File Type",
         description: "Please select a .txt cookie file",
@@ -53,7 +53,7 @@ export default function GamdlCookieManager() {
         });
         // Clear the file input
         if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+          fileInputRef.current.value = "";
         }
       },
       onError: (error) => {
@@ -64,7 +64,7 @@ export default function GamdlCookieManager() {
         });
         // Clear the file input
         if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+          fileInputRef.current.value = "";
         }
       },
     });
@@ -91,9 +91,9 @@ export default function GamdlCookieManager() {
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return "0 B";
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
   };
 
   const formatDate = (dateString?: string) => {
@@ -144,11 +144,7 @@ export default function GamdlCookieManager() {
 
                 <Menu.Separator />
 
-                <Menu.Item
-                  value="refresh"
-                  onClick={() => refetch()}
-                  disabled={isLoading}
-                >
+                <Menu.Item value="refresh" onClick={() => refetch()} disabled={isLoading}>
                   <LuRefreshCw />
                   Refresh Status
                 </Menu.Item>
@@ -174,17 +170,32 @@ export default function GamdlCookieManager() {
                     <LuCheck />
                   </Icon>
                   <Text fontWeight="medium">Cookie file active</Text>
-                  <Badge colorPalette={cookieInfo.isValid ? "status.success" : "status.missing"} variant="subtle">
+                  <Badge
+                    colorPalette={cookieInfo.isValid ? "status.success" : "status.missing"}
+                    variant="subtle"
+                  >
                     {cookieInfo.isValid ? "Valid" : "Invalid"}
                   </Badge>
                 </HStack>
 
                 <Box fontSize="sm" color="fg.muted">
-                  <Text><strong>File:</strong> {cookieInfo.filename}</Text>
-                  <Text><strong>Size:</strong> {formatFileSize(cookieInfo.size)}</Text>
-                  <Text><strong>Last Modified:</strong> {formatDate(cookieInfo.lastModified?.toString())}</Text>
-                  <Text><strong>Cookies:</strong> {cookieInfo.cookieCount || 0}</Text>
-                  <Text><strong>Apple Music:</strong> {cookieInfo.hasAppleMusic ? "✓ Found" : "✗ Not found"}</Text>
+                  <Text>
+                    <strong>File:</strong> {cookieInfo.filename}
+                  </Text>
+                  <Text>
+                    <strong>Size:</strong> {formatFileSize(cookieInfo.size)}
+                  </Text>
+                  <Text>
+                    <strong>Last Modified:</strong>{" "}
+                    {formatDate(cookieInfo.lastModified?.toString())}
+                  </Text>
+                  <Text>
+                    <strong>Cookies:</strong> {cookieInfo.cookieCount || 0}
+                  </Text>
+                  <Text>
+                    <strong>Apple Music:</strong>{" "}
+                    {cookieInfo.hasAppleMusic ? "✓ Found" : "✗ Not found"}
+                  </Text>
                 </Box>
 
                 {/* Validation Errors */}
@@ -204,10 +215,13 @@ export default function GamdlCookieManager() {
                 {/* Domain Information */}
                 {cookieInfo.domains && cookieInfo.domains.length > 0 && (
                   <Box>
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>Domains ({cookieInfo.domains.length}):</Text>
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Domains ({cookieInfo.domains.length}):
+                    </Text>
                     <Text fontSize="xs" color="fg.muted">
                       {cookieInfo.domains.slice(0, 5).join(", ")}
-                      {cookieInfo.domains.length > 5 && ` and ${cookieInfo.domains.length - 5} more...`}
+                      {cookieInfo.domains.length > 5 &&
+                        ` and ${cookieInfo.domains.length - 5} more...`}
                     </Text>
                   </Box>
                 )}
@@ -232,7 +246,9 @@ export default function GamdlCookieManager() {
               <List.Root>
                 <List.Item>1. Open your browser and go to music.apple.com</List.Item>
                 <List.Item>2. Sign in to your Apple Music account</List.Item>
-                <List.Item>3. Export cookies using a browser extension (e.g., &quot;Get cookies.txt&quot;)</List.Item>
+                <List.Item>
+                  3. Export cookies using a browser extension (e.g., &quot;Get cookies.txt&quot;)
+                </List.Item>
                 <List.Item>4. Upload the cookies.txt file here</List.Item>
               </List.Root>
             </VStack>
@@ -243,7 +259,7 @@ export default function GamdlCookieManager() {
             ref={fileInputRef}
             type="file"
             accept=".txt"
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
             onChange={handleFileSelect}
           />
         </Stack>

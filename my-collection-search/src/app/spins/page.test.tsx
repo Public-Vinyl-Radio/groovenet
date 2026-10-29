@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
-const user = vi.hoisted(() => ({ value: { friend: { id: 7 }, isHydrated: true } as { friend: { id: number } | null; isHydrated: boolean } }));
+const user = vi.hoisted(() => ({
+  value: { friend: { id: 7 }, isHydrated: true } as {
+    friend: { id: number } | null;
+    isHydrated: boolean;
+  },
+}));
 vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => user.value }));
 const query = { spins: [], topTracks: [], isLoading: false };
 vi.mock("@/hooks/useSpinsQuery", () => ({

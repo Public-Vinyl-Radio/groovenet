@@ -16,8 +16,7 @@ const DatabaseRestore: React.FC = () => {
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
-  const { mutateAsync: restoreMutation, isPending: isRestoring } =
-    useRestoreDatabaseMutation();
+  const { mutateAsync: restoreMutation, isPending: isRestoring } = useRestoreDatabaseMutation();
 
   const handleRestore = async () => {
     if (!restoreFile) return;
@@ -37,8 +36,8 @@ const DatabaseRestore: React.FC = () => {
         Restore Full Database
       </Heading>
       <Text mb={2}>
-        Upload a PostgreSQL backup file (`.sql` or `.dump`) to fully restore
-        schema and data. This will overwrite the current database.
+        Upload a PostgreSQL backup file (`.sql` or `.dump`) to fully restore schema and data. This
+        will overwrite the current database.
       </Text>
       {restoreError && (
         <Alert.Root status="error" title="Error" mb={4}>

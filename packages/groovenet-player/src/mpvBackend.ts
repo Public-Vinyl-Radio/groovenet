@@ -5,7 +5,12 @@ import { createConnection, type Socket } from "node:net";
 import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AudioDevice, PlaybackBackend, PlaybackBackendEvents, PlaybackSource } from "./types.js";
+import type {
+  AudioDevice,
+  PlaybackBackend,
+  PlaybackBackendEvents,
+  PlaybackSource,
+} from "./types.js";
 import { PlayerError } from "./types.js";
 
 export interface MpvBackendOptions {
@@ -38,7 +43,10 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
   private socketPath = join(tmpdir(), `gn-mpv-${process.pid}-${randomUUID().slice(0, 12)}.sock`);
   private buffer = "";
   private nextId = 1;
-  private pending = new Map<number, { resolve: (data: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
+  private pending = new Map<
+    number,
+    { resolve: (data: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
+  >();
   private startup: Promise<void> | null = null;
   private closing = false;
   private spawnError: PlayerError | null = null;
@@ -54,7 +62,8 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
     this.executable = options.executable ?? "mpv";
     this.startupTimeoutMs = options.startupTimeoutMs ?? 5000;
     this.commandTimeoutMs = options.commandTimeoutMs ?? 5000;
-    this.spawnProcess = options.spawnProcess ?? ((executable, args) => spawn(executable, args, { stdio: "ignore" }));
+    this.spawnProcess =
+      options.spawnProcess ?? ((executable, args) => spawn(executable, args, { stdio: "ignore" }));
     this.connectSocket = options.connectSocket ?? createConnection;
     this.insecureTls = options.insecureTls ?? false;
     this.artwork = options.artwork ?? false;
@@ -68,13 +77,17 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
   on(event: string | symbol, listener: (...args: any[]) => void): this;
   on<E extends keyof PlaybackBackendEvents>(event: E, listener: PlaybackBackendEvents[E]): this;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on(event: string | symbol, listener: (...args: any[]) => void): this { return super.on(event, listener); }
+  on(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(event, listener);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   off(event: string | symbol, listener: (...args: any[]) => void): this;
   off<E extends keyof PlaybackBackendEvents>(event: E, listener: PlaybackBackendEvents[E]): this;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  off(event: string | symbol, listener: (...args: any[]) => void): this { return super.off(event, listener); }
+  off(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.off(event, listener);
+  }
 
   async load(source: PlaybackSource): Promise<void> {
     await this.ensureStarted();
@@ -107,11 +120,13 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
       if (!item || typeof item !== "object") return [];
       const device = item as { name?: unknown; description?: unknown };
       if (typeof device.name !== "string") return [];
-      return [{
-        id: device.name,
-        name: typeof device.description === "string" ? device.description : device.name,
-        ...(typeof device.description === "string" ? { description: device.description } : {}),
-      }];
+      return [
+        {
+          id: device.name,
+          name: typeof device.description === "string" ? device.description : device.name,
+          ...(typeof device.description === "string" ? { description: device.description } : {}),
+        },
+      ];
     });
   }
 
@@ -120,7 +135,11 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
       await this.ensureStarted();
       await this.command("set_property", "audio-device", deviceId);
     } catch (error) {
-      throw new PlayerError("DEVICE_UNAVAILABLE", `Could not select audio output “${deviceId}”. Check that the device is connected and visible to mpv.`, { cause: error });
+      throw new PlayerError(
+        "DEVICE_UNAVAILABLE",
+        `Could not select audio output “${deviceId}”. Check that the device is connected and visible to mpv.`,
+        { cause: error },
+      );
     }
   }
 
@@ -150,7 +169,11 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
     this.socket?.destroy();
     this.socket = null;
     this.process = null;
-    try { await unlink(this.socketPath); } catch { /* socket is already gone */ }
+    try {
+      await unlink(this.socketPath);
+    } catch {
+      /* socket is already gone */
+    }
   }
 
   private ensureStarted(): Promise<void> {
@@ -174,11 +197,19 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
     try {
       this.process = this.spawnProcess(this.executable, args);
     } catch (error) {
-      throw new PlayerError("MPV_NOT_FOUND", "Could not start mpv. Install mpv and ensure it is on PATH.", { cause: error });
+      throw new PlayerError(
+        "MPV_NOT_FOUND",
+        "Could not start mpv. Install mpv and ensure it is on PATH.",
+        { cause: error },
+      );
     }
     const child = this.process;
     child.once("error", (error) => {
-      const wrapped = new PlayerError("MPV_NOT_FOUND", "Could not start mpv. Install mpv and ensure it is on PATH.", { cause: error });
+      const wrapped = new PlayerError(
+        "MPV_NOT_FOUND",
+        "Could not start mpv. Install mpv and ensure it is on PATH.",
+        { cause: error },
+      );
       this.spawnError = wrapped;
       this.rejectPending(wrapped);
       this.reportError(wrapped);
@@ -186,10 +217,20 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
     child.once("exit", (code, signal) => {
       this.socket?.destroy();
       this.socket = null;
-      this.rejectPending(new PlayerError("MPV_EXITED", `mpv exited unexpectedly (${signal ?? code ?? "unknown status"}).`));
+      this.rejectPending(
+        new PlayerError(
+          "MPV_EXITED",
+          `mpv exited unexpectedly (${signal ?? code ?? "unknown status"}).`,
+        ),
+      );
       if (!this.closing) {
         this.startup = null;
-        this.reportError(new PlayerError("MPV_EXITED", `mpv exited unexpectedly (${signal ?? code ?? "unknown status"}).`));
+        this.reportError(
+          new PlayerError(
+            "MPV_EXITED",
+            `mpv exited unexpectedly (${signal ?? code ?? "unknown status"}).`,
+          ),
+        );
       }
     });
 
@@ -197,7 +238,10 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
     while (Date.now() < deadline) {
       if (this.spawnError) throw this.spawnError;
       if (child.exitCode !== null || child.signalCode !== null) {
-        throw new PlayerError("MPV_EXITED", "mpv exited while starting. Check the mpv installation and audio output configuration.");
+        throw new PlayerError(
+          "MPV_EXITED",
+          "mpv exited while starting. Check the mpv installation and audio output configuration.",
+        );
       }
       try {
         await this.connect();
@@ -219,14 +263,25 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
   private connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       const socket = this.connectSocket(this.socketPath);
-      const failed = (error: Error) => { socket.destroy(); reject(error); };
+      const failed = (error: Error) => {
+        socket.destroy();
+        reject(error);
+      };
       socket.once("error", failed);
       socket.once("connect", () => {
         socket.off("error", failed);
         this.socket = socket;
         socket.on("data", (chunk: Buffer) => this.onData(chunk));
-        socket.on("error", (error) => this.rejectPending(new PlayerError("MPV_IPC", `mpv IPC connection failed: ${error.message}`, { cause: error })));
-        socket.on("close", () => this.rejectPending(new PlayerError("MPV_IPC", "mpv IPC connection closed.")));
+        socket.on("error", (error) =>
+          this.rejectPending(
+            new PlayerError("MPV_IPC", `mpv IPC connection failed: ${error.message}`, {
+              cause: error,
+            }),
+          ),
+        );
+        socket.on("close", () =>
+          this.rejectPending(new PlayerError("MPV_IPC", "mpv IPC connection closed.")),
+        );
         resolve();
       });
     });
@@ -234,12 +289,18 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
 
   private command(name: string, ...args: unknown[]): Promise<unknown> {
     const socket = this.socket;
-    if (!socket?.writable) return Promise.reject(new PlayerError("MPV_IPC", "mpv is not connected."));
+    if (!socket?.writable)
+      return Promise.reject(new PlayerError("MPV_IPC", "mpv is not connected."));
     const request_id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(request_id);
-        reject(new PlayerError("MPV_IPC", `mpv did not answer the “${name}” command within ${this.commandTimeoutMs} ms.`));
+        reject(
+          new PlayerError(
+            "MPV_IPC",
+            `mpv did not answer the “${name}” command within ${this.commandTimeoutMs} ms.`,
+          ),
+        );
       }, this.commandTimeoutMs);
       this.pending.set(request_id, { resolve, reject, timer });
       socket.write(`${JSON.stringify({ command: [name, ...args], request_id })}\n`, (error) => {
@@ -247,7 +308,11 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
           const pending = this.pending.get(request_id);
           this.pending.delete(request_id);
           if (pending) clearTimeout(pending.timer);
-          reject(new PlayerError("MPV_IPC", `Could not send command to mpv: ${error.message}`, { cause: error }));
+          reject(
+            new PlayerError("MPV_IPC", `Could not send command to mpv: ${error.message}`, {
+              cause: error,
+            }),
+          );
         }
       });
     });
@@ -260,13 +325,18 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
       const line = this.buffer.slice(0, newline);
       this.buffer = this.buffer.slice(newline + 1);
       let message: IpcMessage;
-      try { message = JSON.parse(line) as IpcMessage; } catch { continue; }
+      try {
+        message = JSON.parse(line) as IpcMessage;
+      } catch {
+        continue;
+      }
       if (message.request_id !== undefined) {
         const pending = this.pending.get(message.request_id);
         if (!pending) continue;
         this.pending.delete(message.request_id);
         clearTimeout(pending.timer);
-        if (message.error && message.error !== "success") pending.reject(this.mapMpvError(message.error));
+        if (message.error && message.error !== "success")
+          pending.reject(this.mapMpvError(message.error));
         else pending.resolve(message.data);
       } else {
         this.onEvent(message);
@@ -277,19 +347,30 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
   private onEvent(message: IpcMessage): void {
     if (message.event === "property-change") {
       const position = message.name === "time-pos" ? message.data : undefined;
-      if (message.name === "duration") this.duration = typeof message.data === "number" ? message.data : null;
+      if (message.name === "duration")
+        this.duration = typeof message.data === "number" ? message.data : null;
       if (typeof position === "number") {
         this.emit("position", position, this.duration);
       }
     } else if (message.event === "end-file") {
       const reason = message.reason;
       if (reason === "eof") this.emit("ended");
-      else if (reason === "error") this.reportError(new PlayerError("STREAM_FAILED", "mpv could not read the audio stream. Check the server URL, API key, and downloaded audio."));
+      else if (reason === "error")
+        this.reportError(
+          new PlayerError(
+            "STREAM_FAILED",
+            "mpv could not read the audio stream. Check the server URL, API key, and downloaded audio.",
+          ),
+        );
     }
   }
 
   private mapMpvError(error: string): PlayerError {
-    if (error.includes("audio-device")) return new PlayerError("DEVICE_UNAVAILABLE", `mpv could not select the audio device: ${error}. Check that it is connected.`);
+    if (error.includes("audio-device"))
+      return new PlayerError(
+        "DEVICE_UNAVAILABLE",
+        `mpv could not select the audio device: ${error}. Check that it is connected.`,
+      );
     return new PlayerError("MPV_IPC", `mpv command failed: ${error}`);
   }
 
@@ -315,7 +396,11 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     }
     this.process = null;
-    try { await unlink(this.socketPath); } catch { /* socket was never created or already removed */ }
+    try {
+      await unlink(this.socketPath);
+    } catch {
+      /* socket was never created or already removed */
+    }
   }
 
   private reportError(error: PlayerError): void {

@@ -20,7 +20,7 @@ describe("RecordCopyRepository default copies", () => {
     expect(query).toHaveBeenCalledTimes(1);
     const [sql, params] = query.mock.calls[0];
     expect(sql).toMatch(
-      /ON CONFLICT \(friend_id, release_id\) WHERE is_default AND deleted_at IS NULL\s+DO NOTHING/
+      /ON CONFLICT \(friend_id, release_id\) WHERE is_default AND deleted_at IS NULL\s+DO NOTHING/,
     );
     expect(params).toEqual([7, "rel"]);
   });
@@ -42,7 +42,7 @@ describe("RecordCopyRepository default copies", () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 9, is_default: false }] });
 
     await expect(
-      repo.insertExtraCopy({ query }, { friend_id: 7, release_id: "rel", label: "Copy 2" })
+      repo.insertExtraCopy({ query }, { friend_id: 7, release_id: "rel", label: "Copy 2" }),
     ).resolves.toEqual({ id: 9, is_default: false });
 
     expect(query).toHaveBeenCalledTimes(1);
@@ -84,8 +84,12 @@ describe("RecordCopyRepository edits", () => {
     await repo.refreshCareState({ query }, 3);
 
     const [sql, params] = query.mock.calls[0];
-    expect(sql).toMatch(/MAX\(ra\.occurred_at\)[\s\S]*action_type = 'cleaned' AND ra\.voided_at IS NULL/);
-    expect(sql).toMatch(/action_type = 'sleeved' AND ra\.voided_at IS NULL\s+ORDER BY ra\.occurred_at DESC, ra\.id DESC/);
+    expect(sql).toMatch(
+      /MAX\(ra\.occurred_at\)[\s\S]*action_type = 'cleaned' AND ra\.voided_at IS NULL/,
+    );
+    expect(sql).toMatch(
+      /action_type = 'sleeved' AND ra\.voided_at IS NULL\s+ORDER BY ra\.occurred_at DESC, ra\.id DESC/,
+    );
     expect(params).toEqual([3]);
   });
 });
@@ -225,7 +229,7 @@ describe("RecordCopyRepository reads and soft deletes", () => {
     dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
     await expect(
-      repo.listCare({ friend_id: 7, overdue_days: 365, needs_sleeve: "poly" })
+      repo.listCare({ friend_id: 7, overdue_days: 365, needs_sleeve: "poly" }),
     ).resolves.toEqual({ items: [], total: 0 });
   });
 });

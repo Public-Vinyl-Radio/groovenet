@@ -28,7 +28,7 @@ export type DiscogsCollectionRepairResult = {
 export async function repairDiscogsCollectionFields(
   username: string,
   releaseIds: string[],
-  collectionDateAdded: Map<string, string>
+  collectionDateAdded: Map<string, string>,
 ): Promise<DiscogsCollectionRepairResult> {
   const ids = [...new Set(releaseIds)].filter((id) => /^\d+$/.test(id));
   if (ids.length === 0) return { albums: [], tracks: 0 };
@@ -45,14 +45,12 @@ export async function repairDiscogsCollectionFields(
     return {
       release_id: releaseId,
       date_added:
-        collectionDateAdded.get(releaseId) ||
-        (ownFile ? saved?.date_added : null) ||
-        null,
+        collectionDateAdded.get(releaseId) || (ownFile ? saved?.date_added : null) || null,
       discogs_url: saved?.uri || `https://www.discogs.com/release/${releaseId}`,
     };
   });
 
   return withDbTransaction((client) =>
-    albumRepository.repairDiscogsCollectionFields(client, friendId, entries)
+    albumRepository.repairDiscogsCollectionFields(client, friendId, entries),
   );
 }

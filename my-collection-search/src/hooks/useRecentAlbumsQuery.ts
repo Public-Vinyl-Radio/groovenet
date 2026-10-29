@@ -14,17 +14,22 @@ export function useRecentAlbumsQuery(friendId?: number) {
     enabled: friendId !== undefined,
     staleTime: 30_000,
     queryFn: async () => {
-      const { hits } = await searchAlbums({ friend_id: friendId, sort: "created_at:desc", limit: 4 });
+      const { hits } = await searchAlbums({
+        friend_id: friendId,
+        sort: "created_at:desc",
+        limit: 4,
+      });
       useAlbumStore.getState().setAlbums(hits);
       return hits.map((album) => `${album.release_id}:${album.friend_id}`);
     },
   });
   const albums = useMemo(
-    () => (query.data ?? []).flatMap((key) => {
-      const album = entities.get(key);
-      return album ? [album] : [];
-    }),
-    [query.data, entities]
+    () =>
+      (query.data ?? []).flatMap((key) => {
+        const album = entities.get(key);
+        return album ? [album] : [];
+      }),
+    [query.data, entities],
   );
   return { ...query, albums };
 }

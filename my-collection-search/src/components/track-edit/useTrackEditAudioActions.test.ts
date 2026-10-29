@@ -57,7 +57,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
     const setForm = vi.fn();
     const form = baseForm();
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() }),
     );
 
     await act(async () => {
@@ -74,7 +74,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
     const setForm = vi.fn();
     const form = { ...baseForm(), key: "D minor", key_confidence: 0.9 };
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() }),
     );
 
     await act(async () => {
@@ -90,7 +90,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
     mockUpload.mockResolvedValue({ analysis: {} });
     const form = { ...baseForm(), track_id: "t9", friend_id: 4 };
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm: vi.fn(), onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm: vi.fn(), onSave: vi.fn() }),
     );
     const file = new File([], "song.mp3");
 
@@ -104,7 +104,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
   it("reports an error instead of uploading when the track has no friend_id", async () => {
     const form = { ...baseForm(), friend_id: undefined };
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm: vi.fn(), onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm: vi.fn(), onSave: vi.fn() }),
     );
 
     await act(async () => {
@@ -113,7 +113,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
 
     expect(mockUpload).not.toHaveBeenCalled();
     expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Upload Failed", type: "error" })
+      expect.objectContaining({ title: "Upload Failed", type: "error" }),
     );
   });
 
@@ -122,7 +122,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
     const setForm = vi.fn();
     const form = baseForm();
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() }),
     );
 
     await act(async () => {
@@ -131,7 +131,7 @@ describe("useTrackEditAudioActions key staging (#524)", () => {
 
     expect(setForm).not.toHaveBeenCalled();
     expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Upload Failed", type: "error" })
+      expect.objectContaining({ title: "Upload Failed", type: "error" }),
     );
   });
 });
@@ -150,7 +150,7 @@ describe("useTrackEditAudioActions bpm confidence staging (#531)", () => {
     const setForm = vi.fn();
     const form = baseForm();
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() }),
     );
 
     await act(async () => {
@@ -167,7 +167,7 @@ describe("useTrackEditAudioActions bpm confidence staging (#531)", () => {
     const setForm = vi.fn();
     const form = { ...baseForm(), bpm: "120", bpm_confidence: 0.4 };
     const { result } = renderHook(() =>
-      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() })
+      useTrackEditAudioActions({ form, setForm, onSave: vi.fn() }),
     );
 
     await act(async () => {

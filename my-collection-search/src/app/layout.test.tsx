@@ -7,9 +7,15 @@ import { customFromPreset } from "./palettes/custom";
 const service = vi.hoisted(() => ({ getAppearance: vi.fn() }));
 vi.mock("@/server/services/settingsService", () => ({ settingsService: service }));
 vi.mock("./fonts", () => ({ fontClassName: "face-a face-b" }));
-vi.mock("./providers", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("@/components/EmotionRegistry", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("@/components/AppShell", () => ({ default: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
+vi.mock("./providers", () => ({
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+vi.mock("@/components/EmotionRegistry", () => ({
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+vi.mock("@/components/AppShell", () => ({
+  default: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
+}));
 vi.mock("@/components/ui/toaster", () => ({ Toaster: () => null }));
 vi.mock("@/components/AnalyticsInit", () => ({ default: () => null }));
 vi.mock("@/lib/analytics/config", () => ({ getClientAnalyticsConfig: () => ({}) }));
@@ -45,7 +51,7 @@ describe("root layout", () => {
 
   it("server-renders the saved font of each role on <html>", async () => {
     service.getAppearance.mockResolvedValue(
-      saved({ fonts: { display: "barlow-condensed", body: "inter", label: "system" } })
+      saved({ fonts: { display: "barlow-condensed", body: "inter", label: "system" } }),
     );
     const html = await render();
     expect(html).toMatch(/^<html [^>]*data-font-display="barlow-condensed"/);
@@ -71,7 +77,9 @@ describe("root layout", () => {
     const html = await render();
 
     expect(html).toMatch(/^<html [^>]*data-palette="sleeve"/);
-    expect(html).toMatch(/^<html [^>]*data-font-display="default"[^>]*data-font-body="default"[^>]*data-font-label="default"/);
+    expect(html).toMatch(
+      /^<html [^>]*data-font-display="default"[^>]*data-font-body="default"[^>]*data-font-label="default"/,
+    );
     expect(html).toContain("<main>content</main>");
     expect(error).toHaveBeenCalled();
   });
@@ -137,7 +145,10 @@ describe("root layout", () => {
     });
 
     it("lets the page draw under a translucent status bar", () => {
-      expect(metadata.appleWebApp).toMatchObject({ capable: true, statusBarStyle: "black-translucent" });
+      expect(metadata.appleWebApp).toMatchObject({
+        capable: true,
+        statusBarStyle: "black-translucent",
+      });
     });
   });
 });

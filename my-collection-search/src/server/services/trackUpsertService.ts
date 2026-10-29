@@ -16,7 +16,7 @@ export type TrackUpsertResult = {
 
 export async function upsertTracks(tracks: DiscogsTrack[]): Promise<TrackUpsertResult> {
   const usernames = Array.from(
-    new Set(tracks.map((t) => t.username).filter((u): u is string => !!u))
+    new Set(tracks.map((t) => t.username).filter((u): u is string => !!u)),
   );
 
   if (usernames.length > 0) {
@@ -51,10 +51,7 @@ export async function upsertTracks(tracks: DiscogsTrack[]): Promise<TrackUpsertR
         throw new Error(`Could not resolve friend_id for username='${track.username}'`);
       }
 
-      const row = await trackRepository.upsertDiscogsTrackByTrackIdUsername(
-        track,
-        friendId
-      );
+      const row = await trackRepository.upsertDiscogsTrackByTrackIdUsername(track, friendId);
       // A null row is an intentional no-op for a soft-deleted track.
       if (row) upserted.push(row);
     } catch (error) {
@@ -66,7 +63,7 @@ export async function upsertTracks(tracks: DiscogsTrack[]): Promise<TrackUpsertR
         error: errorMessage,
       });
       console.warn(
-        `[Discogs Index] Failed to upsert ${track.track_id}@${track.username}: ${errorMessage}`
+        `[Discogs Index] Failed to upsert ${track.track_id}@${track.username}: ${errorMessage}`,
       );
     }
   }

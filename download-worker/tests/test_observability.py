@@ -31,7 +31,16 @@ def test_init_sentry_disables_automatic_data_collection(monkeypatch):
         "user": {"id": "private"},
         "extra": {"token": "secret"},
         "breadcrumbs": [{"message": "private"}],
-        "exception": {"values": [{"value": "secret token", "stacktrace": {"frames": [{"filename": "/app/worker/main.py", "abs_path": "/app/worker/main.py"}, {}]}}]},
+        "exception": {
+            "values": [
+                {
+                    "value": "secret token",
+                    "stacktrace": {
+                        "frames": [{"filename": "/app/worker/main.py", "abs_path": "/app/worker/main.py"}, {}]
+                    },
+                }
+            ]
+        },
     }
     scrubbed = options["before_send"](event, {})
     assert "request" not in scrubbed and "user" not in scrubbed
@@ -67,4 +76,7 @@ def test_optional_release_and_empty_exception_context(monkeypatch):
     assert sdk.init.call_args.kwargs["release"] is None
     assert sdk.set_tag.call_args_list == [(("service", "download-worker"),)]
     event = {"exception": {"values": [{"value": "secret", "stacktrace": None}]}}
-    assert sdk.init.call_args.kwargs["before_send"](event, {})["exception"]["values"][0]["value"] == "Exception details redacted"
+    assert (
+        sdk.init.call_args.kwargs["before_send"](event, {})["exception"]["values"][0]["value"]
+        == "Exception details redacted"
+    )

@@ -24,12 +24,9 @@ describe("exact names", () => {
 });
 
 describe("case normalisation", () => {
-  it.each(["trackId", "TrackId", "track_id", "TRACK_ID"])(
-    "treats %s as track_id",
-    (name) => {
-      expect(exampleForProperty(name, "string")).toBe("trk_001");
-    }
-  );
+  it.each(["trackId", "TrackId", "track_id", "TRACK_ID"])("treats %s as track_id", (name) => {
+    expect(exampleForProperty(name, "string")).toBe("trk_001");
+  });
 
   it("normalises a multi-word camelCase name", () => {
     expect(exampleForProperty("seedTrackId", "string")).toBe("trk_001");
@@ -78,12 +75,9 @@ describe("multiple candidates", () => {
 });
 
 describe("date_ prefix", () => {
-  it.each(["date_added", "date_changed", "dateAdded"])(
-    "treats %s as a timestamp",
-    (name) => {
-      expect(exampleForProperty(name, "string")).toBe("2026-02-17T12:00:00.000Z");
-    }
-  );
+  it.each(["date_added", "date_changed", "dateAdded"])("treats %s as a timestamp", (name) => {
+    expect(exampleForProperty(name, "string")).toBe("2026-02-17T12:00:00.000Z");
+  });
 
   it("declines the date prefix when a number is required", () => {
     expect(exampleForProperty("date_added", "integer")).toBeUndefined();

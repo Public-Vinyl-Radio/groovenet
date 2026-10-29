@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { advanceProgress, initialProgress, isPlay, playThreshold, type ListenProgress } from "./playThreshold.js";
+import {
+  advanceProgress,
+  initialProgress,
+  isPlay,
+  playThreshold,
+  type ListenProgress,
+} from "./playThreshold.js";
 
 describe("playThreshold", () => {
   it("is half the duration for ordinary tracks", () => {
@@ -38,7 +44,10 @@ describe("isPlay", () => {
 });
 
 describe("advanceProgress", () => {
-  const at = (listened: number, lastPosition: number | null): ListenProgress => ({ listened, lastPosition });
+  const at = (listened: number, lastPosition: number | null): ListenProgress => ({
+    listened,
+    lastPosition,
+  });
 
   it("adds forward progress while playing", () => {
     expect(advanceProgress(initialProgress, 1, true)).toEqual(at(1, 1));

@@ -44,14 +44,25 @@ export class PlayLogger {
   private readonly retryDelayMs: number;
 
   private readonly onStart = (entry: QueueEntry) => {
-    this.tracked = { entry, startedAt: this.now(), progress: initialProgress, duration: null, claimed: false, retryAt: 0 };
+    this.tracked = {
+      entry,
+      startedAt: this.now(),
+      progress: initialProgress,
+      duration: null,
+      claimed: false,
+      retryAt: 0,
+    };
   };
 
   private readonly onChange = (snapshot: PlaybackSnapshot) => {
     const tracked = this.tracked;
     if (!tracked || snapshot.current?.id !== tracked.entry.id) return;
     tracked.duration = snapshot.duration;
-    tracked.progress = advanceProgress(tracked.progress, snapshot.position, snapshot.status === "playing");
+    tracked.progress = advanceProgress(
+      tracked.progress,
+      snapshot.position,
+      snapshot.status === "playing",
+    );
     this.maybeLog(tracked);
   };
 
@@ -87,14 +98,18 @@ export class PlayLogger {
     if (this.now().getTime() < tracked.retryAt) return;
     // `claimed` makes repeated events harmless; the API's unique index covers a restart.
     tracked.claimed = true;
-    const play: LoggedPlay = { track, startedAt: tracked.startedAt, listened: tracked.progress.listened };
+    const play: LoggedPlay = {
+      track,
+      startedAt: tracked.startedAt,
+      listened: tracked.progress.listened,
+    };
     void this.options.logPlay(play).then(
       () => undefined,
       (error: unknown) => {
         tracked.claimed = false;
         tracked.retryAt = this.now().getTime() + this.retryDelayMs;
         this.options.onError?.(error, play);
-      }
+      },
     );
   }
 }

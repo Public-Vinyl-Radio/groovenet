@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbQuery } from "@/lib/serverDb";
-import {
-  trackSearchGetResponseSchema,
-  type TrackSearchMode,
-} from "@/api-contract/schemas";
+import { trackSearchGetResponseSchema, type TrackSearchMode } from "@/api-contract/schemas";
 import { parseTrackFilterSpec, type TrackAttributeFilters } from "@/lib/trackFilterSpec";
 import {
   buildTrackSearchWhere,
@@ -19,7 +16,10 @@ import {
   semanticTrackSearch,
   type TrackRow,
 } from "@/server/services/semanticTrackSearchService";
-import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import {
+  hasVectorsSelectSql,
+  trackGenresSelectSql,
+} from "@/server/repositories/trackGenreRepository";
 import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
 
 export { parseTrackFilter } from "@/server/services/trackSearchWhere";
@@ -53,9 +53,8 @@ async function searchTracksPg(params: {
   }
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
-  const rankSql =
-    queryParamRef
-      ? `(
+  const rankSql = queryParamRef
+    ? `(
         ts_rank(
           to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(artist, '') || ' ' || coalesce(album, '')),
           plainto_tsquery('simple', ${queryParamRef})
@@ -66,7 +65,7 @@ async function searchTracksPg(params: {
           similarity(coalesce(album, ''), ${queryParamRef})
         )
       )`
-      : null;
+    : null;
   const orderBySql = rankSql ? `${rankSql} DESC, t.id DESC` : "t.id DESC";
 
   const { rows } = await dbQuery(
@@ -81,10 +80,11 @@ async function searchTracksPg(params: {
     LIMIT ${limitRef}
     OFFSET ${offsetRef}
     `,
-    sqlParams
+    sqlParams,
   );
 
-  const countParams = queryText.length > 0 ? [...params.whereParams, queryText] : [...params.whereParams];
+  const countParams =
+    queryText.length > 0 ? [...params.whereParams, queryText] : [...params.whereParams];
   const countWhereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
   const { rows: countRows } = await dbQuery<{ total: string }>(
@@ -93,7 +93,7 @@ async function searchTracksPg(params: {
     FROM tracks t
     ${countWhereSql}
     `,
-    countParams
+    countParams,
   );
 
   return {
@@ -130,7 +130,7 @@ async function searchByMeaning(
     attributes: TrackAttributeFilters;
     where: string[];
     whereParams: unknown[];
-  }
+  },
 ): Promise<{ hits: TrackRow[]; mode: SearchMode; startedAt: number; degraded?: boolean }> {
   const startedAt = Date.now();
   const spec = parseTrackFilterSpec(params.filter);
@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
           error: "Invalid query parameters",
           details: parsedQuery.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const {
@@ -253,7 +253,7 @@ export async function GET(request: NextRequest) {
         {
           error: `mode=${mode} returns a single page: offset must be 0 and limit at most ${SEMANTIC_MAX_LIMIT}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const parsedFilter = buildTrackSearchWhere({ filter, friendId: friend_id, attributes });
@@ -301,13 +301,10 @@ export async function GET(request: NextRequest) {
     if (error instanceof QueryRateLimitError) {
       return NextResponse.json(
         { error: error.message },
-        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } }
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } },
       );
     }
     console.error("Search error:", error);
-    return NextResponse.json(
-      { error: error.message || "Search failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || "Search failed" }, { status: 500 });
   }
 }

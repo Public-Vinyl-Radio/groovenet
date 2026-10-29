@@ -5,7 +5,7 @@ import { GenreReconciliationError } from "@/server/services/genreReconciliationS
 /** Reads and validates a JSON body; an absent body is `{}`. */
 export async function parseBody<T>(
   request: NextRequest,
-  schema: z.ZodType<T>
+  schema: z.ZodType<T>,
 ): Promise<{ data: T } | { response: NextResponse }> {
   let raw: unknown = {};
   const text = await request.text();
@@ -21,7 +21,7 @@ export async function parseBody<T>(
     return {
       response: NextResponse.json(
         { error: "Invalid reconciliation request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       ),
     };
   }
@@ -33,7 +33,7 @@ export function reconciliationError(error: unknown): NextResponse {
   if (error instanceof GenreReconciliationError) {
     return NextResponse.json(
       error.run ? { error: error.message, run: error.run } : { error: error.message },
-      { status: error.status }
+      { status: error.status },
     );
   }
   console.error("Genre reconciliation request failed:", error);
@@ -43,12 +43,15 @@ export function reconciliationError(error: unknown): NextResponse {
 export const idParamsSchema = z.object({ id: z.string().uuid() });
 
 export async function parseId(
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>,
 ): Promise<{ id: string } | { response: NextResponse }> {
   const parsed = idParamsSchema.safeParse(await params);
   if (!parsed.success) {
     return {
-      response: NextResponse.json({ error: "Invalid ID", details: parsed.error.flatten() }, { status: 400 }),
+      response: NextResponse.json(
+        { error: "Invalid ID", details: parsed.error.flatten() },
+        { status: 400 },
+      ),
     };
   }
   return { id: parsed.data.id };

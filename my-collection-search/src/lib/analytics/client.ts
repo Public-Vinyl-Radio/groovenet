@@ -8,11 +8,7 @@ import type { AnalyticsEventName, AnalyticsEvents } from "./events";
 import { noopProvider } from "./providers/noop";
 import { createPosthogClientProvider } from "./providers/posthog-client";
 import { safely } from "./safe";
-import type {
-  AnalyticsProperties,
-  AnalyticsProvider,
-  ClientAnalyticsConfig,
-} from "./types";
+import type { AnalyticsProperties, AnalyticsProvider, ClientAnalyticsConfig } from "./types";
 
 let provider: AnalyticsProvider = noopProvider;
 let initialised = false;
@@ -20,8 +16,7 @@ let initialised = false;
 /** Do Not Track or Global Privacy Control means no analytics at all. */
 export function browserOptedOut(nav: Navigator | undefined = globalThis.navigator): boolean {
   if (!nav) return false;
-  const gpc = (nav as Navigator & { globalPrivacyControl?: boolean })
-    .globalPrivacyControl;
+  const gpc = (nav as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
   return gpc === true || nav.doNotTrack === "1";
 }
 
@@ -41,13 +36,8 @@ export function setAnalyticsProvider(next: AnalyticsProvider) {
 }
 
 export const analytics = {
-  track<E extends AnalyticsEventName>(
-    event: E,
-    properties: AnalyticsEvents[E]
-  ): void {
-    safely(`track(${event})`, () =>
-      provider.track(event, properties as AnalyticsProperties)
-    );
+  track<E extends AnalyticsEventName>(event: E, properties: AnalyticsEvents[E]): void {
+    safely(`track(${event})`, () => provider.track(event, properties as AnalyticsProperties));
   },
 
   identify(distinctId: string, traits?: AnalyticsProperties): void {

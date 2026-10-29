@@ -82,13 +82,10 @@ export function getCamelotCode(key: string | null | undefined): string {
 /**
  * Normalize danceability score to descriptor
  */
-export function normalizeDanceability(
-  danceability: string | number | null | undefined
-): string {
+export function normalizeDanceability(danceability: string | number | null | undefined): string {
   if (!danceability) return "unknown";
 
-  const value =
-    typeof danceability === "string" ? parseFloat(danceability) : danceability;
+  const value = typeof danceability === "string" ? parseFloat(danceability) : danceability;
   if (isNaN(value)) return "unknown";
 
   if (value < 0.2) return "very low";
@@ -116,12 +113,9 @@ export function normalizeMoodScore(score: number | null | undefined): string {
  */
 export function calculateEnergy(
   danceability: string | number | null | undefined,
-  moodAggressive: number | null | undefined
+  moodAggressive: number | null | undefined,
 ): string {
-  const danceNum =
-    typeof danceability === "string"
-      ? parseFloat(danceability)
-      : danceability || 0;
+  const danceNum = typeof danceability === "string" ? parseFloat(danceability) : danceability || 0;
   const aggNum = moodAggressive || 0;
 
   // Weighted combination: 60% danceability, 40% aggressiveness
@@ -163,7 +157,7 @@ export function getDominantMood(moods: {
 export function getVibeDescriptors(
   bpm: string | number | null | undefined,
   energy: string,
-  dominantMood: string
+  dominantMood: string,
 ): string[] {
   const descriptors: string[] = [];
 
@@ -222,10 +216,7 @@ export function formatMoodProfile(moods: {
 /**
  * Normalize acoustic/electronic balance
  */
-export function normalizeAcousticElectronic(
-  acoustic?: number,
-  electronic?: number
-): string {
+export function normalizeAcousticElectronic(acoustic?: number, electronic?: number): string {
   if (!acoustic && !electronic) return "unknown";
 
   const acousticScore = acoustic || 0;
@@ -247,10 +238,7 @@ export function normalizeAcousticElectronic(
 /**
  * Normalize vocal presence
  */
-export function normalizeVocalPresence(
-  instrumental?: number,
-  voice?: number
-): string {
+export function normalizeVocalPresence(instrumental?: number, voice?: number): string {
   if (!instrumental && !voice) return "unknown";
 
   const voiceScore = voice || 0;

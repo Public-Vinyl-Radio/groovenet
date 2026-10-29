@@ -68,13 +68,9 @@ export function useAudioEngine() {
     const timeA = engineRef.current.getCurrentTime("A");
     const timeB = engineRef.current.getCurrentTime("B");
 
-    setDeckA((prev) =>
-      prev.currentTime !== timeA ? { ...prev, currentTime: timeA } : prev
-    );
+    setDeckA((prev) => (prev.currentTime !== timeA ? { ...prev, currentTime: timeA } : prev));
 
-    setDeckB((prev) =>
-      prev.currentTime !== timeB ? { ...prev, currentTime: timeB } : prev
-    );
+    setDeckB((prev) => (prev.currentTime !== timeB ? { ...prev, currentTime: timeB } : prev));
 
     animationFrameRef.current = requestAnimationFrame(updateTime);
   }, []);

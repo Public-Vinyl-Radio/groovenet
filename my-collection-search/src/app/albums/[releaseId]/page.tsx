@@ -37,10 +37,7 @@ import { toaster } from "@/components/ui/toaster";
 import PageContainer from "@/components/layout/PageContainer";
 import { compareTrackPositions } from "@/lib/albumTrackPosition";
 import { summarizeSides, summarizeSpinStats } from "@/lib/albumStats";
-import {
-  fetchAlbumDiscogsRawRelease,
-  queueAlbumDownloads,
-} from "@/services/internalApi/albums";
+import { fetchAlbumDiscogsRawRelease, queueAlbumDownloads } from "@/services/internalApi/albums";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
 
 function AlbumDetailContent() {
@@ -79,14 +76,12 @@ function AlbumDetailContent() {
   const spinsQuery = useAlbumSpins(releaseId, friendId);
   const album = albumFromStore;
   const tracks = React.useMemo(() => {
-    return [...tracksFromStore].sort((a, b) =>
-      compareTrackPositions(a.position, b.position)
-    );
+    return [...tracksFromStore].sort((a, b) => compareTrackPositions(a.position, b.position));
   }, [tracksFromStore]);
   const sides = React.useMemo(() => summarizeSides(tracks), [tracks]);
   const spinStats = React.useMemo(
     () => (spinsQuery.data ? summarizeSpinStats(spinsQuery.spins, ALBUM_SPINS_PAGE) : null),
-    [spinsQuery.data, spinsQuery.spins]
+    [spinsQuery.data, spinsQuery.spins],
   );
 
   React.useEffect(() => {
@@ -140,7 +135,7 @@ function AlbumDetailContent() {
       tracks.map((track) => ({
         trackId: track.track_id,
         friendId: track.friend_id,
-      }))
+      })),
     );
     router.push("/enrich");
   };
@@ -217,7 +212,9 @@ function AlbumDetailContent() {
       albumArtist={album.artist}
       coverUrl={albumArtwork ?? undefined}
       catalogue={["Album", album.library_identifier].filter(Boolean).join(" · ")}
-      subtitle={[album.artist, album.label, album.year && album.year !== "0" ? album.year : null].filter(Boolean).join(" · ")}
+      subtitle={[album.artist, album.label, album.year && album.year !== "0" ? album.year : null]
+        .filter(Boolean)
+        .join(" · ")}
       onPlayAlbum={tracks.length > 0 ? handleEnqueueAlbum : undefined}
       onDownloadMissing={tracks.length > 0 ? handleDownloadAlbum : undefined}
       isDownloading={isDownloading}
@@ -238,7 +235,9 @@ function AlbumDetailContent() {
         // Phones go back to the list; the artist crumb is for the desktop trail.
         breadcrumbs={[
           { label: "Albums", href: "/albums" },
-          ...(isMobile ? [] : [{ label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` }]),
+          ...(isMobile
+            ? []
+            : [{ label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` }]),
           { label: album.title },
         ]}
         trailing={isMobile ? menu : undefined}
@@ -314,7 +313,9 @@ function AlbumDetailContent() {
         albumTitle={album.title}
         onClose={() => setDeleteOpen(false)}
         onDeleted={() => router.push("/albums")}
-        notify={(opts) => toaster.create({ title: opts.title, type: opts.type as "success" | "error" })}
+        notify={(opts) =>
+          toaster.create({ title: opts.title, type: opts.type as "success" | "error" })
+        }
       />
 
       <Dialog.Root

@@ -39,17 +39,37 @@ export default function RecordCopyCard({
       <Flex align="start" gap={3}>
         <Stack gap={1} flex={1} minW={0}>
           <HStack gap={2} wrap="wrap">
-            <Text fontWeight="semibold" fontSize="sm">{name}</Text>
-            {copy.is_default && hasSiblings && <Badge size="sm" variant="outline">Default</Badge>}
-            <Badge size="sm" variant="subtle" colorPalette="neutral">{sleeveLabel(copy.inner_sleeve_type)}</Badge>
-            {state === "never_cleaned" && <Badge size="sm" colorPalette="status.missing">Never cleaned</Badge>}
-            {state === "overdue" && <Badge size="sm" colorPalette="status.missing">Overdue</Badge>}
+            <Text fontWeight="semibold" fontSize="sm">
+              {name}
+            </Text>
+            {copy.is_default && hasSiblings && (
+              <Badge size="sm" variant="outline">
+                Default
+              </Badge>
+            )}
+            <Badge size="sm" variant="subtle" colorPalette="neutral">
+              {sleeveLabel(copy.inner_sleeve_type)}
+            </Badge>
+            {state === "never_cleaned" && (
+              <Badge size="sm" colorPalette="status.missing">
+                Never cleaned
+              </Badge>
+            )}
+            {state === "overdue" && (
+              <Badge size="sm" colorPalette="status.missing">
+                Overdue
+              </Badge>
+            )}
           </HStack>
           {state !== "never_cleaned" && (
-            <Text fontSize="xs" color="fg.muted">{formatLastCleaned(copy.last_cleaned_at)}</Text>
+            <Text fontSize="xs" color="fg.muted">
+              {formatLastCleaned(copy.last_cleaned_at)}
+            </Text>
           )}
           {copy.notes && (
-            <Text fontSize="xs" color="fg.muted" whiteSpace="pre-wrap">{copy.notes}</Text>
+            <Text fontSize="xs" color="fg.muted" whiteSpace="pre-wrap">
+              {copy.notes}
+            </Text>
           )}
         </Stack>
         {/* An implicit copy has no actions yet, so nothing to show. */}

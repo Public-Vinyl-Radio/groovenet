@@ -51,7 +51,11 @@ afterEach(() => {
 });
 
 describe("resolveRelated", () => {
-  const totals = new Map([[uuid(2), 30], [uuid(3), 12], [uuid(4), 5]]);
+  const totals = new Map([
+    [uuid(2), 30],
+    [uuid(3), 12],
+    [uuid(4), 5],
+  ]);
 
   it("maps stored rows to the matching flat genre, dropping any since-deleted genre", async () => {
     genreSimilarityRepository.topForGenre.mockResolvedValue([
@@ -61,7 +65,16 @@ describe("resolveRelated", () => {
 
     const related = await resolveRelated(flat, flat[1], totals, 12);
 
-    expect(related).toEqual([{ id: uuid(3), name: "Salsa", slug: "salsa", track_count: 12, score: 1.4, signals: { taxonomy: "sibling" } }]);
+    expect(related).toEqual([
+      {
+        id: uuid(3),
+        name: "Salsa",
+        slug: "salsa",
+        track_count: 12,
+        score: 1.4,
+        signals: { taxonomy: "sibling" },
+      },
+    ]);
   });
 
   it("falls back to taxonomy siblings with tracks, when the table has no rows for the genre", async () => {
@@ -74,7 +87,10 @@ describe("resolveRelated", () => {
 
   it("excludes a sibling with no tracks from the fallback", async () => {
     genreSimilarityRepository.topForGenre.mockResolvedValue([]);
-    const totalsNoSalsa = new Map([[uuid(2), 30], [uuid(4), 5]]);
+    const totalsNoSalsa = new Map([
+      [uuid(2), 30],
+      [uuid(4), 5],
+    ]);
 
     const related = await resolveRelated(flat, flat[1], totalsNoSalsa, 12);
     expect(related).toEqual([]);
@@ -84,7 +100,10 @@ describe("resolveRelated", () => {
 describe("getGenreSimilarPage", () => {
   beforeEach(() => {
     genreRepository.listFlat.mockResolvedValue(flat);
-    genreRepository.trackFacets.mockResolvedValue([{ id: uuid(2), track_count: 30 }, { id: uuid(3), track_count: 12 }]);
+    genreRepository.trackFacets.mockResolvedValue([
+      { id: uuid(2), track_count: 30 },
+      { id: uuid(3), track_count: 12 },
+    ]);
     genreSimilarityRepository.topForGenre.mockResolvedValue([]);
   });
 
@@ -122,7 +141,9 @@ describe("getGenreSimilarPage", () => {
   it("limits the taxonomy-sibling fallback too", async () => {
     genreRepository.listFlat.mockResolvedValue([...flat, row(5, "Porro", 1)]);
     genreRepository.trackFacets.mockResolvedValue([
-      { id: uuid(2), track_count: 30 }, { id: uuid(3), track_count: 12 }, { id: uuid(5), track_count: 20 },
+      { id: uuid(2), track_count: 30 },
+      { id: uuid(3), track_count: 12 },
+      { id: uuid(5), track_count: 20 },
     ]);
     const page = await getGenreSimilarPage("cumbia", 1);
     expect(page?.related).toEqual([{ id: uuid(5), name: "Porro", slug: "porro", track_count: 20 }]);
@@ -134,7 +155,10 @@ describe("recomputeGenreSimilarity", () => {
     genreRepository.listFlat.mockResolvedValue(flat);
     genreSimilarityRepository.loadCoOccurrence.mockResolvedValue({
       pairs: [{ genre_id_a: uuid(2), genre_id_b: uuid(3), shared_albums: 5 }],
-      albumCounts: [{ genre_id: uuid(2), album_count: 10 }, { genre_id: uuid(3), album_count: 10 }],
+      albumCounts: [
+        { genre_id: uuid(2), album_count: 10 },
+        { genre_id: uuid(3), album_count: 10 },
+      ],
       totalAlbums: 100,
     });
 
@@ -145,7 +169,9 @@ describe("recomputeGenreSimilarity", () => {
     expect(genreSimilarityRepository.replaceAll).toHaveBeenCalledTimes(1);
     const [entries] = genreSimilarityRepository.replaceAll.mock.calls[0];
     expect(entries).toEqual(
-      expect.arrayContaining([expect.objectContaining({ genre_id: uuid(2), related_genre_id: uuid(3) })])
+      expect.arrayContaining([
+        expect.objectContaining({ genre_id: uuid(2), related_genre_id: uuid(3) }),
+      ]),
     );
   });
 
@@ -154,7 +180,10 @@ describe("recomputeGenreSimilarity", () => {
     genreRepository.listFlat.mockResolvedValue(flat);
     genreSimilarityRepository.loadCoOccurrence.mockResolvedValue({
       pairs: [{ genre_id_a: uuid(3), genre_id_b: uuid(4), shared_albums: 5 }],
-      albumCounts: [{ genre_id: uuid(3), album_count: 10 }, { genre_id: uuid(4), album_count: 10 }],
+      albumCounts: [
+        { genre_id: uuid(3), album_count: 10 },
+        { genre_id: uuid(4), album_count: 10 },
+      ],
       totalAlbums: 100,
     });
 
@@ -162,7 +191,12 @@ describe("recomputeGenreSimilarity", () => {
 
     const [entries] = genreSimilarityRepository.replaceAll.mock.calls[0];
     // Salsa/Rock share no taxonomy relation; below the raised minimum, no entry.
-    expect(entries.find((e: { genre_id: string; related_genre_id: string }) => e.genre_id === uuid(3) && e.related_genre_id === uuid(4))).toBeUndefined();
+    expect(
+      entries.find(
+        (e: { genre_id: string; related_genre_id: string }) =>
+          e.genre_id === uuid(3) && e.related_genre_id === uuid(4),
+      ),
+    ).toBeUndefined();
   });
 });
 
@@ -192,7 +226,11 @@ describe("triggerGenreSimilarityRefresh", () => {
 describe("refreshTick", () => {
   beforeEach(() => {
     genreRepository.listFlat.mockResolvedValue(flat);
-    genreSimilarityRepository.loadCoOccurrence.mockResolvedValue({ pairs: [], albumCounts: [], totalAlbums: 0 });
+    genreSimilarityRepository.loadCoOccurrence.mockResolvedValue({
+      pairs: [],
+      albumCounts: [],
+      totalAlbums: 0,
+    });
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
@@ -216,7 +254,10 @@ describe("refreshTick", () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(refreshTick(NOW)).resolves.toBeUndefined();
-    expect(errorLog).toHaveBeenCalledWith("[genre-similarity] refresh tick failed:", expect.any(Error));
+    expect(errorLog).toHaveBeenCalledWith(
+      "[genre-similarity] refresh tick failed:",
+      expect.any(Error),
+    );
   });
 });
 
@@ -226,7 +267,11 @@ describe("startGenreSimilarityRefresh()", () => {
   beforeEach(() => {
     delete (globalThis as Record<string, unknown>)[GUARD];
     genreRepository.listFlat.mockResolvedValue(flat);
-    genreSimilarityRepository.loadCoOccurrence.mockResolvedValue({ pairs: [], albumCounts: [], totalAlbums: 0 });
+    genreSimilarityRepository.loadCoOccurrence.mockResolvedValue({
+      pairs: [],
+      albumCounts: [],
+      totalAlbums: 0,
+    });
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
@@ -236,7 +281,9 @@ describe("startGenreSimilarityRefresh()", () => {
   });
 
   it("starts only once per process, ticking every minute", () => {
-    const interval = vi.spyOn(globalThis, "setInterval").mockReturnValue(0 as unknown as NodeJS.Timeout);
+    const interval = vi
+      .spyOn(globalThis, "setInterval")
+      .mockReturnValue(0 as unknown as NodeJS.Timeout);
 
     startGenreSimilarityRefresh();
     startGenreSimilarityRefresh();

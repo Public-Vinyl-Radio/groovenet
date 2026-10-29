@@ -9,10 +9,7 @@ import {
 } from "@/services/aiService";
 import { queryKeys } from "@/lib/queryKeys";
 
-export function useAppleMusicAISearchQuery(
-  args: AppleMusicAISearchArgs,
-  enabled: boolean
-) {
+export function useAppleMusicAISearchQuery(args: AppleMusicAISearchArgs, enabled: boolean) {
   return useQuery<AppleMusicAISearchResponse, Error>({
     queryKey: queryKeys.appleAISearchKey(args),
     queryFn: async () => fetchAppleMusicAISearch(args),

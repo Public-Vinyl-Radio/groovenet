@@ -252,9 +252,7 @@ Example:
   "side_label": "Side A",
   "ordinal": 0,
   "track_count": 4,
-  "tracks": [
-    { "track_id": "trk_1", "position": "A1", "title": "Intro" }
-  ]
+  "tracks": [{ "track_id": "trk_1", "position": "A1", "title": "Intro" }]
 }
 ```
 
@@ -366,9 +364,7 @@ Success response:
     { "selection_type": "side", "side_key": "A", "ordinal": 0 },
     { "selection_type": "side", "side_key": "B", "ordinal": 1 }
   ],
-  "expanded_tracks": [
-    { "track_id": "trk_1", "friend_id": 1, "position": "A1", "side_key": "A" }
-  ],
+  "expanded_tracks": [{ "track_id": "trk_1", "friend_id": 1, "position": "A1", "side_key": "A" }],
   "derived": {
     "is_full_album_spin": true,
     "selected_side_count": 2,
@@ -587,7 +583,7 @@ Expected implementation files for phase 1:
 - [x] Add Zod schemas for spin listing and deletion
 - [x] Add explicit OpenAPI route contracts
 - [x] Run `npm run openapi:check`
-  Note: verified locally; OpenAPI generated successfully with 51 paths.
+      Note: verified locally; OpenAPI generated successfully with 51 paths.
 
 ### Phase 4 - Route Handlers
 
@@ -607,14 +603,14 @@ Expected implementation files for phase 1:
 ### Phase 6 - Verification
 
 - [x] Add repository/service tests where practical
-  Note: service-level unit tests were added for the spin logging service.
+      Note: service-level unit tests were added for the spin logging service.
 - [x] Add route tests where practical
 - [x] Verify session creation expands to track spin rows
-  Note: covered at the service unit-test layer and route response mapping layer.
+      Note: covered at the service unit-test layer and route response mapping layer.
 - [x] Verify delete cascades cleanly
-  Note: covered by architecture tests asserting cascade-delete schema wiring in the migration.
+      Note: covered by architecture tests asserting cascade-delete schema wiring in the migration.
 - [x] Verify no playback system coupling
-  Note: covered by architecture tests asserting spin feature files do not reference playback modules.
+      Note: covered by architecture tests asserting spin feature files do not reference playback modules.
 
 ### Phase 7 - Optional Follow-On
 

@@ -1,4 +1,6 @@
-vi.mock("@/server/services/genreSimilarityService", () => ({ triggerGenreSimilarityRefresh: vi.fn() }));
+vi.mock("@/server/services/genreSimilarityService", () => ({
+  triggerGenreSimilarityRefresh: vi.fn(),
+}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -66,15 +68,13 @@ function makeReq(
     friend_id?: string;
     cover_art?: File;
     omit?: string[];
-  } = {}
+  } = {},
 ) {
   const fd = new FormData();
   const omit = fields.omit ?? [];
-  if (!omit.includes("release_id"))
-    fd.set("release_id", fields.release_id ?? "r1");
+  if (!omit.includes("release_id")) fd.set("release_id", fields.release_id ?? "r1");
   if (!omit.includes("album")) fd.set("album", JSON.stringify(fields.album ?? ALBUM));
-  if (!omit.includes("tracks"))
-    fd.set("tracks", JSON.stringify(fields.tracks ?? TRACKS));
+  if (!omit.includes("tracks")) fd.set("tracks", JSON.stringify(fields.tracks ?? TRACKS));
   if (!omit.includes("friend_id")) fd.set("friend_id", fields.friend_id ?? "1");
   if (fields.cover_art) fd.set("cover_art", fields.cover_art);
   return new NextRequest("http://localhost/api/albums/upsert", {
@@ -85,7 +85,11 @@ function makeReq(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockGetWithTaxonomy.mockResolvedValue({ release_id: "r1", genres: ["Latin"], styles: ["Cumbia"] });
+  mockGetWithTaxonomy.mockResolvedValue({
+    release_id: "r1",
+    genres: ["Latin"],
+    styles: ["Cumbia"],
+  });
   mockSyncEmbeddings.mockResolvedValue({ queued: 0 });
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockGenTrackId.mockReturnValue("local-trk-new");
@@ -154,9 +158,7 @@ describe("POST /api/albums/upsert — cover art and friend lookup", () => {
 describe("POST /api/albums/upsert — track reconciliation", () => {
   it("deletes existing tracks that are no longer in the update", async () => {
     mockListTrackIds.mockResolvedValueOnce(["t1", "t2", "t3"]);
-    const res = await POST(
-      makeReq({ tracks: [{ track_id: "t1", title: "Keep", artist: "A" }] })
-    );
+    const res = await POST(makeReq({ tracks: [{ track_id: "t1", title: "Keep", artist: "A" }] }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.deletedTracks).toBe(2);
@@ -165,9 +167,7 @@ describe("POST /api/albums/upsert — track reconciliation", () => {
 
   it("does not call delete when nothing needs removing", async () => {
     mockListTrackIds.mockResolvedValueOnce(["t1"]);
-    const res = await POST(
-      makeReq({ tracks: [{ track_id: "t1", title: "Keep", artist: "A" }] })
-    );
+    const res = await POST(makeReq({ tracks: [{ track_id: "t1", title: "Keep", artist: "A" }] }));
     expect(res.status).toBe(200);
     expect((await res.json()).deletedTracks).toBe(0);
     expect(mockDeleteTracks).not.toHaveBeenCalled();
@@ -180,16 +180,12 @@ describe("POST /api/albums/upsert — track reconciliation", () => {
     }));
     const res = await POST(makeReq());
     expect(res.status).toBe(200);
-    expect(mockSyncEmbeddings).toHaveBeenCalledWith([
-      { track_id: "t1", friend_id: 1 },
-    ]);
+    expect(mockSyncEmbeddings).toHaveBeenCalledWith([{ track_id: "t1", friend_id: 1 }]);
   });
 
   it("generates ids for new tracks that have no track_id", async () => {
     mockListTrackIds.mockResolvedValueOnce([]);
-    const res = await POST(
-      makeReq({ tracks: [{ title: "Brand New", artist: "A" }] })
-    );
+    const res = await POST(makeReq({ tracks: [{ title: "Brand New", artist: "A" }] }));
     expect(res.status).toBe(200);
     expect(mockGenTrackId).toHaveBeenCalledOnce();
     const body = await res.json();
@@ -230,10 +226,20 @@ describe("POST /api/albums/upsert — error handling", () => {
 
 describe("album edit taxonomy layer", () => {
   it("preserves imported values and stores both reset and empty replacements", async () => {
-    const res = await POST(makeReq({ album: { ...ALBUM, genre_override_ids: null, style_override_ids: [] }, friend_id: "7" }));
+    const res = await POST(
+      makeReq({
+        album: { ...ALBUM, genre_override_ids: null, style_override_ids: [] },
+        friend_id: "7",
+      }),
+    );
     expect(res.status).toBe(200);
-    expect(mockUpsertAlbum).toHaveBeenCalledWith({}, expect.any(Object), { preserveSourceTaxonomy: true });
-    expect(mockReplaceOverrides).toHaveBeenCalledWith({}, "r1", 7, { genre_override_ids: null, style_override_ids: [] });
+    expect(mockUpsertAlbum).toHaveBeenCalledWith({}, expect.any(Object), {
+      preserveSourceTaxonomy: true,
+    });
+    expect(mockReplaceOverrides).toHaveBeenCalledWith({}, "r1", 7, {
+      genre_override_ids: null,
+      style_override_ids: [],
+    });
     // Track source copies come from the persisted source, not the edit input.
     expect(mockUpsertTrack.mock.calls[0][1].slice(7, 9)).toEqual([["Cumbia"], ["Latin"]]);
   });
@@ -253,7 +259,11 @@ describe("album edit taxonomy layer", () => {
 });
 
 it("uses empty source copies when the persisted album has no Discogs taxonomy", async () => {
-  mockGetWithTaxonomy.mockResolvedValueOnce({ release_id: "r1", effective_genres: [], effective_styles: [] });
+  mockGetWithTaxonomy.mockResolvedValueOnce({
+    release_id: "r1",
+    effective_genres: [],
+    effective_styles: [],
+  });
   expect((await POST(makeReq())).status).toBe(200);
   expect(mockUpsertTrack.mock.calls[0][1].slice(7, 9)).toEqual([[], []]);
 });

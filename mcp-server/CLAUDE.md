@@ -8,15 +8,15 @@ adapter — all HTTP work goes through `@groovenet/client`, with no bespoke call
 Environment only; it runs as a daemon and does **not** read
 `~/.groovenet/config.json` the way the CLI does.
 
-| | |
-| --- | --- |
-| `API_BASE` | required |
-| `API_KEY` | optional |
-| `DEFAULT_FRIEND_ID` | optional |
-| `SENTRY_DSN` | optional; enables exception reporting |
-| `SENTRY_RELEASE` | optional; release label (defaults to the root package version) |
-| `GROOVENET_PLAYER_SOCKET` | optional; player daemon socket, default `~/.groovenet/player/player.sock` (from `defaultPlayerPaths()` in `@groovenet/player`, shared with the CLI) |
-| `GROOVENET_PLAYER_TIMEOUT_MS` | optional; per-request limit for player calls, default 15000 (tests shorten it) |
+|                               |                                                                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_BASE`                    | required                                                                                                                                            |
+| `API_KEY`                     | optional                                                                                                                                            |
+| `DEFAULT_FRIEND_ID`           | optional                                                                                                                                            |
+| `SENTRY_DSN`                  | optional; enables exception reporting                                                                                                               |
+| `SENTRY_RELEASE`              | optional; release label (defaults to the root package version)                                                                                      |
+| `GROOVENET_PLAYER_SOCKET`     | optional; player daemon socket, default `~/.groovenet/player/player.sock` (from `defaultPlayerPaths()` in `@groovenet/player`, shared with the CLI) |
+| `GROOVENET_PLAYER_TIMEOUT_MS` | optional; per-request limit for player calls, default 15000 (tests shorten it)                                                                      |
 
 Register it:
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeGenreSimilarity, npmi, type GenreCoOccurrence, type GenreSimilarityTaxonomyNode } from "./genreSimilarity";
+import {
+  computeGenreSimilarity,
+  npmi,
+  type GenreCoOccurrence,
+  type GenreSimilarityTaxonomyNode,
+} from "./genreSimilarity";
 
 // Latin
 //  ├─ Cumbia
@@ -91,17 +96,31 @@ describe("computeGenreSimilarity", () => {
   it("leaves out an ancestor/descendant pair's co-occurrence, however much they overlap", () => {
     // Latin and Psychedelic Cumbia are two levels apart: no taxonomy base,
     // and the heavy overlap below must not produce a score either.
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: LATIN, genreIdB: PSYCH_CUMBIA, sharedAlbums: 50 }];
-    const albumCounts = new Map([[LATIN, 80], [PSYCH_CUMBIA, 50]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: LATIN, genreIdB: PSYCH_CUMBIA, sharedAlbums: 50 },
+    ];
+    const albumCounts = new Map([
+      [LATIN, 80],
+      [PSYCH_CUMBIA, 50],
+    ]);
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100);
 
-    expect(related(entries, LATIN).find((e) => e.related_genre_id === PSYCH_CUMBIA)).toBeUndefined();
-    expect(related(entries, PSYCH_CUMBIA).find((e) => e.related_genre_id === LATIN)).toBeUndefined();
+    expect(
+      related(entries, LATIN).find((e) => e.related_genre_id === PSYCH_CUMBIA),
+    ).toBeUndefined();
+    expect(
+      related(entries, PSYCH_CUMBIA).find((e) => e.related_genre_id === LATIN),
+    ).toBeUndefined();
   });
 
   it("still scores a direct parent/child pair on taxonomy even though co-occurrence is excluded", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: LATIN, genreIdB: CUMBIA, sharedAlbums: 50 }];
-    const albumCounts = new Map([[LATIN, 80], [CUMBIA, 50]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: LATIN, genreIdB: CUMBIA, sharedAlbums: 50 },
+    ];
+    const albumCounts = new Map([
+      [LATIN, 80],
+      [CUMBIA, 50],
+    ]);
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100);
 
     const entry = related(entries, CUMBIA).find((e) => e.related_genre_id === LATIN);
@@ -113,46 +132,80 @@ describe("computeGenreSimilarity", () => {
   it("drops a non-taxonomy pair below the minimum support", () => {
     // Salsa and Rock share no taxonomy relation; 2 shared albums is below
     // the default minimum of 3.
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 2 }];
-    const albumCounts = new Map([[SALSA, 20], [ROCK, 20]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 2 },
+    ];
+    const albumCounts = new Map([
+      [SALSA, 20],
+      [ROCK, 20],
+    ]);
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100);
 
     expect(related(entries, SALSA).find((e) => e.related_genre_id === ROCK)).toBeUndefined();
   });
 
   it("scores a non-taxonomy pair that meets the minimum support, with signals that explain it", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 5 }];
-    const albumCounts = new Map([[SALSA, 10], [ROCK, 10]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 5 },
+    ];
+    const albumCounts = new Map([
+      [SALSA, 10],
+      [ROCK, 10],
+    ]);
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100);
     const expectedNpmi = npmi(5, 10, 10, 100);
 
     const entry = related(entries, SALSA).find((e) => e.related_genre_id === ROCK);
-    expect(entry).toMatchObject({ score: expectedNpmi, signals: { npmi: expectedNpmi, shared_albums: 5 } });
+    expect(entry).toMatchObject({
+      score: expectedNpmi,
+      signals: { npmi: expectedNpmi, shared_albums: 5 },
+    });
     expect(entry?.signals.taxonomy).toBeUndefined();
   });
 
   it("respects a custom minimum support setting", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 5 }];
-    const albumCounts = new Map([[SALSA, 10], [ROCK, 10]]);
-    const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100, { minSupportAlbums: 6 });
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 5 },
+    ];
+    const albumCounts = new Map([
+      [SALSA, 10],
+      [ROCK, 10],
+    ]);
+    const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100, {
+      minSupportAlbums: 6,
+    });
 
     expect(related(entries, SALSA).find((e) => e.related_genre_id === ROCK)).toBeUndefined();
   });
 
   it("combines taxonomy and co-occurrence for a sibling pair that also co-occurs", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: CUMBIA, genreIdB: SALSA, sharedAlbums: 5 }];
-    const albumCounts = new Map([[CUMBIA, 10], [SALSA, 10]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: CUMBIA, genreIdB: SALSA, sharedAlbums: 5 },
+    ];
+    const albumCounts = new Map([
+      [CUMBIA, 10],
+      [SALSA, 10],
+    ]);
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100);
     const expectedNpmi = npmi(5, 10, 10, 100);
 
     const entry = related(entries, CUMBIA).find((e) => e.related_genre_id === SALSA);
     expect(entry?.score).toBeCloseTo(1 + expectedNpmi, 10);
-    expect(entry?.signals).toMatchObject({ taxonomy: "sibling", npmi: expectedNpmi, shared_albums: 5 });
+    expect(entry?.signals).toMatchObject({
+      taxonomy: "sibling",
+      npmi: expectedNpmi,
+      shared_albums: 5,
+    });
   });
 
   it("weights taxonomy and co-occurrence independently", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: CUMBIA, genreIdB: SALSA, sharedAlbums: 5 }];
-    const albumCounts = new Map([[CUMBIA, 10], [SALSA, 10]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: CUMBIA, genreIdB: SALSA, sharedAlbums: 5 },
+    ];
+    const albumCounts = new Map([
+      [CUMBIA, 10],
+      [SALSA, 10],
+    ]);
     const expectedNpmi = npmi(5, 10, 10, 100);
 
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100, {
@@ -165,8 +218,13 @@ describe("computeGenreSimilarity", () => {
 
   it("never contributes a negative npmi, only floors it at zero", () => {
     // A pair that co-occurs less than chance would predict: negative pmi.
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 3 }];
-    const albumCounts = new Map([[SALSA, 50], [ROCK, 50]]);
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 3 },
+    ];
+    const albumCounts = new Map([
+      [SALSA, 50],
+      [ROCK, 50],
+    ]);
     const entries = computeGenreSimilarity(genres, coOccurrences, albumCounts, 100);
 
     // npmi(3, 50, 50, 100) is negative (far less overlap than independence predicts).
@@ -175,20 +233,26 @@ describe("computeGenreSimilarity", () => {
   });
 
   it("ignores a malformed self-pair in the co-occurrence input", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: SALSA, genreIdB: SALSA, sharedAlbums: 10 }];
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: SALSA, genreIdB: SALSA, sharedAlbums: 10 },
+    ];
     const entries = computeGenreSimilarity(genres, coOccurrences, new Map([[SALSA, 10]]), 10);
     expect(related(entries, SALSA).find((e) => e.related_genre_id === SALSA)).toBeUndefined();
   });
 
   it("treats a genre missing from albumCounts as having no albums, scoring no co-occurrence", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 5 }];
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: SALSA, genreIdB: ROCK, sharedAlbums: 5 },
+    ];
     // Rock has no entry in albumCounts at all.
     const entries = computeGenreSimilarity(genres, coOccurrences, new Map([[SALSA, 10]]), 100);
     expect(related(entries, SALSA).find((e) => e.related_genre_id === ROCK)).toBeUndefined();
   });
 
   it("treats the lower-indexed genre of a pair missing from albumCounts the same way", () => {
-    const coOccurrences: GenreCoOccurrence[] = [{ genreIdA: CUMBIA, genreIdB: ROCK, sharedAlbums: 5 }];
+    const coOccurrences: GenreCoOccurrence[] = [
+      { genreIdA: CUMBIA, genreIdB: ROCK, sharedAlbums: 5 },
+    ];
     // Cumbia, not Rock, has no entry in albumCounts this time.
     const entries = computeGenreSimilarity(genres, coOccurrences, new Map([[ROCK, 10]]), 100);
     expect(related(entries, CUMBIA).find((e) => e.related_genre_id === ROCK)).toBeUndefined();

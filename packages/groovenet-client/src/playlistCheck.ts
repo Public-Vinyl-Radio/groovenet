@@ -4,7 +4,8 @@ import type { Track } from "./types.js";
 export const DEFAULT_BPM_JUMP_THRESHOLD = 8;
 
 /** The fields of a track the check reads; a full `Track` satisfies it. */
-export type CheckableTrack = Pick<Track, "track_id" | "bpm" | "key" | "duration_seconds"> & Partial<Pick<Track, "title" | "artist">>;
+export type CheckableTrack = Pick<Track, "track_id" | "bpm" | "key" | "duration_seconds"> &
+  Partial<Pick<Track, "title" | "artist">>;
 
 export interface PlaylistCheckOptions {
   /** Adjacent BPM differences strictly above this are flagged. */
@@ -80,14 +81,44 @@ export interface PlaylistCheck {
 
 // Camelot number for each pitch class, minor ("A") and major ("B") rings.
 const CAMELOT_MINOR: Record<string, number> = {
-  "G#": 1, "D#": 2, "A#": 3, F: 4, C: 5, G: 6, D: 7, A: 8, E: 9, B: 10, "F#": 11, "C#": 12,
+  "G#": 1,
+  "D#": 2,
+  "A#": 3,
+  F: 4,
+  C: 5,
+  G: 6,
+  D: 7,
+  A: 8,
+  E: 9,
+  B: 10,
+  "F#": 11,
+  "C#": 12,
 };
 const CAMELOT_MAJOR: Record<string, number> = {
-  B: 1, "F#": 2, "C#": 3, "G#": 4, "D#": 5, "A#": 6, F: 7, C: 8, G: 9, D: 10, A: 11, E: 12,
+  B: 1,
+  "F#": 2,
+  "C#": 3,
+  "G#": 4,
+  "D#": 5,
+  "A#": 6,
+  F: 7,
+  C: 8,
+  G: 9,
+  D: 10,
+  A: 11,
+  E: 12,
 };
 // Flats folded onto the sharp spelling used above.
 const ENHARMONIC: Record<string, string> = {
-  AB: "G#", BB: "A#", DB: "C#", EB: "D#", GB: "F#", CB: "B", FB: "E", "E#": "F", "B#": "C",
+  AB: "G#",
+  BB: "A#",
+  DB: "C#",
+  EB: "D#",
+  GB: "F#",
+  CB: "B",
+  FB: "E",
+  "E#": "F",
+  "B#": "C",
 };
 
 /**
@@ -156,7 +187,10 @@ function parseBpm(value: Track["bpm"]): number | null {
 }
 
 /** Checks an ordered playlist for BPM jumps, key clashes, repeated releases and vinyl side-order mistakes. */
-export function checkPlaylist(tracks: CheckableTrack[], options: PlaylistCheckOptions = {}): PlaylistCheck {
+export function checkPlaylist(
+  tracks: CheckableTrack[],
+  options: PlaylistCheckOptions = {},
+): PlaylistCheck {
   const threshold = options.bpmJumpThreshold ?? DEFAULT_BPM_JUMP_THRESHOLD;
 
   let total = 0;
@@ -168,7 +202,8 @@ export function checkPlaylist(tracks: CheckableTrack[], options: PlaylistCheckOp
 
   tracks.forEach((track, i) => {
     const position = i + 1;
-    if (typeof track.duration_seconds === "number" && track.duration_seconds > 0) total += track.duration_seconds;
+    if (typeof track.duration_seconds === "number" && track.duration_seconds > 0)
+      total += track.duration_seconds;
     else missingDuration.push(position);
 
     const bpm = parseBpm(track.bpm);
@@ -187,19 +222,27 @@ export function checkPlaylist(tracks: CheckableTrack[], options: PlaylistCheckOp
     const to = curve[i]!;
     if (from.bpm !== null && to.bpm !== null && Math.abs(to.bpm - from.bpm) > threshold) {
       jumps.push({
-        from_position: from.position, to_position: to.position,
-        from_track_id: from.track_id, to_track_id: to.track_id,
-        from_bpm: from.bpm, to_bpm: to.bpm, delta: Math.round((to.bpm - from.bpm) * 100) / 100,
+        from_position: from.position,
+        to_position: to.position,
+        from_track_id: from.track_id,
+        to_track_id: to.track_id,
+        from_bpm: from.bpm,
+        to_bpm: to.bpm,
+        delta: Math.round((to.bpm - from.bpm) * 100) / 100,
       });
     }
     const fromCode = camelot[i - 1];
     const toCode = camelot[i];
     if (fromCode && toCode && !camelotCompatible(fromCode, toCode)) {
       clashes.push({
-        from_position: i, to_position: i + 1,
-        from_track_id: tracks[i - 1]!.track_id, to_track_id: tracks[i]!.track_id,
-        from_key: tracks[i - 1]!.key!, to_key: tracks[i]!.key!,
-        from_camelot: fromCode, to_camelot: toCode,
+        from_position: i,
+        to_position: i + 1,
+        from_track_id: tracks[i - 1]!.track_id,
+        to_track_id: tracks[i]!.track_id,
+        from_key: tracks[i - 1]!.key!,
+        to_key: tracks[i]!.key!,
+        from_camelot: fromCode,
+        to_camelot: toCode,
       });
     }
   }
@@ -214,10 +257,18 @@ export function checkPlaylist(tracks: CheckableTrack[], options: PlaylistCheckOp
 
     const last = lastPlayed.get(release);
     let reason: string | null = null;
-    if (last && side < last.side) reason = `side ${side} comes after side ${last.side} was already played`;
-    else if (last && side === last.side && index < last.index) reason = `${position(side, index)} comes after ${position(last.side, last.index)} on the same side`;
+    if (last && side < last.side)
+      reason = `side ${side} comes after side ${last.side} was already played`;
+    else if (last && side === last.side && index < last.index)
+      reason = `${position(side, index)} comes after ${position(last.side, last.index)} on the same side`;
     if (reason) {
-      violations.push({ release, position: i + 1, track_id: track.track_id, after_track_id: last!.track_id, reason });
+      violations.push({
+        release,
+        position: i + 1,
+        track_id: track.track_id,
+        after_track_id: last!.track_id,
+        reason,
+      });
     } else {
       lastPlayed.set(release, { side, index, track_id: track.track_id });
     }
@@ -226,7 +277,11 @@ export function checkPlaylist(tracks: CheckableTrack[], options: PlaylistCheckOp
   const repeated: RepeatedRelease[] = [];
   for (const [release, indices] of byRelease) {
     if (indices.length > 1) {
-      repeated.push({ release, positions: indices.map((i) => i + 1), track_ids: indices.map((i) => tracks[i]!.track_id) });
+      repeated.push({
+        release,
+        positions: indices.map((i) => i + 1),
+        track_ids: indices.map((i) => tracks[i]!.track_id),
+      });
     }
   }
 
@@ -238,7 +293,11 @@ export function checkPlaylist(tracks: CheckableTrack[], options: PlaylistCheckOp
     keys: { clashes, missing: missingKey },
     repeated_releases: repeated,
     side_order_violations: violations,
-    ok: jumps.length === 0 && clashes.length === 0 && repeated.length === 0 && violations.length === 0,
+    ok:
+      jumps.length === 0 &&
+      clashes.length === 0 &&
+      repeated.length === 0 &&
+      violations.length === 0,
   };
 }
 

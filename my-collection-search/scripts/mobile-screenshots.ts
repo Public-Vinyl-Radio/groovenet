@@ -54,13 +54,9 @@ const ROUTES: { name: string; path: string }[] = [
 const vpFilter = process.env.VIEWPORTS?.split(",");
 const routeFilter = process.env.ROUTES?.split(",");
 
-const activeViewports = vpFilter
-  ? VIEWPORTS.filter((v) => vpFilter.includes(v.name))
-  : VIEWPORTS;
+const activeViewports = vpFilter ? VIEWPORTS.filter((v) => vpFilter.includes(v.name)) : VIEWPORTS;
 
-const activeRoutes = routeFilter
-  ? ROUTES.filter((r) => routeFilter.includes(r.name))
-  : ROUTES;
+const activeRoutes = routeFilter ? ROUTES.filter((r) => routeFilter.includes(r.name)) : ROUTES;
 
 async function main() {
   const browser = await chromium.launch();

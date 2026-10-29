@@ -59,7 +59,9 @@ export default function SpeakerDetails({ onBack }: { onBack: () => void }) {
         {label("Output")}
         <Text>Desired: {player?.state.desired_output ?? "None"}</Text>
         <Text>Assigned: {player?.assigned_output ?? "None"}</Text>
-        <Text color="fg.muted">Requested sender volume {player?.state.volume ?? 0}%. Some receivers ignore sender volume.</Text>
+        <Text color="fg.muted">
+          Requested sender volume {player?.state.volume ?? 0}%. Some receivers ignore sender volume.
+        </Text>
       </Box>
       <Box>
         {label("Speakers")}
@@ -73,7 +75,14 @@ export default function SpeakerDetails({ onBack }: { onBack: () => void }) {
           ))}
         </Box>
       </Box>
-      <Box borderWidth="outline" borderColor="border.ink" p="10px" display="flex" flexDirection="column" gap="8px">
+      <Box
+        borderWidth="outline"
+        borderColor="border.ink"
+        p="10px"
+        display="flex"
+        flexDirection="column"
+        gap="8px"
+      >
         <label>
           {label("Choose an output")}
           <NativeSelect.Root size="sm">
@@ -100,48 +109,102 @@ export default function SpeakerDetails({ onBack }: { onBack: () => void }) {
         </label>
         {device && (
           <Text color="fg.muted">
-            Observed {device.observed.availability} via {device.observed.source} · {device.observed.observed_at ?? "no observation time"}.
+            Observed {device.observed.availability} via {device.observed.source} ·{" "}
+            {device.observed.observed_at ?? "no observation time"}.
           </Text>
         )}
         <Flex gap="8px" wrap="wrap">
-          <Button size="xs" variant="outline" disabled={disabled || !output} onClick={() => void controller?.command({ type: "output.select", output_id: output })}>
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={disabled || !output}
+            onClick={() => void controller?.command({ type: "output.select", output_id: output })}
+          >
             Remember desired output
           </Button>
           {sourceId && sourceId !== target && (
-            <Button size="xs" variant="outline" disabled={disabled || preparing} onClick={() => void prepareTransfer(sourceId)}>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={disabled || preparing}
+              onClick={() => void prepareTransfer(sourceId)}
+            >
               Review transfer from {sourceId}
             </Button>
           )}
-          <Button size="xs" variant="ghost" disabled={busy} onClick={() => void controller?.refresh()}>
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => void controller?.refresh()}
+          >
             Refresh outputs
           </Button>
         </Flex>
-        <Text color="fg.muted">Remembering an output doesn&apos;t connect it or start playback.</Text>
+        <Text color="fg.muted">
+          Remembering an output doesn&apos;t connect it or start playback.
+        </Text>
         {source && device && (
-          <Box borderTopWidth="rule" borderColor="border" pt="8px" display="flex" flexDirection="column" gap="6px">
+          <Box
+            borderTopWidth="rule"
+            borderColor="border"
+            pt="8px"
+            display="flex"
+            flexDirection="column"
+            gap="6px"
+          >
             <Text>
-              Transfer {device.name} from {source.name} to {player?.name}. This detaches the source; each player keeps its own queue.
+              Transfer {device.name} from {source.name} to {player?.name}. This detaches the source;
+              each player keeps its own queue.
             </Text>
             <label>
-              <input type="checkbox" checked={transferPlay} onChange={(event) => setTransferPlay(event.target.checked)} /> Start playback on {player?.name} as part of the transfer
+              <input
+                type="checkbox"
+                checked={transferPlay}
+                onChange={(event) => setTransferPlay(event.target.checked)}
+              />{" "}
+              Start playback on {player?.name} as part of the transfer
             </label>
             {transferPlay && availability === "unknown" && (
               <label>
-                <input type="checkbox" checked={allowUnknown} onChange={(event) => setAllowUnknown(event.target.checked)} /> Speaker status unknown: play anyway
+                <input
+                  type="checkbox"
+                  checked={allowUnknown}
+                  onChange={(event) => setAllowUnknown(event.target.checked)}
+                />{" "}
+                Speaker status unknown: play anyway
               </label>
             )}
             {transferPlay && availability === "occupied" && (
               <label>
-                <input type="checkbox" checked={takeover} onChange={(event) => setTakeover(event.target.checked)} /> Take over the speaker from its current sender
+                <input
+                  type="checkbox"
+                  checked={takeover}
+                  onChange={(event) => setTakeover(event.target.checked)}
+                />{" "}
+                Take over the speaker from its current sender
               </label>
             )}
             <Flex gap="8px" wrap="wrap">
               <Button
                 size="xs"
                 variant="outline"
-                disabled={disabled || (transferPlay && ((availability === "unknown" && !allowUnknown) || (availability === "occupied" && !takeover)))}
+                disabled={
+                  disabled ||
+                  (transferPlay &&
+                    ((availability === "unknown" && !allowUnknown) ||
+                      (availability === "occupied" && !takeover)))
+                }
                 onClick={() => {
-                  void controller?.command({ type: "output.transfer", from_player_id: source.id, from_revision: source.revision, output_id: output, play: transferPlay, allow_unknown: allowUnknown, takeover });
+                  void controller?.command({
+                    type: "output.transfer",
+                    from_player_id: source.id,
+                    from_revision: source.revision,
+                    output_id: output,
+                    play: transferPlay,
+                    allow_unknown: allowUnknown,
+                    takeover,
+                  });
                   setSource(null);
                 }}
               >

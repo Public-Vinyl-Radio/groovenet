@@ -45,7 +45,11 @@ export default function JobsPage() {
   });
   const [detailsJob, setDetailsJob] = React.useState<JobInfo | null>(null);
 
-  const { data: logsData, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+  const {
+    data: logsData,
+    isLoading: logsLoading,
+    refetch: refetchLogs,
+  } = useQuery({
     queryKey: ["job-logs", detailsJob?.id],
     queryFn: async () => {
       const res = await fetch(`/api/jobs/${detailsJob!.id}/logs`);
@@ -97,14 +101,10 @@ export default function JobsPage() {
     );
   };
 
-  const getDownloaderInfo = (job: {
-    name?: string;
-    data?: Record<string, unknown>;
-  }) => {
+  const getDownloaderInfo = (job: { name?: string; data?: Record<string, unknown> }) => {
     const data = job.data || {};
     const jobName = job.name || String(data.job_type || "");
-    const actualDownloader =
-      typeof data.downloader === "string" ? data.downloader : undefined;
+    const actualDownloader = typeof data.downloader === "string" ? data.downloader : undefined;
     const actualSourceKey =
       typeof data.source_url_key === "string" ? data.source_url_key : undefined;
 
@@ -146,7 +146,7 @@ export default function JobsPage() {
         name: "gamdl",
         source: "Apple Music",
         color: "status.genre" as const,
-        quality: String(data.quality || "best")
+        quality: String(data.quality || "best"),
       };
     } else if (
       actualDownloader === "yt-dlp" &&
@@ -156,7 +156,7 @@ export default function JobsPage() {
         name: "yt-dlp",
         source: "YouTube",
         color: "status.missing" as const,
-        quality: "audio"
+        quality: "audio",
       };
     } else if (
       actualDownloader === "yt-dlp" &&
@@ -166,28 +166,28 @@ export default function JobsPage() {
         name: "yt-dlp",
         source: "SoundCloud",
         color: "status.analysis" as const,
-        quality: "audio"
+        quality: "audio",
       };
     } else if (data.apple_music_url) {
       return {
         name: "gamdl",
         source: "Apple Music",
         color: "status.genre" as const,
-        quality: String(data.quality || "best")
+        quality: String(data.quality || "best"),
       };
     } else if (data.youtube_url) {
       return {
         name: "yt-dlp",
         source: "YouTube",
         color: "status.missing" as const,
-        quality: "audio"
+        quality: "audio",
       };
     } else if (data.soundcloud_url) {
       return {
         name: "yt-dlp",
         source: "SoundCloud",
         color: "status.analysis" as const,
-        quality: "audio"
+        quality: "audio",
       };
     }
 
@@ -195,7 +195,7 @@ export default function JobsPage() {
       name: "unknown",
       source: "Unknown",
       color: "neutral" as const,
-      quality: "unknown"
+      quality: "unknown",
     };
   };
 
@@ -267,10 +267,17 @@ export default function JobsPage() {
       <PageHeader
         title="Downloads"
         actions={[
-          { label: "Refresh jobs", icon: <LuRefreshCw />, onClick: () => refetch(), disabled: isLoading },
+          {
+            label: "Refresh jobs",
+            icon: <LuRefreshCw />,
+            onClick: () => refetch(),
+            disabled: isLoading,
+          },
         ]}
         overflow={
-          summary.total > 0 ? [{ label: "Clear all jobs", onClick: () => clearJobsMutation.mutate() }] : []
+          summary.total > 0
+            ? [{ label: "Clear all jobs", onClick: () => clearJobsMutation.mutate() }]
+            : []
         }
       />
       <Stack gap={{ base: 3, md: 6 }}>
@@ -282,12 +289,7 @@ export default function JobsPage() {
                   value={stateFilter}
                   onChange={(e) => {
                     setStateFilter(
-                      e.target.value as
-                        | "all"
-                        | "waiting"
-                        | "active"
-                        | "completed"
-                        | "failed"
+                      e.target.value as "all" | "waiting" | "active" | "completed" | "failed",
                     );
                     setOffset(0);
                   }}
@@ -328,7 +330,9 @@ export default function JobsPage() {
           <Flex gap={2} fontSize="xs" color="fg.muted" flexWrap="wrap">
             {dataUpdatedAt && <Text>Updated: {new Date(dataUpdatedAt).toLocaleTimeString()}</Text>}
             <Text>·</Text>
-            <Text>{jobs.length} of {totalFiltered} jobs ({stateFilter})</Text>
+            <Text>
+              {jobs.length} of {totalFiltered} jobs ({stateFilter})
+            </Text>
           </Flex>
         </Flex>
 
@@ -351,8 +355,18 @@ export default function JobsPage() {
                 borderLeftWidth={i > 0 ? "1px" : "0"}
                 gap={0}
               >
-                <Text fontWeight="bold" fontSize="lg" color={stat.color}>{stat.value}</Text>
-                <Text fontSize="9px" color="fg.muted" letterSpacing="wide" fontFamily="label" textTransform="uppercase">{stat.label}</Text>
+                <Text fontWeight="bold" fontSize="lg" color={stat.color}>
+                  {stat.value}
+                </Text>
+                <Text
+                  fontSize="9px"
+                  color="fg.muted"
+                  letterSpacing="wide"
+                  fontFamily="label"
+                  textTransform="uppercase"
+                >
+                  {stat.label}
+                </Text>
               </Flex>
             ))}
           </Flex>
@@ -360,32 +374,52 @@ export default function JobsPage() {
         <SimpleGrid columns={5} gap={4} display={{ base: "none", md: "grid" }}>
           <Card.Root>
             <Card.Body textAlign="center" py={6}>
-              <Text fontSize="2xl" fontWeight="bold">{summary.total}</Text>
-              <Text fontSize="sm" color="fg.muted">Total Jobs</Text>
+              <Text fontSize="2xl" fontWeight="bold">
+                {summary.total}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Total Jobs
+              </Text>
             </Card.Body>
           </Card.Root>
           <Card.Root>
             <Card.Body textAlign="center" py={6}>
-              <Text fontSize="2xl" fontWeight="bold" color="accent.fg">{summary.waiting}</Text>
-              <Text fontSize="sm" color="fg.muted">Waiting</Text>
+              <Text fontSize="2xl" fontWeight="bold" color="accent.fg">
+                {summary.waiting}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Waiting
+              </Text>
             </Card.Body>
           </Card.Root>
           <Card.Root>
             <Card.Body textAlign="center" py={6}>
-              <Text fontSize="2xl" fontWeight="bold" color="fg.warning">{summary.active}</Text>
-              <Text fontSize="sm" color="fg.muted">Active</Text>
+              <Text fontSize="2xl" fontWeight="bold" color="fg.warning">
+                {summary.active}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Active
+              </Text>
             </Card.Body>
           </Card.Root>
           <Card.Root>
             <Card.Body textAlign="center" py={6}>
-              <Text fontSize="2xl" fontWeight="bold" color="fg.success">{summary.completed}</Text>
-              <Text fontSize="sm" color="fg.muted">Completed</Text>
+              <Text fontSize="2xl" fontWeight="bold" color="fg.success">
+                {summary.completed}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Completed
+              </Text>
             </Card.Body>
           </Card.Root>
           <Card.Root>
             <Card.Body textAlign="center" py={6}>
-              <Text fontSize="2xl" fontWeight="bold" color="fg.error">{summary.failed}</Text>
-              <Text fontSize="sm" color="fg.muted">Failed</Text>
+              <Text fontSize="2xl" fontWeight="bold" color="fg.error">
+                {summary.failed}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Failed
+              </Text>
             </Card.Body>
           </Card.Root>
         </SimpleGrid>
@@ -429,7 +463,9 @@ export default function JobsPage() {
                         </Badge>
                         <Text fontSize="sm" color="fg.muted">
                           {downloaderInfo.source}
-                          {downloaderInfo.quality !== "unknown" ? ` • ${downloaderInfo.quality}` : ""}
+                          {downloaderInfo.quality !== "unknown"
+                            ? ` • ${downloaderInfo.quality}`
+                            : ""}
                         </Text>
                         {getStateBadge(job.state)}
                         <Button
@@ -446,7 +482,12 @@ export default function JobsPage() {
 
                       {job.state === "active" ? (
                         <Box>
-                          <Progress.Root value={job.progress} size="sm" colorPalette="accent" mb={1}>
+                          <Progress.Root
+                            value={job.progress}
+                            size="sm"
+                            colorPalette="accent"
+                            mb={1}
+                          >
                             <Progress.Track>
                               <Progress.Range />
                             </Progress.Track>
@@ -531,7 +572,9 @@ export default function JobsPage() {
                         <Tabs.Trigger value="logs">
                           Logs
                           {logsData && logsData.length > 0 && (
-                            <Badge ml={1} size="xs" variant="subtle">{logsData.length}</Badge>
+                            <Badge ml={1} size="xs" variant="subtle">
+                              {logsData.length}
+                            </Badge>
                           )}
                         </Tabs.Trigger>
                       </Tabs.List>
@@ -539,40 +582,60 @@ export default function JobsPage() {
                       <Tabs.Content value="details">
                         <Stack gap={3}>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Job ID</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Job ID
+                            </Text>
                             <Text fontFamily="mono">{detailsJob.id}</Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Track ID</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Track ID
+                            </Text>
                             <Text fontFamily="mono">{detailsJob.data.track_id}</Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Queue</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Queue
+                            </Text>
                             <Text>{detailsJob.queue}</Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Job Type</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Job Type
+                            </Text>
                             <Text>{detailsJob.name}</Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">State</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              State
+                            </Text>
                             <Text>{detailsJob.state}</Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Attempts</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Attempts
+                            </Text>
                             <Text>{detailsJob.attemptsMade}</Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Duration</Text>
-                            <Text>{formatDuration(detailsJob.processedOn, detailsJob.finishedOn)}</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Duration
+                            </Text>
+                            <Text>
+                              {formatDuration(detailsJob.processedOn, detailsJob.finishedOn)}
+                            </Text>
                           </Box>
                           <Box>
-                            <Text fontSize="sm" color="fg.muted">Finished</Text>
+                            <Text fontSize="sm" color="fg.muted">
+                              Finished
+                            </Text>
                             <Text>{formatTimestamp(detailsJob.finishedOn)}</Text>
                           </Box>
                           {detailsJob.failedReason && (
                             <Box>
-                              <Text fontSize="sm" color="fg.muted">Failure</Text>
+                              <Text fontSize="sm" color="fg.muted">
+                                Failure
+                              </Text>
                               <Text color="fg.error">{detailsJob.failedReason}</Text>
                             </Box>
                           )}
@@ -590,7 +653,9 @@ export default function JobsPage() {
                           </Button>
                         </Flex>
                         {logsLoading ? (
-                          <Flex justify="center" py={4}><Spinner size="sm" /></Flex>
+                          <Flex justify="center" py={4}>
+                            <Spinner size="sm" />
+                          </Flex>
                         ) : logsData && logsData.length > 0 ? (
                           <Box
                             as="pre"
@@ -609,7 +674,9 @@ export default function JobsPage() {
                             {logsData.join("\n\n")}
                           </Box>
                         ) : (
-                          <Text fontSize="sm" color="fg.muted">No logs captured for this job.</Text>
+                          <Text fontSize="sm" color="fg.muted">
+                            No logs captured for this job.
+                          </Text>
                         )}
                       </Tabs.Content>
                     </Tabs.Root>

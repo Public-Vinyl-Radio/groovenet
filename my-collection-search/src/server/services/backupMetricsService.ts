@@ -34,44 +34,64 @@ function selectedPaths(): string[] {
     [policy.include_essentia_files, "essentia-data"],
     [policy.include_uploads, "uploads"],
   ];
-  return candidates
-    // These paths are runtime backup volumes, not server bundle dependencies.
-    .filter(([enabled, relativePath]) => enabled && fs.existsSync(
-      path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath)
-    ))
-    .map(([, relativePath]) => path.resolve(
-      /* turbopackIgnore: true */ process.cwd(),
-      relativePath
-    ));
+  return (
+    candidates
+      // These paths are runtime backup volumes, not server bundle dependencies.
+      .filter(
+        ([enabled, relativePath]) =>
+          enabled &&
+          fs.existsSync(path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath)),
+      )
+      .map(([, relativePath]) =>
+        path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath),
+      )
+  );
 }
 
 export function parseSnapshots(raw: string): BackupSnapshotSummary[] {
   const parsed = JSON.parse(raw) as unknown;
   if (!Array.isArray(parsed)) return [];
-  return parsed.flatMap((value): BackupSnapshotSummary[] => {
-    if (typeof value !== "object" || value === null) return [];
-    const snapshot = value as Record<string, unknown>;
-    if (typeof snapshot.id !== "string" || typeof snapshot.time !== "string") return [];
-    return [{
-      id: snapshot.id,
-      short_id: typeof snapshot.short_id === "string" ? snapshot.short_id : null,
-      time: snapshot.time,
-      hostname: typeof snapshot.hostname === "string" ? snapshot.hostname : null,
-      paths: Array.isArray(snapshot.paths) ? snapshot.paths.filter((item): item is string => typeof item === "string") : [],
-      tags: Array.isArray(snapshot.tags) ? snapshot.tags.filter((item): item is string => typeof item === "string") : [],
-    }];
-  }).sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  return parsed
+    .flatMap((value): BackupSnapshotSummary[] => {
+      if (typeof value !== "object" || value === null) return [];
+      const snapshot = value as Record<string, unknown>;
+      if (typeof snapshot.id !== "string" || typeof snapshot.time !== "string") return [];
+      return [
+        {
+          id: snapshot.id,
+          short_id: typeof snapshot.short_id === "string" ? snapshot.short_id : null,
+          time: snapshot.time,
+          hostname: typeof snapshot.hostname === "string" ? snapshot.hostname : null,
+          paths: Array.isArray(snapshot.paths)
+            ? snapshot.paths.filter((item): item is string => typeof item === "string")
+            : [],
+          tags: Array.isArray(snapshot.tags)
+            ? snapshot.tags.filter((item): item is string => typeof item === "string")
+            : [],
+        },
+      ];
+    })
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 }
 
 export async function getBackupMetrics(): Promise<BackupMetrics> {
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
-  const localSourceBytes = selectedPaths().reduce((total, sourcePath) => total + directorySize(sourcePath), 0);
+  const localSourceBytes = selectedPaths().reduce(
+    (total, sourcePath) => total + directorySize(sourcePath),
+    0,
+  );
   const capturedAt = new Date().toISOString();
   try {
     const [snapshotsResult, statsResult] = await Promise.all([
-      execFileAsync("restic", ["snapshots", "--json"], { env: process.env, maxBuffer: 1024 * 1024 * 10 }),
-      execFileAsync("restic", ["stats", "--json"], { env: process.env, maxBuffer: 1024 * 1024 * 10 }),
+      execFileAsync("restic", ["snapshots", "--json"], {
+        env: process.env,
+        maxBuffer: 1024 * 1024 * 10,
+      }),
+      execFileAsync("restic", ["stats", "--json"], {
+        env: process.env,
+        maxBuffer: 1024 * 1024 * 10,
+      }),
     ]);
     const snapshots = parseSnapshots(String(snapshotsResult.stdout));
     const stats = JSON.parse(String(statsResult.stdout)) as { total_size?: unknown };

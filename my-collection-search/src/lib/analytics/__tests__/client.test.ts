@@ -59,7 +59,7 @@ describe("client analytics", () => {
     expect(mockInit).toHaveBeenCalledOnce();
     expect(mockInit).toHaveBeenCalledWith(
       "phc_x",
-      expect.objectContaining({ api_host: "/ingest", capture_exceptions: false })
+      expect.objectContaining({ api_host: "/ingest", capture_exceptions: false }),
     );
     analytics.track("playlist_exported", {
       playlist_id: 1,

@@ -8,16 +8,23 @@ vi.mock("@/server/services/playlistSpinService", () => ({
 import { POST } from "../route";
 
 const context = (id: string) => ({ params: Promise.resolve({ id }) });
-const request = (body: object) => new Request("http://localhost/api/playlists/9/spins", {
-  method: "POST",
-  body: JSON.stringify(body),
-});
+const request = (body: object) =>
+  new Request("http://localhost/api/playlists/9/spins", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 
 beforeEach(() => vi.clearAllMocks());
 
 describe("POST /api/playlists/:id/spins", () => {
   it("validates and logs a playlist", async () => {
-    log.mockResolvedValue({ playlist_id: 9, performance_id: 4, performed_at: "2026-10-01T20:00:00.000Z", created: 2, skipped: 0 });
+    log.mockResolvedValue({
+      playlist_id: 9,
+      performance_id: 4,
+      performed_at: "2026-10-01T20:00:00.000Z",
+      created: 2,
+      skipped: 0,
+    });
     const response = await POST(request({ performance_id: 4 }), context("9"));
     expect(response.status).toBe(200);
     expect(log).toHaveBeenCalledWith(9, { performance_id: 4 });
@@ -26,7 +33,9 @@ describe("POST /api/playlists/:id/spins", () => {
 
   it("rejects invalid ids and mutually exclusive timestamps", async () => {
     expect((await POST(request({}), context("bad"))).status).toBe(400);
-    expect((await POST(request({ performed_at: "2026-10-01", performance_id: 4 }), context("9"))).status).toBe(400);
+    expect(
+      (await POST(request({ performed_at: "2026-10-01", performance_id: 4 }), context("9"))).status,
+    ).toBe(400);
     expect(log).not.toHaveBeenCalled();
   });
 

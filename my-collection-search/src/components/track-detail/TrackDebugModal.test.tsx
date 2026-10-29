@@ -13,7 +13,8 @@ vi.mock("./AudioVibeEmbeddingSection", () => ({ default: () => <div>audio vibe s
 
 import TrackDebugModal from "./TrackDebugModal";
 
-const query = (data: unknown) => ({ isLoading: false, error: null, data }) as unknown as UseQueryResult<never, Error>;
+const query = (data: unknown) =>
+  ({ isLoading: false, error: null, data }) as unknown as UseQueryResult<never, Error>;
 
 describe("TrackDebugModal", () => {
   it("shows the context text natural-language search uses, next to identity and audio vibe", () => {
@@ -26,12 +27,25 @@ describe("TrackDebugModal", () => {
         identityEmbeddingPreviewQuery={query(undefined)}
         contextEmbeddingPreviewQuery={query({
           contextText: "dub, reggae. jamaican music from the 1970s.",
-          contextData: { title: "", artist: "", album: "", era: "1970s", country: "", labels: [], composers: [], genres: [], styles: [], tags: [] },
+          contextData: {
+            title: "",
+            artist: "",
+            album: "",
+            era: "1970s",
+            country: "",
+            labels: [],
+            composers: [],
+            genres: [],
+            styles: [],
+            tags: [],
+          },
         })}
         audioVibeEmbeddingPreviewQuery={query(undefined)}
-        extractCoverMutation={{ isPending: false } as unknown as UseMutationResult<string | null, Error, void, unknown>}
+        extractCoverMutation={
+          { isPending: false } as unknown as UseMutationResult<string | null, Error, void, unknown>
+        }
         onExtractCover={async () => {}}
-      />
+      />,
     );
 
     expect(screen.getByText("identity section")).toBeTruthy();

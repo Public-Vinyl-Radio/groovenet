@@ -27,9 +27,7 @@ from fingerprint_service.reference_index import ReferenceIndex
 def reported(monkeypatch):
     """Capture results instead of posting them."""
     sent = []
-    monkeypatch.setattr(
-        service_main, "try_report_result", lambda result: sent.append(result) or True
-    )
+    monkeypatch.setattr(service_main, "try_report_result", lambda result: sent.append(result) or True)
     return sent
 
 
@@ -41,9 +39,7 @@ def claimed(monkeypatch):
     attempts a real connection to the app host and waits for it to fail.
     """
     calls = []
-    monkeypatch.setattr(
-        service_main, "try_claim_ingest", lambda ingest_id: calls.append(ingest_id) or True
-    )
+    monkeypatch.setattr(service_main, "try_claim_ingest", lambda ingest_id: calls.append(ingest_id) or True)
     return calls
 
 
@@ -291,9 +287,7 @@ class TestProcessJob:
         assert result["status"] == "failed"
         assert "no such file" in result["error"]
 
-    def test_a_path_outside_the_volume_is_reported_as_failed(
-        self, job, ingest_dir, matcher, reported, caplog
-    ):
+    def test_a_path_outside_the_volume_is_reported_as_failed(self, job, ingest_dir, matcher, reported, caplog):
         result = process_job(json.dumps(job(file_path="../escape.wav")), matcher)
         assert result["status"] == "failed"
         assert "resolves outside" in result["error"]
@@ -512,9 +506,7 @@ class TestHeartbeatWhileBusy:
         monkeypatch.setattr(service_main, "HEARTBEAT_INTERVAL", 0.01)
         beats = []
         monkeypatch.setattr(service_main, "write_heartbeat", lambda: beats.append(1))
-        monkeypatch.setattr(
-            service_main, "process_job", lambda job_json, m: time.sleep(0.1)
-        )
+        monkeypatch.setattr(service_main, "process_job", lambda job_json, m: time.sleep(0.1))
         fake_redis.rpush(service_main.QUEUE_KEY, "{}")
 
         run_once(matcher)
@@ -531,9 +523,7 @@ class TestSetOnlyWorker:
         monkeypatch.setattr(service_main, "QUEUES", (service_main.SET_QUEUE_KEY,))
         monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
 
-    def test_leaves_live_and_index_jobs_for_the_other_worker(
-        self, fake_redis, job, index_job, matcher, reported
-    ):
+    def test_leaves_live_and_index_jobs_for_the_other_worker(self, fake_redis, job, index_job, matcher, reported):
         fake_redis.rpush(service_main.QUEUE_KEY, json.dumps(job()))
         fake_redis.rpush(service_main.INDEX_QUEUE_KEY, json.dumps(index_job()))
 
@@ -588,9 +578,7 @@ class TestPublishEngine:
 def persisted(monkeypatch):
     """Capture fingerprint upserts instead of posting them."""
     sent = []
-    monkeypatch.setattr(
-        service_main, "try_persist_fingerprint", lambda body: sent.append(body) or True
-    )
+    monkeypatch.setattr(service_main, "try_persist_fingerprint", lambda body: sent.append(body) or True)
     return sent
 
 
@@ -598,9 +586,7 @@ def persisted(monkeypatch):
 def recorded_stats(monkeypatch):
     """Capture file-stats updates instead of sending them (#303)."""
     sent = []
-    monkeypatch.setattr(
-        service_main, "try_record_file_stats", lambda body: sent.append(body) or True
-    )
+    monkeypatch.setattr(service_main, "try_record_file_stats", lambda body: sent.append(body) or True)
     return sent
 
 
@@ -613,9 +599,7 @@ class TestProcessIndexJobFileStats:
         (audio_dir / "track.m4a").write_bytes(b"audio")
         stored = hashlib.sha256(b"audio").hexdigest()
 
-        process_index_job(
-            json.dumps(index_job(file_path="track.m4a", stored_audio_sha256=stored)), matcher
-        )
+        process_index_job(json.dumps(index_job(file_path="track.m4a", stored_audio_sha256=stored)), matcher)
 
         assert persisted == []
         assert len(recorded_stats) == 1
@@ -663,9 +647,7 @@ class TestProcessIndexJob:
         assert persisted[0]["track_id"] == "track-1"
         assert fake_redis.hget(f"fpindex:run:{index_job()['run_id']}", "indexed") == "1"
 
-    def test_counts_a_skip_without_persisting(
-        self, fake_redis, index_job, audio_dir, matcher, persisted
-    ):
+    def test_counts_a_skip_without_persisting(self, fake_redis, index_job, audio_dir, matcher, persisted):
         import hashlib
 
         (audio_dir / "track.m4a").write_bytes(b"audio")
@@ -679,9 +661,7 @@ class TestProcessIndexJob:
         assert persisted == []
         assert fake_redis.hget(f"fpindex:run:{index_job()['run_id']}", "skipped") == "1"
 
-    def test_counts_a_missing_file_as_failed(
-        self, fake_redis, index_job, audio_dir, matcher, persisted
-    ):
+    def test_counts_a_missing_file_as_failed(self, fake_redis, index_job, audio_dir, matcher, persisted):
         process_index_job(json.dumps(index_job(file_path="gone.m4a")), matcher)
 
         assert persisted == []
@@ -689,9 +669,7 @@ class TestProcessIndexJob:
         assert fake_redis.hget(key, "failed") == "1"
         assert "gone.m4a" in fake_redis.lrange(f"{key}:errors", 0, -1)[0]
 
-    def test_an_escaping_path_is_isolated_to_that_track(
-        self, fake_redis, index_job, audio_dir, matcher, persisted
-    ):
+    def test_an_escaping_path_is_isolated_to_that_track(self, fake_redis, index_job, audio_dir, matcher, persisted):
         process_index_job(json.dumps(index_job(file_path="../../etc/passwd")), matcher)
 
         assert persisted == []
@@ -756,9 +734,7 @@ class TestProcessIndexJob:
         assert persisted == []
         assert fake_redis.keys("fpindex:*") == []
 
-    def test_a_payload_missing_a_run_cannot_be_counted(
-        self, fake_redis, index_job, matcher, persisted
-    ):
+    def test_a_payload_missing_a_run_cannot_be_counted(self, fake_redis, index_job, matcher, persisted):
         # Nothing to count it against, so it is only logged — the same split as
         # a chunk too malformed to name an ingest.
         process_index_job(json.dumps(index_job(run_id=None)), matcher)
@@ -778,9 +754,7 @@ class TestRunOnceDispatch:
             "fingerprint_service.indexer.decode_to_pcm",
             lambda *a, **k: NormalizedAudio(pcm=b"\x00\x00" * 22050, sample_rate=22050),
         )
-        fake_redis.lpush(
-            service_main.INDEX_QUEUE_KEY, json.dumps(index_job(file_path="track.m4a"))
-        )
+        fake_redis.lpush(service_main.INDEX_QUEUE_KEY, json.dumps(index_job(file_path="track.m4a")))
 
         run_once(matcher)
 
@@ -808,9 +782,7 @@ class TestRunOnceDispatch:
         monkeypatch.setattr(service_main, "BRPOP_TIMEOUT", 0.01)
         wav_file()
         for i in range(5):
-            fake_redis.rpush(
-                service_main.INDEX_QUEUE_KEY, json.dumps(index_job(track_id=f"t{i}"))
-            )
+            fake_redis.rpush(service_main.INDEX_QUEUE_KEY, json.dumps(index_job(track_id=f"t{i}")))
         fake_redis.rpush(service_main.QUEUE_KEY, json.dumps(job()))
 
         run_once(matcher)
@@ -907,9 +879,7 @@ class TestRefreshReferenceIndex:
     def test_retries_a_failed_load_soon_not_after_a_whole_interval(self, monkeypatch):
         """#315: a worker that boots before the app must not wait 15 minutes."""
         calls = []
-        monkeypatch.setattr(
-            service_main, "try_build_index", lambda *a: calls.append(a) or None
-        )
+        monkeypatch.setattr(service_main, "try_build_index", lambda *a: calls.append(a) or None)
         matcher = self.chromaprint()
 
         refresh_reference_index(matcher, now=1000.0)
@@ -932,9 +902,7 @@ class TestRefreshReferenceIndex:
 
         refresh_reference_index(matcher, now=1000.0)
         refresh_reference_index(matcher, now=retry_at)
-        refresh_reference_index(
-            matcher, now=retry_at + service_main.INDEX_REFRESH_SECONDS - 1
-        )
+        refresh_reference_index(matcher, now=retry_at + service_main.INDEX_REFRESH_SECONDS - 1)
 
         assert len(calls) == 2
 
@@ -1022,9 +990,7 @@ class TestMain:
 def set_reported(monkeypatch):
     """Capture set results and claims instead of posting them."""
     sent = []
-    monkeypatch.setattr(
-        service_main, "try_report_set_result", lambda result: sent.append(result) or True
-    )
+    monkeypatch.setattr(service_main, "try_report_set_result", lambda result: sent.append(result) or True)
     monkeypatch.setattr(service_main, "try_claim_set", lambda derivation_id: True)
     return sent
 

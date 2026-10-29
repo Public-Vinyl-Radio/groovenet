@@ -99,7 +99,7 @@ describe("ensureIdByUsername()", () => {
       .mockResolvedValueOnce({ rows: [] }); // SELECT returns nothing
 
     await expect(makeRepo().ensureIdByUsername("ghost")).rejects.toThrow(
-      "Failed to resolve friend id for username 'ghost'"
+      "Failed to resolve friend id for username 'ghost'",
     );
   });
 });
@@ -119,10 +119,7 @@ describe("insertFriendsIfMissing()", () => {
     await makeRepo().insertFriendsIfMissing(["alice", "bob"]);
 
     expect(dbQuery).toHaveBeenCalledOnce();
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT"),
-      [["alice", "bob"]]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("INSERT"), [["alice", "bob"]]);
   });
 });
 
@@ -155,10 +152,7 @@ describe("deleteTracksByUsername()", () => {
 
     await makeRepo().deleteTracksByUsername("alice");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE FROM tracks"),
-      ["alice"]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM tracks"), ["alice"]);
   });
 });
 
@@ -170,9 +164,6 @@ describe("deleteFriendByUsername()", () => {
 
     await makeRepo().deleteFriendByUsername("alice");
 
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE FROM friends"),
-      ["alice"]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM friends"), ["alice"]);
   });
 });

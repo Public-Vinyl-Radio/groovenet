@@ -51,7 +51,7 @@ export function useAlbumsInfiniteQuery(params: Omit<AlbumSearchParams, "offset">
       (page.hits ?? []).map((a) => ({
         releaseId: a.release_id,
         friendId: a.friend_id,
-      }))
+      })),
     ) ?? [];
 
   return { ...query, albumRefs };
@@ -84,7 +84,7 @@ export function useAlbumsQuery(params: AlbumSearchParams) {
       (page.hits ?? []).map((a) => ({
         releaseId: a.release_id,
         friendId: a.friend_id,
-      }))
+      })),
     ) ?? [];
 
   return { ...query, albumRefs };
@@ -145,12 +145,15 @@ export function useUpdateAlbumMutation() {
 
       // Also invalidate the specific album detail
       queryClient.invalidateQueries({
-        queryKey: ["album", data.album.release_id, data.album.friend_id]
-      })
+        queryKey: ["album", data.album.release_id, data.album.friend_id],
+      });
 
       setAlbum(data.album);
 
-      if (variables.genre_override_ids !== undefined || variables.style_override_ids !== undefined) {
+      if (
+        variables.genre_override_ids !== undefined ||
+        variables.style_override_ids !== undefined
+      ) {
         updateTracksByRelease(data.album.release_id, data.album.friend_id, {
           album_genres: data.album.effective_genres,
           album_styles: data.album.effective_styles,
@@ -163,11 +166,9 @@ export function useUpdateAlbumMutation() {
       if (variables?.library_identifier !== undefined) {
         const libraryIdentifier = data.album.library_identifier ?? null;
 
-        updateTracksByRelease(
-          data.album.release_id,
-          data.album.friend_id,
-          { library_identifier: libraryIdentifier }
-        );
+        updateTracksByRelease(data.album.release_id, data.album.friend_id, {
+          library_identifier: libraryIdentifier,
+        });
       }
     },
   });

@@ -46,7 +46,7 @@ export function isBpmConfidenceLow(bpmConfidence: number | null | undefined): bo
 
 /** The percentage to show in the UI, or null when there's nothing to show. */
 export function formatBpmConfidencePercent(
-  bpmConfidence: number | null | undefined
+  bpmConfidence: number | null | undefined,
 ): number | null {
   return typeof bpmConfidence === "number" ? Math.round(bpmConfidence * 100) : null;
 }

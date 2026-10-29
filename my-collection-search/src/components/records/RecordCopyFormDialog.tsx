@@ -41,7 +41,13 @@ function copyFormChanges(form: FormState, copy?: RecordCopyListItem) {
   return changes;
 }
 
-export default function RecordCopyFormDialog({ open, onOpenChange, releaseId, friendId, copy }: Props) {
+export default function RecordCopyFormDialog({
+  open,
+  onOpenChange,
+  releaseId,
+  friendId,
+  copy,
+}: Props) {
   const isEdit = Boolean(copy);
   const [form, setForm] = React.useState<FormState>(() => initialState(copy));
   const [wasOpen, setWasOpen] = React.useState(open);

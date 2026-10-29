@@ -23,16 +23,16 @@ describe("labels", () => {
 
   it("describes an action by what it carries", () => {
     expect(describeAction({ action_type: "sleeved", sleeve_type: "poly", details: {} })).toBe(
-      "Sleeve change → Poly"
+      "Sleeve change → Poly",
     );
     expect(
-      describeAction({ action_type: "cleaned", sleeve_type: null, details: { method: "vacuum" } })
+      describeAction({ action_type: "cleaned", sleeve_type: null, details: { method: "vacuum" } }),
     ).toBe("Cleaned · Vacuum machine");
     expect(describeAction({ action_type: "cleaned", sleeve_type: null, details: {} })).toBe(
-      "Cleaned"
+      "Cleaned",
     );
     expect(describeAction({ action_type: "repaired", sleeve_type: null, details: {} })).toBe(
-      "Repaired"
+      "Repaired",
     );
   });
 });

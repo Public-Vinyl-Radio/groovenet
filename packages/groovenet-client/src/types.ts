@@ -68,7 +68,11 @@ export type {
   GenreMergeInput,
   GenreAliasResponse,
   GenreMergeResponse,
-  GenrePageRef, GenreSimilaritySignals, GenreRelatedRef, GenrePageResponse, GenreSimilarResponse,
+  GenrePageRef,
+  GenreSimilaritySignals,
+  GenreRelatedRef,
+  GenrePageResponse,
+  GenreSimilarResponse,
 } from "@groovenet/contracts";
 
 // ── Genre reconciliation (#372) ─────────────────────────────────────────────
@@ -93,7 +97,13 @@ export interface GenreReconciliationRequest {
 export interface GenreReconciliationRun {
   id: string;
   status: "running" | "completed" | "failed";
-  options: { ai: boolean; new_genre_min_tracks: number; limit: number | null; refresh: boolean; friend_id: number | null };
+  options: {
+    ai: boolean;
+    new_genre_min_tracks: number;
+    limit: number | null;
+    refresh: boolean;
+    friend_id: number | null;
+  };
   model: string | null;
   distinct_values: number;
   exact_matches: number;
@@ -163,7 +173,13 @@ export interface GenreProposalDecision extends GenreProposalUpdate {
 /** A proposal's reviewable state, as undo restores it. */
 export type GenreProposalSnapshot = Pick<
   GenreProposal,
-  "id" | "status" | "action" | "target_genre_ids" | "proposed_genre_name" | "proposed_parent_id" | "method"
+  | "id"
+  | "status"
+  | "action"
+  | "target_genre_ids"
+  | "proposed_genre_name"
+  | "proposed_parent_id"
+  | "method"
 >;
 
 export interface GenreProposalDecisionResult {
@@ -407,12 +423,7 @@ export interface RecommendationCandidatesQuery {
  * `missing` and `changed` are the two halves of "bring the index up to date".
  * `all` adds the tracks that are already current, for forcing a regeneration.
  */
-export type FingerprintIndexScope =
-  | "missing"
-  | "changed"
-  | "all"
-  | "track"
-  | "release";
+export type FingerprintIndexScope = "missing" | "changed" | "all" | "track" | "release";
 
 export interface FingerprintIndexRequest {
   scope: FingerprintIndexScope;
@@ -782,4 +793,13 @@ export interface AppearanceSettingsUpdate {
   fonts?: Partial<AppearanceFonts>;
 }
 
-export type { CreateServerPlayer, ServerPlayer, ServerPlayerState, ServerPlayerCommand, ServerPlayerCommandInput, ServerPlayerCommandResult, ServerPlayerDevice, SpeakerObservation } from "@groovenet/contracts";
+export type {
+  CreateServerPlayer,
+  ServerPlayer,
+  ServerPlayerState,
+  ServerPlayerCommand,
+  ServerPlayerCommandInput,
+  ServerPlayerCommandResult,
+  ServerPlayerDevice,
+  SpeakerObservation,
+} from "@groovenet/contracts";

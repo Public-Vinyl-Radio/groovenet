@@ -17,5 +17,11 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "src/**/*.test.ts", "src/**/*.test.tsx", "src/tui/testing.tsx"]
+  "exclude": [
+    "node_modules",
+    "build",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/tui/testing.tsx"
+  ]
 }

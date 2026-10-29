@@ -47,7 +47,9 @@ describe("PageHeader", () => {
 
   it("disables an action while it is busy", () => {
     const onClick = vi.fn();
-    renderWithProviders(<PageHeader title="Edit" actions={[{ ...action("Save", onClick), disabled: true }]} />);
+    renderWithProviders(
+      <PageHeader title="Edit" actions={[{ ...action("Save", onClick), disabled: true }]} />,
+    );
     const save = screen.getByRole("button", { name: "Save", hidden: true }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     fireEvent.click(save);
@@ -100,13 +102,20 @@ describe("PageHeader", () => {
 
     it("targets the only parent when there are two crumbs", () => {
       renderWithProviders(
-        <PageHeader title="Song" breadcrumbs={[{ label: "Tracks", href: "/" }, { label: "Song" }]} />,
+        <PageHeader
+          title="Song"
+          breadcrumbs={[{ label: "Tracks", href: "/" }, { label: "Song" }]}
+        />,
       );
-      expect(screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href")).toBe("/");
+      expect(
+        screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href"),
+      ).toBe("/");
     });
 
     it("has no back button with a single crumb or an unlinked parent", () => {
-      const { rerender } = renderWithProviders(<PageHeader title="Song" breadcrumbs={[{ label: "Song" }]} />);
+      const { rerender } = renderWithProviders(
+        <PageHeader title="Song" breadcrumbs={[{ label: "Song" }]} />,
+      );
       expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
       rerender(<PageHeader title="Song" breadcrumbs={[{ label: "Tracks" }, { label: "Song" }]} />);
       expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();

@@ -15,22 +15,16 @@ import { AudioProcessor, InvalidAudioError } from "../audioProcessor";
 const processor = new AudioProcessor();
 
 /** promisify() calls the last argument back node-style. */
-type ExecFileCallback = (
-  error: unknown,
-  result?: { stdout: string; stderr: string }
-) => void;
+type ExecFileCallback = (error: unknown, result?: { stdout: string; stderr: string }) => void;
 
 function ffprobeReturns(payload: unknown) {
-  execFile.mockImplementation(
-    (_cmd: string, _args: string[], cb: ExecFileCallback) =>
-      cb(null, { stdout: JSON.stringify(payload), stderr: "" })
+  execFile.mockImplementation((_cmd: string, _args: string[], cb: ExecFileCallback) =>
+    cb(null, { stdout: JSON.stringify(payload), stderr: "" }),
   );
 }
 
 function ffprobeFails(error: unknown) {
-  execFile.mockImplementation(
-    (_cmd: string, _args: string[], cb: ExecFileCallback) => cb(error)
-  );
+  execFile.mockImplementation((_cmd: string, _args: string[], cb: ExecFileCallback) => cb(error));
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -131,7 +125,7 @@ describe("AudioProcessor.probe() — reading ffprobe output", () => {
     ffprobeFails(new Error("Invalid data found when processing input"));
 
     await expect(processor.probe("/tmp/x.wav")).rejects.toThrow(
-      /could not read the file: Invalid data/
+      /could not read the file: Invalid data/,
     );
   });
 
@@ -142,9 +136,8 @@ describe("AudioProcessor.probe() — reading ffprobe output", () => {
   });
 
   it("treats unparseable JSON as unreadable audio", async () => {
-    execFile.mockImplementation(
-      (_cmd: string, _args: string[], cb: ExecFileCallback) =>
-        cb(null, { stdout: "not json", stderr: "" })
+    execFile.mockImplementation((_cmd: string, _args: string[], cb: ExecFileCallback) =>
+      cb(null, { stdout: "not json", stderr: "" }),
     );
 
     await expect(processor.probe("/tmp/x.wav")).rejects.toBeInstanceOf(InvalidAudioError);

@@ -39,10 +39,7 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-async function timed(
-  service: string,
-  probe: () => Promise<void>
-): Promise<ServiceHealth> {
+async function timed(service: string, probe: () => Promise<void>): Promise<ServiceHealth> {
   const start = Date.now();
   try {
     await withTimeout(probe(), TIMEOUT_MS);
@@ -93,10 +90,7 @@ async function probeHttp(url: string): Promise<void> {
 async function embeddingQueueHealth(): Promise<ServiceHealth> {
   const start = Date.now();
   try {
-    const health = await withTimeout(
-      embeddingQueueService.getQueueHealth(),
-      TIMEOUT_MS
-    );
+    const health = await withTimeout(embeddingQueueService.getQueueHealth(), TIMEOUT_MS);
     return {
       service: "embedding_queue",
       status: health.paused ? "down" : "up",

@@ -18,7 +18,11 @@ beforeEach(() => {
 
 describe("recommendation settings", () => {
   it("reads a library's suggestion scope", async () => {
-    await expect(fetchRecommendationSettings(4)).resolves.toEqual({ friend_id: 4, scope: "library", isDefault: true });
+    await expect(fetchRecommendationSettings(4)).resolves.toEqual({
+      friend_id: 4,
+      scope: "library",
+      isDefault: true,
+    });
     expect(httpMock).toHaveBeenCalledWith("/api/settings/recommendations?friend_id=4", {
       method: "GET",
       cache: "no-store",
@@ -39,7 +43,10 @@ describe("appearance settings", () => {
   it("reads the shared palette", async () => {
     httpMock.mockResolvedValue({ palette: "sleeve" });
     await expect(fetchAppearanceSettings()).resolves.toEqual({ palette: "sleeve" });
-    expect(httpMock).toHaveBeenCalledWith("/api/settings/appearance", { method: "GET", cache: "no-store" });
+    expect(httpMock).toHaveBeenCalledWith("/api/settings/appearance", {
+      method: "GET",
+      cache: "no-store",
+    });
   });
 
   it("saves a font change without the palette", async () => {

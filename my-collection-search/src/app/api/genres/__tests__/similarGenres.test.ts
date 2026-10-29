@@ -7,14 +7,27 @@ vi.mock("@/server/services/genreSimilarityService", () => ({ getGenreSimilarPage
 import { GET } from "../[id]/similar/route";
 
 const call = (ref: string, query = "") =>
-  GET(new NextRequest(`http://localhost/api/genres/${ref}/similar${query}`), { params: Promise.resolve({ id: ref }) });
+  GET(new NextRequest(`http://localhost/api/genres/${ref}/similar${query}`), {
+    params: Promise.resolve({ id: ref }),
+  });
 
 const page = {
-  genre: { id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia", track_count: 412 },
-  related: [{
-    id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253,
-    score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
-  }],
+  genre: {
+    id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40",
+    name: "Cumbia",
+    slug: "cumbia",
+    track_count: 412,
+  },
+  related: [
+    {
+      id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62",
+      name: "Salsa",
+      slug: "salsa",
+      track_count: 253,
+      score: 1.42,
+      signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+    },
+  ],
 };
 
 describe("GET /api/genres/{id}/similar", () => {
@@ -40,12 +53,15 @@ describe("GET /api/genres/{id}/similar", () => {
     expect(getGenreSimilarPage).toHaveBeenCalledWith("cumbia", 3);
   });
 
-  it.each(["0", "-1", "1.5", "nope", "3oops", "", "Infinity"])("rejects invalid limit %s before loading genres", async (limit) => {
-    const response = await call("cumbia", `?limit=${limit}`);
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({ error: "Invalid query parameters" });
-    expect(getGenreSimilarPage).not.toHaveBeenCalled();
-  });
+  it.each(["0", "-1", "1.5", "nope", "3oops", "", "Infinity"])(
+    "rejects invalid limit %s before loading genres",
+    async (limit) => {
+      const response = await call("cumbia", `?limit=${limit}`);
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({ error: "Invalid query parameters" });
+      expect(getGenreSimilarPage).not.toHaveBeenCalled();
+    },
+  );
 
   it("404s an unknown genre", async () => {
     getGenreSimilarPage.mockResolvedValue(null);

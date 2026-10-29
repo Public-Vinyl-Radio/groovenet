@@ -78,7 +78,7 @@ describe("computeEmbeddingUpdates", () => {
   it("flags identity when styles array content changes", () => {
     const plan = computeEmbeddingUpdates(
       track({ styles: ["Deep House"] }),
-      track({ styles: ["Tech House"] })
+      track({ styles: ["Tech House"] }),
     );
     expect(plan).toEqual({ identity: true, audioVibe: false });
   });
@@ -88,7 +88,7 @@ describe("computeEmbeddingUpdates", () => {
   it("does not flag when array content is identical", () => {
     const plan = computeEmbeddingUpdates(
       track({ genres: ["A", "B"] }),
-      track({ genres: ["A", "B"] })
+      track({ genres: ["A", "B"] }),
     );
     expect(plan.identity).toBe(false);
   });
@@ -96,24 +96,18 @@ describe("computeEmbeddingUpdates", () => {
   it("flags when array order changes", () => {
     const plan = computeEmbeddingUpdates(
       track({ genres: ["A", "B"] }),
-      track({ genres: ["B", "A"] })
+      track({ genres: ["B", "A"] }),
     );
     expect(plan.identity).toBe(true);
   });
 
   it("treats null/undefined array as empty (null → [] is not a change)", () => {
-    const plan = computeEmbeddingUpdates(
-      track({ styles: null }),
-      track({ styles: [] })
-    );
+    const plan = computeEmbeddingUpdates(track({ styles: null }), track({ styles: [] }));
     expect(plan.identity).toBe(false);
   });
 
   it("flags when array goes from empty to populated", () => {
-    const plan = computeEmbeddingUpdates(
-      track({ genres: [] }),
-      track({ genres: ["House"] })
-    );
+    const plan = computeEmbeddingUpdates(track({ genres: [] }), track({ genres: ["House"] }));
     expect(plan.identity).toBe(true);
   });
 

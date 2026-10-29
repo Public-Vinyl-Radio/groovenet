@@ -20,7 +20,7 @@ beforeEach(() => {
 describe("sanitize", () => {
   it("drops fields that are not on the allowlist", () => {
     expect(
-      sanitize({ ingest_id: "a", file_path: "x.wav", headers: "Bearer x", body: "{}" })
+      sanitize({ ingest_id: "a", file_path: "x.wav", headers: "Bearer x", body: "{}" }),
     ).toEqual({ ingest_id: "a" });
   });
 
@@ -36,7 +36,7 @@ describe("sanitize", () => {
 
   it("keeps scalars and explicit nulls, and skips undefined", () => {
     expect(
-      sanitize({ sequence: 7, confidence: 0.9, track_id: null, duplicate: true, codec: undefined })
+      sanitize({ sequence: 7, confidence: 0.9, track_id: null, duplicate: true, codec: undefined }),
     ).toEqual({ sequence: 7, confidence: 0.9, track_id: null, duplicate: true });
   });
 

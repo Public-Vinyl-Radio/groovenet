@@ -7,9 +7,9 @@ nothing else talks to it.
 
 ## API
 
-| | |
-| --- | --- |
-| `GET /health` | liveness |
+|                 |                        |
+| --------------- | ---------------------- |
+| `GET /health`   | liveness               |
 | `POST /analyze` | analyse one audio file |
 
 The request carries a `filename` that is a **URL the service fetches**, not a
@@ -37,7 +37,7 @@ fail) when any of the other three disagree with it — see
 
 The track that prompted #524 (reported F major, tunebat/songbpm said C
 major — a fourth apart, sharing 6 of 7 notes, a known confusion point for
-key detection) turned out *not* to be a disagreement between the three key
+key detection) turned out _not_ to be a disagreement between the three key
 profiles: `key_edma`/`key_krumhansl`/`key_temperley` all agreed on F major
 (strengths ~0.68–0.70). The actual split was against `chords_key`, which said
 C major. Checking only the three profiles would have stayed silent on

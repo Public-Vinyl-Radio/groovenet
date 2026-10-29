@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  mockListSpinSessions,
-  mockCreateSpinSession,
-} = vi.hoisted(() => ({
+const { mockListSpinSessions, mockCreateSpinSession } = vi.hoisted(() => ({
   mockListSpinSessions: vi.fn(),
   mockCreateSpinSession: vi.fn(),
 }));
@@ -106,9 +103,7 @@ describe("GET /api/spins", () => {
   it("returns list response with items", async () => {
     mockListSpinSessions.mockResolvedValueOnce([makeSpinSessionDetail()]);
 
-    const req = new Request(
-      "http://localhost/api/spins?friend_id=1&limit=25&offset=5"
-    );
+    const req = new Request("http://localhost/api/spins?friend_id=1&limit=25&offset=5");
     const res = await GET(req as never);
 
     expect(res.status).toBe(200);
@@ -238,13 +233,13 @@ describe("POST /api/spins", () => {
             context_type: "player",
             track_refs: [{ track_id: "trk-a1", friend_id: 1 }],
           }),
-        }) as never
+        }) as never,
       );
 
     mockCreateSpinSession.mockResolvedValueOnce(makeSpinSessionDetail());
     expect((await post()).status).toBe(200);
     expect(mockCreateSpinSession).toHaveBeenLastCalledWith(
-      expect.objectContaining({ medium: "digital", context_type: "player" })
+      expect.objectContaining({ medium: "digital", context_type: "player" }),
     );
 
     mockCreateSpinSession.mockRejectedValueOnce(new Error("Digital play already logged"));
@@ -265,7 +260,7 @@ describe("POST /api/spins", () => {
           played_at: "2026-06-24T01:00:00.000Z",
           side_keys: ["A"],
         }),
-      }) as never
+      }) as never,
     );
     expect(res.status).toBe(400);
   });
@@ -309,9 +304,7 @@ describe("POST /api/spins", () => {
   });
 
   it("returns 400 for service-level validation errors", async () => {
-    mockCreateSpinSession.mockRejectedValueOnce(
-      new Error("Duplicate side keys are not allowed")
-    );
+    mockCreateSpinSession.mockRejectedValueOnce(new Error("Duplicate side keys are not allowed"));
 
     const req = new Request("http://localhost/api/spins", {
       method: "POST",

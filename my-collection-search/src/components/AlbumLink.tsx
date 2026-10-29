@@ -26,11 +26,7 @@ export default function AlbumLink({
   const href = `/albums/${releaseId}${friendId ? `?friend_id=${friendId}` : ""}`;
 
   return (
-    <Link
-      asChild
-      _hover={{ textDecoration: "underline" }}
-      className={className}
-    >
+    <Link asChild _hover={{ textDecoration: "underline" }} className={className}>
       <NextLink
         href={href}
         onClick={(e) => {

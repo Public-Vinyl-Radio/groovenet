@@ -268,10 +268,7 @@ describe("setIvfflatProbes()", () => {
 
     await makeRepo().setIvfflatProbes(client as any, 4);
 
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("set_config"),
-      ["4"]
-    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("set_config"), ["4"]);
   });
 });
 
@@ -289,14 +286,17 @@ describe("findSourceEmbedding()", () => {
       1,
       "identity",
       "text-embedding-3-small",
-      2
+      2,
     );
 
     expect(result).toEqual(embedding);
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("template_version = $5"),
-      ["t1", 1, "identity", "text-embedding-3-small", 2]
-    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("template_version = $5"), [
+      "t1",
+      1,
+      "identity",
+      "text-embedding-3-small",
+      2,
+    ]);
   });
 
   it("returns null when not found", async () => {
@@ -309,7 +309,7 @@ describe("findSourceEmbedding()", () => {
       1,
       "audio_vibe",
       "text-embedding-3-small",
-      1
+      1,
     );
 
     expect(result).toBeNull();
@@ -455,7 +455,7 @@ describe("findSimilarIdentityTracks()", () => {
         dims,
         limit: 5,
         filters: {},
-      })
+      }),
     ).rejects.toThrow(`Invalid vector dims: ${dims}`);
     expect(client.query).not.toHaveBeenCalled();
   });
@@ -590,7 +590,7 @@ describe("upsertTrackEmbedding()", () => {
     // Each template version is its own row, so a re-embed under a new
     // template never overwrites the one being served (#407).
     expect(sql).toContain(
-      "ON CONFLICT (track_id, friend_id, embedding_type, model, template_version)"
+      "ON CONFLICT (track_id, friend_id, embedding_type, model, template_version)",
     );
     expect(sql).not.toContain("template_version = EXCLUDED.template_version");
   });
@@ -607,7 +607,7 @@ describe("findEmbeddingSourceHash()", () => {
       1,
       "identity",
       "text-embedding-3-small",
-      2
+      2,
     );
 
     expect(result).toBe("abc123");
@@ -626,7 +626,7 @@ describe("findEmbeddingSourceHash()", () => {
       1,
       "audio_vibe",
       "text-embedding-3-small",
-      1
+      1,
     );
 
     expect(result).toBeNull();
@@ -696,7 +696,7 @@ describe("findEmbeddingsForTracks()", () => {
       ],
       "audio_vibe",
       "vibe-model",
-      3
+      3,
     );
 
     expect(result).toEqual(rows);
@@ -781,7 +781,20 @@ describe("findContextMatches()", () => {
     expect(sql).toContain("LOWER(g.name) = LOWER($7)");
     expect(sql).toContain("t.bpm >= $8");
     expect(sql).toContain("t.bpm <= $9");
-    expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 6, 1970, 1980, "Cumbia", 90, 110, 500, 2, 30]);
+    expect(params).toEqual([
+      "[0.1,0.2]",
+      "context-model",
+      1,
+      6,
+      1970,
+      1980,
+      "Cumbia",
+      90,
+      110,
+      500,
+      2,
+      30,
+    ]);
   });
 
   it("binds key and minimum rating after BPM, on t (#412)", async () => {
@@ -820,7 +833,10 @@ describe("findContextMatches()", () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });
 
-    await makeRepo().findContextMatches(client as any, { ...base, filters: { era: "unknown-era" } });
+    await makeRepo().findContextMatches(client as any, {
+      ...base,
+      filters: { era: "unknown-era" },
+    });
 
     const [sql, params] = client.query.mock.calls[0];
     expect(sql).toContain("IS NULL OR");
@@ -836,7 +852,7 @@ describe("findContextMatches()", () => {
     const client = makeClient();
 
     await expect(
-      makeRepo().findContextMatches(client as any, { ...base, ...override })
+      makeRepo().findContextMatches(client as any, { ...base, ...override }),
     ).rejects.toThrow(message);
     expect(client.query).not.toHaveBeenCalled();
   });

@@ -3,15 +3,13 @@ import { exampleFromSchema } from "./exampleFromSchema";
 
 describe("author-supplied values win", () => {
   it("prefers an explicit example over everything else", () => {
-    expect(
-      exampleFromSchema({ type: "string", enum: ["a"], default: "b", example: "c" })
-    ).toBe("c");
+    expect(exampleFromSchema({ type: "string", enum: ["a"], default: "b", example: "c" })).toBe(
+      "c",
+    );
   });
 
   it("uses const when there is no example", () => {
-    expect(exampleFromSchema({ type: "string", const: "fixed", default: "d" })).toBe(
-      "fixed"
-    );
+    expect(exampleFromSchema({ type: "string", const: "fixed", default: "d" })).toBe("fixed");
   });
 
   it("uses default before falling back to a placeholder", () => {
@@ -19,15 +17,13 @@ describe("author-supplied values win", () => {
   });
 
   it("uses the first enum value", () => {
-    expect(
-      exampleFromSchema({ type: "string", enum: ["waiting", "active", "completed"] })
-    ).toBe("waiting");
+    expect(exampleFromSchema({ type: "string", enum: ["waiting", "active", "completed"] })).toBe(
+      "waiting",
+    );
   });
 
   it("prefers default over enum", () => {
-    expect(
-      exampleFromSchema({ type: "string", enum: ["a", "b"], default: "b" })
-    ).toBe("b");
+    expect(exampleFromSchema({ type: "string", enum: ["a", "b"], default: "b" })).toBe("b");
   });
 
   it("honours a falsy example rather than treating it as absent", () => {
@@ -56,7 +52,7 @@ describe("primitives", () => {
     "falls back for a non-object schema (%s)",
     (schema) => {
       expect(exampleFromSchema(schema)).toBe("example");
-    }
+    },
   );
 });
 
@@ -87,9 +83,7 @@ describe("type unions", () => {
   });
 
   it("keeps the format when narrowing a union", () => {
-    expect(exampleFromSchema({ type: ["string", "null"], format: "date" })).toBe(
-      "2026-02-17"
-    );
+    expect(exampleFromSchema({ type: ["string", "null"], format: "date" })).toBe("2026-02-17");
   });
 });
 
@@ -98,7 +92,7 @@ describe("composition", () => {
     expect(
       exampleFromSchema({
         oneOf: [{ type: "array", items: { type: "number" } }, { type: "string" }],
-      })
+      }),
     ).toEqual([1.23]);
   });
 
@@ -113,19 +107,15 @@ describe("composition", () => {
           { type: "object", properties: { alpha: { type: "string" } } },
           { type: "object", properties: { beta: { type: "integer" } } },
         ],
-      })
+      }),
     ).toEqual({ alpha: "string", beta: 1 });
   });
 
   it("skips allOf branches that are not objects", () => {
     expect(
       exampleFromSchema({
-        allOf: [
-          null,
-          "nonsense",
-          { type: "object", properties: { alpha: { type: "string" } } },
-        ],
-      })
+        allOf: [null, "nonsense", { type: "object", properties: { alpha: { type: "string" } } }],
+      }),
     ).toEqual({ alpha: "string" });
   });
 
@@ -136,7 +126,7 @@ describe("composition", () => {
           { type: "object", properties: { mode: { type: "string" } } },
           { type: "object", properties: { mode: { type: "string", enum: ["fast"] } } },
         ],
-      })
+      }),
     ).toEqual({ mode: "fast" });
   });
 });
@@ -157,7 +147,7 @@ describe("arrays and objects", () => {
             properties: { bpm: { type: "number", example: 122 } },
           },
         },
-      })
+      }),
     ).toEqual({ id: "trk_001", nested: { bpm: 122 } });
   });
 
@@ -167,9 +157,9 @@ describe("arrays and objects", () => {
   });
 
   it("renders a typed free-form object as {} too", () => {
-    expect(
-      exampleFromSchema({ type: "object", additionalProperties: { type: "number" } })
-    ).toEqual({});
+    expect(exampleFromSchema({ type: "object", additionalProperties: { type: "number" } })).toEqual(
+      {},
+    );
   });
 
   it("renders an object with no properties as {}", () => {
@@ -182,7 +172,7 @@ describe("arrays and objects", () => {
         type: "object",
         properties: { known: { type: "string" } },
         additionalProperties: true,
-      })
+      }),
     ).toEqual({ known: "string" });
   });
 });
@@ -193,7 +183,7 @@ describe("property-name fallback", () => {
       exampleFromSchema({
         type: "object",
         properties: { message: { type: "string" }, track_id: { type: "string" } },
-      })
+      }),
     ).toEqual({ message: "Done", track_id: "trk_001" });
   });
 
@@ -202,7 +192,7 @@ describe("property-name fallback", () => {
       exampleFromSchema({
         type: "object",
         properties: { id: { type: "string", format: "uuid" } },
-      })
+      }),
     ).toEqual({ id: "6f1c2f80-9a3e-4d7b-8c11-2f5a9b0d4e63" });
   });
 
@@ -211,13 +201,13 @@ describe("property-name fallback", () => {
       exampleFromSchema({
         type: "object",
         properties: { message: { type: "string", example: "Custom" } },
-      })
+      }),
     ).toEqual({ message: "Custom" });
   });
 
   it("falls back to the placeholder for an unknown property name", () => {
     expect(
-      exampleFromSchema({ type: "object", properties: { wibble: { type: "string" } } })
+      exampleFromSchema({ type: "object", properties: { wibble: { type: "string" } } }),
     ).toEqual({ wibble: "string" });
   });
 
@@ -225,8 +215,13 @@ describe("property-name fallback", () => {
     expect(
       exampleFromSchema({
         type: "object",
-        properties: { tracks: { type: "array", items: { type: "object", properties: { track_id: { type: "string" } } } } },
-      })
+        properties: {
+          tracks: {
+            type: "array",
+            items: { type: "object", properties: { track_id: { type: "string" } } },
+          },
+        },
+      }),
     ).toEqual({ tracks: [{ track_id: "trk_001" }] });
   });
 
@@ -235,7 +230,7 @@ describe("property-name fallback", () => {
       exampleFromSchema({
         type: "object",
         properties: { bpm: { oneOf: [{ type: "number" }, { type: "string" }] } },
-      })
+      }),
     ).toEqual({ bpm: 122 });
   });
 });

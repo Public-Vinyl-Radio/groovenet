@@ -7,11 +7,22 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const page = {
-  genre: { id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40", name: "Cumbia", slug: "cumbia", track_count: 412 },
-  related: [{
-    id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62", name: "Salsa", slug: "salsa", track_count: 253,
-    score: 1.42, signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
-  }],
+  genre: {
+    id: "8c1d7f3e-2b6a-4d59-9f0e-3a7b5c2d1e40",
+    name: "Cumbia",
+    slug: "cumbia",
+    track_count: 412,
+  },
+  related: [
+    {
+      id: "1f6a2c9d-4e8b-4a3f-b7d1-5c0e9a8b7f62",
+      name: "Salsa",
+      slug: "salsa",
+      track_count: 253,
+      score: 1.42,
+      signals: { taxonomy: "sibling", npmi: 0.42, shared_albums: 7 },
+    },
+  ],
 };
 
 describe("get_similar_genres over MCP stdio", { timeout: 15_000 }, () => {
@@ -23,24 +34,35 @@ describe("get_similar_genres over MCP stdio", { timeout: 15_000 }, () => {
 
   before(async () => {
     api = createServer((req, res) => {
-      requests.push({ method: req.method, url: req.url, source: req.headers["x-groovenet-client"] });
+      requests.push({
+        method: req.method,
+        url: req.url,
+        source: req.headers["x-groovenet-client"],
+      });
       res.writeHead(status, { "Content-Type": "application/json" });
       res.end(JSON.stringify(response));
     });
     api.listen(0, "127.0.0.1");
     await once(api, "listening");
     client = new Client({ name: "similar-genres-test", version: "1.0.0" });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
-      env: { ...process.env, API_BASE: `http://127.0.0.1:${api.address().port}/api`, API_KEY: "" },
-      stderr: "pipe",
-    }));
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [fileURLToPath(new URL("../build/index.js", import.meta.url))],
+        env: {
+          ...process.env,
+          API_BASE: `http://127.0.0.1:${api.address().port}/api`,
+          API_KEY: "",
+        },
+        stderr: "pipe",
+      }),
+    );
   });
 
   after(async () => {
     await client?.close();
-    if (api?.listening) await new Promise((resolve, reject) => api.close((err) => err ? reject(err) : resolve()));
+    if (api?.listening)
+      await new Promise((resolve, reject) => api.close((err) => (err ? reject(err) : resolve())));
   });
 
   beforeEach(() => {
@@ -66,7 +88,9 @@ describe("get_similar_genres over MCP stdio", { timeout: 15_000 }, () => {
     const result = await call({ slug: "cumbia/son?", limit: 3 });
     assert.ok(!result.isError);
     assert.deepEqual(JSON.parse(result.content[0].text), page);
-    assert.deepEqual(requests, [{ method: "GET", url: "/api/genres/cumbia%2Fson%3F/similar?limit=3", source: "mcp" }]);
+    assert.deepEqual(requests, [
+      { method: "GET", url: "/api/genres/cumbia%2Fson%3F/similar?limit=3", source: "mcp" },
+    ]);
   });
 
   it("leaves the default limit to the API, preserving unscored fallback genres", async () => {

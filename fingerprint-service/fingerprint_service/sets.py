@@ -9,6 +9,7 @@ The recording is streamed, never held whole: ffmpeg's output feeds Chromaprint
 in chunks, and the matcher cuts windows from the finished fingerprint. That is
 the #271 recipe — fingerprint once, slice many — at a fraction of the memory.
 """
+
 import os
 import time
 from collections.abc import Iterable, Iterator
@@ -107,9 +108,7 @@ def derive(job: SetJob, matcher: FingerprintMatcher) -> SetResult:
         )
     except (AudioDecodeError, FingerprintError) as e:
         logger.error("Set %s could not be derived: %s", job["derivation_id"], e)
-        return build_set_result(
-            job, matcher, window_seconds=window_seconds, step_seconds=step_seconds, error=str(e)
-        )
+        return build_set_result(job, matcher, window_seconds=window_seconds, step_seconds=step_seconds, error=str(e))
 
     duration = pcm.bytes / BYTES_PER_SAMPLE / SAMPLE_RATE
     logger.info(

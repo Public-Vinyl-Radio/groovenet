@@ -190,8 +190,13 @@ describe("upsertAlbumRecord()", () => {
     client.query.mockResolvedValue({ rows: [saved] });
 
     const album = {
-      release_id: "r1", friend_id: 1, title: "T", artist: "A", track_count: 0,
-      genres: [], styles: [],
+      release_id: "r1",
+      friend_id: 1,
+      title: "T",
+      artist: "A",
+      track_count: 0,
+      genres: [],
+      styles: [],
     };
 
     const result = await makeRepo().upsertAlbumRecord(client as any, album as any);
@@ -207,8 +212,13 @@ describe("upsertAlbumRecord()", () => {
     client.query.mockResolvedValue({ rows: [makeAlbum()] });
 
     const album = {
-      release_id: "r1", friend_id: 1, title: "T", artist: "A", track_count: 0,
-      genres: [], styles: [],
+      release_id: "r1",
+      friend_id: 1,
+      title: "T",
+      artist: "A",
+      track_count: 0,
+      genres: [],
+      styles: [],
     };
 
     await makeRepo().upsertAlbumRecord(client as any, album as any, { preserveManualFields: true });
@@ -261,9 +271,18 @@ describe("upsertAlbumRecord() Discogs-sourced fields (#847)", () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [makeAlbum()] });
 
-    await makeRepo().upsertAlbumRecord(client as any, {
-      release_id: "r1", friend_id: 1, title: "T", artist: "A", track_count: 0, genres: [], styles: [],
-    } as any);
+    await makeRepo().upsertAlbumRecord(
+      client as any,
+      {
+        release_id: "r1",
+        friend_id: 1,
+        title: "T",
+        artist: "A",
+        track_count: 0,
+        genres: [],
+        styles: [],
+      } as any,
+    );
 
     const [sql, params] = client.query.mock.calls[0];
     expect(sql).toContain("discogs_url = COALESCE(EXCLUDED.discogs_url, albums.discogs_url)");
@@ -275,14 +294,21 @@ describe("upsertAlbumRecord() Discogs-sourced fields (#847)", () => {
 
 describe("repairDiscogsCollectionFields()", () => {
   const entries = [
-    { release_id: "101", date_added: "2024-01-01T10:00:00-08:00", discogs_url: "https://www.discogs.com/release/101" },
+    {
+      release_id: "101",
+      date_added: "2024-01-01T10:00:00-08:00",
+      discogs_url: "https://www.discogs.com/release/101",
+    },
     { release_id: "102", date_added: null, discogs_url: "https://www.discogs.com/release/102" },
   ];
 
   it("does nothing for an empty listing", async () => {
     const client = makeClient();
 
-    expect(await makeRepo().repairDiscogsCollectionFields(client as any, 1, [])).toEqual({ albums: [], tracks: 0 });
+    expect(await makeRepo().repairDiscogsCollectionFields(client as any, 1, [])).toEqual({
+      albums: [],
+      tracks: 0,
+    });
     expect(client.query).not.toHaveBeenCalled();
   });
 
@@ -312,9 +338,14 @@ describe("repairDiscogsCollectionFields()", () => {
 
   it("reports zero tracks when the driver gives no row count", async () => {
     const client = makeClient();
-    client.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [], rowCount: null });
+    client.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [], rowCount: null });
 
-    expect(await makeRepo().repairDiscogsCollectionFields(client as any, 6, entries)).toEqual({ albums: [], tracks: 0 });
+    expect(await makeRepo().repairDiscogsCollectionFields(client as any, 6, entries)).toEqual({
+      albums: [],
+      tracks: 0,
+    });
   });
 });
 
@@ -431,10 +462,7 @@ describe("deleteTracksByIds()", () => {
 
     await makeRepo().deleteTracksByIds(client as any, ["t1", "t2"], 1);
 
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE"),
-      [["t1", "t2"], 1]
-    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("DELETE"), [["t1", "t2"], 1]);
   });
 });
 
@@ -454,10 +482,10 @@ describe("deleteAlbumsByFriendAndReleaseIds()", () => {
     const result = await makeRepo().deleteAlbumsByFriendAndReleaseIds(1, ["r1", "r2", "r3"]);
 
     expect(result).toBe(3);
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE"),
-      [1, ["r1", "r2", "r3"]]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("DELETE"), [
+      1,
+      ["r1", "r2", "r3"],
+    ]);
   });
 
   it("returns 0 when rowCount is null", async () => {
@@ -478,10 +506,10 @@ describe("deleteAlbumByReleaseAndFriend()", () => {
 
     await makeRepo().deleteAlbumByReleaseAndFriend(client as any, "r1", 5);
 
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("DELETE FROM albums"),
-      ["r1", 5]
-    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM albums"), [
+      "r1",
+      5,
+    ]);
   });
 });
 
@@ -494,10 +522,11 @@ describe("updateAlbumCoverForRelease()", () => {
     const result = await makeRepo().updateAlbumCoverForRelease(1, "r1", "https://img/art.jpg");
 
     expect(result).toBe(5);
-    expect(dbQuery).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE tracks"),
-      ["https://img/art.jpg", 1, "r1"]
-    );
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("UPDATE tracks"), [
+      "https://img/art.jpg",
+      1,
+      "r1",
+    ]);
   });
 
   it("returns 0 when rowCount is falsy", async () => {
@@ -520,12 +549,13 @@ describe("insertTrack()", () => {
     const result = await makeRepo().insertTrack(client as any, ["t1", 1, "alice"]);
 
     expect(result).toEqual(track);
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO tracks"),
-      ["t1", 1, "alice"]
-    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO tracks"), [
+      "t1",
+      1,
+      "alice",
+    ]);
     expect(client.query.mock.calls[0][0]).toContain(
-      "(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)"
+      "(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)",
     );
   });
 });
@@ -541,12 +571,11 @@ describe("upsertTrackByTrackIdUsername()", () => {
     const result = await makeRepo().upsertTrackByTrackIdUsername(client as any, ["t1", 1]);
 
     expect(result).toEqual(track);
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("ON CONFLICT"),
-      ["t1", 1]
-    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT"), ["t1", 1]);
     const sql: string = client.query.mock.calls[0][0];
-    expect(sql).toContain("(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)");
+    expect(sql).toContain(
+      "(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)",
+    );
     expect(sql).toContain("date_added = COALESCE(tracks.date_added, EXCLUDED.date_added)");
   });
 });
@@ -590,7 +619,9 @@ describe("upsertAlbumRecord() Discogs art", () => {
 
     const [sql] = client.query.mock.calls[0];
     expect(sql).toContain("CASE WHEN $8::text ~ '^https?://' THEN $8::text END");
-    expect(sql).toContain("discogs_art_url = COALESCE(EXCLUDED.discogs_art_url, albums.discogs_art_url)");
+    expect(sql).toContain(
+      "discogs_art_url = COALESCE(EXCLUDED.discogs_art_url, albums.discogs_art_url)",
+    );
   });
 });
 
@@ -662,9 +693,14 @@ describe("album taxonomy overrides", () => {
     client.query.mockResolvedValue({ rows: [] });
     await repo.replaceTaxonomyOverrides(client, "r1", 7, {});
     expect(client.query).not.toHaveBeenCalled();
-    await repo.replaceTaxonomyOverrides(client, "r1", 7, { genre_override_ids: null, style_override_ids: [] });
+    await repo.replaceTaxonomyOverrides(client, "r1", 7, {
+      genre_override_ids: null,
+      style_override_ids: [],
+    });
     expect(client.query.mock.calls.map(([, params]) => params)).toEqual([
-      ["r1", 7, "genres"], ["r1", 7, "styles"], ["r1", 7, "styles"],
+      ["r1", 7, "genres"],
+      ["r1", 7, "styles"],
+      ["r1", 7, "styles"],
     ]);
     client.query.mockClear();
     await repo.replaceTaxonomyOverrides(client, "r1", 7, { genre_override_ids: ["id"] });
@@ -675,10 +711,18 @@ describe("album taxonomy overrides", () => {
     const repo = makeRepo();
     const client = makeClient();
     const effective = makeAlbum({ effective_genres: [], genre_override_ids: [] });
-    client.query.mockResolvedValueOnce({ rows: [makeAlbum()] })
-      .mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] })
+    client.query
+      .mockResolvedValueOnce({ rows: [makeAlbum()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [effective] });
-    expect(await repo.updateAlbumFields(client, { release_id: "r1", friend_id: 1, genre_override_ids: [] })).toEqual(effective);
+    expect(
+      await repo.updateAlbumFields(client, {
+        release_id: "r1",
+        friend_id: 1,
+        genre_override_ids: [],
+      }),
+    ).toEqual(effective);
     expect(client.query.mock.calls[0][0]).toContain("WHERE release_id = $1 AND friend_id = $2");
     expect(client.query.mock.calls[3][0]).toContain("effective_album_taxonomy_values");
   });
@@ -686,7 +730,13 @@ describe("album taxonomy overrides", () => {
     const client = makeClient();
     client.query.mockResolvedValue({ rows: [] });
     const repo = makeRepo();
-    expect(await repo.updateAlbumFields(client, { release_id: "r1", friend_id: 2, style_override_ids: null })).toBeNull();
+    expect(
+      await repo.updateAlbumFields(client, {
+        release_id: "r1",
+        friend_id: 2,
+        style_override_ids: null,
+      }),
+    ).toBeNull();
     expect(client.query).toHaveBeenCalledTimes(1);
     expect(await repo.getAlbumWithTaxonomy(client, "missing", 2)).toBeNull();
   });

@@ -57,7 +57,7 @@ export function matchGenresForPalette(
   lookup: GenreLookup,
   options: readonly GenreOption[],
   query: string,
-  limit = 5
+  limit = 5,
 ): GenreOption[] {
   const q = condenseGenreKey(query);
   if (!q) return [];
@@ -87,7 +87,7 @@ export function matchGenresForPalette(
       (a, b) =>
         a.rank - b.rank ||
         b.option.track_count - a.option.track_count ||
-        a.option.name.localeCompare(b.option.name)
+        a.option.name.localeCompare(b.option.name),
     )
     .slice(0, limit)
     .map(({ option }) => option);
@@ -109,7 +109,7 @@ export function discogsGenreBadges(values: unknown, lookup: GenreLookup): GenreB
  */
 export function trackGenreBadges(
   track: { track_genres?: { name: string; slug: string }[]; local_tags?: unknown },
-  lookup: GenreLookup
+  lookup: GenreLookup,
 ): GenreBadgeItem[] {
   if (track.track_genres && track.track_genres.length > 0) {
     const seen = new Set<string>();
@@ -162,9 +162,12 @@ export function primaryGenreBadges(
     styles?: unknown;
     album_styles?: unknown;
   },
-  lookup: GenreLookup
+  lookup: GenreLookup,
 ): PrimaryGenreBadges {
   const trackGenres = trackGenreBadges(track, lookup);
   if (trackGenres.length > 0) return { items: trackGenres, kind: "track" };
-  return { items: discogsGenreBadges(track.album_styles ?? track.styles, lookup), kind: "discogs-style" };
+  return {
+    items: discogsGenreBadges(track.album_styles ?? track.styles, lookup),
+    kind: "discogs-style",
+  };
 }

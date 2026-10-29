@@ -22,10 +22,10 @@ export type LiveSetDetail = LiveSet;
 export async function importPlaylist(
   name: string,
   tracks: CreatePlaylistTracks,
-  friendId?: number
+  friendId?: number,
 ): Promise<Playlist> {
   const normalizedTracks = tracks.map((track) =>
-    typeof track === "string" ? { track_id: track } : track
+    typeof track === "string" ? { track_id: track } : track,
   );
   const body: PlaylistCreate = {
     name,
@@ -47,32 +47,35 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
   });
 }
 
-export async function fetchPlaylistTrackIds(
-  id: number
-): Promise<PlaylistTrackIdsResponse> {
+export async function fetchPlaylistTrackIds(id: number): Promise<PlaylistTrackIdsResponse> {
   return await http<PlaylistTrackIdsResponse>(
     `/api/playlists/${encodeURIComponent(String(id))}/tracks`,
     {
       method: "GET",
       cache: "no-store",
-    }
+    },
   );
 }
 
 export async function createSetForPlaylist(playlistId: number): Promise<{ id: number }> {
   return await http<{ id: number }>(
     `/api/playlists/${encodeURIComponent(String(playlistId))}/set`,
-    { method: "POST" }
+    { method: "POST" },
   );
 }
 
 export async function fetchLiveSet(playlistId: number): Promise<LiveSetDetail> {
-  return http<LiveSetDetail>(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, { method: "GET", cache: "no-store" });
+  return http<LiveSetDetail>(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, {
+    method: "GET",
+    cache: "no-store",
+  });
 }
 
 export async function updateLiveSet(playlistId: number, body: LiveSetUpdate): Promise<void> {
   await http(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, {
-    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }
 
@@ -82,7 +85,7 @@ export async function deleteLiveSet(playlistId: number): Promise<void> {
 
 export async function generateOptimizedPlaylist(
   playlist: Track[],
-  mode: PlaylistOptimizerMode = "genetic"
+  mode: PlaylistOptimizerMode = "genetic",
 ): Promise<Track[]> {
   try {
     const data = await http<PlaylistGeneticResponse>("/api/playlists/genetic", {
@@ -107,7 +110,7 @@ export async function generateOptimizedPlaylist(
         JSON.stringify({
           error: err.data?.error || err.message || "Invalid tracks for genetic playlist",
           invalid,
-        })
+        }),
       );
     }
     throw error;
@@ -120,7 +123,7 @@ export async function generateGeneticPlaylist(playlist: Track[]): Promise<Track[
 
 export async function updatePlaylist(
   id: number,
-  data: { name?: string; tracks?: CreatePlaylistTracks }
+  data: { name?: string; tracks?: CreatePlaylistTracks },
 ): Promise<Playlist> {
   const body: PlaylistUpdate = { id, ...data };
   return await http<Playlist>("/api/playlists", {
@@ -131,10 +134,7 @@ export async function updatePlaylist(
 }
 
 export async function deletePlaylist(playlistId: number): Promise<void> {
-  await http<{ success: boolean }>(
-    `/api/playlists?id=${encodeURIComponent(String(playlistId))}`,
-    {
-      method: "DELETE",
-    }
-  );
+  await http<{ success: boolean }>(`/api/playlists?id=${encodeURIComponent(String(playlistId))}`, {
+    method: "DELETE",
+  });
 }

@@ -27,10 +27,7 @@ function assertWithinDataDir(filePath: string): void {
 
 export function getEssentiaAnalysisPath(trackId: string, friendId: number): string {
   const fileName = `${safePart(trackId)}_${friendId}.json`;
-  const filePath = path.join(
-    /* turbopackIgnore: true */ getEssentiaDataDir(),
-    fileName
-  );
+  const filePath = path.join(/* turbopackIgnore: true */ getEssentiaDataDir(), fileName);
   assertWithinDataDir(filePath);
   return filePath;
 }
@@ -38,7 +35,7 @@ export function getEssentiaAnalysisPath(trackId: string, friendId: number): stri
 export function writeEssentiaAnalysis(
   trackId: string,
   friendId: number,
-  analysis: unknown
+  analysis: unknown,
 ): string {
   const dir = getEssentiaDataDir();
   // turbopackIgnore: the essentia data dir is a runtime volume, not project
@@ -54,12 +51,15 @@ export function writeEssentiaAnalysis(
   fs.writeFileSync(
     /* turbopackIgnore: true */ filePath,
     `${JSON.stringify(payload, null, 2)}\n`,
-    "utf8"
+    "utf8",
   );
   return filePath;
 }
 
-export function readEssentiaAnalysis(trackId: string, friendId: number): {
+export function readEssentiaAnalysis(
+  trackId: string,
+  friendId: number,
+): {
   file_path: string;
   payload: unknown;
 } | null {

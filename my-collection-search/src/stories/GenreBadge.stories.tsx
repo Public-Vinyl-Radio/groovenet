@@ -1,16 +1,16 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Box, Flex, Text } from '@chakra-ui/react';
-import GenreBadge, { GenreBadgeList } from '@/components/GenreBadge';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box, Flex, Text } from "@chakra-ui/react";
+import GenreBadge, { GenreBadgeList } from "@/components/GenreBadge";
 
 const meta: Meta<typeof GenreBadge> = {
-  title: 'Components/GenreBadge',
+  title: "Components/GenreBadge",
   component: GenreBadge,
-  parameters: { layout: 'padded' },
+  parameters: { layout: "padded" },
   args: {
-    item: { label: 'Cumbia', slug: 'cumbia' },
-    kind: 'track',
-    scope: 'tracks',
-    size: 'sm',
+    item: { label: "Cumbia", slug: "cumbia" },
+    kind: "track",
+    scope: "tracks",
+    size: "sm",
   },
 };
 
@@ -22,20 +22,24 @@ export const LinkedTrackGenre: Story = {};
 
 /** An unreconciled `local_tags` value: plain text, drawn subtle. */
 export const UnreconciledTrackGenre: Story = {
-  args: { item: { label: 'Psychedelic Cumbia', slug: null } },
+  args: { item: { label: "Psychedelic Cumbia", slug: null } },
 };
 
 export const DiscogsGenre: Story = {
-  args: { item: { label: 'Latin', slug: 'latin' }, kind: 'discogs-genre', scope: 'albums' },
+  args: { item: { label: "Latin", slug: "latin" }, kind: "discogs-genre", scope: "albums" },
 };
 
 export const DiscogsStyle: Story = {
-  args: { item: { label: 'Bossa Nova', slug: 'bossa-nova' }, kind: 'discogs-style', scope: 'albums' },
+  args: {
+    item: { label: "Bossa Nova", slug: "bossa-nova" },
+    kind: "discogs-style",
+    scope: "albums",
+  },
 };
 
 /** A Discogs value the taxonomy has no name or alias for. */
 export const UnmappedDiscogsStyle: Story = {
-  args: { item: { label: 'Unmapped Style', slug: null }, kind: 'discogs-style', scope: 'albums' },
+  args: { item: { label: "Unmapped Style", slug: null }, kind: "discogs-style", scope: "albums" },
 };
 
 /** Tab onto a badge to see the focus ring. */
@@ -43,11 +47,11 @@ export const KeyboardFocus: Story = {
   render: (args) => (
     <Flex gap={2}>
       <GenreBadge {...args} />
-      <GenreBadge {...args} item={{ label: 'Chicha', slug: 'chicha' }} />
+      <GenreBadge {...args} item={{ label: "Chicha", slug: "chicha" }} />
     </Flex>
   ),
   play: async ({ canvasElement }) => {
-    canvasElement.querySelector('a')?.focus();
+    canvasElement.querySelector("a")?.focus();
   },
 };
 
@@ -59,15 +63,15 @@ export const MixedRowCompact: Story = {
         kind="discogs-genre"
         scope="tracks"
         size="xs"
-        items={[{ label: 'Latin', slug: 'latin' }]}
+        items={[{ label: "Latin", slug: "latin" }]}
       />
       <GenreBadgeList
         kind="discogs-style"
         scope="tracks"
         size="xs"
         items={[
-          { label: 'Cumbia', slug: 'cumbia' },
-          { label: 'Unmapped Style', slug: null },
+          { label: "Cumbia", slug: "cumbia" },
+          { label: "Unmapped Style", slug: null },
         ]}
       />
       <GenreBadgeList
@@ -76,8 +80,8 @@ export const MixedRowCompact: Story = {
         size="xs"
         colorPalette="accent"
         items={[
-          { label: 'Psychedelic Cumbia', slug: 'psychedelic-cumbia' },
-          { label: 'Feminist Anthem', slug: null },
+          { label: "Psychedelic Cumbia", slug: "psychedelic-cumbia" },
+          { label: "Feminist Anthem", slug: null },
         ]}
       />
     </Flex>
@@ -92,8 +96,8 @@ export const InsideClickableRow: Story = {
       borderRadius="md"
       p={3}
       cursor="pointer"
-      _hover={{ bg: 'bg.muted' }}
-      onClick={() => console.log('row clicked')}
+      _hover={{ bg: "bg.muted" }}
+      onClick={() => console.log("row clicked")}
     >
       <Text fontWeight="medium" mb={1}>
         La Danza de los Mirlos

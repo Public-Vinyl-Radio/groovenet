@@ -21,13 +21,9 @@ export const up = (pgm) => {
     },
   });
 
-  pgm.addConstraint(
-    "embedding_prompt_settings",
-    "embedding_prompt_settings_pk",
-    {
-      primaryKey: ["friend_id"],
-    }
-  );
+  pgm.addConstraint("embedding_prompt_settings", "embedding_prompt_settings_pk", {
+    primaryKey: ["friend_id"],
+  });
 };
 
 export const down = (pgm) => {

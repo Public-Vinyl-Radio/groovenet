@@ -36,7 +36,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof RecordActionDia
       friendId={7}
       albumTitle="Blue Lines"
       {...props}
-    />
+    />,
   );
   return { ...rendered, onOpenChange };
 }
@@ -69,7 +69,7 @@ describe("RecordActionDialog", () => {
       details: { method: "vacuum" },
     });
     expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Cleaned logged", type: "success" })
+      expect.objectContaining({ title: "Cleaned logged", type: "success" }),
     );
   });
 
@@ -79,7 +79,7 @@ describe("RecordActionDialog", () => {
     await user.click(screen.getByRole("button", { name: "Sleeve change" }));
     expect(screen.queryByLabelText("Method")).toBeNull();
     expect((screen.getByLabelText("New inner sleeve") as HTMLSelectElement).value).toBe(
-      "poly-rice-paper-poly"
+      "poly-rice-paper-poly",
     );
     await user.selectOptions(screen.getByLabelText("New inner sleeve"), "poly");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -118,7 +118,7 @@ describe("RecordActionDialog", () => {
 
     expect(api.createRecordAction).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ description: "Choose when it happened.", type: "error" })
+      expect.objectContaining({ description: "Choose when it happened.", type: "error" }),
     );
   });
 
@@ -130,8 +130,8 @@ describe("RecordActionDialog", () => {
 
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Failed to log care", description: "Album not found" })
-      )
+        expect.objectContaining({ title: "Failed to log care", description: "Album not found" }),
+      ),
     );
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
@@ -143,21 +143,23 @@ describe("RecordActionDialog", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: "Unknown error" }))
+      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: "Unknown error" })),
     );
   });
 
   it("resets each time it opens", async () => {
     const { user, rerender } = renderDialog();
     await user.click(screen.getByRole("button", { name: "Repaired" }));
-    expect(screen.getByRole("button", { name: "Repaired" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Repaired" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
 
     const props = { onOpenChange: vi.fn(), releaseId: "rel", friendId: 7 };
     rerender(<RecordActionDialog open={false} {...props} />);
     rerender(<RecordActionDialog open {...props} />);
 
     expect(
-      (await screen.findByRole("button", { name: "Cleaned" })).getAttribute("aria-pressed")
+      (await screen.findByRole("button", { name: "Cleaned" })).getAttribute("aria-pressed"),
     ).toBe("true");
   });
 

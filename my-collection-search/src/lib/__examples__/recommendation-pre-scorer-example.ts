@@ -51,7 +51,7 @@ async function basicExample() {
 
   // Show top 5 with bonuses
   console.log("\n🎵 Top 5 with Bonuses:");
-  scored.slice(0, 5).forEach(c => {
+  scored.slice(0, 5).forEach((c) => {
     console.log(`\n  ${c.metadata.title} - ${c.metadata.artist}`);
     console.log(`    BPM: ${c.metadata.bpm}, Key: ${c.metadata.key}`);
     console.log(`    Bonuses:`);
@@ -139,7 +139,7 @@ async function sortByBonusExample() {
   const scored = applyConstraintsAndBonuses(seed, candidates.candidates, "mixable");
 
   // Calculate total bonus (sum of bonuses - penalties)
-  const withTotal = scored.map(c => {
+  const withTotal = scored.map((c) => {
     const totalBonus =
       c.bonuses.bpmBonus +
       c.bonuses.keyBonus +
@@ -157,7 +157,9 @@ async function sortByBonusExample() {
   withTotal.slice(0, 10).forEach((c, idx) => {
     console.log(`\n${idx + 1}. ${c.metadata.title} - ${c.metadata.artist}`);
     console.log(`   Total Bonus: +${c.totalBonus.toFixed(3)}`);
-    console.log(`   (BPM: ${c.bonuses.bpmBonus.toFixed(3)}, Key: ${c.bonuses.keyBonus.toFixed(3)}, Tag: ${c.bonuses.tagBonus.toFixed(3)}, Era: ${c.bonuses.eraBonus.toFixed(3)})`);
+    console.log(
+      `   (BPM: ${c.bonuses.bpmBonus.toFixed(3)}, Key: ${c.bonuses.keyBonus.toFixed(3)}, Tag: ${c.bonuses.tagBonus.toFixed(3)}, Era: ${c.bonuses.eraBonus.toFixed(3)})`,
+    );
   });
 }
 
@@ -189,16 +191,16 @@ async function filterByBonusExample() {
   const scored = applyConstraintsAndBonuses(seed, candidates.candidates, "blend");
 
   // Filter: Must have good BPM match (bonus >= 0.02)
-  const goodBpm = scored.filter(c => c.bonuses.bpmBonus >= 0.02);
+  const goodBpm = scored.filter((c) => c.bonuses.bpmBonus >= 0.02);
 
   // Filter: Must have key compatibility (bonus > 0)
-  const compatibleKey = scored.filter(c => c.bonuses.keyBonus > 0);
+  const compatibleKey = scored.filter((c) => c.bonuses.keyBonus > 0);
 
   // Filter: Must have tag overlap (bonus > 0)
-  const sharedTags = scored.filter(c => c.bonuses.tagBonus > 0);
+  const sharedTags = scored.filter((c) => c.bonuses.tagBonus > 0);
 
   // Filter: Same or adjacent era
-  const similarEra = scored.filter(c => c.bonuses.eraBonus > 0);
+  const similarEra = scored.filter((c) => c.bonuses.eraBonus > 0);
 
   console.log(`\n📊 Filtered Results:`);
   console.log(`  Good BPM match (≤4 BPM): ${goodBpm.length}`);
@@ -208,10 +210,7 @@ async function filterByBonusExample() {
 
   // Combine filters: Good BPM + Compatible key + Shared tags
   const perfectMatches = scored.filter(
-    c =>
-      c.bonuses.bpmBonus >= 0.02 &&
-      c.bonuses.keyBonus > 0 &&
-      c.bonuses.tagBonus > 0
+    (c) => c.bonuses.bpmBonus >= 0.02 && c.bonuses.keyBonus > 0 && c.bonuses.tagBonus > 0,
   );
 
   console.log(`  All three criteria: ${perfectMatches.length}`);
@@ -245,11 +244,9 @@ async function combineScoresExample() {
   const scored = applyConstraintsAndBonuses(seed, candidates.candidates, "mixable");
 
   // Create combined score (example weighting)
-  const withCombinedScore = scored.map(c => {
+  const withCombinedScore = scored.map((c) => {
     // Base similarity (average of identity + audio)
-    const similarities = [c.simIdentity, c.simAudio].filter(
-      (s): s is number => s !== null
-    );
+    const similarities = [c.simIdentity, c.simAudio].filter((s): s is number => s !== null);
     const avgSimilarity = similarities.reduce((sum, s) => sum + s, 0) / similarities.length;
 
     // Total bonus
@@ -278,7 +275,9 @@ async function combineScoresExample() {
   withCombinedScore.slice(0, 10).forEach((c, idx) => {
     console.log(`\n${idx + 1}. ${c.metadata.title} - ${c.metadata.artist}`);
     console.log(`   Combined: ${c.combinedScore.toFixed(3)}`);
-    console.log(`   = Similarity: ${c.avgSimilarity.toFixed(3)} + Bonus: ${c.totalBonus.toFixed(3)}`);
+    console.log(
+      `   = Similarity: ${c.avgSimilarity.toFixed(3)} + Bonus: ${c.totalBonus.toFixed(3)}`,
+    );
   });
 }
 

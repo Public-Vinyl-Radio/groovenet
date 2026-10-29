@@ -47,23 +47,20 @@ export class PlayDetectionRepository {
         input.fingerprint_type ?? null,
         input.fingerprint_version ?? null,
         input.level_dbfs ?? null,
-      ]
+      ],
     );
     return rows[0];
   }
 
   /** All raw candidates (including no-match rows) in a source's recent window. */
-  async listRecentBySource(
-    sourceId: string,
-    since: Date | string
-  ): Promise<PlayDetectionRow[]> {
+  async listRecentBySource(sourceId: string, since: Date | string): Promise<PlayDetectionRow[]> {
     const { rows } = await dbQuery<PlayDetectionRow>(
       `
       SELECT * FROM play_detections
       WHERE source_id = $1 AND window_start_at >= $2
       ORDER BY window_start_at ASC, id ASC
       `,
-      [sourceId, since]
+      [sourceId, since],
     );
     return rows;
   }
@@ -75,9 +72,7 @@ export class PlayDetectionRepository {
    * recorded window that matched nothing, which is data — it is how a gap
    * between one play and the next is found — not an absence to filter out.
    */
-  async listRecent(
-    filters: RecentDetectionFilters = {}
-  ): Promise<PlayDetectionWithTrack[]> {
+  async listRecent(filters: RecentDetectionFilters = {}): Promise<PlayDetectionWithTrack[]> {
     const params: Array<string | number> = [];
     const where: string[] = [];
 
@@ -117,7 +112,7 @@ export class PlayDetectionRepository {
       ORDER BY d.window_start_at DESC NULLS LAST, d.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
       `,
-      params
+      params,
     );
     return rows;
   }
@@ -137,7 +132,7 @@ export class PlayDetectionRepository {
       FROM play_detections
       WHERE window_start_at >= $1
       `,
-      [since]
+      [since],
     );
     return rows.map((row) => row.source_id);
   }
@@ -150,7 +145,10 @@ export class PlayDetectionRepository {
    * with very little in between. A cluster hovering just above the threshold
    * is the shape that says something is wrong.
    */
-  async statsSince(since: Date | string, sourceId?: string): Promise<{
+  async statsSince(
+    since: Date | string,
+    sourceId?: string,
+  ): Promise<{
     windows: number;
     matched: number;
     noMatch: number;
@@ -176,7 +174,7 @@ export class PlayDetectionRepository {
       FROM play_detections
       WHERE ${scope}
       `,
-      params
+      params,
     );
 
     const { rows: bandRows } = await dbQuery<{ band: string; count: string }>(
@@ -194,7 +192,7 @@ export class PlayDetectionRepository {
       GROUP BY 1
       ORDER BY 1 DESC
       `,
-      params
+      params,
     );
 
     return {
@@ -225,7 +223,7 @@ export class PlayDetectionRepository {
           SELECT 1 FROM spin_sessions ss WHERE ss.detection_id = pd.id
         )
       `,
-      [retentionDays]
+      [retentionDays],
     );
     return rowCount ?? 0;
   }

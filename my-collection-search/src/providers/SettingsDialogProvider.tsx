@@ -15,10 +15,14 @@ export function SettingsDialogsProvider({ children }: { children: ReactNode }) {
   const [removeFriendOpen, setRemoveFriendOpen] = useState(false);
 
   return (
-    <DialogsContext.Provider value={{
-      discogsSyncOpen, setDiscogsSyncOpen,
-      removeFriendOpen, setRemoveFriendOpen,
-    }}>
+    <DialogsContext.Provider
+      value={{
+        discogsSyncOpen,
+        setDiscogsSyncOpen,
+        removeFriendOpen,
+        setRemoveFriendOpen,
+      }}
+    >
       {children}
     </DialogsContext.Provider>
   );

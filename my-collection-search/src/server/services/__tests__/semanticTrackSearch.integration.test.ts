@@ -45,18 +45,25 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   for (const t of TRACKS) {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id, local_audio_url)
        VALUES ($1, $2, $3, $1, 'Artist', $4, $5)`,
-      [t.id, USERNAME, friendId, t.release, t.audio]
+      [t.id, USERNAME, friendId, t.release, t.audio],
     );
     await embeddings.upsertTrackEmbedding({
-      trackId: t.id, friendId, embeddingType: "context", model: MODEL, dims: 3,
-      embedding: t.vector, sourceHash: "h", identityText: `context ${t.id}`, templateVersion: 1,
+      trackId: t.id,
+      friendId,
+      embeddingType: "context",
+      model: MODEL,
+      dims: 3,
+      embedding: t.vector,
+      sourceHash: "h",
+      identityText: `context ${t.id}`,
+      templateVersion: 1,
     });
   }
 });
@@ -98,11 +105,11 @@ describe("semanticTrackSearch (integration)", () => {
           await client.query(`SELECT '[1]'::vector`);
           const { rows } = await client.query<{ probes: string; scan: string }>(
             `SELECT current_setting('ivfflat.probes') AS probes,
-                    current_setting('ivfflat.iterative_scan') AS scan`
+                    current_setting('ivfflat.iterative_scan') AS scan`,
           );
           return rows[0];
-        })
-      )
+        }),
+      ),
     );
     for (const row of settings) expect(row).toEqual({ probes: "1", scan: "off" });
   });

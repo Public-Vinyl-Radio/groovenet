@@ -8,7 +8,9 @@ function generateAppleMusicDeveloperToken() {
   const keyId = process.env.APPLE_MUSIC_KEY_ID;
   const privateKeyRaw = process.env.APPLE_MUSIC_PRIVATE_KEY;
   if (!teamId || !keyId || !privateKeyRaw) {
-    throw new Error("Missing Apple Music credentials (APPLE_MUSIC_TEAM_ID, APPLE_MUSIC_KEY_ID, or APPLE_MUSIC_PRIVATE_KEY)");
+    throw new Error(
+      "Missing Apple Music credentials (APPLE_MUSIC_TEAM_ID, APPLE_MUSIC_KEY_ID, or APPLE_MUSIC_PRIVATE_KEY)",
+    );
   }
   const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
   const now = Math.floor(Date.now() / 1000);
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
     const { title, artist, album, isrc } = await req.json();
     const developerToken = generateAppleMusicDeveloperToken();
     // Build a query string with as much info as possible
-    let query = `${title || ''} ${artist || ''}`.trim();
+    let query = `${title || ""} ${artist || ""}`.trim();
     if (album) query += ` ${album}`;
     let url = `${APPLE_MUSIC_API_URL}?term=${encodeURIComponent(query)}&types=songs&limit=10`;
     if (isrc) {
@@ -65,7 +67,9 @@ export async function POST(req: Request) {
     // Optionally, filter by ISRC if provided
     let filtered = songs;
     if (isrc) {
-      filtered = songs.filter((song: Song) => song.attributes?.isrc?.toUpperCase() === isrc.toUpperCase());
+      filtered = songs.filter(
+        (song: Song) => song.attributes?.isrc?.toUpperCase() === isrc.toUpperCase(),
+      );
     }
     // Map to a simple structure for the UI
     const results = filtered.map((song: Song) => ({
@@ -76,7 +80,7 @@ export async function POST(req: Request) {
       url: song.attributes?.url,
       artwork: song.attributes?.artwork?.url,
       duration: song.attributes?.durationInMillis,
-      isrc: song.attributes?.isrc
+      isrc: song.attributes?.isrc,
     }));
     return NextResponse.json({ results });
   } catch (error) {

@@ -19,11 +19,22 @@ export default function SectionHeader({ title, count, children, description }: P
     <Box>
       <Flex flexWrap="wrap" alignItems="center" justifyContent="space-between" gap={3} minH="36px">
         <Flex alignItems="baseline" gap={3} minW={0}>
-          <Heading as="h2" fontSize={{ base: "20px", md: "22px" }} lineHeight="30px" fontWeight="semibold">
+          <Heading
+            as="h2"
+            fontSize={{ base: "20px", md: "22px" }}
+            lineHeight="30px"
+            fontWeight="semibold"
+          >
             {title}
           </Heading>
           {count && (
-            <Text fontFamily="label" fontSize="13px" letterSpacing="0.06em" textTransform="uppercase" color="fg.muted">
+            <Text
+              fontFamily="label"
+              fontSize="13px"
+              letterSpacing="0.06em"
+              textTransform="uppercase"
+              color="fg.muted"
+            >
               {count}
             </Text>
           )}

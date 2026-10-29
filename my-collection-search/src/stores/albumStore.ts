@@ -11,19 +11,14 @@ interface AlbumStore {
   setAlbums: (albums: AlbumEntity[]) => void;
   markAlbumHydrated: (releaseId: string, friendId: number) => void;
   isAlbumHydrated: (releaseId: string, friendId: number) => boolean;
-  updateAlbum: (
-    releaseId: string,
-    friendId: number,
-    updates: Partial<AlbumEntity>
-  ) => void;
+  updateAlbum: (releaseId: string, friendId: number, updates: Partial<AlbumEntity>) => void;
   getAlbum: (releaseId: string, friendId: number) => AlbumEntity | undefined;
   hasAlbum: (releaseId: string, friendId: number) => boolean;
   clearAlbums: () => void;
   _preserveFields: Array<keyof AlbumEntity>;
 }
 
-const createAlbumKey = (releaseId: string, friendId: number): string =>
-  `${releaseId}:${friendId}`;
+const createAlbumKey = (releaseId: string, friendId: number): string => `${releaseId}:${friendId}`;
 
 export const useAlbumStore = create<AlbumStore>((set, get) => ({
   albums: new Map<string, AlbumEntity>(),
@@ -52,7 +47,7 @@ export const useAlbumStore = create<AlbumStore>((set, get) => ({
             "diff",
             diffObjectKeys(
               (prev as unknown as Record<string, unknown>) ?? {},
-              album as unknown as Record<string, unknown>
+              album as unknown as Record<string, unknown>,
             ),
           ],
         ]);
@@ -81,7 +76,7 @@ export const useAlbumStore = create<AlbumStore>((set, get) => ({
           merged = { ...album, ...preserved };
           const diff = diffObjectKeys(
             existing as unknown as Record<string, unknown>,
-            merged as unknown as Record<string, unknown>
+            merged as unknown as Record<string, unknown>,
           );
           if (Object.keys(diff).length === 0) continue;
         }
@@ -121,7 +116,7 @@ export const useAlbumStore = create<AlbumStore>((set, get) => ({
       const updated = { ...existing, ...updates };
       const diff = diffObjectKeys(
         existing as unknown as Record<string, unknown>,
-        updated as unknown as Record<string, unknown>
+        updated as unknown as Record<string, unknown>,
       );
       if (Object.keys(diff).length === 0) return state;
 

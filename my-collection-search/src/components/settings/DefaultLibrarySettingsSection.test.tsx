@@ -10,17 +10,28 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/hooks/useFriendsQuery", () => ({
   useFriendsQuery: () => ({
-    friends: [{ id: 1, username: "dj-a" }, { id: 2, username: "dj-b" }],
+    friends: [
+      { id: 1, username: "dj-a" },
+      { id: 2, username: "dj-b" },
+    ],
     friendsLoading: false,
   }),
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
-  useUsername: () => ({ friend: { id: 1, username: "dj-a" }, setFriend: mocks.setFriend, isSaving: false }),
+  useUsername: () => ({
+    friend: { id: 1, username: "dj-a" },
+    setFriend: mocks.setFriend,
+    isSaving: false,
+  }),
 }));
 vi.mock("@/components/UsernameSelect", () => ({
-  default: ({ value, onChange }: { value: { username: string } | null; onChange: (id: number) => void }) => (
-    <button onClick={() => onChange(2)}>{value?.username ?? "none"}</button>
-  ),
+  default: ({
+    value,
+    onChange,
+  }: {
+    value: { username: string } | null;
+    onChange: (id: number) => void;
+  }) => <button onClick={() => onChange(2)}>{value?.username ?? "none"}</button>,
 }));
 
 import DefaultLibrarySettingsSection from "./DefaultLibrarySettingsSection";

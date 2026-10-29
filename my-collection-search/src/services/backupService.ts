@@ -14,6 +14,6 @@ export async function restoreDatabase(file: File): Promise<RestoreDatabaseRespon
       method: "POST",
       headers: { "Content-Type": "application/octet-stream" },
       body: file,
-    }
+    },
   );
 }

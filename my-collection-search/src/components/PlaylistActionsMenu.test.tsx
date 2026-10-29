@@ -21,9 +21,11 @@ afterEach(() => vi.clearAllMocks());
 async function openModal(props: Partial<React.ComponentProps<typeof PlaylistActionsMenu>> = {}) {
   const h = handlers();
   const rendered = renderWithProviders(
-    <PlaylistActionsMenu {...h} playlistName="Late Night" summary="12 tracks · 1h 4m" {...props} />
+    <PlaylistActionsMenu {...h} playlistName="Late Night" summary="12 tracks · 1h 4m" {...props} />,
   );
-  await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+  await rendered.user.click(
+    screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0],
+  );
   await screen.findByText("12 tracks · 1h 4m");
   return { ...rendered, h };
 }
@@ -92,7 +94,9 @@ describe("PlaylistActionsMenu phone modal (#751)", () => {
 
   it("defaults the strip when no summary or name is given", async () => {
     const rendered = renderWithProviders(<PlaylistActionsMenu {...handlers()} />);
-    await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0],
+    );
     expect(await screen.findByText("Playlist actions", { selector: "h2" })).toBeTruthy();
   });
 });

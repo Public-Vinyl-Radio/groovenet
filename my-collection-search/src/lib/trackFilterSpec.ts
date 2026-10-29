@@ -37,9 +37,7 @@ export function parseTrackFilterSpec(filter: string | undefined): TrackFilterSpe
   const friendIdMatch = filter.match(/friend_id\s*=\s*(\d+)/i);
   return {
     ...(friendIdMatch ? { friendId: Number(friendIdMatch[1]) } : {}),
-    missing: MISSING_MARKERS.filter(([, marker]) => filter.includes(marker)).map(
-      ([name]) => name
-    ),
+    missing: MISSING_MARKERS.filter(([, marker]) => filter.includes(marker)).map(([name]) => name),
   };
 }
 
@@ -77,7 +75,7 @@ export type TrackAttributeFilters = {
 export function attributeFilterClauses(
   filters: TrackAttributeFilters,
   bind: (value: unknown) => string,
-  alias = ""
+  alias = "",
 ): string[] {
   const col = (column: string) => (alias ? `${alias}.${column}` : column);
   const clauses: string[] = [];
@@ -130,7 +128,7 @@ export function discogsGenreMatchSql(discogs: string, keysRef: string): string {
 export function trackGenreFilterClause(
   filter: GenreFilter,
   bind: (value: unknown) => string,
-  alias: string
+  alias: string,
 ): string {
   const ownGenres = `FROM track_genres tg
       WHERE tg.track_id = ${alias}.track_id AND tg.friend_id = ${alias}.friend_id`;
@@ -138,10 +136,7 @@ export function trackGenreFilterClause(
     EXISTS (SELECT 1 ${ownGenres} AND tg.genre_id = ANY(${bind(filter.ids)}::uuid[]))
     OR (
       NOT EXISTS (SELECT 1 ${ownGenres})
-      AND ${discogsGenreMatchSql(
-        effectiveAlbumTaxonomySql(alias),
-        bind(filter.keys)
-      )}
+      AND ${discogsGenreMatchSql(effectiveAlbumTaxonomySql(alias), bind(filter.keys))}
     )
   )`;
 }
@@ -162,12 +157,9 @@ const ALBUM_TRACK_SHARE = { numerator: 1, denominator: 3 };
 export function albumGenreFilterClause(
   filter: GenreFilter,
   bind: (value: unknown) => string,
-  alias: string
+  alias: string,
 ): string {
-  const discogs = discogsGenreMatchSql(
-    effectiveAlbumTaxonomySql(alias),
-    bind(filter.keys)
-  );
+  const discogs = discogsGenreMatchSql(effectiveAlbumTaxonomySql(alias), bind(filter.keys));
   // DISTINCT: a track linked to two of the genres still counts once.
   const matching = `count(DISTINCT gt.track_id) FILTER (WHERE tg.genre_id = ANY(${bind(filter.ids)}::uuid[]))`;
   const tagged = "count(DISTINCT gt.track_id)";

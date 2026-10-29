@@ -31,7 +31,10 @@ vi.mock("@/hooks/useFriendsQuery", () => ({
 }));
 vi.mock("@/hooks/useDiscogsQuery", () => ({
   useSyncDiscogs: () => ({ mutate: mocks.syncMutate, isPending: mocks.syncIsPending }),
-  useVerifyManifests: () => ({ mutateAsync: mocks.verifyMutateAsync, isPending: mocks.verifyIsPending }),
+  useVerifyManifests: () => ({
+    mutateAsync: mocks.verifyMutateAsync,
+    isPending: mocks.verifyIsPending,
+  }),
   useCleanupManifests: () => ({ mutateAsync: mocks.cleanupMutateAsync, isPending: false }),
   useDeleteReleases: () => ({ mutateAsync: mocks.deleteMutateAsync, isPending: false }),
 }));
@@ -133,7 +136,9 @@ describe("FriendsDiscogsSection", () => {
     mocks.friends = [{ username: "dj-friend" }, { username: "other" }];
     const { user, rerender } = renderWithProviders(<FriendsDiscogsSection />);
     const syncButtons = () =>
-      screen.getAllByRole("button", { name: /Sync (collection|default library)/ }) as HTMLButtonElement[];
+      screen.getAllByRole("button", {
+        name: /Sync (collection|default library)/,
+      }) as HTMLButtonElement[];
 
     // Rows in order: default, dj-friend, other. Sync the middle one.
     await user.click(syncButtons()[1]);

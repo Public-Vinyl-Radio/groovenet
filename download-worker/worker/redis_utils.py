@@ -21,26 +21,26 @@ def update_job_status(
 ):
     now_ms = int(time.time() * 1000)
     job_data = {
-        'status': status,
-        'progress': progress,
-        'updated_at': now_ms,
+        "status": status,
+        "progress": progress,
+        "updated_at": now_ms,
     }
     if error:
-        job_data['error'] = error
+        job_data["error"] = error
     if analysis_error:
         # Non-fatal analysis failure on an otherwise successful job. Recorded as
         # a first-class field so the UI can flag it without parsing the result.
-        job_data['analysis_error'] = analysis_error
+        job_data["analysis_error"] = analysis_error
     if result:
-        job_data['result'] = json.dumps(result)
+        job_data["result"] = json.dumps(result)
 
     job_key = f"job:{job_id}"
-    ttl = JOB_TTL_TERMINAL_SECONDS if status in {'completed', 'failed'} else JOB_TTL_ACTIVE_SECONDS
+    ttl = JOB_TTL_TERMINAL_SECONDS if status in {"completed", "failed"} else JOB_TTL_ACTIVE_SECONDS
 
     pipeline = redis_conn.pipeline()
     pipeline.hset(job_key, mapping=job_data)
-    if status == 'processing':
-        pipeline.hsetnx(job_key, 'started_at', now_ms)
+    if status == "processing":
+        pipeline.hsetnx(job_key, "started_at", now_ms)
     pipeline.zadd(JOBS_UPDATED_INDEX_KEY, {job_id: now_ms})
     pipeline.expire(job_key, ttl)
     pipeline.execute()
@@ -69,29 +69,32 @@ def enqueue_analyze_job(track_id: str, friend_id: int, local_audio_url: str) -> 
     now_ms = int(time.time() * 1000)
     job_key = f"job:{job_id}"
     payload = {
-        'job_id': job_id,
-        'job_type': 'analyze-local',
-        'track_id': track_id,
-        'friend_id': friend_id,
-        'local_audio_url': local_audio_url,
+        "job_id": job_id,
+        "job_type": "analyze-local",
+        "track_id": track_id,
+        "friend_id": friend_id,
+        "local_audio_url": local_audio_url,
     }
 
     pipeline = redis_conn.pipeline()
     pipeline.delete(f"{job_key}:logs")
-    pipeline.hset(job_key, mapping={
-        'job_id': job_id,
-        'status': 'queued',
-        'progress': 0,
-        'created_at': now_ms,
-        'updated_at': now_ms,
-        'track_id': track_id,
-        'friend_id': friend_id,
-        'name': 'analyze-local-audio',
-        'job_type': 'analyze-local',
-    })
+    pipeline.hset(
+        job_key,
+        mapping={
+            "job_id": job_id,
+            "status": "queued",
+            "progress": 0,
+            "created_at": now_ms,
+            "updated_at": now_ms,
+            "track_id": track_id,
+            "friend_id": friend_id,
+            "name": "analyze-local-audio",
+            "job_type": "analyze-local",
+        },
+    )
     pipeline.zadd(JOBS_UPDATED_INDEX_KEY, {job_id: now_ms})
     pipeline.expire(job_key, JOB_TTL_ACTIVE_SECONDS)
-    pipeline.lpush('download_queue', json.dumps(payload))
+    pipeline.lpush("download_queue", json.dumps(payload))
     pipeline.execute()
     logger.info(f"Queued analyze-local job {job_id} for track {track_id}")
     return job_id

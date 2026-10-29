@@ -64,9 +64,7 @@ class TestDefaults:
         # Equal timeouts race, and the socket loses: the loop takes a
         # TimeoutError on every idle cycle instead of an empty result.
         assert config.SOCKET_TIMEOUT > config.BRPOP_TIMEOUT
-        assert config.redis_conn.connection_pool.connection_kwargs[
-            "socket_timeout"
-        ] == config.SOCKET_TIMEOUT
+        assert config.redis_conn.connection_pool.connection_kwargs["socket_timeout"] == config.SOCKET_TIMEOUT
 
     def test_heartbeat_outlives_one_brpop_wakeup(self):
         # The healthcheck allows one missed refresh, so the loop must wake at
@@ -80,7 +78,6 @@ class TestDefaults:
     def test_sets_have_their_own_queue(self):
         assert config.SET_QUEUE_KEY == "fingerprint_set_queue"
         assert config.SET_QUEUE_KEY not in config.DEFAULT_QUEUES
-
 
 
 class TestResolveMinLevel:

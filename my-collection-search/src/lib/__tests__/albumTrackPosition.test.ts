@@ -53,13 +53,7 @@ describe("parseTrackPosition", () => {
 
   it("sorts sides and track numbers naturally", () => {
     const positions = ["B2", "A10", "A2", "B1", "A1"];
-    expect([...positions].sort(compareTrackPositions)).toEqual([
-      "A1",
-      "A2",
-      "A10",
-      "B1",
-      "B2",
-    ]);
+    expect([...positions].sort(compareTrackPositions)).toEqual(["A1", "A2", "A10", "B1", "B2"]);
   });
 
   it("sorts numeric multi-disc positions deterministically", () => {
@@ -82,11 +76,13 @@ describe("normalizeAlbumTrackSides", () => {
       { track_id: "a1", position: "A1" },
     ]);
 
-    expect(groups.map((group) => ({
-      side_key: group.side_key,
-      side_label: group.side_label,
-      tracks: group.tracks.map((track) => track.track_id),
-    }))).toEqual([
+    expect(
+      groups.map((group) => ({
+        side_key: group.side_key,
+        side_label: group.side_label,
+        tracks: group.tracks.map((track) => track.track_id),
+      })),
+    ).toEqual([
       { side_key: "A", side_label: "Side A", tracks: ["a1", "a2"] },
       { side_key: "B", side_label: "Side B", tracks: ["b1"] },
     ]);
@@ -110,11 +106,13 @@ describe("normalizeAlbumTrackSides", () => {
       { track_id: "disc1a", position: "1-1" },
     ]);
 
-    expect(groups.map((group) => ({
-      side_key: group.side_key,
-      side_label: group.side_label,
-      tracks: group.tracks.map((track) => track.track_id),
-    }))).toEqual([
+    expect(
+      groups.map((group) => ({
+        side_key: group.side_key,
+        side_label: group.side_label,
+        tracks: group.tracks.map((track) => track.track_id),
+      })),
+    ).toEqual([
       { side_key: "DISC-1", side_label: "Disc 1", tracks: ["disc1a", "disc1b"] },
       { side_key: "DISC-2", side_label: "Disc 2", tracks: ["disc2a"] },
     ]);
@@ -258,11 +256,7 @@ describe("compareTrackPositions tiebreakers", () => {
   it("falls back to `rest` when side and number match", () => {
     expect(compareTrackPositions("A1B", "A1A")).toBeGreaterThan(0);
     expect(compareTrackPositions("A1A", "A1B")).toBeLessThan(0);
-    expect([...["A1C", "A1A", "A1B"]].sort(compareTrackPositions)).toEqual([
-      "A1A",
-      "A1B",
-      "A1C",
-    ]);
+    expect([...["A1C", "A1A", "A1B"]].sort(compareTrackPositions)).toEqual(["A1A", "A1B", "A1C"]);
   });
 
   it("falls back to the normalized text when every other key matches", () => {
@@ -290,12 +284,9 @@ describe("getTrackSideLabel", () => {
     expect(getTrackSideLabel(position)).toBe(expected);
   });
 
-  it.each([null, undefined, "", "5", "???"])(
-    "returns null for %s",
-    (position) => {
-      expect(getTrackSideLabel(position)).toBeNull();
-    }
-  );
+  it.each([null, undefined, "", "5", "???"])("returns null for %s", (position) => {
+    expect(getTrackSideLabel(position)).toBeNull();
+  });
 });
 
 describe("normalizeAlbumTrackSides grouping fallbacks", () => {
@@ -338,11 +329,13 @@ describe("normalizeAlbumTrackSides grouping fallbacks", () => {
       { track_id: "a2", position: "A2" },
     ]);
 
-    expect(groups.map((group) => ({
-      key: group.side_key,
-      ordinal: group.ordinal,
-      track_count: group.track_count,
-    }))).toEqual([
+    expect(
+      groups.map((group) => ({
+        key: group.side_key,
+        ordinal: group.ordinal,
+        track_count: group.track_count,
+      })),
+    ).toEqual([
       { key: "A", ordinal: 0, track_count: 2 },
       { key: "B", ordinal: 1, track_count: 1 },
     ]);
@@ -366,9 +359,7 @@ describe("normalizeAlbumTrackSides grouping fallbacks", () => {
   });
 
   it("labels a side consistently whether or not it holds a freeform position", () => {
-    const freeformOnly = normalizeAlbumTrackSides([
-      { track_id: "weird", position: "A1-B" },
-    ]);
+    const freeformOnly = normalizeAlbumTrackSides([{ track_id: "weird", position: "A1-B" }]);
     const mixed = normalizeAlbumTrackSides([
       { track_id: "weird", position: "A1-B" },
       { track_id: "plain", position: "A1" },

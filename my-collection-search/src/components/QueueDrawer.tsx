@@ -1,7 +1,16 @@
 "use client";
 
 import React from "react";
-import { Box, Button, chakra, Drawer, Flex, Heading, Text, useBreakpointValue } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  chakra,
+  Drawer,
+  Flex,
+  Heading,
+  Text,
+  useBreakpointValue,
+} from "@chakra-ui/react";
 import { FiChevronDown, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { LuListMusic } from "react-icons/lu";
 import { useQueueSaveDialog } from "@/hooks/useQueueSaveDialog";
@@ -16,7 +25,11 @@ import { PlayOnRow } from "@/components/player/PlaybackOutput";
 import ServerNotice from "@/components/player/ServerNotice";
 import ServerSessionStrip from "@/components/player/ServerSessionStrip";
 import { usePlayerTime } from "@/components/player/usePlayerTime";
-import { CompactTransport, TransportStrip, type TransportProps } from "@/components/player/TransportControls";
+import {
+  CompactTransport,
+  TransportStrip,
+  type TransportProps,
+} from "@/components/player/TransportControls";
 import { artworkAlt, artworkOf, queueSummary, trackMetaLine } from "@/components/player/trackMeta";
 import { formatSeconds } from "@/lib/trackUtils";
 
@@ -63,7 +76,13 @@ function useQueueModel() {
     currentTrackIndex,
     transport,
     controller: c,
-    list: { playlist, currentTrackIndex, moveTrack: c.moveTrack, removeTrack: c.removeTrack, playTrack: c.playTrack },
+    list: {
+      playlist,
+      currentTrackIndex,
+      moveTrack: c.moveTrack,
+      removeTrack: c.removeTrack,
+      playTrack: c.playTrack,
+    },
   };
 }
 
@@ -71,7 +90,13 @@ function useQueueModel() {
 function ElapsedOfTotal() {
   const { currentTime, duration } = usePlayerTime();
   return (
-    <Text flex="1" fontFamily="mono" fontSize="12px" color="fg.muted" fontVariantNumeric="tabular-nums">
+    <Text
+      flex="1"
+      fontFamily="mono"
+      fontSize="12px"
+      color="fg.muted"
+      fontVariantNumeric="tabular-nums"
+    >
       {formatSeconds(currentTime)} / {formatSeconds(duration)}
     </Text>
   );
@@ -135,7 +160,16 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
             if (event.key === "Escape") onClose();
           }}
         >
-          <Flex h="64px" flexShrink={0} align="center" gap="8px" pl="16px" pr="8px" borderBottomWidth="outline" borderColor="border.ink">
+          <Flex
+            h="64px"
+            flexShrink={0}
+            align="center"
+            gap="8px"
+            pl="16px"
+            pr="8px"
+            borderBottomWidth="outline"
+            borderColor="border.ink"
+          >
             <QueueTitle summary={summary} />
             <Button size="sm" variant="outline" onClick={openSaveDialog} disabled={empty}>
               <FiSave />
@@ -160,11 +194,18 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
 
   const track = model.currentTrack;
   const upNextCount =
-    model.currentTrackIndex === null ? model.playlist.length : model.playlist.length - model.currentTrackIndex - 1;
+    model.currentTrackIndex === null
+      ? model.playlist.length
+      : model.playlist.length - model.currentTrackIndex - 1;
 
   return (
     <>
-      <Drawer.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} placement="bottom" size="full">
+      <Drawer.Root
+        open={isOpen}
+        onOpenChange={({ open }) => !open && onClose()}
+        placement="bottom"
+        size="full"
+      >
         <Drawer.Positioner>
           <Drawer.Content
             display="flex"
@@ -186,34 +227,79 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                   <HeaderKey aria-label="Minimize player" onClick={onClose}>
                     <FiChevronDown size={22} />
                   </HeaderKey>
-                  <Drawer.Title flex="1" textAlign="center" fontFamily="mono" fontSize="12px" letterSpacing="0.08em" fontWeight="semibold" color="fg.muted">
+                  <Drawer.Title
+                    flex="1"
+                    textAlign="center"
+                    fontFamily="mono"
+                    fontSize="12px"
+                    letterSpacing="0.08em"
+                    fontWeight="semibold"
+                    color="fg.muted"
+                  >
                     NOW PLAYING
                   </Drawer.Title>
-                  <HeaderKey aria-label={`Open queue, ${upNextCount} up next`} onClick={() => setMobileView("queue")}>
+                  <HeaderKey
+                    aria-label={`Open queue, ${upNextCount} up next`}
+                    onClick={() => setMobileView("queue")}
+                  >
                     <LuListMusic size={20} />
                   </HeaderKey>
                 </Flex>
-                <Flex flex="1" minH={0} overflowY="auto" direction="column" gap="18px" px="24px" pt="8px" pb="16px">
+                <Flex
+                  flex="1"
+                  minH={0}
+                  overflowY="auto"
+                  direction="column"
+                  gap="18px"
+                  px="24px"
+                  pt="8px"
+                  pb="16px"
+                >
                   <Box alignSelf="center" w="min(calc(100% - 6px), 340px)" flexShrink={0}>
                     <Artwork src={artworkOf(track)} alt={artworkAlt(track)} fill shadow />
                   </Box>
                   <Box>
-                    <Text as="h2" fontSize="22px" lineHeight="28px" fontWeight="semibold" lineClamp={2}>
+                    <Text
+                      as="h2"
+                      fontSize="22px"
+                      lineHeight="28px"
+                      fontWeight="semibold"
+                      lineClamp={2}
+                    >
                       {track?.title ?? "No track playing"}
                     </Text>
                     <Text fontSize="16px" lineHeight="22px" color="fg.muted" lineClamp={1}>
                       {track?.artist ?? "—"}
                     </Text>
                     {trackMetaLine(track) && (
-                      <Text mt="4px" fontFamily="mono" fontSize="12px" lineHeight="16px" color="fg.muted">
+                      <Text
+                        mt="4px"
+                        fontFamily="mono"
+                        fontSize="12px"
+                        lineHeight="16px"
+                        color="fg.muted"
+                      >
                         {trackMetaLine(track)}
                       </Text>
                     )}
                   </Box>
-                  <ProgressSlider seek={model.controller.handleSeek} layout="stacked" seekOnRelease={server} />
+                  <ProgressSlider
+                    seek={model.controller.handleSeek}
+                    layout="stacked"
+                    seekOnRelease={server}
+                  />
                   <TransportStrip size="lg" {...model.transport} />
                   <Flex align="center" gap="12px">
-                    <Text w={server ? "64px" : "40px"} flexShrink={0} fontFamily="mono" fontSize="11px" lineHeight="13px" letterSpacing="0.06em" fontWeight="semibold" color="fg.muted">
+                    <Text
+                      w={server ? "64px" : "40px"}
+                      flexShrink={0}
+                      fontFamily="mono"
+                      fontSize="11px"
+                      lineHeight="13px"
+                      letterSpacing="0.06em"
+                      fontWeight="semibold"
+                      color="fg.muted"
+                    >
                       {model.controller.volumeLabel}
                     </Text>
                     <RetroSlider
@@ -221,7 +307,9 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       value={Math.round(model.controller.volume * 100)}
                       valueText={`${Math.round(model.controller.volume * 100)}%`}
                       onChange={(v) => model.controller.setVolume(v / 100)}
-                      onChangeEnd={server ? (v) => model.controller.commitVolume(v / 100) : undefined}
+                      onChangeEnd={
+                        server ? (v) => model.controller.commitVolume(v / 100) : undefined
+                      }
                     />
                   </Flex>
                   <ServerNotice />
@@ -230,8 +318,20 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
               </>
             ) : (
               <>
-                <Flex as="header" h="56px" flexShrink={0} align="center" gap="4px" px="4px" borderBottomWidth="outline" borderColor="border.ink">
-                  <HeaderKey aria-label="Back to now playing" onClick={() => setMobileView("player")}>
+                <Flex
+                  as="header"
+                  h="56px"
+                  flexShrink={0}
+                  align="center"
+                  gap="4px"
+                  px="4px"
+                  borderBottomWidth="outline"
+                  borderColor="border.ink"
+                >
+                  <HeaderKey
+                    aria-label="Back to now playing"
+                    onClick={() => setMobileView("player")}
+                  >
                     <FiChevronDown size={22} />
                   </HeaderKey>
                   <Box flex="1" minW={0}>
@@ -242,7 +342,13 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       {summary}
                     </Text>
                   </Box>
-                  <Button size="sm" variant="outline" h="44px" onClick={openSaveDialog} disabled={empty}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    h="44px"
+                    onClick={openSaveDialog}
+                    disabled={empty}
+                  >
                     <FiSave />
                     Save
                   </Button>

@@ -8,7 +8,8 @@ export function deviceLabel(nav: NavigatorLike | undefined): string {
   const ua = nav.userAgent;
   if (/iPhone|iPod/.test(ua)) return "This iPhone";
   // iPadOS reports a desktop Mac user agent; touch support gives it away.
-  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1)) return "This iPad";
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1))
+    return "This iPad";
   if (/Macintosh|Mac OS X/.test(ua)) return "This Mac";
   if (/Android/.test(ua)) return /Mobile/.test(ua) ? "This phone" : "This tablet";
   if (/Windows|CrOS|Linux/.test(ua)) return "This computer";
@@ -21,6 +22,6 @@ export function useDeviceLabel(): string {
   return useSyncExternalStore(
     subscribe,
     () => deviceLabel(typeof navigator === "undefined" ? undefined : navigator),
-    () => "This device"
+    () => "This device",
   );
 }

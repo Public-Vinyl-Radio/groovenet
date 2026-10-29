@@ -17,7 +17,13 @@ vi.mock("@/components/track-edit/useTrackEditAudioActions", () => ({
 import TrackEditForm from "./TrackEditForm";
 import type { TrackEditFormProps } from "@/components/track-edit/types";
 
-const CUMBIA: TrackGenre = { id: "cumbia", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" };
+const CUMBIA: TrackGenre = {
+  id: "cumbia",
+  name: "Cumbia",
+  slug: "cumbia",
+  parent_id: "latin",
+  parent_name: "Latin",
+};
 const TRACK: TrackEditFormProps = {
   track_id: "t1",
   friend_id: 1,
@@ -34,7 +40,7 @@ function renderForm(onSave = vi.fn(), track: TrackEditFormProps = TRACK) {
       dialogOpen
       setDialogOpen={vi.fn()}
       initialFocusRef={React.createRef()}
-    />
+    />,
   );
   return { ...result, onSave };
 }

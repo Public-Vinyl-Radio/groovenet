@@ -17,7 +17,7 @@ export async function GET() {
     console.error("Error reading embedding queue status:", err);
     return NextResponse.json(
       { error: err.message || "Failed to read embedding queue status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

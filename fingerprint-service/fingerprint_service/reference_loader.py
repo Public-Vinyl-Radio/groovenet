@@ -9,6 +9,7 @@ index would buy nothing but a cache to invalidate.
 The blobs are exactly what `ChromaprintMatcher.index` produced during library
 indexing (#277), base64 over the wire because JSON has no bytes.
 """
+
 import base64
 
 import requests
@@ -42,7 +43,10 @@ def fetch_page(
     """One page of reference fingerprints for an engine and version."""
     try:
         payload = get_groovenet_client(APP_URL, RESULT_TIMEOUT).list_fingerprints(
-            fingerprint_type, fingerprint_version, limit=limit, offset=offset,
+            fingerprint_type,
+            fingerprint_version,
+            limit=limit,
+            offset=offset,
         )
     except requests.RequestException as e:
         raise ReferenceLoadError(f"Could not reach {fingerprints_url()}: {e}") from e
@@ -75,9 +79,7 @@ def build_index(
     skipped = 0
 
     while True:
-        rows = fetch_page(
-            fingerprint_type, fingerprint_version, limit=page_size, offset=offset
-        )
+        rows = fetch_page(fingerprint_type, fingerprint_version, limit=page_size, offset=offset)
         if not rows:
             break
 
@@ -92,9 +94,7 @@ def build_index(
                     base64.b64decode(blob),
                 )
             except Exception as e:
-                logger.warning(
-                    "Skipping fingerprint for track %s: %s", row.get("track_id"), e
-                )
+                logger.warning("Skipping fingerprint for track %s: %s", row.get("track_id"), e)
                 skipped += 1
                 continue
 
@@ -113,9 +113,7 @@ def build_index(
     return index
 
 
-def try_build_index(
-    fingerprint_type: str, fingerprint_version: str
-) -> ReferenceIndex | None:
+def try_build_index(fingerprint_type: str, fingerprint_version: str) -> ReferenceIndex | None:
     """Build the index, returning None rather than raising if the app is down.
 
     A matcher keeps whatever index it already has: serving slightly stale

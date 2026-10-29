@@ -51,7 +51,9 @@ describe("BackupPolicySettingsSection", () => {
   });
 
   it("toggles a checkbox and saves the updated policy", async () => {
-    mocks.updateBackupPolicy.mockResolvedValue({ policy: { ...policy, include_audio_files: true } });
+    mocks.updateBackupPolicy.mockResolvedValue({
+      policy: { ...policy, include_audio_files: true },
+    });
     const { user } = renderWithProviders(<BackupPolicySettingsSection />);
     await screen.findByDisplayValue("0 3 * * *");
 
@@ -60,13 +62,13 @@ describe("BackupPolicySettingsSection", () => {
 
     await waitFor(() =>
       expect(mocks.updateBackupPolicy).toHaveBeenCalledWith(
-        expect.objectContaining({ include_audio_files: true })
-      )
+        expect.objectContaining({ include_audio_files: true }),
+      ),
     );
     await waitFor(() =>
       expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Backup policy saved", type: "success" })
-      )
+        expect.objectContaining({ title: "Backup policy saved", type: "success" }),
+      ),
     );
   });
 });

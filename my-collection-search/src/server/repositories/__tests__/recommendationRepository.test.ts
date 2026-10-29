@@ -4,7 +4,7 @@ import { RecommendationRepository } from "../recommendationRepository";
 const mockClient = vi.hoisted(() => ({ query: vi.fn() }));
 // Each similarity query runs in its own transaction, so its ivfflat settings stay local.
 const withDbClient = vi.hoisted(() =>
-  vi.fn((fn: (client: typeof mockClient) => unknown) => fn(mockClient))
+  vi.fn((fn: (client: typeof mockClient) => unknown) => fn(mockClient)),
 );
 
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: withDbClient }));
@@ -70,20 +70,39 @@ describe("findIdentitySimilar()", () => {
       ivfflatProbes: 4,
     });
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(
-      1,
-      expect.stringContaining("set_config"),
-      ["4"]
-    );
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, expect.stringContaining("set_config"), [
+      "4",
+    ]);
   });
 
   it("coerces distance from string to number", async () => {
-    mockWithEmbedding([0.1], [
-      { track_id: "t2", friend_id: 1, distance: "0.25", title: "Track", artist: "Artist",
-        album: "Album", year: null, bpm: null, key: null, genres: [], styles: [],
-        local_tags: "", track_genre_ids: [], danceability: null, mood_happy: null, mood_sad: null,
-        mood_relaxed: null, mood_aggressive: null, star_rating: null, album_thumbnail: null },
-    ]);
+    mockWithEmbedding(
+      [0.1],
+      [
+        {
+          track_id: "t2",
+          friend_id: 1,
+          distance: "0.25",
+          title: "Track",
+          artist: "Artist",
+          album: "Album",
+          year: null,
+          bpm: null,
+          key: null,
+          genres: [],
+          styles: [],
+          local_tags: "",
+          track_genre_ids: [],
+          danceability: null,
+          mood_happy: null,
+          mood_sad: null,
+          mood_relaxed: null,
+          mood_aggressive: null,
+          star_rating: null,
+          album_thumbnail: null,
+        },
+      ],
+    );
 
     const result = await makeRepo().findIdentitySimilar({
       seedTrackId: "t1",
@@ -117,7 +136,7 @@ describe("findIdentitySimilar()", () => {
     expect(mockClient.query).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("template_version = $4"),
-      ["t1", 2, MODEL, VERSION]
+      ["t1", 2, MODEL, VERSION],
     );
 
     // Similarity query receives the embedding, limit, model and template version
@@ -142,7 +161,7 @@ describe("findIdentitySimilar()", () => {
         dims: 0,
         limit: 5,
         ivfflatProbes: 1,
-      })
+      }),
     ).rejects.toThrow("Invalid vector dims: 0");
   });
 });
@@ -176,7 +195,12 @@ describe("library scope", () => {
 
   it("binds the library after the fixed params for one seed", async () => {
     mockWithEmbedding([0.1], []);
-    await makeRepo().findAudioSimilar({ ...base, seedTrackId: "t1", seedFriendId: 9, libraryFriendId: 6 });
+    await makeRepo().findAudioSimilar({
+      ...base,
+      seedTrackId: "t1",
+      seedFriendId: 9,
+      libraryFriendId: 6,
+    });
 
     const [sql, params] = mockClient.query.mock.calls[2];
     expect(sql).toContain("te.embedding_type = 'audio_vibe'");
@@ -221,12 +245,33 @@ describe("findAudioSimilar()", () => {
   });
 
   it("coerces distance from string to number", async () => {
-    mockWithEmbedding([0.3], [
-      { track_id: "t2", friend_id: 1, distance: "0.88", title: "T", artist: "A",
-        album: "B", year: null, bpm: 128, key: "Am", genres: [], styles: [],
-        local_tags: "", track_genre_ids: [], danceability: 0.9, mood_happy: 0.5, mood_sad: 0.1,
-        mood_relaxed: 0.3, mood_aggressive: 0.2, star_rating: 4, album_thumbnail: null },
-    ]);
+    mockWithEmbedding(
+      [0.3],
+      [
+        {
+          track_id: "t2",
+          friend_id: 1,
+          distance: "0.88",
+          title: "T",
+          artist: "A",
+          album: "B",
+          year: null,
+          bpm: 128,
+          key: "Am",
+          genres: [],
+          styles: [],
+          local_tags: "",
+          track_genre_ids: [],
+          danceability: 0.9,
+          mood_happy: 0.5,
+          mood_sad: 0.1,
+          mood_relaxed: 0.3,
+          mood_aggressive: 0.2,
+          star_rating: 4,
+          album_thumbnail: null,
+        },
+      ],
+    );
 
     const result = await makeRepo().findAudioSimilar({
       seedTrackId: "t1",
@@ -255,11 +300,12 @@ describe("findAudioSimilar()", () => {
       ivfflatProbes: 2,
     });
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("audio_vibe"),
-      ["t1", 1, MODEL, VERSION]
-    );
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, expect.stringContaining("audio_vibe"), [
+      "t1",
+      1,
+      MODEL,
+      VERSION,
+    ]);
     const [sql, params] = mockClient.query.mock.calls[2];
     expect(sql).toContain("te.template_version = $6");
     expect(params[5]).toBe(VERSION);
@@ -300,11 +346,9 @@ describe("findIdentitySimilarByCentroid()", () => {
       ivfflatProbes: 3,
     });
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(
-      1,
-      expect.stringContaining("set_config"),
-      ["3"]
-    );
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, expect.stringContaining("set_config"), [
+      "3",
+    ]);
 
     const [sql, params] = mockClient.query.mock.calls[1];
     expect(sql).toContain("identity");
@@ -318,9 +362,7 @@ describe("findIdentitySimilarByCentroid()", () => {
   });
 
   it("builds seed values with the correct $N placeholders", async () => {
-    mockClient.query
-      .mockResolvedValueOnce(PROBE_ROW)
-      .mockResolvedValueOnce({ rows: [] });
+    mockClient.query.mockResolvedValueOnce(PROBE_ROW).mockResolvedValueOnce({ rows: [] });
 
     await makeRepo().findIdentitySimilarByCentroid({
       seedTracks: [
@@ -345,14 +387,32 @@ describe("findIdentitySimilarByCentroid()", () => {
   });
 
   it("coerces distance from string to number", async () => {
-    mockClient.query
-      .mockResolvedValueOnce(PROBE_ROW)
-      .mockResolvedValueOnce({
-        rows: [{ track_id: "t3", friend_id: 1, distance: "0.33", title: "T", artist: "A",
-          album: "B", year: null, bpm: null, key: null, genres: [], styles: [],
-          local_tags: "", track_genre_ids: [], danceability: null, mood_happy: null, mood_sad: null,
-          mood_relaxed: null, mood_aggressive: null, star_rating: null, album_thumbnail: null }],
-      });
+    mockClient.query.mockResolvedValueOnce(PROBE_ROW).mockResolvedValueOnce({
+      rows: [
+        {
+          track_id: "t3",
+          friend_id: 1,
+          distance: "0.33",
+          title: "T",
+          artist: "A",
+          album: "B",
+          year: null,
+          bpm: null,
+          key: null,
+          genres: [],
+          styles: [],
+          local_tags: "",
+          track_genre_ids: [],
+          danceability: null,
+          mood_happy: null,
+          mood_sad: null,
+          mood_relaxed: null,
+          mood_aggressive: null,
+          star_rating: null,
+          album_thumbnail: null,
+        },
+      ],
+    });
 
     const result = await makeRepo().findIdentitySimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
@@ -385,9 +445,7 @@ describe("findAudioSimilarByCentroid()", () => {
   });
 
   it("queries with audio_vibe embedding type and model", async () => {
-    mockClient.query
-      .mockResolvedValueOnce(PROBE_ROW)
-      .mockResolvedValueOnce({ rows: [] });
+    mockClient.query.mockResolvedValueOnce(PROBE_ROW).mockResolvedValueOnce({ rows: [] });
 
     await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],
@@ -406,14 +464,32 @@ describe("findAudioSimilarByCentroid()", () => {
   });
 
   it("coerces distance from string to number", async () => {
-    mockClient.query
-      .mockResolvedValueOnce(PROBE_ROW)
-      .mockResolvedValueOnce({
-        rows: [{ track_id: "t2", friend_id: 1, distance: "0.77", title: "T", artist: "A",
-          album: "B", year: null, bpm: null, key: null, genres: [], styles: [],
-          local_tags: "", track_genre_ids: [], danceability: null, mood_happy: null, mood_sad: null,
-          mood_relaxed: null, mood_aggressive: null, star_rating: null, album_thumbnail: null }],
-      });
+    mockClient.query.mockResolvedValueOnce(PROBE_ROW).mockResolvedValueOnce({
+      rows: [
+        {
+          track_id: "t2",
+          friend_id: 1,
+          distance: "0.77",
+          title: "T",
+          artist: "A",
+          album: "B",
+          year: null,
+          bpm: null,
+          key: null,
+          genres: [],
+          styles: [],
+          local_tags: "",
+          track_genre_ids: [],
+          danceability: null,
+          mood_happy: null,
+          mood_sad: null,
+          mood_relaxed: null,
+          mood_aggressive: null,
+          star_rating: null,
+          album_thumbnail: null,
+        },
+      ],
+    });
 
     const result = await makeRepo().findAudioSimilarByCentroid({
       seedTracks: [{ trackId: "t1", friendId: 1 }],

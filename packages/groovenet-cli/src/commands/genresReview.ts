@@ -91,8 +91,11 @@ export function groupProposals(proposals: GenreProposal[]): ProposalGroup[] {
     group.trackCount += p.track_count;
     groups.set(key, group);
   }
-  for (const group of groups.values()) group.proposals.sort((a, b) => b.track_count - a.track_count);
-  return [...groups.values()].sort((a, b) => b.trackCount - a.trackCount || a.label.localeCompare(b.label));
+  for (const group of groups.values())
+    group.proposals.sort((a, b) => b.track_count - a.track_count);
+  return [...groups.values()].sort(
+    (a, b) => b.trackCount - a.trackCount || a.label.localeCompare(b.label),
+  );
 }
 
 /** One group per value, for deciding a group's values one by one. */
@@ -105,7 +108,10 @@ export function splitGroup(group: ProposalGroup): ProposalGroup[] {
   }));
 }
 
-export function flattenTaxonomy(nodes: GenreTreeNode[], parent: string | null = null): TaxonomyEntry[] {
+export function flattenTaxonomy(
+  nodes: GenreTreeNode[],
+  parent: string | null = null,
+): TaxonomyEntry[] {
   return nodes.flatMap((node) => [
     { id: node.id, name: node.name, parent_name: parent },
     ...flattenTaxonomy(node.children, node.name),
@@ -113,7 +119,12 @@ export function flattenTaxonomy(nodes: GenreTreeNode[], parent: string | null = 
 }
 
 const fold = (value: string) =>
-  value.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  value
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 
 function isSubsequence(needle: string, haystack: string): boolean {
   let i = 0;
@@ -126,7 +137,11 @@ function isSubsequence(needle: string, haystack: string): boolean {
  * prefix, a substring, then letters in order ("psy cum" finds Psychedelic
  * Cumbia). Accents and punctuation are ignored.
  */
-export function searchTaxonomy(entries: TaxonomyEntry[], query: string, limit = 9): TaxonomyEntry[] {
+export function searchTaxonomy(
+  entries: TaxonomyEntry[],
+  query: string,
+  limit = 9,
+): TaxonomyEntry[] {
   const q = fold(query);
   if (!q) return [];
   const rank = (name: string): number | null => {
@@ -141,7 +156,12 @@ export function searchTaxonomy(entries: TaxonomyEntry[], query: string, limit = 
   return entries
     .map((entry) => ({ entry, score: rank(entry.name) }))
     .filter((r): r is { entry: TaxonomyEntry; score: number } => r.score !== null)
-    .sort((a, b) => a.score - b.score || a.entry.name.length - b.entry.name.length || a.entry.name.localeCompare(b.entry.name))
+    .sort(
+      (a, b) =>
+        a.score - b.score ||
+        a.entry.name.length - b.entry.name.length ||
+        a.entry.name.localeCompare(b.entry.name),
+    )
     .slice(0, limit)
     .map((r) => r.entry);
 }
@@ -164,14 +184,23 @@ export function decisionsFor(group: ProposalGroup, verdict: Verdict): GenrePropo
       case "accept":
         return { id: p.id, status: "accepted" };
       case "remap":
-        return p.action === "map" && p.target_genre_ids.length === 1 && p.target_genre_ids[0] === verdict.genreId
+        return p.action === "map" &&
+          p.target_genre_ids.length === 1 &&
+          p.target_genre_ids[0] === verdict.genreId
           ? { id: p.id, status: "accepted" }
           : { id: p.id, action: "map", target_genres: [verdict.genreId] };
       case "new":
-        return { id: p.id, action: "new_genre", proposed_genre_name: verdict.name, proposed_parent_id: verdict.parentId };
+        return {
+          id: p.id,
+          action: "new_genre",
+          proposed_genre_name: verdict.name,
+          proposed_parent_id: verdict.parentId,
+        };
       case "descriptor":
       case "drop":
-        return p.action === verdict.kind ? { id: p.id, status: "accepted" } : { id: p.id, action: verdict.kind };
+        return p.action === verdict.kind
+          ? { id: p.id, status: "accepted" }
+          : { id: p.id, action: verdict.kind };
     }
   });
 }
@@ -179,7 +208,7 @@ export function decisionsFor(group: ProposalGroup, verdict: Verdict): GenrePropo
 /** Every page of a proposal listing. */
 export async function listAll(
   client: Pick<GroovenetClient, "listGenreProposals">,
-  query: GenreProposalQuery
+  query: GenreProposalQuery,
 ): Promise<GenreProposal[]> {
   const all: GenreProposal[] = [];
   for (;;) {
@@ -191,7 +220,7 @@ export async function listAll(
 
 async function decide(
   client: Pick<GroovenetClient, "decideGenreProposals">,
-  decisions: GenreProposalDecision[]
+  decisions: GenreProposalDecision[],
 ): Promise<GenreProposalSnapshot[]> {
   const previous: GenreProposalSnapshot[] = [];
   for (let i = 0; i < decisions.length; i += BATCH) {
@@ -202,7 +231,7 @@ async function decide(
 
 async function restore(
   client: Pick<GroovenetClient, "restoreGenreProposals">,
-  snapshots: GenreProposalSnapshot[]
+  snapshots: GenreProposalSnapshot[],
 ): Promise<void> {
   for (let i = 0; i < snapshots.length; i += BATCH) {
     await client.restoreGenreProposals(snapshots.slice(i, i + BATCH));
@@ -217,26 +246,35 @@ export function formatGroup(group: ProposalGroup, position: string): string[] {
   const more = group.proposals.length - MAX_VALUES_SHOWN;
   if (more > 0) values.push(chalk.gray(`    … and ${more} more`));
   const size = `${group.proposals.length} value${group.proposals.length === 1 ? "" : "s"}, ${group.trackCount} tracks`;
-  return [chalk.gray(position) + " " + chalk.bold(group.label) + chalk.gray(` ← ${size}`), ...values];
+  return [
+    chalk.gray(position) + " " + chalk.bold(group.label) + chalk.gray(` ← ${size}`),
+    ...values,
+  ];
 }
 
-export function formatProgress(done: { values: number; tracks: number }, total: { values: number; tracks: number }): string {
+export function formatProgress(
+  done: { values: number; tracks: number },
+  total: { values: number; tracks: number },
+): string {
   const pct = total.tracks ? Math.round((done.tracks / total.tracks) * 100) : 100;
-  return chalk.cyan(`  ${done.values}/${total.values} values · ${done.tracks}/${total.tracks} track tags (${pct}%)`);
+  return chalk.cyan(
+    `  ${done.values}/${total.values} values · ${done.tracks}/${total.tracks} track tags (${pct}%)`,
+  );
 }
 
 export function formatApplySummary(result: GenreProposalApplyResult): string[] {
   const lines = [
     chalk.green(
       `✓ ${result.proposals_applied} proposals applied: ${result.tracks_linked} genre links, ` +
-        `${result.descriptors_added} descriptors, ${result.aliases_added} aliases, ${result.genres_created} new genres`
+        `${result.descriptors_added} descriptors, ${result.aliases_added} aliases, ${result.genres_created} new genres`,
     ),
   ];
   for (const s of result.skipped) lines.push(chalk.yellow(`  skipped ${s.value}: ${s.reason}`));
   return lines;
 }
 
-const KEYS = "[a]ccept  [x] split  [r]emap  [n]ew genre  [d]escriptor  [k] drop  [s]kip  [u]ndo  [q]uit ";
+const KEYS =
+  "[a]ccept  [x] split  [r]emap  [n]ew genre  [d]escriptor  [k] drop  [s]kip  [u]ndo  [q]uit ";
 
 /** Asks for a genre by fuzzy search; null when cancelled or nothing matched. */
 async function pickGenre(
@@ -244,7 +282,7 @@ async function pickGenre(
   taxonomy: TaxonomyEntry[],
   ask: Ask,
   readKey: KeyReader,
-  io: GenresIO
+  io: GenresIO,
 ): Promise<TaxonomyEntry | null> {
   const query = await ask(`  ${label}: `);
   const matches = searchTaxonomy(taxonomy, query);
@@ -271,27 +309,39 @@ export async function runReview(
   opts: GenresReviewOptions,
   readKey: KeyReader,
   ask: Ask,
-  io: GenresIO
+  io: GenresIO,
 ): Promise<number> {
   const scope = { min_tracks: opts.minTracks ?? 1 };
   const friendLabel = opts.friendId === undefined ? "all friends" : `friend ${opts.friendId}`;
 
   if (opts.autoAcceptExact) {
     const exact = await listAll(client, { status: "pending", method: "exact", ...scope });
-    if (exact.length) await decide(client, exact.map((p) => ({ id: p.id, status: "accepted" })));
+    if (exact.length)
+      await decide(
+        client,
+        exact.map((p) => ({ id: p.id, status: "accepted" })),
+      );
     io.log(chalk.green(`✓ Accepted ${exact.length} exact matches`));
   }
 
-  const pending = await listAll(client, { status: "pending", ...scope, ...(opts.method ? { method: opts.method } : {}) });
+  const pending = await listAll(client, {
+    status: "pending",
+    ...scope,
+    ...(opts.method ? { method: opts.method } : {}),
+  });
   const queue = groupProposals(pending);
   const total = { values: pending.length, tracks: pending.reduce((n, p) => n + p.track_count, 0) };
   const done = { values: 0, tracks: 0 };
   const history: Array<{ group: ProposalGroup; previous: GenreProposalSnapshot[] }> = [];
   let taxonomy: TaxonomyEntry[] | null = null;
-  const loadTaxonomy = async () => (taxonomy ??= flattenTaxonomy((await client.getGenres()).genres));
+  const loadTaxonomy = async () =>
+    (taxonomy ??= flattenTaxonomy((await client.getGenres()).genres));
 
   if (queue.length === 0) io.log(chalk.green("No pending proposals to review."));
-  else io.log(chalk.bold(`Reviewing ${total.values} values in ${queue.length} groups — ${friendLabel}`));
+  else
+    io.log(
+      chalk.bold(`Reviewing ${total.values} values in ${queue.length} groups — ${friendLabel}`),
+    );
 
   while (queue.length > 0) {
     const group = queue.shift()!;
@@ -335,7 +385,9 @@ export async function runReview(
       }
       case "n": {
         const suggested = group.proposals[0].proposed_genre_name ?? "";
-        const name = (await ask(`  new genre name${suggested ? ` [${suggested}]` : ""}: `)).trim() || suggested;
+        const name =
+          (await ask(`  new genre name${suggested ? ` [${suggested}]` : ""}: `)).trim() ||
+          suggested;
         if (!name) break;
         const parent = await pickGenre("parent genre", await loadTaxonomy(), ask, readKey, io);
         if (parent) verdict = { kind: "new", name, parentId: parent.id };
@@ -396,7 +448,7 @@ export async function runReview(
  */
 export function rawKeyReader(
   stdin: Pick<NodeJS.ReadStream, "setRawMode" | "resume" | "pause" | "once"> = process.stdin,
-  stdout: Pick<NodeJS.WriteStream, "write"> = process.stdout
+  stdout: Pick<NodeJS.WriteStream, "write"> = process.stdout,
 ): KeyReader {
   return (prompt) =>
     new Promise((resolve) => {

@@ -10,19 +10,35 @@ describe("SpinSessionRepository automatic sessions", () => {
 
   it("persists automatic provenance with its idempotency key", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 1 }] });
-    await repo.createSession({ query }, { friend_id: 1, release_id: "rel", selection_mode: "automatic", played_at: "2026-01-01", provenance: "automatic", source_id: "pi", detection_id: "d1", confidence: 0.9 });
+    await repo.createSession(
+      { query },
+      {
+        friend_id: 1,
+        release_id: "rel",
+        selection_mode: "automatic",
+        played_at: "2026-01-01",
+        provenance: "automatic",
+        source_id: "pi",
+        detection_id: "d1",
+        confidence: 0.9,
+      },
+    );
     expect(query.mock.calls[0][0]).toMatch(/provenance, source_id, detection_id, confidence/);
     expect(query.mock.calls[0][1].slice(7, 11)).toEqual(["automatic", "pi", "d1", 0.9]);
   });
 
   it("keeps manual sessions manual when automatic metadata is absent", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 2 }] });
-    await repo.createSession({ query }, { friend_id: 1, release_id: "rel", selection_mode: "tracks", played_at: "2026-01-01" });
+    await repo.createSession(
+      { query },
+      { friend_id: 1, release_id: "rel", selection_mode: "tracks", played_at: "2026-01-01" },
+    );
     expect(query.mock.calls[0][1].slice(7, 11)).toEqual(["manual", null, null, null]);
   });
 
   it("creates playlist sessions and treats conflicts as idempotent skips", async () => {
-    const query = vi.fn()
+    const query = vi
+      .fn()
       .mockResolvedValueOnce({ rows: [{ id: 3 }] })
       .mockResolvedValueOnce({ rows: [] });
     const input = {
@@ -59,7 +75,9 @@ describe("SpinSessionRepository.listSessions", () => {
     await expect(repo.listSessions({ friend_id: 7 })).resolves.toEqual([row]);
 
     const [sql, params] = dbQuery.mock.calls[0];
-    expect(sql).toMatch(/LEFT JOIN albums a\s+ON a\.release_id = ss\.release_id AND a\.friend_id = ss\.friend_id/);
+    expect(sql).toMatch(
+      /LEFT JOIN albums a\s+ON a\.release_id = ss\.release_id AND a\.friend_id = ss\.friend_id/,
+    );
     expect(sql).toMatch(/GROUP BY ss\.id, a\.title, a\.artist, a\.album_thumbnail/);
     expect(params).toEqual([7, 50, 0]);
   });
@@ -91,7 +109,10 @@ describe("SpinSessionRepository edits", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("locks the friend's session for the transaction", async () => {
-    const query = vi.fn().mockResolvedValueOnce({ rows: [{ id: 3 }] }).mockResolvedValueOnce({ rows: [] });
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ id: 3 }] })
+      .mockResolvedValueOnce({ rows: [] });
     await expect(repo.findSessionForUpdate({ query }, 3, 1)).resolves.toEqual({ id: 3 });
     await expect(repo.findSessionForUpdate({ query }, 3, 2)).resolves.toBeNull();
     expect(query.mock.calls[0][0]).toMatch(/WHERE id = \$1 AND friend_id = \$2 FOR UPDATE/);
@@ -109,7 +130,7 @@ describe("SpinSessionRepository edits", () => {
     });
     const [sql, params] = query.mock.calls[0];
     expect(sql).toContain(
-      "SET updated_at = NOW(), selection_mode = $2, played_at = $3, note = $4, context_type = $5, corrected_at = NOW() WHERE id = $1"
+      "SET updated_at = NOW(), selection_mode = $2, played_at = $3, note = $4, context_type = $5, corrected_at = NOW() WHERE id = $1",
     );
     expect(params).toEqual([3, "tracks", "2026-09-20T20:00:00.000Z", null, "home"]);
   });
@@ -126,7 +147,7 @@ describe("SpinSessionRepository edits", () => {
     await repo.deleteSelections({ query }, 3);
     expect(query).toHaveBeenCalledWith(
       "DELETE FROM spin_session_selections WHERE session_id = $1",
-      [3]
+      [3],
     );
   });
 });

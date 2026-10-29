@@ -13,16 +13,13 @@ export type YouTubeMusicSearchResponse = {
 };
 
 export async function fetchYouTubeMusicSearch(
-  args: YouTubeMusicSearchArgs
+  args: YouTubeMusicSearchArgs,
 ): Promise<YouTubeMusicSearchResponse> {
-  return await http<YouTubeMusicSearchResponse>(
-    "/api/providers/youtube/music-search",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(args),
-    }
-  );
+  return await http<YouTubeMusicSearchResponse>("/api/providers/youtube/music-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
 }
 
 export type AppleMusicAISearchArgs = {
@@ -38,14 +35,11 @@ export type AppleMusicAISearchResponse = {
 };
 
 export async function fetchAppleMusicAISearch(
-  args: AppleMusicAISearchArgs
+  args: AppleMusicAISearchArgs,
 ): Promise<AppleMusicAISearchResponse> {
-  return await http<AppleMusicAISearchResponse>(
-    "/api/providers/apple-music/search",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(args),
-    }
-  );
+  return await http<AppleMusicAISearchResponse>("/api/providers/apple-music/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
 }

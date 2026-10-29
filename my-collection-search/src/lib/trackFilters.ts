@@ -29,7 +29,7 @@ export function buildSearchFilters(filters: TracksFilter): string[] {
   // Missing ALL streaming URLs
   if (filters.missingAnyStreamingUrl) {
     filterStrings.push(
-      "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)"
+      "(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)",
     );
   } else {
     // Individual streaming URL filters (only if not using "all" filter)
@@ -134,7 +134,18 @@ export interface TrackAttributeFilters {
 
 /** Keys as the library spells them, so an exact match can find them. */
 export const MUSICAL_KEYS: string[] = [
-  "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
+  "C",
+  "C#",
+  "D",
+  "Eb",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "Ab",
+  "A",
+  "Bb",
+  "B",
 ].flatMap((note) => [`${note} major`, `${note} minor`]);
 
 /** A key as DJs read it: Camelot first, e.g. `8A · A minor`. */
@@ -186,7 +197,7 @@ const ATTRIBUTE_PARAMS = ["bpm_min", "bpm_max", "key", "star_rating"] as const;
 export function writeTrackFiltersToParams(
   params: URLSearchParams,
   filters: TracksFilter,
-  attributes: TrackAttributeFilters
+  attributes: TrackAttributeFilters,
 ): void {
   TRACK_MISSING_OPTIONS.forEach(({ key }) => {
     if (filters[key]) params.set(key, "1");
@@ -203,15 +214,19 @@ const ATTRIBUTE_CHIP_PREFIX = "attr:";
 
 /** One removable chip per attribute filter: the BPM range is a single chip. */
 export function attributeFilterChips(
-  attributes: TrackAttributeFilters
+  attributes: TrackAttributeFilters,
 ): { key: string; label: string; active: true }[] {
   const chips: { key: string; label: string; active: true }[] = [];
   const { bpm_min: min, bpm_max: max } = attributes;
   if (min !== undefined || max !== undefined) {
     const label =
       min !== undefined && max !== undefined
-        ? min === max ? `${min} BPM` : `${min}–${max} BPM`
-        : min !== undefined ? `${min}+ BPM` : `≤${max} BPM`;
+        ? min === max
+          ? `${min} BPM`
+          : `${min}–${max} BPM`
+        : min !== undefined
+          ? `${min}+ BPM`
+          : `≤${max} BPM`;
     chips.push({ key: `${ATTRIBUTE_CHIP_PREFIX}bpm`, label, active: true });
   }
   if (attributes.key) {
@@ -237,7 +252,7 @@ export function attributeFilterChips(
  */
 export function removeAttributeChip(
   attributes: TrackAttributeFilters,
-  chipKey: string
+  chipKey: string,
 ): TrackAttributeFilters | null {
   if (!chipKey.startsWith(ATTRIBUTE_CHIP_PREFIX)) return null;
   const next = { ...attributes };

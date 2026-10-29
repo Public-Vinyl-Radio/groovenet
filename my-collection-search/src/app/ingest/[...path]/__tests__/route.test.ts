@@ -12,7 +12,7 @@ describe("/ingest proxy", () => {
       new Response("ok", {
         status: 200,
         headers: { "content-type": "text/plain", "content-encoding": "gzip" },
-      })
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -55,12 +55,9 @@ describe("/ingest proxy", () => {
     });
 
     it("serves static assets from the region's assets host", async () => {
-      await GET(
-        new Request("http://app/ingest/static/array.js"),
-        ctx("static", "array.js")
-      );
+      await GET(new Request("http://app/ingest/static/array.js"), ctx("static", "array.js"));
       expect(String(fetchMock.mock.calls[0][0])).toBe(
-        "https://eu-assets.i.posthog.com/static/array.js"
+        "https://eu-assets.i.posthog.com/static/array.js",
       );
     });
 

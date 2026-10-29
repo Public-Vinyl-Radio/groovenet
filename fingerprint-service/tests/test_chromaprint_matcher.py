@@ -1,4 +1,5 @@
 """ChromaprintMatcher — both directions of the engine (#278)."""
+
 import pytest
 from fingerprint_service.audio import NormalizedAudio
 from fingerprint_service.chromaprint_engine import RawFingerprint, fingerprint_pcm
@@ -13,9 +14,7 @@ from fingerprint_service.reference_index import ReferenceIndex, TrackRef
 
 
 def audio_of(tone_pcm, seconds=30.0, seed=1.0, noise=0.0):
-    return NormalizedAudio(
-        pcm=tone_pcm(seconds, seed=seed, noise=noise), sample_rate=22050
-    )
+    return NormalizedAudio(pcm=tone_pcm(seconds, seed=seed, noise=noise), sample_rate=22050)
 
 
 class TestProtocol:
@@ -70,9 +69,7 @@ class TestIndexDirection:
         index.add(TrackRef("t1", 1), RawFingerprint.from_bytes(blob))
         matcher.reference_index = index
 
-        excerpt = NormalizedAudio(
-            pcm=reference.pcm[22050 * 2 * 10 : 22050 * 2 * 28], sample_rate=22050
-        )
+        excerpt = NormalizedAudio(pcm=reference.pcm[22050 * 2 * 10 : 22050 * 2 * 28], sample_rate=22050)
         assert matcher.match(excerpt)[0]["track_id"] == "t1"
 
 
@@ -113,9 +110,7 @@ class TestMatchDirection:
         matcher = self.build(tone_pcm)
         full = tone_pcm(60.0, seed=2.3)
         # A window taken 20s in should report roughly 20s.
-        window = NormalizedAudio(
-            pcm=full[22050 * 2 * 20 : 22050 * 2 * 38], sample_rate=22050
-        )
+        window = NormalizedAudio(pcm=full[22050 * 2 * 20 : 22050 * 2 * 38], sample_rate=22050)
 
         candidate = matcher.match(window)[0]
 
@@ -181,9 +176,7 @@ class TestSilenceRefusal:
 
     def build_with_side_rip(self, tone_pcm, seed=1.0, music_seconds=30.0, silence_seconds=20.0):
         matcher = ChromaprintMatcher()
-        pcm = side_rip_pcm(
-            tone_pcm, seed=seed, music_seconds=music_seconds, silence_seconds=silence_seconds
-        )
+        pcm = side_rip_pcm(tone_pcm, seed=seed, music_seconds=music_seconds, silence_seconds=silence_seconds)
         index = ReferenceIndex()
         index.add(TrackRef("t1", 1), fingerprint_pcm(pcm, 22050))
         matcher.reference_index = index

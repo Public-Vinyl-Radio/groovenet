@@ -66,12 +66,14 @@ describe("resizeCoverArt", () => {
     expect(result).toBeNull();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("cover resize failed"),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
   it("swallows and logs a decode/resize failure", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
     sharpInstance.toBuffer.mockRejectedValue(new Error("unsupported image format"));
 
     const result = await resizeCoverArt("https://example.com/cover.jpg");
@@ -79,7 +81,7 @@ describe("resizeCoverArt", () => {
     expect(result).toBeNull();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("cover resize failed"),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 });

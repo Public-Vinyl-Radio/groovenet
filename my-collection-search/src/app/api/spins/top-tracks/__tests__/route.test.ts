@@ -27,7 +27,7 @@ describe("GET /api/spins/top-tracks", () => {
     mockListTopTracks.mockResolvedValueOnce([]);
 
     const res = await GET(
-      new Request("http://localhost/api/spins/top-tracks?friend_id=1&release_id=rel-1") as never
+      new Request("http://localhost/api/spins/top-tracks?friend_id=1&release_id=rel-1") as never,
     );
 
     expect(res.status).toBe(200);
@@ -43,7 +43,9 @@ describe("GET /api/spins/top-tracks", () => {
   it("returns 500 with the service's message when the query fails", async () => {
     mockListTopTracks.mockRejectedValueOnce(new Error("db down"));
 
-    const res = await GET(new Request("http://localhost/api/spins/top-tracks?friend_id=1") as never);
+    const res = await GET(
+      new Request("http://localhost/api/spins/top-tracks?friend_id=1") as never,
+    );
 
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("db down");
@@ -52,7 +54,9 @@ describe("GET /api/spins/top-tracks", () => {
   it("returns 500 with a generic message for a non-Error rejection", async () => {
     mockListTopTracks.mockRejectedValueOnce("boom");
 
-    const res = await GET(new Request("http://localhost/api/spins/top-tracks?friend_id=1") as never);
+    const res = await GET(
+      new Request("http://localhost/api/spins/top-tracks?friend_id=1") as never,
+    );
 
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Failed to list top spin tracks");
@@ -74,9 +78,7 @@ describe("GET /api/spins/top-tracks", () => {
       },
     ]);
 
-    const req = new Request(
-      "http://localhost/api/spins/top-tracks?friend_id=1&limit=10&offset=5"
-    );
+    const req = new Request("http://localhost/api/spins/top-tracks?friend_id=1&limit=10&offset=5");
 
     const res = await GET(req as never);
 

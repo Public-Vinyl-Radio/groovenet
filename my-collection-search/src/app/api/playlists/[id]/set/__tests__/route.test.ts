@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const service = vi.hoisted(() => ({ createForPlaylist: vi.fn(), deleteForPlaylist: vi.fn(), getByPlaylistId: vi.fn(), updateForPlaylist: vi.fn() }));
+const service = vi.hoisted(() => ({
+  createForPlaylist: vi.fn(),
+  deleteForPlaylist: vi.fn(),
+  getByPlaylistId: vi.fn(),
+  updateForPlaylist: vi.fn(),
+}));
 vi.mock("@/server/services/liveSetService", () => ({ liveSetService: service }));
 import { DELETE, GET, POST, PUT } from "../route";
 
@@ -63,10 +68,16 @@ describe("playlist set lifecycle route", () => {
   });
 
   it("validates and updates set metadata", async () => {
-    const invalid = await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({ status: "wrong" }) }), context("9"));
+    const invalid = await PUT(
+      new Request("http://localhost", { method: "PUT", body: JSON.stringify({ status: "wrong" }) }),
+      context("9"),
+    );
     expect(invalid.status).toBe(400);
     service.updateForPlaylist.mockResolvedValue({ id: 4, playlist_id: 9 });
-    const valid = await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({ status: "draft" }) }), context("9"));
+    const valid = await PUT(
+      new Request("http://localhost", { method: "PUT", body: JSON.stringify({ status: "draft" }) }),
+      context("9"),
+    );
     expect(valid.status).toBe(200);
     expect(service.updateForPlaylist).toHaveBeenCalledWith(9, { status: "draft" });
   });
@@ -77,7 +88,7 @@ describe("playlist set lifecycle route", () => {
         method: "PUT",
         body: JSON.stringify({ media: [{ media_type: "stream", url: "https://example.com" }] }),
       }),
-      context("9")
+      context("9"),
     );
 
     expect(response.status).toBe(400);
@@ -91,8 +102,22 @@ describe("playlist set lifecycle route", () => {
 
   it("handles missing and failing updates/deletes", async () => {
     service.updateForPlaylist.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error("db"));
-    expect((await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({}) }), context("9"))).status).toBe(404);
-    expect((await PUT(new Request("http://localhost", { method: "PUT", body: JSON.stringify({}) }), context("9"))).status).toBe(500);
+    expect(
+      (
+        await PUT(
+          new Request("http://localhost", { method: "PUT", body: JSON.stringify({}) }),
+          context("9"),
+        )
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await PUT(
+          new Request("http://localhost", { method: "PUT", body: JSON.stringify({}) }),
+          context("9"),
+        )
+      ).status,
+    ).toBe(500);
     service.deleteForPlaylist.mockRejectedValueOnce(new Error("db"));
     expect((await DELETE(new Request("http://localhost"), context("9"))).status).toBe(500);
   });

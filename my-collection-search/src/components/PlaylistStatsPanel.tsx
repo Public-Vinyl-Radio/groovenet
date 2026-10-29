@@ -130,10 +130,18 @@ function CountedGenreBadges({
       wrap="wrap"
       minW={0}
       maxW="100%"
-      css={{ "& > *": { maxW: "100%", whiteSpace: "normal", overflowWrap: "anywhere", height: "auto" } }}
+      css={{
+        "& > *": { maxW: "100%", whiteSpace: "normal", overflowWrap: "anywhere", height: "auto" },
+      }}
     >
       {items.map((item) => (
-        <GenreBadge key={`${kind}-${item.label}`} item={withCount(item)} kind={kind} scope="tracks" size={size} />
+        <GenreBadge
+          key={`${kind}-${item.label}`}
+          item={withCount(item)}
+          kind={kind}
+          scope="tracks"
+          size={size}
+        />
       ))}
     </Flex>
   );
@@ -184,7 +192,9 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
                   onClick={(event) => event.stopPropagation()}
                   aria-label={`Search tracks in ${topGenre.label}`}
                 >
-                  <NextLink href={genreSearchHref(topGenre.slug, "tracks")}>{topGenre.label}</NextLink>
+                  <NextLink href={genreSearchHref(topGenre.slug, "tracks")}>
+                    {topGenre.label}
+                  </NextLink>
                 </Link>
               ) : (
                 <Text>{topGenre.label}</Text>
@@ -200,11 +210,17 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
             <Card.Root size="sm" variant="outline">
               <Card.Body>
                 <VStack align="start" gap={1}>
-                  <Text fontSize="xs" color="fg.muted">Tracks</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Tracks
+                  </Text>
                   <Text fontWeight="bold">{playlistStats.trackCount}</Text>
-                  <Text fontSize="xs" color="fg.muted">Audio Ready: {playlistStats.localAudioCoverage}%</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Audio Ready: {playlistStats.localAudioCoverage}%
+                  </Text>
                   <Progress.Root value={playlistStats.localAudioCoverage} size="xs" width="100%">
-                    <Progress.Track><Progress.Range /></Progress.Track>
+                    <Progress.Track>
+                      <Progress.Range />
+                    </Progress.Track>
                   </Progress.Root>
                 </VStack>
               </Card.Body>
@@ -212,29 +228,54 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
             <Card.Root size="sm" variant="outline">
               <Card.Body>
                 <VStack align="start" gap={1}>
-                  <Text fontSize="xs" color="fg.muted">Top Genres</Text>
-                  <CountedGenreBadges items={playlistStats.topGenres} kind="discogs-genre" size="xs" empty="None" />
+                  <Text fontSize="xs" color="fg.muted">
+                    Top Genres
+                  </Text>
+                  <CountedGenreBadges
+                    items={playlistStats.topGenres}
+                    kind="discogs-genre"
+                    size="xs"
+                    empty="None"
+                  />
                 </VStack>
               </Card.Body>
             </Card.Root>
             <Card.Root size="sm" variant="outline">
               <Card.Body>
                 <VStack align="start" gap={1}>
-                  <Text fontSize="xs" color="fg.muted">Top track genres</Text>
-                  <CountedGenreBadges items={playlistStats.topTrackGenres} kind="track" size="xs" empty="None" />
+                  <Text fontSize="xs" color="fg.muted">
+                    Top track genres
+                  </Text>
+                  <CountedGenreBadges
+                    items={playlistStats.topTrackGenres}
+                    kind="track"
+                    size="xs"
+                    empty="None"
+                  />
                 </VStack>
               </Card.Body>
             </Card.Root>
             <Card.Root size="sm" variant="outline">
               <Card.Body>
                 <VStack align="start" gap={1}>
-                  <Text fontSize="xs" color="fg.muted">Rhythm</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Rhythm
+                  </Text>
                   {playlistStats.bpmSummary ? (
-                    <Text fontSize="xs">BPM {playlistStats.bpmSummary.avg} ({playlistStats.bpmSummary.min}–{playlistStats.bpmSummary.max})</Text>
-                  ) : <Text fontSize="xs" color="fg.muted">No BPM</Text>}
+                    <Text fontSize="xs">
+                      BPM {playlistStats.bpmSummary.avg} ({playlistStats.bpmSummary.min}–
+                      {playlistStats.bpmSummary.max})
+                    </Text>
+                  ) : (
+                    <Text fontSize="xs" color="fg.muted">
+                      No BPM
+                    </Text>
+                  )}
                   <Flex gap={1} wrap="wrap">
                     {playlistStats.topKeys.map(([name, count]) => (
-                      <Badge key={`key-${name}`} variant="subtle" fontSize="xs">{name} ({count})</Badge>
+                      <Badge key={`key-${name}`} variant="subtle" fontSize="xs">
+                        {name} ({count})
+                      </Badge>
                     ))}
                   </Flex>
                 </VStack>
@@ -243,10 +284,19 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
             <Card.Root size="sm" variant="outline">
               <Card.Body>
                 <VStack align="start" gap={1}>
-                  <Text fontSize="xs" color="fg.muted">Ratings</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Ratings
+                  </Text>
                   {playlistStats.ratingSummary ? (
-                    <Text fontSize="xs">Avg {playlistStats.ratingSummary.avg} · {playlistStats.ratingSummary.favoritesCount} favs</Text>
-                  ) : <Text fontSize="xs" color="fg.muted">No ratings</Text>}
+                    <Text fontSize="xs">
+                      Avg {playlistStats.ratingSummary.avg} ·{" "}
+                      {playlistStats.ratingSummary.favoritesCount} favs
+                    </Text>
+                  ) : (
+                    <Text fontSize="xs" color="fg.muted">
+                      No ratings
+                    </Text>
+                  )}
                   <CountedGenreBadges
                     items={playlistStats.topStyles.slice(0, 2)}
                     kind="discogs-style"
@@ -261,13 +311,24 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
       </Box>
 
       {/* Desktop: full grid */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} gap={3} mb={4} display={{ base: "none", md: "grid" }}>
+      <SimpleGrid
+        columns={{ base: 1, md: 2, lg: 5 }}
+        gap={3}
+        mb={4}
+        display={{ base: "none", md: "grid" }}
+      >
         <Card.Root size="sm" variant="outline">
           <Card.Body>
             <VStack align="start" gap={1}>
-              <Text fontSize="xs" color="fg.muted">Tracks</Text>
-              <Text fontWeight="bold" fontSize="lg">{playlistStats.trackCount}</Text>
-              <Text fontSize="xs" color="fg.muted">Audio Ready: {playlistStats.localAudioCoverage}%</Text>
+              <Text fontSize="xs" color="fg.muted">
+                Tracks
+              </Text>
+              <Text fontWeight="bold" fontSize="lg">
+                {playlistStats.trackCount}
+              </Text>
+              <Text fontSize="xs" color="fg.muted">
+                Audio Ready: {playlistStats.localAudioCoverage}%
+              </Text>
               <Progress.Root value={playlistStats.localAudioCoverage} size="xs" width="100%">
                 <Progress.Track>
                   <Progress.Range />
@@ -279,37 +340,64 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
         <Card.Root size="sm" variant="outline">
           <Card.Body>
             <VStack align="start" gap={1}>
-              <Text fontSize="xs" color="fg.muted">Top Genres</Text>
-              <CountedGenreBadges items={playlistStats.topGenres} kind="discogs-genre" empty="No genre tags" />
+              <Text fontSize="xs" color="fg.muted">
+                Top Genres
+              </Text>
+              <CountedGenreBadges
+                items={playlistStats.topGenres}
+                kind="discogs-genre"
+                empty="No genre tags"
+              />
             </VStack>
           </Card.Body>
         </Card.Root>
         <Card.Root size="sm" variant="outline">
           <Card.Body>
             <VStack align="start" gap={1}>
-              <Text fontSize="xs" color="fg.muted">Top track genres</Text>
-              <CountedGenreBadges items={playlistStats.topTrackGenres} kind="track" empty="No track genres" />
+              <Text fontSize="xs" color="fg.muted">
+                Top track genres
+              </Text>
+              <CountedGenreBadges
+                items={playlistStats.topTrackGenres}
+                kind="track"
+                empty="No track genres"
+              />
             </VStack>
           </Card.Body>
         </Card.Root>
         <Card.Root size="sm" variant="outline">
           <Card.Body>
             <VStack align="start" gap={1}>
-              <Text fontSize="xs" color="fg.muted">Rhythm & Harmony</Text>
+              <Text fontSize="xs" color="fg.muted">
+                Rhythm & Harmony
+              </Text>
               {playlistStats.bpmSummary ? (
                 <>
-                  <Text fontSize="sm">BPM avg {playlistStats.bpmSummary.avg} ({playlistStats.bpmSummary.min}-{playlistStats.bpmSummary.max})</Text>
-                  <Text fontSize="xs" color="fg.muted">BPM coverage: {playlistStats.bpmSummary.coverage}%</Text>
+                  <Text fontSize="sm">
+                    BPM avg {playlistStats.bpmSummary.avg} ({playlistStats.bpmSummary.min}-
+                    {playlistStats.bpmSummary.max})
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    BPM coverage: {playlistStats.bpmSummary.coverage}%
+                  </Text>
                 </>
               ) : (
-                <Text fontSize="sm" color="fg.muted">No BPM data</Text>
+                <Text fontSize="sm" color="fg.muted">
+                  No BPM data
+                </Text>
               )}
               <Flex gap={1} wrap="wrap">
-                {playlistStats.topKeys.length > 0 ? playlistStats.topKeys.map(([name, count]) => (
-                  <Badge key={`key-${name}`} variant="subtle">
-                    {name} ({count})
-                  </Badge>
-                )) : <Text fontSize="xs" color="fg.muted">No key data</Text>}
+                {playlistStats.topKeys.length > 0 ? (
+                  playlistStats.topKeys.map(([name, count]) => (
+                    <Badge key={`key-${name}`} variant="subtle">
+                      {name} ({count})
+                    </Badge>
+                  ))
+                ) : (
+                  <Text fontSize="xs" color="fg.muted">
+                    No key data
+                  </Text>
+                )}
               </Flex>
             </VStack>
           </Card.Body>
@@ -317,16 +405,26 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
         <Card.Root size="sm" variant="outline">
           <Card.Body>
             <VStack align="start" gap={1}>
-              <Text fontSize="xs" color="fg.muted">Ratings & Styles</Text>
+              <Text fontSize="xs" color="fg.muted">
+                Ratings & Styles
+              </Text>
               {playlistStats.ratingSummary ? (
                 <>
                   <Text fontSize="sm">Avg rating: {playlistStats.ratingSummary.avg}</Text>
-                  <Text fontSize="xs" color="fg.muted">4★+ tracks: {playlistStats.ratingSummary.favoritesCount}</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    4★+ tracks: {playlistStats.ratingSummary.favoritesCount}
+                  </Text>
                 </>
               ) : (
-                <Text fontSize="sm" color="fg.muted">No ratings yet</Text>
+                <Text fontSize="sm" color="fg.muted">
+                  No ratings yet
+                </Text>
               )}
-              <CountedGenreBadges items={playlistStats.topStyles} kind="discogs-style" empty="No style tags" />
+              <CountedGenreBadges
+                items={playlistStats.topStyles}
+                kind="discogs-style"
+                empty="No style tags"
+              />
             </VStack>
           </Card.Body>
         </Card.Root>

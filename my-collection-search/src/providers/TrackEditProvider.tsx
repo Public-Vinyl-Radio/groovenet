@@ -46,7 +46,7 @@ export default function TrackEditProvider({ children }: { children: React.ReactN
       if (opts?.onSaved) await opts.onSaved(data);
       savedOptionsRef.current = null;
     },
-    [saveTrack]
+    [saveTrack],
   );
 
   const openTrackEditor = useCallback((t: Track, options?: OpenOptions) => {
@@ -63,7 +63,7 @@ export default function TrackEditProvider({ children }: { children: React.ReactN
 
   const value = useMemo(
     () => ({ openTrackEditor, closeTrackEditor, isOpen, track }),
-    [openTrackEditor, closeTrackEditor, isOpen, track]
+    [openTrackEditor, closeTrackEditor, isOpen, track],
   );
 
   return (

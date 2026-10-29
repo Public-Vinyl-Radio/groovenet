@@ -51,7 +51,10 @@ export function fitRight(text: string, width: number): string {
 /** A `━━────` progress bar, `width` cells wide; all `─` when the duration is unknown. */
 export function progressBar(position: number, duration: number | null, width: number): string {
   const cells = Math.max(0, Math.floor(width));
-  const fraction = duration && duration > 0 && Number.isFinite(position) ? Math.min(1, Math.max(0, position / duration)) : 0;
+  const fraction =
+    duration && duration > 0 && Number.isFinite(position)
+      ? Math.min(1, Math.max(0, position / duration))
+      : 0;
   const filled = Math.round(cells * fraction);
   return "━".repeat(filled) + "─".repeat(cells - filled);
 }
@@ -67,7 +70,10 @@ export function wrap(text: string, width: number): string[] {
   for (const word of text.split(/\s+/).filter(Boolean)) {
     let rest = word;
     const joined = line ? `${line} ${rest}` : rest;
-    if (displayWidth(joined) <= width) { line = joined; continue; }
+    if (displayWidth(joined) <= width) {
+      line = joined;
+      continue;
+    }
     if (line) lines.push(line);
     line = "";
     while (displayWidth(rest) > width) {

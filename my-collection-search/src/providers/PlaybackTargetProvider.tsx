@@ -1,19 +1,43 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { playerIdSchema, type ServerPlayer } from "@groovenet/contracts";
 import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
-import { ServerPlayerSession, upcomingTracks, type SessionView } from "@groovenet/client/player-session";
+import {
+  ServerPlayerSession,
+  upcomingTracks,
+  type SessionView,
+} from "@groovenet/client/player-session";
 import { playerApi } from "@/services/internalApi/players";
 import type { Track } from "@/types/track";
 import type { ReplacePlaylistOptions } from "@/providers/playlist-player/useQueueState";
 
 const storageKey = "mcs:playback-target";
-const empty: SessionView = { player: null, devices: [], connected: false, busy: false, problem: null, acknowledgement: null };
+const empty: SessionView = {
+  player: null,
+  devices: [],
+  connected: false,
+  busy: false,
+  problem: null,
+  acknowledgement: null,
+};
 const noopSubscribe = () => () => {};
 const emptySnapshot = () => empty;
 
-type LocalQueue = Pick<ReturnType<typeof usePlaylistPlayer>, "playlist" | "currentTrackIndex" | "finishedTrack">;
+type LocalQueue = Pick<
+  ReturnType<typeof usePlaylistPlayer>,
+  "playlist" | "currentTrackIndex" | "finishedTrack"
+>;
 /** What joining a server takes from this device: the current track onward, never what already played. */
 export const upcomingLocalTracks = (queue: LocalQueue): Track[] => upcomingTracks(queue);
 
@@ -30,12 +54,21 @@ function useTargetState() {
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved && playerIdSchema.safeParse(saved).success) setTarget(saved);
-    } catch { /* Storage may be disabled; local playback remains available. */ }
-    void playerApi.session().then(result => setAuthorized(result.authorized)).catch(() => {});
+    } catch {
+      /* Storage may be disabled; local playback remains available. */
+    }
+    void playerApi
+      .session()
+      .then((result) => setAuthorized(result.authorized))
+      .catch(() => {});
   }, []);
   const loadPlayers = useCallback(async () => {
-    try { setPlayers(await playerApi.list()); setProblem(null); }
-    catch (error) { setProblem(error instanceof Error ? error.message : "Server players unavailable"); }
+    try {
+      setPlayers(await playerApi.list());
+      setProblem(null);
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : "Server players unavailable");
+    }
   }, []);
   useEffect(() => {
     if (!authorized) return;
@@ -47,33 +80,51 @@ function useTargetState() {
       const current = ++generation;
       let worker: string | undefined;
       let sequence = -1;
-      close = playerApi.subscribeAll(event => {
-        if (!active || current !== generation) return;
-        if (event.type === "players" && worker === undefined) {
-          worker = event.worker_instance;
-          sequence = event.sequence;
-          setPlayers(event.players);
-          setProblem(null);
-        } else if (event.type === "snapshot" && event.worker_instance === worker && event.sequence > sequence) {
-          sequence = event.sequence;
-          setPlayers(players => {
-            const existing = players.find(player => player.id === event.player.id);
-            if (existing && existing.revision > event.player.revision) return players;
-            return existing ? players.map(player => player.id === event.player.id ? event.player : player) : [...players, event.player];
-          });
-        }
-      }, () => {
-        if (!active || current !== generation) return;
-        ++generation;
-        close?.();
-        setProblem("Music server updates disconnected. Reconnecting.");
-        timer = setTimeout(connect, 1500);
-      });
+      close = playerApi.subscribeAll(
+        (event) => {
+          if (!active || current !== generation) return;
+          if (event.type === "players" && worker === undefined) {
+            worker = event.worker_instance;
+            sequence = event.sequence;
+            setPlayers(event.players);
+            setProblem(null);
+          } else if (
+            event.type === "snapshot" &&
+            event.worker_instance === worker &&
+            event.sequence > sequence
+          ) {
+            sequence = event.sequence;
+            setPlayers((players) => {
+              const existing = players.find((player) => player.id === event.player.id);
+              if (existing && existing.revision > event.player.revision) return players;
+              return existing
+                ? players.map((player) => (player.id === event.player.id ? event.player : player))
+                : [...players, event.player];
+            });
+          }
+        },
+        () => {
+          if (!active || current !== generation) return;
+          ++generation;
+          close?.();
+          setProblem("Music server updates disconnected. Reconnecting.");
+          timer = setTimeout(connect, 1500);
+        },
+      );
     };
     connect();
-    return () => { active = false; ++generation; clearTimeout(timer); close?.(); };
+    return () => {
+      active = false;
+      ++generation;
+      clearTimeout(timer);
+      close?.();
+    };
   }, [authorized]);
-  const controller = useMemo(() => target !== "" && authorized ? new ServerPlayerSession(target, playerApi, { onJoined }) : null, [target, authorized, onJoined]);
+  const controller = useMemo(
+    () =>
+      target !== "" && authorized ? new ServerPlayerSession(target, playerApi, { onJoined }) : null,
+    [target, authorized, onJoined],
+  );
   useEffect(() => controller?.start(), [controller]);
   useEffect(() => {
     const join = pendingJoin.current;
@@ -82,10 +133,18 @@ function useTargetState() {
     // The local queue is cleared only once its tracks are safely on the server.
     void controller.join(join.tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id })));
   }, [controller]);
-  const remote = useSyncExternalStore(controller?.subscribe ?? noopSubscribe, controller?.getSnapshot ?? emptySnapshot, emptySnapshot);
+  const remote = useSyncExternalStore(
+    controller?.subscribe ?? noopSubscribe,
+    controller?.getSnapshot ?? emptySnapshot,
+    emptySnapshot,
+  );
   const remember = (next: string) => {
     setTarget(next);
-    try { localStorage.setItem(storageKey, next); } catch { /* optional preference */ }
+    try {
+      localStorage.setItem(storageKey, next);
+    } catch {
+      /* optional preference */
+    }
   };
   /**
    * Join a server from this device: its upcoming local tracks are appended to
@@ -103,17 +162,46 @@ function useTargetState() {
     remember(id);
   };
   /** Back to this device. The server is never sent a command: it keeps playing its queue. */
-  const playHere = () => { pendingJoin.current = null; remember(""); };
-  const select = (next: string) => next === "" ? playHere() : join(next);
+  const playHere = () => {
+    pendingJoin.current = null;
+    remember("");
+  };
+  const select = (next: string) => (next === "" ? playHere() : join(next));
   const unlock = async (passphrase: string) => {
-    try { await playerApi.unlock(passphrase); setAuthorized(true); setProblem(null); }
-    catch (error) { setProblem(error instanceof Error ? error.message : "Unable to unlock players"); }
+    try {
+      await playerApi.unlock(passphrase);
+      setAuthorized(true);
+      setProblem(null);
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : "Unable to unlock players");
+    }
   };
   const lock = async () => {
-    try { await playerApi.lock(); setAuthorized(false); setPlayers([]); setProblem(null); }
-    catch (error) { setProblem(error instanceof Error ? error.message : "Unable to lock players"); }
+    try {
+      await playerApi.lock();
+      setAuthorized(false);
+      setPlayers([]);
+      setProblem(null);
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : "Unable to lock players");
+    }
   };
-  return { target, select, join, playHere, airPlayActive: local.isAirPlayActive, players, authorized, unlock, lock, problem, reportProblem: setProblem, loadPlayers, controller, remote };
+  return {
+    target,
+    select,
+    join,
+    playHere,
+    airPlayActive: local.isAirPlayActive,
+    players,
+    authorized,
+    unlock,
+    lock,
+    problem,
+    reportProblem: setProblem,
+    loadPlayers,
+    controller,
+    remote,
+  };
 }
 const Context = createContext<ReturnType<typeof useTargetState> | null>(null);
 export function PlaybackTargetProvider({ children }: { children: ReactNode }) {
@@ -133,35 +221,76 @@ export function usePlaybackPlayer() {
   const target = useOptionalPlaybackTarget();
   if (!target || target.target === "") return local;
   const { controller, remote } = target;
-  const reportLocked = () => target.reportProblem("Unlock server access before trying this action again.");
+  const reportLocked = () =>
+    target.reportProblem("Unlock server access before trying this action again.");
   const player = remote.player;
   const queue = player?.state.queue ?? [];
-  const index = queue.findIndex(entry => entry.id === player?.state.current_entry_id);
+  const index = queue.findIndex((entry) => entry.id === player?.state.current_entry_id);
   const add = async (items: Track[] | Track, at?: number) => {
-    const tracks = (Array.isArray(items) ? items : [items]).map(({ track_id, friend_id }) => ({ track_id, friend_id }));
+    const tracks = (Array.isArray(items) ? items : [items]).map(({ track_id, friend_id }) => ({
+      track_id,
+      friend_id,
+    }));
     if (!tracks.length) return null;
-    if (!controller) { reportLocked(); return null; }
+    if (!controller) {
+      reportLocked();
+      return null;
+    }
     return controller.command({ type: "queue.add", tracks, ...(at === undefined ? {} : { at }) });
   };
   const replace = async (tracks: Track[], options: ReplacePlaylistOptions = {}) => {
     if (!tracks.length) return;
-    if (!controller) { reportLocked(); return; }
-    const entries = tracks.map(({ track_id, friend_id }) => ({ id: crypto.randomUUID(), track_id, friend_id }));
-    const offset = options.startIndex ?? (options.startTrackId ? Math.max(0, tracks.findIndex(track => track.track_id === options.startTrackId)) : 0);
-    await controller.command({ type: "queue.replace", entries, current_entry_id: entries[offset]?.id ?? entries[0]!.id, position: 0, play: options.autoplay === true });
+    if (!controller) {
+      reportLocked();
+      return;
+    }
+    const entries = tracks.map(({ track_id, friend_id }) => ({
+      id: crypto.randomUUID(),
+      track_id,
+      friend_id,
+    }));
+    const offset =
+      options.startIndex ??
+      (options.startTrackId
+        ? Math.max(
+            0,
+            tracks.findIndex((track) => track.track_id === options.startTrackId),
+          )
+        : 0);
+    await controller.command({
+      type: "queue.replace",
+      entries,
+      current_entry_id: entries[offset]?.id ?? entries[0]!.id,
+      position: 0,
+      play: options.autoplay === true,
+    });
   };
-  const edit = (type: "play" | "resume" | "pause" | "stop" | "next" | "previous" | "queue.clear") => {
+  const edit = (
+    type: "play" | "resume" | "pause" | "stop" | "next" | "previous" | "queue.clear",
+  ) => {
     if (controller) void controller.command({ type });
     else reportLocked();
   };
   return {
-    playlist: queue, playlistLength: queue.length, currentTrackIndex: index < 0 ? null : index,
-    isPlaying: player?.state.status === "playing", currentTrack: queue[index] ?? null,
+    playlist: queue,
+    playlistLength: queue.length,
+    currentTrackIndex: index < 0 ? null : index,
+    isPlaying: player?.state.status === "playing",
+    currentTrack: queue[index] ?? null,
     play: () => edit(player?.state.status === "paused" ? "resume" : "play"),
-    pause: () => edit("pause"), stop: () => edit("stop"), playNext: () => edit("next"), playPrev: () => edit("previous"),
+    pause: () => edit("pause"),
+    stop: () => edit("stop"),
+    playNext: () => edit("next"),
+    playPrev: () => edit("previous"),
     clearQueue: () => edit("queue.clear"),
-    replacePlaylist: (tracks: Track[], options?: ReplacePlaylistOptions) => { void replace(tracks, options); },
-    appendToQueue: (items: Track[] | Track) => { void add(items); },
-    enqueueNext: (items: Track[] | Track) => { void add(items, index + 1); },
+    replacePlaylist: (tracks: Track[], options?: ReplacePlaylistOptions) => {
+      void replace(tracks, options);
+    },
+    appendToQueue: (items: Track[] | Track) => {
+      void add(items);
+    },
+    enqueueNext: (items: Track[] | Track) => {
+      void add(items, index + 1);
+    },
   };
 }

@@ -38,7 +38,7 @@ export function isKeyConfidenceLow(keyConfidence: number | null | undefined): bo
 
 /** The percentage to show in the UI, or null when there's nothing to show. */
 export function formatKeyConfidencePercent(
-  keyConfidence: number | null | undefined
+  keyConfidence: number | null | undefined,
 ): number | null {
   return typeof keyConfidence === "number" ? Math.round(keyConfidence * 100) : null;
 }
@@ -106,7 +106,7 @@ export function extractKeyAnalysis(tonal: EssentiaTonal | undefined): KeyAnalysi
     return {
       key: majority[0].formatted,
       key_confidence: average(
-        majority.map((c) => c.strength).filter((s): s is number => typeof s === "number")
+        majority.map((c) => c.strength).filter((s): s is number => typeof s === "number"),
       ),
     };
   }
@@ -118,7 +118,8 @@ export function extractKeyAnalysis(tonal: EssentiaTonal | undefined): KeyAnalysi
   });
   return {
     key: winner.formatted,
-    key_confidence: typeof winner.strength === "number" ? Math.round(winner.strength * 1000) / 1000 : null,
+    key_confidence:
+      typeof winner.strength === "number" ? Math.round(winner.strength * 1000) / 1000 : null,
   };
 }
 
@@ -135,7 +136,7 @@ export function extractKeyAnalysis(tonal: EssentiaTonal | undefined): KeyAnalysi
 export function logKeyProfileDisagreement(
   tonal: EssentiaTonal | undefined,
   context: { track_id: string; friend_id: number },
-  log: (message: string) => void = console.warn
+  log: (message: string) => void = console.warn,
 ): void {
   const { key } = extractKeyAnalysis(tonal);
   if (!key) return;
@@ -154,7 +155,7 @@ export function logKeyProfileDisagreement(
   if (disagreements.length > 0) {
     log(
       `Key profile disagreement for track ${context.track_id} (friend ${context.friend_id}): ` +
-        `stored key=${key} vs ${disagreements.join(", ")}`
+        `stored key=${key} vs ${disagreements.join(", ")}`,
     );
   }
 }

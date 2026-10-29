@@ -14,14 +14,23 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({ replacePlaylist: mocks.replacePlaylist, appendToQueue: mocks.appendToQueue }),
+  usePlaylistPlayer: () => ({
+    replacePlaylist: mocks.replacePlaylist,
+    appendToQueue: mocks.appendToQueue,
+  }),
 }));
-vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: mocks.saveTrack }) }));
+vi.mock("@/hooks/useTracksQuery", () => ({
+  useTracksQuery: () => ({ saveTrack: mocks.saveTrack }),
+}));
 vi.mock("./TrackPlaylistUsage", () => ({
   default: ({ count }: { count: number }) => <span>{count} playlists</span>,
 }));
 
-import TrackResult, { TrackListHeader, TRACK_ROW_GRID_TEMPLATE, TRACK_ROW_HEIGHT } from "./TrackResult";
+import TrackResult, {
+  TrackListHeader,
+  TRACK_ROW_GRID_TEMPLATE,
+  TRACK_ROW_HEIGHT,
+} from "./TrackResult";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -67,19 +76,27 @@ describe("TrackResult genre badges (#470)", () => {
   it("falls back to the raw tags for a track not yet reconciled", () => {
     renderWithProviders(<TrackResult track={{ ...track, track_genres: [] }} />);
 
-    expect(within(screen.getByTestId("track-genres")).getAllByText("Psychedelic Cumbia").length).toBeGreaterThan(0);
+    expect(
+      within(screen.getByTestId("track-genres")).getAllByText("Psychedelic Cumbia").length,
+    ).toBeGreaterThan(0);
   });
 
   it("falls back to the album's Discogs styles when the track has no DJ genres at all", () => {
     renderWithProviders(
-      <TrackResult track={{ ...track, track_genres: [], local_tags: "", styles: ["Bossa Nova"] }} />
+      <TrackResult
+        track={{ ...track, track_genres: [], local_tags: "", styles: ["Bossa Nova"] }}
+      />,
     );
 
-    expect(within(screen.getByTestId("track-genres")).getAllByText("Bossa Nova").length).toBeGreaterThan(0);
+    expect(
+      within(screen.getByTestId("track-genres")).getAllByText("Bossa Nova").length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows no row for a track with no genres and no Discogs styles", () => {
-    renderWithProviders(<TrackResult track={{ ...track, track_genres: [], local_tags: "", styles: [] }} />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, track_genres: [], local_tags: "", styles: [] }} />,
+    );
 
     expect(screen.queryByTestId("track-genres")).toBeNull();
   });
@@ -115,7 +132,9 @@ describe("TrackResult genre badges (#470)", () => {
 
 describe("TrackResult layout", () => {
   it("renders a row layout grid with a Play button for a track with audio", () => {
-    renderWithProviders(<TrackResult track={{ ...track, local_audio_url: "track.m4a" }} layout="row" />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, local_audio_url: "track.m4a" }} layout="row" />,
+    );
 
     expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
   });
@@ -124,7 +143,12 @@ describe("TrackResult layout", () => {
     // A child that renders null (e.g. GenreList for a genre-less track) drops out of
     // the DOM, which shifts every later CSS Grid auto-placed column left by one —
     // regression coverage for that, not just a snapshot of the current markup.
-    renderWithProviders(<TrackResult track={{ ...track, track_genres: [], local_tags: "", styles: [] }} layout="row" />);
+    renderWithProviders(
+      <TrackResult
+        track={{ ...track, track_genres: [], local_tags: "", styles: [] }}
+        layout="row"
+      />,
+    );
 
     expect(screen.getByTestId("track-row-grid").children.length).toBe(6);
   });
@@ -135,7 +159,7 @@ describe("TrackResult layout", () => {
         track={track}
         layout="row"
         buttons={<button aria-label="Track actions">menu</button>}
-      />
+      />,
     );
 
     const grid = screen.getByTestId("track-row-grid");
@@ -161,12 +185,20 @@ describe("TrackResult layout", () => {
 
     expect(screen.queryByRole("button", { name: "Add to crate" })).toBeNull();
     expect(screen.queryByRole("radio", { name: "4 stars" })).toBeNull();
-    expect(getComputedStyle(screen.getByRole("button", { name: "Add to crate", hidden: true }).parentElement as HTMLElement).display).toBe("none");
+    expect(
+      getComputedStyle(
+        screen.getByRole("button", { name: "Add to crate", hidden: true })
+          .parentElement as HTMLElement,
+      ).display,
+    ).toBe("none");
   });
 
   it("shows the sort-position-change badge when supplied", () => {
     renderWithProviders(
-      <TrackResult track={track} sortPositionChange={{ currentPosition: 3, previousPosition: 1 }} />
+      <TrackResult
+        track={track}
+        sortPositionChange={{ currentPosition: 3, previousPosition: 1 }}
+      />,
     );
 
     expect(screen.getByText(/#3 was #1/)).toBeTruthy();
@@ -187,7 +219,7 @@ describe("TrackResult layout", () => {
 
   it("flags a low-confidence key with an '!' that opens a popover (#524)", async () => {
     const { user } = renderWithProviders(
-      <TrackResult track={{ ...track, key: "F major", key_confidence: 0.42 }} />
+      <TrackResult track={{ ...track, key: "F major", key_confidence: 0.42 }} />,
     );
 
     await user.click(screen.getByRole("button", { name: "Uncertain key" }));
@@ -212,7 +244,7 @@ describe("TrackResult layout", () => {
 
   it("flags a contested BPM with an '!' that opens a popover (#531)", async () => {
     const { user } = renderWithProviders(
-      <TrackResult track={{ ...track, bpm: "103", bpm_confidence: 0.02 }} />
+      <TrackResult track={{ ...track, bpm: "103", bpm_confidence: 0.02 }} />,
     );
 
     await user.click(screen.getByRole("button", { name: "Uncertain BPM" }));
@@ -244,7 +276,7 @@ describe("TrackResult layout", () => {
   it("falls back to the placeholder image when artwork fails to load, with or without audio", () => {
     // The artwork is a decorative alt="" image, so it isn't exposed via role="img".
     const { container, rerender } = renderWithProviders(
-      <TrackResult track={{ ...track, local_audio_url: undefined }} />
+      <TrackResult track={{ ...track, local_audio_url: undefined }} />,
     );
     const image = () => container.querySelector("img") as HTMLImageElement;
     fireEvent.error(image());
@@ -273,7 +305,7 @@ describe("TrackResult layout", () => {
 
   it("opens the notes popover when the notes icon is clicked", async () => {
     const { user } = renderWithProviders(
-      <TrackResult track={{ ...track, notes: "Great transition into this one" }} />
+      <TrackResult track={{ ...track, notes: "Great transition into this one" }} />,
     );
 
     await user.click(screen.getByRole("button", { name: "Has notes" }));
@@ -310,13 +342,18 @@ describe("TrackResult layout", () => {
     async (layout) => {
       const onToggleSelect = vi.fn();
       const { user } = renderWithProviders(
-        <TrackResult track={track} layout={layout} isSelected={false} onToggleSelect={onToggleSelect} />
+        <TrackResult
+          track={track}
+          layout={layout}
+          isSelected={false}
+          onToggleSelect={onToggleSelect}
+        />,
       );
 
       await user.click(screen.getByRole("checkbox"));
 
       expect(onToggleSelect).toHaveBeenCalledTimes(1);
-    }
+    },
   );
 });
 
@@ -328,7 +365,9 @@ describe("TrackResult dense layouts", () => {
       styles: ["Source Style"],
       album_genres: ["Jazz"],
       album_styles: [],
-      track_genres: [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null }],
+      track_genres: [
+        { id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+      ],
       notes: "Dense card note",
       release_id: "release-1",
       username: "crate-owner",
@@ -340,20 +379,46 @@ describe("TrackResult dense layouts", () => {
         playlistCount={2}
         footer={<span>Job footer</span>}
         buttons={<button aria-label="Job details">Details</button>}
-      />
+      />,
     );
     await act(async () => {
       queryClient.setQueryData(queryKeys.genreTree(), [
-        { id: "j", name: "Jazz", slug: "jazz", parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [] },
-        { id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, source: "discogs", track_count: 0, album_count: 0, children: [] },
+        {
+          id: "j",
+          name: "Jazz",
+          slug: "jazz",
+          parent_id: null,
+          source: "discogs",
+          track_count: 0,
+          album_count: 0,
+          children: [],
+        },
+        {
+          id: "c",
+          name: "Cumbia",
+          slug: "cumbia",
+          parent_id: null,
+          source: "discogs",
+          track_count: 0,
+          album_count: 0,
+          children: [],
+        },
       ]);
     });
 
     expect(screen.getByTestId("track-result-dense-card")).toBeTruthy();
-    expect(screen.getByRole("link", { name: denseTrack.title }).getAttribute("href")).toBe(`/tracks/${denseTrack.track_id}?friend_id=${denseTrack.friend_id}`);
-    expect(screen.getByRole("link", { name: denseTrack.artist }).getAttribute("href")).toBe(`/albums?q=${encodeURIComponent(denseTrack.artist)}&friend_id=${denseTrack.friend_id}`);
-    expect((await screen.findByRole("link", { name: "Search tracks in Jazz" })).getAttribute("href")).toBe("/?genre=jazz");
-    expect((await screen.findByRole("link", { name: "Search tracks in Cumbia" })).getAttribute("href")).toBe("/?genre=cumbia");
+    expect(screen.getByRole("link", { name: denseTrack.title }).getAttribute("href")).toBe(
+      `/tracks/${denseTrack.track_id}?friend_id=${denseTrack.friend_id}`,
+    );
+    expect(screen.getByRole("link", { name: denseTrack.artist }).getAttribute("href")).toBe(
+      `/albums?q=${encodeURIComponent(denseTrack.artist)}&friend_id=${denseTrack.friend_id}`,
+    );
+    expect(
+      (await screen.findByRole("link", { name: "Search tracks in Jazz" })).getAttribute("href"),
+    ).toBe("/?genre=jazz");
+    expect(
+      (await screen.findByRole("link", { name: "Search tracks in Cumbia" })).getAttribute("href"),
+    ).toBe("/?genre=cumbia");
     expect(screen.getByText("2 playlists")).toBeTruthy();
     expect(screen.getByText("crate-owner")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Has notes" })).toBeTruthy();
@@ -382,7 +447,7 @@ describe("TrackResult dense layouts", () => {
         playlistCount={3}
         isSelected
         onToggleSelect={onToggleSelect}
-      />
+      />,
     );
 
     expect(screen.queryByText("private")).toBeNull();
@@ -408,8 +473,12 @@ describe("TrackResult dense layouts", () => {
         isSelected={false}
         onToggleSelect={onToggleSelect}
         showRating={false}
-        buttons={<button aria-label="Remove track" onClick={onRemove}>Remove</button>}
-      />
+        buttons={
+          <button aria-label="Remove track" onClick={onRemove}>
+            Remove
+          </button>
+        }
+      />,
     );
     const row = screen.getByTestId("track-result-dense-row");
 
@@ -442,15 +511,15 @@ describe("TrackResult dense layouts", () => {
         layout="row"
         onRowClick={onRowClick}
         playlistCount={2}
-      />
+      />,
     );
 
     expect(screen.getByText("2 playlists")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Play" }));
-    expect(mocks.replacePlaylist).toHaveBeenCalledWith(
-      [playableTrack],
-      { autoplay: true, startIndex: 0 }
-    );
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith([playableTrack], {
+      autoplay: true,
+      startIndex: 0,
+    });
     expect(onRowClick).not.toHaveBeenCalled();
   });
 
@@ -467,7 +536,7 @@ describe("TrackResult dense layouts", () => {
         showNotes={false}
         showPlaylistCount={false}
         playlistCount={4}
-      />
+      />,
     );
 
     expect(screen.queryByText("hidden user")).toBeNull();
@@ -484,7 +553,7 @@ describe("TrackResult dense layouts", () => {
         track={{ ...track, genres: [], styles: [], track_genres: [], local_tags: "" }}
         density="dense"
         layout="row"
-      />
+      />,
     );
 
     expect(screen.queryByTestId("track-genres")).toBeNull();
@@ -493,9 +562,15 @@ describe("TrackResult dense layouts", () => {
   it("keeps unreconciled local tags visible as plain text in the dense card", () => {
     renderWithProviders(
       <TrackResult
-        track={{ ...track, track_genres: [], local_tags: "Feminist Anthem", genres: [], styles: [] }}
+        track={{
+          ...track,
+          track_genres: [],
+          local_tags: "Feminist Anthem",
+          genres: [],
+          styles: [],
+        }}
         density="dense"
-      />
+      />,
     );
 
     expect(screen.getByText("Feminist Anthem").closest("a")).toBeNull();
@@ -506,7 +581,9 @@ describe("TrackResult dense layouts", () => {
     { score: 0.8, label: "80%" },
     { score: 0.7, label: "70%" },
   ])("preserves the dense-card similarity score band for $label", ({ score, label }) => {
-    renderWithProviders(<TrackResult track={{ ...track, _semanticScore: score }} density="dense" />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, _semanticScore: score }} density="dense" />,
+    );
     expect(screen.getByText(label)).toBeTruthy();
   });
 
@@ -517,7 +594,7 @@ describe("TrackResult dense layouts", () => {
 
   it("shows queue duration and uses the placeholder when dense-row artwork fails", () => {
     const { container } = renderWithProviders(
-      <TrackResult track={{ ...track, local_audio_url: undefined }} density="dense" layout="row" />
+      <TrackResult track={{ ...track, local_audio_url: undefined }} density="dense" layout="row" />,
     );
     expect(screen.getByText("2:28")).toBeTruthy();
     const image = container.querySelector("img") as HTMLImageElement;
@@ -534,40 +611,58 @@ describe("TrackResult state styling across layouts", () => {
     ["dense row", { density: "dense" as const, layout: "row" as const }],
   ] as const;
 
-  it.each(layouts)("renders selected, data-issue and score states in the %s layout", (_name, props) => {
-    const noBpm = { ...track, bpm: undefined, hasVectors: false } as unknown as Track;
-    for (const [score, label] of [[0.95, "95"], [0.8, "80"], [0.5, "50"]] as const) {
-      const { unmount } = renderWithProviders(
-        <TrackResult
-          track={{ ...noBpm, _semanticScore: score } as Track}
-          isSelected
-          onToggleSelect={vi.fn()}
-          {...props}
-        />
-      );
-      // The dense row has no room for a score badge.
-      if (_name !== "dense row") {
-        expect(screen.getAllByText(new RegExp(`^${label}(\\.0)?%$`)).length).toBeGreaterThan(0);
+  it.each(layouts)(
+    "renders selected, data-issue and score states in the %s layout",
+    (_name, props) => {
+      const noBpm = { ...track, bpm: undefined, hasVectors: false } as unknown as Track;
+      for (const [score, label] of [
+        [0.95, "95"],
+        [0.8, "80"],
+        [0.5, "50"],
+      ] as const) {
+        const { unmount } = renderWithProviders(
+          <TrackResult
+            track={{ ...noBpm, _semanticScore: score } as Track}
+            isSelected
+            onToggleSelect={vi.fn()}
+            {...props}
+          />,
+        );
+        // The dense row has no room for a score badge.
+        if (_name !== "dense row") {
+          expect(screen.getAllByText(new RegExp(`^${label}(\\.0)?%$`)).length).toBeGreaterThan(0);
+        }
+        unmount();
       }
-      unmount();
-    }
 
-    const healthy = { ...track, bpm: "120", hasVectors: true } as Track;
-    for (const isSelected of [true, false]) {
-      const { unmount } = renderWithProviders(
-        <TrackResult track={healthy} isSelected={isSelected} onToggleSelect={vi.fn()} {...props} />
-      );
-      expect(screen.getAllByText(track.title).length).toBeGreaterThan(0);
-      unmount();
-    }
-  });
+      const healthy = { ...track, bpm: "120", hasVectors: true } as Track;
+      for (const isSelected of [true, false]) {
+        const { unmount } = renderWithProviders(
+          <TrackResult
+            track={healthy}
+            isSelected={isSelected}
+            onToggleSelect={vi.fn()}
+            {...props}
+          />,
+        );
+        expect(screen.getAllByText(track.title).length).toBeGreaterThan(0);
+        unmount();
+      }
+    },
+  );
 });
 
 describe("TrackResult row layout (#685)", () => {
-  const longAlbum = "Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)";
+  const longAlbum =
+    "Cumbia Beat Vol. 1 (Experimental Guitar-Driven Tropical Sounds From Perú 1966 1976)";
 
   it("puts title, artist and Album · Year on three lines of the first cell", () => {
-    renderWithProviders(<TrackResult track={{ ...track, album: "Abraxas", year: "1970", release_id: "1065960" }} layout="row" />);
+    renderWithProviders(
+      <TrackResult
+        track={{ ...track, album: "Abraxas", year: "1970", release_id: "1065960" }}
+        layout="row"
+      />,
+    );
 
     const grid = screen.getByTestId("track-row-grid");
     const first = grid.children[0] as HTMLElement;
@@ -575,11 +670,15 @@ describe("TrackResult row layout (#685)", () => {
     expect(albumLine.textContent).toBe("Abraxas · 1970");
     expect(within(first).getByText(track.title)).toBeTruthy();
     expect(within(first).getByText(track.artist)).toBeTruthy();
-    expect(albumLine.closest("a")?.getAttribute("href")).toBe(`/albums/1065960?friend_id=${track.friend_id}`);
+    expect(albumLine.closest("a")?.getAttribute("href")).toBe(
+      `/albums/1065960?friend_id=${track.friend_id}`,
+    );
   });
 
   it("truncates a long album title with an ellipsis and a tooltip", () => {
-    renderWithProviders(<TrackResult track={{ ...track, album: longAlbum, year: "1976" }} layout="row" />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, album: longAlbum, year: "1976" }} layout="row" />,
+    );
 
     const albumLine = screen.getByTestId("track-album-line");
     expect(albumLine.getAttribute("title")).toBe(`${longAlbum} · 1976`);
@@ -589,7 +688,9 @@ describe("TrackResult row layout (#685)", () => {
   });
 
   it("leaves the year off the album line when the track has none", () => {
-    renderWithProviders(<TrackResult track={{ ...track, album: "Abraxas", year: "" }} layout="row" />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, album: "Abraxas", year: "" }} layout="row" />,
+    );
 
     expect(screen.getByTestId("track-album-line").textContent).toBe("Abraxas");
   });
@@ -597,12 +698,17 @@ describe("TrackResult row layout (#685)", () => {
   it("keeps a long library identifier, the position and the extras whole in the Release cell", () => {
     renderWithProviders(
       <TrackResult
-        track={{ ...track, position: "B2", library_identifier: "LP-349-DELUXE-BOX-SET", username: "saegey" }}
+        track={{
+          ...track,
+          position: "B2",
+          library_identifier: "LP-349-DELUXE-BOX-SET",
+          username: "saegey",
+        }}
         layout="row"
         showUsername
         playlistCount={3}
         sortPositionChange={{ currentPosition: 3, previousPosition: 1 }}
-      />
+      />,
     );
 
     const release = screen.getByTestId("track-release");
@@ -612,39 +718,54 @@ describe("TrackResult row layout (#685)", () => {
     expect(within(release).getByText("3 playlists")).toBeTruthy();
     // It wraps rather than clipping, and no badge is allowed to be squeezed.
     expect(getComputedStyle(release).flexWrap).toBe("wrap");
-    expect(getComputedStyle(within(release).getByText("LP-349-DELUXE-BOX-SET-B2")).flexShrink).toBe("0");
+    expect(getComputedStyle(within(release).getByText("LP-349-DELUXE-BOX-SET-B2")).flexShrink).toBe(
+      "0",
+    );
   });
 
   it("joins the position to the library identifier as one tag, and shows it alone without one", () => {
     const { rerender } = renderWithProviders(
-      <TrackResult track={{ ...track, position: "B1", library_identifier: "LP-123" }} layout="row" />
+      <TrackResult
+        track={{ ...track, position: "B1", library_identifier: "LP-123" }}
+        layout="row"
+      />,
     );
     const release = screen.getByTestId("track-release");
     expect(within(release).getByText("LP-123-B1")).toBeTruthy();
     expect(within(release).queryByText("B1")).toBeNull();
 
-    rerender(<TrackResult track={{ ...track, position: "B1", library_identifier: null }} layout="row" />);
+    rerender(
+      <TrackResult track={{ ...track, position: "B1", library_identifier: null }} layout="row" />,
+    );
     expect(within(screen.getByTestId("track-release")).getByText("B1")).toBeTruthy();
 
-    rerender(<TrackResult track={{ ...track, position: "", library_identifier: "LP-123" }} layout="row" />);
+    rerender(
+      <TrackResult track={{ ...track, position: "", library_identifier: "LP-123" }} layout="row" />,
+    );
     expect(within(screen.getByTestId("track-release")).getByText("LP-123")).toBeTruthy();
   });
 
   it("keeps the identifier and the position apart on the card", () => {
-    renderWithProviders(<TrackResult track={{ ...track, position: "B1", library_identifier: "LP-123" }} />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, position: "B1", library_identifier: "LP-123" }} />,
+    );
 
     expect(screen.getByText("LP-123")).toBeTruthy();
     expect(screen.getByText("B1")).toBeTruthy();
   });
 
   it("no longer carries the album or the side in separate columns", () => {
-    renderWithProviders(<TrackResult track={{ ...track, album: "Abraxas", position: "A1" }} layout="row" />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, album: "Abraxas", position: "A1" }} layout="row" />,
+    );
 
     expect(screen.getAllByText(/Abraxas/)).toHaveLength(1);
   });
 
   it("shows only the Camelot code in the row, with the key name as a tooltip", () => {
-    renderWithProviders(<TrackResult track={{ ...track, key: "Bb minor", key_confidence: 0.4 }} layout="row" />);
+    renderWithProviders(
+      <TrackResult track={{ ...track, key: "Bb minor", key_confidence: 0.4 }} layout="row" />,
+    );
 
     const code = screen.getByText("3A");
     expect(getComputedStyle(code).flexShrink).toBe("0");
@@ -665,10 +786,18 @@ describe("TrackResult row layout (#685)", () => {
       <TrackResult
         track={{
           ...track,
-          track_genres: [{ id: "r", name: "Rock en Español", slug: "rock-en-espanol", parent_id: null, parent_name: null }],
+          track_genres: [
+            {
+              id: "r",
+              name: "Rock en Español",
+              slug: "rock-en-espanol",
+              parent_id: null,
+              parent_name: null,
+            },
+          ],
         }}
         layout="row"
-      />
+      />,
     );
 
     const tag = within(screen.getByTestId("track-genres")).getByText("Rock en Español");
@@ -691,13 +820,15 @@ describe("TrackResult row layout (#685)", () => {
       <>
         <TrackListHeader />
         <TrackResult track={track} layout="row" />
-      </>
+      </>,
     );
 
     const rowGrid = screen.getByTestId("track-row-grid");
     const headerGrid = screen.getByText("Release").parentElement as HTMLElement;
     expect(getComputedStyle(rowGrid).gridTemplateColumns).toContain("minmax(150px");
-    expect(getComputedStyle(headerGrid).gridTemplateColumns).toBe(getComputedStyle(rowGrid).gridTemplateColumns);
+    expect(getComputedStyle(headerGrid).gridTemplateColumns).toBe(
+      getComputedStyle(rowGrid).gridTemplateColumns,
+    );
     expect(TRACK_ROW_GRID_TEMPLATE.split(/\s(?![^()]*\))/)).toHaveLength(6);
     // Same columns, same order, in the header and the row.
     const labels = ["Track", "Release", "Time", "BPM / Key", "Genre", "Rating"];
@@ -730,7 +861,10 @@ describe("TrackResult card (#722)", () => {
     const meta = screen.getByTestId("track-card-meta");
     const order = ["LP-099", "B2", "4:23", "124 BPM", "11B", "Has notes"];
     const positions = order.map((text) => {
-      const el = text === "Has notes" ? within(meta).getByRole("button", { name: text }) : within(meta).getByText(text);
+      const el =
+        text === "Has notes"
+          ? within(meta).getByRole("button", { name: text })
+          : within(meta).getByText(text);
       return Array.from(meta.children).findIndex((child) => child.contains(el));
     });
     expect(positions.every((p) => p >= 0)).toBe(true);
@@ -758,7 +892,7 @@ describe("TrackResult card (#722)", () => {
 
   it("puts a '!' after the key name only below the confidence threshold", async () => {
     const { rerender, user } = renderWithProviders(
-      <TrackResult track={{ ...cardTrack, key_confidence: 0.42 }} />
+      <TrackResult track={{ ...cardTrack, key_confidence: 0.42 }} />,
     );
     const key = screen.getByTestId("track-card-key");
     const bang = within(key).getByRole("button", { name: "Uncertain key" });
@@ -778,7 +912,9 @@ describe("TrackResult card (#722)", () => {
   });
 
   it("reserves 32px for the corner menu on a phone and puts the menu in the corner", () => {
-    renderWithProviders(<TrackResult track={cardTrack} buttons={<button type="button">Menu</button>} />);
+    renderWithProviders(
+      <TrackResult track={cardTrack} buttons={<button type="button">Menu</button>} />,
+    );
 
     const titleRow = screen.getByRole("link", { name: track.title }).parentElement as HTMLElement;
     expect(getComputedStyle(titleRow).paddingRight).toBe("32px");
@@ -802,15 +938,26 @@ describe("TrackResult card (#722)", () => {
   it("shows the album with the artist on one line, and the year only on desktop", () => {
     renderWithProviders(<TrackResult track={cardTrack} />);
 
-    expect(screen.getByTestId("track-album-line").textContent).toContain(`${track.album} (${track.year})`);
+    expect(screen.getByTestId("track-album-line").textContent).toContain(
+      `${track.album} (${track.year})`,
+    );
     expect(getComputedStyle(screen.getByText(`(${track.year})`)).display).toBe("none");
   });
 
   it("keeps a card with no BPM, no key and no genres compact", () => {
     renderWithProviders(
       <TrackResult
-        track={{ ...cardTrack, bpm: null, key: null, track_genres: [], local_tags: "", styles: [], genres: [], notes: "" }}
-      />
+        track={{
+          ...cardTrack,
+          bpm: null,
+          key: null,
+          track_genres: [],
+          local_tags: "",
+          styles: [],
+          genres: [],
+          notes: "",
+        }}
+      />,
     );
 
     expect(screen.getByText("No BPM")).toBeTruthy();
@@ -825,13 +972,17 @@ describe("TrackResult card (#722)", () => {
   });
 
   it("omits the duration when the track has none", () => {
-    renderWithProviders(<TrackResult track={{ ...cardTrack, duration_seconds: undefined, duration: "" }} />);
+    renderWithProviders(
+      <TrackResult track={{ ...cardTrack, duration_seconds: undefined, duration: "" }} />,
+    );
 
     expect(within(screen.getByTestId("track-card-meta")).queryByText(/^\d+:\d{2}$/)).toBeNull();
   });
 
   it("drops the genre and rating row when both are turned off, and keeps it for the rating alone", () => {
-    const { rerender } = renderWithProviders(<TrackResult track={cardTrack} showGenres={false} showRating={false} />);
+    const { rerender } = renderWithProviders(
+      <TrackResult track={cardTrack} showGenres={false} showRating={false} />,
+    );
     expect(screen.queryByTestId("track-genres")).toBeNull();
     expect(screen.queryByRole("radio", { name: "4 stars", hidden: true })).toBeNull();
 

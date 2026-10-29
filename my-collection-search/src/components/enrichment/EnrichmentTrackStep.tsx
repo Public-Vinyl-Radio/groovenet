@@ -99,7 +99,7 @@ export default function EnrichmentTrackStep({
             youtube_url: track.youtube_url ?? null,
             soundcloud_url: track.soundcloud_url ?? null,
           },
-          aiPrompt
+          aiPrompt,
         );
         const data = await fetchMetadata({
           prompt,
@@ -117,14 +117,14 @@ export default function EnrichmentTrackStep({
       }
     };
     run();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fire Apple Music on mount
   useEffect(() => {
     if (!enrichmentTypes.appleMusic) return;
     runAppleMusicSearch(track.title, track.artist, track.album);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fire YouTube on mount
@@ -146,7 +146,7 @@ export default function EnrichmentTrackStep({
       }
     };
     run();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const runAppleMusicSearch = async (title?: string, artist?: string, album?: string) => {
@@ -221,8 +221,7 @@ export default function EnrichmentTrackStep({
 
   const placeholderSrc =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23374151' width='100' height='100'/%3E%3Ctext fill='%23ffffff' font-family='Arial' font-size='14' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle'%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E";
-  const artworkSrc =
-    track.audio_file_album_art_url || track.album_thumbnail || placeholderSrc;
+  const artworkSrc = track.audio_file_album_art_url || track.album_thumbnail || placeholderSrc;
 
   return (
     <Flex direction="column" gap={6}>
@@ -267,11 +266,7 @@ export default function EnrichmentTrackStep({
                 </Badge>
               )}
             </Flex>
-            <Checkbox.Root
-              size="sm"
-              checked={llmInclude}
-              onChange={() => setLlmInclude((v) => !v)}
-            >
+            <Checkbox.Root size="sm" checked={llmInclude} onChange={() => setLlmInclude((v) => !v)}>
               <Checkbox.HiddenInput />
               <Checkbox.Control />
               <Checkbox.Label>
@@ -370,9 +365,7 @@ export default function EnrichmentTrackStep({
                   p={2}
                   borderRadius="md"
                   borderWidth="1px"
-                  borderColor={
-                    selectedAppleUrl === result.url ? "accent.border" : "border"
-                  }
+                  borderColor={selectedAppleUrl === result.url ? "accent.border" : "border"}
                   cursor={appleMusicInclude ? "pointer" : "default"}
                   onClick={() => appleMusicInclude && setSelectedAppleUrl(result.url)}
                   bg={selectedAppleUrl === result.url ? "accent.subtle" : undefined}
@@ -395,7 +388,7 @@ export default function EnrichmentTrackStep({
                       {result.artist} — {result.album}
                       {result.duration
                         ? ` • ${Math.floor(result.duration / 60000)}:${String(
-                            Math.floor((result.duration % 60000) / 1000)
+                            Math.floor((result.duration % 60000) / 1000),
                           ).padStart(2, "0")}`
                         : ""}
                     </Text>
@@ -423,7 +416,9 @@ export default function EnrichmentTrackStep({
                 <Button
                   size="xs"
                   variant="outline"
-                  onClick={() => runAppleMusicSearch(appleMusicSearchQuery || track.title, track.artist)}
+                  onClick={() =>
+                    runAppleMusicSearch(appleMusicSearchQuery || track.title, track.artist)
+                  }
                   loading={appleMusicLoading}
                 >
                   Search
@@ -472,9 +467,7 @@ export default function EnrichmentTrackStep({
                   p={2}
                   borderRadius="md"
                   borderWidth="1px"
-                  borderColor={
-                    selectedYoutubeUrl === result.url ? "accent.border" : "border"
-                  }
+                  borderColor={selectedYoutubeUrl === result.url ? "accent.border" : "border"}
                   cursor={youtubeInclude ? "pointer" : "default"}
                   onClick={() => youtubeInclude && setSelectedYoutubeUrl(result.url ?? "")}
                   bg={selectedYoutubeUrl === result.url ? "accent.subtle" : undefined}
@@ -566,12 +559,7 @@ export default function EnrichmentTrackStep({
         <Button variant="ghost" size="sm" onClick={onSkip}>
           Skip
         </Button>
-        <Button
-          colorPalette="accent"
-          size="sm"
-          onClick={handleSave}
-          loading={isSaving}
-        >
+        <Button colorPalette="accent" size="sm" onClick={handleSave} loading={isSaving}>
           Save & Next
         </Button>
       </Flex>

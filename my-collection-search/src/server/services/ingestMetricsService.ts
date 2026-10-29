@@ -160,8 +160,7 @@ export class IngestMetricsService {
       },
       plays: {
         confirmed: count("plays.confirmed"),
-        latency_ms_avg:
-          measured > 0 ? Math.round(count("plays.latency_ms_sum") / measured) : null,
+        latency_ms_avg: measured > 0 ? Math.round(count("plays.latency_ms_sum") / measured) : null,
         latency_bands: LATENCY_BANDS.map(([band]) => ({
           band,
           count: count(`plays.latency.${band}`),

@@ -2,7 +2,9 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const readEssentiaAnalysis = vi.fn();
-vi.mock("@/lib/essentia-storage", () => ({ readEssentiaAnalysis: (...a: unknown[]) => readEssentiaAnalysis(...a) }));
+vi.mock("@/lib/essentia-storage", () => ({
+  readEssentiaAnalysis: (...a: unknown[]) => readEssentiaAnalysis(...a),
+}));
 
 import { GET } from "../route";
 

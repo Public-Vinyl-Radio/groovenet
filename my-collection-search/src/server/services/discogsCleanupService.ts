@@ -13,7 +13,7 @@ type CleanupResult = {
 
 export async function cleanupDiscogsReleases(
   username: string,
-  releaseIds: string[]
+  releaseIds: string[],
 ): Promise<CleanupResult> {
   if (releaseIds.length === 0) {
     return {
@@ -40,15 +40,15 @@ export async function cleanupDiscogsReleases(
 
   const deletedTrackIds = await trackRepository.listTrackIdsByFriendAndReleaseIds(
     friendId,
-    releaseIds
+    releaseIds,
   );
   const deletedAlbumsCount = await albumRepository.deleteAlbumsByFriendAndReleaseIds(
     friendId,
-    releaseIds
+    releaseIds,
   );
   const deletedTracksCount = await trackRepository.deleteTracksByFriendAndReleaseIds(
     friendId,
-    releaseIds
+    releaseIds,
   );
 
   return {

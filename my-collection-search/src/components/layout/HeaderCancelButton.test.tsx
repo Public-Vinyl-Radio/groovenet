@@ -15,6 +15,8 @@ describe("HeaderCancelButton", () => {
 
   it("is disabled while a save is in flight", () => {
     renderWithProviders(<HeaderCancelButton onClick={vi.fn()} disabled />);
-    expect((screen.getByRole("button", { name: "Cancel", hidden: true }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Cancel", hidden: true }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 });

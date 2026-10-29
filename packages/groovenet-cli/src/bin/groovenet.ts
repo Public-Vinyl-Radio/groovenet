@@ -20,10 +20,7 @@ const { version } = require("../../package.json") as { version: string };
 
 const program = new Command();
 
-program
-  .name("groovenet")
-  .description("CLI for your Groovenet DJ collection")
-  .version(version);
+program.name("groovenet").description("CLI for your Groovenet DJ collection").version(version);
 
 addConfigCommands(program);
 addTracksCommands(program);
@@ -40,8 +37,6 @@ addPlayerCommands(program);
 addStatusCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-  process.stderr.write(
-    `Fatal: ${err instanceof Error ? err.message : String(err)}\n`
-  );
+  process.stderr.write(`Fatal: ${err instanceof Error ? err.message : String(err)}\n`);
   process.exit(1);
 });

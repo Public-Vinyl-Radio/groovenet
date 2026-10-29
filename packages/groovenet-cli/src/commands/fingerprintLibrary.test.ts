@@ -97,15 +97,11 @@ describe("resolveScope()", () => {
   });
 
   it("refuses two scopes rather than picking one", () => {
-    expect(() => resolveScope({ missing: true, all: true })).toThrow(
-      /Choose one scope/
-    );
+    expect(() => resolveScope({ missing: true, all: true })).toThrow(/Choose one scope/);
   });
 
   it("names the conflicting scopes", () => {
-    expect(() => resolveScope({ changed: true, track: "t1" })).toThrow(
-      /--changed --track/
-    );
+    expect(() => resolveScope({ changed: true, track: "t1" })).toThrow(/--changed --track/);
   });
 });
 
@@ -146,9 +142,7 @@ describe("formatProgress()", () => {
 
 describe("formatSummary()", () => {
   it("reports all four counters", () => {
-    const line = formatSummary(
-      run({ indexed: 3412, skipped: 0, failed: 2, unindexable: 241 })
-    );
+    const line = formatSummary(run({ indexed: 3412, skipped: 0, failed: 2, unindexable: 241 }));
 
     expect(line).toContain("3412 indexed");
     expect(line).toContain("0 skipped");
@@ -191,7 +185,7 @@ describe("waitForRun()", () => {
     const client = clientReturning(
       run({ indexed: 3 }),
       run({ indexed: 7 }),
-      run({ indexed: 10, complete: true })
+      run({ indexed: 10, complete: true }),
     );
 
     const pending = waitForRun(client, "run-1", { pollIntervalMs: 1000 });
@@ -202,10 +196,7 @@ describe("waitForRun()", () => {
   });
 
   it("reports every poll to the caller", async () => {
-    const client = clientReturning(
-      run({ indexed: 3 }),
-      run({ indexed: 10, complete: true })
-    );
+    const client = clientReturning(run({ indexed: 3 }), run({ indexed: 10, complete: true }));
     const seen: number[] = [];
 
     const pending = waitForRun(client, "run-1", {
@@ -232,7 +223,10 @@ describe("runFingerprintLibrary()", () => {
     return { io, lines, writes, all: () => lines.join("\n") };
   }
 
-  function clientFor(started: Partial<FingerprintIndexRun>, ...polls: Partial<FingerprintIndexRun>[]) {
+  function clientFor(
+    started: Partial<FingerprintIndexRun>,
+    ...polls: Partial<FingerprintIndexRun>[]
+  ) {
     const startFingerprintIndex = vi.fn().mockResolvedValue(run(started));
     const getFingerprintIndexRun = vi.fn();
     for (const p of polls) getFingerprintIndexRun.mockResolvedValueOnce(run(p));
@@ -253,8 +247,14 @@ describe("runFingerprintLibrary()", () => {
 
   it("prints the engine and the queued totals", async () => {
     const client = clientFor(
-      { scope: "missing", fingerprint_type: "chromaprint", fingerprint_version: "1", queued: 3653, unindexable: 241 },
-      { queued: 3653, indexed: 3653, complete: true }
+      {
+        scope: "missing",
+        fingerprint_type: "chromaprint",
+        fingerprint_version: "1",
+        queued: 3653,
+        unindexable: 241,
+      },
+      { queued: 3653, indexed: 3653, complete: true },
     );
     const { io, all } = recorder();
 
@@ -268,7 +268,7 @@ describe("runFingerprintLibrary()", () => {
   it("prints the four counters when the run finishes", async () => {
     const client = clientFor(
       { queued: 10 },
-      { queued: 10, indexed: 7, skipped: 1, failed: 2, unindexable: 241, complete: true }
+      { queued: 10, indexed: 7, skipped: 1, failed: 2, unindexable: 241, complete: true },
     );
     const { io, all } = recorder();
 
@@ -308,7 +308,7 @@ describe("runFingerprintLibrary()", () => {
     const client = clientFor(
       { queued: 10 },
       { queued: 10, indexed: 3 },
-      { queued: 10, indexed: 10, complete: true }
+      { queued: 10, indexed: 10, complete: true },
     );
     const { io, writes } = recorder();
     vi.useFakeTimers();
@@ -328,7 +328,7 @@ describe("runFingerprintLibrary()", () => {
   it("reports each failure as it appears", async () => {
     const client = clientFor(
       { queued: 2 },
-      { queued: 2, failed: 2, complete: true, errors: ["t1: decode failed", "t2: no such file"] }
+      { queued: 2, failed: 2, complete: true, errors: ["t1: decode failed", "t2: no such file"] },
     );
     const { io, all } = recorder();
 
@@ -344,7 +344,7 @@ describe("runFingerprintLibrary()", () => {
     const client = clientFor(
       { queued: 2 },
       { queued: 2, failed: 1, errors: ["t1: decode failed"] },
-      { queued: 2, failed: 1, indexed: 1, complete: true, errors: ["t1: decode failed"] }
+      { queued: 2, failed: 1, indexed: 1, complete: true, errors: ["t1: decode failed"] },
     );
     const { io, lines } = recorder();
     vi.useFakeTimers();
@@ -385,7 +385,7 @@ describe("runFingerprintLibrary()", () => {
     const client = clientFor(
       { queued: 10 },
       { queued: 10, indexed: 3 },
-      { queued: 10, indexed: 10, complete: true }
+      { queued: 10, indexed: 10, complete: true },
     );
     const { io, writes, lines } = recorder();
     vi.useFakeTimers();
@@ -411,7 +411,7 @@ describe("runFingerprintLibrary()", () => {
     const { io } = recorder();
 
     await expect(
-      runFingerprintLibrary(client, { missing: true, all: true, wait: true }, io)
+      runFingerprintLibrary(client, { missing: true, all: true, wait: true }, io),
     ).rejects.toThrow(/Choose one scope/);
     expect(client.startFingerprintIndex).not.toHaveBeenCalled();
   });
@@ -521,9 +521,7 @@ describe("addFingerprintLibraryCommand()", () => {
   });
 
   it("sets a non-zero exit code when tracks failed", async () => {
-    getFingerprintIndexRun.mockResolvedValue(
-      run({ queued: 1, failed: 1, complete: true })
-    );
+    getFingerprintIndexRun.mockResolvedValue(run({ queued: 1, failed: 1, complete: true }));
 
     await parse();
 
@@ -531,9 +529,7 @@ describe("addFingerprintLibraryCommand()", () => {
   });
 
   it("leaves the exit code clean on success", async () => {
-    getFingerprintIndexRun.mockResolvedValue(
-      run({ queued: 1, indexed: 1, complete: true })
-    );
+    getFingerprintIndexRun.mockResolvedValue(run({ queued: 1, indexed: 1, complete: true }));
 
     await parse();
 
@@ -542,16 +538,14 @@ describe("addFingerprintLibraryCommand()", () => {
 
   it("reports an API failure on stderr and exits 1", async () => {
     startFingerprintIndex.mockRejectedValue(
-      new Error("API Error: No fingerprint engine registered")
+      new Error("API Error: No fingerprint engine registered"),
     );
-    const exit = vi
-      .spyOn(process, "exit")
-      .mockImplementation((() => undefined) as never);
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 
     await parse("--no-wait");
 
     expect(process.stderr.write).toHaveBeenCalledWith(
-      expect.stringContaining("No fingerprint engine registered")
+      expect.stringContaining("No fingerprint engine registered"),
     );
     expect(exit).toHaveBeenCalledWith(1);
   });

@@ -16,17 +16,16 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Cookie file uploaded successfully",
-      cookieInfo
+      cookieInfo,
     });
-
   } catch (error) {
     console.error("Failed to upload cookie file:", error);
     return NextResponse.json(
       {
         error: "Failed to upload cookie file",
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildKeymap } from "./playerKeymap.js";
 import { playerTuiAction } from "./playerTuiKeys.js";
 
-const ctx = (view: "queue" | "search" | "playlists" | "devices" = "queue", extra: { editingSearch?: boolean; remote?: boolean } = {}) => ({ view, editingSearch: false, ...extra });
+const ctx = (
+  view: "queue" | "search" | "playlists" | "devices" = "queue",
+  extra: { editingSearch?: boolean; remote?: boolean } = {},
+) => ({ view, editingSearch: false, ...extra });
 
 describe("player TUI key mapping", () => {
   it("maps transport, navigation, and view controls", () => {
@@ -42,11 +45,29 @@ describe("player TUI key mapping", () => {
 
   it("offers the remote-only keys only when remote", () => {
     expect(playerTuiAction("s", {}, ctx())).toBeNull();
-    expect(playerTuiAction("s", {}, ctx("queue", { remote: true }))).toEqual({ id: "transport.stop" });
-    expect(playerTuiAction("[", {}, ctx("queue", { remote: true }))).toEqual({ id: "queue.move-up" });
-    expect(playerTuiAction("]", {}, ctx("queue", { remote: true }))).toEqual({ id: "queue.move-down" });
-    for (const [input, id] of [["U", "devices.play-allow-unknown"], ["T", "devices.play-takeover"], ["t", "devices.transfer"], ["Y", "devices.transfer-allow-unknown"], ["!", "devices.transfer-takeover"]] as const) {
-      expect(playerTuiAction(input, { shift: input !== "t" && input !== "!" }, ctx("devices", { remote: true }))).toEqual({ id });
+    expect(playerTuiAction("s", {}, ctx("queue", { remote: true }))).toEqual({
+      id: "transport.stop",
+    });
+    expect(playerTuiAction("[", {}, ctx("queue", { remote: true }))).toEqual({
+      id: "queue.move-up",
+    });
+    expect(playerTuiAction("]", {}, ctx("queue", { remote: true }))).toEqual({
+      id: "queue.move-down",
+    });
+    for (const [input, id] of [
+      ["U", "devices.play-allow-unknown"],
+      ["T", "devices.play-takeover"],
+      ["t", "devices.transfer"],
+      ["Y", "devices.transfer-allow-unknown"],
+      ["!", "devices.transfer-takeover"],
+    ] as const) {
+      expect(
+        playerTuiAction(
+          input,
+          { shift: input !== "t" && input !== "!" },
+          ctx("devices", { remote: true }),
+        ),
+      ).toEqual({ id });
       expect(playerTuiAction(input, {}, ctx("devices"))).toBeNull();
     }
   });
@@ -66,7 +87,13 @@ describe("player TUI key mapping", () => {
     expect(playerTuiAction("x", { ctrl: true }, typing)).toBeNull();
     expect(playerTuiAction("x", { meta: true }, typing)).toBeNull();
     expect(playerTuiAction("\u001b[", {}, typing)).toBeNull();
-    expect(playerTuiAction("\r", { return: true }, { ...typing, keymap: buildKeymap({ "input.submit": ["ctrl+g"] }) })).toBeNull();
+    expect(
+      playerTuiAction(
+        "\r",
+        { return: true },
+        { ...typing, keymap: buildKeymap({ "input.submit": ["ctrl+g"] }) },
+      ),
+    ).toBeNull();
   });
 
   it("keeps custom search scope/mode bindings as text in the playlist filter", () => {
@@ -74,9 +101,13 @@ describe("player TUI key mapping", () => {
     const context = { ...ctx("playlists", { editingSearch: true }), keymap };
     expect(playerTuiAction("b", {}, context)).toEqual({ text: "b" });
     expect(playerTuiAction("m", {}, context)).toEqual({ text: "m" });
-    expect(playerTuiAction("b", {}, { ...context, view: "search" })).toEqual({ id: "search.scope" });
+    expect(playerTuiAction("b", {}, { ...context, view: "search" })).toEqual({
+      id: "search.scope",
+    });
     expect(playerTuiAction("m", {}, { ...context, view: "search" })).toEqual({ id: "search.mode" });
-    expect(playerTuiAction("", { tab: true }, ctx("playlists", { editingSearch: true }))).toBeNull();
+    expect(
+      playerTuiAction("", { tab: true }, ctx("playlists", { editingSearch: true })),
+    ).toBeNull();
     expect(playerTuiAction("", { leftArrow: true }, context)).toEqual({ id: "input.submit" });
     expect(playerTuiAction("", { rightArrow: true }, context)).toEqual({ id: "input.submit" });
   });
@@ -84,7 +115,9 @@ describe("player TUI key mapping", () => {
   it("uses the keymap it is given", () => {
     const keymap = buildKeymap({ "transport.next": ["ctrl+n"], "input.submit": ["ctrl+g"] });
     expect(playerTuiAction("n", {}, { ...ctx(), keymap })).toBeNull();
-    expect(playerTuiAction("n", { ctrl: true }, { ...ctx(), keymap })).toEqual({ id: "transport.next" });
+    expect(playerTuiAction("n", { ctrl: true }, { ...ctx(), keymap })).toEqual({
+      id: "transport.next",
+    });
     const typing = { ...ctx("search", { editingSearch: true }), keymap };
     expect(playerTuiAction("g", { ctrl: true }, typing)).toEqual({ id: "input.submit" });
     expect(playerTuiAction("", { return: true }, typing)).toBeNull();

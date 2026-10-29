@@ -14,7 +14,11 @@ type Props = {
   fill?: boolean;
 };
 
-const ArtworkPlaceholder: React.FC<{ size: string; shadow?: boolean; fill?: boolean }> = ({ size, shadow, fill }) => (
+const ArtworkPlaceholder: React.FC<{ size: string; shadow?: boolean; fill?: boolean }> = ({
+  size,
+  shadow,
+  fill,
+}) => (
   <Box
     width={fill ? "100%" : size}
     height={fill ? "auto" : size}

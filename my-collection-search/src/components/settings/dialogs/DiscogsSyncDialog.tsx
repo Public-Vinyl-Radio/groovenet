@@ -18,10 +18,7 @@ export default function DiscogsSyncDialog() {
   }, [discogs.lines.length]);
 
   return (
-    <Dialog.Root
-      open={discogsSyncOpen}
-      onOpenChange={(d) => setDiscogsSyncOpen(d.open)}
-    >
+    <Dialog.Root open={discogsSyncOpen} onOpenChange={(d) => setDiscogsSyncOpen(d.open)}>
       <Dialog.Positioner>
         <Dialog.Content maxW="600px">
           <Dialog.Header>
@@ -38,9 +35,7 @@ export default function DiscogsSyncDialog() {
               fontFamily="mono"
               fontSize="sm"
             >
-              {discogs.lines.length === 0 && (
-                <Text color="text">Waiting for sync output...</Text>
-              )}
+              {discogs.lines.length === 0 && <Text color="text">Waiting for sync output...</Text>}
               {discogs.lines.map((line: string, i: number) => (
                 <Text key={i} whiteSpace="pre-wrap">
                   {line}
@@ -56,10 +51,7 @@ export default function DiscogsSyncDialog() {
             )}
           </Dialog.Body>
           <Dialog.Footer>
-            <Button
-              onClick={() => setDiscogsSyncOpen(false)}
-              disabled={!discogs.done}
-            >
+            <Button onClick={() => setDiscogsSyncOpen(false)} disabled={!discogs.done}>
               Close
             </Button>
           </Dialog.Footer>

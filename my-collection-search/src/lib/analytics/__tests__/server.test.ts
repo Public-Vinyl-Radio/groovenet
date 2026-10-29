@@ -121,7 +121,7 @@ describe("server analytics", () => {
     analytics.track(
       "friend_added",
       {},
-      { request: new Request("http://localhost/"), distinctId: "explicit" }
+      { request: new Request("http://localhost/"), distinctId: "explicit" },
     );
     expect(memory.events[0].distinctId).toBe("explicit");
   });
@@ -210,7 +210,7 @@ describe("server analytics — PostHog provider", () => {
     });
     analytics.track("friend_added", {}, { request });
     expect(posthogNode.capture).toHaveBeenCalledWith(
-      expect.objectContaining({ distinctId: "browser-1" })
+      expect.objectContaining({ distinctId: "browser-1" }),
     );
   });
 
@@ -237,12 +237,10 @@ describe("server analytics — PostHog provider", () => {
       throw new Error("bad key");
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(() =>
-      analytics.track("friend_added", {})
-    ).not.toThrow();
+    expect(() => analytics.track("friend_added", {})).not.toThrow();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("PostHog init failed"),
-      expect.any(Error)
+      expect.any(Error),
     );
     expect(posthogNode.capture).not.toHaveBeenCalled();
   });
@@ -270,7 +268,7 @@ describe("distinctIdFromCookieHeader", () => {
     expect(distinctIdFromCookieHeader(null, "phc_x")).toBeUndefined();
     expect(distinctIdFromCookieHeader("ph_phc_x_posthog=%7Bnope", "phc_x")).toBeUndefined();
     expect(
-      distinctIdFromCookieHeader(phCookie("phc_x", { distinct_id: 42 }), "phc_x")
+      distinctIdFromCookieHeader(phCookie("phc_x", { distinct_id: 42 }), "phc_x"),
     ).toBeUndefined();
   });
 });

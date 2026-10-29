@@ -7,7 +7,9 @@ import RetroSlider from "@/components/player/RetroSlider";
 describe("RetroSlider", () => {
   it("names the thumb, reads out the value text and moves with the arrow keys", async () => {
     const onChange = vi.fn();
-    const { user } = renderWithProviders(<RetroSlider label="Volume" value={40} valueText="40%" onChange={onChange} />);
+    const { user } = renderWithProviders(
+      <RetroSlider label="Volume" value={40} valueText="40%" onChange={onChange} />,
+    );
 
     const thumb = screen.getByRole("slider", { name: "Volume" });
     expect(thumb.getAttribute("aria-valuenow")).toBe("40");
@@ -28,7 +30,9 @@ describe("RetroSlider", () => {
   it("settles on the last value it reported, not the not-yet-rendered controlled one", async () => {
     const onChange = vi.fn();
     const onChangeEnd = vi.fn();
-    const { user } = renderWithProviders(<RetroSlider label="Volume" value={40} onChange={onChange} onChangeEnd={onChangeEnd} />);
+    const { user } = renderWithProviders(
+      <RetroSlider label="Volume" value={40} onChange={onChange} onChangeEnd={onChangeEnd} />,
+    );
     screen.getByRole("slider", { name: "Volume" }).focus();
     await user.keyboard("{ArrowRight}");
     expect(onChangeEnd).toHaveBeenLastCalledWith(41);

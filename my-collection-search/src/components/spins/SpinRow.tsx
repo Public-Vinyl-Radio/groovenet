@@ -63,11 +63,7 @@ function AlbumArt({ src, alt }: { src: string | null; alt: string }) {
   );
 }
 
-export default function SpinRow({
-  item,
-  showAlbum = false,
-  timeOnly = false,
-}: Props) {
+export default function SpinRow({ item, showAlbum = false, timeOnly = false }: Props) {
   const [expanded, setExpanded] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   // Each row has its own mutations, so only the spin being deleted shows busy.
@@ -125,7 +121,9 @@ export default function SpinRow({
             </Badge>
           </Tooltip>
           {item.session.context_type && (
-            <Badge size="xs" variant="subtle" colorPalette="neutral">{item.session.context_type}</Badge>
+            <Badge size="xs" variant="subtle" colorPalette="neutral">
+              {item.session.context_type}
+            </Badge>
           )}
           <Text fontSize="xs" color="fg.muted">
             {formatPlayedAt(item.session.played_at, timeOnly)}

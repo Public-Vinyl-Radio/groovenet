@@ -66,9 +66,7 @@ export class EmbeddingsRepository {
    * but keeps the audio-vibe "has audio data" gate: forcing a re-embed of a
    * track with no BPM/key/mood would just embed emptiness.
    */
-  async listTracksForBackfill(
-    options: EmbeddingBackfillOptions
-  ): Promise<EmbeddingTrackRef[]> {
+  async listTracksForBackfill(options: EmbeddingBackfillOptions): Promise<EmbeddingTrackRef[]> {
     const { type, friend_id, release_id, track_ids, force, limit } = options;
     const params: unknown[] = [];
     const clauses: string[] = [];
@@ -94,7 +92,7 @@ export class EmbeddingsRepository {
       clauses.push(
         "(t.bpm IS NOT NULL OR t.key IS NOT NULL OR t.danceability IS NOT NULL " +
           "OR t.mood_happy IS NOT NULL OR t.mood_sad IS NOT NULL " +
-          "OR t.mood_relaxed IS NOT NULL OR t.mood_aggressive IS NOT NULL)"
+          "OR t.mood_relaxed IS NOT NULL OR t.mood_aggressive IS NOT NULL)",
       );
     }
 
@@ -127,20 +125,18 @@ export class EmbeddingsRepository {
   }
 
   async listTracksNeedingIdentityEmbeddings(
-    options: BackfillOptions
+    options: BackfillOptions,
   ): Promise<EmbeddingTrackRef[]> {
     return this.listTracksForBackfill({ ...options, type: "identity" });
   }
 
   async listTracksNeedingAudioVibeEmbeddings(
-    options: BackfillOptions
+    options: BackfillOptions,
   ): Promise<EmbeddingTrackRef[]> {
     return this.listTracksForBackfill({ ...options, type: "audio_vibe" });
   }
 
-  async listTracksNeedingContextEmbeddings(
-    options: BackfillOptions
-  ): Promise<EmbeddingTrackRef[]> {
+  async listTracksNeedingContextEmbeddings(options: BackfillOptions): Promise<EmbeddingTrackRef[]> {
     return this.listTracksForBackfill({ ...options, type: "context" });
   }
 
@@ -151,7 +147,7 @@ export class EmbeddingsRepository {
    */
   async countEmbeddingsByModel(
     embeddingType: EmbeddingModelKind,
-    friendId?: number
+    friendId?: number,
   ): Promise<Array<{ model: string; dims: number; template_version: number; count: number }>> {
     const params: unknown[] = [embeddingType];
     let where = "WHERE embedding_type = $1";
@@ -172,7 +168,7 @@ export class EmbeddingsRepository {
       GROUP BY model, dims, template_version
       ORDER BY count DESC, template_version DESC
       `,
-      params
+      params,
     );
     return result.rows.map((row) => ({ ...row, count: Number(row.count) }));
   }
@@ -187,15 +183,13 @@ export class EmbeddingsRepository {
     }
     const result = await dbQuery<{ count: string }>(
       `SELECT COUNT(*)::int AS count FROM tracks ${where}`,
-      params
+      params,
     );
     return Number(result.rows[0]?.count ?? 0);
   }
 
   async setIvfflatProbes(client: Queryable, probes: number): Promise<void> {
-    await client.query("SELECT set_config('ivfflat.probes', $1, false)", [
-      String(probes),
-    ]);
+    await client.query("SELECT set_config('ivfflat.probes', $1, false)", [String(probes)]);
   }
 
   /**
@@ -209,7 +203,7 @@ export class EmbeddingsRepository {
     friendId: number,
     embeddingType: EmbeddingModelKind,
     model: string,
-    templateVersion: number
+    templateVersion: number,
   ): Promise<unknown | null> {
     const result = await client.query<{ embedding: unknown }>(
       `
@@ -219,7 +213,7 @@ export class EmbeddingsRepository {
         AND model = $4 AND template_version = $5
       LIMIT 1
       `,
-      [trackId, friendId, embeddingType, model, templateVersion]
+      [trackId, friendId, embeddingType, model, templateVersion],
     );
     return result.rows[0]?.embedding ?? null;
   }
@@ -235,7 +229,7 @@ export class EmbeddingsRepository {
     tracks: Array<{ trackId: string; friendId: number }>,
     embeddingType: EmbeddingModelKind,
     model: string,
-    templateVersion: number
+    templateVersion: number,
   ): Promise<Array<{ track_id: string; friend_id: number; embedding: string }>> {
     if (tracks.length === 0) return [];
     const result = await dbQuery<{
@@ -256,7 +250,7 @@ export class EmbeddingsRepository {
         embeddingType,
         model,
         templateVersion,
-      ]
+      ],
     );
     return result.rows;
   }
@@ -272,10 +266,18 @@ export class EmbeddingsRepository {
       dims: number;
       limit: number;
       filters: SimilarityFilters;
-    }
+    },
   ): Promise<SimilarIdentityTrack[]> {
-    const { sourceEmbedding, sourceTrackId, sourceFriendId, model, templateVersion, dims, limit, filters } =
-      params;
+    const {
+      sourceEmbedding,
+      sourceTrackId,
+      sourceFriendId,
+      model,
+      templateVersion,
+      dims,
+      limit,
+      filters,
+    } = params;
     const vector = castVector("te.embedding", dims);
     const queryParams: unknown[] = [
       sourceEmbedding,
@@ -337,7 +339,7 @@ export class EmbeddingsRepository {
       ORDER BY ${vector} <=> $1::vector(${dims})
       LIMIT $${idx}
       `,
-      queryParams
+      queryParams,
     );
 
     return result.rows.map((row) => ({
@@ -356,7 +358,7 @@ export class EmbeddingsRepository {
       templateVersion: number;
       dims: number;
       limit: number;
-    }
+    },
   ): Promise<SimilarVibeTrack[]> {
     const vector = castVector("te.embedding", params.dims);
     const result = await client.query<SimilarVibeTrackRow>(
@@ -406,7 +408,7 @@ export class EmbeddingsRepository {
         params.limit,
         params.model,
         params.templateVersion,
-      ]
+      ],
     );
 
     return result.rows.map((row) => ({
@@ -451,7 +453,7 @@ export class EmbeddingsRepository {
         params.sourceHash,
         params.identityText,
         params.templateVersion ?? 1,
-      ]
+      ],
     );
   }
 
@@ -465,7 +467,7 @@ export class EmbeddingsRepository {
     friendId: number,
     embeddingType: EmbeddingModelKind,
     model: string,
-    templateVersion: number
+    templateVersion: number,
   ): Promise<string | null> {
     const result = await dbQuery<{ source_hash: string | null }>(
       `
@@ -475,28 +477,25 @@ export class EmbeddingsRepository {
         AND model = $4 AND template_version = $5
       LIMIT 1
       `,
-      [trackId, friendId, embeddingType, model, templateVersion]
+      [trackId, friendId, embeddingType, model, templateVersion],
     );
     return result.rows[0]?.source_hash ?? null;
   }
 
-  async listEmbeddingTypesForTrack(
-    trackId: string,
-    friendId: number
-  ): Promise<string[]> {
+  async listEmbeddingTypesForTrack(trackId: string, friendId: number): Promise<string[]> {
     const result = await dbQuery<{ embedding_type: string }>(
       `
       SELECT embedding_type
       FROM track_embeddings
       WHERE track_id = $1 AND friend_id = $2
       `,
-      [trackId, friendId]
+      [trackId, friendId],
     );
     return result.rows.map((row) => row.embedding_type);
   }
 
   async listEmbeddingTypesForTrackPairs(
-    seedTracks: Array<{ trackId: string; friendId: number }>
+    seedTracks: Array<{ trackId: string; friendId: number }>,
   ): Promise<string[]> {
     if (seedTracks.length === 0) return [];
 
@@ -520,12 +519,11 @@ export class EmbeddingsRepository {
         ON te.track_id = s.track_id
        AND te.friend_id = s.friend_id
       `,
-      params
+      params,
     );
 
     return result.rows.map((row) => row.embedding_type);
   }
-
 
   /**
    * Natural-language retrieval over `context` embeddings (#408): the tracks
@@ -546,7 +544,7 @@ export class EmbeddingsRepository {
       perReleaseCap: number;
       candidatePool?: number;
       filters?: ContextRetrievalFilters;
-    }
+    },
   ): Promise<ContextMatch[]> {
     const { model, templateVersion, dims, limit, perReleaseCap, filters = {} } = params;
     for (const [name, value] of Object.entries({ limit, perReleaseCap })) {
@@ -569,7 +567,7 @@ export class EmbeddingsRepository {
       clauses.push(
         range === "unknown"
           ? `(${year} IS NULL OR ${year} < 1900)`
-          : `${year} >= ${bind(range[0])} AND ${year} < ${bind(range[1])}`
+          : `${year} >= ${bind(range[0])} AND ${year} < ${bind(range[1])}`,
       );
     }
     if (filters.genre) {
@@ -582,7 +580,9 @@ export class EmbeddingsRepository {
     clauses.push(...attributeFilterClauses(filters, bind, "t"));
     for (const name of filters.missing ?? []) clauses.push(missingFilterClause(name, "t"));
 
-    const result = await client.query<Omit<ContextMatch, "distance"> & { distance: string | number }>(
+    const result = await client.query<
+      Omit<ContextMatch, "distance"> & { distance: string | number }
+    >(
       `
       WITH candidates AS (
         SELECT
@@ -617,7 +617,7 @@ export class EmbeddingsRepository {
       ORDER BY distance, track_id
       LIMIT ${bind(limit)}
       `,
-      values
+      values,
     );
 
     return result.rows.map((row) => ({ ...row, distance: Number(row.distance) }));

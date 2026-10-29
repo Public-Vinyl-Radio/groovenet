@@ -32,7 +32,13 @@ const copy = {
 function renderDialog(props: Partial<React.ComponentProps<typeof RecordCopyFormDialog>> = {}) {
   const onOpenChange = vi.fn();
   const rendered = renderWithProviders(
-    <RecordCopyFormDialog open onOpenChange={onOpenChange} releaseId="rel" friendId={7} {...props} />
+    <RecordCopyFormDialog
+      open
+      onOpenChange={onOpenChange}
+      releaseId="rel"
+      friendId={7}
+      {...props}
+    />,
   );
   return { ...rendered, onOpenChange };
 }
@@ -82,7 +88,7 @@ describe("RecordCopyFormDialog", () => {
         friend_id: 7,
         release_id: "rel",
         label: "Home copy",
-      })
+      }),
     );
   });
 
@@ -107,7 +113,7 @@ describe("RecordCopyFormDialog", () => {
     await user.click(screen.getByRole("button", { name: target ? "Save Changes" : "Add Copy" }));
 
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title, description }))
+      expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title, description })),
     );
   });
 

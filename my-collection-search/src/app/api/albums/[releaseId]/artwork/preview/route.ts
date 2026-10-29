@@ -10,7 +10,7 @@ import { artworkErrorResponse, parseArtworkFriendId } from "../../../artworkRout
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ releaseId: string }> }
+  { params }: { params: Promise<{ releaseId: string }> },
 ) {
   const friendId = parseArtworkFriendId(request);
   if (friendId instanceof NextResponse) return friendId;

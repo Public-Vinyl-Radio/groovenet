@@ -4,6 +4,7 @@ Deliberately thin, and shaped like `download-worker/worker/main.py` — a startu
 probe then `while True: run_once()`, with every step a named function a test can
 call directly.
 """
+
 import json
 import logging
 import os
@@ -191,9 +192,7 @@ class _StageFailure(Exception):
         self.error = error
 
 
-def handle_job(
-    job: IngestJob, matcher: FingerprintMatcher, timings: dict | None = None
-) -> IngestResult:
+def handle_job(job: IngestJob, matcher: FingerprintMatcher, timings: dict | None = None) -> IngestResult:
     """Decode one chunk, match it, and build the result to report.
 
     A decode failure is a *reported* failure, not a swallowed one: the app is
@@ -477,9 +476,7 @@ def _failed_set(job, matcher: FingerprintMatcher, error: str) -> SetResult:
         window_seconds, step_seconds = window_settings(job)
     except InvalidSetJob:
         window_seconds = step_seconds = 0.0
-    return build_set_result(
-        job, matcher, window_seconds=window_seconds, step_seconds=step_seconds, error=error
-    )
+    return build_set_result(job, matcher, window_seconds=window_seconds, step_seconds=step_seconds, error=error)
 
 
 def run_once(matcher: FingerprintMatcher) -> None:

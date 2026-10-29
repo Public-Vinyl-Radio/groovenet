@@ -62,7 +62,7 @@ function spin(overrides: {
 describe("summarizeSpin", () => {
   it("names a single track with its position", () => {
     const summary = summarizeSpin(
-      spin({ selection_mode: "automatic", events: [event(0, "D2", "Tipo Raro")] })
+      spin({ selection_mode: "automatic", events: [event(0, "D2", "Tipo Raro")] }),
     );
     expect(summary.headline).toBe("D2 · Tipo Raro");
     expect(summary.hasMoreTracks).toBe(false);
@@ -70,7 +70,7 @@ describe("summarizeSpin", () => {
 
   it("names two tracks in play order", () => {
     const summary = summarizeSpin(
-      spin({ events: [event(1, "D1", "Bolero"), event(0, "D2", "Tipo Raro")] })
+      spin({ events: [event(1, "D1", "Bolero"), event(0, "D2", "Tipo Raro")] }),
     );
     expect(summary.headline).toBe("D2 · Tipo Raro, D1 · Bolero");
   });
@@ -79,7 +79,7 @@ describe("summarizeSpin", () => {
     const summary = summarizeSpin(
       spin({
         events: [event(0, "A1", "One"), event(1, "A2", "Two"), event(2, "A3", "Three")],
-      })
+      }),
     );
     expect(summary.headline).toBe("A1 · One +2 more");
     expect(summary.hasMoreTracks).toBe(true);
@@ -87,9 +87,7 @@ describe("summarizeSpin", () => {
   });
 
   it("omits the position when there isn't one", () => {
-    expect(summarizeSpin(spin({ events: [event(0, null, "Untitled")] })).headline).toBe(
-      "Untitled"
-    );
+    expect(summarizeSpin(spin({ events: [event(0, null, "Untitled")] })).headline).toBe("Untitled");
   });
 
   it("labels a side spin by its sides", () => {
@@ -98,7 +96,7 @@ describe("summarizeSpin", () => {
         selection_mode: "sides",
         side_keys: ["A", "B"],
         events: [event(0, "A1", "One"), event(1, "B1", "Two")],
-      })
+      }),
     );
     expect(summary.headline).toBe("Side A, Side B");
     expect(summary.hasMoreTracks).toBe(true);
@@ -110,21 +108,21 @@ describe("summarizeSpin", () => {
         selection_mode: "sides",
         side_keys: ["TRACKLIST", "C"],
         events: [event(0, "1", "Numbered", "TRACKLIST")],
-      })
+      }),
     );
     expect(summary.headline).toBe("Tracklist, Side C");
   });
 
   it("falls back to the key when a side's position has no label", () => {
     const summary = summarizeSpin(
-      spin({ selection_mode: "sides", side_keys: ["X"], events: [event(0, null, "Loose", "X")] })
+      spin({ selection_mode: "sides", side_keys: ["X"], events: [event(0, null, "Loose", "X")] }),
     );
     expect(summary.headline).toBe("Side X");
   });
 
   it("names the tracks when a side spin has no side selections", () => {
     const summary = summarizeSpin(
-      spin({ selection_mode: "sides", events: [event(0, "A1", "One")] })
+      spin({ selection_mode: "sides", events: [event(0, "A1", "One")] }),
     );
     expect(summary.headline).toBe("A1 · One");
   });
@@ -136,7 +134,12 @@ describe("summarizeSpin", () => {
 
   it("calls a full-album spin a full album", () => {
     const summary = summarizeSpin(
-      spin({ selection_mode: "sides", side_keys: ["A"], full_album: true, events: [event(0, "A1", "One")] })
+      spin({
+        selection_mode: "sides",
+        side_keys: ["A"],
+        full_album: true,
+        events: [event(0, "A1", "One")],
+      }),
     );
     expect(summary.headline).toBe("Full album");
   });
@@ -157,7 +160,7 @@ describe("describeProvenance", () => {
 
   it("omits confidence when the listener didn't report one", () => {
     expect(describeProvenance(spin({ provenance: "automatic" })).description).toBe(
-      "Detected by the listener"
+      "Detected by the listener",
     );
   });
 
@@ -193,7 +196,11 @@ describe("describeSpinAlbum", () => {
     const item = {
       ...spin({
         events: [
-          { ...event(0, "A6", "Hermanos"), album_snapshot: "BACH", artist_snapshot: "Bandalos Chinos" },
+          {
+            ...event(0, "A6", "Hermanos"),
+            album_snapshot: "BACH",
+            artist_snapshot: "Bandalos Chinos",
+          },
         ],
       }),
       album: null,
@@ -228,12 +235,19 @@ describe("groupSpinsByDay", () => {
         playedAt(at(9, 26, 22)),
         playedAt(at(9, 21, 20)),
       ],
-      now
+      now,
     );
     expect(groups.map((g) => [g.label, g.items.length])).toEqual([
       ["Today", 2],
       ["Yesterday", 1],
-      [new Date(2026, 8, 21).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }), 1],
+      [
+        new Date(2026, 8, 21).toLocaleDateString([], {
+          weekday: "long",
+          month: "short",
+          day: "numeric",
+        }),
+        1,
+      ],
     ]);
   });
 

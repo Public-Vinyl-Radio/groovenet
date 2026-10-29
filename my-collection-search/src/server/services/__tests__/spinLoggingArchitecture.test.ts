@@ -8,9 +8,7 @@ function readProjectFile(relativePath: string): string {
 
 describe("spin logging schema architecture", () => {
   it("uses cascade deletes from sessions to selections and track events", () => {
-    const migration = readProjectFile(
-      "migrations/1772300000000_add_spin_logging_tables.js"
-    );
+    const migration = readProjectFile("migrations/1772300000000_add_spin_logging_tables.js");
 
     expect(migration).toContain('references: "spin_sessions(id)"');
     expect(migration).toContain('pgm.createTable("spin_session_selections"');

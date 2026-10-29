@@ -56,7 +56,9 @@ describe("GenrePageRepository", () => {
     expect(lastCall()[0]).toContain("COALESCE(t.position, '') AS position");
     expect(lastCall()[0]).toContain("COALESCE(t.genres, '{}'::text[]) AS genres");
     expect(lastCall()[0]).toContain("COALESCE(t.styles, '{}'::text[]) AS styles");
-    expect(lastCall()[0]).toContain("CASE WHEN t.bpm > 0 AND t.bpm < 'Infinity'::real THEN t.bpm ELSE NULL END AS bpm");
+    expect(lastCall()[0]).toContain(
+      "CASE WHEN t.bpm > 0 AND t.bpm < 'Infinity'::real THEN t.bpm ELSE NULL END AS bpm",
+    );
   });
 
   it("lists albums by plays of their tracks, then newest, scoped and limited", async () => {
@@ -86,7 +88,13 @@ describe("GenrePageRepository", () => {
 
 describe("full genre statistics", () => {
   it("uses search's deduplicating filter, scoped to live tracks, with explicit calendar-year bounds", async () => {
-    const stats = { bpm_min: 90, bpm_max: 120.5, added_this_year: 4, playable_tracks: 3, bpm_histogram: [{ min: 90, max: 100, count: 1 }] };
+    const stats = {
+      bpm_min: 90,
+      bpm_max: 120.5,
+      added_this_year: 4,
+      playable_tracks: 3,
+      bpm_histogram: [{ min: 90, max: 100, count: 1 }],
+    };
     dbQuery.mockResolvedValue({ rows: [stats] });
     expect(await repo.stats(filter, 6, 2026)).toEqual({ ...stats, year: 2026 });
     const [sql, params] = lastCall();
@@ -101,7 +109,13 @@ describe("full genre statistics", () => {
   });
 
   it("also supports all collections and an empty BPM range", async () => {
-    const stats = { bpm_min: null, bpm_max: null, added_this_year: 0, playable_tracks: 0, bpm_histogram: [] };
+    const stats = {
+      bpm_min: null,
+      bpm_max: null,
+      added_this_year: 0,
+      playable_tracks: 0,
+      bpm_histogram: [],
+    };
     dbQuery.mockResolvedValue({ rows: [stats] });
     expect(await repo.stats(filter, undefined, 2027)).toEqual({ ...stats, year: 2027 });
     expect(lastCall()[1]).toEqual([filter.ids, filter.keys, "2027-01-01", "2028-01-01"]);

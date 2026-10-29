@@ -54,7 +54,7 @@ export default function RecordActionDialog({
 }: Props) {
   // The form resets each time it opens, as SpinFormDialog's does.
   const [form, setForm] = React.useState<RecordActionFormState>(() =>
-    initialRecordActionState({ actionType, copy })
+    initialRecordActionState({ actionType, copy }),
   );
   const [wasOpen, setWasOpen] = React.useState(open);
   if (open !== wasOpen) {
@@ -66,7 +66,7 @@ export default function RecordActionDialog({
 
   const { copies } = useRecordCopiesQuery(
     { friend_id: friendId, release_id: releaseId },
-    { enabled: open }
+    { enabled: open },
   );
   const { logAction, logActionPending } = useRecordCareMutations(friendId);
 
@@ -154,7 +154,9 @@ export default function RecordActionDialog({
               >
                 <option value="">Not recorded</option>
                 {CLEANING_METHOD_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </NativeSelectField>
             </NativeSelectRoot>
@@ -170,7 +172,9 @@ export default function RecordActionDialog({
                 onChange={(event) => update({ sleeveType: event.target.value as SleeveType })}
               >
                 {SLEEVE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </NativeSelectField>
             </NativeSelectRoot>

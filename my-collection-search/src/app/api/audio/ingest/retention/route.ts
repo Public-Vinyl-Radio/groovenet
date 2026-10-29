@@ -19,7 +19,7 @@ export async function GET() {
     console.error("Error reading ingest retention status:", err);
     return NextResponse.json(
       { error: err.message || "Failed to read retention status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

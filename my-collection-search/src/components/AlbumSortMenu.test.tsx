@@ -8,7 +8,9 @@ import AlbumSortMenu, { ALBUM_SORT_OPTIONS } from "./AlbumSortMenu";
 describe("AlbumSortMenu (#751)", () => {
   it("names the current sort on the label trigger and offers all seven", async () => {
     const onChange = vi.fn();
-    const { user } = renderWithProviders(<AlbumSortMenu value="title:asc" onChange={onChange} trigger="label" />);
+    const { user } = renderWithProviders(
+      <AlbumSortMenu value="title:asc" onChange={onChange} trigger="label" />,
+    );
     const trigger = screen.getByRole("button", { name: "Sort: Title (A-Z)" });
     expect(trigger.textContent).toBe("Title (A-Z)");
 
@@ -25,7 +27,9 @@ describe("AlbumSortMenu (#751)", () => {
 
   it("is a labelled SORT button in the desktop search row (#794)", async () => {
     const onChange = vi.fn();
-    const { user } = renderWithProviders(<AlbumSortMenu value="created_at:desc" onChange={onChange} trigger="button" />);
+    const { user } = renderWithProviders(
+      <AlbumSortMenu value="created_at:desc" onChange={onChange} trigger="button" />,
+    );
     const trigger = screen.getByRole("button", { name: "Sort: Recently Added" });
     expect(trigger.textContent).toBe("SortRecently Added");
     await user.click(trigger);

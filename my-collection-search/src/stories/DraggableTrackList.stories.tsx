@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Box } from '@chakra-ui/react';
-import DraggableTrackList from '@/components/DraggableTrackList';
-import { sampleTrack, trackWithAudio, trackMinimal } from './fixtures/track';
+import { useState } from "react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box } from "@chakra-ui/react";
+import DraggableTrackList from "@/components/DraggableTrackList";
+import { sampleTrack, trackWithAudio, trackMinimal } from "./fixtures/track";
 
 const meta: Meta<typeof DraggableTrackList> = {
-  title: 'Components/DraggableTrackList',
+  title: "Components/DraggableTrackList",
   component: DraggableTrackList,
-  parameters: { layout: 'padded' },
+  parameters: { layout: "padded" },
 };
 
 export default meta;
@@ -15,8 +15,10 @@ type Story = StoryObj<typeof DraggableTrackList>;
 
 const tracks = [sampleTrack, trackWithAudio, trackMinimal];
 
-function Playlist({ layout, current }: { layout: 'row' | 'card'; current?: number }) {
-  const [order, setOrder] = useState(tracks.map((t) => ({ track_id: t.track_id, friend_id: t.friend_id! })));
+function Playlist({ layout, current }: { layout: "row" | "card"; current?: number }) {
+  const [order, setOrder] = useState(
+    tracks.map((t) => ({ track_id: t.track_id, friend_id: t.friend_id! })),
+  );
   const moveTrack = (from: number, to: number) =>
     setOrder((prev) => {
       const next = [...prev];

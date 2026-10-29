@@ -19,24 +19,36 @@ vi.mock("@/hooks/useAlbumsQuery", () => ({
 }));
 const openForTracks = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useAddToPlaylistDialog", () => ({
-  useAddToPlaylistDialog: () => ({ openForTracks, playlistDialog: <div data-testid="playlist-dialog" />, nameDialog: null }),
+  useAddToPlaylistDialog: () => ({
+    openForTracks,
+    playlistDialog: <div data-testid="playlist-dialog" />,
+    nameDialog: null,
+  }),
 }));
-const spins = vi.hoisted(() => ({ current: { data: undefined, spins: [] } as { data: unknown; spins: unknown[] } }));
+const spins = vi.hoisted(() => ({
+  current: { data: undefined, spins: [] } as { data: unknown; spins: unknown[] },
+}));
 vi.mock("@/hooks/useAlbumSpins", () => ({
   ALBUM_SPINS_PAGE: 8,
   useAlbumSpins: () => spins.current,
 }));
 vi.mock("@/components/spins/SpinFormDialog", () => ({
-  default: (props: { open: boolean }) => (props.open ? <div role="dialog" aria-label="Log spin" /> : null),
+  default: (props: { open: boolean }) =>
+    props.open ? <div role="dialog" aria-label="Log spin" /> : null,
 }));
 vi.mock("@/components/TrackActionsMenu", () => ({
-  default: (props: { track: { title: string } }) => <button aria-label={`Actions for ${props.track.title}`}>menu</button>,
+  default: (props: { track: { title: string } }) => (
+    <button aria-label={`Actions for ${props.track.title}`}>menu</button>
+  ),
 }));
 const album = vi.hoisted(() => ({
-  current: { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 0 } as Record<
-    string,
-    unknown
-  >,
+  current: {
+    release_id: "rel",
+    friend_id: 7,
+    title: "Blue Lines",
+    artist: "Massive Attack",
+    track_count: 0,
+  } as Record<string, unknown>,
 }));
 vi.mock("@/hooks/useAlbum", () => ({
   useAlbum: () => album.current,
@@ -56,7 +68,8 @@ vi.mock("@/components/ui/toaster", () => ({ toaster: { create: toast } }));
 const queueDownloads = vi.hoisted(() => vi.fn());
 const enrichQueue = vi.hoisted(() => vi.fn());
 vi.mock("@/stores/enrichmentStore", () => ({
-  useEnrichmentStore: (select: (state: { setQueue: typeof enrichQueue }) => unknown) => select({ setQueue: enrichQueue }),
+  useEnrichmentStore: (select: (state: { setQueue: typeof enrichQueue }) => unknown) =>
+    select({ setQueue: enrichQueue }),
 }));
 vi.mock("@/services/internalApi/albums", () => ({
   fetchAlbumDiscogsRawRelease: vi.fn(() => new Promise(() => {})),
@@ -65,7 +78,9 @@ vi.mock("@/services/internalApi/albums", () => ({
 vi.mock("@/components/spins/AlbumSpinPanel", () => ({ default: () => null }));
 vi.mock("@/components/records/AlbumRecordCarePanel", () => ({
   default: (props: { releaseId: string; friendId: number }) => (
-    <section aria-label="Copies & care">{props.releaseId}:{props.friendId}</section>
+    <section aria-label="Copies & care">
+      {props.releaseId}:{props.friendId}
+    </section>
   ),
 }));
 vi.mock("@/components/records/RecordActionDialog", () => ({
@@ -117,7 +132,9 @@ describe("album page record care", () => {
   it("shows the copies panel and logs care from the album menu", async () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
 
-    expect((await screen.findByRole("region", { name: "Copies & care" })).textContent).toBe("rel:7");
+    expect((await screen.findByRole("region", { name: "Copies & care" })).textContent).toBe(
+      "rel:7",
+    );
 
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
     await user.click(await screen.findByRole("button", { name: /Log care/i }));
@@ -129,10 +146,25 @@ describe("album page record care", () => {
 });
 
 describe("album page genre badges", () => {
-  const base = { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 0 };
+  const base = {
+    release_id: "rel",
+    friend_id: 7,
+    title: "Blue Lines",
+    artist: "Massive Attack",
+    track_count: 0,
+  };
   const taxonomy = [
-    { id: "e", name: "Electronic", slug: "electronic", parent_id: null, source: "discogs", track_count: 0, album_count: 0,
-      aliases: ["trip-hop"], children: [] },
+    {
+      id: "e",
+      name: "Electronic",
+      slug: "electronic",
+      parent_id: null,
+      source: "discogs",
+      track_count: 0,
+      album_count: 0,
+      aliases: ["trip-hop"],
+      children: [],
+    },
   ];
 
   afterEach(() => {
@@ -144,10 +176,15 @@ describe("album page genre badges", () => {
     const { queryClient } = renderWithProviders(<AlbumDetailPage />);
     queryClient.setQueryData(queryKeys.genreTree(), taxonomy);
 
-    const link = await screen.findByRole("link", { name: "Search albums in Electronic", hidden: true });
+    const link = await screen.findByRole("link", {
+      name: "Search albums in Electronic",
+      hidden: true,
+    });
     expect(link.getAttribute("href")).toBe("/albums?genre=electronic");
     expect(
-      (await screen.findByRole("link", { name: "Search albums in Trip-Hop", hidden: true })).getAttribute("href")
+      (
+        await screen.findByRole("link", { name: "Search albums in Trip-Hop", hidden: true })
+      ).getAttribute("href"),
     ).toBe("/albums?genre=electronic");
     expect(screen.getByText("Trip Hop").closest("a")).toBeNull();
   });
@@ -175,7 +212,7 @@ describe("album page cover art (#494)", () => {
 
     const cover = await screen.findByRole("button", { name: "Change cover art" });
     expect((cover.querySelector("img") as HTMLImageElement).getAttribute("src")).toBe(
-      "/uploads/album-covers/apple.jpg"
+      "/uploads/album-covers/apple.jpg",
     );
 
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
@@ -214,10 +251,32 @@ describe("album page delete (#511)", () => {
 });
 
 describe("album page layout (#727)", () => {
-  const base = { release_id: "rel", friend_id: 7, title: "Blue Lines", artist: "Massive Attack", track_count: 2 };
+  const base = {
+    release_id: "rel",
+    friend_id: 7,
+    title: "Blue Lines",
+    artist: "Massive Attack",
+    track_count: 2,
+  };
   const tracks = [
-    { track_id: "a1", friend_id: 7, title: "Safe", artist: "Massive Attack", position: "A1", duration: "3:00", local_audio_url: "/a.mp3" },
-    { track_id: "b1", friend_id: 7, title: "Daydreaming", artist: "Massive Attack", position: "B1", duration: "4:00", local_audio_url: "/b.mp3" },
+    {
+      track_id: "a1",
+      friend_id: 7,
+      title: "Safe",
+      artist: "Massive Attack",
+      position: "A1",
+      duration: "3:00",
+      local_audio_url: "/a.mp3",
+    },
+    {
+      track_id: "b1",
+      friend_id: 7,
+      title: "Daydreaming",
+      artist: "Massive Attack",
+      position: "B1",
+      duration: "4:00",
+      local_audio_url: "/b.mp3",
+    },
   ];
 
   beforeEach(() => {
@@ -246,9 +305,15 @@ describe("album page layout (#727)", () => {
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Album Enqueued" }));
 
     await user.click(screen.getByRole("button", { name: "Play side B" }));
-    expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[1]], { autoplay: true, startIndex: 0 });
+    expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[1]], {
+      autoplay: true,
+      startIndex: 0,
+    });
     await user.click(screen.getByRole("button", { name: "Play Safe" }));
-    expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[0]], { autoplay: true, startIndex: 0 });
+    expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[0]], {
+      autoplay: true,
+      startIndex: 0,
+    });
   });
 
   it("adds the whole album to a playlist and opens the spin form", async () => {
@@ -270,7 +335,10 @@ describe("album page layout (#727)", () => {
 
   it("queues missing downloads and reports the result", async () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
-    queueDownloads.mockResolvedValueOnce({ tracksQueued: 2 }).mockResolvedValueOnce({ tracksQueued: 0 }).mockRejectedValueOnce(new Error("nope"));
+    queueDownloads
+      .mockResolvedValueOnce({ tracksQueued: 2 })
+      .mockResolvedValueOnce({ tracksQueued: 0 })
+      .mockRejectedValueOnce(new Error("nope"));
     for (const title of ["Downloads Queued", "No Downloads Needed", "Download Failed"]) {
       await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
       await user.click(await screen.findByRole("button", { name: /Download missing/i }));
@@ -292,7 +360,9 @@ describe("album page layout (#727)", () => {
   it("warns instead of playing or enriching an album with no tracks", async () => {
     albumTracks.current = [];
     const { user } = renderWithProviders(<AlbumDetailPage />);
-    expect((await screen.findByRole("button", { name: /Play album/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      ((await screen.findByRole("button", { name: /Play album/ })) as HTMLButtonElement).disabled,
+    ).toBe(true);
     expect(screen.getByText("No tracks found for this album.")).toBeTruthy();
     expect(replacePlaylist).not.toHaveBeenCalled();
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
@@ -302,7 +372,11 @@ describe("album page layout (#727)", () => {
   it("puts a back link and the overflow menu in a phone top bar", async () => {
     setViewportWidth(390);
     renderWithProviders(<AlbumDetailPage />);
-    expect((await screen.findByRole("link", { name: "Back to Albums", hidden: true })).getAttribute("href")).toBe("/albums");
+    expect(
+      (await screen.findByRole("link", { name: "Back to Albums", hidden: true })).getAttribute(
+        "href",
+      ),
+    ).toBe("/albums");
     expect(screen.getAllByRole("button", { name: "Album actions" }).length).toBeGreaterThan(0);
     expect(screen.getByTestId("album-track-list")).toBeTruthy();
   });

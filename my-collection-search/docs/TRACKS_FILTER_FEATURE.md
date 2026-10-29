@@ -15,10 +15,12 @@ The tracks page (`/`) now includes a powerful filter modal that allows you to fi
 ### Filter Options
 
 #### Missing Data
+
 - **Missing local audio** - Tracks without downloaded audio files (`local_audio_url IS NULL`)
 - **Missing metadata** - Tracks missing BPM or Key information (`bpm IS NULL OR key IS NULL`)
 
 #### Missing Streaming URLs
+
 - **Missing all streaming URLs** - Tracks with NO streaming URLs at all (no Apple Music, YouTube, or SoundCloud)
   - When checked, individual URL filters are disabled (this is an "all or nothing" filter)
 - **Missing Apple Music URL** - Tracks without Apple Music links
@@ -36,11 +38,13 @@ The tracks page (`/`) now includes a powerful filter modal that allows you to fi
 ### Clearing Filters
 
 **Option 1: Clear All in Modal**
+
 - Open the filter modal
 - Click **Clear All** button
 - Click **Apply Filters**
 
 **Option 2: Quick Clear**
+
 - Click the filter button (shows active count)
 - Click **Clear All**
 - Filters are immediately removed
@@ -54,6 +58,7 @@ The tracks page (`/`) now includes a powerful filter modal that allows you to fi
 ## Use Cases
 
 ### Data Cleanup
+
 ```
 Filter: Missing metadata
 → Find all tracks that need BPM/Key analysis
@@ -61,6 +66,7 @@ Filter: Missing metadata
 ```
 
 ### Audio Download Queue
+
 ```
 Filter: Missing local audio + Missing all streaming URLs
 → Find tracks that can't be downloaded (no source URLs)
@@ -68,6 +74,7 @@ Filter: Missing local audio + Missing all streaming URLs
 ```
 
 ### Platform-Specific Gaps
+
 ```
 Filter: Missing Apple Music URL
 → Find tracks that need Apple Music links
@@ -75,6 +82,7 @@ Filter: Missing Apple Music URL
 ```
 
 ### Offline Availability
+
 ```
 Filter: Missing local audio
 → Find tracks that aren't downloaded yet
@@ -89,22 +97,23 @@ The filters are converted to Search API filter strings:
 
 ```typescript
 // Missing local audio
-"local_audio_url IS NULL"
+"local_audio_url IS NULL";
 
 // Missing metadata
-"(bpm IS NULL OR key IS NULL)"
+"(bpm IS NULL OR key IS NULL)";
 
 // Missing all streaming URLs
-"(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)"
+"(apple_music_url IS NULL AND youtube_url IS NULL AND soundcloud_url IS NULL)";
 
 // Individual URL filters (combined with AND)
-"apple_music_url IS NULL"
-"youtube_url IS NULL"
+"apple_music_url IS NULL";
+"youtube_url IS NULL";
 ```
 
 ### Filter Combination
 
 Multiple filters are combined with **AND** logic:
+
 - All selected filters must match
 - Example: "Missing audio" + "Missing Apple Music URL" = tracks missing BOTH
 
@@ -117,6 +126,7 @@ Multiple filters are combined with **AND** logic:
 ## Components
 
 ### Files Created
+
 - `src/components/TracksFilterModal.tsx` - Filter modal UI
 - `src/lib/trackFilters.ts` - Filter utilities and Search API conversion
 - `src/components/SearchResults.tsx` - Updated with filter integration
@@ -124,20 +134,24 @@ Multiple filters are combined with **AND** logic:
 ### Key Functions
 
 **buildSearch APIFilters(filters: TracksFilter): string[]**
+
 - Converts filter state to Search API filter strings
 - Handles special logic (e.g., "all streaming URLs" disables individual filters)
 
 **createEmptyFilters(): TracksFilter**
+
 - Returns empty filter state
 - Used for initialization and clearing
 
 **getActiveFilterCount(filters: TracksFilter): number**
+
 - Returns count of active filters
 - Used for badge display
 
 ## Future Enhancements
 
 Potential additions:
+
 - **Filter by BPM range** (e.g., 120-130 BPM)
 - **Filter by key** (e.g., only tracks in C major)
 - **Filter by star rating** (e.g., 4+ stars)
@@ -149,15 +163,18 @@ Potential additions:
 ## Troubleshooting
 
 ### Filters not working?
+
 - Check Search API index has filter handling supports requested fields
 - Run: `/api/admin/reindex` if needed
 - Verify fields exist in database
 
 ### No results with filters?
+
 - Try fewer filters (might be too restrictive)
 - Check if data actually exists with these missing fields
 - Use "Clear All" to reset
 
 ### Filter badge not showing?
+
 - Hard refresh the page (Ctrl+F5 / Cmd+Shift+R)
 - Check browser console for errors

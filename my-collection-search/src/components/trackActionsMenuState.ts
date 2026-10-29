@@ -17,10 +17,7 @@ export type TrackAudioActions = {
 };
 
 type TrackMenuTrackFields = Partial<
-  Pick<
-    Track,
-    "local_audio_url" | "apple_music_url" | "youtube_url" | "soundcloud_url"
-  >
+  Pick<Track, "local_audio_url" | "apple_music_url" | "youtube_url" | "soundcloud_url">
 >;
 
 export type TrackMenuStateOptions = {
@@ -57,13 +54,13 @@ export type TrackMenuState = {
  */
 export function resolveTrackMenuState(
   track: TrackMenuTrackFields,
-  opts: TrackMenuStateOptions = {}
+  opts: TrackMenuStateOptions = {},
 ): TrackMenuState {
   const { hideEdit, hasTrackDebug, audioActions } = opts;
 
   const hasAudio = Boolean(track.local_audio_url);
   const hasStreamingLinks = Boolean(
-    track.apple_music_url || track.youtube_url || track.soundcloud_url
+    track.apple_music_url || track.youtube_url || track.soundcloud_url,
   );
 
   // In override mode the loading flags come solely from the override (the
@@ -71,14 +68,14 @@ export function resolveTrackMenuState(
   // come from the defaults. Either source defaults to false when omitted.
   const usingAudioOverride = Boolean(audioActions);
   const fetchAudioLoading = usingAudioOverride
-    ? audioActions?.fetchAudioLoading ?? false
-    : opts.defaultFetchLoading ?? false;
+    ? (audioActions?.fetchAudioLoading ?? false)
+    : (opts.defaultFetchLoading ?? false);
   const uploadLoading = usingAudioOverride
-    ? audioActions?.uploadLoading ?? false
-    : opts.defaultUploadLoading ?? false;
+    ? (audioActions?.uploadLoading ?? false)
+    : (opts.defaultUploadLoading ?? false);
   const removeAudioLoading = usingAudioOverride
-    ? audioActions?.removeAudioLoading ?? false
-    : opts.defaultRemoveLoading ?? false;
+    ? (audioActions?.removeAudioLoading ?? false)
+    : (opts.defaultRemoveLoading ?? false);
 
   return {
     hasAudio,

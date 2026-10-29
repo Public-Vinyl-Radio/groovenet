@@ -18,7 +18,9 @@ export function useGenrePlayback(slug: string, friendId: number | undefined) {
     pending.current = false;
     setBusy(false);
     setProblem(null);
-    return () => { generation.current = currentGeneration + 1; };
+    return () => {
+      generation.current = currentGeneration + 1;
+    };
   }, [slug, friendId]);
 
   const play = async (shuffle: boolean) => {
@@ -31,17 +33,26 @@ export function useGenrePlayback(slug: string, friendId: number | undefined) {
       const playable = new Map<string, Track>();
       let offset = 0;
       while (true) {
-        const page = await searchTracks({ genre: [slug], filter: `friend_id = ${friendId}`, limit: 200, offset });
+        const page = await searchTracks({
+          genre: [slug],
+          filter: `friend_id = ${friendId}`,
+          limit: 200,
+          offset,
+        });
         if (request !== generation.current) return;
         useTrackStore.getState().setTracks(page.hits);
         page.hits.forEach((track) => {
-          if (track.local_audio_url?.trim()) playable.set(`${track.track_id}:${track.friend_id}`, track);
+          if (track.local_audio_url?.trim())
+            playable.set(`${track.track_id}:${track.friend_id}`, track);
         });
         offset = page.offset + page.limit;
         if (!page.hits.length || page.limit <= 0 || offset >= page.estimatedTotalHits) break;
       }
       const tracks = [...playable.values()];
-      if (!tracks.length) { setProblem("No playable tracks in this genre yet."); return; }
+      if (!tracks.length) {
+        setProblem("No playable tracks in this genre yet.");
+        return;
+      }
       if (shuffle) {
         for (let i = tracks.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -50,9 +61,13 @@ export function useGenrePlayback(slug: string, friendId: number | undefined) {
       }
       replacePlaylist(tracks, { autoplay: true, startIndex: 0 });
     } catch (error) {
-      if (request === generation.current) setProblem(error instanceof Error ? error.message : "Couldn’t load tracks for playback.");
+      if (request === generation.current)
+        setProblem(error instanceof Error ? error.message : "Couldn’t load tracks for playback.");
     } finally {
-      if (request === generation.current) { pending.current = false; setBusy(false); }
+      if (request === generation.current) {
+        pending.current = false;
+        setBusy(false);
+      }
     }
   };
   return { play, busy, problem };

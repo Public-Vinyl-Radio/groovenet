@@ -33,11 +33,11 @@ async function basicExample() {
 
   for (const candidate of top5) {
     console.log(`\n  ${candidate.metadata.title} - ${candidate.metadata.artist}`);
-    console.log(`    Identity similarity: ${candidate.simIdentity?.toFixed(3) ?? 'N/A'}`);
-    console.log(`    Audio similarity: ${candidate.simAudio?.toFixed(3) ?? 'N/A'}`);
-    console.log(`    BPM: ${candidate.metadata.bpm ?? 'N/A'}`);
-    console.log(`    Key: ${candidate.metadata.key ?? 'N/A'}`);
-    console.log(`    Energy: ${candidate.metadata.energy?.toFixed(2) ?? 'N/A'}`);
+    console.log(`    Identity similarity: ${candidate.simIdentity?.toFixed(3) ?? "N/A"}`);
+    console.log(`    Audio similarity: ${candidate.simAudio?.toFixed(3) ?? "N/A"}`);
+    console.log(`    BPM: ${candidate.metadata.bpm ?? "N/A"}`);
+    console.log(`    Key: ${candidate.metadata.key ?? "N/A"}`);
+    console.log(`    Energy: ${candidate.metadata.energy?.toFixed(2) ?? "N/A"}`);
   }
 
   console.log("\n⏱️  Timing:");
@@ -84,8 +84,8 @@ async function checkEmbeddingsExample() {
   const embeddings = await hasEmbeddings(seedTrackId, seedFriendId);
 
   console.log("\n🔍 Checking seed track embeddings:");
-  console.log(`  Identity embedding: ${embeddings.identity ? '✅' : '❌'}`);
-  console.log(`  Audio vibe embedding: ${embeddings.audio ? '✅' : '❌'}`);
+  console.log(`  Identity embedding: ${embeddings.identity ? "✅" : "❌"}`);
+  console.log(`  Audio vibe embedding: ${embeddings.audio ? "✅" : "❌"}`);
 
   if (!embeddings.identity && !embeddings.audio) {
     console.log("\n⚠️  Seed track has no embeddings. Run backfill first.");
@@ -116,7 +116,7 @@ async function filterCandidatesExample() {
 
   // Post-filter: BPM range (±5 BPM from seed)
   const seedBpm = 128; // Replace with actual seed BPM
-  const bpmFiltered = result.candidates.filter(c => {
+  const bpmFiltered = result.candidates.filter((c) => {
     if (!c.metadata.bpm) return false;
     const diff = Math.abs(c.metadata.bpm - seedBpm);
     return diff <= 5;
@@ -128,12 +128,12 @@ async function filterCandidatesExample() {
 
   // Post-filter: Same era
   const seedEra = "1990s";
-  const eraFiltered = result.candidates.filter(c => c.metadata.eraBucket === seedEra);
+  const eraFiltered = result.candidates.filter((c) => c.metadata.eraBucket === seedEra);
 
   console.log(`  Same era (${seedEra}): ${eraFiltered.length}`);
 
   // Post-filter: High energy tracks
-  const energyFiltered = result.candidates.filter(c => {
+  const energyFiltered = result.candidates.filter((c) => {
     return c.metadata.energy !== null && c.metadata.energy > 0.7;
   });
 
@@ -154,11 +154,9 @@ async function sortByCombinedSimilarityExample() {
   const result = await retrieveCandidates(seedTrackId, seedFriendId);
 
   // Calculate combined similarity (simple average)
-  const candidatesWithScore = result.candidates.map(c => {
+  const candidatesWithScore = result.candidates.map((c) => {
     const scores = [c.simIdentity, c.simAudio].filter((s): s is number => s !== null);
-    const avgScore = scores.length > 0
-      ? scores.reduce((sum, s) => sum + s, 0) / scores.length
-      : 0;
+    const avgScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s, 0) / scores.length : 0;
 
     return {
       ...c,
@@ -175,7 +173,9 @@ async function sortByCombinedSimilarityExample() {
   for (const candidate of top10) {
     console.log(`\n  ${candidate.metadata.title} - ${candidate.metadata.artist}`);
     console.log(`    Combined score: ${candidate.combinedScore.toFixed(3)}`);
-    console.log(`    Identity: ${candidate.simIdentity?.toFixed(3) ?? 'N/A'}, Audio: ${candidate.simAudio?.toFixed(3) ?? 'N/A'}`);
+    console.log(
+      `    Identity: ${candidate.simIdentity?.toFixed(3) ?? "N/A"}, Audio: ${candidate.simAudio?.toFixed(3) ?? "N/A"}`,
+    );
   }
 }
 

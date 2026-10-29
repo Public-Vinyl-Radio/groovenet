@@ -15,10 +15,20 @@ const backend = new TestPlaybackBackend();
 const player = new PlayerCore(backend, new TrackResolver({}, { apiBase: "http://unused/api" }));
 const paths = { socketPath: join(dir, "player.sock"), pidPath: join(dir, "player.pid") };
 const daemon = new PlayerDaemon({ player, paths });
-const ctl = async (...args) => (await promisify(execFile)("playerctl", ["--player=groovenet", ...args])).stdout.trim();
+const ctl = async (...args) =>
+  (await promisify(execFile)("playerctl", ["--player=groovenet", ...args])).stdout.trim();
 let close;
 try {
-  player.add(["First", "Second"].map((title) => ({ title, track_id: title, artist: "Artist", album: "Album", friend_id: 1, local_audio_url: `${title}.mp3` })));
+  player.add(
+    ["First", "Second"].map((title) => ({
+      title,
+      track_id: title,
+      artist: "Artist",
+      album: "Album",
+      friend_id: 1,
+      local_audio_url: `${title}.mp3`,
+    })),
+  );
   await daemon.start();
   close = await startMpris(paths.socketPath);
   assert.ok(close, "MPRIS must be enabled in this session");

@@ -7,7 +7,7 @@ import type { EmbeddingJob, EmbeddingJobKind } from "@/types/embeddingQueue";
 const ALL_TYPES: EmbeddingJobKind[] = ["identity", "audio_vibe", "context"];
 
 async function resolveCandidates(
-  body: ReturnType<typeof embeddingsBackfillBodySchema.parse>
+  body: ReturnType<typeof embeddingsBackfillBodySchema.parse>,
 ): Promise<Record<EmbeddingJobKind, EmbeddingJob[]>> {
   const types = body.types ?? ALL_TYPES;
   // `all` always re-embeds; `release`/`track` only do when `force` says so —
@@ -23,8 +23,8 @@ async function resolveCandidates(
         track_ids: body.scope === "track" ? body.track_ids : undefined,
         force,
         limit: body.limit,
-      })
-    )
+      }),
+    ),
   );
 
   const result = {} as Record<EmbeddingJobKind, EmbeddingJob[]>;
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid backfill request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     console.error("Error starting embeddings backfill run:", err);
     return NextResponse.json(
       { error: err.message || "Failed to start backfill run" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

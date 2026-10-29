@@ -38,14 +38,18 @@ beforeAll(async () => {
   await cleanup();
   const { rows } = await dbQuery<{ id: number }>(
     "INSERT INTO friends (username) VALUES ($1) RETURNING id",
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
-  for (const [trackId, releaseId] of [["tg-1", "r-1"], ["tg-2", "r-1"], ["tg-3", "r-2"]]) {
+  for (const [trackId, releaseId] of [
+    ["tg-1", "r-1"],
+    ["tg-2", "r-1"],
+    ["tg-3", "r-2"],
+  ]) {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id)
        VALUES ($1, $2, $3, 'Title', 'Artist', $4)`,
-      [trackId, USERNAME, friendId, releaseId]
+      [trackId, USERNAME, friendId, releaseId],
     );
   }
 });
@@ -81,10 +85,17 @@ describe("track genre links", () => {
     const cumbia = await genreId("Cumbia");
     const salsa = await genreId("Salsa");
 
-    await trackGenreRepository.replaceTrackGenres("tg-1", friendId, [cumbia, salsa], "reconciliation");
+    await trackGenreRepository.replaceTrackGenres(
+      "tg-1",
+      friendId,
+      [cumbia, salsa],
+      "reconciliation",
+    );
     await trackGenreRepository.replaceTrackGenres("tg-1", friendId, [cumbia], "manual");
 
-    const { rows } = await dbQuery("SELECT genre_id, source FROM track_genres WHERE track_id = 'tg-1'");
+    const { rows } = await dbQuery(
+      "SELECT genre_id, source FROM track_genres WHERE track_id = 'tg-1'",
+    );
     expect(rows).toEqual([{ genre_id: cumbia, source: "reconciliation" }]);
 
     const track = await trackRepository.findTrackByTrackIdAndFriendId("tg-1", friendId);
@@ -96,7 +107,9 @@ describe("track genre links", () => {
     const untagged = await trackRepository.findTrackByTrackIdAndFriendId("tg-3", friendId);
     expect(untagged?.track_genres).toEqual([]);
 
-    const [batch] = await trackRepository.findTracksByRefsPreservingOrder([{ track_id: "tg-1", friend_id: friendId }]);
+    const [batch] = await trackRepository.findTracksByRefsPreservingOrder([
+      { track_id: "tg-1", friend_id: friendId },
+    ]);
     expect(batch.track_genres).toHaveLength(1);
   });
 
@@ -111,7 +124,12 @@ describe("track genre links", () => {
 
   dbTest("rejects a link to a genre that does not exist", async () => {
     await expect(
-      trackGenreRepository.replaceTrackGenres("tg-1", friendId, ["00000000-0000-4000-8000-000000000000"], "manual")
+      trackGenreRepository.replaceTrackGenres(
+        "tg-1",
+        friendId,
+        ["00000000-0000-4000-8000-000000000000"],
+        "manual",
+      ),
     ).rejects.toMatchObject({ code: "23503" });
   });
 
@@ -121,7 +139,12 @@ describe("track genre links", () => {
     const target = await createGenre("Track Genre Test Target", latin);
 
     await trackGenreRepository.replaceTrackGenres("tg-1", friendId, [source.id], "manual");
-    await trackGenreRepository.replaceTrackGenres("tg-2", friendId, [source.id, target.id], "manual");
+    await trackGenreRepository.replaceTrackGenres(
+      "tg-2",
+      friendId,
+      [source.id, target.id],
+      "manual",
+    );
     await trackGenreRepository.replaceTrackGenres("tg-3", friendId, [source.id], "manual");
     await trackRepository.softDeleteTrack("tg-3", friendId);
 
@@ -132,21 +155,27 @@ describe("track genre links", () => {
 
     const { rows } = await dbQuery(
       "SELECT track_id FROM track_genres WHERE genre_id = $1 ORDER BY track_id",
-      [target.id]
+      [target.id],
     );
     expect(rows.map((row) => row.track_id)).toEqual(["tg-1", "tg-2", "tg-3"]);
-    expect(findNode(await genreRepository.listTree(), target.id)).toMatchObject({ track_count: 2, album_count: 1 });
+    expect(findNode(await genreRepository.listTree(), target.id)).toMatchObject({
+      track_count: 2,
+      album_count: 1,
+    });
   });
 
-  dbTest("lists each genre's normalised aliases on the tree, and none for a genre without (#376)", async () => {
-    const cumbia = await genreId("Cumbia");
-    await addGenreAlias(cumbia, "Track Genre Test Cumbia Colombiana");
+  dbTest(
+    "lists each genre's normalised aliases on the tree, and none for a genre without (#376)",
+    async () => {
+      const cumbia = await genreId("Cumbia");
+      await addGenreAlias(cumbia, "Track Genre Test Cumbia Colombiana");
 
-    const tree = await genreRepository.listTree();
-    expect(findNode(tree, cumbia)?.aliases).toContain("track genre test cumbia colombiana");
-    const bare = await createGenre("Track Genre Test Bare", cumbia);
-    expect(findNode(await genreRepository.listTree(), bare.id)?.aliases).toEqual([]);
-  });
+      const tree = await genreRepository.listTree();
+      expect(findNode(tree, cumbia)?.aliases).toContain("track genre test cumbia colombiana");
+      const bare = await createGenre("Track Genre Test Bare", cumbia);
+      expect(findNode(await genreRepository.listTree(), bare.id)?.aliases).toEqual([]);
+    },
+  );
 
   dbTest("counts the genres on a release's other live tracks (#374)", async () => {
     const cumbia = await genreId("Cumbia");
@@ -168,7 +197,9 @@ describe("track genre links", () => {
   dbTest("a linked genre cannot be deleted outright", async () => {
     const cumbia = await genreId("Cumbia");
     await trackGenreRepository.replaceTrackGenres("tg-2", friendId, [cumbia], "manual");
-    await expect(dbQuery("DELETE FROM genres WHERE id = $1", [cumbia])).rejects.toMatchObject({ code: "23503" });
+    await expect(dbQuery("DELETE FROM genres WHERE id = $1", [cumbia])).rejects.toMatchObject({
+      code: "23503",
+    });
   });
 
   dbTest(
@@ -185,27 +216,33 @@ describe("track genre links", () => {
 
       const { rows } = await dbQuery<{
         track_genre_ids: Array<{ id: string; parent_id: string | null }>;
-      }>(`SELECT ${trackGenreIdsSelectSql("t")} FROM tracks t WHERE t.track_id = 'tg-1' AND t.friend_id = $1`, [
-        friendId,
-      ]);
+      }>(
+        `SELECT ${trackGenreIdsSelectSql("t")} FROM tracks t WHERE t.track_id = 'tg-1' AND t.friend_id = $1`,
+        [friendId],
+      );
 
       const byId = new Map(rows[0].track_genre_ids.map((g) => [g.id, g.parent_id]));
       expect([...byId.keys()].sort()).toEqual([cumbia, salsa].sort());
       expect(byId.get(cumbia)).toBe(latin);
       expect(byId.get(salsa)).toBe(latin);
-    }
+    },
   );
 
-  dbTest("trackGenreIdsSelectSql never yields null for a track with no genres or styles (#486)", async () => {
-    // tg-3 picked up a link from an earlier test's merge; this test only cares
-    // about the no-genres-and-no-styles shape, so it clears both first.
-    await trackGenreRepository.replaceTrackGenres("tg-3", friendId, [], "manual");
-    await dbQuery("UPDATE tracks SET styles = NULL WHERE track_id = 'tg-3' AND friend_id = $1", [friendId]);
+  dbTest(
+    "trackGenreIdsSelectSql never yields null for a track with no genres or styles (#486)",
+    async () => {
+      // tg-3 picked up a link from an earlier test's merge; this test only cares
+      // about the no-genres-and-no-styles shape, so it clears both first.
+      await trackGenreRepository.replaceTrackGenres("tg-3", friendId, [], "manual");
+      await dbQuery("UPDATE tracks SET styles = NULL WHERE track_id = 'tg-3' AND friend_id = $1", [
+        friendId,
+      ]);
 
-    const { rows } = await dbQuery<{ track_genre_ids: unknown[] }>(
-      `SELECT ${trackGenreIdsSelectSql("t")} FROM tracks t WHERE t.track_id = 'tg-3' AND t.friend_id = $1`,
-      [friendId]
-    );
-    expect(rows[0].track_genre_ids).toEqual([]);
-  });
+      const { rows } = await dbQuery<{ track_genre_ids: unknown[] }>(
+        `SELECT ${trackGenreIdsSelectSql("t")} FROM tracks t WHERE t.track_id = 'tg-3' AND t.friend_id = $1`,
+        [friendId],
+      );
+      expect(rows[0].track_genre_ids).toEqual([]);
+    },
+  );
 });

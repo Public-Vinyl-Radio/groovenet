@@ -1,9 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from "react";
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Friend, Track } from "@/types/track";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -79,18 +75,19 @@ export function useSearchResults({
           return false;
         }
         if (!selectedUsername) return true;
-        const hitUsername = typeof hit.username === "string" ? hit.username.trim().toLowerCase() : "";
+        const hitUsername =
+          typeof hit.username === "string" ? hit.username.trim().toLowerCase() : "";
         if (!hitUsername) return true;
         return hitUsername === selectedUsername;
       });
     },
-    [friendId, selectedUsername]
+    [friendId, selectedUsername],
   );
 
   // Stable filter shape for caching
   const searchFilter = useMemo(
     () => filter ?? (friendId ? [`friend_id = ${friendId}`] : undefined),
-    [filter, friendId]
+    [filter, friendId],
   );
   const normalizedFilter = useMemo(() => {
     if (Array.isArray(searchFilter)) {
@@ -127,8 +124,7 @@ export function useSearchResults({
     enabled: enabled && isInfinite,
     refetchOnWindowFocus: false,
     queryFn: async (context): Promise<SearchPage> => {
-      const pageParam =
-        typeof context.pageParam === "number" ? context.pageParam : 0;
+      const pageParam = typeof context.pageParam === "number" ? context.pageParam : 0;
       const res = await searchTracks({
         q: query || "",
         limit,
@@ -210,14 +206,11 @@ export function useSearchResults({
       isInfinite
         ? (infiniteQuery.data?.pages ?? [])
         : singlePageQuery.data
-        ? [singlePageQuery.data]
-        : [],
-    [isInfinite, infiniteQuery.data?.pages, singlePageQuery.data]
+          ? [singlePageQuery.data]
+          : [],
+    [isInfinite, infiniteQuery.data?.pages, singlePageQuery.data],
   );
-  const results = useMemo(
-    () => scopeHits(pages.flatMap((p) => p.hits)),
-    [pages, scopeHits]
-  );
+  const results = useMemo(() => scopeHits(pages.flatMap((p) => p.hits)), [pages, scopeHits]);
   const estimatedResults = pages[0]?.estimatedTotalHits ?? 0;
   // Genres `includeSimilar` added beyond the plain genre filter (#485).
   const addedGenres: AddedGenreRef[] = pages[0]?.added_genres ?? [];
@@ -228,16 +221,20 @@ export function useSearchResults({
     if (results.length === 0) return;
 
     const changedTracks = results.filter((track) => {
-      const key = `${track.track_id}:${track.friend_id || 'default'}`;
+      const key = `${track.track_id}:${track.friend_id || "default"}`;
       return seededTracks.current.get(key) !== track;
     });
 
     if (changedTracks.length > 0) {
-      console.log('🔍 useSearchResults calling setTracks with', changedTracks.length, 'new or changed tracks');
+      console.log(
+        "🔍 useSearchResults calling setTracks with",
+        changedTracks.length,
+        "new or changed tracks",
+      );
       setTracks(changedTracks);
 
       changedTracks.forEach((track) => {
-        const key = `${track.track_id}:${track.friend_id || 'default'}`;
+        const key = `${track.track_id}:${track.friend_id || "default"}`;
         seededTracks.current.set(key, track);
       });
     }
@@ -246,7 +243,7 @@ export function useSearchResults({
   // Return track info instead of full track objects to force components to read from store
   const trackInfo = results.map((track) => ({
     trackId: track.track_id,
-    friendId: track.friend_id
+    friendId: track.friend_id,
   }));
 
   // --- Playlist counts (dependent query on unique track_id + friend_id pairs) ---
@@ -262,9 +259,7 @@ export function useSearchResults({
   }, [results]);
 
   const countsQuery = useQuery({
-    queryKey: queryKeys.playlistCounts(
-      trackRefs.map((r) => `${r.track_id}:${r.friend_id}`)
-    ),
+    queryKey: queryKeys.playlistCounts(trackRefs.map((r) => `${r.track_id}:${r.friend_id}`)),
     enabled: enabled && trackRefs.length > 0,
     queryFn: async () => {
       return await fetchPlaylistCounts(trackRefs);
@@ -273,9 +268,7 @@ export function useSearchResults({
   });
 
   // --- API compatibility layer ---
-  const hasMore = isInfinite
-    ? !!infiniteQuery.hasNextPage
-    : (page ?? 1) * limit < estimatedResults;
+  const hasMore = isInfinite ? !!infiniteQuery.hasNextPage : (page ?? 1) * limit < estimatedResults;
   const loadMore = useCallback(() => {
     if (isInfinite) return infiniteQuery.fetchNextPage();
     // no-op in page mode; parent controls page state
@@ -299,7 +292,7 @@ export function useSearchResults({
   // onChange helper kept for drop-in compatibility
   const onQueryChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value),
-    []
+    [],
   );
 
   // loading: combine initial + fetching-next

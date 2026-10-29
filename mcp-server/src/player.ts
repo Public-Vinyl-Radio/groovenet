@@ -14,7 +14,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 /** Slack past the request limit before the wall-clock cap, which also covers a socket that never connects. */
 const CALL_TIMEOUT_MARGIN_MS = 500;
 
-const START_HINT = "Start it with `groovenet player start --detach` (the MCP server never starts the daemon itself).";
+const START_HINT =
+  "Start it with `groovenet player start --detach` (the MCP server never starts the daemon itself).";
 
 /** Raw tool arguments; every field is validated before use. */
 export type PlayerToolArgs = Record<string, unknown>;
@@ -25,13 +26,24 @@ export interface PlayerToolDeps {
 }
 
 export const PLAYER_TOOL_NAMES: readonly string[] = [
-  "player_status", "player_play", "player_pause", "player_resume", "player_next", "player_previous",
-  "player_seek", "player_volume", "player_queue_list", "player_queue_add", "player_queue_remove",
-  "player_devices", "player_select_device",
+  "player_status",
+  "player_play",
+  "player_pause",
+  "player_resume",
+  "player_next",
+  "player_previous",
+  "player_seek",
+  "player_volume",
+  "player_queue_list",
+  "player_queue_add",
+  "player_queue_remove",
+  "player_devices",
+  "player_select_device",
 ];
 
 const NO_ARGS = { type: "object", properties: {} } as const;
-const DAEMON_NOTE = "Talks to the local Groovenet player daemon (start it with `groovenet player start --detach`).";
+const DAEMON_NOTE =
+  "Talks to the local Groovenet player daemon (start it with `groovenet player start --detach`).";
 
 export const playerTools = [
   {
@@ -41,22 +53,43 @@ export const playerTools = [
   },
   {
     name: "player_play",
-    description: "Start playback, or resume if paused. With `index`, jump to that zero-based queue position (see player_status / player_queue_list). Fails if the queue is empty or the index is out of range; tracks without downloaded audio are skipped by the daemon.",
+    description:
+      "Start playback, or resume if paused. With `index`, jump to that zero-based queue position (see player_status / player_queue_list). Fails if the queue is empty or the index is out of range; tracks without downloaded audio are skipped by the daemon.",
     inputSchema: {
       type: "object",
-      properties: { index: { type: "integer", minimum: 0, description: "Zero-based queue index to play; omit to play from the current position" } },
+      properties: {
+        index: {
+          type: "integer",
+          minimum: 0,
+          description: "Zero-based queue index to play; omit to play from the current position",
+        },
+      },
     },
   },
   { name: "player_pause", description: "Pause playback.", inputSchema: NO_ARGS },
   { name: "player_resume", description: "Resume paused playback.", inputSchema: NO_ARGS },
-  { name: "player_next", description: "Skip to the next track in the queue.", inputSchema: NO_ARGS },
-  { name: "player_previous", description: "Go back to the previous track in the queue.", inputSchema: NO_ARGS },
+  {
+    name: "player_next",
+    description: "Skip to the next track in the queue.",
+    inputSchema: NO_ARGS,
+  },
+  {
+    name: "player_previous",
+    description: "Go back to the previous track in the queue.",
+    inputSchema: NO_ARGS,
+  },
   {
     name: "player_seek",
     description: "Seek within the current track to an absolute position.",
     inputSchema: {
       type: "object",
-      properties: { seconds: { type: "number", minimum: 0, description: "Position in seconds from the start of the track" } },
+      properties: {
+        seconds: {
+          type: "number",
+          minimum: 0,
+          description: "Position in seconds from the start of the track",
+        },
+      },
       required: ["seconds"],
     },
   },
@@ -65,19 +98,39 @@ export const playerTools = [
     description: "Set the player volume.",
     inputSchema: {
       type: "object",
-      properties: { volume: { type: "number", minimum: 0, maximum: 100, description: "Volume percentage, 0-100" } },
+      properties: {
+        volume: {
+          type: "number",
+          minimum: 0,
+          maximum: 100,
+          description: "Volume percentage, 0-100",
+        },
+      },
       required: ["volume"],
     },
   },
-  { name: "player_queue_list", description: "List the playback queue with each entry's zero-based index and id (use these with player_play and player_queue_remove).", inputSchema: NO_ARGS },
+  {
+    name: "player_queue_list",
+    description:
+      "List the playback queue with each entry's zero-based index and id (use these with player_play and player_queue_remove).",
+    inputSchema: NO_ARGS,
+  },
   {
     name: "player_queue_add",
-    description: "Append tracks to the end of the queue; playback is not started (call player_play). Supply exactly one of: `query` (library search, like search_tracks lexical), `playlist_id` (a saved playlist, in its saved order), or `tracks` (refs as returned by search_tracks, so its results can be queued directly). Tracks without downloaded audio are skipped by the daemon when played.",
+    description:
+      "Append tracks to the end of the queue; playback is not started (call player_play). Supply exactly one of: `query` (library search, like search_tracks lexical), `playlist_id` (a saved playlist, in its saved order), or `tracks` (refs as returned by search_tracks, so its results can be queued directly). Tracks without downloaded audio are skipped by the daemon when played.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", minLength: 1, description: "Search text; matching tracks are queued" },
-        playlist_id: { type: ["string", "integer"], description: "Playlist ID (from list_playlists)" },
+        query: {
+          type: "string",
+          minLength: 1,
+          description: "Search text; matching tracks are queued",
+        },
+        playlist_id: {
+          type: ["string", "integer"],
+          description: "Playlist ID (from list_playlists)",
+        },
         tracks: {
           type: "array",
           minItems: 1,
@@ -85,8 +138,16 @@ export const playerTools = [
           items: {
             type: "object",
             properties: {
-              track_id: { type: "string", minLength: 1, description: "The track ID (string, from search_tracks, NOT the numeric `id`)" },
-              friend_id: { type: "number", description: "Friend who owns the track (defaults to the configured default friend)" },
+              track_id: {
+                type: "string",
+                minLength: 1,
+                description: "The track ID (string, from search_tracks, NOT the numeric `id`)",
+              },
+              friend_id: {
+                type: "number",
+                description:
+                  "Friend who owns the track (defaults to the configured default friend)",
+              },
             },
             required: ["track_id"],
           },
@@ -96,7 +157,8 @@ export const playerTools = [
   },
   {
     name: "player_queue_remove",
-    description: "Remove one entry from the queue. Supply exactly one of `id` or `index` (both shown by player_queue_list).",
+    description:
+      "Remove one entry from the queue. Supply exactly one of `id` or `index` (both shown by player_queue_list).",
     inputSchema: {
       type: "object",
       properties: {
@@ -105,13 +167,20 @@ export const playerTools = [
       },
     },
   },
-  { name: "player_devices", description: "List the audio output devices mpv can use, with the ids player_select_device takes.", inputSchema: NO_ARGS },
+  {
+    name: "player_devices",
+    description:
+      "List the audio output devices mpv can use, with the ids player_select_device takes.",
+    inputSchema: NO_ARGS,
+  },
   {
     name: "player_select_device",
     description: "Switch audio output to a device from player_devices.",
     inputSchema: {
       type: "object",
-      properties: { device_id: { type: "string", minLength: 1, description: "Device id from player_devices" } },
+      properties: {
+        device_id: { type: "string", minLength: 1, description: "Device id from player_devices" },
+      },
       required: ["device_id"],
     },
   },
@@ -152,7 +221,10 @@ export function describePlayerError(error: unknown, socketPath: string): string 
  * errors and timeouts. The socket is tracked so a connect that never completes
  * cannot outlive the call.
  */
-async function withPlayer<T>(socketPath: string, action: (client: PlayerControlClient) => Promise<T>): Promise<T> {
+async function withPlayer<T>(
+  socketPath: string,
+  action: (client: PlayerControlClient) => Promise<T>,
+): Promise<T> {
   const sockets: Socket[] = [];
   const requestTimeout = playerTimeoutMs();
   const client = new PlayerControlClient(socketPath, requestTimeout, (path) => {
@@ -162,7 +234,10 @@ async function withPlayer<T>(socketPath: string, action: (client: PlayerControlC
   });
   let timer: NodeJS.Timeout | undefined;
   const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new PlayerProtocolError("PLAYER_TIMEOUT", "no response from the player daemon")), requestTimeout + CALL_TIMEOUT_MARGIN_MS);
+    timer = setTimeout(
+      () => reject(new PlayerProtocolError("PLAYER_TIMEOUT", "no response from the player daemon")),
+      requestTimeout + CALL_TIMEOUT_MARGIN_MS,
+    );
   });
   try {
     return await Promise.race([action(client), deadline]);
@@ -203,8 +278,12 @@ function describeSnapshot(snapshot: PlaybackSnapshot): string {
   const { current } = snapshot;
   if (current) {
     const index = snapshot.queue.findIndex((entry) => entry.id === current.id);
-    lines.push(`Current: ${describeTrack(current.track)} | id=${current.id}${index >= 0 ? ` index=${index}` : ""}`);
-    lines.push(`Position: ${formatClock(snapshot.position)}${snapshot.duration == null ? "" : ` / ${formatClock(snapshot.duration)}`}`);
+    lines.push(
+      `Current: ${describeTrack(current.track)} | id=${current.id}${index >= 0 ? ` index=${index}` : ""}`,
+    );
+    lines.push(
+      `Position: ${formatClock(snapshot.position)}${snapshot.duration == null ? "" : ` / ${formatClock(snapshot.duration)}`}`,
+    );
   }
   lines.push(`Volume: ${snapshot.volume}%`);
   if (snapshot.error) lines.push(`Error: ${snapshot.error.message}`);
@@ -217,9 +296,20 @@ function describeDevices(devices: AudioDevice[]): string {
   return `Audio devices (${devices.length}):\n${devices.map((d) => `• ${d.name}${d.description ? ` — ${d.description}` : ""} | id=${d.id}`).join("\n")}`;
 }
 
-function requireNumber(value: unknown, name: string, bounds: { min: number; max?: number }): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < bounds.min || (bounds.max !== undefined && value > bounds.max)) {
-    throw new Error(`${name} must be a number ${bounds.max === undefined ? `>= ${bounds.min}` : `from ${bounds.min} to ${bounds.max}`}`);
+function requireNumber(
+  value: unknown,
+  name: string,
+  bounds: { min: number; max?: number },
+): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < bounds.min ||
+    (bounds.max !== undefined && value > bounds.max)
+  ) {
+    throw new Error(
+      `${name} must be a number ${bounds.max === undefined ? `>= ${bounds.min}` : `from ${bounds.min} to ${bounds.max}`}`,
+    );
   }
   return value;
 }
@@ -232,72 +322,123 @@ function requireIndex(value: unknown, name: string): number {
 }
 
 function requireString(value: unknown, name: string): string {
-  if (typeof value !== "string" || value.trim() === "") throw new Error(`${name} must be a nonempty string`);
+  if (typeof value !== "string" || value.trim() === "")
+    throw new Error(`${name} must be a nonempty string`);
   return value;
 }
 
 function describeAdded(added: QueueEntry[], queueSize: number | undefined): string {
   if (added.length === 0) return "No tracks were added (nothing matched).";
   const start = queueSize === undefined ? undefined : queueSize - added.length;
-  const lines = added.map((entry, i) => (start === undefined ? `• ${describeTrack(entry.track)} | id=${entry.id}` : describeEntry(entry, start + i)));
+  const lines = added.map((entry, i) =>
+    start === undefined
+      ? `• ${describeTrack(entry.track)} | id=${entry.id}`
+      : describeEntry(entry, start + i),
+  );
   return `Added ${added.length} track${added.length === 1 ? "" : "s"} to the queue:\n${lines.join("\n")}`;
 }
 
 /** Handles one `player_*` tool call. Arguments are validated before any connection is made. */
-export async function handlePlayerTool(name: string, args: PlayerToolArgs, deps: PlayerToolDeps, socketPath = playerSocketPath()) {
+export async function handlePlayerTool(
+  name: string,
+  args: PlayerToolArgs,
+  deps: PlayerToolDeps,
+  socketPath = playerSocketPath(),
+) {
   const snapshotCall = async (method: string, params?: Record<string, unknown>) =>
-    text(describeSnapshot(await withPlayer(socketPath, (client) => client.request<PlaybackSnapshot>(method, params))));
+    text(
+      describeSnapshot(
+        await withPlayer(socketPath, (client) => client.request<PlaybackSnapshot>(method, params)),
+      ),
+    );
 
   switch (name) {
-    case "player_status": return snapshotCall("status");
+    case "player_status":
+      return snapshotCall("status");
     case "player_play": {
       if (args.index === undefined) return snapshotCall("play");
       return snapshotCall("play", { index: requireIndex(args.index, "index") });
     }
-    case "player_pause": return snapshotCall("pause");
-    case "player_resume": return snapshotCall("resume");
-    case "player_next": return snapshotCall("next");
-    case "player_previous": return snapshotCall("prev");
-    case "player_seek": return snapshotCall("seek", { seconds: requireNumber(args.seconds, "seconds", { min: 0 }) });
-    case "player_volume": return snapshotCall("volume", { volume: requireNumber(args.volume, "volume", { min: 0, max: 100 }) });
+    case "player_pause":
+      return snapshotCall("pause");
+    case "player_resume":
+      return snapshotCall("resume");
+    case "player_next":
+      return snapshotCall("next");
+    case "player_previous":
+      return snapshotCall("prev");
+    case "player_seek":
+      return snapshotCall("seek", { seconds: requireNumber(args.seconds, "seconds", { min: 0 }) });
+    case "player_volume":
+      return snapshotCall("volume", {
+        volume: requireNumber(args.volume, "volume", { min: 0, max: 100 }),
+      });
     case "player_queue_list": {
-      const snapshot = await withPlayer(socketPath, (client) => client.request<PlaybackSnapshot>("status"));
+      const snapshot = await withPlayer(socketPath, (client) =>
+        client.request<PlaybackSnapshot>("status"),
+      );
       return text(describeQueue(snapshot.queue, snapshot.current?.id));
     }
     case "player_queue_add": {
-      const given = [args.query, args.playlist_id, args.tracks].filter((value) => value !== undefined);
+      const given = [args.query, args.playlist_id, args.tracks].filter(
+        (value) => value !== undefined,
+      );
       if (given.length !== 1) throw new Error("Supply exactly one of query, playlist_id or tracks");
       if (args.query !== undefined) {
         const query = requireString(args.query, "query");
-        return queueAdd(socketPath, (client) => client.request<QueueEntry[]>("queue.add", { query }));
+        return queueAdd(socketPath, (client) =>
+          client.request<QueueEntry[]>("queue.add", { query }),
+        );
       }
       if (args.playlist_id !== undefined) {
         const playlistId = args.playlist_id;
-        if ((typeof playlistId !== "string" || playlistId.trim() === "") && !(typeof playlistId === "number" && Number.isFinite(playlistId))) {
+        if (
+          (typeof playlistId !== "string" || playlistId.trim() === "") &&
+          !(typeof playlistId === "number" && Number.isFinite(playlistId))
+        ) {
           throw new Error("playlist_id must be a nonempty string or a number");
         }
-        return queueAdd(socketPath, (client) => client.request<QueueEntry[]>("queue.add", { playlistId }));
+        return queueAdd(socketPath, (client) =>
+          client.request<QueueEntry[]>("queue.add", { playlistId }),
+        );
       }
-      if (!Array.isArray(args.tracks)) throw new Error("tracks must be an array of { track_id, friend_id? }");
+      if (!Array.isArray(args.tracks))
+        throw new Error("tracks must be an array of { track_id, friend_id? }");
       // Resolve before connecting so a bad ref never opens a socket.
-      const tracks = await deps.resolveTracks(args.tracks as Array<Record<string, unknown>>, "tracks");
+      const tracks = await deps.resolveTracks(
+        args.tracks as Array<Record<string, unknown>>,
+        "tracks",
+      );
       return queueAdd(socketPath, async (client) => {
         const added: QueueEntry[] = [];
-        for (const track of tracks) added.push(...await client.request<QueueEntry[]>("queue.addTrack", { track }));
+        for (const track of tracks)
+          added.push(...(await client.request<QueueEntry[]>("queue.addTrack", { track })));
         return added;
       });
     }
     case "player_queue_remove": {
-      if ((args.id === undefined) === (args.index === undefined)) throw new Error("Supply exactly one of id or index");
-      const params = args.id !== undefined ? { id: requireString(args.id, "id") } : { index: requireIndex(args.index, "index") };
-      const removed = await withPlayer(socketPath, (client) => client.request<QueueEntry>("queue.remove", params));
+      if ((args.id === undefined) === (args.index === undefined))
+        throw new Error("Supply exactly one of id or index");
+      const params =
+        args.id !== undefined
+          ? { id: requireString(args.id, "id") }
+          : { index: requireIndex(args.index, "index") };
+      const removed = await withPlayer(socketPath, (client) =>
+        client.request<QueueEntry>("queue.remove", params),
+      );
       return text(`Removed from the queue: ${describeTrack(removed.track)} | id=${removed.id}`);
     }
     case "player_devices":
-      return text(describeDevices(await withPlayer(socketPath, (client) => client.request<AudioDevice[]>("devices"))));
+      return text(
+        describeDevices(
+          await withPlayer(socketPath, (client) => client.request<AudioDevice[]>("devices")),
+        ),
+      );
     case "player_select_device": {
       const id = requireString(args.device_id, "device_id");
-      return text(`Selected audio device ${id}.\n${describeDevices(await withPlayer(socketPath, (client) => client.request<AudioDevice[]>("devices.select", { id })))}`);
+      return text(
+        `Selected audio device ${id}.\n${describeDevices(await withPlayer(socketPath, (client) => client.request<AudioDevice[]>("devices.select", { id })))}`,
+      );
     }
     default:
       throw new Error(`Unknown tool: ${name}`);
@@ -305,7 +446,10 @@ export async function handlePlayerTool(name: string, args: PlayerToolArgs, deps:
 }
 
 /** Adds entries, then reads the queue back so the reply shows their final indexes. */
-async function queueAdd(socketPath: string, add: (client: PlayerControlClient) => Promise<QueueEntry[]>) {
+async function queueAdd(
+  socketPath: string,
+  add: (client: PlayerControlClient) => Promise<QueueEntry[]>,
+) {
   const { added, queue } = await withPlayer(socketPath, async (client) => {
     const added = await add(client);
     const snapshot = await client.request<PlaybackSnapshot>("status");

@@ -34,9 +34,13 @@ describe("useTrackDetailQueries", () => {
   it("loads the context embedding preview for the debug modal, keyed by track and friend", async () => {
     const { result } = renderHook(() => useTrackDetailQueries("t1", 6, true), { wrapper });
 
-    await waitFor(() => expect(result.current.contextEmbeddingPreviewQuery.data).toEqual({ contextText: "c" }));
+    await waitFor(() =>
+      expect(result.current.contextEmbeddingPreviewQuery.data).toEqual({ contextText: "c" }),
+    );
     expect(api.fetchContextEmbeddingPreview).toHaveBeenCalledWith("t1", 6);
-    expect(queryClient.getQueryData(["track", "context-embedding-preview", "t1", 6])).toEqual({ contextText: "c" });
+    expect(queryClient.getQueryData(["track", "context-embedding-preview", "t1", 6])).toEqual({
+      contextText: "c",
+    });
   });
 
   it("does not fetch it without a valid friend", () => {

@@ -20,10 +20,20 @@ const mocks = vi.hoisted(() => ({
 }));
 
 const playlists = [
-  { id: 5, name: "Late Night", tracks: [{}, {}], total_duration_seconds: 3900, created_at: "2026-01-01T00:00:00Z" },
+  {
+    id: 5,
+    name: "Late Night",
+    tracks: [{}, {}],
+    total_duration_seconds: 3900,
+    created_at: "2026-01-01T00:00:00Z",
+  },
 ] as unknown as Playlist[];
 
-const providerState = vi.hoisted(() => ({ playlists: null as unknown[] | null, loading: false, loadingId: null as number | null }));
+const providerState = vi.hoisted(() => ({
+  playlists: null as unknown[] | null,
+  loading: false,
+  loadingId: null as number | null,
+}));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/providers/PlaylistsProvider", () => ({
@@ -35,14 +45,20 @@ vi.mock("@/providers/PlaylistsProvider", () => ({
   }),
 }));
 vi.mock("@/providers/PlaybackTargetProvider", () => ({
-  usePlaybackPlayer: () => ({ replacePlaylist: mocks.replacePlaylist, appendToQueue: mocks.appendToQueue }),
+  usePlaybackPlayer: () => ({
+    replacePlaylist: mocks.replacePlaylist,
+    appendToQueue: mocks.appendToQueue,
+  }),
 }));
 vi.mock("@/hooks/useFriendsQuery", () => ({ useFriendsQuery: () => ({ friends: [] }) }));
 vi.mock("@/hooks/useDeletePlaylistMutation", () => ({
   useDeletePlaylistMutation: () => ({ mutateAsync: mocks.deletePlaylist, isPending: false }),
 }));
 vi.mock("@/services/internalApi/tracks", () => ({ fetchTracksByIds: mocks.fetchTracksByIds }));
-vi.mock("@/services/internalApi/playlists", () => ({ createSetForPlaylist: mocks.createSet, importPlaylist: vi.fn() }));
+vi.mock("@/services/internalApi/playlists", () => ({
+  createSetForPlaylist: mocks.createSet,
+  importPlaylist: vi.fn(),
+}));
 vi.mock("@/lib/exportPlaylistPdf", () => ({ exportPlaylistToPDF: mocks.exportPlaylistToPDF }));
 vi.mock("@/components/ui/toaster", () => ({
   Toaster: () => null,
@@ -63,7 +79,9 @@ afterEach(() => {
 
 async function openRowModal() {
   const rendered = renderWithProviders(<PlaylistManager />);
-  await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+  await rendered.user.click(
+    screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0],
+  );
   await screen.findByRole("button", { name: "Play now" });
   return rendered;
 }
@@ -92,8 +110,8 @@ describe("PlaylistManager row actions (#751)", () => {
           playlistName: "Late Night",
           totalPlaytimeFormatted: "1h 5m",
           filename: expect.stringMatching(/^late-night-\d{4}-\d{2}-\d{2}_.*\.pdf$/),
-        })
-      )
+        }),
+      ),
     );
   });
 
@@ -104,7 +122,9 @@ describe("PlaylistManager row actions (#751)", () => {
 
     const dialog = await screen.findByRole("alertdialog");
     expect(mocks.deletePlaylist).not.toHaveBeenCalled();
-    await user.click(screen.getAllByRole("button", { name: "Delete playlist" }).find((b) => dialog.contains(b))!);
+    await user.click(
+      screen.getAllByRole("button", { name: "Delete playlist" }).find((b) => dialog.contains(b))!,
+    );
 
     await waitFor(() => expect(mocks.deletePlaylist).toHaveBeenCalledWith(5));
     expect(mocks.toast).toHaveBeenCalledWith({ title: "Playlist deleted.", type: "success" });
@@ -116,9 +136,16 @@ describe("PlaylistManager row actions (#751)", () => {
     const { user } = await openRowModal();
     await user.click(screen.getByRole("button", { name: "Delete playlist" }));
     const dialog = await screen.findByRole("alertdialog");
-    await user.click(screen.getAllByRole("button", { name: "Delete playlist" }).find((b) => dialog.contains(b))!);
+    await user.click(
+      screen.getAllByRole("button", { name: "Delete playlist" }).find((b) => dialog.contains(b))!,
+    );
 
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Failed to delete playlist.", type: "error" }));
+    await waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith({
+        title: "Failed to delete playlist.",
+        type: "error",
+      }),
+    );
     expect(screen.getByRole("alertdialog")).toBeTruthy();
     expect(mocks.fetchPlaylists).not.toHaveBeenCalled();
   });
@@ -161,7 +188,9 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     const { user } = renderWithProviders(<PlaylistManager />);
     await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
     expect(localStorage.getItem("playlistsViewMode")).toBe("list");
-    expect(screen.getByRole("button", { name: "LIST", hidden: true }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "LIST", hidden: true }).getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
   it("omits the count while loading", () => {
@@ -173,7 +202,10 @@ describe("PlaylistManager header and toolbar (#765)", () => {
   it("offers Import JSON from the empty state", async () => {
     providerState.playlists = [];
     const { user, container } = renderWithProviders(<PlaylistManager />);
-    const click = vi.spyOn(container.querySelector('input[type="file"]') as HTMLInputElement, "click");
+    const click = vi.spyOn(
+      container.querySelector('input[type="file"]') as HTMLInputElement,
+      "click",
+    );
     await user.click(screen.getByRole("button", { name: "Import JSON" }));
     expect(click).toHaveBeenCalled();
   });
@@ -208,7 +240,12 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
     await user.click(screen.getByTestId("playlist-table-row"));
     expect(mocks.push).toHaveBeenCalledWith("/playlists/5");
-    await user.click(within(screen.getByTestId("playlist-table-row")).getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
+    await user.click(
+      within(screen.getByTestId("playlist-table-row")).getAllByRole("button", {
+        name: "Playlist actions",
+        hidden: true,
+      })[1],
+    );
     await user.click(await screen.findByRole("menuitem", { name: /Enqueue/, hidden: true }));
     await waitFor(() => expect(mocks.appendToQueue).toHaveBeenCalledWith(tracks));
   });
@@ -218,20 +255,37 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     mocks.createSet.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("no"));
     const { user } = renderWithProviders(<PlaylistManager />);
     await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
-    const kebab = () => within(screen.getByTestId("playlist-table-row")).getAllByRole("button", { name: "Playlist actions", hidden: true })[1];
+    const kebab = () =>
+      within(screen.getByTestId("playlist-table-row")).getAllByRole("button", {
+        name: "Playlist actions",
+        hidden: true,
+      })[1];
 
     await user.click(kebab());
     await user.click(await screen.findByRole("menuitem", { name: /Play now/, hidden: true }));
-    await waitFor(() => expect(mocks.replacePlaylist).toHaveBeenCalledWith(tracks, { autoplay: true, startIndex: 0 }));
+    await waitFor(() =>
+      expect(mocks.replacePlaylist).toHaveBeenCalledWith(tracks, { autoplay: true, startIndex: 0 }),
+    );
 
     await user.click(kebab());
-    await user.click(await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }));
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Created a set for 'Late Night'", type: "success" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }),
+    );
+    await waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith({
+        title: "Created a set for 'Late Night'",
+        type: "success",
+      }),
+    );
     expect(mocks.fetchPlaylists).toHaveBeenCalled();
 
     await user.click(kebab());
-    await user.click(await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }));
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Could not create set", type: "error" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Turn into a set/, hidden: true }),
+    );
+    await waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith({ title: "Could not create set", type: "error" }),
+    );
   });
 
   it("marks the table row of the playlist with a pending action", async () => {
@@ -258,15 +312,28 @@ describe("PlaylistManager month grouping (#766)", () => {
     providerState.playlists = [
       { id: 1, name: "Old", tracks: [], created_at: "2026-01-05T12:00:00" },
       { id: 2, name: "New", tracks: [], created_at: "2026-08-10T12:00:00" },
-      { id: 3, name: "Gig", tracks: [], created_at: "2026-08-02T12:00:00", set: { status: "performed", collaborators: [] } },
+      {
+        id: 3,
+        name: "Gig",
+        tracks: [],
+        created_at: "2026-08-02T12:00:00",
+        set: { status: "performed", collaborators: [] },
+      },
     ];
     renderWithProviders(<PlaylistManager />);
-    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual(["AUG 2026", "JAN 2026"]);
+    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual([
+      "AUG 2026",
+      "JAN 2026",
+    ]);
     expect(screen.getAllByTestId("month-count").map((el) => el.textContent)).toEqual([
       "2 playlists · 1 set",
       "1 playlist",
     ]);
-    expect(screen.getAllByTestId("playlist-day").map((el) => el.textContent)).toEqual(["MON 10", "SUN 2", "MON 5"]);
+    expect(screen.getAllByTestId("playlist-day").map((el) => el.textContent)).toEqual([
+      "MON 10",
+      "SUN 2",
+      "MON 5",
+    ]);
     expect(screen.getAllByTestId("timeline-day")[0].textContent).toBe("10MON");
   });
 
@@ -282,7 +349,10 @@ describe("PlaylistManager month grouping (#766)", () => {
     expect(tops).toEqual(["18px", "-12px", "-12px", "18px"]);
     const bottoms = screen.getAllByTestId("timeline-rail").map((el) => getComputedStyle(el).bottom);
     expect(bottoms).toEqual(["-12px", "-12px", "calc(100% - 18px)", "calc(100% - 18px)"]);
-    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual(["AUG 2026", "UNDATED"]);
+    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual([
+      "AUG 2026",
+      "UNDATED",
+    ]);
     expect(screen.getAllByTestId("timeline-day")[3].textContent).toBe("");
     expect(screen.getAllByTestId("playlist-day")).toHaveLength(3);
   });

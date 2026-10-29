@@ -24,10 +24,8 @@ function getOpenAI(): OpenAI {
   return _openai;
 }
 const PRIMARY_MODEL = process.env.OPENAI_TRACK_METADATA_MODEL || "gpt-5-mini";
-const FALLBACK_MODEL =
-  process.env.OPENAI_TRACK_METADATA_FALLBACK_MODEL || "gpt-4.1-mini";
-const SEARCH_MODEL =
-  process.env.OPENAI_TRACK_METADATA_SEARCH_MODEL || PRIMARY_MODEL;
+const FALLBACK_MODEL = process.env.OPENAI_TRACK_METADATA_FALLBACK_MODEL || "gpt-4.1-mini";
+const SEARCH_MODEL = process.env.OPENAI_TRACK_METADATA_SEARCH_MODEL || PRIMARY_MODEL;
 const HARD_GUARDRAILS = `
 Non-negotiable rules:
 - Do not guess genre, vibe, energy, BPM, or cultural context from title/artist alone.
@@ -115,7 +113,7 @@ type ParseableResponse = {
 };
 
 function parseMetadataFromResponse(
-  response: Awaited<ReturnType<OpenAI["responses"]["create"]>>
+  response: Awaited<ReturnType<OpenAI["responses"]["create"]>>,
 ): MetadataResult {
   const res = response as ParseableResponse;
   const candidates: string[] = [];
@@ -138,8 +136,7 @@ function parseMetadataFromResponse(
           Array.isArray(maybe.descriptors) &&
           typeof maybe.notes === "string" &&
           typeof maybe.needs_search === "boolean" &&
-          (maybe.artist_match_confidence === "high" ||
-            maybe.artist_match_confidence === "low")
+          (maybe.artist_match_confidence === "high" || maybe.artist_match_confidence === "low")
         ) {
           return maybe as MetadataResult;
         }
@@ -159,16 +156,14 @@ function parseMetadataFromResponse(
     }
   }
 
-  throw new TrackMetadataError(
-    "Model returned non-JSON output for track metadata"
-  );
+  throw new TrackMetadataError("Model returned non-JSON output for track metadata");
 }
 
 async function fetchMetadata(
   systemPrompt: string,
   prompt: string,
   schema: MetadataSchema,
-  useSearch: boolean
+  useSearch: boolean,
 ): Promise<MetadataResult> {
   const model = useSearch ? SEARCH_MODEL : PRIMARY_MODEL;
   const fallbackModel = FALLBACK_MODEL;
@@ -208,7 +203,7 @@ async function fetchMetadata(
     }
 
     console.warn(
-      `[track-metadata] model '${model}' failed (${err.status ?? "unknown"}), retrying with '${fallbackModel}'`
+      `[track-metadata] model '${model}' failed (${err.status ?? "unknown"}), retrying with '${fallbackModel}'`,
     );
 
     const retryResponse = await getOpenAI().responses.create({
@@ -226,7 +221,7 @@ async function fetchMetadata(
  */
 async function loadAlbumGenreContext(
   trackId: string | undefined,
-  friendId: number | undefined
+  friendId: number | undefined,
 ): Promise<AlbumGenreContext> {
   const empty: AlbumGenreContext = { albumGenres: [], albumStyles: [], releaseGenres: [] };
   if (!trackId || friendId === undefined) return empty;
@@ -268,10 +263,7 @@ export async function generateTrackMetadata(args: {
     // Prefer search-backed metadata first to avoid generic hallucinated descriptions.
     result = await fetchMetadata(systemPrompt, prompt, schema, true);
   } catch (error) {
-    console.warn(
-      "[track-metadata] search-backed pass failed, retrying without search:",
-      error
-    );
+    console.warn("[track-metadata] search-backed pass failed, retrying without search:", error);
     result = await fetchMetadata(systemPrompt, prompt, schema, false);
   }
 

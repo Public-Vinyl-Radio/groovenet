@@ -35,10 +35,13 @@ describe("calculateBpmBonus", () => {
     [128, 128, 0.5, 0.03, "0.5 confidence halves bonus"],
     [null, 128, 1.0, 0, "null seed BPM"],
     [128, null, 1.0, 0, "null candidate BPM"],
-  ] as const)("%s → %s at confidence %s === %s (%s)", (seed, candidate, confidence, expected, label) => {
-    void label;
-    expect(calculateBpmBonus(seed, candidate, confidence)).toBeCloseTo(expected, 3);
-  });
+  ] as const)(
+    "%s → %s at confidence %s === %s (%s)",
+    (seed, candidate, confidence, expected, label) => {
+      void label;
+      expect(calculateBpmBonus(seed, candidate, confidence)).toBeCloseTo(expected, 3);
+    },
+  );
 });
 
 describe("calculateCamelotDistance", () => {
@@ -74,10 +77,13 @@ describe("calculateKeyBonus", () => {
     ["C Major", "G Major", 1.0, 0.04, "adjacent key"],
     ["C Major", "A Minor", 1.0, 0.03, "relative major/minor"],
     ["C Major", "C Major", 0.5, 0.03, "0.5 confidence halves bonus"],
-  ] as const)("%s → %s at confidence %s === %s (%s)", (seed, candidate, confidence, expected, label) => {
-    void label;
-    expect(calculateKeyBonus(seed, candidate, confidence)).toBeCloseTo(expected, 3);
-  });
+  ] as const)(
+    "%s → %s at confidence %s === %s (%s)",
+    (seed, candidate, confidence, expected, label) => {
+      void label;
+      expect(calculateKeyBonus(seed, candidate, confidence)).toBeCloseTo(expected, 3);
+    },
+  );
 });
 
 // Latin
@@ -100,7 +106,10 @@ const LATIN_CONTEXT = buildGenreOverlapContext(
     { genreId: "porro", relatedGenreId: "cumbia", score: 1 }, // kept on Porro's side only
     { genreId: "house", relatedGenreId: "techno", score: 1 },
   ],
-  [LATIN, CUMBIA, DIGITAL_CUMBIA, CHICHA, PORRO, SALSA, ROCK].map(({ id, parentId }) => ({ id, parentId }))
+  [LATIN, CUMBIA, DIGITAL_CUMBIA, CHICHA, PORRO, SALSA, ROCK].map(({ id, parentId }) => ({
+    id,
+    parentId,
+  })),
 );
 
 describe("calculateGenreOverlap", () => {
@@ -149,7 +158,10 @@ describe("calculateGenreOverlap", () => {
   });
 
   it("caps an out-of-range stored score at the related-genre credit", () => {
-    const context = buildGenreOverlapContext([{ genreId: "a", relatedGenreId: "b", score: 99 }], []);
+    const context = buildGenreOverlapContext(
+      [{ genreId: "a", relatedGenreId: "b", score: 99 }],
+      [],
+    );
     const a = { id: "a", parentId: null };
     const b = { id: "b", parentId: null };
     expect(calculateGenreOverlap([a], [b], context)).toBeCloseTo(RELATED_GENRE_MAX_CREDIT, 6);
@@ -161,17 +173,22 @@ describe("calculateGenreOverlap", () => {
         { genreId: "a", relatedGenreId: "a", score: 1 },
         { genreId: "a", relatedGenreId: "b", score: 0 },
       ],
-      []
+      [],
     );
     expect(context.similarity.size).toBe(1);
-    expect(calculateGenreOverlap([{ id: "a", parentId: null }], [{ id: "b", parentId: null }], context)).toBe(0);
+    expect(
+      calculateGenreOverlap([{ id: "a", parentId: null }], [{ id: "b", parentId: null }], context),
+    ).toBe(0);
   });
 
   it("stops walking a (forbidden) parent cycle instead of looping", () => {
-    const context = buildGenreOverlapContext([], [
-      { id: "x", parentId: "y" },
-      { id: "y", parentId: "x" },
-    ]);
+    const context = buildGenreOverlapContext(
+      [],
+      [
+        { id: "x", parentId: "y" },
+        { id: "y", parentId: "x" },
+      ],
+    );
     expect(calculateGenreOverlap([{ id: "x", parentId: "y" }], [ROCK], context)).toBe(0);
   });
 });
@@ -252,7 +269,7 @@ function makeSeed(overrides: Partial<SeedTrack> = {}): SeedTrack {
 
 function makeCandidate(
   trackId: string,
-  overrides: Partial<CandidateTrack["metadata"]> = {}
+  overrides: Partial<CandidateTrack["metadata"]> = {},
 ): CandidateTrack {
   return {
     trackId,
@@ -317,7 +334,10 @@ describe("applyConstraintsAndBonuses — strict mode", () => {
 
   it("rejects a candidate whose only link is below the minimum overlap", () => {
     // A weak co-occurrence-only pair: credit 0.8 * 0.1 / 2 = 0.04, under the threshold.
-    const weak = buildGenreOverlapContext([{ genreId: "cumbia", relatedGenreId: "rock", score: 0.1 }], []);
+    const weak = buildGenreOverlapContext(
+      [{ genreId: "cumbia", relatedGenreId: "rock", score: 0.1 }],
+      [],
+    );
     expect(calculateGenreOverlap([CUMBIA], [ROCK], weak)).toBeLessThan(MIN_GENRE_OVERLAP);
     expect(calculateGenreOverlap([CUMBIA], [ROCK], weak)).toBeGreaterThan(0);
 
@@ -325,7 +345,7 @@ describe("applyConstraintsAndBonuses — strict mode", () => {
       makeSeed({ genres: [CUMBIA] }),
       [makeCandidate("rock", { genreRefs: [ROCK] })],
       "strict",
-      weak
+      weak,
     );
     expect(scored).toHaveLength(0);
   });

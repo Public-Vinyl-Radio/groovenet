@@ -18,7 +18,9 @@ describe("GET /api/tracks/search/facets", () => {
 
   it("counts over the search's filters and words, ignoring genre and paging", async () => {
     const res = await GET(
-      req("?q=dub&friend_id=6&bpm_min=100&filter=local_audio_url%20IS%20NULL&genre=latin&limit=5&offset=10")
+      req(
+        "?q=dub&friend_id=6&bpm_min=100&filter=local_audio_url%20IS%20NULL&genre=latin&limit=5&offset=10",
+      ),
     );
 
     expect(res.status).toBe(200);

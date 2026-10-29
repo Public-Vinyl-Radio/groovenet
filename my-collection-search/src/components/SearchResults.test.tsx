@@ -110,7 +110,7 @@ const trackFixture = (trackId: string, overrides: Partial<Track> = {}): Track =>
  * and the real zustand store `handleDownloadAudio` reads from. */
 function seedTracks(tracks: Track[]) {
   mocks.useTrack.mockImplementation((trackId: string, friendId: number) =>
-    tracks.find((t) => t.track_id === trackId && t.friend_id === friendId)
+    tracks.find((t) => t.track_id === trackId && t.friend_id === friendId),
   );
   tracks.forEach((t) => useTrackStore.getState().setTrack(t));
 }
@@ -129,7 +129,8 @@ class CapturingIntersectionObserver {
 /** SELECT in the desktop page row (hidden from the a11y tree by jsdom's base breakpoint). */
 const selectTracksButton = () => screen.getByRole("button", { name: "Select", hidden: true });
 
-const searchInput = () => screen.getByRole("searchbox", { name: "Search tracks" }) as HTMLInputElement;
+const searchInput = () =>
+  screen.getByRole("searchbox", { name: "Search tracks" }) as HTMLInputElement;
 
 /** Picks a mode from the menu at the end of the desktop search field. */
 const chooseMode = async (user: ReturnType<typeof renderWithProviders>["user"], label: string) => {
@@ -172,7 +173,10 @@ beforeEach(() => {
   mocks.query = "";
   mocks.useTrackGenreFacets.mockReturnValue({ counts: new Map([["salsa", 3]]) });
   mocks.fetchGenreTree.mockResolvedValue([
-    { ...genreNode("latin", "Latin"), children: [genreNode("cumbia", "Cumbia", "latin"), genreNode("salsa", "Salsa", "latin")] },
+    {
+      ...genreNode("latin", "Latin"),
+      children: [genreNode("cumbia", "Cumbia", "latin"), genreNode("salsa", "Salsa", "latin")],
+    },
   ]);
   mocks.useSearchResults.mockImplementation(() => ({
     query: mocks.query,
@@ -238,8 +242,8 @@ describe("SearchResults search mode", () => {
     await waitFor(() =>
       expect(mocks.track).toHaveBeenCalledWith(
         "search_query_executed",
-        expect.objectContaining({ query_length: 5, search_mode: "semantic" })
-      )
+        expect.objectContaining({ query_length: 5, search_mode: "semantic" }),
+      ),
     );
   });
 });
@@ -260,10 +264,17 @@ describe("SearchResults simplified toolbar and header menu (#751)", () => {
   it("turns select mode on and off from the kebab", async () => {
     seedTracks([trackFixture("t1")]);
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
-      estimatedResults: 1, trackInfo: [{ trackId: "t1", friendId: 1 }],
-      playlistCounts: {}, hasMore: false, loadMore: mocks.loadMore,
-      initialLoading: false, loadingMore: false, addedGenres: [],
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
+      estimatedResults: 1,
+      trackInfo: [{ trackId: "t1", friendId: 1 }],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [],
     }));
     const { user } = renderWithProviders(<SearchResults />);
     expect(screen.queryByRole("button", { name: "Select t1" })).toBeNull();
@@ -288,7 +299,9 @@ describe("SearchResults simplified toolbar and header menu (#751)", () => {
     expect(within(dialog).getByTestId("search-mode-hint").textContent).toMatch(/words you type/);
     await user.click(within(dialog).getByText("Semantic"));
     await waitFor(() => expect(lastSearchMode()).toBe("semantic"));
-    expect(within(dialog).getByTestId("search-mode-hint").textContent).toMatch(/sound you describe/);
+    expect(within(dialog).getByTestId("search-mode-hint").textContent).toMatch(
+      /sound you describe/,
+    );
   });
 });
 
@@ -335,7 +348,6 @@ describe("SearchResults genre filter (#375)", () => {
     await waitFor(() => expect(lastFacets().enabled).toBe(false));
   });
 
-
   it("starts with no genres when there are no search params", () => {
     mocks.searchParams = null as unknown as URLSearchParams;
     renderWithProviders(<SearchResults />);
@@ -351,7 +363,10 @@ describe("SearchResults include_similar (#485)", () => {
     expect(lastIncludeSimilar()).toBe(true);
     expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
     const dialog = await openFilters(user);
-    expect((within(dialog).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked).toBe(true);
+    expect(
+      (within(dialog).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
   });
 
   it("hides the toggle without an active genre", () => {
@@ -391,7 +406,9 @@ describe("SearchResults include_similar (#485)", () => {
     await user.click(chip);
 
     await waitFor(() => expect(lastSimilarExclude()).toEqual(["id-porro"]));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?similar=1&genre=cumbia&similar_exclude=id-porro");
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/?similar=1&genre=cumbia&similar_exclude=id-porro",
+    );
   });
 
   it("reads similar_exclude from the URL", () => {
@@ -417,7 +434,11 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     renderWithProviders(<SearchResults />);
 
     await waitFor(() =>
-      expect(lastFilter()).toEqual(["local_audio_url IS NULL", "youtube_url IS NULL", "friend_id = 1"])
+      expect(lastFilter()).toEqual([
+        "local_audio_url IS NULL",
+        "youtube_url IS NULL",
+        "friend_id = 1",
+      ]),
     );
     expect(screen.getByRole("button", { name: /Missing audio/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /No YouTube/ })).toBeTruthy();
@@ -453,7 +474,9 @@ describe("SearchResults missing and attribute filters (#447)", () => {
   });
 
   it("removes an attribute from its chip, and Clear all drops everything", async () => {
-    mocks.searchParams = new URLSearchParams("key=A+minor&star_rating=4&missingAudio=1&genre=salsa");
+    mocks.searchParams = new URLSearchParams(
+      "key=A+minor&star_rating=4&missingAudio=1&genre=salsa",
+    );
     const { user } = renderWithProviders(<SearchResults />);
 
     await user.click(screen.getByRole("button", { name: /A minor/ }));
@@ -491,7 +514,9 @@ describe("SearchResults missing and attribute filters (#447)", () => {
 
 describe("SearchResults following a navigation (#376)", () => {
   it("replaces the search with the URL a genre badge navigated to", async () => {
-    mocks.searchParams = new URLSearchParams("q=dub&mode=semantic&missingAudio=1&star_rating=4&genre=salsa");
+    mocks.searchParams = new URLSearchParams(
+      "q=dub&mode=semantic&missingAudio=1&star_rating=4&genre=salsa",
+    );
     const { rerender } = renderWithProviders(<SearchResults />);
     mocks.replace.mockClear();
 
@@ -529,7 +554,9 @@ describe("SearchResults following a navigation (#376)", () => {
     rerender(<SearchResults />);
 
     expect(mocks.setQuery).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Tracks actions, 1 filters on", hidden: true })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Tracks actions, 1 filters on", hidden: true }),
+    ).toBeTruthy();
   });
 
   it("keeps a change made while its last write is still on the way", async () => {
@@ -539,7 +566,9 @@ describe("SearchResults following a navigation (#376)", () => {
     // The URL hasn't caught up yet when the next filter is set.
     await user.click(screen.getByRole("button", { name: "4 stars and up" }));
 
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&star_rating=4"));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&star_rating=4"),
+    );
     expect(lastAttributes()).toEqual({ star_rating: 4 });
     expect(mocks.setQuery).not.toHaveBeenCalled();
   });
@@ -548,9 +577,17 @@ describe("SearchResults following a navigation (#376)", () => {
 describe("SearchResults loading states", () => {
   it("shows a skeleton while results are loading initially", () => {
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
-      estimatedResults: 0, trackInfo: [], playlistCounts: {}, hasMore: false,
-      loadMore: mocks.loadMore, initialLoading: true, loadingMore: false, addedGenres: [],
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
+      estimatedResults: 0,
+      trackInfo: [],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: mocks.loadMore,
+      initialLoading: true,
+      loadingMore: false,
+      addedGenres: [],
     }));
     renderWithProviders(<SearchResults />);
 
@@ -559,9 +596,17 @@ describe("SearchResults loading states", () => {
 
   it("shows a spinner while loading more", () => {
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
-      estimatedResults: 1, trackInfo: [{ trackId: "t1", friendId: 1 }], playlistCounts: {}, hasMore: true,
-      loadMore: mocks.loadMore, initialLoading: false, loadingMore: true, addedGenres: [],
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
+      estimatedResults: 1,
+      trackInfo: [{ trackId: "t1", friendId: 1 }],
+      playlistCounts: {},
+      hasMore: true,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: true,
+      addedGenres: [],
     }));
     renderWithProviders(<SearchResults />);
 
@@ -570,14 +615,25 @@ describe("SearchResults loading states", () => {
 
   it("loads more once the bottom sentinel intersects", () => {
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
-      estimatedResults: 1, trackInfo: [{ trackId: "t1", friendId: 1 }], playlistCounts: {}, hasMore: true,
-      loadMore: mocks.loadMore, initialLoading: false, loadingMore: false, addedGenres: [],
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
+      estimatedResults: 1,
+      trackInfo: [{ trackId: "t1", friendId: 1 }],
+      playlistCounts: {},
+      hasMore: true,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [],
     }));
     renderWithProviders(<SearchResults />);
 
     const observer = CapturingIntersectionObserver.instances.at(-1);
-    observer?.callback([{ isIntersecting: true } as IntersectionObserverEntry], observer as unknown as IntersectionObserver);
+    observer?.callback(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      observer as unknown as IntersectionObserver,
+    );
 
     expect(mocks.loadMore).toHaveBeenCalledOnce();
   });
@@ -587,11 +643,20 @@ describe("SearchResults rows/cards view", () => {
   function withResults() {
     seedTracks([trackFixture("t1"), trackFixture("t2")]);
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
       estimatedResults: 2,
-      trackInfo: [{ trackId: "t1", friendId: 1 }, { trackId: "t2", friendId: 1 }],
-      playlistCounts: {}, hasMore: false, loadMore: mocks.loadMore,
-      initialLoading: false, loadingMore: false, addedGenres: [],
+      trackInfo: [
+        { trackId: "t1", friendId: 1 },
+        { trackId: "t2", friendId: 1 },
+      ],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [],
     }));
   }
 
@@ -646,11 +711,20 @@ describe("SearchResults selection and bulk actions", () => {
       trackFixture("t2", { local_audio_url: "t2.m4a" }),
     ]);
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
       estimatedResults: 2,
-      trackInfo: [{ trackId: "t1", friendId: 1 }, { trackId: "t2", friendId: 1 }],
-      playlistCounts: {}, hasMore: false, loadMore: mocks.loadMore,
-      initialLoading: false, loadingMore: false, addedGenres: [],
+      trackInfo: [
+        { trackId: "t1", friendId: 1 },
+        { trackId: "t2", friendId: 1 },
+      ],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [],
     }));
   }
 
@@ -702,9 +776,11 @@ describe("SearchResults selection and bulk actions", () => {
     await user.click(screen.getByRole("button", { name: "Download audio" }));
 
     await waitFor(() => expect(mocks.analyzeTrackAsync).toHaveBeenCalledTimes(1));
-    expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(expect.objectContaining({ track_id: "t1" }));
+    expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ track_id: "t1" }),
+    );
     expect(mocks.toastCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "1 track queued for download" })
+      expect.objectContaining({ title: "1 track queued for download" }),
     );
     await waitFor(() => expect(screen.queryByText(/selected/)).toBeNull());
   });
@@ -716,11 +792,20 @@ describe("SearchResults selection and bulk actions", () => {
       trackFixture("t3", { apple_music_url: "https://music.apple.com/y" }),
     ]);
     mocks.useSearchResults.mockImplementation(() => ({
-      query: "", onQueryChange: mocks.onQueryChange, setQuery: mocks.setQuery,
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
       estimatedResults: 2,
-      trackInfo: [{ trackId: "t1", friendId: 1 }, { trackId: "t3", friendId: 1 }],
-      playlistCounts: {}, hasMore: false, loadMore: mocks.loadMore,
-      initialLoading: false, loadingMore: false, addedGenres: [],
+      trackInfo: [
+        { trackId: "t1", friendId: 1 },
+        { trackId: "t3", friendId: 1 },
+      ],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [],
     }));
     const { user } = renderWithProviders(<SearchResults />);
 
@@ -731,8 +816,8 @@ describe("SearchResults selection and bulk actions", () => {
 
     await waitFor(() =>
       expect(mocks.toastCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "1 track queued for download" })
-      )
+        expect.objectContaining({ title: "1 track queued for download" }),
+      ),
     );
   });
 });
@@ -764,7 +849,9 @@ describe("SearchResults desktop header (#794)", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Filters" })).toBeNull());
 
     const dialog = await openFilters(user);
-    expect(within(dialog).getByRole("button", { name: "Audio" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(dialog).getByRole("button", { name: "Audio" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
 
   it("removes a genre from its tag in the panel", async () => {

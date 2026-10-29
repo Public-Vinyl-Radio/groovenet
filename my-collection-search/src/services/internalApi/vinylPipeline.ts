@@ -36,7 +36,7 @@ export type IngestRetentionStatus = z.infer<typeof ingestRetentionStatusSchema>;
 
 /** Recent audio chunks and what became of them — is the listener reaching us at all? (#299) */
 export async function listRecentIngests(
-  params: IngestRecentParams = {}
+  params: IngestRecentParams = {},
 ): Promise<IngestRecentResponse> {
   const searchParams = new URLSearchParams();
   if (params.source_id) searchParams.append("source_id", params.source_id);
@@ -45,29 +45,29 @@ export async function listRecentIngests(
   if (typeof params.limit === "number") searchParams.append("limit", String(params.limit));
   if (typeof params.offset === "number") searchParams.append("offset", String(params.offset));
 
-  return await http<IngestRecentResponse>(
-    `/api/audio/ingest/recent?${searchParams.toString()}`,
-    { method: "GET", cache: "no-store" }
-  );
+  return await http<IngestRecentResponse>(`/api/audio/ingest/recent?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
 }
 
 /** Whether the pipeline is working at all — index, queue, match rate, spin backlog (#299, #304). */
 export async function getIngestPipelineStats(
-  params: IngestPipelineStatsParams = {}
+  params: IngestPipelineStatsParams = {},
 ): Promise<IngestPipelineStats> {
   const searchParams = new URLSearchParams();
   if (typeof params.minutes === "number") searchParams.append("minutes", String(params.minutes));
   if (params.source_id) searchParams.append("source_id", params.source_id);
 
-  return await http<IngestPipelineStats>(
-    `/api/audio/ingest/stats?${searchParams.toString()}`,
-    { method: "GET", cache: "no-store" }
-  );
+  return await http<IngestPipelineStats>(`/api/audio/ingest/stats?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
 }
 
 /** Recent matcher windows, including no-match ones — the thing you watch while a record plays (#299). */
 export async function listRecentDetections(
-  params: DetectionsRecentParams = {}
+  params: DetectionsRecentParams = {},
 ): Promise<DetectionsRecentResponse> {
   const searchParams = new URLSearchParams();
   if (params.source_id) searchParams.append("source_id", params.source_id);
@@ -77,10 +77,10 @@ export async function listRecentDetections(
   if (typeof params.limit === "number") searchParams.append("limit", String(params.limit));
   if (typeof params.offset === "number") searchParams.append("offset", String(params.offset));
 
-  return await http<DetectionsRecentResponse>(
-    `/api/detections/recent?${searchParams.toString()}`,
-    { method: "GET", cache: "no-store" }
-  );
+  return await http<DetectionsRecentResponse>(`/api/detections/recent?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
 }
 
 /** Ingest volume usage and what the next sweep would delete (#269). */

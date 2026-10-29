@@ -22,7 +22,7 @@ const {
   mockMkdirSync: vi.fn(),
   // promisify(execFile) drives this via the (file, args, cb) callback contract.
   mockExecFile: vi.fn((_file: string, _args: string[], cb: (e: unknown, r?: unknown) => void) =>
-    cb(null, { stdout: "", stderr: "" })
+    cb(null, { stdout: "", stderr: "" }),
   ),
 }));
 
@@ -92,7 +92,7 @@ beforeEach(() => {
   mockGetAttachedPic.mockReturnValue(null);
   mockExecFile.mockImplementation(
     (_f: string, _a: string[], cb: (e: unknown, r?: unknown) => void) =>
-      cb(null, { stdout: "", stderr: "" })
+      cb(null, { stdout: "", stderr: "" }),
   );
 });
 
@@ -209,15 +209,13 @@ describe("POST /api/tracks/[id]/audio-metadata", () => {
     mockGetAttachedPic.mockReturnValueOnce(PIC);
     const res = await POST(postReq(), params("a/b c"));
     expect(res.status).toBe(200);
-    expect((await res.json()).audio_file_album_art_url).toBe(
-      "/uploads/album-covers/a_b_c_1.jpg"
-    );
+    expect((await res.json()).audio_file_album_art_url).toBe("/uploads/album-covers/a_b_c_1.jpg");
   });
 
   it("returns 500 when ffmpeg extraction fails", async () => {
     mockGetAttachedPic.mockReturnValueOnce(PIC);
-    mockExecFile.mockImplementationOnce(
-      (_f: string, _a: string[], cb: (e: unknown) => void) => cb(new Error("ffmpeg failed"))
+    mockExecFile.mockImplementationOnce((_f: string, _a: string[], cb: (e: unknown) => void) =>
+      cb(new Error("ffmpeg failed")),
     );
     const res = await POST(postReq(), params());
     expect(res.status).toBe(500);

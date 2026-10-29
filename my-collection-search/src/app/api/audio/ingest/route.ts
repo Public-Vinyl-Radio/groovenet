@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         error: message,
         processing_ms: Date.now() - startedAt,
       },
-      "warn"
+      "warn",
     );
     return reject(error, message, status);
   };
@@ -71,9 +71,7 @@ export async function POST(req: Request) {
 
     const sequenceRaw = form.get("sequence");
     const sequence =
-      typeof sequenceRaw === "string" && sequenceRaw.trim() !== ""
-        ? Number(sequenceRaw)
-        : null;
+      typeof sequenceRaw === "string" && sequenceRaw.trim() !== "" ? Number(sequenceRaw) : null;
 
     const sessionId = form.get("session_id");
     const capturedAt = form.get("captured_at");
@@ -84,8 +82,7 @@ export async function POST(req: Request) {
       source_id: sourceId,
       session_id: typeof sessionId === "string" && sessionId ? sessionId : null,
       sequence: sequence !== null && Number.isFinite(sequence) ? sequence : null,
-      captured_at:
-        typeof capturedAt === "string" && capturedAt ? capturedAt : null,
+      captured_at: typeof capturedAt === "string" && capturedAt ? capturedAt : null,
     });
 
     return NextResponse.json(acceptedIngestSchema.parse(accepted), { status: 202 });
@@ -101,22 +98,20 @@ export async function POST(req: Request) {
     logIngestEvent(
       "ingest.error",
       { ...context, stage, error: err.message, processing_ms: Date.now() - startedAt },
-      "error"
+      "error",
     );
     // The stack, separately: useful to a person, and never carries the upload.
     console.error(err.cause ?? err);
     return NextResponse.json(
       { error: "internal_error", message: err.message || "Failed to accept audio" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 /** Refused before the bytes were looked at, or because of what they turned out to be. */
 function stageOf(code: IngestErrorCode): "upload" | "validation" {
-  return code === "missing_audio_file" ||
-    code === "missing_source_id" ||
-    code === "audio_too_large"
+  return code === "missing_audio_file" || code === "missing_source_id" || code === "audio_too_large"
     ? "upload"
     : "validation";
 }

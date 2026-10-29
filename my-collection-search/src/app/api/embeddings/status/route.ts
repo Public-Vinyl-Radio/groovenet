@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid query", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const { friend_id } = parsed.data;
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     console.error("Error reading embeddings status:", err);
     return NextResponse.json(
       { error: err.message || "Failed to read embeddings status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

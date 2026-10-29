@@ -7,16 +7,15 @@ Python 3.12+, managed with `uv`. Listens on **:8002**.
 
 ## API
 
-| | |
-| --- | --- |
-| `GET /health` | `{"status": "ok"}` |
+|                  |                      |
+| ---------------- | -------------------- |
+| `GET /health`    | `{"status": "ok"}`   |
 | `POST /optimize` | reorder a track list |
 
 Note the path is `/optimize`. Request:
 
 ```json
-{ "tracks": [ { "bpm": 122, "key": "8A", "embedding": "[0.01,...]" } ],
-  "mode": "genetic" }
+{ "tracks": [{ "bpm": 122, "key": "8A", "embedding": "[0.01,...]" }], "mode": "genetic" }
 ```
 
 Response is `{"result": [...], "mode": "..."}`, where `result` is the tracks in
@@ -24,15 +23,15 @@ their new order.
 
 `mode` is one of:
 
-| mode | behaviour |
-| --- | --- |
-| `genetic` | default; evolves an ordering over ~20 generations |
-| `greedy` | nearest-neighbour; fast, less optimal |
+| mode              | behaviour                                               |
+| ----------------- | ------------------------------------------------------- |
+| `genetic`         | default; evolves an ordering over ~20 generations       |
+| `greedy`          | nearest-neighbour; fast, less optimal                   |
 | `cohesive_blocks` | groups by genre/vibe, favours fade-friendly transitions |
 
 `Track` allows extra fields (`extra="allow"`), so callers can pass whole track
 records. Every declared field is optional — but `genetic` needs both `bpm` and
-`embedding`, and the app rejects tracks missing either *before* calling here.
+`embedding`, and the app rejects tracks missing either _before_ calling here.
 
 ## Layout
 

@@ -71,36 +71,38 @@ const copyPath = (id: number) => `/api/record-copies/${encodeURIComponent(String
 
 /** A release's copies; one untouched has its implicit default, with `id: null`. */
 export async function listRecordCopies(
-  params: RecordCopyListParams
+  params: RecordCopyListParams,
 ): Promise<RecordCopyListResponse> {
   return await http<RecordCopyListResponse>(
     `/api/record-copies?${query({ friend_id: params.friend_id, release_id: params.release_id })}`,
-    GET_NO_STORE
+    GET_NO_STORE,
   );
 }
 
 /** Adds one more physical copy; an untouched release's default is made real first. */
-export async function createRecordCopy(params: RecordCopyCreateParams): Promise<RecordCopyResponse> {
+export async function createRecordCopy(
+  params: RecordCopyCreateParams,
+): Promise<RecordCopyResponse> {
   return await http<RecordCopyResponse>("/api/record-copies", jsonInit("POST", params));
 }
 
 export async function updateRecordCopy(
   id: number,
-  params: RecordCopyUpdateParams
+  params: RecordCopyUpdateParams,
 ): Promise<RecordCopyResponse> {
   return await http<RecordCopyResponse>(copyPath(id), jsonInit("PATCH", params));
 }
 
 /** Labels or annotates a release's default copy, which may have no id yet. */
 export async function updateDefaultRecordCopy(
-  params: RecordCopyDefaultUpdateParams
+  params: RecordCopyDefaultUpdateParams,
 ): Promise<RecordCopyResponse> {
   return await http<RecordCopyResponse>("/api/record-copies/default", jsonInit("PATCH", params));
 }
 
 export async function deleteRecordCopy(
   id: number,
-  friendId: number
+  friendId: number,
 ): Promise<RecordCopyDeleteResponse> {
   return await http<RecordCopyDeleteResponse>(`${copyPath(id)}?${query({ friend_id: friendId })}`, {
     method: "DELETE",
@@ -110,7 +112,7 @@ export async function deleteRecordCopy(
 /** A copy's history, newest first. */
 export async function listRecordActions(
   copyId: number,
-  params: RecordActionListParams
+  params: RecordActionListParams,
 ): Promise<RecordActionListResponse> {
   return await http<RecordActionListResponse>(
     `${copyPath(copyId)}/actions?${query({
@@ -120,13 +122,13 @@ export async function listRecordActions(
       limit: params.limit,
       offset: params.offset,
     })}`,
-    GET_NO_STORE
+    GET_NO_STORE,
   );
 }
 
 /** Logs against a copy (`copy_id`) or a release's default copy (`release_id`). */
 export async function createRecordAction(
-  params: RecordActionCreateParams
+  params: RecordActionCreateParams,
 ): Promise<RecordActionMutationResponse> {
   return await http<RecordActionMutationResponse>("/api/record-actions", jsonInit("POST", params));
 }
@@ -134,11 +136,11 @@ export async function createRecordAction(
 /** Voids a mistaken action; it stays in the history but stops counting. */
 export async function voidRecordAction(
   id: number,
-  friendId: number
+  friendId: number,
 ): Promise<RecordActionVoidResponse> {
   return await http<RecordActionVoidResponse>(
     `/api/record-actions/${encodeURIComponent(String(id))}?${query({ friend_id: friendId })}`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 }
 
@@ -153,12 +155,12 @@ export async function listRecordCare(params: RecordCareParams): Promise<RecordCa
       limit: params.limit,
       offset: params.offset,
     })}`,
-    GET_NO_STORE
+    GET_NO_STORE,
   );
 }
 
 export async function getRecordCareSummary(
-  params: RecordCareSummaryParams
+  params: RecordCareSummaryParams,
 ): Promise<RecordCareSummaryResponse> {
   return await http<RecordCareSummaryResponse>(
     `/api/record-copies/care/summary?${query({
@@ -166,6 +168,6 @@ export async function getRecordCareSummary(
       overdue_days: params.overdue_days,
       needs_sleeve: params.needs_sleeve,
     })}`,
-    GET_NO_STORE
+    GET_NO_STORE,
   );
 }

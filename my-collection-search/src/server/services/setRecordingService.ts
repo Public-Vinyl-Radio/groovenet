@@ -27,16 +27,12 @@ import type { SetRecordingRow } from "@/types/setDerivation";
  */
 
 export type RecordingErrorCode =
-  | "invalid_sha256"
-  | "empty_upload"
-  | "recording_too_large"
-  | "hash_mismatch"
-  | "invalid_audio";
+  "invalid_sha256" | "empty_upload" | "recording_too_large" | "hash_mismatch" | "invalid_audio";
 
 export class RecordingRejected extends Error {
   constructor(
     readonly code: RecordingErrorCode,
-    message: string
+    message: string,
   ) {
     super(message);
     this.name = "RecordingRejected";
@@ -44,7 +40,9 @@ export class RecordingRejected extends Error {
 }
 
 export function setRecordingsDir(): string {
-  return path.resolve(/* turbopackIgnore: true */ process.env.SET_RECORDINGS_DIR || "/app/set-recordings");
+  return path.resolve(
+    /* turbopackIgnore: true */ process.env.SET_RECORDINGS_DIR || "/app/set-recordings",
+  );
 }
 
 /** 2 GiB: a long night as lossless audio, with room to spare. */
@@ -74,8 +72,11 @@ export function extensionFor(formatName: string | null): string {
 
 export class SetRecordingService {
   constructor(
-    private repository: Pick<SetRecordingRepository, "findBySha256" | "create"> = setRecordingRepository,
-    private processor: Pick<AudioProcessor, "probe"> = audioProcessor
+    private repository: Pick<
+      SetRecordingRepository,
+      "findBySha256" | "create"
+    > = setRecordingRepository,
+    private processor: Pick<AudioProcessor, "probe"> = audioProcessor,
   ) {}
 
   async find(sha256: string): Promise<SetRecordingRow | null> {
@@ -102,7 +103,7 @@ export class SetRecordingService {
   async store(
     sha256: string,
     body: ReadableStream<Uint8Array> | null,
-    originalFilename: string | null
+    originalFilename: string | null,
   ): Promise<{ recording: SetRecordingRow; created: boolean }> {
     if (!isSha256(sha256)) {
       throw new RecordingRejected("invalid_sha256", "expected a lowercase hex sha256");
@@ -125,7 +126,7 @@ export class SetRecordingService {
       if (digest !== sha256) {
         throw new RecordingRejected(
           "hash_mismatch",
-          `the upload hashed to ${digest}, not ${sha256}; it was truncated or corrupted in transit`
+          `the upload hashed to ${digest}, not ${sha256}; it was truncated or corrupted in transit`,
         );
       }
 
@@ -171,7 +172,7 @@ export class SetRecordingService {
 export async function writeHashed(
   body: ReadableStream<Uint8Array>,
   target: string,
-  maxBytes: number
+  maxBytes: number,
 ): Promise<{ digest: string; size: number }> {
   const hash = createHash("sha256");
   let size = 0;

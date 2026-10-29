@@ -4,7 +4,7 @@ import { albumRepository } from "@/server/repositories/albumRepository";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ releaseId: string }> }
+  { params }: { params: Promise<{ releaseId: string }> },
 ) {
   try {
     const { releaseId } = await params;
@@ -14,7 +14,7 @@ export async function GET(
     if (!releaseId || !friendId || Number.isNaN(friendId)) {
       return NextResponse.json(
         { error: "Missing required parameters: releaseId and friend_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -25,18 +25,12 @@ export async function GET(
 
     const releasePath = getReleasePath(username, String(releaseId));
     if (!releasePath) {
-      return NextResponse.json(
-        { error: "Discogs release file not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Discogs release file not found" }, { status: 404 });
     }
 
     const album = loadAlbum(releasePath);
     if (!album) {
-      return NextResponse.json(
-        { error: "Failed to parse Discogs release file" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to parse Discogs release file" }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -50,7 +44,7 @@ export async function GET(
     console.error("Failed to read Discogs raw file:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

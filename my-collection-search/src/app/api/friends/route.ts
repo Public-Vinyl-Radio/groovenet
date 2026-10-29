@@ -16,7 +16,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -25,10 +25,7 @@ export async function POST(request: Request) {
   try {
     const parsed = friendMutationBodySchema.safeParse(await request.json());
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Missing or invalid username" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing or invalid username" }, { status: 400 });
     }
     const { username } = parsed.data;
 
@@ -37,12 +34,12 @@ export async function POST(request: Request) {
     analytics.track("friend_added", {}, { request });
 
     return NextResponse.json(
-      friendMutationResponseSchema.parse({ message: `Friend '${username}' added.` })
+      friendMutationResponseSchema.parse({ message: `Friend '${username}' added.` }),
     );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

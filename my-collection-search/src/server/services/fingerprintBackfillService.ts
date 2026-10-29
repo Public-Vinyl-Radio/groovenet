@@ -53,9 +53,7 @@ export async function backfillTick(now: number = Date.now()): Promise<void> {
   try {
     const run = await fingerprintIndexService.startRun({ kind: "missing" });
     if (run.queued > 0) {
-      console.log(
-        `[fingerprint-backfill] queued ${run.queued} track(s) with no fingerprint`
-      );
+      console.log(`[fingerprint-backfill] queued ${run.queued} track(s) with no fingerprint`);
     }
   } catch (error) {
     // No engine registered (fingerprint-service down) is routine, not an
@@ -81,7 +79,7 @@ export async function verifyTick(now: number = Date.now()): Promise<void> {
     const run = await fingerprintIndexService.startRun({ kind: "changed" });
     if (run.queued > 0) {
       console.log(
-        `[fingerprint-backfill] verifying ${run.queued} fingerprinted track(s) against their audio`
+        `[fingerprint-backfill] verifying ${run.queued} fingerprinted track(s) against their audio`,
       );
     }
   } catch (error) {

@@ -15,7 +15,11 @@ export async function POST(request: NextRequest) {
   const body = await parseBody(request, genreProposalApplyBodySchema);
   if ("response" in body) return body.response;
   try {
-    return NextResponse.json(genreProposalApplyResponseSchema.parse(await applyProposals(body.data.ids, body.data.friend_id ?? null)));
+    return NextResponse.json(
+      genreProposalApplyResponseSchema.parse(
+        await applyProposals(body.data.ids, body.data.friend_id ?? null),
+      ),
+    );
   } catch (error) {
     return reconciliationError(error);
   }

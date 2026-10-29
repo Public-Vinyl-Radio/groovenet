@@ -64,9 +64,7 @@ describe("buildSearchFilters", () => {
   });
 
   it("adds individual youtube_url filter", () => {
-    expect(buildSearchFilters({ ...empty, missingYouTube: true })).toEqual([
-      "youtube_url IS NULL",
-    ]);
+    expect(buildSearchFilters({ ...empty, missingYouTube: true })).toEqual(["youtube_url IS NULL"]);
   });
 
   it("adds individual soundcloud_url filter", () => {
@@ -157,7 +155,9 @@ describe("createEmptyFilters", () => {
 describe("toggleTracksFilter (#447)", () => {
   it("flips one check", () => {
     expect(toggleTracksFilter(empty, "missingAudio").missingAudio).toBe(true);
-    expect(toggleTracksFilter({ ...empty, missingAudio: true }, "missingAudio").missingAudio).toBe(false);
+    expect(toggleTracksFilter({ ...empty, missingAudio: true }, "missingAudio").missingAudio).toBe(
+      false,
+    );
   });
 
   it("clears the single services when any streaming URL turns on, and not when it turns off", () => {
@@ -203,7 +203,9 @@ describe("attributeFiltersFromParams (#447)", () => {
   });
 
   it("keeps an open-ended range", () => {
-    expect(attributeFiltersFromParams(new URLSearchParams("bpm_min=120"))).toEqual({ bpm_min: 120 });
+    expect(attributeFiltersFromParams(new URLSearchParams("bpm_min=120"))).toEqual({
+      bpm_min: 120,
+    });
     expect(attributeFiltersFromParams(new URLSearchParams("bpm_max=90"))).toEqual({ bpm_max: 90 });
   });
 
@@ -227,7 +229,7 @@ describe("writeTrackFiltersToParams (#447)", () => {
     writeTrackFiltersToParams(
       params,
       { ...empty, missingAudio: true },
-      { bpm_min: 120, star_rating: 3 }
+      { bpm_min: 120, star_rating: 3 },
     );
     expect(params.toString()).toBe("q=dub&missingAudio=1&bpm_min=120&star_rating=3");
   });
@@ -262,7 +264,11 @@ describe("attribute filter chips (#447)", () => {
     const [bpm, key, rating] = attributeFilterChips(all).map((chip) => chip.key);
     expect(removeAttributeChip(all, bpm)).toEqual({ key: "A minor", star_rating: 4 });
     expect(removeAttributeChip(all, key)).toEqual({ bpm_min: 120, bpm_max: 126, star_rating: 4 });
-    expect(removeAttributeChip(all, rating)).toEqual({ bpm_min: 120, bpm_max: 126, key: "A minor" });
+    expect(removeAttributeChip(all, rating)).toEqual({
+      bpm_min: 120,
+      bpm_max: 126,
+      key: "A minor",
+    });
   });
 
   it("ignores a chip that isn't an attribute's", () => {

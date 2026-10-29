@@ -14,7 +14,9 @@ const storage = new Map<string, string>();
 Object.defineProperty(window, "localStorage", {
   configurable: true,
   value: {
-    get length() { return storage.size; },
+    get length() {
+      return storage.size;
+    },
     clear: () => storage.clear(),
     getItem: (key: string) => storage.get(key) ?? null,
     key: (index: number) => [...storage.keys()][index] ?? null,

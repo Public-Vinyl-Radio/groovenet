@@ -21,7 +21,10 @@ export const STRIP_ROWS = 5;
 
 export type LayoutKind = "full" | "side" | "strip" | "too-small";
 
-export interface ArtSize { width: number; height: number }
+export interface ArtSize {
+  width: number;
+  height: number;
+}
 
 /**
  * Fixed artwork slots, so real art (#829) drops in without relayout. The
@@ -31,7 +34,11 @@ export const ART_FULL: ArtSize = { width: 18, height: 8 };
 export const ART_SIDE: ArtSize = { width: 14, height: 6 };
 
 /** Outer height of the Now Playing box, borders included (its shadow is one more row). */
-export const CARD_ROWS: Record<Exclude<LayoutKind, "too-small">, number> = { full: 10, side: 16, strip: 4 };
+export const CARD_ROWS: Record<Exclude<LayoutKind, "too-small">, number> = {
+  full: 10,
+  side: 16,
+  strip: 4,
+};
 
 /**
  * Rows the frame itself takes in each layout. Full and side: top bar, blank,

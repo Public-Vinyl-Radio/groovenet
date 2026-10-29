@@ -17,7 +17,13 @@ const GAMDL_ALLOWED_FIELDS = [
 
 type GamdlField = (typeof GAMDL_ALLOWED_FIELDS)[number];
 
-const APPEARANCE_COLUMNS = ["palette", "font_display", "font_body", "font_label", "custom_palette"] as const;
+const APPEARANCE_COLUMNS = [
+  "palette",
+  "font_display",
+  "font_body",
+  "font_label",
+  "custom_palette",
+] as const;
 
 type AppearanceColumn = (typeof APPEARANCE_COLUMNS)[number];
 
@@ -36,7 +42,7 @@ export type AppearancePatch = Partial<Record<AppearanceColumn, string | null>>;
 export class SettingsRepository {
   async findDefaultLibraryFriendId(): Promise<number | null> {
     const { rows } = await dbQuery<{ friend_id: number | null }>(
-      "SELECT friend_id FROM default_library_settings WHERE id = 1 LIMIT 1"
+      "SELECT friend_id FROM default_library_settings WHERE id = 1 LIMIT 1",
     );
     return typeof rows[0]?.friend_id === "number" ? rows[0].friend_id : null;
   }
@@ -50,7 +56,7 @@ export class SettingsRepository {
       DO UPDATE SET friend_id = EXCLUDED.friend_id, updated_at = current_timestamp
       RETURNING friend_id
       `,
-      [friendId]
+      [friendId],
     );
     return rows[0]?.friend_id ?? friendId;
   }
@@ -58,7 +64,7 @@ export class SettingsRepository {
   /** The saved appearance row, or null when nothing has been chosen. */
   async findAppearance(): Promise<AppearanceRow | null> {
     const { rows } = await dbQuery<AppearanceRow>(
-      `SELECT ${APPEARANCE_COLUMNS.join(", ")} FROM appearance_settings WHERE id = 1`
+      `SELECT ${APPEARANCE_COLUMNS.join(", ")} FROM appearance_settings WHERE id = 1`,
     );
     return rows[0] ?? null;
   }
@@ -68,14 +74,14 @@ export class SettingsRepository {
    * default). A first save with no palette in the patch starts from
    * `insertPalette`, because the column is required.
    */
-  async upsertAppearance(
-    patch: AppearancePatch,
-    insertPalette: string
-  ): Promise<AppearanceRow> {
+  async upsertAppearance(patch: AppearancePatch, insertPalette: string): Promise<AppearanceRow> {
     const supplied = APPEARANCE_COLUMNS.filter((column) => patch[column] !== undefined);
-    const columns: AppearanceColumn[] = ["palette", ...supplied.filter((column) => column !== "palette")];
+    const columns: AppearanceColumn[] = [
+      "palette",
+      ...supplied.filter((column) => column !== "palette"),
+    ];
     const values = columns.map((column) =>
-      column === "palette" ? (patch.palette ?? insertPalette) : patch[column]
+      column === "palette" ? (patch.palette ?? insertPalette) : patch[column],
     );
     const update = supplied.map((column) => `${column} = EXCLUDED.${column}`);
     const { rows } = await dbQuery<AppearanceRow>(
@@ -86,7 +92,7 @@ export class SettingsRepository {
       DO UPDATE SET ${[...update, "updated_at = current_timestamp"].join(", ")}
       RETURNING ${APPEARANCE_COLUMNS.join(", ")}
       `,
-      values
+      values,
     );
     return rows[0];
   }
@@ -94,7 +100,7 @@ export class SettingsRepository {
   async findAiPromptByFriendId(friendId: number): Promise<string | null> {
     const { rows } = await dbQuery<{ prompt: string | null }>(
       "SELECT prompt FROM ai_prompt_settings WHERE friend_id = $1 LIMIT 1",
-      [friendId]
+      [friendId],
     );
     return typeof rows[0]?.prompt === "string" ? rows[0].prompt : null;
   }
@@ -108,28 +114,26 @@ export class SettingsRepository {
       DO UPDATE SET prompt = EXCLUDED.prompt, updated_at = current_timestamp
       RETURNING prompt
       `,
-      [friendId, prompt]
+      [friendId, prompt],
     );
     return rows[0]?.prompt ?? prompt;
   }
 
   async deleteAiPrompt(friendId: number): Promise<void> {
-    await dbQuery("DELETE FROM ai_prompt_settings WHERE friend_id = $1", [
-      friendId,
-    ]);
+    await dbQuery("DELETE FROM ai_prompt_settings WHERE friend_id = $1", [friendId]);
   }
 
   async findRecommendationScope(friendId: number): Promise<RecommendationScope | null> {
     const { rows } = await dbQuery<{ scope: RecommendationScope }>(
       "SELECT scope FROM recommendation_settings WHERE friend_id = $1",
-      [friendId]
+      [friendId],
     );
     return rows[0]?.scope ?? null;
   }
 
   async upsertRecommendationScope(
     friendId: number,
-    scope: RecommendationScope
+    scope: RecommendationScope,
   ): Promise<RecommendationScope> {
     const { rows } = await dbQuery<{ scope: RecommendationScope }>(
       `
@@ -139,7 +143,7 @@ export class SettingsRepository {
       DO UPDATE SET scope = EXCLUDED.scope, updated_at = current_timestamp
       RETURNING scope
       `,
-      [friendId, scope]
+      [friendId, scope],
     );
     return rows[0]?.scope ?? scope;
   }
@@ -151,35 +155,31 @@ export class SettingsRepository {
       VALUES ($1)
       ON CONFLICT (friend_id) DO NOTHING
       `,
-      [friendId]
+      [friendId],
     );
   }
 
   async findGamdlSettingsByFriendId(friendId: number): Promise<GamdlSettings | null> {
     const { rows } = await dbQuery<GamdlSettings>(
       "SELECT * FROM gamdl_settings WHERE friend_id = $1 LIMIT 1",
-      [friendId]
+      [friendId],
     );
     return rows[0] ?? null;
   }
 
   async updateGamdlSettings(
     friendId: number,
-    updates: GamdlSettingsUpdate
+    updates: GamdlSettingsUpdate,
   ): Promise<GamdlSettings | null> {
     const entries = Object.entries(updates).filter(
-      ([key, value]) =>
-        value !== undefined &&
-        GAMDL_ALLOWED_FIELDS.includes(key as GamdlField)
+      ([key, value]) => value !== undefined && GAMDL_ALLOWED_FIELDS.includes(key as GamdlField),
     );
 
     if (entries.length === 0) {
       return null;
     }
 
-    const setClause = entries
-      .map(([field], index) => `${field} = $${index + 2}`)
-      .join(", ");
+    const setClause = entries.map(([field], index) => `${field} = $${index + 2}`).join(", ");
     const values = [friendId, ...entries.map(([, value]) => value)];
 
     const { rows } = await dbQuery<GamdlSettings>(
@@ -189,7 +189,7 @@ export class SettingsRepository {
       WHERE friend_id = $1
       RETURNING *
       `,
-      values
+      values,
     );
 
     return rows[0] ?? null;
@@ -203,25 +203,25 @@ export class SettingsRepository {
       VALUES ($1)
       RETURNING *
       `,
-      [friendId]
+      [friendId],
     );
     return rows[0] ?? null;
   }
 
   /** Global, not per-friend: the active model is an infra choice, not a user preference (#386). */
   async findEmbeddingModelSettings(
-    embeddingType: EmbeddingModelKind
+    embeddingType: EmbeddingModelKind,
   ): Promise<EmbeddingModelSettings | null> {
     const { rows } = await dbQuery<EmbeddingModelSettings>(
       "SELECT * FROM embedding_model_settings WHERE embedding_type = $1 LIMIT 1",
-      [embeddingType]
+      [embeddingType],
     );
     return rows[0] ?? null;
   }
 
   async listEmbeddingModelSettings(): Promise<EmbeddingModelSettings[]> {
     const { rows } = await dbQuery<EmbeddingModelSettings>(
-      "SELECT * FROM embedding_model_settings ORDER BY embedding_type"
+      "SELECT * FROM embedding_model_settings ORDER BY embedding_type",
     );
     return rows;
   }
@@ -230,7 +230,7 @@ export class SettingsRepository {
   async updateTargetModel(
     embeddingType: EmbeddingModelKind,
     model: string,
-    dims: number
+    dims: number,
   ): Promise<EmbeddingModelSettings | null> {
     const { rows } = await dbQuery<EmbeddingModelSettings>(
       `
@@ -239,7 +239,7 @@ export class SettingsRepository {
       WHERE embedding_type = $1
       RETURNING *
       `,
-      [embeddingType, model, dims]
+      [embeddingType, model, dims],
     );
     return rows[0] ?? null;
   }
@@ -252,7 +252,7 @@ export class SettingsRepository {
     embeddingType: EmbeddingModelKind,
     model: string,
     dims: number,
-    templateVersion?: number
+    templateVersion?: number,
   ): Promise<EmbeddingModelSettings | null> {
     const { rows } = await dbQuery<EmbeddingModelSettings>(
       `
@@ -264,7 +264,7 @@ export class SettingsRepository {
       WHERE embedding_type = $1
       RETURNING *
       `,
-      [embeddingType, model, dims, templateVersion ?? null]
+      [embeddingType, model, dims, templateVersion ?? null],
     );
     return rows[0] ?? null;
   }

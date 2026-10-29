@@ -138,13 +138,20 @@ describe("trackStore debug logging", () => {
 });
 
 describe("sparse effective album values", () => {
-  it.each(["setTrack", "setTracks"] as const)("%s preserves omitted effective fields but accepts explicit empty arrays", (method) => {
-    const state = useTrackStore.getState();
-    const put = (value: TrackEntity) => method === "setTrack" ? state.setTrack(value) : state.setTracks([value]);
-    put(track({ album_genres: ["Jazz"], album_styles: ["Fusion"] }));
-    put(track({ title: "Narrow seed" }));
-    expect(state.getTrack("t1", 1)).toMatchObject({ album_genres: ["Jazz"], album_styles: ["Fusion"] });
-    put(track({ album_genres: [], album_styles: [] }));
-    expect(state.getTrack("t1", 1)).toMatchObject({ album_genres: [], album_styles: [] });
-  });
+  it.each(["setTrack", "setTracks"] as const)(
+    "%s preserves omitted effective fields but accepts explicit empty arrays",
+    (method) => {
+      const state = useTrackStore.getState();
+      const put = (value: TrackEntity) =>
+        method === "setTrack" ? state.setTrack(value) : state.setTracks([value]);
+      put(track({ album_genres: ["Jazz"], album_styles: ["Fusion"] }));
+      put(track({ title: "Narrow seed" }));
+      expect(state.getTrack("t1", 1)).toMatchObject({
+        album_genres: ["Jazz"],
+        album_styles: ["Fusion"],
+      });
+      put(track({ album_genres: [], album_styles: [] }));
+      expect(state.getTrack("t1", 1)).toMatchObject({ album_genres: [], album_styles: [] });
+    },
+  );
 });

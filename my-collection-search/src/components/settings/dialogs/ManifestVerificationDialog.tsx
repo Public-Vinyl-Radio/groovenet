@@ -1,16 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Text,
-  Button,
-  Dialog,
-  Alert,
-  HStack,
-  VStack,
-  Accordion,
-} from "@chakra-ui/react";
+import { Box, Text, Button, Dialog, Alert, HStack, VStack, Accordion } from "@chakra-ui/react";
 import type { VerificationResult } from "@/services/internalApi/discogs";
 
 interface ManifestVerificationDialogProps {
@@ -46,8 +37,7 @@ export default function ManifestVerificationDialog({
                 <Alert.Indicator />
                 <Alert.Title>All files verified</Alert.Title>
                 <Alert.Description>
-                  All release files in the manifest exist on disk. You can proceed
-                  with the sync.
+                  All release files in the manifest exist on disk. You can proceed with the sync.
                 </Alert.Description>
               </Alert.Root>
             ) : (
@@ -56,18 +46,12 @@ export default function ManifestVerificationDialog({
                   <Alert.Indicator />
                   <Alert.Title>Missing files detected</Alert.Title>
                   <Alert.Description>
-                    Found {totalMissing} release ID(s) in the manifest that don&apos;t
-                    have corresponding JSON files on disk.
+                    Found {totalMissing} release ID(s) in the manifest that don&apos;t have
+                    corresponding JSON files on disk.
                   </Alert.Description>
                 </Alert.Root>
 
-                <Box
-                  maxH="300px"
-                  overflowY="auto"
-                  bg="bg.muted"
-                  p={3}
-                  borderRadius="md"
-                >
+                <Box maxH="300px" overflowY="auto" bg="bg.muted" p={3} borderRadius="md">
                   <Accordion.Root collapsible multiple>
                     {results
                       .filter((r) => r.missingFiles.length > 0)
@@ -96,9 +80,8 @@ export default function ManifestVerificationDialog({
                 </Box>
 
                 <Text fontSize="sm" color="fg.muted">
-                  These entries will be skipped during the sync process. You can
-                  clean them up now to keep your manifest tidy, or continue with the
-                  sync as-is.
+                  These entries will be skipped during the sync process. You can clean them up now
+                  to keep your manifest tidy, or continue with the sync as-is.
                 </Text>
               </VStack>
             )}
@@ -123,11 +106,7 @@ export default function ManifestVerificationDialog({
                     Clean Up Manifest
                   </Button>
                 )}
-                <Button
-                  colorPalette="accent"
-                  onClick={onContinue}
-                  disabled={cleanupPending}
-                >
+                <Button colorPalette="accent" onClick={onContinue} disabled={cleanupPending}>
                   {hasMissingFiles ? "Continue Anyway" : "Proceed with Sync"}
                 </Button>
               </HStack>

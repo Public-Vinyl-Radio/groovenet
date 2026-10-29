@@ -1,21 +1,10 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  Textarea,
-  Button,
-  Flex,
-  Spinner,
-} from "@chakra-ui/react";
+import { Box, Heading, Text, Textarea, Button, Flex, Spinner } from "@chakra-ui/react";
 import { useUsername } from "@/providers/UsernameProvider";
 import { toaster } from "@/components/ui/toaster";
-import {
-  fetchAiPromptSettings,
-  updateAiPromptSettings,
-} from "@/services/internalApi/settings";
+import { fetchAiPromptSettings, updateAiPromptSettings } from "@/services/internalApi/settings";
 
 export default function AiPromptSettingsSection(): React.JSX.Element {
   const { friend } = useUsername();
@@ -109,8 +98,7 @@ export default function AiPromptSettingsSection(): React.JSX.Element {
         AI Metadata Prompt
       </Heading>
       <Text color="fg.muted" mb={4}>
-        Customize the system prompt used for track metadata generation. This is
-        stored per library.
+        Customize the system prompt used for track metadata generation. This is stored per library.
       </Text>
 
       <Flex gap={3} align="center" mb={4} flexWrap="wrap">

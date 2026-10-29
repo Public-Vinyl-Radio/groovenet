@@ -21,27 +21,26 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
     friend_id: number;
   }> => {
     if (!playlistId) return [];
-    const cached = queryClient.getQueryData(
-      queryKeys.playlistTrackIds(playlistId)
-    ) as
+    const cached = queryClient.getQueryData(queryKeys.playlistTrackIds(playlistId)) as
       | { tracks: Array<{ track_id: string; friend_id: number; position?: number }> }
       | Array<{ track_id: string; friend_id: number; position?: number }>
       | string[]
       | undefined;
 
     // Handle object shape: { tracks: [...], playlist_name, playlist_id }
-    if (cached && typeof cached === 'object' && 'tracks' in cached && Array.isArray(cached.tracks)) {
+    if (
+      cached &&
+      typeof cached === "object" &&
+      "tracks" in cached &&
+      Array.isArray(cached.tracks)
+    ) {
       return cached.tracks.map(({ track_id, friend_id }) => ({ track_id, friend_id }));
     }
 
     // Handle legacy array shape (for backwards compatibility)
-    if (
-      Array.isArray(cached) &&
-      cached.length > 0 &&
-      typeof cached[0] === "object"
-    ) {
+    if (Array.isArray(cached) && cached.length > 0 && typeof cached[0] === "object") {
       return (cached as Array<{ track_id: string; friend_id: number }>).map(
-        ({ track_id, friend_id }) => ({ track_id, friend_id })
+        ({ track_id, friend_id }) => ({ track_id, friend_id }),
       );
     }
 
@@ -98,7 +97,7 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
         toaster.create({ title: "Failed to save playlist", type: "error" });
       }
     },
-    [playlistId, getTracksWithFriendId, onSaved]
+    [playlistId, getTracksWithFriendId, onSaved],
   );
 
   // For existing playlists, save directly without dialog
@@ -111,7 +110,7 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
     async (finalName: string) => {
       await handleSave(finalName);
     },
-    [handleSave]
+    [handleSave],
   );
 
   const trackCount = React.useMemo(() => {
@@ -132,7 +131,7 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
         confirmLabel="Save Playlist"
       />
     ),
-    [open, playlistName, trackCount, onConfirm, onCancel]
+    [open, playlistName, trackCount, onConfirm, onCancel],
   );
 
   return {

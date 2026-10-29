@@ -13,7 +13,9 @@ export function clientTransport(client: GroovenetClient): ServerPlayerTransport 
         try {
           for await (const event of client.serverPlayerEvents(id, abort.signal)) onEvent(event);
           onDisconnect(new Error("Remote event connection lost."));
-        } catch (error) { onDisconnect(error); }
+        } catch (error) {
+          onDisconnect(error);
+        }
       })();
       return () => abort.abort();
     },

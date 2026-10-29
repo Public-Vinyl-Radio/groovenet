@@ -15,12 +15,17 @@ export default function ChorePage() {
   const { friend, isHydrated } = useUsername();
   const friendId = friend?.id ?? 0;
   const [status, setStatus] = React.useState<RecordCareStatus>("never_cleaned");
-  const summaryQuery = useRecordCareSummaryQuery({ friend_id: friendId }, { enabled: friendId > 0 });
+  const summaryQuery = useRecordCareSummaryQuery(
+    { friend_id: friendId },
+    { enabled: friendId > 0 },
+  );
 
   if (!isHydrated || !friendId) {
     return (
       <PageContainer size="standard">
-        <Flex justify="center" py={10}><Spinner /></Flex>
+        <Flex justify="center" py={10}>
+          <Spinner />
+        </Flex>
       </PageContainer>
     );
   }
@@ -34,11 +39,17 @@ export default function ChorePage() {
         </Text>
 
         {summaryQuery.data ? (
-          <RecordCareSummary summary={summaryQuery.data} status={status} onStatusChange={setStatus} />
+          <RecordCareSummary
+            summary={summaryQuery.data}
+            status={status}
+            onStatusChange={setStatus}
+          />
         ) : summaryQuery.error ? (
           <Text color="fg.error">{summaryQuery.error.message}</Text>
         ) : (
-          <Flex justify="center" py={4}><Spinner size="sm" /></Flex>
+          <Flex justify="center" py={4}>
+            <Spinner size="sm" />
+          </Flex>
         )}
 
         <RecordCareList friendId={friendId} status={status} />

@@ -25,7 +25,13 @@ function withoutSeen(items: GenreBadgeItem[], seen: Set<string>): GenreBadgeItem
 
 // A tag shrinks and ends in an ellipsis rather than overflowing the header.
 const tagCss = {
-  "& > a, & > span": { minWidth: 0, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  "& > a, & > span": {
+    minWidth: 0,
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
 };
 
 /**
@@ -39,13 +45,32 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
   const lookup = useGenreLookup();
   const seen = new Set<string>();
   const trackGenres = withoutSeen(trackGenreBadges(track, lookup), seen);
-  const discogsGenres = withoutSeen(discogsGenreBadges(track.album_genres ?? track.genres, lookup), seen);
-  const discogsStyles = withoutSeen(discogsGenreBadges(track.album_styles ?? track.styles, lookup), seen);
+  const discogsGenres = withoutSeen(
+    discogsGenreBadges(track.album_genres ?? track.genres, lookup),
+    seen,
+  );
+  const discogsStyles = withoutSeen(
+    discogsGenreBadges(track.album_styles ?? track.styles, lookup),
+    seen,
+  );
   const hasAlbum = discogsGenres.length > 0 || discogsStyles.length > 0;
 
   return (
-    <Flex data-testid="track-genres-section" flexWrap="wrap" alignItems="center" gap={1.5} minW={0} css={tagCss}>
-      <GenreBadgeList items={trackGenres} kind="track" scope="tracks" colorPalette="status.genre" variant="subtle" />
+    <Flex
+      data-testid="track-genres-section"
+      flexWrap="wrap"
+      alignItems="center"
+      gap={1.5}
+      minW={0}
+      css={tagCss}
+    >
+      <GenreBadgeList
+        items={trackGenres}
+        kind="track"
+        scope="tracks"
+        colorPalette="status.genre"
+        variant="subtle"
+      />
       {trackGenres.length === 0 && (
         <Badge variant="outline" colorPalette="neutral" size="sm">
           No genres yet

@@ -25,7 +25,9 @@ describe("PlaylistsToolbar", () => {
 
   it("marks the active view and switches", async () => {
     const { props, user } = setup("cards");
-    expect(screen.getByRole("button", { name: "CARDS", hidden: true }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "CARDS", hidden: true }).getAttribute("aria-pressed"),
+    ).toBe("true");
     await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
     expect(props.onViewModeChange).toHaveBeenCalledWith("list");
   });

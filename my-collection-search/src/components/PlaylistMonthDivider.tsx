@@ -2,25 +2,12 @@
 
 import React from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
-import {
-  formatGroupCount,
-  type PlaylistMonthGroup,
-} from "@/lib/playlistGroups";
+import { formatGroupCount, type PlaylistMonthGroup } from "@/lib/playlistGroups";
 
 /** Ink-filled mono month tab, 2px rule and the playlist/set count. */
-export default function PlaylistMonthDivider({
-  group,
-}: {
-  group: PlaylistMonthGroup;
-}) {
+export default function PlaylistMonthDivider({ group }: { group: PlaylistMonthGroup }) {
   return (
-    <Flex
-      align="flex-end"
-      gap={3}
-      mb={3}
-      borderBottomWidth="2px"
-      borderColor="fg"
-    >
+    <Flex align="flex-end" gap={3} mb={3} borderBottomWidth="2px" borderColor="fg">
       <Text
         as="h2"
         data-testid="month-tab"

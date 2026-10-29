@@ -16,20 +16,20 @@ Unjudged pairs widen the bounds, as in #382.
 
 Five merged reviews: 379, 382, 382-large, 409 and 424 (69 new pairs).
 
-| Cap | P@10 | scene | style | instrumentation | crossover | Releases per top 10 |
-| --- | --- | --- | --- | --- | --- | --- |
-| none | 0.900 | 0.800 | 0.933 | 0.867 | 1.000 | 3.25 |
-| **3** | **0.854** | 0.783 | 0.850 | 0.850 | 0.933 | 5.08 |
-| 2 | 0.800 | 0.733 | 0.767 | 0.783 | 0.917 | 6.29 |
-| 1 | 0.733–0.738 | 0.633 | 0.717 | 0.733 | 0.850 | 10.00 |
+| Cap   | P@10        | scene | style | instrumentation | crossover | Releases per top 10 |
+| ----- | ----------- | ----- | ----- | --------------- | --------- | ------------------- |
+| none  | 0.900       | 0.800 | 0.933 | 0.867           | 1.000     | 3.25                |
+| **3** | **0.854**   | 0.783 | 0.850 | 0.850           | 0.933     | 5.08                |
+| 2     | 0.800       | 0.733 | 0.767 | 0.783           | 0.917     | 6.29                |
+| 1     | 0.733–0.738 | 0.633 | 0.717 | 0.733           | 0.850     | 10.00               |
 
 Paired per query, with a 95% bootstrap CI:
 
-| Comparison | Wins / losses / ties | Mean Δ | 95% CI |
-| --- | --- | --- | --- |
-| 3 vs 2 | 10 / 0 / 14 | +0.054 | +0.025 to +0.087 |
-| none vs 3 | 7 / 2 / 15 | +0.046 | −0.008 to +0.108 |
-| none vs 2 | 13 / 2 / 9 | +0.100 | +0.033 to +0.171 |
+| Comparison | Wins / losses / ties | Mean Δ | 95% CI           |
+| ---------- | -------------------- | ------ | ---------------- |
+| 3 vs 2     | 10 / 0 / 14          | +0.054 | +0.025 to +0.087 |
+| none vs 3  | 7 / 2 / 15           | +0.046 | −0.008 to +0.108 |
+| none vs 2  | 13 / 2 / 9           | +0.100 | +0.033 to +0.171 |
 
 - **The cap explains the live gap.** Offline cap 2 (0.800) is within about 0.02 of live (0.78).
 - **3 is strictly better than 2.** It never loses a query, and still shows about 5 releases per top 10.

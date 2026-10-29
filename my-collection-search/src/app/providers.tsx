@@ -22,15 +22,11 @@ const ReactQueryDevtools: React.ComponentType<{ initialIsOpen?: boolean }> =
           import("@tanstack/react-query-devtools").then((m) => ({
             default: m.ReactQueryDevtools,
           })),
-        { ssr: false }
+        { ssr: false },
       )
     : () => null;
 
-export default function ClientProviders({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ClientProviders({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient());
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
@@ -42,20 +38,20 @@ export default function ClientProviders({
       <ThemeColorSync />
       <QueryClientProvider client={client}>
         <CommandPaletteProvider>
-        <JobWatcherProvider>
-          <UsernameProvider>
-            <TrackEditProvider>
-              <PlaylistsProvider>
-                <PlaylistPlayerProvider>
-                  <PlaybackTargetProvider>
-                    {children}
-                    <PlaylistPlayer />
-                  </PlaybackTargetProvider>
-                </PlaylistPlayerProvider>
-              </PlaylistsProvider>
-            </TrackEditProvider>
-          </UsernameProvider>
-        </JobWatcherProvider>
+          <JobWatcherProvider>
+            <UsernameProvider>
+              <TrackEditProvider>
+                <PlaylistsProvider>
+                  <PlaylistPlayerProvider>
+                    <PlaybackTargetProvider>
+                      {children}
+                      <PlaylistPlayer />
+                    </PlaybackTargetProvider>
+                  </PlaylistPlayerProvider>
+                </PlaylistsProvider>
+              </TrackEditProvider>
+            </UsernameProvider>
+          </JobWatcherProvider>
         </CommandPaletteProvider>
         {process.env.NODE_ENV === "development" && isDesktop && (
           <ReactQueryDevtools initialIsOpen={false} />

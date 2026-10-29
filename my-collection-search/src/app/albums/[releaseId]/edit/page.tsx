@@ -39,20 +39,20 @@ function EditAlbumContent() {
   const didHydrateRef = React.useRef(false);
 
   const [albumForm, setAlbumForm] = useState<AlbumFormData>({
-    title: '',
-    artist: '',
-    year: '',
+    title: "",
+    artist: "",
+    year: "",
     genres: [],
     styles: [],
-    album_notes: '',
+    album_notes: "",
     album_rating: 0,
-    purchase_price: '',
-    condition: '',
-    label: '',
-    catalog_number: '',
-    country: '',
-    format: '',
-    library_identifier: '',
+    purchase_price: "",
+    condition: "",
+    label: "",
+    catalog_number: "",
+    country: "",
+    format: "",
+    library_identifier: "",
   });
 
   const [coverArt, setCoverArt] = useState<File | null>(null);
@@ -73,42 +73,39 @@ function EditAlbumContent() {
     });
     // Hydrate album form
     setAlbumForm({
-      title: album.title || '',
-      artist: album.artist || '',
-      year: album.year || '',
+      title: album.title || "",
+      artist: album.artist || "",
+      year: album.year || "",
       genres: album.genres || [],
       styles: album.styles || [],
-      album_notes: album.album_notes || '',
+      album_notes: album.album_notes || "",
       album_rating: album.album_rating || 0,
-      purchase_price: album.purchase_price?.toString() || '',
-      condition: album.condition || '',
-      label: album.label || '',
-      catalog_number: album.catalog_number || '',
-      country: album.country || '',
-      format: album.format || '',
-      library_identifier: album.library_identifier || '',
+      purchase_price: album.purchase_price?.toString() || "",
+      condition: album.condition || "",
+      label: album.label || "",
+      catalog_number: album.catalog_number || "",
+      country: album.country || "",
+      format: album.format || "",
+      library_identifier: album.library_identifier || "",
     });
 
     // Hydrate tracks
     setTracks(
       hydratedTracks.map((track) => ({
         track_id: track.track_id,
-        title: track.title || '',
-        artist: track.artist || '',
-        position: track.position != null ? String(track.position) : '',
+        title: track.title || "",
+        artist: track.artist || "",
+        position: track.position != null ? String(track.position) : "",
         duration_seconds: track.duration_seconds || undefined,
-        bpm:
-          track.bpm != null && track.bpm !== ""
-            ? Number(track.bpm)
-            : undefined,
+        bpm: track.bpm != null && track.bpm !== "" ? Number(track.bpm) : undefined,
         key: track.key || undefined,
-        notes: track.notes || '',
-        local_tags: track.local_tags || '',
+        notes: track.notes || "",
+        local_tags: track.local_tags || "",
         star_rating: track.star_rating || 0,
-        apple_music_url: track.apple_music_url || '',
-        youtube_url: track.youtube_url || '',
-        soundcloud_url: track.soundcloud_url || '',
-      }))
+        apple_music_url: track.apple_music_url || "",
+        youtube_url: track.youtube_url || "",
+        soundcloud_url: track.soundcloud_url || "",
+      })),
     );
     didHydrateRef.current = true;
   }, [album, hydratedTracks]);
@@ -120,7 +117,7 @@ function EditAlbumContent() {
         prev.map((track) => ({
           ...track,
           artist: track.artist || albumForm.artist,
-        }))
+        })),
       );
     }
   }, [albumForm.artist]);
@@ -129,18 +126,18 @@ function EditAlbumContent() {
     // Validate required fields
     if (!albumForm.title.trim()) {
       toaster.create({
-        title: 'Album title required',
-        description: 'Please enter an album title',
-        type: 'error',
+        title: "Album title required",
+        description: "Please enter an album title",
+        type: "error",
       });
       return;
     }
 
     if (!albumForm.artist.trim()) {
       toaster.create({
-        title: 'Artist required',
-        description: 'Please enter an artist name',
-        type: 'error',
+        title: "Artist required",
+        description: "Please enter an artist name",
+        type: "error",
       });
       return;
     }
@@ -148,9 +145,9 @@ function EditAlbumContent() {
     // Validate at least one track
     if (tracks.length === 0) {
       toaster.create({
-        title: 'No tracks',
-        description: 'Please add at least one track',
-        type: 'error',
+        title: "No tracks",
+        description: "Please add at least one track",
+        type: "error",
       });
       return;
     }
@@ -160,16 +157,16 @@ function EditAlbumContent() {
       if (!tracks[i].title.trim()) {
         toaster.create({
           title: `Track ${i + 1} missing title`,
-          description: 'All tracks must have a title',
-          type: 'error',
+          description: "All tracks must have a title",
+          type: "error",
         });
         return;
       }
       if (!tracks[i].artist.trim()) {
         toaster.create({
           title: `Track ${i + 1} missing artist`,
-          description: 'All tracks must have an artist',
-          type: 'error',
+          description: "All tracks must have an artist",
+          type: "error",
         });
         return;
       }
@@ -178,9 +175,9 @@ function EditAlbumContent() {
     // Check if we have a current user
     if (!currentUserFriend) {
       toaster.create({
-        title: 'No library selected',
-        description: 'Please select a library from the friend selector',
-        type: 'error',
+        title: "No library selected",
+        description: "Please select a library from the friend selector",
+        type: "error",
       });
       return;
     }
@@ -195,7 +192,9 @@ function EditAlbumContent() {
           ...taxonomyOverrides,
           album_notes: albumForm.album_notes || undefined,
           album_rating: albumForm.album_rating || undefined,
-          purchase_price: albumForm.purchase_price ? parseFloat(albumForm.purchase_price) : undefined,
+          purchase_price: albumForm.purchase_price
+            ? parseFloat(albumForm.purchase_price)
+            : undefined,
           condition: albumForm.condition || undefined,
           label: albumForm.label || undefined,
           catalog_number: albumForm.catalog_number || undefined,
@@ -223,18 +222,18 @@ function EditAlbumContent() {
       });
 
       toaster.create({
-        title: 'Album updated',
+        title: "Album updated",
         description: `Successfully updated "${albumForm.title}" with ${tracks.length} tracks`,
-        type: 'success',
+        type: "success",
       });
 
       // Navigate back to album detail
       router.push(`/albums/${releaseId}?friend_id=${friendId}`);
     } catch (error) {
       toaster.create({
-        title: 'Failed to update album',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        type: 'error',
+        title: "Failed to update album",
+        description: error instanceof Error ? error.message : "An error occurred",
+        type: "error",
       });
     }
   };
@@ -272,10 +271,7 @@ function EditAlbumContent() {
   }
 
   return (
-    <PageContainer
-      size="standard"
-      py={{ base: 0, md: 4 }}
-    >
+    <PageContainer size="standard" py={{ base: 0, md: 4 }}>
       <PageHeader
         title="Edit Album"
         leading={<HeaderCancelButton onClick={handleCancel} disabled={updateMutation.isPending} />}
@@ -289,10 +285,17 @@ function EditAlbumContent() {
         ]}
       />
       <Stack gap={6}>
-
-        <AlbumForm value={albumForm} onChange={setAlbumForm} taxonomyEditor={
-          <AlbumTaxonomyEditor album={album} value={taxonomyOverrides} onChange={setTaxonomyOverrides} />
-        } />
+        <AlbumForm
+          value={albumForm}
+          onChange={setAlbumForm}
+          taxonomyEditor={
+            <AlbumTaxonomyEditor
+              album={album}
+              value={taxonomyOverrides}
+              onChange={setTaxonomyOverrides}
+            />
+          }
+        />
 
         <CoverArtUpload value={coverArt} onChange={setCoverArt} />
 
@@ -303,24 +306,11 @@ function EditAlbumContent() {
           defaultAlbum={albumForm.title}
         />
 
-        <Flex
-          gap={3}
-          justify="flex-end"
-          pt={4}
-          display={{ base: "none", md: "flex" }}
-        >
-          <Button
-            onClick={handleCancel}
-            variant="outline"
-            disabled={updateMutation.isPending}
-          >
+        <Flex gap={3} justify="flex-end" pt={4} display={{ base: "none", md: "flex" }}>
+          <Button onClick={handleCancel} variant="outline" disabled={updateMutation.isPending}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-            colorPalette="accent"
-            loading={updateMutation.isPending}
-          >
+          <Button onClick={handleSave} colorPalette="accent" loading={updateMutation.isPending}>
             Save Changes
           </Button>
         </Flex>

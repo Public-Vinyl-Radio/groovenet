@@ -38,8 +38,8 @@ export default function TrackListBuilder({
     onChange([
       ...tracks,
       {
-        title: '',
-        artist: defaultArtist || '',
+        title: "",
+        artist: defaultArtist || "",
         position: `${tracks.length + 1}`,
       },
     ]);
@@ -57,7 +57,11 @@ export default function TrackListBuilder({
     onChange(updated);
   };
 
-  const updateTrack = (index: number, field: keyof TrackFormData, value: string | number | undefined) => {
+  const updateTrack = (
+    index: number,
+    field: keyof TrackFormData,
+    value: string | number | undefined,
+  ) => {
     const updated = [...tracks];
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
@@ -117,19 +121,19 @@ export default function TrackListBuilder({
               <LabeledInput
                 label="Title *"
                 value={track.title}
-                onChange={(e) => updateTrack(index, 'title', e.target.value)}
+                onChange={(e) => updateTrack(index, "title", e.target.value)}
                 placeholder="Track title"
               />
               <LabeledInput
                 label="Artist *"
                 value={track.artist}
-                onChange={(e) => updateTrack(index, 'artist', e.target.value)}
+                onChange={(e) => updateTrack(index, "artist", e.target.value)}
                 placeholder="Artist name"
               />
               <LabeledInput
                 label="Position"
-                value={track.position || ''}
-                onChange={(e) => updateTrack(index, 'position', e.target.value)}
+                value={track.position || ""}
+                onChange={(e) => updateTrack(index, "position", e.target.value)}
                 placeholder={`${index + 1}`}
               />
             </Grid>
@@ -137,22 +141,30 @@ export default function TrackListBuilder({
             <Grid templateColumns={{ base: "1fr", md: "1fr 1fr 1fr" }} gap={3}>
               <LabeledInput
                 label="Duration (seconds)"
-                value={track.duration_seconds || ''}
-                onChange={(e) => updateTrack(index, 'duration_seconds', e.target.value ? parseInt(e.target.value) : undefined)}
+                value={track.duration_seconds || ""}
+                onChange={(e) =>
+                  updateTrack(
+                    index,
+                    "duration_seconds",
+                    e.target.value ? parseInt(e.target.value) : undefined,
+                  )
+                }
                 placeholder="180"
                 type="number"
               />
               <LabeledInput
                 label="BPM"
-                value={track.bpm || ''}
-                onChange={(e) => updateTrack(index, 'bpm', e.target.value ? parseFloat(e.target.value) : undefined)}
+                value={track.bpm || ""}
+                onChange={(e) =>
+                  updateTrack(index, "bpm", e.target.value ? parseFloat(e.target.value) : undefined)
+                }
                 placeholder="120"
                 type="number"
               />
               <LabeledInput
                 label="Key"
-                value={track.key || ''}
-                onChange={(e) => updateTrack(index, 'key', e.target.value)}
+                value={track.key || ""}
+                onChange={(e) => updateTrack(index, "key", e.target.value)}
                 placeholder="C major"
               />
             </Grid>
@@ -164,7 +176,7 @@ export default function TrackListBuilder({
                 </Text>
                 <RatingGroup.Root
                   value={track.star_rating || 0}
-                  onValueChange={(e) => updateTrack(index, 'star_rating', e.value)}
+                  onValueChange={(e) => updateTrack(index, "star_rating", e.value)}
                   count={5}
                   size="md"
                 >
@@ -174,8 +186,8 @@ export default function TrackListBuilder({
               </Box>
               <LabeledInput
                 label="Tags"
-                value={track.local_tags || ''}
-                onChange={(e) => updateTrack(index, 'local_tags', e.target.value)}
+                value={track.local_tags || ""}
+                onChange={(e) => updateTrack(index, "local_tags", e.target.value)}
                 placeholder="house, deep"
               />
             </Grid>
@@ -188,22 +200,22 @@ export default function TrackListBuilder({
               <Stack gap={2}>
                 <LabeledInput
                   label="Apple Music URL"
-                  value={track.apple_music_url || ''}
-                  onChange={(e) => updateTrack(index, 'apple_music_url', e.target.value)}
+                  value={track.apple_music_url || ""}
+                  onChange={(e) => updateTrack(index, "apple_music_url", e.target.value)}
                   placeholder="https://music.apple.com/..."
                   size="sm"
                 />
                 <LabeledInput
                   label="YouTube URL"
-                  value={track.youtube_url || ''}
-                  onChange={(e) => updateTrack(index, 'youtube_url', e.target.value)}
+                  value={track.youtube_url || ""}
+                  onChange={(e) => updateTrack(index, "youtube_url", e.target.value)}
                   placeholder="https://youtube.com/..."
                   size="sm"
                 />
                 <LabeledInput
                   label="SoundCloud URL"
-                  value={track.soundcloud_url || ''}
-                  onChange={(e) => updateTrack(index, 'soundcloud_url', e.target.value)}
+                  value={track.soundcloud_url || ""}
+                  onChange={(e) => updateTrack(index, "soundcloud_url", e.target.value)}
                   placeholder="https://soundcloud.com/..."
                   size="sm"
                 />
@@ -212,8 +224,8 @@ export default function TrackListBuilder({
 
             <LabeledTextarea
               label="Notes"
-              value={track.notes || ''}
-              onChange={(e) => updateTrack(index, 'notes', e.target.value)}
+              value={track.notes || ""}
+              onChange={(e) => updateTrack(index, "notes", e.target.value)}
               placeholder="Notes about this track..."
               rows={2}
             />

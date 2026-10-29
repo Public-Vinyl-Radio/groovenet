@@ -1,15 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Button,
-  Checkbox,
-  Flex,
-  Heading,
-  Spinner,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, Checkbox, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
 import {
   fetchBackupPolicy,
@@ -76,8 +68,8 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
         Remote Backup Policy
       </Heading>
       <Text color="fg.muted" mb={4}>
-        Configures file-based backup policy in <code>config/backup-policy.yml</code>.
-        Secrets such as restic password and B2 keys remain server-side.
+        Configures file-based backup policy in <code>config/backup-policy.yml</code>. Secrets such
+        as restic password and B2 keys remain server-side.
       </Text>
 
       {loading ? (
@@ -94,9 +86,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               <input
                 value={policy.schedule_cron}
                 onChange={(e) =>
-                  setPolicy((prev) =>
-                    prev ? { ...prev, schedule_cron: e.target.value } : prev
-                  )
+                  setPolicy((prev) => (prev ? { ...prev, schedule_cron: e.target.value } : prev))
                 }
                 style={{
                   width: "100%",
@@ -125,7 +115,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
                           ...prev,
                           retention_preset: e.target.value as BackupPolicy["retention_preset"],
                         }
-                      : prev
+                      : prev,
                   )
                 }
                 style={{
@@ -149,9 +139,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             <Checkbox.Root
               checked={policy.enabled}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev ? { ...prev, enabled: Boolean(details.checked) } : prev
-                )
+                setPolicy((prev) => (prev ? { ...prev, enabled: Boolean(details.checked) } : prev))
               }
             >
               <Checkbox.HiddenInput />
@@ -163,9 +151,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               checked={policy.include_database}
               onCheckedChange={(details) =>
                 setPolicy((prev) =>
-                  prev
-                    ? { ...prev, include_database: Boolean(details.checked) }
-                    : prev
+                  prev ? { ...prev, include_database: Boolean(details.checked) } : prev,
                 )
               }
             >
@@ -178,9 +164,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               checked={policy.include_audio_files}
               onCheckedChange={(details) =>
                 setPolicy((prev) =>
-                  prev
-                    ? { ...prev, include_audio_files: Boolean(details.checked) }
-                    : prev
+                  prev ? { ...prev, include_audio_files: Boolean(details.checked) } : prev,
                 )
               }
             >
@@ -193,9 +177,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               checked={policy.include_album_covers}
               onCheckedChange={(details) =>
                 setPolicy((prev) =>
-                  prev
-                    ? { ...prev, include_album_covers: Boolean(details.checked) }
-                    : prev
+                  prev ? { ...prev, include_album_covers: Boolean(details.checked) } : prev,
                 )
               }
             >
@@ -208,9 +190,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               checked={policy.include_discogs_exports}
               onCheckedChange={(details) =>
                 setPolicy((prev) =>
-                  prev
-                    ? { ...prev, include_discogs_exports: Boolean(details.checked) }
-                    : prev
+                  prev ? { ...prev, include_discogs_exports: Boolean(details.checked) } : prev,
                 )
               }
             >
@@ -223,9 +203,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               checked={policy.include_essentia_files}
               onCheckedChange={(details) =>
                 setPolicy((prev) =>
-                  prev
-                    ? { ...prev, include_essentia_files: Boolean(details.checked) }
-                    : prev
+                  prev ? { ...prev, include_essentia_files: Boolean(details.checked) } : prev,
                 )
               }
             >
@@ -238,9 +216,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
               checked={policy.include_uploads}
               onCheckedChange={(details) =>
                 setPolicy((prev) =>
-                  prev
-                    ? { ...prev, include_uploads: Boolean(details.checked) }
-                    : prev
+                  prev ? { ...prev, include_uploads: Boolean(details.checked) } : prev,
                 )
               }
             >
@@ -250,7 +226,12 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             </Checkbox.Root>
           </Flex>
 
-          <Flex mt={4} gap={2} align={{ base: "stretch", md: "center" }} direction={{ base: "column", md: "row" }}>
+          <Flex
+            mt={4}
+            gap={2}
+            align={{ base: "stretch", md: "center" }}
+            direction={{ base: "column", md: "row" }}
+          >
             <Button colorPalette="accent" onClick={save} loading={saving}>
               Save Policy
             </Button>

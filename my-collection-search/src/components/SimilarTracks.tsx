@@ -71,8 +71,8 @@ export default function SimilarTracks({
         </Text>
         {String(error).includes("no identity embedding") && (
           <Text fontSize="sm" mt={2} color="fg.muted">
-            This track does not have an identity embedding yet. Run the backfill
-            command to generate embeddings.
+            This track does not have an identity embedding yet. Run the backfill command to generate
+            embeddings.
           </Text>
         )}
       </Box>
@@ -122,7 +122,8 @@ export default function SimilarTracks({
           // Ensure track has valid artwork or use fallback
           const trackWithArtwork = {
             ...similarTrack,
-            album_thumbnail: similarTrack.album_thumbnail || similarTrack.audio_file_album_art_url || undefined,
+            album_thumbnail:
+              similarTrack.album_thumbnail || similarTrack.audio_file_album_art_url || undefined,
           };
 
           return (
@@ -155,8 +156,8 @@ export default function SimilarTracks({
           💡 About Similar Tracks
         </Text>
         <Text fontSize="sm" color="fg.muted">
-          Tracks are ranked by identity similarity based on genre, style, era,
-          country, and tags (excluding DJ notes). Lower distance = more similar.
+          Tracks are ranked by identity similarity based on genre, style, era, country, and tags
+          (excluding DJ notes). Lower distance = more similar.
         </Text>
       </Box>
     </Box>

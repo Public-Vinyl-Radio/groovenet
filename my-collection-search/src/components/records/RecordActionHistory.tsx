@@ -40,9 +40,18 @@ export default function RecordActionHistory({ copyId, friendId }: Props) {
       </Flex>
     );
   }
-  if (error) return <Text fontSize="xs" color="fg.error">{error.message}</Text>;
+  if (error)
+    return (
+      <Text fontSize="xs" color="fg.error">
+        {error.message}
+      </Text>
+    );
   if (actions.length === 0) {
-    return <Text fontSize="xs" color="fg.muted">No care logged yet</Text>;
+    return (
+      <Text fontSize="xs" color="fg.muted">
+        No care logged yet
+      </Text>
+    );
   }
 
   return (
@@ -55,7 +64,11 @@ export default function RecordActionHistory({ copyId, friendId }: Props) {
             </Text>
             <Stack gap={0} flex={1} minW={0}>
               <Text fontWeight="medium">{describeAction(action)}</Text>
-              {action.notes && <Text color="fg.muted" whiteSpace="pre-wrap">{action.notes}</Text>}
+              {action.notes && (
+                <Text color="fg.muted" whiteSpace="pre-wrap">
+                  {action.notes}
+                </Text>
+              )}
             </Stack>
             <Button
               size="2xs"

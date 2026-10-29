@@ -18,8 +18,8 @@ fetched each time the picker opens. A server whose status is playing, paused or
 loading is `LIVE` ("Session live"); anything else is `IDLE`. Choosing a row only
 previews it; the footer button confirms.
 
-- **Join a server** from this device: the local queue *from the current track
-  onward* (never what already played) is appended to the end of the server's
+- **Join a server** from this device: the local queue _from the current track
+  onward_ (never what already played) is appended to the end of the server's
   queue with one `queue.add`. If the server was idle (stopped, ended or with no
   current entry), the first appended entry then plays. Local audio pauses, and
   once the append succeeds the local queue is cleared so there is only one

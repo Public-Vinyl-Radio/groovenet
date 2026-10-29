@@ -31,7 +31,12 @@ import {
   similarGenreIdFromChipKey,
 } from "@/components/GenreFilter";
 import PageHeader from "@/components/layout/PageHeader";
-import { HeaderButton, ListSearchRow, SearchField, ViewModeSwitch } from "@/components/layout/ListHeader";
+import {
+  HeaderButton,
+  ListSearchRow,
+  SearchField,
+  ViewModeSwitch,
+} from "@/components/layout/ListHeader";
 import FiltersPanel from "@/components/FiltersPanel";
 import TrackSearchMenu from "@/components/TrackSearchMenu";
 import TrackSearchOptionsModal, {
@@ -91,27 +96,24 @@ const SearchResults: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const searchParamsString = React.useMemo(
-    () => searchParams?.toString() ?? "",
-    [searchParams]
-  );
+  const searchParamsString = React.useMemo(() => searchParams?.toString() ?? "", [searchParams]);
   const { friend: currentUserFriend, isHydrated } = useUsername();
 
   // Filter state - applied immediately (no modal)
   const [activeFilters, setActiveFilters] = React.useState<TracksFilter>(createEmptyFilters());
   // BPM range, key and minimum rating (#412), linkable as `?bpm_min=120&key=A+minor`.
   const [attributes, setAttributes] = React.useState<TrackAttributeFilters>(() =>
-    attributeFiltersFromParams(searchParams)
+    attributeFiltersFromParams(searchParams),
   );
   // Genre slugs (#375), linkable as `?genre=cumbia&genre=salsa`.
   const [genres, setGenres] = React.useState<string[]>(() => searchParams?.getAll("genre") ?? []);
   // "Include similar" (#485), linkable as `?genre=cumbia&similar=1`.
   const [includeSimilar, setIncludeSimilar] = React.useState<boolean>(
-    () => searchParams?.get("similar") === "1"
+    () => searchParams?.get("similar") === "1",
   );
   // Related-genre ids removed from the widened set; kept out on reload too.
   const [similarExclude, setSimilarExclude] = React.useState<string[]>(
-    () => searchParams?.getAll("similar_exclude") ?? []
+    () => searchParams?.getAll("similar_exclude") ?? [],
   );
   const [searchMode, setSearchMode] = React.useState<TrackSearchMode>(() => {
     const fromUrl = searchParams?.get("mode");
@@ -206,9 +208,7 @@ const SearchResults: React.FC = () => {
       .map((key) => trackStoreMap.get(key))
       .filter(
         (t): t is NonNullable<typeof t> =>
-          !!t &&
-          !t.local_audio_url &&
-          !!(t.apple_music_url || t.youtube_url || t.soundcloud_url)
+          !!t && !t.local_audio_url && !!(t.apple_music_url || t.youtube_url || t.soundcloud_url),
       );
   }, [selectedTracks, trackStoreMap]);
 
@@ -248,7 +248,11 @@ const SearchResults: React.FC = () => {
   }, [clearSelection]);
 
   // Rows/Cards view mode, persisted to localStorage; phones always get cards.
-  const { viewMode, setViewMode: handleViewModeChange, layout: effectiveLayout } = useTrackViewMode();
+  const {
+    viewMode,
+    setViewMode: handleViewModeChange,
+    layout: effectiveLayout,
+  } = useTrackViewMode();
 
   const rowListRef = React.useRef<HTMLDivElement>(null);
   const [rowListOffset, setRowListOffset] = React.useState(0);
@@ -263,28 +267,31 @@ const SearchResults: React.FC = () => {
     scrollMargin: rowListOffset,
   });
 
-  const handleFilterToggle = React.useCallback((key: string) => {
-    if (key === INCLUDE_SIMILAR_CHIP_KEY) {
-      setIncludeSimilar(false);
-      return;
-    }
-    const genreSlug = genreSlugFromChipKey(key);
-    if (genreSlug !== null) {
-      removeGenre(genreSlug);
-      return;
-    }
-    const similarGenreId = similarGenreIdFromChipKey(key);
-    if (similarGenreId !== null) {
-      setSimilarExclude((prev) => [...prev, similarGenreId]);
-      return;
-    }
-    const withoutAttribute = removeAttributeChip(attributes, key);
-    if (withoutAttribute !== null) {
-      setAttributes(withoutAttribute);
-      return;
-    }
-    setActiveFilters((prev) => toggleTracksFilter(prev, key as keyof TracksFilter));
-  }, [attributes, removeGenre]);
+  const handleFilterToggle = React.useCallback(
+    (key: string) => {
+      if (key === INCLUDE_SIMILAR_CHIP_KEY) {
+        setIncludeSimilar(false);
+        return;
+      }
+      const genreSlug = genreSlugFromChipKey(key);
+      if (genreSlug !== null) {
+        removeGenre(genreSlug);
+        return;
+      }
+      const similarGenreId = similarGenreIdFromChipKey(key);
+      if (similarGenreId !== null) {
+        setSimilarExclude((prev) => [...prev, similarGenreId]);
+        return;
+      }
+      const withoutAttribute = removeAttributeChip(attributes, key);
+      if (withoutAttribute !== null) {
+        setAttributes(withoutAttribute);
+        return;
+      }
+      setActiveFilters((prev) => toggleTracksFilter(prev, key as keyof TracksFilter));
+    },
+    [attributes, removeGenre],
+  );
 
   const handleClearAllFilters = React.useCallback(() => {
     setActiveFilters(createEmptyFilters());
@@ -430,12 +437,17 @@ const SearchResults: React.FC = () => {
   ]);
 
   return (
-    <Box mb={'100px'}>
+    <Box mb={"100px"}>
       <PageHeader
         title="Tracks"
         desktopActions={
           <>
-            <HeaderButton quiet variant={selectMode ? "solid" : "outline"} aria-pressed={selectMode} onClick={toggleSelectMode}>
+            <HeaderButton
+              quiet
+              variant={selectMode ? "solid" : "outline"}
+              aria-pressed={selectMode}
+              onClick={toggleSelectMode}
+            >
               <LuListChecks aria-hidden="true" />
               Select
             </HeaderButton>
@@ -457,155 +469,173 @@ const SearchResults: React.FC = () => {
         </Flex>
       ) : (
         <>
-      <ListSearchRow
-        field={
-          <SearchField
-            value={debouncedValue}
-            onChange={setDebouncedValue}
-            label="Search tracks"
-            placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
-            endElement={<SearchModeMenu value={searchMode} onChange={setSearchMode} />}
+          <ListSearchRow
+            field={
+              <SearchField
+                value={debouncedValue}
+                onChange={setDebouncedValue}
+                label="Search tracks"
+                placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
+                endElement={<SearchModeMenu value={searchMode} onChange={setSearchMode} />}
+              />
+            }
+            controls={
+              <FiltersPanel
+                open={panelOpen}
+                onOpenChange={setPanelOpen}
+                scope="Tracks"
+                activeCount={activeFilterCount}
+                onReset={handleClearAllFilters}
+                showLabel={showResultsLabel(estimatedResults)}
+              >
+                <TrackFilterSections {...filterControls} first />
+              </FiltersPanel>
+            }
           />
-        }
-        controls={
-          <FiltersPanel
-            open={panelOpen}
-            onOpenChange={setPanelOpen}
-            scope="Tracks"
-            activeCount={activeFilterCount}
-            onReset={handleClearAllFilters}
-            showLabel={showResultsLabel(estimatedResults)}
-          >
-            <TrackFilterSections {...filterControls} first />
-          </FiltersPanel>
-        }
-      />
 
-      <TrackSearchOptionsModal
-        open={optionsOpen}
-        onOpenChange={setOptionsOpen}
-        mode={searchMode}
-        onModeChange={setSearchMode}
-        {...filterControls}
-      />
+          <TrackSearchOptionsModal
+            open={optionsOpen}
+            onOpenChange={setOptionsOpen}
+            mode={searchMode}
+            onModeChange={setSearchMode}
+            {...filterControls}
+          />
 
-      <FilterChips
-        chips={[
-          ...genreFilterChips(genres, taxonomy, genreCounts),
-          ...includeSimilarChips(includeSimilar, genres),
-          ...addedGenreChips(addedGenres),
-          ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
-            ({ key, chipLabel }) => ({ key, label: chipLabel, active: true })
-          ),
-          ...attributeChips,
-        ]}
-        onToggle={handleFilterToggle}
-        onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
-        summary={
-          initialLoading
-            ? undefined
-            : `${estimatedResults.toLocaleString()} ${estimatedResults === 1 ? "result" : "results"}`
-        }
-      />
+          <FilterChips
+            chips={[
+              ...genreFilterChips(genres, taxonomy, genreCounts),
+              ...includeSimilarChips(includeSimilar, genres),
+              ...addedGenreChips(addedGenres),
+              ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
+                ({ key, chipLabel }) => ({ key, label: chipLabel, active: true }),
+              ),
+              ...attributeChips,
+            ]}
+            onToggle={handleFilterToggle}
+            onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
+            summary={
+              initialLoading
+                ? undefined
+                : `${estimatedResults.toLocaleString()} ${estimatedResults === 1 ? "result" : "results"}`
+            }
+          />
 
-      {initialLoading ? (
-        <Box mt={8}>
-          {[...Array(8)].map((_, i) => (
-            <Box key={i} mb={4}>
-              <Box height="255px" borderRadius="md" bg="bg.muted" />
+          {initialLoading ? (
+            <Box mt={8}>
+              {[...Array(8)].map((_, i) => (
+                <Box key={i} mb={4}>
+                  <Box height="255px" borderRadius="md" bg="bg.muted" />
+                </Box>
+              ))}
             </Box>
-          ))}
-        </Box>
-      ) : (
-        <>
-          {effectiveLayout === "row" ? (
-            // Rows view: dense, grid-aligned, virtualised (fixed row height).
-            // One outlined block with one shadow for the whole stack; rows only rule.
-            <Box mt={3} borderWidth="outline" borderColor="border.ink" boxShadow="md" overflow="hidden" css={{ containerType: "inline-size" }}>
-              <TrackListHeader />
-              <Box ref={rowListRef} position="relative" height={`${rowVirtualizer.getTotalSize()}px`}>
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const info = trackInfo[virtualRow.index];
-                  const key = `${info.trackId}:${info.friendId}`;
-                  return (
-                    <Box
-                      // Keyed by track identity, not the virtualizer's slot index: TrackResult
-                      // carries open-menu/popover state internally, and reusing a slot's DOM node
-                      // for a different track on scroll left that state stuck on the wrong row.
-                      key={key}
-                      data-index={virtualRow.index}
-                      position="absolute"
-                      top={0}
-                      left={0}
-                      width="100%"
-                      height={`${virtualRow.size}px`}
-                      transform={`translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`}
-                    >
+          ) : (
+            <>
+              {effectiveLayout === "row" ? (
+                // Rows view: dense, grid-aligned, virtualised (fixed row height).
+                // One outlined block with one shadow for the whole stack; rows only rule.
+                <Box
+                  mt={3}
+                  borderWidth="outline"
+                  borderColor="border.ink"
+                  boxShadow="md"
+                  overflow="hidden"
+                  css={{ containerType: "inline-size" }}
+                >
+                  <TrackListHeader />
+                  <Box
+                    ref={rowListRef}
+                    position="relative"
+                    height={`${rowVirtualizer.getTotalSize()}px`}
+                  >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const info = trackInfo[virtualRow.index];
+                      const key = `${info.trackId}:${info.friendId}`;
+                      return (
+                        <Box
+                          // Keyed by track identity, not the virtualizer's slot index: TrackResult
+                          // carries open-menu/popover state internally, and reusing a slot's DOM node
+                          // for a different track on scroll left that state stuck on the wrong row.
+                          key={key}
+                          data-index={virtualRow.index}
+                          position="absolute"
+                          top={0}
+                          left={0}
+                          width="100%"
+                          height={`${virtualRow.size}px`}
+                          transform={`translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`}
+                        >
+                          <TrackResultItem
+                            trackId={info.trackId}
+                            friendId={info.friendId}
+                            playlistCount={playlistCounts[key]}
+                            layout="row"
+                            showUsername={false}
+                            isSelected={selectMode ? selectedTracks.has(key) : undefined}
+                            onToggleSelect={
+                              selectMode
+                                ? () => toggleTrack(info.trackId, info.friendId)
+                                : undefined
+                            }
+                          />
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              ) : (
+                // Cards view (and every phone, regardless of the toggle). Each card carries a
+                // 14px mb; the 6px rowGap tops it up to the 20px column gap on desktop. The
+                // padding leaves room for the cards' 6px hard shadow; the shell's bottom padding
+                // is what clears the fixed bottom nav on a phone.
+                <Grid
+                  mt={3}
+                  templateColumns={{ base: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }}
+                  columnGap={5}
+                  rowGap={{ base: 0, md: "6px" }}
+                  pr="6px"
+                  pb="6px"
+                >
+                  {trackInfo.map((info) => {
+                    const key = `${info.trackId}:${info.friendId}`;
+                    return (
                       <TrackResultItem
+                        key={`search-${info.trackId}-${info.friendId}`}
                         trackId={info.trackId}
                         friendId={info.friendId}
                         playlistCount={playlistCounts[key]}
-                        layout="row"
+                        layout="card"
                         showUsername={false}
                         isSelected={selectMode ? selectedTracks.has(key) : undefined}
-                        onToggleSelect={selectMode ? () => toggleTrack(info.trackId, info.friendId) : undefined}
+                        onToggleSelect={
+                          selectMode ? () => toggleTrack(info.trackId, info.friendId) : undefined
+                        }
                       />
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Box>
-          ) : (
-            // Cards view (and every phone, regardless of the toggle). Each card carries a
-            // 14px mb; the 6px rowGap tops it up to the 20px column gap on desktop. The
-            // padding leaves room for the cards' 6px hard shadow; the shell's bottom padding
-            // is what clears the fixed bottom nav on a phone.
-            <Grid
-              mt={3}
-              templateColumns={{ base: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }}
-              columnGap={5}
-              rowGap={{ base: 0, md: "6px" }}
-              pr="6px"
-              pb="6px"
-            >
-              {trackInfo.map((info) => {
-                const key = `${info.trackId}:${info.friendId}`;
-                return (
-                  <TrackResultItem
-                    key={`search-${info.trackId}-${info.friendId}`}
-                    trackId={info.trackId}
-                    friendId={info.friendId}
-                    playlistCount={playlistCounts[key]}
-                    layout="card"
-                    showUsername={false}
-                    isSelected={selectMode ? selectedTracks.has(key) : undefined}
-                    onToggleSelect={selectMode ? () => toggleTrack(info.trackId, info.friendId) : undefined}
-                  />
-                );
-              })}
-            </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
+              {hasMore && <Box ref={bottomSentinelRef} height="1px" />}
+              {loadingMore && (
+                <Flex justify="center" py={4}>
+                  <Spinner size="md" />
+                </Flex>
+              )}
+            </>
           )}
-          {hasMore && (
-            <Box ref={bottomSentinelRef} height="1px" />
-          )}
-          {loadingMore && (
-            <Flex justify="center" py={4}>
-              <Spinner size="md" />
-            </Flex>
-          )}
-        </>
-      )}
-      {/* End of results/infinite scroll */}
+          {/* End of results/infinite scroll */}
 
-      <TrackSelectionBar
-        selectedCount={selectedTracks.size}
-        loadedCount={trackInfo.length}
-        downloadableCount={downloadableTracks.length}
-        onSelectAll={selectAll}
-        onClear={() => { clearSelection(); setSelectMode(false); }}
-        onEnrich={handleEnrich}
-        onDownloadAudio={handleDownloadAudio}
-      />
+          <TrackSelectionBar
+            selectedCount={selectedTracks.size}
+            loadedCount={trackInfo.length}
+            downloadableCount={downloadableTracks.length}
+            onSelectAll={selectAll}
+            onClear={() => {
+              clearSelection();
+              setSelectMode(false);
+            }}
+            onEnrich={handleEnrich}
+            onDownloadAudio={handleDownloadAudio}
+          />
         </>
       )}
     </Box>

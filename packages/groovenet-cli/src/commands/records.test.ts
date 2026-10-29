@@ -7,12 +7,35 @@ vi.mock("@groovenet/client", () => ({ loadConfig, GroovenetClient: GroovenetClie
 
 import { addRecordsCommands } from "./records.js";
 
-const copy = { id: 7, release_id: "123", label: "DJ copy", is_default: true, inner_sleeve_type: null, last_cleaned_at: null };
-const action = { id: 9, copy_id: 7, action_type: "cleaned", occurred_at: "2026-09-01T00:00:00.000Z", notes: null, sleeve_type: null, details: {}, voided_at: null };
+const copy = {
+  id: 7,
+  release_id: "123",
+  label: "DJ copy",
+  is_default: true,
+  inner_sleeve_type: null,
+  last_cleaned_at: null,
+};
+const action = {
+  id: 9,
+  copy_id: 7,
+  action_type: "cleaned",
+  occurred_at: "2026-09-01T00:00:00.000Z",
+  notes: null,
+  sleeve_type: null,
+  details: {},
+  voided_at: null,
+};
 const api = {
-  logRecordAction: vi.fn(), listRecordCopies: vi.fn(), createRecordCopy: vi.fn(),
-  updateDefaultRecordCopy: vi.fn(), updateRecordCopy: vi.fn(), deleteRecordCopy: vi.fn(),
-  listRecordActions: vi.fn(), voidRecordAction: vi.fn(), listRecordCare: vi.fn(), getRecordCareSummary: vi.fn(),
+  logRecordAction: vi.fn(),
+  listRecordCopies: vi.fn(),
+  createRecordCopy: vi.fn(),
+  updateDefaultRecordCopy: vi.fn(),
+  updateRecordCopy: vi.fn(),
+  deleteRecordCopy: vi.fn(),
+  listRecordActions: vi.fn(),
+  voidRecordAction: vi.fn(),
+  listRecordCare: vi.fn(),
+  getRecordCareSummary: vi.fn(),
 };
 
 async function parse(...args: string[]) {
@@ -38,21 +61,54 @@ describe("records commands", () => {
     api.deleteRecordCopy.mockResolvedValue(copy);
     api.listRecordActions.mockResolvedValue({ items: [action], limit: 50, offset: 0 });
     api.voidRecordAction.mockResolvedValue({ action, copy });
-    api.listRecordCare.mockResolvedValue({ items: [{ ...copy, copy_id: 7, album_title: "Album", album_artist: "Artist" }], total: 1 });
-    api.getRecordCareSummary.mockResolvedValue({ total: 1, never_cleaned: 1, overdue: 0, needs_sleeve: 1, by_sleeve_type: { unknown: 1 } });
-    GroovenetClientMock.mockImplementation(function () { return api; });
-    vi.spyOn(console, "log").mockImplementation((value: unknown) => { output.push(String(value)); });
+    api.listRecordCare.mockResolvedValue({
+      items: [{ ...copy, copy_id: 7, album_title: "Album", album_artist: "Artist" }],
+      total: 1,
+    });
+    api.getRecordCareSummary.mockResolvedValue({
+      total: 1,
+      never_cleaned: 1,
+      overdue: 0,
+      needs_sleeve: 1,
+      by_sleeve_type: { unknown: 1 },
+    });
+    GroovenetClientMock.mockImplementation(function () {
+      return api;
+    });
+    vi.spyOn(console, "log").mockImplementation((value: unknown) => {
+      output.push(String(value));
+    });
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(process.stdout, "write").mockImplementation(((value: string) => { raw.push(String(value)); return true; }) as never);
+    vi.spyOn(process.stdout, "write").mockImplementation(((value: string) => {
+      raw.push(String(value));
+      return true;
+    }) as never);
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
   });
-  afterEach(() => { vi.restoreAllMocks(); process.exitCode = undefined; });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.exitCode = undefined;
+  });
 
   it("logs cleaning on a release with a backdated method and notes", async () => {
-    await parse("clean", "123", "--at", "2026-09-01", "--method", "ultrasonic", "--note", "dusty", "--json");
+    await parse(
+      "clean",
+      "123",
+      "--at",
+      "2026-09-01",
+      "--method",
+      "ultrasonic",
+      "--note",
+      "dusty",
+      "--json",
+    );
     expect(api.logRecordAction).toHaveBeenCalledWith({
-      friend_id: 2, release_id: "123", action_type: "cleaned",
-      occurred_at: "2026-09-01T00:00:00.000Z", notes: "dusty", details: { method: "ultrasonic" },
+      friend_id: 2,
+      release_id: "123",
+      action_type: "cleaned",
+      occurred_at: "2026-09-01T00:00:00.000Z",
+      notes: "dusty",
+      details: { method: "ultrasonic" },
     });
     expect(JSON.parse(raw.join(""))).toEqual({ action, copy });
   });
@@ -75,9 +131,19 @@ describe("records commands", () => {
   it("logs sleeve and repair against a specified copy", async () => {
     await parse("sleeve", "123", "poly-rice-paper-poly", "--copy", "7", "--friend-id", "4");
     expect(api.listRecordCopies).toHaveBeenCalledWith(4, "123");
-    expect(api.logRecordAction).toHaveBeenCalledWith({ friend_id: 4, copy_id: 7, action_type: "sleeved", sleeve_type: "poly-rice-paper-poly" });
+    expect(api.logRecordAction).toHaveBeenCalledWith({
+      friend_id: 4,
+      copy_id: 7,
+      action_type: "sleeved",
+      sleeve_type: "poly-rice-paper-poly",
+    });
     await parse("log", "123", "repaired", "--note", "hinge fixed");
-    expect(api.logRecordAction).toHaveBeenLastCalledWith({ friend_id: 2, release_id: "123", action_type: "repaired", notes: "hinge fixed" });
+    expect(api.logRecordAction).toHaveBeenLastCalledWith({
+      friend_id: 2,
+      release_id: "123",
+      action_type: "repaired",
+      notes: "hinge fixed",
+    });
   });
 
   it("refuses to log an action against a copy on another release", async () => {
@@ -91,9 +157,18 @@ describe("records commands", () => {
     await parse("copies", "123");
     expect(api.listRecordCopies).toHaveBeenCalledWith(2, "123");
     await parse("copies", "add", "123", "--label", "Backup");
-    expect(api.createRecordCopy).toHaveBeenCalledWith({ friend_id: 2, release_id: "123", label: "Backup", notes: undefined });
+    expect(api.createRecordCopy).toHaveBeenCalledWith({
+      friend_id: 2,
+      release_id: "123",
+      label: "Backup",
+      notes: undefined,
+    });
     await parse("copies", "label", "123", "Main");
-    expect(api.updateDefaultRecordCopy).toHaveBeenCalledWith({ friend_id: 2, release_id: "123", label: "Main" });
+    expect(api.updateDefaultRecordCopy).toHaveBeenCalledWith({
+      friend_id: 2,
+      release_id: "123",
+      label: "Main",
+    });
     await parse("copies", "label", "123", "Spare", "--copy", "7");
     expect(api.listRecordCopies).toHaveBeenLastCalledWith(2, "123");
     expect(api.updateRecordCopy).toHaveBeenCalledWith(7, { friend_id: 2, label: "Spare" });
@@ -102,7 +177,9 @@ describe("records commands", () => {
   });
 
   it("shows an implicit copy and an empty copy list clearly", async () => {
-    api.listRecordCopies.mockResolvedValueOnce([{ ...copy, id: null, label: null, inner_sleeve_type: null, last_cleaned_at: null }]);
+    api.listRecordCopies.mockResolvedValueOnce([
+      { ...copy, id: null, label: null, inner_sleeve_type: null, last_cleaned_at: null },
+    ]);
     await parse("copies", "123");
     expect(output.join("\n")).toContain("Default");
     api.listRecordCopies.mockResolvedValueOnce([]);
@@ -116,7 +193,12 @@ describe("records commands", () => {
 
   it("prints raw API responses for copy changes", async () => {
     await parse("copies", "add", "123", "--note", "backup", "--friend-id", "4", "--json");
-    expect(api.createRecordCopy).toHaveBeenCalledWith({ friend_id: 4, release_id: "123", label: undefined, notes: "backup" });
+    expect(api.createRecordCopy).toHaveBeenCalledWith({
+      friend_id: 4,
+      release_id: "123",
+      label: undefined,
+      notes: "backup",
+    });
     expect(JSON.parse(raw.join(""))).toEqual(copy);
     raw.length = 0;
     await parse("copies", "label", "123", "Main", "--json");
@@ -135,13 +217,23 @@ describe("records commands", () => {
 
   it("lists history including voided actions, and voids a mistake", async () => {
     await parse("history", "7", "--include-voided", "--limit", "10", "--offset", "5");
-    expect(api.listRecordActions).toHaveBeenCalledWith(7, { friend_id: 2, include_voided: true, limit: 10, offset: 5 });
+    expect(api.listRecordActions).toHaveBeenCalledWith(7, {
+      friend_id: 2,
+      include_voided: true,
+      limit: 10,
+      offset: 5,
+    });
     await parse("void", "9");
     expect(api.voidRecordAction).toHaveBeenCalledWith(9, 2);
   });
 
   it("exposes action details and raw history for scripts", async () => {
-    const sleeved = { ...action, sleeve_type: "poly", notes: "fresh", voided_at: "2026-09-02T00:00:00.000Z" };
+    const sleeved = {
+      ...action,
+      sleeve_type: "poly",
+      notes: "fresh",
+      voided_at: "2026-09-02T00:00:00.000Z",
+    };
     api.listRecordActions.mockResolvedValueOnce({ items: [sleeved], limit: 50, offset: 0 });
     await parse("history", "7");
     expect(output.join("\n")).toContain("fresh");
@@ -153,17 +245,48 @@ describe("records commands", () => {
   });
 
   it("passes care filters and keeps summary separate from the list", async () => {
-    await parse("care", "--status", "needs_sleeve", "--needs-sleeve", "poly", "--overdue-days", "180");
-    expect(api.listRecordCare).toHaveBeenCalledWith({ friend_id: 2, status: "needs_sleeve", needs_sleeve: "poly", overdue_days: 180, limit: 50, offset: 0 });
+    await parse(
+      "care",
+      "--status",
+      "needs_sleeve",
+      "--needs-sleeve",
+      "poly",
+      "--overdue-days",
+      "180",
+    );
+    expect(api.listRecordCare).toHaveBeenCalledWith({
+      friend_id: 2,
+      status: "needs_sleeve",
+      needs_sleeve: "poly",
+      overdue_days: 180,
+      limit: 50,
+      offset: 0,
+    });
     await parse("care", "--summary", "--json");
-    expect(api.getRecordCareSummary).toHaveBeenCalledWith({ friend_id: 2, overdue_days: undefined, needs_sleeve: undefined });
+    expect(api.getRecordCareSummary).toHaveBeenCalledWith({
+      friend_id: 2,
+      overdue_days: undefined,
+      needs_sleeve: undefined,
+    });
     expect(JSON.parse(raw.join(""))).toMatchObject({ never_cleaned: 1 });
   });
 
   it("prints a readable summary and preserves the complete care list as JSON", async () => {
     await parse("care", "--summary");
     expect(output.join("\n")).toContain("Never cleaned");
-    const care = { items: [{ release_id: "123", album_title: "Album", album_artist: "Artist", copy_id: null, inner_sleeve_type: null, last_cleaned_at: null }], total: 1 };
+    const care = {
+      items: [
+        {
+          release_id: "123",
+          album_title: "Album",
+          album_artist: "Artist",
+          copy_id: null,
+          inner_sleeve_type: null,
+          last_cleaned_at: null,
+        },
+      ],
+      total: 1,
+    };
     api.listRecordCare.mockResolvedValueOnce(care);
     await parse("care", "--json");
     expect(JSON.parse(raw.join(""))).toEqual(care);

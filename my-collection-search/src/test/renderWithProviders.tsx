@@ -87,7 +87,9 @@ export async function chooseMenuItem(user: UserEvent, trigger: HTMLElement, name
   await user.keyboard("{Enter}");
   const item = await screen.findByRole("menuitem", { name, hidden: true });
   // Opening by keyboard highlights the first item; walk down to this one.
-  await waitFor(() => expect(item.closest("[role=menu]")?.querySelector("[data-highlighted]")).toBeTruthy());
+  await waitFor(() =>
+    expect(item.closest("[role=menu]")?.querySelector("[data-highlighted]")).toBeTruthy(),
+  );
   const itemCount = screen.getAllByRole("menuitem", { hidden: true }).length;
   for (let step = 0; step < itemCount && !item.hasAttribute("data-highlighted"); step++) {
     await user.keyboard("{ArrowDown}");

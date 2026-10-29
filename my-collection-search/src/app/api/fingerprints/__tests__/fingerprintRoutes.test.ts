@@ -19,9 +19,7 @@ vi.mock("@/server/repositories/fingerprintRepository", () => ({
   fingerprintRepository: repo,
 }));
 vi.mock("@/server/services/fingerprintIndexService", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@/server/services/fingerprintIndexService")
-  >();
+  const actual = await importOriginal<typeof import("@/server/services/fingerprintIndexService")>();
   return { ...actual, fingerprintIndexService: service };
 });
 
@@ -113,11 +111,11 @@ describe("POST /api/fingerprints", () => {
     repo.upsertFingerprint.mockResolvedValue(storedRow());
 
     await storeFingerprint(
-      post(validUpsert({ fingerprint_data: Buffer.from([1, 2, 3]).toString("base64") }))
+      post(validUpsert({ fingerprint_data: Buffer.from([1, 2, 3]).toString("base64") })),
     );
 
     expect(repo.upsertFingerprint.mock.calls[0][0].fingerprint_data).toEqual(
-      Buffer.from([1, 2, 3])
+      Buffer.from([1, 2, 3]),
     );
   });
 
@@ -149,7 +147,7 @@ describe("POST /api/fingerprints", () => {
   it("reports a vanished track as 409, not 500", async () => {
     // The track was deleted mid-run: the run's problem, not the server's.
     repo.upsertFingerprint.mockRejectedValue(
-      new Error('insert violates foreign key constraint "track_fingerprints_track_fk"')
+      new Error('insert violates foreign key constraint "track_fingerprints_track_fk"'),
     );
 
     const res = await storeFingerprint(post(validUpsert()));
@@ -201,9 +199,11 @@ describe("audio file stats (#303)", () => {
 
   it("POST stores the size and mtime the fingerprint was taken from", async () => {
     repo.upsertFingerprint.mockResolvedValue(storedRow());
-    await storeFingerprint(post(validUpsert({ audio_size_bytes: 41_234_567, audio_mtime_ms: 1_790_000_000_000 })));
+    await storeFingerprint(
+      post(validUpsert({ audio_size_bytes: 41_234_567, audio_mtime_ms: 1_790_000_000_000 })),
+    );
     expect(repo.upsertFingerprint).toHaveBeenCalledWith(
-      expect.objectContaining({ audio_size_bytes: 41_234_567, audio_mtime_ms: 1_790_000_000_000 })
+      expect.objectContaining({ audio_size_bytes: 41_234_567, audio_mtime_ms: 1_790_000_000_000 }),
     );
   });
 
@@ -211,7 +211,7 @@ describe("audio file stats (#303)", () => {
     repo.upsertFingerprint.mockResolvedValue(storedRow());
     await storeFingerprint(post(validUpsert()));
     expect(repo.upsertFingerprint).toHaveBeenCalledWith(
-      expect.objectContaining({ audio_size_bytes: null, audio_mtime_ms: null })
+      expect.objectContaining({ audio_size_bytes: null, audio_mtime_ms: null }),
     );
   });
 
@@ -229,7 +229,9 @@ describe("audio file stats (#303)", () => {
   });
 
   it("PATCH rejects an incomplete or negative body", async () => {
-    expect((await recordFileStats(patch({ ...stats, audio_mtime_ms: undefined }))).status).toBe(400);
+    expect((await recordFileStats(patch({ ...stats, audio_mtime_ms: undefined }))).status).toBe(
+      400,
+    );
     expect((await recordFileStats(patch({ ...stats, audio_size_bytes: -1 }))).status).toBe(400);
     expect(repo.recordFileStats).not.toHaveBeenCalled();
   });
@@ -270,7 +272,7 @@ describe("POST /api/fingerprints/index", () => {
 
     expect(service.startRun).toHaveBeenCalledWith(
       { kind: "track", track_id: "t1", friend_id: 2 },
-      { force: false }
+      { force: false },
     );
   });
 
@@ -281,7 +283,7 @@ describe("POST /api/fingerprints/index", () => {
 
     expect(service.startRun).toHaveBeenCalledWith(
       { kind: "release", release_id: "r9", friend_id: undefined },
-      { force: false }
+      { force: false },
     );
   });
 
@@ -385,26 +387,22 @@ describe("GET /api/fingerprints", () => {
     repo.listFingerprintsForIndex.mockResolvedValue([indexRow()]);
 
     const res = await listFingerprints(
-      listRequest("fingerprint_type=chromaprint&fingerprint_version=1.6.1")
+      listRequest("fingerprint_type=chromaprint&fingerprint_version=1.6.1"),
     );
 
     expect(res.status).toBe(200);
     const body = await res.json();
     // JSON has no bytes; the matcher decodes this straight back to uint32s.
     expect(body.fingerprints[0].fingerprint_data).toBe(
-      Buffer.from([1, 2, 3, 4]).toString("base64")
+      Buffer.from([1, 2, 3, 4]).toString("base64"),
     );
   });
 
   it("passes a null blob through as null", async () => {
     // The stub engine stores null by design; the loader skips those.
-    repo.listFingerprintsForIndex.mockResolvedValue([
-      indexRow({ fingerprint_data: null }),
-    ]);
+    repo.listFingerprintsForIndex.mockResolvedValue([indexRow({ fingerprint_data: null })]);
 
-    const res = await listFingerprints(
-      listRequest("fingerprint_type=stub&fingerprint_version=0")
-    );
+    const res = await listFingerprints(listRequest("fingerprint_type=stub&fingerprint_version=0"));
 
     expect((await res.json()).fingerprints[0].fingerprint_data).toBeNull();
   });
@@ -412,15 +410,13 @@ describe("GET /api/fingerprints", () => {
   it("scopes to one engine and version", async () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
-    await listFingerprints(
-      listRequest("fingerprint_type=chromaprint&fingerprint_version=1.6.1")
-    );
+    await listFingerprints(listRequest("fingerprint_type=chromaprint&fingerprint_version=1.6.1"));
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
       expect.objectContaining({
         fingerprint_type: "chromaprint",
         fingerprint_version: "1.6.1",
-      })
+      }),
     );
   });
 
@@ -437,11 +433,11 @@ describe("GET /api/fingerprints", () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
     await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1&limit=99999&offset=40")
+      listRequest("fingerprint_type=c&fingerprint_version=1&limit=99999&offset=40"),
     );
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 1000, offset: 40 })
+      expect.objectContaining({ limit: 1000, offset: 40 }),
     );
   });
 
@@ -449,23 +445,21 @@ describe("GET /api/fingerprints", () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
     await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1&limit=abc&offset=xyz")
+      listRequest("fingerprint_type=c&fingerprint_version=1&limit=abc&offset=xyz"),
     );
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 500, offset: 0 })
+      expect.objectContaining({ limit: 500, offset: 0 }),
     );
   });
 
   it("clamps a negative offset rather than passing it to SQL", async () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
-    await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1&offset=-5")
-    );
+    await listFingerprints(listRequest("fingerprint_type=c&fingerprint_version=1&offset=-5"));
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
-      expect.objectContaining({ offset: 0 })
+      expect.objectContaining({ offset: 0 }),
     );
   });
 
@@ -473,11 +467,11 @@ describe("GET /api/fingerprints", () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
     await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1&friend_id=everyone")
+      listRequest("fingerprint_type=c&fingerprint_version=1&friend_id=everyone"),
     );
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
-      expect.objectContaining({ friend_id: undefined })
+      expect.objectContaining({ friend_id: undefined }),
     );
   });
 
@@ -486,9 +480,7 @@ describe("GET /api/fingerprints", () => {
     // `.message` off something that has none.
     repo.listFingerprintsForIndex.mockRejectedValue("connection reset by peer");
 
-    const res = await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1")
-    );
+    const res = await listFingerprints(listRequest("fingerprint_type=c&fingerprint_version=1"));
 
     expect(res.status).toBe(500);
     expect((await res.json()).error).toContain("connection reset");
@@ -497,9 +489,7 @@ describe("GET /api/fingerprints", () => {
   it("falls back to a generic message when the error has none", async () => {
     repo.listFingerprintsForIndex.mockRejectedValue(new Error(""));
 
-    const res = await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1")
-    );
+    const res = await listFingerprints(listRequest("fingerprint_type=c&fingerprint_version=1"));
 
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Failed to list fingerprints");
@@ -508,21 +498,17 @@ describe("GET /api/fingerprints", () => {
   it("can narrow to one friend's library", async () => {
     repo.listFingerprintsForIndex.mockResolvedValue([]);
 
-    await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1&friend_id=2")
-    );
+    await listFingerprints(listRequest("fingerprint_type=c&fingerprint_version=1&friend_id=2"));
 
     expect(repo.listFingerprintsForIndex).toHaveBeenCalledWith(
-      expect.objectContaining({ friend_id: 2 })
+      expect.objectContaining({ friend_id: 2 }),
     );
   });
 
   it("reports a lookup failure as 500", async () => {
     repo.listFingerprintsForIndex.mockRejectedValue(new Error("connection reset"));
 
-    const res = await listFingerprints(
-      listRequest("fingerprint_type=c&fingerprint_version=1")
-    );
+    const res = await listFingerprints(listRequest("fingerprint_type=c&fingerprint_version=1"));
 
     expect(res.status).toBe(500);
   });

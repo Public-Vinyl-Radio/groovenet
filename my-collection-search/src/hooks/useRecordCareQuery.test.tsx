@@ -60,10 +60,9 @@ describe("useRecordCopiesQuery", () => {
     api.listRecordCopies.mockResolvedValue({ items: [copy], overdue_days: 365 });
     const { wrapper } = setup();
 
-    const { result } = renderHook(
-      () => useRecordCopiesQuery({ friend_id: 7, release_id: "rel" }),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useRecordCopiesQuery({ friend_id: 7, release_id: "rel" }), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.copies).toEqual([copy]));
     expect(result.current.overdueDays).toBe(365);
@@ -74,7 +73,7 @@ describe("useRecordCopiesQuery", () => {
     const { wrapper } = setup();
     const { result } = renderHook(
       () => useRecordCopiesQuery({ friend_id: 7, release_id: "rel" }, { enabled: false }),
-      { wrapper }
+      { wrapper },
     );
     expect(result.current.copies).toEqual([]);
     expect(result.current.overdueDays).toBeUndefined();
@@ -145,7 +144,7 @@ describe("useRecordCareMutations", () => {
     const { result } = renderHook(() => useRecordCareMutations(7), { wrapper });
     await act(result.current);
     await waitFor(() =>
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() })
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() }),
     );
   }
 

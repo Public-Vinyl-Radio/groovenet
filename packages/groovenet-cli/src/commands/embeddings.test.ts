@@ -82,7 +82,7 @@ describe("resolveBackfillRequest()", () => {
 
   it("carries --friend-id, --type and --force through", () => {
     expect(
-      resolveBackfillRequest({ all: true, friendId: 2, type: "identity,audio_vibe", force: true })
+      resolveBackfillRequest({ all: true, friendId: 2, type: "identity,audio_vibe", force: true }),
     ).toEqual({
       scope: "all",
       friend_id: 2,
@@ -99,15 +99,11 @@ describe("resolveBackfillRequest()", () => {
   });
 
   it("refuses two scopes rather than picking one", () => {
-    expect(() => resolveBackfillRequest({ missing: true, all: true })).toThrow(
-      /Choose one scope/
-    );
+    expect(() => resolveBackfillRequest({ missing: true, all: true })).toThrow(/Choose one scope/);
   });
 
   it("names the conflicting scopes", () => {
-    expect(() => resolveBackfillRequest({ all: true, release: "r1" })).toThrow(
-      /--all --release/
-    );
+    expect(() => resolveBackfillRequest({ all: true, release: "r1" })).toThrow(/--all --release/);
   });
 });
 
@@ -170,7 +166,7 @@ describe("waitForBackfillRun()", () => {
     const client = clientReturning(
       run({ success: 3 }),
       run({ success: 7 }),
-      run({ success: 10, complete: true })
+      run({ success: 10, complete: true }),
     );
 
     const pending = waitForBackfillRun(client, "run-1", { pollIntervalMs: 1000 });
@@ -228,7 +224,7 @@ describe("runEmbeddingsBackfill()", () => {
   it("prints the three counters when the run finishes", async () => {
     const client = clientFor(
       { queued: 10 },
-      { queued: 10, success: 7, skipped: 1, failed: 2, complete: true }
+      { queued: 10, success: 7, skipped: 1, failed: 2, complete: true },
     );
     const { io, all } = recorder();
 
@@ -256,7 +252,7 @@ describe("runEmbeddingsBackfill()", () => {
   it("reports each failure as it appears", async () => {
     const client = clientFor(
       { queued: 2 },
-      { queued: 2, failed: 2, complete: true, errors: ["t1: rate limited", "t2: not found"] }
+      { queued: 2, failed: 2, complete: true, errors: ["t1: rate limited", "t2: not found"] },
     );
     const { io, all } = recorder();
 
@@ -338,7 +334,7 @@ describe("runEmbeddingsBackfill()", () => {
     const client = clientFor(
       { queued: 2 },
       { queued: 2, failed: 1, errors: ["t1: rate limited"] },
-      { queued: 2, failed: 1, success: 1, complete: true, errors: ["t1: rate limited"] }
+      { queued: 2, failed: 1, success: 1, complete: true, errors: ["t1: rate limited"] },
     );
     const { io, lines } = recorder();
     vi.useFakeTimers();
@@ -354,9 +350,9 @@ describe("runEmbeddingsBackfill()", () => {
     const client = clientFor({});
     const { io } = recorder();
 
-    await expect(
-      runEmbeddingsBackfill(client, { missing: true, all: true }, io)
-    ).rejects.toThrow(/Choose one scope/);
+    await expect(runEmbeddingsBackfill(client, { missing: true, all: true }, io)).rejects.toThrow(
+      /Choose one scope/,
+    );
     expect(client.startEmbeddingBackfill).not.toHaveBeenCalled();
   });
 });
@@ -386,7 +382,11 @@ describe("runEmbeddingsStatus()", () => {
     const lines: string[] = [];
     const client = { getEmbeddingStatus: vi.fn().mockResolvedValue(status()) };
 
-    const code = await runEmbeddingsStatus(client, {}, { log: (l) => lines.push(l), write: vi.fn() });
+    const code = await runEmbeddingsStatus(
+      client,
+      {},
+      { log: (l) => lines.push(l), write: vi.fn() },
+    );
 
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("100 track(s)");
@@ -404,10 +404,14 @@ describe("runEmbeddingsStatus()", () => {
     const writes: string[] = [];
     const client = { getEmbeddingStatus: vi.fn().mockResolvedValue(status()) };
 
-    await runEmbeddingsStatus(client, { json: true }, {
-      log: vi.fn(),
-      write: (t) => writes.push(t),
-    });
+    await runEmbeddingsStatus(
+      client,
+      { json: true },
+      {
+        log: vi.fn(),
+        write: (t) => writes.push(t),
+      },
+    );
 
     expect(JSON.parse(writes.join(""))).toMatchObject({ total_tracks: 100 });
   });
@@ -464,7 +468,7 @@ describe("addEmbeddingsCommands()", () => {
     const embeddings = program.commands.find((c) => c.name() === "embeddings");
     expect(embeddings).toBeDefined();
     expect(embeddings?.commands.map((c) => c.name())).toEqual(
-      expect.arrayContaining(["backfill", "status", "export-eval"])
+      expect.arrayContaining(["backfill", "status", "export-eval"]),
     );
   });
 
@@ -472,8 +476,18 @@ describe("addEmbeddingsCommands()", () => {
     await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json");
     expect(exportEval).toHaveBeenCalledWith(expect.anything(), 6, "snapshot.json");
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Exported 2 tracks"));
-    await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json", "--json");
-    expect(console.log).toHaveBeenCalledWith(JSON.stringify({ output: "snapshot.json", tracks: 2, albums: 1, playlists: 1 }));
+    await parse(
+      "embeddings",
+      "export-eval",
+      "--friend-id",
+      "6",
+      "--output",
+      "snapshot.json",
+      "--json",
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      JSON.stringify({ output: "snapshot.json", tracks: 2, albums: 1, playlists: 1 }),
+    );
   });
 
   it("reports export errors without printing private data", async () => {
@@ -514,7 +528,7 @@ describe("addEmbeddingsCommands()", () => {
       "--friend-id",
       "2",
       "--force",
-      "--no-wait"
+      "--no-wait",
     );
 
     expect(startEmbeddingBackfill).toHaveBeenCalledWith({

@@ -37,16 +37,18 @@ function parsePolicy(raw: unknown): Omit<BackupPolicy, "updated_at"> {
   return {
     enabled: Boolean(obj.enabled ?? DEFAULT_POLICY.enabled),
     provider: provider as BackupPolicy["provider"],
-    schedule_cron: String(obj.schedule_cron ?? DEFAULT_POLICY.schedule_cron).trim() || DEFAULT_POLICY.schedule_cron,
+    schedule_cron:
+      String(obj.schedule_cron ?? DEFAULT_POLICY.schedule_cron).trim() ||
+      DEFAULT_POLICY.schedule_cron,
     retention_preset: retention as BackupPolicy["retention_preset"],
     include_database: Boolean(obj.include_database ?? DEFAULT_POLICY.include_database),
     include_audio_files: Boolean(obj.include_audio_files ?? DEFAULT_POLICY.include_audio_files),
     include_album_covers: Boolean(obj.include_album_covers ?? DEFAULT_POLICY.include_album_covers),
     include_discogs_exports: Boolean(
-      obj.include_discogs_exports ?? DEFAULT_POLICY.include_discogs_exports
+      obj.include_discogs_exports ?? DEFAULT_POLICY.include_discogs_exports,
     ),
     include_essentia_files: Boolean(
-      obj.include_essentia_files ?? DEFAULT_POLICY.include_essentia_files
+      obj.include_essentia_files ?? DEFAULT_POLICY.include_essentia_files,
     ),
     include_uploads: Boolean(obj.include_uploads ?? DEFAULT_POLICY.include_uploads),
   };

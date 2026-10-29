@@ -50,20 +50,36 @@ beforeEach(() => {
   mocks.existsSync.mockReturnValue(true);
   mocks.readdirSync.mockReturnValue([]);
   mocks.execFileAsync.mockImplementation((_command: string, args: string[]) => {
-      const stdout = args[0] === "snapshots"
+    const stdout =
+      args[0] === "snapshots"
         ? JSON.stringify([{ id: "snapshot", time: "2026-09-20T12:00:00Z" }])
         : JSON.stringify({ total_size: 1234 });
-      return Promise.resolve({ stdout, stderr: "" });
-    });
+    return Promise.resolve({ stdout, stderr: "" });
+  });
 });
 
 describe("parseSnapshots", () => {
   it("sorts valid Restic snapshots newest first and discards malformed entries", () => {
-    const snapshots = parseSnapshots(JSON.stringify([
-      { id: "older", time: "2026-09-17T00:00:00Z", hostname: "host", paths: ["/app/audio"], tags: ["scheduled"] },
-      { id: "newer", short_id: "newer", time: "2026-09-18T00:00:00Z", hostname: "host", paths: ["/app/dumps"], tags: [] },
-      { id: 42, time: "2026-09-19T00:00:00Z" },
-    ]));
+    const snapshots = parseSnapshots(
+      JSON.stringify([
+        {
+          id: "older",
+          time: "2026-09-17T00:00:00Z",
+          hostname: "host",
+          paths: ["/app/audio"],
+          tags: ["scheduled"],
+        },
+        {
+          id: "newer",
+          short_id: "newer",
+          time: "2026-09-18T00:00:00Z",
+          hostname: "host",
+          paths: ["/app/dumps"],
+          tags: [],
+        },
+        { id: 42, time: "2026-09-19T00:00:00Z" },
+      ]),
+    );
 
     expect(snapshots).toHaveLength(2);
     expect(snapshots.map((snapshot) => snapshot.id)).toEqual(["newer", "older"]);

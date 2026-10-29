@@ -32,7 +32,22 @@ def test_init_sentry_uses_exception_only_configuration(monkeypatch):
     assert options["include_local_variables"] is False
     assert callable(options["before_send"])
     assert "traces_sample_rate" not in options
-    event = {"request": {}, "user": {}, "extra": {}, "breadcrumbs": [], "exception": {"values": [{"value": "secret", "stacktrace": {"frames": [{"filename": "/app/essentia_api.py", "abs_path": "/app/essentia_api.py"}, {}]}}]}}
+    event = {
+        "request": {},
+        "user": {},
+        "extra": {},
+        "breadcrumbs": [],
+        "exception": {
+            "values": [
+                {
+                    "value": "secret",
+                    "stacktrace": {
+                        "frames": [{"filename": "/app/essentia_api.py", "abs_path": "/app/essentia_api.py"}, {}]
+                    },
+                }
+            ]
+        },
+    }
     scrubbed = options["before_send"](event, {})
     assert not {"request", "user", "extra", "breadcrumbs"} & scrubbed.keys()
     assert scrubbed["exception"]["values"][0]["value"] == "Exception details redacted"
@@ -66,7 +81,10 @@ def test_optional_release_and_empty_exception_context(monkeypatch):
     assert sdk.init.call_args.kwargs["release"] is None
     assert sdk.set_tag.call_args_list == [(("service", "essentia-api"),)]
     event = {"exception": {"values": [{"value": "secret", "stacktrace": None}]}}
-    assert sdk.init.call_args.kwargs["before_send"](event, {})["exception"]["values"][0]["value"] == "Exception details redacted"
+    assert (
+        sdk.init.call_args.kwargs["before_send"](event, {})["exception"]["values"][0]["value"]
+        == "Exception details redacted"
+    )
 
 
 def test_http_middleware_reports_unhandled_exception(monkeypatch):

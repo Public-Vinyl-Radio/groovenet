@@ -46,10 +46,21 @@ function proposal(overrides: Partial<GenreProposal> = {}): GenreProposal {
 }
 
 const node = (id: string, name: string, children: GenreTreeNode[] = []): GenreTreeNode => ({
-  id, name, slug: id, parent_id: null, source: "discogs", track_count: 0, album_count: 0, children,
+  id,
+  name,
+  slug: id,
+  parent_id: null,
+  source: "discogs",
+  track_count: 0,
+  album_count: 0,
+  children,
 });
 const tree = [
-  node("latin", "Latin", [node("cumbia", "Cumbia"), node("cumbia-colombiana", "Cumbia Colombiana"), node("salsa", "Salsa")]),
+  node("latin", "Latin", [
+    node("cumbia", "Cumbia"),
+    node("cumbia-colombiana", "Cumbia Colombiana"),
+    node("salsa", "Salsa"),
+  ]),
   node("rock", "Rock", [node("psych", "Psychedelic Rock")]),
 ];
 
@@ -57,29 +68,66 @@ describe("grouping", () => {
   it("groups by what the proposals would do, most tracks first", () => {
     const a = proposal({ value_normalized: "cumbia fusion", track_count: 3 });
     const b = proposal({ value_normalized: "experimental cumbia", track_count: 9 });
-    const c = proposal({ action: "descriptor", target_genre_ids: [], target_genres: [], track_count: 5 });
-    const d = proposal({ action: "drop", target_genre_ids: [], target_genres: [], track_count: 20 });
+    const c = proposal({
+      action: "descriptor",
+      target_genre_ids: [],
+      target_genres: [],
+      track_count: 5,
+    });
+    const d = proposal({
+      action: "drop",
+      target_genre_ids: [],
+      target_genres: [],
+      track_count: 20,
+    });
     const groups = groupProposals([a, b, c, d]);
     expect(groups.map((g) => [g.label, g.trackCount])).toEqual([
       ["drop (no genre)", 20],
       ["Cumbia (Latin)", 12],
       ["descriptor (mood or description, not a genre)", 5],
     ]);
-    expect(groups[1].proposals.map((p) => p.value_normalized)).toEqual(["experimental cumbia", "cumbia fusion"]);
+    expect(groups[1].proposals.map((p) => p.value_normalized)).toEqual([
+      "experimental cumbia",
+      "cumbia fusion",
+    ]);
   });
 
   it("breaks a tie in tracks by label", () => {
-    const drop = proposal({ action: "drop", target_genre_ids: [], target_genres: [], track_count: 4 });
-    const desc = proposal({ action: "descriptor", target_genre_ids: [], target_genres: [], track_count: 4 });
+    const drop = proposal({
+      action: "drop",
+      target_genre_ids: [],
+      target_genres: [],
+      track_count: 4,
+    });
+    const desc = proposal({
+      action: "descriptor",
+      target_genre_ids: [],
+      target_genres: [],
+      track_count: 4,
+    });
     expect(groupProposals([drop, desc]).map((g) => g.key)).toEqual(["descriptor", "drop"]);
   });
 
   it("keys maps by target set and new genres by name and parent", () => {
-    const twoTargets = proposal({ target_genre_ids: ["b", "a"], target_genres: [{ id: "b", name: "B", parent_name: null }, { id: "a", name: "A", parent_name: null }] });
+    const twoTargets = proposal({
+      target_genre_ids: ["b", "a"],
+      target_genres: [
+        { id: "b", name: "B", parent_name: null },
+        { id: "a", name: "A", parent_name: null },
+      ],
+    });
     expect(groupOf(twoTargets)).toEqual({ key: "map:a,b", label: "B, A" });
     expect(groupOf(proposal({ target_genres: [] })).label).toBe("(targets gone)");
-    const fresh = proposal({ action: "new_genre", proposed_genre_name: " Chicha ", proposed_parent_id: "cumbia", proposed_parent_name: "Cumbia" });
-    expect(groupOf(fresh)).toEqual({ key: "new:chicha|cumbia", label: "new genre Chicha under Cumbia" });
+    const fresh = proposal({
+      action: "new_genre",
+      proposed_genre_name: " Chicha ",
+      proposed_parent_id: "cumbia",
+      proposed_parent_name: "Cumbia",
+    });
+    expect(groupOf(fresh)).toEqual({
+      key: "new:chicha|cumbia",
+      label: "new genre Chicha under Cumbia",
+    });
     expect(groupOf(proposal({ action: "new_genre" })).label).toBe("new genre ? under ?");
     expect(groupOf(proposal({ action: "new_genre" })).key).toBe("new:|");
   });
@@ -87,7 +135,10 @@ describe("grouping", () => {
   it("splits a group into one per value", () => {
     const [group] = groupProposals([proposal({ track_count: 2 }), proposal({ track_count: 1 })]);
     const parts = splitGroup(group);
-    expect(parts.map((g) => [g.proposals.length, g.trackCount, g.label])).toEqual([[1, 2, "Cumbia (Latin)"], [1, 1, "Cumbia (Latin)"]]);
+    expect(parts.map((g) => [g.proposals.length, g.trackCount, g.label])).toEqual([
+      [1, 2, "Cumbia (Latin)"],
+      [1, 1, "Cumbia (Latin)"],
+    ]);
   });
 });
 
@@ -100,7 +151,10 @@ describe("searchTaxonomy", () => {
   });
 
   it("ranks exact, prefix, word prefix, substring, then letters in order", () => {
-    expect(searchTaxonomy(entries, "cumbia").map((e) => e.name)).toEqual(["Cumbia", "Cumbia Colombiana"]);
+    expect(searchTaxonomy(entries, "cumbia").map((e) => e.name)).toEqual([
+      "Cumbia",
+      "Cumbia Colombiana",
+    ]);
     expect(searchTaxonomy(entries, "colomb").map((e) => e.name)).toEqual(["Cumbia Colombiana"]);
     expect(searchTaxonomy(entries, "elic").map((e) => e.name)).toEqual(["Psychedelic Rock"]);
     expect(searchTaxonomy(entries, "psy rk").map((e) => e.name)).toEqual(["Psychedelic Rock"]);
@@ -108,7 +162,10 @@ describe("searchTaxonomy", () => {
   });
 
   it("breaks ties by length, then alphabetically", () => {
-    const same = [{ id: "2", name: "Dub B", parent_name: null }, { id: "1", name: "Dub A", parent_name: null }];
+    const same = [
+      { id: "2", name: "Dub B", parent_name: null },
+      { id: "1", name: "Dub A", parent_name: null },
+    ];
     expect(searchTaxonomy(same, "dub").map((e) => e.id)).toEqual(["1", "2"]);
   });
 
@@ -124,7 +181,10 @@ describe("decisionsFor", () => {
   const group = { key: "k", label: "l", proposals: [map, desc], trackCount: 2 };
 
   it("accepts as proposed", () => {
-    expect(decisionsFor(group, { kind: "accept" })).toEqual([{ id: "m", status: "accepted" }, { id: "d", status: "accepted" }]);
+    expect(decisionsFor(group, { kind: "accept" })).toEqual([
+      { id: "m", status: "accepted" },
+      { id: "d", status: "accepted" },
+    ]);
   });
 
   it("remaps, accepting values already mapped there", () => {
@@ -136,16 +196,27 @@ describe("decisionsFor", () => {
 
   it("proposes a new genre, or marks descriptor or drop", () => {
     expect(decisionsFor(group, { kind: "new", name: "Chicha", parentId: "cumbia" })[0]).toEqual({
-      id: "m", action: "new_genre", proposed_genre_name: "Chicha", proposed_parent_id: "cumbia",
+      id: "m",
+      action: "new_genre",
+      proposed_genre_name: "Chicha",
+      proposed_parent_id: "cumbia",
     });
-    expect(decisionsFor(group, { kind: "descriptor" })).toEqual([{ id: "m", action: "descriptor" }, { id: "d", status: "accepted" }]);
-    expect(decisionsFor(group, { kind: "drop" })).toEqual([{ id: "m", action: "drop" }, { id: "d", action: "drop" }]);
+    expect(decisionsFor(group, { kind: "descriptor" })).toEqual([
+      { id: "m", action: "descriptor" },
+      { id: "d", status: "accepted" },
+    ]);
+    expect(decisionsFor(group, { kind: "drop" })).toEqual([
+      { id: "m", action: "drop" },
+      { id: "d", action: "drop" },
+    ]);
   });
 });
 
 describe("formatting", () => {
   it("shows a group with its values, capped", () => {
-    const proposals = Array.from({ length: 8 }, (_, i) => proposal({ value_normalized: `v${i}`, track_count: 8 - i, confidence: i ? 0.5 : null }));
+    const proposals = Array.from({ length: 8 }, (_, i) =>
+      proposal({ value_normalized: `v${i}`, track_count: 8 - i, confidence: i ? 0.5 : null }),
+    );
     const [group] = groupProposals(proposals);
     const lines = formatGroup(group, "[3 left]").map(strip);
     expect(lines[0]).toBe("[3 left] Cumbia (Latin) ← 8 values, 36 tracks");
@@ -156,10 +227,18 @@ describe("formatting", () => {
   });
 
   it("shows progress and apply results", () => {
-    expect(strip(formatProgress({ values: 1, tracks: 25 }, { values: 4, tracks: 100 }))).toBe("  1/4 values · 25/100 track tags (25%)");
-    expect(strip(formatProgress({ values: 0, tracks: 0 }, { values: 0, tracks: 0 }))).toContain("(100%)");
+    expect(strip(formatProgress({ values: 1, tracks: 25 }, { values: 4, tracks: 100 }))).toBe(
+      "  1/4 values · 25/100 track tags (25%)",
+    );
+    expect(strip(formatProgress({ values: 0, tracks: 0 }, { values: 0, tracks: 0 }))).toContain(
+      "(100%)",
+    );
     const lines = formatApplySummary({
-      proposals_applied: 2, tracks_linked: 10, descriptors_added: 1, aliases_added: 1, genres_created: 0,
+      proposals_applied: 2,
+      tracks_linked: 10,
+      descriptors_added: 1,
+      aliases_added: 1,
+      genres_created: 0,
       skipped: [{ id: "x", value: "chicha", reason: "slug taken" }],
     }).map(strip);
     expect(lines).toEqual([
@@ -171,11 +250,16 @@ describe("formatting", () => {
 
 describe("listAll", () => {
   it("pages until the total is reached, or a page is empty", async () => {
-    const listGenreProposals = vi.fn()
+    const listGenreProposals = vi
+      .fn()
       .mockResolvedValueOnce({ proposals: [proposal()], total: 2 })
       .mockResolvedValueOnce({ proposals: [proposal()], total: 2 });
     expect(await listAll({ listGenreProposals }, { status: "pending" })).toHaveLength(2);
-    expect(listGenreProposals).toHaveBeenLastCalledWith({ status: "pending", limit: 500, offset: 1 });
+    expect(listGenreProposals).toHaveBeenLastCalledWith({
+      status: "pending",
+      limit: 500,
+      offset: 1,
+    });
 
     const shrinking = vi.fn().mockResolvedValueOnce({ proposals: [], total: 5 });
     expect(await listAll({ listGenreProposals: shrinking }, {})).toEqual([]);
@@ -188,14 +272,24 @@ function fakeClient(proposals: GenreProposal[]) {
   const restored: string[][] = [];
   const client = {
     listGenreProposals: vi.fn(async (q: { method?: string; status?: string }) => {
-      const rows = proposals.filter((p) => (!q.method || p.method === q.method) && p.status === "pending");
+      const rows = proposals.filter(
+        (p) => (!q.method || p.method === q.method) && p.status === "pending",
+      );
       return { proposals: rows, total: rows.length };
     }),
     decideGenreProposals: vi.fn(async (decisions: GenreProposalDecision[]) => {
       decided.push(decisions);
       const previous = decisions.map((d) => {
         const p = proposals.find((x) => x.id === d.id)!;
-        const snapshot = { id: p.id, status: p.status, action: p.action, target_genre_ids: p.target_genre_ids, proposed_genre_name: p.proposed_genre_name, proposed_parent_id: p.proposed_parent_id, method: p.method };
+        const snapshot = {
+          id: p.id,
+          status: p.status,
+          action: p.action,
+          target_genre_ids: p.target_genre_ids,
+          proposed_genre_name: p.proposed_genre_name,
+          proposed_parent_id: p.proposed_parent_id,
+          method: p.method,
+        };
         p.status = "accepted";
         return snapshot;
       });
@@ -206,12 +300,31 @@ function fakeClient(proposals: GenreProposal[]) {
       return { restored: snapshots.length };
     }),
     getGenreProposalTracks: vi.fn(async () => [
-      { track_id: "t", friend_id: 6, title: "La Danza", artist: "Los Mirlos", album: null, styles: ["Cumbia", "Psychedelic Rock"] },
-      { track_id: "u", friend_id: 6, title: "No Styles", artist: "Someone", album: null, styles: [] },
+      {
+        track_id: "t",
+        friend_id: 6,
+        title: "La Danza",
+        artist: "Los Mirlos",
+        album: null,
+        styles: ["Cumbia", "Psychedelic Rock"],
+      },
+      {
+        track_id: "u",
+        friend_id: 6,
+        title: "No Styles",
+        artist: "Someone",
+        album: null,
+        styles: [],
+      },
     ]),
     getGenres: vi.fn(async () => ({ genres: tree })),
     applyGenreProposals: vi.fn(async () => ({
-      proposals_applied: 1, tracks_linked: 3, descriptors_added: 0, aliases_added: 0, genres_created: 0, skipped: [],
+      proposals_applied: 1,
+      tracks_linked: 3,
+      descriptors_added: 0,
+      aliases_added: 0,
+      genres_created: 0,
+      skipped: [],
     })),
   };
   return { client: client as unknown as ReviewClient & typeof client, decided, restored };
@@ -235,12 +348,19 @@ describe("runReview", () => {
   it("accepts exact matches up front, then decides groups biggest first and applies", async () => {
     const exact = proposal({ method: "exact", track_count: 50 });
     const big = proposal({ track_count: 10 });
-    const small = proposal({ action: "drop", target_genre_ids: [], target_genres: [], track_count: 2 });
+    const small = proposal({
+      action: "drop",
+      target_genre_ids: [],
+      target_genres: [],
+      track_count: 2,
+    });
     const { client, decided } = fakeClient([exact, big, small]);
     const out = io();
     const keys = scripted(["a", "k", "y"]);
 
-    await expect(runReview(client, { friendId: 6, autoAcceptExact: true }, keys, scripted([]), out)).resolves.toBe(0);
+    await expect(
+      runReview(client, { friendId: 6, autoAcceptExact: true }, keys, scripted([]), out),
+    ).resolves.toBe(0);
 
     expect(decided).toEqual([
       [{ id: exact.id, status: "accepted" }],
@@ -261,7 +381,12 @@ describe("runReview", () => {
     const out = io();
     await runReview(client, { autoAcceptExact: true }, scripted([]), scripted([]), out);
     expect(decided).toEqual([]);
-    expect(out.lines).toEqual(["✓ Accepted 0 exact matches", "No pending proposals to review.", "", "Decided 0 values (0 track tags) this session."]);
+    expect(out.lines).toEqual([
+      "✓ Accepted 0 exact matches",
+      "No pending proposals to review.",
+      "",
+      "Decided 0 values (0 track tags) this session.",
+    ]);
   });
 
   it("splits, skips, marks descriptors, and filters by method", async () => {
@@ -270,8 +395,16 @@ describe("runReview", () => {
     const { client, decided } = fakeClient([a, b, proposal({ method: "exact" })]);
     const out = io();
     // x splits the Cumbia group; d marks the first value; s skips the second; x on a single value is a no-op.
-    await runReview(client, { method: "ai", minTracks: 2 }, scripted(["x", "d", "x", "s", "n"]), scripted([]), out);
-    expect(client.listGenreProposals).toHaveBeenCalledWith(expect.objectContaining({ method: "ai", min_tracks: 2 }));
+    await runReview(
+      client,
+      { method: "ai", minTracks: 2 },
+      scripted(["x", "d", "x", "s", "n"]),
+      scripted([]),
+      out,
+    );
+    expect(client.listGenreProposals).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "ai", min_tracks: 2 }),
+    );
     expect(decided).toEqual([[{ id: a.id, action: "descriptor" }]]);
     expect(out.lines).toContain("  Only one value; nothing to split.");
     expect(out.lines.at(-1)).toBe("Nothing applied. Run `groovenet genres apply` when ready.");
@@ -291,12 +424,34 @@ describe("runReview", () => {
   });
 
   it("creates a new genre, suggesting the proposed name", async () => {
-    const p = proposal({ action: "new_genre", proposed_genre_name: "Chicha", proposed_parent_id: "latin", proposed_parent_name: "Latin", target_genre_ids: [], target_genres: [] });
+    const p = proposal({
+      action: "new_genre",
+      proposed_genre_name: "Chicha",
+      proposed_parent_id: "latin",
+      proposed_parent_name: "Latin",
+      target_genre_ids: [],
+      target_genres: [],
+    });
     const q = proposal({ track_count: 0 });
     const { client, decided } = fakeClient([p, q]);
     // Enter keeps "Chicha"; pick 2 → Cumbia Colombiana. Then n with no name and no suggestion cancels; q quits.
-    await runReview(client, {}, scripted(["n", "2", "n", "q", "n"]), scripted(["", "cumbia", ""]), io());
-    expect(decided).toEqual([[{ id: p.id, action: "new_genre", proposed_genre_name: "Chicha", proposed_parent_id: "cumbia-colombiana" }]]);
+    await runReview(
+      client,
+      {},
+      scripted(["n", "2", "n", "q", "n"]),
+      scripted(["", "cumbia", ""]),
+      io(),
+    );
+    expect(decided).toEqual([
+      [
+        {
+          id: p.id,
+          action: "new_genre",
+          proposed_genre_name: "Chicha",
+          proposed_parent_id: "cumbia-colombiana",
+        },
+      ],
+    ]);
   });
 
   it("asks again when the new genre's parent is cancelled", async () => {
@@ -317,7 +472,10 @@ describe("runReview", () => {
     expect(out.lines).toContain("  Nothing to undo.");
     expect(out.lines).toContain("  ↶ Undid: Cumbia (Latin)");
     expect(restored).toEqual([[a.id, b.id]]);
-    expect(decided.at(-2)).toEqual([{ id: a.id, action: "drop" }, { id: b.id, action: "drop" }]);
+    expect(decided.at(-2)).toEqual([
+      { id: a.id, action: "drop" },
+      { id: b.id, action: "drop" },
+    ]);
     expect(out.lines).toContain("Decided 3 values (10 track tags) this session.");
   });
 
@@ -333,7 +491,12 @@ describe("runReview", () => {
   it("sends groups over 500 values in batches", async () => {
     const many = Array.from({ length: 501 }, () => proposal());
     // A second, smaller group keeps the session going long enough to undo.
-    const last = proposal({ action: "drop", target_genre_ids: [], target_genres: [], track_count: 0 });
+    const last = proposal({
+      action: "drop",
+      target_genre_ids: [],
+      target_genres: [],
+      track_count: 0,
+    });
     const { client, decided, restored } = fakeClient([...many, last]);
     await runReview(client, {}, scripted(["a", "u", "q"]), scripted([]), io());
     expect(decided.map((d) => d.length)).toEqual([500, 1]);
@@ -344,13 +507,21 @@ describe("runReview", () => {
 describe("rawKeyReader", () => {
   function fakeStdin() {
     const stdin = Object.assign(new EventEmitter(), {
-      setRawMode: vi.fn(), resume: vi.fn(), pause: vi.fn(),
+      setRawMode: vi.fn(),
+      resume: vi.fn(),
+      pause: vi.fn(),
     });
     return stdin;
   }
 
   it.each([
-    ["A", "a"], ["7", "7"], ["\r", "enter"], ["\n", "enter"], ["\u001b", "esc"], ["\u001b[A", "esc"], ["\u0003", "q"],
+    ["A", "a"],
+    ["7", "7"],
+    ["\r", "enter"],
+    ["\n", "enter"],
+    ["\u001b", "esc"],
+    ["\u001b[A", "esc"],
+    ["\u0003", "q"],
   ])("reads %j as %s and restores the terminal", async (input, expected) => {
     const stdin = fakeStdin();
     const stdout = { write: vi.fn() };

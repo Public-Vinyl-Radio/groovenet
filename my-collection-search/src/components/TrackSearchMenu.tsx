@@ -17,7 +17,12 @@ type Props = {
  * The Tracks page's header kebab on phones (#751): the two things the
  * toolbar no longer carries. Borderless like the playlist page's.
  */
-export default function TrackSearchMenu({ activeCount, selectMode, onOpenOptions, onToggleSelect }: Props) {
+export default function TrackSearchMenu({
+  activeCount,
+  selectMode,
+  onOpenOptions,
+  onToggleSelect,
+}: Props) {
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }}>
       <Menu.Trigger asChild>
@@ -26,11 +31,20 @@ export default function TrackSearchMenu({ activeCount, selectMode, onOpenOptions
           boxSize="44px"
           minW="44px"
           position="relative"
-          aria-label={activeCount > 0 ? `Tracks actions, ${activeCount} filters on` : "Tracks actions"}
+          aria-label={
+            activeCount > 0 ? `Tracks actions, ${activeCount} filters on` : "Tracks actions"
+          }
         >
           <FiMoreVertical />
           {activeCount > 0 && (
-            <Badge size="xs" colorPalette="accent" variant="solid" position="absolute" top="2px" right="2px">
+            <Badge
+              size="xs"
+              colorPalette="accent"
+              variant="solid"
+              position="absolute"
+              top="2px"
+              right="2px"
+            >
               {activeCount}
             </Badge>
           )}

@@ -19,10 +19,19 @@ const createQueryWrapper = () => {
 
 describe("useAlbumSpins", () => {
   it("loads one page of the album's spins", async () => {
-    api.listSpins.mockResolvedValue({ items: [{ session: { id: 1 } }], limit: ALBUM_SPINS_PAGE, offset: 0 });
+    api.listSpins.mockResolvedValue({
+      items: [{ session: { id: 1 } }],
+      limit: ALBUM_SPINS_PAGE,
+      offset: 0,
+    });
     const { result } = renderHook(() => useAlbumSpins("rel", 7), { wrapper: createQueryWrapper() });
     await waitFor(() => expect(result.current.spins).toHaveLength(1));
-    expect(api.listSpins).toHaveBeenCalledWith({ friend_id: 7, release_id: "rel", limit: ALBUM_SPINS_PAGE, offset: 0 });
+    expect(api.listSpins).toHaveBeenCalledWith({
+      friend_id: 7,
+      release_id: "rel",
+      limit: ALBUM_SPINS_PAGE,
+      offset: 0,
+    });
   });
 
   it("waits for a library", () => {

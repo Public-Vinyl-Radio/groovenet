@@ -32,21 +32,65 @@ export interface KeySpec {
   shift: boolean;
 }
 
-const NAMED_KEYS = ["enter", "esc", "tab", "space", "backspace", "delete", "up", "down", "left", "right", "pageup", "pagedown", "home", "end"] as const;
+const NAMED_KEYS = [
+  "enter",
+  "esc",
+  "tab",
+  "space",
+  "backspace",
+  "delete",
+  "up",
+  "down",
+  "left",
+  "right",
+  "pageup",
+  "pagedown",
+  "home",
+  "end",
+] as const;
 type NamedKey = (typeof NAMED_KEYS)[number];
 
-const ALIASES: Record<string, NamedKey> = { return: "enter", escape: "esc", del: "delete", pgup: "pageup", pgdn: "pagedown", pgdown: "pagedown" };
+const ALIASES: Record<string, NamedKey> = {
+  return: "enter",
+  escape: "esc",
+  del: "delete",
+  pgup: "pageup",
+  pgdn: "pagedown",
+  pgdown: "pagedown",
+};
 
 /** Ink reports these as booleans on `key`; `space` arrives as the input " ". */
 const INK_FLAG: Record<Exclude<NamedKey, "space">, keyof InkKeyEvent> = {
-  enter: "return", esc: "escape", tab: "tab", backspace: "backspace", delete: "delete",
-  up: "upArrow", down: "downArrow", left: "leftArrow", right: "rightArrow",
-  pageup: "pageUp", pagedown: "pageDown", home: "home", end: "end",
+  enter: "return",
+  esc: "escape",
+  tab: "tab",
+  backspace: "backspace",
+  delete: "delete",
+  up: "upArrow",
+  down: "downArrow",
+  left: "leftArrow",
+  right: "rightArrow",
+  pageup: "pageUp",
+  pagedown: "pageDown",
+  home: "home",
+  end: "end",
 };
 
 const DISPLAY_NAMES: Record<NamedKey, string> = {
-  enter: "Enter", esc: "Esc", tab: "Tab", space: "Space", backspace: "Backspace", delete: "Del",
-  up: "↑", down: "↓", left: "←", right: "→", pageup: "PgUp", pagedown: "PgDn", home: "Home", end: "End",
+  enter: "Enter",
+  esc: "Esc",
+  tab: "Tab",
+  space: "Space",
+  backspace: "Backspace",
+  delete: "Del",
+  up: "↑",
+  down: "↓",
+  left: "←",
+  right: "→",
+  pageup: "PgUp",
+  pagedown: "PgDn",
+  home: "Home",
+  end: "End",
 };
 
 export type ParseResult = { ok: true; spec: KeySpec } | { ok: false; error: string };
@@ -71,30 +115,47 @@ export function parseKey(text: string): ParseResult {
     const lower = rest.toLowerCase();
     if (lower.startsWith("ctrl+") && rest.length > 5) {
       if (ctrl) return { ok: false, error: `"${text}" repeats ctrl+` };
-      ctrl = true; rest = rest.slice(5);
+      ctrl = true;
+      rest = rest.slice(5);
     } else if (lower.startsWith("shift+") && rest.length > 6) {
       if (shift) return { ok: false, error: `"${text}" repeats shift+` };
-      shift = true; rest = rest.slice(6);
+      shift = true;
+      rest = rest.slice(6);
     } else break;
   }
   const lower = rest.toLowerCase();
   const modifier = /^(alt|meta|cmd|super|opt|option|control)\+/.exec(lower);
-  if (modifier) return { ok: false, error: `"${text}": only ctrl+ and shift+ modifiers are supported, not ${modifier[1]}+` };
+  if (modifier)
+    return {
+      ok: false,
+      error: `"${text}": only ctrl+ and shift+ modifiers are supported, not ${modifier[1]}+`,
+    };
   const named = ALIASES[lower] ?? lower;
   if (isNamed(named)) {
-    if (named === "space" && shift) return { ok: false, error: `"${text}": shift+space is not distinguishable from space` };
+    if (named === "space" && shift)
+      return { ok: false, error: `"${text}": shift+space is not distinguishable from space` };
     return { ok: true, spec: { name: named, ctrl, shift } };
   }
   const chars = Array.from(rest);
-  if (chars.length !== 1) return { ok: false, error: `"${text}" is not a key; use one character or one of ${NAMED_KEYS.join(", ")}` };
+  if (chars.length !== 1)
+    return {
+      ok: false,
+      error: `"${text}" is not a key; use one character or one of ${NAMED_KEYS.join(", ")}`,
+    };
   const char = chars[0]!;
   if (ctrl) {
-    if (!/^[a-z]$/i.test(char)) return { ok: false, error: `"${text}": ctrl+ works with letters and named keys` };
-    if (char.toLowerCase() === "c") return { ok: false, error: `"${text}" is reserved: ctrl+c always exits the player` };
+    if (!/^[a-z]$/i.test(char))
+      return { ok: false, error: `"${text}": ctrl+ works with letters and named keys` };
+    if (char.toLowerCase() === "c")
+      return { ok: false, error: `"${text}" is reserved: ctrl+c always exits the player` };
     return { ok: true, spec: { name: char.toLowerCase(), ctrl: true, shift } };
   }
   if (shift) {
-    if (!/^[a-z]$/i.test(char)) return { ok: false, error: `"${text}": shift+ works with letters and named keys; write the character itself` };
+    if (!/^[a-z]$/i.test(char))
+      return {
+        ok: false,
+        error: `"${text}": shift+ works with letters and named keys; write the character itself`,
+      };
     return { ok: true, spec: { name: char.toUpperCase(), ctrl: false, shift: false } };
   }
   return { ok: true, spec: { name: char, ctrl: false, shift: false } };
@@ -117,6 +178,10 @@ export function matchKey(spec: KeySpec, input: string, key: InkKeyEvent): boolea
 
 /** Display form for hints and help: `→`, `S-Tab`, `^N`, `Space`, `Enter`. */
 export function formatKey(spec: KeySpec): string {
-  const base = isNamed(spec.name) ? DISPLAY_NAMES[spec.name] : spec.ctrl ? spec.name.toUpperCase() : spec.name;
+  const base = isNamed(spec.name)
+    ? DISPLAY_NAMES[spec.name]
+    : spec.ctrl
+      ? spec.name.toUpperCase()
+      : spec.name;
   return `${spec.ctrl ? "^" : ""}${spec.shift ? "S-" : ""}${base}`;
 }

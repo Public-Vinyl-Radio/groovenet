@@ -63,9 +63,7 @@ export default function AudioVibeEmbeddingSection({ query }: Props) {
             <Text>Descriptors: {query.data.vibeData.vibeDescriptors.join(", ")}</Text>
             <Text>Dominant Mood: {query.data.vibeData.dominantMood}</Text>
             <Text>Danceability: {query.data.vibeData.danceability}</Text>
-            {query.data.vibeData.acoustic && (
-              <Text>Acoustic: {query.data.vibeData.acoustic}</Text>
-            )}
+            {query.data.vibeData.acoustic && <Text>Acoustic: {query.data.vibeData.acoustic}</Text>}
             {query.data.vibeData.vocalPresence && (
               <Text>Vocals: {query.data.vibeData.vocalPresence}</Text>
             )}
@@ -76,8 +74,7 @@ export default function AudioVibeEmbeddingSection({ query }: Props) {
         </VStack>
       ) : (
         <Text color="fg.muted">
-          No audio vibe embedding preview available. This track may not have audio analysis
-          data.
+          No audio vibe embedding preview available. This track may not have audio analysis data.
         </Text>
       )}
     </Box>

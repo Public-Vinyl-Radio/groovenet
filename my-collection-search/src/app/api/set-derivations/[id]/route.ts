@@ -22,7 +22,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (!parsed.success) {
       return NextResponse.json(
         { error: "invalid_query", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
     return NextResponse.json(await setDerivationService.view(id, parsed.data));
@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     console.error("Error reading set derivation:", err);
     return NextResponse.json(
       { error: err.message || "Failed to read derivation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

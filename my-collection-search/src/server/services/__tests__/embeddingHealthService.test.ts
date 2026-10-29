@@ -15,15 +15,12 @@ vi.mock("@/lib/embeddings/config", async () => {
   const { createOpenAiEmbeddingProvider } = await import("@/lib/embeddings/openaiProvider");
   return {
     getTargetProvider: vi.fn(async () =>
-      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536)
+      createOpenAiEmbeddingProvider("text-embedding-3-small", 1536),
     ),
   };
 });
 
-import {
-  checkEmbeddingProvider,
-  resetEmbeddingHealthCache,
-} from "../embeddingHealthService";
+import { checkEmbeddingProvider, resetEmbeddingHealthCache } from "../embeddingHealthService";
 
 const ORIGINAL_KEY = process.env.OPENAI_API_KEY;
 
@@ -51,10 +48,10 @@ describe("checkEmbeddingProvider", () => {
 
   it("surfaces the provider's own message, e.g. invalid_organization", async () => {
     mockCreate.mockRejectedValueOnce(
-      new Error("You do not have access to the organization tied to the API key.")
+      new Error("You do not have access to the organization tied to the API key."),
     );
     await expect(checkEmbeddingProvider()).rejects.toThrow(
-      /do not have access to the organization/
+      /do not have access to the organization/,
     );
   });
 

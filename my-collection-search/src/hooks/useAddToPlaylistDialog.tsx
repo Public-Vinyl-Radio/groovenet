@@ -14,9 +14,7 @@ import { analytics } from "@/lib/analytics/client";
  * Hook for managing add-to-playlist dialog workflow. `onAdded` runs once the
  * track is actually in a playlist, not when the dialog opens.
  */
-export function useAddToPlaylistDialog({
-  onAdded,
-}: { onAdded?: (track: Track) => void } = {}) {
+export function useAddToPlaylistDialog({ onAdded }: { onAdded?: (track: Track) => void } = {}) {
   const queryClient = useQueryClient();
   const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = React.useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = React.useState(false);
@@ -39,7 +37,7 @@ export function useAddToPlaylistDialog({
       const existingTracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
       const isIn = (track: Track) =>
         existingTracks.some((t) =>
-          typeof t === 'string' ? t === track.track_id : t.track_id === track.track_id
+          typeof t === "string" ? t === track.track_id : t.track_id === track.track_id,
         );
       // Tracks already in the playlist are skipped; adding only those is an error.
       const fresh = tracks.filter((track) => !isIn(track));
@@ -48,7 +46,7 @@ export function useAddToPlaylistDialog({
         throw new Error(
           tracks.length === 1
             ? `Track is already in playlist "${playlist.name}"`
-            : `These tracks are already in playlist "${playlist.name}"`
+            : `These tracks are already in playlist "${playlist.name}"`,
         );
       }
 
@@ -98,7 +96,7 @@ export function useAddToPlaylistDialog({
     mutationFn: async ({ name, tracks }: { name: string; tracks: Track[] }) => {
       await importPlaylist(
         name,
-        tracks.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id }))
+        tracks.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id })),
       );
       return { name, tracks };
     },
@@ -132,49 +130,70 @@ export function useAddToPlaylistDialog({
   });
 
   // Open dialog for tracks; `label` names them in the title when there are several
-  const openForTracks = React.useCallback((tracks: Track[], label?: string) => {
-    if (tracks.length === 0) return;
-    if (addToPlaylistMutation.isPending || createPlaylistMutation.isPending) return;
-    setCurrentTracks(tracks);
-    setCurrentLabel(label ?? (tracks.length === 1 ? tracks[0].title : `${tracks.length} tracks`));
-    setIsNameDialogOpen(false);
-    setPlaylistName("");
-    setIsPlaylistDialogOpen(true);
-  }, [addToPlaylistMutation, createPlaylistMutation]);
+  const openForTracks = React.useCallback(
+    (tracks: Track[], label?: string) => {
+      if (tracks.length === 0) return;
+      if (addToPlaylistMutation.isPending || createPlaylistMutation.isPending) return;
+      setCurrentTracks(tracks);
+      setCurrentLabel(label ?? (tracks.length === 1 ? tracks[0].title : `${tracks.length} tracks`));
+      setIsNameDialogOpen(false);
+      setPlaylistName("");
+      setIsPlaylistDialogOpen(true);
+    },
+    [addToPlaylistMutation, createPlaylistMutation],
+  );
 
   const openForTrack = React.useCallback((track: Track) => openForTracks([track]), [openForTracks]);
 
   // Handle playlist selection
-  const handlePlaylistSelect = React.useCallback((playlist: Playlist) => {
-    if (!addToPlaylistMutation.isPending && !createPlaylistMutation.isPending && currentTracks.length > 0) {
-      addToPlaylistMutation.mutate({ playlist, tracks: currentTracks });
-    }
-    setIsPlaylistDialogOpen(false);
-  }, [currentTracks, addToPlaylistMutation, createPlaylistMutation]);
+  const handlePlaylistSelect = React.useCallback(
+    (playlist: Playlist) => {
+      if (
+        !addToPlaylistMutation.isPending &&
+        !createPlaylistMutation.isPending &&
+        currentTracks.length > 0
+      ) {
+        addToPlaylistMutation.mutate({ playlist, tracks: currentTracks });
+      }
+      setIsPlaylistDialogOpen(false);
+    },
+    [currentTracks, addToPlaylistMutation, createPlaylistMutation],
+  );
 
   // Handle create new playlist
-  const handleCreateNew = React.useCallback((name?: string) => {
-    if (addToPlaylistMutation.isPending || createPlaylistMutation.isPending) return;
-    setIsPlaylistDialogOpen(false);
-    if (name?.trim()) {
-      // If name provided, create immediately
-      if (currentTracks.length > 0) {
-        createPlaylistMutation.mutate({ name: name.trim(), tracks: currentTracks });
+  const handleCreateNew = React.useCallback(
+    (name?: string) => {
+      if (addToPlaylistMutation.isPending || createPlaylistMutation.isPending) return;
+      setIsPlaylistDialogOpen(false);
+      if (name?.trim()) {
+        // If name provided, create immediately
+        if (currentTracks.length > 0) {
+          createPlaylistMutation.mutate({ name: name.trim(), tracks: currentTracks });
+        }
+      } else {
+        // Otherwise show name dialog
+        setIsNameDialogOpen(true);
       }
-    } else {
-      // Otherwise show name dialog
-      setIsNameDialogOpen(true);
-    }
-  }, [currentTracks, createPlaylistMutation, addToPlaylistMutation]);
+    },
+    [currentTracks, createPlaylistMutation, addToPlaylistMutation],
+  );
 
   // Handle new playlist name confirmation
-  const handleNameConfirm = React.useCallback((name: string) => {
-    if (!addToPlaylistMutation.isPending && !createPlaylistMutation.isPending && currentTracks.length > 0 && name.trim()) {
-      createPlaylistMutation.mutate({ name: name.trim(), tracks: currentTracks });
-    }
-    setIsNameDialogOpen(false);
-    setPlaylistName("");
-  }, [currentTracks, createPlaylistMutation, addToPlaylistMutation]);
+  const handleNameConfirm = React.useCallback(
+    (name: string) => {
+      if (
+        !addToPlaylistMutation.isPending &&
+        !createPlaylistMutation.isPending &&
+        currentTracks.length > 0 &&
+        name.trim()
+      ) {
+        createPlaylistMutation.mutate({ name: name.trim(), tracks: currentTracks });
+      }
+      setIsNameDialogOpen(false);
+      setPlaylistName("");
+    },
+    [currentTracks, createPlaylistMutation, addToPlaylistMutation],
+  );
 
   // Handle dialog close
   const handleClose = React.useCallback(() => {

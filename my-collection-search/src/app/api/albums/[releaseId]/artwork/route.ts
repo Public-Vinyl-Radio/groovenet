@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  albumArtworkApplyBodySchema,
-  albumArtworkStateSchema,
-} from "@/api-contract/schemas";
+import { albumArtworkApplyBodySchema, albumArtworkStateSchema } from "@/api-contract/schemas";
 import { albumArtworkService } from "@/server/services/albumArtworkService";
 import { artworkErrorResponse, parseArtworkFriendId } from "../../artworkRouteUtils";
 
@@ -30,10 +27,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (friendId instanceof NextResponse) return friendId;
   const body = albumArtworkApplyBodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
-    return NextResponse.json(
-      { error: "source must be apple_music or discogs" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "source must be apple_music or discogs" }, { status: 400 });
   }
   try {
     const { releaseId } = await params;

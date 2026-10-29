@@ -6,7 +6,12 @@ import type { Playlist } from "@/types/track";
 import { formatDuration, playlistCoverUrls, playlistSummary, setLinks } from "./PlaylistListItem";
 import PlaylistListItem from "./PlaylistListItem";
 
-const base = { id: 1, name: "N", tracks: [{}, {}, {}], created_at: "2026-01-01T00:00:00Z" } as unknown as Playlist;
+const base = {
+  id: 1,
+  name: "N",
+  tracks: [{}, {}, {}],
+  created_at: "2026-01-01T00:00:00Z",
+} as unknown as Playlist;
 
 describe("playlistSummary", () => {
   it("is count, duration and created date", () => {
@@ -49,9 +54,17 @@ describe("PlaylistListItem", () => {
     } as unknown as Playlist;
     const { screen } = await import("@testing-library/react");
     const rendered = renderWithProviders(
-      <PlaylistListItem playlist={playlist} onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+      <PlaylistListItem
+        playlist={playlist}
+        onClick={vi.fn()}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />,
     );
-    await rendered.user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0],
+    );
     expect(await screen.findByText(/PLAYED/)).toBeTruthy();
     expect(screen.getAllByText("ana, bo").length).toBeGreaterThan(0);
   });
@@ -65,7 +78,7 @@ describe("PlaylistListItem", () => {
         onPlay={vi.fn()}
         onDelete={vi.fn()}
         onEnqueue={vi.fn()}
-      />
+      />,
     );
     const meta = screen.getByTestId("playlist-meta");
     expect(getComputedStyle(meta).flexWrap).toBe("wrap");
@@ -95,7 +108,7 @@ describe("PlaylistListItem", () => {
         onPlay={vi.fn()}
         onDelete={vi.fn()}
         onEnqueue={vi.fn()}
-      />
+      />,
     );
     expect(screen.getAllByTestId("mosaic-cover")).toHaveLength(2);
     expect(screen.getAllByTestId("mosaic-tint")).toHaveLength(2);
@@ -104,7 +117,13 @@ describe("PlaylistListItem", () => {
   it("falls back to four tinted blocks without cover_urls", async () => {
     const { screen } = await import("@testing-library/react");
     renderWithProviders(
-      <PlaylistListItem playlist={base} onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+      <PlaylistListItem
+        playlist={base}
+        onClick={vi.fn()}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />,
     );
     expect(screen.queryAllByTestId("mosaic-cover")).toHaveLength(0);
     expect(screen.getAllByTestId("mosaic-tint")).toHaveLength(4);
@@ -118,7 +137,13 @@ describe("PlaylistListItem", () => {
       set: { status: "planned", collaborators: [{ username: "ana" }], title: null },
     } as unknown as Playlist;
     renderWithProviders(
-      <PlaylistListItem playlist={playlist} onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+      <PlaylistListItem
+        playlist={playlist}
+        onClick={vi.fn()}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />,
     );
     expect(getComputedStyle(screen.getByText("Long name")).overflow).toBe("hidden");
     expect(getComputedStyle(screen.getByText("w/ ana")).whiteSpace).toBe("nowrap");
@@ -137,7 +162,13 @@ describe("PlaylistListItem", () => {
       },
     } as unknown as Playlist;
     renderWithProviders(
-      <PlaylistListItem playlist={playlist} onClick={onClick} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+      <PlaylistListItem
+        playlist={playlist}
+        onClick={onClick}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />,
     );
     expect(screen.getByText("Room 4")).toBeTruthy();
     expect(screen.getByText(/^Played /)).toBeTruthy();
@@ -152,7 +183,14 @@ describe("PlaylistListItem", () => {
 describe("PlaylistListItem loading", () => {
   it("shows a spinner while the row is loading", async () => {
     const { container } = renderWithProviders(
-      <PlaylistListItem playlist={base} isLoading onClick={vi.fn()} onPlay={vi.fn()} onDelete={vi.fn()} onEnqueue={vi.fn()} />
+      <PlaylistListItem
+        playlist={base}
+        isLoading
+        onClick={vi.fn()}
+        onPlay={vi.fn()}
+        onDelete={vi.fn()}
+        onEnqueue={vi.fn()}
+      />,
     );
     expect(container.querySelector(".chakra-spinner")).toBeTruthy();
   });
@@ -172,7 +210,13 @@ describe("set ticket card", () => {
     ({
       ...base,
       cover_urls: ["/a.jpg"],
-      set: { status: "performed", collaborators: [], venue_name: null, location_city: null, ...set },
+      set: {
+        status: "performed",
+        collaborators: [],
+        venue_name: null,
+        location_city: null,
+        ...set,
+      },
     }) as unknown as Playlist;
 
   it("shows the LIVE SET stamp for a set and not for a plain playlist", async () => {
@@ -181,14 +225,18 @@ describe("set ticket card", () => {
     expect(screen.queryByTestId("live-set-stamp")).toBeNull();
     expect(screen.queryByTestId("set-stub")).toBeNull();
     first.unmount();
-    renderWithProviders(<PlaylistListItem playlist={withSet({ venue_name: "Room 4" })} {...props} />);
+    renderWithProviders(
+      <PlaylistListItem playlist={withSet({ venue_name: "Room 4" })} {...props} />,
+    );
     expect(screen.getByTestId("live-set-stamp").textContent).toBe("LIVE SET");
     expect(screen.queryByText("Played")).toBeNull();
   });
 
   it("uses the flyer as the thumbnail, and the mosaic when there is none", async () => {
     const { screen } = await import("@testing-library/react");
-    const first = renderWithProviders(<PlaylistListItem playlist={withSet({ flyer_url: "/f.jpg" })} {...props} />);
+    const first = renderWithProviders(
+      <PlaylistListItem playlist={withSet({ flyer_url: "/f.jpg" })} {...props} />,
+    );
     expect(screen.getByTestId("set-flyer")).toBeTruthy();
     expect(screen.queryByTestId("playlist-mosaic")).toBeNull();
     first.unmount();
@@ -199,11 +247,15 @@ describe("set ticket card", () => {
 
   it("sizes the flyer 56x72 on a phone and 96x128 from desktop", async () => {
     const { screen } = await import("@testing-library/react");
-    renderWithProviders(<PlaylistListItem playlist={withSet({ flyer_url: "/f.jpg" })} {...props} />);
+    renderWithProviders(
+      <PlaylistListItem playlist={withSet({ flyer_url: "/f.jpg" })} {...props} />,
+    );
     const style = getComputedStyle(screen.getByTestId("set-flyer"));
     expect(style.width).toBe("56px");
     expect(style.height).toBe("72px");
-    const css = Array.from(document.querySelectorAll("style")).map((el) => el.textContent).join("\n");
+    const css = Array.from(document.querySelectorAll("style"))
+      .map((el) => el.textContent)
+      .join("\n");
     expect(css).toMatch(/width:\s*96px/);
     expect(css).toMatch(/height:\s*128px/);
   });
@@ -212,21 +264,35 @@ describe("set ticket card", () => {
     const { screen } = await import("@testing-library/react");
     const all = renderWithProviders(
       <PlaylistListItem
-        playlist={withSet({ recording_url: "https://r.example/a", post_url: "https://p.example/b", youtube_url: "https://y.example/c" })}
+        playlist={withSet({
+          recording_url: "https://r.example/a",
+          post_url: "https://p.example/b",
+          youtube_url: "https://y.example/c",
+        })}
         {...props}
-      />
+      />,
     );
     const recording = screen.getByRole("link", { name: "Recording" });
     expect(recording.getAttribute("href")).toBe("https://r.example/a");
     expect(recording.getAttribute("rel")).toContain("noopener");
     expect(getComputedStyle(recording).minHeight).toBe("44px");
-    expect(screen.getByRole("link", { name: "Post" }).getAttribute("href")).toBe("https://p.example/b");
-    expect(screen.getByRole("link", { name: "YouTube" }).getAttribute("href")).toBe("https://y.example/c");
+    expect(screen.getByRole("link", { name: "Post" }).getAttribute("href")).toBe(
+      "https://p.example/b",
+    );
+    expect(screen.getByRole("link", { name: "YouTube" }).getAttribute("href")).toBe(
+      "https://y.example/c",
+    );
     expect(screen.getAllByTestId("set-notch")).toHaveLength(2);
     all.unmount();
 
-    for (const [field, name] of [["recording_url", "Recording"], ["post_url", "Post"], ["youtube_url", "YouTube"]] as const) {
-      const only = renderWithProviders(<PlaylistListItem playlist={withSet({ [field]: "https://x.example" })} {...props} />);
+    for (const [field, name] of [
+      ["recording_url", "Recording"],
+      ["post_url", "Post"],
+      ["youtube_url", "YouTube"],
+    ] as const) {
+      const only = renderWithProviders(
+        <PlaylistListItem playlist={withSet({ [field]: "https://x.example" })} {...props} />,
+      );
       expect(screen.getAllByRole("link").map((l) => l.textContent)).toEqual([name]);
       only.unmount();
     }
@@ -236,7 +302,11 @@ describe("set ticket card", () => {
     const { screen } = await import("@testing-library/react");
     const onClick = vi.fn();
     const rendered = renderWithProviders(
-      <PlaylistListItem playlist={withSet({ recording_url: "https://r.example/a" })} {...props} onClick={onClick} />
+      <PlaylistListItem
+        playlist={withSet({ recording_url: "https://r.example/a" })}
+        {...props}
+        onClick={onClick}
+      />,
     );
     await rendered.user.click(screen.getByRole("link", { name: "Recording" }));
     expect(onClick).not.toHaveBeenCalled();
@@ -244,13 +314,22 @@ describe("set ticket card", () => {
 
   it("shows venue and city, venue alone, or no venue line", async () => {
     const { screen } = await import("@testing-library/react");
-    const a = renderWithProviders(<PlaylistListItem playlist={withSet({ venue_name: "Room 4", location_city: "Oakland" })} {...props} />);
+    const a = renderWithProviders(
+      <PlaylistListItem
+        playlist={withSet({ venue_name: "Room 4", location_city: "Oakland" })}
+        {...props}
+      />,
+    );
     expect(screen.getByTestId("set-venue").textContent).toBe("Room 4 · Oakland");
     a.unmount();
-    const b = renderWithProviders(<PlaylistListItem playlist={withSet({ venue_name: "Room 4" })} {...props} />);
+    const b = renderWithProviders(
+      <PlaylistListItem playlist={withSet({ venue_name: "Room 4" })} {...props} />,
+    );
     expect(screen.getByTestId("set-venue").textContent).toBe("Room 4");
     b.unmount();
-    renderWithProviders(<PlaylistListItem playlist={withSet({ recording_url: "https://r.example" })} {...props} />);
+    renderWithProviders(
+      <PlaylistListItem playlist={withSet({ recording_url: "https://r.example" })} {...props} />,
+    );
     expect(screen.queryByTestId("set-venue")).toBeNull();
     expect(screen.getByTestId("set-stub")).toBeTruthy();
   });
@@ -263,7 +342,9 @@ describe("set ticket card", () => {
   });
 
   it("setLinks orders recording first and drops empty urls", () => {
-    const set = { recording_url: "r", post_url: "", youtube_url: "y" } as unknown as NonNullable<Playlist["set"]>;
+    const set = { recording_url: "r", post_url: "", youtube_url: "y" } as unknown as NonNullable<
+      Playlist["set"]
+    >;
     expect(setLinks(set).map((l) => l.key)).toEqual(["recording", "youtube"]);
   });
 });

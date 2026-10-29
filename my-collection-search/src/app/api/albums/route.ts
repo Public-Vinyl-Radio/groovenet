@@ -40,8 +40,7 @@ export async function GET(request: NextRequest) {
     // - album_rating:desc (highest rated)
     const sort = searchParams.get("sort") || "created_at:desc";
     const missingLibraryIdentifier = searchParams.get("missing_library_identifier") === "1";
-    const missingLocalCoverArtUrl =
-      searchParams.get("missing_local_cover_art_url") === "1";
+    const missingLocalCoverArtUrl = searchParams.get("missing_local_cover_art_url") === "1";
     const missingAudio = searchParams.get("missing_audio") === "1";
     // Repeatable; each value is a slug, id or name, and includes its subgenres.
     const includeSimilar = searchParams.get("include_similar") === "1";
@@ -69,7 +68,7 @@ export async function GET(request: NextRequest) {
     });
     const addedGenres = genreResolution.added ?? [];
     return NextResponse.json(
-      addedGenres.length > 0 ? { ...response, added_genres: addedGenres } : response
+      addedGenres.length > 0 ? { ...response, added_genres: addedGenres } : response,
     );
   } catch (error) {
     console.error("Error searching albums:", error);
@@ -78,7 +77,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to search albums",
         message: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -98,10 +97,7 @@ export async function PATCH(request: NextRequest) {
     } = body;
 
     if (!release_id || !friend_id) {
-      return NextResponse.json(
-        { error: "release_id and friend_id are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "release_id and friend_id are required" }, { status: 400 });
     }
 
     if (
@@ -119,7 +115,7 @@ export async function PATCH(request: NextRequest) {
       if (library_identifier !== null && library_identifier.length > 50) {
         return NextResponse.json(
           { error: "library_identifier must be 50 characters or less" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -143,7 +139,9 @@ export async function PATCH(request: NextRequest) {
 
     if (overrides.genre_override_ids !== undefined || overrides.style_override_ids !== undefined) {
       triggerGenreSimilarityRefresh();
-      await syncIdentityEmbeddings(await albumRepository.getTracksByReleaseAndFriend(release_id, friend_id));
+      await syncIdentityEmbeddings(
+        await albumRepository.getTracksByReleaseAndFriend(release_id, friend_id),
+      );
     }
 
     let updatedTracksCount = 0;
@@ -151,7 +149,7 @@ export async function PATCH(request: NextRequest) {
       try {
         const tracksResult = await albumRepository.getTracksForAlbumWithLibraryIdentifier(
           release_id,
-          friend_id
+          friend_id,
         );
         updatedTracksCount = tracksResult.length;
       } catch (tracksError) {
@@ -180,7 +178,7 @@ export async function PATCH(request: NextRequest) {
           message:
             "This library identifier is already in use for another album in your collection.",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -189,7 +187,7 @@ export async function PATCH(request: NextRequest) {
         error: "Failed to update album",
         message: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

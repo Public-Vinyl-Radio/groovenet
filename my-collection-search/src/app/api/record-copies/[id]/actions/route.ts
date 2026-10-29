@@ -7,16 +7,13 @@ import {
 import { recordCareService } from "@/server/services/recordCareService";
 import { errorMessage } from "../../recordCareErrorStatus";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const parsedParams = recordCopyParamsSchema.safeParse({ id: (await params).id });
     if (!parsedParams.success) {
       return NextResponse.json(
         { error: "Invalid record copy id", details: parsedParams.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -31,7 +28,7 @@ export async function GET(
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid record action query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -47,13 +44,13 @@ export async function GET(
         items,
         limit: parsedQuery.data.limit,
         offset: parsedQuery.data.offset,
-      })
+      }),
     );
   } catch (error) {
     console.error("Error listing record actions:", error);
     return NextResponse.json(
       { error: errorMessage(error, "Failed to list record actions") },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -18,15 +18,19 @@ import {
   CloseButton,
 } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FiChevronLeft, FiChevronRight, FiSearch, FiSpeaker, FiDisc, FiMoreHorizontal, FiCode, FiDroplet } from "react-icons/fi";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiSearch,
+  FiSpeaker,
+  FiDisc,
+  FiMoreHorizontal,
+  FiCode,
+  FiDroplet,
+} from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload, LuTags } from "react-icons/lu";
-import {
-  IoBookSharp,
-  IoMusicalNotes,
-  IoSettings,
-  IoAlbums,
-} from "react-icons/io5";
+import { IoBookSharp, IoMusicalNotes, IoSettings, IoAlbums } from "react-icons/io5";
 import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCommandPalette } from "@/providers/CommandPaletteProvider";
@@ -97,9 +101,10 @@ export default function AppShell({
   // Feeds --tabbar-h / --chrome-bottom (houseStyle globalCss).
   useRootFlag("data-tabbar-hidden", isFullscreenEditMobile);
   const menuItems = useMemo(
-    () => developerToolsEnabled
-      ? [...baseMenuItems, { href: "/developer", label: "Developer" }]
-      : baseMenuItems,
+    () =>
+      developerToolsEnabled
+        ? [...baseMenuItems, { href: "/developer", label: "Developer" }]
+        : baseMenuItems,
     [developerToolsEnabled],
   );
   const primaryMobileMenuItems = menuItems.slice(0, 4);
@@ -229,7 +234,9 @@ export default function AppShell({
               >
                 <HStack gap={2}>
                   <Icon as={FiSearch} boxSize={4} />
-                  <Text fontSize="xs" color="fg.muted">Search…</Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Search…
+                  </Text>
                 </HStack>
                 <HStack gap={1}>
                   <Box
@@ -266,12 +273,7 @@ export default function AppShell({
               const active = isActiveRoute(current, item.href);
               const ItemIcon = getItemIcon(item.href);
               return (
-                <Tooltip
-                  key={item.href}
-                  content={item.label}
-                  disabled={isExpanded}
-                  openDelay={250}
-                >
+                <Tooltip key={item.href} content={item.label} disabled={isExpanded} openDelay={250}>
                   <Link
                     as={NextLink}
                     href={item.href}
@@ -292,11 +294,7 @@ export default function AppShell({
                       w="100%"
                       justify={isExpanded ? "flex-start" : "center"}
                     >
-                      <Icon
-                        as={ItemIcon}
-                        boxSize={5}
-                        color={active ? "accent.fg" : "fg.muted"}
-                      />
+                      <Icon as={ItemIcon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
                       {isExpanded && (
                         <Text
                           fontFamily="label"
@@ -330,7 +328,13 @@ export default function AppShell({
                 >
                   <Icon as={FiSpeaker} boxSize={5} color="fg.muted" />
                   {isExpanded && (
-                    <Text truncate fontFamily="label" fontSize="xs" letterSpacing="0.06em" textTransform="uppercase">
+                    <Text
+                      truncate
+                      fontFamily="label"
+                      fontSize="xs"
+                      letterSpacing="0.06em"
+                      textTransform="uppercase"
+                    >
                       {playbackLabel}
                     </Text>
                   )}
@@ -349,16 +353,8 @@ export default function AppShell({
           placement="bottom"
         >
           <Drawer.Backdrop bg="overlay.backdrop" />
-          <Drawer.Positioner
-            paddingTop={0}
-            paddingBottom="calc(var(--tabbar-h) + 16px)"
-          >
-            <Drawer.Content
-              mx={4}
-              borderWidth="outline"
-              borderColor="border.ink"
-              boxShadow="md"
-            >
+          <Drawer.Positioner paddingTop={0} paddingBottom="calc(var(--tabbar-h) + 16px)">
+            <Drawer.Content mx={4} borderWidth="outline" borderColor="border.ink" boxShadow="md">
               <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
                 <Box
                   position="absolute"
@@ -410,9 +406,7 @@ export default function AppShell({
                             boxSize={5}
                             color={active ? "accent.fg" : "fg.muted"}
                           />
-                          <Text fontWeight={active ? "bold" : "normal"}>
-                            {item.label}
-                          </Text>
+                          <Text fontWeight={active ? "bold" : "normal"}>{item.label}</Text>
                         </HStack>
                       </Link>
                     );
@@ -461,9 +455,7 @@ export default function AppShell({
       {/* Mobile bottom navigation */}
       <Box
         display={
-          isFullscreenEditMobile
-            ? { base: "none", md: "none" }
-            : { base: "block", md: "none" }
+          isFullscreenEditMobile ? { base: "none", md: "none" } : { base: "block", md: "none" }
         }
         position="fixed"
         left={0}
@@ -511,11 +503,7 @@ export default function AppShell({
                   borderColor={active ? "border.ink" : "transparent"}
                   bg={active ? "bg.subtle" : "transparent"}
                 >
-                  <Icon
-                    as={ItemIcon}
-                    boxSize={5}
-                    color={active ? "accent.fg" : "fg.muted"}
-                  />
+                  <Icon as={ItemIcon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
                   <Text
                     fontFamily="label"
                     fontSize="xs"
@@ -542,7 +530,13 @@ export default function AppShell({
           >
             <VStack gap={1}>
               <Icon as={FiMoreHorizontal} boxSize={5} color="fg.muted" />
-              <Text fontFamily="label" fontSize="xs" fontWeight="medium" color="fg.muted" lineHeight="1">
+              <Text
+                fontFamily="label"
+                fontSize="xs"
+                fontWeight="medium"
+                color="fg.muted"
+                lineHeight="1"
+              >
                 More
               </Text>
             </VStack>

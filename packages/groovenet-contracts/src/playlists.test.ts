@@ -28,7 +28,10 @@ describe("playlist contracts", () => {
       name: "Warmup",
       created_at: "2026-10-01T20:00:00.000Z",
       total_duration_seconds: 600,
-      tracks: [{ track_id: "t1", friend_id: 2, position: 0 }, { track_id: "t2", friend_id: 3, position: 1 }],
+      tracks: [
+        { track_id: "t1", friend_id: 2, position: 0 },
+        { track_id: "t2", friend_id: 3, position: 1 },
+      ],
       set: {
         id: 4,
         title: null,
@@ -52,10 +55,17 @@ describe("playlist contracts", () => {
     expect(result.extension).toBe(true);
     expect(playlistSchema.safeParse({ id: 1, name: "x", tracks: [] }).success).toBe(false);
     expect(
-      playlistSchema.safeParse({ id: 1, name: "x", created_at: "", tracks: [{ track_id: "t1" }] }).success
+      playlistSchema.safeParse({ id: 1, name: "x", created_at: "", tracks: [{ track_id: "t1" }] })
+        .success,
     ).toBe(false);
     expect(
-      playlistSchema.safeParse({ id: 1, name: "x", created_at: "", tracks: [], set: { id: 1, status: "live" } }).success
+      playlistSchema.safeParse({
+        id: 1,
+        name: "x",
+        created_at: "",
+        tracks: [],
+        set: { id: 1, status: "live" },
+      }).success,
     ).toBe(false);
   });
 
@@ -63,13 +73,18 @@ describe("playlist contracts", () => {
     expect(playlistCreateSchema.parse({ name: "New" }).tracks).toEqual([]);
     expect(playlistCreateSchema.safeParse({ tracks: [] }).success).toBe(false);
     expect(
-      playlistUpdateSchema.safeParse({ id: 3, tracks: ["a", { track_id: "b", friend_id: 1, spotify_url: null }] }).success
+      playlistUpdateSchema.safeParse({
+        id: 3,
+        tracks: ["a", { track_id: "b", friend_id: 1, spotify_url: null }],
+      }).success,
     ).toBe(true);
     expect(playlistUpdateSchema.safeParse({ id: "3" }).success).toBe(false);
   });
 
   it("validates detail and delete payloads", () => {
-    expect(playlistDetailSchema.safeParse({ playlist_id: 1, playlist_name: null, tracks: [] }).success).toBe(true);
+    expect(
+      playlistDetailSchema.safeParse({ playlist_id: 1, playlist_name: null, tracks: [] }).success,
+    ).toBe(true);
     expect(playlistDetailSchema.safeParse({ playlist_id: 1 }).success).toBe(false);
     expect(playlistDeleteResponseSchema.safeParse({ success: true }).success).toBe(true);
     expect(playlistDeleteResponseSchema.safeParse({ success: false }).success).toBe(false);
@@ -77,12 +92,17 @@ describe("playlist contracts", () => {
 
   it("rejects spins input that names both a timestamp and a performance", () => {
     expect(playlistSpinsInputSchema.safeParse({}).success).toBe(true);
-    expect(playlistSpinsInputSchema.safeParse({ performed_at: "2026-10-01T20:00:00Z" }).success).toBe(true);
+    expect(
+      playlistSpinsInputSchema.safeParse({ performed_at: "2026-10-01T20:00:00Z" }).success,
+    ).toBe(true);
     expect(playlistSpinsInputSchema.safeParse({ performed_at: "not a date" }).success).toBe(false);
     expect(playlistSpinsInputSchema.safeParse({ performance_id: 0 }).success).toBe(false);
     expect(playlistSpinsInputSchema.safeParse({ derivation_id: "nope" }).success).toBe(false);
     expect(
-      playlistSpinsInputSchema.safeParse({ performed_at: "2026-10-01T20:00:00Z", performance_id: 2 }).success
+      playlistSpinsInputSchema.safeParse({
+        performed_at: "2026-10-01T20:00:00Z",
+        performance_id: 2,
+      }).success,
     ).toBe(false);
   });
 
@@ -94,7 +114,7 @@ describe("playlist contracts", () => {
         performed_at: "2026-10-01T20:00:00Z",
         created: 2,
         skipped: 0,
-      }).success
+      }).success,
     ).toBe(true);
     expect(
       playlistSpinsResultSchema.safeParse({
@@ -103,33 +123,47 @@ describe("playlist contracts", () => {
         performed_at: "x",
         created: -1,
         skipped: 0,
-      }).success
+      }).success,
     ).toBe(false);
   });
 
   it("validates genetic requests, array and keyed results, and invalid-track errors", () => {
     expect(
-      playlistGeneticRequestSchema.safeParse({ playlist: [{ track_id: "a", bpm: "120" }], mode: "greedy" }).success
+      playlistGeneticRequestSchema.safeParse({
+        playlist: [{ track_id: "a", bpm: "120" }],
+        mode: "greedy",
+      }).success,
     ).toBe(true);
     expect(playlistGeneticRequestSchema.safeParse({ playlist: [] }).success).toBe(false);
-    expect(playlistGeneticRequestSchema.safeParse({ playlist: [{ track_id: "a" }], mode: "x" }).success).toBe(false);
-    expect(playlistGeneticResponseSchema.safeParse({ result: [{ track_id: "a" }] }).success).toBe(true);
     expect(
-      playlistGeneticResponseSchema.safeParse({ mode: "genetic", result: { 0: { track_id: "a" } } }).success
+      playlistGeneticRequestSchema.safeParse({ playlist: [{ track_id: "a" }], mode: "x" }).success,
+    ).toBe(false);
+    expect(playlistGeneticResponseSchema.safeParse({ result: [{ track_id: "a" }] }).success).toBe(
+      true,
+    );
+    expect(
+      playlistGeneticResponseSchema.safeParse({ mode: "genetic", result: { 0: { track_id: "a" } } })
+        .success,
     ).toBe(true);
-    expect(playlistGeneticResponseSchema.safeParse({ result: [{ track_id: "" }] }).success).toBe(false);
+    expect(playlistGeneticResponseSchema.safeParse({ result: [{ track_id: "" }] }).success).toBe(
+      false,
+    );
     expect(
       playlistGeneticValidationErrorSchema.safeParse({
         error: "bad",
         invalid: [{ reason: "missing_bpm" }],
         invalid_count: 1,
-      }).success
+      }).success,
     ).toBe(true);
   });
 
   it("exports JSON Schema components with enum values", () => {
     expect(Object.keys(playlistJsonSchemas)).toContain("Playlist");
-    expect(playlistJsonSchemas.PlaylistOptimizerMode.enum).toEqual(["genetic", "greedy", "cohesive_blocks"]);
+    expect(playlistJsonSchemas.PlaylistOptimizerMode.enum).toEqual([
+      "genetic",
+      "greedy",
+      "cohesive_blocks",
+    ]);
     expect(playlistJsonSchemas.PlaylistCreate.required).toEqual(["name"]);
     expect(playlistJsonSchemas.PlaylistSpinsInput.properties).toHaveProperty("derivation_id");
   });

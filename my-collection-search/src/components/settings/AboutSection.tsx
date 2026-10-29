@@ -1,23 +1,10 @@
 "use client";
 
 import React from "react";
-import {
-  Badge,
-  Box,
-  Flex,
-  Heading,
-  Link,
-  SimpleGrid,
-  Spinner,
-  Text,
-} from "@chakra-ui/react";
+import { Badge, Box, Flex, Heading, Link, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
 import Image from "next/image";
 
-import {
-  useStatusInfo,
-  useUpdateInfo,
-  useVersionInfo,
-} from "@/hooks/useSystemInfo";
+import { useStatusInfo, useUpdateInfo, useVersionInfo } from "@/hooks/useSystemInfo";
 import type { ServiceStatus } from "@/services/internalApi/system";
 
 const REPO_URL = "https://github.com/Public-Vinyl-Radio/groovenet";
@@ -89,10 +76,10 @@ export default function AboutSection(): React.JSX.Element {
 
       {/* Description (from CLAUDE.md) */}
       <Text color="fg.muted" mb={6} maxW="60ch">
-        A multi-service vinyl collection manager that combines a Next.js web app
-        with Python microservices for audio analysis, downloads, and AI-powered
-        playlist generation. Built for DJs to manage their Discogs collections
-        with rich metadata from Apple Music, Spotify, YouTube, and audio analysis.
+        A multi-service vinyl collection manager that combines a Next.js web app with Python
+        microservices for audio analysis, downloads, and AI-powered playlist generation. Built for
+        DJs to manage their Discogs collections with rich metadata from Apple Music, Spotify,
+        YouTube, and audio analysis.
       </Text>
 
       {/* Update banner */}
@@ -156,13 +143,9 @@ export default function AboutSection(): React.JSX.Element {
                 )}
               </InfoRow>
               <InfoRow label="Built">
-                {version?.builtAt
-                  ? new Date(version.builtAt).toLocaleString()
-                  : "—"}
+                {version?.builtAt ? new Date(version.builtAt).toLocaleString() : "—"}
               </InfoRow>
-              <InfoRow label="Environment">
-                {version?.nodeEnv ?? "—"}
-              </InfoRow>
+              <InfoRow label="Environment">{version?.nodeEnv ?? "—"}</InfoRow>
               <InfoRow label="Updates">
                 {!update ? (
                   "—"

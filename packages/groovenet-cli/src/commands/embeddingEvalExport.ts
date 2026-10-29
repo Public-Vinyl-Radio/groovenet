@@ -1,7 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import type { Album, GroovenetClient, Playlist, Track } from "@groovenet/client";
 
-export type EvalExportClient = Pick<GroovenetClient, "searchTracks" | "searchAlbums" | "listPlaylists">;
+export type EvalExportClient = Pick<
+  GroovenetClient,
+  "searchTracks" | "searchAlbums" | "listPlaylists"
+>;
 
 /** Only the fields used by the identity-text builder and the notes experiment. */
 export function evalTrack(track: Track) {
@@ -47,19 +50,27 @@ const PAGE_SIZE = 250;
 
 /** Read-only API calls. The file is created only after every page has succeeded. */
 export async function collectEmbeddingEvalSnapshot(client: EvalExportClient, friendId: number) {
-  if (!Number.isSafeInteger(friendId) || friendId < 1) throw new Error("--friend-id must be a positive integer");
+  if (!Number.isSafeInteger(friendId) || friendId < 1)
+    throw new Error("--friend-id must be a positive integer");
 
   const tracks: ReturnType<typeof evalTrack>[] = [];
   let total = Infinity;
   while (tracks.length < total) {
-    const page = await client.searchTracks({ query: "", limit: PAGE_SIZE, offset: tracks.length, filters: { friend_id: friendId } });
+    const page = await client.searchTracks({
+      query: "",
+      limit: PAGE_SIZE,
+      offset: tracks.length,
+      filters: { friend_id: friendId },
+    });
     if (!Array.isArray(page.tracks) || !Number.isSafeInteger(page.estimatedTotalHits)) {
       throw new Error("Unexpected track search response; check API base URL and version");
     }
-    if (!page.tracks.length && page.estimatedTotalHits > tracks.length) throw new Error("Track search returned an incomplete page");
+    if (!page.tracks.length && page.estimatedTotalHits > tracks.length)
+      throw new Error("Track search returned an incomplete page");
     total = page.estimatedTotalHits;
     for (const track of page.tracks) {
-      if (track.friend_id !== friendId) throw new Error("Track search returned another friend's track");
+      if (track.friend_id !== friendId)
+        throw new Error("Track search returned another friend's track");
       tracks.push(evalTrack(track));
     }
   }
@@ -70,19 +81,26 @@ export async function collectEmbeddingEvalSnapshot(client: EvalExportClient, fri
   const albums: ReturnType<typeof evalAlbum>[] = [];
   total = Infinity;
   while (albums.length < total) {
-    const page = await client.searchAlbums({ friend_id: friendId, limit: PAGE_SIZE, offset: albums.length });
+    const page = await client.searchAlbums({
+      friend_id: friendId,
+      limit: PAGE_SIZE,
+      offset: albums.length,
+    });
     if (!Array.isArray(page.hits) || !Number.isSafeInteger(page.estimatedTotalHits)) {
       throw new Error("Unexpected album search response; check API base URL and version");
     }
-    if (!page.hits.length && page.estimatedTotalHits > albums.length) throw new Error("Album search returned an incomplete page");
+    if (!page.hits.length && page.estimatedTotalHits > albums.length)
+      throw new Error("Album search returned an incomplete page");
     total = page.estimatedTotalHits;
     for (const album of page.hits) {
-      if (album.friend_id !== friendId) throw new Error("Album search returned another friend's album");
+      if (album.friend_id !== friendId)
+        throw new Error("Album search returned another friend's album");
       albums.push(evalAlbum(album));
     }
   }
   if (albums.length !== total) throw new Error("Album count changed during export; retry");
-  if (new Set(albums.map((a) => a.release_id)).size !== albums.length) throw new Error("Duplicate albums in export; retry");
+  if (new Set(albums.map((a) => a.release_id)).size !== albums.length)
+    throw new Error("Duplicate albums in export; retry");
 
   const playlistResponse = await client.listPlaylists();
   if (!Array.isArray(playlistResponse)) throw new Error("Unexpected playlist response");
@@ -90,12 +108,27 @@ export async function collectEmbeddingEvalSnapshot(client: EvalExportClient, fri
     .map((p) => evalPlaylist(p, friendId, trackKeys))
     .filter((p) => p.tracks.length > 0);
 
-  return { schema_version: 1, exported_at: new Date().toISOString(), friend_id: friendId, tracks, albums, playlists };
+  return {
+    schema_version: 1,
+    exported_at: new Date().toISOString(),
+    friend_id: friendId,
+    tracks,
+    albums,
+    playlists,
+  };
 }
 
-export async function exportEmbeddingEvalSnapshot(client: EvalExportClient, friendId: number, output: string) {
+export async function exportEmbeddingEvalSnapshot(
+  client: EvalExportClient,
+  friendId: number,
+  output: string,
+) {
   const snapshot = await collectEmbeddingEvalSnapshot(client, friendId);
   // wx refuses overwrite; mode protects notes on multi-user machines. Never print the data to stdout.
   await writeFile(output, JSON.stringify(snapshot, null, 2) + "\n", { flag: "wx", mode: 0o600 });
-  return { tracks: snapshot.tracks.length, albums: snapshot.albums.length, playlists: snapshot.playlists.length };
+  return {
+    tracks: snapshot.tracks.length,
+    albums: snapshot.albums.length,
+    playlists: snapshot.playlists.length,
+  };
 }

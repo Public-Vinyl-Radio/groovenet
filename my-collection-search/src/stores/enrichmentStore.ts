@@ -37,7 +37,6 @@ export const useEnrichmentStore = create<EnrichmentStore>((set) => ({
   setQueue: (queue) => set({ queue, results: {} }),
   setEnrichmentTypes: (types) =>
     set((state) => ({ enrichmentTypes: { ...state.enrichmentTypes, ...types } })),
-  markResult: (key, result) =>
-    set((state) => ({ results: { ...state.results, [key]: result } })),
+  markResult: (key, result) => set((state) => ({ results: { ...state.results, [key]: result } })),
   reset: () => set({ queue: [], results: {} }),
 }));

@@ -1,13 +1,10 @@
 import { getCookieFileInfo } from "@/lib/cookieUtils";
-import type {
-  GamdlConnectionTestDetails,
-  GamdlConnectionTestResult,
-} from "@/types/gamdl";
+import type { GamdlConnectionTestDetails, GamdlConnectionTestResult } from "@/types/gamdl";
 
 function getErrorTypeFromCookieDetails(
   details: GamdlConnectionTestDetails,
   validationErrors?: string[],
-  hasAppleMusic?: boolean
+  hasAppleMusic?: boolean,
 ): string | undefined {
   if (!details.cookie_file_exists) {
     return "cookie_file_not_found";
@@ -18,11 +15,7 @@ function getErrorTypeFromCookieDetails(
       return "no_apple_cookies";
     }
 
-    if (
-      validationErrors?.some((error) =>
-        error.toLowerCase().includes("invalid cookie format")
-      )
-    ) {
+    if (validationErrors?.some((error) => error.toLowerCase().includes("invalid cookie format"))) {
       return "invalid_cookie_format";
     }
   }
@@ -74,7 +67,7 @@ export class GamdlConnectionTestService {
     details.error_type = getErrorTypeFromCookieDetails(
       details,
       cookieInfo.validationErrors,
-      cookieInfo.hasAppleMusic
+      cookieInfo.hasAppleMusic,
     );
 
     const success =

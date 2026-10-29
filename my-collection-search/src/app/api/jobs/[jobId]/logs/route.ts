@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { redisJobService } from "@/server/services/redisJobService";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ jobId: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ jobId: string }> }) {
   try {
     const { jobId } = await params;
     if (!jobId) {

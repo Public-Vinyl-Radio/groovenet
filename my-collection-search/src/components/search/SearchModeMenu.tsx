@@ -44,8 +44,17 @@ export default function SearchModeMenu({ value, onChange }: Props) {
       <Portal>
         <Menu.Positioner>
           <Menu.Content minW="300px">
-            <Menu.RadioItemGroup value={value} onValueChange={(details) => onChange(details.value as TrackSearchMode)}>
-              <Menu.ItemGroupLabel fontFamily="label" fontSize="11px" letterSpacing="0.06em" textTransform="uppercase" color="fg.muted">
+            <Menu.RadioItemGroup
+              value={value}
+              onValueChange={(details) => onChange(details.value as TrackSearchMode)}
+            >
+              <Menu.ItemGroupLabel
+                fontFamily="label"
+                fontSize="11px"
+                letterSpacing="0.06em"
+                textTransform="uppercase"
+                color="fg.muted"
+              >
                 Search mode
               </Menu.ItemGroupLabel>
               {SEARCH_MODE_ITEMS.map((item) => (

@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  spinAggregateBodySchema,
-  spinAggregateResponseSchema,
-} from "@/api-contract/schemas";
+import { spinAggregateBodySchema, spinAggregateResponseSchema } from "@/api-contract/schemas";
 import { playDetectionRepository } from "@/server/repositories/playDetectionRepository";
 import { playAggregationService } from "@/server/services/playAggregationService";
 
@@ -26,7 +23,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid aggregate request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,14 +43,14 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      spinAggregateResponseSchema.parse({ since, created, skipped, sources })
+      spinAggregateResponseSchema.parse({ since, created, skipped, sources }),
     );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error aggregating detections into spins:", err);
     return NextResponse.json(
       { error: err.message || "Failed to aggregate detections" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

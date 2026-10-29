@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Button,
-  CloseButton,
-  Dialog,
-  Portal,
-  VStack,
-} from "@chakra-ui/react";
+import { Button, CloseButton, Dialog, Portal, VStack } from "@chakra-ui/react";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import type {
   AudioVibeEmbeddingPreviewResponse,

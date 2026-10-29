@@ -23,7 +23,7 @@ export class PlayerCore extends EventEmitter {
 
   constructor(
     private readonly backend: PlaybackBackend,
-    private readonly resolver: TrackResolver
+    private readonly resolver: TrackResolver,
   ) {
     super();
     backend.on("position", (position, duration) => {
@@ -33,7 +33,9 @@ export class PlayerCore extends EventEmitter {
     });
     backend.on("ended", () => {
       if (this.current) this.emit("track-ended", this.current);
-      void this.next().catch(() => { /* `play` records the actionable error in the snapshot */ });
+      void this.next().catch(() => {
+        /* `play` records the actionable error in the snapshot */
+      });
     });
     backend.on("error", (error) => {
       this.status = "error";
@@ -47,13 +49,17 @@ export class PlayerCore extends EventEmitter {
   on(event: string | symbol, listener: (...args: any[]) => void): this;
   on<E extends keyof PlayerCoreEvents>(event: E, listener: PlayerCoreEvents[E]): this;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on(event: string | symbol, listener: (...args: any[]) => void): this { return super.on(event, listener); }
+  on(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(event, listener);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   off(event: string | symbol, listener: (...args: any[]) => void): this;
   off<E extends keyof PlayerCoreEvents>(event: E, listener: PlayerCoreEvents[E]): this;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  off(event: string | symbol, listener: (...args: any[]) => void): this { return super.off(event, listener); }
+  off(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.off(event, listener);
+  }
 
   get snapshot(): PlaybackSnapshot {
     return {
@@ -93,14 +99,23 @@ export class PlayerCore extends EventEmitter {
   }
 
   async play(index?: number): Promise<void> {
-    const currentIndex = this.current ? this.queue.items.findIndex((entry) => entry.id === this.current!.id) : this.currentIndex;
+    const currentIndex = this.current
+      ? this.queue.items.findIndex((entry) => entry.id === this.current!.id)
+      : this.currentIndex;
     const targetIndex = index ?? (currentIndex < 0 ? 0 : currentIndex);
     const entry = this.queue.items[targetIndex];
-    if (!entry) throw new PlayerError("INVALID_ARGUMENT", "The playback queue is empty or the index is out of range");
+    if (!entry)
+      throw new PlayerError(
+        "INVALID_ARGUMENT",
+        "The playback queue is empty or the index is out of range",
+      );
     const source = this.resolver.source(entry.track);
     if (!source) {
       this.status = "error";
-      this.error = new PlayerError("NO_AUDIO", `No downloaded audio is available for “${entry.track.title}”. Skipping it.`);
+      this.error = new PlayerError(
+        "NO_AUDIO",
+        `No downloaded audio is available for “${entry.track.title}”. Skipping it.`,
+      );
       this.emit("track-skipped", entry, this.error);
       this.emit("change", this.snapshot);
       await this.playNextPlayable(targetIndex + 1);
@@ -120,7 +135,14 @@ export class PlayerCore extends EventEmitter {
       this.status = "playing";
     } catch (error) {
       this.status = "error";
-      this.error = error instanceof PlayerError ? error : new PlayerError("STREAM_FAILED", `Could not play “${entry.track.title}”: ${String(error)}`, { cause: error });
+      this.error =
+        error instanceof PlayerError
+          ? error
+          : new PlayerError(
+              "STREAM_FAILED",
+              `Could not play “${entry.track.title}”: ${String(error)}`,
+              { cause: error },
+            );
       this.emit("change", this.snapshot);
       throw this.error;
     }
@@ -150,29 +172,46 @@ export class PlayerCore extends EventEmitter {
   }
 
   async next(): Promise<void> {
-    const index = this.current ? this.queue.items.findIndex((entry) => entry.id === this.current!.id) : this.currentIndex;
+    const index = this.current
+      ? this.queue.items.findIndex((entry) => entry.id === this.current!.id)
+      : this.currentIndex;
     await this.playNextPlayable(index + 1);
   }
 
   async previous(): Promise<void> {
-    if (!this.queue.length) throw new PlayerError("INVALID_ARGUMENT", "The playback queue is empty");
-    const index = this.current ? this.queue.items.findIndex((entry) => entry.id === this.current!.id) : this.currentIndex;
+    if (!this.queue.length)
+      throw new PlayerError("INVALID_ARGUMENT", "The playback queue is empty");
+    const index = this.current
+      ? this.queue.items.findIndex((entry) => entry.id === this.current!.id)
+      : this.currentIndex;
     let target = Math.max(0, index - 1);
     while (target >= 0 && !this.resolver.source(this.queue.items[target]!.track)) {
       const skipped = this.queue.items[target]!;
-      this.emit("track-skipped", skipped, new PlayerError("NO_AUDIO", `No downloaded audio is available for “${skipped.track.title}”.`));
+      this.emit(
+        "track-skipped",
+        skipped,
+        new PlayerError(
+          "NO_AUDIO",
+          `No downloaded audio is available for “${skipped.track.title}”.`,
+        ),
+      );
       target--;
     }
     if (target >= 0) await this.play(target);
   }
 
   async seek(seconds: number): Promise<void> {
-    if (!Number.isFinite(seconds) || seconds < 0) throw new PlayerError("INVALID_ARGUMENT", "Seek position must be a non-negative number of seconds");
+    if (!Number.isFinite(seconds) || seconds < 0)
+      throw new PlayerError(
+        "INVALID_ARGUMENT",
+        "Seek position must be a non-negative number of seconds",
+      );
     await this.backend.seek(seconds);
   }
 
   async setVolume(volume: number): Promise<void> {
-    if (!Number.isFinite(volume) || volume < 0 || volume > 100) throw new PlayerError("INVALID_ARGUMENT", "Volume must be between 0 and 100");
+    if (!Number.isFinite(volume) || volume < 0 || volume > 100)
+      throw new PlayerError("INVALID_ARGUMENT", "Volume must be between 0 and 100");
     await this.backend.setVolume(volume);
     this.volume = volume;
     this.emit("change", this.snapshot);
@@ -199,7 +238,14 @@ export class PlayerCore extends EventEmitter {
   private async playNextPlayable(index: number): Promise<void> {
     while (index < this.queue.length && !this.resolver.source(this.queue.items[index]!.track)) {
       const skipped = this.queue.items[index]!;
-      this.emit("track-skipped", skipped, new PlayerError("NO_AUDIO", `No downloaded audio is available for “${skipped.track.title}”.`));
+      this.emit(
+        "track-skipped",
+        skipped,
+        new PlayerError(
+          "NO_AUDIO",
+          `No downloaded audio is available for “${skipped.track.title}”.`,
+        ),
+      );
       index++;
     }
     if (index >= this.queue.length) {

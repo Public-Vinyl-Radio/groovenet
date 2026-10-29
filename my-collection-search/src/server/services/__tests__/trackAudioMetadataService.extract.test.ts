@@ -19,7 +19,9 @@ describe("extractAttachedPic", () => {
     expect(result).toBe(png);
     const [command, args, options] = execFileAsync.mock.calls[0];
     expect(command).toBe("ffmpeg");
-    expect(args).toEqual(expect.arrayContaining(["-i", "/app/audio/a.m4a", "-map", "0:2", "pipe:1"]));
+    expect(args).toEqual(
+      expect.arrayContaining(["-i", "/app/audio/a.m4a", "-map", "0:2", "pipe:1"]),
+    );
     expect(options).toMatchObject({ encoding: "buffer" });
   });
 });

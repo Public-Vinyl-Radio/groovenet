@@ -42,7 +42,7 @@ const isEditableTarget = (el: EventTarget | null): boolean => {
 const isInteractiveTarget = (el: EventTarget | null): boolean => {
   if (!el || !(el as HTMLElement).closest) return false;
   return !!(el as HTMLElement).closest(
-    "input, textarea, [contenteditable='true'], button, a, select, [role='button'], [role='menuitem'], [role='option'], [role='tab']"
+    "input, textarea, [contenteditable='true'], button, a, select, [role='button'], [role='menuitem'], [role='option'], [role='tab']",
   );
 };
 
@@ -173,16 +173,14 @@ export default function CommandPalette() {
 
   const genreMatches = React.useMemo<GenreOption[]>(
     () => matchGenresForPalette(genreLookup, genreOptions, query),
-    [genreLookup, genreOptions, query]
+    [genreLookup, genreOptions, query],
   );
 
   const filteredPlaylists = React.useMemo(() => {
     const playlistItems = Array.isArray(playlists) ? playlists : [];
     const q = query.trim().toLowerCase();
     if (!q) return playlistItems.slice(0, 8);
-    return playlistItems
-      .filter((p) => p.name.toLowerCase().includes(q))
-      .slice(0, 8);
+    return playlistItems.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
   }, [playlists, query]);
 
   const handleCreatePlaylistFromQueue = React.useCallback(async () => {
@@ -241,9 +239,7 @@ export default function CommandPalette() {
 
   const onOpenTrack = (track: TrackHit) => {
     used("open_track");
-    router.push(
-      `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`
-    );
+    router.push(`/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`);
     close();
   };
 
@@ -273,9 +269,7 @@ export default function CommandPalette() {
 
   const onOpenAlbum = (album: AlbumHit) => {
     used("open_album");
-    router.push(
-      `/albums/${encodeURIComponent(album.release_id)}?friend_id=${album.friend_id}`
-    );
+    router.push(`/albums/${encodeURIComponent(album.release_id)}?friend_id=${album.friend_id}`);
     close();
   };
 
@@ -328,9 +322,7 @@ export default function CommandPalette() {
       className={styles.dialog}
       label="Command Palette"
     >
-      <RadixDialog.Title className={styles.srOnly}>
-        Command Palette
-      </RadixDialog.Title>
+      <RadixDialog.Title className={styles.srOnly}>Command Palette</RadixDialog.Title>
       <Command className={styles.command}>
         <Command.Input
           autoFocus
@@ -373,9 +365,7 @@ export default function CommandPalette() {
               }}
               className={styles.item}
             >
-              <span className={styles.itemTitle}>
-                {isPlaying ? "Pause" : "Play"}
-              </span>
+              <span className={styles.itemTitle}>{isPlaying ? "Pause" : "Play"}</span>
               <span className={styles.shortcutGroup}>
                 <kbd className={styles.kbd}>Space</kbd>
               </span>
@@ -429,12 +419,8 @@ export default function CommandPalette() {
               className={styles.item}
             >
               <div className={styles.itemLabel}>
-                <span className={styles.itemTitle}>
-                  Create Playlist From Queue
-                </span>
-                <span className={styles.itemMeta}>
-                  {playlistLength} tracks in queue
-                </span>
+                <span className={styles.itemTitle}>Create Playlist From Queue</span>
+                <span className={styles.itemMeta}>{playlistLength} tracks in queue</span>
               </div>
             </Command.Item>
           </Command.Group>
@@ -451,9 +437,7 @@ export default function CommandPalette() {
               >
                 <div className={styles.itemLabel}>
                   <span className={styles.itemTitle}>{pl.name}</span>
-                  <span className={styles.itemMeta}>
-                    {pl.tracks?.length ?? 0} tracks
-                  </span>
+                  <span className={styles.itemMeta}>{pl.tracks?.length ?? 0} tracks</span>
                 </div>
               </Command.Item>
             ))}
@@ -487,9 +471,7 @@ export default function CommandPalette() {
                         className={styles.item}
                       >
                         <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>
-                            Search Tracks in {genre.name}
-                          </span>
+                          <span className={styles.itemTitle}>Search Tracks in {genre.name}</span>
                           <span className={styles.itemMeta}>
                             {breadcrumb} · {genre.track_count} tracks
                           </span>
@@ -501,9 +483,7 @@ export default function CommandPalette() {
                         className={styles.item}
                       >
                         <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>
-                            Search Albums in {genre.name}
-                          </span>
+                          <span className={styles.itemTitle}>Search Albums in {genre.name}</span>
                           <span className={styles.itemMeta}>
                             {breadcrumb} · {genre.track_count} tracks
                           </span>
@@ -529,9 +509,7 @@ export default function CommandPalette() {
                     >
                       <div className={styles.itemLabel}>
                         <span className={styles.itemTitle}>{album.title}</span>
-                        <span className={styles.itemMeta}>
-                          Open Album · {album.artist}
-                        </span>
+                        <span className={styles.itemMeta}>Open Album · {album.artist}</span>
                       </div>
                     </Command.Item>
                     <Command.Item
@@ -540,12 +518,8 @@ export default function CommandPalette() {
                       className={styles.item}
                     >
                       <div className={styles.itemLabel}>
-                        <span className={styles.itemTitle}>
-                          Play: {album.title}
-                        </span>
-                        <span className={styles.itemMeta}>
-                          Play Now · {album.artist}
-                        </span>
+                        <span className={styles.itemTitle}>Play: {album.title}</span>
+                        <span className={styles.itemMeta}>Play Now · {album.artist}</span>
                       </div>
                     </Command.Item>
                   </React.Fragment>
@@ -565,9 +539,7 @@ export default function CommandPalette() {
                   className={styles.item}
                 >
                   <div className={styles.itemLabel}>
-                    <span className={styles.itemTitle}>
-                      {track.title || track.track_id}
-                    </span>
+                    <span className={styles.itemTitle}>{track.title || track.track_id}</span>
                     <span className={styles.itemMeta}>
                       Open Track · {track.artist} · {track.album}
                     </span>
@@ -579,9 +551,7 @@ export default function CommandPalette() {
                   className={styles.item}
                 >
                   <div className={styles.itemLabel}>
-                    <span className={styles.itemTitle}>
-                      Play: {track.title || track.track_id}
-                    </span>
+                    <span className={styles.itemTitle}>Play: {track.title || track.track_id}</span>
                     <span className={styles.itemMeta}>
                       Play Now · {track.artist} · {track.album}
                     </span>

@@ -3,7 +3,10 @@ import { albumTaxonomySelectSql } from "@/lib/genres/albumTaxonomySql";
 import type { AlbumTaxonomyOverrides } from "@/api-contract/schemas";
 import { dbQuery } from "@/lib/serverDb";
 import type { PoolClient } from "pg";
-import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import {
+  hasVectorsSelectSql,
+  trackGenresSelectSql,
+} from "@/server/repositories/trackGenreRepository";
 
 type Queryable = Pick<PoolClient, "query">;
 
@@ -75,7 +78,7 @@ export class AlbumRepository {
 
     const { rows } = await dbQuery<{ id: number; username: string }>(
       "SELECT id, username FROM friends WHERE id = ANY($1::int[])",
-      [friendIds]
+      [friendIds],
     );
     for (const row of rows) {
       usernameByFriendId.set(Number(row.id), String(row.username));
@@ -84,7 +87,7 @@ export class AlbumRepository {
   }
 
   async getFirstAudioCoverByAlbumRefs(
-    refs: Array<{ release_id: string; friend_id: number }>
+    refs: Array<{ release_id: string; friend_id: number }>,
   ): Promise<Map<string, string>> {
     const coverByAlbumKey = new Map<string, string>();
     if (refs.length === 0) return coverByAlbumKey;
@@ -117,34 +120,25 @@ export class AlbumRepository {
         AND t.audio_file_album_art_url <> ''
       ORDER BY t.release_id, t.friend_id, t.id ASC
       `,
-      params
+      params,
     );
 
     for (const row of rows) {
-      coverByAlbumKey.set(
-        `${row.release_id}:${row.friend_id}`,
-        row.audio_file_album_art_url
-      );
+      coverByAlbumKey.set(`${row.release_id}:${row.friend_id}`, row.audio_file_album_art_url);
     }
 
     return coverByAlbumKey;
   }
 
-  async getAlbumByReleaseAndFriend(
-    releaseId: string,
-    friendId: number
-  ): Promise<Album | null> {
+  async getAlbumByReleaseAndFriend(releaseId: string, friendId: number): Promise<Album | null> {
     const { rows } = await dbQuery<Album>(
       `SELECT a.*, ${albumTaxonomySelectSql("a")} FROM albums a WHERE release_id = $1 AND friend_id = $2`,
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows[0] ?? null;
   }
 
-  async getTracksByReleaseAndFriend(
-    releaseId: string,
-    friendId: number
-  ): Promise<Track[]> {
+  async getTracksByReleaseAndFriend(releaseId: string, friendId: number): Promise<Track[]> {
     const { rows } = await dbQuery<Track>(
       `
       SELECT t.*, ${hasVectorsSelectSql("t")}, ${trackGenresSelectSql("t")}
@@ -153,7 +147,7 @@ export class AlbumRepository {
         AND t.deleted_at IS NULL
       ORDER BY t.position
       `,
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows;
   }
@@ -161,21 +155,20 @@ export class AlbumRepository {
   async getFriendUsernameById(friendId: number): Promise<string | null> {
     const { rows } = await dbQuery<{ username: string }>(
       "SELECT username FROM friends WHERE id = $1",
-      [friendId]
+      [friendId],
     );
     return rows[0]?.username ?? null;
   }
 
   async ensureFriendIdByUsername(username: string): Promise<number> {
-    const existing = await dbQuery<{ id: number }>(
-      "SELECT id FROM friends WHERE username = $1",
-      [username]
-    );
+    const existing = await dbQuery<{ id: number }>("SELECT id FROM friends WHERE username = $1", [
+      username,
+    ]);
     if (existing.rows.length > 0) return existing.rows[0].id;
 
     const inserted = await dbQuery<{ id: number }>(
       "INSERT INTO friends (username) VALUES ($1) RETURNING id",
-      [username]
+      [username],
     );
     return inserted.rows[0].id;
   }
@@ -183,7 +176,7 @@ export class AlbumRepository {
   async upsertAlbumRecord(
     db: Queryable,
     album: AlbumUpsertInput,
-    options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean }
+    options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean },
   ): Promise<Album> {
     const preserveManualFields = options?.preserveManualFields ?? false;
     const manualUpdateSql = preserveManualFields
@@ -261,7 +254,7 @@ export class AlbumRepository {
         album.purchase_price ?? null,
         album.condition ?? null,
         album.library_identifier ?? null,
-      ]
+      ],
     );
 
     return result.rows[0] as Album;
@@ -277,7 +270,7 @@ export class AlbumRepository {
   async repairDiscogsCollectionFields(
     db: Queryable,
     friendId: number,
-    entries: DiscogsCollectionRepair[]
+    entries: DiscogsCollectionRepair[],
   ): Promise<{ albums: string[]; tracks: number }> {
     if (entries.length === 0) return { albums: [], tracks: 0 };
     const releaseIds = entries.map((e) => e.release_id);
@@ -300,12 +293,7 @@ export class AlbumRepository {
         )
       RETURNING a.release_id
       `,
-      [
-        friendId,
-        releaseIds,
-        entries.map((e) => e.date_added),
-        entries.map((e) => e.discogs_url),
-      ]
+      [friendId, releaseIds, entries.map((e) => e.date_added), entries.map((e) => e.discogs_url)],
     );
 
     const tracks = await db.query(
@@ -319,7 +307,7 @@ export class AlbumRepository {
         AND t.release_id = a.release_id
         AND t.date_added IS DISTINCT FROM a.date_added
       `,
-      [friendId, releaseIds]
+      [friendId, releaseIds],
     );
 
     return {
@@ -338,7 +326,7 @@ export class AlbumRepository {
       purchase_price?: number;
       condition?: string;
       library_identifier?: string | null;
-    }
+    },
   ): Promise<Album | null> {
     const {
       release_id,
@@ -380,7 +368,8 @@ export class AlbumRepository {
       paramIndex += 1;
     }
 
-    const taxonomyChanged = params.genre_override_ids !== undefined || params.style_override_ids !== undefined;
+    const taxonomyChanged =
+      params.genre_override_ids !== undefined || params.style_override_ids !== undefined;
     if (updates.length === 0 && !taxonomyChanged) return null;
     updates.push("updated_at = current_timestamp");
 
@@ -398,42 +387,52 @@ export class AlbumRepository {
     return this.getAlbumWithTaxonomy(client, release_id, friend_id);
   }
 
-  async getAlbumWithTaxonomy(client: Queryable, releaseId: string, friendId: number): Promise<Album | null> {
+  async getAlbumWithTaxonomy(
+    client: Queryable,
+    releaseId: string,
+    friendId: number,
+  ): Promise<Album | null> {
     const { rows } = await client.query(
       `SELECT a.*, ${albumTaxonomySelectSql("a")} FROM albums a WHERE release_id = $1 AND friend_id = $2`,
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return (rows[0] as Album | undefined) ?? null;
   }
 
   /** Caller holds the album row lock (UPDATE/upsert) in this transaction. */
   async replaceTaxonomyOverrides(
-    client: Queryable, releaseId: string, friendId: number, overrides: AlbumTaxonomyOverrides
+    client: Queryable,
+    releaseId: string,
+    friendId: number,
+    overrides: AlbumTaxonomyOverrides,
   ): Promise<void> {
-    for (const [kind, field] of [["genres", "genre_override_ids"], ["styles", "style_override_ids"]] as const) {
+    for (const [kind, field] of [
+      ["genres", "genre_override_ids"],
+      ["styles", "style_override_ids"],
+    ] as const) {
       const ids = overrides[field];
       if (ids === undefined) continue;
       await client.query(
         "DELETE FROM album_taxonomy_overrides WHERE release_id = $1 AND friend_id = $2 AND kind = $3",
-        [releaseId, friendId, kind]
+        [releaseId, friendId, kind],
       );
       if (ids === null) continue;
       await client.query(
         "INSERT INTO album_taxonomy_overrides (release_id, friend_id, kind) VALUES ($1, $2, $3)",
-        [releaseId, friendId, kind]
+        [releaseId, friendId, kind],
       );
       if (ids.length === 0) continue;
       await client.query(
         `INSERT INTO album_taxonomy_override_genres (release_id, friend_id, kind, genre_id)
          SELECT $1, $2, $3, id FROM unnest($4::uuid[]) AS id ON CONFLICT DO NOTHING`,
-        [releaseId, friendId, kind, ids]
+        [releaseId, friendId, kind, ids],
       );
     }
   }
 
   async getTracksForAlbumWithLibraryIdentifier(
     releaseId: string,
-    friendId: number
+    friendId: number,
   ): Promise<Track[]> {
     const { rows } = await dbQuery<Track>(
       `
@@ -442,7 +441,7 @@ export class AlbumRepository {
       LEFT JOIN albums a ON t.release_id = a.release_id AND t.friend_id = a.friend_id
       WHERE t.release_id = $1 AND t.friend_id = $2
       `,
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows;
   }
@@ -465,15 +464,12 @@ export class AlbumRepository {
         (SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)
       )
       RETURNING *`,
-      values
+      values,
     );
     return result.rows[0] as Track;
   }
 
-  async upsertTrackByTrackIdUsername(
-    client: Queryable,
-    values: unknown[]
-  ): Promise<Track> {
+  async upsertTrackByTrackIdUsername(client: Queryable, values: unknown[]): Promise<Track> {
     const result = await client.query(
       `INSERT INTO tracks (
         track_id, friend_id, username, title, artist, album, year,
@@ -513,48 +509,38 @@ export class AlbumRepository {
         library_identifier = EXCLUDED.library_identifier,
         date_added = COALESCE(tracks.date_added, EXCLUDED.date_added)
       RETURNING *`,
-      values
+      values,
     );
     return result.rows[0] as Track;
   }
 
-  async getAlbumThumbnail(
-    releaseId: string,
-    friendId: number
-  ): Promise<string | null> {
+  async getAlbumThumbnail(releaseId: string, friendId: number): Promise<string | null> {
     const { rows } = await dbQuery<{ album_thumbnail: string | null }>(
       "SELECT album_thumbnail FROM albums WHERE release_id = $1 AND friend_id = $2",
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows[0]?.album_thumbnail ?? null;
   }
 
-  async listTrackIdsForAlbum(
-    releaseId: string,
-    friendId: number
-  ): Promise<string[]> {
+  async listTrackIdsForAlbum(releaseId: string, friendId: number): Promise<string[]> {
     const { rows } = await dbQuery<{ track_id: string }>(
       "SELECT track_id FROM tracks WHERE release_id = $1 AND friend_id = $2",
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows.map((row) => row.track_id);
   }
 
-  async deleteTracksByIds(
-    client: Queryable,
-    trackIds: string[],
-    friendId: number
-  ): Promise<void> {
+  async deleteTracksByIds(client: Queryable, trackIds: string[], friendId: number): Promise<void> {
     if (trackIds.length === 0) return;
-    await client.query(
-      "DELETE FROM tracks WHERE track_id = ANY($1) AND friend_id = $2",
-      [trackIds, friendId]
-    );
+    await client.query("DELETE FROM tracks WHERE track_id = ANY($1) AND friend_id = $2", [
+      trackIds,
+      friendId,
+    ]);
   }
 
   async getTracksForAlbumDownloadQueue(
     releaseId: string,
-    friendId: number
+    friendId: number,
   ): Promise<
     Array<{
       track_id: string;
@@ -588,7 +574,7 @@ export class AlbumRepository {
         )
       ORDER BY position
       `,
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows;
   }
@@ -596,7 +582,7 @@ export class AlbumRepository {
   async updateAlbumCoverForRelease(
     friendId: number,
     releaseId: string,
-    publicUrl: string
+    publicUrl: string,
   ): Promise<number> {
     const result = await dbQuery(
       `
@@ -605,7 +591,7 @@ export class AlbumRepository {
       WHERE friend_id = $2
         AND release_id::text = $3::text
       `,
-      [publicUrl, friendId, releaseId]
+      [publicUrl, friendId, releaseId],
     );
     return result.rowCount || 0;
   }
@@ -613,21 +599,18 @@ export class AlbumRepository {
   async updateAlbumAudioFileAlbumArtUrl(
     releaseId: string,
     friendId: number,
-    publicUrl: string
+    publicUrl: string,
   ): Promise<void> {
     await dbQuery(
       `UPDATE albums SET audio_file_album_art_url = $1 WHERE release_id = $2 AND friend_id = $3`,
-      [publicUrl, releaseId, friendId]
+      [publicUrl, releaseId, friendId],
     );
   }
 
-  async getAlbumArtwork(
-    releaseId: string,
-    friendId: number
-  ): Promise<AlbumArtworkRow | null> {
+  async getAlbumArtwork(releaseId: string, friendId: number): Promise<AlbumArtworkRow | null> {
     const { rows } = await dbQuery<AlbumArtworkRow>(
       `SELECT ${ALBUM_ARTWORK_COLUMNS} FROM albums WHERE release_id = $1 AND friend_id = $2`,
-      [releaseId, friendId]
+      [releaseId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -641,7 +624,7 @@ export class AlbumRepository {
     releaseId: string,
     friendId: number,
     url: string,
-    source: AlbumArtSource
+    source: AlbumArtSource,
   ): Promise<void> {
     await dbQuery(
       `
@@ -658,18 +641,14 @@ export class AlbumRepository {
       WHERE friend_id = $4
         AND release_id::text = $3::text
       `,
-      [url, source, releaseId, friendId]
+      [url, source, releaseId, friendId],
     );
   }
 
-  async setAppleMusicArtUrl(
-    releaseId: string,
-    friendId: number,
-    url: string
-  ): Promise<void> {
+  async setAppleMusicArtUrl(releaseId: string, friendId: number, url: string): Promise<void> {
     await dbQuery(
       `UPDATE albums SET apple_music_art_url = $1 WHERE release_id = $2 AND friend_id = $3`,
-      [url, releaseId, friendId]
+      [url, releaseId, friendId],
     );
   }
 
@@ -677,7 +656,7 @@ export class AlbumRepository {
     releaseId: string,
     friendId: number,
     status: AlbumArtMatchStatus,
-    distance: number | null
+    distance: number | null,
   ): Promise<void> {
     await dbQuery(
       `
@@ -687,7 +666,7 @@ export class AlbumRepository {
           art_matched_at = current_timestamp
       WHERE release_id = $3 AND friend_id = $4
       `,
-      [status, distance, releaseId, friendId]
+      [status, distance, releaseId, friendId],
     );
   }
 
@@ -696,10 +675,7 @@ export class AlbumRepository {
    * looked different from the Discogs art, or there was no Discogs art to
    * compare with — and that nobody has chosen art for since.
    */
-  async listArtworkReview(
-    friendId: number | null,
-    limit: number
-  ): Promise<AlbumArtworkRow[]> {
+  async listArtworkReview(friendId: number | null, limit: number): Promise<AlbumArtworkRow[]> {
     const params: unknown[] = [limit];
     let friendFilter = "";
     if (friendId !== null) {
@@ -716,14 +692,14 @@ export class AlbumRepository {
       ORDER BY art_matched_at DESC NULLS LAST, release_id
       LIMIT $1
       `,
-      params
+      params,
     );
     return rows;
   }
 
   async getTracksForReleaseWithAudio(
     friendId: number,
-    releaseId: string
+    releaseId: string,
   ): Promise<
     Array<{
       track_id: string;
@@ -747,7 +723,7 @@ export class AlbumRepository {
         AND local_audio_url <> ''
       ORDER BY track_id
       `,
-      [friendId, releaseId]
+      [friendId, releaseId],
     );
     return rows;
   }
@@ -758,7 +734,7 @@ export class AlbumRepository {
       SELECT release_id, friend_id, title, artist, track_count
       FROM albums
       WHERE track_count = 0
-      `
+      `,
     );
     return rows;
   }
@@ -770,7 +746,7 @@ export class AlbumRepository {
       FROM albums a
       LEFT JOIN tracks t ON a.release_id = t.release_id AND a.friend_id = t.friend_id
       WHERE t.track_id IS NULL
-      `
+      `,
     );
     return rows;
   }
@@ -778,26 +754,22 @@ export class AlbumRepository {
   async deleteAlbumByReleaseAndFriend(
     client: Queryable,
     releaseId: string,
-    friendId: number
+    friendId: number,
   ): Promise<void> {
-    await client.query(
-      "DELETE FROM albums WHERE release_id = $1 AND friend_id = $2",
-      [releaseId, friendId]
-    );
+    await client.query("DELETE FROM albums WHERE release_id = $1 AND friend_id = $2", [
+      releaseId,
+      friendId,
+    ]);
   }
 
-  async deleteAlbumsByFriendAndReleaseIds(
-    friendId: number,
-    releaseIds: string[]
-  ): Promise<number> {
+  async deleteAlbumsByFriendAndReleaseIds(friendId: number, releaseIds: string[]): Promise<number> {
     if (releaseIds.length === 0) return 0;
     const result = await dbQuery(
       "DELETE FROM albums WHERE friend_id = $1 AND release_id = ANY($2::text[])",
-      [friendId, releaseIds]
+      [friendId, releaseIds],
     );
     return result.rowCount ?? 0;
   }
-
 }
 
 export const albumRepository = new AlbumRepository();

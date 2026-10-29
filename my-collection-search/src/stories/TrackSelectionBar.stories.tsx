@@ -1,12 +1,12 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Box, Text } from '@chakra-ui/react';
-import TrackSelectionBar from '@/components/TrackSelectionBar';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box, Text } from "@chakra-ui/react";
+import TrackSelectionBar from "@/components/TrackSelectionBar";
 
 const meta: Meta<typeof TrackSelectionBar> = {
-  title: 'Components/TrackSelectionBar',
+  title: "Components/TrackSelectionBar",
   component: TrackSelectionBar,
   parameters: {
-    layout: 'fullscreen',
+    layout: "fullscreen",
   },
   decorators: [
     (Story) => (
@@ -35,11 +35,11 @@ export default meta;
 type Story = StoryObj<typeof TrackSelectionBar>;
 
 export const Default: Story = {
-  name: 'Default (5 of 20 selected)',
+  name: "Default (5 of 20 selected)",
 };
 
 export const WithDownloadable: Story = {
-  name: 'With downloadable tracks',
+  name: "With downloadable tracks",
   args: {
     selectedCount: 8,
     loadedCount: 20,
@@ -48,7 +48,7 @@ export const WithDownloadable: Story = {
 };
 
 export const NoDownloadable: Story = {
-  name: 'No downloadable tracks',
+  name: "No downloadable tracks",
   args: {
     selectedCount: 4,
     loadedCount: 20,
@@ -66,7 +66,7 @@ export const AllSelected: Story = {
 };
 
 export const Single: Story = {
-  name: 'Single track selected',
+  name: "Single track selected",
   args: {
     selectedCount: 1,
     loadedCount: 20,

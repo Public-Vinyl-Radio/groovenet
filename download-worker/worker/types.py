@@ -25,6 +25,7 @@ class JobData(_JobDataRequired, total=False):
     All other fields are optional.  Extra keys from the queue are allowed at
     runtime; they won't be flagged by the type checker when accessed via .get().
     """
+
     job_id: str
     job_type: str
     release_id: str
@@ -46,6 +47,7 @@ class JobData(_JobDataRequired, total=False):
 
 class JobResult(TypedDict, total=False):
     """Return value from job handlers, serialised into Redis."""
+
     success: bool
     error: str
     track_id: str

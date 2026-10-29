@@ -1,4 +1,5 @@
 """The structured event logger (#280): what may reach a log line, and how."""
+
 import json
 import logging
 

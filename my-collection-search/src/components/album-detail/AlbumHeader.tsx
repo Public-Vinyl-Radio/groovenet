@@ -63,8 +63,16 @@ function Stat({ label, value, note }: { label: string; value: React.ReactNode; n
       px="14px"
       py="12px"
       css={{
-        "&:nth-of-type(odd)": { borderRightWidth: "1px", borderRightStyle: "solid", borderColor: "var(--gn-border)" },
-        "&:nth-of-type(-n+2)": { borderBottomWidth: "1px", borderBottomStyle: "solid", borderColor: "var(--gn-border)" },
+        "&:nth-of-type(odd)": {
+          borderRightWidth: "1px",
+          borderRightStyle: "solid",
+          borderColor: "var(--gn-border)",
+        },
+        "&:nth-of-type(-n+2)": {
+          borderBottomWidth: "1px",
+          borderBottomStyle: "solid",
+          borderColor: "var(--gn-border)",
+        },
         [wide]: { padding: "18px 20px" },
       }}
     >
@@ -86,7 +94,15 @@ function Stat({ label, value, note }: { label: string; value: React.ReactNode; n
         {value}
       </Text>
       {note && (
-        <Text as="dd" m={0} mt="2px" fontSize="12px" lineHeight="16px" color="fg.muted" css={{ [wide]: { fontSize: "13px", lineHeight: "18px" } }}>
+        <Text
+          as="dd"
+          m={0}
+          mt="2px"
+          fontSize="12px"
+          lineHeight="16px"
+          color="fg.muted"
+          css={{ [wide]: { fontSize: "13px", lineHeight: "18px" } }}
+        >
           {note}
         </Text>
       )}
@@ -139,8 +155,16 @@ export default function AlbumHeader({
 
   const badges = (
     <Flex flexWrap="wrap" alignItems="center" gap="6px" mt={isMobile ? 0 : "4px"}>
-      <GenreBadgeList items={discogsGenreBadges(genres, genreLookup)} kind="discogs-genre" scope="albums" />
-      <GenreBadgeList items={discogsGenreBadges(styles, genreLookup)} kind="discogs-style" scope="albums" />
+      <GenreBadgeList
+        items={discogsGenreBadges(genres, genreLookup)}
+        kind="discogs-genre"
+        scope="albums"
+      />
+      <GenreBadgeList
+        items={discogsGenreBadges(styles, genreLookup)}
+        kind="discogs-style"
+        scope="albums"
+      />
       {isMobile ? (
         <Box flex={1} />
       ) : (
@@ -162,10 +186,19 @@ export default function AlbumHeader({
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr)",
           gridTemplateAreas: '"main" "stats"',
-          [wide]: { gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 440px)", gridTemplateAreas: '"main stats"' },
+          [wide]: {
+            gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 440px)",
+            gridTemplateAreas: '"main stats"',
+          },
         }}
       >
-        <Flex direction="column" gap="14px" p="14px" minW={0} css={{ gridArea: "main", [wide]: { padding: "24px", gap: "16px" } }}>
+        <Flex
+          direction="column"
+          gap="14px"
+          p="14px"
+          minW={0}
+          css={{ gridArea: "main", [wide]: { padding: "24px", gap: "16px" } }}
+        >
           <Flex gap="14px" minW={0} css={{ [wide]: { gap: "24px" } }}>
             <Box
               as="button"
@@ -179,21 +212,43 @@ export default function AlbumHeader({
               css={{ width: "112px", height: "112px", [wide]: { width: "192px", height: "192px" } }}
             >
               {artworkSrc ? (
-                <Image src={artworkSrc} alt={`${album.title} cover`} boxSize="100%" objectFit="cover" display="block" />
+                <Image
+                  src={artworkSrc}
+                  alt={`${album.title} cover`}
+                  boxSize="100%"
+                  objectFit="cover"
+                  display="block"
+                />
               ) : (
-                <Flex boxSize="100%" alignItems="center" justifyContent="center" bg="bg.muted" color="fg.subtle">
+                <Flex
+                  boxSize="100%"
+                  alignItems="center"
+                  justifyContent="center"
+                  bg="bg.muted"
+                  color="fg.subtle"
+                >
                   <FiDisc size={40} />
                 </Flex>
               )}
             </Box>
 
             <Flex direction="column" gap="4px" minW={0} flex={1} css={{ [wide]: { gap: "6px" } }}>
-              <Text {...labelText} fontWeight="medium" fontSize="11px" lineHeight="16px" css={{ [wide]: { fontSize: "12px" } }}>
+              <Text
+                {...labelText}
+                fontWeight="medium"
+                fontSize="11px"
+                lineHeight="16px"
+                css={{ [wide]: { fontSize: "12px" } }}
+              >
                 Album · Vinyl
                 {idOrCatalog && (
                   <>
                     {" · "}
-                    <Text as="span" fontWeight="bold" color={album.library_identifier ? "accent.fg" : undefined}>
+                    <Text
+                      as="span"
+                      fontWeight="bold"
+                      color={album.library_identifier ? "accent.fg" : undefined}
+                    >
                       {idOrCatalog}
                     </Text>
                   </>
@@ -210,14 +265,31 @@ export default function AlbumHeader({
                   title={album.title}
                   // A long title takes three lines beside the phone's small cover, then ends in an ellipsis.
                   lineClamp={3}
-                  css={{ [wide]: { fontSize: "30px", lineHeight: "38px", WebkitLineClamp: "unset", display: "block" } }}
+                  css={{
+                    [wide]: {
+                      fontSize: "30px",
+                      lineHeight: "38px",
+                      WebkitLineClamp: "unset",
+                      display: "block",
+                    },
+                  }}
                 >
                   {album.title}
                 </Heading>
                 {hasNotes && (
                   <Popover.Root>
                     <Popover.Trigger asChild>
-                      <Box as="button" aria-label="Album notes" display="inline-flex" color="fg.warning" flexShrink={0} minW="24px" minH="24px" alignItems="center" justifyContent="center">
+                      <Box
+                        as="button"
+                        aria-label="Album notes"
+                        display="inline-flex"
+                        color="fg.warning"
+                        flexShrink={0}
+                        minW="24px"
+                        minH="24px"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <FiFileText size={18} />
                       </Box>
                     </Popover.Trigger>
@@ -225,7 +297,11 @@ export default function AlbumHeader({
                       <Popover.Content maxW="280px">
                         <Popover.Body>
                           {album.album_notes && (
-                            <Text fontSize="sm" whiteSpace="pre-wrap" mb={album.purchase_price || album.condition ? 2 : 0}>
+                            <Text
+                              fontSize="sm"
+                              whiteSpace="pre-wrap"
+                              mb={album.purchase_price || album.condition ? 2 : 0}
+                            >
                               {album.album_notes}
                             </Text>
                           )}
@@ -241,11 +317,22 @@ export default function AlbumHeader({
                   </Popover.Root>
                 )}
               </Flex>
-              <Text fontWeight="medium" fontSize="16px" lineHeight="22px" overflowWrap="anywhere" css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}>
+              <Text
+                fontWeight="medium"
+                fontSize="16px"
+                lineHeight="22px"
+                overflowWrap="anywhere"
+                css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
+              >
                 <ArtistLink artist={album.artist} friendId={album.friend_id} />
               </Text>
               {byline && (
-                <Text color="fg.muted" fontSize="13px" lineHeight="18px" css={{ [wide]: { fontSize: "15px", lineHeight: "22px" } }}>
+                <Text
+                  color="fg.muted"
+                  fontSize="13px"
+                  lineHeight="18px"
+                  css={{ [wide]: { fontSize: "15px", lineHeight: "22px" } }}
+                >
                   {byline}
                 </Text>
               )}
@@ -273,7 +360,14 @@ export default function AlbumHeader({
               <Flex direction="column" gap="10px" data-testid="album-actions-below">
                 <PlayButton onPlay={onPlay} disabled={noTracks} minH="44px" />
                 <Flex gap="10px">
-                  <Button variant="outline" onClick={onAddToPlaylist} disabled={noTracks} minH="44px" flex={1} px={2}>
+                  <Button
+                    variant="outline"
+                    onClick={onAddToPlaylist}
+                    disabled={noTracks}
+                    minH="44px"
+                    flex={1}
+                    px={2}
+                  >
                     <FiPlus /> Playlist
                   </Button>
                   <Button variant="outline" onClick={onLogSpin} minH="44px" flex={1} px={2}>
@@ -300,15 +394,32 @@ export default function AlbumHeader({
             [wide]: { borderTopWidth: 0, borderLeftWidth: "2px" },
           }}
         >
-          <Stat label="Tracks" value={trackCount || <Missing />} note={sideSplit ? `${sides.length} sides · ${sideSplit}` : undefined} />
-          <Stat label="Runtime" value={totalSeconds > 0 ? formatSeconds(totalSeconds) : <Missing />} note={sideRuntimes || undefined} />
-          <Stat label="BPM" value={range ?? <Missing />} note={opens ? `Opens in ${opens.camelot} · ${opens.name}` : undefined} />
+          <Stat
+            label="Tracks"
+            value={trackCount || <Missing />}
+            note={sideSplit ? `${sides.length} sides · ${sideSplit}` : undefined}
+          />
+          <Stat
+            label="Runtime"
+            value={totalSeconds > 0 ? formatSeconds(totalSeconds) : <Missing />}
+            note={sideRuntimes || undefined}
+          />
+          <Stat
+            label="BPM"
+            value={range ?? <Missing />}
+            note={opens ? `Opens in ${opens.camelot} · ${opens.name}` : undefined}
+          />
           <Stat
             label="Spins"
             value={spins ? `${spins.count}${spins.capped ? "+" : ""}` : <Missing />}
-            note={[lastSpin && `Last ${lastSpin.toLocaleDateString([], { dateStyle: "medium" })}`, added && `Added ${added.toLocaleDateString()}`]
-              .filter(Boolean)
-              .join(" · ") || undefined}
+            note={
+              [
+                lastSpin && `Last ${lastSpin.toLocaleDateString([], { dateStyle: "medium" })}`,
+                added && `Added ${added.toLocaleDateString()}`,
+              ]
+                .filter(Boolean)
+                .join(" · ") || undefined
+            }
           />
         </Box>
       </Box>
@@ -316,7 +427,11 @@ export default function AlbumHeader({
   );
 }
 
-function PlayButton({ onPlay, disabled, ...rest }: { onPlay: () => void; disabled?: boolean } & React.ComponentProps<typeof Button>) {
+function PlayButton({
+  onPlay,
+  disabled,
+  ...rest
+}: { onPlay: () => void; disabled?: boolean } & React.ComponentProps<typeof Button>) {
   return (
     <Button colorPalette="accent" variant="solid" onClick={onPlay} disabled={disabled} {...rest}>
       <FaPlay /> Play album
@@ -324,10 +439,24 @@ function PlayButton({ onPlay, disabled, ...rest }: { onPlay: () => void; disable
   );
 }
 
-function Rating({ rating, onRate, compact }: { rating: number; onRate: (value: number) => void; compact?: boolean }) {
+function Rating({
+  rating,
+  onRate,
+  compact,
+}: {
+  rating: number;
+  onRate: (value: number) => void;
+  compact?: boolean;
+}) {
   return (
     <Flex alignItems="center" gap={2}>
-      <RatingGroup.Root value={rating} onValueChange={(details) => onRate(details.value)} count={5} size="sm" aria-label={rating ? `Rated ${rating} of 5` : "Not rated"}>
+      <RatingGroup.Root
+        value={rating}
+        onValueChange={(details) => onRate(details.value)}
+        count={5}
+        size="sm"
+        aria-label={rating ? `Rated ${rating} of 5` : "Not rated"}
+      >
         {[1, 2, 3, 4, 5].map((index) => (
           <RatingGroup.Item key={index} index={index}>
             <RatingGroup.ItemIndicator />

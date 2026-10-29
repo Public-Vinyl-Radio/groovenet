@@ -7,10 +7,17 @@ function fakeClient() {
   const handlers = new Map<string, (...args: unknown[]) => void>();
   const publishCalls: PublishCall[] = [];
   return {
-    publish: vi.fn((topic: string, payload: string | Buffer, opts: Record<string, unknown>, cb: (error?: Error) => void) => {
-      publishCalls.push([topic, payload, opts, cb]);
-      cb();
-    }),
+    publish: vi.fn(
+      (
+        topic: string,
+        payload: string | Buffer,
+        opts: Record<string, unknown>,
+        cb: (error?: Error) => void,
+      ) => {
+        publishCalls.push([topic, payload, opts, cb]);
+        cb();
+      },
+    ),
     on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       handlers.set(event, handler);
     }),
@@ -167,7 +174,15 @@ describe("nowPlayingPublisherService", () => {
     resizeCoverArt.mockResolvedValue(null);
     const { publishSnapshot } = await import("../nowPlayingPublisherService");
 
-    await publishSnapshot(snapshot({ state: "idle", track: null, offset_seconds: null, observed_at: null, confidence: null }));
+    await publishSnapshot(
+      snapshot({
+        state: "idle",
+        track: null,
+        offset_seconds: null,
+        observed_at: null,
+        confidence: null,
+      }),
+    );
 
     const payloads = topicPayloads(client);
     expect(payloads["groovenet/now_playing/src-1/state"]).toBe("idle");
@@ -176,7 +191,13 @@ describe("nowPlayingPublisherService", () => {
     expect(payloads["groovenet/now_playing/src-1/cover"]).toBe("");
 
     const json = JSON.parse(payloads["groovenet/now_playing/src-1/json"] as string);
-    expect(json).toMatchObject({ state: "idle", track_id: null, title: null, year: null, label: null });
+    expect(json).toMatchObject({
+      state: "idle",
+      track_id: null,
+      title: null,
+      year: null,
+      label: null,
+    });
     expect(resizeCoverArt).toHaveBeenCalledWith(null);
   });
 
@@ -188,7 +209,9 @@ describe("nowPlayingPublisherService", () => {
     await publishSnapshot(snapshot());
 
     expect(resizeCoverArt).toHaveBeenCalledWith("https://example.com/cover.jpg");
-    expect(topicPayloads(client)["groovenet/now_playing/src-1/cover"]).toEqual(Buffer.from("small-jpeg"));
+    expect(topicPayloads(client)["groovenet/now_playing/src-1/cover"]).toEqual(
+      Buffer.from("small-jpeg"),
+    );
   });
 
   it("clears the cover topic when resizing fails", async () => {
@@ -210,7 +233,9 @@ describe("nowPlayingPublisherService", () => {
     await publishSnapshot(snapshot());
     await publishSnapshot(snapshot());
 
-    const discoveryCalls = client.publishCalls.filter(([topic]) => topic.startsWith("homeassistant/sensor/"));
+    const discoveryCalls = client.publishCalls.filter(([topic]) =>
+      topic.startsWith("homeassistant/sensor/"),
+    );
     expect(discoveryCalls).toHaveLength(1);
     expect(discoveryCalls[0][0]).toBe("homeassistant/sensor/groovenet_now_playing_src-1/config");
     expect(discoveryCalls[0][2]).toMatchObject({ retain: true });
@@ -236,14 +261,19 @@ describe("nowPlayingPublisherService", () => {
 
   it("logs a publish failure instead of throwing", async () => {
     process.env.MQTT_URL = "mqtt://broker";
-    client.publish.mockImplementation((_topic: string, _payload: unknown, _opts: unknown, cb: (e?: Error) => void) => {
-      cb(new Error("broker unreachable"));
-    });
+    client.publish.mockImplementation(
+      (_topic: string, _payload: unknown, _opts: unknown, cb: (e?: Error) => void) => {
+        cb(new Error("broker unreachable"));
+      },
+    );
     const { publishSnapshot } = await import("../nowPlayingPublisherService");
 
     await expect(publishSnapshot(snapshot())).resolves.toBeUndefined();
 
-    expect(console.error).toHaveBeenCalledWith(expect.stringContaining("publish to"), expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("publish to"),
+      expect.any(Error),
+    );
   });
 
   it("logs, but never throws, when the client itself errors", async () => {
@@ -265,7 +295,7 @@ describe("nowPlayingPublisherService", () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("publish failed for src-1"),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
@@ -288,7 +318,8 @@ describe("nowPlayingPublisherService", () => {
 
   it("resetNowPlayingPublisherForTests ends the client and clears discovery bookkeeping", async () => {
     process.env.MQTT_URL = "mqtt://broker";
-    const { publishSnapshot, resetNowPlayingPublisherForTests } = await import("../nowPlayingPublisherService");
+    const { publishSnapshot, resetNowPlayingPublisherForTests } =
+      await import("../nowPlayingPublisherService");
 
     await publishSnapshot(snapshot());
     expect(connect).toHaveBeenCalledTimes(1);
@@ -302,6 +333,8 @@ describe("nowPlayingPublisherService", () => {
 
     expect(connect).toHaveBeenCalledTimes(2);
     // Discovery bookkeeping was cleared too: the fresh client gets its own discovery publish.
-    expect(secondClient.publishCalls.some(([topic]) => topic.startsWith("homeassistant/"))).toBe(true);
+    expect(secondClient.publishCalls.some(([topic]) => topic.startsWith("homeassistant/"))).toBe(
+      true,
+    );
   });
 });

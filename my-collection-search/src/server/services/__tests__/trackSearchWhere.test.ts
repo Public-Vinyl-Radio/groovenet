@@ -13,9 +13,14 @@ describe("buildTrackSearchWhere", () => {
         filter: "friend_id = 3 AND local_audio_url IS NULL",
         friendId: 6,
         attributes: { key: "A minor" },
-      })
+      }),
     ).toEqual({
-      where: ["friend_id = $1", "local_audio_url IS NULL", "friend_id = $2", "LOWER(t.key) = LOWER($3)"],
+      where: [
+        "friend_id = $1",
+        "local_audio_url IS NULL",
+        "friend_id = $2",
+        "LOWER(t.key) = LOWER($3)",
+      ],
       params: [3, 6, "A minor"],
     });
   });

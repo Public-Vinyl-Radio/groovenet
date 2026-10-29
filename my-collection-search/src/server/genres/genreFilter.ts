@@ -34,7 +34,7 @@ export type ResolveGenreFilterOptions = {
  */
 export async function resolveGenreFilter(
   refs: string[],
-  options: ResolveGenreFilterOptions = {}
+  options: ResolveGenreFilterOptions = {},
 ): Promise<GenreFilterResolution> {
   const values = refs.map((ref) => ref.trim()).filter(Boolean);
   if (values.length === 0) return { filter: undefined, added: [] };
@@ -56,7 +56,7 @@ export async function resolveGenreFilter(
   const alreadyCovered = new Set(baseFilter.ids);
 
   const relatedBySeed = await Promise.all(
-    seeds.map((seed) => genreSimilarityRepository.topForGenre(seed, limit))
+    seeds.map((seed) => genreSimilarityRepository.topForGenre(seed, limit)),
   );
   const bestScore = new Map<string, number>();
   for (const related of relatedBySeed) {

@@ -1,10 +1,7 @@
 import posthog from "posthog-js";
 import type { AnalyticsProperties, AnalyticsProvider } from "../types";
 
-export function createPosthogClientProvider(
-  key: string,
-  uiHost: string
-): AnalyticsProvider {
+export function createPosthogClientProvider(key: string, uiHost: string): AnalyticsProvider {
   posthog.init(key, {
     // Same-origin reverse proxy: src/app/ingest/[...path]/route.ts
     api_host: "/ingest",

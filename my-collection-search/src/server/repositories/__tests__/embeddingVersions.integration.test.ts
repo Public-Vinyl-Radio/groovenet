@@ -23,7 +23,13 @@ const USERNAME = "embedding-versions-friend";
 const CURRENT = CURRENT_TEMPLATE_VERSIONS.identity;
 const OLD = CURRENT - 1;
 let friendId = 0;
-let original: { target_model: string; target_dims: number; serving_model: string; serving_dims: number; serving_template_version: number };
+let original: {
+  target_model: string;
+  target_dims: number;
+  serving_model: string;
+  serving_dims: number;
+  serving_template_version: number;
+};
 
 async function cleanup() {
   await dbQuery(`DELETE FROM track_embeddings WHERE model IN ($1, $2)`, [MODEL, OTHER_MODEL]);
@@ -55,13 +61,13 @@ beforeAll(async () => {
 
   const { rows } = await dbQuery<{ id: number }>(
     `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-    [USERNAME]
+    [USERNAME],
   );
   friendId = rows[0].id;
   for (const id of ["current", "old-only", "other-model"]) {
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist) VALUES ($1, $2, $3, 'T', 'A')`,
-      [id, USERNAME, friendId]
+      [id, USERNAME, friendId],
     );
   }
 
@@ -82,7 +88,7 @@ afterAll(async () => {
     "identity",
     original.serving_model,
     original.serving_dims,
-    original.serving_template_version
+    original.serving_template_version,
   );
   await dbPool.end();
 });
@@ -95,7 +101,7 @@ describe("template-versioned track embeddings (integration)", () => {
       `SELECT template_version, source_hash FROM track_embeddings
        WHERE track_id = 'current' AND friend_id = $1 AND model = $2
        ORDER BY template_version`,
-      [friendId, MODEL]
+      [friendId, MODEL],
     );
     expect(rows).toEqual([
       { template_version: OLD, source_hash: "hash-old" },
@@ -104,20 +110,23 @@ describe("template-versioned track embeddings (integration)", () => {
   });
 
   dbTest("backfill treats older templates and other models as missing", async () => {
-    const missing = await embeddings.listTracksForBackfill({ type: "identity", friend_id: friendId });
+    const missing = await embeddings.listTracksForBackfill({
+      type: "identity",
+      friend_id: friendId,
+    });
 
     expect(missing.map((t) => t.track_id).sort()).toEqual(["old-only", "other-model"]);
   });
 
   dbTest("the source-hash lookup is pinned to model and version", async () => {
     await expect(
-      embeddings.findEmbeddingSourceHash("old-only", friendId, "identity", MODEL, CURRENT)
+      embeddings.findEmbeddingSourceHash("old-only", friendId, "identity", MODEL, CURRENT),
     ).resolves.toBeNull();
     await expect(
-      embeddings.findEmbeddingSourceHash("old-only", friendId, "identity", MODEL, OLD)
+      embeddings.findEmbeddingSourceHash("old-only", friendId, "identity", MODEL, OLD),
     ).resolves.toBe("hash-old");
     await expect(
-      embeddings.findEmbeddingSourceHash("other-model", friendId, "identity", MODEL, CURRENT)
+      embeddings.findEmbeddingSourceHash("other-model", friendId, "identity", MODEL, CURRENT),
     ).resolves.toBeNull();
   });
 
@@ -129,7 +138,7 @@ describe("template-versioned track embeddings (integration)", () => {
       ],
       "identity",
       MODEL,
-      OLD
+      OLD,
     );
 
     expect(rows.map((r) => [r.track_id, r.embedding]).sort()).toEqual([
@@ -146,7 +155,7 @@ describe("template-versioned track embeddings (integration)", () => {
         { model: MODEL, dims: 3, template_version: OLD, count: 2 },
         { model: MODEL, dims: 3, template_version: CURRENT, count: 1 },
         { model: OTHER_MODEL, dims: 3, template_version: CURRENT, count: 1 },
-      ])
+      ]),
     );
   });
 

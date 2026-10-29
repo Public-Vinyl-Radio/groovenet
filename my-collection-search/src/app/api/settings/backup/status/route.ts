@@ -13,9 +13,6 @@ export async function GET() {
     return NextResponse.json({ status, metrics });
   } catch (error) {
     console.error("Failed to get backup status:", error);
-    return NextResponse.json(
-      { error: "Failed to get backup status" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get backup status" }, { status: 500 });
   }
 }

@@ -21,8 +21,11 @@ describe("TrackPlaylistsSection", () => {
   it("lists the playlists the track is in", () => {
     renderWithProviders(
       <TrackPlaylistsSection
-        query={query({ data: [{ id: 3, name: "Peak", position: 7 }] as TrackPlaylistMembership[], error: null })}
-      />
+        query={query({
+          data: [{ id: 3, name: "Peak", position: 7 }] as TrackPlaylistMembership[],
+          error: null,
+        })}
+      />,
     );
     expect(screen.getByText("In Playlists")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Peak" }).getAttribute("href")).toBe("/playlists/3");
@@ -30,7 +33,9 @@ describe("TrackPlaylistsSection", () => {
   });
 
   it("still reports a failed lookup", () => {
-    renderWithProviders(<TrackPlaylistsSection query={query({ data: undefined, error: new Error("boom") })} />);
+    renderWithProviders(
+      <TrackPlaylistsSection query={query({ data: undefined, error: new Error("boom") })} />,
+    );
     expect(screen.getByText("boom")).toBeTruthy();
   });
 });

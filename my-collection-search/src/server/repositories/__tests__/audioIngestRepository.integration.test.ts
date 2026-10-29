@@ -48,10 +48,7 @@ describe("findByFilePaths() (DB integration)", () => {
   dbTest("binds a text array and returns the matching records", async () => {
     const rows = await repo.findByFilePaths(["processed.wav", "processing.wav"]);
 
-    expect(rows.map((r) => r.file_path).sort()).toEqual([
-      "processed.wav",
-      "processing.wav",
-    ]);
+    expect(rows.map((r) => r.file_path).sort()).toEqual(["processed.wav", "processing.wav"]);
   });
 
   dbTest("returns the statuses the sweeper decides on", async () => {

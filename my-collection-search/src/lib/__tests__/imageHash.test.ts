@@ -32,8 +32,12 @@ describe("perceptualHash", () => {
   });
 
   it("matches a small Discogs-style thumb against a large re-encoded master", async () => {
-    const master = await sharp(await cover(1400, "a")).jpeg({ quality: 95 }).toBuffer();
-    const thumb = await sharp(await cover(150, "a")).jpeg({ quality: 60 }).toBuffer();
+    const master = await sharp(await cover(1400, "a"))
+      .jpeg({ quality: 95 })
+      .toBuffer();
+    const thumb = await sharp(await cover(150, "a"))
+      .jpeg({ quality: 60 })
+      .toBuffer();
     const distance = hammingDistance(await perceptualHash(master), await perceptualHash(thumb));
     expect(distance).toBeLessThanOrEqual(ARTWORK_MATCH_MAX_DISTANCE);
   });
@@ -41,7 +45,7 @@ describe("perceptualHash", () => {
   it("tells a different cover apart", async () => {
     const distance = hammingDistance(
       await perceptualHash(await cover(600, "a")),
-      await perceptualHash(await cover(600, "b"))
+      await perceptualHash(await cover(600, "b")),
     );
     expect(distance).toBeGreaterThan(ARTWORK_MATCH_MAX_DISTANCE);
   });

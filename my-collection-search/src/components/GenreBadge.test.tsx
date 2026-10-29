@@ -7,7 +7,9 @@ import GenreBadge, { GenreBadgeList, GenreBadgeRow } from "./GenreBadge";
 
 describe("GenreBadge", () => {
   it("links a taxonomy genre to track search filtered by its slug", () => {
-    renderWithProviders(<GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />);
+    renderWithProviders(
+      <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />,
+    );
 
     const link = screen.getByRole("link", { name: "Search tracks in Cumbia" });
     expect(link.getAttribute("href")).toBe("/?genre=cumbia");
@@ -16,7 +18,7 @@ describe("GenreBadge", () => {
 
   it("links album badges to album search", () => {
     renderWithProviders(
-      <GenreBadge item={{ label: "Latin", slug: "latin" }} kind="discogs-genre" scope="albums" />
+      <GenreBadge item={{ label: "Latin", slug: "latin" }} kind="discogs-genre" scope="albums" />,
     );
 
     expect(screen.getByRole("link").getAttribute("href")).toBe("/albums?genre=latin");
@@ -27,11 +29,13 @@ describe("GenreBadge", () => {
       <>
         <GenreBadge item={{ label: "Feminist Anthem", slug: null }} kind="track" scope="tracks" />
         <GenreBadge item={{ label: "Odd Style", slug: null }} kind="discogs-style" scope="tracks" />
-      </>
+      </>,
     );
 
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.getByText("Feminist Anthem").getAttribute("title")).toBe("Not in the genre taxonomy yet");
+    expect(screen.getByText("Feminist Anthem").getAttribute("title")).toBe(
+      "Not in the genre taxonomy yet",
+    );
     // Every tag names itself in a tooltip, since a narrow cell may truncate it.
     expect(screen.getByText("Odd Style").getAttribute("title")).toBe("Odd Style");
   });
@@ -41,7 +45,7 @@ describe("GenreBadge", () => {
     const { user } = renderWithProviders(
       <div onClick={onRowClick}>
         <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />
-      </div>
+      </div>,
     );
 
     // jsdom doesn't navigate, so the click only has to stop at the badge.
@@ -51,7 +55,7 @@ describe("GenreBadge", () => {
 
   it("is reachable by keyboard", async () => {
     const { user } = renderWithProviders(
-      <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />
+      <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />,
     );
 
     await user.tab();
@@ -69,7 +73,7 @@ describe("GenreBadgeList", () => {
         ]}
         kind="track"
         scope="tracks"
-      />
+      />,
     );
 
     expect(screen.getAllByRole("link")).toHaveLength(1);
@@ -80,7 +84,7 @@ describe("GenreBadgeList", () => {
 describe("GenreBadgeRow (#470)", () => {
   it("renders nothing for an empty list", () => {
     const { container } = renderWithProviders(
-      <GenreBadgeRow items={[]} kind="track" scope="tracks" data-testid="row" />
+      <GenreBadgeRow items={[]} kind="track" scope="tracks" data-testid="row" />,
     );
 
     expect(container.querySelector('[data-testid="row"]')).toBeNull();
@@ -96,7 +100,7 @@ describe("GenreBadgeRow (#470)", () => {
         kind="track"
         scope="tracks"
         data-testid="row"
-      />
+      />,
     );
 
     expect(screen.queryByText(/^\+\d+$/)).toBeNull();
@@ -115,7 +119,7 @@ describe("GenreBadgeRow (#470)", () => {
         kind="track"
         scope="tracks"
         mobileLimit={3}
-      />
+      />,
     );
 
     expect(screen.getAllByText("+1").length).toBeGreaterThan(0);
@@ -140,7 +144,7 @@ describe("GenreBadgeRow badge props (#722)", () => {
         variant="subtle"
         size="xs"
         data-testid="row"
-      />
+      />,
     );
 
     const overflow = screen.getByText("+1");

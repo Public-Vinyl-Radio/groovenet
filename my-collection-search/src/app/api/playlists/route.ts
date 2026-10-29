@@ -21,7 +21,7 @@ export async function DELETE(req: Request) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Missing playlist id", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,10 +36,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting playlist:", error);
-    return NextResponse.json(
-      { error: "Failed to delete playlist" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete playlist" }, { status: 500 });
   }
 }
 
@@ -50,17 +47,14 @@ export async function GET() {
     if (!validated.success) {
       console.warn(
         "Playlists response failed schema validation; returning raw payload for compatibility",
-        validated.error.flatten()
+        validated.error.flatten(),
       );
       return NextResponse.json(playlists);
     }
     return NextResponse.json(validated.data);
   } catch (error) {
     console.error("Error fetching playlists:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch playlists" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch playlists" }, { status: 500 });
   }
 }
 
@@ -70,7 +64,7 @@ export async function POST(req: Request) {
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid playlist payload", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -86,17 +80,14 @@ export async function POST(req: Request) {
         playlist_id: playlist.id,
         track_count: playlist.tracks?.length ?? 0,
       },
-      { request: req }
+      { request: req },
     );
 
     const validated = playlistSchema.parse(normalizePlaylistCreatedAt(playlist));
     return NextResponse.json(validated, { status: 201 });
   } catch (error) {
     console.error("Error creating playlist:", error);
-    return NextResponse.json(
-      { error: "Failed to create playlist" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create playlist" }, { status: 500 });
   }
 }
 
@@ -109,7 +100,7 @@ export async function PATCH(req: Request) {
           error: "Invalid playlist update payload",
           details: parsedBody.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -122,9 +113,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json(validated);
   } catch (error) {
     console.error("Error updating playlist:", error);
-    return NextResponse.json(
-      { error: "Failed to update playlist" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update playlist" }, { status: 500 });
   }
 }

@@ -67,7 +67,7 @@ export class AudioIngestRepository {
         input.file_path ?? null,
         input.status ?? "received",
         input.error ?? null,
-      ]
+      ],
     );
     return rows[0];
   }
@@ -75,7 +75,7 @@ export class AudioIngestRepository {
   async updateStatus(
     id: string,
     status: AudioIngestStatus,
-    error: string | null = null
+    error: string | null = null,
   ): Promise<AudioIngestRow | null> {
     const { rows } = await dbQuery<AudioIngestRow>(
       `
@@ -84,7 +84,7 @@ export class AudioIngestRepository {
       WHERE id = $1
       RETURNING *
       `,
-      [id, status, error]
+      [id, status, error],
     );
     return rows[0] ?? null;
   }
@@ -92,14 +92,14 @@ export class AudioIngestRepository {
   async findByDedupeKey(
     sourceId: string,
     sessionId: string,
-    sequence: number
+    sequence: number,
   ): Promise<AudioIngestRow | null> {
     const { rows } = await dbQuery<AudioIngestRow>(
       `
       SELECT * FROM audio_ingests
       WHERE source_id = $1 AND session_id = $2 AND sequence = $3
       `,
-      [sourceId, sessionId, sequence]
+      [sourceId, sessionId, sequence],
     );
     return rows[0] ?? null;
   }
@@ -119,7 +119,7 @@ export class AudioIngestRepository {
       SELECT * FROM audio_ingests
       WHERE file_path = ANY($1::text[])
       `,
-      [filePaths]
+      [filePaths],
     );
     return rows;
   }
@@ -136,7 +136,7 @@ export class AudioIngestRepository {
   async listStale(
     olderThan: Date,
     statuses: AudioIngestStatus[] = ["received", "processing"],
-    limit = 500
+    limit = 500,
   ): Promise<AudioIngestRow[]> {
     const { rows } = await dbQuery<AudioIngestRow>(
       `
@@ -146,16 +146,15 @@ export class AudioIngestRepository {
       ORDER BY updated_at ASC
       LIMIT $3
       `,
-      [statuses, olderThan, limit]
+      [statuses, olderThan, limit],
     );
     return rows;
   }
 
   async findById(id: string): Promise<AudioIngestRow | null> {
-    const { rows } = await dbQuery<AudioIngestRow>(
-      `SELECT * FROM audio_ingests WHERE id = $1`,
-      [id]
-    );
+    const { rows } = await dbQuery<AudioIngestRow>(`SELECT * FROM audio_ingests WHERE id = $1`, [
+      id,
+    ]);
     return rows[0] ?? null;
   }
 
@@ -171,7 +170,7 @@ export class AudioIngestRepository {
     id: string,
     to: AudioIngestStatus,
     from: AudioIngestStatus[],
-    error: string | null = null
+    error: string | null = null,
   ): Promise<AudioIngestRow | null> {
     const { rows } = await dbQuery<AudioIngestRow>(
       `
@@ -180,7 +179,7 @@ export class AudioIngestRepository {
       WHERE id = $1 AND status = ANY($4::text[])
       RETURNING *
       `,
-      [id, to, error, from]
+      [id, to, error, from],
     );
     return rows[0] ?? null;
   }
@@ -193,7 +192,7 @@ export class AudioIngestRepository {
       status?: AudioIngestStatus;
       limit?: number;
       offset?: number;
-    } = {}
+    } = {},
   ): Promise<AudioIngestRow[]> {
     const params: Array<string | number> = [];
     const where: string[] = [];
@@ -223,7 +222,7 @@ export class AudioIngestRepository {
       ORDER BY received_at DESC, id DESC
       LIMIT ${limit} OFFSET ${offset}
       `,
-      params
+      params,
     );
     return rows;
   }
@@ -236,7 +235,7 @@ export class AudioIngestRepository {
    */
   async statsSince(
     since: Date | string,
-    sourceId?: string
+    sourceId?: string,
   ): Promise<{
     byStatus: Record<string, number>;
     failures: Array<{ error: string; count: number }>;
@@ -252,7 +251,7 @@ export class AudioIngestRepository {
     const { rows: statusRows } = await dbQuery<{ status: string; count: string }>(
       `SELECT status, COUNT(*)::text AS count FROM audio_ingests
        WHERE ${scope} GROUP BY status`,
-      params
+      params,
     );
 
     const { rows: failureRows } = await dbQuery<{ error: string; count: string }>(
@@ -260,19 +259,17 @@ export class AudioIngestRepository {
        FROM audio_ingests
        WHERE ${scope} AND status = 'failed'
        GROUP BY 1 ORDER BY 2 DESC LIMIT 10`,
-      params
+      params,
     );
 
     const { rows: inFlight } = await dbQuery<AudioIngestRow>(
       `SELECT * FROM audio_ingests
        WHERE status IN ('received', 'processing')
-       ORDER BY received_at ASC LIMIT 1`
+       ORDER BY received_at ASC LIMIT 1`,
     );
 
     return {
-      byStatus: Object.fromEntries(
-        statusRows.map((r) => [r.status, Number(r.count)])
-      ),
+      byStatus: Object.fromEntries(statusRows.map((r) => [r.status, Number(r.count)])),
       failures: failureRows.map((r) => ({
         error: r.error,
         count: Number(r.count),
@@ -283,7 +280,7 @@ export class AudioIngestRepository {
 
   async listBySource(
     sourceId: string,
-    { limit = 50, offset = 0 }: ListAudioIngestsOptions = {}
+    { limit = 50, offset = 0 }: ListAudioIngestsOptions = {},
   ): Promise<AudioIngestRow[]> {
     const { rows } = await dbQuery<AudioIngestRow>(
       `
@@ -292,7 +289,7 @@ export class AudioIngestRepository {
       ORDER BY received_at DESC, id DESC
       LIMIT $2 OFFSET $3
       `,
-      [sourceId, limit, offset]
+      [sourceId, limit, offset],
     );
     return rows;
   }

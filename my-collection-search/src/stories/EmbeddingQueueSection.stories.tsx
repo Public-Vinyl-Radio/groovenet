@@ -1,10 +1,10 @@
-import React from 'react';
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Box } from '@chakra-ui/react';
-import EmbeddingQueueSection from '@/components/jobs/EmbeddingQueueSection';
-import { queryKeys } from '@/lib/queryKeys';
-import type { EmbeddingQueueStatusResponse } from '@/services/internalApi/embeddingQueue';
+import React from "react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Box } from "@chakra-ui/react";
+import EmbeddingQueueSection from "@/components/jobs/EmbeddingQueueSection";
+import { queryKeys } from "@/lib/queryKeys";
+import type { EmbeddingQueueStatusResponse } from "@/services/internalApi/embeddingQueue";
 
 // Seeds the query cache directly so the story needs no network, and disables
 // polling — the hook's refetchInterval would otherwise fire a real fetch()
@@ -18,7 +18,10 @@ function SeededQueries({
 }) {
   const [client] = React.useState(() => {
     const seeded = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+        mutations: { retry: false },
+      },
     });
     seeded.setQueryData(queryKeys.embeddingQueue(), status);
     return seeded;
@@ -143,9 +146,9 @@ const WITH_FAILURES: EmbeddingQueueStatusResponse = {
 };
 
 const meta: Meta<typeof EmbeddingQueueSection> = {
-  title: 'Jobs/EmbeddingQueueSection',
+  title: "Jobs/EmbeddingQueueSection",
   component: EmbeddingQueueSection,
-  parameters: { layout: 'padded' },
+  parameters: { layout: "padded" },
   args: {
     refetchInterval: false,
   },
@@ -162,7 +165,7 @@ export default meta;
 type Story = StoryObj<typeof EmbeddingQueueSection>;
 
 export const Empty: Story = {
-  name: 'Empty — nothing queued',
+  name: "Empty — nothing queued",
   decorators: [
     (Story) => (
       <SeededQueries status={EMPTY}>
@@ -173,7 +176,7 @@ export const Empty: Story = {
 };
 
 export const Busy: Story = {
-  name: 'Busy — large backfill draining',
+  name: "Busy — large backfill draining",
   decorators: [
     (Story) => (
       <SeededQueries status={BUSY}>
@@ -184,7 +187,7 @@ export const Busy: Story = {
 };
 
 export const Paused: Story = {
-  name: 'Paused — auth error',
+  name: "Paused — auth error",
   decorators: [
     (Story) => (
       <SeededQueries status={PAUSED}>
@@ -195,7 +198,7 @@ export const Paused: Story = {
 };
 
 export const WithFailures: Story = {
-  name: 'With failures — retry available',
+  name: "With failures — retry available",
   decorators: [
     (Story) => (
       <SeededQueries status={WITH_FAILURES}>

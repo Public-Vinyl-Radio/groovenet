@@ -16,10 +16,17 @@ describe("PlayDetectionRepository.create", () => {
   it("persists every candidate for one window independently", async () => {
     dbQuery.mockResolvedValue({ rows: [{ id: "detection-id" }] });
     const input = {
-      ingest_id: "ingest-id", source_id: "listener-1", session_id: "session-1",
-      track_id: "track-a", friend_id: 2, confidence: 0.87, offset_seconds: 12.5,
-      window_start_at: "2026-09-20T12:00:00Z", fingerprint_type: "chromaprint",
-      fingerprint_version: "1", level_dbfs: -23.4,
+      ingest_id: "ingest-id",
+      source_id: "listener-1",
+      session_id: "session-1",
+      track_id: "track-a",
+      friend_id: 2,
+      confidence: 0.87,
+      offset_seconds: 12.5,
+      window_start_at: "2026-09-20T12:00:00Z",
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
+      level_dbfs: -23.4,
     };
 
     await expect(repo().create(input)).resolves.toEqual({ id: "detection-id" });
@@ -27,8 +34,17 @@ describe("PlayDetectionRepository.create", () => {
     expect(sql).toMatch(/INSERT INTO play_detections/);
     expect(params[0]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(params.slice(1)).toEqual([
-      "ingest-id", "listener-1", "session-1", "track-a", 2, 0.87, 12.5,
-      "2026-09-20T12:00:00Z", "chromaprint", "1", -23.4,
+      "ingest-id",
+      "listener-1",
+      "session-1",
+      "track-a",
+      2,
+      0.87,
+      12.5,
+      "2026-09-20T12:00:00Z",
+      "chromaprint",
+      "1",
+      -23.4,
     ]);
   });
 
@@ -57,7 +73,9 @@ describe("PlayDetectionRepository lookups and retention", () => {
     await expect(repo().pruneExpired(7)).resolves.toBe(4);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/created_at < current_timestamp/);
-    expect(sql).toMatch(/NOT EXISTS \(\s*SELECT 1 FROM spin_sessions ss WHERE ss\.detection_id = pd\.id/);
+    expect(sql).toMatch(
+      /NOT EXISTS \(\s*SELECT 1 FROM spin_sessions ss WHERE ss\.detection_id = pd\.id/,
+    );
     expect(params).toEqual([7]);
   });
 
@@ -77,7 +95,7 @@ describe("PlayDetectionRepository lookups and retention", () => {
   it("rejects an invalid retention setting", () => {
     process.env.PLAY_DETECTIONS_RETENTION_DAYS = "one-week";
     expect(playDetectionRetentionDays).toThrow(
-      "PLAY_DETECTIONS_RETENTION_DAYS must be a non-negative integer"
+      "PLAY_DETECTIONS_RETENTION_DAYS must be a non-negative integer",
     );
   });
 });
@@ -129,12 +147,13 @@ describe("listRecent()", () => {
   it("binds source, session, since and paging", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
     await new PlayDetectionRepository().listRecent({
-      source_id: "aswitch", session_id: "s1", since: "2026-09-21T00:00:00Z",
-      limit: 10, offset: 20,
+      source_id: "aswitch",
+      session_id: "s1",
+      since: "2026-09-21T00:00:00Z",
+      limit: 10,
+      offset: 20,
     });
-    expect(dbQuery.mock.calls[0][1]).toEqual([
-      "aswitch", "s1", "2026-09-21T00:00:00Z", 10, 20,
-    ]);
+    expect(dbQuery.mock.calls[0][1]).toEqual(["aswitch", "s1", "2026-09-21T00:00:00Z", 10, 20]);
   });
 });
 

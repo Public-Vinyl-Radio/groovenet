@@ -12,7 +12,10 @@ import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
 export default function ServerSessionStrip() {
   const target = useOptionalPlaybackTarget();
   if (!target || target.target === "") return null;
-  const name = target.remote.player?.name ?? target.players.find((p) => p.id === target.target)?.name ?? target.target;
+  const name =
+    target.remote.player?.name ??
+    target.players.find((p) => p.id === target.target)?.name ??
+    target.target;
   return (
     <Flex
       as="section"

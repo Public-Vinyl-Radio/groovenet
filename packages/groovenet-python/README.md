@@ -26,17 +26,17 @@ See [CLAUDE.md](CLAUDE.md) for endpoint additions and testing. No code generatio
 
 The current consumers and their policies are:
 
-| Method | App request | Service timeout | Failure policy |
-| --- | --- | --- | --- |
-| `update_track` | PATCH `/api/tracks` | 30s | Analysis/duration/art jobs fail; download URL write logs a warning and keeps the download |
-| `report_job_outcome` | POST `/api/jobs/{id}/outcome`, no body | 10s | Best-effort after terminal Redis status |
-| `extract_cover_art` | POST `/api/albums/{releaseId}/artwork/match`, `friend_id` query | 180s | Album cover job fails |
-| `fetch_audio` | GET `/api/audio`, `filename` query, streamed | 60s | Local-processing job fails |
-| `claim_ingest` / `claim_set_derivation` | POST ingest/set `/claim`, no body | Configured fingerprint timeout | Best-effort; work continues |
-| `report_ingest_result` / `report_set_result` | POST ingest/set `/result`, full result body | Configured fingerprint timeout | Wrapped as `ResultReportError`; logged, next job continues |
-| `upsert_fingerprint` | POST `/api/fingerprints`, full upsert body | Configured fingerprint timeout | Failed track counted; a later indexing run can retry |
-| `record_file_stats` | PATCH `/api/fingerprints`, hash/size/mtime body | Configured fingerprint timeout | Best-effort; existing fingerprint remains valid |
-| `list_fingerprints` | GET `/api/fingerprints`, engine/version/limit/offset query | Configured fingerprint timeout | Keep existing index and use the service's refresh retry schedule |
+| Method                                       | App request                                                     | Service timeout                | Failure policy                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `update_track`                               | PATCH `/api/tracks`                                             | 30s                            | Analysis/duration/art jobs fail; download URL write logs a warning and keeps the download |
+| `report_job_outcome`                         | POST `/api/jobs/{id}/outcome`, no body                          | 10s                            | Best-effort after terminal Redis status                                                   |
+| `extract_cover_art`                          | POST `/api/albums/{releaseId}/artwork/match`, `friend_id` query | 180s                           | Album cover job fails                                                                     |
+| `fetch_audio`                                | GET `/api/audio`, `filename` query, streamed                    | 60s                            | Local-processing job fails                                                                |
+| `claim_ingest` / `claim_set_derivation`      | POST ingest/set `/claim`, no body                               | Configured fingerprint timeout | Best-effort; work continues                                                               |
+| `report_ingest_result` / `report_set_result` | POST ingest/set `/result`, full result body                     | Configured fingerprint timeout | Wrapped as `ResultReportError`; logged, next job continues                                |
+| `upsert_fingerprint`                         | POST `/api/fingerprints`, full upsert body                      | Configured fingerprint timeout | Failed track counted; a later indexing run can retry                                      |
+| `record_file_stats`                          | PATCH `/api/fingerprints`, hash/size/mtime body                 | Configured fingerprint timeout | Best-effort; existing fingerprint remains valid                                           |
+| `list_fingerprints`                          | GET `/api/fingerprints`, engine/version/limit/offset query      | Configured fingerprint timeout | Keep existing index and use the service's refresh retry schedule                          |
 
 The fingerprint timeout is `FINGERPRINT_RESULT_TIMEOUT` (default 30s). The
 current album route replaces the older extract-cover-art-from-audio endpoint.

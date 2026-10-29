@@ -26,7 +26,12 @@ const NAMES = {
 
 let friendId = 0;
 const ids: Record<"Latin" | "A" | "B" | "C" | "D" | "Rock", string> = {
-  Latin: "", A: "", B: "", C: "", D: "", Rock: "",
+  Latin: "",
+  A: "",
+  B: "",
+  C: "",
+  D: "",
+  Rock: "",
 };
 
 // Every album carries 'Latin' as its own Discogs genre, exercising the
@@ -70,25 +75,28 @@ beforeAll(async () => {
   ids.D = (await createGenre(NAMES.D, a.id)).id;
   ids.Rock = await genreRow("Rock");
 
-  const { rows } = await dbQuery<{ id: number }>("INSERT INTO friends (username) VALUES ($1) RETURNING id", [USERNAME]);
+  const { rows } = await dbQuery<{ id: number }>(
+    "INSERT INTO friends (username) VALUES ($1) RETURNING id",
+    [USERNAME],
+  );
   friendId = rows[0].id;
 
   for (const album of ALBUMS) {
     await dbQuery(
       `INSERT INTO albums (release_id, friend_id, title, artist, genres, date_added)
        VALUES ($1, $2, $1, 'Artist', ARRAY['Latin'], '2026-01-01')`,
-      [album.release, friendId]
+      [album.release, friendId],
     );
     const trackId = `${album.release}-t`;
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, release_id)
        VALUES ($1, $2, $3, $1, 'Artist', $4)`,
-      [trackId, USERNAME, friendId, album.release]
+      [trackId, USERNAME, friendId, album.release],
     );
     for (const key of album.linked) {
       await dbQuery(
         "INSERT INTO track_genres (track_id, friend_id, genre_id, source) VALUES ($1, $2, $3, 'manual')",
-        [trackId, friendId, ids[key as keyof typeof ids]]
+        [trackId, friendId, ids[key as keyof typeof ids]],
       );
     }
   }
@@ -107,7 +115,7 @@ afterAll(async () => {
 async function pairRow(genreId: string, relatedId: string) {
   const { rows } = await dbQuery<{ score: number; signals: Record<string, unknown> }>(
     "SELECT score, signals FROM genre_similarity WHERE genre_id = $1 AND related_genre_id = $2",
-    [genreId, relatedId]
+    [genreId, relatedId],
   );
   return rows[0] ?? null;
 }
@@ -130,28 +138,34 @@ describe("genre similarity (integration)", () => {
     expect(row!.score).toBeGreaterThan(1);
   });
 
-  dbTest("scores a direct parent/child pair on taxonomy only, never on their album overlap", async () => {
-    await recomputeGenreSimilarity();
-    // Read from C's own side: "Latin" has 50 real seeded children tied at
-    // the sibling score, which can crowd a 0.5 parent entry out of *Latin's*
-    // (or even A's) own top 20 — a top-N truncation, not a scoring bug. C's
-    // only siblings are the other custom test genre (D), so its own list is
-    // a reliable place to see this pair.
-    const row = await pairRow(ids.C, ids.A);
+  dbTest(
+    "scores a direct parent/child pair on taxonomy only, never on their album overlap",
+    async () => {
+      await recomputeGenreSimilarity();
+      // Read from C's own side: "Latin" has 50 real seeded children tied at
+      // the sibling score, which can crowd a 0.5 parent entry out of *Latin's*
+      // (or even A's) own top 20 — a top-N truncation, not a scoring bug. C's
+      // only siblings are the other custom test genre (D), so its own list is
+      // a reliable place to see this pair.
+      const row = await pairRow(ids.C, ids.A);
 
-    expect(row).not.toBeNull();
-    expect(row!.signals.taxonomy).toBe("parent");
-    expect(row!.signals.npmi).toBeUndefined();
-    expect(row!.signals.shared_albums).toBeUndefined();
-  });
+      expect(row).not.toBeNull();
+      expect(row!.signals.taxonomy).toBe("parent");
+      expect(row!.signals.npmi).toBeUndefined();
+      expect(row!.signals.shared_albums).toBeUndefined();
+    },
+  );
 
-  dbTest("leaves out a non-direct ancestor/descendant pair entirely, however much they overlap", async () => {
-    await recomputeGenreSimilarity();
-    // Latin and "GS Test Sub Cumbia" (C) are two levels apart and share
-    // every album C is on, via Latin's own Discogs genre on every album.
-    expect(await pairRow(ids.Latin, ids.C)).toBeNull();
-    expect(await pairRow(ids.C, ids.Latin)).toBeNull();
-  });
+  dbTest(
+    "leaves out a non-direct ancestor/descendant pair entirely, however much they overlap",
+    async () => {
+      await recomputeGenreSimilarity();
+      // Latin and "GS Test Sub Cumbia" (C) are two levels apart and share
+      // every album C is on, via Latin's own Discogs genre on every album.
+      expect(await pairRow(ids.Latin, ids.C)).toBeNull();
+      expect(await pairRow(ids.C, ids.Latin)).toBeNull();
+    },
+  );
 
   dbTest("drops a non-taxonomy pair below the minimum support", async () => {
     await recomputeGenreSimilarity();
@@ -167,39 +181,61 @@ describe("genre similarity (integration)", () => {
     expect(row!.signals).toEqual({ taxonomy: "sibling" });
   });
 
-  dbTest("is idempotent: recomputing twice with nothing changed writes back the same rows", async () => {
-    await recomputeGenreSimilarity();
-    const before = (
-      await dbQuery<{ genre_id: string; related_genre_id: string; score: number; signals: Record<string, unknown> }>(
-        "SELECT genre_id, related_genre_id, score, signals FROM genre_similarity ORDER BY genre_id, related_genre_id"
-      )
-    ).rows;
+  dbTest(
+    "is idempotent: recomputing twice with nothing changed writes back the same rows",
+    async () => {
+      await recomputeGenreSimilarity();
+      const before = (
+        await dbQuery<{
+          genre_id: string;
+          related_genre_id: string;
+          score: number;
+          signals: Record<string, unknown>;
+        }>(
+          "SELECT genre_id, related_genre_id, score, signals FROM genre_similarity ORDER BY genre_id, related_genre_id",
+        )
+      ).rows;
 
-    await recomputeGenreSimilarity();
-    const after = (
-      await dbQuery<{ genre_id: string; related_genre_id: string; score: number; signals: Record<string, unknown> }>(
-        "SELECT genre_id, related_genre_id, score, signals FROM genre_similarity ORDER BY genre_id, related_genre_id"
-      )
-    ).rows;
+      await recomputeGenreSimilarity();
+      const after = (
+        await dbQuery<{
+          genre_id: string;
+          related_genre_id: string;
+          score: number;
+          signals: Record<string, unknown>;
+        }>(
+          "SELECT genre_id, related_genre_id, score, signals FROM genre_similarity ORDER BY genre_id, related_genre_id",
+        )
+      ).rows;
 
-    expect(after).toEqual(before);
-    expect(after.length).toBeGreaterThan(0);
-  });
+      expect(after).toEqual(before);
+      expect(after.length).toBeGreaterThan(0);
+    },
+  );
 
-  dbTest("loads the table and taxonomy into the pre-scorer's soft-overlap context (#487)", async () => {
-    await recomputeGenreSimilarity();
-    const context = await loadGenreOverlapContext();
+  dbTest(
+    "loads the table and taxonomy into the pre-scorer's soft-overlap context (#487)",
+    async () => {
+      await recomputeGenreSimilarity();
+      const context = await loadGenreOverlapContext();
 
-    // Real uuid ids come back as text, keyed so either direction finds the pair.
-    expect(context.parentOf.get(ids.C)).toBe(ids.A);
-    expect(context.parentOf.get(ids.A)).toBe(ids.Latin);
-    const cumbia = { id: ids.A, parentId: ids.Latin };
-    const salsa = { id: ids.B, parentId: ids.Latin };
-    const related = calculateGenreOverlap([cumbia], [salsa], context);
-    expect(related).toBeGreaterThan(0);
-    expect(related).toBeLessThan(1);
-    expect(calculateGenreOverlap([salsa], [cumbia], context)).toBeCloseTo(related, 6);
-    // Two levels apart, so only the loaded taxonomy (not the ref's own parentId) can see it.
-    expect(calculateGenreOverlap([{ id: ids.Latin, parentId: null }], [{ id: ids.C, parentId: ids.A }], context)).toBe(1);
-  });
+      // Real uuid ids come back as text, keyed so either direction finds the pair.
+      expect(context.parentOf.get(ids.C)).toBe(ids.A);
+      expect(context.parentOf.get(ids.A)).toBe(ids.Latin);
+      const cumbia = { id: ids.A, parentId: ids.Latin };
+      const salsa = { id: ids.B, parentId: ids.Latin };
+      const related = calculateGenreOverlap([cumbia], [salsa], context);
+      expect(related).toBeGreaterThan(0);
+      expect(related).toBeLessThan(1);
+      expect(calculateGenreOverlap([salsa], [cumbia], context)).toBeCloseTo(related, 6);
+      // Two levels apart, so only the loaded taxonomy (not the ref's own parentId) can see it.
+      expect(
+        calculateGenreOverlap(
+          [{ id: ids.Latin, parentId: null }],
+          [{ id: ids.C, parentId: ids.A }],
+          context,
+        ),
+      ).toBe(1);
+    },
+  );
 });

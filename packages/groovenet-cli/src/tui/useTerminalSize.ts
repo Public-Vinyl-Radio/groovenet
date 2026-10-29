@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useStdout } from "ink";
 
-export interface TerminalSize { columns: number; rows: number }
+export interface TerminalSize {
+  columns: number;
+  rows: number;
+}
 
 // Ink's own fallback when a stream reports no size (piped, some CI runners).
 const FALLBACK: TerminalSize = { columns: 80, rows: 24 };
@@ -18,7 +21,9 @@ export function useTerminalSize(): TerminalSize {
   useEffect(() => {
     const onResize = () => setSize(read(stdout));
     stdout.on("resize", onResize);
-    return () => { stdout.off("resize", onResize); };
+    return () => {
+      stdout.off("resize", onResize);
+    };
   }, [stdout]);
   return size;
 }

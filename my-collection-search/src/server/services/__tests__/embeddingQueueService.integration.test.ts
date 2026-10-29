@@ -80,7 +80,11 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
 
     // A job waiting to retry also holds the sweep off.
     await redis.del("embedding_queue");
-    await redis.zadd("embedding_retry", Date.now() + 60_000, JSON.stringify({ track_id: "t0", friend_id: 1, kind: "identity" }));
+    await redis.zadd(
+      "embedding_retry",
+      Date.now() + 60_000,
+      JSON.stringify({ track_id: "t0", friend_id: 1, kind: "identity" }),
+    );
     expect(await service.sweepTick()).toEqual({ queued: 0, pending: 1 });
 
     // Drained, with one track lost along the way: the next sweep picks it up.
@@ -153,9 +157,7 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
   it("caps the failed list at 100 entries via real LPUSH/LTRIM", async () => {
     mockGenerateIdentity.mockRejectedValue(new Error("permanently broken"));
     for (let i = 0; i < 5; i += 1) {
-      await service.enqueue([
-        { track_id: `t${i}`, friend_id: 1, kind: "identity" },
-      ]);
+      await service.enqueue([{ track_id: `t${i}`, friend_id: 1, kind: "identity" }]);
     }
     // Run each job through every retry until it lands in the failed list.
     let now = Date.now();
@@ -202,7 +204,9 @@ describe.skipIf(!RUN)("EmbeddingQueueService (Redis integration)", () => {
   });
 
   it("finds a still-running backfill run via real SCAN, excluding its :errors key (#451)", async () => {
-    mockGenerateIdentity.mockResolvedValueOnce({ updated: true, reason: "ok" }).mockRejectedValue(new Error("rate limited"));
+    mockGenerateIdentity
+      .mockResolvedValueOnce({ updated: true, reason: "ok" })
+      .mockRejectedValue(new Error("rate limited"));
 
     const started = await service.startBackfillRun([
       { track_id: "a", friend_id: 1, kind: "identity" },

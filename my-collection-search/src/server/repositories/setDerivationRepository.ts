@@ -34,7 +34,7 @@ export class SetDerivationRepository {
         input.fingerprint_version,
         input.window_seconds,
         input.step_seconds,
-      ]
+      ],
     );
     return rows[0];
   }
@@ -42,7 +42,7 @@ export class SetDerivationRepository {
   async findById(id: string): Promise<SetDerivationRow | null> {
     const { rows } = await dbQuery<SetDerivationRow>(
       "SELECT * FROM set_derivations WHERE id = $1",
-      [id]
+      [id],
     );
     return rows[0] ?? null;
   }
@@ -71,7 +71,7 @@ export class SetDerivationRepository {
         key.fingerprint_version,
         key.window_seconds,
         key.step_seconds,
-      ]
+      ],
     );
     return rows[0] ?? null;
   }
@@ -81,7 +81,7 @@ export class SetDerivationRepository {
     id: string,
     to: SetDerivationStatus,
     from: SetDerivationStatus[],
-    error: string | null = null
+    error: string | null = null,
   ): Promise<SetDerivationRow | null> {
     const { rows } = await dbQuery<SetDerivationRow>(
       `
@@ -95,7 +95,7 @@ export class SetDerivationRepository {
       WHERE id = $1 AND status = ANY($4::text[])
       RETURNING *
       `,
-      [id, to, error, from, to === "processed" || to === "failed"]
+      [id, to, error, from, to === "processed" || to === "failed"],
     );
     return rows[0] ?? null;
   }
@@ -113,7 +113,7 @@ export class SetDerivationRepository {
       error: string | null;
       duration_seconds: number | null;
       windows: SetWindow[];
-    }
+    },
   ): Promise<SetDerivationRow | null> {
     const { rows } = await dbQuery<SetDerivationRow>(
       `
@@ -127,15 +127,13 @@ export class SetDerivationRepository {
       WHERE id = $1 AND status IN ('queued', 'processing')
       RETURNING *
       `,
-      [id, result.status, result.error, result.duration_seconds, JSON.stringify(result.windows)]
+      [id, result.status, result.error, result.duration_seconds, JSON.stringify(result.windows)],
     );
     return rows[0] ?? null;
   }
 
   /** Title, artist and release for each (track_id, friend_id) pair given. */
-  async findTracks(
-    refs: Array<{ track_id: string; friend_id: number }>
-  ): Promise<SetTrackRef[]> {
+  async findTracks(refs: Array<{ track_id: string; friend_id: number }>): Promise<SetTrackRef[]> {
     if (refs.length === 0) return [];
     const { rows } = await dbQuery<SetTrackRef>(
       `
@@ -144,7 +142,7 @@ export class SetDerivationRepository {
       JOIN unnest($1::text[], $2::int[]) AS want(track_id, friend_id)
         ON t.track_id = want.track_id AND t.friend_id = want.friend_id
       `,
-      [refs.map((r) => r.track_id), refs.map((r) => r.friend_id)]
+      [refs.map((r) => r.track_id), refs.map((r) => r.friend_id)],
     );
     return rows;
   }
@@ -156,7 +154,7 @@ export class SetDerivationRepository {
    */
   async listPlannedEntries(
     playlistId: number,
-    engine: { fingerprint_type: string; fingerprint_version: string }
+    engine: { fingerprint_type: string; fingerprint_version: string },
   ): Promise<PlannedEntry[]> {
     const { rows } = await dbQuery<Omit<PlannedEntry, "index">>(
       `
@@ -172,7 +170,7 @@ export class SetDerivationRepository {
       WHERE pt.playlist_id = $1
       ORDER BY pt.position ASC
       `,
-      [playlistId, engine.fingerprint_type, engine.fingerprint_version]
+      [playlistId, engine.fingerprint_type, engine.fingerprint_version],
     );
     return rows.map((row, index) => ({ ...row, index }));
   }
@@ -180,7 +178,7 @@ export class SetDerivationRepository {
   /** Tracks on these releases with no fingerprint under this engine. */
   async listUnindexedOnReleases(
     releaseIds: string[],
-    engine: { fingerprint_type: string; fingerprint_version: string }
+    engine: { fingerprint_type: string; fingerprint_version: string },
   ): Promise<SetTrackRef[]> {
     if (releaseIds.length === 0) return [];
     const { rows } = await dbQuery<SetTrackRef>(
@@ -197,7 +195,7 @@ export class SetDerivationRepository {
         )
       ORDER BY t.release_id, t.position
       `,
-      [releaseIds, engine.fingerprint_type, engine.fingerprint_version]
+      [releaseIds, engine.fingerprint_type, engine.fingerprint_version],
     );
     return rows;
   }
@@ -205,7 +203,7 @@ export class SetDerivationRepository {
   async findPlaylistIdForLiveSet(liveSetId: number): Promise<number | null> {
     const { rows } = await dbQuery<{ playlist_id: number }>(
       "SELECT playlist_id FROM live_sets WHERE id = $1",
-      [liveSetId]
+      [liveSetId],
     );
     return rows[0]?.playlist_id ?? null;
   }
@@ -229,7 +227,7 @@ export class SetDerivationRepository {
         SELECT 1 FROM live_set_media WHERE live_set_id = $1 AND url = $2
       )
       `,
-      [liveSetId, url, filename]
+      [liveSetId, url, filename],
     );
   }
 }

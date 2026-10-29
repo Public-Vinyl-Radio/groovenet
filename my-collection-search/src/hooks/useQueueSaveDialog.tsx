@@ -15,49 +15,55 @@ export function useQueueSaveDialog() {
   const [playlistName, setPlaylistName] = React.useState("");
   const { playlist } = usePlaylistPlayer();
 
-  const onConfirm = React.useCallback(async (finalName: string) => {
-    if (playlist.length === 0) {
-      toaster.create({ title: "Cannot save empty queue", type: "error" });
-      return;
-    }
+  const onConfirm = React.useCallback(
+    async (finalName: string) => {
+      if (playlist.length === 0) {
+        toaster.create({ title: "Cannot save empty queue", type: "error" });
+        return;
+      }
 
-    if (!finalName?.trim()) {
-      toaster.create({ title: "Please enter a playlist name", type: "error" });
-      return;
-    }
+      if (!finalName?.trim()) {
+        toaster.create({ title: "Please enter a playlist name", type: "error" });
+        return;
+      }
 
-    try {
-      // Create track objects with friend_id from queue tracks
-      const tracksWithFriendId = playlist.map(track => ({
-        track_id: track.track_id,
-        friend_id: track.friend_id
-      }));
-      console.log("Saving queue as playlist with tracks:", tracksWithFriendId);
+      try {
+        // Create track objects with friend_id from queue tracks
+        const tracksWithFriendId = playlist.map((track) => ({
+          track_id: track.track_id,
+          friend_id: track.friend_id,
+        }));
+        console.log("Saving queue as playlist with tracks:", tracksWithFriendId);
 
-      await importPlaylist(finalName.trim(), tracksWithFriendId);
+        await importPlaylist(finalName.trim(), tracksWithFriendId);
 
-      toaster.create({ title: "Queue saved as playlist successfully", type: "success" });
-      setOpen(false);
-      setPlaylistName("");
-    } catch (error) {
-      console.error("Failed to save queue as playlist:", error);
-      toaster.create({ title: "Failed to save queue as playlist", type: "error" });
-    }
-  }, [playlist]);
+        toaster.create({ title: "Queue saved as playlist successfully", type: "success" });
+        setOpen(false);
+        setPlaylistName("");
+      } catch (error) {
+        console.error("Failed to save queue as playlist:", error);
+        toaster.create({ title: "Failed to save queue as playlist", type: "error" });
+      }
+    },
+    [playlist],
+  );
 
   const onCancel = React.useCallback(() => setOpen(false), []);
 
-  const Dialog = React.useCallback(() => (
-    <NamePlaylistDialog
-      open={open}
-      name={playlistName}
-      setName={setPlaylistName}
-      trackCount={playlist.length}
-      onConfirm={onConfirm}
-      onCancel={onCancel}
-      confirmLabel="Save Queue as Playlist"
-    />
-  ), [open, playlistName, playlist.length, onConfirm, onCancel]);
+  const Dialog = React.useCallback(
+    () => (
+      <NamePlaylistDialog
+        open={open}
+        name={playlistName}
+        setName={setPlaylistName}
+        trackCount={playlist.length}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+        confirmLabel="Save Queue as Playlist"
+      />
+    ),
+    [open, playlistName, playlist.length, onConfirm, onCancel],
+  );
 
   return {
     isOpen: open,

@@ -15,7 +15,7 @@ beforeAll(async () => {
   if (process.env.RUN_DB_TESTS !== "1") return;
   await dbQuery(
     `INSERT INTO audio_ingests (id, source_id, received_at) VALUES ($1, $2, current_timestamp)`,
-    [ingestId, sourceId]
+    [ingestId, sourceId],
   );
 });
 
@@ -28,12 +28,18 @@ afterAll(async () => {
 describe("play_detections schema (DB integration)", () => {
   dbTest("retains multiple candidates and a no-match row for one window", async () => {
     await repo.create({
-      ingest_id: ingestId, source_id: sourceId, track_id: "candidate-a",
-      confidence: 0.91, window_start_at: windowStart,
+      ingest_id: ingestId,
+      source_id: sourceId,
+      track_id: "candidate-a",
+      confidence: 0.91,
+      window_start_at: windowStart,
     });
     await repo.create({
-      ingest_id: ingestId, source_id: sourceId, track_id: "candidate-b",
-      confidence: 0.72, window_start_at: windowStart,
+      ingest_id: ingestId,
+      source_id: sourceId,
+      track_id: "candidate-b",
+      confidence: 0.72,
+      window_start_at: windowStart,
     });
     await repo.create({ ingest_id: ingestId, source_id: sourceId, window_start_at: windowStart });
 
@@ -45,14 +51,22 @@ describe("play_detections schema (DB integration)", () => {
 
   dbTest("stores a window's level and returns it from both reads", async () => {
     await repo.create({
-      ingest_id: ingestId, source_id: sourceId, track_id: "level-probe",
-      confidence: 0.9, window_start_at: windowStart, level_dbfs: -23.4,
+      ingest_id: ingestId,
+      source_id: sourceId,
+      track_id: "level-probe",
+      confidence: 0.9,
+      window_start_at: windowStart,
+      level_dbfs: -23.4,
     });
 
-    const bySource = (await repo.listRecentBySource(sourceId, windowStart)).find((r) => r.track_id === "level-probe");
+    const bySource = (await repo.listRecentBySource(sourceId, windowStart)).find(
+      (r) => r.track_id === "level-probe",
+    );
     expect(bySource?.level_dbfs).toBeCloseTo(-23.4, 4);
 
-    const recent = (await repo.listRecent({ source_id: sourceId })).find((r) => r.track_id === "level-probe");
+    const recent = (await repo.listRecent({ source_id: sourceId })).find(
+      (r) => r.track_id === "level-probe",
+    );
     expect(recent?.level_dbfs).toBeCloseTo(-23.4, 4);
   });
 
@@ -60,7 +74,7 @@ describe("play_detections schema (DB integration)", () => {
     await dbQuery(`DELETE FROM audio_ingests WHERE id = $1`, [ingestId]);
     const { rows } = await dbQuery<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM play_detections WHERE ingest_id = $1`,
-      [ingestId]
+      [ingestId],
     );
     expect(rows[0].count).toBe("0");
   });
@@ -75,13 +89,20 @@ describe("pruning play detections (DB integration)", () => {
 
   const detect = async (daysOld: number) => {
     const row = await repo.create({
-      ingest_id: pruneIngestId, source_id: pruneSource, session_id: "s1",
-      track_id: null, friend_id: null, confidence: null, offset_seconds: null,
-      window_start_at: windowStart, fingerprint_type: "chromaprint", fingerprint_version: "1",
+      ingest_id: pruneIngestId,
+      source_id: pruneSource,
+      session_id: "s1",
+      track_id: null,
+      friend_id: null,
+      confidence: null,
+      offset_seconds: null,
+      window_start_at: windowStart,
+      fingerprint_type: "chromaprint",
+      fingerprint_version: "1",
     });
     await dbQuery(
       `UPDATE play_detections SET created_at = current_timestamp - ($2 * interval '1 day') WHERE id = $1`,
-      [row.id, daysOld]
+      [row.id, daysOld],
     );
     return row.id;
   };
@@ -90,11 +111,11 @@ describe("pruning play detections (DB integration)", () => {
     if (process.env.RUN_DB_TESTS !== "1") return;
     await dbQuery(
       `INSERT INTO audio_ingests (id, source_id, received_at) VALUES ($1, $2, current_timestamp)`,
-      [pruneIngestId, pruneSource]
+      [pruneIngestId, pruneSource],
     );
     const { rows } = await dbQuery<{ id: number }>(
       `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
-      [username]
+      [username],
     );
     friendId = rows[0].id;
 
@@ -110,7 +131,7 @@ describe("pruning play detections (DB integration)", () => {
        )
        VALUES ($1, 'prune-release', 'vinyl', 'automatic', current_timestamp,
                'automatic', $2, $3, 0.9)`,
-      [friendId, pruneSource, ids.played]
+      [friendId, pruneSource, ids.played],
     );
   });
 
@@ -126,13 +147,13 @@ describe("pruning play detections (DB integration)", () => {
 
     const { rows } = await dbQuery<{ id: string }>(
       `SELECT id FROM play_detections WHERE ingest_id = $1`,
-      [pruneIngestId]
+      [pruneIngestId],
     );
     expect(rows.map((row) => row.id).sort()).toEqual([ids.played, ids.fresh].sort());
 
     const spin = await dbQuery<{ detection_id: string }>(
       `SELECT detection_id FROM spin_sessions WHERE friend_id = $1`,
-      [friendId]
+      [friendId],
     );
     expect(spin.rows[0].detection_id).toBe(ids.played);
   });

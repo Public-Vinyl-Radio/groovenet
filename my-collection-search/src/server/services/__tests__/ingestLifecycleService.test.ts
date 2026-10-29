@@ -116,9 +116,7 @@ describe("claim()", () => {
   it("moves a received ingest into processing", async () => {
     const result = await service.claim("ingest-1");
 
-    expect(ingests.transitionStatus).toHaveBeenCalledWith("ingest-1", "processing", [
-      "received",
-    ]);
+    expect(ingests.transitionStatus).toHaveBeenCalledWith("ingest-1", "processing", ["received"]);
     expect(result.status).toBe("processing");
   });
 
@@ -159,10 +157,8 @@ describe("report()", () => {
   it("records a match with its confidence and offset", async () => {
     await service.report(
       report({
-        candidates: [
-          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
-        ],
-      })
+        candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 }],
+      }),
     );
 
     expect(detections.create.mock.calls[0][0]).toMatchObject({
@@ -187,9 +183,7 @@ describe("report()", () => {
   it("falls back to the ingest's captured_at when the report has no window", async () => {
     await service.report(report({ window_start_at: null }));
 
-    expect(detections.create.mock.calls[0][0].window_start_at).toBe(
-      "2026-09-20T18:42:10.000Z"
-    );
+    expect(detections.create.mock.calls[0][0].window_start_at).toBe("2026-09-20T18:42:10.000Z");
   });
 
   it("records a null window when neither side knows when it was captured", async () => {
@@ -203,9 +197,7 @@ describe("report()", () => {
   });
 
   it("records a null engine when the report names none", async () => {
-    await service.report(
-      report({ fingerprint_type: null, fingerprint_version: null })
-    );
+    await service.report(report({ fingerprint_type: null, fingerprint_version: null }));
 
     expect(detections.create.mock.calls[0][0]).toMatchObject({
       fingerprint_type: null,
@@ -220,7 +212,7 @@ describe("report()", () => {
       "ingest-1",
       "processed",
       ["received", "processing"],
-      null
+      null,
     );
   });
 
@@ -231,7 +223,7 @@ describe("report()", () => {
       "ingest-1",
       "failed",
       ["received", "processing"],
-      "decode failed"
+      "decode failed",
     );
   });
 
@@ -247,22 +239,19 @@ describe("report()", () => {
   it("aggregates the source's detections when a window matches", async () => {
     await service.report(
       report({
-        candidates: [
-          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
-        ],
-      })
+        candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 }],
+      }),
     );
 
-    expect(aggregation.aggregateSource).toHaveBeenCalledWith(
-      "living-room-vinyl",
-      expect.any(Date)
-    );
+    expect(aggregation.aggregateSource).toHaveBeenCalledWith("living-room-vinyl", expect.any(Date));
   });
 
   it("looks back from when the window was captured, so a backlog still becomes spins", async () => {
     // A listener catching up after a DNS outage reports windows hours old.
     const match = { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 };
-    await service.report(report({ window_start_at: "2026-09-20T18:42:10.000Z", candidates: [match] }));
+    await service.report(
+      report({ window_start_at: "2026-09-20T18:42:10.000Z", candidates: [match] }),
+    );
 
     const since = aggregation.aggregateSource.mock.calls[0][1] as Date;
     expect(since.toISOString()).toBe("2026-09-20T17:42:10.000Z");
@@ -272,7 +261,7 @@ describe("report()", () => {
     const match = { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 };
     await service.report(report({ window_start_at: null, candidates: [match] }));
     expect((aggregation.aggregateSource.mock.calls[0][1] as Date).toISOString()).toBe(
-      "2026-09-20T17:42:10.000Z"
+      "2026-09-20T17:42:10.000Z",
     );
 
     ingests.findById.mockResolvedValue(row({ captured_at: null }));
@@ -323,10 +312,8 @@ describe("report()", () => {
 
     const result = await service.report(
       report({
-        candidates: [
-          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
-        ],
-      })
+        candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 }],
+      }),
     );
 
     expect(result.status).toBe("processed");
@@ -334,7 +321,7 @@ describe("report()", () => {
       "ingest-1",
       "processed",
       ["received", "processing"],
-      null
+      null,
     );
   });
 
@@ -345,7 +332,7 @@ describe("report()", () => {
           { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
           { track_id: "t2", friend_id: 1, confidence: 0.4, offset_seconds: 3 },
         ],
-      })
+      }),
     );
 
     expect(nowPlaying.observe).toHaveBeenCalledTimes(1);
@@ -375,15 +362,13 @@ describe("report()", () => {
     nowPlaying.observe.mockReturnValueOnce(
       new Promise((_resolve, rej) => {
         reject = rej;
-      })
+      }),
     );
 
     const result = await service.report(
       report({
-        candidates: [
-          { track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 },
-        ],
-      })
+        candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.94, offset_seconds: 12.4 }],
+      }),
     );
 
     // report() already resolved without waiting on the still-pending observe call.
@@ -394,7 +379,7 @@ describe("report()", () => {
     await Promise.resolve();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("[now-playing] observe failed"),
-      expect.any(Error)
+      expect.any(Error),
     );
   });
 
@@ -404,7 +389,7 @@ describe("report()", () => {
     await service.report(report());
 
     expect(detections.create.mock.invocationCallOrder[0]).toBeLessThan(
-      ingests.transitionStatus.mock.invocationCallOrder[0]
+      ingests.transitionStatus.mock.invocationCallOrder[0],
     );
   });
 
@@ -438,9 +423,7 @@ describe("report()", () => {
 
     await service.report(report());
 
-    expect(logged).toHaveBeenCalledWith(
-      expect.stringContaining("outside the ingest volume")
-    );
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining("outside the ingest volume"));
   });
 
   it("does nothing about the file when the ingest never had one", async () => {
@@ -459,7 +442,7 @@ describe("report()", () => {
   it("logs a deletion failure without losing the result", async () => {
     writeChunk();
     vi.spyOn(fs.promises, "unlink").mockRejectedValue(
-      Object.assign(new Error("EACCES"), { code: "EACCES" })
+      Object.assign(new Error("EACCES"), { code: "EACCES" }),
     );
 
     await expect(service.report(report())).resolves.toBeTruthy();
@@ -487,7 +470,7 @@ describe("reapStalled()", () => {
       "ingest-1",
       "failed",
       ["received"],
-      expect.stringContaining("never claimed")
+      expect.stringContaining("never claimed"),
     );
   });
 
@@ -501,7 +484,7 @@ describe("reapStalled()", () => {
       "ingest-1",
       "failed",
       ["processing"],
-      expect.stringContaining("abandoned")
+      expect.stringContaining("abandoned"),
     );
   });
 
@@ -602,7 +585,7 @@ describe("structured logging", () => {
         sample_rate: 22050,
         level_dbfs: -18.5,
         candidates: [{ track_id: "t1", friend_id: 1, confidence: 0.93, offset_seconds: 12 }],
-      })
+      }),
     );
 
     const terminal = lines().filter((l) => l.event === "ingest.processed");
@@ -629,7 +612,9 @@ describe("structured logging", () => {
   });
 
   it("ends a failed chunk on one error line naming the service's stage", async () => {
-    await service.report(report({ status: "failed", error: "truncated upload", error_stage: "decode" }));
+    await service.report(
+      report({ status: "failed", error: "truncated upload", error_stage: "decode" }),
+    );
     expect(lines()).toEqual([
       expect.objectContaining({
         event: "ingest.failed",
@@ -654,7 +639,9 @@ describe("structured logging", () => {
   });
 
   it("logs a null sequence for a chunk that was never numbered", async () => {
-    ingests.transitionStatus.mockImplementation(async (_id, to) => row({ status: to, sequence: null }));
+    ingests.transitionStatus.mockImplementation(async (_id, to) =>
+      row({ status: to, sequence: null }),
+    );
     await service.claim("ingest-1");
     expect(lines()[0]).toMatchObject({ event: "ingest.claimed", sequence: null });
   });
@@ -688,7 +675,7 @@ describe("configuration", () => {
       // A zero stall window would fail every in-flight chunk immediately.
       process.env.AUDIO_INGEST_STALL_MINUTES = value;
       expect(stalledAfterMs()).toBe(10 * 60_000);
-    }
+    },
   );
 
   it("reads both intervals from the environment", () => {
@@ -699,13 +686,10 @@ describe("configuration", () => {
     expect(reapIntervalMs()).toBe(2 * 60_000);
   });
 
-  it.each(["0", "nonsense"])(
-    "falls back to the default sweep interval for %o",
-    (value) => {
-      process.env.AUDIO_INGEST_REAP_INTERVAL_MINUTES = value;
-      expect(reapIntervalMs()).toBe(5 * 60_000);
-    }
-  );
+  it.each(["0", "nonsense"])("falls back to the default sweep interval for %o", (value) => {
+    process.env.AUDIO_INGEST_REAP_INTERVAL_MINUTES = value;
+    expect(reapIntervalMs()).toBe(5 * 60_000);
+  });
 });
 
 describe("reapTick()", () => {
@@ -757,10 +741,7 @@ describe("startIngestReaper()", () => {
   beforeEach(() => {
     timers = [];
     delete (globalThis as Record<string, unknown>)[GUARD];
-    vi.spyOn(globalThis, "setInterval").mockImplementation(((
-      fn: () => void,
-      ms: number
-    ) => {
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((fn: () => void, ms: number) => {
       const handle = realSetInterval(fn, ms);
       timers.push(handle);
       return handle;
@@ -793,9 +774,11 @@ describe("startIngestReaper()", () => {
 
   it("hands the timer a callback that reaps", async () => {
     startIngestReaper();
-    const registered = (globalThis.setInterval as unknown as {
-      mock: { calls: [() => void, number][] };
-    }).mock.calls[0][0];
+    const registered = (
+      globalThis.setInterval as unknown as {
+        mock: { calls: [() => void, number][] };
+      }
+    ).mock.calls[0][0];
     await vi.waitFor(() => expect(ingests.listStale).toHaveBeenCalled());
     ingests.listStale.mockClear();
     resetReapClock();

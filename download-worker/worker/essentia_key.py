@@ -16,18 +16,18 @@ from typing import Any
 
 from .config import logger
 
-_PROFILE_SOURCES = ('key_edma', 'key_krumhansl', 'key_temperley')
+_PROFILE_SOURCES = ("key_edma", "key_krumhansl", "key_temperley")
 
 
 def _format_key(estimate: dict[str, Any] | None) -> str | None:
-    if not estimate or not estimate.get('key') or not estimate.get('scale'):
+    if not estimate or not estimate.get("key") or not estimate.get("scale"):
         return None
     return f"{estimate['key']} {estimate['scale']}"
 
 
 def _format_chords_key(tonal: dict[str, Any]) -> str | None:
-    key = tonal.get('chords_key')
-    scale = tonal.get('chords_scale')
+    key = tonal.get("chords_key")
+    scale = tonal.get("chords_scale")
     if not key or not scale:
         return None
     return f"{key} {scale}"
@@ -38,7 +38,7 @@ def _profile_candidates(tonal: dict[str, Any]) -> list[tuple[str, str, float | N
     for source in _PROFILE_SOURCES:
         formatted = _format_key(tonal.get(source))
         if formatted:
-            strength = (tonal.get(source) or {}).get('strength')
+            strength = (tonal.get(source) or {}).get("strength")
             candidates.append((source, formatted, strength if isinstance(strength, (int, float)) else None))
     return candidates
 
@@ -77,7 +77,7 @@ def extract_key_analysis(tonal: dict[str, Any] | None) -> tuple[str | None, floa
         confidence = round(sum(strengths) / len(strengths), 3) if strengths else None
         return majority[0][1], confidence
 
-    winner = max(candidates, key=lambda c: c[2] if c[2] is not None else float('-inf'))
+    winner = max(candidates, key=lambda c: c[2] if c[2] is not None else float("-inf"))
     confidence = round(winner[2], 3) if winner[2] is not None else None
     return winner[1], confidence
 
@@ -97,9 +97,9 @@ def log_key_profile_disagreement(tonal: dict[str, Any] | None, track_id: str, fr
         return
 
     disagreements = []
-    edma = _format_key(tonal.get('key_edma'))
-    krumhansl = _format_key(tonal.get('key_krumhansl'))
-    temperley = _format_key(tonal.get('key_temperley'))
+    edma = _format_key(tonal.get("key_edma"))
+    krumhansl = _format_key(tonal.get("key_krumhansl"))
+    temperley = _format_key(tonal.get("key_temperley"))
     chords = _format_chords_key(tonal)
     if edma and edma != key:
         disagreements.append(f"edma={edma}")

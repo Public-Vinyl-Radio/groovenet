@@ -108,7 +108,7 @@ describe("fetchTracksByIds", () => {
 
   it("returns early for a nullish track list", async () => {
     await expect(
-      fetchTracksByIds(null as unknown as { track_id: string; friend_id: number }[])
+      fetchTracksByIds(null as unknown as { track_id: string; friend_id: number }[]),
     ).resolves.toEqual([]);
     expect(httpMock).not.toHaveBeenCalled();
   });
@@ -256,7 +256,7 @@ describe("single-track GET helpers", () => {
 
     expect(httpMock).toHaveBeenCalledWith(
       "/api/tracks/t1/audio-metadata?friend_id=2",
-      GET_NO_STORE
+      GET_NO_STORE,
     );
   });
 
@@ -282,10 +282,7 @@ describe("fetchTrackPlaylists", () => {
     httpMock.mockResolvedValue({ playlists });
 
     await expect(fetchTrackPlaylists("t1", 2)).resolves.toBe(playlists);
-    expect(httpMock).toHaveBeenCalledWith(
-      "/api/tracks/t1/playlists?friend_id=2",
-      GET_NO_STORE
-    );
+    expect(httpMock).toHaveBeenCalledWith("/api/tracks/t1/playlists?friend_id=2", GET_NO_STORE);
   });
 
   it.each([
@@ -324,7 +321,11 @@ describe("extractEmbeddedCover", () => {
 
 describe("fetchContextEmbeddingPreview", () => {
   it("requests the context type and reshapes it into contextText and contextData", async () => {
-    httpMock.mockResolvedValue({ type: "context", text: "idm. electronic music from the 1990s.", data: IDENTITY_DATA });
+    httpMock.mockResolvedValue({
+      type: "context",
+      text: "idm. electronic music from the 1990s.",
+      data: IDENTITY_DATA,
+    });
 
     await expect(fetchContextEmbeddingPreview("t 1", 2)).resolves.toEqual({
       contextText: "idm. electronic music from the 1990s.",
@@ -354,9 +355,7 @@ describe("fetchIdentityEmbeddingPreview", () => {
 
     await fetchIdentityEmbeddingPreview("t1", 2);
 
-    expect(calledUrl()).toBe(
-      "/api/tracks/t1/embedding-preview?friend_id=2&type=identity"
-    );
+    expect(calledUrl()).toBe("/api/tracks/t1/embedding-preview?friend_id=2&type=identity");
   });
 
   it("rejects an audio_vibe payload", async () => {
@@ -391,9 +390,7 @@ describe("fetchAudioVibeEmbeddingPreview", () => {
 
     await fetchAudioVibeEmbeddingPreview("t1", 2);
 
-    expect(calledUrl()).toBe(
-      "/api/tracks/t1/embedding-preview?friend_id=2&type=audio_vibe"
-    );
+    expect(calledUrl()).toBe("/api/tracks/t1/embedding-preview?friend_id=2&type=audio_vibe");
   });
 
   it("rejects an identity payload", async () => {
@@ -417,7 +414,12 @@ describe("similarity scope params", () => {
   it("sends the scope and library to both similarity fetchers", async () => {
     httpMock.mockResolvedValue({ candidates: [] });
 
-    await fetchSimilarVibeTracks({ track_id: "seed", friend_id: 1, scope: "library", library_friend_id: 6 });
+    await fetchSimilarVibeTracks({
+      track_id: "seed",
+      friend_id: 1,
+      scope: "library",
+      library_friend_id: 6,
+    });
     expect(calledParams().get("scope")).toBe("library");
     expect(calledParams().get("library_friend_id")).toBe("6");
 
@@ -594,9 +596,7 @@ describe("fetchSimilarTracks", () => {
 
     it("matches case-insensitively and ignores surrounding space", async () => {
       httpMock.mockResolvedValue({
-        candidates: [
-          candidate({ metadata: { ...candidate().metadata, year: "1994 REMASTER" } }),
-        ],
+        candidates: [candidate({ metadata: { ...candidate().metadata, year: "1994 REMASTER" } })],
       });
 
       const result = await fetchSimilarTracks({
@@ -786,7 +786,7 @@ describe("fetchPlaylistCounts", () => {
 
   it("returns an empty map for a nullish ref list", async () => {
     await expect(
-      fetchPlaylistCounts(null as unknown as { track_id: string; friend_id: number }[])
+      fetchPlaylistCounts(null as unknown as { track_id: string; friend_id: number }[]),
     ).resolves.toEqual({});
     expect(httpMock).not.toHaveBeenCalled();
   });

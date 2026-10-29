@@ -10,7 +10,13 @@ import { z } from "zod";
 
 export const sleeveTypeSchema = z.enum(["original", "paper", "poly-rice-paper-poly", "poly"]);
 export const recordActionTypeSchema = z.enum(["cleaned", "sleeved", "inspected", "repaired"]);
-export const cleaningMethodSchema = z.enum(["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"]);
+export const cleaningMethodSchema = z.enum([
+  "dry-brush",
+  "wet-manual",
+  "vacuum",
+  "ultrasonic",
+  "other",
+]);
 export const recordCareStatusSchema = z.enum(["never_cleaned", "overdue", "needs_sleeve"]);
 /** A sleeve, or "unknown" for copies with none logged. */
 export const recordSleeveFilterSchema = z.union([sleeveTypeSchema, z.literal("unknown")]);
@@ -29,7 +35,9 @@ export const recordCopySchema = z.object({
   id: z.number().int(),
   friend_id: z.number().int(),
   release_id: z.string(),
-  is_default: z.boolean().meta({ description: "The copy an action logged against the release lands on" }),
+  is_default: z
+    .boolean()
+    .meta({ description: "The copy an action logged against the release lands on" }),
   label: z.string().nullable().meta({ example: "DJ copy" }),
   notes: z.string().nullable().meta({ example: "Light hairline on B2, plays through." }),
   inner_sleeve_type: sleeveTypeSchema
@@ -49,7 +57,11 @@ export const recordCopySchema = z.object({
  * null. Labelling it with the default-copy update makes it real.
  */
 export const recordCopyListItemSchema = recordCopySchema.extend({
-  id: z.number().int().nullable().meta({ description: "Null for a release's implicit default copy" }),
+  id: z
+    .number()
+    .int()
+    .nullable()
+    .meta({ description: "Null for a release's implicit default copy" }),
   created_at: dateTime().nullable(),
   updated_at: dateTime().nullable(),
 });
@@ -184,7 +196,7 @@ export const recordCopyDefaultUpdateObjectSchema = z.object({
   ...copyNoteFields,
 });
 export const recordCopyDefaultUpdateSchema = recordCopyDefaultUpdateObjectSchema.refine(
-  ...requireLabelOrNotes
+  ...requireLabelOrNotes,
 );
 
 const timestampSchema = z
@@ -197,16 +209,25 @@ export const recordActionCreateObjectSchema = z.object({
   copy_id: z.number().int().optional(),
   release_id: z.string().min(1).optional(),
   action_type: recordActionTypeSchema,
-  occurred_at: timestampSchema.optional().meta({ format: "date-time", description: "Defaults to now; may be backdated" }),
+  occurred_at: timestampSchema
+    .optional()
+    .meta({ format: "date-time", description: "Defaults to now; may be backdated" }),
   notes: z.string().nullable().optional(),
-  sleeve_type: sleeveTypeSchema.optional().meta({ description: "Required for a sleeved action, and only for one" }),
-  details: recordActionDetailsSchema.optional().meta({ description: "`method` only for a cleaned action" }),
+  sleeve_type: sleeveTypeSchema
+    .optional()
+    .meta({ description: "Required for a sleeved action, and only for one" }),
+  details: recordActionDetailsSchema
+    .optional()
+    .meta({ description: "`method` only for a cleaned action" }),
 });
 
 type RecordActionCreateFields = z.infer<typeof recordActionCreateObjectSchema>;
 
 /** Rules a single JSON Schema cannot state; the route description repeats them. */
-export function refineRecordActionCreate(value: RecordActionCreateFields, ctx: z.RefinementCtx): void {
+export function refineRecordActionCreate(
+  value: RecordActionCreateFields,
+  ctx: z.RefinementCtx,
+): void {
   if ((value.copy_id === undefined) === (value.release_id === undefined)) {
     ctx.addIssue({ code: "custom", message: "Provide exactly one of copy_id or release_id" });
   }
@@ -226,7 +247,8 @@ export function refineRecordActionCreate(value: RecordActionCreateFields, ctx: z
   }
 }
 
-export const recordActionCreateSchema = recordActionCreateObjectSchema.superRefine(refineRecordActionCreate);
+export const recordActionCreateSchema =
+  recordActionCreateObjectSchema.superRefine(refineRecordActionCreate);
 
 // Query strings: these describe the coerced wire values. The app's route
 // schemas keep their own text coercion and defaults.

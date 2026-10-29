@@ -37,6 +37,7 @@ def get_allowed_internal_hosts() -> set[str]:
     )
     return {host.strip().lower() for host in raw.split(",") if host.strip()}
 
+
 def is_allowed_http_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
@@ -65,6 +66,7 @@ def is_allowed_http_url(url: str) -> bool:
         return True
     except Exception:
         return False
+
 
 @app.post("/analyze")
 async def analyze(request: Request):
@@ -98,12 +100,7 @@ async def analyze(request: Request):
         analysis_path = temp_file_path
 
     # run Essentia on that temp file
-    cmd = [
-        "essentia_streaming_extractor_music",
-        analysis_path,
-        "-",
-        "/etc/essentia/profile.yaml"
-    ]
+    cmd = ["essentia_streaming_extractor_music", analysis_path, "-", "/etc/essentia/profile.yaml"]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if temp_file_path and os.path.exists(temp_file_path):
         os.unlink(temp_file_path)

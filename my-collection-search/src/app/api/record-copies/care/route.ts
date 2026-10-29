@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid record care query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -33,13 +33,13 @@ export async function GET(request: NextRequest) {
         ...result,
         limit: parsedQuery.data.limit,
         offset: parsedQuery.data.offset,
-      })
+      }),
     );
   } catch (error) {
     console.error("Error listing record care:", error);
     return NextResponse.json(
       { error: errorMessage(error, "Failed to list record care") },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

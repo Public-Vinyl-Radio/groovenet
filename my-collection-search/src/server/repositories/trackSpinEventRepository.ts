@@ -1,7 +1,10 @@
 import { effectiveAlbumValuesSql } from "@/lib/genres/albumTaxonomySql";
 import { dbQuery } from "@/lib/serverDb";
 import type { Queryable } from "@/server/repositories/spinSessionRepository";
-import { hasVectorsSelectSql, trackGenresSelectSql } from "@/server/repositories/trackGenreRepository";
+import {
+  hasVectorsSelectSql,
+  trackGenresSelectSql,
+} from "@/server/repositories/trackGenreRepository";
 import type { TrackGenre } from "@/types/track";
 
 export type TrackSpinEventRow = {
@@ -63,7 +66,7 @@ export class TrackSpinEventRepository {
   async insertEvents(
     client: Queryable,
     sessionId: number,
-    events: CreateTrackSpinEventInput[]
+    events: CreateTrackSpinEventInput[],
   ): Promise<TrackSpinEventRow[]> {
     if (events.length === 0) return [];
 
@@ -73,7 +76,7 @@ export class TrackSpinEventRepository {
 
     for (const event of events) {
       values.push(
-        `($1, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})`
+        `($1, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9})`,
       );
       params.push(
         event.friend_id,
@@ -85,7 +88,7 @@ export class TrackSpinEventRepository {
         event.position_snapshot ?? null,
         event.title_snapshot,
         event.artist_snapshot,
-        event.album_snapshot
+        event.album_snapshot,
       );
       paramIndex += 10;
     }
@@ -99,7 +102,7 @@ export class TrackSpinEventRepository {
       VALUES ${values.join(", ")}
       RETURNING *
       `,
-      params
+      params,
     );
 
     return rows;
@@ -113,12 +116,12 @@ export class TrackSpinEventRepository {
   async setPlayedAtForSession(
     client: Queryable,
     sessionId: number,
-    playedAt: string | Date
+    playedAt: string | Date,
   ): Promise<TrackSpinEventRow[]> {
     const { rows } = await client.query<TrackSpinEventRow>(
       `UPDATE track_spin_events SET played_at = $2 WHERE session_id = $1
        RETURNING *`,
-      [sessionId, playedAt]
+      [sessionId, playedAt],
     );
     return rows.sort((a, b) => a.ordinal - b.ordinal);
   }
@@ -133,7 +136,7 @@ export class TrackSpinEventRepository {
       WHERE session_id = ANY($1::int[])
       ORDER BY session_id ASC, ordinal ASC, id ASC
       `,
-      [sessionIds]
+      [sessionIds],
     );
 
     return rows;
@@ -216,7 +219,7 @@ export class TrackSpinEventRepository {
       LIMIT ${limitRef}
       OFFSET ${offsetRef}
       `,
-      params
+      params,
     );
 
     return rows;

@@ -82,7 +82,7 @@ function candidate(overrides: Record<string, unknown> = {}) {
 
 function queuedJobs(): Array<Record<string, unknown>> {
   return mockPipeline.lpush.mock.calls.map(
-    (call) => JSON.parse(call[1] as string) as Record<string, unknown>
+    (call) => JSON.parse(call[1] as string) as Record<string, unknown>,
   );
 }
 
@@ -119,7 +119,7 @@ describe("startRun()", () => {
     mockRedis.hgetall.mockResolvedValue({});
 
     await expect(makeService().startRun({ kind: "missing" })).rejects.toThrow(
-      NoFingerprintEngineError
+      NoFingerprintEngineError,
     );
     expect(mockPipeline.lpush).not.toHaveBeenCalled();
   });
@@ -176,7 +176,10 @@ describe("startRun()", () => {
       stored_audio_mtime_ms: 1_790_000_000_000,
     });
     // A row fingerprinted before these were recorded carries nulls: hashed as before.
-    expect(queuedJobs()[1]).toMatchObject({ stored_audio_size_bytes: null, stored_audio_mtime_ms: null });
+    expect(queuedJobs()[1]).toMatchObject({
+      stored_audio_size_bytes: null,
+      stored_audio_mtime_ms: null,
+    });
   });
 
   it("forces regeneration for --all", async () => {
@@ -209,7 +212,7 @@ describe("startRun()", () => {
     // endpoint does not yet know.
     expect(mockMulti.exec).toHaveBeenCalled();
     expect(mockMulti.exec.mock.invocationCallOrder[0]).toBeLessThan(
-      mockPipeline.exec.mock.invocationCallOrder[0]
+      mockPipeline.exec.mock.invocationCallOrder[0],
     );
   });
 
@@ -249,7 +252,7 @@ describe("startRun()", () => {
   it("batches a large library instead of one giant pipeline", async () => {
     engineRegistered();
     repo.listIndexCandidates.mockResolvedValue(
-      Array.from({ length: 1200 }, (_, i) => candidate({ track_id: `t${i}` }))
+      Array.from({ length: 1200 }, (_, i) => candidate({ track_id: `t${i}` })),
     );
 
     const run = await makeService().startRun({ kind: "all" });

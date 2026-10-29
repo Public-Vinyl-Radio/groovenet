@@ -1,6 +1,7 @@
 """Coverage for track_api paths the original suite left untested:
 analysis-file persistence, mood extraction, the Essentia call, and the
 small PATCH helpers."""
+
 import json
 import os
 import subprocess
@@ -18,9 +19,7 @@ from worker.track_api import (
 
 
 def make_proc(returncode=0, stdout="", stderr=""):
-    return subprocess.CompletedProcess(
-        args=[], returncode=returncode, stdout=stdout, stderr=stderr
-    )
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
 _UNSET = object()
@@ -45,6 +44,7 @@ GOOD_ANALYSIS = {"rhythm": {"bpm": 128}, "tonal": {"key_key": "A"}}
 # ---------------------------------------------------------------------------
 # save_essentia_analysis_file
 # ---------------------------------------------------------------------------
+
 
 class TestSaveEssentiaAnalysisFile:
     @pytest.fixture(autouse=True)
@@ -101,6 +101,7 @@ class TestSaveEssentiaAnalysisFile:
 # _extract_highlevel_mood
 # ---------------------------------------------------------------------------
 
+
 class TestExtractHighlevelMood:
     def test_reads_and_rounds_a_value(self):
         data = {"mood_happy": {"all": {"happy": 0.123456}}}
@@ -143,6 +144,7 @@ class TestExtractHighlevelMood:
 # analyze_audio_file
 # ---------------------------------------------------------------------------
 
+
 class TestAnalyzeAudioFile:
     @pytest.fixture(autouse=True)
     def isolate(self, tmp_path, monkeypatch):
@@ -156,12 +158,14 @@ class TestAnalyzeAudioFile:
 
     def _wav_making_run(self, tmp_path, returncode=0, stderr="", size=64):
         """Stand in for ffmpeg by creating the WAV it would have written."""
+
         def run(cmd, **kw):
             if returncode == 0:
                 wav_path = cmd[-1]
                 with open(wav_path, "wb") as f:
                     f.write(b"\0" * size)
             return make_proc(returncode=returncode, stderr=stderr)
+
         return run
 
     @patch("worker.track_api.requests.post")
@@ -187,9 +191,7 @@ class TestAnalyzeAudioFile:
 
     @patch("worker.track_api.requests.post")
     @patch("worker.track_api.run_subprocess")
-    def test_a_failed_save_does_not_fail_the_analysis(
-        self, mock_run, mock_post, tmp_path, monkeypatch
-    ):
+    def test_a_failed_save_does_not_fail_the_analysis(self, mock_run, mock_post, tmp_path, monkeypatch):
         mock_run.side_effect = self._wav_making_run(tmp_path)
         mock_post.return_value = Response(payload=GOOD_ANALYSIS)
         monkeypatch.setattr(
@@ -328,19 +330,27 @@ class TestAnalyzeAudioFile:
 # update_track_duration / update_track_album_art_url
 # ---------------------------------------------------------------------------
 
+
 class TestSmallPatchHelpers:
-    @pytest.mark.parametrize("helper,extra", [
-        (update_track_duration, {"duration_seconds": 213}),
-        (update_track_album_art_url, {"audio_file_album_art_url": "https://art.test/a.jpg"}),
-    ])
+    @pytest.mark.parametrize(
+        "helper,extra",
+        [
+            (update_track_duration, {"duration_seconds": 213}),
+            (update_track_album_art_url, {"audio_file_album_art_url": "https://art.test/a.jpg"}),
+        ],
+    )
     @patch("groovenet_client.GroovenetClient.update_track")
     def test_sends_identity_and_value(self, mock_update, helper, extra):
         helper("t1", 2, next(iter(extra.values())))
         mock_update.assert_called_once_with({"track_id": "t1", "friend_id": 2, **extra})
 
-    @pytest.mark.parametrize("helper,value", [
-        (update_track_duration, 213), (update_track_album_art_url, "https://art.test/a.jpg"),
-    ])
+    @pytest.mark.parametrize(
+        "helper,value",
+        [
+            (update_track_duration, 213),
+            (update_track_album_art_url, "https://art.test/a.jpg"),
+        ],
+    )
     @pytest.mark.parametrize("status", [404, 500])
     def test_failed_update_raises(self, helper, value, status):
         from groovenet_client import GroovenetApiError

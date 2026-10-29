@@ -4,13 +4,7 @@
 // #rrggbb ever passes through this module.
 import { z } from "zod";
 import { contrastRatio } from "./contrast";
-import {
-  defaultPaletteId,
-  isPaletteId,
-  paletteIds,
-  palettes,
-  type PaletteId,
-} from "./index";
+import { defaultPaletteId, isPaletteId, paletteIds, palettes, type PaletteId } from "./index";
 import {
   paletteVariableNames,
   statusNames,
@@ -134,8 +128,12 @@ function deriveMode(base: PaletteId, mode: CustomMode, c: CustomColours): Palett
   const on = (fg: string, min: number, ...bgs: string[]) =>
     bgs.every((bg) => contrastRatio(fg, bg) >= min);
 
-  const inkMuted = pull(mixHex(c.ink, c.ground, 0.3), c.ink, (x) => on(x, TEXT, c.ground, c.surface));
-  const border = pull(mixHex(c.ink, c.ground, 0.5), c.ink, (x) => on(x, NON_TEXT, c.ground, c.surface));
+  const inkMuted = pull(mixHex(c.ink, c.ground, 0.3), c.ink, (x) =>
+    on(x, TEXT, c.ground, c.surface),
+  );
+  const border = pull(mixHex(c.ink, c.ground, 0.5), c.ink, (x) =>
+    on(x, NON_TEXT, c.ground, c.surface),
+  );
 
   // A tint that keeps ink readable on it, then accent text that reads on the tint too.
   const subtle = pull(mixHex(c.ground, c.accent, 0.16), c.ground, (x) => on(c.ink, TEXT, x));
@@ -144,8 +142,7 @@ function deriveMode(base: PaletteId, mode: CustomMode, c: CustomColours): Palett
   const accentBorder = pull(c.accent, c.ink, (x) => on(x, NON_TEXT, c.ground));
 
   // Text on the accent fill: ground or ink if either reads, else the best of black and white.
-  const contrast =
-    [c.ground, c.ink, "#ffffff"].find((x) => on(x, TEXT, c.accent)) ?? "#000000";
+  const contrast = [c.ground, c.ink, "#ffffff"].find((x) => on(x, TEXT, c.accent)) ?? "#000000";
 
   const values: Record<string, string> = {
     "--gn-ground": c.ground,

@@ -5,7 +5,11 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { writeEssentiaAnalysis } from "@/lib/essentia-storage";
 import { extractBpmConfidence, type EssentiaRhythm } from "@/lib/essentiaBpm";
-import { extractKeyAnalysis, logKeyProfileDisagreement, type EssentiaTonal } from "@/lib/essentiaKey";
+import {
+  extractKeyAnalysis,
+  logKeyProfileDisagreement,
+  type EssentiaTonal,
+} from "@/lib/essentiaKey";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 
@@ -24,11 +28,9 @@ async function processAudioFile(
   local_audio_url: string,
   track_id: string,
   friend_id: number | null,
-  analysisResult: AnalysisResult
+  analysisResult: AnalysisResult,
 ): Promise<number[]> {
-  const bpm = analysisResult?.rhythm?.bpm
-    ? Math.round(analysisResult.rhythm.bpm)
-    : null;
+  const bpm = analysisResult?.rhythm?.bpm ? Math.round(analysisResult.rhythm.bpm) : null;
   const bpm_confidence = bpm === null ? null : extractBpmConfidence(analysisResult?.rhythm);
   const { key, key_confidence } = extractKeyAnalysis(analysisResult?.tonal);
   if (friend_id !== null) {
@@ -62,7 +64,7 @@ async function processAudioFile(
           { track_id: row.track_id, friend_id: row.friend_id, kind: "identity" as const },
           { track_id: row.track_id, friend_id: row.friend_id, kind: "context" as const },
           { track_id: row.track_id, friend_id: row.friend_id, kind: "audio_vibe" as const },
-        ])
+        ]),
       );
     } catch (queueError) {
       console.error("Failed to enqueue embedding jobs after upload:", queueError);
@@ -79,7 +81,7 @@ function persistRawAnalysis(
   track_id: string,
   friendIds: number[],
   requestedFriendId: number | null,
-  analysisResult: AnalysisResult
+  analysisResult: AnalysisResult,
 ) {
   const targets = new Set(friendIds);
   if (requestedFriendId !== null) targets.add(requestedFriendId);
@@ -89,7 +91,7 @@ function persistRawAnalysis(
     } catch (saveErr) {
       console.error(
         `Failed to persist Essentia analysis file (track_id=${track_id}, friend_id=${friend_id}):`,
-        saveErr
+        saveErr,
       );
     }
   }
@@ -105,16 +107,8 @@ export async function POST(req: NextRequest) {
     typeof friend_id === "string" && friend_id.trim() !== "" ? Number(friend_id) : NaN;
   const friendId = Number.isNaN(friendIdNum) ? null : friendIdNum;
 
-  if (
-    !file ||
-    typeof file === "string" ||
-    !track_id ||
-    typeof track_id !== "string"
-  ) {
-    return NextResponse.json(
-      { error: "Missing file or track_id" },
-      { status: 400 }
-    );
+  if (!file || typeof file === "string" || !track_id || typeof track_id !== "string") {
+    return NextResponse.json({ error: "Missing file or track_id" }, { status: 400 });
   }
 
   // Save file to /tmp or a desired directory
@@ -137,18 +131,15 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: "ffmpeg conversion failed", details: String(err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   // Call Essentia API using the wav file
   let analysisResult: AnalysisResult;
   try {
-    const essentiaApiUrl =
-      process.env.ESSENTIA_API_URL || "http://essentia:8001/analyze";
-    const fileUrl = `http://app:3000/api/audio?filename=${encodeURIComponent(
-      wavFileName
-    )}`;
+    const essentiaApiUrl = process.env.ESSENTIA_API_URL || "http://essentia:8001/analyze";
+    const fileUrl = `http://app:3000/api/audio?filename=${encodeURIComponent(wavFileName)}`;
     const res = await fetch(essentiaApiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -156,19 +147,15 @@ export async function POST(req: NextRequest) {
     });
     const responseText = await res.json();
     if (!res.ok) {
-      throw new Error(
-        `Essentia API error: ${res.status} ${JSON.stringify(responseText)}`
-      );
+      throw new Error(`Essentia API error: ${res.status} ${JSON.stringify(responseText)}`);
     }
     analysisResult = responseText;
   } catch (err) {
     return NextResponse.json(
       {
-        error: `Essentia API call failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        error: `Essentia API call failed: ${err instanceof Error ? err.message : String(err)}`,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -180,14 +167,10 @@ export async function POST(req: NextRequest) {
   try {
     // Try with libfdk_aac first (better quality), fallback to aac if not available
     try {
-      await execAsync(
-        `ffmpeg -y -i "${filePath}" -c:a libfdk_aac -b:a 192k "${audioDest}"`
-      );
+      await execAsync(`ffmpeg -y -i "${filePath}" -c:a libfdk_aac -b:a 192k "${audioDest}"`);
     } catch (libfdkError) {
       console.warn("libfdk_aac not available, falling back to aac codec", libfdkError);
-      await execAsync(
-        `ffmpeg -y -i "${filePath}" -c:a aac -b:a 192k "${audioDest}"`
-      );
+      await execAsync(`ffmpeg -y -i "${filePath}" -c:a aac -b:a 192k "${audioDest}"`);
     }
   } catch (err) {
     console.error("ffmpeg m4a conversion error:", err);
@@ -197,9 +180,7 @@ export async function POST(req: NextRequest) {
     conversionFormat = "mp3";
 
     try {
-      await execAsync(
-        `ffmpeg -y -i "${filePath}" -c:a libmp3lame -b:a 192k "${audioDest}"`
-      );
+      await execAsync(`ffmpeg -y -i "${filePath}" -c:a libmp3lame -b:a 192k "${audioDest}"`);
       console.warn(`Used MP3 instead of M4A for ${track_id}`);
     } catch (mp3Error) {
       return NextResponse.json(
@@ -208,7 +189,7 @@ export async function POST(req: NextRequest) {
           m4a_error: String(err),
           mp3_error: String(mp3Error),
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
   }
@@ -217,8 +198,7 @@ export async function POST(req: NextRequest) {
 
   // Clean up temp files (but keep the final audio file)
   try {
-    if (filePath && (await fs.stat(filePath)).isFile())
-      await fs.unlink(filePath);
+    if (filePath && (await fs.stat(filePath)).isFile()) await fs.unlink(filePath);
     if (wavDest && (await fs.stat(wavDest)).isFile()) await fs.unlink(wavDest);
   } catch (cleanupErr) {
     console.warn("Cleanup warning:", cleanupErr);

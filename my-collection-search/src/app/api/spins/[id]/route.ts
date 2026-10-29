@@ -18,16 +18,13 @@ function changedSpinFields(changes: Record<string, unknown>): string[] {
   return [...new Set(fields)];
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const parsedParams = spinSessionParamsSchema.safeParse({ id: (await params).id });
     if (!parsedParams.success) {
       return NextResponse.json(
         { error: "Invalid spin session id", details: parsedParams.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -35,7 +32,7 @@ export async function PATCH(
     if (!parsedBody.success) {
       return NextResponse.json(
         { error: "Invalid spin update", details: parsedBody.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,7 +40,7 @@ export async function PATCH(
     const updated = await spinLoggingService.updateSpinSession(
       parsedParams.data.id,
       friend_id,
-      changes
+      changes,
     );
     if (!updated) {
       return NextResponse.json({ error: "Spin session not found" }, { status: 404 });
@@ -56,7 +53,7 @@ export async function PATCH(
         was_detected: updated.session.provenance === "automatic",
         changed_fields: changedSpinFields(changes),
       },
-      { request }
+      { request },
     );
 
     return NextResponse.json(spinUpdateResponseSchema.parse(updated));
@@ -69,7 +66,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const url = new URL(request.url);
@@ -80,7 +77,7 @@ export async function DELETE(
     if (!parsedParams.success) {
       return NextResponse.json(
         { error: "Invalid spin session id", details: parsedParams.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -90,13 +87,13 @@ export async function DELETE(
     if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "Invalid delete query", details: parsedQuery.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const deleted = await spinLoggingService.deleteSpinSession(
       parsedParams.data.id,
-      parsedQuery.data.friend_id
+      parsedQuery.data.friend_id,
     );
 
     if (!deleted) {
@@ -106,20 +103,20 @@ export async function DELETE(
     analytics.track(
       "spin_deleted",
       { spin_id: deleted.id, was_detected: deleted.provenance === "automatic" },
-      { request }
+      { request },
     );
 
     return NextResponse.json(
       spinDeleteResponseSchema.parse({
         success: true,
         session: deleted,
-      })
+      }),
     );
   } catch (error) {
     console.error("Error deleting spin session:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to delete spin session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -17,10 +17,7 @@ const client = new GroovenetClient({
   clientName: "cli",
 });
 const resolver = new TrackResolver(client, { apiBase: config.api_base, apiKey: config.api_key });
-const player = new PlayerCore(
-  new MpvBackend({ insecureTls: config.insecure_tls }),
-  resolver
-);
+const player = new PlayerCore(new MpvBackend({ insecureTls: config.insecure_tls }), resolver);
 await player.enqueueSearch("Cumbia");
 // Or enqueue a playlist in its saved order:
 // await player.enqueuePlaylist(42);

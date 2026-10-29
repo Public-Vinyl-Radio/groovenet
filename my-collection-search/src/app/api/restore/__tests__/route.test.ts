@@ -35,7 +35,7 @@ describe("POST /api/restore", () => {
         method: "POST",
         headers: { "Content-Type": "application/octet-stream" },
         body: "PGDMP",
-      })
+      }),
     );
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(result);
@@ -49,7 +49,7 @@ describe("POST /api/restore", () => {
       new Request("http://localhost/api/restore", {
         method: "POST",
         body: new TextEncoder().encode("PGDMP"),
-      })
+      }),
     );
     expect(res.status).toBe(400);
     expect(mockRestore).not.toHaveBeenCalled();
@@ -63,7 +63,9 @@ describe("POST /api/restore", () => {
     });
     const form = new FormData();
     form.append("file", new File(["CREATE TABLE t ();"], "old.sql"));
-    const res = await POST(new Request("http://localhost/api/restore", { method: "POST", body: form }));
+    const res = await POST(
+      new Request("http://localhost/api/restore", { method: "POST", body: form }),
+    );
     expect(res.status).toBe(200);
     expect(mockRestore.mock.calls[0][1]).toBe("old.sql");
     expect(received).toBe("CREATE TABLE t ();");
@@ -72,14 +74,16 @@ describe("POST /api/restore", () => {
   it("rejects a multipart upload without a file", async () => {
     const form = new FormData();
     form.append("file", "not a file");
-    const res = await POST(new Request("http://localhost/api/restore", { method: "POST", body: form }));
+    const res = await POST(
+      new Request("http://localhost/api/restore", { method: "POST", body: form }),
+    );
     expect(res.status).toBe(400);
   });
 
   it("returns 500 with the restore error", async () => {
     mockRestore.mockRejectedValue(new Error("pg_restore exited with code 1: bad archive"));
     const res = await POST(
-      new Request("http://localhost/api/restore?filename=b.dump", { method: "POST", body: "x" })
+      new Request("http://localhost/api/restore?filename=b.dump", { method: "POST", body: "x" }),
     );
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({
@@ -90,7 +94,7 @@ describe("POST /api/restore", () => {
   it("stringifies a non-Error failure", async () => {
     mockRestore.mockRejectedValue("boom");
     const res = await POST(
-      new Request("http://localhost/api/restore?filename=b.dump", { method: "POST", body: "x" })
+      new Request("http://localhost/api/restore?filename=b.dump", { method: "POST", body: "x" }),
     );
     await expect(res.json()).resolves.toEqual({ error: "boom" });
   });

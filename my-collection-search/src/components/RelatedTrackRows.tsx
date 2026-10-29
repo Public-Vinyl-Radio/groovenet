@@ -10,7 +10,14 @@ import { KeyChip, RatingStars } from "@/components/TrackResult";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { primaryGenreBadges } from "@/lib/genres/links";
-import { camelotOf, describeMix, formatBpmDelta, KEY_RELATION_LABEL, parseBpm, type KeyRelation } from "@/lib/mixCompat";
+import {
+  camelotOf,
+  describeMix,
+  formatBpmDelta,
+  KEY_RELATION_LABEL,
+  parseBpm,
+  type KeyRelation,
+} from "@/lib/mixCompat";
 import { formatSeconds, getTrackDurationSeconds } from "@/lib/trackUtils";
 import type { Track } from "@/types/track";
 
@@ -38,12 +45,19 @@ export const labelHead = {
   textAlign: "left",
 } as const;
 
-const trackHref = (t: Track) => `/tracks/${encodeURIComponent(t.track_id)}?friend_id=${t.friend_id}`;
+const trackHref = (t: Track) =>
+  `/tracks/${encodeURIComponent(t.track_id)}?friend_id=${t.friend_id}`;
 
 /** The compatibility tag; its text carries the meaning, so colour is never the only cue. */
 function MixTag({ relation }: { relation: KeyRelation }) {
   return (
-    <Badge size="sm" variant="subtle" colorPalette={relation === "clash" ? "neutral" : "status.success"} whiteSpace="nowrap" flexShrink={0}>
+    <Badge
+      size="sm"
+      variant="subtle"
+      colorPalette={relation === "clash" ? "neutral" : "status.success"}
+      whiteSpace="nowrap"
+      flexShrink={0}
+    >
       {KEY_RELATION_LABEL[relation]}
     </Badge>
   );
@@ -64,7 +78,13 @@ export function BpmCell({ track, delta }: { track: Track; delta: number | null }
         {Number(bpm.toFixed(1))}
       </Text>
       {delta !== null && (
-        <Text as="span" fontSize="12px" color="fg.muted" ml={1.5} aria-label={`${Math.abs(delta)} BPM ${delta < 0 ? "slower" : delta > 0 ? "faster" : "same tempo"}`}>
+        <Text
+          as="span"
+          fontSize="12px"
+          color="fg.muted"
+          ml={1.5}
+          aria-label={`${Math.abs(delta)} BPM ${delta < 0 ? "slower" : delta > 0 ? "faster" : "same tempo"}`}
+        >
           {formatBpmDelta(delta)}
         </Text>
       )}
@@ -75,11 +95,36 @@ export function BpmCell({ track, delta }: { track: Track; delta: number | null }
 export function GenreCell({ track }: { track: Track }) {
   const lookup = useGenreLookup();
   const { items, kind } = primaryGenreBadges(track, lookup);
-  if (items.length === 0) return <Text as="span" color="fg.subtle">{dash}</Text>;
+  if (items.length === 0)
+    return (
+      <Text as="span" color="fg.subtle">
+        {dash}
+      </Text>
+    );
   const overflow = items.length - 1;
   return (
-    <Flex gap={1.5} alignItems="center" minW={0} css={{ "& > a, & > span:not([data-overflow])": { display: "block", minWidth: 0, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}>
-      <GenreBadgeList items={items.slice(0, 1)} kind={kind} scope="tracks" colorPalette="status.genre" variant="subtle" />
+    <Flex
+      gap={1.5}
+      alignItems="center"
+      minW={0}
+      css={{
+        "& > a, & > span:not([data-overflow])": {
+          display: "block",
+          minWidth: 0,
+          maxWidth: "140px",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        },
+      }}
+    >
+      <GenreBadgeList
+        items={items.slice(0, 1)}
+        kind={kind}
+        scope="tracks"
+        colorPalette="status.genre"
+        variant="subtle"
+      />
       {overflow > 0 && (
         <Badge data-overflow="" size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>
           +{overflow}
@@ -107,7 +152,9 @@ export function RatingCell({ track }: { track: Track }) {
 function Artwork({ track, size }: { track: Track; size: string }) {
   return (
     <Image
-      src={track.audio_file_album_art_url || track.album_thumbnail || "/images/placeholder-artwork.png"}
+      src={
+        track.audio_file_album_art_url || track.album_thumbnail || "/images/placeholder-artwork.png"
+      }
       alt=""
       boxSize={size}
       objectFit="cover"
@@ -121,7 +168,13 @@ function Artwork({ track, size }: { track: Track; size: string }) {
 
 function TitleLink({ track, ...rest }: { track: Track } & React.ComponentProps<typeof Link>) {
   return (
-    <Link as={NextLink} href={trackHref(track)} fontWeight="semibold" _hover={{ textDecoration: "underline" }} {...rest}>
+    <Link
+      as={NextLink}
+      href={trackHref(track)}
+      fontWeight="semibold"
+      _hover={{ textDecoration: "underline" }}
+      {...rest}
+    >
       {track.title}
     </Link>
   );
@@ -156,7 +209,13 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
   // The table has a Rating column, so stars show unrated too instead of waiting for a hover.
   const rowReveal = { "& .track-result-rating": { opacity: 1 } };
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" overflowX="auto" data-testid="related-table">
+    <Box
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      overflowX="auto"
+      data-testid="related-table"
+    >
       <Box as="table" w="full" minW="900px" css={{ borderCollapse: "collapse" }}>
         <Box as="thead" bg="bg.subtle" borderBottomWidth="outline" borderColor="border.ink">
           <tr>
@@ -190,8 +249,23 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
                   <Flex alignItems="center" gap={3} minW={0}>
                     <Artwork track={t} size="48px" />
                     <Box minW={0} maxW="300px">
-                      <TitleLink track={t} display="block" fontSize="15px" lineHeight="20px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" />
-                      <Text fontSize="12px" lineHeight="16px" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+                      <TitleLink
+                        track={t}
+                        display="block"
+                        fontSize="15px"
+                        lineHeight="20px"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        whiteSpace="nowrap"
+                      />
+                      <Text
+                        fontSize="12px"
+                        lineHeight="16px"
+                        color="fg.muted"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        whiteSpace="nowrap"
+                      >
                         <Byline track={t} showUsername={showUsername} />
                       </Text>
                     </Box>
@@ -208,7 +282,13 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
                 </td>
                 <td>
                   <Flex alignItems="center" gap={2}>
-                    {camelot ? <KeyChip keyName={t.key} camelot={camelot} /> : <Text as="span" color="fg.subtle">{dash}</Text>}
+                    {camelot ? (
+                      <KeyChip keyName={t.key} camelot={camelot} />
+                    ) : (
+                      <Text as="span" color="fg.subtle">
+                        {dash}
+                      </Text>
+                    )}
                     {mix.keyRelation && <MixTag relation={mix.keyRelation} />}
                   </Flex>
                 </td>
@@ -233,12 +313,26 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
 /** Phone: one row per track, the mix line (BPM, key, compatibility) under the title. */
 export function RelatedTrackList({ base, tracks, showUsername, renderActions }: Props) {
   return (
-    <Box as="ul" listStyleType="none" m={0} p={0} borderWidth="outline" borderColor="border.ink" boxShadow="md" data-testid="related-list">
+    <Box
+      as="ul"
+      listStyleType="none"
+      m={0}
+      p={0}
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      data-testid="related-list"
+    >
       {tracks.map((t, index) => {
         const mix = describeMix(base, t);
         const camelot = camelotOf(t.key);
         const seconds = getTrackDurationSeconds(t);
-        const meta = [t.artist, seconds !== null ? formatSeconds(seconds) : null, t.position || null, showUsername ? t.username : null].filter(Boolean);
+        const meta = [
+          t.artist,
+          seconds !== null ? formatSeconds(seconds) : null,
+          t.position || null,
+          showUsername ? t.username : null,
+        ].filter(Boolean);
         return (
           <Flex
             as="li"
@@ -253,8 +347,22 @@ export function RelatedTrackList({ base, tracks, showUsername, renderActions }: 
           >
             <Artwork track={t} size="52px" />
             <Flex direction="column" gap="2px" flex={1} minW={0}>
-              <TitleLink track={t} fontSize="15px" lineHeight="20px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" />
-              <Text fontSize="12px" lineHeight="16px" color="fg.muted" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+              <TitleLink
+                track={t}
+                fontSize="15px"
+                lineHeight="20px"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+              />
+              <Text
+                fontSize="12px"
+                lineHeight="16px"
+                color="fg.muted"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+              >
                 {meta.join(" · ")}
               </Text>
               <Flex flexWrap="wrap" alignItems="center" gap={1.5} mt="4px">

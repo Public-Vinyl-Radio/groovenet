@@ -29,7 +29,10 @@ const node = (id: string, name: string, children: GenreTreeNode[] = []): GenreTr
   album_count: 0,
   children,
 });
-const TREE = [node("latin", "Latin", [node("cumbia", "Cumbia"), node("salsa", "Salsa")]), node("jazz", "Jazz")];
+const TREE = [
+  node("latin", "Latin", [node("cumbia", "Cumbia"), node("salsa", "Salsa")]),
+  node("jazz", "Jazz"),
+];
 
 describe("GenreFilter", () => {
   beforeEach(() => {
@@ -38,8 +41,13 @@ describe("GenreFilter", () => {
 
   it("offers only genres with matches, with their counts, and hands back the slug", async () => {
     const onAdd = vi.fn();
-    const counts = new Map([["latin", 5], ["cumbia", 2]]);
-    const { user } = renderWithProviders(<GenreFilter selected={[]} onAdd={onAdd} counts={counts} />);
+    const counts = new Map([
+      ["latin", 5],
+      ["cumbia", 2],
+    ]);
+    const { user } = renderWithProviders(
+      <GenreFilter selected={[]} onAdd={onAdd} counts={counts} />,
+    );
     await waitFor(() => expect(fetchGenreTree).toHaveBeenCalled());
 
     await user.click(screen.getByRole("combobox", { name: "Filter by genre" }));
@@ -72,7 +80,16 @@ describe("GenreFilter", () => {
 
 describe("genre filter chips", () => {
   it("names chips from the taxonomy, falling back to the slug", () => {
-    const genres = [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null, track_count: 0 }];
+    const genres = [
+      {
+        id: "c",
+        name: "Cumbia",
+        slug: "cumbia",
+        parent_id: null,
+        parent_name: null,
+        track_count: 0,
+      },
+    ];
     expect(genreFilterChips(["cumbia", "gone"], genres)).toEqual([
       { key: "genre:cumbia", label: "Cumbia", active: true },
       { key: "genre:gone", label: "gone", active: true },
@@ -80,7 +97,16 @@ describe("genre filter chips", () => {
   });
 
   it("carries each genre's track count when the search has facets", () => {
-    const genres = [{ id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null, track_count: 0 }];
+    const genres = [
+      {
+        id: "c",
+        name: "Cumbia",
+        slug: "cumbia",
+        parent_id: null,
+        parent_name: null,
+        track_count: 0,
+      },
+    ];
     expect(genreFilterChips(["cumbia", "gone"], genres, new Map([["c", 41]]))).toEqual([
       { key: "genre:cumbia", label: "Cumbia", active: true, count: 41 },
       { key: "genre:gone", label: "gone", active: true },
@@ -114,7 +140,9 @@ describe("added genre chips (#485)", () => {
 describe("IncludeSimilarToggle", () => {
   it("reflects checked and reports a change", async () => {
     const onChange = vi.fn();
-    const { user } = renderWithProviders(<IncludeSimilarToggle checked={false} onChange={onChange} />);
+    const { user } = renderWithProviders(
+      <IncludeSimilarToggle checked={false} onChange={onChange} />,
+    );
     const toggle = screen.getByRole("checkbox", { name: "Include similar" });
     expect((toggle as HTMLInputElement).checked).toBe(false);
     await user.click(toggle);
@@ -124,7 +152,7 @@ describe("IncludeSimilarToggle", () => {
   it("is checked when on", () => {
     renderWithProviders(<IncludeSimilarToggle checked onChange={vi.fn()} />);
     expect(
-      (screen.getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked
+      (screen.getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement).checked,
     ).toBe(true);
   });
 });
@@ -142,7 +170,9 @@ describe("include-similar chip and selected genre tags (#794)", () => {
 
   it("names the chosen genres from the taxonomy and removes one from its tag", async () => {
     const onRemove = vi.fn();
-    const { user } = renderWithProviders(<SelectedGenreTags selected={["salsa", "unknown"]} onRemove={onRemove} />);
+    const { user } = renderWithProviders(
+      <SelectedGenreTags selected={["salsa", "unknown"]} onRemove={onRemove} />,
+    );
 
     await user.click(await screen.findByRole("button", { name: "Remove genre Salsa" }));
     expect(onRemove).toHaveBeenCalledWith("salsa");

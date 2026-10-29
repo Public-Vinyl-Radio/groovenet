@@ -86,10 +86,7 @@ def test_optimize_endpoint_selects_supported_modes():
         result = asyncio.run(optimize(OptimizeRequest(tracks=tracks, mode=mode)))
         assert result["mode"] == mode
         assert len(result["result"]) == 2
-        assert any(
-            track.get("crate_id") == "kept-extra-field"
-            for track in result["result"]
-        )
+        assert any(track.get("crate_id") == "kept-extra-field" for track in result["result"])
 
 
 def test_cohesive_blocks_keep_related_styles_near_each_other():

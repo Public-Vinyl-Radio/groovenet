@@ -91,7 +91,7 @@ export class RecordCopyRepository {
       WHERE friend_id = $1 AND deleted_at IS NULL ${releaseClause}
       ORDER BY release_id ASC, is_default DESC, id ASC
       `,
-      params
+      params,
     );
     return rows;
   }
@@ -100,7 +100,7 @@ export class RecordCopyRepository {
   async findCopy(copyId: number, friendId: number): Promise<RecordCopyRow | null> {
     const { rows } = await dbQuery<RecordCopyRow>(
       "SELECT * FROM record_copies WHERE id = $1 AND friend_id = $2",
-      [copyId, friendId]
+      [copyId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -114,14 +114,14 @@ export class RecordCopyRepository {
     client: Queryable,
     copyId: number,
     friendId: number,
-    options: { includeDeleted?: boolean } = {}
+    options: { includeDeleted?: boolean } = {},
   ): Promise<RecordCopyRow | null> {
     const liveClause = options.includeDeleted ? "" : "AND deleted_at IS NULL";
     const { rows } = await client.query<RecordCopyRow>(
       `SELECT * FROM record_copies
        WHERE id = $1 AND friend_id = $2 ${liveClause}
        FOR UPDATE`,
-      [copyId, friendId]
+      [copyId, friendId],
     );
     return rows[0] ?? null;
   }
@@ -135,7 +135,7 @@ export class RecordCopyRepository {
   async ensureDefaultCopy(
     client: Queryable,
     friendId: number,
-    releaseId: string
+    releaseId: string,
   ): Promise<RecordCopyRow> {
     const inserted = await client.query<RecordCopyRow>(
       `
@@ -145,14 +145,14 @@ export class RecordCopyRepository {
       DO NOTHING
       RETURNING *
       `,
-      [friendId, releaseId]
+      [friendId, releaseId],
     );
     if (inserted.rows[0]) return inserted.rows[0];
 
     const { rows } = await client.query<RecordCopyRow>(
       `SELECT * FROM record_copies
        WHERE friend_id = $1 AND release_id = $2 AND is_default AND deleted_at IS NULL`,
-      [friendId, releaseId]
+      [friendId, releaseId],
     );
     return rows[0];
   }
@@ -169,7 +169,7 @@ export class RecordCopyRepository {
       VALUES ($1, $2, $3, $4, false)
       RETURNING *
       `,
-      [input.friend_id, input.release_id, input.label ?? null, input.notes ?? null]
+      [input.friend_id, input.release_id, input.label ?? null, input.notes ?? null],
     );
     return rows[0];
   }
@@ -177,7 +177,7 @@ export class RecordCopyRepository {
   async updateCopy(
     client: Queryable,
     copyId: number,
-    input: UpdateRecordCopyInput
+    input: UpdateRecordCopyInput,
   ): Promise<RecordCopyRow> {
     const assignments = ["updated_at = NOW()"];
     const params: Array<number | string | null> = [copyId];
@@ -191,7 +191,7 @@ export class RecordCopyRepository {
 
     const { rows } = await client.query<RecordCopyRow>(
       `UPDATE record_copies SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`,
-      params
+      params,
     );
     return rows[0];
   }
@@ -203,7 +203,7 @@ export class RecordCopyRepository {
       SELECT COUNT(*)::int AS count FROM record_copies
       WHERE friend_id = $1 AND release_id = $2 AND id <> $3 AND deleted_at IS NULL
       `,
-      [copy.friend_id, copy.release_id, copy.id]
+      [copy.friend_id, copy.release_id, copy.id],
     );
     return rows[0]?.count ?? 0;
   }
@@ -212,7 +212,7 @@ export class RecordCopyRepository {
     const { rows } = await client.query<RecordCopyRow>(
       `UPDATE record_copies SET deleted_at = NOW(), updated_at = NOW()
        WHERE id = $1 RETURNING *`,
-      [copyId]
+      [copyId],
     );
     return rows[0];
   }
@@ -242,13 +242,13 @@ export class RecordCopyRepository {
       WHERE c.id = $1
       RETURNING *
       `,
-      [copyId]
+      [copyId],
     );
     return rows[0];
   }
 
   async listCare(
-    filters: ListRecordCareFilters
+    filters: ListRecordCareFilters,
   ): Promise<{ items: RecordCareRow[]; total: number }> {
     const params: Array<number | string> = [filters.friend_id];
     const where: string[] = [];
@@ -287,11 +287,11 @@ export class RecordCopyRepository {
                  release_id ASC, copy_id ASC NULLS FIRST
         LIMIT ${limitRef} OFFSET ${offsetRef}
         `,
-        params
+        params,
       ),
       dbQuery<{ total: number }>(
         `WITH scope AS (${CARE_SCOPE_SQL}) SELECT COUNT(*)::int AS total FROM scope ${whereSql}`,
-        filterParams
+        filterParams,
       ),
     ]);
 
@@ -301,7 +301,7 @@ export class RecordCopyRepository {
   async careCounts(
     friendId: number,
     overdueDays: number,
-    needsSleeve: SleeveType
+    needsSleeve: SleeveType,
   ): Promise<RecordCareCounts> {
     const { rows } = await dbQuery<RecordCareCounts>(
       `
@@ -315,14 +315,14 @@ export class RecordCopyRepository {
         COUNT(*) FILTER (WHERE inner_sleeve_type IS DISTINCT FROM $3::varchar)::int AS needs_sleeve
       FROM scope
       `,
-      [friendId, overdueDays, needsSleeve]
+      [friendId, overdueDays, needsSleeve],
     );
     return rows[0];
   }
 
   /** Copies per sleeve; a null sleeve_type is a copy with none logged. */
   async countBySleeveType(
-    friendId: number
+    friendId: number,
   ): Promise<Array<{ sleeve_type: SleeveType | null; count: number }>> {
     const { rows } = await dbQuery<{ sleeve_type: SleeveType | null; count: number }>(
       `
@@ -331,7 +331,7 @@ export class RecordCopyRepository {
       FROM scope
       GROUP BY inner_sleeve_type
       `,
-      [friendId]
+      [friendId],
     );
     return rows;
   }

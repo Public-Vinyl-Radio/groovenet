@@ -110,7 +110,7 @@ export function computeGenreSimilarity(
   coOccurrences: GenreCoOccurrence[],
   albumCounts: Map<string, number>,
   totalAlbums: number,
-  options: GenreSimilarityOptions = {}
+  options: GenreSimilarityOptions = {},
 ): GenreSimilarityEntry[] {
   const minSupportAlbums = options.minSupportAlbums ?? DEFAULT_MIN_SUPPORT_ALBUMS;
   const topN = options.topN ?? DEFAULT_TOP_N;
@@ -171,10 +171,13 @@ export function computeGenreSimilarity(
         }
       }
 
-      const score = weights.taxonomyWeight * taxonomyBase + weights.coOccurrenceWeight * coOccurrenceScore;
+      const score =
+        weights.taxonomyWeight * taxonomyBase + weights.coOccurrenceWeight * coOccurrenceScore;
       if (score <= 0) continue;
 
-      const signalsFor = (taxonomy: GenreSimilaritySignals["taxonomy"]): GenreSimilaritySignals => ({
+      const signalsFor = (
+        taxonomy: GenreSimilaritySignals["taxonomy"],
+      ): GenreSimilaritySignals => ({
         ...(taxonomy ? { taxonomy } : {}),
         ...(pairNpmi !== undefined ? { npmi: pairNpmi } : {}),
         ...(sharedAlbums !== undefined ? { shared_albums: sharedAlbums } : {}),
@@ -187,7 +190,9 @@ export function computeGenreSimilarity(
 
   const result: GenreSimilarityEntry[] = [];
   for (const entries of byGenre.values()) {
-    entries.sort((x, y) => y.score - x.score || x.related_genre_id.localeCompare(y.related_genre_id));
+    entries.sort(
+      (x, y) => y.score - x.score || x.related_genre_id.localeCompare(y.related_genre_id),
+    );
     result.push(...entries.slice(0, topN));
   }
   return result;

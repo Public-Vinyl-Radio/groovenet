@@ -63,9 +63,7 @@ export type EmbeddingsBackfillClient = Pick<
  * `missing` — the cheap, common case — rather than silently picking
  * whichever flag the parser saw last.
  */
-export function resolveBackfillRequest(
-  opts: EmbeddingsBackfillOptions
-): EmbeddingBackfillRequest {
+export function resolveBackfillRequest(opts: EmbeddingsBackfillOptions): EmbeddingBackfillRequest {
   const chosen = [
     opts.missing ? "missing" : null,
     opts.all ? "all" : null,
@@ -75,7 +73,7 @@ export function resolveBackfillRequest(
 
   if (chosen.length > 1) {
     throw new Error(
-      `Choose one scope, not ${chosen.length}: ${chosen.map((s) => `--${s}`).join(" ")}`
+      `Choose one scope, not ${chosen.length}: ${chosen.map((s) => `--${s}`).join(" ")}`,
     );
   }
 
@@ -93,7 +91,7 @@ export function resolveBackfillRequest(
 }
 
 function isDryRun(
-  result: EmbeddingBackfillRun | EmbeddingBackfillDryRun
+  result: EmbeddingBackfillRun | EmbeddingBackfillDryRun,
 ): result is EmbeddingBackfillDryRun {
   return "dry_run" in result;
 }
@@ -125,7 +123,7 @@ export function formatSummary(run: EmbeddingBackfillRun): string {
 export async function waitForBackfillRun(
   client: Pick<EmbeddingsBackfillClient, "getEmbeddingBackfillRun">,
   runId: string,
-  opts: { pollIntervalMs: number; onProgress?: (run: EmbeddingBackfillRun) => void }
+  opts: { pollIntervalMs: number; onProgress?: (run: EmbeddingBackfillRun) => void },
 ): Promise<EmbeddingBackfillRun> {
   for (;;) {
     const run = await client.getEmbeddingBackfillRun(runId);
@@ -145,7 +143,7 @@ export async function waitForBackfillRun(
 export async function runEmbeddingsBackfill(
   client: EmbeddingsBackfillClient,
   opts: EmbeddingsBackfillOptions,
-  io: EmbeddingsIO = consoleIO
+  io: EmbeddingsIO = consoleIO,
 ): Promise<number> {
   const request = resolveBackfillRequest(opts);
   const started = await client.startEmbeddingBackfill(request);
@@ -218,7 +216,7 @@ export function formatStatus(status: EmbeddingStatus): string[] {
 export async function runEmbeddingsStatus(
   client: Pick<GroovenetClient, "getEmbeddingStatus">,
   opts: EmbeddingsStatusOptions,
-  io: EmbeddingsIO = consoleIO
+  io: EmbeddingsIO = consoleIO,
 ): Promise<number> {
   const status = await client.getEmbeddingStatus(opts.friendId);
 
@@ -249,7 +247,10 @@ export function addEmbeddingsCommands(program: Command): void {
         const counts = await exportEmbeddingEvalSnapshot(makeClient(), opts.friendId, opts.output);
         const summary = { output: opts.output, ...counts };
         if (opts.json) console.log(JSON.stringify(summary));
-        else console.log(`Exported ${counts.tracks} tracks, ${counts.albums} albums and ${counts.playlists} playlists to ${opts.output}`);
+        else
+          console.log(
+            `Exported ${counts.tracks} tracks, ${counts.albums} albums and ${counts.playlists} playlists to ${opts.output}`,
+          );
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
         process.exit(1);
@@ -263,10 +264,7 @@ export function addEmbeddingsCommands(program: Command): void {
     .option("--all", "Every track, regenerating even what's already embedded")
     .option("--release <id>", "Every track on one release")
     .option("--track <ids>", "One or more track ids, comma-separated")
-    .option(
-      "--type <kinds>",
-      "identity, audio_vibe, context — comma-separated (default: all)"
-    )
+    .option("--type <kinds>", "identity, audio_vibe, context — comma-separated (default: all)")
     .option("--friend-id <n>", "Narrow to one friend's library", intOption)
     .option("--force", "Regenerate even when the source data is unchanged")
     .option("--dry-run", "Report counts only; queue nothing")

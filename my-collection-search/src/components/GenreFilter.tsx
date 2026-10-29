@@ -1,16 +1,20 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Combobox, Flex, Portal, Switch, Text, chakra, createListCollection } from "@chakra-ui/react";
+import {
+  Combobox,
+  Flex,
+  Portal,
+  Switch,
+  Text,
+  chakra,
+  createListCollection,
+} from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import type { FilterChip } from "@/components/FilterChips";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
-import {
-  filterGenreOptions,
-  genreFilterOptions,
-  type GenreOption,
-} from "@/lib/genres/options";
+import { filterGenreOptions, genreFilterOptions, type GenreOption } from "@/lib/genres/options";
 
 const CHIP_PREFIX = "genre:";
 const SIMILAR_CHIP_PREFIX = "similar:";
@@ -70,12 +74,24 @@ export function includeSimilarChips(includeSimilar: boolean, selected: string[])
  * The chosen genres as small removable tags under the genre field, in the
  * filters modal and panel (#794), named from the taxonomy once it loads.
  */
-export function SelectedGenreTags({ selected, onRemove }: { selected: string[]; onRemove: (slug: string) => void }) {
+export function SelectedGenreTags({
+  selected,
+  onRemove,
+}: {
+  selected: string[];
+  onRemove: (slug: string) => void;
+}) {
   const { genres } = useGenreTaxonomyQuery();
   if (selected.length === 0) return null;
   const names = new Map(genres.map((genre) => [genre.slug, genre.name]));
   return (
-    <Flex wrap="wrap" gap="6px" role="group" aria-label="Chosen genres" data-testid="selected-genre-tags">
+    <Flex
+      wrap="wrap"
+      gap="6px"
+      role="group"
+      aria-label="Chosen genres"
+      data-testid="selected-genre-tags"
+    >
       {selected.map((slug) => {
         const name = names.get(slug) ?? slug;
         return (
@@ -147,13 +163,18 @@ type GenreFilterProps = {
  * handed to `onAdd` and the box cleared; the field shows how many genres are
  * selected, and the chips beside it own removal.
  */
-export default function GenreFilter({ selected, onAdd, counts, inSheet = false }: GenreFilterProps) {
+export default function GenreFilter({
+  selected,
+  onAdd,
+  counts,
+  inSheet = false,
+}: GenreFilterProps) {
   const { genres, isLoading, isError } = useGenreTaxonomyQuery();
   const [input, setInput] = useState("");
 
   const collection = useMemo(() => {
     const selectedIds = new Set(
-      genres.filter((genre) => selected.includes(genre.slug)).map((genre) => genre.id)
+      genres.filter((genre) => selected.includes(genre.slug)).map((genre) => genre.id),
     );
     return createListCollection<GenreOption>({
       items: filterGenreOptions(genreFilterOptions(genres, counts), input, selectedIds),
@@ -178,7 +199,9 @@ export default function GenreFilter({ selected, onAdd, counts, inSheet = false }
       <Combobox.Control>
         <Combobox.Input
           aria-label="Filter by genre"
-          placeholder={isLoading ? "Loading…" : selected.length > 0 ? `Genre · ${selected.length}` : "Genre"}
+          placeholder={
+            isLoading ? "Loading…" : selected.length > 0 ? `Genre · ${selected.length}` : "Genre"
+          }
         />
         <Combobox.IndicatorGroup>
           <Combobox.Trigger />
@@ -190,7 +213,12 @@ export default function GenreFilter({ selected, onAdd, counts, inSheet = false }
         <Combobox.Positioner
           css={
             inSheet
-              ? { position: "static !important", transform: "none !important", minWidth: "0 !important", zIndex: "auto !important" }
+              ? {
+                  position: "static !important",
+                  transform: "none !important",
+                  minWidth: "0 !important",
+                  zIndex: "auto !important",
+                }
               : undefined
           }
         >
@@ -203,7 +231,10 @@ export default function GenreFilter({ selected, onAdd, counts, inSheet = false }
                 <Combobox.ItemText>
                   {genre.name}
                   {genre.parent_name && (
-                    <Text as="span" color="fg.muted" fontSize="xs"> · {genre.parent_name}</Text>
+                    <Text as="span" color="fg.muted" fontSize="xs">
+                      {" "}
+                      · {genre.parent_name}
+                    </Text>
                   )}
                 </Combobox.ItemText>
                 {counts && (

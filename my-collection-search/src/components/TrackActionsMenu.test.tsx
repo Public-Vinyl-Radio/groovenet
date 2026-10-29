@@ -66,7 +66,7 @@ const trackMinimal = {
 
 function setup(
   track: Track = trackWithEverything,
-  props: Partial<React.ComponentProps<typeof TrackActionsMenu>> = {}
+  props: Partial<React.ComponentProps<typeof TrackActionsMenu>> = {},
 ) {
   const rendered = renderWithProviders(<TrackActionsMenu track={track} {...props} />);
   const menuButton = screen.getAllByRole("button", { name: "Track actions", hidden: true })[1];
@@ -92,7 +92,7 @@ describe("TrackActionsMenu on a track card (#722)", () => {
     const { unmount } = renderWithProviders(
       <TrackCardContext.Provider value={true}>
         <TrackActionsMenu track={trackMinimal} />
-      </TrackCardContext.Provider>
+      </TrackCardContext.Provider>,
     );
     const [phone, desktop] = screen.getAllByRole("button", { name: "Track actions", hidden: true });
     expect(getComputedStyle(phone).width).toBe("44px");
@@ -102,16 +102,21 @@ describe("TrackActionsMenu on a track card (#722)", () => {
     unmount();
 
     renderWithProviders(<TrackActionsMenu track={trackMinimal} compact />);
-    expect(getComputedStyle(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]).width).toBe("44px");
+    expect(
+      getComputedStyle(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0])
+        .width,
+    ).toBe("44px");
   });
 
   it("puts the star rating in the phone sheet and saves it", async () => {
     const rendered = renderWithProviders(
       <TrackCardContext.Provider value={true}>
         <TrackActionsMenu track={{ ...trackMinimal, star_rating: 2 }} />
-      </TrackCardContext.Provider>
+      </TrackCardContext.Provider>,
     );
-    await rendered.user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Track actions", hidden: true })[0],
+    );
     await screen.findByText("Playlist");
 
     expect(screen.getByText("Rating")).toBeTruthy();
@@ -122,7 +127,9 @@ describe("TrackActionsMenu on a track card (#722)", () => {
 
   it("has no rating row outside a card", async () => {
     const rendered = renderWithProviders(<TrackActionsMenu track={trackMinimal} />);
-    await rendered.user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[0]);
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Track actions", hidden: true })[0],
+    );
     await screen.findByText("Playlist");
 
     expect(screen.queryByText("Rating")).toBeNull();
@@ -215,7 +222,7 @@ describe("TrackActionsMenu desktop dropdown — selecting an item", () => {
     const { user, menuButton } = setup(trackWithEverything);
     await chooseMenuItem(user, menuButton, /Fetch Audio/);
     expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ track_id: "t1", friend_id: 7 })
+      expect.objectContaining({ track_id: "t1", friend_id: 7 }),
     );
   });
 
@@ -267,14 +274,20 @@ describe("TrackActionsMenu desktop dropdown — optional items", () => {
   // closing menu's focus restore, and flaked on a loaded CI runner.
   it("opens cover art from its item", async () => {
     const onChangeArtwork = vi.fn();
-    const { user, menuButton } = setup(trackWithEverything, { onChangeArtwork, onOpenTrackDebug: vi.fn() });
+    const { user, menuButton } = setup(trackWithEverything, {
+      onChangeArtwork,
+      onOpenTrackDebug: vi.fn(),
+    });
     await chooseMenuItem(user, menuButton, /Cover Art/);
     expect(onChangeArtwork).toHaveBeenCalled();
   });
 
   it("opens track debug from its item", async () => {
     const onOpenTrackDebug = vi.fn();
-    const { user, menuButton } = setup(trackWithEverything, { onChangeArtwork: vi.fn(), onOpenTrackDebug });
+    const { user, menuButton } = setup(trackWithEverything, {
+      onChangeArtwork: vi.fn(),
+      onOpenTrackDebug,
+    });
     await chooseMenuItem(user, menuButton, /Track Debug/);
     expect(onOpenTrackDebug).toHaveBeenCalled();
   });
@@ -283,7 +296,7 @@ describe("TrackActionsMenu desktop dropdown — optional items", () => {
 describe("TrackActionsMenu phone modal (#735)", () => {
   async function openModal(
     track: Track = trackWithEverything,
-    props: Partial<React.ComponentProps<typeof TrackActionsMenu>> = {}
+    props: Partial<React.ComponentProps<typeof TrackActionsMenu>> = {},
   ) {
     const rendered = renderWithProviders(<TrackActionsMenu track={track} {...props} />);
     const trigger = screen.getAllByRole("button", { name: "Track actions", hidden: true })[0];
@@ -316,9 +329,24 @@ describe("TrackActionsMenu phone modal (#735)", () => {
   it("groups the actions under Library, Audio, Open in and Danger, in that order", async () => {
     await openModal(trackWithEverything, { onOpenTrackDebug: vi.fn(), onChangeArtwork: vi.fn() });
     const labels = [
-      "Play", "Queue", "Playlist", "Library", "Edit track", "Enrich track", "Cover art...", "Track debug",
-      "Audio", "Fetch audio", "Upload audio", "Open in", "Apple Music", "YouTube", "SoundCloud",
-      "Danger", "Remove audio", "Delete track",
+      "Play",
+      "Queue",
+      "Playlist",
+      "Library",
+      "Edit track",
+      "Enrich track",
+      "Cover art...",
+      "Track debug",
+      "Audio",
+      "Fetch audio",
+      "Upload audio",
+      "Open in",
+      "Apple Music",
+      "YouTube",
+      "SoundCloud",
+      "Danger",
+      "Remove audio",
+      "Delete track",
     ];
     for (let i = 1; i < labels.length; i++) {
       const prev = screen.getByText(labels[i - 1]);
@@ -329,7 +357,14 @@ describe("TrackActionsMenu phone modal (#735)", () => {
 
   it("drops what the track cannot do: no Play, Fetch, Open in or Remove audio", async () => {
     await openModal(trackMinimal, { hideEdit: true });
-    for (const label of ["Play", "Fetch audio", "Open in", "Apple Music", "Remove audio", "Edit track"]) {
+    for (const label of [
+      "Play",
+      "Fetch audio",
+      "Open in",
+      "Apple Music",
+      "Remove audio",
+      "Edit track",
+    ]) {
       expect(screen.queryByText(label)).toBeNull();
     }
     expect(screen.getByText("Delete track")).toBeTruthy();
@@ -337,7 +372,9 @@ describe("TrackActionsMenu phone modal (#735)", () => {
 
   it("links Edit track and opens streaming links in a new tab", async () => {
     await openModal();
-    expect(screen.getByText("Edit track").closest("a")?.getAttribute("href")).toBe("/tracks/t1/edit?friend_id=7");
+    expect(screen.getByText("Edit track").closest("a")?.getAttribute("href")).toBe(
+      "/tracks/t1/edit?friend_id=7",
+    );
     const apple = screen.getByText("Apple Music").closest("a");
     expect(apple?.getAttribute("href")).toBe("https://music.apple.com/x");
     expect(apple?.getAttribute("target")).toBe("_blank");
@@ -353,13 +390,18 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const { user } = await openModal();
     await user.click(screen.getByText(label));
     await vi.waitFor(assertion);
-    await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Full House", hidden: true })).toBeNull());
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Full House", hidden: true })).toBeNull(),
+    );
   });
 
   it("runs cover art and track debug", async () => {
     const onChangeArtwork = vi.fn();
     const onOpenTrackDebug = vi.fn();
-    const { user, trigger } = await openModal(trackWithEverything, { onChangeArtwork, onOpenTrackDebug });
+    const { user, trigger } = await openModal(trackWithEverything, {
+      onChangeArtwork,
+      onOpenTrackDebug,
+    });
     await user.click(screen.getByText("Cover art..."));
     expect(onChangeArtwork).toHaveBeenCalled();
     await user.click(trigger);
@@ -370,7 +412,9 @@ describe("TrackActionsMenu phone modal (#735)", () => {
   it("closes from the close button", async () => {
     const { user } = await openModal();
     await user.click(screen.getByRole("button", { name: "Close" }));
-    await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Full House", hidden: true })).toBeNull());
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Full House", hidden: true })).toBeNull(),
+    );
   });
 
   it("confirms Remove audio and removes on confirm", async () => {
@@ -379,7 +423,11 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const dialog = await screen.findByRole("alertdialog", { name: "Remove audio" });
     await user.click(within(dialog).getByRole("button", { name: "Remove audio" }));
     await vi.waitFor(() =>
-      expect(mocks.saveTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 7, local_audio_url: null })
+      expect(mocks.saveTrack).toHaveBeenCalledWith({
+        track_id: "t1",
+        friend_id: 7,
+        local_audio_url: null,
+      }),
     );
   });
 
@@ -395,9 +443,11 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
     await user.click(within(dialog).getByRole("button", { name: "Delete track" }));
     await vi.waitFor(() =>
-      expect(mocks.softDeleteTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 7 })
+      expect(mocks.softDeleteTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 7 }),
     );
-    await vi.waitFor(() => expect(mocks.toast).toHaveBeenCalledWith({ title: "Track deleted", type: "success" }));
+    await vi.waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith({ title: "Track deleted", type: "success" }),
+    );
   });
 
   it("keeps the delete prompt open and reports a failure", async () => {
@@ -407,7 +457,9 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
     await user.click(within(dialog).getByRole("button", { name: "Delete track" }));
     await vi.waitFor(() =>
-      expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Failed to delete track", type: "error" }))
+      expect(mocks.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Failed to delete track", type: "error" }),
+      ),
     );
     expect(screen.getByRole("alertdialog", { name: "Delete track" })).toBeTruthy();
   });
@@ -418,7 +470,7 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
     await user.click(within(dialog).getByRole("button", { name: "Delete track" }));
     await vi.waitFor(() =>
-      expect(mocks.toast).toHaveBeenCalledWith({ title: "Track missing friend_id", type: "error" })
+      expect(mocks.toast).toHaveBeenCalledWith({ title: "Track missing friend_id", type: "error" }),
     );
     expect(mocks.softDeleteTrack).not.toHaveBeenCalled();
   });
@@ -431,8 +483,8 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     fireEvent.change(input, { target: { files: [file] } });
     await vi.waitFor(() =>
       expect(mocks.mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ file, track_id: "t1", friend_id: 7 })
-      )
+        expect.objectContaining({ file, track_id: "t1", friend_id: 7 }),
+      ),
     );
   });
 

@@ -21,7 +21,11 @@ beforeEach(() => {
 
 describe("GET /api/settings/recommendations", () => {
   it("returns the library's scope", async () => {
-    service.getRecommendationSettings.mockResolvedValue({ friend_id: 4, scope: "library", isDefault: true });
+    service.getRecommendationSettings.mockResolvedValue({
+      friend_id: 4,
+      scope: "library",
+      isDefault: true,
+    });
 
     const res = await get("?friend_id=4");
 
@@ -43,7 +47,11 @@ describe("GET /api/settings/recommendations", () => {
 
 describe("PUT /api/settings/recommendations", () => {
   it("saves the library's scope", async () => {
-    service.updateRecommendationSettings.mockResolvedValue({ friend_id: 4, scope: "all", isDefault: false });
+    service.updateRecommendationSettings.mockResolvedValue({
+      friend_id: 4,
+      scope: "all",
+      isDefault: false,
+    });
 
     const res = await put(JSON.stringify({ friend_id: 4, scope: "all" }));
 

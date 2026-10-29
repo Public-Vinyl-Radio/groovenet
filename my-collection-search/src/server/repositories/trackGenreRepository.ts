@@ -119,7 +119,7 @@ export class TrackGenreRepository {
       SELECT a.alias_normalized AS ref, a.genre_id::text AS genre_id, true AS is_alias
       FROM genre_aliases a WHERE a.alias_normalized = ANY($2::text[])
       `,
-      [ids, names]
+      [ids, names],
     );
     // A canonical name wins over an alias spelled the same way: the seed has
     // `Bossanova` as both a Discogs style and an alias of `Bossa Nova`.
@@ -147,7 +147,7 @@ export class TrackGenreRepository {
     releaseId: string,
     friendId: number,
     excludeTrackId: string,
-    limit = 5
+    limit = 5,
   ): Promise<ReleaseGenreCount[]> {
     const { rows } = await dbQuery<ReleaseGenreCount>(
       `
@@ -161,7 +161,7 @@ export class TrackGenreRepository {
       ORDER BY track_count DESC, g.name ASC
       LIMIT $4
       `,
-      [releaseId, friendId, excludeTrackId, limit]
+      [releaseId, friendId, excludeTrackId, limit],
     );
     return rows;
   }
@@ -175,20 +175,20 @@ export class TrackGenreRepository {
     trackId: string,
     friendId: number,
     genreIds: string[],
-    source: TrackGenreSource
+    source: TrackGenreSource,
   ): Promise<void> {
     await withDbTransaction(async (client) => {
       await client.query(
         `DELETE FROM track_genres
          WHERE track_id = $1 AND friend_id = $2 AND NOT (genre_id = ANY($3::uuid[]))`,
-        [trackId, friendId, genreIds]
+        [trackId, friendId, genreIds],
       );
       if (genreIds.length === 0) return;
       await client.query(
         `INSERT INTO track_genres (track_id, friend_id, genre_id, source)
          SELECT $1, $2, genre_id, $4 FROM unnest($3::uuid[]) AS genre_id
          ON CONFLICT DO NOTHING`,
-        [trackId, friendId, genreIds, source]
+        [trackId, friendId, genreIds, source],
       );
     });
   }

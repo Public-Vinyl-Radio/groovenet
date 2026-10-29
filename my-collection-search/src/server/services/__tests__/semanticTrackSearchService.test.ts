@@ -42,7 +42,13 @@ beforeEach(() => {
 });
 
 describe("semanticTrackSearch", () => {
-  const params = { q: "dusty cumbia", limit: 5, friendId: 1, missing: [] as TrackMissingFilter[], caller: "c" };
+  const params = {
+    q: "dusty cumbia",
+    limit: 5,
+    friendId: 1,
+    missing: [] as TrackMissingFilter[],
+    caller: "c",
+  };
 
   it("embeds with the serving model and scans inside a tuned transaction", async () => {
     client.query
@@ -86,7 +92,10 @@ describe("semanticTrackSearch", () => {
     expect(hydrateSql).toContain('AS "hasVectors"');
     expect(hydrateSql).toContain("AS library_identifier");
     expect(hydrateSql).toContain("t.deleted_at IS NULL");
-    expect(hydrateParams).toEqual([["a", "b", "gone"], [1, 1, 1]]);
+    expect(hydrateParams).toEqual([
+      ["a", "b", "gone"],
+      [1, 1, 1],
+    ]);
     // Distance order, and a match whose row vanished is dropped.
     expect(result.hits.map((h) => h.track_id)).toEqual(["a", "b"]);
     expect(result.cacheHit).toBe(true);
@@ -151,7 +160,11 @@ describe("fuseHybridResults", () => {
   it("puts known-item matches first, in lexical order", () => {
     const fused = fuseHybridResults({
       q: "Fela Kuti",
-      lexical: [row("other"), row("k1", { artist: "Fela Kuti" }), row("k2", { artist: "fela kuti" })],
+      lexical: [
+        row("other"),
+        row("k1", { artist: "Fela Kuti" }),
+        row("k2", { artist: "fela kuti" }),
+      ],
       semantic: [row("k2", { artist: "fela kuti" }), row("vibe")],
       limit: 10,
     });

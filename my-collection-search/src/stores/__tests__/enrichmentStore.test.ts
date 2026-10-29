@@ -19,7 +19,11 @@ describe("enrichmentStore", () => {
 
   it("turns AI metadata on for a session without touching the other sources", () => {
     useEnrichmentStore.getState().setEnrichmentTypes({ llm: true });
-    expect(useEnrichmentStore.getState().enrichmentTypes).toMatchObject({ llm: true, appleMusic: true, youtube: true });
+    expect(useEnrichmentStore.getState().enrichmentTypes).toMatchObject({
+      llm: true,
+      appleMusic: true,
+      youtube: true,
+    });
   });
 
   it("keeps the source choices when a run is reset", () => {
@@ -30,6 +34,10 @@ describe("enrichmentStore", () => {
 
     useEnrichmentStore.getState().reset();
 
-    expect(useEnrichmentStore.getState()).toMatchObject({ queue: [], results: {}, enrichmentTypes: { llm: true } });
+    expect(useEnrichmentStore.getState()).toMatchObject({
+      queue: [],
+      results: {},
+      enrichmentTypes: { llm: true },
+    });
   });
 });

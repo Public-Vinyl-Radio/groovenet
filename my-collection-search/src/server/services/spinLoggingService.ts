@@ -1,8 +1,5 @@
 import type { SpinDerived, SpinMedium, SpinProvenance, SpinTrackRef } from "@groovenet/contracts";
-import {
-  compareTrackPositions,
-  normalizeAlbumTrackSides,
-} from "@/lib/albumTrackPosition";
+import { compareTrackPositions, normalizeAlbumTrackSides } from "@/lib/albumTrackPosition";
 import { withDbTransaction } from "@/lib/serverDb";
 import { DIGITAL_PLAY_ALREADY_LOGGED } from "@/server/services/spinErrors";
 import { albumRepository } from "@/server/repositories/albumRepository";
@@ -73,12 +70,14 @@ function normalizeTimestamp(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-function normalizeSessionRow<T extends {
-  played_at: Date | string;
-  created_at: Date | string;
-  updated_at: Date | string;
-  playlist_played_at?: Date | string | null;
-}>(row: T): T & { played_at: string; created_at: string; updated_at: string } {
+function normalizeSessionRow<
+  T extends {
+    played_at: Date | string;
+    created_at: Date | string;
+    updated_at: Date | string;
+    playlist_played_at?: Date | string | null;
+  },
+>(row: T): T & { played_at: string; created_at: string; updated_at: string } {
   return {
     ...row,
     played_at: normalizeTimestamp(row.played_at),
@@ -91,7 +90,7 @@ function normalizeSessionRow<T extends {
 }
 
 function normalizeSelectionRow<T extends { created_at: Date | string }>(
-  row: T
+  row: T,
 ): T & { created_at: string } {
   return {
     ...row,
@@ -100,7 +99,7 @@ function normalizeSelectionRow<T extends { created_at: Date | string }>(
 }
 
 function normalizeTrackEventRow<T extends { played_at: Date | string; created_at: Date | string }>(
-  row: T
+  row: T,
 ): T & { played_at: string; created_at: string } {
   return {
     ...row,
@@ -113,7 +112,7 @@ function toTrackEvents(
   expandedTracks: ExpandedTrack[],
   friendId: number,
   releaseId: string,
-  playedAt: string | Date
+  playedAt: string | Date,
 ) {
   return expandedTracks.map((expanded, ordinal) => ({
     friend_id: friendId,
@@ -122,8 +121,7 @@ function toTrackEvents(
     played_at: playedAt,
     ordinal,
     side_key: expanded.side_key,
-    position_snapshot:
-      expanded.track.position == null ? null : String(expanded.track.position),
+    position_snapshot: expanded.track.position == null ? null : String(expanded.track.position),
     title_snapshot: expanded.track.title,
     artist_snapshot: expanded.track.artist,
     album_snapshot: expanded.track.album,
@@ -131,7 +129,7 @@ function toTrackEvents(
 }
 
 function normalizeTopTrackRow<T extends { last_played_at: Date | string }>(
-  row: T
+  row: T,
 ): T & { last_played_at: string } {
   return {
     ...row,
@@ -157,26 +155,23 @@ function normalizeAlbumRow(album: Album): Album {
 export class SpinLoggingService {
   async getAlbumPlayableStructure(
     releaseId: string,
-    friendId: number
-  ): Promise<
-    | null
-    | {
-        album: Album;
-        sides: Array<{
-          side_key: string;
-          side_label: string;
-          ordinal: number;
-          track_count: number;
-          tracks: Array<{
-            track_id: string;
-            friend_id: number;
-            position: string | number | null | undefined;
-            title: string;
-            artist: string;
-          }>;
-        }>;
-      }
-  > {
+    friendId: number,
+  ): Promise<null | {
+    album: Album;
+    sides: Array<{
+      side_key: string;
+      side_label: string;
+      ordinal: number;
+      track_count: number;
+      tracks: Array<{
+        track_id: string;
+        friend_id: number;
+        position: string | number | null | undefined;
+        title: string;
+        artist: string;
+      }>;
+    }>;
+  }> {
     const album = await albumRepository.getAlbumByReleaseAndFriend(releaseId, friendId);
     if (!album) return null;
 
@@ -227,7 +222,10 @@ export class SpinLoggingService {
           confidence: input.confidence,
         })
         .catch((error: unknown) => {
-          if ((error as { code?: string }).code === UNIQUE_VIOLATION && input.medium === "digital") {
+          if (
+            (error as { code?: string }).code === UNIQUE_VIOLATION &&
+            input.medium === "digital"
+          ) {
             throw new Error(DIGITAL_PLAY_ALREADY_LOGGED);
           }
           throw error;
@@ -236,13 +234,13 @@ export class SpinLoggingService {
       const insertedSelections = await spinSessionRepository.insertSelections(
         client,
         session.id,
-        selections
+        selections,
       );
 
       const insertedTrackEvents = await trackSpinEventRepository.insertEvents(
         client,
         session.id,
-        toTrackEvents(expandedTracks, input.friend_id, input.release_id, input.played_at)
+        toTrackEvents(expandedTracks, input.friend_id, input.release_id, input.played_at),
       );
 
       return {
@@ -281,7 +279,7 @@ export class SpinLoggingService {
   }): Promise<SpinSessionDetail> {
     const track = await trackRepository.findTrackByTrackIdAndFriendId(
       input.track_id,
-      input.friend_id
+      input.friend_id,
     );
     if (!track?.release_id) throw new Error("Detected track has no release");
     return this.createSpinSession({
@@ -338,7 +336,7 @@ export class SpinLoggingService {
         sessionSelections
           .filter((selection) => selection.selection_type === "side")
           .map((selection) => selection.side_key)
-          .filter((sideKey): sideKey is string => Boolean(sideKey))
+          .filter((sideKey): sideKey is string => Boolean(sideKey)),
       ).size;
 
       return {
@@ -371,16 +369,15 @@ export class SpinLoggingService {
   async updateSpinSession(
     sessionId: number,
     friendId: number,
-    input: UpdateSpinSessionInput
+    input: UpdateSpinSessionInput,
   ): Promise<SpinSessionDetail | null> {
-    const hasSelection =
-      Array.isArray(input.side_keys) || Array.isArray(input.track_refs);
+    const hasSelection = Array.isArray(input.side_keys) || Array.isArray(input.track_refs);
 
     const result = await withDbTransaction(async (client) => {
       const existing = await spinSessionRepository.findSessionForUpdate(
         client,
         sessionId,
-        friendId
+        friendId,
       );
       if (!existing) return null;
 
@@ -403,12 +400,12 @@ export class SpinLoggingService {
         const selections = await spinSessionRepository.insertSelections(
           client,
           sessionId,
-          expansion.selections
+          expansion.selections,
         );
         const trackEvents = await trackSpinEventRepository.insertEvents(
           client,
           sessionId,
-          toTrackEvents(expansion.expandedTracks, friendId, existing.release_id, playedAt)
+          toTrackEvents(expansion.expandedTracks, friendId, existing.release_id, playedAt),
         );
         return {
           session,
@@ -450,10 +447,7 @@ export class SpinLoggingService {
     };
   }
 
-  async deleteSpinSession(
-    sessionId: number,
-    friendId: number
-  ): Promise<SpinSessionRow | null> {
+  async deleteSpinSession(sessionId: number, friendId: number): Promise<SpinSessionRow | null> {
     const deleted = await withDbTransaction(async (client) => {
       return await spinSessionRepository.deleteSession(client, sessionId, friendId);
     });
@@ -475,26 +469,20 @@ export class SpinLoggingService {
   private async expandSelection(
     releaseId: string,
     friendId: number,
-    selection: { side_keys?: string[]; track_refs?: SpinTrackRef[] }
+    selection: { side_keys?: string[]; track_refs?: SpinTrackRef[] },
   ) {
-    const album = await albumRepository.getAlbumByReleaseAndFriend(
-      releaseId,
-      friendId
-    );
+    const album = await albumRepository.getAlbumByReleaseAndFriend(releaseId, friendId);
     if (!album) {
       throw new Error("Album not found");
     }
 
-    const albumTracks = await albumRepository.getTracksByReleaseAndFriend(
-      releaseId,
-      friendId
-    );
+    const albumTracks = await albumRepository.getTracksByReleaseAndFriend(releaseId, friendId);
     if (albumTracks.length === 0) {
       throw new Error("Album has no tracks to log");
     }
 
     const orderedTracks = [...albumTracks].sort((a, b) =>
-      compareTrackPositions(a.position, b.position)
+      compareTrackPositions(a.position, b.position),
     );
     const normalizedSides = normalizeAlbumTrackSides(orderedTracks);
 
@@ -502,18 +490,14 @@ export class SpinLoggingService {
       return this.expandSideSelections(selection.side_keys, normalizedSides);
     }
     if (Array.isArray(selection.track_refs)) {
-      return this.expandTrackSelections(
-        selection.track_refs,
-        orderedTracks,
-        normalizedSides
-      );
+      return this.expandTrackSelections(selection.track_refs, orderedTracks, normalizedSides);
     }
     throw new Error("Provide exactly one of side_keys or track_refs");
   }
 
   private expandSideSelections(
     sideKeys: string[],
-    normalizedSides: Array<{ side_key: string; tracks: Track[] }>
+    normalizedSides: Array<{ side_key: string; tracks: Track[] }>,
   ): {
     selectionMode: "sides";
     selections: CreateSpinSessionSelectionInput[];
@@ -535,7 +519,7 @@ export class SpinLoggingService {
 
     for (const requestedSide of normalizedRequestedSides) {
       const tracksForSide = normalizedSides.find(
-        (normalizedSide) => normalizedSide.side_key === requestedSide
+        (normalizedSide) => normalizedSide.side_key === requestedSide,
       )?.tracks;
       if (!tracksForSide) {
         throw new Error(`Invalid side key: ${requestedSide}`);
@@ -560,15 +544,14 @@ export class SpinLoggingService {
       expandedTracks,
       selectedSideCount: selectedSideSet.size,
       albumSideCount: normalizedSides.length,
-      isFullAlbumSpin:
-        selectedSideSet.size > 0 && selectedSideSet.size === normalizedSides.length,
+      isFullAlbumSpin: selectedSideSet.size > 0 && selectedSideSet.size === normalizedSides.length,
     };
   }
 
   private expandTrackSelections(
     trackRefs: SpinTrackRef[],
     orderedTracks: Track[],
-    normalizedSides: Array<{ side_key: string; tracks: Track[] }>
+    normalizedSides: Array<{ side_key: string; tracks: Track[] }>,
   ): {
     selectionMode: "tracks";
     selections: CreateSpinSessionSelectionInput[];
@@ -592,7 +575,7 @@ export class SpinLoggingService {
       for (const track of normalizedSide.tracks) {
         sideByTrackCompositeKey.set(
           `${track.track_id}:${track.friend_id}`,
-          normalizedSide.side_key
+          normalizedSide.side_key,
         );
       }
     }

@@ -13,7 +13,11 @@ const size = { columns: 120, rows: 40 };
 let patched = false;
 
 /** Force every ink-testing-library render to `columns` × `rows`, and plain (level 0) or 16-colour output. */
-export function forceTerminal(columns: number, rows: number, { colorLevel = 0 }: { colorLevel?: 0 | 1 } = {}): void {
+export function forceTerminal(
+  columns: number,
+  rows: number,
+  { colorLevel = 0 }: { colorLevel?: 0 | 1 } = {},
+): void {
   size.columns = columns;
   size.rows = rows;
   chalk.level = colorLevel;

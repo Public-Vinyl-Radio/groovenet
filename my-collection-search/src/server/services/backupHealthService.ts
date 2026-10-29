@@ -10,7 +10,7 @@ export type BackupHealth = {
 export function evaluateBackupHealth(
   backup: BackupStatus | null,
   now: number,
-  maxAgeHours: number
+  maxAgeHours: number,
 ): BackupHealth {
   if (!backup) return { healthy: false, status: "unhealthy", reason: "no-backup-status" };
   if (backup.status === "failed") {

@@ -9,7 +9,11 @@ function setup(activeCount = 0) {
   const onOpenFilters = vi.fn();
   const onOpenArtwork = vi.fn();
   const view = renderWithProviders(
-    <AlbumSearchMenu activeCount={activeCount} onOpenFilters={onOpenFilters} onOpenArtwork={onOpenArtwork} />
+    <AlbumSearchMenu
+      activeCount={activeCount}
+      onOpenFilters={onOpenFilters}
+      onOpenArtwork={onOpenArtwork}
+    />,
   );
   return { ...view, onOpenFilters, onOpenArtwork };
 }

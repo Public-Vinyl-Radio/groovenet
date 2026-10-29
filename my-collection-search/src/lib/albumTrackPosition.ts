@@ -11,12 +11,7 @@ export type ParsedTrackPosition = {
   sortMajor: number;
   sortMinor: number;
   classification:
-    | "side-number"
-    | "multi-letter-side"
-    | "disc-track"
-    | "numeric"
-    | "freeform"
-    | "empty";
+    "side-number" | "multi-letter-side" | "disc-track" | "numeric" | "freeform" | "empty";
 };
 
 export type NormalizedSideGroup<TTrack> = {
@@ -168,11 +163,9 @@ export function getTrackSideLabel(position: TrackPositionValue): string | null {
 }
 
 export function normalizeAlbumTrackSides<TTrack extends { position: TrackPositionValue }>(
-  tracks: TTrack[]
+  tracks: TTrack[],
 ): NormalizedSideGroup<TTrack>[] {
-  const orderedTracks = [...tracks].sort((a, b) =>
-    compareTrackPositions(a.position, b.position)
-  );
+  const orderedTracks = [...tracks].sort((a, b) => compareTrackPositions(a.position, b.position));
 
   const groups: NormalizedSideGroup<TTrack>[] = [];
   const byKey = new Map<string, NormalizedSideGroup<TTrack>>();

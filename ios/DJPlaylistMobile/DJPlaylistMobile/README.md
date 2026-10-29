@@ -3,6 +3,7 @@
 Internal-first iOS app scaffold for your Tailscale-hosted DJ Playlist API.
 
 ## Scope in this scaffold
+
 - Runtime server URL configuration (no auth)
 - Connection test (`/api/openapi.mobile.json`)
 - Playlist listing (`/api/playlists`)
@@ -11,6 +12,7 @@ Internal-first iOS app scaffold for your Tailscale-hosted DJ Playlist API.
 - Basic track file downloads to local storage (`/api/audio?filename=...`)
 
 ## Project setup (Xcode)
+
 1. Create a new iOS App in Xcode:
    - Name: `DJPlaylistMobile`
    - Interface: `SwiftUI`
@@ -20,11 +22,13 @@ Internal-first iOS app scaffold for your Tailscale-hosted DJ Playlist API.
 4. Build and run.
 
 ## Runtime notes
+
 - First launch goes to Server Setup.
 - Enter your Tailscale URL, e.g. `http://100.x.y.z:3000` or `http://hostname.tailnet.ts.net:3000`.
 - The app warns if you use plain HTTP.
 
 ## Next production steps
+
 - Replace `UserDefaults` URL storage with stronger config handling.
 - Add background download tasks.
 - Add `AVPlayer` playback + offline queue.
