@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.8.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.8.0...groovenet-client-v3.8.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **dev:** single TypeScript version and a clean bootstrap ([#857](https://github.com/Public-Vinyl-Radio/groovenet/issues/857)) ([4d2f63f](https://github.com/Public-Vinyl-Radio/groovenet/commit/4d2f63f5715b57b19f5e0250ea832196586ed917))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.4.0 to 1.4.1
+
 ## [3.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.7.0...groovenet-client-v3.8.0) (2026-10-29)
 
 
