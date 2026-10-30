@@ -129,9 +129,7 @@ export default function DatabaseBackups() {
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setPendingDelete(null);
-        }}
+        onOpenChange={() => setPendingDelete(null)}
         title="Delete Backup"
         body={
           <>

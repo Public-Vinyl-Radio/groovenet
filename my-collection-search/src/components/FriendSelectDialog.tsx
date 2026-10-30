@@ -50,7 +50,7 @@ export default function FriendSelectDialog({
   return (
     <RetroDialog
       open={open}
-      onOpenChange={(nextOpen) => !nextOpen && handleCancel()}
+      onOpenChange={handleCancel}
       title="Select Library"
 
       footer={

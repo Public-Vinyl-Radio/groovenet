@@ -3,6 +3,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
+import { sampleTrack } from "@/stories/fixtures/track";
 import type { TrackGenre } from "@/types/track";
 
 const fetchGenreTree = vi.hoisted(() => vi.fn());
@@ -10,8 +11,14 @@ vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   usePlaylistPlayer: () => ({ playlistLength: 0 }),
 }));
+const analyzeAudio = vi.hoisted(() => vi.fn());
 vi.mock("@/components/track-edit/useTrackEditAudioActions", () => ({
-  useTrackEditAudioActions: () => ({}),
+  useTrackEditAudioActions: () => ({ handleAnalyzeAudio: analyzeAudio }),
+}));
+vi.mock("@/components/TrackActionsMenu", () => ({
+  default: ({ audioActions }: { audioActions: { onFetchAudio: () => void } }) => (
+    <button onClick={audioActions.onFetchAudio}>Analyze audio</button>
+  ),
 }));
 
 import TrackEditForm from "./TrackEditForm";
@@ -166,4 +173,37 @@ it("keeps the editor open while its pinned Save action is pending", async () => 
   expect(setDialogOpen).not.toHaveBeenCalled();
   await act(async () => finish());
   expect((screen.getByRole("button", { name: "Close" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it("shows a loading placeholder without save actions until the track is available", async () => {
+  const onSave = vi.fn();
+  const props = {
+    dialogOpen: true,
+    setDialogOpen: vi.fn(),
+    initialFocusRef: React.createRef<HTMLButtonElement>(),
+  };
+  const { rerender } = renderWithProviders(
+    <TrackEditForm {...props} track={null} onSave={onSave} />,
+  );
+  expect(await screen.findByRole("dialog", { name: "Edit Track" })).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: /Loading/ }).length).toBeGreaterThan(0);
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  rerender(<TrackEditForm {...props} track={TRACK} onSave={onSave} />);
+  expect(await screen.findByRole("button", { name: "Save" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Loading/ })).toBeNull();
+});
+
+it("keeps the loaded track's audio actions available in the editor header", async () => {
+  const { user } = renderWithProviders(
+    <TrackEditForm
+      track={TRACK}
+      menuTrack={sampleTrack}
+      dialogOpen
+      onSave={vi.fn()}
+      setDialogOpen={vi.fn()}
+      initialFocusRef={React.createRef()}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Analyze audio" }));
+  expect(analyzeAudio).toHaveBeenCalledOnce();
 });

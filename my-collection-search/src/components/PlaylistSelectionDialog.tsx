@@ -75,7 +75,7 @@ export default function PlaylistSelectionDialog({
   return (
     <RetroDialog
       open={open}
-      onOpenChange={(nextOpen) => !nextOpen && onClose()}
+      onOpenChange={onClose}
       title={title}
       maxW="md"
       initialFocusEl={() => searchInputRef.current}

@@ -546,9 +546,7 @@ export default function JobsPage() {
 
         <RetroDialog
           open={!!detailsJob}
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) setDetailsJob(null);
-          }}
+          onOpenChange={() => setDetailsJob(null)}
           title="Job Details"
           maxW="6xl"
         >

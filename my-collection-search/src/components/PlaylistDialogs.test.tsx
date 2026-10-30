@@ -140,3 +140,62 @@ it("dismisses playlist selection through the shared close button", async () => {
   await user.click(await screen.findByRole("button", { name: "Close" }));
   expect(onClose).toHaveBeenCalledOnce();
 });
+
+it("explains when no libraries are available and disables import", async () => {
+  api.fetchFriends.mockResolvedValue([]);
+  renderWithProviders(
+    <FriendSelectDialog
+      open
+      selectedFriendId={null}
+      setSelectedFriendId={vi.fn()}
+      onConfirm={vi.fn()}
+      onCancel={vi.fn()}
+    />,
+  );
+  expect(await screen.findByText("No libraries found. Please add a library first.")).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Import" }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it("reports playlist fetch failures while still offering creation", async () => {
+  api.fetchPlaylists.mockRejectedValue(new Error("Network unavailable"));
+  const onCreateNew = vi.fn();
+  const { user } = renderWithProviders(
+    <PlaylistSelectionDialog
+      open
+      onClose={vi.fn()}
+      onPlaylistSelect={vi.fn()}
+      onCreateNew={onCreateNew}
+    />,
+  );
+  expect(await screen.findByText("Failed to load playlists")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Create New Playlist" }));
+  expect(onCreateNew).toHaveBeenCalledWith();
+});
+
+it("offers creation when the playlist library is empty", async () => {
+  api.fetchPlaylists.mockResolvedValue([]);
+  renderWithProviders(
+    <PlaylistSelectionDialog
+      open
+      onClose={vi.fn()}
+      onPlaylistSelect={vi.fn()}
+      onCreateNew={vi.fn()}
+    />,
+  );
+  expect(await screen.findByText("No playlists found")).toBeTruthy();
+});
+
+it("handles a playlist without track metadata", async () => {
+  api.fetchPlaylists.mockResolvedValue([{ id: 2, name: "Legacy set" }]);
+  const onPlaylistSelect = vi.fn();
+  const { user } = renderWithProviders(
+    <PlaylistSelectionDialog
+      open
+      onClose={vi.fn()}
+      onPlaylistSelect={onPlaylistSelect}
+      onCreateNew={vi.fn()}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Legacy set 0 tracks" }));
+  expect(onPlaylistSelect).toHaveBeenCalledWith({ id: 2, name: "Legacy set" });
+});

@@ -105,3 +105,38 @@ it("opens job details, refreshes logs and dismisses the shared viewer", async ()
     fetchLogs.mockRestore();
   }
 });
+
+it("shows failed-job details and distinguishes loading logs from an empty log", async () => {
+  jobs.rows = [
+    {
+      id: "failed-job",
+      queue: "downloads",
+      name: "download",
+      state: "failed",
+      progress: 0,
+      attemptsMade: 2,
+      failedReason: "Source unavailable",
+      data: { track_id: "t2", friend_id: 1 },
+    },
+  ];
+  let finishLogs!: (response: Response) => void;
+  const pendingLogs = new Promise<Response>((resolve) => {
+    finishLogs = resolve;
+  });
+  const fetchLogs = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingLogs);
+  try {
+    const { user } = renderWithProviders(<JobsPage />);
+    await user.click(await screen.findByRole("button", { name: "Job details" }));
+    const dialog = await screen.findByRole("dialog", { name: "Job Details" });
+    expect(within(dialog).getByText("Source unavailable")).toBeTruthy();
+    await user.click(within(dialog).getByRole("tab", { name: "Logs" }));
+    expect(dialog.querySelector(".chakra-spinner")).not.toBeNull();
+    expect(within(dialog).queryByText("No logs captured for this job.")).toBeNull();
+    finishLogs(new Response(JSON.stringify({ logs: [] }), { status: 200 }));
+    expect(await within(dialog).findByText("No logs captured for this job.")).toBeTruthy();
+    expect(dialog.querySelector(".chakra-spinner")).toBeNull();
+    expect(within(dialog).getByRole("tab", { name: "Logs" }).textContent).toBe("Logs");
+  } finally {
+    fetchLogs.mockRestore();
+  }
+});

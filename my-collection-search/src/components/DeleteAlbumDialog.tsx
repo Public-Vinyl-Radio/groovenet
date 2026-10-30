@@ -37,9 +37,7 @@ export default function DeleteAlbumDialog({
   return (
     <ConfirmDialog
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) onClose();
-      }}
+      onOpenChange={onClose}
       title={`Delete ${albumTitle ?? "Album"}`}
       body={
         <>
