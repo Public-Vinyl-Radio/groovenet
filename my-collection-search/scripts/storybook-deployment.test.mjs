@@ -140,10 +140,18 @@ test(
     ]);
     assert.equal(app.build.target, "dev");
     assert.match(app.command.join(" "), /node scripts\/ensure-dev-deps\.mjs/);
-    assert.match(
-      app.command.join(" "),
-      /rm -rf \/packages\/groovenet-contracts\/node_modules && ln -sfn \/app\/node_modules/,
-    );
+    // Contracts and client are host-built and mounted read-only (#747): the
+    // container must never rewrite their node_modules on the host.
+    assert.doesNotMatch(app.command.join(" "), /rm -rf|ln -sfn/);
+    assert.match(app.command.join(" "), /build\/index\.js/);
+    for (const pkg of ["groovenet-contracts", "groovenet-client"]) {
+      const mount = app.volumes.find((volume) => volume.target === `/packages/${pkg}`);
+      assert.equal(mount?.type, "bind");
+      assert.equal(mount?.read_only, true);
+    }
+    const packageDeps = app.volumes.find((volume) => volume.target === "/packages/node_modules");
+    assert.equal(packageDeps?.type, "volume");
+    assert.equal(packageDeps?.read_only, true);
     assert.equal(app.environment.STORYBOOK_URL, "http://localhost:6006");
     assert.ok(app.volumes.some((volume) => volume.target === "/app" && volume.type === "bind"));
     assert.ok(!app.volumes.some((volume) => volume.target === "/app/public/storybook"));
