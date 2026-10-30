@@ -5,12 +5,12 @@
   "main": "build/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc6",
     "test": "npm run build && node --test test/*.test.mjs",
     "lint": "eslint .",
     "start": "node build/index.js",
-    "dev": "tsc && node build/index.js",
-    "watch": "tsc --watch"
+    "dev": "tsc6 && node build/index.js",
+    "watch": "tsc6 --watch"
   },
   "keywords": [
     "mcp",
@@ -29,6 +29,6 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "typescript": "^7.0.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }

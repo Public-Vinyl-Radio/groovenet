@@ -221,3 +221,8 @@ Version source of truth is the root `package.json`, mirrored into
   It must leave lockfiles unchanged and fails on an inconsistent lockfile;
   diagnose that failure instead of falling back to `npm install`. See the
   README's toolchain notes for pin updates and drift checks.
+- **One TypeScript, the 6.x alias, everywhere** (`npm:@typescript/typescript6`,
+  binary `tsc6`): typescript-eslint has no TypeScript 7 support. A `typescript`
+  entry on any other version nests a copy under that package. The dev container
+  uses the host-built `packages/groovenet-{contracts,client}/build`, so rebuild
+  a package on the host after changing it.
