@@ -381,3 +381,12 @@ describe("album page layout (#727)", () => {
     expect(screen.getByTestId("album-track-list")).toBeTruthy();
   });
 });
+
+it("shows and closes the raw Discogs file in the shared data viewer", async () => {
+  const { user } = renderWithProviders(<AlbumDetailPage />);
+  await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+  await user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
+  expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
+  await user.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});

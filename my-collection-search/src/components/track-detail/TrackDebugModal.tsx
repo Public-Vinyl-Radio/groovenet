@@ -1,6 +1,8 @@
 "use client";
 
-import { Button, CloseButton, Dialog, Portal, VStack } from "@chakra-ui/react";
+import RetroDialog from "@/components/ui/RetroDialog";
+
+import { Flex, Box, Button, VStack } from "@chakra-ui/react";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import type {
   AudioVibeEmbeddingPreviewResponse,
@@ -41,41 +43,34 @@ export default function TrackDebugModal({
   onExtractCover,
 }: Props) {
   return (
-    <Dialog.Root open={open} onOpenChange={(d) => onOpenChange(d.open)} size="xl">
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content maxW="980px" maxH="90vh">
-            <Dialog.Header>
-              <Dialog.Title>Track Debug</Dialog.Title>
-              <Dialog.CloseTrigger asChild>
-                <CloseButton size="sm" />
-              </Dialog.CloseTrigger>
-            </Dialog.Header>
+    <RetroDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Track Debug"
+      maxW="980px"
 
-            <Dialog.Body overflowY="auto" pb={6}>
-              <VStack align="stretch" gap={0}>
-                <AudioMetadataSection
-                  query={audioMetadataQuery}
-                  trackAudioCoverUrl={trackAudioCoverUrl}
-                  isExtractingCover={extractCoverMutation.isPending}
-                  onExtractCover={onExtractCover}
-                />
-                <EssentiaSection query={essentiaQuery} />
-                <IdentityEmbeddingSection query={identityEmbeddingPreviewQuery} />
-                <ContextEmbeddingSection query={contextEmbeddingPreviewQuery} />
-                <AudioVibeEmbeddingSection query={audioVibeEmbeddingPreviewQuery} />
-              </VStack>
-            </Dialog.Body>
-
-            <Dialog.Footer>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Close
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      footer={
+        <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
+          <Button minH="44px" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </Flex>
+      }
+    >
+      <Box p={4} minW={0}>
+        <VStack align="stretch" gap={0}>
+          <AudioMetadataSection
+            query={audioMetadataQuery}
+            trackAudioCoverUrl={trackAudioCoverUrl}
+            isExtractingCover={extractCoverMutation.isPending}
+            onExtractCover={onExtractCover}
+          />
+          <EssentiaSection query={essentiaQuery} />
+          <IdentityEmbeddingSection query={identityEmbeddingPreviewQuery} />
+          <ContextEmbeddingSection query={contextEmbeddingPreviewQuery} />
+          <AudioVibeEmbeddingSection query={audioVibeEmbeddingPreviewQuery} />
+        </VStack>
+      </Box>
+    </RetroDialog>
   );
 }

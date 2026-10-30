@@ -17,11 +17,12 @@ const query = (data: unknown) =>
   ({ isLoading: false, error: null, data }) as unknown as UseQueryResult<never, Error>;
 
 describe("TrackDebugModal", () => {
-  it("shows the context text natural-language search uses, next to identity and audio vibe", () => {
-    renderWithProviders(
+  it("shows the context text natural-language search uses, next to identity and audio vibe", async () => {
+    const onOpenChange = vi.fn();
+    const { user } = renderWithProviders(
       <TrackDebugModal
         open
-        onOpenChange={() => {}}
+        onOpenChange={onOpenChange}
         audioMetadataQuery={query(undefined)}
         essentiaQuery={query(undefined)}
         identityEmbeddingPreviewQuery={query(undefined)}
@@ -52,5 +53,7 @@ describe("TrackDebugModal", () => {
     expect(screen.getByText("Context Embedding Preview")).toBeTruthy();
     expect(screen.getByText("dub, reggae. jamaican music from the 1970s.")).toBeTruthy();
     expect(screen.getByText("audio vibe section")).toBeTruthy();
+    await user.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

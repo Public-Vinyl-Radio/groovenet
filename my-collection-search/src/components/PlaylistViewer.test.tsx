@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { sampleTrack, trackInPlaylist } from "@/stories/fixtures/track";
 
@@ -76,7 +76,11 @@ vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: v
 vi.mock("@/components/PlaylistStatsPanel", () => ({ default: () => null }));
 vi.mock("@/components/SetDetailsPanel", () => ({ default: () => null }));
 vi.mock("@/components/PlaylistActionsMenu", () => ({
-  default: () => <span data-testid="actions-menu" />,
+  default: ({ onOpenRecommendations }: { onOpenRecommendations: () => void }) => (
+    <button data-testid="actions-menu" onClick={onOpenRecommendations}>
+      Recommendations
+    </button>
+  ),
 }));
 vi.mock("@/components/PlaylistItemMenu", () => ({ default: () => <button>item menu</button> }));
 vi.mock("@/components/PlaylistRecommendations", () => ({ default: () => null }));
@@ -196,4 +200,13 @@ describe("PlaylistViewer page header", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Set" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to Playlists", hidden: true })).toBeTruthy();
   });
+});
+
+it("opens, refreshes and dismisses recommendations in the shared dialog", async () => {
+  const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+  await user.click((await screen.findAllByTestId("actions-menu"))[0]);
+  expect(await screen.findByRole("dialog", { name: "AI Recommendations" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Refresh" }));
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });

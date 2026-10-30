@@ -18,7 +18,7 @@ type Props = {
 };
 
 export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: Props) {
-  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [modalOpen, setModalOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   return (
@@ -27,15 +27,16 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
       <Box display={{ base: "block", md: "none" }} flexShrink={0}>
         <Button
           variant="plain"
-          size="xs"
+          boxSize="44px"
+          minW="44px"
           aria-label="Spin actions"
-          onClick={() => setSheetOpen(true)}
+          onClick={() => setModalOpen(true)}
         >
           <FiMoreVertical size={16} />
         </Button>
         <RetroDialog
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
           header={
             <Box flex="1" minW={0}>
               <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
@@ -53,13 +54,13 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
           }
         >
           <TileRow
-            onDone={() => setSheetOpen(false)}
+            onDone={() => setModalOpen(false)}
             tiles={[{ label: "Edit spin", icon: <FiEdit />, solid: true, onClick: onEdit }]}
           />
           <Group
             label="Danger"
             danger
-            onDone={() => setSheetOpen(false)}
+            onDone={() => setModalOpen(false)}
             actions={[{ label: "Delete spin", onClick: () => setConfirmOpen(true) }]}
           />
         </RetroDialog>

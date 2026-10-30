@@ -1,15 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { Box, Button, Flex, Portal, Dialog, CloseButton } from "@chakra-ui/react";
+import { Box, Button, Flex } from "@chakra-ui/react";
+import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
 import type { Track } from "@/types/track";
 import { cleanSoundcloudUrl } from "@/lib/url";
 import TrackEditFormSkeleton from "@/components/TrackEditFormSkeleton";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrackEditAudioActions } from "@/components/track-edit/useTrackEditAudioActions";
 import TrackEditFormFields from "@/components/track-edit/TrackEditFormFields";
-import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
-import { getMobileBottomOverlayOffset } from "@/lib/mobileLayout";
 import {
   toTrackEditFormState,
   genreChanges,
@@ -40,8 +39,7 @@ export default function TrackEditForm({
   }, [track]);
 
   const [loading, setLoading] = useState(false);
-  const { playlistLength } = usePlaybackPlayer();
-  const mobileBottomOverlayOffset = getMobileBottomOverlayOffset(playlistLength);
+  const formId = React.useId();
   const {
     analyzeLoading,
     analyzeDisabled,
@@ -85,111 +83,92 @@ export default function TrackEditForm({
   };
 
   return (
-    <Dialog.Root
+    <RetroDialog
       open={dialogOpen}
-      onOpenChange={(details) => setDialogOpen(details.open)}
+      onOpenChange={setDialogOpen}
       initialFocusEl={() => initialFocusRef.current}
-      role="dialog"
-      size={["full", "lg", "lg"]}
+      closeButtonRef={initialFocusRef}
+      dismissible={!loading}
+      maxW="lg"
+      fullScreenOnMobile
+      header={
+        <Flex
+          flex="1"
+          minW={0}
+          align="center"
+          gap={3}
+          css={{
+            '& button[aria-label="Track actions"]': {
+              color: "bg",
+              borderColor: "bg",
+              _hover: { bg: "transparent", opacity: 0.75 },
+            },
+          }}
+        >
+          <RetroDialogTitle flex="1" fontFamily="label" fontSize="13px" textTransform="uppercase">
+            Edit Track
+          </RetroDialogTitle>
+          {track && menuTrack && (
+            <TrackActionsMenu
+              track={menuTrack}
+              hideEdit
+              prominent
+              audioActions={{
+                onFetchAudio: handleAnalyzeAudio,
+                fetchAudioLoading: analyzeLoading,
+                fetchAudioDisabled: analyzeDisabled,
+                onUploadFile: handleFileUpload,
+                uploadLoading,
+                onRemoveAudio: handleRemoveAudio,
+                removeAudioLoading,
+              }}
+            />
+          )}
+        </Flex>
+      }
+      footer={
+        track && (
+          <Flex gap={2} p={4}>
+            <Button
+              minH="44px"
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={loading}
+              flex={1}
+            >
+              Cancel
+            </Button>
+            <Button
+              minH="44px"
+              type="submit"
+              form={formId}
+              loading={loading}
+              disabled={loading}
+              flex={1}
+              colorPalette="accent"
+            >
+              Save
+            </Button>
+          </Flex>
+        )
+      }
     >
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header p={[4, 6, 6]}>
-              <Flex justify="space-between" align="center" width="100%">
-                <Flex align="center" gap={3}>
-                  <Dialog.Title>Edit Track</Dialog.Title>
-                  {track && menuTrack && (
-                    <TrackActionsMenu
-                      track={menuTrack}
-                      hideEdit
-                      audioActions={{
-                        onFetchAudio: handleAnalyzeAudio,
-                        fetchAudioLoading: analyzeLoading,
-                        fetchAudioDisabled: analyzeDisabled,
-                        onUploadFile: handleFileUpload,
-                        uploadLoading,
-                        onRemoveAudio: handleRemoveAudio,
-                        removeAudioLoading,
-                      }}
-                    />
-                  )}
-                </Flex>
-                <Dialog.CloseTrigger asChild>
-                  <CloseButton ref={initialFocusRef} size="sm" />
-                </Dialog.CloseTrigger>
-              </Flex>
-            </Dialog.Header>
-            <Dialog.Body px={{ base: 2, md: 6 }} py={{ base: 2, md: 6 }}>
-              {!track ? (
-                <TrackEditFormSkeleton />
-              ) : (
-                <Box as="form" onSubmit={handleSubmit}>
-                  <TrackEditFormFields
-                    values={form}
-                    loading={loading}
-                    onChange={handleChange}
-                    onStarRatingChange={handleStarRating}
-                    onGenresChange={(track_genres) =>
-                      setForm((prev) => ({ ...prev, track_genres }))
-                    }
-                    submitButtonDisplay={{ base: "none", md: "inline-flex" }}
-                  />
-
-                  <Box display={{ base: "block", md: "none" }} h="104px" />
-
-                  <Box
-                    display={{ base: "block", md: "none" }}
-                    position="sticky"
-                    bottom={mobileBottomOverlayOffset}
-                    mt={4}
-                    mx={-2}
-                    px={2}
-                    pb="calc(env(safe-area-inset-bottom, 0px) + 12px)"
-                    pt={3}
-                    bg="linear-gradient(to top, var(--chakra-colors-bg), color-mix(in srgb, var(--chakra-colors-bg) 88%, transparent))"
-                    zIndex={2}
-                  >
-                    <Flex
-                      gap={2}
-                      p="10px"
-                      borderWidth="outline"
-                      borderColor="border.ink"
-                      bg="bg.panel"
-                      boxShadow="md"
-                    >
-                      <Button
-                        variant="outline"
-                        bg="bg"
-                        borderColor="border.subtle"
-                        onClick={() => setDialogOpen(false)}
-                        disabled={loading}
-                        flex={1}
-                        fontWeight="semibold"
-                        borderRadius="xl"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        loading={loading}
-                        disabled={loading}
-                        flex={1}
-                        colorPalette="accent"
-                        fontWeight="semibold"
-                        borderRadius="xl"
-                      >
-                        Save
-                      </Button>
-                    </Flex>
-                  </Box>
-                </Box>
-              )}
-            </Dialog.Body>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      <Box p={{ base: 4, md: 6 }}>
+        {!track ? (
+          <TrackEditFormSkeleton />
+        ) : (
+          <Box as="form" id={formId} onSubmit={handleSubmit}>
+            <TrackEditFormFields
+              values={form}
+              loading={loading}
+              onChange={handleChange}
+              onStarRatingChange={handleStarRating}
+              onGenresChange={(track_genres) => setForm((prev) => ({ ...prev, track_genres }))}
+              showSubmitButton={false}
+            />
+          </Box>
+        )}
+      </Box>
+    </RetroDialog>
   );
 }

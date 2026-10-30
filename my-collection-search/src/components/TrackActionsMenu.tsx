@@ -102,7 +102,7 @@ export default function TrackActionsMenu({
   const [defaultFetchLoading, setDefaultFetchLoading] = useState(false);
   const [defaultUploadLoading, setDefaultUploadLoading] = useState(false);
   const [defaultRemoveLoading, setDefaultRemoveLoading] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const refreshTrack = () => {
     if (track.friend_id != null) {
@@ -294,14 +294,14 @@ export default function TrackActionsMenu({
           px={2}
           {...(prominent ? { boxSize: "44px" } : {})}
           {...(compact ? { boxSize: "44px", minW: "44px", px: 0 } : {})}
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => setModalOpen(true)}
           aria-label="Track actions"
         >
           <FiMoreVertical />
         </Button>
         <TrackActionsModal
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
           track={track}
           onPlay={hasAudio ? playTrack : undefined}
           onQueue={queueTrack}

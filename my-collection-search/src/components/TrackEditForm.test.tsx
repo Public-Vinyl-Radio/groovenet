@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { TrackGenre } from "@/types/track";
 
@@ -123,4 +123,47 @@ describe("TrackEditForm bpm confidence (#531)", () => {
     expect(screen.queryByText(/Uncertain BPM/)).toBeNull();
     expect(screen.queryByText(/% confident/)).toBeNull();
   });
+});
+
+it("cancels editing without saving through the pinned footer", async () => {
+  const onSave = vi.fn();
+  const setDialogOpen = vi.fn();
+  const { user } = renderWithProviders(
+    <TrackEditForm
+      track={TRACK}
+      dialogOpen
+      onSave={onSave}
+      setDialogOpen={setDialogOpen}
+      initialFocusRef={React.createRef()}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Cancel" }));
+  expect(setDialogOpen).toHaveBeenCalledWith(false);
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+it("keeps the editor open while its pinned Save action is pending", async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const onSave = vi.fn(() => pending);
+  const setDialogOpen = vi.fn();
+  const { user } = renderWithProviders(
+    <TrackEditForm
+      track={TRACK}
+      dialogOpen
+      onSave={onSave}
+      setDialogOpen={setDialogOpen}
+      initialFocusRef={React.createRef()}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Save" }));
+  expect(onSave).toHaveBeenCalledOnce();
+  expect((screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Close" }) as HTMLButtonElement).disabled).toBe(true);
+  await user.keyboard("{Escape}");
+  expect(setDialogOpen).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect((screen.getByRole("button", { name: "Close" }) as HTMLButtonElement).disabled).toBe(false);
 });

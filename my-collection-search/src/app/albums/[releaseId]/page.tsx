@@ -1,20 +1,11 @@
 "use client";
 
+import RetroDialog from "@/components/ui/RetroDialog";
+
 import React, { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import {
-  Box,
-  Button,
-  Flex,
-  Spinner,
-  Text,
-  Badge,
-  Dialog,
-  Portal,
-  CloseButton,
-  useBreakpointValue,
-} from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Text, Badge, useBreakpointValue } from "@chakra-ui/react";
 
 import { useAlbumDetailQuery, useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
@@ -318,61 +309,52 @@ function AlbumDetailContent() {
         }
       />
 
-      <Dialog.Root
+      <RetroDialog
         open={discogsRawModalOpen}
-        onOpenChange={(details) => setDiscogsRawModalOpen(details.open)}
-        size="xl"
+        onOpenChange={setDiscogsRawModalOpen}
+        title="Discogs Raw Release File"
+        maxW="980px"
+
+        footer={
+          <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
+            <Button minH="44px" variant="outline" onClick={() => setDiscogsRawModalOpen(false)}>
+              Close
+            </Button>
+          </Flex>
+        }
       >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content maxW="980px" maxH="90vh">
-              <Dialog.Header>
-                <Dialog.Title>Discogs Raw Release File</Dialog.Title>
-                <Dialog.CloseTrigger asChild>
-                  <CloseButton size="sm" />
-                </Dialog.CloseTrigger>
-              </Dialog.Header>
-              <Dialog.Body overflowY="auto" pb={6}>
-                {discogsRawQuery.isLoading ? (
-                  <Spinner size="sm" />
-                ) : discogsRawQuery.error ? (
-                  <Text color={subtleText}>
-                    {discogsRawQuery.error instanceof Error
-                      ? discogsRawQuery.error.message
-                      : "No Discogs raw file found"}
-                  </Text>
-                ) : discogsRawQuery.data ? (
-                  <Box>
-                    <Badge variant="outline" mb={3}>
-                      {discogsRawQuery.data.file_path}
-                    </Badge>
-                    <Box
-                      as="pre"
-                      p={3}
-                      borderRadius="md"
-                      borderWidth="1px"
-                      overflow="auto"
-                      maxH="65vh"
-                      fontSize="xs"
-                      whiteSpace="pre-wrap"
-                    >
-                      {JSON.stringify(discogsRawQuery.data.data, null, 2)}
-                    </Box>
-                  </Box>
-                ) : (
-                  <Text color={subtleText}>No Discogs raw file available.</Text>
-                )}
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Button variant="outline" onClick={() => setDiscogsRawModalOpen(false)}>
-                  Close
-                </Button>
-              </Dialog.Footer>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        <Box p={4} minW={0}>
+          {discogsRawQuery.isLoading ? (
+            <Spinner size="sm" />
+          ) : discogsRawQuery.error ? (
+            <Text color={subtleText}>
+              {discogsRawQuery.error instanceof Error
+                ? discogsRawQuery.error.message
+                : "No Discogs raw file found"}
+            </Text>
+          ) : discogsRawQuery.data ? (
+            <Box>
+              <Badge variant="outline" mb={3}>
+                {discogsRawQuery.data.file_path}
+              </Badge>
+              <Box
+                as="pre"
+                p={3}
+                borderRadius="md"
+                borderWidth="1px"
+                overflow="auto"
+                maxH="65vh"
+                fontSize="xs"
+                whiteSpace="pre-wrap"
+              >
+                {JSON.stringify(discogsRawQuery.data.data, null, 2)}
+              </Box>
+            </Box>
+          ) : (
+            <Text color={subtleText}>No Discogs raw file available.</Text>
+          )}
+        </Box>
+      </RetroDialog>
     </PageContainer>
   );
 }
