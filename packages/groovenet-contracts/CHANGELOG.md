@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.4.0...groovenet-contracts-v1.4.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **dev:** single TypeScript version and a clean bootstrap ([#857](https://github.com/Public-Vinyl-Radio/groovenet/issues/857)) ([4d2f63f](https://github.com/Public-Vinyl-Radio/groovenet/commit/4d2f63f5715b57b19f5e0250ea832196586ed917))
+
 ## [1.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.3.0...groovenet-contracts-v1.4.0) (2026-10-28)
 
 

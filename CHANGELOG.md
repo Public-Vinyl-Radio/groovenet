@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.13](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.12...v0.3.13) (2026-10-30)
+
+
+### Bug Fixes
+
+* **dev:** single TypeScript version and a clean bootstrap ([#857](https://github.com/Public-Vinyl-Radio/groovenet/issues/857)) ([4d2f63f](https://github.com/Public-Vinyl-Radio/groovenet/commit/4d2f63f5715b57b19f5e0250ea832196586ed917))
+
 ## [0.3.12](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.11...v0.3.12) (2026-10-29)
 
 
