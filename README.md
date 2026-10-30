@@ -111,7 +111,7 @@ just compose-dev
 just migrate-up
 ```
 
-Node 26 and npm 12.0.0 are selected by `.mise.toml`. The exact `engines.npm`
+Node 26 and npm 12.0.1 are selected by `.mise.toml`. The exact `engines.npm`
 pins in the root and app manifests must match it: the shared
 `.github/actions/setup-npm` action installs the root pin for every JavaScript
 dependency job, including publishing, and the Docker base installs the app pin
@@ -140,9 +140,25 @@ The dev Compose override builds the `dev` image target, skipping production
 Next.js and Storybook builds. On startup it installs into `dev_node_modules`
 only when the app manifest, lockfile, contracts manifest, or Node/npm toolchain
 changes. A fresh volume always installs; failed installs retry on the next
-start. Contracts are rebuilt and their `node_modules` symlink repaired on every
 start. To force a reinstall, remove `/app/node_modules/.groovenet-install` in
-the app container and restart it.
+the app container and restart it. The container never builds
+`@groovenet/contracts` or `@groovenet/client`: it mounts both read-only and
+uses the `build/` output from `just bootstrap`, refusing to start without it.
+After changing either package, rebuild it on the host
+(`npm run build --workspace=@groovenet/contracts`).
+
+The whole repo uses one TypeScript, the 6.x API package
+(`npm:@typescript/typescript6`), which installs a `tsc6` binary. TypeScript 7
+has no JavaScript compiler API, and typescript-eslint (including the copy
+bundled by `eslint-config-next`) needs that API. Next.js 16 itself can type
+check with TypeScript 7. Keep every `typescript` entry on the same alias so the
+root workspace hoists a single copy and no package gets a nested
+`node_modules`. Move everything to 7 together once typescript-eslint supports it.
+
+`mise.lock` carries checksums for every platform it lists, so `mise install`
+leaves it unchanged. After changing `.mise.toml`, run `mise lock` and commit
+the result. The `bootstrap` workflow runs `just bootstrap-js` and fails if
+`mise.lock` or either npm lockfile changes, or if TypeScript stops hoisting.
 
 `just bootstrap` installs a git pre-commit hook that runs file hygiene checks,
 [ruff](https://docs.astral.sh/ruff/) over the Python services and Python client,

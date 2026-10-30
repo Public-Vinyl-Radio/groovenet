@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc6",
     "lint": "eslint .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.include=src/liveSets.ts --coverage.include=src/playlists.ts --coverage.include=src/tracks.ts --coverage.include=src/albums.ts --coverage.include=src/friends.ts --coverage.include=src/recordCare.ts --coverage.include=src/spins.ts --coverage.include=src/players.ts --coverage.include=src/genres.ts --coverage.reporter=lcov"
@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^5.0.3",
-    "typescript": "^7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.0"
   },
   "license": "MIT",

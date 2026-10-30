@@ -1,9 +1,8 @@
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier/flat";
 
-// typescript-eslint currently needs the TypeScript 6 API. The root alias keeps
-// linting supported while the package workspaces retain their TypeScript 7
-// compiler dependencies.
+// typescript-eslint needs the TypeScript compiler API, which TypeScript 7 does
+// not ship, so every workspace uses the same TypeScript 6 alias (#747).
 export default tseslint.config(
   ...tseslint.configs.recommended,
   {

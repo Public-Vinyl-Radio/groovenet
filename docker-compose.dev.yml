@@ -19,29 +19,27 @@ services:
     volumes:
       # Mount source code for live reload
       - ./my-collection-search:/app
-      - ./packages/groovenet-contracts:/packages/groovenet-contracts
-      # The web app resolves @groovenet/client through this mount. Its build/
-      # output comes from `just bootstrap` (host-built, platform independent):
-      # the container never builds it, so unlike contracts its node_modules
-      # is left alone.
+      # The web app resolves @groovenet/contracts and @groovenet/client through
+      # these mounts. Their build/ output comes from `just bootstrap`
+      # (host-built, platform independent): the container never builds them,
+      # and never writes into the host's package directories.
+      - ./packages/groovenet-contracts:/packages/groovenet-contracts:ro
       - ./packages/groovenet-client:/packages/groovenet-client:ro
       # Named volume keeps node_modules isolated from the host and independent of the image
       - dev_node_modules:/app/node_modules
+      # Their build output imports zod and each other, resolved by walking up
+      # from /packages/<pkg>, never reaching /app/node_modules. The same volume
+      # here, a container-only path, serves those imports.
+      - dev_node_modules:/packages/node_modules:ro
       - ${APP_AUDIO_MOUNT:-music_data:/app/audio}
       - ${APP_ALBUM_COVERS_SRC:-${HOME}/groovenet-covers}:/app/public/uploads/album-covers
       - essentia_data:/app/essentia-data
       - db_dumps:/app/dumps
       - discogs_exports:/app/discogs_exports
-    # `just bootstrap`'s root npm ci can leave packages/groovenet-contracts with
-    # its own real node_modules (hoisting conflicts with the root's typescript
-    # alias force a nested install there), built for the host's platform. On
-    # Apple Silicon that's darwin-arm64, not this Linux container's arm64, so
-    # ln -sfn on its own is a no-op: linking onto an existing real directory
-    # places the link inside it instead of replacing it, leaving contracts'
-    # own (wrong-platform) typescript in charge. rm -rf first so the symlink
-    # actually takes over and contracts builds against this container's
-    # freshly-installed, correct-platform node_modules.
-    command: sh -c "node scripts/ensure-dev-deps.mjs && rm -rf /packages/groovenet-contracts/node_modules && ln -sfn /app/node_modules /packages/groovenet-contracts/node_modules && npm --prefix /packages/groovenet-contracts run build && npm run dev -- -H 0.0.0.0 -p 3000"
+    command: >-
+      sh -c "for f in contracts client; do test -f /packages/groovenet-$$f/build/index.js
+      || { echo \"packages/groovenet-$$f/build is missing: run just bootstrap on the host\" >&2; exit 1; }; done
+      && node scripts/ensure-dev-deps.mjs && npm run dev -- -H 0.0.0.0 -p 3000"
 
   essentia:
 

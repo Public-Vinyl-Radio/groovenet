@@ -1,0 +1,59 @@
+name: bootstrap
+
+# A fresh `just bootstrap-js` must leave the committed lockfiles untouched.
+# Drift used to surface as an uncommitted `M mise.lock` in every new worktree
+# (#747); this fails the PR that causes it instead.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/bootstrap.yml
+      - .mise.toml
+      - mise.lock
+      - justfile
+      - package.json
+      - package-lock.json
+      - packages/*/package.json
+      - mcp-server/package.json
+      - my-collection-search/package.json
+      - my-collection-search/package-lock.json
+      - scripts/check-npm-toolchain.mjs
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lockfiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # Matches the developer setting that writes mise.lock on install.
+      MISE_LOCKFILE: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          version: 2026.10.23
+
+      - name: Bootstrap Node toolchain and dependencies
+        run: mise exec -- just bootstrap-js
+
+      - name: Lockfiles are unchanged
+        run: |
+          git status --porcelain
+          git diff --exit-code -- mise.lock package-lock.json my-collection-search/package-lock.json
+
+      # One TypeScript for the whole workspace, so nothing nests under a package.
+      - name: TypeScript is hoisted
+        run: |
+          nested=$(find packages mcp-server -maxdepth 3 -path '*/node_modules/typescript')
+          if [[ -n "$nested" ]]; then
+            echo "::error::Nested TypeScript installs: $nested"
+            exit 1
+          fi

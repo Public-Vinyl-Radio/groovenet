@@ -31,7 +31,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc6",
     "lint": "eslint .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
@@ -57,7 +57,7 @@
     "@types/node": "^26.6.5",
     "@types/pg": "8.23.1",
     "@vitest/coverage-v8": "^5.0.3",
-    "typescript": "^7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.0"
   },
   "license": "MIT",
