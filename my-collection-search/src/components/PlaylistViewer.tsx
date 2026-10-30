@@ -1,18 +1,9 @@
 "use client";
 
+import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
+
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import {
-  Box,
-  EmptyState,
-  Flex,
-  Text,
-  VStack,
-  Skeleton,
-  Dialog,
-  Portal,
-  Button,
-  Badge,
-} from "@chakra-ui/react";
+import { Box, EmptyState, Flex, Text, VStack, Skeleton, Button, Badge } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiHeadphones, FiSave } from "react-icons/fi";
 
@@ -564,42 +555,43 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         />
 
         {/* AI Recommendations Modal */}
-        <Dialog.Root
+        <RetroDialog
           open={recommendationsModalOpen}
-          onOpenChange={(e) => setRecommendationsModalOpen(e.open)}
-          size="xl"
+          onOpenChange={setRecommendationsModalOpen}
+          maxW="xl"
+          header={
+            <Flex flex="1" minW={0} gap={3} align="center" flexWrap="wrap">
+              <RetroDialogTitle
+                flex="1"
+                fontFamily="label"
+                fontSize="13px"
+                textTransform="uppercase"
+              >
+                AI Recommendations
+              </RetroDialogTitle>
+              <Button
+                minH="44px"
+                variant="outline"
+                color="bg"
+                borderColor="bg"
+                _hover={{ bg: "transparent", opacity: 0.75 }}
+                onClick={() => setRecommendationsPlaylistSnapshot([...tracks])}
+              >
+                Refresh
+              </Button>
+            </Flex>
+          }
         >
-          <Portal>
-            <Dialog.Backdrop />
-            <Dialog.Positioner>
-              <Dialog.Content>
-                <Dialog.Header>
-                  <Flex justify="space-between" align="center" width="100%">
-                    <Dialog.Title>AI Recommendations</Dialog.Title>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setRecommendationsPlaylistSnapshot([...tracks])}
-                      mr={8}
-                    >
-                      Refresh
-                    </Button>
-                  </Flex>
-                </Dialog.Header>
-                <Dialog.Body maxH="70vh" overflowY="auto">
-                  {recommendationsModalOpen && (
-                    <PlaylistRecommendations
-                      playlist={recommendationsPlaylistSnapshot}
-                      limit={50}
-                      onAddToPlaylist={addToPlaylist}
-                    />
-                  )}
-                </Dialog.Body>
-                <Dialog.CloseTrigger />
-              </Dialog.Content>
-            </Dialog.Positioner>
-          </Portal>
-        </Dialog.Root>
+          <Box p={4}>
+            {recommendationsModalOpen && (
+              <PlaylistRecommendations
+                playlist={recommendationsPlaylistSnapshot}
+                limit={50}
+                onAddToPlaylist={addToPlaylist}
+              />
+            )}
+          </Box>
+        </RetroDialog>
       </Box>
     </>
   );

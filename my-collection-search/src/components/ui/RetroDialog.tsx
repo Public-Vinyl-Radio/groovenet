@@ -21,6 +21,11 @@ type Props = {
   dismissible?: boolean;
   /** The element to focus on open; defaults to the first focusable. */
   initialFocusEl?: () => HTMLElement | null;
+  /** Wider shells for editors and data viewers; compact modals keep the default. */
+  maxW?: string;
+  /** Fill the phone viewport, retaining safe areas and the scrolling body. */
+  fullScreenOnMobile?: boolean;
+  closeButtonRef?: React.Ref<HTMLButtonElement>;
   /** Pinned under the scrolling body, e.g. Reset and a primary action. */
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -40,6 +45,9 @@ export default function RetroDialog({
   header,
   dismissible = true,
   initialFocusEl,
+  maxW = "sm",
+  fullScreenOnMobile = false,
+  closeButtonRef,
   footer,
   children,
 }: Props) {
@@ -53,12 +61,36 @@ export default function RetroDialog({
       motionPreset="scale"
       role={role}
       initialFocusEl={initialFocusEl}
+      scrollBehavior="inside"
     >
       <Portal>
         <Dialog.Backdrop css={retroDialog.backdrop} />
-        <Dialog.Positioner css={retroDialog.positioner}>
+        <Dialog.Positioner
+          css={
+            fullScreenOnMobile
+              ? {
+                  pt: {
+                    base: "env(safe-area-inset-top, 0px)",
+                    md: retroDialog.positioner.pt,
+                  },
+                  pb: {
+                    base: "env(safe-area-inset-bottom, 0px)",
+                    md: retroDialog.positioner.pb,
+                  },
+                  pl: { base: 0, md: retroDialog.positioner.pl },
+                  pr: { base: 0, md: retroDialog.positioner.pr },
+                }
+              : retroDialog.positioner
+          }
+        >
           <Dialog.Content
-            css={retroDialog.content}
+            css={{
+              ...retroDialog.content,
+              maxW: fullScreenOnMobile ? { base: "none", md: maxW } : maxW,
+            }}
+            height={fullScreenOnMobile ? { base: "100%", md: "auto" } : undefined}
+            width="100%"
+            minW={0}
             display="flex"
             flexDirection="column"
             overflow="hidden"
@@ -88,6 +120,7 @@ export default function RetroDialog({
               )}
               <Dialog.CloseTrigger asChild>
                 <IconButton
+                  ref={closeButtonRef}
                   aria-label="Close"
                   variant="ghost"
                   color="bg"

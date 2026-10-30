@@ -1,17 +1,9 @@
 "use client";
 
+import RetroDialog from "@/components/ui/RetroDialog";
+
 import React from "react";
-import {
-  Box,
-  Button,
-  Input,
-  Text,
-  VStack,
-  Spinner,
-  Dialog,
-  Portal,
-  CloseButton,
-} from "@chakra-ui/react";
+import { Box, Button, Input, Text, VStack, Spinner } from "@chakra-ui/react";
 import { FiPlus, FiSearch } from "react-icons/fi";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPlaylists } from "@/services/internalApi/playlists";
@@ -57,16 +49,6 @@ export default function PlaylistSelectionDialog({
     );
   }, [playlists, searchQuery]);
 
-  // Focus search input when dialog opens
-  React.useEffect(() => {
-    if (open && searchInputRef.current) {
-      // Small delay to ensure dialog is fully rendered
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
-    }
-  }, [open]);
-
   // Clear search when dialog closes
   React.useEffect(() => {
     if (!open) {
@@ -91,109 +73,104 @@ export default function PlaylistSelectionDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={(d) => !d.open && onClose()}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content maxW="md">
-            <Dialog.Header>
-              <Dialog.Title>{title}</Dialog.Title>
-              <Dialog.CloseTrigger asChild>
-                <CloseButton size="sm" onClick={onClose} />
-              </Dialog.CloseTrigger>
-            </Dialog.Header>
-            <Dialog.Body>
-              <VStack align="stretch">
-                {/* Search Bar */}
-                <Box position="relative">
-                  <Input
-                    ref={searchInputRef}
-                    placeholder="Search playlists..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    pl={10}
-                  />
-                  <Box
-                    position="absolute"
-                    left={3}
-                    top="50%"
-                    transform="translateY(-50%)"
-                    color="fg.muted"
-                  >
-                    <FiSearch />
-                  </Box>
+    <RetroDialog
+      open={open}
+      onOpenChange={onClose}
+      title={title}
+      maxW="md"
+      initialFocusEl={() => searchInputRef.current}
+    >
+      <Box p={4} minW={0}>
+        <VStack align="stretch">
+          {/* Search Bar */}
+          <Box position="relative">
+            <Input
+              fontSize="16px"
+              ref={searchInputRef}
+              placeholder="Search playlists..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              pl={10}
+            />
+            <Box
+              position="absolute"
+              left={3}
+              top="50%"
+              transform="translateY(-50%)"
+              color="fg.muted"
+            >
+              <FiSearch />
+            </Box>
+          </Box>
+
+          {/* Loading State */}
+          {isLoading && (
+            <Box textAlign="center" py={4}>
+              <Spinner />
+              <Text mt={2} color="fg.muted">
+                Loading playlists...
+              </Text>
+            </Box>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <Box textAlign="center" py={4}>
+              <Text color="fg.error">Failed to load playlists</Text>
+            </Box>
+          )}
+
+          {/* Playlist List */}
+          {!isLoading && !error && (
+            <VStack align="stretch" maxH="300px" overflowY="auto">
+              {filteredPlaylists.length === 0 ? (
+                <Box textAlign="center" py={4}>
+                  {searchQuery.trim() ? (
+                    <Text color="fg.muted">No playlists found matching ({searchQuery})</Text>
+                  ) : (
+                    <Text color="fg.muted">No playlists found</Text>
+                  )}
                 </Box>
-
-                {/* Loading State */}
-                {isLoading && (
-                  <Box textAlign="center" py={4}>
-                    <Spinner />
-                    <Text mt={2} color="fg.muted">
-                      Loading playlists...
-                    </Text>
-                  </Box>
-                )}
-
-                {/* Error State */}
-                {error && (
-                  <Box textAlign="center" py={4}>
-                    <Text color="fg.error">Failed to load playlists</Text>
-                  </Box>
-                )}
-
-                {/* Playlist List */}
-                {!isLoading && !error && (
-                  <VStack align="stretch" maxH="300px" overflowY="auto">
-                    {filteredPlaylists.length === 0 ? (
-                      <Box textAlign="center" py={4}>
-                        {searchQuery.trim() ? (
-                          <Text color="fg.muted">No playlists found matching ({searchQuery})</Text>
-                        ) : (
-                          <Text color="fg.muted">No playlists found</Text>
-                        )}
-                      </Box>
-                    ) : (
-                      filteredPlaylists.map((playlist: Playlist) => (
-                        <Button
-                          key={playlist.id}
-                          variant="ghost"
-                          disabled={isSubmitting}
-                          onClick={() => handlePlaylistClick(playlist)}
-                          justifyContent="flex-start"
-                          p={3}
-                          h="auto"
-                        >
-                          <VStack align="flex-start">
-                            <Text fontWeight="medium">{playlist.name}</Text>
-                            <Text fontSize="sm" color="fg.muted">
-                              {Array.isArray(playlist.tracks)
-                                ? `${playlist.tracks.length} tracks`
-                                : "0 tracks"}
-                            </Text>
-                          </VStack>
-                        </Button>
-                      ))
-                    )}
-                  </VStack>
-                )}
-
-                {/* Create New Playlist Button */}
-                <Box borderTop="1px solid" borderColor="border" pt={4}>
+              ) : (
+                filteredPlaylists.map((playlist: Playlist) => (
                   <Button
-                    onClick={handleCreateNew}
-                    variant="outline"
+                    key={playlist.id}
+                    variant="ghost"
                     disabled={isSubmitting}
-                    width="full"
+                    onClick={() => handlePlaylistClick(playlist)}
+                    justifyContent="flex-start"
+                    p={3}
+                    h="auto"
                   >
-                    <FiPlus />
-                    {searchQuery.trim() ? `Create "${searchQuery.trim()}"` : "Create New Playlist"}
+                    <VStack align="flex-start">
+                      <Text fontWeight="medium">{playlist.name}</Text>
+                      <Text fontSize="sm" color="fg.muted">
+                        {Array.isArray(playlist.tracks)
+                          ? `${playlist.tracks.length} tracks`
+                          : "0 tracks"}
+                      </Text>
+                    </VStack>
                   </Button>
-                </Box>
-              </VStack>
-            </Dialog.Body>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+                ))
+              )}
+            </VStack>
+          )}
+
+          {/* Create New Playlist Button */}
+          <Box borderTop="1px solid" borderColor="border" pt={4}>
+            <Button
+              onClick={handleCreateNew}
+              variant="outline"
+              minH="44px"
+              disabled={isSubmitting}
+              width="full"
+            >
+              <FiPlus />
+              {searchQuery.trim() ? `Create "${searchQuery.trim()}"` : "Create New Playlist"}
+            </Button>
+          </Box>
+        </VStack>
+      </Box>
+    </RetroDialog>
   );
 }

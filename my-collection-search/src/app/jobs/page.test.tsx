@@ -7,13 +7,14 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 const jobs = vi.hoisted(() => ({
   refetch: vi.fn(),
   total: 3,
+  rows: [] as import("@/types/jobs").JobInfo[],
   isLoading: false,
   clear: vi.fn(),
 }));
 vi.mock("@/hooks/useJobsQuery", () => ({
   useJobsQuery: () => ({
     data: {
-      jobs: [],
+      jobs: jobs.rows,
       summary: { total: jobs.total, waiting: 0, active: 0, completed: 0, failed: 0 },
       pagination: { total_filtered: 0, has_more: false },
     },
@@ -23,6 +24,9 @@ vi.mock("@/hooks/useJobsQuery", () => ({
   }),
 }));
 vi.mock("@/services/internalApi/jobs", () => ({ clearAllJobs: jobs.clear }));
+vi.mock("@/components/TrackResultStore", () => ({
+  default: ({ footer }: { footer: React.ReactNode }) => <div>{footer}</div>,
+}));
 vi.mock("@/components/jobs/EmbeddingQueueSection", () => ({ default: () => null }));
 
 import JobsPage from "./page";
@@ -33,6 +37,7 @@ beforeEach(() => {
   jobs.refetch.mockReset();
   jobs.clear.mockReset().mockResolvedValue(undefined);
   jobs.total = 3;
+  jobs.rows = [];
   jobs.isLoading = false;
 });
 
@@ -65,4 +70,73 @@ describe("JobsPage header", () => {
     renderWithProviders(<JobsPage />);
     expect(header().queryByRole("button", { name: "More actions", hidden: true })).toBeNull();
   });
+});
+
+it("opens job details, refreshes logs and dismisses the shared viewer", async () => {
+  jobs.rows = [
+    {
+      id: "j1",
+      queue: "downloads",
+      name: "download",
+      state: "completed",
+      progress: 100,
+      attemptsMade: 1,
+      data: { track_id: "t1", friend_id: 1 },
+    },
+  ];
+  const fetchLogs = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(
+      new Response(JSON.stringify({ logs: ["Download complete"] }), { status: 200 }),
+    );
+  try {
+    const { user } = renderWithProviders(<JobsPage />);
+    await user.click(await screen.findByRole("button", { name: "Job details" }));
+    const dialog = await screen.findByRole("dialog", { name: "Job Details" });
+    expect(within(dialog).getByText("j1")).toBeTruthy();
+    await user.click(within(dialog).getByRole("tab", { name: /Logs/ }));
+    expect(await within(dialog).findByText("Download complete")).toBeTruthy();
+    const calls = fetchLogs.mock.calls.length;
+    await user.click(within(dialog).getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(fetchLogs.mock.calls.length).toBeGreaterThan(calls));
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  } finally {
+    fetchLogs.mockRestore();
+  }
+});
+
+it("shows failed-job details and distinguishes loading logs from an empty log", async () => {
+  jobs.rows = [
+    {
+      id: "failed-job",
+      queue: "downloads",
+      name: "download",
+      state: "failed",
+      progress: 0,
+      attemptsMade: 2,
+      failedReason: "Source unavailable",
+      data: { track_id: "t2", friend_id: 1 },
+    },
+  ];
+  let finishLogs!: (response: Response) => void;
+  const pendingLogs = new Promise<Response>((resolve) => {
+    finishLogs = resolve;
+  });
+  const fetchLogs = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingLogs);
+  try {
+    const { user } = renderWithProviders(<JobsPage />);
+    await user.click(await screen.findByRole("button", { name: "Job details" }));
+    const dialog = await screen.findByRole("dialog", { name: "Job Details" });
+    expect(within(dialog).getByText("Source unavailable")).toBeTruthy();
+    await user.click(within(dialog).getByRole("tab", { name: "Logs" }));
+    expect(dialog.querySelector(".chakra-spinner")).not.toBeNull();
+    expect(within(dialog).queryByText("No logs captured for this job.")).toBeNull();
+    finishLogs(new Response(JSON.stringify({ logs: [] }), { status: 200 }));
+    expect(await within(dialog).findByText("No logs captured for this job.")).toBeTruthy();
+    expect(dialog.querySelector(".chakra-spinner")).toBeNull();
+    expect(within(dialog).getByRole("tab", { name: "Logs" }).textContent).toBe("Logs");
+  } finally {
+    fetchLogs.mockRestore();
+  }
 });

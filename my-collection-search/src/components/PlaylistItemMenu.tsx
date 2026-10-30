@@ -42,7 +42,7 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
   const isFirst = idx === 0;
   const isLast = idx === total - 1;
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [recommendationsModalOpen, setRecommendationsModalOpen] = useState(false);
   const [recommendationsTrackSnapshot, setRecommendationsTrackSnapshot] = useState<Track[]>([]);
   const [fetchAudioLoading, setFetchAudioLoading] = useState(false);
@@ -100,13 +100,13 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
           boxSize="44px"
           minW="44px"
           aria-label="Track actions"
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => setModalOpen(true)}
         >
           <FiMoreVertical size={16} />
         </Button>
         <PlaylistTrackActionsModal
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
           track={track}
           index={idx}
           total={total}

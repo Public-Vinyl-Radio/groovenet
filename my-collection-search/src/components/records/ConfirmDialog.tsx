@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { Box, Button, Text } from "@chakra-ui/react";
+import { Box, Button } from "@chakra-ui/react";
 import RetroDialog from "@/components/ui/RetroDialog";
 
 type Props = {
@@ -47,7 +47,7 @@ export default function ConfirmDialog({
       initialFocusEl={destructive ? () => cancelRef.current : undefined}
     >
       <Box p="16px 14px" display="flex" flexDirection="column" gap={4}>
-        <Text>{body}</Text>
+        <Box>{body}</Box>
         <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap="10px" pr="3px">
           <Button
             ref={cancelRef}

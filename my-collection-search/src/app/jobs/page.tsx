@@ -1,5 +1,7 @@
 "use client";
 
+import RetroDialog from "@/components/ui/RetroDialog";
+
 import React from "react";
 import {
   Spinner,
@@ -13,9 +15,6 @@ import {
   Progress,
   VStack,
   Flex,
-  Dialog,
-  Portal,
-  CloseButton,
   NativeSelectRoot,
   NativeSelectField,
   Tabs,
@@ -545,147 +544,129 @@ export default function JobsPage() {
         <Separator />
         <EmbeddingQueueSection />
 
-        <Dialog.Root
+        <RetroDialog
           open={!!detailsJob}
-          onOpenChange={(details) => {
-            if (!details.open) setDetailsJob(null);
-          }}
+          onOpenChange={() => setDetailsJob(null)}
+          title="Job Details"
+          maxW="6xl"
         >
-          <Portal>
-            <Dialog.Backdrop />
-            <Dialog.Positioner>
-              <Dialog.Content
-                maxW={{ base: "calc(100vw - 1rem)", md: "4xl", xl: "6xl" }}
-                maxH="90vh"
-              >
-                <Dialog.Header>
-                  <Dialog.Title>Job Details</Dialog.Title>
-                  <Dialog.CloseTrigger asChild>
-                    <CloseButton />
-                  </Dialog.CloseTrigger>
-                </Dialog.Header>
-                <Dialog.Body overflowY="auto">
-                  {detailsJob && (
-                    <Tabs.Root defaultValue="details" size="sm">
-                      <Tabs.List mb={3}>
-                        <Tabs.Trigger value="details">Details</Tabs.Trigger>
-                        <Tabs.Trigger value="logs">
-                          Logs
-                          {logsData && logsData.length > 0 && (
-                            <Badge ml={1} size="xs" variant="subtle">
-                              {logsData.length}
-                            </Badge>
-                          )}
-                        </Tabs.Trigger>
-                      </Tabs.List>
+          <Box p={4} minW={0}>
+            {detailsJob && (
+              <Tabs.Root defaultValue="details" size="sm">
+                <Tabs.List mb={3}>
+                  <Tabs.Trigger value="details">Details</Tabs.Trigger>
+                  <Tabs.Trigger value="logs">
+                    Logs
+                    {logsData && logsData.length > 0 && (
+                      <Badge ml={1} size="xs" variant="subtle">
+                        {logsData.length}
+                      </Badge>
+                    )}
+                  </Tabs.Trigger>
+                </Tabs.List>
 
-                      <Tabs.Content value="details">
-                        <Stack gap={3}>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Job ID
-                            </Text>
-                            <Text fontFamily="mono">{detailsJob.id}</Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Track ID
-                            </Text>
-                            <Text fontFamily="mono">{detailsJob.data.track_id}</Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Queue
-                            </Text>
-                            <Text>{detailsJob.queue}</Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Job Type
-                            </Text>
-                            <Text>{detailsJob.name}</Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              State
-                            </Text>
-                            <Text>{detailsJob.state}</Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Attempts
-                            </Text>
-                            <Text>{detailsJob.attemptsMade}</Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Duration
-                            </Text>
-                            <Text>
-                              {formatDuration(detailsJob.processedOn, detailsJob.finishedOn)}
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text fontSize="sm" color="fg.muted">
-                              Finished
-                            </Text>
-                            <Text>{formatTimestamp(detailsJob.finishedOn)}</Text>
-                          </Box>
-                          {detailsJob.failedReason && (
-                            <Box>
-                              <Text fontSize="sm" color="fg.muted">
-                                Failure
-                              </Text>
-                              <Text color="fg.error">{detailsJob.failedReason}</Text>
-                            </Box>
-                          )}
-                        </Stack>
-                      </Tabs.Content>
+                <Tabs.Content value="details">
+                  <Stack gap={3}>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Job ID
+                      </Text>
+                      <Text fontFamily="mono">{detailsJob.id}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Track ID
+                      </Text>
+                      <Text fontFamily="mono">{detailsJob.data.track_id}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Queue
+                      </Text>
+                      <Text>{detailsJob.queue}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Job Type
+                      </Text>
+                      <Text>{detailsJob.name}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        State
+                      </Text>
+                      <Text>{detailsJob.state}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Attempts
+                      </Text>
+                      <Text>{detailsJob.attemptsMade}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Duration
+                      </Text>
+                      <Text>{formatDuration(detailsJob.processedOn, detailsJob.finishedOn)}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontSize="sm" color="fg.muted">
+                        Finished
+                      </Text>
+                      <Text>{formatTimestamp(detailsJob.finishedOn)}</Text>
+                    </Box>
+                    {detailsJob.failedReason && (
+                      <Box>
+                        <Text fontSize="sm" color="fg.muted">
+                          Failure
+                        </Text>
+                        <Text color="fg.error">{detailsJob.failedReason}</Text>
+                      </Box>
+                    )}
+                  </Stack>
+                </Tabs.Content>
 
-                      <Tabs.Content value="logs">
-                        <Flex justify="space-between" align="center" mb={2}>
-                          <Text fontSize="sm" color="fg.muted">
-                            {logsData ? `${logsData.length} log entries` : "No logs"}
-                          </Text>
-                          <Button size="xs" variant="ghost" onClick={() => refetchLogs()}>
-                            <LuRefreshCw />
-                            Refresh
-                          </Button>
-                        </Flex>
-                        {logsLoading ? (
-                          <Flex justify="center" py={4}>
-                            <Spinner size="sm" />
-                          </Flex>
-                        ) : logsData && logsData.length > 0 ? (
-                          <Box
-                            as="pre"
-                            fontSize="xs"
-                            fontFamily="mono"
-                            bg="bg.muted"
-                            color="fg"
-                            p={3}
-                            borderRadius="md"
-                            overflowY="auto"
-                            minH={{ base: "320px", md: "420px" }}
-                            maxH="65vh"
-                            whiteSpace="pre-wrap"
-                            wordBreak="break-all"
-                          >
-                            {logsData.join("\n\n")}
-                          </Box>
-                        ) : (
-                          <Text fontSize="sm" color="fg.muted">
-                            No logs captured for this job.
-                          </Text>
-                        )}
-                      </Tabs.Content>
-                    </Tabs.Root>
+                <Tabs.Content value="logs">
+                  <Flex justify="space-between" align="center" mb={2}>
+                    <Text fontSize="sm" color="fg.muted">
+                      {logsData ? `${logsData.length} log entries` : "No logs"}
+                    </Text>
+                    <Button size="xs" variant="ghost" onClick={() => refetchLogs()}>
+                      <LuRefreshCw />
+                      Refresh
+                    </Button>
+                  </Flex>
+                  {logsLoading ? (
+                    <Flex justify="center" py={4}>
+                      <Spinner size="sm" />
+                    </Flex>
+                  ) : logsData && logsData.length > 0 ? (
+                    <Box
+                      as="pre"
+                      fontSize="xs"
+                      fontFamily="mono"
+                      bg="bg.muted"
+                      color="fg"
+                      p={3}
+                      borderRadius="md"
+                      overflowY="auto"
+                      minH={{ base: "320px", md: "420px" }}
+                      maxH="65vh"
+                      whiteSpace="pre-wrap"
+                      wordBreak="break-all"
+                    >
+                      {logsData.join("\n\n")}
+                    </Box>
+                  ) : (
+                    <Text fontSize="sm" color="fg.muted">
+                      No logs captured for this job.
+                    </Text>
                   )}
-                </Dialog.Body>
-              </Dialog.Content>
-            </Dialog.Positioner>
-          </Portal>
-        </Dialog.Root>
+                </Tabs.Content>
+              </Tabs.Root>
+            )}
+          </Box>
+        </RetroDialog>
       </Stack>
     </PageContainer>
   );

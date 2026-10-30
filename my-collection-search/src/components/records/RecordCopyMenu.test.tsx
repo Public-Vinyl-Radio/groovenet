@@ -45,3 +45,10 @@ describe("RecordCopyMenu phone modal", () => {
     expect(onRemove).toHaveBeenCalledOnce();
   });
 });
+
+it("gives the phone kebab a 44px square target", async () => {
+  await openSheet();
+  const trigger = screen.getAllByRole("button", { name: "Copy actions", hidden: true })[0];
+  expect(getComputedStyle(trigger).width).toBe("44px");
+  expect(getComputedStyle(trigger).height).toBe("44px");
+});

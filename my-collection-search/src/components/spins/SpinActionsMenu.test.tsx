@@ -64,3 +64,9 @@ describe("SpinActionsMenu", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
   });
 });
+
+it("gives the phone kebab a 44px square target", () => {
+  const { sheetButton } = setup();
+  expect(getComputedStyle(sheetButton).width).toBe("44px");
+  expect(getComputedStyle(sheetButton).height).toBe("44px");
+});

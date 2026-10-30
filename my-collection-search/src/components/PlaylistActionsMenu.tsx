@@ -47,7 +47,7 @@ export default function PlaylistActionsMenu({
   playlistName,
   summary = "",
 }: PlaylistActionsMenuProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <>
@@ -61,13 +61,13 @@ export default function PlaylistActionsMenu({
           minW="44px"
           px={0}
           disabled={disabled}
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => setModalOpen(true)}
         >
           <FiMoreVertical />
         </Button>
         <PlaylistActionsModal
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
           playlistName={playlistName}
           summary={summary}
           onEnqueue={enqueuePlaylist}

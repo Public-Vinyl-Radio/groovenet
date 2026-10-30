@@ -42,7 +42,7 @@ export default function PlaylistItemActionsMenu({
   played,
   collaborators,
 }: PlaylistItemActionsMenuProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <>
@@ -55,13 +55,13 @@ export default function PlaylistItemActionsMenu({
           minW="44px"
           px={0}
           aria-label="Playlist actions"
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => setModalOpen(true)}
         >
           <FiMoreVertical />
         </Button>
         <PlaylistRowActionsModal
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
           playlistName={playlistName}
           summary={summary}
           played={played}

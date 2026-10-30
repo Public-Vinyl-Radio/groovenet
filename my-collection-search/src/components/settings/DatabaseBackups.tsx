@@ -1,17 +1,6 @@
+import ConfirmDialog from "@/components/records/ConfirmDialog";
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  CloseButton,
-  Dialog,
-  Heading,
-  IconButton,
-  Portal,
-  Text,
-  VStack,
-  HStack,
-  Skeleton,
-} from "@chakra-ui/react";
+import { Box, Button, Heading, IconButton, Text, VStack, HStack, Skeleton } from "@chakra-ui/react";
 import { FiBriefcase, FiDownload, FiTrash2 } from "react-icons/fi";
 import { useBackupsQuery } from "@/hooks/useBackupsQuery";
 import { formatBytes } from "@/components/settings/BackupStatusSection";
@@ -22,17 +11,26 @@ export default function DatabaseBackups() {
   const [showAllBackups, setShowAllBackups] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const confirmDelete = () => {
-    // The dialog, and so this button, only exists while a delete is pending.
-    const filename = pendingDelete!;
-    removeBackup.mutate(filename, {
-      onSuccess: () =>
-        toaster.create({ title: "Backup deleted", type: "success", description: filename }),
-      onError: (e) =>
-        toaster.create({ title: "Delete failed", type: "error", description: e.message }),
-      onSettled: () => setPendingDelete(null),
+  const confirmDelete = () =>
+    new Promise<void>((resolve) => {
+      // The dialog, and so this button, only exists while a delete is pending.
+      const filename = pendingDelete!;
+      removeBackup.mutate(filename, {
+        onSuccess: () =>
+          toaster.create({
+            title: "Backup deleted",
+            type: "success",
+            description: filename,
+          }),
+        onError: (e) =>
+          toaster.create({
+            title: "Delete failed",
+            type: "error",
+            description: e.message,
+          }),
+        onSettled: () => resolve(),
+      });
     });
-  };
 
   return (
     <Box mt={{ base: 6, md: 10 }} mb={8} p={4} borderWidth={1} borderRadius="md">
@@ -129,42 +127,19 @@ export default function DatabaseBackups() {
         </>
       )}
 
-      <Dialog.Root
+      <ConfirmDialog
         open={pendingDelete !== null}
-        onOpenChange={(details) => {
-          if (!details.open) setPendingDelete(null);
-        }}
-        role="alertdialog"
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Delete Backup</Dialog.Title>
-                <Dialog.CloseTrigger asChild>
-                  <CloseButton size="sm" />
-                </Dialog.CloseTrigger>
-              </Dialog.Header>
-              <Dialog.Body>
-                <Text>
-                  Delete <strong>{pendingDelete}</strong>? This cannot be undone.
-                </Text>
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Button
-                  colorPalette="danger"
-                  onClick={confirmDelete}
-                  loading={removeBackup.isPending}
-                  disabled={removeBackup.isPending}
-                >
-                  Delete
-                </Button>
-              </Dialog.Footer>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        onOpenChange={() => setPendingDelete(null)}
+        title="Delete Backup"
+        body={
+          <>
+            Delete <strong>{pendingDelete}</strong>? This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        pending={removeBackup.isPending}
+      />
     </Box>
   );
 }

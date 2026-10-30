@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { queryKeys } from "@/lib/queryKeys";
 
@@ -71,8 +71,9 @@ vi.mock("@/stores/enrichmentStore", () => ({
   useEnrichmentStore: (select: (state: { setQueue: typeof enrichQueue }) => unknown) =>
     select({ setQueue: enrichQueue }),
 }));
+const fetchRawRelease = vi.hoisted(() => vi.fn(() => new Promise(() => {})));
 vi.mock("@/services/internalApi/albums", () => ({
-  fetchAlbumDiscogsRawRelease: vi.fn(() => new Promise(() => {})),
+  fetchAlbumDiscogsRawRelease: fetchRawRelease,
   queueAlbumDownloads: queueDownloads,
 }));
 vi.mock("@/components/spins/AlbumSpinPanel", () => ({ default: () => null }));
@@ -379,5 +380,51 @@ describe("album page layout (#727)", () => {
     ).toBe("/albums");
     expect(screen.getAllByRole("button", { name: "Album actions" }).length).toBeGreaterThan(0);
     expect(screen.getByTestId("album-track-list")).toBeTruthy();
+  });
+});
+
+it("shows and closes the raw Discogs file in the shared data viewer", async () => {
+  const { user } = renderWithProviders(<AlbumDetailPage />);
+  await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+  await user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
+  expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
+  await user.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+describe("raw Discogs file viewer", () => {
+  async function openViewer() {
+    const view = renderWithProviders(<AlbumDetailPage />);
+    await view.user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await view.user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
+    return {
+      ...view,
+      dialog: await screen.findByRole("dialog", { name: "Discogs Raw Release File" }),
+    };
+  }
+
+  it("shows the file path and formatted release JSON", async () => {
+    fetchRawRelease.mockResolvedValueOnce({
+      file_path: "collection/rel.json",
+      data: { title: "Blue Lines" },
+    });
+    const { dialog } = await openViewer();
+    expect(await within(dialog).findByText("collection/rel.json")).toBeTruthy();
+    expect(within(dialog).getByText(/"title": "Blue Lines"/)).toBeTruthy();
+  });
+
+  it("shows the empty state when there is no raw file", async () => {
+    fetchRawRelease.mockResolvedValueOnce(null);
+    const { dialog } = await openViewer();
+    expect(await within(dialog).findByText("No Discogs raw file available.")).toBeTruthy();
+  });
+
+  it.each([
+    [new Error("Raw file unavailable"), "Raw file unavailable"],
+    ["Unreadable response", "No Discogs raw file found"],
+  ])("reports raw-file errors without breaking the dialog: %s", async (error, message) => {
+    fetchRawRelease.mockRejectedValueOnce(error);
+    const { dialog } = await openViewer();
+    expect(await within(dialog).findByText(message)).toBeTruthy();
   });
 });

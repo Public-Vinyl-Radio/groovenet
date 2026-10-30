@@ -1,6 +1,7 @@
 // components/settings/FriendsDiscogsSection.tsx
 "use client";
 
+import ConfirmDialog from "@/components/records/ConfirmDialog";
 import React, { useRef, useState } from "react";
 import {
   Box,
@@ -12,7 +13,6 @@ import {
   Button,
   IconButton,
   Skeleton,
-  Dialog,
   Badge,
 } from "@chakra-ui/react";
 import { FiRefreshCcw, FiTrash } from "react-icons/fi";
@@ -168,7 +168,7 @@ export default function FriendsDiscogsSection() {
     setConfirmRemoveOpen(true);
   };
 
-  const handleConfirmRemove = () => {
+  const handleConfirmRemove = async () => {
     setConfirmRemoveOpen(false);
     if (friendToRemove) {
       handleRemoveFriend(friendToRemove);
@@ -310,34 +310,24 @@ export default function FriendsDiscogsSection() {
       />
 
       {/* Confirmation Dialog for Friend Removal */}
-      <Dialog.Root open={confirmRemoveOpen} onOpenChange={(e) => setConfirmRemoveOpen(e.open)}>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>Remove Friend</Dialog.Title>
-              <Dialog.CloseTrigger />
-            </Dialog.Header>
-            <Dialog.Body>
-              <Text>
-                Are you sure you want to remove <strong>{friendToRemove}</strong>?
-              </Text>
-              <Text mt={2} color="fg.muted" fontSize="sm">
-                This will delete all tracks and albums associated with this friend from your
-                library.
-              </Text>
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Button variant="outline" onClick={() => setConfirmRemoveOpen(false)}>
-                Cancel
-              </Button>
-              <Button colorPalette="danger" onClick={handleConfirmRemove} ml={3}>
-                Remove Friend
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Dialog.Root>
+      <ConfirmDialog
+        open={confirmRemoveOpen}
+        onOpenChange={setConfirmRemoveOpen}
+        title="Remove Friend"
+        body={
+          <>
+            <Text>
+              Are you sure you want to remove <strong>{friendToRemove}</strong>?
+            </Text>
+            <Text mt={2} color="fg.muted" fontSize="sm">
+              This will delete all tracks and albums associated with this friend from your library.
+            </Text>
+          </>
+        }
+        confirmLabel="Remove Friend"
+        onConfirm={handleConfirmRemove}
+        pending={removeFriendPending}
+      />
     </Box>
   );
 }

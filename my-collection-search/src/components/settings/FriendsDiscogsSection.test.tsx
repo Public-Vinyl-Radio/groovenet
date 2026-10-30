@@ -98,7 +98,7 @@ describe("FriendsDiscogsSection", () => {
     const { user } = renderWithProviders(<FriendsDiscogsSection />);
 
     await user.click(screen.getByRole("button", { name: "Remove friend" }));
-    const dialog = await screen.findByRole("dialog", { name: "Remove Friend" });
+    const dialog = await screen.findByRole("alertdialog", { name: "Remove Friend" });
     expect(mocks.handleRemoveFriend).not.toHaveBeenCalled();
 
     await user.click(within(dialog).getByRole("button", { name: "Remove Friend" }));

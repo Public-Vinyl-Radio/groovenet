@@ -18,7 +18,7 @@ type Props = {
 
 /** A copy's actions: a centred retro modal on mobile (#751), a dropdown on desktop, as SpinActionsMenu. */
 export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: Props) {
-  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [modalOpen, setModalOpen] = React.useState(false);
 
   return (
     <>
@@ -26,15 +26,16 @@ export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: P
       <Box display={{ base: "block", md: "none" }} flexShrink={0}>
         <Button
           variant="plain"
-          size="xs"
+          boxSize="44px"
+          minW="44px"
           aria-label="Copy actions"
-          onClick={() => setSheetOpen(true)}
+          onClick={() => setModalOpen(true)}
         >
           <FiMoreVertical size={16} />
         </Button>
         <RetroDialog
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
           header={
             <Box flex="1" minW={0}>
               <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8}>
@@ -52,7 +53,7 @@ export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: P
           }
         >
           <TileRow
-            onDone={() => setSheetOpen(false)}
+            onDone={() => setModalOpen(false)}
             tiles={[
               { label: "Log care", icon: <FiDroplet />, solid: true, onClick: onLogCare },
               { label: "Edit", icon: <FiEdit />, onClick: onEdit },
@@ -61,7 +62,7 @@ export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: P
           <Group
             label="Danger"
             danger
-            onDone={() => setSheetOpen(false)}
+            onDone={() => setModalOpen(false)}
             actions={onRemove ? [{ label: "Remove copy", onClick: onRemove }] : []}
           />
         </RetroDialog>

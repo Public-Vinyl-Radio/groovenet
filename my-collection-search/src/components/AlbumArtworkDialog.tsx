@@ -1,19 +1,9 @@
 "use client";
 
+import RetroDialog from "@/components/ui/RetroDialog";
+
 import React from "react";
-import {
-  Badge,
-  Box,
-  Button,
-  CloseButton,
-  Dialog,
-  Flex,
-  Image,
-  Portal,
-  Spinner,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { Badge, Box, Button, Flex, Image, Spinner, Stack, Text } from "@chakra-ui/react";
 import { FiImage, FiRotateCcw, FiUpload } from "react-icons/fi";
 import { SiApplemusic } from "react-icons/si";
 
@@ -146,136 +136,128 @@ export default function AlbumArtworkDialog({
   const sourceLabel = state?.source ? ART_SOURCE_LABELS[state.source] : "Discogs (default)";
 
   return (
-    <Dialog.Root
+    <RetroDialog
       open={open}
       onOpenChange={close}
-      size={{ base: "full", md: "lg" }}
-      scrollBehavior="inside"
+      title={`Cover Art${albumTitle ? ` — ${albumTitle}` : ""}`}
+      maxW="lg"
+      fullScreenOnMobile
+      dismissible={!busy}
+      footer={
+        view.kind !== "overview" && (
+          <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
+            <Button
+              minH="44px"
+              variant="outline"
+              onClick={() => setView({ kind: "overview" })}
+              disabled={busy}
+            >
+              Back
+            </Button>
+            {view.kind === "apple" ? (
+              <Button minH="44px" onClick={handleUseApple} loading={applyMutation.isPending}>
+                Use Apple Music art
+              </Button>
+            ) : (
+              file && (
+                <Button
+                  minH="44px"
+                  onClick={() => handleUpload(file)}
+                  loading={uploadMutation.isPending}
+                >
+                  Use this image
+                </Button>
+              )
+            )}
+          </Flex>
+        )
+      }
     >
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>Cover Art{albumTitle ? ` — ${albumTitle}` : ""}</Dialog.Title>
-              <Dialog.CloseTrigger asChild>
-                <CloseButton size="sm" />
-              </Dialog.CloseTrigger>
-            </Dialog.Header>
-            <Dialog.Body pb={6}>
-              {!state ? (
-                artworkQuery.error ? (
-                  <Text color="fg.error">{errorText(artworkQuery.error)}</Text>
-                ) : (
-                  <Flex justify="center" py={8}>
-                    <Spinner />
-                  </Flex>
-                )
-              ) : view.kind === "apple" ? (
-                <Stack gap={4}>
-                  <Text fontSize="sm" color="fg.muted">
-                    Apple Music art comes from the digital release, which is not always the pressing
-                    you own. Check it is the same cover before using it.
+      <Box p={4} minW={0}>
+        {!state ? (
+          artworkQuery.error ? (
+            <Text color="fg.error">{errorText(artworkQuery.error)}</Text>
+          ) : (
+            <Flex justify="center" py={8}>
+              <Spinner />
+            </Flex>
+          )
+        ) : view.kind === "apple" ? (
+          <Stack gap={4}>
+            <Text fontSize="sm" color="fg.muted">
+              Apple Music art comes from the digital release, which is not always the pressing you
+              own. Check it is the same cover before using it.
+            </Text>
+            <Flex gap={4} direction={{ base: "column", sm: "row" }}>
+              <ArtworkFrame
+                src={state.current_url}
+                alt="Current cover"
+                caption={`Current · ${sourceLabel}`}
+              />
+              <ArtworkFrame
+                src={view.preview.url}
+                alt="Apple Music cover"
+                caption={`Apple Music · ${view.preview.width}×${view.preview.height}`}
+              />
+            </Flex>
+          </Stack>
+        ) : view.kind === "upload" ? (
+          <CoverArtUpload value={file} onChange={setFile} label="Upload a cover image" />
+        ) : (
+          <Stack gap={4}>
+            <Flex gap={4} direction={{ base: "column", sm: "row" }} align={{ sm: "flex-start" }}>
+              <ArtworkFrame src={state.current_url} alt="Current cover" />
+              <Stack gap={3} flex="1">
+                <Flex gap={2} align="center" flexWrap="wrap">
+                  <Text fontSize="sm" fontWeight="medium">
+                    Source
                   </Text>
-                  <Flex gap={4} direction={{ base: "column", sm: "row" }}>
-                    <ArtworkFrame
-                      src={state.current_url}
-                      alt="Current cover"
-                      caption={`Current · ${sourceLabel}`}
-                    />
-                    <ArtworkFrame
-                      src={view.preview.url}
-                      alt="Apple Music cover"
-                      caption={`Apple Music · ${view.preview.width}×${view.preview.height}`}
-                    />
-                  </Flex>
-                </Stack>
-              ) : view.kind === "upload" ? (
-                <CoverArtUpload value={file} onChange={setFile} label="Upload a cover image" />
-              ) : (
-                <Stack gap={4}>
-                  <Flex
-                    gap={4}
-                    direction={{ base: "column", sm: "row" }}
-                    align={{ sm: "flex-start" }}
-                  >
-                    <ArtworkFrame src={state.current_url} alt="Current cover" />
-                    <Stack gap={3} flex="1">
-                      <Flex gap={2} align="center" flexWrap="wrap">
-                        <Text fontSize="sm" fontWeight="medium">
-                          Source
-                        </Text>
-                        <Badge variant="subtle">{sourceLabel}</Badge>
-                      </Flex>
-                      {state.art_match_status === "mismatch" && (
-                        <Text fontSize="xs" color="fg.warning">
-                          Bulk matching found Apple Music art that looks different from the Discogs
-                          cover — possibly another pressing. Preview it to decide.
-                        </Text>
-                      )}
-                      <Button
-                        variant="outline"
-                        justifyContent="flex-start"
-                        onClick={handlePreview}
-                        loading={previewMutation.isPending}
-                        disabled={busy || !state.has_local_audio}
-                      >
-                        <SiApplemusic /> Preview Apple Music art
-                      </Button>
-                      {!state.has_local_audio && (
-                        <Text fontSize="xs" color="fg.muted" mt={-2}>
-                          Needs a downloaded track with embedded artwork.
-                        </Text>
-                      )}
-                      {state.discogs_art_url && (
-                        <Button
-                          variant="outline"
-                          justifyContent="flex-start"
-                          onClick={handleRestoreDiscogs}
-                          loading={applyMutation.isPending}
-                          disabled={busy || state.source === "discogs"}
-                        >
-                          <FiRotateCcw /> Restore Discogs art
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        justifyContent="flex-start"
-                        onClick={() => setView({ kind: "upload" })}
-                        disabled={busy}
-                      >
-                        <FiUpload /> Upload image…
-                      </Button>
-                    </Stack>
-                  </Flex>
-                </Stack>
-              )}
-            </Dialog.Body>
-            {view.kind !== "overview" && (
-              <Dialog.Footer>
+                  <Badge variant="subtle">{sourceLabel}</Badge>
+                </Flex>
+                {state.art_match_status === "mismatch" && (
+                  <Text fontSize="xs" color="fg.warning">
+                    Bulk matching found Apple Music art that looks different from the Discogs cover
+                    — possibly another pressing. Preview it to decide.
+                  </Text>
+                )}
                 <Button
                   variant="outline"
-                  onClick={() => setView({ kind: "overview" })}
+                  justifyContent="flex-start"
+                  onClick={handlePreview}
+                  loading={previewMutation.isPending}
+                  disabled={busy || !state.has_local_audio}
+                >
+                  <SiApplemusic /> Preview Apple Music art
+                </Button>
+                {!state.has_local_audio && (
+                  <Text fontSize="xs" color="fg.muted" mt={-2}>
+                    Needs a downloaded track with embedded artwork.
+                  </Text>
+                )}
+                {state.discogs_art_url && (
+                  <Button
+                    variant="outline"
+                    justifyContent="flex-start"
+                    onClick={handleRestoreDiscogs}
+                    loading={applyMutation.isPending}
+                    disabled={busy || state.source === "discogs"}
+                  >
+                    <FiRotateCcw /> Restore Discogs art
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  justifyContent="flex-start"
+                  onClick={() => setView({ kind: "upload" })}
                   disabled={busy}
                 >
-                  Back
+                  <FiUpload /> Upload image…
                 </Button>
-                {view.kind === "apple" ? (
-                  <Button onClick={handleUseApple} loading={applyMutation.isPending}>
-                    Use Apple Music art
-                  </Button>
-                ) : (
-                  file && (
-                    <Button onClick={() => handleUpload(file)} loading={uploadMutation.isPending}>
-                      Use this image
-                    </Button>
-                  )
-                )}
-              </Dialog.Footer>
-            )}
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+              </Stack>
+            </Flex>
+          </Stack>
+        )}
+      </Box>
+    </RetroDialog>
   );
 }

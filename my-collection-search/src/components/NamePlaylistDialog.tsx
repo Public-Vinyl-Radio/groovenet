@@ -1,5 +1,6 @@
+import RetroDialog from "@/components/ui/RetroDialog";
 import React from "react";
-import { Dialog, Portal, CloseButton, Button, Input, Text } from "@chakra-ui/react";
+import { Flex, Box, Button, Input, Text } from "@chakra-ui/react";
 
 interface NamePlaylistDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ export default function NamePlaylistDialog({
 }: NamePlaylistDialogProps) {
   // Local state for the input to prevent parent re-renders on every keystroke
   const [localName, setLocalName] = React.useState(name);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Sync local state when the dialog opens or name prop changes
   React.useEffect(() => {
@@ -40,42 +42,43 @@ export default function NamePlaylistDialog({
     onCancel();
   }, [name, onCancel]);
   return (
-    <Dialog.Root open={open} onOpenChange={(d) => !d.open && handleCancel()}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>Name Playlist</Dialog.Title>
-              <Dialog.CloseTrigger asChild>
-                <CloseButton size="sm" onClick={handleCancel} />
-              </Dialog.CloseTrigger>
-            </Dialog.Header>
-            <Dialog.Body>
-              <Input
-                autoFocus
-                value={localName}
-                onChange={(e) => setLocalName(e.target.value)}
-                placeholder="Playlist name"
-                mb={2}
-              />
-              {typeof trackCount === "number" && (
-                <Text fontSize="sm" color="fg.muted">
-                  {trackCount} tracks will be saved.
-                </Text>
-              )}
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Button onClick={handleConfirm} colorPalette="accent" disabled={!localName.trim()}>
-                {confirmLabel}
-              </Button>
-              <Button ml={2} variant="ghost" onClick={handleCancel}>
-                Cancel
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RetroDialog
+      open={open}
+      onOpenChange={(nextOpen) => !nextOpen && handleCancel()}
+      title="Name Playlist"
+      initialFocusEl={() => inputRef.current}
+
+      footer={
+        <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
+          <Button
+            minH="44px"
+            onClick={handleConfirm}
+            colorPalette="accent"
+            disabled={!localName.trim()}
+          >
+            {confirmLabel}
+          </Button>
+          <Button minH="44px" ml={2} variant="ghost" onClick={handleCancel}>
+            Cancel
+          </Button>
+        </Flex>
+      }
+    >
+      <Box p={4} minW={0}>
+        <Input
+          fontSize="16px"
+          ref={inputRef}
+          value={localName}
+          onChange={(e) => setLocalName(e.target.value)}
+          placeholder="Playlist name"
+          mb={2}
+        />
+        {typeof trackCount === "number" && (
+          <Text fontSize="sm" color="fg.muted">
+            {trackCount} tracks will be saved.
+          </Text>
+        )}
+      </Box>
+    </RetroDialog>
   );
 }
