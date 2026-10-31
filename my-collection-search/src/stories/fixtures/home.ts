@@ -55,3 +55,30 @@ export const HOME_ARRIVALS: HomeResponse["new_arrivals"] = {
     album_rating: rating as number | null,
   })),
 };
+
+const ago = (days: number) => new Date(Date.parse(FIXTURE_NOW) - days * 86_400_000).toISOString();
+
+/** The Home artboards' PLAYLISTS & SETS: a draft set at a venue, then three playlists. */
+export const HOME_PLAYLISTS: HomeResponse["playlists"] = {
+  draft_set: {
+    id: 11,
+    playlist_id: 42,
+    title: "Rock Nacional Night",
+    location_name: "Club Atlético",
+    track_count: 24,
+    duration_seconds: 6_312,
+    duration_known_share: 1,
+  },
+  recent: [
+    ["Sunday Morning Bossa", 0, 12, 2_895, 1],
+    ["Warm-up 112", 3, 18, 4_120, 0.9],
+    ["Cumbia Digging", 40, 31, 7_480, 1],
+  ].map(([name, days, tracks, seconds, share], i) => ({
+    id: i + 1,
+    name: String(name),
+    created_at: ago(Number(days)),
+    track_count: Number(tracks),
+    duration_seconds: Number(seconds),
+    duration_known_share: Number(share),
+  })),
+};

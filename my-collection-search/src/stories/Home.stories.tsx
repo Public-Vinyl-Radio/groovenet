@@ -3,9 +3,10 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import HomeHeader from "@/components/home/HomeHeader";
 import HomeLayout from "@/components/home/HomeLayout";
 import { NewArrivals } from "@/components/home/NewArrivals";
+import { PlaylistsSection } from "@/components/home/PlaylistsSection";
 import { MonthCard } from "@/components/home/MonthCard";
 import { NowPlayingCard, type NowPlayingCardProps } from "@/components/home/NowPlayingCard";
-import { FIXTURE_NOW, HOME_ARRIVALS, HOME_COUNTS } from "./fixtures/home";
+import { FIXTURE_NOW, HOME_ARRIVALS, HOME_COUNTS, HOME_PLAYLISTS } from "./fixtures/home";
 import { OCTOBER_RECAP } from "./fixtures/spinRecap";
 
 const noop = () => {};
@@ -55,6 +56,7 @@ const page = (nowPlaying: React.ReactNode) => (
     nowPlaying={nowPlaying}
     newArrivals={<NewArrivals arrivals={HOME_ARRIVALS} friendId={1} now={new Date(FIXTURE_NOW)} />}
     month={<MonthCard month="2026-10" recap={OCTOBER_RECAP} />}
+    playlists={<PlaylistsSection playlists={HOME_PLAYLISTS} now={new Date(FIXTURE_NOW)} />}
   />
 );
 
@@ -147,4 +149,48 @@ export const ArrivalsLoading: Story = {
 export const ArrivalsError: Story = {
   name: "New arrivals, error",
   render: () => <NewArrivals friendId={1} arrivals={null} error="HTTP 500" />,
+};
+
+export const Playlists: Story = {
+  name: "Playlists & sets",
+  render: () => <PlaylistsSection now={NOW} playlists={HOME_PLAYLISTS} />,
+};
+
+export const PlaylistsPhone: Story = {
+  name: "Playlists & sets, phone",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  render: () => <PlaylistsSection now={NOW} playlists={HOME_PLAYLISTS} />,
+};
+
+export const PlaylistsNoVenue: Story = {
+  name: "Playlists & sets, draft without a venue",
+  render: () => (
+    <PlaylistsSection
+      now={NOW}
+      playlists={{
+        ...HOME_PLAYLISTS,
+        draft_set: { ...HOME_PLAYLISTS.draft_set!, location_name: null },
+      }}
+    />
+  ),
+};
+
+export const PlaylistsNoDraft: Story = {
+  name: "Playlists & sets, no draft",
+  render: () => <PlaylistsSection now={NOW} playlists={{ ...HOME_PLAYLISTS, draft_set: null }} />,
+};
+
+export const PlaylistsEmpty: Story = {
+  name: "Playlists & sets, empty",
+  render: () => <PlaylistsSection playlists={{ draft_set: null, recent: [] }} />,
+};
+
+export const PlaylistsLoading: Story = {
+  name: "Playlists & sets, loading",
+  render: () => <PlaylistsSection playlists={null} loading />,
+};
+
+export const PlaylistsError: Story = {
+  name: "Playlists & sets, error",
+  render: () => <PlaylistsSection playlists={null} error="HTTP 500" />,
 };
