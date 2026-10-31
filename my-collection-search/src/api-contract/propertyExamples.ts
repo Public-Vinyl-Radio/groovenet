@@ -45,6 +45,7 @@ const BY_NAME: Record<string, Candidates> = {
   seed_friend_id: 1,
   username: "dj_nightdriver",
   name: "Warmup Set",
+  output_name: "Lounge",
 
   // Track and album metadata.
   title: "Move Through",

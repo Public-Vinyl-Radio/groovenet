@@ -65,10 +65,11 @@ test("enforces exclusive workers, durable independent queues, revisions and uniq
     trackId: "track-one",
     friendId: 1,
     releaseId: "release-one",
+    outputName: "Lounge",
     startedAt: new Date("2026-01-01T00:00:00Z"),
   };
   await store.queuePlay(play);
-  await store.queuePlay(play);
+  await store.queuePlay({ ...play, outputName: "Bedroom" });
   expect((await store.pendingPlays()).filter((row) => row.entryId === play.entryId)).toEqual([
     play,
   ]);

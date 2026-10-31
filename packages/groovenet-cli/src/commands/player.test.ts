@@ -463,6 +463,7 @@ describe("player CLI commands", () => {
         medium: "digital",
         played_at: "2026-10-23T12:00:00.000Z",
         context_type: "player",
+        output_name: null,
         track_refs: [{ track_id: "t1", friend_id: 7 }],
       });
     });

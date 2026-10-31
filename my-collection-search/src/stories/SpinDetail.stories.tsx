@@ -92,6 +92,11 @@ export const Digital: Story = {
   args: { selection: selectionOf(digital, 0) },
 };
 
+export const DigitalWithOutput: Story = {
+  name: "Digital, played on Lounge",
+  args: { selection: selectionOf(withSession(digital, { output_name: "Lounge" }), 0) },
+};
+
 export const FirstOfSession: Story = {
   name: "First spin of the session, no art",
   args: { selection: selectionOf(cumbia, 0) },

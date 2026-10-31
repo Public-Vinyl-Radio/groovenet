@@ -148,6 +148,38 @@ async function fixture(
 }
 
 describe("persistent server player manager", () => {
+  it.each(["unknown", "ambiguous", "blank", "long", "error"])(
+    "queues with null output for %s discovery",
+    async (kind) => {
+      const logPlay = vi.fn(async (_play: ServerPlay) => {
+        void _play;
+      });
+      const f = await fixture(unknownSpeaker(), { ownerFriendId: 1, logPlay });
+      await f.prepare("a");
+      await f.command("a", { type: "play", allow_unknown: true });
+      const backend = f.backends[0]!;
+      if (kind === "error") backend.listDevices.mockRejectedValue(new Error("offline"));
+      else
+        backend.listDevices.mockResolvedValue(
+          kind === "ambiguous"
+            ? [
+                { id: "speaker-a", name: " Lounge " },
+                { id: "other", name: "Lounge" },
+              ]
+            : kind === "blank"
+              ? [{ id: "speaker-a", name: " " }]
+              : kind === "long"
+                ? [{ id: "speaker-a", name: "x".repeat(256) }]
+                : [],
+        );
+      for (let second = 0; second <= 15; second++) backend.emit("position", second, 30);
+      await f.settle();
+      expect(f.store.queuePlay).toHaveBeenCalledWith(expect.objectContaining({ outputName: null }));
+      expect(logPlay).toHaveBeenCalledWith(expect.objectContaining({ outputName: null }));
+      await f.manager.shutdown();
+    },
+  );
+
   it("logs each duplicate queue entry once after listening, including after seeks and repeated events", async () => {
     let clock = new Date("2026-01-01T00:00:00.000Z");
     const logPlay = vi.fn(async (_play: ServerPlay) => {
@@ -171,6 +203,7 @@ describe("persistent server player manager", () => {
     await advance(f.backends[0]!);
     expect(logPlay).toHaveBeenCalledOnce();
     expect(logPlay.mock.calls[0]![0]).toMatchObject({
+      outputName: "A",
       entryId: first.id,
       trackId: "1",
       friendId: 1,

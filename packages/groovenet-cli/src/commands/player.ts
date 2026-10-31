@@ -73,6 +73,7 @@ export function createPlayerDaemon(options: PlayerDaemonOptions = {}): PlayerDae
             medium: "digital",
             played_at: startedAt.toISOString(),
             context_type: "player",
+            output_name: null,
             track_refs: [{ track_id: track.track_id, friend_id: friendId }],
           });
         } catch (error) {
