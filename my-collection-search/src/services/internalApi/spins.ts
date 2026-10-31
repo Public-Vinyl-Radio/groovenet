@@ -31,6 +31,8 @@ export async function listSpins(params: SpinListParams): Promise<SpinListRespons
   if (params.to) searchParams.append("to", params.to);
   if (typeof params.limit === "number") searchParams.append("limit", String(params.limit));
   if (typeof params.offset === "number") searchParams.append("offset", String(params.offset));
+  if (params.medium) searchParams.append("medium", params.medium);
+  if (params.cursor) searchParams.append("cursor", params.cursor);
 
   return await http<SpinListResponse>(`/api/spins?${searchParams.toString()}`, {
     method: "GET",

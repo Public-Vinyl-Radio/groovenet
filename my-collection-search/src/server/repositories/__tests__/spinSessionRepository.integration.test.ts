@@ -115,3 +115,74 @@ dbTest("keeps release and track filters working alongside the join", async () =>
   expect(byTrack).toHaveLength(1);
   expect(byTrack[0].track_event_count).toBe(2);
 });
+
+dbTest("pages through ties on played_at without skipping or repeating", async () => {
+  const pagerName = "spin-list-pager";
+  await dbQuery(`DELETE FROM friends WHERE username = $1`, [pagerName]);
+  const { rows } = await dbQuery<{ id: number }>(
+    `INSERT INTO friends (username) VALUES ($1) RETURNING id`,
+    [pagerName],
+  );
+  const pagerId = rows[0].id;
+
+  try {
+    // Three sessions share one instant (with microseconds a JS Date would
+    // truncate), and two more sit either side of it. Digital and vinyl mix.
+    const tie = "2026-09-10T20:00:00.123456Z";
+    const plan = [
+      ["2026-09-12T20:00:00Z", "vinyl"],
+      [tie, "digital"],
+      [tie, "vinyl"],
+      [tie, "digital"],
+      ["2026-09-08T20:00:00Z", "vinyl"],
+    ] as const;
+    const created: number[] = [];
+    for (const [index, [playedAt, medium]] of plan.entries()) {
+      const { rows: inserted } = await dbQuery<{ id: number }>(
+        `INSERT INTO spin_sessions (friend_id, release_id, medium, selection_mode, played_at)
+         VALUES ($1, $2, $3, 'tracks', $4) RETURNING id`,
+        // Digital plays are unique per release and instant, so vary the release.
+        [pagerId, `${RELEASE_ID}-${index}`, medium, playedAt],
+      );
+      created.push(inserted[0].id);
+    }
+    const expected = [created[0], ...[created[3], created[2], created[1]], created[4]];
+
+    const seen: number[] = [];
+    let after: { played_at: string; id: number } | undefined;
+    for (let guard = 0; guard < 10; guard++) {
+      const page = await sessions.listSessions({ friend_id: pagerId, limit: 2, after });
+      seen.push(...page.map((row) => row.id));
+      if (page.length < 2) break;
+      const last = page[page.length - 1];
+      after = { played_at: last.played_at_cursor, id: last.id };
+    }
+    expect(seen).toEqual(expected);
+
+    // The cursor of a page that ends inside the tie resumes inside it.
+    const first = await sessions.listSessions({ friend_id: pagerId, limit: 3 });
+    expect(first.map((row) => row.id)).toEqual(expected.slice(0, 3));
+    const last = first[2];
+    expect(last.played_at_cursor).toBe(tie);
+    const rest = await sessions.listSessions({
+      friend_id: pagerId,
+      after: { played_at: last.played_at_cursor, id: last.id },
+    });
+    expect(rest.map((row) => row.id)).toEqual(expected.slice(3));
+
+    const vinyl = await sessions.listSessions({ friend_id: pagerId, medium: "vinyl" });
+    expect(vinyl.map((row) => row.id)).toEqual([created[0], created[2], created[4]]);
+    const digital = await sessions.listSessions({ friend_id: pagerId, medium: "digital" });
+    expect(digital.map((row) => row.id)).toEqual([created[3], created[1]]);
+
+    const bounded = await sessions.listSessions({
+      friend_id: pagerId,
+      from: "2026-09-09T00:00:00Z",
+      to: "2026-09-11T00:00:00Z",
+      after: { played_at: tie, id: created[3] },
+    });
+    expect(bounded.map((row) => row.id)).toEqual([created[2], created[1]]);
+  } finally {
+    await dbQuery(`DELETE FROM friends WHERE username = $1`, [pagerName]);
+  }
+});

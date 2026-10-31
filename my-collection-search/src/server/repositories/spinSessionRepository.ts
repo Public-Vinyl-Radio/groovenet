@@ -95,7 +95,14 @@ export type ListSpinSessionsFilters = {
   offset?: number;
   from?: string | Date;
   to?: string | Date;
+  medium?: "vinyl" | "digital";
+  /** Sort key of the last row already seen; returns the rows after it. */
+  after?: { played_at: string; id: number };
 };
+
+/** Rows from `listSessions` carry their exact sort key for the paging cursor. */
+export type ListedSpinSessionRow = SpinSessionRow &
+  SpinSessionAlbumColumns & { track_event_count: number; played_at_cursor: string };
 
 export class SpinSessionRepository {
   async createSession(client: Queryable, input: CreateSpinSessionInput): Promise<SpinSessionRow> {
@@ -210,9 +217,7 @@ export class SpinSessionRepository {
     return rows;
   }
 
-  async listSessions(
-    filters: ListSpinSessionsFilters,
-  ): Promise<Array<SpinSessionRow & SpinSessionAlbumColumns & { track_event_count: number }>> {
+  async listSessions(filters: ListSpinSessionsFilters): Promise<ListedSpinSessionRow[]> {
     const whereClauses = ["ss.friend_id = $1"];
     const params: Array<number | string | Date> = [filters.friend_id];
 
@@ -239,18 +244,28 @@ export class SpinSessionRepository {
       params.push(filters.to);
       whereClauses.push(`ss.played_at <= $${params.length}`);
     }
+    if (filters.medium) {
+      params.push(filters.medium);
+      whereClauses.push(`ss.medium = $${params.length}`);
+    }
+    if (filters.after) {
+      // Must match the ORDER BY below exactly, or tied rows skip or repeat.
+      params.push(filters.after.played_at, filters.after.id);
+      whereClauses.push(
+        `(ss.played_at, ss.id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`,
+      );
+    }
 
     params.push(filters.limit ?? 50);
     const limitRef = `$${params.length}`;
     params.push(filters.offset ?? 0);
     const offsetRef = `$${params.length}`;
 
-    const { rows } = await dbQuery<
-      SpinSessionRow & SpinSessionAlbumColumns & { track_event_count: number }
-    >(
+    const { rows } = await dbQuery<ListedSpinSessionRow>(
       `
       SELECT
         ss.*,
+        to_char(ss.played_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS played_at_cursor,
         a.title AS album_title,
         a.artist AS album_artist,
         a.album_thumbnail,

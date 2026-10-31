@@ -19,6 +19,17 @@ describe("spin schemas (shapes from @groovenet/contracts, coercion here)", () =>
       limit: 10,
       offset: 5,
     });
+    expect(spinListQuerySchema.parse({ friend_id: 2, medium: "vinyl", cursor: "c" })).toMatchObject(
+      {
+        medium: "vinyl",
+        cursor: "c",
+        offset: 0,
+      },
+    );
+    expect(spinListQuerySchema.safeParse({ friend_id: 2, medium: "tape" }).success).toBe(false);
+    expect(spinListQuerySchema.safeParse({ friend_id: 2, cursor: "c", offset: 5 }).success).toBe(
+      false,
+    );
     expect(spinListQuerySchema.safeParse({ friend_id: "nope" }).success).toBe(false);
     expect(spinListQuerySchema.safeParse({ friend_id: 1, limit: "-1" }).success).toBe(false);
   });

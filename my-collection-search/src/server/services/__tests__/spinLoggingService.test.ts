@@ -76,6 +76,7 @@ vi.mock("@/server/repositories/trackSpinEventRepository", () => ({
   },
 }));
 
+import { decodeSpinCursor } from "@/lib/spinCursor";
 import { SpinLoggingService } from "../spinLoggingService";
 
 function makeAlbum(overrides: Partial<Album> = {}): Album {
@@ -408,6 +409,76 @@ describe("SpinLoggingService", () => {
     });
     expect(result[0].session).not.toHaveProperty("album_title");
     expect(result[0].session.playlist_played_at).toBe("2026-06-23T20:00:00.000Z");
+  });
+
+  describe("listSpinSessionsPage", () => {
+    const row = (id: number) => ({
+      id,
+      friend_id: 1,
+      release_id: "rel-1",
+      medium: "vinyl",
+      selection_mode: "sides",
+      played_at: "2026-06-23T20:15:00.000Z",
+      played_at_cursor: "2026-06-23T20:15:00.000123Z",
+      note: null,
+      context_type: null,
+      created_at: "2026-06-23T20:16:00.000Z",
+      updated_at: "2026-06-23T20:16:00.000Z",
+      track_event_count: 0,
+      album_title: "Album",
+      album_artist: "Artist",
+      album_thumbnail: null,
+    });
+
+    beforeEach(() => {
+      listSelectionsBySessionIdsMock.mockResolvedValue([]);
+      listEventsBySessionIdsMock.mockResolvedValue([]);
+    });
+
+    it("asks for one extra row and hands back a cursor to the last item kept", async () => {
+      listSessionsMock.mockResolvedValue([row(9), row(8), row(7)]);
+
+      const page = await service.listSpinSessionsPage({ friend_id: 1, limit: 2, medium: "vinyl" });
+
+      expect(listSessionsMock).toHaveBeenCalledWith({
+        friend_id: 1,
+        limit: 3,
+        medium: "vinyl",
+        after: undefined,
+      });
+      expect(page.items.map((item) => item.session.id)).toEqual([9, 8]);
+      expect(page.items[0].session).not.toHaveProperty("played_at_cursor");
+      expect(decodeSpinCursor(page.next_cursor as string)).toEqual({
+        played_at: "2026-06-23T20:15:00.000123Z",
+        id: 8,
+      });
+    });
+
+    it("has no cursor on the last page, and defaults the limit to 50", async () => {
+      listSessionsMock.mockResolvedValue([row(9), row(8)]);
+
+      const page = await service.listSpinSessionsPage({
+        friend_id: 1,
+        cursor: { played_at: "2026-06-24T00:00:00.000000Z", id: 10 },
+      });
+
+      expect(listSessionsMock).toHaveBeenCalledWith({
+        friend_id: 1,
+        limit: 51,
+        after: { played_at: "2026-06-24T00:00:00.000000Z", id: 10 },
+      });
+      expect(page.items).toHaveLength(2);
+      expect(page.next_cursor).toBeNull();
+    });
+
+    it("has no cursor when nothing is kept, even if a row was fetched", async () => {
+      listSessionsMock.mockResolvedValue([row(9)]);
+
+      await expect(service.listSpinSessionsPage({ friend_id: 1, limit: 0 })).resolves.toEqual({
+        items: [],
+        next_cursor: null,
+      });
+    });
   });
 
   it("lists a session whose album row is gone with a null album", async () => {

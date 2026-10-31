@@ -7844,6 +7844,21 @@ export const apiContractRoutes: ApiContractRoute[] = [
           schema: { type: "string", format: "date-time" },
         },
         ...pagingParams,
+        {
+          name: "medium",
+          in: "query",
+          required: false,
+          description: "Omit for both media",
+          schema: { type: "string", enum: ["vinyl", "digital"] },
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          description:
+            "Opaque keyset cursor: the previous page's `next_cursor`. A malformed cursor, or one combined with a non-zero `offset`, is a 400.",
+          schema: { type: "string" },
+        },
       ],
       responses: {
         "200": {

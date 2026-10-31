@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   createSpin,
@@ -33,6 +34,7 @@ export function useSpinsQuery(params: SpinListParams, options?: UseSpinsOptions)
       to: params.to,
       limit: params.limit,
       offset: params.offset,
+      medium: params.medium,
     }),
     queryFn: () => listSpins(params),
     enabled: options?.enabled ?? true,
@@ -44,6 +46,41 @@ export function useSpinsQuery(params: SpinListParams, options?: UseSpinsOptions)
   return {
     ...query,
     spins: query.data?.items ?? [],
+  };
+}
+
+type SpinsInfiniteParams = Omit<SpinListParams, "cursor" | "offset">;
+
+/** Newest-first pages of spins for infinite scroll; `fetchNextPage` follows `next_cursor`. */
+export function useSpinsInfiniteQuery(params: SpinsInfiniteParams, options?: UseSpinsOptions) {
+  const query = useInfiniteQuery<
+    SpinListResponse,
+    Error,
+    InfiniteData<SpinListResponse, string | undefined>,
+    ReturnType<typeof queryKeys.spinsInfinite>,
+    string | undefined
+  >({
+    queryKey: queryKeys.spinsInfinite({
+      friend_id: params.friend_id,
+      release_id: params.release_id,
+      track_id: params.track_id,
+      from: params.from,
+      to: params.to,
+      limit: params.limit,
+      medium: params.medium,
+    }),
+    queryFn: ({ pageParam }) => listSpins({ ...params, offset: 0, cursor: pageParam }),
+    initialPageParam: undefined,
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
+    enabled: options?.enabled ?? true,
+    staleTime: options?.staleTime ?? 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    ...query,
+    spins: query.data?.pages.flatMap((page) => page.items) ?? [],
   };
 }
 

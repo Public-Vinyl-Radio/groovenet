@@ -123,6 +123,11 @@ export const spinListResponseSchema = z.object({
   items: z.array(spinSessionDetailSchema),
   limit: z.number().int(),
   offset: z.number().int(),
+  next_cursor: z
+    .string()
+    .nullable()
+    .optional()
+    .meta({ description: "Pass as `cursor` for the next page; null on the last page" }),
 });
 
 export const spinDeleteResponseSchema = z.object({
@@ -264,6 +269,11 @@ export const spinListQuerySchema = z.object({
   /** Defaults to 50. */
   limit: z.number().int().min(0).optional(),
   offset: z.number().int().min(0).optional(),
+  medium: spinMediumSchema.optional().meta({ description: "Omit for both media" }),
+  cursor: z.string().min(1).optional().meta({
+    description:
+      "Opaque; pass the previous page's `next_cursor`. Cannot be combined with a non-zero `offset`.",
+  }),
 });
 
 export const spinTopTracksQuerySchema = z.object({

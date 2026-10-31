@@ -102,6 +102,32 @@ describe("SpinSessionRepository.listSessions", () => {
     expect(sql).toContain("ss.played_at <= $5");
     expect(params).toEqual([7, "rel", "trk", "2026-09-01", "2026-09-30", 10, 20]);
   });
+
+  it("filters by medium", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+
+    await repo.listSessions({ friend_id: 7, medium: "digital" });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("ss.medium = $2");
+    expect(params).toEqual([7, "digital", 50, 0]);
+  });
+
+  it("pages by the ORDER BY key, after any date bounds", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+
+    await repo.listSessions({
+      friend_id: 7,
+      from: "2026-09-01",
+      after: { played_at: "2026-09-20T21:30:00.000001Z", id: 12 },
+      limit: 11,
+    });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("(ss.played_at, ss.id) < ($3::timestamptz, $4::bigint)");
+    expect(sql).toContain("ORDER BY ss.played_at DESC, ss.id DESC");
+    expect(params).toEqual([7, "2026-09-01", "2026-09-20T21:30:00.000001Z", 12, 11, 0]);
+  });
 });
 
 describe("SpinSessionRepository edits", () => {

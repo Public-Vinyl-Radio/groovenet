@@ -592,6 +592,8 @@ describe("GroovenetClient spin endpoints", () => {
         to: undefined,
         limit: 50,
         offset: 0,
+        medium: undefined,
+        cursor: undefined,
       },
     });
   });
@@ -606,7 +608,9 @@ describe("GroovenetClient spin endpoints", () => {
       from: "2026-01-01",
       to: "2026-02-01",
       limit: 5,
-      offset: 15,
+      offset: 0,
+      medium: "digital",
+      cursor: "abc",
     });
 
     expect(requestMock).toHaveBeenCalledWith(
@@ -618,7 +622,9 @@ describe("GroovenetClient spin endpoints", () => {
           from: "2026-01-01",
           to: "2026-02-01",
           limit: 5,
-          offset: 15,
+          offset: 0,
+          medium: "digital",
+          cursor: "abc",
         },
       }),
     );

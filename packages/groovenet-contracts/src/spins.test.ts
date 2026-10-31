@@ -245,6 +245,21 @@ describe("spin contracts", () => {
     expect(spinListQuerySchema.parse({ friend_id: 1 })).toEqual({ friend_id: 1 });
     expect(spinListQuerySchema.safeParse({ friend_id: 1, limit: -1 }).success).toBe(false);
     expect(spinListQuerySchema.safeParse({ friend_id: 1, offset: 0.5 }).success).toBe(false);
+    expect(spinListQuerySchema.parse({ friend_id: 1, medium: "digital", cursor: "abc" })).toEqual({
+      friend_id: 1,
+      medium: "digital",
+      cursor: "abc",
+    });
+    expect(spinListQuerySchema.safeParse({ friend_id: 1, medium: "tape" }).success).toBe(false);
+    expect(spinListQuerySchema.safeParse({ friend_id: 1, cursor: "" }).success).toBe(false);
+    expect(
+      spinListResponseSchema.parse({ items: [], limit: 50, offset: 0, next_cursor: "abc" })
+        .next_cursor,
+    ).toBe("abc");
+    expect(
+      spinListResponseSchema.parse({ items: [], limit: 50, offset: 0, next_cursor: null })
+        .next_cursor,
+    ).toBeNull();
     expect(
       spinTopTracksQuerySchema.parse({ friend_id: 1, release_id: "r1", limit: 5, offset: 0 }).limit,
     ).toBe(5);

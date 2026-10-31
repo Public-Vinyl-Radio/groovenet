@@ -7,11 +7,12 @@ const { mockListSpinSessions, mockCreateSpinSession } = vi.hoisted(() => ({
 
 vi.mock("@/server/services/spinLoggingService", () => ({
   spinLoggingService: {
-    listSpinSessions: mockListSpinSessions,
+    listSpinSessionsPage: mockListSpinSessions,
     createSpinSession: mockCreateSpinSession,
   },
 }));
 
+import { encodeSpinCursor } from "@/lib/spinCursor";
 import { GET, POST } from "../route";
 
 function makeSpinSessionDetail() {
@@ -101,7 +102,10 @@ describe("GET /api/spins", () => {
   });
 
   it("returns list response with items", async () => {
-    mockListSpinSessions.mockResolvedValueOnce([makeSpinSessionDetail()]);
+    mockListSpinSessions.mockResolvedValueOnce({
+      items: [makeSpinSessionDetail()],
+      next_cursor: null,
+    });
 
     const req = new Request("http://localhost/api/spins?friend_id=1&limit=25&offset=5");
     const res = await GET(req as never);
@@ -112,6 +116,7 @@ describe("GET /api/spins", () => {
     expect(body.limit).toBe(25);
     expect(body.offset).toBe(5);
     expect(body.items[0].session.id).toBe(101);
+    expect(body.next_cursor).toBeNull();
     expect(mockListSpinSessions).toHaveBeenCalledWith({
       friend_id: 1,
       release_id: undefined,
@@ -120,7 +125,82 @@ describe("GET /api/spins", () => {
       to: undefined,
       limit: 25,
       offset: 5,
+      medium: undefined,
+      cursor: undefined,
     });
+  });
+
+  it.each(["vinyl", "digital"])("passes medium=%s through", async (medium) => {
+    mockListSpinSessions.mockResolvedValueOnce({ items: [], next_cursor: null });
+
+    const res = await GET(
+      new Request(`http://localhost/api/spins?friend_id=1&medium=${medium}`) as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockListSpinSessions).toHaveBeenCalledWith(expect.objectContaining({ medium }));
+  });
+
+  it("leaves medium unset when omitted", async () => {
+    mockListSpinSessions.mockResolvedValueOnce({ items: [], next_cursor: null });
+
+    await GET(new Request("http://localhost/api/spins?friend_id=1") as never);
+
+    expect(mockListSpinSessions.mock.calls[0][0].medium).toBeUndefined();
+  });
+
+  it("returns 400 for an unknown medium", async () => {
+    const res = await GET(
+      new Request("http://localhost/api/spins?friend_id=1&medium=cassette") as never,
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/invalid spin list query/i);
+    expect(mockListSpinSessions).not.toHaveBeenCalled();
+  });
+
+  it("decodes the cursor for the service and returns the next one", async () => {
+    mockListSpinSessions.mockResolvedValueOnce({ items: [], next_cursor: "next" });
+    const cursor = encodeSpinCursor({ played_at: "2026-06-24T01:00:00.000500Z", id: 7 });
+
+    const res = await GET(
+      new Request(
+        `http://localhost/api/spins?friend_id=1&cursor=${cursor}&from=2026-06-01&to=2026-06-30&offset=0`,
+      ) as never,
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).next_cursor).toBe("next");
+    expect(mockListSpinSessions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: { played_at: "2026-06-24T01:00:00.000500Z", id: 7 },
+        from: "2026-06-01",
+        to: "2026-06-30",
+      }),
+    );
+    expect(mockListSpinSessions.mock.calls[0][0]).not.toHaveProperty("cursor", cursor);
+  });
+
+  it("returns 400 for a malformed cursor, not 500", async () => {
+    const res = await GET(
+      new Request("http://localhost/api/spins?friend_id=1&cursor=garbage") as never,
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Invalid cursor");
+    expect(mockListSpinSessions).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a cursor combined with a non-zero offset", async () => {
+    const cursor = encodeSpinCursor({ played_at: "2026-06-24T01:00:00.000000Z", id: 7 });
+
+    const res = await GET(
+      new Request(`http://localhost/api/spins?friend_id=1&cursor=${cursor}&offset=5`) as never,
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/invalid spin list query/i);
+    expect(mockListSpinSessions).not.toHaveBeenCalled();
   });
 });
 
