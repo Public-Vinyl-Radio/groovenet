@@ -5,7 +5,8 @@ import { fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { SpinRecapResponse } from "@/services/internalApi/spins";
 import { SpinArt } from "./listeningLogParts";
-import SpinRecapStrip, { formatRecapHours, summarizeGenres } from "./SpinRecapStrip";
+import SpinRecapStrip, { summarizeGenres } from "./SpinRecapStrip";
+import { formatRecapHours } from "./recapCharts";
 import SpinRecordGroup, { recordGroupMeta } from "./SpinRecordGroup";
 import type { SpinPlay, SpinRecordGroup as Group } from "./spinSummary";
 
