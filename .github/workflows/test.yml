@@ -291,8 +291,18 @@ jobs:
         working-directory: packages/groovenet-player/macos
         run: |
           binary=$(swift build --show-bin-path)
-          tests=$(find "$binary" -path '*.xctest/Contents/MacOS/*' -type f | head -n 1)
-          test -n "$tests"
+          tests=""
+          # Inspect direct children only; recursive find also matches files in .dSYM bundles.
+          for candidate in "$binary"/*.xctest/Contents/MacOS/*; do
+            if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+              tests="$candidate"
+              break
+            fi
+          done
+          if [ -z "$tests" ]; then
+            echo "::error::No executable XCTest binary found in $binary"
+            exit 1
+          fi
           xcrun llvm-profdata merge -sparse "$binary"/codecov/*.profraw -o "$binary/codecov/all.profdata"
           xcrun llvm-cov export -format=lcov \
             -instr-profile="$binary/codecov/all.profdata" \
