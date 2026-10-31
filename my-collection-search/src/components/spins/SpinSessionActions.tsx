@@ -1,31 +1,14 @@
 "use client";
 
 import React from "react";
-import { toaster } from "@/components/ui/toaster";
-import { useSpinMutations } from "@/hooks/useSpinsQuery";
 import SpinActionsMenu from "./SpinActionsMenu";
 import SpinFormDialog from "./SpinFormDialog";
 import { summarizeSpin, type SpinListItem } from "./spinSummary";
+import { useSpinActions } from "./useSpinActions";
 
 /** The actions menu for one spin session, with its edit dialog and delete. */
 export default function SpinSessionActions({ item }: { item: SpinListItem }) {
-  const [editOpen, setEditOpen] = React.useState(false);
-  // Each row has its own mutations, so only the spin being deleted shows busy.
-  const { deleteSpin, deleteSpinPending } = useSpinMutations(item.session.friend_id);
-
-  const handleDelete = async () => {
-    try {
-      await deleteSpin(item.session.id);
-      toaster.create({ title: "Spin deleted", type: "success" });
-    } catch (error) {
-      toaster.create({
-        title: "Failed to delete spin",
-        description: error instanceof Error ? error.message : "Unknown error",
-        type: "error",
-      });
-      throw error;
-    }
-  };
+  const { editOpen, setEditOpen, handleDelete, deleting } = useSpinActions(item);
 
   return (
     <>
@@ -33,7 +16,7 @@ export default function SpinSessionActions({ item }: { item: SpinListItem }) {
         label={summarizeSpin(item).headline}
         onEdit={() => setEditOpen(true)}
         onDelete={handleDelete}
-        deleting={deleteSpinPending}
+        deleting={deleting}
       />
       <SpinFormDialog
         open={editOpen}

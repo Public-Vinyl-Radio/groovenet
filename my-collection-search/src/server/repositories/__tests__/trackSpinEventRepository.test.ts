@@ -81,3 +81,20 @@ describe("TrackSpinEventRepository.listTopTracks", () => {
     );
   });
 });
+
+describe("TrackSpinEventRepository.getTrackStats", () => {
+  const repo = new TrackSpinEventRepository();
+
+  it("counts one track's plays across both media", async () => {
+    const row = { play_count: 3, last_played_at: "2026-10-27T19:38:00.000Z" };
+    dbQuery.mockReset().mockResolvedValue({ rows: [row] });
+
+    expect(await repo.getTrackStats(6, "t1")).toBe(row);
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("COUNT(*)::int AS play_count");
+    expect(sql).toContain("WHERE friend_id = $1 AND track_id = $2");
+    expect(sql).not.toContain("medium");
+    expect(params).toEqual([6, "t1"]);
+  });
+});

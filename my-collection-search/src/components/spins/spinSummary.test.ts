@@ -367,6 +367,7 @@ describe("spinPlays", () => {
     const plays = spinPlays(logged(at("19:00"), { tracks: ["A1", "A2", "A3"] }));
     expect(plays.map((p) => p.position)).toEqual(["A3", "A2", "A1"]);
     expect(plays[0]).toMatchObject({
+      trackId: "r1-A3",
       title: "Track A3",
       artist: "Artist r1",
       record: "Album r1",
@@ -395,6 +396,7 @@ describe("spinPlays", () => {
     expect(spinPlays(item)).toEqual([
       expect.objectContaining({
         key: String(item.session.id),
+        trackId: null,
         position: null,
         title: "No tracks recorded",
         playedAt: at("19:00"),

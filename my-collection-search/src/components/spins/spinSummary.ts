@@ -203,6 +203,8 @@ export type SpinPlay = {
   playedAt: string;
   medium: SpinMediumValue;
   releaseId: string;
+  /** Null for a session with no track events, which plays as one summary row. */
+  trackId: string | null;
   position: string | null;
   title: string;
   artist: string | null;
@@ -262,6 +264,7 @@ export function spinPlays(item: SpinListItem): SpinPlay[] {
         ...base,
         key: `${item.session.id}`,
         playedAt: item.session.played_at,
+        trackId: null,
         position: null,
         title: summarizeSpin(item).headline,
         artist: album.artist,
@@ -275,6 +278,7 @@ export function spinPlays(item: SpinListItem): SpinPlay[] {
       ...base,
       key: `${item.session.id}:${event.ordinal}`,
       playedAt: event.played_at,
+      trackId: event.track_id,
       position: event.position_snapshot ?? null,
       title: event.title_snapshot || "Unknown track",
       artist: album.artist ?? event.artist_snapshot ?? null,

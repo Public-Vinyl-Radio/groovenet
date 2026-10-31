@@ -100,6 +100,8 @@ import {
   spinTopTrackSchema,
   spinRecapQuerySchema as sharedSpinRecapQuerySchema,
   spinRecapResponseSchema,
+  spinTrackStatsQuerySchema as sharedSpinTrackStatsQuerySchema,
+  spinTrackStatsResponseSchema,
   spinTopTracksQuerySchema as sharedSpinTopTracksQuerySchema,
   spinTopTracksResponseSchema as sharedSpinTopTracksResponseSchema,
   spinTrackRefSchema as sharedSpinTrackRefSchema,
@@ -1235,7 +1237,14 @@ export const spinUpdateBodySchema = spinUpdateObjectSchema
 export const spinUpdateResponseSchema = sharedSpinUpdateResponseSchema;
 export const spinListResponseSchema = sharedSpinListResponseSchema;
 
-export { spinRecapResponseSchema };
+export { spinRecapResponseSchema, spinTrackStatsResponseSchema };
+export const spinTrackStatsQuerySchema = sharedSpinTrackStatsQuerySchema.extend({
+  friend_id: z
+    .string()
+    .regex(/^[0-9]+$/)
+    .transform(Number)
+    .pipe(z.number().int().positive()),
+});
 export const spinRecapQuerySchema = sharedSpinRecapQuerySchema.extend({
   friend_id: z
     .string()

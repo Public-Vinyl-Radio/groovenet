@@ -15,11 +15,14 @@ import {
   Tabs,
   Text,
   VStack,
+  useBreakpointValue,
 } from "@chakra-ui/react";
 import { FiDisc } from "react-icons/fi";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import ListeningSessionCard from "@/components/spins/ListeningSessionCard";
+import { SpinDetailEmpty, SpinDetailModal, SpinDetailPanel } from "@/components/spins/SpinDetail";
+import { findSpinSelection, SPIN_PARAM } from "@/components/spins/spinSelection";
 import { countLabel } from "@/components/spins/listeningLogParts";
 import SpinMonthSwitcher from "@/components/spins/SpinMonthSwitcher";
 import SpinRecapStrip from "@/components/spins/SpinRecapStrip";
@@ -122,11 +125,19 @@ function SpinsPageContent() {
   const [medium, setMedium] = React.useState<MediumTab>("all");
   const { from, to } = monthBounds(month, timeZone);
 
-  const setMonth = (next: string) => {
+  const replaceParam = (name: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("month", next);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    if (value === null) params.delete(name);
+    else params.set(name, value);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
+  const setMonth = (next: string) => replaceParam("month", next);
+  // The selected play lives in the URL, so a reload or a shared link reopens it.
+  const selectSpin = (key: string | null) => replaceParam(SPIN_PARAM, key);
+  const clearSelection = () => selectSpin(null);
+  // The side panel shows the detail from `xl`; below it, a modal does.
+  const isDesktop = useBreakpointValue({ base: false, xl: true }) === true;
 
   const enabled = isHydrated && friendId > 0;
   const recapQuery = useSpinRecapQuery({ friend_id: friendId, month }, { enabled });
@@ -142,6 +153,9 @@ function SpinsPageContent() {
   );
   const { spins, fetchNextPage, hasNextPage, isFetchingNextPage } = spinsQuery;
   const days = React.useMemo(() => groupListeningLog(spins, timeZone), [spins, timeZone]);
+  const selectedKey = searchParams.get(SPIN_PARAM);
+  // An unknown key, or one not loaded yet, is no selection.
+  const selection = React.useMemo(() => findSpinSelection(days, selectedKey), [days, selectedKey]);
 
   const sentinel = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
@@ -223,7 +237,11 @@ function SpinsPageContent() {
             <DayHeading day={day} />
             {day.sessions.map((session) => (
               <Box key={session.key} mr="6px" mb="6px">
-                <ListeningSessionCard session={session} />
+                <ListeningSessionCard
+                  session={session}
+                  selectedKey={selection?.play.key}
+                  onSelect={(play) => selectSpin(play.key)}
+                />
               </Box>
             ))}
           </Stack>
@@ -311,24 +329,39 @@ function SpinsPageContent() {
             {log}
           </Stack>
 
-          <Box as="aside" aria-label="Spin detail" display={{ base: "none", xl: "block" }} pr="6px">
-            <Flex
-              minH="200px"
-              align="center"
-              justify="center"
-              p={6}
-              borderWidth="outline"
-              borderStyle="dashed"
-              borderColor="border"
-              textAlign="center"
-              fontSize="sm"
-              color="fg.muted"
-            >
-              Pick a spin to see how it was logged.
-            </Flex>
+          <Box
+            as="aside"
+            aria-label="Spin detail"
+            display={{ base: "none", xl: "block" }}
+            pr="6px"
+            pb="6px"
+            position="sticky"
+            top={4}
+            alignSelf="start"
+            maxH="calc(100dvh - var(--chrome-bottom, 0px) - 32px)"
+            overflowY="auto"
+          >
+            {isDesktop && selection ? (
+              <SpinDetailPanel
+                selection={selection}
+                onSelect={selectSpin}
+                onClose={clearSelection}
+                onDeleted={clearSelection}
+              />
+            ) : (
+              <SpinDetailEmpty />
+            )}
           </Box>
         </Grid>
       </Stack>
+      {!isDesktop && selection && (
+        <SpinDetailModal
+          selection={selection}
+          onSelect={selectSpin}
+          onClose={clearSelection}
+          onDeleted={clearSelection}
+        />
+      )}
     </PageContainer>
   );
 }

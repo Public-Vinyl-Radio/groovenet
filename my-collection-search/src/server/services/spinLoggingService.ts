@@ -491,6 +491,17 @@ export class SpinLoggingService {
     return rows.map(normalizeTopTrackRow);
   }
 
+  async getTrackStats(query: {
+    friend_id: number;
+    track_id: string;
+  }): Promise<{ play_count: number; last_played_at: string | null }> {
+    const row = await trackSpinEventRepository.getTrackStats(query.friend_id, query.track_id);
+    return {
+      play_count: row.play_count,
+      last_played_at: row.last_played_at ? normalizeTimestamp(row.last_played_at) : null,
+    };
+  }
+
   /** Resolve a side or track selection against the album's tracks. */
   private async expandSelection(
     releaseId: string,

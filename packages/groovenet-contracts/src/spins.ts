@@ -164,6 +164,20 @@ export const spinTopTracksResponseSchema = z.object({
   offset: z.number().int(),
 });
 
+// One track's plays across both media, unlike top tracks (vinyl only).
+export const spinTrackStatsQuerySchema = z.object({
+  friend_id: z.number().int().positive(),
+  track_id: z.string().min(1),
+});
+export const spinTrackStatsResponseSchema = z.object({
+  play_count: z.number().int(),
+  last_played_at: dateTime()
+    .nullable()
+    .meta({ description: "Null when the track has never been spun" }),
+});
+export type SpinTrackStatsQuery = z.infer<typeof spinTrackStatsQuerySchema>;
+export type SpinTrackStatsResponse = z.infer<typeof spinTrackStatsResponseSchema>;
+
 // Monthly listening recap. Shares are fractions (0–1); multi-genre spins
 // contribute equally to each distinct root genre. The final Other includes untagged spins.
 export const spinRecapQuerySchema = z.object({
@@ -369,6 +383,7 @@ export type SpinCreateInput =
   | (SpinCreateBase & { side_keys?: never; track_refs: SpinTrackRef[] });
 
 export const spinJsonSchemas = {
+  SpinTrackStatsResponse: z.toJSONSchema(spinTrackStatsResponseSchema),
   SpinRecapResponse: z.toJSONSchema(spinRecapResponseSchema),
   SpinSelectionMode: z.toJSONSchema(spinSelectionModeSchema),
   SpinProvenance: z.toJSONSchema(spinProvenanceSchema),

@@ -176,6 +176,7 @@ is closed, so they need a follow-up issue as their owner.
 | POST | `/api/spins/aggregate` | spins | contracts |  |
 | GET | `/api/spins/top-tracks` | spins | contracts |  |
 | GET | `/api/spins/recap` | Spins | contracts | Monthly recap (#862) |
+| GET | `/api/spins/track-stats` | Spins | contracts | One track's plays, both media (#864) |
 | GET | `/api/status` | system | #552 | Auto-discovered only; no contract entry yet. |
 | PATCH | `/api/tracks` | tracks | contracts |  |
 | DELETE | `/api/tracks/{id}` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |

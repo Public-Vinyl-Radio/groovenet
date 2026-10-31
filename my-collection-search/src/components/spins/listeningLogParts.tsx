@@ -30,17 +30,27 @@ export function SpinMediumChip({ medium }: { medium: "vinyl" | "digital" }) {
   );
 }
 
+type SpinArtProps = {
+  src: string | null;
+  /** A record group: the art carries a shadow, like a stack of sleeves. */
+  stacked?: boolean;
+  /** Overrides the row size, 48px on phones and 52px above. */
+  boxSize?: string;
+  /** On an ink strip: the outline takes the ground colour. */
+  inverse?: boolean;
+};
+
 /** Square album art; a missing or broken image gets a disc. */
-export function SpinArt({ src, stacked = false }: { src: string | null; stacked?: boolean }) {
+export function SpinArt({ src, stacked = false, boxSize, inverse = false }: SpinArtProps) {
   // Discogs art links expire; a broken one gets the same disc as a missing one.
   const [failed, setFailed] = React.useState(false);
   return (
     <Box
       aria-hidden="true"
-      boxSize={{ base: "48px", md: "52px" }}
+      boxSize={boxSize ?? { base: "48px", md: "52px" }}
       flexShrink={0}
       borderWidth="outline"
-      borderColor="border.ink"
+      borderColor={inverse ? "bg" : "border.ink"}
       boxShadow={stacked ? "sm" : undefined}
       overflow="hidden"
       bg="bg.muted"

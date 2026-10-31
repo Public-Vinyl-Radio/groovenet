@@ -9,8 +9,6 @@ import SpinRecapStrip, { formatRecapHours, summarizeGenres } from "./SpinRecapSt
 import SpinRecordGroup, { recordGroupMeta } from "./SpinRecordGroup";
 import type { SpinPlay, SpinRecordGroup as Group } from "./spinSummary";
 
-vi.mock("./SpinSessionActions", () => ({ default: () => null }));
-
 function play(position: string | null, playedAt: string): SpinPlay {
   return {
     key: `${position}`,
@@ -18,6 +16,7 @@ function play(position: string | null, playedAt: string): SpinPlay {
     playedAt,
     medium: "vinyl",
     releaseId: "r1",
+    trackId: null,
     position,
     title: `Song ${position}`,
     artist: null,

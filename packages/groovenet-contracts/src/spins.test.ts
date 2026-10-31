@@ -317,3 +317,13 @@ it("validates the recap month and empty response", () => {
   expect(spinRecapQuerySchema.safeParse({ friend_id: 1, month: "2026-13" }).success).toBe(false);
   expect(spinRecapResponseSchema.safeParse({}).success).toBe(false);
 });
+
+import { spinTrackStatsQuerySchema, spinTrackStatsResponseSchema } from "./spins.js";
+it("validates the track-stats query and a never-spun response", () => {
+  expect(spinTrackStatsQuerySchema.safeParse({ friend_id: 1, track_id: "t1" }).success).toBe(true);
+  expect(spinTrackStatsQuerySchema.safeParse({ friend_id: 1, track_id: "" }).success).toBe(false);
+  expect(
+    spinTrackStatsResponseSchema.safeParse({ play_count: 0, last_played_at: null }).success,
+  ).toBe(true);
+  expect(spinJsonSchemas.SpinTrackStatsResponse.required).toEqual(["play_count", "last_played_at"]);
+});
