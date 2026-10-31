@@ -260,7 +260,7 @@ jobs:
   macos-player-coverage:
     needs: changes
     if: needs.changes.outputs.player == 'true'
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 10
     permissions:
       contents: read
