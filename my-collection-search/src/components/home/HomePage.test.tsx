@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { HOME_ARRIVALS, HOME_COUNTS } from "@/stories/fixtures/home";
 
@@ -52,10 +52,16 @@ describe("HomePage", () => {
     expect(screen.getByTestId("new-arrivals-loading")).toBeTruthy();
   });
 
-  it("fails New arrivals alone: the month card stays", () => {
+  it("keeps the month card when summary sections fail", () => {
     state.query = { home: null, isPending: false, error: new Error("HTTP 500") };
     renderWithProviders(<HomePage />);
-    expect(screen.getByRole("alert").textContent).toContain("HTTP 500");
+    expect(
+      within(screen.getByRole("region", { name: "NEW ARRIVALS" })).getByRole("alert").textContent,
+    ).toContain("HTTP 500");
+    expect(
+      within(screen.getByRole("region", { name: "NEEDS ATTENTION" })).getByRole("alert")
+        .textContent,
+    ).toContain("HTTP 500");
     expect(screen.getByTestId("month")).toBeTruthy();
   });
 });

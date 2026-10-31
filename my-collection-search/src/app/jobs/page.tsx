@@ -3,6 +3,7 @@
 import RetroDialog from "@/components/ui/RetroDialog";
 
 import React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Spinner,
   Text,
@@ -31,10 +32,19 @@ import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import EmbeddingQueueSection from "@/components/jobs/EmbeddingQueueSection";
 
-export default function JobsPage() {
-  const [stateFilter, setStateFilter] = React.useState<
-    "all" | "waiting" | "active" | "completed" | "failed"
-  >("all");
+type JobStateFilter = "all" | "waiting" | "active" | "completed" | "failed";
+const JOB_STATES: readonly string[] = ["all", "waiting", "active", "completed", "failed"];
+
+function JobsPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const rawState = searchParams.get("state") ?? "all";
+  const urlState = JOB_STATES.includes(rawState) ? (rawState as JobStateFilter) : "all";
+  const [stateFilter, setStateFilter] = React.useState<JobStateFilter>(urlState);
+  React.useEffect(() => {
+    setStateFilter(urlState);
+    setOffset(0);
+  }, [urlState]);
   const [offset, setOffset] = React.useState(0);
   const limit = 50;
   const { data, isLoading, refetch, dataUpdatedAt } = useJobsQuery({
@@ -285,12 +295,16 @@ export default function JobsPage() {
             <Flex gap={2} align="center">
               <NativeSelectRoot size="sm" width={{ base: "130px", md: "180px" }}>
                 <NativeSelectField
+                  aria-label="Job state"
                   value={stateFilter}
                   onChange={(e) => {
                     setStateFilter(
                       e.target.value as "all" | "waiting" | "active" | "completed" | "failed",
                     );
                     setOffset(0);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("state", e.target.value);
+                    router.push(`/jobs?${params.toString()}`);
                   }}
                 >
                   <option value="all">All Jobs</option>
@@ -669,5 +683,13 @@ export default function JobsPage() {
         </RetroDialog>
       </Stack>
     </PageContainer>
+  );
+}
+
+export default function JobsPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <JobsPageContent />
+    </React.Suspense>
   );
 }

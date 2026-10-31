@@ -9,6 +9,7 @@ import HomeHeader from "./HomeHeader";
 import HomeLayout from "./HomeLayout";
 import HomeMonthCard from "./MonthCard";
 import HomeNowPlaying from "./HomeNowPlaying";
+import NeedsAttention from "./NeedsAttention";
 import { NewArrivals } from "./NewArrivals";
 
 /**
@@ -37,7 +38,7 @@ export default function HomePage() {
           />
         }
         month={<HomeMonthCard friendId={friendId} enabled={enabled} />}
-        // TODO(#883): attention from home.attention.
+        attention={<NeedsAttention attention={home?.attention ?? null} error={error?.message} />}
         // TODO(#884): playlists from home.playlists.
       />
     </PageContainer>
