@@ -63,6 +63,15 @@ const STRIP = {
   lg: { h: "64px", cols: "1fr 1.4fr 1fr", w: "auto", icon: 24, playIcon: 26, shadow: "md" },
   // The desktop bar: 52 / 68 / 52 x 40px.
   md: { h: "40px", cols: "52px 68px 52px", w: "fit-content", icon: 18, playIcon: 18, shadow: "sm" },
+  // Home's Now playing card: 44px touch targets.
+  card: {
+    h: "44px",
+    cols: "48px 56px 48px",
+    w: "fit-content",
+    icon: 16,
+    playIcon: 16,
+    shadow: "sm",
+  },
 } as const;
 
 /**
