@@ -127,6 +127,14 @@ jobs:
           # Node reports paths relative to this job's app working directory.
           sed -i 's#^SF:scripts/#SF:my-collection-search/scripts/#' coverage/storybook.lcov
 
+      # The image build has no browser, so story render errors (#681) are caught
+      # here: build the bundle, then load every story in Chromium.
+      - name: Render every Storybook story
+        run: |
+          npm run build-storybook
+          npx playwright install --with-deps chromium
+          npm run check-storybook-render
+
       - name: Test optional production player deployment with coverage
         run: |
           node --test --experimental-test-coverage \
