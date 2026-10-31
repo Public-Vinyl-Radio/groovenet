@@ -490,6 +490,7 @@ export class ServerPlayerManager extends EventEmitter {
               friendId: entry.friend_id,
               releaseId: track.release_id,
               startedAt: listening.startedAt,
+              outputName: await this.outputName(backend, current.assigned_output),
             };
             try {
               await this.store.queuePlay(play);
@@ -695,6 +696,24 @@ export class ServerPlayerManager extends EventEmitter {
         }
       }
     });
+  }
+
+  /** Metadata is best effort; discovery must never prevent a play being queued. */
+  private async outputName(
+    backend: PlaybackBackend,
+    output: string | null,
+  ): Promise<string | null> {
+    try {
+      const devices = await backend.listDevices();
+      const name = devices.find((device) => device.id === output)?.name.trim();
+      return name &&
+        name.length <= 255 &&
+        devices.filter((device) => device.name.trim() === name).length === 1
+        ? name
+        : null;
+    } catch {
+      return null;
+    }
   }
 
   private async requireAvailable(

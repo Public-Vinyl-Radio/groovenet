@@ -126,6 +126,9 @@ function HowItWasLogged({ play }: { play: SpinPlay }) {
   const facts: Array<[string, string]> = [
     ["SOURCE", logging.source],
     ["LOGGED BY", logging.loggedBy],
+    ...(play.medium === "digital" && play.item.session.output_name
+      ? [["OUTPUT", play.item.session.output_name] as [string, string]]
+      : []),
     ["LOGGED AT", formatLoggedAt(play.playedAt, timeZone)],
   ];
   return (

@@ -175,11 +175,17 @@ dbTest(
       medium: "digital" as const,
       played_at: "2026-10-23T12:00:00.000Z",
       context_type: "player",
+      output_name: "Lounge",
       track_refs: [{ track_id: "edit-b1", friend_id: friendId }],
     };
 
     const logged = await service.createSpinSession(digital);
     expect(logged.session.medium).toBe("digital");
+    expect(logged.session.output_name).toBe("Lounge");
+    const listed = await service.listSpinSessions({ friend_id: friendId, release_id: RELEASE_ID });
+    expect(listed.find((item) => item.session.id === logged.session.id)?.session.output_name).toBe(
+      "Lounge",
+    );
     expect(logged.track_events.map((event) => event.track_id)).toEqual(["edit-b1"]);
 
     // The same play posted again is refused, and leaves one session behind.
@@ -191,7 +197,12 @@ dbTest(
     expect(sessions.rows).toHaveLength(1);
 
     // A different start time is a different play; the same time on vinyl is not a clash.
-    await service.createSpinSession({ ...digital, played_at: "2026-10-23T13:00:00.000Z" });
+    const unnamed = await service.createSpinSession({
+      ...digital,
+      output_name: null,
+      played_at: "2026-10-23T13:00:00.000Z",
+    });
+    expect(unnamed.session.output_name).toBeNull();
     await service.createSpinSession({ ...digital, medium: "vinyl" });
     await service.createSpinSession({ ...digital, medium: "vinyl" });
 

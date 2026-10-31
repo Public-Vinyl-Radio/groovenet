@@ -21,6 +21,7 @@ export async function postServerPlay(appUrl: string, play: ServerPlay): Promise<
       medium: "digital",
       played_at: play.startedAt.toISOString(),
       context_type: "player",
+      output_name: play.outputName,
       track_refs: [{ track_id: play.trackId, friend_id: play.friendId }],
     }),
     signal: AbortSignal.timeout(5000),

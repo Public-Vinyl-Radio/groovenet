@@ -48,6 +48,32 @@ const event = {
 const create = { friend_id: 1, release_id: "r1", played_at: session.played_at };
 
 describe("spin contracts", () => {
+  it("accepts optional, nullable, trimmed digital outputs and rejects vinyl outputs", () => {
+    const digital = {
+      ...create,
+      medium: "digital",
+      track_refs: [{ track_id: "t1", friend_id: 1 }],
+    };
+    expect(spinCreateSchema.parse(digital).output_name).toBeUndefined();
+    expect(spinCreateSchema.parse({ ...digital, output_name: null }).output_name).toBeNull();
+    expect(spinCreateSchema.parse({ ...digital, output_name: " Lounge " }).output_name).toBe(
+      "Lounge",
+    );
+    for (const output_name of [" ", "x".repeat(256), 7]) {
+      expect(spinCreateSchema.safeParse({ ...digital, output_name }).success).toBe(false);
+    }
+    for (const medium of [undefined, "vinyl"]) {
+      expect(
+        spinCreateSchema.safeParse({ ...digital, medium, output_name: "Lounge" }).success,
+      ).toBe(false);
+      expect(spinCreateSchema.safeParse({ ...digital, medium, output_name: null }).success).toBe(
+        true,
+      );
+    }
+    for (const output_name of [null, "Lounge"]) {
+      expect(spinSessionSchema.parse({ ...session, output_name }).output_name).toBe(output_name);
+    }
+  });
   it("fixes the enum vocabularies the database CHECK constraints mirror", () => {
     expect(SPIN_SELECTION_MODES).toEqual(["sides", "tracks", "automatic", "playlist"]);
     expect(SPIN_PROVENANCES).toEqual(["manual", "automatic", "playlist"]);

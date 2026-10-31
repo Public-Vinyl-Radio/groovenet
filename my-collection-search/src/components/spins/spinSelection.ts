@@ -70,7 +70,14 @@ export type SpinLogging = {
 export function describeSpinLogging(play: SpinPlay): SpinLogging {
   const session = play.item.session;
   if (play.medium === "digital") {
-    return { source: "Digital", loggedBy: "Player", note: null };
+    return {
+      source: "Digital",
+      loggedBy: "Player",
+      note:
+        session.context_type === "player" && session.output_name
+          ? `Logged when the player played it on ${session.output_name}.`
+          : null,
+    };
   }
   if (session.provenance === "playlist") {
     return { source: "Vinyl", loggedBy: "Playlist", note: "Logged when a playlist was played." };

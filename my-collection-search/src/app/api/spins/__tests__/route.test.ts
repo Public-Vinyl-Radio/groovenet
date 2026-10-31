@@ -403,3 +403,47 @@ describe("POST /api/spins", () => {
     expect(body.error).toMatch(/duplicate side keys/i);
   });
 });
+
+describe("digital output contract at the route", () => {
+  it.each([null, "Lounge"])("accepts and returns output %s", async (output_name) => {
+    const detail = makeSpinSessionDetail();
+    const session = { ...detail.session, medium: "digital", output_name };
+    mockCreateSpinSession.mockResolvedValue({ ...detail, session });
+    const request = new Request("http://localhost/api/spins", {
+      method: "POST",
+      body: JSON.stringify({
+        friend_id: 1,
+        release_id: "rel-1",
+        medium: "digital",
+        played_at: session.played_at,
+        output_name: output_name && ` ${output_name} `,
+        track_refs: [{ track_id: "trk-a1", friend_id: 1 }],
+      }),
+    });
+    const res = await POST(request as never);
+    expect(res.status).toBe(200);
+    expect(mockCreateSpinSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ output_name }),
+    );
+    expect((await res.json()).session.output_name).toBe(output_name);
+    mockListSpinSessions.mockResolvedValue({ items: [{ ...detail, session }], next_cursor: null });
+    const list = await GET(new Request("http://localhost/api/spins?friend_id=1") as never);
+    expect(list.status).toBe(200);
+    expect((await list.json()).items[0].session.output_name).toBe(output_name);
+  });
+  it("rejects a named vinyl output", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/spins", {
+        method: "POST",
+        body: JSON.stringify({
+          friend_id: 1,
+          release_id: "rel-1",
+          played_at: "2026-10-01",
+          side_keys: ["A"],
+          output_name: "Lounge",
+        }),
+      }) as never,
+    );
+    expect(res.status).toBe(400);
+  });
+});

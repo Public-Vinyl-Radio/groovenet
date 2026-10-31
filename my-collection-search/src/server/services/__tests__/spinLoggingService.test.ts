@@ -182,6 +182,38 @@ describe("SpinLoggingService", () => {
     );
   });
 
+  it.each([undefined, null, "Lounge"])(
+    "passes a digital output %s to persistence and returns it",
+    async (output_name) => {
+      getAlbumByReleaseAndFriendMock.mockResolvedValue(makeAlbum());
+      getTracksByReleaseAndFriendMock.mockResolvedValue([makeTrack()]);
+      createSessionMock.mockResolvedValue({
+        id: 101,
+        friend_id: 1,
+        release_id: "rel-1",
+        medium: "digital",
+        output_name: output_name ?? null,
+        selection_mode: "tracks",
+        played_at: "2026-06-23T20:15:00Z",
+        created_at: "2026-06-23T20:15:00Z",
+        updated_at: "2026-06-23T20:15:00Z",
+      });
+      const result = await service.createSpinSession({
+        friend_id: 1,
+        release_id: "rel-1",
+        medium: "digital",
+        output_name,
+        played_at: "2026-06-23T20:15:00Z",
+        track_refs: [{ track_id: "trk-1", friend_id: 1 }],
+      });
+      expect(createSessionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ output_name: output_name ?? null }),
+      );
+      expect(result.session.output_name).toBe(output_name ?? null);
+    },
+  );
+
   it("stores a digital play and turns a repeat into a conflict", async () => {
     getAlbumByReleaseAndFriendMock.mockResolvedValue(makeAlbum());
     getTracksByReleaseAndFriendMock.mockResolvedValue([makeTrack()]);

@@ -153,8 +153,18 @@ describe("SpinDetailPanel content", () => {
     expect(screen.getByText("Logged when a playlist was played.")).toBeTruthy();
   });
 
+  it("shows a digital output with a backend-neutral player credit", () => {
+    renderPanel(
+      select(spin({ medium: "digital", context_type: "player", output_name: "Lounge" }), "9:2"),
+    );
+    expect(fact("OUTPUT")).toBe("Lounge");
+    expect(fact("LOGGED BY")).toBe("Player");
+    expect(screen.getByText("Logged when the player played it on Lounge.")).toBeTruthy();
+  });
+
   it("shows a digital play without FIX SPIN", () => {
     renderPanel(select(spin({ medium: "digital" }), "9:2"));
+    expect(screen.queryByText("OUTPUT")).toBeNull();
     expect(screen.getByText("A3")).toBeTruthy();
     expect(fact("SOURCE")).toBe("Digital");
     expect(fact("LOGGED BY")).toBe("Player");

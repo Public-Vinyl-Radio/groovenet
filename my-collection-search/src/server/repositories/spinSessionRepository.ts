@@ -14,6 +14,7 @@ export type SpinSessionRow = {
   friend_id: number;
   release_id: string;
   medium: SpinMedium;
+  output_name?: string | null;
   selection_mode: SpinSelectionMode;
   played_at: Date | string;
   note: string | null;
@@ -47,6 +48,7 @@ export type CreateSpinSessionInput = {
   friend_id: number;
   release_id: string;
   medium?: SpinMedium;
+  output_name?: string | null;
   selection_mode: SpinSelectionMode;
   played_at: string | Date;
   note?: string | null;
@@ -111,9 +113,9 @@ export class SpinSessionRepository {
       INSERT INTO spin_sessions (
         friend_id, release_id, medium, selection_mode, played_at, note, context_type,
         provenance, source_id, detection_id, confidence, playlist_id,
-        live_set_performance_id, playlist_played_at, playlist_position
+        live_set_performance_id, playlist_played_at, playlist_position, output_name
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
       `,
       [
@@ -132,6 +134,7 @@ export class SpinSessionRepository {
         input.live_set_performance_id ?? null,
         input.playlist_played_at ?? null,
         input.playlist_position ?? null,
+        input.medium === "digital" ? (input.output_name ?? null) : null,
       ],
     );
 

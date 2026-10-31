@@ -239,6 +239,7 @@ describe("server play API delivery", () => {
       trackId: "track",
       friendId: 3,
       releaseId: "release",
+      outputName: "Lounge",
       startedAt: new Date("2026-01-01T00:00:00Z"),
     };
     const transport = vi
@@ -259,6 +260,7 @@ describe("server play API delivery", () => {
           medium: "digital",
           played_at: "2026-01-01T00:00:00.000Z",
           context_type: "player",
+          output_name: "Lounge",
           track_refs: [{ track_id: "track", friend_id: 3 }],
         }),
       }),

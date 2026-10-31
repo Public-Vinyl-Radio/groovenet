@@ -36,6 +36,7 @@ export const spinSessionSchema = z.object({
   medium: spinMediumSchema.meta({
     description: "`digital` for plays logged by local and server players",
   }),
+  output_name: z.string().nullable().optional(),
   selection_mode: spinSelectionModeSchema,
   played_at: dateTime(),
   note: z.string().nullable().optional(),
@@ -241,6 +242,7 @@ export const spinCreateObjectSchema = z.object({
   release_id: z.string().min(1),
   played_at: z.string().min(1).meta({ format: "date-time" }),
   medium: spinMediumSchema.optional().meta({ description: "Defaults to `vinyl`" }),
+  output_name: z.string().trim().min(1).max(255).nullable().optional(),
   note: z.string().nullable().optional(),
   context_type: z.string().nullable().optional(),
   side_keys: z.array(z.string().min(1)).optional(),
@@ -251,6 +253,13 @@ type SpinCreateFields = z.infer<typeof spinCreateObjectSchema>;
 
 /** Exactly one non-empty selection; a single JSON Schema cannot say so. */
 export function refineSpinCreate(value: SpinCreateFields, ctx: z.RefinementCtx): void {
+  if (value.medium !== "digital" && value.output_name != null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["output_name"],
+      message: "Output is only supported for digital spins",
+    });
+  }
   const hasSides = Array.isArray(value.side_keys) && value.side_keys.length > 0;
   const hasTracks = Array.isArray(value.track_refs) && value.track_refs.length > 0;
 

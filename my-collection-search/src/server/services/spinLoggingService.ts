@@ -31,6 +31,7 @@ export type CreateSpinSessionInput = {
   friend_id: number;
   release_id: string;
   medium?: SpinMedium;
+  output_name?: string | null;
   played_at: string | Date;
   note?: string | null;
   context_type?: string | null;
@@ -220,6 +221,7 @@ export class SpinLoggingService {
           friend_id: input.friend_id,
           release_id: input.release_id,
           medium: input.medium,
+          output_name: input.medium === "digital" ? (input.output_name ?? null) : null,
           selection_mode: input.provenance === "automatic" ? "automatic" : selectionMode,
           played_at: input.played_at,
           note: input.note ?? null,

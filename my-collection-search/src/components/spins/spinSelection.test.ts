@@ -130,7 +130,23 @@ describe("describeSpinLogging", () => {
     expect(describeSpinLogging(firstPlay({ provenance: "playlist" })).loggedBy).toBe("Playlist");
   });
 
-  it("credits a digital play to the player, with no note yet", () => {
+  it("describes a named player output without inferring its backend", () => {
+    expect(
+      describeSpinLogging(
+        firstPlay({ medium: "digital", context_type: "player", output_name: "Lounge" }),
+      ).note,
+    ).toBe("Logged when the player played it on Lounge.");
+    expect(
+      describeSpinLogging(
+        firstPlay({ medium: "digital", context_type: "player", output_name: null }),
+      ).note,
+    ).toBeNull();
+    expect(
+      describeSpinLogging(firstPlay({ medium: "digital", output_name: "Lounge" })).note,
+    ).toBeNull();
+  });
+
+  it("credits a digital play to the player without an output", () => {
     expect(describeSpinLogging(firstPlay({ medium: "digital" }))).toEqual({
       source: "Digital",
       loggedBy: "Player",

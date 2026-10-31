@@ -24,6 +24,7 @@ export interface ServerPlay {
   friendId: number;
   releaseId: string;
   startedAt: Date;
+  outputName: string | null;
 }
 export interface PlayerStore {
   list(): Promise<ServerPlayer[]>;
@@ -164,15 +165,23 @@ export class PostgresPlayerStore implements PlayerStore {
 
   async queuePlay(play: ServerPlay): Promise<void> {
     await this.pool.query(
-      `INSERT INTO server_player_plays (entry_id, player_id, track_id, friend_id, release_id, started_at)
-      VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (entry_id) DO NOTHING`,
-      [play.entryId, play.playerId, play.trackId, play.friendId, play.releaseId, play.startedAt],
+      `INSERT INTO server_player_plays (entry_id, player_id, track_id, friend_id, release_id, started_at, output_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (entry_id) DO NOTHING`,
+      [
+        play.entryId,
+        play.playerId,
+        play.trackId,
+        play.friendId,
+        play.releaseId,
+        play.startedAt,
+        play.outputName,
+      ],
     );
   }
 
   async pendingPlays(): Promise<ServerPlay[]> {
     const result = await this.pool
-      .query(`SELECT entry_id, player_id, track_id, friend_id, release_id, started_at
+      .query(`SELECT entry_id, player_id, track_id, friend_id, release_id, started_at, output_name
       FROM server_player_plays WHERE logged_at IS NULL ORDER BY started_at`);
     return result.rows.map((row) => ({
       entryId: row.entry_id,
@@ -181,6 +190,7 @@ export class PostgresPlayerStore implements PlayerStore {
       friendId: row.friend_id,
       releaseId: row.release_id,
       startedAt: new Date(row.started_at),
+      outputName: row.output_name,
     }));
   }
 

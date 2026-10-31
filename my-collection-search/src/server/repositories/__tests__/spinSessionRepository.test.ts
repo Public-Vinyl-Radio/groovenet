@@ -8,6 +8,24 @@ describe("SpinSessionRepository automatic sessions", () => {
   const repo = new SpinSessionRepository();
   beforeEach(() => vi.resetAllMocks());
 
+  it.each([null, "Lounge"])("persists a digital output %s and returns it", async (output_name) => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 1, output_name }] });
+    const row = await repo.createSession(
+      { query },
+      {
+        friend_id: 1,
+        release_id: "rel",
+        medium: "digital",
+        output_name,
+        selection_mode: "tracks",
+        played_at: "2026-01-01",
+      },
+    );
+    expect(query.mock.calls[0][0]).toContain("playlist_position, output_name");
+    expect(query.mock.calls[0][1][15]).toBe(output_name);
+    expect(row.output_name).toBe(output_name);
+  });
+
   it("persists automatic provenance with its idempotency key", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: 1 }] });
     await repo.createSession(
@@ -34,6 +52,7 @@ describe("SpinSessionRepository automatic sessions", () => {
       { friend_id: 1, release_id: "rel", selection_mode: "tracks", played_at: "2026-01-01" },
     );
     expect(query.mock.calls[0][1].slice(7, 11)).toEqual(["manual", null, null, null]);
+    expect(query.mock.calls[0][1][15]).toBeNull();
   });
 
   it("creates playlist sessions and treats conflicts as idempotent skips", async () => {
