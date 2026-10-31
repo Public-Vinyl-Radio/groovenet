@@ -6,6 +6,7 @@ import {
   spinListQuerySchema,
   spinListResponseSchema,
   spinRecapResponseSchema,
+  spinTrackStatsResponseSchema,
   spinTopTracksQuerySchema,
   spinTopTracksResponseSchema,
   spinUpdateBodySchema,
@@ -24,6 +25,8 @@ export type SpinUpdateParams = z.infer<typeof spinUpdateBodySchema>;
 export type SpinUpdateResponse = z.infer<typeof spinUpdateResponseSchema>;
 export type SpinRecapParams = { friend_id: number; month: string };
 export type SpinRecapResponse = z.infer<typeof spinRecapResponseSchema>;
+export type SpinTrackStatsParams = { friend_id: number; track_id: string };
+export type SpinTrackStatsResponse = z.infer<typeof spinTrackStatsResponseSchema>;
 
 export async function listSpins(params: SpinListParams): Promise<SpinListResponse> {
   const searchParams = new URLSearchParams();
@@ -73,6 +76,20 @@ export async function getSpinRecap(params: SpinRecapParams): Promise<SpinRecapRe
     month: params.month,
   });
   return await http<SpinRecapResponse>(`/api/spins/recap?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+}
+
+/** How often one track has been spun, across both media. */
+export async function getSpinTrackStats(
+  params: SpinTrackStatsParams,
+): Promise<SpinTrackStatsResponse> {
+  const searchParams = new URLSearchParams({
+    friend_id: String(params.friend_id),
+    track_id: params.track_id,
+  });
+  return await http<SpinTrackStatsResponse>(`/api/spins/track-stats?${searchParams.toString()}`, {
     method: "GET",
     cache: "no-store",
   });

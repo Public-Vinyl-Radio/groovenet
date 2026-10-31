@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import SpinRecordGroup from "./SpinRecordGroup";
+import type { SpinRowSelection } from "./SpinTrackRow";
 import { formatTimeRange, type ListeningSession } from "./spinSummary";
 import { countLabel, mediumLabel } from "./listeningLogParts";
 
@@ -17,7 +18,11 @@ export function listeningSessionMeta(session: ListeningSession): string {
 }
 
 /** A listening session: spins at most 20 minutes apart, as one outlined block. */
-export default function ListeningSessionCard({ session }: { session: ListeningSession }) {
+export default function ListeningSessionCard({
+  session,
+  selectedKey,
+  onSelect,
+}: SpinRowSelection & { session: ListeningSession }) {
   const timeZone = useDisplayTimeZone();
   const range = formatTimeRange(session.start, session.end, timeZone);
 
@@ -49,7 +54,7 @@ export default function ListeningSessionCard({ session }: { session: ListeningSe
             key={group.key}
             _notFirst={{ borderTopWidth: "rule", borderColor: "border" }}
           >
-            <SpinRecordGroup group={group} />
+            <SpinRecordGroup group={group} selectedKey={selectedKey} onSelect={onSelect} />
           </Box>
         ))}
       </Box>

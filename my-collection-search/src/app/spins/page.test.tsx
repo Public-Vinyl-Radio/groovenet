@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, screen, within } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { DisplayTimeZoneProvider } from "@/providers/DisplayTimeZoneProvider";
 import type { SpinListItem } from "@/components/spins/spinSummary";
 import type { SpinRecapResponse } from "@/services/internalApi/spins";
@@ -34,6 +34,7 @@ const hooks = vi.hoisted(() => ({
   recap: { recap: null as SpinRecapResponse | null },
   useSpinsInfiniteQuery: vi.fn(),
   useSpinRecapQuery: vi.fn(),
+  deleteSpin: vi.fn(),
 }));
 vi.mock("@/hooks/useSpinsQuery", () => ({
   useSpinsInfiniteQuery: (...args: unknown[]) => {
@@ -44,8 +45,11 @@ vi.mock("@/hooks/useSpinsQuery", () => ({
     hooks.useSpinRecapQuery(...args);
     return hooks.recap;
   },
-  useSpinMutations: () => ({ deleteSpin: vi.fn(), deleteSpinPending: false }),
+  useSpinMutations: () => ({ deleteSpin: hooks.deleteSpin, deleteSpinPending: false }),
+  useSpinTrackStatsQuery: () => ({ stats: { play_count: 2, last_played_at: null } }),
 }));
+vi.mock("@/hooks/useAlbumsQuery", () => ({ useAlbumDetailQuery: () => ({}) }));
+vi.mock("@/hooks/useAlbum", () => ({ useAlbum: () => ({ library_identifier: "LP-9" }) }));
 
 const observer = vi.hoisted(() => ({
   callback: null as IntersectionObserverCallback | null,
@@ -83,6 +87,8 @@ beforeEach(() => {
   hooks.recap = { recap: null };
   hooks.useSpinsInfiniteQuery.mockReset();
   hooks.useSpinRecapQuery.mockReset();
+  hooks.deleteSpin.mockReset().mockResolvedValue(undefined);
+  setViewportWidth(1280);
 });
 
 afterEach(() => {
@@ -356,5 +362,81 @@ describe("SpinsPage log", () => {
   it("leaves room for the spin detail", () => {
     renderInLosAngeles();
     expect(screen.getByText("Pick a spin to see how it was logged.", { exact: true })).toBeTruthy();
+  });
+});
+
+const detailPanel = () => document.querySelector('aside[aria-label="Spin detail"]') as HTMLElement;
+
+describe("SpinsPage spin detail", () => {
+  // 02:00 UTC on Oct 31 is 7 PM on Oct 30 in Los Angeles.
+  const logged = () => {
+    const item = spin("2026-10-31T02:00:00Z", { tracks: ["A1", "A2", "A3"] });
+    hooks.list.spins = [item];
+    return item.session.id;
+  };
+
+  it("selects a pressed row, keeping it in the URL", async () => {
+    const id = logged();
+    nav.search = "month=2026-10";
+    const { user: ui } = renderInLosAngeles();
+    await ui.click(screen.getByRole("button", { name: /Record r1/ }));
+    await ui.click(screen.getByRole("button", { name: /A2 · Song A2/ }));
+    expect(nav.replace).toHaveBeenLastCalledWith(`/spins?month=2026-10&spin=${id}%3A1`, {
+      scroll: false,
+    });
+  });
+
+  it("reopens the selection from the URL in the desktop panel", async () => {
+    const id = logged();
+    nav.search = `spin=${id}:1`;
+    const { user: ui } = renderInLosAngeles();
+
+    const panel = detailPanel();
+    expect(within(panel).getByText("LP-9 · SIDE A2")).toBeTruthy();
+    expect(within(panel).getByText(/^Spin 2 of 3/)).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // The record group opens to show the selected row.
+    const row = screen.getByRole("button", { name: /A2 · Song A2/ });
+    expect(row.getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("button", { name: /A1 · Song A1/ }).getAttribute("aria-current")).toBe(
+      null,
+    );
+
+    await ui.click(within(panel).getByRole("button", { name: /AFTER/, hidden: true }));
+    expect(nav.replace).toHaveBeenLastCalledWith(`/spins?spin=${id}%3A2`, { scroll: false });
+    await ui.click(within(panel).getByRole("button", { name: "Close spin detail", hidden: true }));
+    expect(nav.replace).toHaveBeenLastCalledWith("/spins", { scroll: false });
+  });
+
+  it("falls back to the empty state for an unknown key", () => {
+    logged();
+    nav.search = "spin=404:0";
+    renderInLosAngeles();
+    expect(screen.getByText("Pick a spin to see how it was logged.")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens a modal below xl instead of the panel", async () => {
+    const id = logged();
+    setViewportWidth(390);
+    nav.search = `spin=${id}:1`;
+    const { user: ui } = renderInLosAngeles();
+    const dialog = await screen.findByRole("dialog", { name: "Song A2" });
+    expect(screen.getByText("Pick a spin to see how it was logged.")).toBeTruthy();
+
+    await ui.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(nav.replace).toHaveBeenLastCalledWith("/spins", { scroll: false });
+  });
+
+  it("clears the selection once the spin is deleted", async () => {
+    const id = logged();
+    nav.search = `spin=${id}:1`;
+    const { user: ui } = renderInLosAngeles();
+    const panel = detailPanel();
+    await ui.click(within(panel).getByRole("button", { name: "DELETE SPIN", hidden: true }));
+    const confirm = await screen.findByRole("alertdialog");
+    await ui.click(within(confirm).getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(nav.replace).toHaveBeenLastCalledWith("/spins", { scroll: false }));
+    expect(hooks.deleteSpin).toHaveBeenCalledWith(id);
   });
 });

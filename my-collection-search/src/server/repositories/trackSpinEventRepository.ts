@@ -46,6 +46,11 @@ export type TopTrackSpinEventRow = {
   track_genres?: TrackGenre[];
 };
 
+export type TrackSpinStatsRow = {
+  play_count: number;
+  last_played_at: Date | string | null;
+};
+
 export type CreateTrackSpinEventInput = {
   friend_id: number;
   release_id: string;
@@ -140,6 +145,19 @@ export class TrackSpinEventRepository {
     );
 
     return rows;
+  }
+
+  /** One track's plays across both media, unlike `listTopTracks`. */
+  async getTrackStats(friendId: number, trackId: string): Promise<TrackSpinStatsRow> {
+    const { rows } = await dbQuery<TrackSpinStatsRow>(
+      `
+      SELECT COUNT(*)::int AS play_count, MAX(played_at) AS last_played_at
+      FROM track_spin_events
+      WHERE friend_id = $1 AND track_id = $2
+      `,
+      [friendId, trackId],
+    );
+    return rows[0];
   }
 
   async listTopTracks(filters: {

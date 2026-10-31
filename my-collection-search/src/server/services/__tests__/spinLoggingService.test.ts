@@ -19,6 +19,7 @@ const {
   deleteSelectionsMock,
   deleteEventsBySessionIdMock,
   setPlayedAtForSessionMock,
+  getTrackStatsMock,
 } = vi.hoisted(() => ({
   withDbTransactionMock: vi.fn(),
   getAlbumByReleaseAndFriendMock: vi.fn(),
@@ -37,6 +38,7 @@ const {
   deleteSelectionsMock: vi.fn(),
   deleteEventsBySessionIdMock: vi.fn(),
   setPlayedAtForSessionMock: vi.fn(),
+  getTrackStatsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/serverDb", () => ({
@@ -73,6 +75,7 @@ vi.mock("@/server/repositories/trackSpinEventRepository", () => ({
     listEventsBySessionIds: listEventsBySessionIdsMock,
     deleteEventsBySessionId: deleteEventsBySessionIdMock,
     setPlayedAtForSession: setPlayedAtForSessionMock,
+    getTrackStats: getTrackStatsMock,
   },
 }));
 
@@ -714,5 +717,29 @@ describe("SpinLoggingService.updateSpinSession", () => {
       "Invalid side key: Z",
     );
     expect(deleteEventsBySessionIdMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("SpinLoggingService.getTrackStats", () => {
+  const service = new SpinLoggingService();
+
+  it("returns the count with the last play as an ISO string", async () => {
+    getTrackStatsMock.mockResolvedValueOnce({
+      play_count: 2,
+      last_played_at: new Date("2026-10-27T19:38:00.000Z"),
+    });
+    expect(await service.getTrackStats({ friend_id: 1, track_id: "t1" })).toEqual({
+      play_count: 2,
+      last_played_at: "2026-10-27T19:38:00.000Z",
+    });
+    expect(getTrackStatsMock).toHaveBeenCalledWith(1, "t1");
+  });
+
+  it("returns a null last play for a track never spun", async () => {
+    getTrackStatsMock.mockResolvedValueOnce({ play_count: 0, last_played_at: null });
+    expect(await service.getTrackStats({ friend_id: 1, track_id: "t1" })).toEqual({
+      play_count: 0,
+      last_played_at: null,
+    });
   });
 });

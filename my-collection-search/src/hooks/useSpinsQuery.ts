@@ -7,6 +7,7 @@ import {
   createSpin,
   deleteSpin,
   getSpinRecap,
+  getSpinTrackStats,
   listSpins,
   listTopSpinTracks,
   type SpinCreateParams,
@@ -15,6 +16,8 @@ import {
   type SpinListResponse,
   type SpinRecapParams,
   type SpinRecapResponse,
+  type SpinTrackStatsParams,
+  type SpinTrackStatsResponse,
   type SpinTopTracksParams,
   type SpinTopTracksResponse,
   type SpinUpdateParams,
@@ -122,6 +125,26 @@ export function useSpinRecapQuery(params: SpinRecapParams, options?: UseSpinsOpt
   return {
     ...query,
     recap: query.data ?? null,
+  };
+}
+
+/** One track's play count and last play, across both media. */
+export function useSpinTrackStatsQuery(params: SpinTrackStatsParams, options?: UseSpinsOptions) {
+  const query = useQuery<SpinTrackStatsResponse, Error>({
+    queryKey: queryKeys.spinTrackStats({
+      friend_id: params.friend_id,
+      track_id: params.track_id,
+    }),
+    queryFn: () => getSpinTrackStats(params),
+    enabled: options?.enabled ?? true,
+    staleTime: options?.staleTime ?? 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    ...query,
+    stats: query.data ?? null,
   };
 }
 

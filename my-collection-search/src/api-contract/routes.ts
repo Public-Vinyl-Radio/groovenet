@@ -1,4 +1,9 @@
-import { spinRecapQuerySchema, spinRecapResponseSchema } from "./schemas";
+import {
+  spinRecapQuerySchema,
+  spinRecapResponseSchema,
+  spinTrackStatsQuerySchema,
+  spinTrackStatsResponseSchema,
+} from "./schemas";
 import { z } from "zod";
 import { playerContracts } from "./players";
 import { fontChoiceIdsFor, fontRoleIds } from "@/app/fontChoices";
@@ -7944,6 +7949,30 @@ export const apiContractRoutes: ApiContractRoute[] = [
         "200": {
           description: "Monthly recap",
           content: { "application/json": { schema: componentRef("SpinRecapResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getSpinTrackStats",
+    method: "get",
+    path: "/api/spins/track-stats",
+    summary: "How often one track has been spun, across vinyl and digital",
+    tags: ["Spins"],
+    querySchema: spinTrackStatsQuerySchema,
+    successSchema: spinTrackStatsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        { name: "track_id", in: "query", required: true, schema: { type: "string" } },
+      ],
+      responses: {
+        "200": {
+          description: "Play count and last play",
+          content: { "application/json": { schema: componentRef("SpinTrackStatsResponse") } },
         },
         "400": jsonError("Invalid query"),
         "500": jsonError("Server error"),

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const httpMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/http", () => ({ http: httpMock }));
 
-import { getSpinRecap, listSpins } from "./spins";
+import { getSpinRecap, getSpinTrackStats, listSpins } from "./spins";
 
 beforeEach(() => httpMock.mockReset().mockResolvedValue({ items: [] }));
 
@@ -47,6 +47,16 @@ describe("getSpinRecap", () => {
   it("asks for one friend's month", async () => {
     await getSpinRecap({ friend_id: 7, month: "2026-10" });
     expect(httpMock).toHaveBeenCalledWith("/api/spins/recap?friend_id=7&month=2026-10", {
+      method: "GET",
+      cache: "no-store",
+    });
+  });
+});
+
+describe("getSpinTrackStats", () => {
+  it("asks for one friend's track, encoding the ID", async () => {
+    await getSpinTrackStats({ friend_id: 7, track_id: "a b&c" });
+    expect(httpMock).toHaveBeenCalledWith("/api/spins/track-stats?friend_id=7&track_id=a+b%26c", {
       method: "GET",
       cache: "no-store",
     });

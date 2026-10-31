@@ -95,19 +95,44 @@ export default function SpinActionsMenu({ label, onEdit, onDelete, deleting }: P
         </Menu.Root>
       </Box>
 
-      <ConfirmDialog
+      <DeleteSpinConfirm
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Delete spin?"
-        body={
-          <>
-            <strong>{label}</strong> will be removed from your spin history and play counts.
-          </>
-        }
-        confirmLabel="Delete"
-        onConfirm={onDelete}
-        pending={deleting}
+        label={label}
+        onDelete={onDelete}
+        deleting={deleting}
       />
     </>
+  );
+}
+
+/** The prompt before a spin session is deleted. */
+export function DeleteSpinConfirm({
+  open,
+  onOpenChange,
+  label,
+  onDelete,
+  deleting,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  label: string;
+  onDelete: () => Promise<void>;
+  deleting: boolean;
+}) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Delete spin?"
+      body={
+        <>
+          <strong>{label}</strong> will be removed from your spin history and play counts.
+        </>
+      }
+      confirmLabel="Delete"
+      onConfirm={onDelete}
+      pending={deleting}
+    />
   );
 }

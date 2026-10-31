@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Flex, HStack, Stack, Text, chakra } from "@chakra-ui/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
-import SpinTrackRow from "./SpinTrackRow";
+import SpinTrackRow, { type SpinRowSelection } from "./SpinTrackRow";
 import {
   formatPositionRange,
   formatTimeRange,
@@ -12,7 +12,7 @@ import {
 } from "./spinSummary";
 import { countLabel, SpinArt, SpinMediumChip } from "./listeningLogParts";
 
-type Props = {
+type Props = SpinRowSelection & {
   group: SpinRecordGroupData;
   defaultExpanded?: boolean;
 };
@@ -33,12 +33,25 @@ export function recordGroupMeta(group: SpinRecordGroupData, timeZone: string): s
  * Consecutive spins from one record. A single spin is just its track row;
  * several collapse under the record, and the header expands them.
  */
-export default function SpinRecordGroup({ group, defaultExpanded = false }: Props) {
+export default function SpinRecordGroup({
+  group,
+  defaultExpanded = false,
+  selectedKey,
+  onSelect,
+}: Props) {
   const timeZone = useDisplayTimeZone();
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const holdsSelection = group.plays.some((play) => play.key === selectedKey);
+  const [expanded, setExpanded] = React.useState(defaultExpanded || holdsSelection);
   const listId = React.useId();
 
-  if (group.plays.length === 1) return <SpinTrackRow play={group.plays[0]} />;
+  // A selection that moves into the group (a link, or BEFORE / AFTER) opens it.
+  React.useEffect(() => {
+    if (holdsSelection) setExpanded(true);
+  }, [holdsSelection]);
+
+  if (group.plays.length === 1) {
+    return <SpinTrackRow play={group.plays[0]} selectedKey={selectedKey} onSelect={onSelect} />;
+  }
 
   const title = group.record ?? "Unknown record";
   const meta = recordGroupMeta(group, timeZone);
@@ -116,7 +129,7 @@ export default function SpinRecordGroup({ group, defaultExpanded = false }: Prop
         >
           {group.plays.map((play) => (
             <Box as="li" key={play.key}>
-              <SpinTrackRow play={play} compact />
+              <SpinTrackRow play={play} compact selectedKey={selectedKey} onSelect={onSelect} />
             </Box>
           ))}
         </Box>
