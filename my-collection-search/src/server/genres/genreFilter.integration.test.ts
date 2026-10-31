@@ -342,6 +342,36 @@ describe("genre filter (integration)", () => {
       }
     });
 
+    dbTest("a parent whose top rows are its own children still widens (#899)", async () => {
+      const { rows } = await dbQuery<{ id: string; name: string; slug: string }>(
+        "SELECT id, name, slug FROM genres WHERE name = ANY($1)",
+        [["Latin", "Salsa", "Cumbia", "Bossa Nova"]],
+      );
+      const byName = new Map(rows.map((r) => [r.name, r]));
+      const latin = byName.get("Latin")!;
+      const bossaNova = byName.get("Bossa Nova")!;
+      await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [latin.id]);
+      await dbQuery(
+        `INSERT INTO genre_similarity (genre_id, related_genre_id, score, signals)
+         SELECT $1, unnest($2::uuid[]), unnest($3::real[]), '{}'::jsonb`,
+        [
+          latin.id,
+          [byName.get("Salsa")!.id, byName.get("Cumbia")!.id, bossaNova.id],
+          [0.5, 0.5, 0.2],
+        ],
+      );
+      try {
+        // The two children outrank Bossa Nova; with a limit of 1 the old
+        // query fetched only a child and added nothing.
+        const widened = await searchTracks("genre=latin&include_similar=1&similar_limit=1");
+        expect(widened.body.added_genres).toEqual([
+          { id: bossaNova.id, name: "Bossa Nova", slug: bossaNova.slug },
+        ]);
+      } finally {
+        await dbQuery("DELETE FROM genre_similarity WHERE genre_id = $1", [latin.id]);
+      }
+    });
+
     dbTest(
       "never falls back to taxonomy siblings when the table has no rows for the seed",
       async () => {

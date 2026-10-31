@@ -219,6 +219,19 @@ describe("chakra theme", () => {
       });
     });
 
+    it("marks a switch's state by fill, knob and check mark, with a ring and a disabled hatch", () => {
+      const solid = (system._config.theme?.slotRecipes as any).switch.variants.variant.solid;
+      expect(solid.control).toMatchObject({
+        focusVisibleRing: "outside",
+        _checked: { bg: "accent.solid" },
+      });
+      expect(solid.control._disabled.bgImage).toContain("repeating-linear-gradient");
+      expect(solid.control._checked._disabled.bgImage).toBe(solid.control._disabled.bgImage);
+      expect(solid.thumb.bg).toBe("transparent");
+      expect(solid.thumb._checked).toMatchObject({ bg: "accent.contrast" });
+      expect(solid.thumb._checked._after.content).toBe('""');
+    });
+
     it("declares a global focus ring offset from the border", () => {
       const css = system._config.globalCss as unknown as Record<string, Record<string, string>>;
       expect(css[":focus-visible"]).toMatchObject({ outlineOffset: "2px" });

@@ -114,12 +114,22 @@ export class GenreSimilarityRepository {
     return { pairs: pairs.rows, taxonomy: taxonomy.rows };
   }
 
-  /** A genre's stored related genres, best first; empty when the table has no rows for it. */
-  async topForGenre(genreId: string, limit: number): Promise<GenreSimilarityRow[]> {
+  /**
+   * A genre's stored related genres, best first; empty when the table has no
+   * rows for it. `excludeIds` are left out before the limit, so a parent whose
+   * top rows are its own children still gets `limit` genres outside them (#899).
+   */
+  async topForGenre(
+    genreId: string,
+    limit: number,
+    excludeIds: string[] = [],
+  ): Promise<GenreSimilarityRow[]> {
     const { rows } = await dbQuery<GenreSimilarityRow>(
       `SELECT related_genre_id::text AS related_genre_id, score, signals
-       FROM genre_similarity WHERE genre_id = $1::uuid ORDER BY score DESC LIMIT $2`,
-      [genreId, limit],
+       FROM genre_similarity
+       WHERE genre_id = $1::uuid AND related_genre_id <> ALL($3::uuid[])
+       ORDER BY score DESC LIMIT $2`,
+      [genreId, limit, excludeIds],
     );
     return rows;
   }

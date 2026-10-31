@@ -504,7 +504,11 @@ const SearchResults: React.FC = () => {
           <FilterChips
             chips={[
               ...genreFilterChips(genres, taxonomy, genreCounts),
-              ...includeSimilarChips(includeSimilar, genres),
+              ...includeSimilarChips(
+                includeSimilar,
+                genres,
+                initialLoading ? undefined : addedGenres,
+              ),
               ...addedGenreChips(addedGenres),
               ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
                 ({ key, chipLabel }) => ({ key, label: chipLabel, active: true }),

@@ -63,11 +63,20 @@ export function similarGenreIdFromChipKey(key: string): string | null {
 /** The chip key for "Include similar" itself, so the chip row can turn it off. */
 export const INCLUDE_SIMILAR_CHIP_KEY = "include-similar";
 
-/** "+ Similar genres" as its own chip while the toggle is on and a genre is chosen (#794). */
-export function includeSimilarChips(includeSimilar: boolean, selected: string[]): FilterChip[] {
-  return includeSimilar && selected.length > 0
-    ? [{ key: INCLUDE_SIMILAR_CHIP_KEY, label: "+ Similar genres", active: true }]
-    : [];
+/**
+ * "+ Similar genres" as its own chip while the toggle is on and a genre is
+ * chosen (#794). Once the results say nothing was added (`added` is empty,
+ * not `undefined` while loading), it reads "No similar genres" instead, so an
+ * on toggle that changed nothing doesn't look like an active filter (#899).
+ */
+export function includeSimilarChips(
+  includeSimilar: boolean,
+  selected: string[],
+  added?: GenreFilterRef[],
+): FilterChip[] {
+  if (!includeSimilar || selected.length === 0) return [];
+  const label = added?.length === 0 ? "No similar genres" : "+ Similar genres";
+  return [{ key: INCLUDE_SIMILAR_CHIP_KEY, label, active: true }];
 }
 
 /**

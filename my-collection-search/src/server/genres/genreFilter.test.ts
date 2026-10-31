@@ -74,7 +74,9 @@ describe("resolveGenreFilter", () => {
         similarLimit: 5,
       });
 
-      expect(genreSimilarityRepository.topForGenre).toHaveBeenCalledWith("id-cumbia", 5);
+      expect(genreSimilarityRepository.topForGenre).toHaveBeenCalledWith("id-cumbia", 5, [
+        "id-cumbia",
+      ]);
       expect(genreRepository.expandToFilter).toHaveBeenLastCalledWith([
         "id-cumbia",
         "id-porro",
@@ -127,6 +129,49 @@ describe("resolveGenreFilter", () => {
 
       expect(genreRepository.findRefsByIds).toHaveBeenCalledWith(["id-reggaeton"]);
       expect(result.added).toEqual([{ id: "id-reggaeton", name: "Reggaeton", slug: "reggaeton" }]);
+    });
+
+    it("asks for the top genres outside a parent's subtree and the exclusions (#899)", async () => {
+      // Rock's own top rows are its children; the query has to skip them
+      // before its LIMIT, or every fetched row is dropped and nothing is added.
+      genreRepository.findIdsBySlug.mockResolvedValue(new Map([["rock", "id-rock"]]));
+      genreRepository.expandToFilter
+        .mockResolvedValueOnce({
+          ids: ["id-rock", "id-surf", "id-garage"],
+          keys: ["rock", "surf", "garage rock"],
+        })
+        .mockResolvedValueOnce({
+          ids: ["id-rock", "id-surf", "id-garage", "id-blues"],
+          keys: ["rock", "surf", "garage rock", "blues"],
+        });
+      genreSimilarityRepository.topForGenre.mockImplementation(
+        async (_seed: string, limit: number, excludeIds: string[]) =>
+          [
+            { related_genre_id: "id-surf", score: 0.5, signals: {} },
+            { related_genre_id: "id-garage", score: 0.5, signals: {} },
+            { related_genre_id: "id-punk", score: 0.45, signals: {} },
+            { related_genre_id: "id-blues", score: 0.4, signals: {} },
+          ]
+            .filter((row) => !excludeIds.includes(row.related_genre_id))
+            .slice(0, limit),
+      );
+      genreRepository.findRefsByIds.mockResolvedValue([
+        { id: "id-blues", name: "Blues", slug: "blues" },
+      ]);
+
+      const result = await resolveGenreFilter(["rock"], {
+        includeSimilar: true,
+        similarLimit: 1,
+        excludeSimilarIds: ["id-punk"],
+      });
+
+      expect(genreSimilarityRepository.topForGenre).toHaveBeenCalledWith("id-rock", 1, [
+        "id-rock",
+        "id-surf",
+        "id-garage",
+        "id-punk",
+      ]);
+      expect(result.added).toEqual([{ id: "id-blues", name: "Blues", slug: "blues" }]);
     });
 
     it("keeps the best score for a related genre shared by three seeds", async () => {

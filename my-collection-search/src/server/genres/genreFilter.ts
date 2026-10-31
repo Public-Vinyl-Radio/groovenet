@@ -54,9 +54,12 @@ export async function resolveGenreFilter(
   const limit = options.similarLimit ?? DEFAULT_SIMILAR_LIMIT;
   const excluded = new Set(options.excludeSimilarIds ?? []);
   const alreadyCovered = new Set(baseFilter.ids);
+  // Excluded in the query, before its LIMIT: a parent's top rows are its own
+  // children, and filtering them out afterwards left nothing to add (#899).
+  const skipIds = [...new Set([...alreadyCovered, ...excluded])];
 
   const relatedBySeed = await Promise.all(
-    seeds.map((seed) => genreSimilarityRepository.topForGenre(seed, limit)),
+    seeds.map((seed) => genreSimilarityRepository.topForGenre(seed, limit, skipIds)),
   );
   const bestScore = new Map<string, number>();
   for (const related of relatedBySeed) {

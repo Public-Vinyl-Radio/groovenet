@@ -105,7 +105,8 @@ an invalid value the browser drops, so it fails silently.
 - **One accent:** `accent.solid` or `colorPalette="accent"` for the primary
   action, selection and playback progress. Toggles that are on (the filter
   modal's missing chips, LIST / GRID) are the exception: a solid ink fill
-  (`colorPalette="neutral"`). Never two solid
+  (`colorPalette="neutral"`). A `Switch` that is on is an accent fill with a
+  checked knob; off is an empty box with a small hollow knob (#899). Never two solid
   accent buttons side by side; `colorPalette="danger"` only for destructive
   actions. `colorPalette="neutral"` for inactive chips and plain badges.
   `overlay.*` tokens (`overlay.fg`, `.fg.muted`, `.track`, `.scrim`,
@@ -282,7 +283,8 @@ an invalid value the browser drops, so it fails silently.
   give the panel its own state. Changes apply as they're made; "Show N" only closes.
 - **Filter chips** (`FilterChips`): square, outlined, surface fill, an x, named
   "Remove filter …"; "Clear all" is an underlined text button. "+ Similar genres" is
-  its own chip while Include similar is on. Give a chip `count` where the data already
+  its own chip while Include similar is on; once the results say it added nothing,
+  the chip reads "No similar genres" instead (#899). Give a chip `count` where the data already
   has one (genre chips take the facet counts); the label becomes "Genre · 41". Don't
   add a count query for it.
 - **Type:** three user-selectable roles, each with a curated list in the

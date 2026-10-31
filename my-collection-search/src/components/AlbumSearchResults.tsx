@@ -18,7 +18,8 @@ export default function AlbumSearchResults({
 }: {
   friendId: number;
   /** Genres `include_similar` added (#485), reported up for the page to show as chips. */
-  onAddedGenresChange?: (genres: GenreFilterRef[]) => void;
+  /** `undefined` while the first page loads, so a chip can't claim "nothing added" too early. */
+  onAddedGenresChange?: (genres: GenreFilterRef[] | undefined) => void;
   /** "row" is the table list view; "card" the outlined cards (and every phone). */
   layout?: "row" | "card";
   /** Albums matching the search, once loaded; the filters modal shows it on its button. */
@@ -57,9 +58,9 @@ export default function AlbumSearchResults({
 
   const addedGenres = data?.pages[0]?.added_genres ?? [];
   useEffect(() => {
-    onAddedGenresChange?.(addedGenres);
+    onAddedGenresChange?.(isLoading ? undefined : addedGenres);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(addedGenres)]);
+  }, [isLoading, JSON.stringify(addedGenres)]);
 
   const totalHits = data?.pages[0]?.estimatedTotalHits || 0;
   useEffect(() => {

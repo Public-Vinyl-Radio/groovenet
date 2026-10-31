@@ -57,13 +57,15 @@ export function lexicalMatchClause(ref: string): string {
       )`;
 }
 
-/** `/api/tracks/search`'s query string, with `genre` read as the repeatable parameter it is. */
+/** `/api/tracks/search`'s query string, with `genre` and `similar_exclude` read as the repeatable parameters they are. */
 export function parseTrackSearchParams(searchParams: URLSearchParams) {
-  // Object.fromEntries would keep only the last `genre`.
+  // Object.fromEntries would keep only the last of each.
   const genres = searchParams.getAll("genre");
+  const similarExclude = searchParams.getAll("similar_exclude");
   return trackSearchGetQuerySchema.safeParse({
     ...Object.fromEntries(searchParams.entries()),
     ...(genres.length > 0 ? { genre: genres } : {}),
+    ...(similarExclude.length > 0 ? { similar_exclude: similarExclude } : {}),
   });
 }
 
