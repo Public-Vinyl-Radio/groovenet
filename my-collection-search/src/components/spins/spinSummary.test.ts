@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   describeProvenance,
   describeSpinAlbum,
+  formatPlayedAt,
   groupSpinsByDay,
   summarizeSpin,
   type SpinListItem,
@@ -218,45 +219,93 @@ describe("describeSpinAlbum", () => {
 });
 
 describe("groupSpinsByDay", () => {
-  // Local times, so the day boundaries hold in any timezone.
-  const at = (month: number, day: number, hour: number) =>
-    new Date(2026, month - 1, day, hour).toISOString();
+  const LA = "America/Los_Angeles";
   const playedAt = (iso: string) => {
     const item = spin({});
     return { ...item, session: { ...item.session, played_at: iso } };
   };
-  const now = new Date(2026, 8, 27, 13);
+  // 2026-09-27 13:00 PDT (UTC-7)
+  const now = new Date("2026-09-27T20:00:00Z");
 
-  it("groups consecutive spins by local day, labelling today and yesterday", () => {
+  it("groups consecutive spins by day, labelling today and yesterday", () => {
     const groups = groupSpinsByDay(
       [
-        playedAt(at(9, 27, 11)),
-        playedAt(at(9, 27, 9)),
-        playedAt(at(9, 26, 22)),
-        playedAt(at(9, 21, 20)),
+        playedAt("2026-09-27T18:00:00Z"),
+        playedAt("2026-09-27T16:00:00Z"),
+        playedAt("2026-09-27T05:00:00Z"),
+        playedAt("2026-09-22T03:00:00Z"),
       ],
+      LA,
       now,
     );
     expect(groups.map((g) => [g.label, g.items.length])).toEqual([
       ["Today", 2],
       ["Yesterday", 1],
+      ["Monday, Sep 21", 1],
+    ]);
+  });
+
+  it("puts a 06:30 UTC spin on the previous day in Los Angeles", () => {
+    const [group] = groupSpinsByDay([playedAt("2026-09-27T06:30:00Z")], LA, now);
+    expect(group.key).toBe("2026-9-26");
+    expect(group.label).toBe("Yesterday");
+    const [utc] = groupSpinsByDay([playedAt("2026-09-27T06:30:00Z")], "UTC", now);
+    expect(utc.label).toBe("Today");
+  });
+
+  it("flips Today/Yesterday at local midnight, not UTC midnight", () => {
+    const justAfter = new Date("2026-09-27T07:00:01Z"); // 00:00:01 PDT on the 27th
+    const justBefore = new Date("2026-09-27T06:59:59Z"); // 23:59:59 PDT on the 26th
+    const spins = [playedAt("2026-09-27T07:00:00Z"), playedAt("2026-09-27T06:59:59Z")];
+    expect(groupSpinsByDay(spins, LA, justAfter).map((g) => g.label)).toEqual([
+      "Today",
+      "Yesterday",
+    ]);
+    // One second earlier it is still the 26th, so the 06:59:59Z spin is "Today".
+    expect(groupSpinsByDay(spins.slice(1), LA, justBefore).map((g) => g.label)).toEqual(["Today"]);
+  });
+
+  it("finds Yesterday across month and year boundaries", () => {
+    const jan1 = new Date("2026-01-01T20:00:00Z");
+    const [group] = groupSpinsByDay([playedAt("2025-12-31T20:00:00Z")], LA, jan1);
+    expect(group.label).toBe("Yesterday");
+  });
+
+  it("keeps day labels right across a DST transition", () => {
+    // US clocks fell back at 2026-11-01 02:00 PDT; that local day is 25 hours long.
+    const afterFallBack = new Date("2026-11-02T20:00:00Z"); // Nov 2, 12:00 PST
+    const groups = groupSpinsByDay(
       [
-        new Date(2026, 8, 21).toLocaleDateString([], {
-          weekday: "long",
-          month: "short",
-          day: "numeric",
-        }),
-        1,
+        playedAt("2026-11-02T09:00:00Z"), // Nov 2, 01:00 PST
+        playedAt("2026-11-01T08:30:00Z"), // Nov 1, 01:30 PDT (first pass)
+        playedAt("2026-11-01T09:30:00Z"), // Nov 1, 01:30 PST (repeated hour)
+        playedAt("2026-11-01T06:59:00Z"), // Oct 31, 23:59 PDT
       ],
+      LA,
+      afterFallBack,
+    );
+    expect(groups.map((g) => [g.label, g.items.length])).toEqual([
+      ["Today", 1],
+      ["Yesterday", 2],
+      ["Saturday, Oct 31", 1],
     ]);
   });
 
   it("adds the year for spins from another year", () => {
-    const [group] = groupSpinsByDay([playedAt(new Date(2025, 11, 31, 22).toISOString())], now);
+    const [group] = groupSpinsByDay([playedAt("2025-12-31T22:00:00Z")], LA, now);
     expect(group.label).toContain("2025");
   });
 
   it("returns no groups for no spins", () => {
-    expect(groupSpinsByDay([], now)).toEqual([]);
+    expect(groupSpinsByDay([], LA, now)).toEqual([]);
+  });
+});
+
+describe("formatPlayedAt", () => {
+  it("formats in the configured zone", () => {
+    const iso = "2026-09-27T06:30:00Z";
+    expect(formatPlayedAt(iso, true, "America/Los_Angeles")).toMatch(/11:30\sPM/);
+    expect(formatPlayedAt(iso, false, "America/Los_Angeles")).toMatch(/Sep 26, 2026.*11:30\sPM/);
+    expect(formatPlayedAt(iso, true, "UTC")).toMatch(/6:30\sAM/);
   });
 });

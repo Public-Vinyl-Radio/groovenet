@@ -20,6 +20,8 @@ import {
   parseCustomPalette,
   resolveAppearancePalette,
 } from "./palettes/custom";
+import { DisplayTimeZoneProvider } from "@/providers/DisplayTimeZoneProvider";
+import { getDisplayTimeZone } from "@/server/config/timeZone";
 import { settingsService, type Appearance } from "@/server/services/settingsService";
 
 export const dynamic = "force-dynamic";
@@ -110,10 +112,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <AnalyticsInit config={getClientAnalyticsConfig()} />
         <EmotionRegistry>
-          <ClientProviders>
-            <Toaster />
-            <AppShell developerToolsEnabled={developerToolsEnabled()}>{children}</AppShell>
-          </ClientProviders>
+          <DisplayTimeZoneProvider timeZone={getDisplayTimeZone()}>
+            <ClientProviders>
+              <Toaster />
+              <AppShell developerToolsEnabled={developerToolsEnabled()}>{children}</AppShell>
+            </ClientProviders>
+          </DisplayTimeZoneProvider>
         </EmotionRegistry>
       </body>
     </html>

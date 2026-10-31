@@ -7,11 +7,13 @@ import { FiChevronDown, FiChevronUp, FiDisc } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useSpinMutations } from "@/hooks/useSpinsQuery";
+import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import SpinActionsMenu from "./SpinActionsMenu";
 import SpinFormDialog from "./SpinFormDialog";
 import {
   describeProvenance,
   describeSpinAlbum,
+  formatPlayedAt,
   formatTrackLine,
   summarizeSpin,
   type SpinListItem,
@@ -24,13 +26,6 @@ type Props = {
   /** Show only the time of day — for lists already grouped by day. */
   timeOnly?: boolean;
 };
-
-function formatPlayedAt(dateString: string, timeOnly: boolean): string {
-  const date = new Date(dateString);
-  return timeOnly
-    ? date.toLocaleTimeString([], { timeStyle: "short" })
-    : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-}
 
 function AlbumArt({ src, alt }: { src: string | null; alt: string }) {
   // Discogs art links expire; a broken one gets the same disc as a missing one.
@@ -64,6 +59,7 @@ function AlbumArt({ src, alt }: { src: string | null; alt: string }) {
 }
 
 export default function SpinRow({ item, showAlbum = false, timeOnly = false }: Props) {
+  const timeZone = useDisplayTimeZone();
   const [expanded, setExpanded] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   // Each row has its own mutations, so only the spin being deleted shows busy.
@@ -126,7 +122,7 @@ export default function SpinRow({ item, showAlbum = false, timeOnly = false }: P
             </Badge>
           )}
           <Text fontSize="xs" color="fg.muted">
-            {formatPlayedAt(item.session.played_at, timeOnly)}
+            {formatPlayedAt(item.session.played_at, timeOnly, timeZone)}
           </Text>
           {summary.hasMoreTracks && (
             <Button

@@ -22,6 +22,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import SpinRow from "@/components/spins/SpinRow";
 import { groupSpinsByDay } from "@/components/spins/spinSummary";
 import { useSpinsQuery, useSpinTopTracksQuery } from "@/hooks/useSpinsQuery";
+import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
 import type { Track } from "@/types/track";
 
@@ -70,6 +71,7 @@ function buildTopTrackFallback(track: {
 function SpinsPageContent() {
   const { friend: currentUserFriend, isHydrated } = useUsername();
   const selectedFriendId = currentUserFriend?.id ?? null;
+  const timeZone = useDisplayTimeZone();
 
   const spinsQuery = useSpinsQuery(
     { friend_id: selectedFriendId ?? 0, limit: 50, offset: 0 },
@@ -129,7 +131,7 @@ function SpinsPageContent() {
               </EmptyState.Root>
             ) : (
               <Stack gap={4}>
-                {groupSpinsByDay(spinsQuery.spins).map((day) => (
+                {groupSpinsByDay(spinsQuery.spins, timeZone).map((day) => (
                   <Box key={day.key}>
                     <Text fontSize="xs" fontWeight="semibold" color="fg.muted" mb={1.5}>
                       {day.label}
