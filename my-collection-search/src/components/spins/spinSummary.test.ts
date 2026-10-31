@@ -3,7 +3,13 @@ import {
   describeProvenance,
   describeSpinAlbum,
   formatPlayedAt,
+  formatPositionRange,
+  formatTimeRange,
+  groupListeningLog,
+  groupListeningSessions,
   groupSpinsByDay,
+  LISTENING_SESSION_GAP_MS,
+  spinPlays,
   summarizeSpin,
   type SpinListItem,
 } from "./spinSummary";
@@ -307,5 +313,244 @@ describe("formatPlayedAt", () => {
     expect(formatPlayedAt(iso, true, "America/Los_Angeles")).toMatch(/11:30\sPM/);
     expect(formatPlayedAt(iso, false, "America/Los_Angeles")).toMatch(/Sep 26, 2026.*11:30\sPM/);
     expect(formatPlayedAt(iso, true, "UTC")).toMatch(/6:30\sAM/);
+  });
+});
+
+// ── Listening log ───────────────────────────────────────────────────────────
+
+let logId = 0;
+
+/** A one-record spin session, its tracks played `minutes` apart from `start`. */
+function logged(
+  start: string,
+  options: {
+    release?: string;
+    medium?: "vinyl" | "digital";
+    tracks?: string[];
+    minutes?: number;
+    album?: { title: string | null; artist: string | null; thumbnail: string | null } | null;
+  } = {},
+): SpinListItem {
+  const id = ++logId;
+  const release = options.release ?? "r1";
+  const step = (options.minutes ?? 4) * 60_000;
+  const events = (options.tracks ?? ["A1"]).map((position, ordinal) => ({
+    friend_id: 1,
+    release_id: release,
+    track_id: `${release}-${position}`,
+    played_at: new Date(Date.parse(start) + ordinal * step).toISOString(),
+    ordinal,
+    side_key: position[0],
+    position_snapshot: position,
+    title_snapshot: `Track ${position}`,
+    artist_snapshot: `Artist ${release}`,
+    album_snapshot: `Album ${release}`,
+  }));
+  const item = spin({ events });
+  return {
+    ...item,
+    session: {
+      ...item.session,
+      id,
+      release_id: release,
+      medium: options.medium ?? "vinyl",
+      played_at: start,
+    },
+    ...(options.album !== undefined ? { album: options.album } : {}),
+  };
+}
+
+const at = (time: string) => `2026-10-27T${time}:00.000Z`;
+
+describe("spinPlays", () => {
+  it("gives one play per track event, newest first, from the event snapshots", () => {
+    const plays = spinPlays(logged(at("19:00"), { tracks: ["A1", "A2", "A3"] }));
+    expect(plays.map((p) => p.position)).toEqual(["A3", "A2", "A1"]);
+    expect(plays[0]).toMatchObject({
+      title: "Track A3",
+      artist: "Artist r1",
+      record: "Album r1",
+      medium: "vinyl",
+      thumbnail: null,
+    });
+  });
+
+  it("prefers the album row and orders same-time tracks by ordinal", () => {
+    const item = logged(at("19:00"), {
+      tracks: ["B1", "B2"],
+      minutes: 0,
+      album: { title: "Garra", artist: "Marcos Valle", thumbnail: "art.jpg" },
+    });
+    const plays = spinPlays(item);
+    expect(plays.map((p) => p.position)).toEqual(["B2", "B1"]);
+    expect(plays[0]).toMatchObject({
+      record: "Garra",
+      artist: "Marcos Valle",
+      thumbnail: "art.jpg",
+    });
+  });
+
+  it("falls back to the session summary when it has no track events", () => {
+    const item = { ...logged(at("19:00")), track_events: [] };
+    expect(spinPlays(item)).toEqual([
+      expect.objectContaining({
+        key: String(item.session.id),
+        position: null,
+        title: "No tracks recorded",
+        playedAt: at("19:00"),
+        record: null,
+      }),
+    ]);
+  });
+
+  it("names an untitled event", () => {
+    const item = logged(at("19:00"));
+    item.track_events[0].title_snapshot = "";
+    item.track_events[0].position_snapshot = undefined;
+    item.track_events[0].artist_snapshot = undefined;
+    item.track_events[0].album_snapshot = undefined;
+    expect(spinPlays(item)[0]).toMatchObject({
+      title: "Unknown track",
+      position: null,
+      artist: null,
+      record: null,
+    });
+  });
+});
+
+describe("groupListeningSessions", () => {
+  it("uses a 20 minute gap", () => {
+    expect(LISTENING_SESSION_GAP_MS).toBe(20 * 60_000);
+  });
+
+  it("keeps plays exactly 20 minutes apart together and splits at 21", () => {
+    const together = groupListeningSessions([
+      logged(at("19:20"), { release: "r2" }),
+      logged(at("19:00")),
+    ]);
+    expect(together).toHaveLength(1);
+
+    const apart = groupListeningSessions([
+      logged(at("19:21"), { release: "r2" }),
+      logged(at("19:00")),
+    ]);
+    expect(apart.map((s) => [s.start, s.end])).toEqual([
+      [at("19:21"), at("19:21")],
+      [at("19:00"), at("19:00")],
+    ]);
+  });
+
+  it("measures the gap from the last track, not the session start", () => {
+    // A 3-track side starting at 19:00 ends at 19:08; 19:25 is 17 minutes later.
+    const sessions = groupListeningSessions([
+      logged(at("19:25"), { release: "r2" }),
+      logged(at("19:00"), { tracks: ["A1", "A2", "A3"] }),
+    ]);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({ start: at("19:00"), end: at("19:25") });
+    expect(sessions[0].plays).toHaveLength(4);
+    expect(sessions[0].recordCount).toBe(2);
+  });
+
+  it("calls a session with both media mixed", () => {
+    const [mixed] = groupListeningSessions([
+      logged(at("19:10"), { release: "r2", medium: "digital" }),
+      logged(at("19:00")),
+    ]);
+    expect(mixed.medium).toBe("mixed");
+    const [digital] = groupListeningSessions([logged(at("19:00"), { medium: "digital" })]);
+    expect(digital.medium).toBe("digital");
+  });
+
+  it("collapses consecutive plays of one record and splits a run another record interrupts", () => {
+    const [session] = groupListeningSessions([
+      logged(at("19:30"), { tracks: ["A3"] }),
+      logged(at("19:20"), { release: "r2", tracks: ["B1"] }),
+      logged(at("19:00"), { tracks: ["A1", "A2"] }),
+    ]);
+    expect(session.records.map((g) => [g.releaseId, g.plays.map((p) => p.position)])).toEqual([
+      ["r1", ["A3"]],
+      ["r2", ["B1"]],
+      ["r1", ["A2", "A1"]],
+    ]);
+    expect(session.recordCount).toBe(2);
+  });
+
+  it("keeps the same record on two media apart", () => {
+    const [session] = groupListeningSessions([
+      logged(at("19:05"), { medium: "digital", tracks: ["A2"] }),
+      logged(at("19:00"), { tracks: ["A1"] }),
+    ]);
+    expect(session.records).toHaveLength(2);
+  });
+
+  it("returns nothing for no spins", () => {
+    expect(groupListeningSessions([])).toEqual([]);
+  });
+});
+
+describe("groupListeningLog", () => {
+  const now = new Date("2026-10-28T20:00:00Z");
+
+  it("buckets days in Los Angeles from UTC timestamps", () => {
+    // 02:00 UTC on Oct 28 is 7 PM on Oct 27 in Los Angeles.
+    const days = groupListeningLog(
+      [logged("2026-10-28T02:00:00Z"), logged("2026-10-26T18:00:00Z", { release: "r2" })],
+      "America/Los_Angeles",
+      now,
+    );
+    expect(days.map((d) => [d.label, d.date])).toEqual([
+      ["Yesterday", "TUE OCT 27"],
+      ["Monday", "MON OCT 26"],
+    ]);
+    expect(groupListeningLog([logged("2026-10-28T02:00:00Z")], "UTC", now)[0].label).toBe("Today");
+  });
+
+  it("files a session across midnight under the day it started", () => {
+    // 23:50 and 00:05 the next day in Los Angeles, 15 minutes apart.
+    const days = groupListeningLog(
+      [logged("2026-10-27T07:05:00Z", { release: "r2" }), logged("2026-10-27T06:50:00Z")],
+      "America/Los_Angeles",
+      now,
+    );
+    expect(days).toHaveLength(1);
+    expect(days[0]).toMatchObject({ date: "MON OCT 26", spinCount: 2, recordCount: 2 });
+    expect(days[0].sessions).toHaveLength(1);
+  });
+
+  it("counts a day's spins and distinct records across sessions", () => {
+    const [day] = groupListeningLog(
+      [
+        logged(at("21:00")),
+        logged(at("19:00"), { tracks: ["A1", "A2"] }),
+        logged(at("18:00"), { release: "r2" }),
+      ],
+      "UTC",
+      now,
+    );
+    expect(day.sessions).toHaveLength(3);
+    expect(day.spinCount).toBe(4);
+    expect(day.recordCount).toBe(2);
+  });
+
+  it("adds the year to a day from another year", () => {
+    const [day] = groupListeningLog([logged("2025-12-31T12:00:00Z")], "UTC", now);
+    expect(day).toMatchObject({ label: "Wednesday", date: "WED DEC 31 2025" });
+  });
+});
+
+describe("time and position ranges", () => {
+  it("formats a range in the configured zone, or one time", () => {
+    expect(formatTimeRange(at("02:16"), at("02:38"), "America/Los_Angeles")).toMatch(
+      /^7:16\sPM–7:38\sPM$/,
+    );
+    expect(formatTimeRange(at("19:00"), at("19:00"), "UTC")).toMatch(/^7:00\sPM$/);
+  });
+
+  it("spans the first and last known positions", () => {
+    const plays = spinPlays(logged(at("19:00"), { tracks: ["A1", "A2", "A3"] }));
+    expect(formatPositionRange(plays)).toBe("A1–A3");
+    expect(formatPositionRange(plays.slice(0, 1))).toBe("A3");
+    expect(formatPositionRange([{ ...plays[0], position: null }])).toBeNull();
   });
 });

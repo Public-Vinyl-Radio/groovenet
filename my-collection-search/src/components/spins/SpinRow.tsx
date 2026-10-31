@@ -4,12 +4,9 @@ import React from "react";
 import NextLink from "next/link";
 import { Badge, Box, Button, Flex, HStack, Image, Link, Stack, Text } from "@chakra-ui/react";
 import { FiChevronDown, FiChevronUp, FiDisc } from "react-icons/fi";
-import { toaster } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useSpinMutations } from "@/hooks/useSpinsQuery";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
-import SpinActionsMenu from "./SpinActionsMenu";
-import SpinFormDialog from "./SpinFormDialog";
+import SpinSessionActions from "./SpinSessionActions";
 import {
   describeProvenance,
   describeSpinAlbum,
@@ -61,27 +58,10 @@ function AlbumArt({ src, alt }: { src: string | null; alt: string }) {
 export default function SpinRow({ item, showAlbum = false, timeOnly = false }: Props) {
   const timeZone = useDisplayTimeZone();
   const [expanded, setExpanded] = React.useState(false);
-  const [editOpen, setEditOpen] = React.useState(false);
-  // Each row has its own mutations, so only the spin being deleted shows busy.
-  const { deleteSpin, deleteSpinPending } = useSpinMutations(item.session.friend_id);
   const summary = summarizeSpin(item);
   const provenance = describeProvenance(item);
   const album = showAlbum ? describeSpinAlbum(item) : null;
   const albumHref = `/albums/${encodeURIComponent(item.session.release_id)}?friend_id=${item.session.friend_id}`;
-
-  const handleDelete = async () => {
-    try {
-      await deleteSpin(item.session.id);
-      toaster.create({ title: "Spin deleted", type: "success" });
-    } catch (error) {
-      toaster.create({
-        title: "Failed to delete spin",
-        description: error instanceof Error ? error.message : "Unknown error",
-        type: "error",
-      });
-      throw error;
-    }
-  };
 
   return (
     <Flex
@@ -155,19 +135,7 @@ export default function SpinRow({ item, showAlbum = false, timeOnly = false }: P
           </Box>
         )}
       </Stack>
-      <SpinActionsMenu
-        label={summary.headline}
-        onEdit={() => setEditOpen(true)}
-        onDelete={handleDelete}
-        deleting={deleteSpinPending}
-      />
-      <SpinFormDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        releaseId={item.session.release_id}
-        friendId={item.session.friend_id}
-        spin={item}
-      />
+      <SpinSessionActions item={item} />
     </Flex>
   );
 }

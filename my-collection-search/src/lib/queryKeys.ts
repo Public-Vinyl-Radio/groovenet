@@ -50,6 +50,8 @@ export const queryKeys = {
     offset?: number;
   }) => ["spins", "top-tracks", args] as const,
   spinTopTracksRoot: () => ["spins", "top-tracks"] as const,
+  // Under the spins root, so a logged, edited or deleted spin refreshes it.
+  spinRecap: (args: { friend_id: number; month: string }) => ["spins", "recap", args] as const,
   // Record care (#262). One root, because any copy or action change can move
   // a care list or the summary counts.
   recordCareRoot: () => ["record-care"] as const,
