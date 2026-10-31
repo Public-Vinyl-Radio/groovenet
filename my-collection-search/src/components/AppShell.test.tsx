@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const pathname = vi.hoisted(() => ({ value: "/chore" }));
@@ -200,6 +200,49 @@ describe("AppShell", () => {
       await user.click(screen.getByRole("button", { name: /^More$/, hidden: true }));
       await user.click(await screen.findByText("Playback: This Mac"));
       expect(usePlaybackTargetDialog.getState().open).toBe(true);
+    });
+  });
+  describe("navigation current state", () => {
+    const sidebarLink = (name: string) => {
+      const sidebar = sidebarOf();
+      return [...sidebar.querySelectorAll("a")].find((a) => a.getAttribute("title") === name)!;
+    };
+    const isActive = (name: string) => /ink/.test(rulesFor(sidebarLink(name)));
+
+    it("lists Home first, ahead of Tracks at /tracks", () => {
+      renderWithProviders(<AppShell developerToolsEnabled={false}>page</AppShell>);
+      const links = [...sidebarOf().querySelectorAll("a")];
+      expect(links.slice(0, 2).map((a) => a.getAttribute("href"))).toEqual(["/", "/tracks"]);
+    });
+
+    it("marks Home active only on /", () => {
+      pathname.value = "/";
+      renderWithProviders(<AppShell developerToolsEnabled={false}>page</AppShell>);
+      expect(isActive("Home")).toBe(true);
+      expect(isActive("Tracks")).toBe(false);
+    });
+
+    it.each(["/tracks", "/tracks/123"])("marks Tracks active, not Home, at %s", (path) => {
+      pathname.value = path;
+      renderWithProviders(<AppShell developerToolsEnabled={false}>page</AppShell>);
+      expect(isActive("Tracks")).toBe(true);
+      expect(isActive("Home")).toBe(false);
+    });
+  });
+
+  describe("phone tab bar", () => {
+    it("shows Home, Tracks, Albums, Genres, Spins and More, with Playlists under More", async () => {
+      const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      const bar = screen.getByTestId("mobile-tab-bar");
+      const labels = [...bar.querySelectorAll("a, button")].map((el) => el.textContent);
+      expect(labels).toEqual(["Home", "Tracks", "Albums", "Genres", "Spins", "More"]);
+      expect(within(bar).queryByText("Playlists")).toBeNull();
+
+      await user.click(within(bar).getByRole("button", { name: /^More$/, hidden: true }));
+      // The sidebar has a Playlists link too; the sheet adds a second one.
+      await waitFor(() =>
+        expect(screen.getAllByRole("link", { name: /Playlists/, hidden: true })).toHaveLength(2),
+      );
     });
   });
 });

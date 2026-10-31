@@ -155,7 +155,7 @@ describe("TrackPage breadcrumbs", () => {
       screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href"),
     ).toBe("/albums/r9?friend_id=6");
     expect(screen.getByRole("link", { name: "Tracks", hidden: true }).getAttribute("href")).toBe(
-      "/",
+      "/tracks",
     );
   });
 
@@ -164,7 +164,7 @@ describe("TrackPage breadcrumbs", () => {
     renderWithProviders(<TrackPage />);
     expect(
       screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href"),
-    ).toBe("/");
+    ).toBe("/tracks");
     expect(screen.queryByRole("link", { name: "Blue Lines" })).toBeNull();
   });
 });

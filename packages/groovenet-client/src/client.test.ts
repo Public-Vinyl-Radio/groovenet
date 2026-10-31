@@ -675,6 +675,18 @@ describe("GroovenetClient spin endpoints", () => {
     });
   });
 
+  it("getHome requests the exact friend", async () => {
+    const result = { counts: {} };
+    const client = clientReturning(result);
+    expect(await client.getHome({ friend_id: 7 })).toEqual(result);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/home",
+      data: undefined,
+      params: { friend_id: 7 },
+    });
+  });
+
   it("getSpinRecap requests the exact friend and month", async () => {
     const result = { stats: {} };
     const client = clientReturning(result);

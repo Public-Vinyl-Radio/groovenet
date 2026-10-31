@@ -15,9 +15,9 @@ describe("Breadcrumbs", () => {
 
   it("links parents and leaves the last crumb as text", () => {
     renderWithProviders(
-      <Breadcrumbs crumbs={[{ label: "Tracks", href: "/" }, { label: "Song" }]} />,
+      <Breadcrumbs crumbs={[{ label: "Tracks", href: "/tracks" }, { label: "Song" }]} />,
     );
-    expect(screen.getByRole("link", { name: "Tracks" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "Tracks" }).getAttribute("href")).toBe("/tracks");
     expect(screen.getByText("Song").getAttribute("aria-current")).toBe("page");
     expect(screen.queryByRole("link", { name: "Song" })).toBeNull();
   });
@@ -26,7 +26,7 @@ describe("Breadcrumbs", () => {
     renderWithProviders(
       <Breadcrumbs
         crumbs={[
-          { label: "Tracks", href: "/" },
+          { label: "Tracks", href: "/tracks" },
           { label: "Blue Lines", href: "/albums/r1" },
           { label: "Unlinked" },
           { label: "Song" },

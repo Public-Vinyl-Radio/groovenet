@@ -211,6 +211,10 @@ Version source of truth is the root `package.json`, mirrored into
 
 ## Gotchas
 
+- **Never commit `openapi-generated.json`.** It is a local generated artifact.
+  Run `just generate-spec` to validate API changes, but keep the output ignored
+  and out of commits and PRs.
+
 - **Don't run `next dev` or `next build` on the host.** It corrupts the `.next`
   directory shared with the dev container.
 - **Storybook:** `just storybook` runs the separate component dev server (6006);

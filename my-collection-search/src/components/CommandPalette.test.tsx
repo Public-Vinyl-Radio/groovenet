@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push }),
-  usePathname: () => "/",
+  usePathname: () => "/tracks",
   useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
@@ -146,7 +146,7 @@ describe("CommandPalette (#472)", () => {
     await screen.findByText("Shoegaze");
 
     await user.click(screen.getByText("Search Tracks in Shoegaze"));
-    expect(mocks.push).toHaveBeenCalledWith("/?genre=shoegaze");
+    expect(mocks.push).toHaveBeenCalledWith("/tracks?genre=shoegaze");
     expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
       command: "search_genre_tracks",
     });
@@ -224,7 +224,7 @@ describe("CommandPalette (#472)", () => {
 
     const searchTracksEntry = await screen.findByText('Search tracks for "dusty cumbia"');
     await user.click(searchTracksEntry);
-    expect(mocks.push).toHaveBeenCalledWith("/?q=dusty+cumbia&mode=hybrid");
+    expect(mocks.push).toHaveBeenCalledWith("/tracks?q=dusty+cumbia&mode=hybrid");
     expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
       command: "search_tracks_query",
     });
@@ -236,7 +236,7 @@ describe("CommandPalette (#472)", () => {
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "dusty cumbia");
 
     await user.click(await screen.findByText('Search tracks for "dusty cumbia"'));
-    expect(mocks.push).toHaveBeenCalledWith("/?q=dusty+cumbia&mode=semantic");
+    expect(mocks.push).toHaveBeenCalledWith("/tracks?q=dusty+cumbia&mode=semantic");
   });
 
   it("sends the search-everywhere album link to the albums page", async () => {
@@ -332,5 +332,11 @@ describe("CommandPalette (#472)", () => {
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "only shallow");
     expect(await screen.findByText("Only Shallow")).toBeTruthy();
     expect(screen.queryByText("Loveless")).toBeNull();
+  });
+
+  it("lists Home and Tracks as navigation entries", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.click(await screen.findByText("Home"));
+    expect(mocks.push).toHaveBeenCalledWith("/");
   });
 });

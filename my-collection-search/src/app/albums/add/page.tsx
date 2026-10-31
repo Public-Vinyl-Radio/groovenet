@@ -169,7 +169,7 @@ export default function AddAlbumPage() {
   };
 
   const handleCancel = () => {
-    router.push("/");
+    router.push("/albums");
   };
 
   return (

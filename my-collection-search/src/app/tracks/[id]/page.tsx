@@ -47,7 +47,7 @@ export default function TrackPage() {
   const track = useTrack(trackId, friendId) ?? fetchedTrack;
   const crumbs: Crumb[] | undefined = track
     ? [
-        { label: "Tracks", href: "/" },
+        { label: "Tracks", href: "/tracks" },
         ...(track.release_id && track.album
           ? [{ label: track.album, href: `/albums/${track.release_id}?friend_id=${friendId}` }]
           : []),

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  homeJsonSchemas,
   albumJsonSchemas,
   friendJsonSchemas,
   genreJsonSchemas,
@@ -55,6 +56,7 @@ function parseInventory(markdown: string): InventoryRow[] {
 
 const SHARED_COMPONENTS = new Set(
   Object.keys({
+    ...homeJsonSchemas,
     ...liveSetJsonSchemas,
     ...playlistJsonSchemas,
     ...trackJsonSchemas,

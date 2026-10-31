@@ -12,7 +12,7 @@ describe("GenreBadge", () => {
     );
 
     const link = screen.getByRole("link", { name: "Search tracks in Cumbia" });
-    expect(link.getAttribute("href")).toBe("/?genre=cumbia");
+    expect(link.getAttribute("href")).toBe("/tracks?genre=cumbia");
     expect(link.textContent).toBe("Cumbia");
   });
 
