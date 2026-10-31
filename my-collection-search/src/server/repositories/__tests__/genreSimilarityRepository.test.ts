@@ -122,7 +122,18 @@ describe("GenreSimilarityRepository", () => {
       expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("ORDER BY score DESC"), [
         "a",
         20,
+        [],
       ]);
+    });
+
+    it("excludes the given ids in the query, before the limit", async () => {
+      dbQuery.mockResolvedValue({ rows: [] });
+
+      await new GenreSimilarityRepository().topForGenre("a", 5, ["b", "c"]);
+
+      const [sql, params] = dbQuery.mock.calls[0];
+      expect(sql).toMatch(/related_genre_id <> ALL\(\$3::uuid\[\]\)[\s\S]*LIMIT \$2/);
+      expect(params).toEqual(["a", 5, ["b", "c"]]);
     });
   });
 });

@@ -168,6 +168,18 @@ describe("include-similar chip and selected genre tags (#794)", () => {
     expect(includeSimilarChips(false, ["cumbia"])).toEqual([]);
   });
 
+  it("says 'No similar genres' once the results added none, not while loading (#899)", () => {
+    expect(includeSimilarChips(true, ["rock"], [])).toEqual([
+      { key: INCLUDE_SIMILAR_CHIP_KEY, label: "No similar genres", active: true },
+    ]);
+    expect(includeSimilarChips(true, ["rock"], undefined)[0].label).toBe("+ Similar genres");
+    expect(
+      includeSimilarChips(true, ["rock"], [{ id: "id-blues", name: "Blues", slug: "blues" }])[0]
+        .label,
+    ).toBe("+ Similar genres");
+    expect(includeSimilarChips(false, ["rock"], [])).toEqual([]);
+  });
+
   it("names the chosen genres from the taxonomy and removes one from its tag", async () => {
     const onRemove = vi.fn();
     const { user } = renderWithProviders(

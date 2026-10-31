@@ -361,7 +361,7 @@ describe("SearchResults include_similar (#485)", () => {
     const { user } = renderWithProviders(<SearchResults />);
 
     expect(lastIncludeSimilar()).toBe(true);
-    expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove filter No similar genres" })).toBeTruthy();
     const dialog = await openFilters(user);
     expect(
       (within(dialog).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement)
@@ -403,6 +403,7 @@ describe("SearchResults include_similar (#485)", () => {
     const { user } = renderWithProviders(<SearchResults />);
 
     const chip = await screen.findByRole("button", { name: /Porro/ });
+    expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
     await user.click(chip);
 
     await waitFor(() => expect(lastSimilarExclude()).toEqual(["id-porro"]));
@@ -881,7 +882,7 @@ describe("SearchResults desktop header (#794)", () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
     const { user } = renderWithProviders(<SearchResults />);
 
-    await user.click(screen.getByRole("button", { name: "Remove filter + Similar genres" }));
+    await user.click(screen.getByRole("button", { name: "Remove filter No similar genres" }));
     await waitFor(() => expect(lastIncludeSimilar()).toBe(false));
     expect(lastGenres()).toEqual(["cumbia"]);
   });

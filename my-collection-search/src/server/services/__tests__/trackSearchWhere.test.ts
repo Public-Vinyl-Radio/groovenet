@@ -48,6 +48,13 @@ describe("parseTrackSearchParams", () => {
     const parsed = parseTrackSearchParams(new URLSearchParams("q=x"));
     expect(parsed.success && parsed.data.genre).toBeUndefined();
   });
+
+  it("keeps every repeated similar_exclude (#899)", () => {
+    const parsed = parseTrackSearchParams(
+      new URLSearchParams("genre=rock&similar_exclude=id-a&similar_exclude=id-b"),
+    );
+    expect(parsed.success && parsed.data.similar_exclude).toEqual(["id-a", "id-b"]);
+  });
 });
 
 describe("libraryIdentifierSelectSql", () => {

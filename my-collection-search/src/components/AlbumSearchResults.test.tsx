@@ -121,6 +121,23 @@ describe("AlbumSearchResults include_similar (#485)", () => {
     );
     await vi.waitFor(() => expect(onAddedGenresChange).toHaveBeenCalledWith([]));
   });
+
+  it("reports nothing known yet while the first page loads (#899)", async () => {
+    mocks.useAlbumsInfiniteQuery.mockReturnValue({
+      data: undefined,
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: true,
+      error: null,
+    });
+    const onAddedGenresChange = vi.fn();
+    renderWithProviders(
+      <AlbumSearchResults friendId={6} onAddedGenresChange={onAddedGenresChange} />,
+    );
+    await vi.waitFor(() => expect(onAddedGenresChange).toHaveBeenCalledWith(undefined));
+  });
 });
 
 describe("AlbumSearchResults layouts (#730)", () => {

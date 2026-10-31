@@ -69,7 +69,7 @@ function AlbumsPageContent() {
   const [panelOpen, setPanelOpen] = React.useState(false);
   // Albums matching the current search, reported by the results for the modal's button.
   const [total, setTotal] = React.useState<number | null>(null);
-  const [addedGenres, setAddedGenres] = React.useState<GenreFilterRef[]>([]);
+  const [addedGenres, setAddedGenres] = React.useState<GenreFilterRef[] | undefined>();
   const { genres: taxonomy } = useGenreTaxonomyQuery();
 
   const buildParams = (overrides: Record<string, string | null> = {}) => {
@@ -227,8 +227,8 @@ function AlbumsPageContent() {
             <FilterChips
               chips={[
                 ...genreFilterChips(genres, taxonomy),
-                ...includeSimilarChips(includeSimilar, genres),
-                ...addedGenreChips(addedGenres),
+                ...includeSimilarChips(includeSimilar, genres, addedGenres),
+                ...addedGenreChips(addedGenres ?? []),
                 ...missingChips,
               ]}
               onToggle={handleAlbumFilterToggle}

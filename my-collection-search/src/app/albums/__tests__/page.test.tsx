@@ -196,7 +196,7 @@ describe("albums page include_similar (#485)", () => {
   it("reads similar=1 from the URL and shows the toggle checked", async () => {
     mocks.searchParams = new URLSearchParams("genre=cumbia&similar=1");
     const { user } = renderWithProviders(<AlbumsPage />);
-    expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove filter No similar genres" })).toBeTruthy();
     const modal = await openFilters(user);
     expect(
       (within(modal).getByRole("checkbox", { name: "Include similar" }) as HTMLInputElement)
@@ -219,7 +219,7 @@ describe("albums page include_similar (#485)", () => {
     const { user } = renderWithProviders(<AlbumsPage />);
 
     // From its chip; the modal's toggle is the same setter.
-    await user.click(screen.getByRole("button", { name: "Remove filter + Similar genres" }));
+    await user.click(screen.getByRole("button", { name: "Remove filter No similar genres" }));
 
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=cumbia");
   });
@@ -230,6 +230,7 @@ describe("albums page include_similar (#485)", () => {
     const { user } = renderWithProviders(<AlbumsPage />);
 
     const chip = await screen.findByRole("button", { name: /Porro/ });
+    expect(screen.getByRole("button", { name: "Remove filter + Similar genres" })).toBeTruthy();
     await user.click(chip);
 
     expect(mocks.replace).toHaveBeenLastCalledWith(

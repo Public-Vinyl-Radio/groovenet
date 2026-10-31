@@ -210,6 +210,10 @@ export const retroDialog = {
   },
 } satisfies Record<string, SystemStyleObject>;
 
+// Diagonal stripes for a disabled control: readable without colour.
+const disabledHatch =
+  "repeating-linear-gradient(135deg, var(--gn-border) 0 2px, transparent 2px 6px)";
+
 export const slotRecipes = {
   card: defineSlotRecipe({
     slots: cardAnatomy.keys(),
@@ -286,27 +290,69 @@ export const slotRecipes = {
       },
     },
   }),
-  // A square toggle: an ink-outlined box with a square thumb. The outline is
-  // an inset shadow, not a border, so the thumb's travel keeps its sums.
+  // A square toggle (#899). Off: an empty outlined box with a small hollow
+  // knob inset on the left. On: an accent fill with a solid knob on the right
+  // carrying a check mark, so the state reads from shape, not colour alone
+  // (Mono's accent is near its ink). Disabled is hatched. The outline is an
+  // inset shadow, not a border, so the thumb's travel keeps its sums.
   switch: defineSlotRecipe({
     slots: switchAnatomy.keys(),
-    base: { label: { fontFamily: "label", fontSize: "13px", fontWeight: "semibold" } },
+    base: {
+      label: { fontFamily: "label", fontSize: "13px", fontWeight: "semibold" },
+      control: { alignItems: "center" },
+    },
     variants: {
       variant: {
         solid: {
+          root: { "--switch-inset": "6px", _checked: { "--switch-inset": "4px" } },
           control: {
             borderRadius: "0",
             bg: "bg.panel",
             boxShadow: "inset 0 0 0 2px var(--gn-ink)",
-            _checked: { bg: "colorPalette.solid" },
+            focusVisibleRing: "outside",
+            // Chakra's own `_checked` sets the `bg` shorthand, which resets
+            // the hatch, so a disabled checked switch repeats it.
+            _checked: { bg: "accent.solid", _disabled: { bgImage: disabledHatch } },
+            _disabled: {
+              opacity: "1",
+              boxShadow: "inset 0 0 0 2px var(--gn-ink-muted)",
+              bgImage: disabledHatch,
+            },
           },
           thumb: {
+            position: "relative",
             borderRadius: "0",
-            bg: "fg",
-            boxShadow: "none",
-            _checked: { bg: "colorPalette.contrast" },
+            width: "calc(var(--switch-height) - 2 * var(--switch-inset))",
+            height: "calc(var(--switch-height) - 2 * var(--switch-inset))",
+            ms: "var(--switch-inset)",
+            scale: "1",
+            bg: "transparent",
+            boxShadow: "inset 0 0 0 2px var(--gn-ink)",
+            _checked: {
+              bg: "accent.contrast",
+              boxShadow: "none",
+              // The check mark: two sides of a box, turned 45°.
+              _after: {
+                content: '""',
+                position: "absolute",
+                left: "50%",
+                top: "45%",
+                width: "30%",
+                height: "55%",
+                borderRightWidth: "2px",
+                borderBottomWidth: "2px",
+                borderColor: "accent.solid",
+                transform: "translate(-50%, -50%) rotate(45deg)",
+              },
+            },
+            _disabled: { boxShadow: "inset 0 0 0 2px var(--gn-ink-muted)", bg: "bg.panel" },
           },
         },
+      },
+      // Big enough for an inset knob and a legible check at 13px labels.
+      size: {
+        sm: { root: { "--switch-width": "40px", "--switch-height": "22px" } },
+        md: { root: { "--switch-width": "48px", "--switch-height": "26px" } },
       },
     },
   }),
