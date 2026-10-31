@@ -607,6 +607,11 @@ jobs:
           DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
           RUN_PLAYER_DB_TESTS: "1"
 
+      - name: Run spin and Home repository integration tests
+        run: npm run test:spin-sessions
+        env:
+          DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
+
   redis-test:
     needs: changes
     if: needs.changes.outputs.redis == 'true'

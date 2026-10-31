@@ -1,5 +1,6 @@
 import { apiContractRoutes } from "@/api-contract/routes";
 import {
+  homeJsonSchemas,
   albumJsonSchemas,
   friendJsonSchemas,
   genreJsonSchemas,
@@ -40,6 +41,7 @@ const MOBILE_OPENAPI_PATHS = new Set([
   "/api/albums/{releaseId}/download",
   "/api/spins",
   "/api/spins/top-tracks",
+  "/api/home",
   "/api/spins/recap",
   "/api/spins/track-stats",
   "/api/spins/{id}",
@@ -223,6 +225,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...friendJsonSchemas,
     ...genreJsonSchemas,
     ...recordCareJsonSchemas,
+    ...homeJsonSchemas,
     ...spinJsonSchemas,
     ...playerJsonSchemas,
   };

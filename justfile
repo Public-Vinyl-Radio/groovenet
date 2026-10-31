@@ -682,7 +682,7 @@ play-detections-test:
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
   {{mise_exec}} npm run test:play-detections --prefix {{app_dir}}
 
-# Run the spin list and edit queries against a throwaway pgvector db.
+# Run spin, recap and Home summary queries against a throwaway pgvector db.
 spin-sessions-test:
   #!/usr/bin/env bash
   set -euo pipefail

@@ -18,7 +18,6 @@ eval-data/
 .envrc
 .DS_Store
 tmp/
-openapi-generated.json
 my-collection-search/public/audio*
 my-collection-search/dumps/*
 my-collection-search/spotify_exports

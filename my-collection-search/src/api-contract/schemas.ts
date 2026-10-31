@@ -1,3 +1,4 @@
+import { homeQuerySchema as sharedHomeQuerySchema, homeResponseSchema } from "@groovenet/contracts";
 import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
@@ -2174,3 +2175,12 @@ export const genreReconciliationCoverageSchema = z.object({
 // Player browser sessions carry no worker credentials.
 export const playerWebSessionSchema = z.object({ authorized: z.boolean() });
 export const playerWebUnlockSchema = z.object({ passphrase: z.string().min(1).max(4096) }).strict();
+
+export { homeResponseSchema };
+export const homeQuerySchema = sharedHomeQuerySchema.extend({
+  friend_id: z
+    .string()
+    .regex(/^[0-9]+$/)
+    .transform(Number)
+    .pipe(z.number().int().positive()),
+});
