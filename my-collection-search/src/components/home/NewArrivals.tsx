@@ -114,7 +114,10 @@ function Card({ item, friendId }: { item: Arrival; friendId: number }) {
         asChild
         display="flex"
         flexDirection="column"
+        alignItems="stretch"
+        w="140px"
         h="100%"
+        overflow="hidden"
         borderWidth="outline"
         borderColor="border.ink"
         boxShadow="md"
@@ -123,8 +126,8 @@ function Card({ item, friendId }: { item: Arrival; friendId: number }) {
         _hover={{ textDecoration: "none", bg: "bg.muted" }}
       >
         <NextLink href={arrivalHref(item.release_id, friendId)}>
-          <Box h="136px" borderBottomWidth="outline" borderColor="border.ink" overflow="hidden">
-            <Artwork src={item.thumbnail} alt="" size="136px" />
+          <Box mx="-2px" mt="-2px">
+            <Artwork src={item.thumbnail} alt="" fill />
           </Box>
           <Flex as="span" direction="column" gap="2px" p="8px" minW={0}>
             <Text as="span" fontSize="14px" lineHeight="18px" fontWeight="semibold" truncate>
