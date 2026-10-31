@@ -204,12 +204,27 @@ herdr:
   @if [[ "${HERDR_ENV:-}" == 1 ]]; then echo "Already inside herdr; use 'just herdr-task <branch>' for a new task."; exit 1; fi
   herdr --session "${HERDR_SESSION:-groovenet}"
 
-# New task in herdr: worktree + workspace for <branch>, bootstrapped, with its own compose stack.
+# New task in herdr, through herdr-agent: worktree + workspace for <branch>, `just worktree-setup`, then the agent.
 # [positional-arguments] keeps each arg as its own shell word (e.g. --prompt "multi word text"),
 # since plain {{args}} interpolation would re-split it on whitespace.
 [positional-arguments]
 herdr-task branch *args:
   ./scripts/worktree/herdr-task.sh "$1" "${@:2}"
+
+# Prepare a fresh worktree: dependencies, then its own compose stack. herdr-agent runs this in a new workspace; --no-stack skips the stack.
+[positional-arguments]
+worktree-setup *args:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  stack=true
+  for arg in "$@"; do
+    case "$arg" in
+      --no-stack) stack=false ;;
+      *) echo "Unknown argument: $arg (usage: just worktree-setup [--no-stack])" >&2; exit 1 ;;
+    esac
+  done
+  just bootstrap
+  if [[ "$stack" == true ]]; then just worktree-up; fi
 
 # Finish a herdr worktree task: tear down its stack, then remove the herdr workspace. Run from a pane inside that workspace.
 herdr-done *args:
