@@ -63,12 +63,12 @@ describe("buildGenreLookup", () => {
 
 describe("genreSearchHref", () => {
   it("opens track search at the root and album search under /albums", () => {
-    expect(genreSearchHref("cumbia", "tracks")).toBe("/?genre=cumbia");
+    expect(genreSearchHref("cumbia", "tracks")).toBe("/tracks?genre=cumbia");
     expect(genreSearchHref("cumbia", "albums")).toBe("/albums?genre=cumbia");
   });
 
   it("encodes the slug", () => {
-    expect(genreSearchHref("r&b", "tracks")).toBe("/?genre=r%26b");
+    expect(genreSearchHref("r&b", "tracks")).toBe("/tracks?genre=r%26b");
   });
 });
 

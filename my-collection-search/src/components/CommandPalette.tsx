@@ -25,7 +25,8 @@ type TrackHit = Track;
 type AlbumHit = Album;
 
 const NAV_ITEMS = [
-  { href: "/", label: "Tracks" },
+  { href: "/", label: "Home" },
+  { href: "/tracks", label: "Tracks" },
   { href: "/albums", label: "Albums" },
   { href: "/genres", label: "Genres" },
   { href: "/playlists", label: "Playlists" },
@@ -297,7 +298,7 @@ export default function CommandPalette() {
     const params = new URLSearchParams({ q: trimmedQuery });
     const urlMode = searchParams?.get("mode");
     params.set("mode", isTrackSearchMode(urlMode) ? urlMode : "hybrid");
-    router.push(`/?${params.toString()}`);
+    router.push(`/tracks?${params.toString()}`);
     close();
   };
 

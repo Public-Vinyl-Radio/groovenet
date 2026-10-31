@@ -11,7 +11,7 @@ export default function EnrichPage() {
 
   useEffect(() => {
     if (queue.length === 0) {
-      router.replace("/");
+      router.replace("/tracks");
     }
   }, [queue.length, router]);
 

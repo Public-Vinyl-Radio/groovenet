@@ -415,10 +415,10 @@ describe("TrackResult dense layouts", () => {
     );
     expect(
       (await screen.findByRole("link", { name: "Search tracks in Jazz" })).getAttribute("href"),
-    ).toBe("/?genre=jazz");
+    ).toBe("/tracks?genre=jazz");
     expect(
       (await screen.findByRole("link", { name: "Search tracks in Cumbia" })).getAttribute("href"),
-    ).toBe("/?genre=cumbia");
+    ).toBe("/tracks?genre=cumbia");
     expect(screen.getByText("2 playlists")).toBeTruthy();
     expect(screen.getByText("crate-owner")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Has notes" })).toBeTruthy();
