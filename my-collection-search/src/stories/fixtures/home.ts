@@ -34,3 +34,24 @@ export function vinylDetection(patch: Partial<Detection> = {}): Detection {
     ...patch,
   };
 }
+
+/** The Home artboards' ARRIVALS, as the API returns them: least played first. */
+export const HOME_ARRIVALS: HomeResponse["new_arrivals"] = {
+  window_days: 30,
+  unrated_count: 3,
+  items: [
+    ["1", "Alta Suciedad", "Andrés Calamaro", 9, 0, null],
+    ["2", "Infame", "Babasónicos", 2, 1, null],
+    ["3", "A 18' Del Sol", "Luis Alberto Spinetta", 20, 3, null],
+    ["4", "Jazz Samba", "Stan Getz / Charlie Byrd", 5, 6, 4],
+    ["5", "Clics Modernos", "Charly García", 14, 9, 5],
+  ].map(([id, title, artist, days, plays, rating]) => ({
+    release_id: String(id),
+    title: String(title),
+    artist: String(artist),
+    thumbnail: null,
+    date_added: new Date(Date.parse(FIXTURE_NOW) - Number(days) * 86_400_000).toISOString(),
+    play_count: Number(plays),
+    album_rating: rating as number | null,
+  })),
+};

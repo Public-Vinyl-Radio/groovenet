@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { HOME_COUNTS } from "@/stories/fixtures/home";
 import { OCTOBER_RECAP } from "@/stories/fixtures/spinRecap";
@@ -80,10 +80,9 @@ describe("HomePage", () => {
     expect(screen.getByRole("region", { name: "Now playing stand-in" })).toBeTruthy();
     expect(await screen.findByText("120")).toBeTruthy();
     expect(screen.queryByTestId("page-header-summary")).toBeNull();
-    expect(await screen.findByRole("alert")).toHaveProperty(
-      "textContent",
-      "Couldn't load needs attention · HTTP 500",
-    );
+    expect(
+      await within(screen.getByRole("region", { name: "NEEDS ATTENTION" })).findByRole("alert"),
+    ).toHaveProperty("textContent", "Couldn't load needs attention · HTTP 500");
   });
 
   it("waits for a library before asking for anything", () => {

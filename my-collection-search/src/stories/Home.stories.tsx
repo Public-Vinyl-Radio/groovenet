@@ -2,9 +2,10 @@ import React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import HomeHeader from "@/components/home/HomeHeader";
 import HomeLayout from "@/components/home/HomeLayout";
+import { NewArrivals } from "@/components/home/NewArrivals";
 import { MonthCard } from "@/components/home/MonthCard";
 import { NowPlayingCard, type NowPlayingCardProps } from "@/components/home/NowPlayingCard";
-import { HOME_COUNTS } from "./fixtures/home";
+import { FIXTURE_NOW, HOME_ARRIVALS, HOME_COUNTS } from "./fixtures/home";
 import { OCTOBER_RECAP } from "./fixtures/spinRecap";
 
 const noop = () => {};
@@ -52,6 +53,7 @@ const page = (nowPlaying: React.ReactNode) => (
   <HomeLayout
     header={<HomeHeader counts={HOME_COUNTS} onSearch={noop} />}
     nowPlaying={nowPlaying}
+    newArrivals={<NewArrivals arrivals={HOME_ARRIVALS} friendId={1} now={new Date(FIXTURE_NOW)} />}
     month={<MonthCard month="2026-10" recap={OCTOBER_RECAP} />}
   />
 );
@@ -103,4 +105,46 @@ export const MonthLoading: Story = {
 export const MonthError: Story = {
   name: "Month card, error",
   render: () => <MonthCard month="2026-10" recap={null} error="HTTP 500" />,
+};
+
+const NOW = new Date(FIXTURE_NOW);
+
+export const Arrivals: Story = {
+  name: "New arrivals, mixed rated and unrated",
+  render: () => (
+    <NewArrivals
+      friendId={1}
+      now={NOW}
+      arrivals={{
+        ...HOME_ARRIVALS,
+        // One cover missing, as for an album Discogs has no image for.
+        items: HOME_ARRIVALS.items.map((item, i) =>
+          i === 0 ? { ...item, thumbnail: null } : { ...item, thumbnail: "/apple-touch-icon.png" },
+        ),
+      }}
+    />
+  ),
+};
+
+export const ArrivalsPhone: Story = {
+  name: "New arrivals, phone",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  render: () => <NewArrivals friendId={1} now={NOW} arrivals={HOME_ARRIVALS} />,
+};
+
+export const ArrivalsEmpty: Story = {
+  name: "New arrivals, empty",
+  render: () => (
+    <NewArrivals friendId={1} arrivals={{ window_days: 30, unrated_count: 0, items: [] }} />
+  ),
+};
+
+export const ArrivalsLoading: Story = {
+  name: "New arrivals, loading",
+  render: () => <NewArrivals friendId={1} arrivals={null} loading />,
+};
+
+export const ArrivalsError: Story = {
+  name: "New arrivals, error",
+  render: () => <NewArrivals friendId={1} arrivals={null} error="HTTP 500" />,
 };
