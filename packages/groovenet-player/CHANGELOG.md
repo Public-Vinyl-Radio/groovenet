@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.8...groovenet-player-v0.1.9) (2026-10-31)
+
+
+### Features
+
+* **player:** add macOS Now Playing and media controls ([#871](https://github.com/Public-Vinyl-Radio/groovenet/issues/871)) ([53f9345](https://github.com/Public-Vinyl-Radio/groovenet/commit/53f9345aaa0ddf600f5c9c5b7d6c06d9e468aca9))
+* **spins:** record the player output on digital spins ([#876](https://github.com/Public-Vinyl-Radio/groovenet/issues/876)) ([b438bc4](https://github.com/Public-Vinyl-Radio/groovenet/commit/b438bc453a27a6462c55fafa3d6e0315c0d2f2d1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.8.1 to ^3.9.0
+    * @groovenet/contracts bumped from 1.4.1 to 1.5.0
+
 ## [0.1.8](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.7...groovenet-player-v0.1.8) (2026-10-30)
 
 

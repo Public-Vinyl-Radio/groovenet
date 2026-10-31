@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.4.1...groovenet-contracts-v1.5.0) (2026-10-31)
+
+
+### Features
+
+* **api:** home summary endpoint ([#886](https://github.com/Public-Vinyl-Radio/groovenet/issues/886)) ([9db0b84](https://github.com/Public-Vinyl-Radio/groovenet/commit/9db0b84143463be75640c7ef850fdcac7b1a3d27))
+* **spins:** medium filter and cursor paging on the spin list API ([#872](https://github.com/Public-Vinyl-Radio/groovenet/issues/872)) ([c108156](https://github.com/Public-Vinyl-Radio/groovenet/commit/c108156cfcc5dc0e46cc8157c34f84da25a89289))
+* **spins:** monthly recap endpoint ([#873](https://github.com/Public-Vinyl-Radio/groovenet/issues/873)) ([3a3c2ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/3a3c2ef35bc88c40b841eb6146cb63e382156361))
+* **spins:** record the player output on digital spins ([#876](https://github.com/Public-Vinyl-Radio/groovenet/issues/876)) ([b438bc4](https://github.com/Public-Vinyl-Radio/groovenet/commit/b438bc453a27a6462c55fafa3d6e0315c0d2f2d1))
+* **spins:** spin detail panel (desktop) and modal (phone) ([#875](https://github.com/Public-Vinyl-Radio/groovenet/issues/875)) ([f7529da](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7529da3b487c5d7c522388cae5795d044282aff))
+
 ## [1.4.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.4.0...groovenet-contracts-v1.4.1) (2026-10-30)
 
 
