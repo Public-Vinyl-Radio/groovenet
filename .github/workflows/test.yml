@@ -257,6 +257,69 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
 
+  macos-player-coverage:
+    needs: changes
+    if: needs.changes.outputs.player == 'true'
+    runs-on: macos-14
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-npm
+      - name: Build daemon for native lifecycle tests
+        run: |
+          npm ci
+          npm run build --workspace @groovenet/contracts
+          npm run build --workspace @groovenet/client
+          npm run build --workspace @groovenet/player
+      - name: Test Swift companion with coverage
+        working-directory: packages/groovenet-player/macos
+        run: swift test --enable-code-coverage
+      - name: Test native app lifecycle with coverage
+        run: |
+          binary=$(swift build --package-path packages/groovenet-player/macos --show-bin-path)
+          app="$RUNNER_TEMP/Groovenet Now Playing.app"
+          mkdir -p "$app/Contents/MacOS"
+          cp "$binary/groovenet-now-playing" "$app/Contents/MacOS/"
+          cp packages/groovenet-player/macos/Info.plist "$app/Contents/Info.plist"
+          codesign --force --sign - "$app"
+          LLVM_PROFILE_FILE="$binary/codecov/helper-%p.profraw" \
+            node packages/groovenet-player/scripts/now-playing-smoke.mjs \
+            --helper "$app/Contents/MacOS/groovenet-now-playing"
+      - name: Export Swift coverage including native entry point
+        working-directory: packages/groovenet-player/macos
+        run: |
+          binary=$(swift build --show-bin-path)
+          tests=""
+          # Inspect direct children only; recursive find also matches files in .dSYM bundles.
+          for candidate in "$binary"/*.xctest/Contents/MacOS/*; do
+            if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+              tests="$candidate"
+              break
+            fi
+          done
+          if [ -z "$tests" ]; then
+            echo "::error::No executable XCTest binary found in $binary"
+            exit 1
+          fi
+          xcrun llvm-profdata merge -sparse "$binary"/codecov/*.profraw -o "$binary/codecov/all.profdata"
+          xcrun llvm-cov export -format=lcov \
+            -instr-profile="$binary/codecov/all.profdata" \
+            "$tests" -object "$binary/groovenet-now-playing" \
+            -ignore-filename-regex='Tests/|/\.build/|DerivedSources/' > coverage.lcov
+      - name: Verify optional app packaging
+        run: packages/groovenet-player/scripts/now-playing.sh --build
+      - name: Upload Swift coverage to Codecov
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: packages/groovenet-player/macos/coverage.lcov
+          flags: groovenet-macos
+          disable_search: true
+          fail_ci_if_error: false
+
   contracts-coverage:
     needs: changes
     if: needs.changes.outputs.contracts == 'true'

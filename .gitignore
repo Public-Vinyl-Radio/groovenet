@@ -30,6 +30,8 @@ __pycache__/
 *.pyc
 xcuserdata/
 *.xcuserstate
+packages/groovenet-player/macos/.build/
+packages/groovenet-player/macos/coverage.lcov
 
 # IMPORTANT: Never commit MCP config with production API keys!
 .mcp.json

@@ -10,6 +10,7 @@
   "types": "build/index.d.ts",
   "bin": {
     "groovenet-mpris": "build/mprisBin.js",
+    "groovenet-now-playing": "scripts/now-playing.sh",
     "groovenet-player-server": "build/server/bin.js"
   },
   "exports": {
@@ -38,11 +39,18 @@
   },
   "files": [
     "build/",
+    "macos/Package.swift",
+    "macos/Info.plist",
+    "macos/Sources/",
+    "macos/Tests/",
+    "NOW_PLAYING.md",
     "MPRIS.md",
     "OWNTONE.md",
     "SERVER_PLAYERS.md",
     "owntone/",
-    "scripts/mpris-smoke.mjs"
+    "scripts/mpris-smoke.mjs",
+    "scripts/now-playing.sh",
+    "scripts/now-playing-smoke.mjs"
   ],
   "publishConfig": {
     "access": "public"

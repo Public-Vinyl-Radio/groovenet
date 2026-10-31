@@ -18,6 +18,8 @@ export default defineConfig({
         "src/mprisMapping.ts",
         "src/mpris.ts",
         "src/mprisBin.ts",
+        "src/nowPlayingRemote.ts",
+        "src/nowPlayingRemoteBin.ts",
       ],
       reporter: ["lcov", "text"],
     },
