@@ -11,6 +11,7 @@ import HomeMonthCard from "./MonthCard";
 import HomeNowPlaying from "./HomeNowPlaying";
 import NeedsAttention from "./NeedsAttention";
 import { NewArrivals } from "./NewArrivals";
+import { PlaylistsSection } from "./PlaylistsSection";
 
 /**
  * The Home page at `/` (#881, epic #878). The summary is fetched once here and
@@ -39,7 +40,13 @@ export default function HomePage() {
         }
         month={<HomeMonthCard friendId={friendId} enabled={enabled} />}
         attention={<NeedsAttention attention={home?.attention ?? null} error={error?.message} />}
-        // TODO(#884): playlists from home.playlists.
+        playlists={
+          <PlaylistsSection
+            playlists={home?.playlists ?? null}
+            loading={isPending}
+            error={error?.message ?? null}
+          />
+        }
       />
     </PageContainer>
   );

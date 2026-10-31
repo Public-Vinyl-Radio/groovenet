@@ -3,7 +3,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { HOME_ARRIVALS, HOME_COUNTS } from "@/stories/fixtures/home";
+import { HOME_ARRIVALS, HOME_COUNTS, HOME_PLAYLISTS } from "@/stories/fixtures/home";
 
 const state = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,
@@ -62,6 +62,23 @@ describe("HomePage", () => {
       within(screen.getByRole("region", { name: "NEEDS ATTENTION" })).getByRole("alert")
         .textContent,
     ).toContain("HTTP 500");
+    expect(
+      within(screen.getByRole("region", { name: "PLAYLISTS & SETS" })).getByRole("alert")
+        .textContent,
+    ).toContain("HTTP 500");
     expect(screen.getByTestId("month")).toBeTruthy();
+  });
+
+  it("gives Playlists & sets its slice of the summary", () => {
+    state.query = {
+      home: { counts: HOME_COUNTS, new_arrivals: HOME_ARRIVALS, playlists: HOME_PLAYLISTS },
+      isPending: false,
+      error: null,
+    };
+    renderWithProviders(<HomePage />);
+    const section = screen.getByRole("region", { name: "PLAYLISTS & SETS" });
+    expect(section.querySelector('a[href="/playlists/42"]')?.textContent).toContain(
+      "DRAFT SET · CLUB ATLÉTICO",
+    );
   });
 });
