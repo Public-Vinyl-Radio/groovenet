@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import { dbQuery } from "@/lib/serverDb";
 
 export type RecapGroup = {
@@ -49,7 +50,7 @@ export const recapGroupsSql = `${recapBoundsSql},
     COALESCE(t.artist, e.artist_snapshot) AS artist,
     COALESCE(a.title, e.album_snapshot) AS album,
     COALESCE(a.artist, t.artist, e.artist_snapshot) AS record_artist,
-    COALESCE(a.album_thumbnail, t.album_thumbnail) AS thumbnail,
+    COALESCE(${coverUrlSql("a", true)}, ${coverUrlSql("t")}) AS thumbnail,
     s.medium,
     (extract(day FROM e.played_at AT TIME ZONE $3)::int - 1) / 7 + 1 AS week,
     extract(isodow FROM e.played_at AT TIME ZONE $3)::int - 1 AS weekday,

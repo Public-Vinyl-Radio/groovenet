@@ -282,3 +282,29 @@ describe("position state", () => {
     expect(session.setPositionState).not.toHaveBeenCalled();
   });
 });
+
+it.each([
+  ["/chosen.jpg", "/discogs.jpg", "/chosen.jpg"],
+  ["/chosen.jpg", "", "/chosen.jpg"],
+  ["", "/discogs.jpg", "/discogs.jpg"],
+  ["   ", "/discogs.jpg", "/discogs.jpg"],
+  ["", "", null],
+])("resolves lock-screen artwork (%s, %s)", (chosen, discogs, expected) => {
+  const metadata = vi.fn((init) => ({ ...init }));
+  (window as unknown as Record<string, unknown>).MediaMetadata = metadata;
+  renderHook(() =>
+    useMediaSession(
+      makeArgs({
+        currentTrack: makeTrack({
+          audio_file_album_art_url: chosen,
+          album_thumbnail: discogs,
+        }),
+      }),
+    ),
+  );
+  expect(metadata).toHaveBeenCalledWith(
+    expect.objectContaining({
+      artwork: expected ? [{ src: expected, sizes: "96x96", type: "image/png" }] : undefined,
+    }),
+  );
+});

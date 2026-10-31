@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EmbeddingsRepository, eraYearRange } from "../embeddingsRepository";
 import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
@@ -754,6 +755,7 @@ describe("findContextMatches()", () => {
 
     expect(rows[0].distance).toBe(0.25);
     const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain(`${coverUrlSql("t")} AS album_thumbnail`);
     expect(sql).toContain("te.embedding_type = 'context'");
     expect(sql).toContain("te.model = $2");
     expect(sql).toContain("te.template_version = $3");

@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RecommendationRepository } from "../recommendationRepository";
 
@@ -141,6 +142,7 @@ describe("findIdentitySimilar()", () => {
 
     // Similarity query receives the embedding, limit, model and template version
     const [sql, params] = mockClient.query.mock.calls[2];
+    expect(sql).toContain(`${coverUrlSql("t")} AS album_thumbnail`);
     expect(sql).toContain("te.model = $5");
     expect(sql).toContain("te.template_version = $6");
     expect(params[0]).toEqual(embedding);

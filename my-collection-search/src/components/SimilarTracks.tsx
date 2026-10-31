@@ -119,20 +119,13 @@ export default function SimilarTracks({
       {/* Results */}
       <Box>
         {data.tracks.map((similarTrack) => {
-          // Ensure track has valid artwork or use fallback
-          const trackWithArtwork = {
-            ...similarTrack,
-            album_thumbnail:
-              similarTrack.album_thumbnail || similarTrack.audio_file_album_art_url || undefined,
-          };
-
           return (
             <Box key={`${similarTrack.track_id}-${similarTrack.friend_id}`} mb={2}>
               <TrackResult
-                track={trackWithArtwork}
+                track={similarTrack}
                 showUsername={true}
                 showRating={true}
-                buttons={<TrackActionsMenu track={trackWithArtwork} />}
+                buttons={<TrackActionsMenu track={similarTrack} />}
                 footer={
                   <Flex gap={1} align="center" flexWrap="wrap">
                     <Badge

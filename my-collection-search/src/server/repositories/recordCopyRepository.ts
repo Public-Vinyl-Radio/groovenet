@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import { dbQuery } from "@/lib/serverDb";
 import type { RecordCareItem, RecordCareSummary, RecordCopy } from "@groovenet/contracts";
 import type { RecordCareStatus, SleeveType } from "@/lib/recordCare";
@@ -63,7 +64,7 @@ const CARE_SCOPE_SQL = `
     a.release_id,
     a.title AS album_title,
     a.artist AS album_artist,
-    a.album_thumbnail,
+    ${coverUrlSql("a", true)} AS album_thumbnail,
     c.id AS copy_id,
     COALESCE(c.is_default, true) AS is_default,
     c.label,

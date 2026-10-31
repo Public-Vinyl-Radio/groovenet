@@ -30,14 +30,6 @@ function keyOf(track: Pick<Track, "track_id" | "friend_id">): string {
   return `${track.track_id}:${track.friend_id}`;
 }
 
-function normalizeArtwork(track: Track): Track {
-  return {
-    ...track,
-    album_thumbnail:
-      track.album_thumbnail || track.audio_file_album_art_url || "/images/placeholder-artwork.png",
-  };
-}
-
 /** Rows added by each "Show more". */
 const PAGE_SIZE = 20;
 
@@ -78,7 +70,7 @@ export default function RelatedTracksSection({ track }: Props) {
       const existing = map.get(k);
       if (!existing) {
         map.set(k, {
-          ...normalizeArtwork(item),
+          ...item,
           _sources: [source],
           _score: score,
         });
@@ -147,7 +139,7 @@ export default function RelatedTracksSection({ track }: Props) {
         if (!hydrated) return item;
         return {
           ...item,
-          ...normalizeArtwork(hydrated),
+          ...hydrated,
           _sources: item._sources,
           _score: item._score,
         };

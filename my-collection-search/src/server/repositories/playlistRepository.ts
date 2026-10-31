@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type { PoolClient } from "pg";
 import type { LiveSetSummary, Playlist } from "@/types/track";
 import { dbPool, dbQuery, withDbTransaction } from "@/lib/serverDb";
@@ -105,13 +106,13 @@ export class PlaylistRepository {
   async listCoverUrlsByPlaylistIds(playlistIds: number[]): Promise<Record<number, string[]>> {
     if (playlistIds.length === 0) return {};
     const result = await dbQuery<{ playlist_id: number; cover_urls: string[] }>(
-      `SELECT playlist_id, array_agg(album_thumbnail ORDER BY position) AS cover_urls
+      `SELECT playlist_id, array_agg(cover_url ORDER BY position) AS cover_urls
        FROM (
-         SELECT pt.playlist_id, pt.position, t.album_thumbnail,
+         SELECT pt.playlist_id, pt.position, ${coverUrlSql("t")} AS cover_url,
                 row_number() OVER (PARTITION BY pt.playlist_id ORDER BY pt.position) AS rn
          FROM playlist_tracks pt
          JOIN tracks t ON t.track_id = pt.track_id AND t.friend_id = pt.friend_id
-         WHERE pt.playlist_id = ANY($1) AND COALESCE(t.album_thumbnail, '') <> ''
+         WHERE pt.playlist_id = ANY($1) AND COALESCE(${coverUrlSql("t")}, '') <> ''
        ) ranked
        WHERE rn <= 4
        GROUP BY playlist_id`,

@@ -323,3 +323,24 @@ describe("RelatedTracksSection layout", () => {
     expect(saveTrack).toHaveBeenCalledWith({ track_id: "s1", friend_id: 4, star_rating: 4 });
   });
 });
+
+it.each([
+  ["/chosen.jpg", "/discogs.jpg", "/chosen.jpg"],
+  ["", "/discogs.jpg", "/discogs.jpg"],
+  ["", "", "/images/placeholder-artwork.png"],
+])(
+  "renders related covers without rewriting track metadata (%s, %s)",
+  (chosen, discogs, expected) => {
+    const item = {
+      ...track,
+      track_id: "related-art",
+      title: "Related art",
+      audio_file_album_art_url: chosen,
+      album_thumbnail: discogs,
+    };
+    mocks.recommendations.mockReturnValue({ ...empty, data: [item] });
+    const { container } = renderWithProviders(<RelatedTracksSection track={track} />);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(expected);
+    expect(item.album_thumbnail).toBe(discogs);
+  },
+);

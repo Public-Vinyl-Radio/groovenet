@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbQuery = vi.hoisted(() => vi.fn());
@@ -97,7 +98,8 @@ describe("SpinSessionRepository.listSessions", () => {
     expect(sql).toMatch(
       /LEFT JOIN albums a\s+ON a\.release_id = ss\.release_id AND a\.friend_id = ss\.friend_id/,
     );
-    expect(sql).toMatch(/GROUP BY ss\.id, a\.title, a\.artist, a\.album_thumbnail/);
+    expect(sql).toContain(`${coverUrlSql("a", true)} AS album_thumbnail`);
+    expect(sql).toContain("GROUP BY ss.id, a.release_id, a.friend_id");
     expect(params).toEqual([7, 50, 0]);
   });
 

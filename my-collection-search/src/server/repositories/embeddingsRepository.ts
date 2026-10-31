@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import { effectiveAlbumTaxonomySql } from "@/lib/genres/albumTaxonomySql";
 import type { PoolClient } from "pg";
 import { dbQuery } from "@/lib/serverDb";
@@ -589,7 +590,7 @@ export class EmbeddingsRepository {
           t.track_id, t.friend_id, t.release_id, t.title, t.artist, t.album, t.year,
           COALESCE(t.genres, '{}') AS genres,
           COALESCE(t.styles, '{}') AS styles,
-          t.bpm, t.key, t.album_thumbnail,
+          t.bpm, t.key, ${coverUrlSql("t")} AS album_thumbnail,
           te.identity_text AS context_text,
           ${vector} <=> $1::vector(${dims}) AS distance
         FROM track_embeddings te

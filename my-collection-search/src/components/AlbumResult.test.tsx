@@ -229,3 +229,22 @@ it("reuses album links and genre badges in the full cover-grid layout", () => {
   expect(coverLink.querySelector("img")).toBeTruthy();
   expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
 });
+
+it.each([
+  ["/chosen.jpg", "/discogs.jpg", "/chosen.jpg"],
+  ["", "/discogs.jpg", "/discogs.jpg"],
+  ["", "", "/images/placeholder-artwork.png"],
+])("uses the resolved cover in album actions (%s, %s)", async (chosen, discogs, expected) => {
+  const { user } = renderWithProviders(
+    <AlbumResult
+      album={{
+        ...album,
+        audio_file_album_art_url: chosen,
+        album_thumbnail: discogs,
+      }}
+    />,
+  );
+  await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+  const dialog = await screen.findByRole("dialog");
+  expect(dialog.querySelector("img")?.getAttribute("src")).toBe(expected);
+});

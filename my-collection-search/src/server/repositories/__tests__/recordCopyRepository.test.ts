@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbQuery = vi.hoisted(() => vi.fn());
@@ -103,6 +104,7 @@ describe("RecordCopyRepository care views", () => {
     dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ total: 0 }] });
 
     await repo.listCare(base);
+    expect(dbQuery.mock.calls[0][0]).toContain(`${coverUrlSql("a", true)} AS album_thumbnail`);
 
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/FROM albums a\s+LEFT JOIN record_copies c/);

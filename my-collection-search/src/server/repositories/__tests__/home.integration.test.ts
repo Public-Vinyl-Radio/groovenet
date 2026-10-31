@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { recordCopyRepository } from "../recordCopyRepository";
@@ -223,5 +224,30 @@ dbTest(
       duration_seconds: 0,
       duration_known_share: 0,
     });
+  },
+);
+
+dbTest(
+  "resolves album, legacy track, Discogs and missing covers without crossing owners",
+  async () => {
+    const { rows } = await dbQuery(`
+    WITH albums(release_id, friend_id, audio_file_album_art_url, album_thumbnail) AS (
+      VALUES ('chosen', 1, '/chosen.jpg', '/discogs.jpg'),
+        ('legacy', 1, '', '/discogs.jpg'), ('discogs', 1, '   ', '/discogs.jpg'),
+        ('missing', 1, NULL, NULL)
+    ), tracks(id, release_id, friend_id, audio_file_album_art_url) AS (
+      VALUES (1, 'legacy', 2, '/wrong-owner.jpg'), (2, 'legacy', 1, '  '),
+        (3, 'legacy', 1, '/legacy.jpg'), (4, 'legacy', 1, '/later.jpg'),
+        (5, 'chosen', 1, '/track.jpg')
+    )
+    SELECT a.release_id, ${coverUrlSql("a", true)} AS thumbnail FROM albums a
+    ORDER BY a.release_id
+  `);
+    expect(rows).toEqual([
+      { release_id: "chosen", thumbnail: "/chosen.jpg" },
+      { release_id: "discogs", thumbnail: "/discogs.jpg" },
+      { release_id: "legacy", thumbnail: "/legacy.jpg" },
+      { release_id: "missing", thumbnail: null },
+    ]);
   },
 );

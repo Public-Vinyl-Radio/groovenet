@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type { PoolClient } from "pg";
 import { withDbTransaction } from "@/lib/serverDb";
 import { trackGenreIdsSelectSql } from "@/server/repositories/trackGenreRepository";
@@ -80,7 +81,7 @@ const CANDIDATE_COLUMNS = `
           t.mood_relaxed,
           t.mood_aggressive,
           t.star_rating,
-          t.album_thumbnail`;
+          ${coverUrlSql("t")} AS album_thumbnail`;
 
 function buildSeedValues(seedTracks: SeedTrackPair[]): {
   valuesClause: string;
