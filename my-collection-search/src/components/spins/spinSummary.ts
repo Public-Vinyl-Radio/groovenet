@@ -120,33 +120,67 @@ export type SpinDayGroup = {
   items: SpinListItem[];
 };
 
-function localDayKey(date: Date): string {
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+/** A spin's time in the configured zone: just the time, or date and time. */
+export function formatPlayedAt(dateString: string, timeOnly: boolean, timeZone: string): string {
+  const date = new Date(dateString);
+  return timeOnly
+    ? date.toLocaleTimeString([], { timeStyle: "short", timeZone })
+    : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone });
 }
 
-function dayLabel(date: Date, now: Date): string {
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  if (localDayKey(date) === localDayKey(now)) return "Today";
-  if (localDayKey(date) === localDayKey(yesterday)) return "Yesterday";
+type DayParts = { year: number; month: number; day: number };
+
+function dayParts(date: Date, timeZone: string): DayParts {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(date);
+  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { year: part("year"), month: part("month"), day: part("day") };
+}
+
+function dayKey({ year, month, day }: DayParts): string {
+  return `${year}-${month}-${day}`;
+}
+
+// The calendar day before, by calendar arithmetic so a DST change can't skew it.
+function previousDay({ year, month, day }: DayParts): DayParts {
+  const d = new Date(Date.UTC(year, month - 1, day - 1));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+
+function dayLabel(date: Date, parts: DayParts, nowParts: DayParts, timeZone: string): string {
+  const key = dayKey(parts);
+  if (key === dayKey(nowParts)) return "Today";
+  if (key === dayKey(previousDay(nowParts))) return "Yesterday";
   return date.toLocaleDateString([], {
+    timeZone,
     weekday: "long",
     month: "short",
     day: "numeric",
-    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+    ...(parts.year === nowParts.year ? {} : { year: "numeric" }),
   });
 }
 
-/** Groups spins, already newest first, by the local day they were played. */
-export function groupSpinsByDay(items: SpinListItem[], now: Date = new Date()): SpinDayGroup[] {
+/** Groups spins, already newest first, by the day they were played in `timeZone`. */
+export function groupSpinsByDay(
+  items: SpinListItem[],
+  timeZone: string,
+  now: Date = new Date(),
+): SpinDayGroup[] {
+  const nowParts = dayParts(now, timeZone);
   const groups: SpinDayGroup[] = [];
   for (const item of items) {
     const playedAt = new Date(item.session.played_at);
-    const key = localDayKey(playedAt);
+    const parts = dayParts(playedAt, timeZone);
+    const key = dayKey(parts);
     const current = groups[groups.length - 1];
     if (current?.key === key) {
       current.items.push(item);
     } else {
-      groups.push({ key, label: dayLabel(playedAt, now), items: [item] });
+      groups.push({ key, label: dayLabel(playedAt, parts, nowParts, timeZone), items: [item] });
     }
   }
   return groups;

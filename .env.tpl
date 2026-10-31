@@ -82,3 +82,6 @@ MQTT_PASSWORD=op://${GROOVENET_OP_VAULT:-Homelab}/${GROOVENET_OP_MQTT_ITEM:-MQTT
 MQTT_TOPIC_PREFIX=groovenet/now_playing
 NOW_PLAYING_CLEAR_SECONDS=60
 MQTT_HA_DISCOVERY=true
+
+# IANA time zone for day/month/hour bucketing (see .env.example). A plain value, not a secret.
+GROOVENET_TIME_ZONE=America/Los_Angeles
