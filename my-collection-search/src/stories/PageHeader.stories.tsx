@@ -37,7 +37,7 @@ export const WithOverflow: Story = {
 export const DetailTwoCrumbs: Story = {
   args: {
     title: "Unfinished Sympathy",
-    breadcrumbs: [{ label: "Tracks", href: "/" }, { label: "Unfinished Sympathy" }],
+    breadcrumbs: [{ label: "Tracks", href: "/tracks" }, { label: "Unfinished Sympathy" }],
   },
 };
 
@@ -45,7 +45,7 @@ export const DetailWithAlbum: Story = {
   args: {
     title: "Unfinished Sympathy",
     breadcrumbs: [
-      { label: "Tracks", href: "/" },
+      { label: "Tracks", href: "/tracks" },
       { label: "Blue Lines", href: "/albums/1" },
       { label: "Unfinished Sympathy" },
     ],

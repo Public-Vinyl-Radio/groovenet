@@ -27,6 +27,7 @@ import {
   FiMoreHorizontal,
   FiCode,
   FiDroplet,
+  FiHome,
 } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload, LuTags } from "react-icons/lu";
@@ -43,7 +44,8 @@ import { usePlaybackTargetLabel } from "@/components/player/PlaybackOutput";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 
 const baseMenuItems = [
-  { href: "/", label: "Tracks" },
+  { href: "/", label: "Home" },
+  { href: "/tracks", label: "Tracks" },
   { href: "/albums", label: "Albums" },
   { href: "/genres", label: "Genres" },
   { href: "/spins", label: "Spins" },
@@ -54,7 +56,8 @@ const baseMenuItems = [
 ];
 
 function getItemIcon(href: string) {
-  if (href === "/") return IoMusicalNotes;
+  if (href === "/") return FiHome;
+  if (href === "/tracks") return IoMusicalNotes;
   if (href === "/albums") return IoAlbums;
   if (href === "/genres") return LuTags;
   if (href === "/spins") return FiDisc;
@@ -67,9 +70,7 @@ function getItemIcon(href: string) {
 }
 
 function isActiveRoute(currentPath: string, href: string) {
-  if (href === "/") {
-    return currentPath === "/" || currentPath.startsWith("/tracks");
-  }
+  if (href === "/") return currentPath === "/";
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
@@ -107,8 +108,8 @@ export default function AppShell({
         : baseMenuItems,
     [developerToolsEnabled],
   );
-  const primaryMobileMenuItems = menuItems.slice(0, 4);
-  const secondaryMobileMenuItems = menuItems.slice(4);
+  const primaryMobileMenuItems = menuItems.slice(0, 5);
+  const secondaryMobileMenuItems = menuItems.slice(5);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const playbackLabel = usePlaybackTargetLabel();

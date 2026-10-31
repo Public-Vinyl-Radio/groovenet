@@ -87,7 +87,7 @@ describe("PageHeader", () => {
 
   describe("breadcrumbs", () => {
     const trail = [
-      { label: "Tracks", href: "/" },
+      { label: "Tracks", href: "/tracks" },
       { label: "Blue Lines", href: "/albums/r1" },
       { label: "Unfinished Sympathy" },
     ];
@@ -104,12 +104,12 @@ describe("PageHeader", () => {
       renderWithProviders(
         <PageHeader
           title="Song"
-          breadcrumbs={[{ label: "Tracks", href: "/" }, { label: "Song" }]}
+          breadcrumbs={[{ label: "Tracks", href: "/tracks" }, { label: "Song" }]}
         />,
       );
       expect(
         screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href"),
-      ).toBe("/");
+      ).toBe("/tracks");
     });
 
     it("has no back button with a single crumb or an unlinked parent", () => {

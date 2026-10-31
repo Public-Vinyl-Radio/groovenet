@@ -109,7 +109,7 @@ describe("PlaylistStatsPanel (#480)", () => {
       name: "Search tracks in Latin (2)",
       hidden: true,
     });
-    expect(link.getAttribute("href")).toBe("/?genre=latin");
+    expect(link.getAttribute("href")).toBe("/tracks?genre=latin");
   });
 
   it("leaves a label the taxonomy doesn't know as a plain, non-link badge", async () => {
@@ -129,12 +129,12 @@ describe("PlaylistStatsPanel (#480)", () => {
       name: "Search tracks in Cumbia (2)",
       hidden: true,
     });
-    expect(cumbia.getAttribute("href")).toBe("/?genre=cumbia");
+    expect(cumbia.getAttribute("href")).toBe("/tracks?genre=cumbia");
     const chicha = within(trackGenreCard).getByRole("link", {
       name: "Search tracks in Chicha (1)",
       hidden: true,
     });
-    expect(chicha.getAttribute("href")).toBe("/?genre=chicha");
+    expect(chicha.getAttribute("href")).toBe("/tracks?genre=chicha");
   });
 
   it("shows an empty state when no track has a genre", async () => {
@@ -148,7 +148,7 @@ describe("PlaylistStatsPanel (#480)", () => {
     renderPanel();
 
     const summaryLink = await screen.findByRole("link", { name: "Search tracks in Latin" });
-    expect(summaryLink.getAttribute("href")).toBe("/?genre=latin");
+    expect(summaryLink.getAttribute("href")).toBe("/tracks?genre=latin");
     expect(summaryLink.textContent).toBe("Latin");
   });
 

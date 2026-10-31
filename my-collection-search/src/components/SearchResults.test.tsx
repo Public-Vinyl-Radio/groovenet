@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
-  usePathname: () => "/",
+  usePathname: () => "/tracks",
   useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
@@ -220,7 +220,7 @@ describe("SearchResults search mode", () => {
     await chooseMode(user, "Hybrid");
 
     await waitFor(() => expect(lastSearchMode()).toBe("hybrid"));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?mode=hybrid");
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?mode=hybrid");
   });
 
   it("drops the mode from the URL on returning to keyword", async () => {
@@ -230,7 +230,7 @@ describe("SearchResults search mode", () => {
 
     await chooseMode(user, "Keyword");
 
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?q=cumbia"));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?q=cumbia"));
   });
 
   it("reports the mode with each executed query", async () => {
@@ -325,7 +325,7 @@ describe("SearchResults genre filter (#375)", () => {
     await user.click(await screen.findByRole("option", { name: /Salsa/ }));
 
     await waitFor(() => expect(lastGenres()).toEqual(["salsa"]));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?genre=salsa");
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?genre=salsa");
   });
 
   it("removes a genre from its chip, and Clear all drops every genre", async () => {
@@ -334,7 +334,7 @@ describe("SearchResults genre filter (#375)", () => {
 
     await user.click(await screen.findByRole("button", { name: /Cumbia/ }));
     await waitFor(() => expect(lastGenres()).toEqual(["salsa"]));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&genre=salsa");
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?missingAudio=1&genre=salsa");
 
     await user.click(screen.getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(lastGenres()).toEqual([]));
@@ -382,7 +382,7 @@ describe("SearchResults include_similar (#485)", () => {
     await user.click(within(dialog).getByRole("checkbox", { name: "Include similar" }));
 
     await waitFor(() => expect(lastIncludeSimilar()).toBe(true));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?genre=cumbia&similar=1");
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?genre=cumbia&similar=1");
   });
 
   it("names the genres include_similar added as removable chips", async () => {
@@ -407,7 +407,7 @@ describe("SearchResults include_similar (#485)", () => {
 
     await waitFor(() => expect(lastSimilarExclude()).toEqual(["id-porro"]));
     expect(mocks.replace).toHaveBeenLastCalledWith(
-      "/?similar=1&genre=cumbia&similar_exclude=id-porro",
+      "/tracks?similar=1&genre=cumbia&similar_exclude=id-porro",
     );
   });
 
@@ -452,7 +452,7 @@ describe("SearchResults missing and attribute filters (#447)", () => {
 
     await openFilters(user);
     await user.click(screen.getByRole("button", { name: "Audio" }));
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?missingAudio=1"));
     await user.click(screen.getByRole("button", { name: /^Show/ }));
 
     await user.click(await screen.findByRole("button", { name: /Missing audio/ }));
@@ -481,13 +481,15 @@ describe("SearchResults missing and attribute filters (#447)", () => {
 
     await user.click(screen.getByRole("button", { name: /A minor/ }));
     await waitFor(() => expect(lastAttributes()).toEqual({ star_rating: 4 }));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?star_rating=4&missingAudio=1&genre=salsa");
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/tracks?star_rating=4&missingAudio=1&genre=salsa",
+    );
 
     await user.click(screen.getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(lastAttributes()).toEqual({}));
     expect(lastGenres()).toEqual([]);
     expect(lastFilter()).toEqual(["friend_id = 1"]);
-    expect(mocks.replace).toHaveBeenLastCalledWith("/");
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks");
   });
 
   it("sets a minimum rating from the filter sheet and records it in the URL", async () => {
@@ -497,7 +499,7 @@ describe("SearchResults missing and attribute filters (#447)", () => {
     await user.click(screen.getByRole("button", { name: "4 stars and up" }));
 
     await waitFor(() => expect(lastAttributes()).toEqual({ star_rating: 4 }));
-    expect(mocks.replace).toHaveBeenLastCalledWith("/?star_rating=4");
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?star_rating=4");
   });
 
   it("resets everything from the modal's Reset", async () => {
@@ -548,7 +550,7 @@ describe("SearchResults following a navigation (#376)", () => {
     const { user, rerender } = renderWithProviders(<SearchResults />);
     await openFilters(user);
     await user.click(screen.getByRole("button", { name: "Audio" }));
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?missingAudio=1"));
 
     mocks.searchParams = new URLSearchParams("missingAudio=1");
     rerender(<SearchResults />);
@@ -567,7 +569,7 @@ describe("SearchResults following a navigation (#376)", () => {
     await user.click(screen.getByRole("button", { name: "4 stars and up" }));
 
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1&star_rating=4"),
+      expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?missingAudio=1&star_rating=4"),
     );
     expect(lastAttributes()).toEqual({ star_rating: 4 });
     expect(mocks.setQuery).not.toHaveBeenCalled();
@@ -843,7 +845,7 @@ describe("SearchResults desktop header (#794)", () => {
 
     const panel = await openPanel(user);
     await user.click(within(panel).getByRole("button", { name: "Audio" }));
-    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/?missingAudio=1"));
+    await waitFor(() => expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?missingAudio=1"));
     await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Filters" })).toBeNull());

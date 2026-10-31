@@ -45,7 +45,7 @@ describe("EnrichmentWizard header", () => {
     await user.click(
       within(screen.getByTestId("page-header")).getByRole("button", { name: "Exit", hidden: true }),
     );
-    expect(nav.push).toHaveBeenCalledWith("/");
+    expect(nav.push).toHaveBeenCalledWith("/tracks");
   });
 
   it("keeps the inline Exit for desktop", async () => {
@@ -53,7 +53,7 @@ describe("EnrichmentWizard header", () => {
     await user.click(screen.getByRole("button", { name: /Start Enrichment/ }));
     const inline = screen.getByText("Exit");
     fireEvent.click(inline);
-    expect(nav.push).toHaveBeenCalledWith("/");
+    expect(nav.push).toHaveBeenCalledWith("/tracks");
   });
 
   it("keeps the header once every track is handled", async () => {

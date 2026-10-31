@@ -43,12 +43,12 @@ describe("TrackGenresSection", () => {
     const section = screen.getByTestId("track-genres-section");
     expect(
       within(section).getByRole("link", { name: "Search tracks in Cumbia" }).getAttribute("href"),
-    ).toBe("/?genre=cumbia");
+    ).toBe("/tracks?genre=cumbia");
     expect(
       (await within(section).findByRole("link", { name: "Search tracks in Latin" })).getAttribute(
         "href",
       ),
-    ).toBe("/?genre=latin");
+    ).toBe("/tracks?genre=latin");
     expect(within(section).getByText("Unmapped Style").closest("a")).toBeNull();
   });
 

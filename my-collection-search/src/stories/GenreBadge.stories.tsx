@@ -17,7 +17,7 @@ const meta: Meta<typeof GenreBadge> = {
 export default meta;
 type Story = StoryObj<typeof GenreBadge>;
 
-/** A track genre in the taxonomy: links to `/?genre=cumbia`. */
+/** A track genre in the taxonomy: links to `/tracks?genre=cumbia`. */
 export const LinkedTrackGenre: Story = {};
 
 /** An unreconciled `local_tags` value: plain text, drawn subtle. */

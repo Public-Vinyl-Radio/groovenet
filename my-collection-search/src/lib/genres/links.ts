@@ -39,7 +39,7 @@ export function buildGenreLookup(nodes: GenreTreeNode[]): GenreLookup {
 
 export function genreSearchHref(slug: string, scope: GenreSearchScope): string {
   const query = `genre=${encodeURIComponent(slug)}`;
-  return scope === "albums" ? `/albums?${query}` : `/?${query}`;
+  return scope === "albums" ? `/albums?${query}` : `/tracks?${query}`;
 }
 
 /** Name/alias keys, with spaces and hyphens dropped, so "post punk", "post-punk"

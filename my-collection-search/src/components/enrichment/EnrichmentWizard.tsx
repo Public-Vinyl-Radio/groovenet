@@ -273,7 +273,7 @@ export default function EnrichmentWizard() {
               </Text>
             </Box>
           </Flex>
-          <Button colorPalette="accent" onClick={() => router.push("/")}>
+          <Button colorPalette="accent" onClick={() => router.push("/tracks")}>
             Back to tracks
           </Button>
         </Flex>
@@ -289,7 +289,7 @@ export default function EnrichmentWizard() {
       <PageHeader
         title="Enrich"
         count={`${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`}
-        actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/") }]}
+        actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/tracks") }]}
       />
       <Flex direction="column" maxW="2xl" mx="auto" px={4}>
         {/* Header */}
@@ -308,7 +308,7 @@ export default function EnrichmentWizard() {
             size="xs"
             variant="ghost"
             display={{ base: "none", md: "inline-flex" }}
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/tracks")}
           >
             Exit
           </Button>

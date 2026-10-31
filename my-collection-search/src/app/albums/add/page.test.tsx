@@ -39,7 +39,7 @@ describe("AddAlbumPage header", () => {
     const { user } = renderWithProviders(<AddAlbumPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Add Album" })).toBeTruthy();
     await user.click(header().getByRole("button", { name: "Cancel", hidden: true }));
-    expect(state.push).toHaveBeenCalledWith("/");
+    expect(state.push).toHaveBeenCalledWith("/albums");
   });
 
   it("saves from the header action (validation runs as before)", async () => {
