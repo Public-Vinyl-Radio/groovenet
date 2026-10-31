@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type { HomeResponse } from "@groovenet/contracts";
 import { dbQuery } from "@/lib/serverDb";
 
@@ -7,8 +8,8 @@ export type ArrivalRow = Omit<Arrival, "date_added"> & { date_added: Date | stri
 export type RecentRow = Omit<Recent, "created_at"> & { created_at: Date | string };
 
 export const homeArrivalsSql = `WITH arrivals AS MATERIALIZED (
-  SELECT release_id, title, artist, album_thumbnail AS thumbnail, date_added, album_rating
-  FROM albums WHERE friend_id = $1
+  SELECT release_id, title, artist, ${coverUrlSql("a", true)} AS thumbnail, date_added, album_rating
+  FROM albums a WHERE friend_id = $1
     AND date_added >= ($2::timestamptz AT TIME ZONE 'UTC') - interval '30 days'
     AND date_added <= ($2::timestamptz AT TIME ZONE 'UTC')
 ), ranked AS (

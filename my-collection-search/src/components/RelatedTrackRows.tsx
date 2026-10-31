@@ -1,5 +1,7 @@
 "use client";
 
+import { artworkOf } from "@/components/player/trackMeta";
+
 import React, { useEffect, useState } from "react";
 import NextLink from "next/link";
 import { Badge, Box, chakra, Flex, Image, Link, Text } from "@chakra-ui/react";
@@ -152,9 +154,7 @@ export function RatingCell({ track }: { track: Track }) {
 function Artwork({ track, size }: { track: Track; size: string }) {
   return (
     <Image
-      src={
-        track.audio_file_album_art_url || track.album_thumbnail || "/images/placeholder-artwork.png"
-      }
+      src={artworkOf(track) || "/images/placeholder-artwork.png"}
       alt=""
       boxSize={size}
       objectFit="cover"

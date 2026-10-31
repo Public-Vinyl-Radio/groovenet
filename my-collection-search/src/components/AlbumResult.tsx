@@ -1,4 +1,6 @@
 "use client";
+
+import { artworkOf } from "@/components/player/trackMeta";
 import React, { useState } from "react";
 import NextLink from "next/link";
 import { Badge, Box, Flex, Table, Text, Link, Image } from "@chakra-ui/react";
@@ -85,10 +87,7 @@ export default function AlbumResult({
   const albumFromStore = useAlbum(releaseId, friendId);
   const resolvedAlbum = albumFromStore ?? album;
 
-  const artworkSrc =
-    resolvedAlbum?.audio_file_album_art_url ||
-    resolvedAlbum?.album_thumbnail ||
-    "/images/placeholder-artwork.png";
+  const artworkSrc = artworkOf(resolvedAlbum) || "/images/placeholder-artwork.png";
   const [rating, setRating] = useState(resolvedAlbum?.album_rating || 0);
 
   const updateMutation = useUpdateAlbumMutation();
@@ -211,7 +210,7 @@ export default function AlbumResult({
       <AlbumActionsMenu
         albumTitle={resolvedAlbum.title}
         albumArtist={resolvedAlbum.artist}
-        coverUrl={resolvedAlbum.album_thumbnail ?? undefined}
+        coverUrl={artworkSrc}
         catalogue={["Album", resolvedAlbum.library_identifier].filter(Boolean).join(" · ")}
         discogsUrl={resolvedAlbum.discogs_url}
         editAlbumHref={

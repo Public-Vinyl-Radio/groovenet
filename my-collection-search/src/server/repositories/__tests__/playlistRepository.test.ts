@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlaylistTrackInput } from "@/api-contract/schemas";
 
@@ -118,7 +119,8 @@ describe("PlaylistRepository — reads", () => {
     expect(dbQuery).toHaveBeenCalledTimes(1);
     const [sql, params] = dbQuery.mock.calls[0];
     expect(sql).toMatch(/rn <= 4/);
-    expect(sql).toMatch(/album_thumbnail/);
+    expect(sql).toContain(`${coverUrlSql("t")} AS cover_url`);
+    expect(sql).toContain(`COALESCE(${coverUrlSql("t")}, '') <> ''`);
     expect(params).toEqual([[1, 2]]);
   });
 

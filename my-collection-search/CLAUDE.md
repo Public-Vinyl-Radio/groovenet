@@ -84,6 +84,8 @@
 
 ## UI conventions
 
+- Display art goes through `artworkOf` (client) / `coverUrlSql` (server): `audio_file_album_art_url` first, then `album_thumbnail`, then the placeholder.
+
 Storybook: run `just storybook` separately from the repo root for component dev
 on port 6006; set runtime `STORYBOOK_URL=http://localhost:6006` in the dev app.
 App images build and verify `public/storybook` automatically before Next.js,

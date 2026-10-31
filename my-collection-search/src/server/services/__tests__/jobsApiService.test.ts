@@ -155,6 +155,7 @@ describe("JobsApiService.listJobs — enrichment", () => {
         artist: "Track Artist",
         album: "Album",
         release_id: "rel-1",
+        album_thumbnail: "/chosen-cover.jpg",
       },
     ]);
     const res = await jobsApiService.listJobs(params());
@@ -163,6 +164,7 @@ describe("JobsApiService.listJobs — enrichment", () => {
       artist: "Track Artist",
       album: "Album",
       release_id: "rel-1",
+      album_thumbnail: "/chosen-cover.jpg",
     });
   });
 

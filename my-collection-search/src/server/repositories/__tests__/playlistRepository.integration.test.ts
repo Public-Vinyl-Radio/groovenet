@@ -5,6 +5,7 @@
  */
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { dbQuery } from "@/lib/serverDb";
+import { TrackRepository } from "../trackRepository";
 import { PlaylistRepository } from "../playlistRepository";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
@@ -43,6 +44,12 @@ beforeAll(async () => {
       [`plist-t${i}`, friendId, thumb ? `/${thumb}.jpg` : null, USERNAME],
     );
   }
+  await dbQuery(
+    `UPDATE tracks SET audio_file_album_art_url = CASE track_id
+    WHEN 'plist-t0' THEN '/chosen.jpg' WHEN 'plist-t1' THEN '/chosen-only.jpg'
+    WHEN 'plist-t2' THEN '' ELSE '   ' END WHERE friend_id = $1`,
+    [friendId],
+  );
   for (const i of [5, 3, 1, 0, 4, 2]) {
     await dbQuery(
       `INSERT INTO playlist_tracks (playlist_id, track_id, friend_id, position) VALUES ($1, $2, $3, $4)`,
@@ -78,7 +85,12 @@ dbTest(
   "returns the first four covers with art in position order, one query for all playlists",
   async () => {
     const covers = await repo.listCoverUrlsByPlaylistIds(Object.values(ids));
-    expect(covers[ids["playlist-list-covers"]]).toEqual(["/a.jpg", "/c.jpg", "/d.jpg", "/e.jpg"]);
+    expect(covers[ids["playlist-list-covers"]]).toEqual([
+      "/chosen.jpg",
+      "/chosen-only.jpg",
+      "/c.jpg",
+      "/d.jpg",
+    ]);
     expect(covers[ids["playlist-list-empty"]]).toBeUndefined();
   },
 );
@@ -92,4 +104,15 @@ dbTest("returns the first media of each type, null for types the set lacks", asy
     post_url: null,
   });
   expect(sets[ids["playlist-list-covers"]]).toBeUndefined();
+});
+
+dbTest("playlist track reads carry chosen art alongside the raw Discogs thumbnail", async () => {
+  const tracks = await new TrackRepository().findTracksByRefsPreservingOrder([
+    { track_id: "plist-t0", friend_id: friendId },
+    { track_id: "plist-t1", friend_id: friendId },
+  ]);
+  expect(tracks).toMatchObject([
+    { audio_file_album_art_url: "/chosen.jpg", album_thumbnail: "/a.jpg" },
+    { audio_file_album_art_url: "/chosen-only.jpg", album_thumbnail: null },
+  ]);
 });

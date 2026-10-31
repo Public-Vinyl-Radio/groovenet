@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { expect, it, vi } from "vitest";
 import { dbQuery } from "@/lib/serverDb";
 import {
@@ -21,4 +22,8 @@ it("binds friend and arrivals clock to focused queries and returns their rows", 
     expect(await fn()).toBe(result);
     expect(dbQuery).toHaveBeenLastCalledWith(sql, params);
   }
+});
+
+it("resolves chosen album and legacy track covers for arrivals", () => {
+  expect(homeArrivalsSql).toContain(`${coverUrlSql("a", true)} AS thumbnail`);
 });

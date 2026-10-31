@@ -36,6 +36,12 @@ describe("trackMeta", () => {
     );
     expect(artworkOf(t({ album_thumbnail: "b.jpg" }))).toBe("b.jpg");
     expect(artworkOf(null)).toBeNull();
+    expect(artworkOf(undefined)).toBeNull();
+    expect(artworkOf(t({ audio_file_album_art_url: "", album_thumbnail: "b.jpg" }))).toBe("b.jpg");
+    expect(artworkOf(t({ audio_file_album_art_url: "   ", album_thumbnail: "b.jpg" }))).toBe(
+      "b.jpg",
+    );
+    expect(artworkOf(t({ audio_file_album_art_url: "", album_thumbnail: "" }))).toBeNull();
     expect(artworkAlt(t({}))).toBe("A - T");
     expect(artworkAlt(null)).toBe("Artwork");
   });

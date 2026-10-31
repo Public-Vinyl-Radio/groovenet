@@ -1,5 +1,6 @@
 "use client";
 
+import { artworkOf } from "@/components/player/trackMeta";
 import { useEffect } from "react";
 import type { RefObject } from "react";
 import type { Track } from "@/types/track";
@@ -64,14 +65,15 @@ export function useMediaSession({
 
     try {
       if (currentTrack) {
+        const artwork = artworkOf(currentTrack);
         mediaSession.metadata = new window.MediaMetadata({
           title: currentTrack.title,
           artist: currentTrack.artist,
           album: currentTrack.album,
-          artwork: currentTrack.album_thumbnail
+          artwork: artwork
             ? [
                 {
-                  src: currentTrack.album_thumbnail,
+                  src: artwork,
                   sizes: "96x96",
                   type: "image/png",
                 },

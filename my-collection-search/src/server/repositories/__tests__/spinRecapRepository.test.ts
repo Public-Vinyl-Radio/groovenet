@@ -1,3 +1,4 @@
+import { coverUrlSql } from "../coverUrlSql";
 import { expect, it, vi } from "vitest";
 import { dbQuery } from "@/lib/serverDb";
 import { spinRecapRepository, recapGroupsSql, recapFirstSpinsSql } from "../spinRecapRepository";
@@ -17,4 +18,10 @@ it("returns first-spin counts with the same parameterized bounds", async () => {
   vi.mocked(dbQuery).mockResolvedValueOnce({ rows: [counts] } as never);
   expect(await spinRecapRepository.firstSpins(1, "2026-10", "UTC")).toBe(counts);
   expect(dbQuery).toHaveBeenLastCalledWith(recapFirstSpinsSql, [1, "2026-10-01", "UTC"]);
+});
+
+it("prefers chosen album and track covers in recap groups", () => {
+  expect(recapGroupsSql).toContain(
+    `COALESCE(${coverUrlSql("a", true)}, ${coverUrlSql("t")}) AS thumbnail`,
+  );
 });

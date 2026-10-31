@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import { dbQuery } from "@/lib/serverDb";
 
 export type JobTrackPair = {
@@ -38,10 +39,10 @@ export class JobRepository {
 
     const result = await dbQuery<JobTrackRow>(
       `
-        SELECT track_id, friend_id, release_id, title, artist, album, year, album_thumbnail,
+        SELECT track_id, friend_id, release_id, title, artist, album, year, ${coverUrlSql("t")} AS album_thumbnail,
                discogs_url, apple_music_url, youtube_url, soundcloud_url,
                local_audio_url, library_identifier, username
-        FROM tracks
+        FROM tracks t
         WHERE (track_id, friend_id) IN (${values.join(", ")})
       `,
       params,

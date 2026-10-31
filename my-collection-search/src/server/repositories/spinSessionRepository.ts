@@ -1,3 +1,4 @@
+import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type {
   SpinMedium,
   SpinProvenance,
@@ -271,14 +272,14 @@ export class SpinSessionRepository {
         to_char(ss.played_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS played_at_cursor,
         a.title AS album_title,
         a.artist AS album_artist,
-        a.album_thumbnail,
+        ${coverUrlSql("a", true)} AS album_thumbnail,
         COUNT(tse.id)::int AS track_event_count
       FROM spin_sessions ss
       LEFT JOIN albums a
         ON a.release_id = ss.release_id AND a.friend_id = ss.friend_id
       LEFT JOIN track_spin_events tse ON tse.session_id = ss.id
       WHERE ${whereClauses.join(" AND ")}
-      GROUP BY ss.id, a.title, a.artist, a.album_thumbnail
+      GROUP BY ss.id, a.release_id, a.friend_id, a.title, a.artist, a.audio_file_album_art_url, a.album_thumbnail
       ORDER BY ss.played_at DESC, ss.id DESC
       LIMIT ${limitRef}
       OFFSET ${offsetRef}

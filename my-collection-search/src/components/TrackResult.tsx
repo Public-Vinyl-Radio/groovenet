@@ -1,4 +1,6 @@
 "use client";
+
+import { artworkOf } from "@/components/player/trackMeta";
 import React, { useState } from "react";
 import NextLink from "next/link";
 import ArtistLink from "./ArtistLink";
@@ -444,9 +446,7 @@ export function ArtworkPlay({
     setImageError(false);
   }, [track.track_id, track.audio_file_album_art_url, track.album_thumbnail]);
 
-  const artworkSrc = imageError
-    ? PLACEHOLDER_SRC
-    : track.audio_file_album_art_url || track.album_thumbnail || PLACEHOLDER_SRC;
+  const artworkSrc = imageError ? PLACEHOLDER_SRC : artworkOf(track) || PLACEHOLDER_SRC;
 
   if (!track.local_audio_url) {
     return (
