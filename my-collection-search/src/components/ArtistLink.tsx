@@ -11,6 +11,10 @@ export type ArtistLinkProps = {
   className?: string;
 };
 
+/** The albums search for an artist, scoped to a collection when given one. */
+export const artistHref = (artist: string, friendId?: number | null) =>
+  `/albums?q=${encodeURIComponent(artist)}${friendId ? `&friend_id=${friendId}` : ""}`;
+
 export default function ArtistLink({
   artist,
   friendId,
@@ -18,7 +22,7 @@ export default function ArtistLink({
   children,
   className,
 }: ArtistLinkProps) {
-  const href = `/albums?q=${encodeURIComponent(artist)}${friendId ? `&friend_id=${friendId}` : ""}`;
+  const href = artistHref(artist, friendId);
 
   return (
     <Link

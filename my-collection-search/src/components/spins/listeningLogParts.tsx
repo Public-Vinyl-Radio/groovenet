@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Image } from "@chakra-ui/react";
+import { Badge, Box, Image, type BoxProps } from "@chakra-ui/react";
 import { FiDisc } from "react-icons/fi";
 import type { ListeningSessionMedium } from "./spinSummary";
 
@@ -35,7 +35,7 @@ type SpinArtProps = {
   /** A record group: the art carries a shadow, like a stack of sleeves. */
   stacked?: boolean;
   /** Overrides the row size, 48px on phones and 52px above. */
-  boxSize?: string;
+  boxSize?: BoxProps["boxSize"];
   /** On an ink strip: the outline takes the ground colour. */
   inverse?: boolean;
 };

@@ -100,3 +100,26 @@ export function formatMonthLabel(month: string, short = false): string {
 export function formatMonthName(month: string): string {
   return formatMonthLabel(month).split(" ")[0];
 }
+
+/** True for a well-formed "YYYY-MM". */
+export function isValidMonth(value: string): boolean {
+  return parseMonth(value) !== null;
+}
+
+/** "October 2026", for the recap page title. */
+export function formatMonthTitle(month: string): string {
+  const parts = parseMonth(month);
+  if (!parts) return month;
+  return new Date(Date.UTC(parts.year, parts.month - 1, 1)).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** How many days the month has: 28 to 31. */
+export function daysInMonth(month: string): number {
+  const parts = parseMonth(month);
+  if (!parts) throw new Error(`Invalid month: ${month}`);
+  return new Date(Date.UTC(parts.year, parts.month, 0)).getUTCDate();
+}

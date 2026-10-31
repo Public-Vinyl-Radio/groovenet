@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   currentMonth,
+  daysInMonth,
+  formatMonthTitle,
+  isValidMonth,
   formatMonthLabel,
   formatMonthName,
   monthBounds,
@@ -67,5 +70,25 @@ describe("formatMonthLabel", () => {
     expect(formatMonthLabel("2026-10", true)).toBe("OCT 2026");
     expect(formatMonthName("2026-10")).toBe("OCTOBER");
     expect(formatMonthLabel("bad")).toBe("bad");
+  });
+});
+
+describe("isValidMonth", () => {
+  it("accepts YYYY-MM only", () => {
+    expect(isValidMonth("2026-10")).toBe(true);
+    expect(isValidMonth("2026-13")).toBe(false);
+    expect(isValidMonth("0000-01")).toBe(false);
+    expect(isValidMonth("october")).toBe(false);
+  });
+});
+
+describe("formatMonthTitle and daysInMonth", () => {
+  it("titles the month and counts its days", () => {
+    expect(formatMonthTitle("2026-10")).toBe("October 2026");
+    expect(formatMonthTitle("nope")).toBe("nope");
+    expect(daysInMonth("2026-02")).toBe(28);
+    expect(daysInMonth("2024-02")).toBe(29);
+    expect(daysInMonth("2026-10")).toBe(31);
+    expect(() => daysInMonth("nope")).toThrow("Invalid month");
   });
 });
