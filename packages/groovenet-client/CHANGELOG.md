@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.9.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.8.1...groovenet-client-v3.9.0) (2026-10-31)
+
+
+### Features
+
+* **api:** home summary endpoint ([#886](https://github.com/Public-Vinyl-Radio/groovenet/issues/886)) ([9db0b84](https://github.com/Public-Vinyl-Radio/groovenet/commit/9db0b84143463be75640c7ef850fdcac7b1a3d27))
+* **spins:** medium filter and cursor paging on the spin list API ([#872](https://github.com/Public-Vinyl-Radio/groovenet/issues/872)) ([c108156](https://github.com/Public-Vinyl-Radio/groovenet/commit/c108156cfcc5dc0e46cc8157c34f84da25a89289))
+* **spins:** monthly recap endpoint ([#873](https://github.com/Public-Vinyl-Radio/groovenet/issues/873)) ([3a3c2ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/3a3c2ef35bc88c40b841eb6146cb63e382156361))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.4.1 to 1.5.0
+
 ## [3.8.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.8.0...groovenet-client-v3.8.1) (2026-10-30)
 
 

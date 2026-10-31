@@ -1,6 +1,6 @@
 {
   "name": "@groovenet/client",
-  "version": "3.8.1",
+  "version": "3.9.0",
   "description": "Typed API client for the Groovenet DJ collection system",
   "type": "module",
   "main": "build/index.js",
@@ -45,7 +45,7 @@
   "homepage": "https://github.com/Public-Vinyl-Radio/groovenet/tree/main/packages/groovenet-client#readme",
   "bugs": "https://github.com/Public-Vinyl-Radio/groovenet/issues",
   "dependencies": {
-    "@groovenet/contracts": "1.4.1",
+    "@groovenet/contracts": "1.5.0",
     "axios": "^1.20.0",
     "zod": "^4.6.7"
   },

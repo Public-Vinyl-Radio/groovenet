@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.14](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.13...v0.3.14) (2026-10-31)
+
+
+### Features
+
+* **api:** home summary endpoint ([#886](https://github.com/Public-Vinyl-Radio/groovenet/issues/886)) ([9db0b84](https://github.com/Public-Vinyl-Radio/groovenet/commit/9db0b84143463be75640c7ef850fdcac7b1a3d27))
+* **nav:** move Tracks to /tracks and add Home to the nav ([#885](https://github.com/Public-Vinyl-Radio/groovenet/issues/885)) ([a2ecfee](https://github.com/Public-Vinyl-Radio/groovenet/commit/a2ecfeefee4a7204a060a446db30d06da0660223))
+* **player:** add macOS Now Playing and media controls ([#871](https://github.com/Public-Vinyl-Radio/groovenet/issues/871)) ([53f9345](https://github.com/Public-Vinyl-Radio/groovenet/commit/53f9345aaa0ddf600f5c9c5b7d6c06d9e468aca9))
+* **spins:** configured display time zone ([#868](https://github.com/Public-Vinyl-Radio/groovenet/issues/868)) ([7fc859b](https://github.com/Public-Vinyl-Radio/groovenet/commit/7fc859b6421054d45e17b88d03fcb74542718a16))
+* **spins:** medium filter and cursor paging on the spin list API ([#872](https://github.com/Public-Vinyl-Radio/groovenet/issues/872)) ([c108156](https://github.com/Public-Vinyl-Radio/groovenet/commit/c108156cfcc5dc0e46cc8157c34f84da25a89289))
+* **spins:** monthly recap endpoint ([#873](https://github.com/Public-Vinyl-Radio/groovenet/issues/873)) ([3a3c2ef](https://github.com/Public-Vinyl-Radio/groovenet/commit/3a3c2ef35bc88c40b841eb6146cb63e382156361))
+* **spins:** monthly recap page ([#877](https://github.com/Public-Vinyl-Radio/groovenet/issues/877)) ([90aedd9](https://github.com/Public-Vinyl-Radio/groovenet/commit/90aedd9a80e8dd04554e3d4d1fdbca4c15d67398))
+* **spins:** record the player output on digital spins ([#876](https://github.com/Public-Vinyl-Radio/groovenet/issues/876)) ([b438bc4](https://github.com/Public-Vinyl-Radio/groovenet/commit/b438bc453a27a6462c55fafa3d6e0315c0d2f2d1))
+* **spins:** redesign the spins page as a listening log ([#874](https://github.com/Public-Vinyl-Radio/groovenet/issues/874)) ([836958a](https://github.com/Public-Vinyl-Radio/groovenet/commit/836958a0c91e8e54de0bf0e9420372793c4bb9d7))
+* **spins:** spin detail panel (desktop) and modal (phone) ([#875](https://github.com/Public-Vinyl-Radio/groovenet/issues/875)) ([f7529da](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7529da3b487c5d7c522388cae5795d044282aff))
+
 ## [0.3.13](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.12...v0.3.13) (2026-10-30)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.10.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.9.1...groovenet-cli-v3.10.0) (2026-10-31)
+
+
+### Features
+
+* **spins:** record the player output on digital spins ([#876](https://github.com/Public-Vinyl-Radio/groovenet/issues/876)) ([b438bc4](https://github.com/Public-Vinyl-Radio/groovenet/commit/b438bc453a27a6462c55fafa3d6e0315c0d2f2d1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.8.1 to ^3.9.0
+    * @groovenet/contracts bumped from 1.4.1 to 1.5.0
+    * @groovenet/player bumped from 0.1.8 to 0.1.9
+
 ## [3.9.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.9.0...groovenet-cli-v3.9.1) (2026-10-30)
 
 
