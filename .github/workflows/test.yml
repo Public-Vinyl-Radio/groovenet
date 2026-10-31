@@ -132,7 +132,7 @@ jobs:
       - name: Render every Storybook story
         run: |
           npm run build-storybook
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
           npm run check-storybook-render
 
       - name: Test optional production player deployment with coverage
