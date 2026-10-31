@@ -226,6 +226,10 @@ its environment. Multiple worktrees can run their own server with
 and a matching URL. For remote browsers or HTTPS apps, use an accessible URL
 and matching scheme instead of the browser's localhost.
 
+`just build-storybook` then `just check-storybook-render` loads every story in headless
+Chromium, light and dark, and fails on any that errors at render. CI runs both; the image
+build has no browser, so it only runs the bundle check.
+
 `STORYBOOK_URL` remains a server-side runtime setting: root-relative paths and
 HTTP(S) URLs are supported without rebuilding the image. An empty value hides
 the card (the bundle remains available); `ENABLE_DEVELOPER_TOOLS` gates the

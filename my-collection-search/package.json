@@ -48,7 +48,8 @@
     "openapi:generate-spec": "node --import tsx/esm scripts/generate-openapi-json.ts ../openapi-generated.json",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build -o public/storybook && node scripts/check-storybook.mjs",
-    "test:storybook": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=scripts/check-storybook.mjs --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/storybook.lcov scripts/check-storybook.test.mjs scripts/storybook-deployment.test.mjs"
+    "test:storybook": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=scripts/check-storybook.mjs --test-coverage-include=scripts/check-storybook-render.mjs --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/storybook.lcov scripts/check-storybook.test.mjs scripts/check-storybook-render.test.mjs scripts/storybook-deployment.test.mjs",
+    "check-storybook-render": "node scripts/check-storybook-render.mjs"
   },
   "dependencies": {
     "@groovenet/client": "file:../packages/groovenet-client",
@@ -85,7 +86,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
     "@playwright/test": "1.64.0",
-    "@storybook/nextjs-vite": "^10.6.1",
+    "@storybook/nextjs-vite": "^10.6.5",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.7",
     "@types/ioredis": "^5.0.0",
@@ -98,11 +99,11 @@
     "@vitest/coverage-v8": "^5.0.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.4.2",
-    "eslint-plugin-storybook": "^10.6.1",
+    "eslint-plugin-storybook": "^10.6.5",
     "jsdom": "30.1.2",
     "node-pg-migrate": "^9.0.0",
     "nodemon": "^3.1.14",
-    "storybook": "^10.6.3",
+    "storybook": "^10.6.5",
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.3.4",

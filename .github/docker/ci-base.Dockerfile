@@ -31,6 +31,11 @@ RUN npm install -g "npm@${NPM_VERSION}" && \
     python3 -c "import ctypes; ctypes.CDLL('libchromaprint.so.1')" && \
     docker compose version
 
+# Chromium's system libraries for the Storybook render check (#681). The job runs
+# as a non-root user and cannot apt-install, so it only downloads the browser.
+# Keep the Playwright version in step with my-collection-search/package.json.
+RUN npx --yes playwright@1.64.0 install-deps chromium && rm -rf /var/lib/apt/lists/* /root/.npm
+
 # Match hosted runner ownership and ordinary filesystem permission checks.
 RUN useradd --create-home --uid 1001 --user-group --shell /bin/bash ci
 USER 1001:1001

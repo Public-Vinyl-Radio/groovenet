@@ -748,6 +748,13 @@ storybook:
 build-storybook:
   {{mise_exec}} npm run build-storybook --prefix {{app_dir}}
 
+# Render every built story in headless Chromium, light and dark, and fail on any
+# that errors. Needs `just build-storybook` first; not part of the image build
+# because that has no browser.
+check-storybook-render:
+  {{mise_exec}} npx --prefix {{app_dir}} playwright install chromium
+  {{mise_exec}} npm run check-storybook-render --prefix {{app_dir}}
+
 sync-album-covers:
   ./{{app_dir}}/scripts/sync-album-covers.sh \
     "{{album_covers_remote_host}}" \
