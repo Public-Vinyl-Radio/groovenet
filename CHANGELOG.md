@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.15](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.14...v0.3.15) (2026-10-31)
+
+
+### Features
+
+* **home:** needs attention section ([#895](https://github.com/Public-Vinyl-Radio/groovenet/issues/895)) ([a2a2134](https://github.com/Public-Vinyl-Radio/groovenet/commit/a2a21347053e8c0dfdf5c7db9dbdc2ce7d1d9c4f))
+* **home:** new arrivals section ([#892](https://github.com/Public-Vinyl-Radio/groovenet/issues/892)) ([d6d7910](https://github.com/Public-Vinyl-Radio/groovenet/commit/d6d7910d8ec92ecf8a76e6caa1048d371416ae24))
+* **home:** page shell, now playing and month card ([#891](https://github.com/Public-Vinyl-Radio/groovenet/issues/891)) ([a8f441b](https://github.com/Public-Vinyl-Radio/groovenet/commit/a8f441b83fc97f328e9121342c19e31c8cbae9ec))
+* **home:** playlists and sets section ([#897](https://github.com/Public-Vinyl-Radio/groovenet/issues/897)) ([1c3e865](https://github.com/Public-Vinyl-Radio/groovenet/commit/1c3e865900e7b71ef6962de5af6d082be51b297e))
+
+
+### Bug Fixes
+
+* **artwork:** prefer the chosen cover over the Discogs thumbnail everywhere ([#902](https://github.com/Public-Vinyl-Radio/groovenet/issues/902)) ([0565a4d](https://github.com/Public-Vinyl-Radio/groovenet/commit/0565a4d8478d3ce5d4345ad296afd23c6de130b4))
+* **storybook:** stories crash on LayoutRouterContext.parentRenderTree with Next 16.4 ([#887](https://github.com/Public-Vinyl-Radio/groovenet/issues/887)) ([73f44e3](https://github.com/Public-Vinyl-Radio/groovenet/commit/73f44e3375ea21b7819e37da12f284726c1affeb))
+* **tracks:** include similar widens parent genres and shows switch state ([#901](https://github.com/Public-Vinyl-Radio/groovenet/issues/901)) ([6c84bdd](https://github.com/Public-Vinyl-Radio/groovenet/commit/6c84bdd25cc3b432e2ebcf57af56791079fc5493))
+
 ## [0.3.14](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.13...v0.3.14) (2026-10-31)
 
 
