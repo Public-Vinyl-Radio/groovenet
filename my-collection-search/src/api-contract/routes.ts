@@ -1,4 +1,6 @@
 import {
+  homeQuerySchema,
+  homeResponseSchema,
   spinRecapQuerySchema,
   spinRecapResponseSchema,
   spinTrackStatsQuerySchema,
@@ -7922,6 +7924,27 @@ export const apiContractRoutes: ApiContractRoute[] = [
           content: { "application/json": { schema: componentRef("SpinAggregateResult") } },
         },
         "400": jsonError("Invalid payload"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getHome",
+    method: "get",
+    path: "/api/home",
+    summary: "Home summary",
+    tags: ["Home"],
+    querySchema: homeQuerySchema,
+    successSchema: homeResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [friendIdQueryParam],
+      responses: {
+        "200": {
+          description: "Home summary",
+          content: { "application/json": { schema: componentRef("HomeResponse") } },
+        },
+        "400": jsonError("Invalid query"),
         "500": jsonError("Server error"),
       },
     },

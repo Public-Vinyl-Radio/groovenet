@@ -51,6 +51,7 @@ export const queryKeys = {
   }) => ["spins", "top-tracks", args] as const,
   spinTopTracksRoot: () => ["spins", "top-tracks"] as const,
   // Under the spins root, so a logged, edited or deleted spin refreshes it.
+  home: (args: { friend_id: number }) => ["home", args] as const,
   spinRecap: (args: { friend_id: number; month: string }) => ["spins", "recap", args] as const,
   spinTrackStats: (args: { friend_id: number; track_id: string }) =>
     ["spins", "track-stats", args] as const,
