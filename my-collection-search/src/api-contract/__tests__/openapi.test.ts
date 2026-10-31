@@ -334,6 +334,7 @@ describe("OpenAPI contract coverage", () => {
     expect(ref(op("/api/spins/aggregate", "post").requestBody)).toBe("SpinAggregateRequest");
     expect(ref(op("/api/spins/aggregate", "post").responses["200"])).toBe("SpinAggregateResult");
     expect(ref(op("/api/spins/top-tracks", "get").responses["200"])).toBe("SpinTopTracksResponse");
+    expect(ref(op("/api/home", "get").responses["200"])).toBe("HomeResponse");
     expect(ref(op("/api/spins/recap", "get").responses["200"])).toBe("SpinRecapResponse");
     expect(ref(op("/api/spins/track-stats", "get").responses["200"])).toBe(
       "SpinTrackStatsResponse",

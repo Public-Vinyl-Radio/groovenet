@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsc6",
+    "typecheck": "tsc6 --noEmit",
     "dev": "tsc6 --watch",
     "lint": "eslint .",
     "test": "vitest run",

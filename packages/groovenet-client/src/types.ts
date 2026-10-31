@@ -805,3 +805,5 @@ export type {
   ServerPlayerDevice,
   SpeakerObservation,
 } from "@groovenet/contracts";
+
+export type { HomeQuery, HomeResponse } from "@groovenet/contracts";

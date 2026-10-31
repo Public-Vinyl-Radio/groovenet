@@ -175,6 +175,7 @@ is closed, so they need a follow-up issue as their owner.
 | PATCH | `/api/spins/{id}` | spins | contracts |  |
 | POST | `/api/spins/aggregate` | spins | contracts |  |
 | GET | `/api/spins/top-tracks` | spins | contracts |  |
+| GET | `/api/home` | home | contracts | `home.ts`; playlists scoped by track membership. |
 | GET | `/api/spins/recap` | Spins | contracts | Monthly recap (#862) |
 | GET | `/api/spins/track-stats` | Spins | contracts | One track's plays, both media (#864) |
 | GET | `/api/status` | system | #552 | Auto-discovered only; no contract entry yet. |

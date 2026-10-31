@@ -2,6 +2,8 @@ import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import { serverPlayerStreamEventSchema } from "@groovenet/contracts";
 import type {
+  HomeQuery,
+  HomeResponse,
   CreateServerPlayer,
   ServerPlayer,
   ServerPlayerCommandInput,
@@ -407,6 +409,10 @@ export class GroovenetClient {
     return this.request<SpinDeleteResponse>("DELETE", `/spins/${id}`, undefined, {
       friend_id: friendId,
     });
+  }
+
+  async getHome(query: HomeQuery): Promise<HomeResponse> {
+    return this.request<HomeResponse>("GET", "/home", undefined, { friend_id: query.friend_id });
   }
 
   async getSpinRecap(query: SpinRecapQuery): Promise<SpinRecapResponse> {
