@@ -40,6 +40,7 @@ const MOBILE_OPENAPI_PATHS = new Set([
   "/api/albums/{releaseId}/download",
   "/api/spins",
   "/api/spins/top-tracks",
+  "/api/spins/recap",
   "/api/spins/{id}",
   "/api/discogs/verify-manifests",
 ]);

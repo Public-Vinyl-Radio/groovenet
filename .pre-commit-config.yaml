@@ -16,6 +16,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=1024]
+        exclude: ^openapi-generated\.json$
       - id: check-yaml
       - id: check-json
         # tsconfig.json is JSONC — TypeScript allows comments, strict JSON does not.

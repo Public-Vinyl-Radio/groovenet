@@ -47,6 +47,8 @@ export type {
   SpinSession,
   SpinSessionDetail,
   SpinTopTrack,
+  SpinRecapQuery,
+  SpinRecapResponse,
   SpinTopTracksQuery,
   SpinTopTracksResponse,
   SpinTrackRef,

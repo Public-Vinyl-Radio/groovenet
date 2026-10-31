@@ -159,6 +159,57 @@ export const spinTopTracksResponseSchema = z.object({
   offset: z.number().int(),
 });
 
+// Monthly listening recap. Shares are fractions (0–1); multi-genre spins
+// contribute equally to each distinct root genre. The final Other includes untagged spins.
+export const spinRecapQuerySchema = z.object({
+  friend_id: z.number().int().positive(),
+  month: z.string().regex(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/),
+});
+const recapComparison = z.object({ value: z.number(), previous: z.number() });
+const recapSplit = z.object({ vinyl: z.number().int(), digital: z.number().int() });
+const recapGenre = z.object({
+  genre_id: z.string().nullable(),
+  name: z.string(),
+  spins: z.number(),
+  share: z.number(),
+});
+const recapRecord = z.object({
+  release_id: z.string(),
+  title: z.string(),
+  artist: z.string(),
+  thumbnail: z.string().nullable(),
+  spins: z.number().int(),
+});
+const recapBpmBin = z.object({ from: z.number(), to: z.number(), spins: z.number().int() });
+export const spinRecapResponseSchema = z.object({
+  stats: z.object({
+    spins: recapComparison,
+    hours: recapComparison,
+    records_pulled: recapComparison,
+    new_to_rotation: recapComparison,
+    hours_known_share: z.number(),
+    hours_known_spins: z.number().int(),
+  }),
+  split: recapSplit,
+  by_week: z.array(recapSplit.extend({ week: z.number().int() })),
+  genre_mix: z.object({ current: z.array(recapGenre), previous: z.array(recapGenre) }),
+  top_records: z.array(recapRecord),
+  top_tracks: z.array(recapRecord.extend({ track_id: z.string() })),
+  top_artists: z.array(z.object({ artist: z.string(), spins: z.number().int() })),
+  heatmap: z
+    .array(z.array(z.number().int()))
+    .meta({ description: "Monday first, 12 two-hour blocks per day" }),
+  bpm: z.object({
+    histogram: z
+      .array(recapBpmBin)
+      .meta({ description: "12 bins: first includes under 80, last includes 200 and above" }),
+    median: z.number().nullable(),
+    busiest: recapBpmBin.nullable(),
+  }),
+});
+export type SpinRecapQuery = z.infer<typeof spinRecapQuerySchema>;
+export type SpinRecapResponse = z.infer<typeof spinRecapResponseSchema>;
+
 // ── Requests ────────────────────────────────────────────────────────────────
 // Bodies are exported twice, as record care's are: the plain object
 // (`*ObjectSchema`), which the app extends with its text-coercing `friend_id`,
@@ -308,6 +359,7 @@ export type SpinCreateInput =
   | (SpinCreateBase & { side_keys?: never; track_refs: SpinTrackRef[] });
 
 export const spinJsonSchemas = {
+  SpinRecapResponse: z.toJSONSchema(spinRecapResponseSchema),
   SpinSelectionMode: z.toJSONSchema(spinSelectionModeSchema),
   SpinProvenance: z.toJSONSchema(spinProvenanceSchema),
   SpinSelectionType: z.toJSONSchema(spinSelectionTypeSchema),
