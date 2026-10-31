@@ -5,6 +5,7 @@ import {
   spinDeleteResponseSchema,
   spinListQuerySchema,
   spinListResponseSchema,
+  spinRecapResponseSchema,
   spinTopTracksQuerySchema,
   spinTopTracksResponseSchema,
   spinUpdateBodySchema,
@@ -21,6 +22,8 @@ export type SpinTopTracksResponse = z.infer<typeof spinTopTracksResponseSchema>;
 export type SpinDeleteResponse = z.infer<typeof spinDeleteResponseSchema>;
 export type SpinUpdateParams = z.infer<typeof spinUpdateBodySchema>;
 export type SpinUpdateResponse = z.infer<typeof spinUpdateResponseSchema>;
+export type SpinRecapParams = { friend_id: number; month: string };
+export type SpinRecapResponse = z.infer<typeof spinRecapResponseSchema>;
 
 export async function listSpins(params: SpinListParams): Promise<SpinListResponse> {
   const searchParams = new URLSearchParams();
@@ -58,6 +61,18 @@ export async function listTopSpinTracks(
   if (typeof params.offset === "number") searchParams.append("offset", String(params.offset));
 
   return await http<SpinTopTracksResponse>(`/api/spins/top-tracks?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+}
+
+/** The monthly listening recap; `month` is "YYYY-MM" in the configured zone. */
+export async function getSpinRecap(params: SpinRecapParams): Promise<SpinRecapResponse> {
+  const searchParams = new URLSearchParams({
+    friend_id: String(params.friend_id),
+    month: params.month,
+  });
+  return await http<SpinRecapResponse>(`/api/spins/recap?${searchParams.toString()}`, {
     method: "GET",
     cache: "no-store",
   });

@@ -6,12 +6,15 @@ import { queryKeys } from "@/lib/queryKeys";
 import {
   createSpin,
   deleteSpin,
+  getSpinRecap,
   listSpins,
   listTopSpinTracks,
   type SpinCreateParams,
   type SpinCreateResponse,
   type SpinListParams,
   type SpinListResponse,
+  type SpinRecapParams,
+  type SpinRecapResponse,
   type SpinTopTracksParams,
   type SpinTopTracksResponse,
   type SpinUpdateParams,
@@ -102,6 +105,23 @@ export function useSpinTopTracksQuery(params: SpinTopTracksParams, options?: Use
   return {
     ...query,
     topTracks: query.data?.items ?? [],
+  };
+}
+
+/** One month's listening recap. */
+export function useSpinRecapQuery(params: SpinRecapParams, options?: UseSpinsOptions) {
+  const query = useQuery<SpinRecapResponse, Error>({
+    queryKey: queryKeys.spinRecap({ friend_id: params.friend_id, month: params.month }),
+    queryFn: () => getSpinRecap(params),
+    enabled: options?.enabled ?? true,
+    staleTime: options?.staleTime ?? 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    ...query,
+    recap: query.data ?? null,
   };
 }
 
