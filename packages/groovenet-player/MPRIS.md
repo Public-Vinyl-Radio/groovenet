@@ -43,14 +43,14 @@ References: [dbus-next](https://github.com/dbusjs/node-dbus-next),
 
 ## macOS decision and scope
 
-macOS is deferred. Apple's
+The Linux bridge does not run on macOS. The optional Swift companion added for
+issue #680 is documented in [NOW_PLAYING.md](NOW_PLAYING.md). Apple's
 [MPNowPlayingInfoCenter](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter)
 and [MPRemoteCommandCenter](https://developer.apple.com/documentation/mediaplayer/mpremotecommandcenter)
 are native MediaPlayer framework APIs. Node's standard library does not expose
-them. Supporting them here would require a native binding or a separately built
-Swift/Objective-C helper with its own run loop, packaging and lifecycle. That
-exceeds the issue's lightweight integration constraint. The socket-subscriber
-boundary allows such a helper later without changing the playback core. Running
+them. The macOS companion uses a separately built Swift helper with its own
+AppKit run loop and app bundle, outside the playback core. These were deferred
+from #650 to keep that issue's integration lightweight. Running
 this bridge on macOS prints that it is disabled and exits successfully.
 
 Also out of scope: artwork fetching, graphical UI raising, URI loading, queue

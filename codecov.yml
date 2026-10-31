@@ -4,6 +4,9 @@ flag_management:
     carryforward: true
 
 flags:
+  groovenet-macos:
+    paths:
+      - packages/groovenet-player/macos/
   webapp:
     paths:
       - my-collection-search/
