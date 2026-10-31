@@ -310,3 +310,10 @@ describe("spin contracts", () => {
     expect(spinJsonSchemas.SpinAggregateRequest.required).toEqual(["since"]);
   });
 });
+
+import { spinRecapQuerySchema, spinRecapResponseSchema } from "./spins.js";
+it("validates the recap month and empty response", () => {
+  expect(spinRecapQuerySchema.safeParse({ friend_id: 1, month: "2026-10" }).success).toBe(true);
+  expect(spinRecapQuerySchema.safeParse({ friend_id: 1, month: "2026-13" }).success).toBe(false);
+  expect(spinRecapResponseSchema.safeParse({}).success).toBe(false);
+});

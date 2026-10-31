@@ -1,3 +1,4 @@
+import { spinRecapQuerySchema, spinRecapResponseSchema } from "./schemas";
 import { z } from "zod";
 import { playerContracts } from "./players";
 import { fontChoiceIdsFor, fontRoleIds } from "@/app/fontChoices";
@@ -7916,6 +7917,35 @@ export const apiContractRoutes: ApiContractRoute[] = [
           content: { "application/json": { schema: componentRef("SpinAggregateResult") } },
         },
         "400": jsonError("Invalid payload"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getSpinRecap",
+    method: "get",
+    path: "/api/spins/recap",
+    summary: "Monthly listening recap in the configured time zone",
+    tags: ["Spins"],
+    querySchema: spinRecapQuerySchema,
+    successSchema: spinRecapResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        {
+          name: "month",
+          in: "query",
+          required: true,
+          schema: { type: "string", pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Monthly recap",
+          content: { "application/json": { schema: componentRef("SpinRecapResponse") } },
+        },
+        "400": jsonError("Invalid query"),
         "500": jsonError("Server error"),
       },
     },

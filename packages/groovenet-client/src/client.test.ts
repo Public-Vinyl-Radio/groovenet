@@ -675,6 +675,18 @@ describe("GroovenetClient spin endpoints", () => {
     });
   });
 
+  it("getSpinRecap requests the exact friend and month", async () => {
+    const result = { stats: {} };
+    const client = clientReturning(result);
+    expect(await client.getSpinRecap({ friend_id: 7, month: "2026-10" })).toEqual(result);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/spins/recap",
+      data: undefined,
+      params: { friend_id: 7, month: "2026-10" },
+    });
+  });
+
   it("listTopSpinTracks defaults limit and offset", async () => {
     const client = clientReturning({ tracks: [] });
 

@@ -61,6 +61,8 @@ import type {
   SpinUpdateResponse,
   SpinListQuery,
   SpinListResponse,
+  SpinRecapQuery,
+  SpinRecapResponse,
   SpinTopTracksQuery,
   SpinTopTracksResponse,
   TrackSearchMode,
@@ -404,6 +406,13 @@ export class GroovenetClient {
   async deleteSpin(id: number, friendId: number): Promise<SpinDeleteResponse> {
     return this.request<SpinDeleteResponse>("DELETE", `/spins/${id}`, undefined, {
       friend_id: friendId,
+    });
+  }
+
+  async getSpinRecap(query: SpinRecapQuery): Promise<SpinRecapResponse> {
+    return this.request<SpinRecapResponse>("GET", "/spins/recap", undefined, {
+      friend_id: query.friend_id,
+      month: query.month,
     });
   }
 
