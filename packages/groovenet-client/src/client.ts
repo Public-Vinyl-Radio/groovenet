@@ -387,6 +387,8 @@ export class GroovenetClient {
       to: query.to,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
+      medium: query.medium,
+      cursor: query.cursor,
     };
     return this.request<SpinListResponse>("GET", "/spins", undefined, params);
   }

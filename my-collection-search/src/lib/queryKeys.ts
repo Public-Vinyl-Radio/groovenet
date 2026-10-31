@@ -30,7 +30,18 @@ export const queryKeys = {
     to?: string;
     limit?: number;
     offset?: number;
+    medium?: "vinyl" | "digital";
   }) => ["spins", args] as const,
+  // Cursor paging: the cursor is the page param, so it is not part of the key.
+  spinsInfinite: (args: {
+    friend_id: number;
+    release_id?: string;
+    track_id?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    medium?: "vinyl" | "digital";
+  }) => ["spins", "infinite", args] as const,
   spinsRoot: () => ["spins"] as const,
   spinTopTracks: (args: {
     friend_id: number;

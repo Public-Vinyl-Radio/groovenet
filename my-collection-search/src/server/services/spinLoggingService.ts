@@ -1,5 +1,6 @@
 import type { SpinDerived, SpinMedium, SpinProvenance, SpinTrackRef } from "@groovenet/contracts";
 import { compareTrackPositions, normalizeAlbumTrackSides } from "@/lib/albumTrackPosition";
+import { encodeSpinCursor, type SpinCursor } from "@/lib/spinCursor";
 import { withDbTransaction } from "@/lib/serverDb";
 import { DIGITAL_PLAY_ALREADY_LOGGED } from "@/server/services/spinErrors";
 import { albumRepository } from "@/server/repositories/albumRepository";
@@ -7,6 +8,8 @@ import { trackRepository } from "@/server/repositories/trackRepository";
 import {
   spinSessionRepository,
   type CreateSpinSessionSelectionInput,
+  type ListedSpinSessionRow,
+  type ListSpinSessionsFilters,
   type SpinSessionRow,
   type SpinSessionSelectionRow,
 } from "@/server/repositories/spinSessionRepository";
@@ -16,6 +19,11 @@ import {
   type TopTrackSpinEventRow,
 } from "@/server/repositories/trackSpinEventRepository";
 import type { Album, Track } from "@/types/track";
+
+type SpinListItem = SpinSessionDetail & {
+  derived: SpinSessionDetail["derived"];
+  album: { title: string | null; artist: string | null; thumbnail: string | null } | null;
+};
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -294,23 +302,39 @@ export class SpinLoggingService {
     });
   }
 
-  async listSpinSessions(filters: {
-    friend_id: number;
-    release_id?: string;
-    track_id?: string;
-    limit?: number;
-    offset?: number;
-    from?: string | Date;
-    to?: string | Date;
-  }): Promise<
-    Array<
-      SpinSessionDetail & {
-        derived: SpinSessionDetail["derived"];
-        album: { title: string | null; artist: string | null; thumbnail: string | null } | null;
-      }
-    >
-  > {
-    const sessions = await spinSessionRepository.listSessions(filters);
+  /**
+   * One page of the list, newest first. Fetches one row past `limit` to know
+   * whether another page exists; `next_cursor` is then the sort key of the
+   * last returned item. `cursor` has already been decoded by the caller.
+   */
+  async listSpinSessionsPage(
+    filters: Omit<ListSpinSessionsFilters, "after"> & { cursor?: SpinCursor },
+  ): Promise<{ items: SpinListItem[]; next_cursor: string | null }> {
+    const { cursor, ...rest } = filters;
+    const limit = rest.limit ?? 50;
+    const rows = await spinSessionRepository.listSessions({
+      ...rest,
+      limit: limit + 1,
+      after: cursor,
+    });
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const items = await this.hydrateSessions(page);
+    const last = page[page.length - 1];
+    return {
+      items,
+      next_cursor:
+        hasMore && last
+          ? encodeSpinCursor({ played_at: last.played_at_cursor, id: last.id })
+          : null,
+    };
+  }
+
+  async listSpinSessions(filters: Omit<ListSpinSessionsFilters, "after">): Promise<SpinListItem[]> {
+    return this.hydrateSessions(await spinSessionRepository.listSessions(filters));
+  }
+
+  private async hydrateSessions(sessions: ListedSpinSessionRow[]): Promise<SpinListItem[]> {
     const sessionIds = sessions.map((session) => session.id);
     const selections = await spinSessionRepository.listSelectionsBySessionIds(sessionIds);
     const trackEvents = await trackSpinEventRepository.listEventsBySessionIds(sessionIds);
@@ -329,34 +353,36 @@ export class SpinLoggingService {
       trackEventsBySessionId.set(event.session_id, group);
     }
 
-    return sessions.map(({ album_title, album_artist, album_thumbnail, ...session }) => {
-      const sessionSelections = selectionsBySessionId.get(session.id) ?? [];
-      const sessionTrackEvents = trackEventsBySessionId.get(session.id) ?? [];
-      const selectedSideCount = new Set(
-        sessionSelections
-          .filter((selection) => selection.selection_type === "side")
-          .map((selection) => selection.side_key)
-          .filter((sideKey): sideKey is string => Boolean(sideKey)),
-      ).size;
+    return sessions.map(
+      ({ album_title, album_artist, album_thumbnail, played_at_cursor: _cursor, ...session }) => {
+        const sessionSelections = selectionsBySessionId.get(session.id) ?? [];
+        const sessionTrackEvents = trackEventsBySessionId.get(session.id) ?? [];
+        const selectedSideCount = new Set(
+          sessionSelections
+            .filter((selection) => selection.selection_type === "side")
+            .map((selection) => selection.side_key)
+            .filter((sideKey): sideKey is string => Boolean(sideKey)),
+        ).size;
 
-      return {
-        session: normalizeSessionRow(session),
-        selections: sessionSelections,
-        track_events: sessionTrackEvents,
-        derived: {
-          is_full_album_spin: false,
-          selected_side_count: selectedSideCount,
-          album_side_count: 0,
-          track_count: sessionTrackEvents.length,
-        },
-        // albums.title is NOT NULL, so a null one means no albums row: the spin
-        // outlived its album, and the event snapshots still name it.
-        album:
-          album_title == null
-            ? null
-            : { title: album_title, artist: album_artist, thumbnail: album_thumbnail },
-      };
-    });
+        return {
+          session: normalizeSessionRow(session),
+          selections: sessionSelections,
+          track_events: sessionTrackEvents,
+          derived: {
+            is_full_album_spin: false,
+            selected_side_count: selectedSideCount,
+            album_side_count: 0,
+            track_count: sessionTrackEvents.length,
+          },
+          // albums.title is NOT NULL, so a null one means no albums row: the spin
+          // outlived its album, and the event snapshots still name it.
+          album:
+            album_title == null
+              ? null
+              : { title: album_title, artist: album_artist, thumbnail: album_thumbnail },
+        };
+      },
+    );
   }
 
   /**

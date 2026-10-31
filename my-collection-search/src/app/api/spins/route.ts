@@ -5,6 +5,7 @@ import {
   spinListQuerySchema,
   spinListResponseSchema,
 } from "@/api-contract/schemas";
+import { decodeSpinCursor } from "@/lib/spinCursor";
 import {
   spinLoggingService,
   type CreateSpinSessionInput,
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest) {
       to: url.searchParams.get("to") ?? undefined,
       limit: url.searchParams.get("limit") ?? undefined,
       offset: url.searchParams.get("offset") ?? undefined,
+      medium: url.searchParams.get("medium") ?? undefined,
+      cursor: url.searchParams.get("cursor") ?? undefined,
     });
 
     if (!parsedQuery.success) {
@@ -31,11 +34,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const items = await spinLoggingService.listSpinSessions(parsedQuery.data);
+    const { cursor: encodedCursor, ...filters } = parsedQuery.data;
+    const cursor = encodedCursor === undefined ? undefined : decodeSpinCursor(encodedCursor);
+    if (cursor === null) {
+      return NextResponse.json({ error: "Invalid cursor" }, { status: 400 });
+    }
+
+    const { items, next_cursor } = await spinLoggingService.listSpinSessionsPage({
+      ...filters,
+      cursor,
+    });
     const response = spinListResponseSchema.parse({
       items,
       limit: parsedQuery.data.limit,
       offset: parsedQuery.data.offset,
+      next_cursor,
     });
 
     return NextResponse.json(response);

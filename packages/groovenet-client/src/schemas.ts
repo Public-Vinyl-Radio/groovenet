@@ -126,11 +126,16 @@ export const spinCreateBodySchema = spinCreateObjectSchema
   .extend({ friend_id: intFromInputSchema })
   .superRefine(refineSpinCreate);
 
-export const spinListQuerySchema = sharedSpinListQuerySchema.extend({
-  friend_id: intFromInputSchema,
-  limit: nonNegativeIntFromInputSchema.optional().default(50),
-  offset: nonNegativeIntFromInputSchema.optional().default(0),
-});
+export const spinListQuerySchema = sharedSpinListQuerySchema
+  .extend({
+    friend_id: intFromInputSchema,
+    limit: nonNegativeIntFromInputSchema.optional().default(50),
+    offset: nonNegativeIntFromInputSchema.optional().default(0),
+  })
+  .refine((query) => !query.cursor || query.offset === 0, {
+    message: "cursor cannot be combined with a non-zero offset",
+    path: ["cursor"],
+  });
 
 export const spinUpdateBodySchema = spinUpdateObjectSchema
   .extend({ friend_id: intFromInputSchema })
