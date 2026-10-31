@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { recordCareStatusSchema } from "@groovenet/contracts";
 import { Flex, Spinner, Stack, Text } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
@@ -11,10 +13,21 @@ import type { RecordCareStatus } from "@/lib/recordCare";
 import { useUsername } from "@/providers/UsernameProvider";
 
 /** Record care chores (#262): copies to clean, and copies still to re-sleeve. */
-export default function ChorePage() {
+function ChorePageContent() {
   const { friend, isHydrated } = useUsername();
   const friendId = friend?.id ?? 0;
-  const [status, setStatus] = React.useState<RecordCareStatus>("never_cleaned");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlStatus =
+    recordCareStatusSchema.safeParse(searchParams.get("status")).data ?? "never_cleaned";
+  const [status, setStatus] = React.useState<RecordCareStatus>(urlStatus);
+  React.useEffect(() => setStatus(urlStatus), [urlStatus]);
+  const changeStatus = (next: RecordCareStatus) => {
+    setStatus(next);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("status", next);
+    router.push(`/chore?${params.toString()}`);
+  };
   const summaryQuery = useRecordCareSummaryQuery(
     { friend_id: friendId },
     { enabled: friendId > 0 },
@@ -42,7 +55,7 @@ export default function ChorePage() {
           <RecordCareSummary
             summary={summaryQuery.data}
             status={status}
-            onStatusChange={setStatus}
+            onStatusChange={changeStatus}
           />
         ) : summaryQuery.error ? (
           <Text color="fg.error">{summaryQuery.error.message}</Text>
@@ -55,5 +68,13 @@ export default function ChorePage() {
         <RecordCareList friendId={friendId} status={status} />
       </Stack>
     </PageContainer>
+  );
+}
+
+export default function ChorePage() {
+  return (
+    <React.Suspense fallback={null}>
+      <ChorePageContent />
+    </React.Suspense>
   );
 }

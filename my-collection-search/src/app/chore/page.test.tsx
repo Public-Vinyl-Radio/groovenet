@@ -4,6 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
+const navigation = vi.hoisted(() => ({ params: new URLSearchParams(), push: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => navigation.params,
+  useRouter: () => ({ push: navigation.push }),
+}));
+
 const api = vi.hoisted(() => ({
   listRecordCare: vi.fn(),
   getRecordCareSummary: vi.fn(),
@@ -58,6 +64,8 @@ function careResponse(items: unknown[], total = items.length, offset = 0) {
 const lastCareParams = () => api.listRecordCare.mock.calls.at(-1)?.[0];
 
 beforeEach(() => {
+  navigation.params = new URLSearchParams();
+  navigation.push.mockReset();
   username.current = { friend: { id: 7 }, isHydrated: true };
   api.getRecordCareSummary.mockResolvedValue(summary);
   api.listRecordCare.mockResolvedValue(
@@ -197,4 +205,26 @@ describe("ChorePage", () => {
     expect(await screen.findByText("summary down")).toBeTruthy();
     expect(await screen.findByText("list down")).toBeTruthy();
   });
+});
+
+it.each(["overdue", "needs_sleeve", "never_cleaned", "invalid"])(
+  "reads chore status %s from URL",
+  async (value) => {
+    navigation.params = new URLSearchParams(`status=${value}`);
+    renderWithProviders(<ChorePage />);
+    await waitFor(() =>
+      expect(lastCareParams()).toMatchObject({
+        status: value === "invalid" ? "never_cleaned" : value,
+      }),
+    );
+  },
+);
+it("writes status and follows URL navigation", async () => {
+  navigation.params = new URLSearchParams("status=overdue&keep=1");
+  const { user, rerender } = renderWithProviders(<ChorePage />);
+  await user.click(await screen.findByRole("button", { name: /Needs a sleeve/ }));
+  expect(navigation.push).toHaveBeenCalledWith("/chore?status=needs_sleeve&keep=1");
+  navigation.params = new URLSearchParams("status=never_cleaned");
+  rerender(<ChorePage />);
+  await waitFor(() => expect(lastCareParams()).toMatchObject({ status: "never_cleaned" }));
 });

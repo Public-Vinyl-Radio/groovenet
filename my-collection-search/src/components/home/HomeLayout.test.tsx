@@ -8,7 +8,7 @@ import HomeLayout from "./HomeLayout";
 const order = () => screen.getAllByTestId(/^slot-/).map((node) => node.dataset.testid);
 
 describe("HomeLayout", () => {
-  it("renders the sections in the mock's order", () => {
+  it("renders the wired attention slot after the month card and before playlists", () => {
     renderWithProviders(
       <HomeLayout
         header={<div data-testid="slot-header" />}

@@ -4,7 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
+const navigation = vi.hoisted(() => ({ params: new URLSearchParams(), push: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => navigation.params,
+  useRouter: () => ({ push: navigation.push }),
+}));
+
 const jobs = vi.hoisted(() => ({
+  query: vi.fn(),
   refetch: vi.fn(),
   total: 3,
   rows: [] as import("@/types/jobs").JobInfo[],
@@ -12,16 +19,19 @@ const jobs = vi.hoisted(() => ({
   clear: vi.fn(),
 }));
 vi.mock("@/hooks/useJobsQuery", () => ({
-  useJobsQuery: () => ({
-    data: {
-      jobs: jobs.rows,
-      summary: { total: jobs.total, waiting: 0, active: 0, completed: 0, failed: 0 },
-      pagination: { total_filtered: 0, has_more: false },
-    },
-    isLoading: jobs.isLoading,
-    refetch: jobs.refetch,
-    dataUpdatedAt: 0,
-  }),
+  useJobsQuery: (params: unknown) => {
+    jobs.query(params);
+    return {
+      data: {
+        jobs: jobs.rows,
+        summary: { total: jobs.total, waiting: 0, active: 0, completed: 0, failed: 0 },
+        pagination: { total_filtered: 0, has_more: false },
+      },
+      isLoading: jobs.isLoading,
+      refetch: jobs.refetch,
+      dataUpdatedAt: 0,
+    };
+  },
 }));
 vi.mock("@/services/internalApi/jobs", () => ({ clearAllJobs: jobs.clear }));
 vi.mock("@/components/TrackResultStore", () => ({
@@ -34,6 +44,8 @@ import JobsPage from "./page";
 const header = () => within(screen.getByTestId("page-header"));
 
 beforeEach(() => {
+  navigation.params = new URLSearchParams();
+  navigation.push.mockReset();
   jobs.refetch.mockReset();
   jobs.clear.mockReset().mockResolvedValue(undefined);
   jobs.total = 3;
@@ -139,4 +151,28 @@ it("shows failed-job details and distinguishes loading logs from an empty log", 
   } finally {
     fetchLogs.mockRestore();
   }
+});
+
+it.each(["all", "waiting", "active", "completed", "failed", "invalid"])(
+  "reads job state %s from URL",
+  (value) => {
+    navigation.params = new URLSearchParams(`state=${value}`);
+    renderWithProviders(<JobsPage />);
+    expect(jobs.query).toHaveBeenLastCalledWith({
+      limit: 50,
+      offset: 0,
+      state: value === "invalid" ? "all" : value,
+    });
+  },
+);
+it("writes state and follows URL navigation", async () => {
+  navigation.params = new URLSearchParams("state=failed&keep=1");
+  const { user, rerender } = renderWithProviders(<JobsPage />);
+  await user.selectOptions(screen.getByRole("combobox", { name: "Job state" }), "active");
+  expect(navigation.push).toHaveBeenCalledWith("/jobs?state=active&keep=1");
+  navigation.params = new URLSearchParams("state=completed");
+  rerender(<JobsPage />);
+  await waitFor(() =>
+    expect(jobs.query).toHaveBeenLastCalledWith({ limit: 50, offset: 0, state: "completed" }),
+  );
 });
