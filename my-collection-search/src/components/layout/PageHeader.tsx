@@ -23,6 +23,8 @@ export type PageHeaderOverflowItem = {
 type PageHeaderProps = {
   title: string;
   count?: number | string;
+  /** A mono line after the title from `md` up ("4,044 tracks · 312 albums"); phones drop it. */
+  summary?: string;
   /** Back button on detail pages; sits left of the title. */
   leading?: React.ReactNode;
   /**
@@ -52,6 +54,7 @@ const MAX_ACTIONS = 2;
 export default function PageHeader({
   title,
   count,
+  summary,
   leading,
   breadcrumbs,
   actions = [],
@@ -125,6 +128,20 @@ export default function PageHeader({
               {typeof count === "number" ? count.toLocaleString() : count}
             </Text>
           )}
+          {summary ? (
+            <Text
+              data-testid="page-header-summary"
+              display={{ base: "none", md: "block" }}
+              ml={1}
+              minW={0}
+              fontFamily="mono"
+              fontSize="sm"
+              color="fg.muted"
+              truncate
+            >
+              {summary}
+            </Text>
+          ) : null}
         </Flex>
         <Flex display={{ base: "flex", md: "none" }} align="center" gap={1}>
           {shown.map((action) => (

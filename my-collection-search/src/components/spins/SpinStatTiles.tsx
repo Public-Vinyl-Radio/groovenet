@@ -13,6 +13,8 @@ type Props = {
   previousMonth?: string;
   /** A standalone block (the recap page) rather than a row inside the strip's frame. */
   framed?: boolean;
+  /** A row inside another card's frame at every width (Home's month card): no outline or shadow of its own. */
+  inset?: boolean;
 };
 
 const STATS = [
@@ -23,18 +25,24 @@ const STATS = [
 ] as const;
 
 /** Spins, hours, records pulled, new to rotation: two by two on phones, a row from `md`. */
-export default function SpinStatTiles({ stats, previousMonth, framed = false }: Props) {
+export default function SpinStatTiles({
+  stats,
+  previousMonth,
+  framed = false,
+  inset = false,
+}: Props) {
   const noPrevious = stats ? stats.spins.previous === 0 : false;
+  const edge = framed ? "outline" : inset ? 0 : { base: 0, md: "outline" };
   return (
     <Grid
       as="dl"
       templateColumns={{ base: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }}
       borderTopWidth="outline"
-      borderInlineWidth={framed ? "outline" : { base: 0, md: "outline" }}
-      borderBottomWidth={framed ? "outline" : { base: 0, md: "outline" }}
+      borderInlineWidth={edge}
+      borderBottomWidth={edge}
       borderColor="border.ink"
-      boxShadow={framed ? "md" : { base: "none", md: "md" }}
-      mr={framed ? "6px" : { md: "6px" }}
+      boxShadow={framed ? "md" : inset ? "none" : { base: "none", md: "md" }}
+      mr={framed ? "6px" : inset ? 0 : { md: "6px" }}
     >
       {STATS.map(([label, key], index) => {
         const stat = stats?.[key];

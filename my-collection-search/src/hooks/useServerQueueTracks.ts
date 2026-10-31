@@ -8,11 +8,17 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useTrackStore } from "@/stores/trackStore";
 import type { Track } from "@/types/track";
 
+/** What a row needs to resolve: a queue entry, or anything else naming a track (a vinyl detection). */
+export type LabelledTrackRef = Pick<
+  ServerQueueEntry,
+  "track_id" | "friend_id" | "title" | "artist"
+>;
+
 const refKey = (entry: Pick<ServerQueueEntry, "track_id" | "friend_id">) =>
   `${entry.track_id}:${entry.friend_id}`;
 
 /** A queue row before its track has loaded: the title and artist the server already sent. */
-export function placeholderTrack(entry: ServerQueueEntry): Track {
+export function placeholderTrack(entry: LabelledTrackRef): Track {
   return {
     id: 0,
     track_id: entry.track_id,
@@ -33,7 +39,7 @@ export function placeholderTrack(entry: ServerQueueEntry): Track {
  * store (fetched once per unique ref), so artwork, duration and key match
  * local mode; each keeps its entry's title and artist until then.
  */
-export function useServerQueueTracks(entries: readonly ServerQueueEntry[]): Track[] {
+export function useServerQueueTracks(entries: readonly LabelledTrackRef[]): Track[] {
   const setTracks = useTrackStore((state) => state.setTracks);
   const tracksMap = useTrackStore((state) => state.tracks);
   const refs = useMemo(() => {

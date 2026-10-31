@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Heading, type FlexProps } from "@chakra-ui/react";
+import NextLink from "next/link";
+import { Box, Flex, Heading, Link, type FlexProps, type LinkProps } from "@chakra-ui/react";
 
 // Pieces the recap strip on the log (#863) and the recap page (#865) share.
 
@@ -58,6 +59,38 @@ export function SectionHeading({
       <Box flex="1" h="2px" bg="fg" aria-hidden="true" />
       {trailing}
     </Flex>
+  );
+}
+
+/** A recap card's 44px ink header, all one link: "OCTOBER SO FAR · FULL RECAP →". */
+export function RecapLinkBar({
+  href,
+  title,
+  ...rest
+}: { href: string; title: React.ReactNode } & Omit<LinkProps, "href" | "title" | "children">) {
+  return (
+    <Link
+      asChild
+      display="flex"
+      h="44px"
+      px={3}
+      alignItems="center"
+      justifyContent="space-between"
+      bg="fg"
+      color="bg"
+      textDecoration="none"
+      fontFamily="mono"
+      fontSize="xs"
+      fontWeight="semibold"
+      letterSpacing="0.06em"
+      _hover={{ textDecoration: "none" }}
+      {...rest}
+    >
+      <NextLink href={href}>
+        {title}
+        <span>FULL RECAP →</span>
+      </NextLink>
+    </Link>
   );
 }
 

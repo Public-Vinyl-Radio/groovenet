@@ -1,11 +1,18 @@
 "use client";
 
 import React from "react";
-import NextLink from "next/link";
-import { Box, Flex, Grid, Heading, HStack, Link, Stack, Text } from "@chakra-ui/react";
+import { Box, Flex, Grid, Heading, HStack, Stack, Text } from "@chakra-ui/react";
 import type { SpinRecapResponse } from "@/services/internalApi/spins";
 import { genreTint } from "./recapCharts";
-import { Bar, DIGITAL_HATCH, inkTint, Overline, SplitSegments, Swatch } from "./recapParts";
+import {
+  Bar,
+  DIGITAL_HATCH,
+  inkTint,
+  Overline,
+  RecapLinkBar,
+  SplitSegments,
+  Swatch,
+} from "./recapParts";
 import { formatMonthName } from "./spinMonth";
 import SpinStatTiles from "./SpinStatTiles";
 
@@ -45,27 +52,11 @@ export default function SpinRecapStrip({ month, current, recap }: Props) {
       boxShadow={{ base: "md", md: "none" }}
       mr={{ base: "6px", md: 0 }}
     >
-      <Link
-        asChild
+      <RecapLinkBar
         display={{ base: "flex", md: "none" }}
-        h="44px"
-        px={3}
-        alignItems="center"
-        justifyContent="space-between"
-        bg="fg"
-        color="bg"
-        textDecoration="none"
-        fontFamily="mono"
-        fontSize="xs"
-        fontWeight="semibold"
-        letterSpacing="0.06em"
-        _hover={{ textDecoration: "none" }}
-      >
-        <NextLink href={recapHref}>
-          <span>{current ? `${monthName} SO FAR` : `${monthName} RECAP`}</span>
-          <span>FULL RECAP →</span>
-        </NextLink>
-      </Link>
+        href={recapHref}
+        title={<span>{current ? `${monthName} SO FAR` : `${monthName} RECAP`}</span>}
+      />
       <Heading as="h2" id="spin-recap-heading" srOnly>
         {monthName} recap
       </Heading>
