@@ -110,7 +110,11 @@ just lint-all         # every pre-commit hook, as CI runs them
 Parallel tasks run in git worktrees, each with its own compose stack via
 `just worktree-up`. With [herdr](https://herdr.dev), `just herdr` attaches to
 the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
-worktree workspace off `main`, runs `just bootstrap` and starts its stack.
+worktree workspace off `origin/main`, runs `just worktree-setup` (`just
+bootstrap`, then its stack) and starts a coding agent once that succeeds. It
+hands off to `herdr-agent` from the dotfiles, which owns the agent choice:
+pass `--agent`, `--model`, `--prompt-file` or `--issue N`, and `--no-stack`
+for work that needs no stack.
 Golden seeds are created and restored from
 `~/.herdr/worktree-seeds/<main-checkout-name>/latest`. `just worktree-seed`
 refreshes the seed from a local stack; `just worktree-seed-prod` refreshes it
