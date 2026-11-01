@@ -1,0 +1,9 @@
+---
+import Head from "@astrojs/starlight/components/Head.astro";
+import { cssVars, fontFaceCss, sitePalette } from "../../lib/tokens";
+import black from "../../assets/groovenet-wordmark-black.png";
+import white from "../../assets/groovenet-wordmark-white.png";
+const themeCss = `:root{${cssVars(sitePalette.dark)}--wordmark:url("${white.src}");}:root[data-theme="light"]{${cssVars(sitePalette.light)}--wordmark:url("${black.src}");}`;
+---
+<Head />
+<style is:inline set:html={`${fontFaceCss}\n${themeCss}`}></style>

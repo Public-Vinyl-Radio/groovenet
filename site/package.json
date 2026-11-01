@@ -8,16 +8,19 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build",
+    "build": "astro check && astro build && node scripts/check-links.mjs",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "test": "node --test scripts/check-links.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.6.0",
+    "@astrojs/starlight": "0.42.8",
     "astro": "^7.4.4",
     "typescript": "^5.9.0"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10"
+    "@astrojs/check": "0.9.10",
+    "parse5": "8.0.1"
   }
 }

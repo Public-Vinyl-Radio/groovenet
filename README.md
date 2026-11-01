@@ -33,50 +33,7 @@ The project website at [groovenet.publicvinylradio.com](https://groovenet.public
 
 ## Run GrooveNet
 
-The simplest self-hosted install needs [Docker Compose v2](https://docs.docker.com/compose/).
-
-```bash
-git clone https://github.com/Public-Vinyl-Radio/groovenet.git
-cd groovenet
-
-cp .env.example .env
-# Edit .env: at minimum, set POSTGRES_PASSWORD and your Discogs values.
-
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
-docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate
-```
-
-Open [http://localhost:3000](http://localhost:3000), then use **Sync from Discogs** to import your collection. The stack stores its database, audio, exports, backups, and cookies in Docker volumes.
-
-### Required configuration
-
-Set these values in `.env` before starting:
-
-| Variable             | Purpose                                                                                              |
-| -------------------- | ---------------------------------------------------------------------------------------------------- |
-| `POSTGRES_PASSWORD`  | A strong password for the bundled database                                                           |
-| `DISCOGS_USER_TOKEN` | Personal access token from [Discogs developer settings](https://www.discogs.com/settings/developers) |
-| `DISCOGS_USERNAME`   | Your Discogs username                                                                                |
-| `DISCOGS_FOLDER_ID`  | `0` for your full collection, or a specific folder ID                                                |
-
-Apple Music, YouTube, OpenAI, backup, and analytics settings are optional. See [`.env.example`](.env.example) for the complete list and descriptions.
-
-### Everyday commands
-
-```bash
-# Follow service logs
-docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f
-
-# Stop the stack; your data remains in Docker volumes
-docker compose -f docker-compose.yml -f docker-compose.local.yml down
-
-# Update source, rebuild, and restart
-git pull
-docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
-docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate
-```
-
-The local override binds the app to `127.0.0.1:3000`. Set `APP_PORT=3001` in `.env` to use another port. Put GrooveNet behind your own reverse proxy to make it available on a network or public domain.
+Start with the [setup guide](https://groovenet.publicvinylradio.com/docs/getting-started/), then [import your Discogs collection](https://groovenet.publicvinylradio.com/docs/getting-started/discogs/). The docs cover [environment settings](https://groovenet.publicvinylradio.com/docs/configuration/environment/), [integrations and backups](https://groovenet.publicvinylradio.com/docs/configuration/integrations/), and [running and updating](https://groovenet.publicvinylradio.com/docs/getting-started/running/).
 
 ## Features
 
@@ -92,26 +49,11 @@ The local override binds the app to `127.0.0.1:3000`. Set `APP_PORT=3001` in `.e
 
 GrooveNet also includes an iOS SwiftUI app for connecting to a self-hosted server. It currently supports server setup, playlist browsing and generation, and local track downloads. See the [iOS app README](ios/DJPlaylistMobile/DJPlaylistMobile/README.md) for Xcode setup and current scope.
 
-Install the CLI from npm:
-
-```bash
-npm install -g @groovenet/cli
-groovenet config set api_base http://localhost:3000/api
-groovenet tracks search "acid house" --bpm-min 120 --bpm-max 135
-```
-
-The [CLI README](packages/groovenet-cli/README.md) covers all commands. The [MCP server README](mcp-server/README.md) explains how to connect GrooveNet to an MCP client.
+Use the [CLI guide and reference](https://groovenet.publicvinylradio.com/docs/cli/) for terminal access, or the [MCP guide](https://groovenet.publicvinylradio.com/docs/mcp/) to connect an assistant.
 
 ## Development
 
-For contributing or running the hot-reload stack, install [mise](https://mise.jdx.dev/) and [just](https://github.com/casey/just):
-
-```bash
-mise install
-just bootstrap
-just compose-dev
-just migrate-up
-```
+The [development setup](https://groovenet.publicvinylradio.com/docs/getting-started/running/#development-and-production) covers prerequisites and the hot-reload stack. The notes below describe the contributor toolchain.
 
 Node 26 and npm 12.0.1 are selected by `.mise.toml`. The exact `engines.npm`
 pins in the root and app manifests must match it: the shared

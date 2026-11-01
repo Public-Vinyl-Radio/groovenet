@@ -1,0 +1,22 @@
+---
+import Footer from "../Footer.astro";
+import Pagination from "@astrojs/starlight/components/Pagination.astro";
+const { entry } = Astro.locals.starlightRoute;
+const source = entry.filePath?.replace(/^\.\.\//, "");
+const editUrl = entry.data.editUrl === false || entry.id === "404"
+  ? undefined
+  : typeof entry.data.editUrl === "string"
+    ? entry.data.editUrl
+    : `https://github.com/Public-Vinyl-Radio/groovenet/edit/main/${source}`;
+---
+<div class="docs-footer">
+  {editUrl && <a class="caps edit" href={editUrl}>Edit this page ↗</a>}
+  <Pagination />
+  <Footer />
+</div>
+<style>
+  .docs-footer { margin-top: 48px; }
+  .edit { display: inline-block; margin-bottom: 24px; }
+  .docs-footer :global(footer) { margin-top: 36px; }
+  .docs-footer :global(.wrap) { padding-inline: 0; }
+</style>

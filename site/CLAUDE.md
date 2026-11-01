@@ -1,6 +1,6 @@
 # site
 
-The GrooveNet marketing site: Astro 5, static output, `@astrojs/sitemap`, deployed
+The GrooveNet marketing site: Astro 7, static output, `@astrojs/sitemap`, deployed
 by Netlify to https://groovenet.publicvinylradio.com. Moved here from the old
 `groovenet-site` repo in #910.
 
@@ -17,7 +17,7 @@ just site-build       # astro check && astro build, into site/dist
 just site-preview     # serve the built site
 ```
 
-Routes live in `src/pages` (`/`, `/about`, `/docs`); the landing page is one
+Marketing routes live in `src/pages` (`/`, `/about`); the landing page is one
 component per section in `src/components` (`Hero`, `Interfaces`, `Appearance`,
 `Roadmap`), so a new section from the design slots in as another component.
 The design is the Claude canvas linked from #914. No UI framework: the tabs,
@@ -44,8 +44,21 @@ headings are 600, not the canvas's 800.
   Real items only.
 - **Copy** is from the design, checked against the code: the phone shots are
   the web app at 390px, and the native iOS app is an early client.
-- Docs will be built with Starlight from the repo-root `docs/` tree (#911);
-  `/docs` is a holding page until then.
+- **Docs:** Starlight at `/docs`, loaded from root `docs/` with `glob({ base:
+  "../docs" })` in `src/content.config.ts`. Add a `.md` or `.mdx` file under
+  getting-started, configuration, using or vinyl-tracking. Give it `title`,
+  `description` and `sidebar.order` frontmatter; folder sidebars update automatically.
+  Use `/docs/…/` links. Run `just format` after staging new Markdown: root docs
+  are formatted even though `site/` is ignored by Prettier.
+- **Release notes:** the docs loader reads root `CHANGELOG.md` at build time;
+  never edit that release-please-owned file or commit a generated copy.
+- **Docs theme:** `src/components/docs/` wraps the shared Header/Footer and adds
+  search, theme controls and edit links. `src/styles/docs.css` maps Starlight
+  variables to the same generated Mono tokens and self-hosted fonts as the landing page.
+- `just site-build` runs `astro check`, builds Pagefind and checks all rendered
+  internal links and anchors with `scripts/check-links.mjs`. A bad link fails
+  the build. `npm test --prefix site` tests that guard. Check docs and marketing
+  at desktop and phone widths in both themes before shipping.
 
 ## Refreshing screenshots
 

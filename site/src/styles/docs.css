@@ -1,0 +1,78 @@
+/* Starlight reads the same generated Mono palette as BaseLayout. Avoid the
+   marketing reset here: it would erase Markdown spacing and hide overflow. */
+:root {
+  --sans: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --gutter: 40px;
+  --max: 1280px;
+  --sl-font: var(--sans);
+  --sl-font-system-mono: var(--mono);
+  --sl-nav-height: 9rem;
+  --sl-content-width: 49rem;
+  --sl-color-bg: var(--ground);
+  --sl-color-bg-nav: var(--ground);
+  --sl-color-bg-sidebar: var(--ground);
+  --sl-color-bg-inline-code: var(--surface);
+  --sl-color-text: var(--ink);
+  --sl-color-text-accent: var(--ink);
+  --sl-color-hairline: var(--ink);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline-shade: var(--ink);
+  --sl-color-white: var(--ink);
+  --sl-color-black: var(--ground);
+  --sl-color-gray-1: var(--ink);
+  --sl-color-gray-2: var(--ink);
+  --sl-color-gray-3: var(--muted);
+  --sl-color-gray-4: var(--border);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--surface);
+  --sl-color-gray-7: var(--ground);
+  --sl-color-accent: var(--accent);
+  --sl-color-accent-high: var(--ink);
+  --sl-color-accent-low: var(--surface);
+  --sl-color-text-invert: var(--ground);
+}
+/* Override Starlight's explicit light defaults as well as its dark defaults. */
+:root[data-theme="light"] {
+  --sl-color-white: var(--ink);
+  --sl-color-black: var(--ground);
+  --sl-color-gray-1: var(--ink);
+  --sl-color-gray-2: var(--ink);
+  --sl-color-gray-3: var(--muted);
+  --sl-color-gray-4: var(--border);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--surface);
+  --sl-color-gray-7: var(--ground);
+  --sl-color-accent-low: var(--surface);
+  --sl-color-accent-high: var(--ink);
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); }
+a { color: inherit; }
+.wrap { max-width: var(--max); margin: 0 auto; padding-inline: var(--gutter); }
+.caps { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.header { padding: 0 !important; border-bottom: 2px solid var(--ink) !important; }
+.header nav ul, .docs-footer footer ul { list-style: none; }
+.header nav a, .docs-footer footer a { color: var(--ink); }
+h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.025em; }
+.sidebar-content, .right-sidebar { border-color: var(--ink); }
+.sidebar a, .sidebar summary, .right-sidebar h2, .mobile-preferences { font-family: var(--mono); }
+.sidebar a[aria-current="page"] { background: var(--ink); color: var(--ground); }
+button, select, input, dialog, .pagination-links a, .sidebar a, .expressive-code .frame { border-radius: 0 !important; }
+.pagination-links a, site-search button[data-open-modal] { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--shadow); }
+.sl-markdown-content a { text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.sl-markdown-content table { font-size: 0.875rem; }
+.sl-markdown-content th { font-family: var(--mono); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 800px) {
+  :root { --gutter: 16px; --sl-nav-height: 12rem; }
+  .docs-footer .wrap { min-width: 0; }
+}
+
+.header picture img, .docs-footer picture img { content: var(--wordmark); }
+site-search dialog, site-search .pagefind-ui *, mobile-starlight-toc summary { border-radius: 0 !important; }
+site-search dialog { border: 2px solid var(--ink); }
+.sl-menu-button { border: 2px solid var(--ink); }
+@media (max-width: 800px) {
+  .sl-menu-button { top: calc(var(--sl-nav-height) - 2.75rem); }
+}
