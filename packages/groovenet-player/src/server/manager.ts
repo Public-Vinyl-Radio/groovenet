@@ -96,9 +96,19 @@ export class ServerPlayerManager extends EventEmitter {
   }
 
   async initialize(): Promise<void> {
-    // No engine object or network connection is created during restoration.
+    // Restore checkpoints without replaying audio. Reconcile only durable identities.
     for (const saved of await this.store.list()) {
       const player = clone(saved);
+      this.players.set(player.id, player);
+      if (player.state.engine_session) {
+        const backend = this.engine(player).create(player.state.desired_output ?? undefined);
+        this.configureRecovery(player, backend);
+        try {
+          await backend.close();
+        } catch (error) {
+          player.state.error = this.playbackError(player, error);
+        }
+      }
       player.assigned_output = null;
       player.state.status = "stopped";
       player.state.checkpoint = true;
@@ -248,6 +258,15 @@ export class ServerPlayerManager extends EventEmitter {
             player.state.desired_output = command.output_id;
             // Remembering a desired output does not reserve or connect it.
             break;
+          case "engine.stop":
+            await this.play(
+              player,
+              player.state.current_entry_id ?? player.state.queue[0]?.id,
+              command,
+              true,
+              true,
+            );
+            return { player: this.get(id) };
           case "play": {
             const entryId =
               command.entry_id ?? player.state.current_entry_id ?? player.state.queue[0]?.id;
@@ -312,9 +331,11 @@ export class ServerPlayerManager extends EventEmitter {
         if (!(error instanceof ServerPlayerError)) {
           player = this.get(id);
           player.state.status = "error";
-          player.state.error = errorValue(error);
+          player.state.error = this.playbackError(player, error);
           await this.save(player);
         }
+        if (error instanceof PlayerError && error.code === "DEVICE_BUSY")
+          throw new PlayerError("DEVICE_BUSY", this.playbackError(player, error).message);
         throw error;
       }
     });
@@ -411,6 +432,7 @@ export class ServerPlayerManager extends EventEmitter {
     entryId: string | undefined,
     policy: { allow_unknown: boolean; takeover: boolean },
     resumeCheckpoint = true,
+    engineTakeover = false,
   ): Promise<void> {
     const entry = player.state.queue.find((entry) => entry.id === entryId);
     if (!entry)
@@ -455,6 +477,7 @@ export class ServerPlayerManager extends EventEmitter {
     player = await this.save(player);
     this.available();
     const backend = engine.create(output);
+    this.configureRecovery(player, backend);
     const runtime = { backend, generation: ++this.generation };
     this.runtimes.set(player.id, runtime);
     backend.on("position", (position, duration) =>
@@ -539,7 +562,7 @@ export class ServerPlayerManager extends EventEmitter {
     backend.on("error", (error) =>
       this.enqueueEvent(player.id, runtime, async (current) => {
         current.state.status = "error";
-        current.state.error = errorValue(error);
+        current.state.error = this.playbackError(current, error);
         try {
           await this.detach(current);
         } catch {
@@ -549,6 +572,15 @@ export class ServerPlayerManager extends EventEmitter {
       }),
     );
     try {
+      if (engineTakeover) {
+        if (!backend.takeOver)
+          throw new ServerPlayerError(
+            "ENGINE_INCOMPATIBLE",
+            "Engine does not support takeover",
+            400,
+          );
+        await backend.takeOver();
+      }
       await backend.load(source);
       if (position > 0) await backend.seek(position);
       await backend.setVolume(player.state.volume);
@@ -557,7 +589,7 @@ export class ServerPlayerManager extends EventEmitter {
     } catch (error) {
       player = this.get(player.id);
       player.state.status = "error";
-      player.state.error = errorValue(error);
+      player.state.error = this.playbackError(player, error);
       try {
         await this.detach(player);
       } catch {
@@ -566,6 +598,32 @@ export class ServerPlayerManager extends EventEmitter {
       await this.save(player);
       throw error;
     }
+  }
+
+  private playbackError(player: ServerPlayer, error: unknown) {
+    const value = errorValue(error);
+    return value.code === "DEVICE_BUSY"
+      ? {
+          code: value.code,
+          message: `${player.name} / ${player.engine_id} is busy. Something else is playing or paused there. Choose “Stop engine and take over”.`,
+        }
+      : value;
+  }
+
+  private configureRecovery(player: ServerPlayer, backend: PlaybackBackend): void {
+    backend.configureSessionRecovery?.(
+      player.state.engine_session ?? null,
+      async (session) => {
+        // Called in the backend command lane before play, not as a queued event:
+        // persistence must complete before the engine can start audio.
+        const current = this.get(player.id);
+        current.state.engine_session = session;
+        await this.store.checkpoint(current);
+        this.players.set(current.id, current);
+        player.state.engine_session = session;
+      },
+      player.engine_id,
+    );
   }
 
   private enqueueEvent(
@@ -580,7 +638,7 @@ export class ServerPlayerManager extends EventEmitter {
       } catch (error) {
         const current = this.get(id);
         current.state.status = "error";
-        current.state.error = errorValue(error);
+        current.state.error = this.playbackError(current, error);
         try {
           await this.detach(current);
         } catch {
@@ -599,6 +657,7 @@ export class ServerPlayerManager extends EventEmitter {
       // Invalidate callbacks before awaiting close, including duplicate EOFs.
       this.runtimes.delete(player.id);
       await runtime.backend.close();
+      player.state.engine_session = this.get(player.id).state.engine_session;
     } else if (player.assigned_output !== null) {
       throw new ServerPlayerError(
         "RELEASE_UNCERTAIN",

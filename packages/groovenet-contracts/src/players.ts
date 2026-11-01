@@ -13,6 +13,16 @@ export const serverQueueEntrySchema = playerTrackRefSchema
     artist: z.string(),
   })
   .strict();
+export const engineSessionSchema = z
+  .object({
+    engine_id: playerIdSchema,
+    itemId: revision,
+    queueVersion: revision,
+    instance: z.string().regex(/^[a-f0-9]{32}$/),
+    sequence: revision,
+  })
+  .strict();
+export type EngineSession = z.infer<typeof engineSessionSchema>;
 export const serverPlayerStateSchema = z
   .object({
     queue: z.array(serverQueueEntrySchema).max(10000),
@@ -23,6 +33,7 @@ export const serverPlayerStateSchema = z
     volume: z.number().finite().min(0).max(100),
     desired_output: z.string().min(1).max(255).nullable(),
     checkpoint: z.boolean(),
+    engine_session: engineSessionSchema.nullable().optional(),
     error: z.object({ code: z.string(), message: z.string() }).nullable(),
   })
   .strict();
@@ -50,6 +61,14 @@ const replacementEntries = z
   }, "Queue entry IDs must be unique");
 const connect = { allow_unknown: z.boolean().default(false), takeover: z.boolean().default(false) };
 export const serverPlayerCommandSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("engine.stop"),
+      ...edit,
+      takeover: z.literal(true),
+      allow_unknown: z.boolean().default(false),
+    })
+    .strict(),
   z
     .object({ type: z.literal("rename"), ...edit, name: z.string().trim().min(1).max(120) })
     .strict(),

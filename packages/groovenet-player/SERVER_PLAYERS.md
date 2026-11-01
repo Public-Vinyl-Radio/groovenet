@@ -435,3 +435,21 @@ synchronization, automatic recovery after receiver outages, or Sonos validation.
 
 Validation and the successful two-room hardware results are recorded in
 [evaluations/693](../../../evaluations/693/README.md).
+
+### Recovering orphaned OwnTone sessions
+
+`state.engine_session` checkpoints the engine ID, OwnTone queue item ID and queue
+version, plus the terminal extension's instance and sequence. The worker awaits
+this write before starting audio. No migration is needed for the existing JSONB
+state. On startup it stops and clears an exact matching active or paused session,
+then restores a stopped checkpoint; it never automatically resumes audio. Loads
+also recognise the persisted identity. A changed engine, instance, sequence,
+current item, queue version or queue contents remains foreign.
+
+A paused output disappearance retains the identity for verified stop/clear cleanup,
+including when OwnTone emits no terminal event. Normal play never stops a foreign
+session. To deliberately replace one, send `engine.stop` with `takeover: true` and
+the reviewed `expected_revision`; it stops/clears the engine and loads the current
+queue entry after normal audio/output preflight. Speaker availability checks still
+apply. The browser offers this command for `DEVICE_BUSY` behind a confirmation
+naming the player and engine. A changed player revision invalidates the confirm.

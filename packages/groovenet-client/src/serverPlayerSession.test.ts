@@ -656,3 +656,22 @@ describe("one-shot load and strict execution", () => {
     expect(session.getSnapshot().busy).toBe(true);
   });
 });
+
+it("sends an explicit engine takeover with the confirmed revision and retains speaker acknowledgement", async () => {
+  snapshot();
+  api.command.mockRejectedValueOnce(failure("AVAILABILITY_UNKNOWN"));
+  await session.command({ type: "engine.stop", takeover: true }, 3);
+  expect(api.command).toHaveBeenCalledExactlyOnceWith("lounge", {
+    type: "engine.stop",
+    takeover: true,
+    expected_revision: 3,
+  });
+  expect(session.getSnapshot().acknowledgement?.command.type).toBe("engine.stop");
+  await session.acknowledge();
+  expect(api.command).toHaveBeenLastCalledWith("lounge", {
+    type: "engine.stop",
+    takeover: true,
+    allow_unknown: true,
+    expected_revision: 3,
+  });
+});

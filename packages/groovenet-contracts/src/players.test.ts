@@ -199,3 +199,16 @@ it("validates bounded joins and the aggregate stream's initial list", () => {
     false,
   );
 });
+
+it("requires explicit authorization for stopping a foreign engine", () => {
+  expect(serverPlayerCommandSchema.parse({ type: "engine.stop", takeover: true })).toEqual({
+    type: "engine.stop",
+    takeover: true,
+    allow_unknown: false,
+  });
+  for (const takeover of [undefined, false]) {
+    expect(serverPlayerCommandSchema.safeParse({ type: "engine.stop", takeover }).success).toBe(
+      false,
+    );
+  }
+});
