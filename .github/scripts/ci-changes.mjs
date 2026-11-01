@@ -59,7 +59,7 @@ export function classify(files, { full = false, mainPush = false } = {}) {
       );
     }
     if (file === "eslint.config.node.mjs") enable("lint");
-    // The site renders docs/ (#911) and the changelog, so those rebuild it too.
+    // Mirror these content paths in site/scripts/netlify-ignore.sh; its tests check both.
     if (/^(site\/|docs\/|CHANGELOG\.md$)/.test(file)) enable("site");
     // The site's Appearance demo reads a committed export of the app's palettes
     // and fonts (#914): a change to either side runs the web test that keeps
