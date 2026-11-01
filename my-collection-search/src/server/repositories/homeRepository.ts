@@ -7,11 +7,17 @@ type Recent = HomeResponse["playlists"]["recent"][number];
 export type ArrivalRow = Omit<Arrival, "date_added"> & { date_added: Date | string };
 export type RecentRow = Omit<Recent, "created_at"> & { created_at: Date | string };
 
+export const HOME_NEW_ARRIVALS_WINDOW_DAYS = 30;
+/** Shared import-time predicate for Home and the chores queue. */
+export function newArrivalsPredicate(alias: string, now: string): string {
+  return `${alias}.date_added >= (${now}::timestamptz AT TIME ZONE 'UTC') - interval '${HOME_NEW_ARRIVALS_WINDOW_DAYS} days'
+    AND ${alias}.date_added <= (${now}::timestamptz AT TIME ZONE 'UTC')`;
+}
+
 export const homeArrivalsSql = `WITH arrivals AS MATERIALIZED (
   SELECT release_id, title, artist, ${coverUrlSql("a", true)} AS thumbnail, date_added, album_rating
   FROM albums a WHERE friend_id = $1
-    AND date_added >= ($2::timestamptz AT TIME ZONE 'UTC') - interval '30 days'
-    AND date_added <= ($2::timestamptz AT TIME ZONE 'UTC')
+    AND ${newArrivalsPredicate("a", "$2")}
 ), ranked AS (
   SELECT a.release_id, a.title, a.artist, a.thumbnail, a.date_added AT TIME ZONE 'UTC' AS date_added, a.album_rating, (
     (SELECT count(*) FROM track_spin_events e WHERE e.friend_id = $1 AND e.release_id = a.release_id)

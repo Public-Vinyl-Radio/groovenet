@@ -19,11 +19,14 @@ const mocks = vi.hoisted(() => ({
   markVoided: vi.fn(),
   markDiscarded: vi.fn(),
   careLog: vi.fn(),
-  listCare: vi.fn(),
+  flattenedQueue: vi.fn(),
   logActionInTransaction: vi.fn(),
   voidActionInTransaction: vi.fn(),
 }));
 
+vi.mock("@/server/services/recordCareQueueService", () => ({
+  flattenedRecordCareQueue: mocks.flattenedQueue,
+}));
 vi.mock("@/lib/serverDb", () => ({ withDbTransaction: mocks.withDbTransaction }));
 vi.mock("@/server/repositories/albumRepository", () => ({
   albumRepository: { getAlbumByReleaseAndFriend: mocks.getAlbumByReleaseAndFriend },
@@ -57,7 +60,6 @@ vi.mock("@/server/repositories/recordCareSessionRepository", () => ({
 vi.mock("@/server/services/recordCareService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/services/recordCareService")>()),
   recordCareService: {
-    listCare: mocks.listCare,
     logActionInTransaction: mocks.logActionInTransaction,
     voidActionInTransaction: mocks.voidActionInTransaction,
   },
@@ -157,37 +159,31 @@ describe("RecordCareSessionService", () => {
   });
 
   describe("defaultStackCandidates", () => {
-    it("takes never-cleaned copies from the care view, implicit ones by release", async () => {
-      mocks.listCare.mockResolvedValue({
-        items: [
-          { release_id: "rel-a", copy_id: null },
-          { release_id: "rel-b", copy_id: 9 },
-        ],
-      });
-      await expect(defaultStackCandidates(7, 10)).resolves.toEqual([
+    it("takes the requested prefix of the complete queue order, including implicit copies", async () => {
+      mocks.flattenedQueue.mockResolvedValue([
+        { release_id: "rel-a", copy_id: null },
+        { release_id: "rel-b", copy_id: 9 },
+        { release_id: "rel-c", copy_id: 10 },
+      ]);
+      await expect(defaultStackCandidates(7, 2)).resolves.toEqual([
         { release_id: "rel-a", copy_id: null },
         { release_id: "rel-b", copy_id: 9 },
       ]);
-      expect(mocks.listCare).toHaveBeenCalledWith({
-        friend_id: 7,
-        status: "never_cleaned",
-        limit: 10,
-        offset: 0,
-      });
+      expect(mocks.flattenedQueue).toHaveBeenCalledWith(7);
     });
   });
 
   describe("pullStack", () => {
     it("numbers a new stack from the queue, under the friend's lock", async () => {
       mocks.findOpenStack.mockResolvedValue(null);
-      mocks.listCare.mockResolvedValue({ items: [{ release_id: "rel-a", copy_id: null }] });
+      mocks.flattenedQueue.mockResolvedValue([{ release_id: "rel-a", copy_id: null }]);
       mocks.nextStackNo.mockResolvedValue(3);
       mocks.insertSession.mockResolvedValue(sessionRow({ stack_no: 3 }));
 
       const result = await service.pullStack({ friend_id: 7, source: "cli" });
 
       expect(mocks.lockFriendStacks).toHaveBeenCalledWith(client, 7);
-      expect(mocks.listCare).toHaveBeenCalledWith(expect.objectContaining({ limit: 10 }));
+      expect(mocks.flattenedQueue).toHaveBeenCalledWith(7);
       expect(mocks.insertSession).toHaveBeenCalledWith(client, {
         friend_id: 7,
         stack_no: 3,
@@ -219,7 +215,7 @@ describe("RecordCareSessionService", () => {
 
       expect(result).toMatchObject({ created: false, stack: { id: 5, stack_no: 2 } });
       expect(mocks.insertSession).not.toHaveBeenCalled();
-      expect(mocks.listCare).not.toHaveBeenCalled();
+      expect(mocks.flattenedQueue).not.toHaveBeenCalled();
     });
 
     it("takes an explicit stack in order, validated and deduplicated, defaulting to api", async () => {
@@ -233,7 +229,7 @@ describe("RecordCareSessionService", () => {
         copies: [{ copy_id: 9 }, { release_id: "rel-x" }, { copy_id: 9 }, { release_id: "rel-x" }],
       });
 
-      expect(mocks.listCare).not.toHaveBeenCalled();
+      expect(mocks.flattenedQueue).not.toHaveBeenCalled();
       expect(mocks.getAlbumByReleaseAndFriend).toHaveBeenCalledWith("rel-x", 7);
       expect(mocks.insertSession).toHaveBeenCalledWith(
         client,
@@ -263,7 +259,7 @@ describe("RecordCareSessionService", () => {
 
     it("says so when the queue is empty", async () => {
       mocks.findOpenStack.mockResolvedValue(null);
-      mocks.listCare.mockResolvedValue({ items: [] });
+      mocks.flattenedQueue.mockResolvedValue([]);
       await expect(service.pullStack({ friend_id: 7 })).rejects.toThrow(NOTHING_TO_PULL);
       expect(mocks.insertSession).not.toHaveBeenCalled();
     });

@@ -99,6 +99,10 @@ import type {
   RecordActionListResponse,
   RecordActionResult,
   RecordCareQuery,
+  RecordCareQueueQuery,
+  RecordCareQueueResponse,
+  RecordCareProgressQuery,
+  RecordCareProgressResponse,
   RecordCareResponse,
   RecordCareSummary,
   RecordCareSummaryQuery,
@@ -1108,6 +1112,18 @@ export class GroovenetClient {
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
     });
+  }
+
+  async getRecordCareQueue(query: RecordCareQueueQuery): Promise<RecordCareQueueResponse> {
+    return this.request<RecordCareQueueResponse>("GET", "/record-care/queue", undefined, query);
+  }
+  async getRecordCareProgress(query: RecordCareProgressQuery): Promise<RecordCareProgressResponse> {
+    return this.request<RecordCareProgressResponse>(
+      "GET",
+      "/record-care/progress",
+      undefined,
+      query,
+    );
   }
 
   async getRecordCareSummary(query: RecordCareSummaryQuery): Promise<RecordCareSummary> {

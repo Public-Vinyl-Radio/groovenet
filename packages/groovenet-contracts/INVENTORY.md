@@ -149,6 +149,8 @@ is closed, so they need a follow-up issue as their owner.
 | GET | `/api/record-copies/{id}/actions` | record care | contracts |  |
 | GET | `/api/record-copies/care` | record care | contracts |  |
 | GET | `/api/record-copies/care/summary` | record care | contracts |  |
+| GET | `/api/record-care/queue` | Record Care | contracts | Prioritized never-cleaned queue (`recordCareQueue.ts`) |
+| GET | `/api/record-care/progress` | Record Care | contracts | Ever-cleaned progress and pace (`recordCareQueue.ts`) |
 | PATCH | `/api/record-copies/default` | record care | contracts |  |
 | POST | `/api/restore` | backups | #552 |  |
 | POST | `/api/set-derivations` | set derivation | #552 |  |

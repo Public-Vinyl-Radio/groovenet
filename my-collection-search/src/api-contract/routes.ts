@@ -7,6 +7,12 @@ import {
   spinTrackStatsResponseSchema,
 } from "./schemas";
 import { z } from "zod";
+import {
+  recordCareQueueQuerySchema,
+  recordCareQueueResponseSchema,
+  recordCareProgressQuerySchema,
+  recordCareProgressResponseSchema,
+} from "./recordCareQueue";
 import { playerContracts } from "./players";
 import { fontChoiceIdsFor, fontRoleIds } from "@/app/fontChoices";
 import { paletteIds } from "@/app/palettes";
@@ -2745,6 +2751,70 @@ const needsSleeveParam = {
 };
 
 const recordCareContracts: ApiContractRoute[] = [
+  {
+    operationId: "getRecordCareQueue",
+    method: "get",
+    path: "/api/record-care/queue",
+    summary: "Never-cleaned copies in stack pull order; backlog is paged",
+    tags: ["Record Care"],
+    querySchema: recordCareQueueQuerySchema,
+    successSchema: recordCareQueueResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        {
+          name: "month",
+          in: "query",
+          schema: { type: "string", pattern: "^\\d{4}-(0[1-9]|1[0-2])$" },
+          description: "Spin window YYYY-MM; defaults to current month in display time zone",
+        },
+        {
+          name: "limit",
+          in: "query",
+          schema: { type: "integer", minimum: 0, maximum: 500, default: 50 },
+        },
+        { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+      ],
+      responses: {
+        "200": {
+          description: "First matching group per copy; excludes copies in open stacks",
+          content: { "application/json": { schema: componentRef("RecordCareQueueResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getRecordCareProgress",
+    method: "get",
+    path: "/api/record-care/progress",
+    summary: "Library cleaning progress and four-week pace",
+    tags: ["Record Care"],
+    querySchema: recordCareProgressQuerySchema,
+    successSchema: recordCareProgressResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        {
+          name: "stack_size",
+          in: "query",
+          schema: { type: "integer", minimum: 1, maximum: 500, default: 10 },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Ever-cleaned counts and records/sessions logged this calendar month",
+          content: { "application/json": { schema: componentRef("RecordCareProgressResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+
   {
     operationId: "listRecordCopies",
     method: "get",

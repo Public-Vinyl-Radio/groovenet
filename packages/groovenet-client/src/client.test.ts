@@ -2276,3 +2276,27 @@ describe("getArtwork", () => {
     },
   );
 });
+
+it("requests the record care queue and progress with exact optional queries", async () => {
+  const client = clientReturning({});
+  await client.getRecordCareQueue({ friend_id: 7 });
+  await client.getRecordCareQueue({ friend_id: 7, month: "2026-10", limit: 5, offset: 10 });
+  await client.getRecordCareProgress({ friend_id: 7 });
+  await client.getRecordCareProgress({ friend_id: 7, stack_size: 5 });
+  expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+    { method: "GET", url: "/record-care/queue", data: undefined, params: { friend_id: 7 } },
+    {
+      method: "GET",
+      url: "/record-care/queue",
+      data: undefined,
+      params: { friend_id: 7, month: "2026-10", limit: 5, offset: 10 },
+    },
+    { method: "GET", url: "/record-care/progress", data: undefined, params: { friend_id: 7 } },
+    {
+      method: "GET",
+      url: "/record-care/progress",
+      data: undefined,
+      params: { friend_id: 7, stack_size: 5 },
+    },
+  ]);
+});

@@ -1,5 +1,8 @@
 import type { HomeQuery, HomeResponse } from "@groovenet/contracts";
-import { homeRepository } from "@/server/repositories/homeRepository";
+import {
+  homeRepository,
+  HOME_NEW_ARRIVALS_WINDOW_DAYS,
+} from "@/server/repositories/homeRepository";
 import { recordCopyRepository } from "@/server/repositories/recordCopyRepository";
 import { DEFAULT_TARGET_SLEEVE, defaultOverdueDays } from "@/lib/recordCare";
 import { redisJobService } from "@/server/services/redisJobService";
@@ -36,7 +39,7 @@ export const homeService = {
     return {
       counts,
       new_arrivals: {
-        window_days: 30,
+        window_days: HOME_NEW_ARRIVALS_WINDOW_DAYS,
         unrated_count: arrivals.unrated_count,
         items: arrivals.items.map((item) => ({
           ...item,

@@ -38,6 +38,8 @@ import {
   recordCareService,
 } from "@/server/services/recordCareService";
 
+import { flattenedRecordCareQueue } from "./recordCareQueueService";
+
 // Thrown messages, mapped to HTTP statuses by recordCareSessionErrorStatus.
 export const RECORD_CARE_SESSION_NOT_FOUND = "Care session not found";
 export const STACK_NOT_OPEN = "The stack is not open";
@@ -103,24 +105,14 @@ function dedupeItems(items: RecordCareSessionItemInput[]): RecordCareSessionItem
   });
 }
 
-/**
- * The copies a stack pull takes when none are named.
- *
- * TODO(#942): the chores queue defines the real order (spun recently, then new
- * arrivals, then the A–Z backlog) and excludes copies in an open stack. Until
- * it lands this is the backlog alone: never-cleaned copies, artist then title.
- */
+/** The queue owns the complete priority order, including implicit defaults. */
 export async function defaultStackCandidates(
   friendId: number,
   size: number,
 ): Promise<RecordCareSessionItemInput[]> {
-  const { items } = await recordCareService.listCare({
-    friend_id: friendId,
-    status: "never_cleaned",
-    limit: size,
-    offset: 0,
-  });
-  return items.map((item) => ({ release_id: item.release_id, copy_id: item.copy_id }));
+  return (await flattenedRecordCareQueue(friendId))
+    .slice(0, size)
+    .map(({ release_id, copy_id }) => ({ release_id, copy_id }));
 }
 
 export class RecordCareSessionService {

@@ -47,7 +47,7 @@ beforeAll(async () => {
     // Artist order differs from release order, so A–Z is visible.
     for (const [index, releaseId] of RELEASES.entries()) {
       await dbQuery(
-        `INSERT INTO albums (release_id, friend_id, title, artist) VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO albums (release_id, friend_id, title, artist, date_added) VALUES ($1, $2, $3, $4, '2020-01-01')`,
         [releaseId, rows[0].id, `Album ${index}`, `Artist ${RELEASES.length - index}`],
       );
     }
@@ -69,7 +69,7 @@ afterAll(async () => {
 });
 
 describe("stacks", () => {
-  dbTest("pulls never-cleaned copies A–Z and returns the open stack again", async () => {
+  dbTest("pulls the A–Z backlog in queue order and returns the open stack again", async () => {
     const pulls = await Promise.all(
       Array.from({ length: 4 }, () => service.pullStack({ friend_id: friendA, size: 3 })),
     );
