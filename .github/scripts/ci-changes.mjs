@@ -15,6 +15,7 @@ const testKeys = [
   "fingerprint",
   "migrate",
   "redis",
+  "site",
 ];
 const buildKeys = [
   "webapp",
@@ -58,6 +59,8 @@ export function classify(files, { full = false, mainPush = false } = {}) {
       );
     }
     if (file === "eslint.config.node.mjs") enable("lint");
+    // The site renders docs/ (#911) and the changelog, so those rebuild it too.
+    if (/^(site\/|docs\/|CHANGELOG\.md$)/.test(file)) enable("site");
     if (file.startsWith("my-collection-search/")) enable("web", "lint", "webapp");
     // API generation and integration jobs consume server code, not UI components.
     if (

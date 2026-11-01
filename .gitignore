@@ -57,3 +57,8 @@ packages/*/coverage/
 .coverage
 .coverage.*
 coverage.xml
+
+# Marketing site (site/) build output
+site/dist/
+site/.astro/
+site/.netlify/

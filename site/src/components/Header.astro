@@ -1,0 +1,29 @@
+---
+const { currentPath = "/" } = Astro.props;
+const isCurrent = (path: string) => currentPath === path;
+---
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/" aria-label="GrooveNet home"><span class="mark" aria-hidden="true"></span><span class="brand-name">GrooveNet</span></a>
+    <nav aria-label="Primary navigation">
+      <a href="/" aria-current={isCurrent("/") ? "page" : undefined}>Project</a>
+      <a href="/about" aria-current={isCurrent("/about") ? "page" : undefined}>About</a>
+      <a href="/docs" aria-current={isCurrent("/docs") ? "page" : undefined}>Docs</a>
+      <a href="https://github.com/Public-Vinyl-Radio/groovenet" target="_blank" rel="noreferrer">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header { border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 94%, transparent); }
+  .header-inner { min-height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .wordmark { color: #ecece6; font: 800 1.05rem/1 var(--mono); letter-spacing: -.08em; display: flex; align-items: center; gap: .48rem; }
+  .wordmark .brand-name { color: #ecece6; }
+  .mark { width: 1.15rem; aspect-ratio: 1; border: 2px solid var(--ink); border-radius: 50%; position: relative; }
+  .mark::after { content: ""; width: .22rem; aspect-ratio: 1; border-radius: 50%; background: #ecece6; position: absolute; inset: 0; margin: auto; }
+  nav { display: flex; align-items: center; gap: clamp(.65rem, 2vw, 1.4rem); font: .72rem/1 var(--mono); text-transform: uppercase; letter-spacing: .04em; }
+  nav a { color: var(--muted); padding: .35rem 0; }
+  nav a:hover, nav a[aria-current="page"] { color: var(--ink); }
+  @media (max-width: 560px) { nav a:nth-child(1) { display: none; } nav { gap: .75rem; font-size: .66rem; } }
+</style>

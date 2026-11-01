@@ -39,6 +39,12 @@ Commit / PR title prefix → bump (repo is pre-1.0, so bumps are conservative):
 Because PRs are **squash-merged**, the **PR title** is the commit message that
 release-please reads. The `PR Title` check enforces a valid prefix.
 
+### The marketing site
+
+`site/` and `docs/` are excluded from the root release (`exclude-paths` in
+`release-please-config.json`), so site work never bumps the app version or
+lands in `CHANGELOG.md`. Use `docs(site): …` for it.
+
 ### Going 1.0 (or forcing a version)
 
 Add a footer to any commit / the Release PR:

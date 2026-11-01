@@ -19,6 +19,7 @@ there rather than expanding this file.
 | Typed API client    | `packages/groovenet-client/` | [CLAUDE.md](packages/groovenet-client/CLAUDE.md) |
 | CLI                 | `packages/groovenet-cli/`    | [CLAUDE.md](packages/groovenet-cli/CLAUDE.md)    |
 | Python API client   | `packages/groovenet-python/` | [CLAUDE.md](packages/groovenet-python/CLAUDE.md) |
+| Marketing site      | `site/`                      | [CLAUDE.md](site/CLAUDE.md)                      |
 
 ## Architecture
 

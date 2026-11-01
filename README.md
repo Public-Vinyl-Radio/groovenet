@@ -16,6 +16,8 @@
 
 GrooveNet imports your Discogs collection, enriches it with streaming metadata, analyzes audio for BPM, key, and mood, and helps you build better DJ playlists. Use it in the web or iOS app, from the `groovenet` CLI, or through the MCP server.
 
+The project website at [groovenet.publicvinylradio.com](https://groovenet.publicvinylradio.com) is built from [`site/`](site/).
+
 ## Screenshots
 
 <table>
