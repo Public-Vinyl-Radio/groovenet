@@ -1,41 +1,189 @@
 "use client";
 
 import React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { recordCareStatusSchema } from "@groovenet/contracts";
-import { Flex, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Grid, Spinner, Stack, Tabs, Text } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
-import RecordCareList from "@/components/records/RecordCareList";
-import RecordCareSummary from "@/components/records/RecordCareSummary";
-import { useRecordCareSummaryQuery } from "@/hooks/useRecordCareQuery";
-import type { RecordCareStatus } from "@/lib/recordCare";
+import { SectionHeading } from "@/components/spins/recapParts";
+import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
+import ChoresCareLogSlot from "@/components/chores/ChoresCareLogSlot";
+import ChoresOverview from "@/components/chores/ChoresOverview";
+import ChoresSelectionBar from "@/components/chores/ChoresSelectionBar";
+import {
+  addedMeta,
+  moreInBacklog,
+  rowKey,
+  spunMeta,
+  STACK_SIZE,
+  stackItemRow,
+  todoCount,
+} from "@/components/chores/choresWording";
+import { toaster } from "@/components/ui/toaster";
+import {
+  useOpenRecordCareStackQuery,
+  useRecordCareProgressQuery,
+  useRecordCareQueueQuery,
+  useRecordCareStackMutations,
+} from "@/hooks/useRecordCareQuery";
+import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
+import type { RecordCareQueueItem } from "@/services/internalApi/recordCare";
 
-/** Record care chores (#262): copies to clean, and copies still to re-sleeve. */
+// Backlog rows per "more"; the queue asks for a longer page each time.
+const BACKLOG_PAGE = 20;
+
+const PULL_LABEL = `PULL NEXT STACK OF ${STACK_SIZE}`;
+
+type Tab = "todo" | "log";
+const panelId = (tab: string) => `chores-panel-${tab}`;
+
+function toRow(item: RecordCareQueueItem, meta?: string): ChoreRowData {
+  return {
+    key: rowKey(item),
+    title: item.title,
+    artist: item.artist,
+    thumbnail: item.thumbnail,
+    meta,
+    sleeveUnknown: item.inner_sleeve_type === null,
+  };
+}
+
+function Notice({ role, children }: { role?: "alert"; children: React.ReactNode }) {
+  return (
+    <Flex
+      role={role}
+      minH="72px"
+      align="center"
+      justify="center"
+      px={4}
+      mr="6px"
+      borderWidth="outline"
+      borderStyle="dashed"
+      borderColor="border"
+      fontFamily="mono"
+      fontSize="11px"
+      letterSpacing="0.08em"
+      color="fg.muted"
+      textAlign="center"
+    >
+      {children}
+    </Flex>
+  );
+}
+
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** Chores (#943): clean and sleeve the whole library, one stack of ten at a time. */
 function ChorePageContent() {
   const { friend, isHydrated } = useUsername();
   const friendId = friend?.id ?? 0;
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const urlStatus =
-    recordCareStatusSchema.safeParse(searchParams.get("status")).data ?? "never_cleaned";
-  const [status, setStatus] = React.useState<RecordCareStatus>(urlStatus);
-  React.useEffect(() => setStatus(urlStatus), [urlStatus]);
-  const changeStatus = (next: RecordCareStatus) => {
-    setStatus(next);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("status", next);
-    router.push(`/chore?${params.toString()}`);
-  };
-  const summaryQuery = useRecordCareSummaryQuery(
-    { friend_id: friendId },
-    { enabled: friendId > 0 },
+  const enabled = isHydrated && friendId > 0;
+  const timeZone = useDisplayTimeZone();
+  const [tab, setTab] = React.useState<Tab>("todo");
+  const [backlogLimit, setBacklogLimit] = React.useState(BACKLOG_PAGE);
+  const [selected, setSelected] = React.useState<ReadonlySet<string>>(() => new Set());
+
+  const queueQuery = useRecordCareQueueQuery(
+    { friend_id: friendId, limit: backlogLimit },
+    { enabled },
+  );
+  const progressQuery = useRecordCareProgressQuery({ friend_id: friendId }, { enabled });
+  const stackQuery = useOpenRecordCareStackQuery({ friend_id: friendId }, { enabled });
+  const { pullStack, discardStack, pullPending, discardPending } =
+    useRecordCareStackMutations(friendId);
+
+  const stack = stackQuery.data ?? null;
+  const stackKeys = React.useMemo(
+    () => new Set(stack?.items.map((item) => rowKey(item)) ?? []),
+    [stack],
   );
 
-  if (!isHydrated || !friendId) {
+  // An open stack found on load is selected once; later toggles are the user's.
+  const restoredStackId = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (!stack || restoredStackId.current === stack.id) return;
+    restoredStackId.current = stack.id;
+    setSelected(new Set(stack.items.map((item) => rowKey(item))));
+  }, [stack]);
+
+  // The selection is "the stack" while everything picked belongs to it.
+  const isStackSelection =
+    stack !== null && selected.size > 0 && [...selected].every((key) => stackKeys.has(key));
+
+  const toggle = (key: string) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const toggleSection = (keys: string[], select: boolean) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const key of keys) {
+        if (select) next.add(key);
+        else next.delete(key);
+      }
+      return next;
+    });
+
+  const pull = async () => {
+    try {
+      const result = await pullStack(STACK_SIZE);
+      restoredStackId.current = result.stack.id;
+      setSelected(new Set(result.stack.items.map((item) => rowKey(item))));
+    } catch (error) {
+      toaster.create({
+        title: "Couldn't pull a stack",
+        description: errorText(error),
+        type: "error",
+      });
+    }
+  };
+
+  // CLEAR discards a pulled stack; an ad-hoc pick is only deselected.
+  const clear = async () => {
+    if (stack) {
+      try {
+        await discardStack(stack.id);
+      } catch (error) {
+        toaster.create({
+          title: "Couldn't clear the stack",
+          description: errorText(error),
+          type: "error",
+        });
+        return;
+      }
+    }
+    setSelected(new Set());
+  };
+
+  const progress = progressQuery.data;
+  const queue = queueQuery.data;
+  const todo = progress ? todoCount(progress) : null;
+  const todoLabel = todo === null ? "TO DO" : `TO DO · ${todo.toLocaleString("en-US")}`;
+  const nothingToPull = todo === 0 && !stack;
+
+  const pullButton = (props: React.ComponentProps<typeof Button>) => (
+    <Button
+      size="sm"
+      onClick={() => void pull()}
+      loading={pullPending}
+      disabled={!enabled || nothingToPull}
+      {...props}
+    >
+      {PULL_LABEL}
+    </Button>
+  );
+
+  const header = (
+    <PageHeader title="Chores" desktopActions={pullButton({ variant: "solid", h: "44px" })} />
+  );
+
+  if (!enabled) {
     return (
-      <PageContainer size="standard">
+      <PageContainer>
+        {header}
         <Flex justify="center" py={10}>
           <Spinner />
         </Flex>
@@ -43,38 +191,198 @@ function ChorePageContent() {
     );
   }
 
-  return (
-    <PageContainer size="standard">
-      <PageHeader title="Chores" />
-      <Stack gap={4}>
-        <Text color="fg.muted" fontSize="sm">
-          Copies due a cleaning, and copies still to move to a new sleeve.
-        </Text>
-
-        {summaryQuery.data ? (
-          <RecordCareSummary
-            summary={summaryQuery.data}
-            status={status}
-            onStatusChange={changeStatus}
+  let groups: React.ReactNode;
+  if (queueQuery.error) {
+    groups = (
+      <Notice role="alert">
+        COULDN&apos;T LOAD THE QUEUE · {queueQuery.error.message.toUpperCase()}
+      </Notice>
+    );
+  } else if (!queue) {
+    groups = (
+      <Flex justify="center" py={6}>
+        <Spinner size="sm" />
+      </Flex>
+    );
+  } else {
+    const backlogRemaining = queue.backlog.total - queue.backlog.items.length;
+    const empty =
+      !stack &&
+      queue.spun_recently.items.length === 0 &&
+      queue.new_arrivals.items.length === 0 &&
+      queue.backlog.items.length === 0;
+    const shared = { selected, onToggle: toggle, onToggleSection: toggleSection };
+    groups = empty ? (
+      <Notice>NOTHING LEFT TO CLEAN. EVERY RECORD HAS HAD ITS FIRST CLEAN.</Notice>
+    ) : (
+      <>
+        {stack && (
+          <ChoreGroup
+            id="chores-stack"
+            title={stack.stack_no !== null ? `STACK ${stack.stack_no} · PULLED` : "PULLED STACK"}
+            reason="Up next, in queue order."
+            rows={stack.items.map((item) => toRow(stackItemRow(item)))}
+            {...shared}
           />
-        ) : summaryQuery.error ? (
-          <Text color="fg.error">{summaryQuery.error.message}</Text>
-        ) : (
-          <Flex justify="center" py={4}>
-            <Spinner size="sm" />
-          </Flex>
         )}
+        <ChoreGroup
+          id="chores-spun"
+          title="SPUN RECENTLY · NEVER CLEANED"
+          reason="Played records wear first."
+          rows={queue.spun_recently.items.map((item) =>
+            toRow(item, spunMeta(item.spin_count, item.window_label)),
+          )}
+          {...shared}
+        />
+        <ChoreGroup
+          id="chores-new"
+          title="NEW ARRIVALS"
+          reason="Clean before the first play."
+          rows={queue.new_arrivals.items.map((item) =>
+            toRow(item, item.added_at ? addedMeta(item.added_at, timeZone) : undefined),
+          )}
+          {...shared}
+        />
+        <ChoreGroup
+          id="chores-backlog"
+          title="BACKLOG · A–Z"
+          reason="Everything else, never cleaned."
+          rows={queue.backlog.items.map((item) => toRow(item))}
+          more={
+            backlogRemaining > 0
+              ? {
+                  label: moreInBacklog(backlogRemaining),
+                  onClick: () => setBacklogLimit((limit) => limit + BACKLOG_PAGE),
+                  loading: queueQuery.isPlaceholderData,
+                }
+              : undefined
+          }
+          {...shared}
+        />
+      </>
+    );
+  }
 
-        <RecordCareList friendId={friendId} status={status} />
-      </Stack>
+  return (
+    <PageContainer>
+      {header}
+      <Text display={{ base: "none", md: "block" }} mt={-2} mb={5} fontSize="15px" color="fg.muted">
+        Get the whole library cleaned and sleeved, one stack of ten at a time.
+      </Text>
+
+      <Tabs.Root
+        value={tab}
+        onValueChange={(details) => setTab(details.value as Tab)}
+        activationMode="automatic"
+        ids={{ content: panelId }}
+        display={{ base: "block", md: "none" }}
+        mx={-4}
+        mt={-4}
+        mb={4}
+      >
+        <Tabs.List
+          aria-label="Chores"
+          gap={0}
+          display="grid"
+          gridTemplateColumns="repeat(2, minmax(0, 1fr))"
+        >
+          <Tabs.Trigger
+            value="todo"
+            justifyContent="center"
+            h="44px"
+            fontSize="xs"
+            letterSpacing="0.06em"
+          >
+            {todoLabel}
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="log"
+            justifyContent="center"
+            h="44px"
+            ml="-2px"
+            fontSize="xs"
+            letterSpacing="0.06em"
+          >
+            CARE LOG
+          </Tabs.Trigger>
+        </Tabs.List>
+      </Tabs.Root>
+
+      {/* The overview spans both columns from `xl`; on a phone it heads the TO DO tab. */}
+      <Grid
+        templateColumns={{ base: "minmax(0, 1fr)", xl: "minmax(0, 1fr) 380px" }}
+        templateAreas={{ base: `"overview" "queue" "log"`, xl: `"overview overview" "queue log"` }}
+        columnGap={8}
+        rowGap={{ base: "18px", md: 5 }}
+        pb={6}
+      >
+        <Stack
+          gridArea="overview"
+          display={{ base: tab === "todo" ? "flex" : "none", md: "flex" }}
+          gap="18px"
+          minW={0}
+        >
+          {progress ? (
+            <ChoresOverview progress={progress} />
+          ) : progressQuery.error ? (
+            <Notice role="alert">
+              COULDN&apos;T LOAD PROGRESS · {progressQuery.error.message.toUpperCase()}
+            </Notice>
+          ) : (
+            <Box
+              data-testid="chores-overview-loading"
+              h={{ base: "200px", md: "150px" }}
+              mr="6px"
+              bg="bg.muted"
+              borderWidth="outline"
+              borderColor="border.ink"
+            />
+          )}
+          {pullButton({
+            variant: "outline",
+            h: "48px",
+            mr: "6px",
+            boxShadow: "sm",
+            display: { base: "flex", md: "none" },
+          })}
+        </Stack>
+
+        <Stack
+          as="section"
+          gridArea="queue"
+          id={panelId("todo")}
+          aria-labelledby="chores-todo-heading"
+          display={{ base: tab === "todo" ? "flex" : "none", md: "flex" }}
+          gap={{ base: "18px", md: 3 }}
+          minW={0}
+        >
+          <SectionHeading id="chores-todo-heading" display={{ base: "none", md: "flex" }}>
+            {todoLabel}
+          </SectionHeading>
+          <Stack gap="18px">{groups}</Stack>
+          <ChoresSelectionBar
+            selected={selected.size}
+            stackNo={isStackSelection ? (stack?.stack_no ?? null) : null}
+            onClear={() => void clear()}
+            clearing={discardPending}
+          />
+        </Stack>
+
+        <Box
+          as="aside"
+          gridArea="log"
+          id={panelId("log")}
+          aria-labelledby="chores-care-log-heading"
+          display={{ base: tab === "log" ? "block" : "none", md: "block" }}
+          minW={0}
+        >
+          <ChoresCareLogSlot thisMonth={progress?.this_month} />
+        </Box>
+      </Grid>
     </PageContainer>
   );
 }
 
 export default function ChorePage() {
-  return (
-    <React.Suspense fallback={null}>
-      <ChorePageContent />
-    </React.Suspense>
-  );
+  return <ChorePageContent />;
 }

@@ -1,23 +1,20 @@
 // @vitest-environment jsdom
 import React from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-
-const navigation = vi.hoisted(() => ({ params: new URLSearchParams(), push: vi.fn() }));
-vi.mock("next/navigation", () => ({
-  useSearchParams: () => navigation.params,
-  useRouter: () => ({ push: navigation.push }),
-}));
+import { progressFixture, queueFixture, stackFixture } from "@/components/chores/fixtures";
 
 const api = vi.hoisted(() => ({
-  listRecordCare: vi.fn(),
-  getRecordCareSummary: vi.fn(),
-  listRecordCopies: vi.fn(),
-  createRecordAction: vi.fn(),
+  getRecordCareQueue: vi.fn(),
+  getRecordCareProgress: vi.fn(),
+  listRecordCareStacks: vi.fn(),
+  pullRecordCareStack: vi.fn(),
+  discardRecordCareStack: vi.fn(),
 }));
 vi.mock("@/services/internalApi/recordCare", () => api);
-vi.mock("@/components/ui/toaster", () => ({ toaster: { create: vi.fn() } }));
+const toaster = vi.hoisted(() => ({ create: vi.fn() }));
+vi.mock("@/components/ui/toaster", () => ({ toaster }));
 const username = vi.hoisted(() => ({
   current: { friend: { id: 7 } as { id: number } | null, isHydrated: true },
 }));
@@ -26,205 +23,260 @@ vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => username.cur
 import ChorePage from "./page";
 import ChoreLayout, { metadata } from "./layout";
 
-const summary = {
-  total: 60,
-  never_cleaned: 12,
-  overdue: 4,
-  needs_sleeve: 30,
-  by_sleeve_type: { original: 20, paper: 2, "poly-rice-paper-poly": 28, poly: 3, unknown: 7 },
-  overdue_days: 365,
-  needs_sleeve_type: "poly-rice-paper-poly",
-};
-
-const item = (n: number, extra: Record<string, unknown> = {}) => ({
-  friend_id: 7,
-  release_id: `rel-${n}`,
-  album_title: `Album ${n}`,
-  album_artist: "Artist",
-  album_thumbnail: null,
-  copy_id: n,
-  is_default: false,
-  label: null,
-  inner_sleeve_type: null,
-  last_cleaned_at: null,
-  ...extra,
-});
-
-function careResponse(items: unknown[], total = items.length, offset = 0) {
-  return {
-    items,
-    total,
-    limit: 50,
-    offset,
-    overdue_days: 365,
-    needs_sleeve_type: "poly-rice-paper-poly",
-  };
-}
-
-const lastCareParams = () => api.listRecordCare.mock.calls.at(-1)?.[0];
+const noStack = { items: [], limit: 1, offset: 0 };
 
 beforeEach(() => {
-  navigation.params = new URLSearchParams();
-  navigation.push.mockReset();
+  vi.resetAllMocks();
   username.current = { friend: { id: 7 }, isHydrated: true };
-  api.getRecordCareSummary.mockResolvedValue(summary);
-  api.listRecordCare.mockResolvedValue(
-    careResponse([
-      item(1, { label: "DJ copy", album_thumbnail: "/a.jpg" }),
-      item(2, { copy_id: null, is_default: true }),
-    ]),
-  );
-  api.listRecordCopies.mockResolvedValue({ items: [], overdue_days: 365 });
-  api.createRecordAction.mockResolvedValue({});
+  api.getRecordCareQueue.mockResolvedValue(queueFixture());
+  api.getRecordCareProgress.mockResolvedValue(progressFixture);
+  api.listRecordCareStacks.mockResolvedValue(noStack);
 });
-afterEach(() => vi.resetAllMocks());
 
-describe("chore layout", () => {
-  it("titles the page and renders its children", () => {
+const checkbox = (name: RegExp) => screen.getByRole("checkbox", { name });
+const checked = (name: RegExp) => checkbox(name).getAttribute("aria-checked") === "true";
+const bar = () => screen.getByTestId("chores-selection-bar");
+
+async function renderPage() {
+  const view = renderWithProviders(<ChorePage />);
+  await screen.findByRole("checkbox", { name: /Album 1/ });
+  return view;
+}
+
+describe("Chores page", () => {
+  it("names the route", () => {
     expect(metadata.title).toBe("Chores");
-    renderWithProviders(
-      <ChoreLayout>
-        <p>child</p>
-      </ChoreLayout>,
-    );
-    expect(screen.getByText("child")).toBeTruthy();
+    const child = <span>child</span>;
+    expect(ChoreLayout({ children: child })).toBe(child);
   });
-});
 
-describe("ChorePage", () => {
-  it("waits for a library", () => {
+  it("waits for the friend", () => {
     username.current = { friend: null, isHydrated: true };
     renderWithProviders(<ChorePage />);
-    expect(screen.queryByText("Chores")).toBeNull();
-    expect(api.getRecordCareSummary).not.toHaveBeenCalled();
+    expect(api.getRecordCareQueue).not.toHaveBeenCalled();
   });
 
-  it("shows the counts, then copies never cleaned", async () => {
+  it("shows progress, the to-do count and the three groups with their meta", async () => {
+    await renderPage();
+
+    expect(api.getRecordCareQueue).toHaveBeenCalledWith({ friend_id: 7, limit: 20 });
+    expect(screen.getByRole("tab", { name: "TO DO · 402" })).toBeTruthy();
+    expect(screen.getByTestId("chores-overview")).toBeTruthy();
+    expect(checkbox(/Album 1/).textContent).toContain("SPUN 3× IN OCT");
+    expect(checkbox(/Album 3/).textContent).toContain("ADDED OCT 17");
+    expect(checkbox(/Album 4/).textContent).toContain("SLEEVE ?");
+    expect(checkbox(/Album 5/).textContent).not.toContain("SLEEVE ?");
+    expect(screen.getByRole("article", { name: "BACKLOG · A–Z" })).toBeTruthy();
+    expect(screen.getByText("THIS MONTH · 11 RECORDS · 2 SESSIONS")).toBeTruthy();
+  });
+
+  it("hides empty groups", async () => {
+    api.getRecordCareQueue.mockResolvedValue(queueFixture({ spun: [], fresh: [1] }));
     renderWithProviders(<ChorePage />);
+    await screen.findByRole("checkbox", { name: /Album 1/ });
+    expect(screen.queryByRole("article", { name: "SPUN RECENTLY · NEVER CLEANED" })).toBeNull();
+    expect(screen.getByRole("article", { name: "NEW ARRIVALS" })).toBeTruthy();
+  });
 
-    const neverCleaned = await screen.findByRole("button", { name: /Never cleaned/ });
-    expect(neverCleaned.getAttribute("aria-pressed")).toBe("true");
-    expect(within(neverCleaned).getByText("12")).toBeTruthy();
-    expect(screen.getByText("Not cleaned in 365 days")).toBeTruthy();
-    expect(screen.getByText("Not yet in poly / rice paper / poly")).toBeTruthy();
-    expect(screen.getByText("60 copies by sleeve:")).toBeTruthy();
-    expect(screen.getByText("Unknown 7")).toBeTruthy();
-
-    expect(await screen.findByRole("link", { name: "Album 1" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Album 1" }).getAttribute("href")).toBe(
-      "/albums/rel-1?friend_id=7",
-    );
-    expect(screen.getByText("DJ copy")).toBeTruthy();
-    expect(screen.getAllByText("Never cleaned").length).toBeGreaterThan(1);
-    expect(lastCareParams()).toEqual({
-      friend_id: 7,
-      status: "never_cleaned",
-      limit: 50,
-      offset: 0,
+  it("says so when nothing is left to clean, and disables the pull", async () => {
+    api.getRecordCareQueue.mockResolvedValue(queueFixture({ spun: [], fresh: [], backlog: [] }));
+    api.getRecordCareProgress.mockResolvedValue({
+      ...progressFixture,
+      cleaned: 412,
+      stacks_done: 42,
+      next_stack_no: null,
     });
-  });
-
-  it("switches chore from the counts", async () => {
-    const { user } = renderWithProviders(<ChorePage />);
-
-    await user.click(await screen.findByRole("button", { name: /Needs a sleeve/ }));
-
+    renderWithProviders(<ChorePage />);
+    expect(await screen.findByText(/NOTHING LEFT TO CLEAN/)).toBeTruthy();
     await waitFor(() =>
-      expect(lastCareParams()).toMatchObject({ status: "needs_sleeve", offset: 0 }),
+      expect(
+        screen.getByRole("button", { name: "PULL NEXT STACK OF 10" }).hasAttribute("disabled"),
+      ).toBe(true),
     );
-    expect(
-      await screen.findByRole("button", { name: "Log sleeve change for Album 1" }),
-    ).toBeTruthy();
   });
 
-  it("logs the chore's action against the row's copy", async () => {
+  it("reports a queue or progress failure", async () => {
+    api.getRecordCareQueue.mockRejectedValue(new Error("boom"));
+    api.getRecordCareProgress.mockRejectedValue(new Error("nope"));
+    renderWithProviders(<ChorePage />);
+    expect(await screen.findByText(/COULDN'T LOAD THE QUEUE · BOOM/)).toBeTruthy();
+    expect(await screen.findByText(/COULDN'T LOAD PROGRESS · NOPE/)).toBeTruthy();
+  });
+
+  it("selects and deselects rows, and counts an ad-hoc pick", async () => {
+    const { user } = await renderPage();
+
+    await user.click(checkbox(/Album 4/));
+    expect(checked(/Album 4/)).toBe(true);
+    expect(within(bar()).getAllByText("1 SELECTED").length).toBeGreaterThan(0);
+    await user.click(checkbox(/Album 4/));
+    expect(checked(/Album 4/)).toBe(false);
+  });
+
+  it("selects and clears a section", async () => {
+    const { user } = await renderPage();
+    const spun = screen.getByRole("article", { name: "SPUN RECENTLY · NEVER CLEANED" });
+
+    await user.click(within(spun).getByRole("button", { name: "SELECT SECTION" }));
+    expect(checked(/Album 1/) && checked(/Album 2/)).toBe(true);
+    expect(checked(/Album 3/)).toBe(false);
+
+    await user.click(within(spun).getByRole("button", { name: "CLEAR SECTION" }));
+    expect(checked(/Album 1/) || checked(/Album 2/)).toBe(false);
+  });
+
+  it("clears an ad-hoc pick without touching a stack", async () => {
+    const { user } = await renderPage();
+    await user.click(checkbox(/Album 4/));
+    await user.click(within(bar()).getByRole("button", { name: "CLEAR" }));
+    expect(checked(/Album 4/)).toBe(false);
+    expect(api.discardRecordCareStack).not.toHaveBeenCalled();
+  });
+
+  it("pulls a stack as the web app and selects it", async () => {
+    const stack = stackFixture([6, 7]);
+    api.pullRecordCareStack.mockResolvedValue({ stack, created: true });
+    const { user } = await renderPage();
+    api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+
+    await user.click(screen.getByRole("button", { name: "PULL NEXT STACK OF 10" }));
+
+    expect(api.pullRecordCareStack).toHaveBeenCalledWith({ friend_id: 7, size: 10 });
+    const group = await screen.findByRole("article", { name: "STACK 2 · PULLED" });
+    expect(within(group).getAllByRole("checkbox")).toHaveLength(2);
+    expect(checked(/Album 6/) && checked(/Album 7/)).toBe(true);
+    expect(within(bar()).getByText("STACK 2 · 2")).toBeTruthy();
+    expect(within(bar()).getByText("groovenet records clean --stack 2")).toBeTruthy();
+  });
+
+  it("re-selects the open stack when pulled again after a deselect", async () => {
+    const stack = stackFixture([6]);
+    api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+    api.pullRecordCareStack.mockResolvedValue({ stack, created: false });
     const { user } = renderWithProviders(<ChorePage />);
+    await waitFor(() => expect(checked(/Album 6/)).toBe(true));
 
-    await user.click(await screen.findByRole("button", { name: "Log cleaning for Album 2" }));
-    await user.click(await screen.findByRole("button", { name: "Save" }));
+    await user.click(checkbox(/Album 6/));
+    expect(checked(/Album 6/)).toBe(false);
+    await user.click(screen.getByRole("button", { name: "PULL NEXT STACK OF 10" }));
+    await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+  });
 
-    // Album 2's copy is its implicit default, so it is logged by release.
+  it("toasts a failed pull", async () => {
+    api.pullRecordCareStack.mockRejectedValue(new Error("no copies"));
+    const { user } = await renderPage();
+    await user.click(screen.getByRole("button", { name: "PULL NEXT STACK OF 10" }));
     await waitFor(() =>
-      expect(api.createRecordAction).toHaveBeenCalledWith(
-        expect.objectContaining({ release_id: "rel-2", action_type: "cleaned" }),
+      expect(toaster.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Couldn't pull a stack", description: "no copies" }),
       ),
     );
-    await waitFor(() => expect(screen.queryByText("Log Record Care")).toBeNull());
   });
 
-  it("pages through a long list, back to the start on a new chore", async () => {
-    const page = Array.from({ length: 50 }, (_, i) => item(i + 1));
-    api.listRecordCare.mockImplementation(({ offset }: { offset: number }) =>
-      Promise.resolve(
-        offset === 0
-          ? careResponse(page, 60)
-          : careResponse(
-              Array.from({ length: 10 }, (_, i) => item(i + 51)),
-              60,
-              offset,
-            ),
+  it("toasts a non-Error rejection as text", async () => {
+    api.pullRecordCareStack.mockRejectedValue("offline");
+    const { user } = await renderPage();
+    await user.click(screen.getByRole("button", { name: "PULL NEXT STACK OF 10" }));
+    await waitFor(() =>
+      expect(toaster.create).toHaveBeenCalledWith(
+        expect.objectContaining({ description: "offline" }),
       ),
     );
-    const { user } = renderWithProviders(<ChorePage />);
-
-    expect(await screen.findByText("1–50 of 60")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Previous" }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(await screen.findByText("51–60 of 60")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
-
-    await user.click(screen.getByRole("button", { name: "Previous" }));
-    expect(await screen.findByText("1–50 of 60")).toBeTruthy();
-
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByText("51–60 of 60");
-    await user.click(screen.getByRole("button", { name: /Overdue/ }));
-    await waitFor(() => expect(lastCareParams()).toMatchObject({ status: "overdue", offset: 0 }));
   });
 
-  it.each([
-    ["never_cleaned", /Never cleaned/, "Every copy has been cleaned at least once."],
-    ["overdue", /Overdue/, "No copy is overdue for a cleaning."],
-    ["needs_sleeve", /Needs a sleeve/, "Every copy is in the target sleeve."],
-  ])("says when no copy needs %s", async (_status, tile, message) => {
-    api.listRecordCare.mockResolvedValue(careResponse([]));
-    const { user } = renderWithProviders(<ChorePage />);
-
-    await user.click(await screen.findByRole("button", { name: tile }));
-
-    expect(await screen.findByText(message)).toBeTruthy();
+  it("leaves the meta off a new arrival with no import time", async () => {
+    const queue = queueFixture();
+    queue.new_arrivals.items[0] = { ...queue.new_arrivals.items[0], added_at: null };
+    api.getRecordCareQueue.mockResolvedValue(queue);
+    await renderPage();
+    expect(checkbox(/Album 3/).textContent).not.toContain("ADDED");
   });
 
-  it("shows load failures", async () => {
-    api.getRecordCareSummary.mockRejectedValue(new Error("summary down"));
-    api.listRecordCare.mockRejectedValue(new Error("list down"));
+  it("restores an open stack on load, selected", async () => {
+    api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stackFixture([6, 7], 3)] });
     renderWithProviders(<ChorePage />);
 
-    expect(await screen.findByText("summary down")).toBeTruthy();
-    expect(await screen.findByText("list down")).toBeTruthy();
+    await waitFor(() => expect(checked(/Album 6/) && checked(/Album 7/)).toBe(true));
+    expect(api.listRecordCareStacks).toHaveBeenCalledWith({
+      friend_id: 7,
+      status: "open",
+      limit: 1,
+    });
+    expect(within(bar()).getByText("STACK 3 · 2")).toBeTruthy();
   });
-});
 
-it.each(["overdue", "needs_sleeve", "never_cleaned", "invalid"])(
-  "reads chore status %s from URL",
-  async (value) => {
-    navigation.params = new URLSearchParams(`status=${value}`);
-    renderWithProviders(<ChorePage />);
+  it("drops the stack label once the pick goes beyond the stack", async () => {
+    api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stackFixture([6])] });
+    const { user } = renderWithProviders(<ChorePage />);
+    await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+
+    await user.click(checkbox(/Album 4/));
+    expect(within(bar()).getAllByText("2 SELECTED").length).toBeGreaterThan(0);
+    expect(within(bar()).queryByText(/from the terminal/)).toBeNull();
+  });
+
+  it("discards a pulled stack on CLEAR", async () => {
+    const stack = stackFixture([6]);
+    api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+    api.discardRecordCareStack.mockResolvedValue({ stack, success: true });
+    const { user } = renderWithProviders(<ChorePage />);
+    await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+    api.listRecordCareStacks.mockResolvedValue(noStack);
+
+    await user.click(within(bar()).getByRole("button", { name: "CLEAR" }));
+
+    expect(api.discardRecordCareStack).toHaveBeenCalledWith(50, 7);
+    await waitFor(() => expect(screen.queryByRole("article", { name: /PULLED/ })).toBeNull());
+  });
+
+  it("keeps the selection and toasts when the discard fails", async () => {
+    api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stackFixture([6])] });
+    api.discardRecordCareStack.mockRejectedValue(new Error("gone"));
+    const { user } = renderWithProviders(<ChorePage />);
+    await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+
+    await user.click(within(bar()).getByRole("button", { name: "CLEAR" }));
+
     await waitFor(() =>
-      expect(lastCareParams()).toMatchObject({
-        status: value === "invalid" ? "never_cleaned" : value,
-      }),
+      expect(toaster.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Couldn't clear the stack" }),
+      ),
     );
-  },
-);
-it("writes status and follows URL navigation", async () => {
-  navigation.params = new URLSearchParams("status=overdue&keep=1");
-  const { user, rerender } = renderWithProviders(<ChorePage />);
-  await user.click(await screen.findByRole("button", { name: /Needs a sleeve/ }));
-  expect(navigation.push).toHaveBeenCalledWith("/chore?status=needs_sleeve&keep=1");
-  navigation.params = new URLSearchParams("status=never_cleaned");
-  rerender(<ChorePage />);
-  await waitFor(() => expect(lastCareParams()).toMatchObject({ status: "never_cleaned" }));
+    expect(checked(/Album 6/)).toBe(true);
+  });
+
+  it("names an ad-hoc open stack without a number", async () => {
+    api.listRecordCareStacks.mockResolvedValue({
+      ...noStack,
+      items: [{ ...stackFixture([6]), stack_no: null }],
+    });
+    renderWithProviders(<ChorePage />);
+    expect(await screen.findByRole("article", { name: "PULLED STACK" })).toBeTruthy();
+  });
+
+  it("pages the backlog", async () => {
+    api.getRecordCareQueue.mockResolvedValue(queueFixture({ backlogTotal: 30 }));
+    const { user } = await renderPage();
+
+    await user.click(screen.getByRole("button", { name: /28 MORE IN THE BACKLOG/ }));
+
+    await waitFor(() =>
+      expect(api.getRecordCareQueue).toHaveBeenCalledWith({ friend_id: 7, limit: 40 }),
+    );
+  });
+
+  it("hides more once the backlog is all shown", async () => {
+    await renderPage();
+    expect(screen.queryByRole("button", { name: /MORE IN THE BACKLOG/ })).toBeNull();
+  });
+
+  it("switches to the care log tab on a phone", async () => {
+    const { user } = await renderPage();
+    await user.click(screen.getByRole("tab", { name: "CARE LOG" }));
+    expect(screen.getByRole("tab", { name: "CARE LOG" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getByText("CARE LOG COMING SOON")).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: /Album 1/ })).toBeNull();
+  });
 });

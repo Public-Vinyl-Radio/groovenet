@@ -6,17 +6,25 @@ import {
   createRecordAction,
   createRecordCopy,
   deleteRecordCopy,
+  discardRecordCareStack,
+  getRecordCareProgress,
+  getRecordCareQueue,
   getRecordCareSummary,
   listRecordActions,
   listRecordCare,
+  listRecordCareStacks,
   listRecordCopies,
+  pullRecordCareStack,
   updateDefaultRecordCopy,
   updateRecordCopy,
   voidRecordAction,
   type RecordActionCreateParams,
   type RecordActionListResponse,
   type RecordCareParams,
+  type RecordCareProgressResponse,
+  type RecordCareQueueResponse,
   type RecordCareResponse,
+  type RecordCareSession,
   type RecordCareSummaryResponse,
   type RecordCopyListItem,
   type RecordCopyListResponse,
@@ -147,5 +155,81 @@ export function useRecordCareMutations(friendId: number) {
     removeCopyPending: removeCopyMutation.isPending,
     logActionPending: logActionMutation.isPending,
     voidActionPending: voidActionMutation.isPending,
+  };
+}
+
+/**
+ * The chores queue (#943). `limit` is the backlog's length so far: "more" asks
+ * for a longer page, and the shorter one stays up while it loads.
+ */
+export function useRecordCareQueueQuery(
+  params: { friend_id: number; limit: number },
+  options?: QueryOptions,
+) {
+  return useQuery<RecordCareQueueResponse, Error>({
+    queryKey: queryKeys.recordCareQueue({ friend_id: params.friend_id, limit: params.limit }),
+    queryFn: () => getRecordCareQueue(params),
+    enabled: options?.enabled ?? true,
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRecordCareProgressQuery(params: { friend_id: number }, options?: QueryOptions) {
+  return useQuery<RecordCareProgressResponse, Error>({
+    queryKey: queryKeys.recordCareProgress({ friend_id: params.friend_id }),
+    queryFn: () => getRecordCareProgress(params),
+    enabled: options?.enabled ?? true,
+    staleTime: STALE_TIME,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** The friend's open stack, or null; at most one is open at a time. */
+export function useOpenRecordCareStackQuery(params: { friend_id: number }, options?: QueryOptions) {
+  return useQuery<RecordCareSession | null, Error>({
+    queryKey: queryKeys.recordCareOpenStack({ friend_id: params.friend_id }),
+    queryFn: async () =>
+      (await listRecordCareStacks({ friend_id: params.friend_id, status: "open", limit: 1 }))
+        .items[0] ?? null,
+    enabled: options?.enabled ?? true,
+    staleTime: STALE_TIME,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Pull and discard. The queue leaves out an open stack's copies, so both
+ * refresh everything under the record-care root; the open stack is written
+ * straight into its cache so the selection doesn't wait for the refetch.
+ */
+export function useRecordCareStackMutations(friendId: number) {
+  const queryClient = useQueryClient();
+  const setOpenStack = (stack: RecordCareSession | null) =>
+    queryClient.setQueryData(queryKeys.recordCareOpenStack({ friend_id: friendId }), stack);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.recordCareRoot() });
+
+  const pullMutation = useMutation({
+    mutationFn: (size?: number) => pullRecordCareStack({ friend_id: friendId, size }),
+    onSuccess: async (result) => {
+      setOpenStack(result.stack);
+      await invalidate();
+    },
+  });
+
+  const discardMutation = useMutation({
+    mutationFn: (stackId: number) => discardRecordCareStack(stackId, friendId),
+    onSuccess: async () => {
+      setOpenStack(null);
+      await invalidate();
+    },
+  });
+
+  return {
+    pullStack: pullMutation.mutateAsync,
+    discardStack: discardMutation.mutateAsync,
+    pullPending: pullMutation.isPending,
+    discardPending: discardMutation.isPending,
   };
 }

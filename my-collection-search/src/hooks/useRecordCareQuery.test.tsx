@@ -16,13 +16,22 @@ const api = vi.hoisted(() => ({
   voidRecordAction: vi.fn(),
   listRecordCare: vi.fn(),
   getRecordCareSummary: vi.fn(),
+  getRecordCareQueue: vi.fn(),
+  getRecordCareProgress: vi.fn(),
+  listRecordCareStacks: vi.fn(),
+  pullRecordCareStack: vi.fn(),
+  discardRecordCareStack: vi.fn(),
 }));
 vi.mock("@/services/internalApi/recordCare", () => api);
 
 import {
+  useOpenRecordCareStackQuery,
   useRecordActionsQuery,
   useRecordCareMutations,
+  useRecordCareProgressQuery,
   useRecordCareQuery,
+  useRecordCareQueueQuery,
+  useRecordCareStackMutations,
   useRecordCareSummaryQuery,
   useRecordCopiesQuery,
 } from "./useRecordCareQuery";
@@ -50,7 +59,7 @@ function setup() {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  return { wrapper, invalidate };
+  return { wrapper, invalidate, client };
 }
 
 beforeEach(() => vi.resetAllMocks());
@@ -196,5 +205,117 @@ describe("useRecordCareMutations", () => {
     api.voidRecordAction.mockResolvedValue({});
     await run((m) => m.voidAction(11));
     expect(api.voidRecordAction).toHaveBeenCalledWith(11, 7);
+  });
+});
+
+const stack = {
+  id: 12,
+  friend_id: 7,
+  stack_no: 2,
+  source: "web" as const,
+  status: "open" as const,
+  created_at: "2026-11-01T10:00:00Z",
+  logged_at: null,
+  voided_at: null,
+  items: [],
+};
+
+describe("useRecordCareQueueQuery", () => {
+  it("asks for the backlog page length", async () => {
+    api.getRecordCareQueue.mockResolvedValue({ backlog: { items: [] } });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useRecordCareQueueQuery({ friend_id: 7, limit: 20 }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.data).toEqual({ backlog: { items: [] } }));
+    expect(api.getRecordCareQueue).toHaveBeenCalledWith({ friend_id: 7, limit: 20 });
+  });
+
+  it("waits while disabled", () => {
+    const { wrapper } = setup();
+    renderHook(() => useRecordCareQueueQuery({ friend_id: 7, limit: 20 }, { enabled: false }), {
+      wrapper,
+    });
+    expect(api.getRecordCareQueue).not.toHaveBeenCalled();
+  });
+});
+
+describe("useRecordCareProgressQuery", () => {
+  it("gets the progress", async () => {
+    api.getRecordCareProgress.mockResolvedValue({ cleaned: 10 });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useRecordCareProgressQuery({ friend_id: 7 }), { wrapper });
+    await waitFor(() => expect(result.current.data).toEqual({ cleaned: 10 }));
+  });
+
+  it("waits while disabled", () => {
+    const { wrapper } = setup();
+    renderHook(() => useRecordCareProgressQuery({ friend_id: 7 }, { enabled: false }), {
+      wrapper,
+    });
+    expect(api.getRecordCareProgress).not.toHaveBeenCalled();
+  });
+});
+
+describe("useOpenRecordCareStackQuery", () => {
+  it("returns the open stack", async () => {
+    api.listRecordCareStacks.mockResolvedValue({ items: [stack], limit: 1, offset: 0 });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useOpenRecordCareStackQuery({ friend_id: 7 }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.data).toEqual(stack));
+    expect(api.listRecordCareStacks).toHaveBeenCalledWith({
+      friend_id: 7,
+      status: "open",
+      limit: 1,
+    });
+  });
+
+  it("is null when no stack is open", async () => {
+    api.listRecordCareStacks.mockResolvedValue({ items: [], limit: 1, offset: 0 });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useOpenRecordCareStackQuery({ friend_id: 7 }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
+  });
+
+  it("waits while disabled", () => {
+    const { wrapper } = setup();
+    renderHook(() => useOpenRecordCareStackQuery({ friend_id: 7 }, { enabled: false }), {
+      wrapper,
+    });
+    expect(api.listRecordCareStacks).not.toHaveBeenCalled();
+  });
+});
+
+describe("useRecordCareStackMutations", () => {
+  const openKey = queryKeys.recordCareOpenStack({ friend_id: 7 });
+
+  it("pulls a stack, caches it and refreshes the queue", async () => {
+    api.pullRecordCareStack.mockResolvedValue({ stack, created: true });
+    const { wrapper, invalidate, client } = setup();
+    const { result } = renderHook(() => useRecordCareStackMutations(7), { wrapper });
+
+    await result.current.pullStack(10);
+
+    expect(api.pullRecordCareStack).toHaveBeenCalledWith({ friend_id: 7, size: 10 });
+    expect(client.getQueryData(openKey)).toEqual(stack);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() });
+  });
+
+  it("discards a stack and clears the cache", async () => {
+    api.discardRecordCareStack.mockResolvedValue({ stack, success: true });
+    const { wrapper, invalidate, client } = setup();
+    client.setQueryData(openKey, stack);
+    const { result } = renderHook(() => useRecordCareStackMutations(7), { wrapper });
+
+    await result.current.discardStack(12);
+
+    expect(api.discardRecordCareStack).toHaveBeenCalledWith(12, 7);
+    expect(client.getQueryData(openKey)).toBeNull();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() });
   });
 });

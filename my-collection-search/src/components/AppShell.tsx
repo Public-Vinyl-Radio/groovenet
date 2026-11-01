@@ -110,6 +110,8 @@ export default function AppShell({
   );
   const primaryMobileMenuItems = menuItems.slice(0, 5);
   const secondaryMobileMenuItems = menuItems.slice(5);
+  // A page under More (Chores, Settings, …) marks More as the current tab.
+  const moreActive = secondaryMobileMenuItems.some((item) => isActiveRoute(current, item.href));
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const playbackLabel = usePlaybackTargetLabel();
@@ -493,6 +495,7 @@ export default function AppShell({
                 key={item.href}
                 as={NextLink}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 flex="1 1 0"
                 _hover={{ textDecoration: "none" }}
               >
@@ -522,20 +525,26 @@ export default function AppShell({
           <Button
             variant="ghost"
             onClick={() => setDrawerOpen(true)}
+            aria-current={moreActive ? "page" : undefined}
             flex="1 1 0"
             h="auto"
             py={1.5}
             px={1}
             borderWidth="outline"
-            borderColor="transparent"
+            borderColor={moreActive ? "border.ink" : "transparent"}
+            bg={moreActive ? "bg.subtle" : "transparent"}
           >
             <VStack gap={1}>
-              <Icon as={FiMoreHorizontal} boxSize={5} color="fg.muted" />
+              <Icon
+                as={FiMoreHorizontal}
+                boxSize={5}
+                color={moreActive ? "accent.fg" : "fg.muted"}
+              />
               <Text
                 fontFamily="label"
                 fontSize="xs"
-                fontWeight="medium"
-                color="fg.muted"
+                fontWeight={moreActive ? "semibold" : "medium"}
+                color={moreActive ? "fg" : "fg.muted"}
                 lineHeight="1"
               >
                 More

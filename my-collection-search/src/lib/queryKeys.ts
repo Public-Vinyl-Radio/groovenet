@@ -80,6 +80,12 @@ export const queryKeys = {
   recordCare: (args: { friend_id: number; status?: string; limit?: number; offset?: number }) =>
     ["record-care", "care", args] as const,
   recordCareSummary: (args: { friend_id: number }) => ["record-care", "summary", args] as const,
+  // Chores (#943): the queue, progress and the open stack move together.
+  recordCareQueue: (args: { friend_id: number; limit?: number }) =>
+    ["record-care", "queue", args] as const,
+  recordCareProgress: (args: { friend_id: number }) => ["record-care", "progress", args] as const,
+  recordCareOpenStack: (args: { friend_id: number }) =>
+    ["record-care", "stacks", "open", args] as const,
   ingestStats: (args: { minutes?: number; source_id?: string }) =>
     ["vinyl", "stats", args] as const,
   recentDetections: (args: {
