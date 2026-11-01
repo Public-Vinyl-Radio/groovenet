@@ -122,6 +122,8 @@ then recompresses them losslessly (`scripts/compress-screenshots.mjs`).
 
 ## Deploy
 
+Netlify skips unchanged content via `scripts/netlify-ignore.sh` (hooks always build); watched paths mirror `.github/scripts/ci-changes.mjs` and are checked by `npm test`.
+
 - Netlify's base directory must be `site/`; `netlify.toml` here holds the build
   command, `publish = "dist"`, Node 22 with npm 12.0.1 (`engines.npm`), the security headers and an `ignore`
   command, so commits touching only the app don't rebuild the site.

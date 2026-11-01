@@ -11,7 +11,7 @@
     "build": "astro check && astro build && node scripts/check-links.mjs",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "node --test scripts/check-links.test.mjs src/lib/roadmap.test.mjs"
+    "test": "node --test scripts/netlify-ignore.test.mjs scripts/check-links.test.mjs src/lib/roadmap.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.6.0",
