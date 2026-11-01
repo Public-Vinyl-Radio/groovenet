@@ -1,0 +1,15 @@
+---
+import Header from "../Header.astro";
+import Search from "@astrojs/starlight/components/Search.astro";
+import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
+---
+<Header currentPath="/docs" />
+<div class="docs-tools">
+  <span class="caps docs-label">Collection manual</span>
+  <div class="tools"><Search /><ThemeSelect /></div>
+</div>
+<style>
+  .docs-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px var(--gutter); }
+  .tools { display: flex; align-items: center; gap: 16px; }
+  @media (max-width: 800px) { .docs-label { display: none; } .docs-tools { justify-content: flex-start; padding-right: 64px; } }
+</style>

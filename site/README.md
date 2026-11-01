@@ -18,7 +18,7 @@ just site-dev
 Run validation and create the deployable static output:
 
 ```bash
-just site-build   # astro check && astro build
+just site-build   # astro check, build, then validate internal links
 just site-preview
 ```
 
@@ -32,9 +32,11 @@ src/
   data/           roadmap.yml, screenshot slots, and palettes.json (generated: just site-tokens)
   layouts/        Base layout: metadata, self-hosted fonts, Mono palette tokens
   lib/            Turns the palette export into CSS
-  pages/          Astro routes: /, /about, /docs
-  styles/         Global styles
+  pages/          Marketing routes: /, /about
+  styles/         Marketing styles and the Starlight theme
 public/           Favicon, social card, robots.txt, and fonts (generated: just site-tokens)
+../docs/         User-facing Markdown, loaded by Starlight at /docs
+../CHANGELOG.md  Release notes, read at build time
 netlify.toml      Netlify build configuration and security headers
 ```
 
