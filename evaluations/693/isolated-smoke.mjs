@@ -6,6 +6,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { up } from "../../my-collection-search/migrations/1792900000000_add-server-players.js";
+import { up as availabilityUp } from "../../my-collection-search/migrations/1793000000000_add-player-availability-policy.js";
+import { up as playsUp } from "../../my-collection-search/migrations/1793100000000_add-server-player-plays.js";
 const exec = promisify(execFile);
 const docker = async (...args) =>
   (await exec("docker", args, { maxBuffer: 4 * 1024 * 1024 })).stdout.trim();
@@ -105,13 +107,16 @@ try {
       return false;
     }
   }, "Postgres");
-  let migrationSql;
-  up({
-    sql: (text) => {
-      migrationSql = text;
-    },
-  });
-  await sql(migrationSql);
+  for (const migrate of [up, availabilityUp, playsUp]) {
+    let migrationSql;
+    migrate({
+      sql: (text) => {
+        migrationSql = text;
+      },
+    });
+    await sql(migrationSql);
+  }
+  await sql("ALTER TABLE server_player_plays ADD COLUMN output_name text");
   await sql(
     "CREATE TABLE tracks(track_id text, friend_id integer, title text, artist text, local_audio_url text); INSERT INTO tracks VALUES ('short',1,'Short','Fixture','short.wav'),('long',1,'Long','Fixture','long.wav');",
   );
@@ -194,6 +199,8 @@ try {
     "DATABASE_URL=postgres://test:test@db:5432/test",
     "-e",
     `PLAYER_API_KEY=${key}`,
+    "-e",
+    "PLAYER_LIBRARY_FRIEND_ID=1",
     "-e",
     `PLAYER_ENGINES_JSON=${JSON.stringify(engines)}`,
     "groovenet-player-server:693-test",
@@ -287,6 +294,37 @@ try {
   }
   console.log(
     "PASS: worker restart restores both queues/checkpoints without resuming or claiming speakers",
+  );
+  // SIGKILL prevents graceful shutdown from hiding the orphaned-paused-session bug.
+  await command("b", { type: "play", allow_unknown: true });
+  await command("b", { type: "pause" });
+  const orphaned = await state("b");
+  assert.ok(orphaned.state.engine_session, "ownership is durable before playback");
+  await docker("kill", "--signal=KILL", worker);
+  const orphanStatus = JSON.parse(
+    await docker("exec", engine, "curl", "-fsS", "http://127.0.0.1:13690/api/player"),
+  );
+  assert.equal(orphanStatus.state, "pause", "engine remains paused after abrupt worker death");
+  await docker("start", worker);
+  await wait(async () => {
+    try {
+      return (await api("/health")).status === 200;
+    } catch {
+      return false;
+    }
+  }, "worker recovery after SIGKILL");
+  const recovered = await state("b");
+  assert.equal(recovered.state.status, "stopped");
+  assert.equal(recovered.state.engine_session, null);
+  assert.deepEqual(recovered.state.queue, orphaned.state.queue);
+  const recoveredStatus = JSON.parse(
+    await docker("exec", engine, "curl", "-fsS", "http://127.0.0.1:13690/api/player"),
+  );
+  assert.equal(recoveredStatus.state, "stop");
+  await command("b", { type: "play", allow_unknown: true });
+  assert.equal((await state("b")).state.status, "playing");
+  console.log(
+    "PASS: paused OwnTone session survives SIGKILL, is reconciled on startup, and loads again without takeover",
   );
   console.log(
     "PASS: isolated server-player smoke complete; no AirPlay hardware or synchronization claimed",

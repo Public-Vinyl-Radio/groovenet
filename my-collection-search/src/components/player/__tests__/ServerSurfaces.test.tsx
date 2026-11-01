@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { device, player } from "@/test/serverPlayerFixtures";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
@@ -82,6 +82,64 @@ describe("ServerNotice", () => {
       expect(controller.dismissAcknowledgement).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("offers engine takeover only for DEVICE_BUSY and sends nothing until confirmed", async () => {
+    const failed = player();
+    failed.state.error = { code: "DEVICE_BUSY", message: "Lounge / engine-a is busy" };
+    server({ player: failed });
+    const { user, rerender } = renderWithProviders(<ServerNotice />);
+    await user.click(
+      within(screen.getByTestId("server-notice")).getByRole("button", {
+        name: "Stop engine and take over",
+      }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Take over engine?" });
+    expect(dialog.textContent).toContain("Something else is playing or paused on Lounge");
+    expect(controller.command).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(controller.command).not.toHaveBeenCalled();
+    await user.click(
+      within(screen.getByTestId("server-notice")).getByRole("button", {
+        name: "Stop engine and take over",
+      }),
+    );
+    const cancelled = await screen.findByRole("dialog", { name: "Take over engine?" });
+    await user.click(within(cancelled).getByRole("button", { name: "Cancel" }));
+    expect(controller.command).not.toHaveBeenCalled();
+    await user.click(
+      within(screen.getByTestId("server-notice")).getByRole("button", {
+        name: "Stop engine and take over",
+      }),
+    );
+    const confirmed = await screen.findByRole("dialog", { name: "Take over engine?" });
+    await user.click(within(confirmed).getByRole("button", { name: "Stop engine and take over" }));
+    expect(controller.command).toHaveBeenCalledExactlyOnceWith(
+      { type: "engine.stop", takeover: true },
+      failed.revision,
+    );
+    failed.state.error = { code: "ENGINE_UNAVAILABLE", message: "Engine offline" };
+    server({ player: failed });
+    rerender(<ServerNotice />);
+    expect(screen.queryByRole("button", { name: "Stop engine and take over" })).toBeNull();
+  });
+
+  it("invalidates a takeover confirmation when the player revision changes", async () => {
+    const failed = player();
+    failed.state.error = { code: "DEVICE_BUSY", message: "Engine busy" };
+    server({ player: failed });
+    const { user, rerender } = renderWithProviders(<ServerNotice />);
+    await user.click(
+      within(screen.getByTestId("server-notice")).getByRole("button", {
+        name: "Stop engine and take over",
+      }),
+    );
+    await screen.findByRole("dialog", { name: "Take over engine?" });
+    failed.revision++;
+    server({ player: failed });
+    rerender(<ServerNotice />);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(controller.command).not.toHaveBeenCalled();
+  });
 
   it("offers Unlock while access is locked, naming the server from the list", async () => {
     server({ player: null }, { authorized: false, controller: null, players: [player()] });

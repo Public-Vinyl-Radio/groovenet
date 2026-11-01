@@ -1,3 +1,4 @@
+import type { EngineSession } from "@groovenet/contracts";
 import type { Track } from "@groovenet/client";
 
 export interface QueueEntry {
@@ -45,6 +46,14 @@ export interface PlaybackBackend {
   setOutputDevice(deviceId: string): Promise<void>;
   /** Transport evidence for server resume policy; selected alone is not connected. */
   outputConnection?(): Promise<"connected" | "disconnected" | "unknown">;
+  /** Durable ownership supplied only by the elected server worker. */
+  configureSessionRecovery?(
+    session: EngineSession | null,
+    persist: (session: EngineSession | null) => Promise<void>,
+    engineId: string,
+  ): void;
+  /** Explicitly authorized foreign-engine takeover; never used by normal play. */
+  takeOver?(): Promise<void>;
   close(): Promise<void>;
 }
 

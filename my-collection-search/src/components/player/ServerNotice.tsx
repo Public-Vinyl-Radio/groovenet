@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import RetroDialog from "@/components/ui/RetroDialog";
 import { Box, Button, Flex, IconButton, Text } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
@@ -9,9 +10,10 @@ import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 type Notice = {
   tone: "confirm" | "error";
   text: string;
-  action?: { label: string; onClick: () => void; disabled?: boolean };
+  action?: { label: string; onClick?: () => void; disabled?: boolean };
   /** Cancel for a confirm, × for a passing problem; none for a state the server holds. */
   dismiss?: { label: string; onClick: () => void };
+  takeover?: { key: string; name: string; engine: string; confirm: () => void };
 };
 
 /**
@@ -52,8 +54,29 @@ export function useServerNotice(): Notice | null {
       action: { label: "Unlock", onClick: () => openPicker(true) },
     };
   }
-  if (remote.player?.state.error)
-    return { tone: "error", text: `Playback error: ${remote.player.state.error.message}` };
+  if (remote.player?.state.error) {
+    const player = remote.player;
+    const busy = player.state.error!.code === "DEVICE_BUSY";
+    return {
+      tone: "error",
+      text: `Playback error: ${player.state.error!.message}`,
+      ...(busy && controller
+        ? {
+            action: {
+              label: "Stop engine and take over",
+              disabled: remote.busy || !remote.connected,
+            },
+            takeover: {
+              key: `${player.id}:${player.revision}`,
+              name: player.name,
+              engine: player.engine_id,
+              confirm: () =>
+                void controller.command({ type: "engine.stop", takeover: true }, player.revision),
+            },
+          }
+        : {}),
+    };
+  }
   if (remote.problem && controller)
     return {
       tone: "error",
@@ -72,54 +95,89 @@ export function useServerNotice(): Notice | null {
 /** The notice as a compact outlined strip; renders nothing while there is none. */
 export default function ServerNotice({ notice }: { notice?: Notice | null }) {
   const own = useServerNotice();
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const current = notice === undefined ? own : notice;
   if (!current) return null;
   return (
-    <Flex
-      data-testid="server-notice"
-      role={current.tone === "confirm" ? "alertdialog" : "alert"}
-      aria-label={current.tone === "confirm" ? "Confirm playback" : undefined}
-      align="center"
-      gap="8px"
-      minH="48px"
-      pl="12px"
-      pr="4px"
-      py="6px"
-      borderWidth="outline"
-      borderColor="border.ink"
-      bg="bg.panel"
-    >
-      <Text flex="1" minW={0} fontSize="13px" lineHeight="18px">
-        {current.text}
-      </Text>
-      {current.action && (
-        <Button
-          size="xs"
-          variant="solid"
-          flexShrink={0}
-          disabled={current.action.disabled}
-          onClick={current.action.onClick}
-        >
-          {current.action.label}
-        </Button>
-      )}
-      {current.dismiss &&
-        (current.tone === "confirm" ? (
-          <Button size="xs" variant="ghost" flexShrink={0} onClick={current.dismiss.onClick}>
-            {current.dismiss.label}
-          </Button>
-        ) : (
-          <IconButton
+    <>
+      <Flex
+        data-testid="server-notice"
+        role={current.tone === "confirm" ? "alertdialog" : "alert"}
+        aria-label={current.tone === "confirm" ? "Confirm playback" : undefined}
+        align="center"
+        gap="8px"
+        minH="48px"
+        pl="12px"
+        pr="4px"
+        py="6px"
+        borderWidth="outline"
+        borderColor="border.ink"
+        bg="bg.panel"
+      >
+        <Text flex="1" minW={0} fontSize="13px" lineHeight="18px">
+          {current.text}
+        </Text>
+        {current.action && (
+          <Button
             size="xs"
-            variant="ghost"
-            aria-label={current.dismiss.label}
+            variant="solid"
             flexShrink={0}
-            onClick={current.dismiss.onClick}
+            disabled={current.action.disabled}
+            onClick={() =>
+              current.takeover ? setConfirmation(current.takeover.key) : current.action!.onClick?.()
+            }
           >
-            <FiX />
-          </IconButton>
-        ))}
-      {!current.dismiss && <Box w="8px" flexShrink={0} />}
-    </Flex>
+            {current.action.label}
+          </Button>
+        )}
+        {current.dismiss &&
+          (current.tone === "confirm" ? (
+            <Button size="xs" variant="ghost" flexShrink={0} onClick={current.dismiss.onClick}>
+              {current.dismiss.label}
+            </Button>
+          ) : (
+            <IconButton
+              size="xs"
+              variant="ghost"
+              aria-label={current.dismiss.label}
+              flexShrink={0}
+              onClick={current.dismiss.onClick}
+            >
+              <FiX />
+            </IconButton>
+          ))}
+        {!current.dismiss && <Box w="8px" flexShrink={0} />}
+      </Flex>
+      {current.takeover && (
+        <RetroDialog
+          open={confirmation === current.takeover.key}
+          onOpenChange={() => setConfirmation(null)}
+          title="Take over engine?"
+          footer={
+            <Flex gap="8px">
+              <Button size="sm" variant="outline" onClick={() => setConfirmation(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="solid"
+                disabled={current.action?.disabled}
+                onClick={() => {
+                  setConfirmation(null);
+                  current.takeover!.confirm();
+                }}
+              >
+                Stop engine and take over
+              </Button>
+            </Flex>
+          }
+        >
+          <Text>
+            Something else is playing or paused on {current.takeover.name} /{" "}
+            {current.takeover.engine}. Stop it and play this queue?
+          </Text>
+        </RetroDialog>
+      )}
+    </>
   );
 }

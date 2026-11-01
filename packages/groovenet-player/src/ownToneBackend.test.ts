@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { EngineSession } from "@groovenet/contracts";
 import { OwnToneBackend } from "./ownToneBackend.js";
 
 const instance = "a".repeat(32);
@@ -122,6 +123,115 @@ const source = { url: "file:///media/song.m4a" };
 describe("OwnToneBackend", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  async function orphan() {
+    const f = fixture();
+    let identity: EngineSession | null = null;
+    const persist = vi.fn(async (value: EngineSession | null) => {
+      identity = value;
+    });
+    f.backend.configureSessionRecovery(null, persist, "engine-a");
+    await f.backend.load(source);
+    await f.backend.pause(true);
+    const restarted = new OwnToneBackend({
+      apiUrl: "http://engine/api",
+      outputId: "speaker/1",
+      fetch: f.fetch,
+    });
+    return { ...f, identity: identity!, persist, restarted };
+  }
+
+  it.each(["load", "startup"])(
+    "recognizes an exact persisted paused session on %s",
+    async (action) => {
+      const f = await orphan();
+      expect(f.identity).toEqual({
+        engine_id: "engine-a",
+        itemId: 10,
+        queueVersion: 2,
+        instance,
+        sequence: 0,
+      });
+      Object.assign(f.outputs[0]!, { connected: false });
+      f.restarted.configureSessionRecovery(f.identity, f.persist, "engine-a");
+      if (action === "load") {
+        await f.restarted.load(source);
+        expect(f.status.state).toBe("play");
+      }
+      await f.restarted.close();
+      expect(f.status.state).toBe("stop");
+      expect(f.persist).toHaveBeenLastCalledWith(null);
+      await f.backend.close();
+    },
+  );
+
+  it.each(["engine", "item", "queue", "instance", "sequence", "extra item", "status item"])(
+    "refuses persisted ownership with a different %s",
+    async (change) => {
+      const f = await orphan();
+      if (change === "engine") f.identity.engine_id = "other";
+      if (change === "item") f.identity.itemId++;
+      if (change === "queue") f.identity.queueVersion++;
+      if (change === "instance") f.identity.instance = "b".repeat(32);
+      if (change === "sequence") f.terminal.sequence++;
+      if (change === "extra item")
+        f.responses.set("queue", { version: 2, items: [{ id: 10 }, { id: 11 }] });
+      if (change === "status item") f.status.item_id++;
+      f.restarted.configureSessionRecovery(f.identity, f.persist, "engine-a");
+      const count = f.requests.length;
+      await expect(f.restarted.load(source)).rejects.toMatchObject({ code: "DEVICE_BUSY" });
+      await f.restarted.close();
+      expect(f.requests.slice(count).every((r) => r.method === "GET")).toBe(true);
+      await f.backend.close();
+    },
+  );
+
+  it("does not start audio unless the identity write succeeds", async () => {
+    const f = fixture();
+    f.backend.configureSessionRecovery(
+      null,
+      async () => {
+        throw new Error("database unavailable");
+      },
+      "engine-a",
+    );
+    await expect(f.backend.load(source)).rejects.toThrow("database unavailable");
+    expect(f.requests.some((r) => r.path === "player/play")).toBe(false);
+    // Cleanup can also report the persistence outage after stopping the engine.
+    await expect(f.backend.close()).rejects.toThrow("database unavailable");
+    expect(f.status.state).toBe("stop");
+  });
+
+  it("stops and clears a foreign session only for explicit takeover, then loads", async () => {
+    const f = fixture();
+    f.status.state = "pause";
+    await expect(f.backend.load(source)).rejects.toMatchObject({ code: "DEVICE_BUSY" });
+    await f.backend.takeOver();
+    expect(f.status.state).toBe("stop");
+    await f.backend.load(source);
+    expect(f.status.state).toBe("play");
+    await f.backend.close();
+  });
+
+  it.each(["deselected", "disconnected"])(
+    "keeps a paused session cleanable when output is %s without a terminal event",
+    async (change) => {
+      const f = fixture();
+      await f.backend.load(source);
+      await f.backend.pause(true);
+      if (change === "deselected") f.outputs[0]!.selected = false;
+      else Object.assign(f.outputs[0]!, { connected: false });
+      await vi.advanceTimersByTimeAsync(500);
+      if (change === "deselected")
+        expect(f.errors).toHaveBeenCalledWith(
+          expect.objectContaining({ code: "DEVICE_UNAVAILABLE" }),
+        );
+      else expect(f.errors).not.toHaveBeenCalled();
+      await f.backend.close();
+      expect(f.status.state).toBe("stop");
+      expect(f.requests.some((r) => r.path === "queue/clear")).toBe(true);
+    },
+  );
 
   it("maps the exact indexed path without interpolating query expressions, uses engine-only auth, and selects just one output", async () => {
     const f = fixture();

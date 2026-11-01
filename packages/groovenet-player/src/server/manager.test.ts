@@ -15,6 +15,8 @@ import { OwnToneBackend } from "../ownToneBackend.js";
 import { PlayerError } from "../types.js";
 
 class FakeBackend extends EventEmitter implements PlaybackBackend {
+  configureSessionRecovery = vi.fn<NonNullable<PlaybackBackend["configureSessionRecovery"]>>();
+  takeOver = vi.fn(async () => {});
   load = vi.fn(async (_source: PlaybackSource) => {
     void _source;
   });
@@ -297,6 +299,144 @@ describe("persistent server player manager", () => {
     await f.settle();
     expect(logPlay).toHaveBeenCalledOnce();
     await f.manager.shutdown();
+  });
+
+  it("persists ownership before load completes and reconciles it at startup without replay", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    const identity = {
+      engine_id: "a",
+      itemId: 10,
+      queueVersion: 2,
+      instance: "a".repeat(32),
+      sequence: 0,
+    };
+    f.create.mockImplementationOnce(() => {
+      const backend = new FakeBackend();
+      backend.load.mockImplementation(async () => {
+        await backend.configureSessionRecovery.mock.calls[0]![1](identity);
+        expect(f.store.rows.get("a")!.state.engine_session).toEqual(identity);
+      });
+      return backend;
+    });
+    await f.command("a", { type: "play", allow_unknown: true });
+    expect(f.manager.get("a").state.engine_session).toEqual(identity);
+    const backend = new FakeBackend();
+    backend.close.mockImplementation(async () => {
+      await backend.configureSessionRecovery.mock.calls[0]![1](null);
+    });
+    const create = vi.fn(() => backend);
+    const restored = new ServerPlayerManager(f.store, { a: { libraryRoot: "/media", create } });
+    await restored.initialize();
+    expect(backend.configureSessionRecovery).toHaveBeenCalledWith(
+      identity,
+      expect.any(Function),
+      "a",
+    );
+    expect(backend.close).toHaveBeenCalledOnce();
+    expect(backend.load).not.toHaveBeenCalled();
+    expect(restored.get("a").state).toMatchObject({
+      status: "stopped",
+      checkpoint: true,
+      engine_session: null,
+    });
+  });
+
+  it("retains durable identity when startup cleanup fails", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    const saved = f.store.rows.get("a")!;
+    saved.state.desired_output = null;
+    saved.state.engine_session = {
+      engine_id: "a",
+      itemId: 10,
+      queueVersion: 2,
+      instance: "a".repeat(32),
+      sequence: 0,
+    };
+    const backend = new FakeBackend();
+    backend.close.mockRejectedValue(new PlayerError("ENGINE_UNAVAILABLE", "Engine offline"));
+    const restored = new ServerPlayerManager(f.store, {
+      a: { libraryRoot: "/media", create: () => backend },
+    });
+    await restored.initialize();
+    expect(restored.get("a").state.engine_session).toEqual(saved.state.engine_session);
+    expect(restored.get("a").state.error?.code).toBe("ENGINE_UNAVAILABLE");
+    expect(backend.load).not.toHaveBeenCalled();
+  });
+
+  it("clears durable identity on stop even after a command has cloned player state", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    f.create.mockImplementationOnce(() => {
+      const backend = new FakeBackend();
+      const identity = {
+        engine_id: "a",
+        itemId: 10,
+        queueVersion: 2,
+        instance: "a".repeat(32),
+        sequence: 0,
+      };
+      backend.load.mockImplementation(async () => {
+        await backend.configureSessionRecovery.mock.calls[0]![1](identity);
+      });
+      backend.close.mockImplementation(async () => {
+        await backend.configureSessionRecovery.mock.calls[0]![1](null);
+      });
+      return backend;
+    });
+    await f.command("a", { type: "play", allow_unknown: true });
+    await f.command("a", { type: "pause" });
+    await f.command("a", { type: "stop" });
+    expect(f.manager.get("a").state.engine_session).toBeNull();
+    expect(f.store.rows.get("a")!.state.engine_session).toBeNull();
+  });
+
+  it("rejects takeover on engines that cannot explicitly stop foreign playback", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    f.create.mockImplementationOnce(() => {
+      const backend = new FakeBackend();
+      Object.assign(backend, { takeOver: undefined });
+      return backend;
+    });
+    await expect(
+      f.command("a", { type: "engine.stop", takeover: true, allow_unknown: true }),
+    ).rejects.toMatchObject({ code: "ENGINE_INCOMPATIBLE" });
+    expect(f.manager.get("a").state.status).toBe("error");
+  });
+
+  it("requires explicit engine takeover and stops before loading", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    await expect(
+      f.command("a", { type: "engine.stop", takeover: false, allow_unknown: true }),
+    ).rejects.toThrow();
+    expect(f.create).not.toHaveBeenCalled();
+    await f.command("a", { type: "engine.stop", takeover: true, allow_unknown: true });
+    const backend = f.backends[0]!;
+    expect(backend.takeOver).toHaveBeenCalledOnce();
+    expect(backend.takeOver.mock.invocationCallOrder[0]).toBeLessThan(
+      backend.load.mock.invocationCallOrder[0]!,
+    );
+    expect(f.manager.get("a").state.status).toBe("playing");
+  });
+
+  it("names the player and engine in a busy error and leaves foreign playback alone", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    f.create.mockImplementationOnce(() => {
+      const backend = new FakeBackend();
+      f.backends.push(backend);
+      backend.load.mockRejectedValue(new PlayerError("DEVICE_BUSY", "Foreign session"));
+      return backend;
+    });
+    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "DEVICE_BUSY",
+    });
+    expect(f.backends[0]!.takeOver).not.toHaveBeenCalled();
+    expect(f.manager.get("a").state.error?.message).toContain("Stop engine and take over");
+    expect(f.manager.get("a").state.error?.message).toContain(" / a");
   });
 
   it("restores independent checkpoints without contacting engines or claiming outputs", async () => {

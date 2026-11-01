@@ -1,3 +1,4 @@
+import type { EngineSession } from "@groovenet/contracts";
 import { EventEmitter } from "node:events";
 import { fileURLToPath } from "node:url";
 import { posix } from "node:path";
@@ -71,6 +72,9 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
   private readonly authorization?: string;
   private outputId?: string;
   private session: Session | null = null;
+  private recoveryPending = false;
+  private engineId?: string;
+  private persistSession?: (session: EngineSession | null) => Promise<void>;
   private finishedSession: Session | null = null;
   private failedSession: FailedSession | null = null;
   private selected = false;
@@ -115,6 +119,34 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
         ? undefined
         : `Basic ${Buffer.from(`admin:${options.password}`).toString("base64")}`;
     this.outputId = options.outputId;
+  }
+
+  configureSessionRecovery(
+    session: EngineSession | null,
+    persist: (session: EngineSession | null) => Promise<void>,
+    engineId: string,
+  ): void {
+    this.engineId = engineId;
+    this.persistSession = persist;
+    this.session = session?.engine_id === engineId ? session : null;
+    this.recoveryPending = this.session !== null;
+  }
+
+  private reconcileRecovery(status: Status, queue: EngineQueue): void {
+    if (!this.recoveryPending) return;
+    this.recoveryPending = false;
+    if (!this.owns(status, queue)) this.session = null;
+  }
+
+  takeOver(): Promise<void> {
+    return this.serial(async () => {
+      await this.status(); // Refuse incompatible engines before any write.
+      await this.request("player/stop", "PUT");
+      await this.request("queue/clear", "PUT");
+      this.session = null;
+      this.recoveryPending = false;
+      await this.persistSession?.(null);
+    });
   }
 
   // All commands and polls share a serial lane: no delayed response from an old
@@ -171,10 +203,12 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
           "Audio file is missing, ambiguous, or not yet indexed in OwnTone",
         );
       const status = await this.status();
-      if (status.state !== "stop" && (!this.session || !this.owns(status, await this.queue()))) {
+      const existingQueue = this.session || status.state !== "stop" ? await this.queue() : null;
+      if (existingQueue) this.reconcileRecovery(status, existingQueue);
+      if (status.state !== "stop" && (!existingQueue || !this.owns(status, existingQueue))) {
         throw new PlayerError(
           "DEVICE_BUSY",
-          "OwnTone has an unowned active or paused session; explicitly stop that engine before loading Groovenet audio",
+          "OwnTone has another active or paused session. Choose “Stop engine and take over” to replace it.",
         );
       }
       if (!this.outputId)
@@ -196,12 +230,17 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
       this.validateQueue(queue);
       if (queue.items.length !== 1)
         throw new PlayerError("STREAM_FAILED", "OwnTone did not queue exactly one audio file");
+      const queuedStatus = await this.status();
       this.session = {
         itemId: queue.items[0]!.id,
         queueVersion: queue.version,
-        instance: status.groovenet_terminal.instance,
-        sequence: status.groovenet_terminal.sequence,
+        instance: queuedStatus.groovenet_terminal.instance,
+        sequence: queuedStatus.groovenet_terminal.sequence,
       };
+      // A crash after play must leave a durable, exact ownership record.
+      if (this.persistSession) {
+        await this.persistSession({ ...this.session, engine_id: this.engineId! });
+      }
       try {
         await this.request("player/play", "PUT");
       } catch (error) {
@@ -281,6 +320,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
         if (this.session || this.finishedSession || this.failedSession || this.selected) {
           const status = await this.status();
           const queue = await this.queue();
+          this.reconcileRecovery(status, queue);
           const finished = this.finishedSession;
           const completed =
             finished &&
@@ -296,6 +336,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             this.session &&
             status.state === "stop" &&
             status.groovenet_terminal.instance === this.session.instance &&
+            status.groovenet_terminal.sequence === this.session.sequence &&
             queue.version === this.session.queueVersion &&
             queue.items.length === 1 &&
             queue.items[0]!.id === this.session.itemId;
@@ -319,6 +360,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             await this.request("player/stop", "PUT");
             await this.request("queue/clear", "PUT");
             await this.request("outputs/set", "PUT", { outputs: [] });
+            await this.persistSession?.(null);
           }
         }
       } finally {
@@ -466,7 +508,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
     return (
       this.session !== null &&
       status.groovenet_terminal.instance === this.session.instance &&
-      !this.terminalForSession(status) &&
+      status.groovenet_terminal.sequence === this.session.sequence &&
       status.state !== "stop" &&
       status.item_id === this.session.itemId &&
       queue.version === this.session.queueVersion &&
@@ -594,8 +636,10 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             this.uncertain = true;
             this.schedulePoll();
           } else {
-            this.session = null;
-            this.selected = false;
+            // A disconnected paused output may have no terminal callback.
+            // Retain only that active identity for close() to recheck.
+            if (!(error instanceof PlayerError && error.code === "DEVICE_UNAVAILABLE"))
+              this.session = null;
             this.emit("error", error);
           }
         }

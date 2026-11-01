@@ -17,6 +17,7 @@ export type ConnectingEdit = Extract<
   PlayerEdit,
   {
     type:
+      | "engine.stop"
       | "session.join"
       | "play"
       | "resume"
@@ -31,6 +32,7 @@ function connects(command: PlayerEdit): command is ConnectingEdit {
   return (
     (command.type === "queue.replace" && command.play === true) ||
     [
+      "engine.stop",
       "session.join",
       "play",
       "resume",

@@ -77,6 +77,12 @@ failed requests such as a lost connection (reconnects wait for a fresh full
 snapshot and reject old connections, workers, sequences, revisions and
 entries).
 
+For `DEVICE_BUSY`, **Stop engine and take over** opens a confirmation naming the
+player and engine and warning that something else is playing or paused there.
+Confirming stops that engine and loads the selected queue entry. Normal playback
+never takes over a foreign OwnTone session; a changed player revision invalidates
+the confirmation.
+
 **Speaker details**, from the connected server's preview in the picker, keeps
 output routing out of the everyday player: desired output against actual
 assignment, each speaker's observed activity, remembering a desired output
