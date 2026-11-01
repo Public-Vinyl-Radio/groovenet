@@ -289,6 +289,29 @@ site-build:
 site-preview:
   {{mise_exec}} npm run preview --prefix site
 
+# Regenerate the site's screenshots from this worktree's prod-seeded stack [--palette X] [--mode light|dark].
+site-screenshots *args:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  set -- {{args}}
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --palette) export SCREENSHOT_PALETTE="$2"; shift 2 ;;
+      --mode) export SCREENSHOT_MODE="$2"; shift 2 ;;
+      *) echo "unknown argument: $1 (use --palette X, --mode light|dark)"; exit 1 ;;
+    esac
+  done
+  if [[ -z "${E2E_BASE_URL:-}" ]]; then
+    env_file="$(ls .worktree/*.env 2>/dev/null | head -n1 || true)"
+    port="$( [[ -n "$env_file" ]] && sed -n 's/^APP_PORT=//p' "$env_file" || true )"
+    export E2E_BASE_URL="http://127.0.0.1:${port:-3000}"
+  fi
+  echo "→ site screenshots against $E2E_BASE_URL"
+  curl -fsS -o /dev/null "$E2E_BASE_URL/settings" || { echo "app not reachable at $E2E_BASE_URL (is the dev stack up?)"; exit 1; }
+  {{mise_exec}} npx --prefix {{app_dir}} playwright install chromium
+  RUN_SCREENSHOTS=1 {{mise_exec}} npm run test:e2e --prefix {{app_dir}} -- e2e/screenshots.spec.ts --project desktop
+  {{mise_exec}} node site/scripts/compress-screenshots.mjs
+
 # Export the app's palettes and fonts for the site's Appearance demo; commit the result.
 site-tokens:
   {{mise_exec}} npm run site:tokens --prefix my-collection-search

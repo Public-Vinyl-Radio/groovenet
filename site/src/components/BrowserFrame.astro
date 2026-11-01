@@ -11,7 +11,7 @@ const { shot, url, dots = true } = Astro.props;
     <span>{url}</span>
     {dots && <span class="spacer" aria-hidden="true"></span>}
   </div>
-  <div class="screen"><Shot shot={shot} widths={[640, 960, 1280]} sizes="(max-width: 720px) 100vw, 760px" /></div>
+  <div class="screen"><Shot shot={shot} widths={[640, 960, 1280, 1520]} sizes="(max-width: 720px) 100vw, 760px" /></div>
 </figure>
 <style>
   figure { margin: 0; }

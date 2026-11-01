@@ -10,8 +10,9 @@ const { shot, note, dark = false, class: className } = Astro.props;
   <div class="screen"><Shot shot={shot} note={note} widths={[240, 480]} sizes="230px" /></div>
 </figure>
 <style>
-  .phone { margin: 0; aspect-ratio: 230 / 480; border: 2px solid var(--ink); border-radius: 38px; padding: 10px; box-shadow: 6px 6px 0 0 var(--shadow); background: var(--ground); }
-  .screen { height: 100%; border: 2px solid var(--ink); border-radius: 28px; overflow: hidden; }
+  .phone { margin: 0; border: 2px solid var(--ink); border-radius: 38px; padding: 10px; box-shadow: 6px 6px 0 0 var(--shadow); background: var(--ground); }
+  /* The screen, not the frame, holds the shot's 390 × 844 shape: the frame's padding is fixed, so a frame ratio would crop narrow phones at the sides. */
+  .screen { aspect-ratio: 390 / 844; border: 2px solid var(--ink); border-radius: 28px; overflow: hidden; }
   /* Always dark, whatever the page's mode: the app's Mono dark values. */
   .dark { background: var(--night-ground); border-color: var(--ink); }
   .dark .screen { border-color: var(--night-ink); --surface: var(--night-surface); --ink: var(--night-ink); --muted: var(--night-muted); color: var(--night-ink); }
