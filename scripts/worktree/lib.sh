@@ -121,15 +121,126 @@ port_is_in_use() {
   usage_error "Need either lsof or nc to probe free ports"
 }
 
+# worktree_state_dirs prints the .worktree state directory of the main
+# checkout and every linked worktree, one per line. Asking git (rather than
+# hard-coding ~/.herdr/worktrees) also covers older Supacode worktrees.
+# WORKTREE_STATE_SCAN_DIRS (newline-separated) overrides it, for tests.
+worktree_state_dirs() {
+  if [[ -n "${WORKTREE_STATE_SCAN_DIRS:-}" ]]; then
+    printf '%s\n' "$WORKTREE_STATE_SCAN_DIRS"
+    return 0
+  fi
+  local path _branch
+  while IFS=$'\t' read -r path _branch; do
+    printf '%s/.worktree\n' "$path"
+  done < <(worktree_list_entries)
+}
+
+# claimed_ports prints every APP_PORT claimed by a worktree state file other
+# than this worktree's own, so a stack that is stopped or not up yet still
+# keeps its port.
+claimed_ports() {
+  local own dir file
+  own="$(worktree_env_file)"
+  while IFS= read -r dir; do
+    [[ -d "$dir" ]] || continue
+    for file in "$dir"/*.env; do
+      [[ -f "$file" && "$file" != "$own" ]] || continue
+      sed -n 's/^APP_PORT=\([0-9][0-9]*\)$/\1/p' "$file"
+    done
+  done < <(worktree_state_dirs)
+}
+
 find_free_port() {
-  local port
+  local port claimed
+  claimed=" $(claimed_ports | tr '\n' ' ') "
   for ((port = APP_PORT_START; port <= APP_PORT_END; port++)); do
+    [[ "$claimed" == *" $port "* ]] && continue
     if ! port_is_in_use "$port"; then
       printf '%s' "$port"
       return 0
     fi
   done
   usage_error "No free port found in range ${APP_PORT_START}-${APP_PORT_END}"
+}
+
+# --- allocation lock ---
+# mkdir is atomic everywhere and macOS has no flock by default. The lock dir
+# holds the owner's pid so a crashed owner's lock can be recognised as stale.
+
+worktree_lock_dir() {
+  if [[ -n "${WORKTREE_LOCK_DIR:-}" ]]; then
+    printf '%s' "$WORKTREE_LOCK_DIR"
+    return 0
+  fi
+  local common
+  common="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)"
+  printf '%s/groovenet-worktree-port.lock' "$common"
+}
+
+path_mtime() {
+  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0
+}
+
+# lock_is_stale: owner pid is gone, or (no pid recorded) the lock is old.
+lock_is_stale() {
+  local lock="$1" pid
+  pid="$(cat "$lock/pid" 2>/dev/null || true)"
+  if [[ -n "$pid" ]]; then
+    ! kill -0 "$pid" 2>/dev/null
+    return
+  fi
+  (($(date +%s) - $(path_mtime "$lock") > ${WORKTREE_LOCK_STALE_SECONDS:-60}))
+}
+
+# acquire_worktree_lock runs in a subshell that sets the EXIT trap, so the
+# trap neither leaks into nor clobbers the caller's.
+acquire_worktree_lock() {
+  local lock deadline
+  lock="$(worktree_lock_dir)"
+  deadline=$((SECONDS + ${WORKTREE_LOCK_TIMEOUT_SECONDS:-30}))
+  until mkdir "$lock" 2>/dev/null; do
+    if [[ -d "$lock" ]] && lock_is_stale "$lock"; then
+      # Rename first: only one waiter wins the mv, the rest retry mkdir.
+      if mv "$lock" "$lock.stale.$BASHPID" 2>/dev/null; then
+        rm -rf "$lock.stale.$BASHPID"
+      fi
+      continue
+    fi
+    if ((SECONDS >= deadline)); then
+      usage_error "Timed out waiting for port allocation lock: $lock"
+    fi
+    sleep 0.1
+  done
+  printf '%s' "$BASHPID" >"$lock/pid"
+}
+
+release_worktree_lock() {
+  rm -rf "$(worktree_lock_dir)"
+}
+
+# create_worktree_env finds a port and writes the env file under the lock, so
+# concurrent setups can't both pick the same port. If this worktree's file
+# appeared while waiting, its existing claim is kept.
+create_worktree_env() {
+  local env_file
+  env_file="$(worktree_env_file)"
+  (
+    acquire_worktree_lock
+    trap release_worktree_lock EXIT
+    [[ -f "$env_file" ]] && exit 0
+    local slug project host port
+    slug="$(worktree_slug "$REPO_ROOT" "$CURRENT_BRANCH")"
+    project="$(compose_project_name "$REPO_ROOT" "$CURRENT_BRANCH")"
+    host="$(worktree_host)"
+    port="$(find_free_port)"
+    cat >"$env_file" <<EOF
+WORKTREE_SLUG=$slug
+COMPOSE_PROJECT_NAME=$project
+WORKTREE_HOST=$host
+APP_PORT=$port
+EOF
+  )
 }
 
 load_worktree_env() {
@@ -141,26 +252,10 @@ load_worktree_env() {
 }
 
 ensure_worktree_env() {
-  local env_file slug project host port
+  local env_file
   ensure_dirs
   env_file="$(worktree_env_file)"
-  if [[ -f "$env_file" ]]; then
-    ensure_worktree_audio_mount_env "$env_file"
-    load_worktree_env
-    return 0
-  fi
-
-  slug="$(worktree_slug "$REPO_ROOT" "$CURRENT_BRANCH")"
-  project="$(compose_project_name "$REPO_ROOT" "$CURRENT_BRANCH")"
-  host="$(worktree_host)"
-  port="$(find_free_port)"
-
-  cat >"$env_file" <<EOF
-WORKTREE_SLUG=$slug
-COMPOSE_PROJECT_NAME=$project
-WORKTREE_HOST=$host
-APP_PORT=$port
-EOF
+  [[ -f "$env_file" ]] || create_worktree_env
 
   ensure_worktree_audio_mount_env "$env_file"
   load_worktree_env
@@ -217,6 +312,36 @@ compose_args_array() {
   done
 }
 
+# op_injection_available: 1Password injection can work (op installed, signed
+# in, and a template exists). Checked up front so a compose failure is never
+# mistaken for an injection failure.
+op_injection_available() {
+  command -v op >/dev/null 2>&1 \
+    && [[ -f "$COMPOSE_DIR/.env.tpl" ]] \
+    && op whoami >/dev/null 2>&1
+}
+
+# run_compose runs "docker compose <args>", injecting secrets via 1Password
+# when available and otherwise falling back to plain compose with a warning.
+# Compose's own exit status is returned as-is; it is never retried.
+run_compose() {
+  if op_injection_available; then
+    op run --env-file="$COMPOSE_DIR/.env.tpl" -- \
+      env \
+        COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}" \
+        WORKTREE_HOST="${WORKTREE_HOST:-}" \
+        APP_PORT="${APP_PORT:-}" \
+        APP_AUDIO_MOUNT="${APP_AUDIO_MOUNT:-}" \
+        WORKER_AUDIO_MOUNT="${WORKER_AUDIO_MOUNT:-}" \
+        docker compose "$@"
+    return
+  fi
+  if command -v op >/dev/null 2>&1 && [[ -f "$COMPOSE_DIR/.env.tpl" ]]; then
+    echo "Warning: 1Password is unavailable (locked or signed out); running docker compose without env injection" >&2
+  fi
+  docker compose "$@"
+}
+
 compose_exec() {
   local compose_args=()
   compose_args_array compose_args
@@ -227,21 +352,7 @@ compose_exec() {
     source "$(worktree_env_file)"
     set +a
     cd "$REPO_ROOT"
-    if command -v op >/dev/null 2>&1 && [[ -f "$COMPOSE_DIR/.env.tpl" ]]; then
-      if ! op run --env-file="$COMPOSE_DIR/.env.tpl" -- \
-        env \
-          COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}" \
-          WORKTREE_HOST="${WORKTREE_HOST:-}" \
-          APP_PORT="${APP_PORT:-}" \
-          APP_AUDIO_MOUNT="${APP_AUDIO_MOUNT:-}" \
-          WORKER_AUDIO_MOUNT="${WORKER_AUDIO_MOUNT:-}" \
-          docker compose "${compose_args[@]}" "$@"; then
-        echo "Warning: falling back to docker compose without 1Password env injection" >&2
-        docker compose "${compose_args[@]}" "$@"
-      fi
-    else
-      docker compose "${compose_args[@]}" "$@"
-    fi
+    run_compose "${compose_args[@]}" "$@"
   )
 }
 
@@ -272,21 +383,7 @@ compose_exec_detect() {
     if [[ -n "$detected_project" ]]; then
       export COMPOSE_PROJECT_NAME="$detected_project"
     fi
-    if command -v op >/dev/null 2>&1 && [[ -f "$COMPOSE_DIR/.env.tpl" ]]; then
-      if ! op run --env-file="$COMPOSE_DIR/.env.tpl" -- \
-        env \
-          COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}" \
-          WORKTREE_HOST="${WORKTREE_HOST:-}" \
-          APP_PORT="${APP_PORT:-}" \
-          APP_AUDIO_MOUNT="${APP_AUDIO_MOUNT:-}" \
-          WORKER_AUDIO_MOUNT="${WORKER_AUDIO_MOUNT:-}" \
-          docker compose "${compose_args[@]}" "$@"; then
-        echo "Warning: falling back to docker compose without 1Password env injection" >&2
-        docker compose "${compose_args[@]}" "$@"
-      fi
-    else
-      docker compose "${compose_args[@]}" "$@"
-    fi
+    run_compose "${compose_args[@]}" "$@"
   )
 }
 
