@@ -20,6 +20,8 @@ export const cleaningMethodSchema = z.enum([
 export const recordCareStatusSchema = z.enum(["never_cleaned", "overdue", "needs_sleeve"]);
 /** A sleeve, or "unknown" for copies with none logged. */
 export const recordSleeveFilterSchema = z.union([sleeveTypeSchema, z.literal("unknown")]);
+/** Where a log came from (#941). Mirrors a CHECK in `1793600000000_add-record-care-sessions.js`. */
+export const recordCareSourceSchema = z.enum(["web", "cli", "mcp", "api"]);
 
 // Timestamps are ISO strings on the wire; `format` documents that without
 // making the response parser stricter than it has been.
@@ -29,6 +31,7 @@ export const SLEEVE_TYPES = sleeveTypeSchema.options;
 export const RECORD_ACTION_TYPES = recordActionTypeSchema.options;
 export const CLEANING_METHODS = cleaningMethodSchema.options;
 export const RECORD_CARE_STATUSES = recordCareStatusSchema.options;
+export const RECORD_CARE_SOURCES = recordCareSourceSchema.options;
 
 /** One physical copy of a release. */
 export const recordCopySchema = z.object({
@@ -82,6 +85,12 @@ export const recordActionSchema = z.object({
   voided_at: dateTime()
     .nullable()
     .meta({ description: "Set once voided; a voided action stays in the history", example: null }),
+  session_id: z
+    .number()
+    .int()
+    .nullable()
+    .meta({ description: "The batch log it was part of; null when logged on its own" }),
+  source: recordCareSourceSchema.meta({ description: "Where it was logged from" }),
   created_at: dateTime(),
 });
 
@@ -219,6 +228,7 @@ export const recordActionCreateObjectSchema = z.object({
   details: recordActionDetailsSchema
     .optional()
     .meta({ description: "`method` only for a cleaned action" }),
+  source: recordCareSourceSchema.optional().meta({ description: "Defaults to api" }),
 });
 
 type RecordActionCreateFields = z.infer<typeof recordActionCreateObjectSchema>;
@@ -282,6 +292,7 @@ export type SleeveType = z.infer<typeof sleeveTypeSchema>;
 export type RecordActionType = z.infer<typeof recordActionTypeSchema>;
 export type CleaningMethod = z.infer<typeof cleaningMethodSchema>;
 export type RecordCareStatus = z.infer<typeof recordCareStatusSchema>;
+export type RecordCareSource = z.infer<typeof recordCareSourceSchema>;
 export type RecordSleeveFilter = z.infer<typeof recordSleeveFilterSchema>;
 export type RecordCopy = z.infer<typeof recordCopySchema>;
 export type RecordCopyListItem = z.infer<typeof recordCopyListItemSchema>;
@@ -318,6 +329,7 @@ export const recordCareJsonSchemas = {
   RecordActionType: z.toJSONSchema(recordActionTypeSchema),
   CleaningMethod: z.toJSONSchema(cleaningMethodSchema),
   RecordCareStatus: z.toJSONSchema(recordCareStatusSchema),
+  RecordCareSource: z.toJSONSchema(recordCareSourceSchema),
   RecordCopy: z.toJSONSchema(recordCopySchema),
   RecordCopyListItem: z.toJSONSchema(recordCopyListItemSchema),
   RecordAction: z.toJSONSchema(recordActionSchema),

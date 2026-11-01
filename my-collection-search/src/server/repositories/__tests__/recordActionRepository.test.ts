@@ -31,7 +31,37 @@ describe("RecordActionRepository", () => {
       null,
       null,
       '{"method":"ultrasonic"}',
+      null,
+      "api",
     ]);
+  });
+
+  it("records the session and source when given", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 1 }] });
+
+    await repo.insertAction(
+      { query },
+      {
+        copy_id: 3,
+        friend_id: 7,
+        action_type: "inspected",
+        occurred_at: "2026-09-30T19:00:00.000Z",
+        session_id: 5,
+        source: "cli",
+      },
+    );
+
+    expect(query.mock.calls[0][0]).toContain("session_id, source");
+    expect(query.mock.calls[0][1].slice(-2)).toEqual([5, "cli"]);
+  });
+
+  it("lists a session's live actions in write order", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 1 }] });
+
+    await expect(repo.listLiveSessionActions({ query }, 5)).resolves.toEqual([{ id: 1 }]);
+
+    expect(query.mock.calls[0][0]).toContain("session_id = $1 AND voided_at IS NULL");
+    expect(query.mock.calls[0][1]).toEqual([5]);
   });
 
   it("lists live actions newest first by default", async () => {
@@ -101,6 +131,6 @@ describe("RecordActionRepository.findAction", () => {
       },
     );
 
-    expect(query.mock.calls[0][1].slice(4)).toEqual(["Flattened", null, "{}"]);
+    expect(query.mock.calls[0][1].slice(4)).toEqual(["Flattened", null, "{}", null, "api"]);
   });
 });

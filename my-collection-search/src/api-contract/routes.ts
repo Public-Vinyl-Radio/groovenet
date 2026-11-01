@@ -166,8 +166,21 @@ import {
   recordActionMutationResponseSchema,
   recordActionParamsSchema,
   recordActionVoidResponseSchema,
+  recordCareLogQuerySchema,
+  recordCareLogResponseSchema,
   recordCareQuerySchema,
   recordCareResponseSchema,
+  recordCareSessionCreateBodySchema,
+  recordCareSessionMutationResponseSchema,
+  recordCareSessionParamsSchema,
+  recordCareSessionVoidBodySchema,
+  recordCareSessionVoidResponseSchema,
+  recordCareStackDiscardResponseSchema,
+  recordCareStackListQuerySchema,
+  recordCareStackListResponseSchema,
+  recordCareStackPullBodySchema,
+  recordCareStackPullResponseSchema,
+  recordCareStackResponseSchema,
   recordCareSummaryQuerySchema,
   recordCareSummaryResponseSchema,
   recordCopyCreateBodySchema,
@@ -3067,6 +3080,233 @@ const recordCareContracts: ApiContractRoute[] = [
         },
         "400": jsonError("Invalid id or query"),
         "404": jsonError("Record action not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+];
+
+// ─── Care stacks and batch logs (#941) ───────────────────────────────────────
+
+const stackPagingParams = [
+  { name: "limit", in: "query", required: false, schema: { type: "integer", default: 20 } },
+  { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+];
+
+const recordCareSessionContracts: ApiContractRoute[] = [
+  {
+    operationId: "pullRecordCareStack",
+    method: "post",
+    path: "/api/record-care/stacks",
+    summary: "Pull the next stack of copies to care for",
+    tags: ["Record Care"],
+    bodySchema: recordCareStackPullBodySchema,
+    successSchema: recordCareStackPullResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: componentRef("RecordCareStackPull"),
+            example: { friend_id: 1, size: 10, source: "web" },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description:
+            "A new open stack: the next `size` (default 10) never-cleaned copies in queue order, or the explicit `copies`",
+          content: { "application/json": { schema: componentRef("RecordCareStackPullResponse") } },
+        },
+        "200": {
+          description: "The stack that was already open (`created: false`)",
+          content: { "application/json": { schema: componentRef("RecordCareStackPullResponse") } },
+        },
+        "400": jsonError("Invalid payload"),
+        "404": jsonError("Album not found, or record copy not found"),
+        "409": jsonError("Every record in the queue has been cleaned"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "listRecordCareStacks",
+    method: "get",
+    path: "/api/record-care/stacks",
+    summary: "A friend's care stacks, newest first",
+    tags: ["Record Care"],
+    querySchema: recordCareStackListQuerySchema,
+    successSchema: recordCareStackListResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        friendIdQueryParam,
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          description: "open for the stack in progress",
+          schema: componentRef("RecordCareSessionStatus"),
+        },
+        ...stackPagingParams,
+      ],
+      responses: {
+        "200": {
+          description: "Stacks with their copies. Ad-hoc logs are not stacks.",
+          content: { "application/json": { schema: componentRef("RecordCareStackListResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getRecordCareStack",
+    method: "get",
+    path: "/api/record-care/stacks/{id}",
+    summary: "A care stack with its copies in order",
+    tags: ["Record Care"],
+    paramsSchema: recordCareSessionParamsSchema,
+    querySchema: recordFriendQuerySchema,
+    successSchema: recordCareStackResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [integerIdParam, friendIdQueryParam],
+      responses: {
+        "200": {
+          description: "The stack",
+          content: { "application/json": { schema: componentRef("RecordCareStackResponse") } },
+        },
+        "400": jsonError("Invalid id or query"),
+        "404": jsonError("Care stack not found"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "discardRecordCareStack",
+    method: "delete",
+    path: "/api/record-care/stacks/{id}",
+    summary: "Clear an open stack",
+    tags: ["Record Care"],
+    paramsSchema: recordCareSessionParamsSchema,
+    querySchema: recordFriendQuerySchema,
+    successSchema: recordCareStackDiscardResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [integerIdParam, friendIdQueryParam],
+      responses: {
+        "200": {
+          description: "Discarded; its number goes to the next pull. Clearing twice is a no-op.",
+          content: {
+            "application/json": { schema: componentRef("RecordCareStackDiscardResponse") },
+          },
+        },
+        "400": jsonError("Invalid id or query"),
+        "404": jsonError("Care stack not found"),
+        "409": jsonError("The stack is not open"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "logRecordCareSession",
+    method: "post",
+    path: "/api/record-care/sessions",
+    summary: "Log care for a stack or a selection of copies",
+    tags: ["Record Care"],
+    bodySchema: recordCareSessionCreateBodySchema,
+    successSchema: recordCareSessionMutationResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: componentRef("RecordCareSessionCreate"),
+            example: {
+              friend_id: 1,
+              stack_id: 2,
+              action_types: ["cleaned", "sleeved"],
+              occurred_at: "2026-10-30T19:00:00.000Z",
+              sleeve_type: "poly-rice-paper-poly",
+              details: { method: "ultrasonic" },
+              notes: "Two passes, air dried overnight.",
+              source: "web",
+            },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description:
+            "Logged: one action per copy per type, under one session, in one transaction. sleeve_type is required when sleeved is included and only then; details.method only with cleaned.",
+          content: {
+            "application/json": { schema: componentRef("RecordCareSessionMutationResponse") },
+          },
+        },
+        "400": jsonError("Invalid payload"),
+        "404": jsonError("Care session, album or record copy not found"),
+        "409": jsonError("The stack is not open"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "listRecordCareLog",
+    method: "get",
+    path: "/api/record-care/sessions",
+    summary: "The care log, newest first",
+    tags: ["Record Care"],
+    querySchema: recordCareLogQuerySchema,
+    successSchema: recordCareLogResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [friendIdQueryParam, ...stackPagingParams],
+      responses: {
+        "200": {
+          description:
+            "One entry per session, plus one per action logged on its own, so the log is complete",
+          content: { "application/json": { schema: componentRef("RecordCareLogResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "voidRecordCareSession",
+    method: "post",
+    path: "/api/record-care/sessions/{id}/void",
+    summary: "Undo a care log",
+    tags: ["Record Care"],
+    paramsSchema: recordCareSessionParamsSchema,
+    bodySchema: recordCareSessionVoidBodySchema,
+    successSchema: recordCareSessionVoidResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [integerIdParam],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: componentRef("RecordCareSessionVoid"),
+            example: { friend_id: 1 },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Undone: every action voided (kept in the history), each copy's care state recomputed from what remains, and a stack reopened",
+          content: {
+            "application/json": { schema: componentRef("RecordCareSessionVoidResponse") },
+          },
+        },
+        "400": jsonError("Invalid id or payload"),
+        "404": jsonError("Care session not found"),
+        "409": jsonError("Nothing logged to undo, or another stack is open"),
         "500": jsonError("Server error"),
       },
     },
@@ -8319,5 +8559,6 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...setDerivationContracts,
   ...backupContracts,
   ...recordCareContracts,
+  ...recordCareSessionContracts,
   ...albumArtworkContracts,
 ];

@@ -126,11 +126,17 @@ export async function listRecordActions(
   );
 }
 
-/** Logs against a copy (`copy_id`) or a release's default copy (`release_id`). */
+/**
+ * Logs against a copy (`copy_id`) or a release's default copy (`release_id`),
+ * credited to the web app unless the caller says otherwise.
+ */
 export async function createRecordAction(
   params: RecordActionCreateParams,
 ): Promise<RecordActionMutationResponse> {
-  return await http<RecordActionMutationResponse>("/api/record-actions", jsonInit("POST", params));
+  return await http<RecordActionMutationResponse>(
+    "/api/record-actions",
+    jsonInit("POST", { source: "web", ...params }),
+  );
 }
 
 /** Voids a mistaken action; it stays in the history but stops counting. */
