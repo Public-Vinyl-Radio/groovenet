@@ -54,6 +54,8 @@ const action = {
   sleeve_type: null,
   details: { method: "vacuum" },
   voided_at: null,
+  session_id: null,
+  source: "api",
   created_at: TS,
 };
 

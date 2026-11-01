@@ -41,6 +41,8 @@ const action = {
   sleeve_type: "poly-rice-paper-poly",
   details: {},
   voided_at: null,
+  session_id: null,
+  source: "api",
   created_at: TS,
 };
 

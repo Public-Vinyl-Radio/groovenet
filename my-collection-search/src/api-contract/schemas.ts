@@ -93,6 +93,19 @@ import {
   recordCopySchema as sharedRecordCopySchema,
   recordCopyUpdateObjectSchema,
   refineRecordActionCreate,
+  recordCareLogQuerySchema as sharedRecordCareLogQuerySchema,
+  recordCareLogResponseSchema as sharedRecordCareLogResponseSchema,
+  recordCareSessionCreateObjectSchema,
+  recordCareSessionMutationResponseSchema as sharedRecordCareSessionMutationResponseSchema,
+  recordCareSessionVoidResponseSchema as sharedRecordCareSessionVoidResponseSchema,
+  recordCareSessionVoidSchema,
+  recordCareStackDiscardResponseSchema as sharedRecordCareStackDiscardResponseSchema,
+  recordCareStackListQuerySchema as sharedRecordCareStackListQuerySchema,
+  recordCareStackListResponseSchema as sharedRecordCareStackListResponseSchema,
+  recordCareStackPullObjectSchema,
+  recordCareStackPullResponseSchema as sharedRecordCareStackPullResponseSchema,
+  recordCareStackResponseSchema as sharedRecordCareStackResponseSchema,
+  refineRecordCareSessionCreate,
   requireLabelOrNotes,
   sleeveTypeSchema as sharedSleeveTypeSchema,
   refineSpinCreate,
@@ -1337,6 +1350,45 @@ export const recordCareSummaryQuerySchema = sharedRecordCareSummaryQuerySchema.e
 });
 
 export const recordCareSummaryResponseSchema = recordCareSummarySchema;
+
+// Care stacks and batch logs (#941).
+export const recordCareSessionParamsSchema = z.object({ id: intFromInputSchema });
+
+export const recordCareStackPullBodySchema = recordCareStackPullObjectSchema.extend({
+  friend_id: intFromInputSchema,
+});
+
+export const recordCareStackListQuerySchema = sharedRecordCareStackListQuerySchema.extend({
+  friend_id: intFromInputSchema,
+  limit: nonNegativeIntFromInputSchema.optional().default(20),
+  offset: nonNegativeIntFromInputSchema.optional().default(0),
+});
+
+export const recordCareSessionCreateBodySchema = recordCareSessionCreateObjectSchema
+  .extend({
+    friend_id: intFromInputSchema,
+    stack_id: intFromInputSchema.optional(),
+  })
+  .superRefine(refineRecordCareSessionCreate);
+
+export const recordCareSessionVoidBodySchema = recordCareSessionVoidSchema.extend({
+  friend_id: intFromInputSchema,
+});
+
+export const recordCareLogQuerySchema = sharedRecordCareLogQuerySchema.extend({
+  friend_id: intFromInputSchema,
+  limit: nonNegativeIntFromInputSchema.optional().default(20),
+  offset: nonNegativeIntFromInputSchema.optional().default(0),
+});
+
+export const recordCareStackResponseSchema = sharedRecordCareStackResponseSchema;
+export const recordCareStackPullResponseSchema = sharedRecordCareStackPullResponseSchema;
+export const recordCareStackListResponseSchema = sharedRecordCareStackListResponseSchema;
+export const recordCareStackDiscardResponseSchema = sharedRecordCareStackDiscardResponseSchema;
+export const recordCareSessionMutationResponseSchema =
+  sharedRecordCareSessionMutationResponseSchema;
+export const recordCareSessionVoidResponseSchema = sharedRecordCareSessionVoidResponseSchema;
+export const recordCareLogResponseSchema = sharedRecordCareLogResponseSchema;
 
 export const albumUpdateBodySchema = z
   .object({

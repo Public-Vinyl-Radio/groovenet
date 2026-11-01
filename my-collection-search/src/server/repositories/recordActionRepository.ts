@@ -1,5 +1,5 @@
 import { dbQuery } from "@/lib/serverDb";
-import type { RecordAction, RecordActionDetails } from "@groovenet/contracts";
+import type { RecordAction, RecordActionDetails, RecordCareSource } from "@groovenet/contracts";
 import type { RecordActionType, SleeveType } from "@/lib/recordCare";
 import type { Queryable } from "./recordCopyRepository";
 
@@ -18,6 +18,8 @@ export type CreateRecordActionInput = {
   notes?: string | null;
   sleeve_type?: SleeveType | null;
   details?: RecordActionDetails;
+  session_id?: number | null;
+  source?: RecordCareSource;
 };
 
 export type ListRecordActionsFilters = {
@@ -34,9 +36,10 @@ export class RecordActionRepository {
     const { rows } = await client.query<RecordActionRow>(
       `
       INSERT INTO record_actions (
-        copy_id, friend_id, action_type, occurred_at, notes, sleeve_type, details
+        copy_id, friend_id, action_type, occurred_at, notes, sleeve_type, details,
+        session_id, source
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
       `,
       [
@@ -47,6 +50,8 @@ export class RecordActionRepository {
         input.notes ?? null,
         input.sleeve_type ?? null,
         JSON.stringify(input.details ?? {}),
+        input.session_id ?? null,
+        input.source ?? "api",
       ],
     );
     return rows[0];
@@ -90,6 +95,17 @@ export class RecordActionRepository {
       [actionId, friendId],
     );
     return rows[0] ?? null;
+  }
+
+  /** A session's live actions, oldest first: what undoing it voids. */
+  async listLiveSessionActions(client: Queryable, sessionId: number): Promise<RecordActionRow[]> {
+    const { rows } = await client.query<RecordActionRow>(
+      `SELECT * FROM record_actions
+       WHERE session_id = $1 AND voided_at IS NULL
+       ORDER BY id ASC`,
+      [sessionId],
+    );
+    return rows;
   }
 
   /** Void an action, keeping it as history. Voiding twice keeps the first time. */

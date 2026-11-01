@@ -1777,6 +1777,119 @@ describe("GroovenetClient record care endpoints", () => {
       },
     ]);
   });
+
+  it("pullRecordCareStack posts the pull and returns the envelope", async () => {
+    const client = clientReturning({ stack: { id: 5 }, created: false });
+
+    await expect(
+      client.pullRecordCareStack({ friend_id: 1, size: 10, source: "cli" }),
+    ).resolves.toEqual({ stack: { id: 5 }, created: false });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/record-care/stacks",
+      data: { friend_id: 1, size: 10, source: "cli" },
+      params: undefined,
+    });
+  });
+
+  it("listRecordCareStacks defaults paging and forwards the status", async () => {
+    const client = clientReturning({ items: [], limit: 20, offset: 0 });
+
+    await client.listRecordCareStacks({ friend_id: 1, status: "open" });
+    await client.listRecordCareStacks({ friend_id: 1, limit: 5, offset: 10 });
+
+    expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+      {
+        method: "GET",
+        url: "/record-care/stacks",
+        data: undefined,
+        params: { friend_id: 1, status: "open", limit: 20, offset: 0 },
+      },
+      {
+        method: "GET",
+        url: "/record-care/stacks",
+        data: undefined,
+        params: { friend_id: 1, status: undefined, limit: 5, offset: 10 },
+      },
+    ]);
+  });
+
+  it("getRecordCareStack and discardRecordCareStack unwrap the stack", async () => {
+    const stack = { id: 5, stack_no: 2 };
+    const client = clientReturning({ success: true, stack });
+
+    await expect(client.getRecordCareStack(5, 1)).resolves.toEqual(stack);
+    await expect(client.discardRecordCareStack(5, 1)).resolves.toEqual(stack);
+
+    expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+      { method: "GET", url: "/record-care/stacks/5", data: undefined, params: { friend_id: 1 } },
+      {
+        method: "DELETE",
+        url: "/record-care/stacks/5",
+        data: undefined,
+        params: { friend_id: 1 },
+      },
+    ]);
+  });
+
+  it("logRecordCareSession posts the batch", async () => {
+    const result = { session: { id: 5 }, actions: [action], copies: [copy] };
+    const client = clientReturning(result);
+    const input = {
+      friend_id: 1,
+      stack_id: 5,
+      action_types: ["cleaned" as const, "sleeved" as const],
+      sleeve_type: "poly" as const,
+      details: { method: "vacuum" as const },
+      source: "cli" as const,
+    };
+
+    await expect(client.logRecordCareSession(input)).resolves.toEqual(result);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/record-care/sessions",
+      data: input,
+      params: undefined,
+    });
+  });
+
+  it("voidRecordCareSession posts the friend and drops the success flag", async () => {
+    const client = clientReturning({ success: true, session: { id: 5 }, actions: [], copies: [] });
+
+    await expect(client.voidRecordCareSession(5, 1)).resolves.toEqual({
+      session: { id: 5 },
+      actions: [],
+      copies: [],
+    });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/record-care/sessions/5/void",
+      data: { friend_id: 1 },
+      params: undefined,
+    });
+  });
+
+  it("listRecordCareLog defaults paging", async () => {
+    const client = clientReturning({ items: [], total: 0, limit: 20, offset: 0 });
+
+    await client.listRecordCareLog({ friend_id: 1 });
+    await client.listRecordCareLog({ friend_id: 1, limit: 5, offset: 5 });
+
+    expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+      {
+        method: "GET",
+        url: "/record-care/sessions",
+        data: undefined,
+        params: { friend_id: 1, limit: 20, offset: 0 },
+      },
+      {
+        method: "GET",
+        url: "/record-care/sessions",
+        data: undefined,
+        params: { friend_id: 1, limit: 5, offset: 5 },
+      },
+    ]);
+  });
 });
 
 describe("genre administration", () => {
