@@ -83,6 +83,13 @@ test("workflow and toolchain edits rerun tests; main always has every release im
   assert.deepEqual(enabled(["README.md", "ios/app.swift"]), []);
 });
 
+test("site builds only for site, docs and changelog edits", () => {
+  for (const path of ["site/src/pages/index.astro", "docs/getting-started.md", "CHANGELOG.md"]) {
+    assert.deepEqual(enabled([path]), ["site"], path);
+  }
+  assert.equal(classify(["my-collection-search/src/app/page.tsx"]).site, false);
+});
+
 test("workspace manifests affect installation and npm toolchain checks retain coverage", () => {
   assert.equal(classify(["packages/groovenet-cli/package.json"]).webapp, true);
   assert.equal(classify(["package-lock.json"]).client, true);

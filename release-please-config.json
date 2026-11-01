@@ -9,6 +9,7 @@
     ".": {
       "package-name": "",
       "changelog-path": "CHANGELOG.md",
+      "exclude-paths": ["site", "docs"],
       "extra-files": [
         {
           "type": "json",

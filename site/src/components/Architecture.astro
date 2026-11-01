@@ -1,0 +1,23 @@
+<section class="architecture" aria-labelledby="architecture-title">
+  <div class="section-heading"><p class="eyebrow">SYSTEM MAP / 01</p><h2 id="architecture-title">The collection is the source.</h2><p>GrooveNet connects the information around the records you own without making the records secondary.</p></div>
+  <div class="diagram" aria-label="Physical records and Discogs flow into the GrooveNet library, then through metadata, audio analysis, and embeddings to search, discovery, playlists, web, CLI, and MCP interfaces.">
+    <div class="source"><span>01</span><strong>Physical records</strong><small>Your shelves, crates, and listening history.</small></div>
+    <div class="source"><span>02</span><strong>Discogs collection</strong><small>Release data and collection import.</small></div>
+    <div class="wire merge" aria-hidden="true"></div>
+    <div class="core"><span>GN</span><strong>GrooveNet library</strong><small>A durable, searchable catalog of your collection.</small></div>
+    <div class="wire down" aria-hidden="true"></div>
+    <div class="processors"><div><b>METADATA</b><span>Enrichment &amp; linking</span></div><div><b>AUDIO</b><span>BPM, key &amp; mood</span></div><div><b>VECTORS</b><span>Optional similarity search</span></div></div>
+    <div class="wire down" aria-hidden="true"></div>
+    <div class="outputs"><div>Search</div><div>Discovery</div><div>Playlists</div><div>Web · CLI · MCP</div></div>
+  </div>
+</section>
+<style>
+  .architecture { padding: clamp(4.5rem, 9vw, 8rem) 0; border-top: 1px solid var(--line); }
+  .section-heading { max-width: 40rem; } .section-heading h2 { max-width: 28rem; }
+  .diagram { margin-top: 3rem; max-width: 66rem; display: grid; justify-items: center; }
+  .source { width: min(100%, 24rem); padding: .9rem 1rem; border: 1px solid var(--line); display: grid; grid-template-columns: 2.2rem 1fr; column-gap: .4rem; background: var(--paper); }
+  .source + .source { margin-top: .8rem; } .source span { grid-row: span 2; color: var(--accent); font: .7rem var(--mono); } .source strong, .core strong { font: 600 .9rem var(--mono); } .source small, .core small { color: var(--muted); font-size: .78rem; margin-top: .18rem; }
+  .wire { height: 2rem; border-left: 1px solid var(--accent); } .merge { height: 2.8rem; } .core { width: min(100%, 30rem); text-align: center; padding: 1.5rem; border: 1px solid var(--ink); display: grid; justify-items: center; background: var(--ink); color: var(--paper); } .core span { width: 2.2rem; height: 2.2rem; border: 1px solid var(--accent); border-radius: 50%; display: grid; place-items: center; color: var(--accent); font: .7rem var(--mono); margin-bottom: .7rem; } .core small { color: #bcb8af; }
+  .processors, .outputs { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); } .processors div { min-height: 5.3rem; padding: 1rem; border-right: 1px solid var(--line); display: grid; gap: .3rem; } .processors div:last-child { border: 0; } .processors b { font: .66rem var(--mono); letter-spacing: .06em; color: var(--accent); } .processors span { font-size: .82rem; } .outputs { grid-template-columns: repeat(4, 1fr); } .outputs div { padding: .85rem; border-right: 1px solid var(--line); text-align: center; font: .72rem var(--mono); } .outputs div:last-child { border: 0; }
+  @media (max-width: 600px) { .processors { grid-template-columns: 1fr; } .processors div { border-right: 0; border-bottom: 1px solid var(--line); min-height: 0; } .outputs { grid-template-columns: 1fr 1fr; } .outputs div:nth-child(2) { border-right: 0; } .outputs div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+</style>

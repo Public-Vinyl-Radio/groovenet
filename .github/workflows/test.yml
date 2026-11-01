@@ -655,3 +655,28 @@ jobs:
         run: npm run test:redis
         env:
           REDIS_URL: redis://localhost:6379
+
+  # An Astro site has no tests to measure, so this is not hooked into Codecov.
+  site:
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-npm
+        with:
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build

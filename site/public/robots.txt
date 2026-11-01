@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://groovenet.publicvinylradio.com/sitemap-index.xml

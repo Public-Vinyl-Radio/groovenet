@@ -19,6 +19,12 @@ evaluations/**/*.json
 # Parsed by contractInventory.test.ts, which expects unpadded table cells.
 packages/groovenet-contracts/INVENTORY.md
 
+# The marketing site is moved verbatim from the old groovenet-site repo (#910).
+# prettier-plugin-astro rewrites whitespace in .astro files, which changes the
+# built HTML (inline-link spacing, CSS inlining), so the site stays unformatted
+# until a deliberate restyle.
+site/
+
 # Xcode asset catalogues.
 *.xcassets/
 

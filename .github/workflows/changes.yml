@@ -27,6 +27,8 @@ on:
         value: ${{ jobs.changes.outputs.migrate }}
       redis:
         value: ${{ jobs.changes.outputs.redis }}
+      site:
+        value: ${{ jobs.changes.outputs.site }}
       webapp:
         value: ${{ jobs.changes.outputs.webapp }}
       essentia:
@@ -62,6 +64,7 @@ jobs:
       fingerprint: ${{ steps.filter.outputs.fingerprint }}
       migrate: ${{ steps.filter.outputs.migrate }}
       redis: ${{ steps.filter.outputs.redis }}
+      site: ${{ steps.filter.outputs.site }}
       webapp: ${{ steps.filter.outputs.webapp }}
       essentia: ${{ steps.filter.outputs.essentia }}
       ga_service: ${{ steps.filter.outputs.ga_service }}

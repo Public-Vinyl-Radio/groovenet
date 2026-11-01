@@ -1,0 +1,17 @@
+<footer>
+  <div class="wrap footer-grid">
+    <div><a class="footer-mark" href="/">GrooveNet</a><p>An open-source project from Public Vinyl Radio.</p></div>
+    <div class="footer-links"><a href="/docs">Documentation</a><a href="https://github.com/Public-Vinyl-Radio/groovenet" target="_blank" rel="noreferrer">Source code ↗</a><a href="https://publicvinylradio.com" target="_blank" rel="noreferrer">Public Vinyl Radio ↗</a></div>
+    <p class="catalog">PVR / GN–001<br />MIT LICENSE</p>
+  </div>
+</footer>
+<style>
+  footer { border-top: 1px solid var(--line); padding: 2.4rem 0; }
+  .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr auto; gap: 2rem; align-items: end; }
+  .footer-mark { font: 800 1rem var(--mono); letter-spacing: -.06em; color: var(--ink); }
+  footer p { color: var(--muted); margin: .45rem 0 0; font-size: .86rem; }
+  .footer-links { display: grid; gap: .5rem; font: .72rem var(--mono); text-transform: uppercase; }
+  .footer-links a { color: var(--muted); } .footer-links a:hover { color: var(--ink); }
+  .catalog { text-align: right; font: .65rem/1.55 var(--mono); letter-spacing: .04em; }
+  @media (max-width: 700px) { .footer-grid { grid-template-columns: 1fr; gap: 1.4rem; } .catalog { text-align: left; } }
+</style>

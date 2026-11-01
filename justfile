@@ -30,7 +30,7 @@ default:
 
 bootstrap: bootstrap-js bootstrap-python bootstrap-hooks
 
-bootstrap-js: bootstrap-tools bootstrap-node
+bootstrap-js: bootstrap-tools bootstrap-node bootstrap-site
 
 bootstrap-tools:
   @command -v mise >/dev/null 2>&1 || { \
@@ -45,6 +45,10 @@ bootstrap-node:
   {{mise_exec}} npm run build --workspace=@groovenet/contracts
   {{mise_exec}} npm run build --workspace=@groovenet/client
   {{mise_exec}} npm ci --prefix my-collection-search --no-fund --no-audit --loglevel=error
+
+# The marketing site is a standalone package with its own lockfile, not a workspace.
+bootstrap-site:
+  {{mise_exec}} npm ci --prefix site --no-fund --no-audit --loglevel=error
 
 bootstrap-python:
   cd ga-service && {{mise_exec}} uv sync --frozen
@@ -274,6 +278,16 @@ rebuild-up-containers services="app essentia ga-service download-worker fingerpr
   {{op_env}} {{compose_cmd}} -f docker-compose.yml up -d {{services}}
 
 build-all: build-app build-essentia build-ga-service build-download-worker build-fingerprint-service
+
+site-dev:
+  {{mise_exec}} npm run dev --prefix site
+
+# Type-check with astro check, then build to site/dist.
+site-build:
+  {{mise_exec}} npm run build --prefix site
+
+site-preview:
+  {{mise_exec}} npm run preview --prefix site
 
 build-packages:
   {{mise_exec}} npm run build --workspace=packages/groovenet-contracts
