@@ -3,7 +3,14 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { progressFixture, queueFixture, stackFixture } from "@/components/chores/fixtures";
+import {
+  logEntryFixture,
+  progressFixture,
+  queueFixture,
+  queueItem,
+  stackFixture,
+} from "@/components/chores/fixtures";
+import { ANOTHER_STACK_OPEN_MESSAGE } from "@/components/chores/careLog";
 
 const api = vi.hoisted(() => ({
   getRecordCareQueue: vi.fn(),
@@ -11,6 +18,10 @@ const api = vi.hoisted(() => ({
   listRecordCareStacks: vi.fn(),
   pullRecordCareStack: vi.fn(),
   discardRecordCareStack: vi.fn(),
+  getRecordCareSummary: vi.fn(),
+  listRecordCareLog: vi.fn(),
+  logRecordCareSession: vi.fn(),
+  voidRecordCareSession: vi.fn(),
 }));
 vi.mock("@/services/internalApi/recordCare", () => api);
 const toaster = vi.hoisted(() => ({ create: vi.fn() }));
@@ -24,6 +35,7 @@ import ChorePage from "./page";
 import ChoreLayout, { metadata } from "./layout";
 
 const noStack = { items: [], limit: 1, offset: 0 };
+const emptyLog = { items: [], total: 0, limit: 10, offset: 0 };
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -31,6 +43,8 @@ beforeEach(() => {
   api.getRecordCareQueue.mockResolvedValue(queueFixture());
   api.getRecordCareProgress.mockResolvedValue(progressFixture);
   api.listRecordCareStacks.mockResolvedValue(noStack);
+  api.getRecordCareSummary.mockResolvedValue({ needs_sleeve_type: "poly" });
+  api.listRecordCareLog.mockResolvedValue(emptyLog);
 });
 
 const checkbox = (name: RegExp) => screen.getByRole("checkbox", { name });
@@ -276,7 +290,219 @@ describe("Chores page", () => {
     expect(screen.getByRole("tab", { name: "CARE LOG" }).getAttribute("aria-selected")).toBe(
       "true",
     );
-    expect(screen.getByText("CARE LOG COMING SOON")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "FULL CARE HISTORY →" }).getAttribute("href")).toBe(
+      "/chore/history",
+    );
     expect(screen.queryByRole("checkbox", { name: /Album 1/ })).toBeNull();
+  });
+
+  describe("logging care", () => {
+    const logged = (stack: ReturnType<typeof stackFixture>) => ({
+      session: { ...stack, status: "logged", logged_at: "2026-11-01T18:09:00Z" },
+      actions: [],
+      copies: [],
+    });
+    const dialog = () => screen.getByRole("dialog");
+    const logCare = () => within(bar()).getByRole("button", { name: "LOG CARE →" });
+    // jsdom applies the phone layout, where the log and the queue are tabs.
+    const tab = (name: RegExp) => screen.getByRole("tab", { name });
+    const afterSave = async (user: { click: (el: Element) => Promise<void> }) => {
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await user.click(tab(/CARE LOG/));
+    };
+
+    it("logs a pulled stack by id, and offers UNDO on the new entry", async () => {
+      const stack = stackFixture([6, 7]);
+      api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+      api.logRecordCareSession.mockResolvedValue(logged(stack));
+      const { user } = renderWithProviders(<ChorePage />);
+      await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+
+      await user.click(logCare());
+      expect(within(dialog()).getByText("LOG CARE · STACK 2 · 2 RECORDS")).toBeTruthy();
+      expect(within(dialog()).getByText("Album 6 · Album 7")).toBeTruthy();
+      api.listRecordCareStacks.mockResolvedValue(noStack);
+      api.listRecordCareLog.mockResolvedValue({
+        ...emptyLog,
+        items: [logEntryFixture({ session_id: stack.id, stack_no: 2, record_count: 2 })],
+        total: 1,
+      });
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 2/ }));
+
+      expect(api.logRecordCareSession).toHaveBeenCalledWith({
+        friend_id: 7,
+        stack_id: 50,
+        action_types: ["cleaned"],
+        occurred_at: expect.any(String),
+      });
+      await afterSave(user);
+      expect(
+        await screen.findByRole("button", { name: "UNDO STACK 2 · CLEANED · 2 RECORDS" }),
+      ).toBeTruthy();
+      await waitFor(() => expect(screen.queryByRole("article", { name: /PULLED/ })).toBeNull());
+      expect(api.getRecordCareQueue.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it("logs an ad-hoc pick by copy, starting a sleeve change on the summary's sleeve", async () => {
+      api.logRecordCareSession.mockResolvedValue(logged({ ...stackFixture([4]), stack_no: null }));
+      const { user } = await renderPage();
+
+      await user.click(checkbox(/Album 4/));
+      await user.click(logCare());
+      expect(within(dialog()).getByText("LOG CARE · 1 RECORD")).toBeTruthy();
+      await user.click(within(dialog()).getByRole("button", { name: "SLEEVE CHANGE" }));
+      expect((within(dialog()).getByLabelText("SLEEVE") as HTMLSelectElement).value).toBe("poly");
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 1/ }));
+
+      expect(api.logRecordCareSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          friend_id: 7,
+          copies: [{ release_id: "rel-4" }],
+          action_types: ["cleaned", "sleeved"],
+          sleeve_type: "poly",
+        }),
+      );
+      await waitFor(() => expect(checked(/Album 4/)).toBe(false));
+    });
+
+    it("logs part of a stack copy by copy", async () => {
+      api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stackFixture([6, 7])] });
+      api.logRecordCareSession.mockResolvedValue(logged({ ...stackFixture([6]), stack_no: null }));
+      const { user } = renderWithProviders(<ChorePage />);
+      await waitFor(() => expect(checked(/Album 7/)).toBe(true));
+
+      await user.click(checkbox(/Album 7/));
+      await user.click(logCare());
+      expect(within(dialog()).getByText("LOG CARE · 1 RECORD")).toBeTruthy();
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 1/ }));
+
+      expect(api.logRecordCareSession).toHaveBeenCalledWith(
+        expect.objectContaining({ copies: [{ release_id: "rel-6" }] }),
+      );
+    });
+
+    it("undoes a stack's log and re-selects the reopened stack", async () => {
+      const stack = stackFixture([6, 7]);
+      api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+      api.logRecordCareSession.mockResolvedValue(logged(stack));
+      api.voidRecordCareSession.mockResolvedValue({ session: stack, actions: [], copies: [] });
+      const { user } = renderWithProviders(<ChorePage />);
+      await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+      await user.click(logCare());
+      api.listRecordCareStacks.mockResolvedValue(noStack);
+      api.listRecordCareLog.mockResolvedValue({
+        ...emptyLog,
+        items: [logEntryFixture({ session_id: stack.id, stack_no: 2, record_count: 2 })],
+      });
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 2/ }));
+      await afterSave(user);
+      const undo = await screen.findByRole("button", { name: /^UNDO STACK 2/ });
+
+      api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+      api.listRecordCareLog.mockResolvedValue({
+        ...emptyLog,
+        items: [logEntryFixture({ session_id: stack.id, stack_no: 2, voided: true })],
+      });
+      await user.click(undo);
+
+      expect(api.voidRecordCareSession).toHaveBeenCalledWith(stack.id, 7);
+      await waitFor(() => expect(screen.queryByRole("button", { name: /^UNDO/ })).toBeNull());
+      await user.click(tab(/TO DO/));
+      await waitFor(() => expect(checked(/Album 6/) && checked(/Album 7/)).toBe(true));
+      expect(within(bar()).getByText("STACK 2 · 2")).toBeTruthy();
+    });
+
+    it("undoes an ad-hoc log and re-selects its copies", async () => {
+      const session = { ...stackFixture([4]), id: 70, stack_no: null };
+      api.logRecordCareSession.mockResolvedValue(logged(session));
+      api.voidRecordCareSession.mockResolvedValue({
+        session: { ...session, status: "logged", voided_at: "2026-11-01T18:10:00Z" },
+        actions: [],
+        copies: [{ id: 99, release_id: "rel-4" }],
+      });
+      const { user } = await renderPage();
+      await user.click(checkbox(/Album 4/));
+      await user.click(logCare());
+      api.listRecordCareLog.mockResolvedValue({
+        ...emptyLog,
+        items: [logEntryFixture({ session_id: 70, stack_no: null, record_count: 1 })],
+      });
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 1/ }));
+      await afterSave(user);
+      const undo = await screen.findByRole("button", { name: "UNDO CLEANED · 1 RECORD" });
+
+      // Logging made the implicit copy real; the queue lists it by id now.
+      api.getRecordCareQueue.mockResolvedValue({
+        ...queueFixture({ backlog: [] }),
+        backlog: { items: [queueItem(4, { copy_id: 99 })], total: 1, limit: 20, offset: 0 },
+      });
+      await user.click(undo);
+
+      expect(api.voidRecordCareSession).toHaveBeenCalledWith(70, 7);
+      await user.click(tab(/TO DO/));
+      await waitFor(() => expect(checked(/Album 4/)).toBe(true));
+    });
+
+    it("counts restored copies the queue doesn't list yet", async () => {
+      const session = { ...stackFixture([4]), id: 72, stack_no: null };
+      api.logRecordCareSession.mockResolvedValue(logged(session));
+      api.voidRecordCareSession.mockResolvedValue({
+        session: { ...session, status: "logged" },
+        actions: [],
+        copies: [{ id: 98, release_id: "rel-gone" }],
+      });
+      const { user } = await renderPage();
+      await user.click(checkbox(/Album 4/));
+      await user.click(logCare());
+      api.listRecordCareLog.mockResolvedValue({
+        ...emptyLog,
+        items: [logEntryFixture({ session_id: 72, stack_no: null, record_count: 1 })],
+      });
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 1/ }));
+      await afterSave(user);
+      await user.click(await screen.findByRole("button", { name: /^UNDO/ }));
+      await waitFor(() => expect(api.voidRecordCareSession).toHaveBeenCalled());
+      await user.click(tab(/TO DO/));
+
+      await user.click(within(bar()).getByRole("button", { name: "LOG CARE →" }));
+      expect(within(dialog()).getByText("LOG CARE · 1 RECORD")).toBeTruthy();
+      expect(within(dialog()).queryByText(/Album/)).toBeNull();
+    });
+
+    it("explains an undo blocked by another open stack", async () => {
+      const session = { ...stackFixture([6]), id: 71 };
+      api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [session] });
+      api.logRecordCareSession.mockResolvedValue(logged(session));
+      api.voidRecordCareSession.mockRejectedValue(new Error(ANOTHER_STACK_OPEN_MESSAGE));
+      const { user } = renderWithProviders(<ChorePage />);
+      await waitFor(() => expect(checked(/Album 6/)).toBe(true));
+      await user.click(logCare());
+      api.listRecordCareLog.mockResolvedValue({
+        ...emptyLog,
+        items: [logEntryFixture({ session_id: 71 })],
+      });
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 1/ }));
+      await afterSave(user);
+
+      await user.click(await screen.findByRole("button", { name: /^UNDO/ }));
+
+      expect(
+        await screen.findByText("Another stack is open. Log or clear it, then undo this one."),
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: /^UNDO/ })).toBeTruthy();
+    });
+
+    it("keeps the dialog open with the API's error", async () => {
+      api.logRecordCareSession.mockRejectedValue(new Error("Record copy not found"));
+      const { user } = await renderPage();
+      await user.click(checkbox(/Album 4/));
+      await user.click(logCare());
+      await user.click(within(dialog()).getByRole("button", { name: /^SAVE FOR 1/ }));
+
+      expect((await within(dialog()).findByRole("alert")).textContent).toBe(
+        "Couldn't save: Record copy not found",
+      );
+      expect(api.listRecordCareLog).toHaveBeenCalledTimes(1);
+    });
   });
 });

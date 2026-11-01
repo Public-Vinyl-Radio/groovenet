@@ -86,6 +86,9 @@ export const queryKeys = {
   recordCareProgress: (args: { friend_id: number }) => ["record-care", "progress", args] as const,
   recordCareOpenStack: (args: { friend_id: number }) =>
     ["record-care", "stacks", "open", args] as const,
+  // The care log (#944); a log or an undo refreshes it with the rest of the root.
+  recordCareLog: (args: { friend_id: number; limit?: number }) =>
+    ["record-care", "log", args] as const,
   ingestStats: (args: { minutes?: number; source_id?: string }) =>
     ["vinyl", "stats", args] as const,
   recentDetections: (args: {

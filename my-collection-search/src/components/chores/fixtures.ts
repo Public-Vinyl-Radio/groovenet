@@ -1,5 +1,6 @@
 // Shared fixtures for the Chores page's tests and stories (#943).
 import type {
+  RecordCareLogEntry,
   RecordCareProgressResponse,
   RecordCareQueueItem,
   RecordCareQueueResponse,
@@ -89,3 +90,44 @@ export function stackFixture(releases: number[], stackNo = 2): RecordCareSession
     })),
   };
 }
+
+export function logEntryFixture(extra: Partial<RecordCareLogEntry> = {}): RecordCareLogEntry {
+  return {
+    kind: "session",
+    session_id: 60,
+    action_id: null,
+    stack_no: 1,
+    source: "web",
+    action_types: ["cleaned"],
+    record_count: 10,
+    method: null,
+    sleeve_type: null,
+    notes: null,
+    occurred_at: "2026-11-01T18:09:00Z",
+    voided: false,
+    thumbnails: [],
+    ...extra,
+  };
+}
+
+/** The mockup's log: a CLI stack with a sleeve change, and one MCP inspection. */
+export const careLogFixture: RecordCareLogEntry[] = [
+  logEntryFixture({
+    session_id: 62,
+    stack_no: null,
+    source: "mcp",
+    action_types: ["inspected"],
+    record_count: 1,
+    notes: "Light scuff on side B, plays clean.",
+    occurred_at: "2026-10-31T21:40:00Z",
+  }),
+  logEntryFixture({
+    session_id: 61,
+    source: "cli",
+    action_types: ["cleaned", "sleeved"],
+    method: "vacuum",
+    sleeve_type: "poly-rice-paper-poly",
+    notes: "Moved to poly / rice paper / poly.",
+    occurred_at: "2026-10-28T19:15:00Z",
+  }),
+];

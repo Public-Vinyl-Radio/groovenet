@@ -4,7 +4,12 @@ import type {
   RecordCareProgressResponse,
   RecordCareQueueQuery,
   RecordCareQueueResponse,
+  RecordCareLogQuery,
+  RecordCareLogResponse,
   RecordCareSession,
+  RecordCareSessionCreate,
+  RecordCareSessionMutationResponse,
+  RecordCareSessionVoidResponse,
   RecordCareStackDiscardResponse,
   RecordCareStackListQuery,
   RecordCareStackListResponse,
@@ -65,15 +70,20 @@ export type RecordCareSummaryParams = z.infer<typeof recordCareSummaryQuerySchem
 export type RecordCareSummaryResponse = z.infer<typeof recordCareSummaryResponseSchema>;
 
 export type {
+  RecordCareLogResponse,
   RecordCareProgressResponse,
   RecordCareQueueResponse,
   RecordCareSession,
+  RecordCareSessionCreate,
+  RecordCareSessionMutationResponse,
+  RecordCareSessionVoidResponse,
   RecordCareStackListResponse,
   RecordCareStackPullResponse,
 };
 export type RecordCareQueueItem = RecordCareQueueResponse["backlog"]["items"][number];
 export type RecordCareSpunItem = RecordCareQueueResponse["spun_recently"]["items"][number];
 export type RecordCareStackItem = RecordCareSession["items"][number];
+export type RecordCareLogEntry = RecordCareLogResponse["items"][number];
 
 const GET_NO_STORE: RequestInit = { method: "GET", cache: "no-store" };
 
@@ -265,5 +275,46 @@ export async function discardRecordCareStack(
   return await http<RecordCareStackDiscardResponse>(
     `/api/record-care/stacks/${encodeURIComponent(String(id))}?${query({ friend_id: friendId })}`,
     { method: "DELETE" },
+  );
+}
+
+const sessionPath = (id: number) => `/api/record-care/sessions/${encodeURIComponent(String(id))}`;
+
+/**
+ * Logs care for an open stack (`stack_id`) or an ad-hoc selection (`copies`):
+ * one action per copy per type, in one transaction, credited to the web app
+ * unless the caller says otherwise.
+ */
+export async function logRecordCareSession(
+  params: RecordCareSessionCreate,
+): Promise<RecordCareSessionMutationResponse> {
+  return await http<RecordCareSessionMutationResponse>(
+    "/api/record-care/sessions",
+    jsonInit("POST", { source: "web", ...params }),
+  );
+}
+
+/** Undoes a log: voids its actions (kept as history) and reopens a stack. */
+export async function voidRecordCareSession(
+  id: number,
+  friendId: number,
+): Promise<RecordCareSessionVoidResponse> {
+  return await http<RecordCareSessionVoidResponse>(
+    `${sessionPath(id)}/void`,
+    jsonInit("POST", { friend_id: friendId }),
+  );
+}
+
+/** The care log, newest first: sessions, and actions logged on their own. */
+export async function listRecordCareLog(
+  params: RecordCareLogQuery,
+): Promise<RecordCareLogResponse> {
+  return await http<RecordCareLogResponse>(
+    `/api/record-care/sessions?${query({
+      friend_id: params.friend_id,
+      limit: params.limit,
+      offset: params.offset,
+    })}`,
+    GET_NO_STORE,
   );
 }

@@ -10,7 +10,7 @@ type Props = {
   stackNo: number | null;
   onClear: () => void;
   clearing?: boolean;
-  /** Opens the log care modal (#944); LOG CARE is disabled until then. */
+  /** Opens the log care modal; LOG CARE is disabled without it. */
   onLogCare?: () => void;
 };
 
@@ -87,14 +87,7 @@ export default function ChoresSelectionBar({
           <Button variant="outline" size="sm" h="44px" onClick={onClear} loading={clearing}>
             CLEAR
           </Button>
-          <Button
-            variant="solid"
-            size="sm"
-            h="44px"
-            onClick={onLogCare}
-            disabled={!onLogCare}
-            title={onLogCare ? undefined : "Coming soon"}
-          >
+          <Button variant="solid" size="sm" h="44px" onClick={onLogCare} disabled={!onLogCare}>
             LOG CARE →
           </Button>
         </>

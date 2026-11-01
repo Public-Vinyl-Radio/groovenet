@@ -2,10 +2,13 @@ import React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Box, Stack } from "@chakra-ui/react";
 import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
-import ChoresCareLogSlot from "@/components/chores/ChoresCareLogSlot";
+import ChoresCareLog, {
+  CareLogEntryCard,
+  careLogEntryKey,
+} from "@/components/chores/ChoresCareLog";
 import ChoresOverview from "@/components/chores/ChoresOverview";
 import ChoresSelectionBar from "@/components/chores/ChoresSelectionBar";
-import { progressFixture } from "@/components/chores/fixtures";
+import { careLogFixture, logEntryFixture, progressFixture } from "@/components/chores/fixtures";
 
 // The pieces of the Chores page (#943). Toggle the theme and palette in the
 // toolbar to check Mono and Sleeve, light and dark.
@@ -137,11 +140,112 @@ export const SelectionBarPhone: Story = {
   render: () => <ChoresSelectionBar selected={10} stackNo={2} onClear={() => {}} />,
 };
 
-export const CareLogSlot: Story = {
-  name: "Care log slot (#944)",
+const justSaved = logEntryFixture({
+  session_id: 63,
+  stack_no: 2,
+  occurred_at: "2026-11-01T18:09:00Z",
+});
+
+export const CareLog: Story = {
+  name: "Care log",
   render: () => (
     <Box maxW="380px">
-      <ChoresCareLogSlot thisMonth={{ records: 11, sessions: 2 }} />
+      <ChoresCareLog
+        thisMonth={{ records: 11, sessions: 2 }}
+        entries={careLogFixture}
+        timeZone="America/Los_Angeles"
+        justSavedSessionId={null}
+        onUndo={() => {}}
+      />
     </Box>
+  ),
+};
+
+export const CareLogJustSaved: Story = {
+  name: "Care log · just saved",
+  render: () => (
+    <Box maxW="380px">
+      <ChoresCareLog
+        thisMonth={{ records: 21, sessions: 3 }}
+        entries={[justSaved, ...careLogFixture]}
+        timeZone="America/Los_Angeles"
+        justSavedSessionId={63}
+        onUndo={() => {}}
+      />
+    </Box>
+  ),
+};
+
+export const CareLogUndoBlocked: Story = {
+  name: "Care log · undo blocked by an open stack",
+  render: () => (
+    <Box maxW="380px">
+      <ChoresCareLog
+        thisMonth={{ records: 21, sessions: 3 }}
+        entries={[justSaved, ...careLogFixture]}
+        timeZone="America/Los_Angeles"
+        justSavedSessionId={63}
+        onUndo={() => {}}
+        undoError="Another stack is open. Log or clear it, then undo this one."
+      />
+    </Box>
+  ),
+};
+
+export const CareLogPhone: Story = {
+  name: "Care log · phone",
+  parameters: phone,
+  render: () => (
+    <ChoresCareLog
+      thisMonth={{ records: 11, sessions: 2 }}
+      entries={careLogFixture}
+      timeZone="America/Los_Angeles"
+      justSavedSessionId={null}
+      onUndo={() => {}}
+    />
+  ),
+};
+
+export const CareLogEmpty: Story = {
+  name: "Care log · empty",
+  render: () => (
+    <Box maxW="380px">
+      <ChoresCareLog
+        thisMonth={null}
+        entries={[]}
+        timeZone="America/Los_Angeles"
+        justSavedSessionId={null}
+        onUndo={() => {}}
+      />
+    </Box>
+  ),
+};
+
+export const HistoryEntries: Story = {
+  name: "Care history entries · voided",
+  render: () => (
+    <Stack maxW="640px" gap="14px">
+      {[
+        logEntryFixture({ session_id: 64, stack_no: 3, source: "web" }),
+        logEntryFixture({ session_id: 65, stack_no: 2, voided: true }),
+        logEntryFixture({
+          kind: "action",
+          session_id: null,
+          action_id: 900,
+          stack_no: null,
+          source: "api",
+          record_count: 1,
+          action_types: ["repaired"],
+          notes: "Flattened a slight warp.",
+        }),
+      ].map((entry) => (
+        <CareLogEntryCard
+          key={careLogEntryKey(entry)}
+          entry={entry}
+          timeZone="America/Los_Angeles"
+          action={entry.voided ? undefined : { label: "VOID", onClick: () => {} }}
+        />
+      ))}
+    </Stack>
   ),
 };
