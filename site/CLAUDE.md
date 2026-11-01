@@ -18,8 +18,8 @@ just site-preview     # serve the built site
 ```
 
 Marketing routes live in `src/pages` (`/`, `/about`); the landing page is one
-component per section in `src/components` (`Hero`, `Interfaces`, `Appearance`,
-`Roadmap`), so a new section from the design slots in as another component.
+component per section in `src/components` (`Hero`, `Features`, `Interfaces`,
+`Appearance`, `Roadmap`), so a new section from the design slots in as another component.
 The design is the Claude canvas linked from #914. No UI framework: the tabs,
 the Appearance demo and the copy button are small inline `<script>`s.
 
@@ -40,6 +40,9 @@ headings are 600, not the canvas's 800.
 - **Screenshots:** `src/data/screenshots.ts` has one entry per slot, its
   `image` an imported PNG from `src/assets/screenshots/`; a slot without one
   renders a labelled placeholder. See "Refreshing screenshots" below.
+- **Features:** card copy, docs links, icons and screenshot keys live in
+  `src/data/features.ts`. Slots with an `imageDark` follow the visitor's mode.
+  Two lead cards draw HTML stand-ins until #939's screenshots replace them.
 - **Roadmap:** generated at build time from GitHub issue labels (below), with
   `src/data/roadmap.yml` as the fallback. Real items only.
 - **Copy** is from the design, checked against the code: the phone shots are
