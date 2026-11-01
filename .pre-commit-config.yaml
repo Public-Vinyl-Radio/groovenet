@@ -16,6 +16,8 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=1024]
+        # Losslessly compressed 2x product captures can exceed 1 MiB (#912).
+        exclude: '^site/src/assets/screenshots/.*\.png$'
       - id: check-yaml
       - id: check-json
         # tsconfig.json is JSONC — TypeScript allows comments, strict JSON does not.

@@ -1,0 +1,15 @@
+---
+import MobileMenuFooter from "@astrojs/starlight/components/MobileMenuFooter.astro";
+---
+<nav class="site-links caps" aria-label="Website">
+  <a href="/#interfaces">Interfaces</a>
+  <a href="/#appearance">Appearance</a>
+  <a href="/#roadmap">Roadmap</a>
+  <a href="https://github.com/Public-Vinyl-Radio/groovenet">GitHub ↗</a>
+</nav>
+<MobileMenuFooter />
+<style>
+  .site-links { display: flex; flex-wrap: wrap; gap: 16px 24px; padding-block: 20px; border-top: 1px solid var(--ink); }
+  a { color: var(--ink); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>

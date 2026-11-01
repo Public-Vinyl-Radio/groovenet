@@ -12,3 +12,5 @@ Edit tags and notes while reviewing the track. Save the match before moving on; 
 Downloads and audio analysis are separate jobs. A streaming URL is a match, not a BPM or key measurement. Queue audio after checking the match, then let the download worker and Essentia analyse it. Missing-data filters help you find what still needs work.
 
 Provider credentials belong in the server's [integration settings](/docs/configuration/integrations/).
+
+![Enrichment setup for an album](../../site/src/assets/screenshots/enrichment-desktop-light.png)

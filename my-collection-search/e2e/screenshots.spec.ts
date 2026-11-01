@@ -5,7 +5,6 @@ import {
   test,
   type APIRequestContext,
   type Browser,
-  type Locator,
   type Page,
   type Route,
 } from "@playwright/test";
@@ -23,11 +22,10 @@ import {
 //  - Hidden: the dev stack's Next.js and TanStack devtools, the Developer nav
 //    link (dev-only), toasts, and Home's Now playing card (live state).
 //
-// Privacy (the prod seed is the real collection): none of these views shows
-// another friend's username, notes, listener or source names, or settings.
-// Re-check every PNG by eye after a refresh, and hide anything new here.
+// Collection data is public; no privacy masks are applied. HIDE only removes
+// developer controls and transient/live state for repeatable images.
 test.skip(
-  !process.env.RUN_SCREENSHOTS,
+  process.env.RUN_SCREENSHOTS !== "1",
   "Set RUN_SCREENSHOTS=1 (or run `just site-screenshots`) against a prod-seeded stack",
 );
 
@@ -46,9 +44,19 @@ const QUEUE_POSITION = 97;
 const QUEUE_POSITION_LABEL = "1:37";
 
 const OUT_DIR = fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
-const DEFAULT_PALETTE = "sleeve";
+const DEFAULT_PALETTE = "mono";
 const PALETTE = process.env.SCREENSHOT_PALETTE || DEFAULT_PALETTE;
 const MODE = process.env.SCREENSHOT_MODE as Mode | undefined;
+const PALETTES = ["sleeve", "riso", "midnight", "mono"] as const;
+if (!PALETTES.includes(PALETTE as (typeof PALETTES)[number])) {
+  throw new Error(`Unknown screenshot palette: ${PALETTE}`);
+}
+if (MODE && MODE !== "light" && MODE !== "dark") {
+  throw new Error(`Unknown screenshot mode: ${MODE} (use light or dark)`);
+}
+// Fixed entities from the prod seed; never choose the first search result.
+const ALBUM_PATH = "/albums/5077187?friend_id=6";
+const GENRE_PATH = "/genres/trip-hop";
 
 type Mode = "light" | "dark";
 type Viewport = "desktop" | "phone";
@@ -102,8 +110,8 @@ async function putAppearance(request: APIRequestContext, body: Appearance) {
 }
 
 /** `<page>-<viewport>[-<palette>]-<mode>.png`; the palette only when it isn't the default. */
-function fileName(name: string, viewport: Viewport, mode: Mode) {
-  const palette = PALETTE === DEFAULT_PALETTE ? "" : `-${PALETTE}`;
+function fileName(name: string, viewport: Viewport, mode: Mode, selectedPalette: string) {
+  const palette = selectedPalette === DEFAULT_PALETTE ? "" : `-${selectedPalette}`;
   return `${name}-${viewport}${palette}-${mode}.png`;
 }
 
@@ -160,25 +168,25 @@ async function settle(page: Page) {
     .toBe("settled");
 }
 
-async function shoot(page: Page, file: string, mask: Locator[] = []) {
+async function shoot(page: Page, file: string) {
   await settle(page);
   await page.screenshot({
     path: path.join(OUT_DIR, file),
     animations: "disabled",
     caret: "hide",
     scale: "device",
-    mask,
   });
-  await page.context().close();
 }
 
-const shots: Array<{
+type Shot = {
   name: string;
   viewport: Viewport;
   mode: Mode;
   take: (page: Page) => Promise<void>;
   storage?: (request: APIRequestContext) => Promise<Record<string, string>>;
-}> = [
+};
+
+const shots: Shot[] = [
   {
     name: "home",
     viewport: "desktop",
@@ -228,12 +236,23 @@ const shots: Array<{
         route.fulfill(rangeResponse(wav, route.request().headers().range)),
       );
       await page.goto("/");
-      await page
-        .getByTestId("floating-player")
-        .getByRole("button", { name: "Open now playing" })
-        .click();
-      await expect(page.getByRole("button", { name: "Minimize player" })).toBeVisible();
-      await expect(page.getByText(`${QUEUE_POSITION_LABEL}`, { exact: true })).toBeVisible();
+      if (page.viewportSize()!.width >= 768) {
+        await page
+          .getByTestId("floating-player")
+          .getByRole("button", { name: "Queue", exact: true })
+          .click();
+        await expect(page.getByRole("heading", { name: "Queue", exact: true })).toBeVisible();
+        await expect(
+          page.getByTestId("floating-player").getByText(QUEUE_POSITION_LABEL, { exact: true }),
+        ).toBeVisible();
+      } else {
+        await page
+          .getByTestId("floating-player")
+          .getByRole("button", { name: "Open now playing" })
+          .click();
+        await expect(page.getByRole("button", { name: "Minimize player" })).toBeVisible();
+        await expect(page.getByText(QUEUE_POSITION_LABEL, { exact: true })).toBeVisible();
+      }
     },
   },
 ];
@@ -292,18 +311,136 @@ async function queue(request: APIRequestContext) {
   };
 }
 
+// Reuse the marketing recipe for the player: the queue stays paused and no
+// audio, enrichment, sorting or database content is changed by these captures.
+const playerShot = shots.find((shot) => shot.name === "now-playing")!;
+const homeShot = shots.find((shot) => shot.name === "home")!;
+const genresShot = shots.find((shot) => shot.name === "genres")!;
+
+async function album(page: Page) {
+  await page.goto(ALBUM_PATH);
+  await expect(
+    page.getByRole("heading", { name: "Mezzanine", level: 1, exact: true }),
+  ).toBeVisible();
+}
+
+async function playlist(page: Page) {
+  await page.goto(`/playlists/${QUEUE_PLAYLIST_ID}`);
+  await expect(page.getByRole("button", { name: "Playlist actions", exact: true })).toBeVisible();
+  await expect(page.getByText("(Exchange)", { exact: true }).first()).toBeVisible();
+}
+
+const docs: Array<Omit<Shot, "mode">> = [
+  { ...homeShot, viewport: "phone" },
+  { ...genresShot },
+  { ...playerShot, viewport: "desktop" },
+  {
+    name: "tracks-rows",
+    viewport: "desktop",
+    storage: async () => ({ searchViewMode: "row" }),
+    take: async (page) => {
+      await page.goto("/tracks");
+      await expect(page.getByRole("heading", { name: "Tracks", exact: true })).toBeVisible();
+    },
+  },
+  {
+    name: "tracks-grid",
+    viewport: "desktop",
+    storage: async () => ({ searchViewMode: "card" }),
+    take: async (page) => {
+      await page.goto("/tracks");
+      await expect(page.getByRole("heading", { name: "Tracks", exact: true })).toBeVisible();
+    },
+  },
+  {
+    name: "tracks",
+    viewport: "phone",
+    take: async (page) => {
+      await page.goto("/tracks");
+      await expect(page.getByRole("heading", { name: "Tracks", exact: true })).toBeVisible();
+    },
+  },
+  { name: "album", viewport: "desktop", take: album },
+  { name: "playlist", viewport: "desktop", take: playlist },
+  {
+    name: "optimiser",
+    viewport: "desktop",
+    take: async (page) => {
+      await playlist(page);
+      await page.getByRole("button", { name: "Playlist actions", exact: true }).click();
+      await expect(
+        page.getByRole("menuitem", { name: "Genetic Order", exact: true }),
+      ).toBeVisible();
+      // Show the available ordering tools without running or saving a sort.
+    },
+  },
+  {
+    name: "enrichment",
+    viewport: "desktop",
+    take: async (page) => {
+      await album(page);
+      await page.getByRole("button", { name: "Album actions", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Enrich Album", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Enrich", exact: true })).toBeVisible();
+      // Capture setup, without invoking external providers or saving metadata.
+    },
+  },
+  {
+    name: "genre",
+    viewport: "desktop",
+    take: async (page) => {
+      await page.goto(GENRE_PATH);
+      await expect(page.getByRole("heading", { name: "Trip Hop", exact: true })).toBeVisible();
+    },
+  },
+  {
+    name: "appearance",
+    viewport: "desktop",
+    take: async (page) => {
+      await page.goto("/settings?section=appearance");
+      await expect(page.getByRole("tab", { name: "Appearance", exact: true })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    },
+  },
+];
+
+const captures = [
+  // Every page in Mono light and dark. Marketing names remain unchanged.
+  ...[...shots, ...docs].flatMap((shot) =>
+    (MODE ? [MODE] : (["light", "dark"] as const)).map((mode) => ({
+      ...shot,
+      mode,
+      palette: PALETTE,
+    })),
+  ),
+  // One Home hero per other palette for docs; explicit --palette selects only that palette.
+  ...(process.env.SCREENSHOT_PALETTE
+    ? []
+    : PALETTES.filter((palette) => palette !== DEFAULT_PALETTE).map((palette) => ({
+        ...homeShot,
+        mode: MODE ?? "light",
+        palette,
+      }))),
+];
+
 const files = new Set<string>();
-for (const shot of shots) {
-  const mode = MODE ?? shot.mode;
-  const file = fileName(shot.name, shot.viewport, mode);
-  // --mode turns a shot's light and dark variants into the same file: take it once.
+for (const shot of captures) {
+  const file = fileName(shot.name, shot.viewport, shot.mode, shot.palette);
   if (files.has(file)) continue;
   files.add(file);
   test(file, async ({ browser, baseURL, request }, testInfo) => {
+    test.setTimeout(90_000);
     test.skip(testInfo.project.name !== "desktop", "Each shot sets its own viewport");
+    await putAppearance(request, { palette: shot.palette });
     const storage = shot.storage ? await shot.storage(request) : {};
-    const page = await openPage(browser, baseURL, shot.viewport, mode, storage);
-    await shot.take(page);
-    await shoot(page, file);
+    const page = await openPage(browser, baseURL, shot.viewport, shot.mode, storage);
+    try {
+      await shot.take(page);
+      await shoot(page, file);
+    } finally {
+      await page.context().close();
+    }
   });
 }
