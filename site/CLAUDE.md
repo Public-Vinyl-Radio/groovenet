@@ -37,15 +37,43 @@ headings are 600, not the canvas's 800.
 
 ## Content
 
-- **Screenshots:** `src/data/screenshots.ts` has one entry per slot. Until
-  #912 commits the PNGs to `src/assets/screenshots/`, each renders a labelled
-  placeholder; set the entry's `image` to an imported PNG to swap it in.
+- **Screenshots:** `src/data/screenshots.ts` has one entry per slot, its
+  `image` an imported PNG from `src/assets/screenshots/`; a slot without one
+  renders a labelled placeholder. See "Refreshing screenshots" below.
 - **Roadmap:** `src/data/roadmap.yml`, a content collection (`src/content.config.ts`).
   Real items only.
 - **Copy** is from the design, checked against the code: the phone shots are
   the web app at 390px, and the native iOS app is an early client.
 - Docs will be built with Starlight from the repo-root `docs/` tree (#911);
   `/docs` is a holding page until then.
+
+## Refreshing screenshots
+
+The PNGs are committed and taken by Playwright (`my-collection-search/e2e/screenshots.spec.ts`,
+skipped unless `RUN_SCREENSHOTS=1`) against a worktree stack restored from the
+prod seed. CI has no seeded stack, so they only change when someone runs:
+
+```bash
+just worktree-seed-prod && just worktree-up   # if the stack isn't prod-seeded yet
+just site-screenshots                         # all shots, Sleeve, each in its own mode
+just site-screenshots --palette riso --mode dark   # extra variants, for docs
+```
+
+Refresh them after a visible UI change, or with a new seed. The command
+sets the palette through `PUT /api/settings/appearance` and puts the saved one
+back afterwards, takes every shot at 2x (`<page>-<viewport>[-<palette>]-<mode>.png`),
+then recompresses them losslessly (`scripts/compress-screenshots.mjs`).
+
+- **Stable:** the clock, time zone, Spins month and Now playing queue are
+  constants at the top of the spec. After a new seed, move `CLOCK` and
+  `SPINS_MONTH` to the seed's date, and check `QUEUE_PLAYLIST_ID` still exists.
+  A second run with no app change gives no diff.
+- **Privacy:** the seed is the real collection. Look at every PNG before
+  committing: no friend usernames other than the owner's, notes, listener or
+  source names, emails, keys or hostnames. Hide anything new through the
+  spec's `HIDE` list or a `mask`, or pick another view, and list it there.
+- **Serving 2x:** a frame's `widths` must include twice its largest display
+  width (`BrowserFrame` shows 760px, so 1520). Astro never upscales.
 
 ## Deploy
 
