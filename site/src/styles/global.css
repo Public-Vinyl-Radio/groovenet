@@ -1,0 +1,70 @@
+/* Colour tokens (--ground, --ink, ...) come from the app's Mono palette and are
+   written by BaseLayout; everything here reads them. */
+:root {
+  --sans: "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --gutter: 40px;
+  --max: 1280px;
+  color-scheme: light dark;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--ground); color: var(--ink); scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 400 16px/1.5 var(--sans); background: var(--ground); color: var(--ink); overflow-x: clip; }
+img { max-width: 100%; }
+a { color: inherit; }
+a:hover { opacity: 0.75; }
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; }
+::selection { background: var(--ink); color: var(--ground); }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.wrap { max-width: var(--max); margin: 0 auto; padding-inline: var(--gutter); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Mono caps: labels, nav, buttons, tags. */
+.caps { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.eyebrow { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+/* Headings stop at 600: the app ships Inter in 400, 500 and 600 only. */
+.h2 { font-size: clamp(32px, 4vw, 54px); line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
+.lede { font-size: 17px; line-height: 1.6; color: var(--muted); }
+
+/* Outlined container with a hard offset shadow. */
+.frame { border: 2px solid var(--ink); box-shadow: 6px 6px 0 0 var(--shadow); background: var(--ground); }
+.frame-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 2px solid var(--ink); background: var(--surface); font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.dots { display: flex; gap: 6px; }
+.dots span { width: 9px; height: 9px; border: 2px solid var(--ink); display: inline-block; }
+
+.btn { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border: 2px solid var(--ink); background: var(--ground); color: var(--ink); box-shadow: 4px 4px 0 0 var(--shadow); }
+.btn-solid { background: var(--ink); color: var(--ground); }
+.btn:hover { opacity: 1; background: var(--surface); }
+.btn-solid:hover { background: var(--ink); opacity: 0.85; }
+
+/* Diagonal groove hatching, the house texture. */
+.hatch { background: repeating-linear-gradient(-58deg, var(--ink) 0 6px, transparent 6px 15px); }
+
+/* Segmented control: one outlined block, ink rules between the options. */
+.seg { display: inline-grid; grid-auto-flow: column; gap: 2px; background: var(--ink); border: 2px solid var(--ink); box-shadow: 3px 3px 0 0 var(--shadow); align-self: flex-start; max-width: 100%; }
+.seg > button { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; min-height: 44px; padding: 0 16px; border: 0; background: var(--ground); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.seg > button:hover { background: var(--surface); }
+.seg > button[aria-pressed="true"], .seg > button[aria-selected="true"] { background: var(--ink); color: var(--ground); }
+.seg > button:focus-visible { outline-offset: -6px; outline-color: currentColor; }
+
+.section-head { display: flex; align-items: center; gap: 16px; margin-bottom: 36px; }
+.section-head .tag { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; background: var(--ink); color: var(--ground); padding: 10px 14px; white-space: nowrap; }
+.section-head .rule { flex: 1 1 auto; height: 2px; background: var(--ink); }
+.section-head .aside { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+@media (max-width: 640px) {
+  :root { --gutter: 16px; }
+  .section-head { flex-wrap: wrap; }
+  .seg.seg-wrap { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); display: grid; }
+  .seg.seg-wrap > button:last-child:nth-child(odd) { grid-column: span 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

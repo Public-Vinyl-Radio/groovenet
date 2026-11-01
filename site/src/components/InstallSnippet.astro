@@ -1,0 +1,60 @@
+---
+// The README's self-hosted install, as a terminal with a copy button. The
+// comment line is shown but not copied: zsh treats a pasted `#` as a command.
+const lines: Array<{ kind: "cmd" | "comment" | "out"; text: string }> = [
+  { kind: "cmd", text: "git clone https://github.com/Public-Vinyl-Radio/groovenet" },
+  { kind: "cmd", text: "cd groovenet && cp .env.example .env" },
+  { kind: "comment", text: "# set POSTGRES_PASSWORD and DISCOGS_USER_TOKEN in .env" },
+  { kind: "cmd", text: "export COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml" },
+  { kind: "cmd", text: "docker compose up --build -d && docker compose run --rm migrate" },
+];
+const copyText = lines.filter((l) => l.kind === "cmd").map((l) => l.text).join("\n");
+---
+<div class="term frame">
+  <div class="bar">
+    <div class="title">
+      <span class="sq" aria-hidden="true"></span><span class="sq" aria-hidden="true"></span><span class="sq on" aria-hidden="true"></span>
+      <span class="caps">~/homelab — install</span>
+    </div>
+    <button type="button" class="copy caps" data-copy={copyText}>Copy<span class="visually-hidden"> install commands</span></button>
+    <span class="visually-hidden" role="status" data-copy-status></span>
+  </div>
+  <pre tabindex="0" aria-label="Install commands"><code>{lines.map((l) => l.kind === "cmd"
+    ? <span class="line"><span class="dim" aria-hidden="true">$ </span>{l.text}</span>
+    : <span class="line dim">{l.text}</span>)}<span class="line"><span class="dim" aria-hidden="true">→ </span>open http://localhost:3000<span class="cursor" aria-hidden="true"></span></span></code></pre>
+</div>
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    const status = button.parentElement?.querySelector("[data-copy-status]");
+    const label = button.firstChild as Text;
+    let timer: number | undefined;
+    button.addEventListener("click", async () => {
+      let copied = true;
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy ?? "");
+      } catch {
+        copied = false;
+      }
+      label.data = copied ? "Copied" : "Select to copy";
+      if (status) status.textContent = copied ? "Install commands copied" : "Couldn't copy; select the commands instead";
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { label.data = "Copy"; if (status) status.textContent = ""; }, 2000);
+    });
+  }
+</script>
+<style>
+  .term { max-width: 580px; width: 100%; background: var(--night-ground); color: var(--night-ink); }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 14px; border-bottom: 2px solid var(--ink); background: var(--surface); color: var(--ink); }
+  .title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .title .caps { margin-left: 6px; letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sq { width: 10px; height: 10px; border: 2px solid var(--ink); display: inline-block; flex: none; }
+  .sq.on { background: var(--ink); }
+  .copy { font-size: 11px; min-height: 32px; padding: 0 12px; border: 2px solid var(--ink); background: var(--ground); color: var(--ink); box-shadow: 2px 2px 0 0 var(--shadow); cursor: pointer; flex: none; }
+  .copy:hover { background: var(--surface); }
+  pre { margin: 0; padding: 18px 18px 20px; font: 14px/1.75 var(--mono); overflow-x: auto; }
+  .line { display: block; white-space: pre; }
+  .dim { color: var(--night-muted); }
+  .cursor { display: inline-block; width: 9px; height: 17px; background: var(--night-ink); vertical-align: -3px; margin-left: 4px; }
+  pre:focus-visible { outline-offset: -4px; }
+  @media (max-width: 640px) { pre { font-size: 12px; padding: 14px; } }
+</style>

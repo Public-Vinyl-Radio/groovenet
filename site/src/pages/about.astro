@@ -1,10 +1,40 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import SectionHead from "../components/SectionHead.astro";
+
+const notes = [
+  { label: "Why it exists", title: "A collection is more than an inventory.", body: "Records carry a personal history: the stores, people, scenes, labels, and nights that brought them together. But a collection also becomes hard to navigate as it grows. GrooveNet makes its musical information searchable and useful without pretending that a database is the collection itself." },
+  { label: "Physical, still", title: "The software is not the listening experience.", body: "Audio analysis, metadata, and recommendations can make preparation and discovery sharper. They cannot replace choosing a record, cueing it, or responding to a room. GrooveNet is designed as a technical companion to those practices, not an abstraction away from them." },
+  { label: "Public Vinyl Radio", title: "A project within a larger practice.", body: "Public Vinyl Radio maintains GrooveNet as an open-source project for people who collect, listen, organize, and DJ. The project has its own focus and codebase; its origin is the broader Public Vinyl Radio ecosystem." },
+];
 ---
 <BaseLayout title="About GrooveNet — Public Vinyl Radio" description="Why Public Vinyl Radio is building GrooveNet: software that augments a physical record collection without replacing it." currentPath="/about">
-  <section class="page-hero wrap"><p class="eyebrow">ABOUT / PVR–GN</p><h1>Software in service of the record shelf.</h1><p>GrooveNet comes from the simple observation that a physical collection holds more knowledge than its spine labels can show at a glance.</p></section>
-  <section class="manifesto wrap"><article><p class="label">WHY IT EXISTS</p><h2>A collection is more than an inventory.</h2><p>Records carry a personal history: the stores, people, scenes, labels, and nights that brought them together. But a collection also becomes hard to navigate as it grows. GrooveNet makes its musical information searchable and useful without pretending that a database is the collection itself.</p></article><article><p class="label">PHYSICAL, STILL</p><h2>The software is not the listening experience.</h2><p>Audio analysis, metadata, and recommendations can make preparation and discovery sharper. They cannot replace choosing a record, cueing it, or responding to a room. GrooveNet is designed as a technical companion to those practices, not an abstraction away from them.</p></article><article><p class="label">PUBLIC VINYL RADIO</p><h2>A project within a larger practice.</h2><p>Public Vinyl Radio maintains GrooveNet as an open-source project for people who collect, listen, organize, and DJ. The project has its own focus and codebase; its origin is the broader Public Vinyl Radio ecosystem.</p><a class="button" href="https://publicvinylradio.com" target="_blank" rel="noreferrer">Visit Public Vinyl Radio ↗</a></article></section>
+  <section class="wrap hero">
+    <SectionHead tag="About / PVR–GN" />
+    <h1>Software in service of the record shelf.</h1>
+    <p class="lede">GrooveNet comes from the simple observation that a physical collection holds more knowledge than its spine labels can show at a glance.</p>
+  </section>
+  <div class="band hatch" aria-hidden="true"></div>
+  <section class="wrap notes">
+    {notes.map((n) => (
+      <article class="frame">
+        <p class="eyebrow">{n.label}</p>
+        <h2>{n.title}</h2>
+        <p>{n.body}</p>
+      </article>
+    ))}
+  </section>
+  <section class="wrap cta"><a class="btn btn-solid" href="https://publicvinylradio.com">Visit Public Vinyl Radio ↗</a></section>
 </BaseLayout>
 <style>
-  .page-hero { padding: clamp(5rem, 12vw, 10rem) 0 clamp(4rem, 8vw, 7rem); border-bottom: 1px solid var(--line); } h1 { font-size: clamp(3.6rem, 8vw, 7.5rem); max-width: 60rem; } .page-hero > p:last-child { max-width: 39rem; font-size: 1.2rem; color: var(--muted); } .manifesto { padding: clamp(4rem, 9vw, 8rem) 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; } article { border-top: 2px solid var(--ink); padding-top: 1rem; } .label { color: var(--accent); font: .67rem var(--mono); letter-spacing: .08em; } h2 { font-size: clamp(1.7rem, 3vw, 2.6rem); } article > p:not(.label) { color: var(--muted); } .button { margin-top: 1rem; } @media (max-width: 760px) { .manifesto { grid-template-columns: 1fr; gap: 3rem; } }
+  .hero { padding-block: 72px 72px; display: flex; flex-direction: column; gap: 28px; }
+  h1 { font-size: clamp(40px, 5.6vw, 76px); line-height: 1; font-weight: 600; letter-spacing: -0.035em; max-width: 960px; }
+  .hero .lede { max-width: 640px; font-size: 19px; }
+  .band { height: 26px; border-block: 2px solid var(--ink); }
+  .notes { padding-block: 96px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 32px; }
+  article { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+  article h2 { font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; }
+  article > p:last-child { color: var(--muted); line-height: 1.6; }
+  .cta { padding-block: 56px 96px; }
+  @media (max-width: 640px) { .hero { padding-block: 40px 48px; } .notes { padding-top: 56px; } article { padding: 20px; } .cta { padding-block: 40px 64px; } }
 </style>

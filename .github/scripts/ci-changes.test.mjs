@@ -90,6 +90,22 @@ test("site builds only for site, docs and changelog edits", () => {
   assert.equal(classify(["my-collection-search/src/app/page.tsx"]).site, false);
 });
 
+test("the site's palette export and the app's palettes and fonts check each other", () => {
+  for (const path of [
+    "my-collection-search/src/app/palettes/mono.ts",
+    "my-collection-search/src/app/fonts/Inter-400.woff2",
+    "my-collection-search/src/app/fontChoices.ts",
+    "my-collection-search/src/app/siteTokens.ts",
+  ]) {
+    assert.equal(classify([path]).site, true, path);
+  }
+  for (const path of ["site/src/data/palettes.json", "site/public/fonts/Inter-400.woff2"]) {
+    const result = classify([path]);
+    assert.ok(result.web && result.site, path);
+  }
+  assert.equal(classify(["site/src/data/roadmap.yml"]).web, false);
+});
+
 test("workspace manifests affect installation and npm toolchain checks retain coverage", () => {
   assert.equal(classify(["packages/groovenet-cli/package.json"]).webapp, true);
   assert.equal(classify(["package-lock.json"]).client, true);

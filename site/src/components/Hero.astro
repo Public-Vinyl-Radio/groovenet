@@ -1,0 +1,47 @@
+---
+import InstallSnippet from "./InstallSnippet.astro";
+import BrowserFrame from "./BrowserFrame.astro";
+import PhoneFrame from "./PhoneFrame.astro";
+import { screenshots } from "../data/screenshots";
+---
+<section id="top" class="wrap hero">
+  <div class="copy">
+    <p class="eyebrow">Public Vinyl Radio / Open system 001</p>
+    <h1>Your crates, catalogued. Your spins, logged.</h1>
+    <p class="intro">GrooveNet is a self-hosted collection manager for DJs and collectors. Import from Discogs, analyze BPM, key and mood, log what you play on vinyl and digital, and build sets from the records you actually own.</p>
+    <InstallSnippet />
+    <div class="actions">
+      <a class="btn btn-solid" href="/docs">Read the setup guide →</a>
+      <a class="btn" href="https://github.com/Public-Vinyl-Radio/groovenet">Star on GitHub ↗</a>
+    </div>
+    <p class="meta">MIT license · Self-hosted · Web · iOS · Terminal · MCP</p>
+  </div>
+  <div class="visual">
+    <div class="desktop"><BrowserFrame shot={screenshots.desktopHome} url="groovenet.local/home" /></div>
+    <PhoneFrame class="phone" shot={screenshots.phoneSpins} note="390 × 844 · Mono" />
+  </div>
+</section>
+<div class="band hatch" aria-hidden="true"></div>
+<style>
+  .hero { padding-block: 72px 88px; display: flex; flex-wrap: wrap; gap: 56px; align-items: center; }
+  .copy { flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+  h1 { font-size: clamp(40px, 5.6vw, 76px); line-height: 1; font-weight: 600; letter-spacing: -0.035em; }
+  .intro { font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 560px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .meta { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  /* The phone overlaps the desktop's lower right; both scale with the column. */
+  .visual { --phone: clamp(120px, 30%, 200px); flex: 1 1 560px; min-width: 0; position: relative; padding-bottom: calc(var(--phone) * 0.28); }
+  .desktop { margin-right: calc(var(--phone) * 0.55); }
+  .visual :global(.phone) { position: absolute; right: 0; bottom: 0; width: var(--phone); border-radius: calc(var(--phone) * 0.17); }
+  /* Keep the placeholder's label clear of the overlapping phone. */
+  .desktop :global(.placeholder .text) { padding-right: calc(var(--phone) * 0.5); }
+  .visual :global(.phone .screen) { border-radius: calc(var(--phone) * 0.12); }
+  .band { height: 26px; border-block: 2px solid var(--ink); }
+  @media (max-width: 640px) {
+    .hero { padding-block: 40px 56px; gap: 40px; }
+    .copy { flex-basis: 100%; gap: 22px; }
+    .intro { font-size: 17px; }
+    .visual { flex-basis: 100%; }
+    .actions .btn { flex: 1 1 auto; justify-content: center; }
+  }
+</style>

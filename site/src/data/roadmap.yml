@@ -1,0 +1,18 @@
+# The landing page's Roadmap section: one entry per column, in order.
+# Keep items real; the canvas's "[Roadmap item]" slots are left out until
+# there's something to put in them (#914).
+- id: now
+  label: Now
+  items:
+    - title: New marketing site and docs
+      note: This page, with screenshots of every palette.
+- id: next
+  label: Next
+  items:
+    - title: Weekly wantlist recommendations
+      note: Records to look for, drawn from what you play.
+- id: later
+  label: Later
+  items:
+    - title: Hosted in the cloud
+      note: Automation to run GrooveNet without a home lab.

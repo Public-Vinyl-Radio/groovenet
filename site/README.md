@@ -28,14 +28,17 @@ Astro writes the static production site to `dist/`.
 
 ```
 src/
-  components/     Shared site components and architecture diagram
-  layouts/        Base layout, global styling, SEO metadata
+  components/     One component per landing-page section, plus header, footer and frames
+  data/           roadmap.yml, screenshot slots, and palettes.json (generated: just site-tokens)
+  layouts/        Base layout: metadata, self-hosted fonts, Mono palette tokens
+  lib/            Turns the palette export into CSS
   pages/          Astro routes: /, /about, /docs
-public/           Favicon, social image, and the verified GrooveNet demo asset
+  styles/         Global styles
+public/           Favicon, social card, robots.txt, and fonts (generated: just site-tokens)
 netlify.toml      Netlify build configuration and security headers
 ```
 
-Most page copy lives directly in the route files. Shared navigation and footer material lives in `src/components`; global metadata and styles are in `src/layouts/BaseLayout.astro`. When GrooveNet capabilities change, update the relevant page copy against the main [GrooveNet README](https://github.com/Public-Vinyl-Radio/groovenet#readme).
+Landing-page copy lives in its section component; the roadmap in `src/data/roadmap.yml`. Palettes and fonts are exported from the app, so never edit `src/data/palettes.json` or `public/fonts/` by hand. When GrooveNet capabilities change, update the relevant page copy against the main [GrooveNet README](https://github.com/Public-Vinyl-Radio/groovenet#readme).
 
 ## Netlify deployment
 

@@ -289,6 +289,10 @@ site-build:
 site-preview:
   {{mise_exec}} npm run preview --prefix site
 
+# Export the app's palettes and fonts for the site's Appearance demo; commit the result.
+site-tokens:
+  {{mise_exec}} npm run site:tokens --prefix my-collection-search
+
 build-packages:
   {{mise_exec}} npm run build --workspace=packages/groovenet-contracts
   {{mise_exec}} npm run build --workspace=packages/groovenet-client
