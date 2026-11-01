@@ -58,7 +58,7 @@ export type RecordCareCounts = Pick<
 // which has never been cleaned or sleeved. Without it "never cleaned" would
 // only see records that had already been touched. Albums gone from the
 // collection drop out here; their copies and history stay.
-const CARE_SCOPE_SQL = `
+export const CARE_SCOPE_SQL = `
   SELECT
     a.friend_id,
     a.release_id,

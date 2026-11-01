@@ -807,3 +807,11 @@ export type {
 } from "@groovenet/contracts";
 
 export type { HomeQuery, HomeResponse } from "@groovenet/contracts";
+
+export type {
+  RecordCareQueueQuery,
+  RecordCareQueueResponse,
+  RecordCareProgressQuery,
+  RecordCareProgressResponse,
+  RecordCareQueueItem,
+} from "@groovenet/contracts";

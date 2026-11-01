@@ -6,6 +6,7 @@ import { recordCopyRepository } from "@/server/repositories/recordCopyRepository
 import { redisJobService } from "../redisJobService";
 import { DEFAULT_TARGET_SLEEVE, defaultOverdueDays } from "@/lib/recordCare";
 vi.mock("@/server/repositories/homeRepository", () => ({
+  HOME_NEW_ARRIVALS_WINDOW_DAYS: 30,
   homeRepository: { counts: vi.fn(), arrivals: vi.fn(), attention: vi.fn(), playlists: vi.fn() },
 }));
 vi.mock("@/server/repositories/recordCopyRepository", () => ({
