@@ -11,12 +11,14 @@
     "build": "astro check && astro build && node scripts/check-links.mjs",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "node --test scripts/netlify-ignore.test.mjs scripts/check-links.test.mjs src/lib/roadmap.test.mjs"
+    "test": "node --test scripts/netlify-ignore.test.mjs scripts/check-links.test.mjs src/lib/roadmap.test.mjs src/lib/theme-screenshots.test.mjs"
   },
   "dependencies": {
+    "@astrojs/markdown-satteri": "0.4.6",
     "@astrojs/sitemap": "^3.6.0",
     "@astrojs/starlight": "0.42.8",
     "astro": "^7.4.4",
+    "starlight-image-zoom": "0.16.2",
     "typescript": "^5.9.0"
   },
   "devDependencies": {

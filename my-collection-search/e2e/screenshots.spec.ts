@@ -1,5 +1,9 @@
+import { execFile } from "node:child_process";
+import { readdirSync } from "node:fs";
+import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 import {
   expect,
   test,
@@ -36,6 +40,9 @@ const TIME_ZONE = "America/Los_Angeles";
 const SPINS_MONTH = "2026-10";
 /** Now playing's queue: a playlist from the seed, playing its CURRENT-th track. */
 const QUEUE_PLAYLIST_ID = 176;
+/** The set sheet's playlist: "FLOW STATE", 59 tracks and 4h15m, every one with a library identifier. */
+const SET_SHEET_PLAYLIST_ID = 175;
+const SET_SHEET_ROWS = 10;
 const QUEUE_LENGTH = 12;
 const QUEUE_CURRENT = 3;
 /** That track's length (Massive Attack, "(Exchange)", 4:11), and where it is paused. */
@@ -231,10 +238,7 @@ const shots: Shot[] = [
     take: async (page) => {
       // The seed has no audio: serve silence as long as the track, so the
       // player shows its real length and the restored position.
-      const wav = silentWav(QUEUE_SECONDS);
-      await page.route("**/api/audio?*", (route) =>
-        route.fulfill(rangeResponse(wav, route.request().headers().range)),
-      );
+      await silentAudio(page);
       await page.goto("/");
       if (page.viewportSize()!.width >= 768) {
         await page
@@ -256,6 +260,13 @@ const shots: Shot[] = [
     },
   },
 ];
+
+async function silentAudio(page: Page) {
+  const wav = silentWav(QUEUE_SECONDS);
+  await page.route("**/api/audio?*", (route) =>
+    route.fulfill(rangeResponse(wav, route.request().headers().range)),
+  );
+}
 
 /** `seconds` of 8 kHz, 8-bit mono silence. */
 function silentWav(seconds: number): Buffer {
@@ -330,7 +341,155 @@ async function playlist(page: Page) {
   await expect(page.getByText("(Exchange)", { exact: true }).first()).toBeVisible();
 }
 
+const ENTRY_IDS = [
+  "11111111-1111-4111-8111-111111111111",
+  "22222222-2222-4222-8222-222222222222",
+  "33333333-3333-4333-8333-333333333333",
+];
+
+/** A synthetic music server; no OwnTone engine, worker or speaker is involved. */
+function fakePlayer(id: string, name: string, status: "playing" | "stopped") {
+  const playing = status === "playing";
+  return {
+    id,
+    name,
+    engine_id: "primary",
+    availability_policy: "ask",
+    revision: 3,
+    assigned_output: null,
+    state: {
+      queue: playing
+        ? [
+            {
+              id: ENTRY_IDS[0],
+              track_id: "1",
+              friend_id: 6,
+              title: "(Exchange)",
+              artist: "Massive Attack",
+            },
+            {
+              id: ENTRY_IDS[1],
+              track_id: "2",
+              friend_id: 6,
+              title: "Teardrop",
+              artist: "Massive Attack",
+            },
+            {
+              id: ENTRY_IDS[2],
+              track_id: "3",
+              friend_id: 6,
+              title: "Glory Box",
+              artist: "Portishead",
+            },
+          ]
+        : [],
+      current_entry_id: playing ? ENTRY_IDS[0] : null,
+      status,
+      position: playing ? 97 : 0,
+      duration: playing ? QUEUE_SECONDS : null,
+      volume: 40,
+      desired_output: "speaker",
+      checkpoint: false,
+      error: null,
+    },
+  };
+}
+
+/** Unlocked, with one live and one idle server. Faked, so the stack needs no player config. */
+async function fakePlayers(page: Page) {
+  const players = [
+    fakePlayer("lounge", "Lounge", "playing"),
+    fakePlayer("study", "Study", "stopped"),
+  ];
+  // The picker's list arrives on the all-players event stream. An EventSource
+  // that delivers one `players` event and then stays open keeps it from
+  // reconnecting (and flashing "updates disconnected") under the shot.
+  await page.addInitScript(
+    ({ list, worker }) => {
+      class FakeEventSource {
+        listeners: Record<string, (event: { data: string }) => void> = {};
+        onerror: (() => void) | null = null;
+        constructor(readonly url: string) {
+          if (url !== "/api/players/events") return;
+          setTimeout(
+            () =>
+              this.listeners.players?.({
+                data: JSON.stringify({
+                  type: "players",
+                  players: list,
+                  worker_instance: worker,
+                  sequence: 1,
+                }),
+              }),
+            0,
+          );
+        }
+        addEventListener(name: string, listener: (event: { data: string }) => void) {
+          this.listeners[name] = listener;
+        }
+        close() {}
+      }
+      Object.assign(window, { EventSource: FakeEventSource });
+    },
+    { list: players, worker: "44444444-4444-4444-8444-444444444444" },
+  );
+  await page.route("**/api/players**", (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname.endsWith("browser/session")) return route.fulfill({ json: { authorized: true } });
+    if (pathname === "/api/players") return route.fulfill({ json: { players } });
+    return route.fulfill({ status: 404, json: { error: "Not faked" } });
+  });
+}
+
+/** The Play on picker with the live Lounge server selected, from the player or the nav. */
+async function playOn(page: Page) {
+  await fakePlayers(page);
+  await page.goto("/");
+  const picker = page.getByRole("dialog", { name: "Choose where audio plays" });
+  if (page.viewportSize()!.width >= 768) {
+    await page
+      .getByTestId("floating-player")
+      .getByRole("button", { name: /^Play on:/ })
+      .click();
+  } else {
+    await page
+      .getByTestId("floating-player")
+      .getByRole("button", { name: "Open now playing" })
+      .click();
+    await page
+      .getByRole("dialog", { name: "NOW PLAYING" })
+      .getByRole("button", { name: /^Play on:/ })
+      .click();
+  }
+  await expect(picker).toBeVisible();
+  await picker.getByText("Lounge", { exact: true }).click();
+  await expect(picker.getByRole("radio", { name: /Lounge/ })).toBeChecked();
+  await expect(picker.getByText("MUSIC SERVERS")).toBeVisible();
+  // Let the sheet finish sliding in.
+  await picker.evaluate((el) =>
+    Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)),
+  );
+}
+
 const docs: Array<Omit<Shot, "mode">> = [
+  {
+    name: "play-on",
+    viewport: "desktop",
+    storage: playerShot.storage,
+    take: async (page) => {
+      await silentAudio(page);
+      await playOn(page);
+    },
+  },
+  {
+    ...playerShot,
+    name: "play-on",
+    viewport: "phone",
+    take: async (page) => {
+      await silentAudio(page);
+      await playOn(page);
+    },
+  },
   { ...homeShot, viewport: "phone" },
   { ...genresShot },
   { ...playerShot, viewport: "desktop" },
@@ -444,3 +603,48 @@ for (const shot of captures) {
     }
   });
 }
+
+// The set sheet (#939): the app's own PDF export, driven through its menu so it
+// is the same code path the UI uses, then page 1 rasterised and cropped to the
+// header and the first rows. The PDF is black on white in either theme, so one
+// bordered image serves both.
+const run = promisify(execFile);
+test("set-sheet-pdf.png", async ({ browser, baseURL, request }, testInfo) => {
+  test.setTimeout(90_000);
+  test.skip(testInfo.project.name !== "desktop", "Each shot sets its own viewport");
+  await putAppearance(request, { palette: DEFAULT_PALETTE });
+  const page = await openPage(browser, baseURL, "desktop", "light");
+  try {
+    await page.goto(`/playlists/${SET_SHEET_PLAYLIST_ID}`);
+    await expect(page.getByRole("button", { name: "Playlist actions", exact: true })).toBeVisible();
+    await settle(page);
+    await page.getByRole("button", { name: "Playlist actions", exact: true }).click();
+    const download = page.waitForEvent("download");
+    await page.getByRole("menuitem", { name: "Export PDF", exact: true }).click();
+    const pdf = testInfo.outputPath("set-sheet.pdf");
+    await (await download).saveAs(pdf);
+
+    // 288 dpi: 2x a 144 dpi screen. Page 1 only, as a PNG named <prefix>-1.png.
+    const prefix = testInfo.outputPath("set-sheet");
+    await run("pdftoppm", ["-r", "288", "-f", "1", "-l", "1", "-png", pdf, prefix]);
+    const png = readdirSync(testInfo.outputDir).filter((f) => /^set-sheet-\d+\.png$/.test(f))[0]!;
+    const raster = sharp(testInfo.outputPath(png));
+    const { width, height } = await raster.metadata();
+    // Landscape A4, 10 mm margins, 4 mm rows: the header block plus the column
+    // header and SET_SHEET_ROWS rows end this far below the crop's 6 mm top.
+    const px = (mm: number) => Math.round((mm / 25.4) * 288);
+    const crop = {
+      left: px(6),
+      top: px(6),
+      width: width! - px(12),
+      height: Math.min(height! - px(6), px(12 + 6 + 4 * SET_SHEET_ROWS + 5)),
+    };
+    await raster
+      .extract(crop)
+      .extend({ top: 2, bottom: 2, left: 2, right: 2, background: "#888888" })
+      .png()
+      .toFile(path.join(OUT_DIR, "set-sheet-pdf.png"));
+  } finally {
+    await page.context().close();
+  }
+});

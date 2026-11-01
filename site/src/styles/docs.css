@@ -78,3 +78,14 @@ site-search dialog { border: 2px solid var(--ink); }
 }
 mobile-starlight-toc .toggle { border: 2px solid var(--ink); border-radius: 0; font-family: var(--mono); }
 .docs-tools :is(button, select) { font-family: var(--mono); }
+
+/* Paired screenshots (src/lib/theme-screenshots.mjs) follow Starlight's
+   theme picker, which resolves "auto" onto :root[data-theme]. Starlight's
+   dark is the unset default. The zoom plugin wraps each image, so the hidden
+   one's wrapper goes too, and the zoomed clone keeps its class and follows along. */
+.sl-markdown-content :is(img.shot, starlight-image-zoom-zoomable:has(> img.shot)) { max-width: 100%; }
+:root:not([data-theme="light"]) .shot-light,
+:root[data-theme="light"] .shot-dark,
+:root:not([data-theme="light"]) starlight-image-zoom-zoomable:has(> .shot-light),
+:root[data-theme="light"] starlight-image-zoom-zoomable:has(> .shot-dark) { display: none; }
+.sl-markdown-content img.shot-light, .sl-markdown-content img.shot-dark { border: 2px solid var(--ink); }

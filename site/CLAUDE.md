@@ -42,7 +42,8 @@ headings are 600, not the canvas's 800.
   renders a labelled placeholder. See "Refreshing screenshots" below.
 - **Features:** card copy, docs links, icons and screenshot keys live in
   `src/data/features.ts`. Slots with an `imageDark` follow the visitor's mode.
-  Two lead cards draw HTML stand-ins until #939's screenshots replace them.
+  Two lead cards (set sheet, Play on) keep their HTML stand-ins on purpose; the
+  real shots live in the docs (#939).
 - **Roadmap:** generated at build time from GitHub issue labels (below), with
   `src/data/roadmap.yml` as the fallback. Real items only.
 - **Copy** is from the design, checked against the code: the phone shots are
@@ -53,6 +54,12 @@ headings are 600, not the canvas's 800.
   `description` and `sidebar.order` frontmatter; folder sidebars update automatically.
   Use `/docs/…/` links. Run `just format` after staging new Markdown: root docs
   are formatted even though `site/` is ignored by Prettier.
+- **Docs screenshots:** plain Markdown `![alt](…/x-light.png)`. `src/lib/theme-screenshots.mjs`
+  (a Sätteri plugin pair, Astro 7's default processor; tests in `theme-screenshots.test.mjs`)
+  adds the `-dark.png` sibling when it exists, and `docs.css` shows one by
+  `:root[data-theme]`, never `prefers-color-scheme`. `starlight-image-zoom` (pinned)
+  zooms the visible one. An image with no `-dark` pair, such as `set-sheet-pdf.png`
+  (black on white, bordered), renders unchanged. Both twins keep the alt text.
 - **Release notes:** the docs loader reads root `CHANGELOG.md` at build time;
   never edit that release-please-owned file or commit a generated copy.
 - **Docs theme:** `src/components/docs/` wraps the shared Header/Footer and adds
