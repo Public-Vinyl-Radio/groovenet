@@ -300,8 +300,12 @@ site-screenshots *args:
   set -- {{args}}
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --palette) export SCREENSHOT_PALETTE="$2"; shift 2 ;;
-      --mode) export SCREENSHOT_MODE="$2"; shift 2 ;;
+      --palette)
+        [[ $# -ge 2 && "$2" =~ ^(mono|sleeve|riso|midnight)$ ]] || { echo "--palette requires mono, sleeve, riso or midnight"; exit 1; }
+        export SCREENSHOT_PALETTE="$2"; shift 2 ;;
+      --mode)
+        [[ $# -ge 2 && "$2" =~ ^(light|dark)$ ]] || { echo "--mode requires light or dark"; exit 1; }
+        export SCREENSHOT_MODE="$2"; shift 2 ;;
       *) echo "unknown argument: $1 (use --palette X, --mode light|dark)"; exit 1 ;;
     esac
   done

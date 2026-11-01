@@ -1,15 +1,27 @@
 ---
 import Header from "../Header.astro";
+import Logo from "../Logo.astro";
 import Search from "@astrojs/starlight/components/Search.astro";
 import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
 ---
-<Header currentPath="/docs" />
-<div class="docs-tools">
-  <span class="caps docs-label">Collection manual</span>
-  <div class="tools"><Search /><ThemeSelect /></div>
+<div class="docs-header">
+  <div class="site-navigation"><Header currentPath="/docs" /></div>
+  <a class="mobile-brand" href="/" aria-label="GrooveNet home"><Logo height={24} /></a>
+  <div class="docs-tools">
+    <span class="caps docs-label">Collection manual</span>
+    <div class="tools"><Search /><span class="desktop-theme"><ThemeSelect /></span></div>
+  </div>
 </div>
 <style>
+  .mobile-brand { display: none; }
   .docs-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px var(--gutter); }
   .tools { display: flex; align-items: center; gap: 16px; }
-  @media (max-width: 800px) { .docs-label { display: none; } .docs-tools { justify-content: flex-start; padding-right: 64px; } }
+  @media (width < 50rem) {
+    .docs-header { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 72px 0 var(--gutter); }
+    .site-navigation, .docs-label, .desktop-theme { display: none; }
+    .mobile-brand { display: flex; align-items: center; min-width: 0; }
+    .docs-tools { padding: 0; flex-shrink: 0; }
+    .tools { gap: 0; }
+    .tools :global(button[data-open-modal]) { width: 44px; height: 44px; justify-content: center; padding: 0; font-size: 20px; }
+  }
 </style>

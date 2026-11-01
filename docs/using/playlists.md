@@ -12,3 +12,7 @@ The actions menu offers **Greedy order**, **Genetic order** and **Cohesive block
 Review the BPM curve, keys, duration and repeated records after sorting. An optimiser cannot know which transition you want to ride or cut. Move entries by hand and save the result.
 
 Use export/import actions when moving a set between tools. **Enqueue** sends it to playback. To check a set from a terminal, use `groovenet playlists check <id>`; see the [CLI guide](/docs/cli/).
+
+![A playlist ready for a set](../../site/src/assets/screenshots/playlist-desktop-light.png)
+
+![Playlist ordering tools](../../site/src/assets/screenshots/optimiser-desktop-light.png)

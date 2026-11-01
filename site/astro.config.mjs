@@ -13,6 +13,7 @@ export default defineConfig({
     components: {
       Head: "./src/components/docs/Head.astro",
       Header: "./src/components/docs/Header.astro",
+      MobileMenuFooter: "./src/components/docs/MobileMenuFooter.astro",
       Footer: "./src/components/docs/Footer.astro",
     },
     // Starlight autogeneration matches filePath, relative to site/, not entry IDs.
