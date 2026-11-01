@@ -2,7 +2,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
   slug: "psychedelic%20cumbia",
@@ -114,6 +114,7 @@ describe("genre detail", () => {
       refetch: vi.fn(),
     };
     mocks.playback = { busy: false, problem: null };
+    setViewportWidth(1280);
   });
   it("loads the decoded slug for the collection and waits without one", () => {
     const { rerender } = renderWithProviders(<GenrePage />);
@@ -180,7 +181,7 @@ describe("genre detail", () => {
     mocks.query.data = fullPage;
     const { user } = renderWithProviders(<GenrePage />);
     await user.click(screen.getByRole("button", { name: "Tracks [24]" }));
-    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 6, "tracks");
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 6, "tracks", 24);
     expect(screen.getByTestId("track-row").textContent).toBe("r1 row");
     expect(screen.getByRole("button", { name: "Tracks [24]" }).getAttribute("aria-pressed")).toBe(
       "true",
@@ -254,7 +255,7 @@ describe("genre detail", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     mocks.friend = { id: 7 };
     rerender(<GenrePage />);
-    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 7, "albums");
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 7, "albums", 24);
     expect(screen.getByRole("button", { name: "More" }).getAttribute("aria-expanded")).toBe(
       "false",
     );
@@ -349,7 +350,7 @@ describe("genre detail", () => {
     mocks.results.data.pages = [{ refs: [] }];
     mocks.results.hasNextPage = false;
     rerender(<GenrePage />);
-    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 7, "albums");
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 7, "albums", 24);
     expect(screen.getByText("Build this crate")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Very long genre");
     expect(screen.queryByRole("region", { name: "Subgenres" })).toBeNull();
@@ -357,7 +358,59 @@ describe("genre detail", () => {
     mocks.slug = "salsa";
     mocks.query.data = { ...fullPage, genre: { ...fullPage.genre, slug: "salsa" } };
     rerender(<GenrePage />);
-    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("salsa", 7, "albums");
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("salsa", 7, "albums", 24);
     expect(screen.queryByText("Build this crate")).toBeNull();
+  });
+  const many = (prefix: string, n: number) =>
+    Array.from({ length: n }, (_, i) => ref(`${prefix}${i}`, `${prefix} ${i + 1}`, 100 - i));
+  it("caps subgenres at 10, expands in place, and collapses back to the heading", async () => {
+    mocks.query.data = { ...fullPage, children: many("Sub", 12) };
+    const { user } = renderWithProviders(<GenrePage />);
+    const section = () => screen.getByRole("region", { name: "Subgenres" });
+    expect(within(section()).getAllByRole("link")).toHaveLength(10);
+    expect(within(section()).queryByRole("link", { name: /Sub 11/ })).toBeNull();
+    await user.click(within(section()).getByRole("button", { name: "Show all 12 subgenres" }));
+    expect(within(section()).getAllByRole("link")).toHaveLength(12);
+    const scrollIntoView = vi.fn();
+    const heading = within(section()).getByRole("heading", { name: "Subgenres" });
+    heading.scrollIntoView = scrollIntoView;
+    const fewer = within(section()).getByRole("button", { name: "Show fewer" });
+    expect(fewer.getAttribute("aria-expanded")).toBe("true");
+    await user.click(fewer);
+    expect(within(section()).getAllByRole("link")).toHaveLength(10);
+    expect(document.activeElement).toBe(heading);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+  });
+  it("shows no subgenre toggle at 10 or fewer", () => {
+    mocks.query.data = { ...fullPage, children: many("Sub", 10) };
+    renderWithProviders(<GenrePage />);
+    const section = screen.getByRole("region", { name: "Subgenres" });
+    expect(within(section).getAllByRole("link")).toHaveLength(10);
+    expect(within(section).queryByRole("button")).toBeNull();
+  });
+  it("caps related genres at 10 with a show-all toggle", async () => {
+    mocks.query.data = { ...fullPage, related: many("Rel", 11) };
+    const { user } = renderWithProviders(<GenrePage />);
+    const section = () => screen.getByRole("region", { name: "Related genres" });
+    expect(within(section()).getAllByRole("link")).toHaveLength(10);
+    await user.click(within(section()).getByRole("button", { name: "Show all 11 related genres" }));
+    expect(within(section()).getAllByRole("link")).toHaveLength(11);
+  });
+  it("pages albums by 24 on desktop and 10 on a phone", () => {
+    mocks.query.data = fullPage;
+    renderWithProviders(<GenrePage />);
+    expect(mocks.useGenreResults).toHaveBeenCalledTimes(1);
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 6, "albums", 24);
+    mocks.useGenreResults.mockClear();
+    setViewportWidth(390);
+    renderWithProviders(<GenrePage />);
+    expect(mocks.useGenreResults).toHaveBeenCalledTimes(1);
+    expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 6, "albums", 10);
+  });
+  it("loads the next page of albums on request", async () => {
+    mocks.query.data = fullPage;
+    const { user } = renderWithProviders(<GenrePage />);
+    await user.click(screen.getByRole("button", { name: "Load more albums" }));
+    expect(mocks.results.fetchNextPage).toHaveBeenCalledOnce();
   });
 });

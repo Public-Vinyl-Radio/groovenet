@@ -12,13 +12,13 @@ vi.mock("@/services/internalApi/albums", () => ({ searchAlbums: mocks.searchAlbu
 vi.mock("@/services/internalApi/tracks", () => ({ searchTracks: mocks.searchTracks }));
 const album = { release_id: "r1", friend_id: 6, title: "Album", artist: "Artist" };
 const track = { track_id: "t1", friend_id: 6, title: "Song", artist: "Artist", album: "Album" };
-function render(friendId: number | undefined, view: GenreView) {
+function render(friendId: number | undefined, view: GenreView, albumPageSize = 24) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
   return {
-    ...renderHook(({ friendId, view }) => useGenreResults("salsa", friendId, view), {
+    ...renderHook(({ friendId, view }) => useGenreResults("salsa", friendId, view, albumPageSize), {
       initialProps: { friendId, view },
       wrapper,
     }),
@@ -47,9 +47,9 @@ describe("genre results ownership and pagination", () => {
     const { result, client } = render(6, "albums");
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(useAlbumStore.getState().albums.get("r1:6")).toEqual(expect.objectContaining(album));
-    expect(client.getQueryData(queryKeys.genreResults("salsa", 6, "albums"))).not.toHaveProperty(
-      "pages.0.hits",
-    );
+    expect(
+      client.getQueryData(queryKeys.genreResults("salsa", 6, "albums", 24)),
+    ).not.toHaveProperty("pages.0.hits");
     expect(result.current.data?.pages[0].refs).toEqual([{ id: "r1", friend_id: 6 }]);
     mocks.searchAlbums.mockResolvedValue({
       hits: [{ ...album, release_id: "r2" }],
@@ -68,6 +68,14 @@ describe("genre results ownership and pagination", () => {
       offset: 24,
     });
     expect(result.current.hasNextPage).toBe(false);
+  });
+  it("pages albums by the given size but keeps tracks at 24", async () => {
+    const albums = render(6, "albums", 10);
+    await waitFor(() => expect(albums.result.current.isSuccess).toBe(true));
+    expect(mocks.searchAlbums).toHaveBeenCalledWith(expect.objectContaining({ limit: 10 }));
+    const tracks = render(6, "tracks", 10);
+    await waitFor(() => expect(tracks.result.current.isSuccess).toBe(true));
+    expect(mocks.searchTracks).toHaveBeenCalledWith(expect.objectContaining({ limit: 24 }));
   });
   it("uses the same genre and collection filters for tracks, caching refs and hydrating entities", async () => {
     const { result } = render(6, "tracks");
