@@ -6,9 +6,11 @@ import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import { SectionHeading } from "@/components/spins/recapParts";
 import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
-import ChoresCareLogSlot from "@/components/chores/ChoresCareLogSlot";
+import ChoresCareLog from "@/components/chores/ChoresCareLog";
 import ChoresOverview from "@/components/chores/ChoresOverview";
 import ChoresSelectionBar from "@/components/chores/ChoresSelectionBar";
+import LogCareDialog, { type LogCareRecord } from "@/components/chores/LogCareDialog";
+import { copyRefFromKey, undoErrorText, type LogCareTarget } from "@/components/chores/careLog";
 import {
   addedMeta,
   moreInBacklog,
@@ -21,16 +23,26 @@ import {
 import { toaster } from "@/components/ui/toaster";
 import {
   useOpenRecordCareStackQuery,
+  useRecordCareLogQuery,
   useRecordCareProgressQuery,
   useRecordCareQueueQuery,
+  useRecordCareSessionMutations,
   useRecordCareStackMutations,
+  useRecordCareSummaryQuery,
 } from "@/hooks/useRecordCareQuery";
+import { DEFAULT_TARGET_SLEEVE } from "@/lib/recordCare";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
-import type { RecordCareQueueItem } from "@/services/internalApi/recordCare";
+import type {
+  RecordCareQueueItem,
+  RecordCareSessionCreate,
+} from "@/services/internalApi/recordCare";
 
 // Backlog rows per "more"; the queue asks for a longer page each time.
 const BACKLOG_PAGE = 20;
+
+// The column shows a few live entries; ask for some spare for the undone ones.
+const CARE_LOG_LIMIT = 10;
 
 const PULL_LABEL = `PULL NEXT STACK OF ${STACK_SIZE}`;
 
@@ -89,8 +101,18 @@ function ChorePageContent() {
   );
   const progressQuery = useRecordCareProgressQuery({ friend_id: friendId }, { enabled });
   const stackQuery = useOpenRecordCareStackQuery({ friend_id: friendId }, { enabled });
+  const summaryQuery = useRecordCareSummaryQuery({ friend_id: friendId }, { enabled });
+  const logQuery = useRecordCareLogQuery(
+    { friend_id: friendId, limit: CARE_LOG_LIMIT },
+    { enabled },
+  );
   const { pullStack, discardStack, pullPending, discardPending } =
     useRecordCareStackMutations(friendId);
+  const { logSession, voidSession, voidPending } = useRecordCareSessionMutations(friendId);
+  const [logOpen, setLogOpen] = React.useState(false);
+  // Only the log saved on this visit can be undone from the column.
+  const [justSavedId, setJustSavedId] = React.useState<number | null>(null);
+  const [undoError, setUndoError] = React.useState<string | null>(null);
 
   const stack = stackQuery.data ?? null;
   const stackKeys = React.useMemo(
@@ -106,9 +128,14 @@ function ChorePageContent() {
     setSelected(new Set(stack.items.map((item) => rowKey(item))));
   }, [stack]);
 
-  // The selection is "the stack" while everything picked belongs to it.
-  const isStackSelection =
-    stack !== null && selected.size > 0 && [...selected].every((key) => stackKeys.has(key));
+  // The selection is "the stack" while it is exactly the stack's copies; any
+  // other pick, a part of it included, is logged copy by copy.
+  const selectedStack =
+    stack !== null &&
+    selected.size === stackKeys.size &&
+    [...selected].every((key) => stackKeys.has(key))
+      ? stack
+      : null;
 
   const toggle = (key: string) =>
     setSelected((current) => {
@@ -158,6 +185,35 @@ function ChorePageContent() {
     setSelected(new Set());
   };
 
+  const save = async (body: Omit<RecordCareSessionCreate, "friend_id">) => {
+    const result = await logSession(body);
+    setJustSavedId(result.session.id);
+    setUndoError(null);
+    setSelected(new Set());
+  };
+
+  // Undo voids the log and gives the selection back: the reopened stack, or
+  // the copies an ad-hoc log touched (made real if they were implicit).
+  const undo = async (sessionId: number) => {
+    setUndoError(null);
+    try {
+      const result = await voidSession(sessionId);
+      setJustSavedId(null);
+      if (result.session.status === "open") {
+        restoredStackId.current = result.session.id;
+        setSelected(new Set(result.session.items.map((item) => rowKey(item))));
+      } else {
+        setSelected(
+          new Set(
+            result.copies.map((copy) => rowKey({ copy_id: copy.id, release_id: copy.release_id })),
+          ),
+        );
+      }
+    } catch (error) {
+      setUndoError(undoErrorText(error));
+    }
+  };
+
   const progress = progressQuery.data;
   const queue = queueQuery.data;
   const todo = progress ? todoCount(progress) : null;
@@ -190,6 +246,26 @@ function ChorePageContent() {
       </PageContainer>
     );
   }
+
+  // Every row on screen by key, for the modal's covers and names.
+  const rowsByKey = new Map<string, LogCareRecord>();
+  for (const item of stack?.items ?? []) {
+    const row = stackItemRow(item);
+    rowsByKey.set(rowKey(row), { key: rowKey(row), title: row.title, thumbnail: row.thumbnail });
+  }
+  for (const item of queue
+    ? [...queue.spun_recently.items, ...queue.new_arrivals.items, ...queue.backlog.items]
+    : []) {
+    rowsByKey.set(rowKey(item), {
+      key: rowKey(item),
+      title: item.title,
+      thumbnail: item.thumbnail,
+    });
+  }
+  const selectedRecords = [...selected].flatMap((key) => rowsByKey.get(key) ?? []);
+  const logTarget: LogCareTarget = selectedStack
+    ? { stack_id: selectedStack.id }
+    : { copies: [...selected].map(copyRefFromKey) };
 
   let groups: React.ReactNode;
   if (queueQuery.error) {
@@ -362,9 +438,10 @@ function ChorePageContent() {
           <Stack gap="18px">{groups}</Stack>
           <ChoresSelectionBar
             selected={selected.size}
-            stackNo={isStackSelection ? (stack?.stack_no ?? null) : null}
+            stackNo={selectedStack?.stack_no ?? null}
             onClear={() => void clear()}
             clearing={discardPending}
+            onLogCare={() => setLogOpen(true)}
           />
         </Stack>
 
@@ -376,9 +453,29 @@ function ChorePageContent() {
           display={{ base: tab === "log" ? "block" : "none", md: "block" }}
           minW={0}
         >
-          <ChoresCareLogSlot thisMonth={progress?.this_month} />
+          <ChoresCareLog
+            thisMonth={progress?.this_month}
+            entries={logQuery.data?.items}
+            error={logQuery.error}
+            timeZone={timeZone}
+            justSavedSessionId={justSavedId}
+            onUndo={(sessionId) => void undo(sessionId)}
+            undoPending={voidPending}
+            undoError={undoError}
+          />
         </Box>
       </Grid>
+
+      <LogCareDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        stackNo={selectedStack?.stack_no ?? null}
+        target={logTarget}
+        records={selectedRecords}
+        count={selected.size}
+        defaultSleeve={summaryQuery.data?.needs_sleeve_type ?? DEFAULT_TARGET_SLEEVE}
+        onSave={save}
+      />
     </PageContainer>
   );
 }

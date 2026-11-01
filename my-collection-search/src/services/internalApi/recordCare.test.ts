@@ -14,12 +14,15 @@ import {
   getRecordCareSummary,
   listRecordActions,
   listRecordCare,
+  listRecordCareLog,
   listRecordCareStacks,
   listRecordCopies,
+  logRecordCareSession,
   pullRecordCareStack,
   updateDefaultRecordCopy,
   updateRecordCopy,
   voidRecordAction,
+  voidRecordCareSession,
 } from "./recordCare";
 
 const GET_NO_STORE = { method: "GET", cache: "no-store" };
@@ -183,5 +186,55 @@ describe("chores", () => {
     expect(httpMock).toHaveBeenCalledWith("/api/record-care/stacks/12?friend_id=7", {
       method: "DELETE",
     });
+  });
+});
+
+describe("care sessions", () => {
+  it("logs a stack as the web app", async () => {
+    await logRecordCareSession({ friend_id: 7, stack_id: 50, action_types: ["cleaned"] });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/sessions",
+      jsonInit("POST", { source: "web", friend_id: 7, stack_id: 50, action_types: ["cleaned"] }),
+    );
+  });
+
+  it("logs an ad-hoc selection by copy and release", async () => {
+    await logRecordCareSession({
+      friend_id: 7,
+      copies: [{ copy_id: 3 }, { release_id: "rel-1" }],
+      action_types: ["sleeved"],
+      sleeve_type: "poly",
+    });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/sessions",
+      jsonInit("POST", {
+        source: "web",
+        friend_id: 7,
+        copies: [{ copy_id: 3 }, { release_id: "rel-1" }],
+        action_types: ["sleeved"],
+        sleeve_type: "poly",
+      }),
+    );
+  });
+
+  it("voids a session", async () => {
+    await voidRecordCareSession(12, 7);
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/sessions/12/void",
+      jsonInit("POST", { friend_id: 7 }),
+    );
+  });
+
+  it("lists the care log", async () => {
+    await listRecordCareLog({ friend_id: 7, limit: 8, offset: 0 });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/sessions?friend_id=7&limit=8&offset=0",
+      GET_NO_STORE,
+    );
+  });
+
+  it("leaves paging to the server's defaults", async () => {
+    await listRecordCareLog({ friend_id: 7 });
+    expect(httpMock).toHaveBeenCalledWith("/api/record-care/sessions?friend_id=7", GET_NO_STORE);
   });
 });

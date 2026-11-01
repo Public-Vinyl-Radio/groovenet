@@ -35,6 +35,10 @@ export function sleeveLabel(sleeve: SleeveType | null): string {
   return sleeve ? SLEEVE_LABELS[sleeve] : "Unknown sleeve";
 }
 
+export function cleaningMethodLabel(method: CleaningMethod): string {
+  return CLEANING_METHOD_LABELS[method];
+}
+
 export function actionLabel(actionType: RecordActionType): string {
   return ACTION_LABELS[actionType];
 }

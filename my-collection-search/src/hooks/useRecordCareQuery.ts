@@ -12,19 +12,24 @@ import {
   getRecordCareSummary,
   listRecordActions,
   listRecordCare,
+  listRecordCareLog,
   listRecordCareStacks,
   listRecordCopies,
+  logRecordCareSession,
   pullRecordCareStack,
   updateDefaultRecordCopy,
   updateRecordCopy,
   voidRecordAction,
+  voidRecordCareSession,
   type RecordActionCreateParams,
   type RecordActionListResponse,
+  type RecordCareLogResponse,
   type RecordCareParams,
   type RecordCareProgressResponse,
   type RecordCareQueueResponse,
   type RecordCareResponse,
   type RecordCareSession,
+  type RecordCareSessionCreate,
   type RecordCareSummaryResponse,
   type RecordCopyListItem,
   type RecordCopyListResponse,
@@ -231,5 +236,59 @@ export function useRecordCareStackMutations(friendId: number) {
     discardStack: discardMutation.mutateAsync,
     pullPending: pullMutation.isPending,
     discardPending: discardMutation.isPending,
+  };
+}
+
+/**
+ * The care log, newest first (#944). `limit` is the length so far: "more" asks
+ * for a longer page, and the shorter one stays up while it loads.
+ */
+export function useRecordCareLogQuery(
+  params: { friend_id: number; limit: number },
+  options?: QueryOptions,
+) {
+  return useQuery<RecordCareLogResponse, Error>({
+    queryKey: queryKeys.recordCareLog({ friend_id: params.friend_id, limit: params.limit }),
+    queryFn: () => listRecordCareLog(params),
+    enabled: options?.enabled ?? true,
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Log care for a stack or a selection, and undo a log. A logged stack is no
+ * longer open and an undone one opens again, so each writes the open stack
+ * into its cache before refreshing the root: queue, progress, summary and log.
+ */
+export function useRecordCareSessionMutations(friendId: number) {
+  const queryClient = useQueryClient();
+  const setOpenStack = (stack: RecordCareSession | null) =>
+    queryClient.setQueryData(queryKeys.recordCareOpenStack({ friend_id: friendId }), stack);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.recordCareRoot() });
+
+  const logMutation = useMutation({
+    mutationFn: (input: Omit<RecordCareSessionCreate, "friend_id">) =>
+      logRecordCareSession({ friend_id: friendId, ...input }),
+    onSuccess: async (result) => {
+      if (result.session.stack_no !== null) setOpenStack(null);
+      await invalidate();
+    },
+  });
+
+  const voidMutation = useMutation({
+    mutationFn: (sessionId: number) => voidRecordCareSession(sessionId, friendId),
+    onSuccess: async (result) => {
+      if (result.session.status === "open") setOpenStack(result.session);
+      await invalidate();
+    },
+  });
+
+  return {
+    logSession: logMutation.mutateAsync,
+    voidSession: voidMutation.mutateAsync,
+    logPending: logMutation.isPending,
+    voidPending: voidMutation.isPending,
   };
 }

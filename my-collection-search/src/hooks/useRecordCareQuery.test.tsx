@@ -21,16 +21,21 @@ const api = vi.hoisted(() => ({
   listRecordCareStacks: vi.fn(),
   pullRecordCareStack: vi.fn(),
   discardRecordCareStack: vi.fn(),
+  listRecordCareLog: vi.fn(),
+  logRecordCareSession: vi.fn(),
+  voidRecordCareSession: vi.fn(),
 }));
 vi.mock("@/services/internalApi/recordCare", () => api);
 
 import {
   useOpenRecordCareStackQuery,
   useRecordActionsQuery,
+  useRecordCareLogQuery,
   useRecordCareMutations,
   useRecordCareProgressQuery,
   useRecordCareQuery,
   useRecordCareQueueQuery,
+  useRecordCareSessionMutations,
   useRecordCareStackMutations,
   useRecordCareSummaryQuery,
   useRecordCopiesQuery,
@@ -317,5 +322,91 @@ describe("useRecordCareStackMutations", () => {
     expect(api.discardRecordCareStack).toHaveBeenCalledWith(12, 7);
     expect(client.getQueryData(openKey)).toBeNull();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() });
+  });
+});
+
+describe("useRecordCareLogQuery", () => {
+  it("asks for the log length so far", async () => {
+    api.listRecordCareLog.mockResolvedValue({ items: [], total: 0, limit: 8, offset: 0 });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useRecordCareLogQuery({ friend_id: 7, limit: 8 }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(api.listRecordCareLog).toHaveBeenCalledWith({ friend_id: 7, limit: 8 });
+  });
+
+  it("waits while disabled", () => {
+    const { wrapper } = setup();
+    renderHook(() => useRecordCareLogQuery({ friend_id: 7, limit: 8 }, { enabled: false }), {
+      wrapper,
+    });
+    expect(api.listRecordCareLog).not.toHaveBeenCalled();
+  });
+});
+
+describe("useRecordCareSessionMutations", () => {
+  const openKey = queryKeys.recordCareOpenStack({ friend_id: 7 });
+  const logged = { ...stack, status: "logged" as const, logged_at: "2026-11-01T11:00:00Z" };
+  const adHoc = { ...logged, stack_no: null };
+
+  it("logs a stack, clears the open stack and refreshes the root", async () => {
+    api.logRecordCareSession.mockResolvedValue({ session: logged, actions: [], copies: [] });
+    const { wrapper, invalidate, client } = setup();
+    client.setQueryData(openKey, stack);
+    const { result } = renderHook(() => useRecordCareSessionMutations(7), { wrapper });
+
+    await result.current.logSession({ stack_id: stack.id, action_types: ["cleaned"] });
+
+    expect(api.logRecordCareSession).toHaveBeenCalledWith({
+      friend_id: 7,
+      stack_id: stack.id,
+      action_types: ["cleaned"],
+    });
+    expect(client.getQueryData(openKey)).toBeNull();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() });
+  });
+
+  it("leaves an open stack alone when logging an ad-hoc selection", async () => {
+    api.logRecordCareSession.mockResolvedValue({ session: adHoc, actions: [], copies: [] });
+    const { wrapper, client } = setup();
+    client.setQueryData(openKey, stack);
+    const { result } = renderHook(() => useRecordCareSessionMutations(7), { wrapper });
+
+    await result.current.logSession({ copies: [{ copy_id: 3 }], action_types: ["inspected"] });
+
+    expect(client.getQueryData(openKey)).toEqual(stack);
+  });
+
+  it("undoes a stack's log and caches the reopened stack", async () => {
+    api.voidRecordCareSession.mockResolvedValue({
+      session: stack,
+      actions: [],
+      copies: [],
+      success: true,
+    });
+    const { wrapper, invalidate, client } = setup();
+    const { result } = renderHook(() => useRecordCareSessionMutations(7), { wrapper });
+
+    await result.current.voidSession(stack.id);
+
+    expect(api.voidRecordCareSession).toHaveBeenCalledWith(stack.id, 7);
+    expect(client.getQueryData(openKey)).toEqual(stack);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.recordCareRoot() });
+  });
+
+  it("undoes an ad-hoc log without touching the open stack", async () => {
+    api.voidRecordCareSession.mockResolvedValue({
+      session: { ...adHoc, voided_at: "2026-11-01T11:05:00Z" },
+      actions: [],
+      copies: [],
+      success: true,
+    });
+    const { wrapper, client } = setup();
+    const { result } = renderHook(() => useRecordCareSessionMutations(7), { wrapper });
+
+    await result.current.voidSession(9);
+
+    expect(client.getQueryData(openKey)).toBeUndefined();
   });
 });
