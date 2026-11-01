@@ -76,3 +76,5 @@ site-search dialog { border: 2px solid var(--ink); }
 @media (max-width: 800px) {
   .sl-menu-button { top: calc(var(--sl-nav-height) - 2.75rem); }
 }
+mobile-starlight-toc .toggle { border: 2px solid var(--ink); border-radius: 0; font-family: var(--mono); }
+.docs-tools :is(button, select) { font-family: var(--mono); }
