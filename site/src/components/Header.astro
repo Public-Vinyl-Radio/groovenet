@@ -5,6 +5,7 @@ interface Props { currentPath?: string; }
 const { currentPath = "/" } = Astro.props;
 // Section links are absolute, so they work from /about and /docs too.
 const links = [
+  { href: "/#features", label: "Features" },
   { href: "/#interfaces", label: "Interfaces" },
   { href: "/#appearance", label: "Appearance" },
   { href: "/#roadmap", label: "Roadmap" },

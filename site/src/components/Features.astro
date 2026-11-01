@@ -1,0 +1,177 @@
+---
+import SectionHead from "./SectionHead.astro";
+import PhoneFrame from "./PhoneFrame.astro";
+import Shot from "./Shot.astro";
+import { screenshots } from "../data/screenshots";
+import { gridFeatures, leadFeatures, trustPoints } from "../data/features";
+
+// Rows for the set-sheet stand-in, until #939 brings a crop of a real export.
+const sheet = [
+  ["1", "CD-9-A5", "A2", "Strange Salsa", "102", "8A", "4:12"],
+  ["2", "CD-2-B1", "A3", "Teardrop", "77", "6B", "5:31"],
+  ["3", "CD-4-C2", "B2", "High Noon", "95", "9A", "4:58"],
+  ["4", "CD-7-A1", "A2", "Genesis", "120", "11A", "4:16"],
+  ["5", "CD-3-D4", "B6", "Room Tone (Interlude)", "88", "4B", "1:47"],
+  ["6", "CD-1-B3", "D1", "What Does Your Soul Look Like", "96", "1A", "7:24"],
+];
+// Players for the Play on stand-in, until #939 brings a screenshot.
+const players = [
+  { name: "Lounge", meta: "OwnTone · AirPlay · Playing", on: true },
+  { name: "Studio", meta: "OwnTone · Idle", on: false },
+  { name: "This device", meta: "Local playback", on: false },
+];
+---
+<section id="features" class="features" aria-labelledby="features-title">
+  <div class="wrap section">
+    <SectionHead tag="Features / 01" aside="shelf → booth" />
+    <h2 id="features-title" class="h2">Everything between the shelf and the booth.</h2>
+
+    <div class="lead">
+      {leadFeatures.map((f) => (
+        <article class="card frame">
+          <div class:list={["visual", "shot" in f.visual ? f.visual.frame : f.visual.standIn]}>
+            {"shot" in f.visual ? (
+              f.visual.frame === "phone" ? (
+                <>
+                  <div class="hatch" aria-hidden="true"></div>
+                  <PhoneFrame shot={screenshots[f.visual.shot]} />
+                </>
+              ) : (
+                <Shot shot={screenshots[f.visual.shot]} widths={[480, 960]} sizes="(max-width: 720px) 100vw, 400px" />
+              )
+            ) : f.visual.standIn === "setSheet" ? (
+              <>
+                <div class="sheet" role="img" aria-label="Drawing of a set sheet: each track's shelf ID and position, with BPM, key and length.">
+                  <div class="sheet-head"><span class="b">SET SHEET</span><span>18 tracks · 4:02:10</span></div>
+                  <div class="sheet-grid" aria-hidden="true">
+                    {["#", "ID", "POS"].map((h) => <span class="th inv">{h}</span>)}
+                    {["TRACK", "BPM", "KEY", "LEN"].map((h) => <span class="th">{h}</span>)}
+                    {sheet.flatMap((row) => row.map((cell, i) => <span class:list={["td", { b: i === 1 || i === 2, pad: i < 3, name: i === 3 }]}>{cell}</span>))}
+                  </div>
+                </div>
+                <div class="fade" aria-hidden="true"></div>
+              </>
+            ) : (
+              <>
+                <div class="hatch" aria-hidden="true"></div>
+                <div class="playon frame" role="img" aria-label="Drawing of the Play on picker: music servers on OwnTone, and this device.">
+                  <div class="po-head caps" aria-hidden="true"><span>Play on</span><span>Music servers</span></div>
+                  {players.map((p) => (
+                    <div class="po-row" aria-hidden="true">
+                      <span class:list={["po-dot", { on: p.on }]}></span>
+                      <div class="po-text"><div class:list={["po-name", { on: p.on }]}>{p.name}</div><div class="po-meta">{p.meta}</div></div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div class="body">
+            <p class="eyebrow">{f.kicker}</p>
+            <h3>{f.title}</h3>
+            <p class="text">{f.body}</p>
+            <a class="more caps" href={f.href}>Read the docs →</a>
+          </div>
+        </article>
+      ))}
+    </div>
+
+    <ul class="grid" role="list">
+      {gridFeatures.map((f) => (
+        <li>
+          <a class="tile" href={f.href}>
+            {f.thumb && (
+              <div class="thumb" style={`--zoom:${f.thumb.zoom};--fx:${f.thumb.focus[0]}%;--fy:${f.thumb.focus[1]}%`}>
+                <Shot shot={screenshots[f.thumb.shot]} widths={[960, 1920]} sizes="(max-width: 720px) 250vw, 960px" />
+              </div>
+            )}
+            <div class="tile-body">
+              {f.icon && (
+                <span class="icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d={f.icon} /></svg>
+                </span>
+              )}
+              <h3>{f.title}</h3>
+              <p class="text">{f.body}</p>
+              <span class="more caps">Docs →</span>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <ul class="strip caps" role="list">
+      {trustPoints.map((t) => <li><span class="sq" aria-hidden="true"></span>{t}</li>)}
+    </ul>
+  </div>
+</section>
+<style>
+  .features { border-bottom: 2px solid var(--ink); }
+  .section { padding-block: 96px; }
+  h2 { margin-bottom: 48px; max-width: 820px; }
+  .lead, .grid { display: grid; gap: clamp(16px, 2.5vw, 32px); }
+  .lead { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); margin-bottom: clamp(16px, 2.5vw, 32px); }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); list-style: none; margin: 0; padding: 0; }
+
+  .card { display: flex; flex-direction: column; min-width: 0; }
+  .visual { height: 320px; border-bottom: 2px solid var(--ink); background: var(--surface); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: flex-start; }
+  .visual > .hatch { position: absolute; inset: 0; opacity: 0.07; }
+  .visual.phone { padding-top: 32px; }
+  .visual.phone :global(.phone) { position: relative; flex: none; width: 200px; border-radius: 34px; }
+  .visual.phone :global(.phone .screen) { border-radius: 24px; }
+  .visual.setSheet { padding: 32px 24px 0; }
+  .visual.playOn { align-items: center; padding: 24px; }
+  .body { padding: 24px; display: flex; flex-direction: column; gap: 12px; flex: 1 1 auto; }
+  .card h3 { font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+  .text { font-size: 16px; line-height: 1.6; color: var(--muted); }
+  .more { margin-top: auto; padding-top: 8px; }
+
+  /* A printed page: black on white in either mode. */
+  .sheet { position: relative; width: 100%; max-width: 380px; background: #ffffff; color: #000000; border: 1px solid #000000; box-shadow: 6px 6px 0 0 var(--shadow); padding: 18px 16px; font: 10.5px/1.4 var(--mono); }
+  .sheet-head { display: flex; justify-content: space-between; gap: 8px; border-bottom: 2px solid #000000; padding-bottom: 8px; margin-bottom: 8px; }
+  .sheet-head .b { letter-spacing: 0.1em; }
+  .b { font-weight: 600; }
+  .sheet-grid { display: grid; grid-template-columns: 22px 62px 30px minmax(0, 1fr) 30px 28px 34px; gap: 0 6px; }
+  .th { font-weight: 600; padding: 2px 0; }
+  .th.inv { background: #000000; color: #ffffff; padding: 2px 3px; }
+  .td { padding: 4px 0; border-bottom: 1px solid #bfbfbf; white-space: nowrap; }
+  .td.pad { padding-inline: 3px; }
+  .td.name { overflow: hidden; text-overflow: ellipsis; }
+  .sheet-grid > .td:nth-last-child(-n + 7) { border-bottom: 0; }
+  .fade { position: absolute; inset: auto 0 0; height: 70px; background: linear-gradient(to bottom, transparent, var(--surface)); }
+
+  .playon { position: relative; width: 100%; max-width: 340px; }
+  .po-head { display: flex; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 2px solid var(--ink); background: var(--ink); color: var(--ground); font-size: 11px; }
+  .po-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .po-row:last-child { border-bottom: 0; }
+  .po-dot { width: 12px; height: 12px; border: 2px solid var(--ink); flex: none; }
+  .po-dot.on { background: var(--ink); }
+  .po-text { min-width: 0; }
+  .po-name { font-size: 15px; font-weight: 500; }
+  .po-name.on { font-weight: 600; }
+  .po-meta { font: 11px var(--mono); color: var(--muted); text-transform: uppercase; }
+
+  .grid > li { display: flex; min-width: 0; }
+  .tile { flex: 1 1 auto; min-width: 0; text-decoration: none; color: var(--ink); border: 2px solid var(--ink); box-shadow: 4px 4px 0 0 var(--shadow); background: var(--ground); display: flex; flex-direction: column; }
+  .tile:hover { opacity: 1; background: var(--surface); }
+  .tile:hover .more { text-decoration: underline; text-underline-offset: 4px; }
+  /* The shot at `--zoom` times the card's width, its focus point aligned with the same point of the crop. */
+  .thumb { height: 150px; border-bottom: 2px solid var(--ink); background: var(--surface); position: relative; overflow: hidden; }
+  .thumb :global(.pic) { display: contents; }
+  .thumb :global(.img) { position: absolute; left: var(--fx); top: var(--fy); width: calc(var(--zoom) * 100%); height: auto; max-width: none; transform: translate(calc(-1 * var(--fx)), calc(-1 * var(--fy))); }
+  .tile-body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; }
+  .icon { width: 44px; height: 44px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+  .tile h3 { font-size: 19px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+  .tile .text { font-size: 15px; line-height: 1.55; }
+  .tile .more { padding-top: 6px; font-size: 11px; }
+
+  .strip { list-style: none; margin: 48px 0 0; padding: 16px 0; border-block: 2px solid var(--ink); display: flex; flex-wrap: wrap; gap: 12px 36px; letter-spacing: 0.14em; }
+  .strip li { display: inline-flex; align-items: center; gap: 10px; }
+  .sq { width: 8px; height: 8px; background: var(--ink); }
+
+  @media (max-width: 640px) {
+    .section { padding-block: 64px; }
+    h2 { margin-bottom: 32px; }
+    .strip { margin-top: 40px; gap: 10px 24px; }
+  }
+</style>
