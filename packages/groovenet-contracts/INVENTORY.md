@@ -135,6 +135,13 @@ is closed, so they need a follow-up issue as their owner.
 | POST | `/api/recommendations/candidates` | recommendations | #552 |  |
 | POST | `/api/record-actions` | record care | contracts |  |
 | DELETE | `/api/record-actions/{id}` | record care | contracts |  |
+| GET | `/api/record-care/sessions` | record care | contracts |  |
+| POST | `/api/record-care/sessions` | record care | contracts |  |
+| POST | `/api/record-care/sessions/{id}/void` | record care | contracts |  |
+| GET | `/api/record-care/stacks` | record care | contracts |  |
+| POST | `/api/record-care/stacks` | record care | contracts |  |
+| DELETE | `/api/record-care/stacks/{id}` | record care | contracts |  |
+| GET | `/api/record-care/stacks/{id}` | record care | contracts |  |
 | GET | `/api/record-copies` | record care | contracts |  |
 | POST | `/api/record-copies` | record care | contracts |  |
 | DELETE | `/api/record-copies/{id}` | record care | contracts |  |

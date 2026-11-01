@@ -751,7 +751,7 @@ spin-sessions-test:
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
   {{mise_exec}} npm run test:spin-sessions --prefix {{app_dir}}
 
-# Run the record copy and care queries against a throwaway pgvector db.
+# Run the record copy, care, stack and batch-log queries against a throwaway pgvector db.
 record-care-test:
   #!/usr/bin/env bash
   set -euo pipefail

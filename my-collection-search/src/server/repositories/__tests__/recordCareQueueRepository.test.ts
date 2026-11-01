@@ -4,6 +4,8 @@ import {
   recordCareQueueRepository,
   recordCareQueueSql,
   cleaningHistorySql,
+  openStackCopiesSql,
+  careThisMonthSql,
 } from "../recordCareQueueRepository";
 import { CARE_SCOPE_SQL } from "../recordCopyRepository";
 import { newArrivalsPredicate } from "../homeRepository";
@@ -84,4 +86,31 @@ it("pace counts each live copy's first non-voided cleaning once in 28 days", () 
   expect(cleaningHistorySql).toContain("count(first_cleaned)::int AS cleaned");
   expect(cleaningHistorySql).toContain("interval '28 days'");
   expect(cleaningHistorySql).toContain("first_cleaned <= $2");
+});
+
+it("reads open stack items, resolving implicit refs to a newly materialized default", async () => {
+  const rows = [{ copy_id: 4, release_id: "r" }];
+  vi.mocked(dbQuery).mockResolvedValue({ rows } as never);
+  expect(await recordCareQueueRepository.openStackCopies(7)).toBe(rows);
+  expect(dbQuery).toHaveBeenLastCalledWith(openStackCopiesSql, [7]);
+  expect(openStackCopiesSql).toContain("coalesce(i.copy_id, c.id)");
+  expect(openStackCopiesSql).toContain("c.is_default AND c.deleted_at IS NULL");
+  expect(openStackCopiesSql).toContain("s.friend_id = $1 AND s.status = 'open'");
+});
+it("counts distinct live records/sessions by logged time inside local month bounds", async () => {
+  const result = { records: 5, sessions: 2 };
+  vi.mocked(dbQuery).mockResolvedValue({ rows: [result] } as never);
+  expect(await recordCareQueueRepository.thisMonth(7, "2026-10", "America/Los_Angeles")).toBe(
+    result,
+  );
+  expect(dbQuery).toHaveBeenLastCalledWith(careThisMonthSql, [
+    7,
+    "2026-10-01",
+    "America/Los_Angeles",
+  ]);
+  expect(careThisMonthSql).toContain("count(DISTINCT ra.copy_id)");
+  expect(careThisMonthSql).toContain("count(DISTINCT s.id)");
+  expect(careThisMonthSql).toContain("ra.voided_at IS NULL");
+  expect(careThisMonthSql).toContain("s.voided_at IS NULL");
+  expect(careThisMonthSql).toContain("s.logged_at >= ($2::date::timestamp AT TIME ZONE $3)");
 });

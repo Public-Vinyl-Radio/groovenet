@@ -42,6 +42,13 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["get", "/api/record-copies/care/summary"],
   ["post", "/api/record-actions"],
   ["delete", "/api/record-actions/{id}"],
+  ["post", "/api/record-care/stacks"],
+  ["get", "/api/record-care/stacks"],
+  ["get", "/api/record-care/stacks/{id}"],
+  ["delete", "/api/record-care/stacks/{id}"],
+  ["post", "/api/record-care/sessions"],
+  ["get", "/api/record-care/sessions"],
+  ["post", "/api/record-care/sessions/{id}/void"],
   // Album artwork (#494).
   ["get", "/api/albums/{releaseId}/artwork"],
   ["put", "/api/albums/{releaseId}/artwork"],
@@ -282,6 +289,13 @@ describe("OpenAPI contract coverage", () => {
     );
     expect(ref(op("/api/record-actions/{id}", "delete").responses["200"])).toBe(
       "RecordActionVoidResponse",
+    );
+    expect(ref(op("/api/record-care/stacks", "post").requestBody)).toBe("RecordCareStackPull");
+    expect(ref(op("/api/record-care/sessions", "post").requestBody)).toBe(
+      "RecordCareSessionCreate",
+    );
+    expect(ref(op("/api/record-care/sessions/{id}/void", "post").responses["200"])).toBe(
+      "RecordCareSessionVoidResponse",
     );
 
     const param = (path: string, name: string) =>

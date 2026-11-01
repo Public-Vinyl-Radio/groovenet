@@ -82,10 +82,10 @@ export const recordCareProgressResponseSchema = z.object({
       description:
         "First cleanings over the preceding 28 days / stack size / 4 weeks. Requires two cleaning days spanning at least 7 days.",
     }),
-  this_month: z
-    .object({ records: z.number().int(), sessions: z.number().int() })
-    .nullable()
-    .meta({ description: "Null until the session integration from #941 lands" }),
+  this_month: z.object({ records: z.number().int(), sessions: z.number().int() }).nullable().meta({
+    description:
+      "Distinct copies and live sessions logged this calendar month in the display time zone; backdated care uses the session logged time",
+  }),
   by_sleeve_type: recordCareSummarySchema.shape.by_sleeve_type,
 });
 export type RecordCareQueueQuery = z.infer<typeof recordCareQueueQuerySchema>;

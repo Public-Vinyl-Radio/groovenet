@@ -6,6 +6,7 @@ export * from "./albums.js";
 export * from "./friends.js";
 export * from "./recordCare.js";
 export * from "./recordCareQueue.js";
+export * from "./recordCareSessions.js";
 export * from "./spins.js";
 export * from "./players.js";
 export * from "./genres.js";

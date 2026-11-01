@@ -10,20 +10,6 @@ import { HOME_NEW_ARRIVALS_WINDOW_DAYS } from "@/server/repositories/homeReposit
 import { recordCareQueueRepository } from "@/server/repositories/recordCareQueueRepository";
 import { recordCareService } from "./recordCareService";
 
-/** TODO(#941): read items of the friend's open care stack once #947 lands. */
-export async function openStackCopies(
-  _friendId: number,
-): Promise<Array<{ copy_id: number | null; release_id: string }>> {
-  void _friendId;
-  return [];
-}
-/** TODO(#941): count live records and sessions logged this local calendar month. */
-export async function careThisMonth(
-  _friendId: number,
-): Promise<RecordCareProgressResponse["this_month"]> {
-  void _friendId;
-  return null;
-}
 export function currentCareMonth(now: Date, zone: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: zone,
@@ -42,7 +28,7 @@ async function queueData(query: RecordCareQueueQuery, now: Date, all: boolean) {
     now,
     all ? null : (query.limit ?? 50),
     all ? 0 : (query.offset ?? 0),
-    await openStackCopies(query.friend_id),
+    await recordCareQueueRepository.openStackCopies(query.friend_id),
   );
   return { ...data, month };
 }
@@ -83,10 +69,11 @@ export const recordCareQueueService = {
     query: RecordCareProgressQuery,
     now = new Date(),
   ): Promise<RecordCareProgressResponse> {
+    const zone = getDisplayTimeZone();
     const [history, summary, this_month] = await Promise.all([
       recordCareQueueRepository.history(query.friend_id, now, getDisplayTimeZone()),
       recordCareService.careSummary(query.friend_id),
-      careThisMonth(query.friend_id),
+      recordCareQueueRepository.thisMonth(query.friend_id, currentCareMonth(now, zone), zone),
     ]);
     const stack_size = query.stack_size ?? 10;
     const { total, cleaned, recent, cleaning_days, first_recent } = history;

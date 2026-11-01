@@ -7,6 +7,7 @@ import {
   recordCareQueueService,
   flattenedRecordCareQueue,
 } from "@/server/services/recordCareQueueService";
+import { RecordCareSessionService } from "@/server/services/recordCareSessionService";
 import { RecordCareService } from "@/server/services/recordCareService";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
@@ -278,3 +279,91 @@ dbTest("counts first cleanings once, excludes voids and old history from pace", 
     stacks_per_week: 0.05,
   });
 });
+
+dbTest(
+  "a pulled stack uses queue order and excludes implicit refs even after materialization",
+  async () => {
+    vi.stubEnv("GROOVENET_TIME_ZONE", zone);
+    const sessions = new RecordCareSessionService();
+    const expected = await flattenedRecordCareQueue(friendId);
+    const { stack } = await sessions.pullStack({ friend_id: friendId, size: 2 });
+    expect(stack.items.map((i) => [i.release_id, i.copy_id])).toEqual(
+      expected.slice(0, 2).map((i) => [i.release_id, i.copy_id]),
+    );
+    const implicit = await sessions.discardStack(stack.id, friendId);
+    expect(implicit?.status).toBe("discarded");
+    const selected = await sessions.pullStack({
+      friend_id: friendId,
+      copies: [{ release_id: "queue-new-edge" }],
+    });
+    expect(
+      (await recordCareQueueService.queue({ friend_id: friendId }, now)).new_arrivals.items.some(
+        (i) => i.release_id === "queue-new-edge",
+      ),
+    ).toBe(false);
+    const materialized = await care.logAction({
+      friend_id: friendId,
+      release_id: "queue-new-edge",
+      action_type: "inspected",
+    });
+    expect(await recordCareQueueRepository.openStackCopies(friendId)).toContainEqual({
+      copy_id: materialized.copy.id,
+      release_id: "queue-new-edge",
+    });
+    expect(
+      (await recordCareQueueService.queue({ friend_id: friendId }, now)).new_arrivals.items.some(
+        (i) => i.release_id === "queue-new-edge",
+      ),
+    ).toBe(false);
+    await sessions.discardStack(selected.stack.id, friendId);
+    expect(
+      (await recordCareQueueService.queue({ friend_id: friendId }, now)).new_arrivals.items.some(
+        (i) => i.release_id === "queue-new-edge",
+      ),
+    ).toBe(true);
+  },
+);
+dbTest(
+  "this_month counts distinct records and sessions by local logged time, excluding undo and duplicate types",
+  async () => {
+    const sessions = new RecordCareSessionService();
+    const logged = await sessions.logSession({
+      friend_id: friendId,
+      copies: [{ release_id: "queue-new-edge" }, { release_id: "queue-digital" }],
+      action_types: ["cleaned", "sleeved"],
+      sleeve_type: "poly",
+      occurred_at: "2020-01-01T00:00:00Z",
+    });
+    await dbQuery(
+      "UPDATE record_care_sessions SET logged_at = '2026-10-01T07:00:00Z' WHERE id = $1",
+      [logged.session.id],
+    );
+    const outside = await sessions.logSession({
+      friend_id: friendId,
+      copies: [{ release_id: "queue-spun" }],
+      action_types: ["inspected"],
+    });
+    await dbQuery(
+      "UPDATE record_care_sessions SET logged_at = '2026-11-01T07:00:00Z' WHERE id = $1",
+      [outside.session.id],
+    );
+    const undone = await sessions.logSession({
+      friend_id: friendId,
+      copies: [{ release_id: "queue-voided" }],
+      action_types: ["inspected"],
+    });
+    await dbQuery(
+      "UPDATE record_care_sessions SET logged_at = '2026-10-15T07:00:00Z' WHERE id = $1",
+      [undone.session.id],
+    );
+    await sessions.voidSession(undone.session.id, friendId);
+    expect(await recordCareQueueRepository.thisMonth(friendId, "2026-10", zone)).toEqual({
+      records: 2,
+      sessions: 1,
+    });
+    expect(await recordCareQueueRepository.thisMonth(friendId, "2026-09", zone)).toEqual({
+      records: 0,
+      sessions: 0,
+    });
+  },
+);

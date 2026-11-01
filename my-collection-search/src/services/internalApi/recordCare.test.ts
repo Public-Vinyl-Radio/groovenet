@@ -89,7 +89,10 @@ describe("record actions", () => {
       sleeve_type: "poly-rice-paper-poly" as const,
     };
     await createRecordAction(body);
-    expect(httpMock).toHaveBeenCalledWith("/api/record-actions", jsonInit("POST", body));
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-actions",
+      jsonInit("POST", { source: "web", ...body }),
+    );
   });
 
   it("voids an action", async () => {

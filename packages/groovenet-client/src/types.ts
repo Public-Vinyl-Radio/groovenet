@@ -755,6 +755,27 @@ export type {
   RecordCopyUpdate as RecordCopyUpdateInput,
 } from "@groovenet/contracts";
 
+// Care stacks and batch logs (#941).
+export type {
+  RecordCareCopyRef,
+  RecordCareLogEntry,
+  RecordCareLogQuery,
+  RecordCareLogResponse,
+  RecordCareSession,
+  RecordCareSessionCreate,
+  RecordCareSessionMutationResponse,
+  RecordCareSessionStatus,
+  RecordCareSessionVoidResponse,
+  RecordCareSource,
+  RecordCareStackDiscardResponse,
+  RecordCareStackItem,
+  RecordCareStackListQuery,
+  RecordCareStackListResponse,
+  RecordCareStackPull,
+  RecordCareStackPullResponse,
+  RecordCareStackResponse,
+} from "@groovenet/contracts";
+
 /** The font roles the app lets you choose a face for. */
 export type AppearanceFontRole = "display" | "body" | "label";
 

@@ -1,7 +1,7 @@
 import { dbQuery } from "@/lib/serverDb";
 import { CARE_SCOPE_SQL } from "./recordCopyRepository";
 import { newArrivalsPredicate } from "./homeRepository";
-import type { RecordCareQueueItem } from "@groovenet/contracts";
+import type { RecordCareQueueItem, RecordCareProgressResponse } from "@groovenet/contracts";
 
 export type QueueRow = RecordCareQueueItem & {
   group_name: "spun_recently" | "new_arrivals" | "backlog";
@@ -62,7 +62,46 @@ SELECT count(*)::int AS total, count(first_cleaned)::int AS cleaned,
  min(first_cleaned) FILTER (WHERE first_cleaned >= $2::timestamptz - interval '28 days' AND first_cleaned <= $2) AS first_recent
 FROM copies`;
 
+export const openStackCopiesSql = `
+SELECT coalesce(i.copy_id, c.id) AS copy_id, i.release_id
+FROM record_care_session_items i
+JOIN record_care_sessions s ON s.id = i.session_id
+LEFT JOIN record_copies c ON i.copy_id IS NULL AND c.friend_id = s.friend_id
+  AND c.release_id = i.release_id AND c.is_default AND c.deleted_at IS NULL
+WHERE s.friend_id = $1 AND s.status = 'open'
+ORDER BY i.position`;
+
+// Logged time, rather than backdated care occurrence time, defines this activity card.
+// Multiple care types for a copy in one session count as one record.
+export const careThisMonthSql = `
+SELECT count(DISTINCT ra.copy_id)::int AS records, count(DISTINCT s.id)::int AS sessions
+FROM record_care_sessions s
+JOIN record_actions ra ON ra.session_id = s.id AND ra.voided_at IS NULL
+WHERE s.friend_id = $1 AND s.status = 'logged' AND s.voided_at IS NULL
+  AND s.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
+  AND s.logged_at < (($2::date + interval '1 month') AT TIME ZONE $3)`;
+
 export const recordCareQueueRepository = {
+  async openStackCopies(
+    friendId: number,
+  ): Promise<Array<{ copy_id: number | null; release_id: string }>> {
+    return (
+      await dbQuery<{ copy_id: number | null; release_id: string }>(openStackCopiesSql, [friendId])
+    ).rows;
+  },
+  async thisMonth(
+    friendId: number,
+    month: string,
+    zone: string,
+  ): Promise<NonNullable<RecordCareProgressResponse["this_month"]>> {
+    return (
+      await dbQuery<NonNullable<RecordCareProgressResponse["this_month"]>>(careThisMonthSql, [
+        friendId,
+        `${month}-01`,
+        zone,
+      ])
+    ).rows[0];
+  },
   async queue(
     friendId: number,
     month: string,

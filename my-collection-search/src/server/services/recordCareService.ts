@@ -5,6 +5,7 @@ import type {
   RecordCareSummary,
   RecordCopy,
   RecordCopyListItem,
+  RecordCareSource,
 } from "@groovenet/contracts";
 import { withDbTransaction } from "@/lib/serverDb";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/server/repositories/recordActionRepository";
 import {
   recordCopyRepository,
+  type Queryable,
   type RecordCareCounts,
   type RecordCareRow,
   type RecordCopyRow,
@@ -43,6 +45,7 @@ export type LogRecordActionInput = {
   notes?: string | null;
   sleeve_type?: SleeveType | null;
   details?: RecordActionDetails;
+  source?: RecordCareSource;
 } & ({ copy_id: number; release_id?: never } | { copy_id?: never; release_id: string });
 
 function toIso(value: Date | string): string {
@@ -53,7 +56,7 @@ function toIsoOrNull(value: Date | string | null): string | null {
   return value == null ? null : toIso(value);
 }
 
-function normalizeCopy(row: RecordCopyRow): RecordCopy {
+export function normalizeCopy(row: RecordCopyRow): RecordCopy {
   return {
     ...row,
     last_cleaned_at: toIsoOrNull(row.last_cleaned_at),
@@ -79,7 +82,7 @@ function implicitDefaultCopy(friendId: number, releaseId: string): RecordCopyLis
   };
 }
 
-function normalizeAction(row: RecordActionRow): RecordAction {
+export function normalizeAction(row: RecordActionRow): RecordAction {
   return {
     ...row,
     occurred_at: toIso(row.occurred_at),
@@ -213,23 +216,44 @@ export class RecordCareService {
                 input.release_id,
               )
             ).id;
-      const locked = await recordCopyRepository.findCopyForUpdate(client, copyId, input.friend_id);
-      if (!locked) throw new Error(RECORD_COPY_NOT_FOUND);
-
-      const action = await recordActionRepository.insertAction(client, {
-        copy_id: locked.id,
-        friend_id: input.friend_id,
-        action_type: input.action_type,
-        occurred_at: input.occurred_at ?? new Date(),
-        notes: input.notes,
-        sleeve_type: input.action_type === "sleeved" ? input.sleeve_type : null,
-        details: input.details,
-      });
-      const copy = await recordCopyRepository.refreshCareState(client, locked.id);
-      return { action, copy };
+      return this.logActionInTransaction(client, { ...input, copy_id: copyId });
     });
 
     return { action: normalizeAction(result.action), copy: normalizeCopy(result.copy) };
+  }
+
+  /**
+   * The write half of logAction, for a caller that already holds a
+   * transaction and has resolved the copy: lock it, insert, rebuild its care
+   * state. A batch log runs this once per copy per type (#941).
+   */
+  async logActionInTransaction(
+    client: Queryable,
+    input: Omit<LogRecordActionInput, "copy_id" | "release_id"> & {
+      copy_id: number;
+      session_id?: number;
+    },
+  ): Promise<{ action: RecordActionRow; copy: RecordCopyRow }> {
+    const locked = await recordCopyRepository.findCopyForUpdate(
+      client,
+      input.copy_id,
+      input.friend_id,
+    );
+    if (!locked) throw new Error(RECORD_COPY_NOT_FOUND);
+
+    const action = await recordActionRepository.insertAction(client, {
+      copy_id: locked.id,
+      friend_id: input.friend_id,
+      action_type: input.action_type,
+      occurred_at: input.occurred_at ?? new Date(),
+      notes: input.notes,
+      sleeve_type: input.action_type === "sleeved" ? input.sleeve_type : null,
+      details: input.details,
+      session_id: input.session_id,
+      source: input.source,
+    });
+    const copy = await recordCopyRepository.refreshCareState(client, locked.id);
+    return { action, copy };
   }
 
   /**
@@ -243,18 +267,26 @@ export class RecordCareService {
     const result = await withDbTransaction(async (client) => {
       const existing = await recordActionRepository.findAction(client, actionId, friendId);
       if (!existing) return null;
-      // Lock the copy before touching its actions, as logAction does.
-      await recordCopyRepository.findCopyForUpdate(client, existing.copy_id, friendId, {
-        includeDeleted: true,
-      });
-      const action = await recordActionRepository.voidAction(client, actionId);
-      const copy = await recordCopyRepository.refreshCareState(client, existing.copy_id);
-      return { action, copy };
+      return this.voidActionInTransaction(client, existing);
     });
 
     return result
       ? { action: normalizeAction(result.action), copy: normalizeCopy(result.copy) }
       : null;
+  }
+
+  /** The write half of voidAction, inside the caller's transaction. */
+  async voidActionInTransaction(
+    client: Queryable,
+    existing: RecordActionRow,
+  ): Promise<{ action: RecordActionRow; copy: RecordCopyRow }> {
+    // Lock the copy before touching its actions, as logAction does.
+    await recordCopyRepository.findCopyForUpdate(client, existing.copy_id, existing.friend_id, {
+      includeDeleted: true,
+    });
+    const action = await recordActionRepository.voidAction(client, existing.id);
+    const copy = await recordCopyRepository.refreshCareState(client, existing.copy_id);
+    return { action, copy };
   }
 
   async listCare(filters: {

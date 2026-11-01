@@ -115,6 +115,18 @@ import type {
   RecordCopyListResponse,
   RecordCopyResponse,
   RecordCopyUpdateInput,
+  RecordCareLogQuery,
+  RecordCareLogResponse,
+  RecordCareSession,
+  RecordCareSessionCreate,
+  RecordCareSessionMutationResponse,
+  RecordCareSessionVoidResponse,
+  RecordCareStackDiscardResponse,
+  RecordCareStackListQuery,
+  RecordCareStackListResponse,
+  RecordCareStackPull,
+  RecordCareStackPullResponse,
+  RecordCareStackResponse,
   PlaylistOptimizerMode,
 } from "./types.js";
 
@@ -1119,6 +1131,79 @@ export class GroovenetClient {
       friend_id: query.friend_id,
       overdue_days: query.overdue_days,
       needs_sleeve: query.needs_sleeve,
+    });
+  }
+
+  /**
+   * Pull the next stack of copies to care for, or name them in `copies`. With
+   * a stack already open, the API returns that one with `created: false`.
+   */
+  async pullRecordCareStack(input: RecordCareStackPull): Promise<RecordCareStackPullResponse> {
+    return this.request<RecordCareStackPullResponse>("POST", "/record-care/stacks", input);
+  }
+
+  /** The friend's stacks, newest first; `status: "open"` for the one in progress. */
+  async listRecordCareStacks(
+    query: RecordCareStackListQuery,
+  ): Promise<RecordCareStackListResponse> {
+    return this.request<RecordCareStackListResponse>("GET", "/record-care/stacks", undefined, {
+      friend_id: query.friend_id,
+      status: query.status,
+      limit: query.limit ?? 20,
+      offset: query.offset ?? 0,
+    });
+  }
+
+  async getRecordCareStack(id: number, friendId: number): Promise<RecordCareSession> {
+    const { stack } = await this.request<RecordCareStackResponse>(
+      "GET",
+      `/record-care/stacks/${id}`,
+      undefined,
+      { friend_id: friendId },
+    );
+    return stack;
+  }
+
+  /** Clear an open stack without logging it. */
+  async discardRecordCareStack(id: number, friendId: number): Promise<RecordCareSession> {
+    const { stack } = await this.request<RecordCareStackDiscardResponse>(
+      "DELETE",
+      `/record-care/stacks/${id}`,
+      undefined,
+      { friend_id: friendId },
+    );
+    return stack;
+  }
+
+  /**
+   * Log care for a stack or an ad-hoc selection: one action per copy per type,
+   * all or nothing.
+   */
+  async logRecordCareSession(
+    input: RecordCareSessionCreate,
+  ): Promise<RecordCareSessionMutationResponse> {
+    return this.request<RecordCareSessionMutationResponse>("POST", "/record-care/sessions", input);
+  }
+
+  /** Undo a log: its actions are voided (kept as history) and a stack reopens. */
+  async voidRecordCareSession(
+    id: number,
+    friendId: number,
+  ): Promise<RecordCareSessionMutationResponse> {
+    const { session, actions, copies } = await this.request<RecordCareSessionVoidResponse>(
+      "POST",
+      `/record-care/sessions/${id}/void`,
+      { friend_id: friendId },
+    );
+    return { session, actions, copies };
+  }
+
+  /** The care log, newest first: sessions and actions logged on their own. */
+  async listRecordCareLog(query: RecordCareLogQuery): Promise<RecordCareLogResponse> {
+    return this.request<RecordCareLogResponse>("GET", "/record-care/sessions", undefined, {
+      friend_id: query.friend_id,
+      limit: query.limit ?? 20,
+      offset: query.offset ?? 0,
     });
   }
   /** A subscription has no replay. Each new stream must begin with a snapshot. */

@@ -3,14 +3,17 @@ import {
   recordCareQueueService,
   flattenedRecordCareQueue,
   currentCareMonth,
-  openStackCopies,
-  careThisMonth,
 } from "../recordCareQueueService";
 import { recordCareQueueRepository } from "@/server/repositories/recordCareQueueRepository";
 import { recordCareService } from "../recordCareService";
 import type { QueueRow } from "@/server/repositories/recordCareQueueRepository";
 vi.mock("@/server/repositories/recordCareQueueRepository", () => ({
-  recordCareQueueRepository: { queue: vi.fn(), history: vi.fn() },
+  recordCareQueueRepository: {
+    queue: vi.fn(),
+    history: vi.fn(),
+    openStackCopies: vi.fn(),
+    thisMonth: vi.fn(),
+  },
 }));
 vi.mock("../recordCareService", () => ({ recordCareService: { careSummary: vi.fn() } }));
 const now = new Date("2026-11-01T06:30:00Z");
@@ -36,6 +39,8 @@ beforeEach(() => {
     items: [row("spun_recently", 1), row("new_arrivals", 2), row("backlog", null)],
     backlog_total: 15,
   });
+  vi.mocked(recordCareQueueRepository.openStackCopies).mockResolvedValue([]);
+  vi.mocked(recordCareQueueRepository.thisMonth).mockResolvedValue({ records: 2, sessions: 1 });
   vi.mocked(recordCareService.careSummary).mockResolvedValue({ by_sleeve_type } as never);
   vi.mocked(recordCareQueueRepository.history).mockResolvedValue({
     total: 21,
@@ -106,9 +111,32 @@ it("exports the complete stack pull order without a backlog page limit", async (
     [],
   );
 });
-it("leaves the two #941 integrations explicitly stubbed", async () => {
-  expect(await openStackCopies(7)).toEqual([]);
-  expect(await careThisMonth(7)).toBeNull();
+it("passes real open-stack refs to the SQL and uses the display month for session counts", async () => {
+  const excluded = [
+    { copy_id: null, release_id: "a" },
+    { copy_id: 2, release_id: "b" },
+  ];
+  vi.mocked(recordCareQueueRepository.openStackCopies).mockResolvedValue(excluded);
+  await recordCareQueueService.queue({ friend_id: 7 });
+  expect(recordCareQueueRepository.openStackCopies).toHaveBeenCalledWith(7);
+  expect(recordCareQueueRepository.queue).toHaveBeenLastCalledWith(
+    7,
+    "2026-10",
+    "America/Los_Angeles",
+    now,
+    50,
+    0,
+    excluded,
+  );
+  expect((await recordCareQueueService.progress({ friend_id: 7 })).this_month).toEqual({
+    records: 2,
+    sessions: 1,
+  });
+  expect(recordCareQueueRepository.thisMonth).toHaveBeenCalledWith(
+    7,
+    "2026-10",
+    "America/Los_Angeles",
+  );
 });
 it("returns ever-cleaned progress, sleeves, and no pace for one cleaning day", async () => {
   expect(await recordCareQueueService.progress({ friend_id: 7 })).toEqual({
@@ -119,7 +147,7 @@ it("returns ever-cleaned progress, sleeves, and no pace for one cleaning day", a
     stacks_done: 1,
     next_stack_no: 2,
     pace: null,
-    this_month: null,
+    this_month: { records: 2, sessions: 1 },
     by_sleeve_type,
   });
 });

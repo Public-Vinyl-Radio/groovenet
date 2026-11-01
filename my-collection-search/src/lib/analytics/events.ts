@@ -200,6 +200,30 @@ export type AnalyticsEvents = {
     copy_id: number;
     action_type: RecordActionType;
   };
+  // Care stacks and batch logs (#941). stack_no is null for an ad-hoc log.
+  record_care_stack_pulled: ServerSource & {
+    session_id: number;
+    stack_no: number | null;
+    record_count: number;
+    created: boolean;
+  };
+  record_care_stack_discarded: ServerSource & {
+    session_id: number;
+    stack_no: number | null;
+  };
+  record_care_session_logged: ServerSource & {
+    session_id: number;
+    stack_no: number | null;
+    action_types: RecordActionType[];
+    record_count: number;
+    sleeve_type: SleeveType | null;
+    method: CleaningMethod | null;
+  };
+  record_care_session_voided: ServerSource & {
+    session_id: number;
+    stack_no: number | null;
+    action_count: number;
+  };
 
   recommendations_requested: ServerSource & {
     mode: "identity" | "audio" | "combined";

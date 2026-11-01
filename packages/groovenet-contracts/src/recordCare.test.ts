@@ -42,6 +42,8 @@ const action = {
   sleeve_type: null,
   details: { method: "ultrasonic" as const },
   voided_at: null,
+  session_id: null,
+  source: "api" as const,
   created_at: "2026-10-01T00:00:00.000Z",
 };
 
