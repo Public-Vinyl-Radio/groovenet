@@ -1,14 +1,19 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
+import starlightImageZoom from "starlight-image-zoom";
+import { satteri } from "@astrojs/markdown-satteri";
+import { responsiveThemeShots, themeScreenshots } from "./src/lib/theme-screenshots.mjs";
 
 export default defineConfig({
   site: "https://groovenet.publicvinylradio.com",
   output: "static",
+  markdown: { processor: satteri({ mdastPlugins: [themeScreenshots()], hastPlugins: [responsiveThemeShots()] }) },
   integrations: [sitemap(), starlight({
     title: "GrooveNet",
     description: "The collection, the set, the next record.",
     favicon: "/favicon.png",
+    plugins: [starlightImageZoom()],
     customCss: ["./src/styles/docs.css"],
     components: {
       Head: "./src/components/docs/Head.astro",
