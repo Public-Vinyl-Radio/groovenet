@@ -10,7 +10,8 @@
     "dev": "astro dev",
     "build": "astro check && astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "test": "node --test src/lib/roadmap.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.6.0",
