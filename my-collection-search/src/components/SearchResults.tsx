@@ -203,6 +203,14 @@ const SearchResults: React.FC = () => {
 
   const trackStoreMap = useTrackStore((s) => s.tracks);
 
+  // A track deleted (or otherwise evicted from the store) can't stay selected.
+  React.useEffect(() => {
+    setSelectedTracks((prev) => {
+      const kept = Array.from(prev).filter((key) => trackStoreMap.has(key));
+      return kept.length === prev.size ? prev : new Set(kept);
+    });
+  }, [trackStoreMap]);
+
   const downloadableTracks = React.useMemo(() => {
     return Array.from(selectedTracks)
       .map((key) => trackStoreMap.get(key))

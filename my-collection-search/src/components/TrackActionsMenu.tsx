@@ -29,8 +29,9 @@ import TrackActionsModal, { openInActions } from "@/components/TrackActionsModal
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
 import { useEnrichmentStore } from "@/stores/enrichmentStore";
+import { useDeleteTrackMutation } from "@/hooks/useDeleteTrackMutation";
 import { useUploadTrackAudioMutation } from "@/hooks/useUploadTrackAudioMutation";
-import { analyzeTrackAsync, saveTrack, softDeleteTrack } from "@/services/internalApi/tracks";
+import { analyzeTrackAsync, saveTrack } from "@/services/internalApi/tracks";
 import { queryKeys } from "@/lib/queryKeys";
 import { useTrackStore } from "@/stores/trackStore";
 import { cleanSoundcloudUrl } from "@/lib/url";
@@ -94,6 +95,7 @@ export default function TrackActionsMenu({
   const router = useRouter();
   const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
   const uploadMutation = useUploadTrackAudioMutation();
+  const deleteTrack = useDeleteTrackMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -129,9 +131,12 @@ export default function TrackActionsMenu({
     }
     setDeleteLoading(true);
     try {
-      await softDeleteTrack({ track_id: track.track_id, friend_id: track.friend_id });
+      await deleteTrack.mutateAsync({
+        track_id: track.track_id,
+        friend_id: track.friend_id,
+        release_id: track.release_id,
+      });
       toaster.create({ title: "Track deleted", type: "success" });
-      queryClient.invalidateQueries({ queryKey: ["tracks"] });
     } catch (err) {
       toaster.create({
         title: "Failed to delete track",
