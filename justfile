@@ -289,6 +289,10 @@ site-build:
 site-preview:
   {{mise_exec}} npm run preview --prefix site
 
+# Refresh the site's committed roadmap fallback (src/data/roadmap.yml) from GitHub issue labels.
+site-roadmap:
+  {{mise_exec}} node site/scripts/refresh-roadmap.mjs
+
 # Regenerate the site's screenshots from this worktree's prod-seeded stack [--palette X] [--mode light|dark].
 site-screenshots *args:
   #!/usr/bin/env bash
