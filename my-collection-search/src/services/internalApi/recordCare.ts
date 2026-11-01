@@ -1,4 +1,16 @@
 import { z } from "zod";
+import type {
+  RecordCareProgressQuery,
+  RecordCareProgressResponse,
+  RecordCareQueueQuery,
+  RecordCareQueueResponse,
+  RecordCareSession,
+  RecordCareStackDiscardResponse,
+  RecordCareStackListQuery,
+  RecordCareStackListResponse,
+  RecordCareStackPull,
+  RecordCareStackPullResponse,
+} from "@groovenet/contracts";
 import {
   recordActionCreateBodySchema,
   recordActionListQuerySchema,
@@ -51,6 +63,17 @@ export type RecordCareParams = Paged<z.infer<typeof recordCareQuerySchema>>;
 export type RecordCareResponse = z.infer<typeof recordCareResponseSchema>;
 export type RecordCareSummaryParams = z.infer<typeof recordCareSummaryQuerySchema>;
 export type RecordCareSummaryResponse = z.infer<typeof recordCareSummaryResponseSchema>;
+
+export type {
+  RecordCareProgressResponse,
+  RecordCareQueueResponse,
+  RecordCareSession,
+  RecordCareStackListResponse,
+  RecordCareStackPullResponse,
+};
+export type RecordCareQueueItem = RecordCareQueueResponse["backlog"]["items"][number];
+export type RecordCareSpunItem = RecordCareQueueResponse["spun_recently"]["items"][number];
+export type RecordCareStackItem = RecordCareSession["items"][number];
 
 const GET_NO_STORE: RequestInit = { method: "GET", cache: "no-store" };
 
@@ -175,5 +198,72 @@ export async function getRecordCareSummary(
       needs_sleeve: params.needs_sleeve,
     })}`,
     GET_NO_STORE,
+  );
+}
+
+/** The chores queue (#942): spun recently, new arrivals, then one page of the backlog. */
+export async function getRecordCareQueue(
+  params: RecordCareQueueQuery,
+): Promise<RecordCareQueueResponse> {
+  return await http<RecordCareQueueResponse>(
+    `/api/record-care/queue?${query({
+      friend_id: params.friend_id,
+      month: params.month,
+      limit: params.limit,
+      offset: params.offset,
+    })}`,
+    GET_NO_STORE,
+  );
+}
+
+/** Library cleaning progress: cleaned / total, stacks, pace and sleeves. */
+export async function getRecordCareProgress(
+  params: RecordCareProgressQuery,
+): Promise<RecordCareProgressResponse> {
+  return await http<RecordCareProgressResponse>(
+    `/api/record-care/progress?${query({
+      friend_id: params.friend_id,
+      stack_size: params.stack_size,
+    })}`,
+    GET_NO_STORE,
+  );
+}
+
+/**
+ * Pulls the next stack from the queue, credited to the web app unless the
+ * caller says otherwise. An open stack is returned instead of a second one.
+ */
+export async function pullRecordCareStack(
+  params: RecordCareStackPull,
+): Promise<RecordCareStackPullResponse> {
+  return await http<RecordCareStackPullResponse>(
+    "/api/record-care/stacks",
+    jsonInit("POST", { source: "web", ...params }),
+  );
+}
+
+/** The friend's stacks, newest first; `status: "open"` for the one in progress. */
+export async function listRecordCareStacks(
+  params: RecordCareStackListQuery,
+): Promise<RecordCareStackListResponse> {
+  return await http<RecordCareStackListResponse>(
+    `/api/record-care/stacks?${query({
+      friend_id: params.friend_id,
+      status: params.status,
+      limit: params.limit,
+      offset: params.offset,
+    })}`,
+    GET_NO_STORE,
+  );
+}
+
+/** Discards an open stack; its copies go back to the queue. */
+export async function discardRecordCareStack(
+  id: number,
+  friendId: number,
+): Promise<RecordCareStackDiscardResponse> {
+  return await http<RecordCareStackDiscardResponse>(
+    `/api/record-care/stacks/${encodeURIComponent(String(id))}?${query({ friend_id: friendId })}`,
+    { method: "DELETE" },
   );
 }

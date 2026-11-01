@@ -8,10 +8,15 @@ import {
   createRecordAction,
   createRecordCopy,
   deleteRecordCopy,
+  discardRecordCareStack,
+  getRecordCareProgress,
+  getRecordCareQueue,
   getRecordCareSummary,
   listRecordActions,
   listRecordCare,
+  listRecordCareStacks,
   listRecordCopies,
+  pullRecordCareStack,
   updateDefaultRecordCopy,
   updateRecordCopy,
   voidRecordAction,
@@ -124,5 +129,59 @@ describe("care", () => {
       "/api/record-copies/care/summary?friend_id=7&needs_sleeve=poly",
       GET_NO_STORE,
     );
+  });
+});
+
+describe("chores", () => {
+  it("gets the queue with a backlog page", async () => {
+    await getRecordCareQueue({ friend_id: 7, month: "2026-10", limit: 20, offset: 40 });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/queue?friend_id=7&month=2026-10&limit=20&offset=40",
+      GET_NO_STORE,
+    );
+  });
+
+  it("gets the queue with the server's defaults", async () => {
+    await getRecordCareQueue({ friend_id: 7 });
+    expect(httpMock).toHaveBeenCalledWith("/api/record-care/queue?friend_id=7", GET_NO_STORE);
+  });
+
+  it("gets cleaning progress", async () => {
+    await getRecordCareProgress({ friend_id: 7, stack_size: 10 });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/progress?friend_id=7&stack_size=10",
+      GET_NO_STORE,
+    );
+  });
+
+  it("pulls a stack as the web app", async () => {
+    await pullRecordCareStack({ friend_id: 7, size: 10 });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/stacks",
+      jsonInit("POST", { source: "web", friend_id: 7, size: 10 }),
+    );
+  });
+
+  it("lets the caller name the source", async () => {
+    await pullRecordCareStack({ friend_id: 7, source: "api" });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/stacks",
+      jsonInit("POST", { source: "api", friend_id: 7 }),
+    );
+  });
+
+  it("lists open stacks", async () => {
+    await listRecordCareStacks({ friend_id: 7, status: "open", limit: 1, offset: 0 });
+    expect(httpMock).toHaveBeenCalledWith(
+      "/api/record-care/stacks?friend_id=7&status=open&limit=1&offset=0",
+      GET_NO_STORE,
+    );
+  });
+
+  it("discards a stack", async () => {
+    await discardRecordCareStack(12, 7);
+    expect(httpMock).toHaveBeenCalledWith("/api/record-care/stacks/12?friend_id=7", {
+      method: "DELETE",
+    });
   });
 });

@@ -1,0 +1,147 @@
+import React from "react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Box, Stack } from "@chakra-ui/react";
+import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
+import ChoresCareLogSlot from "@/components/chores/ChoresCareLogSlot";
+import ChoresOverview from "@/components/chores/ChoresOverview";
+import ChoresSelectionBar from "@/components/chores/ChoresSelectionBar";
+import { progressFixture } from "@/components/chores/fixtures";
+
+// The pieces of the Chores page (#943). Toggle the theme and palette in the
+// toolbar to check Mono and Sleeve, light and dark.
+
+const meta: Meta = {
+  title: "Chores",
+  parameters: { layout: "padded" },
+};
+export default meta;
+type Story = StoryObj;
+
+const phone = { viewport: { defaultViewport: "mobile1" } };
+
+export const Overview: Story = {
+  render: () => (
+    <Box maxW="1100px">
+      <ChoresOverview progress={progressFixture} />
+    </Box>
+  ),
+};
+
+export const OverviewWithPace: Story = {
+  name: "Overview · with pace",
+  render: () => (
+    <Box maxW="1100px">
+      <ChoresOverview
+        progress={{
+          ...progressFixture,
+          cleaned: 130,
+          stacks_done: 13,
+          next_stack_no: 14,
+          pace: { stacks_per_week: 1.5, projected_finish_date: "2027-03-14T12:00:00Z" },
+          by_sleeve_type: {
+            "poly-rice-paper-poly": 96,
+            poly: 40,
+            paper: 22,
+            original: 54,
+            unknown: 200,
+          },
+        }}
+      />
+    </Box>
+  ),
+};
+
+export const OverviewPhone: Story = {
+  name: "Overview · phone",
+  parameters: phone,
+  render: () => <ChoresOverview progress={progressFixture} />,
+};
+
+const ROWS: ChoreRowData[] = [
+  {
+    key: "1",
+    title: "Innerspeaker",
+    artist: "Tame Impala",
+    thumbnail: null,
+    meta: "SPUN 4× IN OCT",
+    sleeveUnknown: true,
+  },
+  {
+    key: "2",
+    title: "Cumbia Cumbia Cumbia!!! Vol. 1",
+    artist: "Various",
+    thumbnail: null,
+    meta: "SPUN 2× IN OCT",
+    sleeveUnknown: true,
+  },
+  {
+    key: "3",
+    title: "Jazz Is Dead 22",
+    artist: "Adrian Younge / Ali Shaheed Muhammad / Ebo Taylor",
+    thumbnail: null,
+    meta: "ADDED OCT 17",
+    sleeveUnknown: false,
+  },
+];
+
+function GroupDemo({ more }: { more?: boolean }) {
+  const [selected, setSelected] = React.useState<ReadonlySet<string>>(() => new Set(["1"]));
+  const toggle = (key: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  return (
+    <Box maxW="760px">
+      <ChoreGroup
+        id="story"
+        title={more ? "BACKLOG · A–Z" : "SPUN RECENTLY · NEVER CLEANED"}
+        reason={more ? "Everything else, never cleaned." : "Played records wear first."}
+        rows={ROWS}
+        selected={selected}
+        onToggle={toggle}
+        onToggleSection={(keys, select) => setSelected(new Set(select ? keys : []))}
+        more={more ? { label: "380 MORE IN THE BACKLOG", onClick: () => {} } : undefined}
+      />
+    </Box>
+  );
+}
+
+export const Group: Story = { render: () => <GroupDemo /> };
+export const GroupWithMore: Story = {
+  name: "Group · backlog with more",
+  render: () => <GroupDemo more />,
+};
+export const GroupPhone: Story = {
+  name: "Group · phone",
+  parameters: phone,
+  render: () => <GroupDemo />,
+};
+
+export const SelectionBar: Story = {
+  name: "Selection bar",
+  render: () => (
+    <Stack gap={6} maxW="760px">
+      <ChoresSelectionBar selected={0} stackNo={null} onClear={() => {}} />
+      <ChoresSelectionBar selected={10} stackNo={2} onClear={() => {}} />
+      <ChoresSelectionBar selected={3} stackNo={null} onClear={() => {}} onLogCare={() => {}} />
+    </Stack>
+  ),
+};
+
+export const SelectionBarPhone: Story = {
+  name: "Selection bar · phone",
+  parameters: phone,
+  render: () => <ChoresSelectionBar selected={10} stackNo={2} onClear={() => {}} />,
+};
+
+export const CareLogSlot: Story = {
+  name: "Care log slot (#944)",
+  render: () => (
+    <Box maxW="380px">
+      <ChoresCareLogSlot thisMonth={{ records: 11, sessions: 2 }} />
+    </Box>
+  ),
+};

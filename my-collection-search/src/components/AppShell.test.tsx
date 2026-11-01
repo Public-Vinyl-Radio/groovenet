@@ -66,6 +66,29 @@ describe("AppShell", () => {
     },
   );
 
+  it("marks More as the current tab for a page under it, such as Chores", () => {
+    renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    const tabBar = screen.getByTestId("mobile-tab-bar");
+    const more = within(tabBar).getByRole("button", { name: "More", hidden: true });
+    expect(more.getAttribute("aria-current")).toBe("page");
+  });
+
+  it("marks the tab itself, not More, for a primary page", () => {
+    pathname.value = "/spins";
+    renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    const tabBar = screen.getByTestId("mobile-tab-bar");
+    expect(
+      within(tabBar)
+        .getByRole("button", { name: "More", hidden: true })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+    expect(
+      within(tabBar)
+        .getByRole("link", { name: "Spins", hidden: true })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+  });
+
   it("links to the record-care chores", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
 
