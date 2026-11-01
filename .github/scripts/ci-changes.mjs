@@ -61,6 +61,17 @@ export function classify(files, { full = false, mainPush = false } = {}) {
     if (file === "eslint.config.node.mjs") enable("lint");
     // The site renders docs/ (#911) and the changelog, so those rebuild it too.
     if (/^(site\/|docs\/|CHANGELOG\.md$)/.test(file)) enable("site");
+    // The site's Appearance demo reads a committed export of the app's palettes
+    // and fonts (#914): a change to either side runs the web test that keeps
+    // them in sync, and rebuilds the site.
+    if (
+      /^my-collection-search\/src\/app\/(palettes\/|fonts\/|fontChoices\.ts$|siteTokens\.ts$)/.test(
+        file,
+      )
+    ) {
+      enable("site");
+    }
+    if (/^site\/(src\/data\/palettes\.json|public\/fonts\/)/.test(file)) enable("web");
     if (file.startsWith("my-collection-search/")) enable("web", "lint", "webapp");
     // API generation and integration jobs consume server code, not UI components.
     if (

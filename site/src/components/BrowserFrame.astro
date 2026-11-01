@@ -1,0 +1,21 @@
+---
+import Shot from "./Shot.astro";
+import type { Shot as ShotData } from "../data/screenshots";
+
+interface Props { shot: ShotData; url: string; dots?: boolean; }
+const { shot, url, dots = true } = Astro.props;
+---
+<figure class="frame">
+  <div class="frame-bar">
+    {dots && <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>}
+    <span>{url}</span>
+    {dots && <span class="spacer" aria-hidden="true"></span>}
+  </div>
+  <div class="screen"><Shot shot={shot} widths={[640, 960, 1280]} sizes="(max-width: 720px) 100vw, 760px" /></div>
+</figure>
+<style>
+  figure { margin: 0; }
+  .spacer { width: 39px; }
+  .screen { aspect-ratio: 16 / 10; }
+  .frame-bar:not(:has(.dots)) { justify-content: flex-start; }
+</style>

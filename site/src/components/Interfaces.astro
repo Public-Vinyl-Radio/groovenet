@@ -1,0 +1,189 @@
+---
+import SectionHead from "./SectionHead.astro";
+import BrowserFrame from "./BrowserFrame.astro";
+import PhoneFrame from "./PhoneFrame.astro";
+import { screenshots } from "../data/screenshots";
+
+// Copy checked against the code (#914): the iPhone shots are the web app at
+// phone width, and the native SwiftUI app is still a small early client.
+const tabs = [
+  {
+    id: "web", label: "Web", kicker: "Web app", title: "The operational view.",
+    body: "Catalog, crates, playlists, spins and the jobs that keep a library complete, in any browser on your network.",
+    points: ["Browse and bulk-edit releases and tracks", "BPM, key and mood from audio analysis", "A needs-attention list for missing audio and analysis"],
+  },
+  {
+    id: "ios", label: "iOS", kicker: "iPhone", title: "Your collection, at the shelf.",
+    body: "The web app is built for the phone too. Browse crates while you pull records, log a spin as the needle drops, and control the players on your server. A native iOS app for playlists and offline downloads is in early development.",
+    points: ["Log vinyl spins by hand, or automatically from a turntable listener", "Control OwnTone players from Now playing", "Every palette, light and dark"],
+  },
+  {
+    id: "tui", label: "Terminal", kicker: "Terminal", title: "A player for your tmux pane.",
+    body: "A terminal player built with Ink, in the groovenet CLI. Keep the queue in a split while you work, and script the rest of the CLI into your own tools with --json.",
+    points: ["Keyboard-first playback and queue", "Search the whole library without leaving the shell", "Talks to the same server as the web app"],
+  },
+  {
+    id: "mcp", label: "MCP", kicker: "MCP server", title: "Ask your crates.",
+    body: "An MCP server lets Claude search, inspect and sequence your collection in plain language.",
+    points: ["Natural-language search across the library", "Sets ordered for BPM, key and mood transitions", "Runs against your own server"],
+  },
+];
+const initial = "tui";
+const queue = [
+  ["B2 · High Noon", "DJ Shadow"],
+  ["B2 · Sueño de Amapola", "Malphino"],
+  ["D1 · What Does Your Soul Look Like (Part 4)", "DJ Shadow"],
+  ["B6 · Room Tone (Interlude)", "Cuco"],
+];
+---
+<section id="interfaces" class="wrap section" aria-labelledby="interfaces-title">
+  <SectionHead tag="Interfaces / 01" aside="one library · four ways in" />
+  <h2 id="interfaces-title" class="h2">Use it at the shelf, at your desk, or from a terminal.</h2>
+
+  <div class="seg tabs" role="tablist" aria-label="Interfaces" data-tabs>
+    {tabs.map((t) => (
+      <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`panel-${t.id}`} aria-selected={t.id === initial ? "true" : "false"} tabindex={t.id === initial ? 0 : -1}>{t.label}</button>
+    ))}
+  </div>
+
+  {tabs.map((t) => (
+    <div class="panel" role="tabpanel" tabindex="0" id={`panel-${t.id}`} aria-labelledby={`tab-${t.id}`} data-inactive={t.id === initial ? undefined : ""}>
+      <div class="text">
+        <p class="eyebrow">{t.kicker}</p>
+        <h3>{t.title}</h3>
+        <p class="lede">{t.body}</p>
+        <ol class="points frame">
+          {t.points.map((p, i) => <li><span class="n">{`0${i + 1}`}</span><span>{p}</span></li>)}
+        </ol>
+      </div>
+      <div class="visual">
+        {t.id === "web" && <BrowserFrame shot={screenshots.desktopGenres} url="groovenet.local/genres" dots={false} />}
+        {t.id === "ios" && (
+          <div class="phones">
+            <PhoneFrame shot={screenshots.phoneSpinsLight} />
+            <PhoneFrame shot={screenshots.phoneNowPlayingDark} dark />
+          </div>
+        )}
+        {t.id === "tui" && (
+          <div class="tui frame" role="img" aria-label="Drawing of the GrooveNet terminal player in tmux: now playing, a queue of four tracks and the key hints.">
+            <div class="frame-bar caps"><span>tmux · groovenet</span><span>groovenet player</span></div>
+            <div class="tui-body">
+              <div class="tui-top"><span class="rev">Groovenet</span><span>Play on Lounge</span></div>
+              <div class="np">
+                <div class="lbl">▶ Now playing</div>
+                <div class="np-title">A3 · Teardrop</div>
+                <div class="soft">Massive Attack · Mezzanine</div>
+                <div class="progress"><div class="track"><div class="fill"></div></div><span class="soft">2:14 / 5:31</span></div>
+              </div>
+              <div>
+                <div class="lbl">Queue · 4</div>
+                {queue.map(([title, artist], i) => (
+                  <div class:list={["row", { soft: i > 0 }]}>{i === 0 ? "❯ " : "  "}{title} <span class="dim">— {artist}</span></div>
+                ))}
+              </div>
+              <div class="hints dim">[space] play/pause · [n] next · [/] search · [?] help · [q] quit</div>
+            </div>
+          </div>
+        )}
+        {t.id === "mcp" && (
+          <div class="mcp frame" role="img" aria-label="Drawing of a chat where Claude uses the GrooveNet MCP tools to build a cumbia playlist.">
+            <div class="frame-bar caps"><span>Claude · groovenet MCP</span></div>
+            <div class="mcp-body">
+              <div class="ask">Build me an hour of cumbia with smooth BPM and key transitions.</div>
+              <div class="call">→ groovenet.search_tracks &nbsp;genre=Cumbia</div>
+              <div class="call">→ groovenet.generate_ai_playlist &nbsp;20 tracks</div>
+              <div class="call">→ groovenet.create_playlist &nbsp;name="Cumbia Hi-Energy"</div>
+              <div class="result"><span class="r-title">Cumbia Hi-Energy (~60 min)</span><span class="caps r-meta">20 tracks · 0:59:58</span></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  ))}
+</section>
+<script>
+  // Tabs: automatic activation, arrow keys, Home and End, roving tabindex.
+  for (const list of document.querySelectorAll<HTMLElement>("[data-tabs]")) {
+    const tabs = [...list.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const select = (tab: HTMLButtonElement, focus = false) => {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        const panel = document.getElementById(t.getAttribute("aria-controls") ?? "");
+        if (on) panel?.removeAttribute("data-inactive");
+        else panel?.setAttribute("data-inactive", "");
+      }
+      if (focus) tab.focus();
+    };
+    list.addEventListener("click", (e) => {
+      const tab = (e.target as HTMLElement).closest<HTMLButtonElement>('[role="tab"]');
+      if (tab) select(tab);
+    });
+    list.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(document.activeElement as HTMLButtonElement);
+      if (i < 0) return;
+      const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+      if (next === undefined) return;
+      e.preventDefault();
+      select(tabs[(next + tabs.length) % tabs.length], true);
+    });
+  }
+</script>
+<style>
+  .section { padding-block: 96px; }
+  h2 { margin-bottom: 32px; max-width: 800px; }
+  .tabs { margin-bottom: 40px; }
+  .tabs > button { font-size: 13px; min-height: 48px; padding: 0 24px; }
+  /* Without JS every panel shows; with it, only the selected one. */
+  :global(.js) .panel[data-inactive] { display: none; }
+  .panel + .panel { margin-top: 56px; }
+  :global(.js) .panel + .panel { margin-top: 0; }
+  .panel { display: flex; flex-wrap: wrap; gap: 56px; align-items: flex-start; }
+  .text { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  h3 { font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+  .points { list-style: none; margin: 0; padding: 0; }
+  .points li { display: flex; gap: 14px; align-items: baseline; padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 15px; line-height: 1.45; }
+  .points li:last-child { border-bottom: 0; }
+  .n { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--muted); }
+  .visual { flex: 1.6 1 520px; min-width: 0; }
+  .phones { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
+  .phones > :global(.phone) { width: min(230px, calc(50% - 14px)); }
+
+  .tui { background: var(--night-ground); color: var(--night-ink); font: 13px/1.6 var(--mono); }
+  .tui .frame-bar { color: var(--ink); letter-spacing: 0.1em; font-size: 11px; }
+  .tui-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; overflow-x: auto; }
+  .tui-top { display: flex; justify-content: space-between; gap: 16px; color: var(--night-muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .rev { background: var(--night-ink); color: var(--night-ground); padding: 0 6px; font-weight: 600; }
+  .np { border: 1px solid var(--night-border); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--night-muted); margin-bottom: 6px; }
+  .np .lbl { margin-bottom: 0; }
+  .np-title { font-size: 16px; font-weight: 600; }
+  .progress { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+  .track { flex: 1 1 auto; height: 10px; border: 1px solid var(--night-border); position: relative; }
+  .fill { position: absolute; inset: 0 auto 0 0; width: 41%; background: var(--night-ink); }
+  .row { white-space: nowrap; }
+  .soft { color: var(--night-muted); white-space: nowrap; }
+  .dim { color: var(--night-muted); }
+  .hints { border-top: 1px solid var(--night-border); padding-top: 10px; font-size: 12px; white-space: nowrap; }
+
+  .mcp { font: 13px/1.6 var(--mono); }
+  .mcp .frame-bar { color: var(--ink); letter-spacing: 0.1em; font-size: 11px; }
+  .mcp-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .ask { align-self: flex-end; max-width: 80%; border: 2px solid var(--ink); background: var(--ink); color: var(--ground); padding: 12px 14px; font: 15px/1.5 var(--sans); }
+  .call { border: 1px solid var(--border); padding: 10px 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .result { border: 2px solid var(--ink); padding: 12px 14px; box-shadow: 3px 3px 0 0 var(--shadow); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+  .r-title { font: 600 15px var(--sans); }
+  .r-meta { color: var(--muted); font-weight: 400; letter-spacing: 0.08em; }
+
+  @media (max-width: 640px) {
+    .section { padding-block: 64px; }
+    .tabs { display: grid; grid-auto-flow: column; width: 100%; }
+    .tabs > button { padding: 0 10px; font-size: 12px; letter-spacing: 0.08em; }
+    .panel { gap: 36px; }
+    h3 { font-size: 26px; }
+    .phones { gap: 16px; flex-wrap: nowrap; }
+    .phones > :global(.phone) { width: calc(50% - 8px); border-radius: 28px; padding: 7px; }
+    .ask { max-width: 100%; }
+  }
+</style>

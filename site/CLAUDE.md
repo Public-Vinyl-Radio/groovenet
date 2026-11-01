@@ -17,19 +17,40 @@ just site-build       # astro check && astro build, into site/dist
 just site-preview     # serve the built site
 ```
 
-Route copy lives in `src/pages` (`/`, `/about`, `/docs`); shared pieces in
-`src/components` and `src/layouts`.
+Routes live in `src/pages` (`/`, `/about`, `/docs`); the landing page is one
+component per section in `src/components` (`Hero`, `Interfaces`, `Appearance`,
+`Roadmap`), so a new section from the design slots in as another component.
+The design is the Claude canvas linked from #914. No UI framework: the tabs,
+the Appearance demo and the copy button are small inline `<script>`s.
+
+## Palettes and fonts come from the app
+
+`src/data/palettes.json` and `public/fonts/` are **generated**, never edited:
+`just site-tokens` exports the app's palettes (`my-collection-search/src/app/palettes/`)
+and font roles (`fontChoices.ts`) and copies the app's woff2 files and OFL
+licences. `my-collection-search/src/app/siteTokens.test.ts` fails while the
+committed copy differs, and checks the demo's text pairs reach 4.5:1 in every
+palette and mode. Run `just site-tokens` after changing a palette or a font.
+`src/lib/tokens.ts` turns the export into CSS: the page itself is Mono, light
+or dark from `prefers-color-scheme`. The app ships Inter in 400–600 only, so
+headings are 600, not the canvas's 800.
 
 ## Content
 
-The pages are hand-written Astro for now. Docs will be built with Starlight from
-the repo-root `docs/` tree (#911) and screenshots will come from Playwright
-against a prod-seeded stack (#912).
+- **Screenshots:** `src/data/screenshots.ts` has one entry per slot. Until
+  #912 commits the PNGs to `src/assets/screenshots/`, each renders a labelled
+  placeholder; set the entry's `image` to an imported PNG to swap it in.
+- **Roadmap:** `src/data/roadmap.yml`, a content collection (`src/content.config.ts`).
+  Real items only.
+- **Copy** is from the design, checked against the code: the phone shots are
+  the web app at 390px, and the native iOS app is an early client.
+- Docs will be built with Starlight from the repo-root `docs/` tree (#911);
+  `/docs` is a holding page until then.
 
 ## Deploy
 
 - Netlify's base directory must be `site/`; `netlify.toml` here holds the build
-  command, `publish = "dist"`, Node 22, the security headers and an `ignore`
+  command, `publish = "dist"`, Node 22 with npm 12.0.1 (`engines.npm`), the security headers and an `ignore`
   command, so commits touching only the app don't rebuild the site.
 - CI (`site` job in `test.yml`) runs `npm ci` and the build for changes under
   `site/`, `docs/` and `CHANGELOG.md`. There's no Codecov hook.

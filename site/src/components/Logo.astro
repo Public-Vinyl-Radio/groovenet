@@ -1,0 +1,13 @@
+---
+// The GrooveNet wordmark: black on light grounds, white in dark mode.
+import black from "../assets/groovenet-wordmark-black.png";
+import white from "../assets/groovenet-wordmark-white.png";
+
+interface Props { height?: number; }
+const { height = 28 } = Astro.props;
+const width = Math.round((black.width / black.height) * height);
+---
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset={white.src} />
+  <img src={black.src} alt="GrooveNet" width={width} height={height} style={`height:${height}px;width:auto;display:block`} />
+</picture>

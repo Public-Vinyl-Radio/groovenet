@@ -1,30 +1,46 @@
 ---
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import "../styles/global.css";
+import { cssVars, fontFaceCss, sitePalette } from "../lib/tokens";
+
 interface Props { title: string; description: string; currentPath?: string; }
 const { title, description, currentPath } = Astro.props;
-const canonical = new URL(Astro.url.pathname, "https://groovenet.publicvinylradio.com").toString();
+const site = "https://groovenet.publicvinylradio.com";
+const canonical = new URL(Astro.url.pathname, site).toString();
+const socialCard = `${site}/social-card.png`;
+
+// The page is drawn in the app's Mono palette and follows the visitor's mode.
+// --night-* is Mono dark in either mode, for the terminal and the dark phone.
+const themeCss = `:root{${cssVars(sitePalette.light)}${cssVars(sitePalette.dark, "--night-")}}@media (prefers-color-scheme: dark){:root{${cssVars(sitePalette.dark)}}}`;
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Literata:opsz,wght@7..72,400;7..72,500&family=Zilla+Slab:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="canonical" href={canonical} />
-    <meta name="description" content={description} /><meta name="theme-color" content="#11110f" />
-    <meta property="og:type" content="website" /><meta property="og:title" content={title} /><meta property="og:description" content={description} /><meta property="og:url" content={canonical} /><meta property="og:image" content="https://groovenet.publicvinylradio.com/social-card.svg" />
-    <meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content={title} /><meta name="twitter:description" content={description} /><meta name="twitter:image" content="https://groovenet.publicvinylradio.com/social-card.svg" />
+    <script is:inline>document.documentElement.classList.add("js");</script>
+    <link rel="preload" href="/fonts/Inter-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="/fonts/Inter-600.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="/fonts/JetBrainsMono-600.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <style is:inline set:html={`${fontFaceCss}\n${themeCss}`}></style>
+    <link rel="icon" href="/favicon.png" type="image/png" /><link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="canonical" href={canonical} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content={sitePalette.light["--gn-ground"]} media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content={sitePalette.dark["--gn-ground"]} media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" /><meta property="og:title" content={title} /><meta property="og:description" content={description} /><meta property="og:url" content={canonical} />
+    <meta property="og:image" content={socialCard} /><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content={title} /><meta name="twitter:description" content={description} /><meta name="twitter:image" content={socialCard} />
     <title>{title}</title>
   </head>
   <body>
+    <a class="skip caps" href="#main">Skip to content</a>
     <Header currentPath={currentPath} />
-    <main><slot /></main>
+    <main id="main"><slot /></main>
     <Footer />
   </body>
 </html>
-<style is:global>
-  :root { --paper: #0b0b0a; --ink: #ecece6; --muted: #aaa9a1; --line: #ecece61f; --accent: #cf6847; --mono: "JetBrains Mono", "Courier New", monospace; --display: "Zilla Slab", "ITC Lubalin Graph Std Demi", Georgia, serif; --text: "Literata", Georgia, serif; }
-  * { box-sizing: border-box; } html { background: var(--paper); color: var(--ink); scroll-behavior: smooth; } body { margin: 0; font: 400 15px/1.55 var(--mono); } ::selection { background: var(--accent); color: var(--paper); } a { color: inherit; text-decoration: none; } a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; } .wrap { width: min(100% - 2.5rem, 82.5rem); margin-inline: auto; } .eyebrow { margin: 0 0 1.2rem; color: var(--muted); font: .7rem/1 var(--mono); letter-spacing: .13em; text-transform: uppercase; } h1, h2, h3, p { margin-top: 0; } h1, h2 { font-family: var(--display); letter-spacing: -.025em; line-height: .94; font-weight: 500; } h2 { font-size: clamp(2.35rem, 5.4vw, 4.9rem); margin-bottom: 1.3rem; } .section-heading > p:not(.eyebrow), .lede { font-family: var(--text); max-width: 36rem; color: var(--muted); font-size: 1.06rem; } .button { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); min-height: 2.8rem; padding: .55rem 1rem; font: .7rem var(--mono); text-transform: uppercase; letter-spacing: .08em; transition: .15s ease; } .button:hover { border-color: var(--ink); background: transparent; color: var(--ink); } .button.secondary { border-color: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--muted); } .button.secondary:hover { border-color: var(--ink); color: var(--ink); background: transparent; } @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } } @media (max-width: 500px) { .wrap { width: min(100% - 1.5rem, 82.5rem); } }
+<style>
+  .skip { position: absolute; left: 16px; top: -100px; z-index: 10; background: var(--ink); color: var(--ground); padding: 12px 16px; text-decoration: none; }
+  .skip:focus { top: 16px; }
 </style>

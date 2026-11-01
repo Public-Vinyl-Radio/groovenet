@@ -1,0 +1,158 @@
+---
+import SectionHead from "./SectionHead.astro";
+import { choiceFamily, cssVars, fonts, palettes } from "../lib/tokens";
+
+// Every option comes from the app's export: palettes in light and dark, and
+// the self-hosted Display and Labels faces, default first.
+const display = fonts.display.choices;
+const label = fonts.label.choices;
+const modes = [{ id: "light", label: "Light" }, { id: "dark", label: "Dark" }];
+const initial = { palette: palettes[0].id, mode: "light", display: display[0].id, label: label[0].id };
+
+const demoCss = [
+  ...palettes.flatMap((p) => (["light", "dark"] as const).map((m) => `.demo[data-palette="${p.id}"][data-mode="${m}"]{${cssVars(p[m], "--d-")}}`)),
+  ...display.map((c) => `.demo[data-display="${c.id}"]{--d-display:${choiceFamily("display", c.face)}}`),
+  ...label.map((c) => `.demo[data-label="${c.id}"]{--d-label:${choiceFamily("label", c.face)}}`),
+].join("\n");
+
+const groups = [
+  { key: "palette", title: "Palette", wrap: true, options: palettes.map((p) => ({ id: p.id, label: p.label, swatch: [p.light["--gn-ground"], p.light["--gn-accent-solid"]] })) },
+  { key: "mode", title: "Mode", wrap: false, options: modes },
+  { key: "display", title: "Display", wrap: true, options: display.map((c) => ({ id: c.id, label: c.label, font: choiceFamily("display", c.face) })) },
+  { key: "label", title: "Labels", wrap: true, options: label.map((c) => ({ id: c.id, label: c.label, font: choiceFamily("label", c.face) })) },
+] as const;
+
+const names = Object.fromEntries(groups.map((g) => [g.key, Object.fromEntries(g.options.map((o) => [o.id, o.label]))]));
+const caption = (s: typeof initial) => `${names.palette[s.palette]} · ${s.mode} · ${names.display[s.display]} / ${names.label[s.label]}`;
+---
+<style is:inline set:html={demoCss}></style>
+<section id="appearance" class="appearance" aria-labelledby="appearance-title">
+  <div class="wrap section">
+    <SectionHead tag="Appearance / 02" aside="try it" />
+    <div class="cols">
+      <div class="controls">
+        <h2 id="appearance-title" class="h2">Black and white, until you say otherwise.</h2>
+        <p class="lede">Four palettes, each in light and dark, plus your own. Pick the display and label faces too. Every screen follows.</p>
+        <div class="groups" data-demo-controls data-names={JSON.stringify(names)}>
+          {groups.map((g) => (
+            <div class:list={["group", `group-${g.key}`]}>
+              <div class="caps" id={`demo-${g.key}`}>{g.title}</div>
+              <div class:list={["seg", { "seg-wrap": g.wrap }]} role="group" aria-labelledby={`demo-${g.key}`}>
+                {g.options.map((o) => (
+                  <button type="button" data-set={g.key} data-value={o.id} aria-pressed={initial[g.key] === o.id ? "true" : "false"}
+                    class:list={[{ face: "font" in o, display: g.key === "display" }]} style={"font" in o ? `font-family:${o.font}` : undefined}>
+                    {"swatch" in o && <span class="swatch" aria-hidden="true"><span style={`background:${o.swatch[0]}`}></span><span style={`background:${o.swatch[1]}`}></span></span>}
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="preview">
+        <div class="demo" data-demo data-palette={initial.palette} data-mode={initial.mode} data-display={initial.display} data-label={initial.label}>
+          <div class="card">
+            <div class="head">
+              <div class="title">Spins</div>
+              <span class="pill">Full recap →</span>
+            </div>
+            <dl class="stats">
+              <div><dt>Spins</dt><dd>367</dd></div>
+              <div><dt>Hours</dt><dd>≈24</dd></div>
+              <div><dt>Records pulled</dt><dd>89</dd></div>
+              <div><dt>New to rotation</dt><dd>85</dd></div>
+            </dl>
+            <div class="split">
+              <div class="lab strong">Vinyl / digital</div>
+              <div class="bar" aria-hidden="true"><div class="vinyl"></div><div class="digital"></div></div>
+              <div class="lab">■ Vinyl 99 &nbsp; □ Digital 268</div>
+            </div>
+            <div class="session">
+              <div class="s-head lab strong"><span>Session · 12:21 PM</span><span class="muted">1 spin</span></div>
+              <div class="s-row">
+                <div class="art" aria-hidden="true"></div>
+                <div class="s-text"><div class="s-title">A2 · Strange Salsa</div><div class="s-sub">Malphino · Sueño</div></div>
+                <span class="tag lab strong">Digital</span>
+              </div>
+            </div>
+            <div class="lab muted" aria-live="polite" data-demo-caption>{caption(initial)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+  const controls = document.querySelector<HTMLElement>("[data-demo-controls]");
+  const demo = document.querySelector<HTMLElement>("[data-demo]");
+  const caption = document.querySelector<HTMLElement>("[data-demo-caption]");
+  if (controls && demo && caption) {
+    const names = JSON.parse(controls.dataset.names ?? "{}") as Record<string, Record<string, string>>;
+    controls.addEventListener("click", (e) => {
+      const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-set]");
+      if (!button) return;
+      const key = button.dataset.set as string;
+      demo.dataset[key] = button.dataset.value;
+      for (const b of controls.querySelectorAll<HTMLButtonElement>(`button[data-set="${key}"]`)) {
+        b.setAttribute("aria-pressed", String(b === button));
+      }
+      const d = demo.dataset;
+      caption.textContent = `${names.palette[d.palette!]} · ${d.mode} · ${names.display[d.display!]} / ${names.label[d.label!]}`;
+    });
+  }
+</script>
+<style>
+  .appearance { border-block: 2px solid var(--ink); background: var(--surface); }
+  .section { padding-block: 96px; }
+  .cols { display: flex; flex-wrap: wrap; gap: 56px; align-items: flex-start; }
+  .controls { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+  .groups { display: flex; flex-wrap: wrap; gap: 28px; }
+  .group { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 100%; }
+  .group-palette { flex-basis: 100%; }
+  .seg > button.face { letter-spacing: 0.08em; padding: 0 14px; }
+  .seg > button.display { font-size: 15px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .swatch { display: inline-flex; border: 1px solid currentColor; }
+  .swatch span { width: 9px; height: 12px; }
+
+  .preview { flex: 1.2 1 480px; min-width: 0; }
+  .card { background: var(--d-ground); color: var(--d-ink); border: 2px solid var(--ink); box-shadow: 6px 6px 0 0 var(--shadow); padding: 28px; display: flex; flex-direction: column; gap: 22px; transition: background 160ms, color 160ms; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+  .title { font: 600 30px/1.2 var(--d-display); letter-spacing: -0.01em; }
+  .pill { font: 600 12px var(--d-label); letter-spacing: 0.12em; text-transform: uppercase; background: var(--d-accent); color: var(--d-contrast); padding: 10px 14px; box-shadow: 3px 3px 0 0 var(--d-shadow); }
+  .stats { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 2px solid var(--d-ink); box-shadow: 6px 6px 0 0 var(--d-shadow); background: var(--d-surface); }
+  .stats > div { padding: 14px 16px; min-width: 0; }
+  .stats > div:nth-child(odd) { border-right: 2px solid var(--d-ink); }
+  .stats > div:nth-child(-n + 2) { border-bottom: 2px solid var(--d-ink); }
+  dt { font: 11px var(--d-label); letter-spacing: 0.12em; text-transform: uppercase; color: var(--d-muted); }
+  dd { margin: 0; font: 600 32px/1.25 var(--d-display); }
+  .lab { font: 12px var(--d-label); letter-spacing: 0.12em; text-transform: uppercase; }
+  .strong { font-weight: 600; }
+  .muted { color: var(--d-muted); }
+  .split { display: flex; flex-direction: column; gap: 8px; }
+  .split > .lab:last-child { color: var(--d-muted); text-transform: none; letter-spacing: 0.04em; }
+  .bar { display: flex; height: 22px; border: 2px solid var(--d-ink); box-shadow: 3px 3px 0 0 var(--d-shadow); }
+  .vinyl { width: 27%; background: var(--d-ink); }
+  .digital { flex: 1 1 auto; background: repeating-linear-gradient(-58deg, var(--d-ink) 0 3px, transparent 3px 9px); }
+  .session { border: 2px solid var(--d-ink); box-shadow: 6px 6px 0 0 var(--d-shadow); background: var(--d-ground); }
+  .s-head { font-size: 11px; padding: 10px 14px; border-bottom: 2px solid var(--d-ink); background: var(--d-surface); display: flex; justify-content: space-between; gap: 10px; }
+  .s-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; }
+  .art { width: 52px; height: 52px; flex: none; border: 2px solid var(--d-ink); background: repeating-linear-gradient(-58deg, var(--d-accent) 0 4px, var(--d-surface) 4px 10px); }
+  .s-text { flex: 1 1 auto; min-width: 0; }
+  .s-title { font: 600 18px/1.3 var(--d-display); }
+  .s-sub { font-size: 14px; color: var(--d-muted); }
+  .tag { font-size: 11px; letter-spacing: 0.1em; border: 1px solid var(--d-ink); padding: 2px 8px; }
+  [data-demo-caption] { font-size: 11px; }
+
+  @media (max-width: 640px) {
+    .section { padding-block: 64px; }
+    .cols { gap: 40px; }
+    .groups { gap: 22px; }
+    .group { flex-basis: 100%; }
+    .group .seg { width: 100%; }
+    .card { padding: 18px; gap: 18px; }
+    dd { font-size: 26px; }
+    .stats > div { padding: 12px; }
+  }
+</style>

@@ -46,6 +46,7 @@
     "backfill-bpm-confidence": "tsx src/scripts/backfill-bpm-confidence.ts",
     "openapi:check": "node --import tsx/esm scripts/check-openapi.ts",
     "openapi:generate-spec": "node --import tsx/esm scripts/generate-openapi-json.ts ../openapi-generated.json",
+    "site:tokens": "node --import tsx/esm scripts/export-site-tokens.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build -o public/storybook && node scripts/check-storybook.mjs",
     "test:storybook": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=scripts/check-storybook.mjs --test-coverage-include=scripts/check-storybook-render.mjs --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/storybook.lcov scripts/check-storybook.test.mjs scripts/check-storybook-render.test.mjs scripts/storybook-deployment.test.mjs",

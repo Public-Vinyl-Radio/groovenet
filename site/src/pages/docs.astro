@@ -1,15 +1,54 @@
 ---
+// A holding page until #911 builds /docs with Starlight from the repo's docs/.
 import BaseLayout from "../layouts/BaseLayout.astro";
+import SectionHead from "../components/SectionHead.astro";
+import InstallSnippet from "../components/InstallSnippet.astro";
+
+const repo = "https://github.com/Public-Vinyl-Radio/groovenet";
+const cards = [
+  { n: "02", title: "Configuration", body: "A Discogs account and PostgreSQL are the foundation. Apple Music, YouTube, OpenAI embeddings and AI metadata, and remote backup are optional integrations set through environment variables.", href: `${repo}#required-configuration`, link: "Required configuration ↗" },
+  { n: "03", title: "Architecture", body: "A Next.js app over PostgreSQL with pgvector, and Redis queues. Audio analysis, playlist optimisation, downloads and fingerprint matching run as separate services.", href: `${repo}#development`, link: "Development ↗" },
+  { n: "04", title: "CLI and MCP", body: "The groovenet CLI searches the collection, manages albums and playlists, runs the terminal player and prints JSON for scripts. The MCP server gives an MCP client such as Claude the same collection.", href: `${repo}/tree/main/mcp-server#readme`, link: "MCP server ↗" },
+];
 ---
-<BaseLayout title="GrooveNet documentation" description="Getting started and technical documentation for the self-hosted GrooveNet collection-management system." currentPath="/docs">
-  <section class="docs-hero wrap"><p class="eyebrow">DOCUMENTATION / START HERE</p><h1>Run GrooveNet.</h1><p>GrooveNet is a self-hosted, multi-service project. The source repository is the canonical technical documentation and release record.</p><a class="button" href="https://github.com/Public-Vinyl-Radio/groovenet#readme" target="_blank" rel="noreferrer">Read the project README ↗</a></section>
-  <section class="docs-grid wrap"><article><p class="number">01</p><h2>Getting started</h2><p>Development needs Docker with Compose v2, mise, just, and a Discogs account with a collection. Clone the main repository, install toolchains, configure the app environment, start the Compose stack, then run migrations.</p><pre><code>git clone https://github.com/Public-Vinyl-Radio/groovenet
-cd groovenet
-mise install && just bootstrap
-just compose-dev
-just migrate-up</code></pre><a href="https://github.com/Public-Vinyl-Radio/groovenet#quick-start-development" target="_blank" rel="noreferrer">Full setup instructions ↗</a></article><article><p class="number">02</p><h2>System requirements</h2><p>Discogs credentials and PostgreSQL are foundational. Apple Music, YouTube, OpenAI embeddings and AI metadata, and remote backup are optional integrations configured through environment variables.</p><a href="https://github.com/Public-Vinyl-Radio/groovenet#environment-variables" target="_blank" rel="noreferrer">Environment configuration ↗</a></article><article><p class="number">03</p><h2>Architecture</h2><p>The main application is Next.js and PostgreSQL with pgvector and Redis. Essentia analysis, genetic playlist generation, and downloads run as Python services. Typed API, CLI, and MCP packages sit alongside the application.</p><a href="https://github.com/Public-Vinyl-Radio/groovenet#project-structure" target="_blank" rel="noreferrer">Project structure ↗</a></article><article><p class="number">04</p><h2>CLI and MCP</h2><p>The <code>groovenet</code> CLI supports searching, album and playlist management, playback, friend collections, and JSON output for scripting. The MCP server exposes collection operations to Claude Code.</p><a href="https://github.com/Public-Vinyl-Radio/groovenet/tree/main/mcp-server" target="_blank" rel="noreferrer">MCP documentation ↗</a></article></section>
-  <section class="resources"><div class="wrap"><p class="eyebrow">PROJECT LINKS</p><div><a href="https://github.com/Public-Vinyl-Radio/groovenet" target="_blank" rel="noreferrer">Source repository ↗</a><a href="https://github.com/Public-Vinyl-Radio/groovenet/releases" target="_blank" rel="noreferrer">Releases ↗</a><a href="https://github.com/Public-Vinyl-Radio/groovenet/issues" target="_blank" rel="noreferrer">Issues ↗</a></div></div></section>
+<BaseLayout title="GrooveNet documentation" description="Getting started with the self-hosted GrooveNet collection manager: install, configuration, architecture, CLI and MCP." currentPath="/docs">
+  <section class="wrap hero">
+    <SectionHead tag="Docs / Start here" />
+    <h1 class="h2">Run GrooveNet.</h1>
+    <p class="lede">GrooveNet is self-hosted: one Docker Compose stack on a machine you own. The repository's README is the full reference until these docs move here.</p>
+  </section>
+  <section class="wrap grid">
+    <article class="frame install">
+      <p class="eyebrow">01 · Install</p>
+      <h2>Getting started</h2>
+      <p>Needs Docker with Compose v2 and a Discogs account. Then open the app and use <strong>Sync from Discogs</strong> to import your collection.</p>
+      <InstallSnippet />
+      <a class="more caps" href={`${repo}#run-groovenet`}>Full install steps ↗</a>
+    </article>
+    {cards.map((c) => (
+      <article class="frame">
+        <p class="eyebrow">{c.n} · {c.title}</p>
+        <h2>{c.title}</h2>
+        <p>{c.body}</p>
+        <a class="more caps" href={c.href}>{c.link}</a>
+      </article>
+    ))}
+  </section>
+  <section class="wrap links">
+    <a class="btn" href={repo}>Source ↗</a>
+    <a class="btn" href={`${repo}/releases`}>Releases ↗</a>
+    <a class="btn" href={`${repo}/issues`}>Issues ↗</a>
+  </section>
 </BaseLayout>
 <style>
-  .docs-hero { padding: clamp(5rem, 11vw, 9rem) 0 4rem; border-bottom: 1px solid var(--line); } h1 { font-size: clamp(4rem, 9vw, 7rem); margin-bottom: .8rem; } .docs-hero > p { color: var(--muted); max-width: 36rem; font-size: 1.15rem; } .button { margin-top: 1rem; }.docs-grid { padding: 2.5rem 0 6rem; display: grid; grid-template-columns: 1.2fr .8fr; gap: 1px; background: var(--line); border-block: 1px solid var(--line); } article { background: var(--paper); padding: 2rem; min-height: 17rem; } .number { font: .7rem var(--mono); color: var(--accent); } h2 { font-size: 1.65rem; margin-bottom: .7rem; } article > p:not(.number) { color: var(--muted); font-size: .93rem; } pre { padding: 1rem; overflow: auto; background: #151513; color: var(--ink); border: 1px solid var(--line); font: .69rem/1.6 var(--mono); } article > a { font: .73rem var(--mono); text-decoration: underline; text-underline-offset: .2em; } .resources { background: var(--ink); color: var(--paper); padding: 3rem 0; } .resources .eyebrow { color: var(--accent); }.resources div div { display: flex; flex-wrap: wrap; gap: 1.5rem; }.resources a { font: 1.1rem var(--mono); border-bottom: 1px solid #aaa69e; padding-bottom: .2rem; } @media (max-width: 700px) { .docs-grid { grid-template-columns: 1fr; } article { min-height: 0; } }
+  .hero { padding-block: 72px 48px; display: flex; flex-direction: column; gap: 24px; }
+  .hero .lede { max-width: 640px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 32px; }
+  article { padding: 28px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .install { grid-column: 1 / -1; }
+  article h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  article > p:not(.eyebrow) { color: var(--muted); line-height: 1.6; }
+  .more { margin-top: auto; }
+  .links { padding-block: 56px 96px; display: flex; flex-wrap: wrap; gap: 16px; }
+  @media (max-width: 640px) { .hero { padding-block: 40px 32px; } article { padding: 20px; } .links { padding-block: 40px 64px; } }
 </style>

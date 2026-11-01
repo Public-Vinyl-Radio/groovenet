@@ -1,0 +1,399 @@
+{
+  "generatedFrom": "my-collection-search/src/app/palettes and fontChoices.ts by `just site-tokens`. Don't edit.",
+  "defaultPalette": "sleeve",
+  "palettes": [
+    {
+      "id": "sleeve",
+      "label": "Sleeve",
+      "contrast": "AA",
+      "light": {
+        "--gn-ground": "#f4ede0",
+        "--gn-surface": "#fbf7ee",
+        "--gn-ink": "#1f1a17",
+        "--gn-ink-muted": "#5c5249",
+        "--gn-border": "#857a6d",
+        "--gn-accent-solid": "#c8321a",
+        "--gn-accent-fg": "#b02a14",
+        "--gn-accent-subtle": "#f6d9cf",
+        "--gn-accent-contrast": "#ffffff",
+        "--gn-accent-muted": "#edb8a6",
+        "--gn-accent-emphasized": "#e39a82",
+        "--gn-accent-focus-ring": "#c8321a",
+        "--gn-accent-border": "#c8321a",
+        "--gn-shadow": "#4a3a2e",
+        "--gn-status-missing-fg": "#9b1c1c",
+        "--gn-status-missing-subtle": "#f5c6c0",
+        "--gn-status-missing-border": "#b54a44",
+        "--gn-status-analysis-fg": "#2e1800",
+        "--gn-status-analysis-subtle": "#ffefc2",
+        "--gn-status-analysis-border": "#a8741f",
+        "--gn-status-genre-fg": "#4b30a0",
+        "--gn-status-genre-subtle": "#cdbff0",
+        "--gn-status-genre-border": "#7d62c4",
+        "--gn-status-success-fg": "#0a3a18",
+        "--gn-status-success-subtle": "#cfe8d6",
+        "--gn-status-success-border": "#3f8a58"
+      },
+      "dark": {
+        "--gn-ground": "#17130f",
+        "--gn-surface": "#221c17",
+        "--gn-ink": "#f2eadc",
+        "--gn-ink-muted": "#b5a99a",
+        "--gn-border": "#7a6f63",
+        "--gn-accent-solid": "#e8573a",
+        "--gn-accent-fg": "#f27d62",
+        "--gn-accent-subtle": "#3b1e16",
+        "--gn-accent-contrast": "#17130f",
+        "--gn-accent-muted": "#5a2b1f",
+        "--gn-accent-emphasized": "#7a3a2a",
+        "--gn-accent-focus-ring": "#f27d62",
+        "--gn-accent-border": "#e8573a",
+        "--gn-shadow": "#6e5f50",
+        "--gn-status-missing-fg": "#ff8a86",
+        "--gn-status-missing-subtle": "#4a1a1a",
+        "--gn-status-missing-border": "#c4605c",
+        "--gn-status-analysis-fg": "#ffe08a",
+        "--gn-status-analysis-subtle": "#4a3a10",
+        "--gn-status-analysis-border": "#b58a2e",
+        "--gn-status-genre-fg": "#a48ef0",
+        "--gn-status-genre-subtle": "#1a1238",
+        "--gn-status-genre-border": "#8a70d4",
+        "--gn-status-success-fg": "#82e0a0",
+        "--gn-status-success-subtle": "#226037",
+        "--gn-status-success-border": "#4a9a65"
+      }
+    },
+    {
+      "id": "riso",
+      "label": "Riso",
+      "contrast": "AA",
+      "light": {
+        "--gn-ground": "#fbf1de",
+        "--gn-surface": "#fffaf0",
+        "--gn-ink": "#1d1a2e",
+        "--gn-ink-muted": "#55506a",
+        "--gn-border": "#7a7390",
+        "--gn-accent-solid": "#f0309c",
+        "--gn-accent-fg": "#b8005f",
+        "--gn-accent-subtle": "#ffd6ea",
+        "--gn-accent-contrast": "#1d1a2e",
+        "--gn-accent-muted": "#ffb0d6",
+        "--gn-accent-emphasized": "#ff86c0",
+        "--gn-accent-focus-ring": "#b8005f",
+        "--gn-accent-border": "#f0309c",
+        "--gn-shadow": "#0a8f84",
+        "--gn-status-missing-fg": "#b00020",
+        "--gn-status-missing-subtle": "#ffcfc4",
+        "--gn-status-missing-border": "#c4483c",
+        "--gn-status-analysis-fg": "#4a2c00",
+        "--gn-status-analysis-subtle": "#fff8d6",
+        "--gn-status-analysis-border": "#a8741f",
+        "--gn-status-genre-fg": "#4535b0",
+        "--gn-status-genre-subtle": "#c0baff",
+        "--gn-status-genre-border": "#6c62d0",
+        "--gn-status-success-fg": "#004a3f",
+        "--gn-status-success-subtle": "#c6f2e4",
+        "--gn-status-success-border": "#008477"
+      },
+      "dark": {
+        "--gn-ground": "#1a1424",
+        "--gn-surface": "#261d33",
+        "--gn-ink": "#fbf1de",
+        "--gn-ink-muted": "#c0b4cc",
+        "--gn-border": "#8a7d9c",
+        "--gn-accent-solid": "#ff5cb8",
+        "--gn-accent-fg": "#ff8ccc",
+        "--gn-accent-subtle": "#4a1838",
+        "--gn-accent-contrast": "#1a1424",
+        "--gn-accent-muted": "#6e2655",
+        "--gn-accent-emphasized": "#94307a",
+        "--gn-accent-focus-ring": "#ff8ccc",
+        "--gn-accent-border": "#ff5cb8",
+        "--gn-shadow": "#1f8f86",
+        "--gn-status-missing-fg": "#ff9a9a",
+        "--gn-status-missing-subtle": "#6a1a2a",
+        "--gn-status-missing-border": "#d0605f",
+        "--gn-status-analysis-fg": "#ffe08a",
+        "--gn-status-analysis-subtle": "#5a4a14",
+        "--gn-status-analysis-border": "#b58a2e",
+        "--gn-status-genre-fg": "#a89cff",
+        "--gn-status-genre-subtle": "#1c1860",
+        "--gn-status-genre-border": "#8a7ee0",
+        "--gn-status-success-fg": "#4fe0c0",
+        "--gn-status-success-subtle": "#0d4a44",
+        "--gn-status-success-border": "#2bb5a5"
+      }
+    },
+    {
+      "id": "midnight",
+      "label": "Midnight",
+      "contrast": "AA",
+      "light": {
+        "--gn-ground": "#e4e9f3",
+        "--gn-surface": "#f7f3e6",
+        "--gn-ink": "#0e1830",
+        "--gn-ink-muted": "#475270",
+        "--gn-border": "#53628a",
+        "--gn-accent-solid": "#a35f00",
+        "--gn-accent-fg": "#8a4f00",
+        "--gn-accent-subtle": "#f8e3b0",
+        "--gn-accent-contrast": "#ffffff",
+        "--gn-accent-muted": "#efc978",
+        "--gn-accent-emphasized": "#e0a83c",
+        "--gn-accent-focus-ring": "#8a4f00",
+        "--gn-accent-border": "#a35f00",
+        "--gn-shadow": "#1c2c52",
+        "--gn-status-missing-fg": "#9b1c1c",
+        "--gn-status-missing-subtle": "#f7cdc6",
+        "--gn-status-missing-border": "#b54a44",
+        "--gn-status-analysis-fg": "#3a2400",
+        "--gn-status-analysis-subtle": "#fff3c4",
+        "--gn-status-analysis-border": "#a8741f",
+        "--gn-status-genre-fg": "#3d3396",
+        "--gn-status-genre-subtle": "#bdb6f0",
+        "--gn-status-genre-border": "#6f66c4",
+        "--gn-status-success-fg": "#0a3a28",
+        "--gn-status-success-subtle": "#c9e8d8",
+        "--gn-status-success-border": "#3f8a68"
+      },
+      "dark": {
+        "--gn-ground": "#0e1830",
+        "--gn-surface": "#16243f",
+        "--gn-ink": "#f5ecd6",
+        "--gn-ink-muted": "#b4b9c8",
+        "--gn-border": "#6f7fa3",
+        "--gn-accent-solid": "#ffb020",
+        "--gn-accent-fg": "#ffc54d",
+        "--gn-accent-subtle": "#3a2d0e",
+        "--gn-accent-contrast": "#0e1830",
+        "--gn-accent-muted": "#5c4510",
+        "--gn-accent-emphasized": "#84610f",
+        "--gn-accent-focus-ring": "#ffc54d",
+        "--gn-accent-border": "#ffb020",
+        "--gn-shadow": "#3a5288",
+        "--gn-status-missing-fg": "#ff9a94",
+        "--gn-status-missing-subtle": "#4a1a1e",
+        "--gn-status-missing-border": "#c4605c",
+        "--gn-status-analysis-fg": "#ffe08a",
+        "--gn-status-analysis-subtle": "#4a3a10",
+        "--gn-status-analysis-border": "#b58a2e",
+        "--gn-status-genre-fg": "#a9a0f5",
+        "--gn-status-genre-subtle": "#181450",
+        "--gn-status-genre-border": "#8a80dc",
+        "--gn-status-success-fg": "#82e0b0",
+        "--gn-status-success-subtle": "#14583a",
+        "--gn-status-success-border": "#4a9a75"
+      }
+    },
+    {
+      "id": "mono",
+      "label": "Mono",
+      "contrast": "AAA",
+      "light": {
+        "--gn-ground": "#ffffff",
+        "--gn-surface": "#f2f2f2",
+        "--gn-ink": "#000000",
+        "--gn-ink-muted": "#404040",
+        "--gn-border": "#666666",
+        "--gn-accent-solid": "#000000",
+        "--gn-accent-fg": "#000000",
+        "--gn-accent-subtle": "#dcdcdc",
+        "--gn-accent-contrast": "#ffffff",
+        "--gn-accent-muted": "#c4c4c4",
+        "--gn-accent-emphasized": "#a0a0a0",
+        "--gn-accent-focus-ring": "#000000",
+        "--gn-accent-border": "#000000",
+        "--gn-shadow": "#000000",
+        "--gn-status-missing-fg": "#000000",
+        "--gn-status-missing-subtle": "#c8c8c8",
+        "--gn-status-missing-border": "#000000",
+        "--gn-status-analysis-fg": "#161616",
+        "--gn-status-analysis-subtle": "#d8d8d8",
+        "--gn-status-analysis-border": "#333333",
+        "--gn-status-genre-fg": "#2b2b2b",
+        "--gn-status-genre-subtle": "#e8e8e8",
+        "--gn-status-genre-border": "#4d4d4d",
+        "--gn-status-success-fg": "#424242",
+        "--gn-status-success-subtle": "#f4f4f4",
+        "--gn-status-success-border": "#666666"
+      },
+      "dark": {
+        "--gn-ground": "#000000",
+        "--gn-surface": "#141414",
+        "--gn-ink": "#ffffff",
+        "--gn-ink-muted": "#bfbfbf",
+        "--gn-border": "#8c8c8c",
+        "--gn-accent-solid": "#ffffff",
+        "--gn-accent-fg": "#ffffff",
+        "--gn-accent-subtle": "#2a2a2a",
+        "--gn-accent-contrast": "#000000",
+        "--gn-accent-muted": "#3d3d3d",
+        "--gn-accent-emphasized": "#5c5c5c",
+        "--gn-accent-focus-ring": "#ffffff",
+        "--gn-accent-border": "#ffffff",
+        "--gn-shadow": "#6b6b6b",
+        "--gn-status-missing-fg": "#ffffff",
+        "--gn-status-missing-subtle": "#2a2a2a",
+        "--gn-status-missing-border": "#ffffff",
+        "--gn-status-analysis-fg": "#e6e6e6",
+        "--gn-status-analysis-subtle": "#1f1f1f",
+        "--gn-status-analysis-border": "#cccccc",
+        "--gn-status-genre-fg": "#cccccc",
+        "--gn-status-genre-subtle": "#141414",
+        "--gn-status-genre-border": "#a6a6a6",
+        "--gn-status-success-fg": "#b3b3b3",
+        "--gn-status-success-subtle": "#000000",
+        "--gn-status-success-border": "#8c8c8c"
+      }
+    }
+  ],
+  "fonts": {
+    "display": {
+      "label": "Display",
+      "fallback": "\"Helvetica Neue\", Arial, sans-serif",
+      "choices": [
+        {
+          "id": "default",
+          "label": "IBM Plex Sans",
+          "face": "plex-sans"
+        },
+        {
+          "id": "barlow-condensed",
+          "label": "Barlow Condensed",
+          "face": "barlow-condensed"
+        },
+        {
+          "id": "zilla-slab",
+          "label": "Zilla Slab",
+          "face": "zilla-slab"
+        }
+      ]
+    },
+    "body": {
+      "label": "Body",
+      "fallback": "\"Helvetica Neue\", Arial, sans-serif",
+      "choices": [
+        {
+          "id": "default",
+          "label": "IBM Plex Sans",
+          "face": "plex-sans"
+        },
+        {
+          "id": "inter",
+          "label": "Inter",
+          "face": "inter"
+        }
+      ]
+    },
+    "label": {
+      "label": "Labels",
+      "fallback": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "choices": [
+        {
+          "id": "default",
+          "label": "IBM Plex Mono",
+          "face": "plex-mono"
+        },
+        {
+          "id": "jetbrains-mono",
+          "label": "JetBrains Mono",
+          "face": "jetbrains-mono"
+        }
+      ]
+    }
+  },
+  "faces": {
+    "plex-sans": {
+      "family": "IBM Plex Sans",
+      "files": [
+        {
+          "weight": 400,
+          "file": "IBMPlexSans-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "IBMPlexSans-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "IBMPlexSans-600.woff2"
+        }
+      ],
+      "licence": "OFL-IBMPlex.txt"
+    },
+    "barlow-condensed": {
+      "family": "Barlow Condensed",
+      "files": [
+        {
+          "weight": 600,
+          "file": "BarlowCondensed-600.woff2"
+        }
+      ],
+      "licence": "OFL-BarlowCondensed.txt"
+    },
+    "zilla-slab": {
+      "family": "Zilla Slab",
+      "files": [
+        {
+          "weight": 600,
+          "file": "ZillaSlab-600.woff2"
+        }
+      ],
+      "licence": "OFL-ZillaSlab.txt"
+    },
+    "inter": {
+      "family": "Inter",
+      "files": [
+        {
+          "weight": 400,
+          "file": "Inter-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "Inter-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "Inter-600.woff2"
+        }
+      ],
+      "licence": "OFL-Inter.txt"
+    },
+    "plex-mono": {
+      "family": "IBM Plex Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "IBMPlexMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "IBMPlexMono-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "IBMPlexMono-600.woff2"
+        }
+      ],
+      "licence": "OFL-IBMPlex.txt"
+    },
+    "jetbrains-mono": {
+      "family": "JetBrains Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "JetBrainsMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "JetBrainsMono-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "JetBrainsMono-600.woff2"
+        }
+      ],
+      "licence": "OFL-JetBrainsMono.txt"
+    }
+  }
+}

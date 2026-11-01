@@ -1,0 +1,9 @@
+---
+interface Props { tag: string; aside?: string; asideHref?: string; }
+const { tag, aside, asideHref } = Astro.props;
+---
+<div class="section-head">
+  <span class="tag">{tag}</span>
+  <span class="rule" aria-hidden="true"></span>
+  {aside && (asideHref ? <a class="aside" href={asideHref}>{aside}</a> : <span class="aside">{aside}</span>)}
+</div>
