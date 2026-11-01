@@ -1,3 +1,13 @@
+import {
+  booleanFlagSchema,
+  genreQueryParamSchema,
+  intFromInputSchema,
+  nonNegativeIntFromInputSchema,
+  numberFromInputSchema,
+  positiveIntFromInputSchema,
+  toInt,
+} from "@groovenet/contracts/coercion";
+export { intFromInputSchema, nonNegativeIntFromInputSchema } from "@groovenet/contracts/coercion";
 import { homeQuerySchema as sharedHomeQuerySchema, homeResponseSchema } from "@groovenet/contracts";
 import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
@@ -16,6 +26,8 @@ import {
   albumSchema,
   albumTaxonomyOverridesSchema,
   albumSearchResponseSchema,
+  albumSearchQuerySchema as sharedAlbumSearchQuerySchema,
+  trackSearchQuerySchema as sharedTrackSearchQuerySchema,
   genreFilterRefSchema,
   trackAudioMetadataEmbeddedCoverSchema,
   trackAudioMetadataSchema,
@@ -119,33 +131,6 @@ import {
 import { paletteIds } from "@/app/palettes";
 import { customPaletteId, customPaletteSchema } from "@/app/palettes/custom";
 import { RECOMMENDATION_SCOPES } from "@/types/recommendations";
-
-const toInt = (value: unknown): unknown => {
-  if (typeof value === "number") return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return value;
-};
-
-export const intFromInputSchema = z.preprocess(toInt, z.number().int());
-
-/** A query-string number, decimals allowed; anything not wholly numeric fails. */
-const toNumber = (value: unknown): unknown => {
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return value;
-};
-const numberFromInputSchema = z.preprocess(toNumber, z.number());
-export const nonNegativeIntFromInputSchema = z.preprocess(toInt, z.number().int().min(0));
-
-/** A query-string flag: `1`/`true` is on, anything else (including absent) is off. */
-const toBooleanFlag = (value: unknown): unknown =>
-  typeof value === "string" ? value === "1" || value.toLowerCase() === "true" : value;
-const booleanFlagSchema = z.preprocess(toBooleanFlag, z.boolean());
 
 export const apiErrorSchema = z
   .object({
@@ -637,29 +622,20 @@ export const trackSearchGetResponseSchema = trackSearchResponseSchema.extend({
   hits: z.array(z.unknown()),
 });
 
-/** A repeatable `genre` query parameter: one value, or several. */
-const genreQueryParamSchema = z
-  .preprocess(
-    (value) => (typeof value === "string" ? [value] : value),
-    z.array(z.string().trim().min(1)).max(20),
-  )
-  .optional();
-
 /** A genre a widened filter added (#485): the removable "+ Chicha, Porro" chip. */
 export type GenreFilterRefDto = GenreFilterRef;
 
-export const trackSearchGetQuerySchema = z.object({
-  q: z.string().optional().default(""),
+export const trackSearchGetQuerySchema = sharedTrackSearchQuerySchema.extend({
+  q: sharedTrackSearchQuerySchema.shape.q.default(""),
   limit: nonNegativeIntFromInputSchema.optional().default(20),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
   friend_id: intFromInputSchema.optional(),
-  filter: z.string().optional(),
   /**
    * `lexical` (default) is full-text + trigram. `semantic` ranks by the
    * `context` embedding; `hybrid` fuses both (#409). Both are one page:
    * `offset` must be 0 and `limit` at most 50.
    */
-  mode: trackSearchModeSchema.optional().default("lexical"),
+  mode: sharedTrackSearchQuerySchema.shape.mode.default("lexical"),
   /** Attribute filters (#412), applied in every mode. */
   bpm_min: numberFromInputSchema.optional(),
   bpm_max: numberFromInputSchema.optional(),
@@ -1124,18 +1100,13 @@ export const albumUpsertWithTracksResponseSchema = z.object({
   deletedTracks: z.number().int(),
 });
 
-export const albumSearchQuerySchema = z.object({
-  q: z.string().optional().default(""),
-  sort: z.string().optional().default("created_at:desc"),
+export const albumSearchQuerySchema = sharedAlbumSearchQuerySchema.extend({
+  q: sharedAlbumSearchQuerySchema.shape.q.default(""),
+  sort: sharedAlbumSearchQuerySchema.shape.sort.default("created_at:desc"),
   friend_id: intFromInputSchema.optional(),
   limit: nonNegativeIntFromInputSchema.optional().default(20),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
-  missing_library_identifier: z.boolean().optional(),
-  missing_local_cover_art_url: z.boolean().optional(),
-  missing_audio: z.boolean().optional(),
   genre: genreQueryParamSchema,
-  /** Widen `genre` to each seed's top related genres from `genre_similarity` (#485). */
-  include_similar: z.boolean().optional(),
   /** Per-seed cap on related genres pulled in when `include_similar` is on; defaults server-side. */
   similar_limit: nonNegativeIntFromInputSchema.optional(),
   /** Related-genre ids the UI has removed from the widened set; kept out on this and later requests. */
@@ -1292,8 +1263,6 @@ export const spinDeleteResponseSchema = sharedSpinDeleteResponseSchema;
 
 // Shapes live in @groovenet/contracts; these add the app's text coercion for
 // ids, counts and flags, and keep the names routes already import.
-const positiveIntFromInputSchema = z.preprocess(toInt, z.number().int().min(1));
-
 export const sleeveTypeSchema = sharedSleeveTypeSchema;
 export const recordActionTypeSchema = sharedRecordActionTypeSchema;
 export const cleaningMethodSchema = sharedCleaningMethodSchema;

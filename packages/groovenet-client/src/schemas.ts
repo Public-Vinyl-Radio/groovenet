@@ -1,30 +1,17 @@
 // Subset of Zod schemas relevant to external consumers.
-// Copied from my-collection-search/src/api-contract/schemas.ts — Next.js app is source of truth.
+// Wire shapes and runtime input adapters come from @groovenet/contracts.
+
+import {
+  genreQueryParamSchema,
+  intFromInputSchema,
+  nonNegativeIntFromInputSchema,
+  numberFromInputSchema,
+  toInt,
+} from "@groovenet/contracts/coercion";
+export { intFromInputSchema, nonNegativeIntFromInputSchema } from "@groovenet/contracts/coercion";
 
 import { z } from "zod";
 import type { GenreTreeNode } from "./types.js";
-
-const toInt = (value: unknown): unknown => {
-  if (typeof value === "number") return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return value;
-};
-
-export const intFromInputSchema = z.preprocess(toInt, z.number().int());
-
-/** A query-string number, decimals allowed; anything not wholly numeric fails. */
-const toNumber = (value: unknown): unknown => {
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return value;
-};
-const numberFromInputSchema = z.preprocess(toNumber, z.number());
-export const nonNegativeIntFromInputSchema = z.preprocess(toInt, z.number().int().min(0));
 
 export {
   playlistGeneticRequestSchema as playlistGeneticBodySchema,
@@ -33,7 +20,7 @@ export {
 } from "@groovenet/contracts";
 export type { PlaylistTrackInput } from "@groovenet/contracts";
 
-import { trackSearchModeSchema } from "@groovenet/contracts";
+import { trackSearchQuerySchema } from "@groovenet/contracts";
 export {
   albumPlayableStructureSideSchema,
   albumPlayableStructureTrackSchema,
@@ -45,24 +32,25 @@ export {
   trackSearchResponseSchema as trackSearchGetResponseSchema,
 } from "@groovenet/contracts";
 
-/** A taxonomy genre linked to a track (#371). */
-export const trackSearchGetQuerySchema = z.object({
-  q: z.string().optional().default(""),
-  limit: nonNegativeIntFromInputSchema.optional().default(20),
-  offset: nonNegativeIntFromInputSchema.optional().default(0),
-  filter: z.string().optional(),
-  mode: trackSearchModeSchema.optional().default("lexical"),
-  bpm_min: numberFromInputSchema.optional(),
-  bpm_max: numberFromInputSchema.optional(),
-  key: z.string().trim().min(1).optional(),
-  star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
-  genre: z
-    .preprocess(
-      (value) => (typeof value === "string" ? [value] : value),
-      z.array(z.string().trim().min(1)).max(20),
-    )
-    .optional(),
-});
+// Preserve the client's existing subset: these app-only fields are stripped.
+export const trackSearchGetQuerySchema = trackSearchQuerySchema
+  .omit({
+    friend_id: true,
+    include_similar: true,
+    similar_limit: true,
+    similar_exclude: true,
+  })
+  .extend({
+    q: trackSearchQuerySchema.shape.q.default(""),
+    limit: nonNegativeIntFromInputSchema.optional().default(20),
+    offset: nonNegativeIntFromInputSchema.optional().default(0),
+    mode: trackSearchQuerySchema.shape.mode.default("lexical"),
+    bpm_min: numberFromInputSchema.optional(),
+    bpm_max: numberFromInputSchema.optional(),
+    key: z.string().trim().min(1).optional(),
+    star_rating: z.preprocess(toInt, z.number().int().min(0).max(5)).optional(),
+    genre: genreQueryParamSchema,
+  });
 
 export const jobInfoSchema = z
   .object({

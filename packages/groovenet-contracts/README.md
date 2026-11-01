@@ -31,11 +31,15 @@ when the endpoint already rejects unknown fields.
 
 Playlist endpoints showed three cases the live-set migration did not need:
 
-- **Text-coerced ids stay in the app.** Path and query ids arrive as strings, so
-  the app keeps `intFromInputSchema` for `params`/`query` schemas. The shared
+- **Text coercion uses a separate runtime entry point.** Path and query ids arrive as strings, so
+  consumers import `intFromInputSchema` from `@groovenet/contracts/coercion`
+  for `params`/`query` schemas. The shared
   schema declares the wire type (`id: z.number().int()`); the app derives its
-  route schema with `.extend({ id: intFromInputSchema })`. Do not move
-  `z.preprocess` into this package: it has no JSON Schema form.
+  route schema with `.extend({ id: intFromInputSchema })`. Keep `z.preprocess` out of the main entry point and OpenAPI-facing
+  schemas: it has no JSON Schema form. The separate `./coercion` export is
+  compiled by the same `tsc6` build, but never re-exported by `src/index.ts`.
+  This shares integer, number, flag and repeatable-genre adapters between the
+  app and client without exposing preprocess to OpenAPI generation.
 - **Schemas with defaults or refinements publish their input shape.** Pass
   `{ io: "input" }` to `z.toJSONSchema` for those (`PlaylistCreate`,
   `PlaylistSpinsInput`) so OpenAPI documents what a client sends, not what the
@@ -76,7 +80,9 @@ the smaller resources did not need:
 - **Query schemas stay in the app.** `trackSearchQuerySchema` and
   `albumSearchQuerySchema` here describe the coerced wire values; the app's
   `*GetQuerySchema` keeps `intFromInputSchema`/`booleanFlagSchema` coercion.
-  The client's `trackSearchGetQuerySchema` is still a coercing copy (deferred).
+  Both consumers derive their query schemas from the shared wire shapes
+  with `.extend()` and adapters from `@groovenet/contracts/coercion`. The
+  client omits app-only track filters to preserve its existing parsing behavior.
 - **Add response validation only to flat payloads.** Routes that return a small
   fixed object (`essentia`, `playlists`, `DELETE`, extract-cover) parse their
   response with the shared schema; lenient request handling (e.g.
