@@ -22,6 +22,8 @@ interface TrackStore {
     friendId: number,
     updates: Partial<TrackEntity>,
   ) => void;
+  removeTrack: (trackId: string, friendId: number) => void;
+  removeTracks: (refs: ReadonlyArray<{ trackId: string; friendId: number }>) => void;
   getTrack: (trackId: string, friendId?: number) => TrackEntity | undefined;
   hasTrack: (trackId: string, friendId?: number) => boolean;
   clearTracks: () => void;
@@ -302,6 +304,42 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
         tracks: newTracks,
         trackKeysByRelease: buildReleaseIndex(newTracks),
       };
+    });
+  },
+
+  removeTrack: (trackId, friendId) => get().removeTracks([{ trackId, friendId }]),
+
+  // Evicts deleted entities. A release left with no tracks loses its hydrated
+  // flag, so the album page reads "not loaded" and refetches rather than
+  // rendering a hydrated-but-empty release.
+  removeTracks: (refs) => {
+    set((state) => {
+      const newTracks = new Map(state.tracks);
+      const touchedReleases = new Set<string>();
+      for (const { trackId, friendId } of refs) {
+        const key = createTrackKey(trackId, friendId);
+        const existing = newTracks.get(key);
+        if (!existing) continue;
+        newTracks.delete(key);
+        if (existing.release_id && typeof existing.friend_id === "number") {
+          touchedReleases.add(createReleaseKey(existing.release_id, existing.friend_id));
+        }
+      }
+      if (newTracks.size === state.tracks.size) return state;
+
+      if (isStoreDebugEnabled()) {
+        storeLog("removeTracks", [["refs", refs]]);
+      }
+      const trackKeysByRelease = buildReleaseIndex(newTracks);
+      let hydratedReleaseKeys = state.hydratedReleaseKeys;
+      for (const releaseKey of touchedReleases) {
+        if (trackKeysByRelease.has(releaseKey) || !hydratedReleaseKeys.has(releaseKey)) continue;
+        if (hydratedReleaseKeys === state.hydratedReleaseKeys) {
+          hydratedReleaseKeys = new Set(hydratedReleaseKeys);
+        }
+        hydratedReleaseKeys.delete(releaseKey);
+      }
+      return { tracks: newTracks, trackKeysByRelease, hydratedReleaseKeys };
     });
   },
 

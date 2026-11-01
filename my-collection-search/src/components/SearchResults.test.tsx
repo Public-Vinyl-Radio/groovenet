@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -744,6 +744,22 @@ describe("SearchResults selection and bulk actions", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(screen.queryByText(/selected/)).toBeNull();
+  });
+
+  it("drops a selected track from the selection when it is removed from the store", async () => {
+    withSelectableResults();
+    const { user } = renderWithProviders(<SearchResults />);
+
+    await user.click(selectTracksButton());
+    await user.click(screen.getByRole("button", { name: "Select t1" }));
+    await user.click(screen.getByRole("button", { name: "Select t2" }));
+    expect(screen.getByText("2 selected")).toBeTruthy();
+
+    act(() => useTrackStore.getState().removeTrack("t1", 1));
+    await waitFor(() => expect(screen.getByText("1 selected")).toBeTruthy());
+
+    act(() => useTrackStore.getState().removeTrack("t2", 1));
+    await waitFor(() => expect(screen.queryByText(/selected/)).toBeNull());
   });
 
   it("selects a track from its checkbox in cards view too", async () => {

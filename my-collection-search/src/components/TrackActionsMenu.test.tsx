@@ -42,6 +42,7 @@ vi.mock("@/services/internalApi/tracks", () => ({
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: mocks.toast } }));
 
 import TrackActionsMenu from "./TrackActionsMenu";
+import { useTrackStore } from "@/stores/trackStore";
 import { TrackCardContext } from "./trackCardContext";
 
 afterEach(() => vi.clearAllMocks());
@@ -432,6 +433,7 @@ describe("TrackActionsMenu phone modal (#735)", () => {
   });
 
   it("deletes the track after confirming, and cancelling deletes nothing", async () => {
+    useTrackStore.getState().setTrack(trackWithEverything);
     const { user } = await openModal();
     await user.click(screen.getByText("Delete track"));
     let dialog = await screen.findByRole("alertdialog", { name: "Delete track" });
@@ -448,6 +450,7 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     await vi.waitFor(() =>
       expect(mocks.toast).toHaveBeenCalledWith({ title: "Track deleted", type: "success" }),
     );
+    expect(useTrackStore.getState().getTrack("t1", 7)).toBeUndefined();
   });
 
   it("keeps the delete prompt open and reports a failure", async () => {

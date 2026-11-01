@@ -218,6 +218,12 @@ export function useSearchResults({
   // Populate Zustand store when results change - only tracks that are new or
   // whose server data changed. setTracks keeps local edits (rating, notes).
   useEffect(() => {
+    // Forget seeds for tracks that left the results (deleted, filtered out), so
+    // one that comes back — a restore — is seeded into the store again.
+    const present = new Set(results.map((t) => `${t.track_id}:${t.friend_id || "default"}`));
+    for (const key of seededTracks.current.keys()) {
+      if (!present.has(key)) seededTracks.current.delete(key);
+    }
     if (results.length === 0) return;
 
     const changedTracks = results.filter((track) => {

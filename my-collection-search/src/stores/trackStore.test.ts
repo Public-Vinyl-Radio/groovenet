@@ -155,3 +155,72 @@ describe("sparse effective album values", () => {
     },
   );
 });
+
+describe("trackStore.removeTrack", () => {
+  it("evicts the entity and its release index entry", () => {
+    const { setTracks, removeTrack, getTrack } = useTrackStore.getState();
+    setTracks([
+      track({ track_id: "a", release_id: "r1" }),
+      track({ track_id: "b", release_id: "r1" }),
+    ]);
+
+    removeTrack("a", 1);
+
+    const state = useTrackStore.getState();
+    expect(getTrack("a", 1)).toBeUndefined();
+    expect(getTrack("b", 1)).toBeDefined();
+    expect(state.trackKeysByRelease.get("r1:1")).toEqual(["b:1"]);
+  });
+
+  it("keeps the release hydrated while it still has tracks, and un-hydrates it when empty", () => {
+    const { setTracks, markReleaseHydrated, removeTrack, isReleaseHydrated } =
+      useTrackStore.getState();
+    setTracks([
+      track({ track_id: "a", release_id: "r1" }),
+      track({ track_id: "b", release_id: "r1" }),
+    ]);
+    markReleaseHydrated("r1", 1);
+
+    removeTrack("a", 1);
+    expect(isReleaseHydrated("r1", 1)).toBe(true);
+
+    removeTrack("b", 1);
+    expect(isReleaseHydrated("r1", 1)).toBe(false);
+  });
+
+  it("is a no-op, keeping state identity, for an unknown track", () => {
+    useTrackStore.getState().setTracks([track({ release_id: "r1" })]);
+    const before = useTrackStore.getState();
+
+    useTrackStore.getState().removeTrack("missing", 1);
+
+    expect(useTrackStore.getState()).toBe(before);
+  });
+
+  it("only removes the track for the matching friend", () => {
+    const { setTracks, removeTracks, getTrack } = useTrackStore.getState();
+    setTracks([track({ friend_id: 1 }), track({ friend_id: 2 })]);
+
+    removeTracks([{ trackId: "t1", friendId: 1 }]);
+
+    expect(getTrack("t1", 1)).toBeUndefined();
+    expect(getTrack("t1", 2)).toBeDefined();
+  });
+
+  it("leaves hydration alone for a track without a release", () => {
+    const { setTracks, removeTrack, getTrack } = useTrackStore.getState();
+    setTracks([track()]);
+    removeTrack("t1", 1);
+    expect(getTrack("t1", 1)).toBeUndefined();
+  });
+
+  it("lets a restored track come back through setTracks", () => {
+    const { setTracks, removeTrack, getTrack } = useTrackStore.getState();
+    setTracks([track({ release_id: "r1" })]);
+    removeTrack("t1", 1);
+
+    setTracks([track({ release_id: "r1", title: "Restored" })]);
+
+    expect(getTrack("t1", 1)?.title).toBe("Restored");
+  });
+});
