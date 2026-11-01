@@ -1,0 +1,26 @@
+name: Site roadmap refresh
+
+# The site's roadmap is read from GitHub issue labels at build time, so rebuild
+# once a day even when nothing merges. See "Roadmap" in site/CLAUDE.md.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+    steps:
+      - name: Trigger a Netlify build
+        run: |
+          if [[ -z "$NETLIFY_BUILD_HOOK" ]]; then
+            echo "NETLIFY_BUILD_HOOK is not set; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 30 -X POST -d '{}' "$NETLIFY_BUILD_HOOK" > /dev/null
+          echo "Build hook triggered."

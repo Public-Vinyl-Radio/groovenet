@@ -40,12 +40,44 @@ headings are 600, not the canvas's 800.
 - **Screenshots:** `src/data/screenshots.ts` has one entry per slot, its
   `image` an imported PNG from `src/assets/screenshots/`; a slot without one
   renders a labelled placeholder. See "Refreshing screenshots" below.
-- **Roadmap:** `src/data/roadmap.yml`, a content collection (`src/content.config.ts`).
-  Real items only.
+- **Roadmap:** generated at build time from GitHub issue labels (below), with
+  `src/data/roadmap.yml` as the fallback. Real items only.
 - **Copy** is from the design, checked against the code: the phone shots are
   the web app at 390px, and the native iOS app is an early client.
 - Docs will be built with Starlight from the repo-root `docs/` tree (#911);
   `/docs` is a holding page until then.
+
+## Roadmap
+
+`src/lib/roadmap.mjs` fetches open issues labelled `roadmap:now`, `roadmap:next`
+and `roadmap:later` from the GitHub REST API; `src/content.config.ts` loads them
+into the `roadmap` collection that `Roadmap.astro` renders. Items link to their
+issue. Within a column: milestone first (by due date), then oldest first.
+Unlabelled and closed issues don't appear.
+
+Site copy lives in the issue body, as an HTML comment (invisible on GitHub):
+
+```
+<!-- roadmap
+title: Weekly wantlist recommendations
+note: Records to look for, drawn from what you play.
+-->
+```
+
+Other fields are ignored. Without a marker with a `title:`, the item uses the
+issue title with its `type(scope):` prefix stripped, no note, and the build logs
+a warning naming the issue.
+
+- **`GITHUB_TOKEN`** (optional, Netlify env var): a fine-grained, read-only token
+  for the public repo. Without it, requests are unauthenticated: 60 an hour per
+  IP, and Netlify's build IPs are shared.
+- **Fallback:** a failed request, a ~5 s timeout or no labelled issues uses the
+  committed `roadmap.yml` and logs why. A GitHub outage never fails a deploy.
+  `just site-roadmap` rewrites that file from GitHub (and leaves it alone when
+  nothing is labelled).
+- **Daily refresh:** `.github/workflows/site-roadmap.yml` POSTs the
+  `NETLIFY_BUILD_HOOK` repo secret once a day, and skips when it's unset.
+- **Tests:** `npm test --prefix site` (`node:test`, no dependencies, fetch mocked).
 
 ## Refreshing screenshots
 

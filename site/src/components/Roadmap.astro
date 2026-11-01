@@ -2,7 +2,7 @@
 import { getCollection } from "astro:content";
 import SectionHead from "./SectionHead.astro";
 
-// The file loader keeps the YAML's order: Now, Next, Later.
+// Columns come from GitHub labels, or the YAML fallback, in order: Now, Next, Later.
 const columns = await getCollection("roadmap");
 ---
 <section id="roadmap" class="wrap section" aria-labelledby="roadmap-title">
@@ -14,7 +14,10 @@ const columns = await getCollection("roadmap");
         <h3 class:list={["caps", "tab", { current: i === 0 }]}>{col.data.label}</h3>
         <ul class="frame">
           {col.data.items.map((it) => (
-            <li><div class="t">{it.title}</div><div class="n">{it.note}</div></li>
+            <li>
+              <div class="t">{it.url ? <a href={it.url}>{it.title}</a> : it.title}</div>
+              {it.note && <div class="n">{it.note}</div>}
+            </li>
           ))}
         </ul>
       </div>
@@ -32,6 +35,8 @@ const columns = await getCollection("roadmap");
   li { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
   li:last-child { border-bottom: 0; }
   .t { font-size: 17px; font-weight: 600; line-height: 1.35; }
+  .t a { color: inherit; text-decoration: none; }
+  .t a:hover, .t a:focus-visible { text-decoration: underline; }
   .n { font-size: 14px; line-height: 1.5; color: var(--muted); }
   @media (max-width: 640px) { .section { padding-block: 64px 72px; } h2 { margin-bottom: 32px; } }
 </style>
