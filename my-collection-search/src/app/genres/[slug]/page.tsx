@@ -3,7 +3,18 @@
 import React from "react";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
-import { Badge, Box, Button, Flex, Grid, Heading, Skeleton, Stack, Text } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  Grid,
+  Heading,
+  Skeleton,
+  Stack,
+  Text,
+  useBreakpointValue,
+} from "@chakra-ui/react";
 import AlbumResult from "@/components/AlbumResult";
 import TrackResultStore from "@/components/TrackResultStore";
 import GenreBpmSpread from "@/components/genres/GenreBpmSpread";
@@ -18,6 +29,11 @@ import type { GenrePageResponse } from "@/api-contract/schemas";
 
 // Fewer than one widest (four-cover) row, using full friend-scoped totals.
 const THIN_GENRE_ALBUM_THRESHOLD = 4;
+
+const PHONE_ALBUM_PAGE_SIZE = 10;
+const DESKTOP_ALBUM_PAGE_SIZE = 24;
+// Rows shown before "Show all": a parent like Latin has ~50 children.
+const GENRE_LIST_CAP = 10;
 
 const GENRES_CRUMB = { label: "Genres", href: "/genres" };
 
@@ -34,7 +50,13 @@ function GenreContent({
   const [view, setView] = React.useState<GenreView>("albums");
   const [aliasesOpen, setAliasesOpen] = React.useState(false);
   const aliasesId = React.useId();
-  const results = useGenreResults(genre.slug, friendId, view);
+  // ssr: false reads the real viewport on the first render. This component only
+  // mounts once the page query has resolved on the client, so there is no
+  // hydration mismatch, and the page size (part of the query key) never flips
+  // from the "base" fallback to desktop, which would fetch twice.
+  const isDesktop = useBreakpointValue({ base: false, md: true }, { ssr: false }) === true;
+  const albumPageSize = isDesktop ? DESKTOP_ALBUM_PAGE_SIZE : PHONE_ALBUM_PAGE_SIZE;
+  const results = useGenreResults(genre.slug, friendId, view, albumPageSize);
   const playback = useGenrePlayback(genre.slug, friendId);
   const refs = results.data?.pages.flatMap((page) => page.refs) ?? [];
   const emptySlots = (columns: number) =>
@@ -218,7 +240,7 @@ function GenreContent({
             </Flex>
             {view === "albums" && page.children.length > 0 && (
               <Box as="section" aria-label="Subgenres" pb={2} pe={1.5}>
-                <GenreCrate title="Subgenres" genres={page.children} />
+                <GenreCrate title="Subgenres" genres={page.children} maxRows={GENRE_LIST_CAP} />
               </Box>
             )}
             {isThin && view === "albums" && (
@@ -337,7 +359,7 @@ function GenreContent({
           </Stack>
           <Stack as="aside" aria-label="Genre insights" gap={7} minW={0} pe={1.5}>
             <Box as="section" aria-label={relatedTitle}>
-              <GenreCrate title={relatedTitle} genres={page.related} />
+              <GenreCrate title={relatedTitle} genres={page.related} maxRows={GENRE_LIST_CAP} />
             </Box>
             {isThin && (
               <Box

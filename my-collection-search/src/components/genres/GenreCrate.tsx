@@ -59,6 +59,7 @@ export function GenreCrate({
   count,
   genres,
   empty,
+  maxRows,
   children,
 }: {
   title: string;
@@ -66,11 +67,31 @@ export function GenreCrate({
   count?: number;
   genres: GenrePageRef[];
   empty?: string;
+  /** Show this many rows, with a toggle to reveal the rest in place. */
+  maxRows?: number;
   children?: React.ReactNode;
 }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const headingRef = React.useRef<HTMLHeadingElement>(null);
+  const capped = maxRows !== undefined && genres.length > maxRows;
+  const shown = capped && !expanded ? genres.slice(0, maxRows) : genres;
+  const collapse = () => {
+    setExpanded(false);
+    // Focus first so the browser scrolls the heading into view; the toggle
+    // that had focus has just unmounted.
+    headingRef.current?.focus();
+    headingRef.current?.scrollIntoView?.({ block: "start" });
+  };
   const header = (
     <>
-      <Heading as="h3" fontSize="lg" minW={0} overflowWrap="anywhere">
+      <Heading
+        ref={headingRef}
+        tabIndex={-1}
+        as="h3"
+        fontSize="lg"
+        minW={0}
+        overflowWrap="anywhere"
+      >
         {title}
       </Heading>
       {count !== undefined && (
@@ -118,7 +139,25 @@ export function GenreCrate({
           {header}
         </Box>
       )}
-      <GenreBarRows genres={genres} empty={empty} />
+      <GenreBarRows genres={shown} empty={empty} />
+      {capped && (
+        <Button
+          variant="ghost"
+          color="fg.muted"
+          minH="44px"
+          w="full"
+          justifyContent="start"
+          px={4}
+          borderTopWidth="rule"
+          borderColor="border"
+          fontFamily="label"
+          fontSize="xs"
+          aria-expanded={expanded}
+          onClick={expanded ? collapse : () => setExpanded(true)}
+        >
+          {expanded ? "Show fewer" : `Show all ${genres.length} ${title.toLowerCase()}`}
+        </Button>
+      )}
       {children}
     </Box>
   );

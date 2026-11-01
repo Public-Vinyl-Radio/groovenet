@@ -17,8 +17,12 @@ export const queryKeys = {
   genreTree: () => ["genres", "tree"] as const,
   genrePage: (slug: string, friend_id?: number) =>
     ["genres", "page", slug, friend_id ?? null] as const,
-  genreResults: (slug: string, friendId: number | undefined, view: "albums" | "tracks") =>
-    ["genres", "results", slug, friendId ?? null, view] as const,
+  genreResults: (
+    slug: string,
+    friendId: number | undefined,
+    view: "albums" | "tracks",
+    pageSize: number,
+  ) => ["genres", "results", slug, friendId ?? null, view, pageSize] as const,
   friends: () => ["friends"] as const,
   backups: () => ["backups"] as const,
   embeddingQueue: () => ["embeddings", "queue"] as const,

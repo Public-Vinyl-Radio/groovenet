@@ -9,10 +9,18 @@ import { useTrackStore } from "@/stores/trackStore";
 
 export type GenreView = "albums" | "tracks";
 
+export const GENRE_TRACK_PAGE_SIZE = 24;
+
 /** Paginated full results. Only refs and pagination metadata enter React Query. */
-export function useGenreResults(slug: string, friendId: number | undefined, view: GenreView) {
+export function useGenreResults(
+  slug: string,
+  friendId: number | undefined,
+  view: GenreView,
+  albumPageSize: number,
+) {
+  const pageSize = view === "albums" ? albumPageSize : GENRE_TRACK_PAGE_SIZE;
   return useInfiniteQuery({
-    queryKey: queryKeys.genreResults(slug, friendId, view),
+    queryKey: queryKeys.genreResults(slug, friendId, view, pageSize),
     enabled: Boolean(slug) && friendId !== undefined,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
@@ -20,7 +28,7 @@ export function useGenreResults(slug: string, friendId: number | undefined, view
         const page = await searchAlbums({
           genre: [slug],
           friend_id: friendId,
-          limit: 24,
+          limit: pageSize,
           offset: pageParam,
         });
         useAlbumStore.getState().setAlbums(page.hits);
@@ -34,7 +42,7 @@ export function useGenreResults(slug: string, friendId: number | undefined, view
       const page = await searchTracks({
         genre: [slug],
         filter: `friend_id = ${friendId}`,
-        limit: 24,
+        limit: pageSize,
         offset: pageParam,
       });
       useTrackStore.getState().setTracks(page.hits);
