@@ -136,6 +136,44 @@ are exempt from the 1 MiB pre-commit limit; keep that exception limited to this 
 - **Serving 2x:** a frame's `widths` must include twice its largest display
   width (`BrowserFrame` shows 760px, so 1520). Astro never upscales.
 
+### Player TUI screenshots
+
+`tui-<view>.png` and `tui-queue-browse.gif` are the `groovenet player` TUI
+(#931), on the CLI docs page only; the landing page keeps its stand-ins. Same
+prod-seeded stack, its own command:
+
+```bash
+just site-tui-screenshots              # every TUI shot, then compress
+just site-tui-screenshots --calibrate  # check the cell grid (font, size) against METRICS
+```
+
+- **Tools:** VHS through mise (`vhs@0.12.1`), plus `ttyd`, `ffmpeg` and `mpv`
+  from Homebrew (mise has no macOS ttyd). The recipe checks each and says what
+  to install. The tapes pin JetBrains Mono, so it must be installed.
+- **Playback is real and silent:** the recipe makes a throwaway home in
+  `/tmp/gntui.*` (CLI config pointing at `APP_PORT`, `mpv.conf` with
+  `mute=yes`, its own daemon socket; never `~/.groovenet`), queues playlist 176,
+  seeks to 1:37 and pauses, so elapsed time never moves. Every tape opens the
+  TUI on that daemon through `tui-tapes/player.sh`, and the daemon is stopped
+  and the home removed on exit.
+- **Tapes:** `tui-tapes/<shot>.tape`, sharing `config.tape` (font, size,
+  padding, 120×40 cells, a Mono-dark theme). They wait for text, not just time,
+  and pick fixed entities: the Mezzanine album search and the FLOW STATE
+  playlist (175). Raw captures land in `tui-tapes/.out/` (ignored).
+- **Covers in post:** xterm.js has no Kitty graphics, so the TUI runs with
+  `GROOVENET_TUI_ART=off` and `GROOVENET_TUI_ART_SLOTS=<file>`, and reports each
+  art slot as a cell rectangle with its cover URLs. `scripts/tui-screenshots.mjs`
+  turns cells into pixels with the calibrated `METRICS` (documented there),
+  checks the terminal was 120×40 and the slot count is right, fetches the cover
+  from the app and pastes it in at capture resolution; for the GIF, ffmpeg
+  overlays it on the clip (one track, so the slot never moves). Pure helpers
+  are tested in `tui-screenshots.test.mjs`.
+- **Stable:** two runs give byte-identical PNGs. The GIF's frame timing can
+  shift by a frame between runs. `tui-devices.png` lists the capturing
+  machine's own mpv outputs, so it changes with the machine.
+- **Changing the look:** after editing `config.tape`, run `--calibrate` and
+  update `METRICS` and its comment from the measured values.
+
 ## Deploy
 
 Netlify skips unchanged content via `scripts/netlify-ignore.sh` (hooks always build); watched paths mirror `.github/scripts/ci-changes.mjs` and are checked by `npm test`.

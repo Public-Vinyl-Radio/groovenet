@@ -3,8 +3,8 @@
  * (`{ text, role }`) so a row can be measured and fitted to an exact width
  * before it is drawn; Ink then never wraps or clips it on its own.
  */
-import React, { type ReactNode } from "react";
-import { Box, Text } from "ink";
+import React, { type ReactNode, type Ref } from "react";
+import { Box, Text, type DOMElement } from "ink";
 import { displayWidth, progressBar, sliceWidth } from "./text.js";
 import { useTheme, type Role } from "./theme.js";
 
@@ -162,13 +162,21 @@ export function HintBar({ hints, width }: { hints: readonly Hint[]; width: numbe
 }
 
 /** The fixed artwork placeholder: a `░` block with `ART` in the middle. */
-export function ArtSlot({ width, height }: { width: number; height: number }) {
+export function ArtSlot({
+  width,
+  height,
+  ref,
+}: {
+  width: number;
+  height: number;
+  ref?: Ref<DOMElement>;
+}) {
   const label = " ART ";
   const middle = Math.floor((height - 1) / 2);
   const before = Math.max(0, Math.floor((width - label.length) / 2));
   const after = Math.max(0, width - before - label.length);
   return (
-    <Box flexDirection="column" width={width} height={height} flexShrink={0}>
+    <Box ref={ref} flexDirection="column" width={width} height={height} flexShrink={0}>
       {Array.from({ length: height }, (_, row) =>
         row === middle && width >= label.length ? (
           <Text key={row}>

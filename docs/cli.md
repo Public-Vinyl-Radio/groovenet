@@ -176,6 +176,8 @@ add listening time. Each play is a spin with `medium = digital` for
 `default_friend_id`, so it shows in spin history but not in vinyl play counts.
 Only tracks from that friend's library with a release are logged.
 
+![The player: Now playing, with the album cover, above the queue](../site/src/assets/screenshots/tui-now-playing.png)
+
 The TUI requires mpv on `PATH` and a terminal. mpv audio outputs are available
 on macOS, Linux and Windows. macOS AirPlay speakers appear as CoreAudio devices;
 Linux AirPlay routing depends on PipeWire RAOP support, with AirPlay 2 support
@@ -189,6 +191,14 @@ beatmatching. The help line in the TUI lists the keyboard shortcuts: arrows or
 full view: inside tmux it zooms the pane (tmux's zoom key goes back); elsewhere
 it says how large the terminal needs to be. In the playlists and search views `→` is reserved for opening the
 selected item, so seek with `<` / `>` there.
+
+![The queue: the cursor on entry 6, below the paused track](../site/src/assets/screenshots/tui-queue.png)
+
+![Moving the cursor down the queue and back](../site/src/assets/screenshots/tui-queue-browse.gif)
+
+`d` lists the local player's audio outputs, as mpv reports them for this machine:
+
+![Devices: the local player's audio outputs](../site/src/assets/screenshots/tui-devices.png)
 
 ### Search
 
@@ -210,6 +220,8 @@ Search shows up to 30 results per scope, with the API's estimated total in the
 scope label. Search uses a compact playback header to leave room for results.
 Album covers use the same terminal artwork support as Now Playing.
 
+![An album search for Mezzanine, with its cover and tracklist previewed](../site/src/assets/screenshots/tui-search.png)
+
 ### Playlists
 
 `l` opens playlists grouped by month, using the last live-set performance date
@@ -220,6 +232,8 @@ regardless of `default_friend_id` or the search scope.
 Wide windows show a preview with metadata, actions and BPM / Camelot columns.
 `→` opens the full tracklist; up/down scroll it and Esc returns to the list
 with the filter and selection preserved.
+
+![Playlists filtered to FLOW STATE, with its cover and tracks previewed](../site/src/assets/screenshots/tui-playlists.png)
 
 Enter replaces the queue with the selected playlist and starts playback, including
 from the full tracklist. `a` appends the whole playlist without interrupting playback.

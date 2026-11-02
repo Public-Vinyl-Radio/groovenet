@@ -320,6 +320,72 @@ site-screenshots *args:
   RUN_SCREENSHOTS=1 {{mise_exec}} npm run test:e2e --prefix {{app_dir}} -- e2e/screenshots.spec.ts --project desktop
   {{mise_exec}} node site/scripts/compress-screenshots.mjs
 
+# Regenerate the site's player TUI screenshots with VHS and the real covers (#931) [--calibrate].
+site-tui-screenshots *args:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  # The fixed state every shot shows: this playlist queued, paused this far into its first track.
+  QUEUE_PLAYLIST_ID=176
+  QUEUE_POSITION=97
+  VHS="mise exec vhs@0.12.1 -- vhs"
+  calibrate=0
+  set -- {{args}}
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --calibrate) calibrate=1; shift ;;
+      *) echo "unknown argument: $1 (use --calibrate)"; exit 1 ;;
+    esac
+  done
+  command -v ttyd >/dev/null || { echo "ttyd not found: brew install ttyd (mise has no macOS build of it)"; exit 1; }
+  command -v ffmpeg >/dev/null || { echo "ffmpeg not found: brew install ffmpeg"; exit 1; }
+  command -v mpv >/dev/null || { echo "mpv not found: brew install mpv (the local player daemon uses it)"; exit 1; }
+  $VHS --version >/dev/null || { echo "vhs not available through mise: brew install vhs"; exit 1; }
+  tapes="$PWD/site/tui-tapes"
+  export TUI_OUT="$tapes/.out"
+  rm -rf "$TUI_OUT" && mkdir -p "$TUI_OUT"
+  if [[ $calibrate == 1 ]]; then
+    (cd "$tapes" && $VHS calibrate.tape >/dev/null)
+    {{mise_exec}} node site/scripts/tui-screenshots.mjs calibrate "$TUI_OUT"
+    exit
+  fi
+  if [[ -z "${E2E_BASE_URL:-}" ]]; then
+    env_file="$(ls .worktree/*.env 2>/dev/null | head -n1 || true)"
+    port="$( [[ -n "$env_file" ]] && sed -n 's/^APP_PORT=//p' "$env_file" || true )"
+    export E2E_BASE_URL="http://127.0.0.1:${port:-3000}"
+  fi
+  echo "→ TUI screenshots against $E2E_BASE_URL"
+  curl -fsS -o /dev/null "$E2E_BASE_URL/settings" || { echo "app not reachable at $E2E_BASE_URL (is the dev stack up?)"; exit 1; }
+  for package in contracts client player cli; do {{mise_exec}} npm run build --workspace=packages/groovenet-$package >/dev/null; done
+  export GROOVENET_BIN="$PWD/packages/groovenet-cli/build/bin/groovenet.js"
+  # A throwaway home: its own CLI config, daemon socket and mpv.conf, never
+  # ~/.groovenet. Short, because a Unix socket path is capped at 104 bytes.
+  export TUI_HOME="$(mktemp -d /tmp/gntui.XXXXXX)"
+  node_bin="$({{mise_exec}} which node)"
+  groovenet() { HOME="$TUI_HOME" XDG_CONFIG_HOME="$TUI_HOME/.config" "$node_bin" "$GROOVENET_BIN" "$@"; }
+  cleanup() { groovenet player stop >/dev/null 2>&1 || true; rm -rf "$TUI_HOME"; }
+  trap cleanup EXIT
+  mkdir -p "$TUI_HOME/.groovenet" "$TUI_HOME/.config/mpv"
+  printf '{"api_base": "%s/api", "default_friend_id": 6}\n' "$E2E_BASE_URL" > "$TUI_HOME/.groovenet/config.json"
+  echo "mute=yes" > "$TUI_HOME/.config/mpv/mpv.conf"
+  groovenet player start --detach >/dev/null
+  groovenet player queue add --playlist-id "$QUEUE_PLAYLIST_ID" >/dev/null
+  groovenet player play >/dev/null
+  for _ in $(seq 50); do
+    # Read the whole status: a reader that hangs up early takes the daemon down.
+    [[ "$(groovenet player status --json)" == *'"status": "playing"'* ]] && break
+    sleep 0.2
+  done
+  groovenet player seek "$QUEUE_POSITION" >/dev/null
+  groovenet player pause >/dev/null
+  status="$(groovenet player status --json)"
+  [[ "$status" == *'"status": "paused"'* ]] || { echo "the player did not pause: $status"; exit 1; }
+  for shot in now-playing queue search playlists devices queue-browse; do
+    echo "→ $shot"
+    (cd "$tapes" && $VHS "$shot.tape" >"$TUI_OUT/$shot.log" 2>&1) || { cat "$TUI_OUT/$shot.log"; exit 1; }
+  done
+  {{mise_exec}} node site/scripts/tui-screenshots.mjs composite "$TUI_OUT" "$E2E_BASE_URL"
+  {{mise_exec}} node site/scripts/compress-screenshots.mjs | grep '^tui-' || true
+
 # Export the app's palettes and fonts for the site's Appearance demo; commit the result.
 site-tokens:
   {{mise_exec}} npm run site:tokens --prefix my-collection-search
