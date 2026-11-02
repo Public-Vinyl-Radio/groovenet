@@ -110,6 +110,32 @@ mpv's separate artwork window.
 | `embeddings`          | Inspect and manage collection embeddings                                             |
 | `status`              | One-line now-playing segment for tmux and status bars                                |
 
+### Record care
+
+`records` logs care for one record, or a whole stack of ten at a time. The
+numbers are the ones the Chores page shows ("STACK 2").
+
+```bash
+groovenet records progress              # 10 / 414 cleaned · stack 2 of 42 next · 3.5 stacks/week → 2027-03-01
+groovenet records queue --group spun    # spun | new | backlog; --limit n
+groovenet records stack                 # pull the next stack, or show the open one
+groovenet records stack --size 5        # a smaller new stack
+groovenet records clean --stack 2       # log every record in stack 2
+groovenet records clean --stack 2 --sleeve poly-rice-paper-poly   # cleaned and sleeved together
+groovenet records sleeve --stack 2 poly
+groovenet records log --stack 2 inspected
+groovenet records sessions              # the care log; --limit n
+groovenet records void --session 31     # undo a whole session (reopens its stack)
+groovenet records stack --discard       # drop the open stack without logging
+```
+
+`clean`, `sleeve` and `log` take either a release or `--stack N`, never both.
+`--method`, `--note` and `--at` apply to both. Stack logs are sent as one
+session with `source: "cli"`; `--stack` needs an open stack with that number,
+and the error names the open one if it differs. `records void <action-id>`
+still undoes a single action. Every command takes `--friend-id` and `--json`;
+`queue --group X --json` prints just that group.
+
 ### Local player
 
 The local player uses mpv and plays downloaded audio through the configured

@@ -30,8 +30,9 @@ friends             list | add
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
-records             clean | sleeve | log | copies (add | label | remove)
-                    history | void | care [--summary]
+records             clean | sleeve | log (release or --stack N) | copies
+                    (add | label | remove) history | void (--session) | care
+                    [--summary] | queue | stack | sessions | progress
 genres              similar | reconcile | review | apply | proposals | coverage
 player              start | stop | play | pause | next | prev | seek | volume
                     keys | status | queue (add | remove | list) | devices
@@ -504,3 +505,10 @@ when needed; `--copy <id>` labels a specific copy after checking its release.
 `copies add <release>` adds another physical copy, and `copies remove <id>`
 soft-deletes one. `care` lists copies that need attention; `--summary` prints
 counts. Every subcommand supports `--friend-id` and `--json`.
+
+Stacks (#946): `--stack N` is the user-visible `stack_no`, resolved to the
+open stack through `listRecordCareStacks`, and logs through
+`logRecordCareSession` with `source: "cli"`. A release xor `--stack` is
+required; `clean --stack N --sleeve T` logs cleaned and sleeved in one session.
+The web hint `CHORES_CLI_STACK_COMMAND` (`records clean --stack`) must keep
+working.

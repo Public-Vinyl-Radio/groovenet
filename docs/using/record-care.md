@@ -39,4 +39,4 @@ The log you just saved shows **Undo** until you leave the page. Undo voids it an
 
 The care list shows records needing attention. `RECORD_CLEANING_OVERDUE_DAYS` controls the default overdue threshold. Removing a copy hides it from the list but keeps its history.
 
-The [CLI](/docs/cli/) also provides `records` commands for care and copies. While a stack is open, the Chores page shows the command that logs it from the terminal, `groovenet records clean --stack N`.
+The [CLI](/docs/cli/#record-care) also provides `records` commands for care and copies. While a stack is open, the Chores page shows the command that logs it from the terminal, `groovenet records clean --stack N`.

@@ -3,6 +3,10 @@ import { GroovenetClient, loadConfig } from "@groovenet/client";
 import type {
   CleaningMethod,
   RecordActionInput,
+  RecordActionType,
+  RecordCareProgressResponse,
+  RecordCareQueueItem,
+  RecordCareQueueResponse,
   RecordCareStatus,
   SleeveType,
 } from "@groovenet/client";
@@ -124,46 +128,291 @@ async function logAction(
   return client.logRecordAction(actionInput(release, actionType, opts, sleeveType));
 }
 
+type StackLogOptions = LogOptions & { stack?: number; sleeve?: SleeveType };
+type QueueGroup = "spun" | "new" | "backlog";
+const queueGroups: QueueGroup[] = ["spun", "new", "backlog"];
+const queueKeys = { spun: "spun_recently", new: "new_arrivals", backlog: "backlog" } as const;
+
+function stackOptions(command: Command): Command {
+  return command.option(
+    "--stack <n>",
+    "Log every record in open stack N (the number `records stack` shows)",
+    positiveInt,
+  );
+}
+
+/**
+ * Exactly one of a release or `--stack` names the target. With `--stack` there
+ * is no release, so the lone positional of `sleeve` and `log` is their value.
+ */
+function splitTarget(
+  first: string | undefined,
+  second: string | undefined,
+  opts: StackLogOptions,
+  hasValue: boolean,
+): { release: string; value?: string } {
+  if (opts.stack) {
+    if (opts.copy) throw new Error("--copy cannot be used with --stack.");
+    if ((hasValue ? second : first) !== undefined)
+      throw new Error("Give a release or --stack, not both.");
+    return { release: "", value: hasValue ? first : undefined };
+  }
+  if (!first) throw new Error("Give a release, or --stack N for a pulled stack.");
+  return { release: first, value: second };
+}
+
+/** The friend's open stack numbered `stackNo`, as `--stack N` names it. */
+async function resolveStack(client: GroovenetClient, fid: number, stackNo: number) {
+  const { items } = await client.listRecordCareStacks({ friend_id: fid, status: "open" });
+  const match = items.find((stack) => stack.stack_no === stackNo);
+  if (match) return match;
+  const open = items.find((stack) => stack.stack_no !== null);
+  throw new Error(
+    open
+      ? `No open stack ${stackNo}. The open stack is ${open.stack_no}.`
+      : `No open stack ${stackNo}. Pull one with \`records stack\`.`,
+  );
+}
+
+async function logStack(
+  client: GroovenetClient,
+  stackNo: number,
+  actionTypes: RecordActionType[],
+  opts: StackLogOptions,
+  sleeveType?: SleeveType,
+): Promise<void> {
+  const fid = friendId(opts);
+  const stack = await resolveStack(client, fid, stackNo);
+  const result = await client.logRecordCareSession({
+    friend_id: fid,
+    stack_id: stack.id,
+    action_types: actionTypes,
+    source: "cli",
+    ...(opts.at ? { occurred_at: opts.at } : {}),
+    ...(opts.note ? { notes: opts.note } : {}),
+    ...(sleeveType ? { sleeve_type: sleeveType } : {}),
+    ...(opts.method ? { details: { method: opts.method } } : {}),
+  });
+  if (opts.json) printJson(result);
+  else
+    console.log(
+      `Logged ${actionTypes.join(" + ")} for stack ${stackNo} (${result.session.items.length} records, session ${result.session.id}).`,
+    );
+}
+
+function queueRows(
+  queue: RecordCareQueueResponse,
+  group: QueueGroup | undefined,
+  limit: number | undefined,
+): (string | number)[][] {
+  const rows: (string | number)[][] = [];
+  const add = <T extends RecordCareQueueItem>(
+    name: QueueGroup,
+    items: T[],
+    note: (item: T) => string,
+  ) => {
+    if (group && group !== name) return;
+    for (const item of items.slice(0, limit)) {
+      rows.push([
+        name,
+        item.release_id,
+        item.title,
+        item.artist,
+        item.copy_id ?? "—",
+        item.inner_sleeve_type ?? "—",
+        note(item),
+      ]);
+    }
+  };
+  add("spun", queue.spun_recently.items, (i) => `${i.spin_count} spins, ${i.window_label}`);
+  add("new", queue.new_arrivals.items, (i) => `added ${i.added_at ?? "—"}`);
+  add("backlog", queue.backlog.items, () => "—");
+  return rows;
+}
+
+/** "10 / 414 cleaned · stack 2 of 42 next · 3.5 stacks/week → 2027-03-01" */
+function progressLine(p: RecordCareProgressResponse): string {
+  const parts = [`${p.cleaned} / ${p.total} cleaned`];
+  if (p.next_stack_no !== null) parts.push(`stack ${p.next_stack_no} of ${p.stacks_total} next`);
+  else if (p.total > 0) parts.push("library complete");
+  if (p.pace) {
+    parts.push(
+      `${Math.round(p.pace.stacks_per_week * 10) / 10} stacks/week → ${p.pace.projected_finish_date.slice(0, 10)}`,
+    );
+  }
+  return parts.join(" · ");
+}
+
 export function addRecordsCommands(program: Command): void {
   const records = program.command("records").description("Manage physical copies and record care");
 
-  actionOptions(records.command("clean <release>").description("Log a cleaning"))
+  stackOptions(actionOptions(records.command("clean [release]").description("Log a cleaning")))
     .option("--method <method>", "Cleaning method", choice(cleaningMethods))
-    .action(async (release: string, opts: LogOptions) =>
+    .option(
+      "--sleeve <type>",
+      "Also log an inner sleeve change (with --stack)",
+      choice(sleeveTypes),
+    )
+    .action(async (release: string | undefined, opts: StackLogOptions) =>
       handle(async () => {
-        const result = await logAction(makeClient(), release, "cleaned", opts);
+        const target = splitTarget(release, undefined, opts, false);
+        if (opts.sleeve && !opts.stack) {
+          throw new Error("--sleeve needs --stack. For one record use `records sleeve <release>`.");
+        }
+        const client = makeClient();
+        if (opts.stack) {
+          const types: RecordActionType[] = opts.sleeve ? ["cleaned", "sleeved"] : ["cleaned"];
+          return logStack(client, opts.stack, types, opts, opts.sleeve);
+        }
+        const result = await logAction(client, target.release, "cleaned", opts);
         if (opts.json) printJson(result);
         else
-          console.log(`Cleaned ${release} (copy ${result.copy.id}, action ${result.action.id}).`);
+          console.log(
+            `Cleaned ${target.release} (copy ${result.copy.id}, action ${result.action.id}).`,
+          );
       })(),
     );
 
-  actionOptions(
-    records.command("sleeve <release> <type>").description("Log an inner sleeve change"),
-  ).action(async (release: string, type: string, opts: LogOptions) =>
+  stackOptions(
+    actionOptions(
+      records.command("sleeve [release] [type]").description("Log an inner sleeve change"),
+    ),
+  ).action(async (first: string | undefined, second: string | undefined, opts: StackLogOptions) =>
     handle(async () => {
-      const sleeveType = choice(sleeveTypes)(type);
-      const result = await logAction(makeClient(), release, "sleeved", opts, sleeveType);
+      const { release, value } = splitTarget(first, second, opts, true);
+      if (!value) throw new Error("A sleeve type is required.");
+      const sleeveType = choice(sleeveTypes)(value);
+      const client = makeClient();
+      if (opts.stack) return logStack(client, opts.stack, ["sleeved"], opts, sleeveType);
+      const result = await logAction(client, release, "sleeved", opts, sleeveType);
       if (opts.json) printJson(result);
       else
         console.log(
-          `Sleeved ${release} with ${type} (copy ${result.copy.id}, action ${result.action.id}).`,
+          `Sleeved ${release} with ${value} (copy ${result.copy.id}, action ${result.action.id}).`,
         );
     })(),
   );
 
-  actionOptions(
-    records.command("log <release> <action>").description("Log an inspection or repair"),
-  ).action(async (release: string, action: string, opts: LogOptions) =>
+  stackOptions(
+    actionOptions(
+      records.command("log [release] [action]").description("Log an inspection or repair"),
+    ),
+  ).action(async (first: string | undefined, second: string | undefined, opts: StackLogOptions) =>
     handle(async () => {
-      const actionType = choice(["inspected", "repaired"] as const)(action);
-      const result = await logAction(makeClient(), release, actionType, opts);
+      const { release, value } = splitTarget(first, second, opts, true);
+      if (!value) throw new Error("An action (inspected or repaired) is required.");
+      const actionType = choice(["inspected", "repaired"] as const)(value);
+      const client = makeClient();
+      if (opts.stack) return logStack(client, opts.stack, [actionType], opts);
+      const result = await logAction(client, release, actionType, opts);
       if (opts.json) printJson(result);
       else
         console.log(
           `Logged ${actionType} for ${release} (copy ${result.copy.id}, action ${result.action.id}).`,
         );
     })(),
+  );
+
+  common(records.command("queue").description("Show the care to-do queue"))
+    .option("--group <group>", "Only one group: spun, new or backlog", choice(queueGroups))
+    .option("--limit <n>", "Maximum records per group", positiveInt)
+    .action(async (opts: Common & { group?: QueueGroup; limit?: number }) =>
+      handle(async () => {
+        const result = await makeClient().getRecordCareQueue({
+          friend_id: friendId(opts),
+          ...(opts.limit ? { limit: opts.limit } : {}),
+        });
+        const groups = queueRows(result, opts.group, opts.limit);
+        if (opts.json) {
+          printJson(opts.group ? result[queueKeys[opts.group]] : result);
+          return;
+        }
+        table(["Group", "Release", "Album", "Artist", "Copy", "Sleeve", "Note"], groups);
+      })(),
+    );
+
+  common(
+    records.command("stack").description("Pull the next stack to care for, or show the open one"),
+  )
+    .option("--size <n>", "Records in a new stack", boundedIntOption(1))
+    .option("--discard", "Discard the open stack without logging it")
+    .action(async (opts: Common & { size?: number; discard?: boolean }) =>
+      handle(async () => {
+        const client = makeClient();
+        const fid = friendId(opts);
+        if (opts.discard) {
+          if (opts.size) throw new Error("--size cannot be used with --discard.");
+          const [open] = (await client.listRecordCareStacks({ friend_id: fid, status: "open" }))
+            .items;
+          if (!open) throw new Error("No open stack to discard.");
+          const result = await client.discardRecordCareStack(open.id, fid);
+          if (opts.json) printJson(result);
+          else console.log(`Discarded stack ${result.stack_no}.`);
+          return;
+        }
+        const result = await client.pullRecordCareStack({
+          friend_id: fid,
+          ...(opts.size ? { size: opts.size } : {}),
+          source: "cli",
+        });
+        if (opts.json) {
+          printJson(result);
+          return;
+        }
+        const { stack } = result;
+        console.log(
+          `Stack ${stack.stack_no} (${result.created ? "pulled" : "already open"}), ${stack.items.length} records:`,
+        );
+        table(
+          ["#", "Release", "Album", "Artist", "Copy", "Sleeve", "Last cleaned"],
+          stack.items.map((item) => [
+            item.position,
+            item.release_id,
+            item.album_title ?? "—",
+            item.album_artist ?? "—",
+            item.copy_id ?? "—",
+            item.inner_sleeve_type ?? "—",
+            item.last_cleaned_at ?? "never",
+          ]),
+        );
+        console.log(`Log it with: groovenet records clean --stack ${stack.stack_no}`);
+      })(),
+    );
+
+  common(records.command("sessions").description("Show the care log"))
+    .option("--limit <n>", "Maximum entries", positiveInt, 20)
+    .action(async (opts: Common & { limit: number }) =>
+      handle(async () => {
+        const result = await makeClient().listRecordCareLog({
+          friend_id: friendId(opts),
+          limit: opts.limit,
+        });
+        show(
+          result,
+          !!opts.json,
+          ["Session", "Action", "Stack", "When", "Source", "Care", "Records", "Detail", "Voided"],
+          result.items.map((e) => [
+            e.session_id ?? "—",
+            e.action_id ?? "—",
+            e.stack_no ?? "—",
+            e.occurred_at,
+            e.source,
+            e.action_types.join(" + "),
+            e.record_count,
+            e.sleeve_type ?? e.method ?? e.notes ?? "—",
+            e.voided ? "yes" : "—",
+          ]),
+        );
+      })(),
+    );
+
+  common(records.command("progress").description("Show cleaning progress and pace")).action(
+    async (opts: Common) =>
+      handle(async () => {
+        const result = await makeClient().getRecordCareProgress({ friend_id: friendId(opts) });
+        if (opts.json) printJson(result);
+        else console.log(progressLine(result));
+      })(),
   );
 
   const copies = common(records.command("copies").description("List, add, label or remove copies"));
@@ -276,14 +525,34 @@ export function addRecordsCommands(program: Command): void {
         })(),
     );
 
-  common(records.command("void <action-id>").description("Void a mistaken care action")).action(
-    async (id: string, opts: Common) =>
+  common(records.command("void [action-id]").description("Void a mistaken care action or session"))
+    .option("--session <id>", "Void a whole care session", positiveInt)
+    .action(async (id: string | undefined, opts: Common & { session?: number }) =>
       handle(async () => {
-        const result = await makeClient().voidRecordAction(positiveInt(id), friendId(opts));
+        if ((id === undefined) === (opts.session === undefined)) {
+          throw new Error("Give exactly one of an action ID or --session ID.");
+        }
+        const client = makeClient();
+        if (opts.session) {
+          const result = await client.voidRecordCareSession(opts.session, friendId(opts));
+          if (opts.json) printJson(result);
+          else {
+            const { session } = result;
+            console.log(
+              `Voided session ${session.id} (${result.actions.length} actions)${
+                session.stack_no && session.status === "open"
+                  ? `; stack ${session.stack_no} is open again`
+                  : ""
+              }.`,
+            );
+          }
+          return;
+        }
+        const result = await client.voidRecordAction(positiveInt(id!), friendId(opts));
         if (opts.json) printJson(result);
         else console.log(`Voided action ${result.action.id}.`);
       })(),
-  );
+    );
 
   common(records.command("care").description("Find records that need care"))
     .option("--status <status>", "Care state", choice(careStatuses))

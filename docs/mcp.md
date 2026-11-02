@@ -149,6 +149,8 @@ claude mcp list
 - `check_playlist`: duration, BPM jumps, key clashes, repeated records and vinyl side order.
 - `get_recommendations`: collection recommendations.
 - `find_similar_identity`, `find_similar_vibe`: similarity by identity or audio vibe.
-- `log_record_action`, `list_record_care`, `get_record_care_summary`, `get_record_copies`, `void_record_action`: physical-copy care and history.
+- `log_record_action`, `list_record_care`, `get_record_care_summary`, `get_record_copies`, `void_record_action`: physical-copy care and history. `get_record_care_summary` also returns cleaning `progress` and `pace`.
+- `get_care_queue`, `pull_care_stack`, `discard_care_stack`: the to-do queue and the stack of ten being cleaned ("pull my next stack").
+- `log_care_session`, `list_care_sessions`, `void_care_session`: log care for a whole stack (`stack` number) or a `copies` list in one undoable session, optionally several `action_types` at once (cleaned + sleeved). Use `log_record_action` for a single record.
 
 The MCP process reads environment settings, not the CLI's saved config. `SENTRY_DSN` and `SENTRY_RELEASE` optionally enable exception reporting. Run it on the local player's machine for player tools; other tools reach the server over HTTP.

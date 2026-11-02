@@ -6,6 +6,7 @@ import {
   GroovenetClient,
   type Track,
   type RecordActionInput,
+  type RecordCareCopyRef,
   type RecordCareStatus,
   type SleeveType,
   type CleaningMethod,
@@ -463,7 +464,7 @@ const tools = [
   {
     name: "get_record_care_summary",
     description:
-      "Count physical copies never cleaned, overdue, needing a sleeve, and by current sleeve type.",
+      "Count physical copies never cleaned, overdue, needing a sleeve, and by current sleeve type, plus cleaning progress (cleaned / total, next stack number) and pace (stacks per week, projected finish date; null until there is enough history).",
     inputSchema: {
       type: "object",
       properties: {
@@ -510,6 +511,128 @@ const tools = [
         },
       },
       required: ["action_id"],
+    },
+  },
+  {
+    name: "log_care_session",
+    description:
+      "Log care for MANY records in one go: a whole pulled stack (`stack`, the number shown as 'STACK 2'), or an explicit `copies` list. Use this for 'I cleaned stack 2' or 'clean and sleeve these ten'; it logs one or several action_types together (e.g. cleaned + sleeved) as a single undoable session. For ONE record use log_record_action instead. Supply exactly one of stack or copies. sleeve_type is required with sleeved and only then; method only with cleaned. Undo with void_care_session.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        stack: {
+          type: "integer",
+          minimum: 1,
+          description: "Number of the open stack from pull_care_stack; use this or copies",
+        },
+        copies: {
+          type: "array",
+          minItems: 1,
+          maxItems: 200,
+          description: "Ad-hoc selection; each entry has exactly one of copy_id or release_id",
+          items: {
+            type: "object",
+            properties: { copy_id: { type: "integer" }, release_id: { type: "string" } },
+          },
+        },
+        action_types: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string", enum: ["cleaned", "sleeved", "inspected", "repaired"] },
+        },
+        sleeve_type: {
+          type: "string",
+          enum: ["original", "paper", "poly-rice-paper-poly", "poly"],
+        },
+        method: {
+          type: "string",
+          enum: ["dry-brush", "wet-manual", "vacuum", "ultrasonic", "other"],
+        },
+        notes: { type: "string" },
+        occurred_at: { type: "string", description: "ISO timestamp; defaults to now" },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+      required: ["action_types"],
+    },
+  },
+  {
+    name: "get_care_queue",
+    description:
+      "The record care to-do queue in three groups: spun recently, new arrivals and the backlog of never-cleaned records. Use it to see what needs cleaning next; use pull_care_stack to turn the top of it into a stack.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 500, description: "Backlog page size" },
+        offset: { type: "integer", minimum: 0 },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+    },
+  },
+  {
+    name: "pull_care_stack",
+    description:
+      "Pull the next stack of records to clean from the queue (default 10), or return the stack that is already open (created: false). Answer 'pull my next stack' with this; the result's stack_no is what log_care_session takes as `stack`.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        size: { type: "integer", minimum: 1, maximum: 100, description: "Default 10" },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+    },
+  },
+  {
+    name: "discard_care_stack",
+    description:
+      "Discard the open stack without logging anything, so the next pull_care_stack starts fresh. Fails when no stack is open.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+    },
+  },
+  {
+    name: "list_care_sessions",
+    description:
+      "The care log, newest first: stack and batch sessions plus actions logged on their own, with session ids for void_care_session.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 200 },
+        offset: { type: "integer", minimum: 0 },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+    },
+  },
+  {
+    name: "void_care_session",
+    description:
+      "Undo a whole care session (from list_care_sessions or log_care_session): its actions are voided but kept as history, and a stack reopens. To undo a single action use void_record_action.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        session_id: { type: "integer", description: "Session to void" },
+        friend_id: {
+          type: "integer",
+          description: "Collection owner (default from server configuration)",
+        },
+      },
+      required: ["session_id"],
     },
   },
   ...playerTools,
@@ -572,6 +695,12 @@ interface ToolArgs {
   needs_sleeve?: SleeveType;
   include_voided?: boolean;
   offset?: number;
+  // care sessions
+  stack?: number;
+  copies?: RecordCareCopyRef[];
+  action_types?: RecordActionInput["action_type"][];
+  size?: number;
+  session_id?: number;
 }
 
 function jsonResult(value: unknown) {
@@ -706,13 +835,86 @@ async function handleToolCall(name: string, args: ToolArgs) {
           offset: args.offset,
         }),
       );
-    case "get_record_care_summary":
-      return jsonResult(
-        await client.getRecordCareSummary({
-          friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+    case "get_record_care_summary": {
+      const owner = args.friend_id ?? DEFAULT_FRIEND_ID;
+      const [summary, progress] = await Promise.all([
+        client.getRecordCareSummary({
+          friend_id: owner,
           overdue_days: args.overdue_days,
           needs_sleeve: args.needs_sleeve,
         }),
+        client.getRecordCareProgress({ friend_id: owner }),
+      ]);
+      const { pace, ...rest } = progress;
+      return jsonResult({ ...summary, progress: rest, pace });
+    }
+    case "log_care_session": {
+      const owner = args.friend_id ?? DEFAULT_FRIEND_ID;
+      if ((args.stack === undefined) === (args.copies === undefined)) {
+        throw new Error("Supply exactly one of stack or copies");
+      }
+      let stackId: number | undefined;
+      if (args.stack !== undefined) {
+        const { items } = await client.listRecordCareStacks({ friend_id: owner, status: "open" });
+        const open = items.find((s) => s.stack_no === args.stack);
+        if (!open) {
+          const current = items.find((s) => s.stack_no !== null);
+          throw new Error(
+            current
+              ? `No open stack ${args.stack}; the open stack is ${current.stack_no}`
+              : `No open stack ${args.stack}; call pull_care_stack first`,
+          );
+        }
+        stackId = open.id;
+      }
+      return jsonResult(
+        await client.logRecordCareSession({
+          friend_id: owner,
+          ...(stackId !== undefined ? { stack_id: stackId } : { copies: args.copies }),
+          action_types: args.action_types!,
+          source: "mcp",
+          ...(args.occurred_at ? { occurred_at: args.occurred_at } : {}),
+          ...(args.notes ? { notes: args.notes } : {}),
+          ...(args.sleeve_type && args.sleeve_type !== "unknown"
+            ? { sleeve_type: args.sleeve_type }
+            : {}),
+          ...(args.method ? { details: { method: args.method } } : {}),
+        }),
+      );
+    }
+    case "get_care_queue":
+      return jsonResult(
+        await client.getRecordCareQueue({
+          friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+          limit: args.limit,
+          offset: args.offset,
+        }),
+      );
+    case "pull_care_stack":
+      return jsonResult(
+        await client.pullRecordCareStack({
+          friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+          ...(args.size ? { size: args.size } : {}),
+          source: "mcp",
+        }),
+      );
+    case "discard_care_stack": {
+      const owner = args.friend_id ?? DEFAULT_FRIEND_ID;
+      const { items } = await client.listRecordCareStacks({ friend_id: owner, status: "open" });
+      if (!items[0]) throw new Error("No open stack to discard");
+      return jsonResult(await client.discardRecordCareStack(items[0].id, owner));
+    }
+    case "list_care_sessions":
+      return jsonResult(
+        await client.listRecordCareLog({
+          friend_id: args.friend_id ?? DEFAULT_FRIEND_ID,
+          limit: args.limit,
+          offset: args.offset,
+        }),
+      );
+    case "void_care_session":
+      return jsonResult(
+        await client.voidRecordCareSession(args.session_id!, args.friend_id ?? DEFAULT_FRIEND_ID),
       );
     case "get_record_copies": {
       const owner = args.friend_id ?? DEFAULT_FRIEND_ID;
