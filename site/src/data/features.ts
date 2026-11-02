@@ -3,21 +3,18 @@
 // the design, with card 03 revised in #938: no multi-room or Sonos-style claims.
 import type { ScreenshotKey } from "./screenshots";
 
-// TODO(#935): set sheets, playback, set recordings, analysis, similar, genres
-// and home have no docs page yet, so they point at the closest page or the
-// docs index. Update these targets when #935 adds the pages.
 const docs = {
   spins: "/docs/vinyl-tracking/spins/",
-  setSheets: "/docs/using/playlists/",
-  playback: "/docs/",
-  setRecordings: "/docs/vinyl-tracking/spins/",
-  analysis: "/docs/using/enrichment/",
+  setSheets: "/docs/using/playlists/#print-a-set-sheet",
+  playback: "/docs/using/server-players/",
+  setRecordings: "/docs/vinyl-tracking/set-recordings/",
+  analysis: "/docs/using/analysis/",
   optimiser: "/docs/using/playlists/",
-  similar: "/docs/using/search/",
-  genres: "/docs/using/search/",
+  similar: "/docs/using/similar-tracks/",
+  genres: "/docs/using/genres/",
   enrichment: "/docs/using/enrichment/",
   recordCare: "/docs/using/record-care/",
-  home: "/docs/",
+  home: "/docs/using/home/",
 };
 
 /**
