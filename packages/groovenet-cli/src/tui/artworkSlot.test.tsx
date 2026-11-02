@@ -1,4 +1,7 @@
 import React from "react";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Box, Text } from "ink";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +15,7 @@ import {
   ArtworkSlot,
   type ArtworkRuntime,
 } from "./artworkSlot.js";
+import type { ArtSlotReport } from "./artSlots.js";
 import { forceTerminal } from "./testing.js";
 import { displayWidth } from "./text.js";
 
@@ -285,5 +289,48 @@ describe("ArtworkSlot", () => {
     expect(app.lastFrame()).toContain("ART");
     expect(api.getArtwork).not.toHaveBeenCalled();
     app.unmount();
+  });
+});
+
+describe("ArtworkSlot art-slot report", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "art-slot-report-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const read = (file: string) => JSON.parse(readFileSync(file, "utf8")) as ArtSlotReport;
+  const offset = (runtime: ArtworkRuntime | null, source = "/a") => (
+    <Box paddingLeft={3} paddingTop={2} flexDirection="column">
+      <Text>TOP</Text>
+      {tree(runtime, source, 5, 2)}
+    </Box>
+  );
+
+  it("writes the slot's screen cells and sources, follows changes and clears on unmount", async () => {
+    const file = join(dir, "slots.json");
+    vi.stubEnv("GROOVENET_TUI_ART_SLOTS", file);
+    const app = render(offset(null));
+    await vi.waitFor(() => expect(existsSync(file)).toBe(true));
+    expect(read(file)).toEqual({
+      columns: 120,
+      rows: 40,
+      slots: [{ x: 3, y: 3, width: 5, height: 2, sources: ["/a"] }],
+    });
+    const cache = new ArtworkCache({ getArtwork: vi.fn().mockResolvedValue(await sample()) });
+    const runtime: ArtworkRuntime = { mode: "blocks", tmux: false, cache, write: vi.fn() };
+    app.rerender(offset(runtime, "/b"));
+    await vi.waitFor(() => expect(app.lastFrame()).toContain("▀"));
+    expect(read(file).slots).toEqual([{ x: 3, y: 3, width: 5, height: 2, sources: ["/b"] }]);
+    app.unmount();
+    await vi.waitFor(() => expect(read(file).slots).toEqual([]));
+  });
+
+  it("writes nothing when the variable is unset", async () => {
+    vi.stubEnv("GROOVENET_TUI_ART_SLOTS", "");
+    render(offset(null));
+    await pause();
+    expect(readdirSync(dir)).toEqual([]);
   });
 });

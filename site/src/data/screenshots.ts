@@ -14,6 +14,12 @@ import optimiserDesktop from "../assets/screenshots/optimiser-desktop-light.png"
 import nowPlayingPhoneDark from "../assets/screenshots/now-playing-phone-dark.png";
 import spinsPhoneDark from "../assets/screenshots/spins-phone-dark.png";
 import spinsPhoneLight from "../assets/screenshots/spins-phone-light.png";
+import tuiDevices from "../assets/screenshots/tui-devices.png";
+import tuiNowPlaying from "../assets/screenshots/tui-now-playing.png";
+import tuiPlaylists from "../assets/screenshots/tui-playlists.png";
+import tuiQueueBrowse from "../assets/screenshots/tui-queue-browse.gif";
+import tuiQueue from "../assets/screenshots/tui-queue.png";
+import tuiSearch from "../assets/screenshots/tui-search.png";
 
 export interface Shot {
   /** Shown on the placeholder while there is no image. */
@@ -74,6 +80,39 @@ export const screenshots = {
     alt: "The enrichment wizard's setup: data sources to fetch for each track",
     image: enrichmentDesktop,
     imageDark: enrichmentDesktopDark,
+  },
+  // The player TUI (#931): `just site-tui-screenshots` captures it with VHS
+  // and composites the real covers in. Dark only, a terminal in one theme.
+  // The CLI docs show these; the landing page keeps its stand-ins.
+  tuiNowPlaying: {
+    label: "Terminal · Now playing",
+    alt: "The groovenet player in a terminal: Now playing, with the album cover, above the queue",
+    image: tuiNowPlaying,
+  },
+  tuiQueue: {
+    label: "Terminal · Queue",
+    alt: "The player's queue, its cursor below the paused track",
+    image: tuiQueue,
+  },
+  tuiQueueBrowse: {
+    label: "Terminal · Browsing the queue",
+    alt: "Moving the cursor down the player's queue and back",
+    image: tuiQueueBrowse,
+  },
+  tuiSearch: {
+    label: "Terminal · Search",
+    alt: "An album search in the player, with its cover and tracklist previewed",
+    image: tuiSearch,
+  },
+  tuiPlaylists: {
+    label: "Terminal · Playlists",
+    alt: "The player's playlists, one previewed with its cover and tracks",
+    image: tuiPlaylists,
+  },
+  tuiDevices: {
+    label: "Terminal · Devices",
+    alt: "The player's audio outputs",
+    image: tuiDevices,
   },
 } satisfies Record<string, Shot>;
 

@@ -275,6 +275,10 @@ own image ID on cleanup. True-colour terminals without Kitty/passthrough use
 half-block pixels. `NO_COLOR`/non-TTY keep `ArtSlot`. `GROOVENET_TUI_ART` overrides
 `auto` with `kitty`, `blocks` or `off`; see README for multiplexer limitations.
 Artwork colours encode pixels/protocol IDs and intentionally bypass theme roles.
+`GROOVENET_TUI_ART_SLOTS=<file>` (`tui/artSlots.ts`, off unless set) writes every
+mounted slot's screen cells and cover URLs as JSON, for the site's VHS captures
+(#931); a slot's removal is written on a deferred, unref'd timer so a capture
+killed mid-screen keeps its last report.
 
 A view plugs in through two render props, each told the exact cells it has:
 `nowPlaying(area)` (the card's text column, right of the art; the whole first

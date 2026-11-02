@@ -2,11 +2,14 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useId,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
-import { Box, Text, useStdout } from "ink";
+import { Box, Text, measureElement, useStdout, type DOMElement } from "ink";
 import type { GroovenetClient } from "@groovenet/client";
 import { ArtSlot } from "./primitives.js";
 import {
@@ -18,6 +21,7 @@ import {
   transmit,
   type ArtworkSupport,
 } from "./artwork.js";
+import { artSlotReporter } from "./artSlots.js";
 
 export interface ArtworkRuntime extends ArtworkSupport {
   cache: ArtworkCache;
@@ -53,6 +57,25 @@ export function ArtworkProvider({ api, children }: { api: GroovenetClient; child
   return <ArtworkContext.Provider value={runtime}>{children}</ArtworkContext.Provider>;
 }
 
+/** Reports the slot's cell rectangle when `GROOVENET_TUI_ART_SLOTS` is set; see `artSlots.ts`. */
+function useArtSlotReport(ref: RefObject<DOMElement | null>, sources: string) {
+  const id = useId();
+  // Ink types it as a plain writable; it is the terminal's stdout, which has a size.
+  const stdout = useStdout().stdout as NodeJS.WriteStream;
+  const reporter = artSlotReporter();
+  // Every render: the slot moves with the layout around it, not only its own props.
+  useEffect(() => {
+    if (!reporter || !ref.current) return;
+    const { x, y, width, height } = measureElement(ref.current);
+    reporter.set(
+      id,
+      { x, y, width, height, sources: JSON.parse(sources) as string[] },
+      { columns: stdout.columns, rows: stdout.rows },
+    );
+  });
+  useEffect(() => (reporter ? () => reporter.delete(id) : undefined), [reporter, id]);
+}
+
 export function ArtworkSlot({
   source,
   fallbacks = [],
@@ -70,6 +93,8 @@ export function ArtworkSlot({
     ...new Set([source, ...fallbacks].filter((url): url is string => !!url)),
   ]);
   const key = JSON.stringify([sources, width, height, runtime?.mode]);
+  const ref = useRef<DOMElement>(null);
+  useArtSlotReport(ref, sources);
   useEffect(() => {
     setLoaded(null);
     if (sources === "[]" || !runtime || runtime.mode === "off") return;
@@ -102,10 +127,10 @@ export function ArtworkSlot({
       if (id !== undefined) runtime.write(deleteImage(id, runtime.tmux));
     };
   }, [sources, width, height, key, runtime]);
-  if (!loaded || loaded.key !== key) return <ArtSlot width={width} height={height} />;
+  if (!loaded || loaded.key !== key) return <ArtSlot ref={ref} width={width} height={height} />;
   // Image colours encode pixels/IDs, so deliberately bypass text theme roles.
   return (
-    <Box flexDirection="column" width={width} height={height} flexShrink={0}>
+    <Box ref={ref} flexDirection="column" width={width} height={height} flexShrink={0}>
       {loaded.rows.map((row, index) => (
         <Text key={index}>{row}</Text>
       ))}
