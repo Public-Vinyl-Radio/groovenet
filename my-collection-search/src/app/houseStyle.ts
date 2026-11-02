@@ -129,7 +129,212 @@ const fieldStates = (
 });
 const outsideRing = { focusVisibleRing: "outside" } as const;
 
+// Badge roles (#963): six looks, one per meaning, for every badge, chip and tag.
+// Components in `components/ui/RoleTags.tsx` and `FilterChip.tsx` render them;
+// product code never styles a tag itself. Every colour is a named semantic
+// token, never `colorPalette.*`, so a tag can't fall back to Chakra's stock
+// gray, and `badgeRoles.test.ts` checks each one exists in every palette.
+
+/** A tag's text, from the Labels face: capitals by CSS, so labels stay sentence case. */
+const tagBase: SystemStyleObject = {
+  display: "inline-flex",
+  alignItems: "center",
+  boxSizing: "border-box",
+  maxW: "100%",
+  borderWidth: "rule",
+  borderStyle: "solid",
+  borderRadius: "0",
+  fontFamily: "label",
+  fontWeight: "medium",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  fontVariantNumeric: "tabular-nums",
+  whiteSpace: "nowrap",
+  textDecoration: "none",
+  verticalAlign: "middle",
+  // A linked tag (a genre, a playlist count) looks like a static one until it
+  // is hovered or focused: an underline and the focus ring, and nothing else.
+  "&:is(a, button)": {
+    cursor: "pointer",
+    focusVisibleRing: "outside",
+    _hover: { textDecoration: "underline" },
+  },
+};
+
+// sm is 20px with 11px text, xs 16px with 10px. The height is fixed and the
+// line height fills what the ring leaves, so the text stays centred when a row
+// switches a tag to `display: block` to end it in an ellipsis.
+const tagSizes = (ring: number) => ({
+  sm: { h: "20px", px: "6px", gap: "6px", fontSize: "11px", lineHeight: `${20 - 2 * ring}px` },
+  xs: { h: "16px", px: "4px", gap: "4px", fontSize: "10px", lineHeight: `${16 - 2 * ring}px` },
+});
+
+/** The filter chip's text, shared with the chip row's "Clear all". */
+export const filterChipText = {
+  fontFamily: "label",
+  fontSize: "12px",
+  fontWeight: "semibold",
+  letterSpacing: "0.04em",
+} as const;
+
+export const roleRecipes = {
+  // A state to notice or act on. Never solid: the word carries the state and
+  // the tint only supports it (B9 asked for status tokens that don't exist).
+  statusTag: defineRecipe({
+    className: "status-tag",
+    base: tagBase,
+    variants: {
+      size: tagSizes(1),
+      tone: {
+        missing: {
+          bg: "status.missing.subtle",
+          color: "status.missing.fg",
+          borderColor: "status.missing.border",
+        },
+        analysis: {
+          bg: "status.analysis.subtle",
+          color: "status.analysis.fg",
+          borderColor: "status.analysis.border",
+        },
+        success: {
+          bg: "status.success.subtle",
+          color: "status.success.fg",
+          borderColor: "status.success.border",
+        },
+        neutral: { bg: "bg.muted", color: "fg.muted", borderColor: "border" },
+      },
+    },
+    defaultVariants: { size: "sm", tone: "neutral" },
+  }),
+  // What a record is: genre, style, mood. The genre purple means this and
+  // nothing else. A value the taxonomy doesn't know yet has a dashed ring.
+  categoryTag: defineRecipe({
+    className: "category-tag",
+    base: {
+      ...tagBase,
+      bg: "status.genre.subtle",
+      color: "status.genre.fg",
+      borderColor: "status.genre.border",
+    },
+    variants: {
+      size: tagSizes(1),
+      unreconciled: { true: { borderStyle: "dashed" }, false: {} },
+    },
+    defaultVariants: { size: "sm", unreconciled: false },
+  }),
+  // A value: key, BPM, era, a count with its noun. The library ID is the one
+  // accent tag; raw values (paths, hashes) keep their case in Plex Mono.
+  metaTag: defineRecipe({
+    className: "meta-tag",
+    base: { ...tagBase, bg: "transparent", color: "fg", borderColor: "border" },
+    variants: {
+      size: tagSizes(1),
+      variant: {
+        plain: {},
+        id: { color: "accent.fg", borderColor: "accent.border", fontWeight: "semibold" },
+        raw: { fontFamily: "mono", textTransform: "none", letterSpacing: "0" },
+      },
+    },
+    defaultVariants: { size: "sm", variant: "plain" },
+  }),
+  // Provenance and output: vinyl/digital, web/CLI/MCP/API, auto/manual. The
+  // value is the border style or an ink fill, so it reads without colour.
+  sourceTag: defineRecipe({
+    className: "source-tag",
+    base: {
+      ...tagBase,
+      borderWidth: "outline",
+      bg: "transparent",
+      color: "fg",
+      borderColor: "fg",
+      fontSize: "10px",
+      fontWeight: "semibold",
+      letterSpacing: "0.08em",
+    },
+    variants: {
+      size: {
+        sm: { ...tagSizes(2).sm, fontSize: "10px" },
+        xs: { ...tagSizes(2).xs, fontSize: "10px" },
+      },
+      stroke: {
+        solid: {},
+        dotted: { borderStyle: "dotted" },
+        dashed: { borderStyle: "dashed" },
+        double: { borderStyle: "double", borderWidth: "3px" },
+        fill: { bg: "fg", color: "bg" },
+      },
+      // On an ink-filled surface (the just-saved care-log card).
+      inverted: { true: { color: "bg", borderColor: "bg" }, false: {} },
+    },
+    compoundVariants: [
+      { stroke: "double", size: "sm", css: { px: "5px", lineHeight: "14px" } },
+      { stroke: "double", size: "xs", css: { px: "3px", lineHeight: "10px" } },
+      { stroke: "fill", inverted: true, css: { bg: "bg", color: "fg" } },
+    ],
+    defaultVariants: { size: "sm", stroke: "solid", inverted: false },
+  }),
+  // A bare number. `strong` is the one that matters; `dot` is a notification,
+  // the only other use of the accent.
+  countTag: defineRecipe({
+    className: "count-tag",
+    base: {
+      ...tagBase,
+      justifyContent: "center",
+      bg: "bg.muted",
+      color: "fg.muted",
+      borderColor: "border",
+      fontWeight: "semibold",
+    },
+    variants: {
+      size: {
+        sm: { ...tagSizes(1).sm, minW: "20px" },
+        xs: { ...tagSizes(1).xs, minW: "16px" },
+      },
+      variant: {
+        plain: {},
+        strong: { bg: "fg", color: "bg", borderColor: "fg" },
+        dot: { bg: "accent.solid", color: "accent.contrast", borderColor: "accent.solid" },
+      },
+    },
+    defaultVariants: { size: "sm", variant: "plain" },
+  }),
+  // Pressable and removable (#794): an active chip is surface-filled with an
+  // ink outline and an x; an inactive one is a quiet outline. 32px, 44px on phones.
+  filterChip: defineRecipe({
+    className: "filter-chip",
+    base: {
+      ...filterChipText,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      flexShrink: 0,
+      minH: { base: "44px", md: "32px" },
+      maxW: "280px",
+      pl: "10px",
+      pr: "10px",
+      borderWidth: "outline",
+      borderStyle: "solid",
+      borderRadius: "0",
+      borderColor: "border",
+      bg: "transparent",
+      color: "fg",
+      textTransform: "uppercase",
+      cursor: "pointer",
+      focusVisibleRing: "outside",
+      _hover: { bg: "bg.muted" },
+    },
+    variants: {
+      active: {
+        true: { pr: "6px", borderColor: "border.ink", bg: "bg.subtle" },
+        false: {},
+      },
+    },
+    defaultVariants: { active: false },
+  }),
+};
+
 export const recipes = {
+  ...roleRecipes,
   button: defineRecipe({
     base: {
       borderWidth: "outline",

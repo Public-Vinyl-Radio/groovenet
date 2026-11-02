@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Box, Flex, Text, chakra, type FlexProps } from "@chakra-ui/react";
-import { LuX } from "react-icons/lu";
+import { filterChipText } from "@/app/houseStyle";
+import { FilterChip as Chip, chipLabel } from "@/components/ui/FilterChip";
 
 export interface FilterChip {
   key: string;
@@ -24,56 +25,7 @@ interface FilterChipsProps {
   mt?: FlexProps["mt"];
 }
 
-/** The chip's text: its label, then the count when the data has one. */
-export function chipLabel({ label, count }: Pick<FilterChip, "label" | "count">): string {
-  return count === undefined ? label : `${label} · ${count.toLocaleString()}`;
-}
-
-const chipText = {
-  fontFamily: "label",
-  fontSize: "12px",
-  fontWeight: "semibold",
-  letterSpacing: "0.04em",
-} as const;
-
-/**
- * One filter as a chip (#794): an active filter is a surface-filled chip with
- * an ink outline and an x that removes it; an inactive one is a quiet outline
- * that turns it on. The same chip on phones and desktop.
- */
-function Chip({ chip, onToggle }: { chip: FilterChip; onToggle: (key: string) => void }) {
-  const text = chipLabel(chip);
-  return (
-    <chakra.button
-      type="button"
-      onClick={() => onToggle(chip.key)}
-      aria-label={chip.active ? `Remove filter ${text}` : undefined}
-      aria-pressed={chip.active ? undefined : false}
-      title={text}
-      display="inline-flex"
-      alignItems="center"
-      gap="6px"
-      flexShrink={0}
-      // 44px touch target on phones, the 32px chip from `md` up.
-      minH={{ base: "44px", md: "32px" }}
-      pl="10px"
-      pr={chip.active ? "6px" : "10px"}
-      borderWidth="outline"
-      borderColor={chip.active ? "border.ink" : "border"}
-      bg={chip.active ? "bg.subtle" : "transparent"}
-      color="fg"
-      textTransform="uppercase"
-      maxW="280px"
-      _hover={{ bg: "bg.muted" }}
-      {...chipText}
-    >
-      <Text as="span" truncate>
-        {text}
-      </Text>
-      {chip.active && <LuX aria-hidden="true" size={14} strokeWidth={2.5} />}
-    </chakra.button>
-  );
-}
+export { chipLabel };
 
 export default function FilterChips({
   chips,
@@ -118,7 +70,13 @@ export default function FilterChips({
           css={{ scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}
         >
           {chips.map((chip) => (
-            <Chip key={chip.key} chip={chip} onToggle={onToggle} />
+            <Chip
+              key={chip.key}
+              label={chip.label}
+              count={chip.count}
+              active={chip.active}
+              onClick={() => onToggle(chip.key)}
+            />
           ))}
           {anyActive && onClearAll && (
             <chakra.button
@@ -131,7 +89,7 @@ export default function FilterChips({
               textDecoration="underline"
               textUnderlineOffset="3px"
               _hover={{ color: "fg" }}
-              {...chipText}
+              {...filterChipText}
             >
               Clear all
             </chakra.button>
