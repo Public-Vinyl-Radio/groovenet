@@ -112,7 +112,14 @@ prod seed. CI has no seeded stack, so they only change when someone runs:
 just worktree-seed-prod && just worktree-up   # if the stack isn't prod-seeded yet
 just site-screenshots                         # all shots, Mono light/dark + one hero per palette
 just site-screenshots --palette riso --mode dark   # extra variants, for docs
+just site-screenshots --only settings --out /tmp/settings-before   # scratch copy, nothing committed
 ```
+
+- `--only <prefix>` takes just the files whose name starts with it (`settings`,
+  `home-desktop`); a prefix that matches nothing fails. It combines with
+  `--palette` and `--mode`.
+- `--out <dir>` writes there (created if missing) instead of `src/assets/screenshots/`,
+  skips compression, and includes the `reference` shots below.
 
 Refresh them after a visible UI change, or with a new seed. The command
 sets the palette through `PUT /api/settings/appearance` and puts the saved one
@@ -126,6 +133,17 @@ are exempt from the 1 MiB pre-commit limit; keep that exception limited to this 
   A second run with no app change gives no diff.
 - **Content:** collection data is public; no privacy masks are needed. Only
   developer controls, toasts and Home's live Now playing card are hidden for stability.
+  Settings is the exception: it shows credentials and personal data, so those
+  shots run `maskSettings` in the spec before capture, replacing Discogs
+  usernames with `collector-N`, emails, token-like strings, backup hosts and
+  server paths, and password inputs. Add a rule there when a tab grows a new
+  field that holds a secret, and check every Settings image by eye.
+- **Reference shots:** the Settings tabs (`settings-<id>-<viewport>[-<palette>]-<mode>.png`,
+  28 of them, full page) are marked `reference: true` in the spec. They are not
+  used by the site, so a plain run skips them; only `--only` or `--out` takes them.
+  Don't commit them. If a docs page needs one, reference it from
+  `src/data/screenshots.ts` or Markdown and drop `reference` for that shot.
+  `appearance-desktop-*` is the older viewport crop the docs use; it is unchanged.
 - **Docs:** all pages get Mono light and dark versions. The default run also
   captures a Home hero in Sleeve, Riso and Midnight. `--palette` selects just
   that palette; `--mode` selects one mode. Mono filenames omit the palette suffix.
