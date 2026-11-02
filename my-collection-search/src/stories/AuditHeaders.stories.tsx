@@ -136,13 +136,16 @@ const meta = {
     mode: { control: "inline-radio", options: ["light", "dark"] },
   },
   decorators: [
-    (Story, context) => (
-      <AuditProviders palette={context.args.palette} mode={context.args.mode}>
-        <Box bg="bg" color="fg" minH="100vh" p={4}>
-          <Story />
-        </Box>
-      </AuditProviders>
-    ),
+    (Story, context) =>
+      context.id.endsWith("-phone") ? (
+        <Story />
+      ) : (
+        <AuditProviders palette={context.args.palette} mode={context.args.mode}>
+          <Box bg="bg" color="fg" minH="100vh" p={4}>
+            <Story />
+          </Box>
+        </AuditProviders>
+      ),
   ],
 } satisfies Meta<{ palette: string; mode: "light" | "dark" }>;
 export default meta;
