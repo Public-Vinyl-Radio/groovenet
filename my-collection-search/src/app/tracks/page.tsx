@@ -12,7 +12,7 @@ const SearchPage = () => {
     <>
       <Flex gap={4} direction="row">
         {/* Search Results */}
-        <PageContainer size="standard">
+        <PageContainer>
           {/* SearchResults renders the header itself: its kebab needs the search state. */}
           <Suspense
             fallback={

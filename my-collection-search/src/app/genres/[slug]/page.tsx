@@ -402,7 +402,7 @@ export default function GenrePage() {
         },
       }}
     >
-      <PageContainer size="wide">
+      <PageContainer>
         {query.error ? (
           <>
             <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />

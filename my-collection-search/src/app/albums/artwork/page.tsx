@@ -159,7 +159,7 @@ export default function AlbumArtworkReviewPage() {
   const albums = reviewQuery.data?.albums ?? [];
 
   return (
-    <PageContainer size="standard" mb="100px">
+    <PageContainer mb="100px">
       <PageHeader
         title="Album artwork"
         actions={[

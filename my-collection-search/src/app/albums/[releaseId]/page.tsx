@@ -165,7 +165,7 @@ function AlbumDetailContent() {
 
   if (!friendId) {
     return (
-      <PageContainer size="standard" py={8}>
+      <PageContainer py={8}>
         <Text color="fg.error">Error: friend_id parameter is required</Text>
       </PageContainer>
     );
@@ -173,7 +173,7 @@ function AlbumDetailContent() {
 
   if ((!albumHydrated || !tracksHydrated) && !error) {
     return (
-      <PageContainer size="standard" py={8}>
+      <PageContainer py={8}>
         <Flex justify="center" align="center" minH="400px">
           <Spinner size="xl" />
         </Flex>
@@ -183,7 +183,7 @@ function AlbumDetailContent() {
 
   if (error || !album) {
     return (
-      <PageContainer size="standard" py={8}>
+      <PageContainer py={8}>
         <Text color="fg.error">
           Error loading album: {error instanceof Error ? error.message : "Unknown error"}
         </Text>
@@ -220,7 +220,7 @@ function AlbumDetailContent() {
   );
 
   return (
-    <PageContainer size="standard" mb="100px">
+    <PageContainer mb="100px">
       <PageHeader
         title={album.title}
         // Phones go back to the list; the artist crumb is for the desktop trail.
@@ -363,7 +363,7 @@ export default function AlbumDetailPage() {
   return (
     <Suspense
       fallback={
-        <PageContainer size="standard" py={8}>
+        <PageContainer py={8}>
           <Flex justify="center" align="center" minH="400px">
             <Spinner size="xl" />
           </Flex>

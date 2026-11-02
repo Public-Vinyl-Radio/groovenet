@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
   pending: false,
+  playlistLength: 0,
   toast: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
@@ -16,8 +17,8 @@ vi.mock("@/hooks/useCreateAlbumMutation", () => ({
   useCreateAlbumMutation: () => ({ mutateAsync: state.mutate, isPending: state.pending }),
 }));
 vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => ({ friend: { id: 7 } }) }));
-vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({ playlistLength: 0 }),
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ playlistLength: state.playlistLength }),
 }));
 vi.mock("@/components/AlbumForm", () => ({ default: () => null }));
 vi.mock("@/components/CoverArtUpload", () => ({ default: () => null }));
@@ -32,6 +33,7 @@ beforeEach(() => {
   state.mutate.mockReset();
   state.toast.mockReset();
   state.pending = false;
+  state.playlistLength = 0;
 });
 
 describe("AddAlbumPage header", () => {
@@ -59,5 +61,23 @@ describe("AddAlbumPage header", () => {
         (header().getByRole("button", { name, hidden: true }) as HTMLButtonElement).disabled,
       ).toBe(true);
     }
+  });
+});
+
+describe("AddAlbumPage layout", () => {
+  const container = () => {
+    let el: HTMLElement | null = screen.getByTestId("page-header");
+    while (el && getComputedStyle(el).maxWidth !== "1360px") el = el.parentElement;
+    return el!;
+  };
+
+  it("leaves room for the mini player only while a queue is loaded", () => {
+    const { unmount } = renderWithProviders(<AddAlbumPage />);
+    expect(getComputedStyle(container()).marginBottom).toBe("0px");
+    unmount();
+
+    state.playlistLength = 3;
+    renderWithProviders(<AddAlbumPage />);
+    expect(getComputedStyle(container()).marginBottom).toBe("120px");
   });
 });
