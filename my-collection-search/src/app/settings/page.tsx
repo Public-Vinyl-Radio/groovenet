@@ -113,7 +113,7 @@ function SettingsPageContent() {
   return (
     <SettingsDialogsProvider>
       <SyncStreamsProvider>
-        <PageContainer size="wide">
+        <PageContainer>
           <PageHeader title="Settings" />
           <Box mb="120px">
             <Text color="fg.muted" fontSize={{ base: "sm", md: "md" }} mb={4}>

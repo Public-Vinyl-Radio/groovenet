@@ -272,7 +272,7 @@ function JobsPageContent() {
   };
 
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       <PageHeader
         title="Downloads"
         actions={[

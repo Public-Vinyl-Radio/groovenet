@@ -244,7 +244,7 @@ function EditAlbumContent() {
 
   if (!friendId) {
     return (
-      <PageContainer size="standard" py={8}>
+      <PageContainer py={8}>
         <Text color="fg.error">Error: friend_id parameter is required</Text>
       </PageContainer>
     );
@@ -252,7 +252,7 @@ function EditAlbumContent() {
 
   if ((!albumHydrated || !tracksHydrated) && !error) {
     return (
-      <PageContainer size="standard" py={8}>
+      <PageContainer py={8}>
         <Flex justify="center" align="center" minH="400px">
           <Spinner size="xl" />
         </Flex>
@@ -262,7 +262,7 @@ function EditAlbumContent() {
 
   if (error || !album) {
     return (
-      <PageContainer size="standard" py={8}>
+      <PageContainer py={8}>
         <Text color="fg.error">
           Error loading album: {error instanceof Error ? error.message : "Unknown error"}
         </Text>
@@ -271,7 +271,7 @@ function EditAlbumContent() {
   }
 
   return (
-    <PageContainer size="standard" py={{ base: 0, md: 4 }}>
+    <PageContainer py={{ base: 0, md: 4 }}>
       <PageHeader
         title="Edit Album"
         leading={<HeaderCancelButton onClick={handleCancel} disabled={updateMutation.isPending} />}
@@ -284,7 +284,7 @@ function EditAlbumContent() {
           },
         ]}
       />
-      <Stack gap={6}>
+      <Stack gap={6} maxW="960px">
         <AlbumForm
           value={albumForm}
           onChange={setAlbumForm}
@@ -323,7 +323,7 @@ export default function EditAlbumPage() {
   return (
     <Suspense
       fallback={
-        <PageContainer size="standard" py={8}>
+        <PageContainer py={8}>
           <Flex justify="center" align="center" minH="400px">
             <Spinner size="xl" />
           </Flex>

@@ -18,7 +18,7 @@ const PlaylistPage = ({ params }: PlaylistPageProps) => {
   const { playlistLength } = usePlaybackPlayer();
 
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       <Box mb={playlistLength > 0 ? "120px" : "0"}>
         <PlaylistViewer playlistId={Number(id)} />
         {/* Future ideas:

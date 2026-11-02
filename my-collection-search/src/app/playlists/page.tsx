@@ -6,7 +6,7 @@ import PageContainer from "@/components/layout/PageContainer";
 
 const PlaylistsPage = () => {
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       <PlaylistManager />
     </PageContainer>
   );

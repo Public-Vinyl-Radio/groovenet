@@ -129,7 +129,7 @@ export default function VinylPipelineView() {
   const rows = detections.data?.detections ?? [];
 
   return (
-    <PageContainer size="wide">
+    <PageContainer>
       <PageHeader
         title="Vinyl Pipeline"
         actions={[

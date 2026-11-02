@@ -173,7 +173,7 @@ export default function AddAlbumPage() {
   };
 
   return (
-    <PageContainer size="standard" py={{ base: 0, md: 4 }} mb={playlistLength > 0 ? "120px" : "0"}>
+    <PageContainer py={{ base: 0, md: 4 }} mb={playlistLength > 0 ? "120px" : "0"}>
       <PageHeader
         title="Add Album"
         leading={
@@ -188,7 +188,7 @@ export default function AddAlbumPage() {
           },
         ]}
       />
-      <Stack gap={6}>
+      <Stack gap={6} maxW="960px">
         <AlbumForm value={albumForm} onChange={setAlbumForm} />
 
         <CoverArtUpload value={coverArt} onChange={setCoverArt} />

@@ -40,7 +40,7 @@ const tools: Tool[] = [
 
 export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: string | null }) {
   return (
-    <PageContainer size="wide">
+    <PageContainer>
       <PageHeader title="Developer tools" />
       <Text color="fg.muted" mb={{ base: 6, md: 10 }}>
         API references and component documentation for this GrooveNet instance.
