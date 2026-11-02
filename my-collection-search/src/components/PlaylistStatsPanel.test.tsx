@@ -106,7 +106,7 @@ describe("PlaylistStatsPanel (#480)", () => {
 
     const genreCard = await findDesktopCard("Top Genres");
     const link = within(genreCard).getByRole("link", {
-      name: "Search tracks in Latin (2)",
+      name: "Search tracks in Latin",
       hidden: true,
     });
     expect(link.getAttribute("href")).toBe("/tracks?genre=latin");
@@ -116,7 +116,7 @@ describe("PlaylistStatsPanel (#480)", () => {
     renderPanel();
 
     const genreCard = await findDesktopCard("Top Genres");
-    const unmapped = within(genreCard).getByText("Unmapped Genre (1)");
+    const unmapped = within(genreCard).getByText("Unmapped Genre · 1");
     expect(unmapped.closest("a")).toBeNull();
   });
 
@@ -126,12 +126,12 @@ describe("PlaylistStatsPanel (#480)", () => {
     const trackGenreCard = await findDesktopCard("Top track genres");
     // Track 1's track_genres "Cumbia" and track 2's style fallback "Cumbia" are the same genre.
     const cumbia = within(trackGenreCard).getByRole("link", {
-      name: "Search tracks in Cumbia (2)",
+      name: "Search tracks in Cumbia",
       hidden: true,
     });
     expect(cumbia.getAttribute("href")).toBe("/tracks?genre=cumbia");
     const chicha = within(trackGenreCard).getByRole("link", {
-      name: "Search tracks in Chicha (1)",
+      name: "Search tracks in Chicha",
       hidden: true,
     });
     expect(chicha.getAttribute("href")).toBe("/tracks?genre=chicha");
@@ -198,8 +198,8 @@ describe("PlaylistStatsPanel (#480)", () => {
     const rhythmCard = await findDesktopCard("Rhythm & Harmony");
     expect(within(rhythmCard).getByText("BPM avg 125 (122-128)")).toBeTruthy();
     expect(within(rhythmCard).getByText("BPM coverage: 67%")).toBeTruthy();
-    expect(within(rhythmCard).getByText("A minor (2)")).toBeTruthy();
-    expect(within(rhythmCard).getByText("B minor (1)")).toBeTruthy();
+    expect(within(rhythmCard).getByText("A minor · 2")).toBeTruthy();
+    expect(within(rhythmCard).getByText("B minor · 1")).toBeTruthy();
 
     const ratingsCard = await findDesktopCard("Ratings & Styles");
     expect(within(ratingsCard).getByText("Avg rating: 3.5")).toBeTruthy();
@@ -212,7 +212,7 @@ describe("PlaylistStatsPanel (#480)", () => {
     await user.click(screen.getByText(/tracks$/));
     const mobileRhythm = screen.getAllByText("Rhythm")[0].closest("div")!;
     expect(within(mobileRhythm).getByText("BPM 125 (122–128)")).toBeTruthy();
-    expect(within(mobileRhythm).getByText("A minor (2)")).toBeTruthy();
+    expect(within(mobileRhythm).getByText("A minor · 2")).toBeTruthy();
     const mobileRatings = screen.getAllByText("Ratings")[0].closest("div")!;
     expect(within(mobileRatings).getByText("Avg 3.5 · 1 favs")).toBeTruthy();
   });
@@ -236,10 +236,10 @@ it("tallies effective album genres/styles without replacing the DJ genre", async
     }),
   ]);
   const genreCard = await findDesktopCard("Top Genres");
-  expect(within(genreCard).getByText("Latin (1)")).toBeTruthy();
+  expect(within(genreCard).getByText("Latin · 1")).toBeTruthy();
   const styleCard = await findDesktopCard("Ratings & Styles");
-  expect(within(styleCard).getByText("Cumbia (1)")).toBeTruthy();
+  expect(within(styleCard).getByText("Cumbia · 1")).toBeTruthy();
   const djCard = await findDesktopCard("Top track genres");
-  expect(within(djCard).getByText("Salsa (1)")).toBeTruthy();
+  expect(within(djCard).getByText("Salsa · 1")).toBeTruthy();
   expect(screen.queryByText("Old Genre")).toBeNull();
 });

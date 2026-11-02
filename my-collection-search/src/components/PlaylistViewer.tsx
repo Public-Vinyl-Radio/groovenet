@@ -3,7 +3,8 @@
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
 
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Box, EmptyState, Flex, Text, VStack, Skeleton, Button, Badge } from "@chakra-ui/react";
+import { Box, EmptyState, Flex, Text, VStack, Skeleton, Button } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiHeadphones, FiSave } from "react-icons/fi";
 
@@ -458,14 +459,9 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         <Box flex="1">
           <Flex align="center" gap={2} flexWrap="wrap">
             {hasUnsavedChanges && (
-              <Badge
-                colorPalette="status.analysis"
-                variant="solid"
-                size="sm"
-                display={{ base: "none", md: "inline-flex" }}
-              >
+              <StatusTag tone="analysis" size="sm" display={{ base: "none", md: "inline-flex" }}>
                 Unsaved changes
-              </Badge>
+              </StatusTag>
             )}
           </Flex>
           <Text fontSize="sm" color="fg.muted" mb={2}>

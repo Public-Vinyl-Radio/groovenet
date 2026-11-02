@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Badge, Box, Button, Flex, Menu, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Menu, Text } from "@chakra-ui/react";
+import { SourceTag } from "@/components/ui/RoleTags";
 import TrackResultStore from "@/components/TrackResultStore";
 import type { Track } from "@/types/track";
 import { FiEdit, FiMoreVertical, FiPlus, FiPlusSquare } from "react-icons/fi";
@@ -52,19 +53,19 @@ export default function PlaylistRecommendations({
             buttons={[
               <Flex key="badges-menu" align="center" gap={1} wrap="wrap">
                 {rec._simIdentity != null && rec._simAudio != null && (
-                  <Badge colorPalette="status.genre" size="sm">
+                  <SourceTag stroke="double" size="sm">
                     Identity + Vibe
-                  </Badge>
+                  </SourceTag>
                 )}
                 {rec._simIdentity != null && rec._simAudio == null && (
-                  <Badge colorPalette="accent" size="sm">
+                  <SourceTag stroke="solid" size="sm">
                     Identity
-                  </Badge>
+                  </SourceTag>
                 )}
                 {rec._simAudio != null && rec._simIdentity == null && (
-                  <Badge colorPalette="accent" size="sm">
+                  <SourceTag stroke="dashed" size="sm">
                     Vibe
-                  </Badge>
+                  </SourceTag>
                 )}
                 <Menu.Root>
                   <Menu.Trigger asChild>

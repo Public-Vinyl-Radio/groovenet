@@ -3,7 +3,8 @@
 import RetroDialog from "@/components/ui/RetroDialog";
 
 import React from "react";
-import { Badge, Box, Button, Flex, Image, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Image, Spinner, Stack, Text } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import { FiImage, FiRotateCcw, FiUpload } from "react-icons/fi";
 import { SiApplemusic } from "react-icons/si";
 
@@ -212,7 +213,7 @@ export default function AlbumArtworkDialog({
                   <Text fontSize="sm" fontWeight="medium">
                     Source
                   </Text>
-                  <Badge variant="subtle">{sourceLabel}</Badge>
+                  <MetaTag>{sourceLabel}</MetaTag>
                 </Flex>
                 {state.art_match_status === "mismatch" && (
                   <Text fontSize="xs" color="fg.warning">

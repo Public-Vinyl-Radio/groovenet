@@ -18,10 +18,10 @@ describe("playsLabel", () => {
 });
 
 describe("ratingChip", () => {
-  it("is an inverted-chip UNRATED for null and for the column's 0 default", () => {
+  it("is an Unrated status tag for null and for the column's 0 default", () => {
     for (const rating of [null, 0]) {
       expect(ratingChip(rating)).toEqual({
-        label: "UNRATED",
+        label: "Unrated",
         rated: false,
         description: "Unrated",
       });

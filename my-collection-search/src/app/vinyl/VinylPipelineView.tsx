@@ -2,7 +2,6 @@
 
 import React from "react";
 import {
-  Badge,
   Box,
   Button,
   Card,
@@ -17,6 +16,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import { LuPause, LuPlay, LuRefreshCw } from "react-icons/lu";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
@@ -294,9 +294,7 @@ export default function VinylPipelineView() {
               <Box>
                 {s.ingests.failures.map((f) => (
                   <Flex key={f.error} gap={2} fontSize="sm" color="fg.error">
-                    <Badge colorPalette="status.missing" variant="subtle">
-                      {f.count}×
-                    </Badge>
+                    <StatusTag tone="missing">{f.count}×</StatusTag>
                     <Text>{f.error}</Text>
                   </Flex>
                 ))}

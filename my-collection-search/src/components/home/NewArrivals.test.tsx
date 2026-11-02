@@ -41,7 +41,7 @@ describe("NewArrivals", () => {
     renderWithProviders(<NewArrivals arrivals={HOME_ARRIVALS} friendId={7} now={now} />);
     const rows = within(lists()[desktop]).getAllByRole("listitem", { hidden: true });
     expect(rows[0].textContent).toContain("NOT PLAYED");
-    expect(rows[0].textContent).toContain("UNRATED");
+    expect(rows[0].textContent).toContain("Unrated");
     expect(rows[0].textContent).toContain("ADDED 9 DAYS AGO");
     expect(rows[1].textContent).toContain("1 PLAY");
     expect(rows[3].textContent).toContain("6 PLAYS");
@@ -49,7 +49,7 @@ describe("NewArrivals", () => {
     // The stars have a text alternative; the unrated chip is text already.
     expect(within(rows[3]).getByRole("img", { name: "Rated 4 of 5", hidden: true })).toBeTruthy();
     expect(within(rows[0]).queryByRole("img", { name: /Rated/, hidden: true })).toBeNull();
-    expect(within(lists()[phone]).getAllByText("UNRATED")).toHaveLength(3);
+    expect(within(lists()[phone]).getAllByText("Unrated")).toHaveLength(3);
   });
 
   it("counts added days in the display time zone", () => {

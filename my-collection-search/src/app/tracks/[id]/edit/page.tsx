@@ -2,17 +2,8 @@
 
 import React, { useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  Grid,
-  RatingGroup,
-  Skeleton,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, Flex, Grid, RatingGroup, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
@@ -241,9 +232,9 @@ export default function TrackEditPage() {
                   />
                   {formatBpmConfidencePercent(form.bpm_confidence) !== null &&
                     (isBpmConfidenceLow(form.bpm_confidence) ? (
-                      <Badge colorPalette="status.analysis" variant="subtle" size="sm" mt={1}>
+                      <StatusTag tone="analysis" size="sm" mt={1}>
                         Uncertain BPM — {formatBpmConfidencePercent(form.bpm_confidence)}% confident
-                      </Badge>
+                      </StatusTag>
                     ) : (
                       <Text fontSize="xs" color="fg.muted" mt={1}>
                         {formatBpmConfidencePercent(form.bpm_confidence)}% confident
@@ -254,9 +245,9 @@ export default function TrackEditPage() {
                   <LabeledInput label="Key" name="key" value={form.key} onChange={handleChange} />
                   {formatKeyConfidencePercent(form.key_confidence) !== null &&
                     (isKeyConfidenceLow(form.key_confidence) ? (
-                      <Badge colorPalette="status.analysis" variant="subtle" size="sm" mt={1}>
+                      <StatusTag tone="analysis" size="sm" mt={1}>
                         Uncertain key — {formatKeyConfidencePercent(form.key_confidence)}% confident
-                      </Badge>
+                      </StatusTag>
                     ) : (
                       <Text fontSize="xs" color="fg.muted" mt={1}>
                         {formatKeyConfidencePercent(form.key_confidence)}% confident

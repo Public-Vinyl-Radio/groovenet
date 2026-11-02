@@ -78,8 +78,8 @@ describe("Chores page", () => {
     expect(screen.getByTestId("chores-overview")).toBeTruthy();
     expect(checkbox(/Album 1/).textContent).toContain("SPUN 3× IN OCT");
     expect(checkbox(/Album 3/).textContent).toContain("ADDED OCT 17");
-    expect(checkbox(/Album 4/).textContent).toContain("SLEEVE ?");
-    expect(checkbox(/Album 5/).textContent).not.toContain("SLEEVE ?");
+    expect(checkbox(/Album 4/).textContent).toContain("Sleeve unknown");
+    expect(checkbox(/Album 5/).textContent).not.toContain("Sleeve unknown");
     expect(screen.getByRole("article", { name: "BACKLOG · A–Z" })).toBeTruthy();
     expect(screen.getByText("THIS MONTH · 11 RECORDS · 2 SESSIONS")).toBeTruthy();
   });

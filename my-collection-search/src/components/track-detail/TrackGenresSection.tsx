@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Flex, Text } from "@chakra-ui/react";
+import { Flex, Text } from "@chakra-ui/react";
 import { GenreBadgeList } from "@/components/GenreBadge";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrack } from "@/hooks/useTrack";
@@ -64,17 +64,11 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
       minW={0}
       css={tagCss}
     >
-      <GenreBadgeList
-        items={trackGenres}
-        kind="track"
-        scope="tracks"
-        colorPalette="status.genre"
-        variant="subtle"
-      />
+      <GenreBadgeList items={trackGenres} kind="track" scope="tracks" />
       {trackGenres.length === 0 && (
-        <Badge variant="outline" colorPalette="neutral" size="sm">
+        <Text as="span" fontSize="sm" color="fg.muted">
           No genres yet
-        </Badge>
+        </Text>
       )}
       {hasAlbum && (
         <Text

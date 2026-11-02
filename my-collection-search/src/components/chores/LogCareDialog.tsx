@@ -15,6 +15,7 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
+import { CountTag } from "@/components/ui/RoleTags";
 import Artwork from "@/components/player/Artwork";
 import RetroDialog from "@/components/ui/RetroDialog";
 import {
@@ -83,18 +84,8 @@ function Covers({ records, count }: { records: LogCareRecord[]; count: number })
         </Box>
       ))}
       {overflow && (
-        <Flex
-          data-testid="log-care-more"
-          aspectRatio={1}
-          align="center"
-          justify="center"
-          borderWidth="outline"
-          borderColor="border.ink"
-          fontFamily="mono"
-          fontSize="11px"
-          fontWeight="semibold"
-        >
-          +{count - shown.length}
+        <Flex data-testid="log-care-more" aspectRatio={1} align="center" justify="center">
+          <CountTag>+{count - shown.length}</CountTag>
         </Flex>
       )}
     </Grid>

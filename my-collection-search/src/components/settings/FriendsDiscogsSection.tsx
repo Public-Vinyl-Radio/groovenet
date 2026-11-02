@@ -13,8 +13,8 @@ import {
   Button,
   IconButton,
   Skeleton,
-  Badge,
 } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import { FiRefreshCcw, FiTrash } from "react-icons/fi";
 
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
@@ -220,7 +220,7 @@ export default function FriendsDiscogsSection() {
           <HStack width="100%" justifyContent="space-between">
             <HStack>
               <Text fontWeight="medium">Default library</Text>
-              <Badge>default</Badge>
+              <MetaTag>default</MetaTag>
             </HStack>
             <HStack justifyContent="flex-end" flexGrow={1}>
               <Tooltip content="Sync default library">
@@ -255,7 +255,7 @@ export default function FriendsDiscogsSection() {
             <HStack key={friend.username} width="100%" justifyContent="space-between">
               <HStack>
                 <Text fontWeight="medium">{friend.username}</Text>
-                {friend.username === defaultUsername && <Badge>default</Badge>}
+                {friend.username === defaultUsername && <MetaTag>default</MetaTag>}
               </HStack>
               <HStack justifyContent="flex-end" flexGrow={1}>
                 <Tooltip content="Sync collection">

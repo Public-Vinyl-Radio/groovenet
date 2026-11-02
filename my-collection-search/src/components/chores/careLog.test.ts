@@ -149,10 +149,10 @@ describe("wording", () => {
   });
 
   it("badges each source with its own border", () => {
-    expect(careSourceBadge("web")).toEqual({ label: "VIA WEB", borderStyle: "dotted" });
-    expect(careSourceBadge("cli")).toEqual({ label: "VIA CLI", borderStyle: "solid" });
-    expect(careSourceBadge("mcp")).toEqual({ label: "VIA MCP", borderStyle: "dashed" });
-    expect(careSourceBadge("api")).toEqual({ label: "VIA API", borderStyle: "double" });
+    expect(careSourceBadge("web")).toEqual({ label: "Via web", borderStyle: "dotted" });
+    expect(careSourceBadge("cli")).toEqual({ label: "Via CLI", borderStyle: "solid" });
+    expect(careSourceBadge("mcp")).toEqual({ label: "Via MCP", borderStyle: "dashed" });
+    expect(careSourceBadge("api")).toEqual({ label: "Via API", borderStyle: "double" });
   });
 
   it("says when, relative to today", () => {

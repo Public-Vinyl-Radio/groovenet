@@ -5,7 +5,8 @@ import RetroDialog from "@/components/ui/RetroDialog";
 import React, { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Box, Button, Flex, Spinner, Text, Badge, useBreakpointValue } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 
 import { useAlbumDetailQuery, useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
@@ -334,9 +335,9 @@ function AlbumDetailContent() {
             </Text>
           ) : discogsRawQuery.data ? (
             <Box>
-              <Badge variant="outline" mb={3}>
+              <MetaTag variant="raw" mb={3}>
                 {discogsRawQuery.data.file_path}
-              </Badge>
+              </MetaTag>
               <Box
                 as="pre"
                 p={3}

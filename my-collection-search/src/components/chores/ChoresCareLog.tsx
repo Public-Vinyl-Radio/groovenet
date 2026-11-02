@@ -10,6 +10,7 @@ import type {
   RecordCareLogEntry,
   RecordCareProgressResponse,
 } from "@/services/internalApi/recordCare";
+import { SourceTag, StatusTag } from "@/components/ui/RoleTags";
 import { careLogHeadline, careLogWhen, careSourceBadge } from "./careLog";
 
 const plural = (n: number, word: string) =>
@@ -112,26 +113,19 @@ export function CareLogEntryCard({
           {careLogWhen(entry.occurred_at, timeZone, now)}
         </Text>
         {entry.voided && (
-          <Text as="span" fontSize="10px" fontWeight="semibold" color="fg.muted">
-            VOIDED
-          </Text>
+          <StatusTag tone="neutral" flexShrink={0}>
+            Voided
+          </StatusTag>
         )}
-        <Flex
-          as="span"
+        <SourceTag
           data-testid="care-log-source"
           data-border={badge.borderStyle}
-          h="22px"
-          px="6px"
-          align="center"
+          stroke={badge.borderStyle}
+          inverted={inverted}
           flexShrink={0}
-          borderWidth="outline"
-          borderStyle={badge.borderStyle}
-          borderColor="currentColor"
-          fontSize="10px"
-          fontWeight="semibold"
         >
           {badge.label}
-        </Flex>
+        </SourceTag>
         {action && (
           <HeaderButton
             type="button"

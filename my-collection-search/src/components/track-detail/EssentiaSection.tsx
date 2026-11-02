@@ -1,6 +1,7 @@
 "use client";
 
-import { Badge, Box, Heading, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackEssentiaResponse } from "@/services/internalApi/tracks";
 
@@ -26,7 +27,7 @@ export default function EssentiaSection({ query }: Props) {
         </Text>
       ) : query.data ? (
         <VStack align="stretch" gap={3}>
-          <Badge variant="outline">{query.data.file_path}</Badge>
+          <MetaTag variant="raw">{query.data.file_path}</MetaTag>
           <Box
             as="pre"
             p={3}

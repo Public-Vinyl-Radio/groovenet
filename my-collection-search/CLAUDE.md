@@ -267,7 +267,8 @@ an invalid value the browser drops, so it fails silently.
 - **Track rows** (`TrackResult layout="row"`, `TRACK_ROW_HEIGHT` = 80, also the
   virtualiser's `estimateSize`): three-line first cell (title, artist,
   `Album · Year`), then a Release cell that holds what must never clip (library
-  ID, side/position, extras) and wraps instead of truncating. Header and rows share
+  ID as an `id` MetaTag, side/position, extras) and wraps instead of truncating. The
+  key cell is `KeyChip`, a MetaTag that keeps its wheel dot. Header and rows share
   `trackRowGridCss`; Genre and Rating, then Key, drop off as the list block (a
   `container-type: inline-size` ancestor) narrows. Anything that can overflow ends
   in an ellipsis with a `title` tooltip; never cut a badge or tag mid-glyph.
@@ -286,9 +287,9 @@ an invalid value the browser drops, so it fails silently.
   phone, where the title and artist rows reserve 32px for it. The meta line is plain text
   in this order: library ID (label face, bold, `accent.fg`), side, duration, `N BPM`,
   key (dot, bold Camelot code, key name, which phones drop to the tooltip), notes icon.
-  The key is never a badge; a "!" follows it, and the BPM, only below the confidence
-  threshold. Genre tags go through `GenreBadgeRow` (`status.genre`, subtle): wrapping on
-  desktop, one line with the first three and "+N" on a phone. The "+" and the star rating
+  On a card the key is plain text, not a tag; a "!" follows it, and the BPM, only below
+  the confidence threshold. Genre tags go through `GenreBadgeRow` (Category tags):
+  wrapping on desktop, one line with the first three and a "+N" CountTag on a phone. The "+" and the star rating
   show on hover on desktop only; on a phone they live in the card menu, which
   `TrackActionsMenu` recognises through `TrackCardContext`.
 - **List header** (Tracks, Albums; #794): three rows, no toolbar box, every control a

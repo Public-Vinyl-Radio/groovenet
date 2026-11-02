@@ -2,78 +2,57 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Badge, Box, Flex, type BadgeProps } from "@chakra-ui/react";
+import { Box, Flex, type ConditionalValue } from "@chakra-ui/react";
+import { CategoryTag, CountTag, type TagSize } from "@/components/ui/RoleTags";
 import { genreSearchHref, type GenreBadgeItem, type GenreSearchScope } from "@/lib/genres/links";
 
 /**
- * Which field a badge shows. Each keeps the look it had before badges became
- * links: track genres solid, Discogs genres surface, Discogs styles outline.
+ * Which field a badge shows. All three look the same, a Category tag (#963);
+ * the kind names the field in the title and the React key.
  */
 export type GenreBadgeKind = "track" | "discogs-genre" | "discogs-style";
-
-const VARIANTS: Record<GenreBadgeKind, BadgeProps["variant"]> = {
-  track: "solid",
-  "discogs-genre": "surface",
-  "discogs-style": "outline",
-};
 
 export type GenreBadgeProps = {
   item: GenreBadgeItem;
   kind: GenreBadgeKind;
   /** Track search for track rows, album search for album cards (#376). */
   scope: GenreSearchScope;
-  size?: BadgeProps["size"];
-  colorPalette?: BadgeProps["colorPalette"];
-  /** Overrides the kind-derived variant, e.g. a uniform "subtle" treatment. */
-  variant?: BadgeProps["variant"];
+  size?: ConditionalValue<TagSize>;
+  /** How many records carry it (the playlist stats), shown as "Cumbia · 12". */
+  count?: number;
 };
 
 /**
- * A genre badge that opens search filtered by that genre (#376). A value the
- * taxonomy doesn't know — an unreconciled `local_tags` entry — stays plain
- * text, and an unreconciled track genre is drawn subtle so it reads as such.
+ * A genre that opens search filtered by it (#376). A value the taxonomy
+ * doesn't know, an unreconciled `local_tags` entry, stays plain text with a
+ * dashed ring.
  */
-export default function GenreBadge({
-  item,
-  kind,
-  scope,
-  size = "sm",
-  colorPalette,
-  variant,
-}: GenreBadgeProps) {
+export default function GenreBadge({ item, kind, scope, size = "sm", count }: GenreBadgeProps) {
+  const text = count === undefined ? item.label : `${item.label} · ${count.toLocaleString()}`;
   if (!item.slug) {
     return (
-      <Badge
+      <CategoryTag
         size={size}
-        colorPalette={colorPalette}
-        variant={variant ?? (kind === "track" ? "subtle" : VARIANTS[kind])}
+        unreconciled
         title={kind === "track" ? "Not in the genre taxonomy yet" : item.label}
       >
-        {item.label}
-      </Badge>
+        {text}
+      </CategoryTag>
     );
   }
 
   return (
-    <Badge
-      asChild
-      size={size}
-      colorPalette={colorPalette}
-      variant={variant ?? VARIANTS[kind]}
-      cursor="pointer"
-      focusVisibleRing="outside"
-      _hover={{ textDecoration: "underline" }}
-    >
+    <CategoryTag asChild size={size}>
       <NextLink
         href={genreSearchHref(item.slug, scope)}
         // Rows have their own click and selection handlers; a badge is its own target.
         onClick={(event) => event.stopPropagation()}
         aria-label={`Search ${scope} in ${item.label}`}
-        title={item.label}
+        title={text}
       >
-        {item.label}
+        {text}
       </NextLink>
-    </Badge>
+    </CategoryTag>
   );
 }
 
@@ -98,8 +77,6 @@ export type GenreBadgeRowProps = {
   /** Badges kept on the one-line mobile row before folding the rest into "+N" (#470). */
   mobileLimit?: number;
   size?: GenreBadgeProps["size"];
-  colorPalette?: GenreBadgeProps["colorPalette"];
-  variant?: GenreBadgeProps["variant"];
   "data-testid"?: string;
 };
 
@@ -126,13 +103,11 @@ export function GenreBadgeRow({
   scope,
   mobileLimit = 3,
   size,
-  colorPalette,
-  variant,
   "data-testid": testId,
 }: GenreBadgeRowProps) {
   if (items.length === 0) return null;
   const overflow = Math.max(0, items.length - mobileLimit);
-  const badge = { kind, scope, size, colorPalette, variant };
+  const badge = { kind, scope, size };
   const mobileItems = overflow > 0 ? items.slice(0, mobileLimit) : items;
 
   return (
@@ -150,15 +125,9 @@ export function GenreBadgeRow({
       >
         <GenreBadgeList items={mobileItems} {...badge} />
         {overflow > 0 && (
-          <Badge
-            data-overflow=""
-            size={size ?? "sm"}
-            variant="subtle"
-            colorPalette="neutral"
-            flexShrink={0}
-          >
+          <CountTag data-overflow="" size={size ?? "sm"} flexShrink={0}>
             +{overflow}
-          </Badge>
+          </CountTag>
         )}
       </Flex>
     </Box>

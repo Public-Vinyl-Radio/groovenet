@@ -3,7 +3,8 @@
 import { artworkOf } from "@/components/player/trackMeta";
 import React, { useState } from "react";
 import NextLink from "next/link";
-import { Badge, Box, Flex, Table, Text, Link, Image } from "@chakra-ui/react";
+import { Box, Flex, Table, Text, Link, Image } from "@chakra-ui/react";
+import { CountTag, MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { Album } from "@/types/track";
 import { useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum } from "@/hooks/useAlbum";
@@ -24,9 +25,9 @@ import { RatingStars } from "@/components/TrackResult";
  * what the list was narrowed to is visible on every row and card.
  */
 export const ALBUM_MISSING_TAGS = {
-  missing_library_identifier: { label: "No identifier", palette: "status.missing" },
-  missing_local_cover_art_url: { label: "No local cover", palette: "status.missing" },
-  missing_audio: { label: "No audio", palette: "status.analysis" },
+  missing_library_identifier: { label: "No identifier", tone: "missing" },
+  missing_local_cover_art_url: { label: "No local cover", tone: "missing" },
+  missing_audio: { label: "No audio", tone: "analysis" },
 } as const;
 export type AlbumMissingKey = keyof typeof ALBUM_MISSING_TAGS;
 
@@ -35,16 +36,15 @@ function MissingTags({ keys }: { keys: AlbumMissingKey[] }) {
   return (
     <>
       {keys.map((key) => (
-        <Badge
+        <StatusTag
           key={key}
-          colorPalette={ALBUM_MISSING_TAGS[key].palette}
-          variant="subtle"
+          tone={ALBUM_MISSING_TAGS[key].tone}
           size="sm"
           whiteSpace="nowrap"
           flexShrink={0}
         >
           {ALBUM_MISSING_TAGS[key].label}
-        </Badge>
+        </StatusTag>
       ))}
     </>
   );
@@ -186,15 +186,13 @@ export default function AlbumResult({
         />
       ))}
       {hiddenGenres.length > 0 && (
-        <Badge
+        <CountTag
           size="sm"
-          colorPalette="neutral"
-          variant="subtle"
           title={hiddenGenres.map(({ item }) => item.label).join(", ")}
           aria-label={`${hiddenGenres.length} more genres`}
         >
           +{hiddenGenres.length}
-        </Badge>
+        </CountTag>
       )}
     </>
   );
@@ -362,15 +360,9 @@ export default function AlbumResult({
         </Table.Cell>
         <Table.Cell {...cell}>
           {resolvedAlbum.library_identifier && (
-            <Badge
-              colorPalette="accent"
-              variant="subtle"
-              size="sm"
-              fontWeight="bold"
-              whiteSpace="nowrap"
-            >
+            <MetaTag variant="id" size="sm" whiteSpace="nowrap">
               {resolvedAlbum.library_identifier}
-            </Badge>
+            </MetaTag>
           )}
         </Table.Cell>
         <Table.Cell

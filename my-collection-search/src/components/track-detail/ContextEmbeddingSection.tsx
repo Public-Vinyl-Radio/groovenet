@@ -1,6 +1,7 @@
 "use client";
 
-import { Badge, Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ContextEmbeddingPreviewResponse } from "@/services/internalApi/tracks";
 
@@ -33,8 +34,8 @@ export default function ContextEmbeddingSection({ query }: Props) {
       ) : query.data ? (
         <VStack align="stretch" gap={3}>
           <HStack gap={2} flexWrap="wrap">
-            <Badge colorPalette="accent">Natural-language search</Badge>
-            <Badge variant="outline">{query.data.contextData.era}</Badge>
+            <SourceTag stroke="dotted">Natural-language search</SourceTag>
+            <MetaTag>{query.data.contextData.era}</MetaTag>
           </HStack>
           <Box
             as="pre"

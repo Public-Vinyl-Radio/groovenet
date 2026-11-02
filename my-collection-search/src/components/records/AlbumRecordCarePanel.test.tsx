@@ -86,7 +86,7 @@ describe("AlbumRecordCarePanel", () => {
     expect(screen.getByText("Original pressing")).toBeTruthy();
 
     expect(screen.getByText("DJ copy")).toBeTruthy();
-    expect(screen.getByText("Unknown sleeve")).toBeTruthy();
+    expect(screen.getByText("Sleeve unknown")).toBeTruthy();
     expect(screen.getByText("Cleaned 3 days ago")).toBeTruthy();
   });
 

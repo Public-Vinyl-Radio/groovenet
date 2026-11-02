@@ -4,9 +4,10 @@ Issue #957. An inventory of every badge-like element in `my-collection-search/sr
 each one renders today. **This is an audit, not a redesign.** Nothing in the app was changed.
 The proposal at the end is a suggestion for the designer and the owner to accept or reject.
 
-- Live page: Storybook → **Audit/Badges** (`src/stories/AuditBadges.stories.tsx`). Each
-  variant group is its own story. The `palette` control picks Sleeve, Riso, Midnight or Mono,
-  and the `mode` control shows light, dark, or both side by side.
+- **Superseded by the six badge roles (#963).** Every site below has moved to a role or been
+  deleted; the live page is now Storybook → **Design/Badge roles**, whose **Migration map**
+  story shows each group's replacement. The `Audit/Badges` story that rendered these looks was
+  removed with the migration; the screenshots below (`pr-assets/957`) are the record of them.
 - Screenshots: cropped from a stack restored from the production seed, at 2x, in the Sleeve
   palette, light mode. They are hosted on the `pr-assets/957` branch and are not committed here.
   B9 and H7 never appear on the seeded data, so their crops come from Storybook and are labelled

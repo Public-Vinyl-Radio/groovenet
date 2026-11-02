@@ -9,7 +9,7 @@ export function playsLabel(playCount: number): string {
 }
 
 export type RatingChip = {
-  /** "★★★★☆", or "UNRATED". */
+  /** "★★★★☆", or "Unrated" (a status tag, capitalised by CSS). */
   label: string;
   rated: boolean;
   /** Text for assistive tech; only needed when the label is stars. */
@@ -19,7 +19,7 @@ export type RatingChip = {
 /** The chip for `album_rating` (1–5 stars). Null, and the column's default 0, are unrated. */
 export function ratingChip(rating: number | null): RatingChip {
   if (rating === null || rating < 1) {
-    return { label: "UNRATED", rated: false, description: "Unrated" };
+    return { label: "Unrated", rated: false, description: "Unrated" };
   }
   const stars = Math.min(Math.round(rating), STAR_COUNT);
   return {

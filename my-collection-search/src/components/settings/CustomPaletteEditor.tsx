@@ -1,19 +1,10 @@
 "use client";
 
 import React from "react";
-import {
-  Badge,
-  Box,
-  Button,
-  chakra,
-  Flex,
-  Heading,
-  Input,
-  SegmentGroup,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, chakra, Flex, Heading, Input, SegmentGroup, Text } from "@chakra-ui/react";
 import { LuCheck, LuTriangleAlert, LuX } from "react-icons/lu";
 import { system } from "@/app/chakraTheme";
+import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import {
   paletteIds,
   paletteVariableNames,
@@ -244,11 +235,15 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
         </Text>
       </Flex>
       <Flex gap={2} flexWrap="wrap">
-        {statusNames.map((status) => (
-          <Badge key={status} size="sm" variant="subtle" colorPalette={`status.${status}`}>
-            {status}
-          </Badge>
-        ))}
+        {statusNames.map((status) =>
+          status === "genre" ? (
+            <CategoryTag key={status}>{status}</CategoryTag>
+          ) : (
+            <StatusTag key={status} tone={status}>
+              {status}
+            </StatusTag>
+          ),
+        )}
       </Flex>
     </Box>
   );

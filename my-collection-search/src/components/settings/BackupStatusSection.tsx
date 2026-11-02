@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { StatusTag, type StatusTone } from "@/components/ui/RoleTags";
 import { toaster } from "@/components/ui/toaster";
 import {
   fetchBackupStatus,
@@ -14,10 +15,10 @@ function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-function statusColor(status: BackupStatus["status"]): string {
-  if (status === "success") return "status.success";
-  if (status === "failed") return "status.missing";
-  return "status.analysis";
+function statusColor(status: BackupStatus["status"]): StatusTone {
+  if (status === "success") return "success";
+  if (status === "failed") return "missing";
+  return "analysis";
 }
 
 export function formatBytes(value: number | null): string {
@@ -118,7 +119,7 @@ export default function BackupStatusSection(): React.JSX.Element {
       ) : (
         <Flex direction="column" gap={3}>
           <Flex align="center" gap={2} wrap="wrap">
-            <Badge colorPalette={statusColor(status.status)}>{status.status}</Badge>
+            <StatusTag tone={statusColor(status.status)}>{status.status}</StatusTag>
             <Text fontSize="sm" color="fg.muted">
               Reason: {status.reason}
             </Text>
