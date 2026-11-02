@@ -40,7 +40,9 @@ Tools, grouped:
 - **external** — `search_apple_music`, `search_youtube`
 - **records** — `log_record_action`, `list_record_care`,
   `get_record_care_summary`, `get_record_copies` (with history),
-  `void_record_action`
+  `void_record_action`; stacks and sessions: `get_care_queue`,
+  `pull_care_stack`, `discard_care_stack`, `log_care_session` (`stack` number or
+  `copies`, source `mcp`), `list_care_sessions`, `void_care_session`
 - **player** — `player_status`, `player_play`, `player_pause`, `player_resume`,
   `player_next`, `player_previous`, `player_seek`, `player_volume`,
   `player_queue_list`, `player_queue_add`, `player_queue_remove`,
