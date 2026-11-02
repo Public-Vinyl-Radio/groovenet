@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { mkdirSync, readdirSync } from "node:fs";
 import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,10 @@ import {
 // The marketing site's product screenshots (#912), taken against a worktree
 // stack restored from the prod seed. Run with `just site-screenshots`; the
 // PNGs land in site/src/assets/screenshots/ and are committed.
+// `--only <prefix>` takes just the files that start with it, and `--out <dir>`
+// writes there instead (SCREENSHOT_ONLY, SCREENSHOT_OUT_DIR). Shots marked
+// `reference` (the Settings tabs, #956) are only taken when one of the two is
+// given, so a plain run adds nothing the site doesn't use.
 //
 // Stable images:
 //  - The browser clock is fixed (CLOCK) and the time zone matches the app's
@@ -26,8 +30,10 @@ import {
 //  - Hidden: the dev stack's Next.js and TanStack devtools, the Developer nav
 //    link (dev-only), toasts, and Home's Now playing card (live state).
 //
-// Collection data is public; no privacy masks are applied. HIDE only removes
-// developer controls and transient/live state for repeatable images.
+// Collection data is public; no privacy masks are applied there. HIDE only
+// removes developer controls and transient/live state for repeatable images.
+// Settings shows credentials and personal data, so those shots run `maskSettings`
+// first: the page's text is replaced before capture, never the image after.
 test.skip(
   process.env.RUN_SCREENSHOTS !== "1",
   "Set RUN_SCREENSHOTS=1 (or run `just site-screenshots`) against a prod-seeded stack",
@@ -50,7 +56,14 @@ const QUEUE_SECONDS = 251;
 const QUEUE_POSITION = 97;
 const QUEUE_POSITION_LABEL = "1:37";
 
-const OUT_DIR = fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
+const SITE_DIR = fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
+const OUT_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? path.resolve(process.env.SCREENSHOT_OUT_DIR)
+  : SITE_DIR;
+const ONLY = process.env.SCREENSHOT_ONLY || "";
+/** Reference shots are not used by the site: take them only when asked for by name or by directory. */
+const WANT_REFERENCE = Boolean(ONLY || process.env.SCREENSHOT_OUT_DIR);
+mkdirSync(OUT_DIR, { recursive: true });
 const DEFAULT_PALETTE = "mono";
 const PALETTE = process.env.SCREENSHOT_PALETTE || DEFAULT_PALETTE;
 const MODE = process.env.SCREENSHOT_MODE as Mode | undefined;
@@ -175,13 +188,14 @@ async function settle(page: Page) {
     .toBe("settled");
 }
 
-async function shoot(page: Page, file: string) {
+async function shoot(page: Page, file: string, fullPage = false) {
   await settle(page);
   await page.screenshot({
     path: path.join(OUT_DIR, file),
     animations: "disabled",
     caret: "hide",
     scale: "device",
+    fullPage,
   });
 }
 
@@ -190,6 +204,10 @@ type Shot = {
   viewport: Viewport;
   mode: Mode;
   take: (page: Page) => Promise<void>;
+  /** The whole scrolling page, not just the viewport. */
+  fullPage?: boolean;
+  /** Not used by the site: only taken with `--only` or `--out`. */
+  reference?: boolean;
   storage?: (request: APIRequestContext) => Promise<Record<string, string>>;
 };
 
@@ -565,9 +583,144 @@ const docs: Array<Omit<Shot, "mode">> = [
   },
 ];
 
+/** No spinner left in the open tab: its data has loaded. */
+async function noSpinners(page: Page) {
+  await expect(page.getByRole("tabpanel").locator(".chakra-spinner")).toHaveCount(0, {
+    timeout: 60_000,
+  });
+}
+
+/** Every Settings tab, in the page's order. `ready` waits for the tab's own content, not just the tab. */
+const SETTINGS_TABS: Array<{ id: string; ready: (page: Page) => Promise<void> }> = [
+  {
+    id: "defaults",
+    ready: async (page) => {
+      await expect(page.getByText("Default Library", { exact: true })).toBeVisible();
+      await expect(page.getByText("Suggestion", { exact: false }).first()).toBeVisible();
+      await noSpinners(page);
+    },
+  },
+  {
+    id: "appearance",
+    ready: async (page) => {
+      await expect(
+        page.getByRole("tabpanel").getByRole("heading", { name: "Appearance", level: 2 }).first(),
+      ).toBeVisible();
+      await noSpinners(page);
+    },
+  },
+  {
+    id: "downloads",
+    ready: async (page) => {
+      await expect(page.getByText("Apple Music Cookie File", { exact: true })).toBeVisible();
+      await noSpinners(page);
+    },
+  },
+  {
+    id: "ai",
+    ready: async (page) => {
+      await expect(page.getByRole("textbox").first()).not.toHaveValue("");
+      await noSpinners(page);
+    },
+  },
+  {
+    id: "library",
+    ready: async (page) => {
+      await expect(page.getByText("Discogs Collections", { exact: true })).toBeVisible();
+      await expect(page.getByText("default", { exact: true })).toBeVisible();
+      await noSpinners(page);
+    },
+  },
+  {
+    id: "disaster-recovery",
+    ready: async (page) => {
+      // The status call reaches the backup repository, so it can take a while.
+      await expect(page.getByRole("button", { name: "Reload" }).first()).toBeEnabled({
+        timeout: 60_000,
+      });
+      await expect(page.getByText("Loading repository metrics…")).toHaveCount(0, {
+        timeout: 60_000,
+      });
+      await noSpinners(page);
+    },
+  },
+  {
+    id: "about",
+    ready: async (page) => {
+      await expect(page.getByText("Version", { exact: true })).toBeVisible();
+      await expect(page.getByText("unknown", { exact: true })).toHaveCount(0);
+      await noSpinners(page);
+    },
+  },
+];
+
+const settingsShots: Array<Omit<Shot, "mode">> = SETTINGS_TABS.flatMap((tab) =>
+  (["desktop", "phone"] as const).map((viewport) => ({
+    name: `settings-${tab.id}`,
+    viewport,
+    fullPage: true,
+    reference: true,
+    take: async (page: Page) => {
+      await page.goto(`/settings?section=${tab.id}`);
+      await tab.ready(page);
+      await maskSettings(page);
+    },
+  })),
+);
+
+/**
+ * Replace credentials and personal data in the DOM before the shot, so the
+ * image never holds them. Text keeps its place; only the characters change.
+ *  - Discogs usernames (yours and your friends'): `collector-N`, in text, inputs and selects.
+ *  - Email addresses, and any token-like run of 32+ characters.
+ *  - Backup hosts (`Host: …`) and the server paths a snapshot lists.
+ *  - Password and secret inputs, and the cookie file's name.
+ */
+async function maskSettings(page: Page) {
+  const res = await page.request.get("/api/friends");
+  const { results } = (await res.json()) as { results: Array<{ username: string }> };
+  const usernames = results.map((friend) => friend.username);
+  await page.evaluate(
+    ({ names }) => {
+      const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const alias = new Map(names.map((name, i) => [name.toLowerCase(), `collector-${i + 1}`]));
+      const userRe = names.length
+        ? new RegExp(`\\b(${names.map(escape).join("|")})\\b`, "gi")
+        : null;
+      const rules: Array<[RegExp, (m: string) => string]> = [
+        [/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, () => "user@example.com"],
+        [/\b[A-Za-z0-9_-]{32,}\b/g, (m) => "x".repeat(Math.min(m.length, 12))],
+        [/^(Host: ).+$/, () => "Host: backup-host"],
+        [
+          /(^|\s)\/(app|srv|data|home|var|mnt)\/[^\s,]*/g,
+          (m) => `${m.startsWith("/") ? "" : " "}/path/to/source`,
+        ],
+      ];
+      const clean = (text: string) => {
+        let out = text;
+        if (userRe) out = out.replace(userRe, (m) => alias.get(m.toLowerCase()) ?? m);
+        for (const [re, to] of rules) out = out.replace(re, to as (m: string) => string);
+        return out;
+      };
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const next = clean(node.nodeValue ?? "");
+        if (next !== node.nodeValue) node.nodeValue = next;
+      }
+      for (const el of document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        "input, textarea",
+      )) {
+        if (el.type === "password") el.value = "••••••••••••";
+        else if (el.type === "text" || el.tagName === "TEXTAREA") el.value = clean(el.value);
+      }
+    },
+    { names: usernames },
+  );
+}
+
 const captures = [
   // Every page in Mono light and dark. Marketing names remain unchanged.
-  ...[...shots, ...docs].flatMap((shot) =>
+  ...[...shots, ...docs, ...settingsShots].flatMap((shot) =>
     (MODE ? [MODE] : (["light", "dark"] as const)).map((mode) => ({
       ...shot,
       mode,
@@ -584,10 +737,15 @@ const captures = [
       }))),
 ];
 
+/** Whether `--only` (a prefix of the file name) and the reference rule let this file through. */
+function wanted(file: string, reference = false) {
+  return file.startsWith(ONLY) && (WANT_REFERENCE || !reference);
+}
+
 const files = new Set<string>();
 for (const shot of captures) {
   const file = fileName(shot.name, shot.viewport, shot.mode, shot.palette);
-  if (files.has(file)) continue;
+  if (files.has(file) || !wanted(file, "reference" in shot && shot.reference)) continue;
   files.add(file);
   test(file, async ({ browser, baseURL, request }, testInfo) => {
     test.setTimeout(90_000);
@@ -597,11 +755,14 @@ for (const shot of captures) {
     const page = await openPage(browser, baseURL, shot.viewport, shot.mode, storage);
     try {
       await shot.take(page);
-      await shoot(page, file);
+      await shoot(page, file, "fullPage" in shot && shot.fullPage);
     } finally {
       await page.context().close();
     }
   });
+}
+if (ONLY && files.size === 0 && !wanted("set-sheet-pdf.png")) {
+  throw new Error(`--only ${ONLY} matches no screenshot`);
 }
 
 // The set sheet (#939): the app's own PDF export, driven through its menu so it
@@ -612,6 +773,7 @@ const run = promisify(execFile);
 test("set-sheet-pdf.png", async ({ browser, baseURL, request }, testInfo) => {
   test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "desktop", "Each shot sets its own viewport");
+  test.skip(!wanted("set-sheet-pdf.png"), "Not selected by --only");
   await putAppearance(request, { palette: DEFAULT_PALETTE });
   const page = await openPage(browser, baseURL, "desktop", "light");
   try {
