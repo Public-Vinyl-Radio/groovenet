@@ -1,6 +1,6 @@
 import React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { Badge, Box, Flex, Grid, Heading, Icon, Stack, Tag, Text } from "@chakra-ui/react";
+import { Badge, Box, Flex, Heading, Icon, Stack, Tag, Text } from "@chakra-ui/react";
 import { FiVolume1 } from "react-icons/fi";
 import GenreBadge, { GenreBadgeList, GenreBadgeRow } from "@/components/GenreBadge";
 import { KeyChip } from "@/components/TrackResult";
@@ -11,80 +11,16 @@ import { SpinMediumChip } from "@/components/spins/listeningLogParts";
 import ChoreGroup from "@/components/chores/ChoreGroup";
 import { CareLogEntryCard } from "@/components/chores/ChoresCareLog";
 import { logEntryFixture } from "@/components/chores/fixtures";
-import { system } from "@/app/chakraTheme";
-import { palettes, type PaletteId } from "@/app/palettes";
+import { Schemes, schemeControls, type SchemeArgs } from "./support/PaletteSchemes";
 import { sampleTrack } from "./fixtures/track";
 
 // The badge audit (#957): every badge, chip and tag variant in the app, grouped
 // by how it renders. Real components where they render on their own; an
 // inline-only style is copied prop for prop and labelled with its source line.
-// The write-up is docs/design/badges-audit.md. Nothing here is a proposal.
+// The write-up is docs/design/badges-audit.md. Nothing here is a proposal: the
+// six roles that replace these looks are Design/Badge roles (#963).
 
-type Mode = "light" | "dark" | "both";
-type AuditArgs = { palette: PaletteId; mode: Mode };
-
-// Chakra resolves `var(--gn-*)` token values once, on :root, so a scoped
-// palette must declare those tokens again on its wrapper (as PalettePreview does).
-const tokenVars = Object.fromEntries(
-  system.tokens.allTokens
-    .filter(
-      (token) =>
-        ["colors", "shadows"].includes(token.extensions.category) &&
-        String(token.value).includes("var(--gn-"),
-    )
-    .map((token) => [(token.extensions.cssVar as { var: string }).var, String(token.value)]),
-);
-
-// A badge with no colorPalette uses the default one, which is also mapped on
-// :root. Restate that mapping here so Chakra's stock gray follows the mode.
-const defaultPaletteVars = Object.fromEntries(
-  ["solid", "contrast", "fg", "muted", "subtle", "emphasized", "focus-ring", "border"].map(
-    (part) => [`--chakra-colors-color-palette-${part}`, `var(--chakra-colors-gray-${part})`],
-  ),
-);
-
-const scopedVars = { ...tokenVars, ...defaultPaletteVars } as React.CSSProperties;
-
-/** One palette in one mode, scoped to a wrapper so the page's own setting is untouched. */
-function Scheme({
-  palette,
-  dark,
-  children,
-}: {
-  palette: PaletteId;
-  dark: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Box
-      data-palette={palette}
-      className={dark ? "dark" : "light"}
-      style={scopedVars}
-      bg="bg"
-      color="fg"
-      p={4}
-      minW={0}
-    >
-      <Text fontFamily="mono" fontSize="11px" color="fg.muted" mb={3}>
-        {palette.toUpperCase()} · {dark ? "DARK" : "LIGHT"}
-      </Text>
-      {children}
-    </Box>
-  );
-}
-
-function Schemes({ palette, mode, children }: AuditArgs & { children: React.ReactNode }) {
-  const modes = mode === "both" ? [false, true] : [mode === "dark"];
-  return (
-    <Grid templateColumns={{ base: "1fr", lg: `repeat(${modes.length}, minmax(0, 1fr))` }}>
-      {modes.map((dark) => (
-        <Scheme key={String(dark)} palette={palette} dark={dark}>
-          {children}
-        </Scheme>
-      ))}
-    </Grid>
-  );
-}
+type AuditArgs = SchemeArgs;
 
 /** A rendered example with the source line it came from. */
 function Specimen({
@@ -933,11 +869,7 @@ function groupStory(id: string): Story {
 const meta: Meta<AuditArgs> = {
   title: "Audit/Badges",
   parameters: { layout: "fullscreen" },
-  args: { palette: "sleeve", mode: "both" },
-  argTypes: {
-    palette: { control: "select", options: Object.keys(palettes) },
-    mode: { control: "inline-radio", options: ["light", "dark", "both"] },
-  },
+  ...schemeControls,
   decorators: [
     (Story, { args }) => (
       <Schemes palette={args.palette} mode={args.mode}>

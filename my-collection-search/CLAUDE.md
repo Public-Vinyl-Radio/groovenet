@@ -236,13 +236,34 @@ an invalid value the browser drops, so it fails silently.
   `:focus-visible` rule covers anything else, including custom controls. Don't
   write `outline: none` without a replacement. The default `gray` palette's
   `focusRing` is remapped to the accent ring, so unstyled controls meet 3:1.
-- **Badges** are tags: every badge is uppercase, letter-spaced mono (the badge
-  recipe's base), and `subtle` adds a ruled outline. `size="sm"`, `subtle`, with
-  fixed meanings: `status.missing`
-  missing data the pipeline needs (No embedding), `status.analysis` missing
-  analysis (No BPM), `status.genre` genre/AI-derived, bold `accent` library ID,
-  `status.success`/`status.analysis`/`status.missing` similarity score. Always
-  text, never colour alone. Genre badges go through `GenreBadge`.
+- **Badges** have six roles (#963), each a component in `components/ui`, styled
+  by its recipe in `houseStyle.ts` (`roleRecipes`). Product code renders a role,
+  never Chakra's `Badge` or `Tag` or a hand-built tag: ESLint rejects both
+  (`no-restricted-imports`, and a `no-restricted-syntax` heuristic for a ring at a
+  tag's height). Pick by meaning, not by look:
+  - `StatusTag tone="missing|analysis|success|neutral"`: a state to notice or act
+    on (No BPM, Failed, Paused, Sleeve unknown). Never solid.
+  - `CategoryTag`: genre, style, mood, and nothing else uses the genre purple.
+    Track genres, Discogs genres and styles look the same; `unreconciled` is
+    dashed; `count` reads "Cumbia · 12". Genres go through `GenreBadge`.
+  - `MetaTag`: a value (key, BPM, era, a count with its noun). `variant="id"` is
+    the library ID, the one accent tag; `variant="raw"` keeps a path's case in mono.
+  - `SourceTag stroke="solid|dotted|dashed|double|fill"`: provenance and output
+    (Vinyl, Via CLI, Auto, On Lounge), a 2px ink ring that reads without colour.
+  - `CountTag variant="plain|strong|dot"`: a bare number; `dot` (accent) is a
+    notification.
+  - `FilterChip`: pressable and removable (see Filter chips below).
+
+  Every tag uses the Labels face, uppercased by CSS: write labels in sentence
+  case. sm is 20px (11px text), xs 16px (10px). Passive tags have a 1px `rule`
+  ring; source tags and chips a 2px `outline`. A tag rendered `asChild` as a
+  link or button gets an underline on hover and the focus ring, nothing more.
+  Roles name their tokens, never `colorPalette.*`: `badgeRoles.test.ts` checks
+  every colour a role recipe uses exists in every palette, light and dark.
+  Always text, never colour alone. A keyboard hint (⌘K) is a `kbd`, not a tag.
+  Storybook: **Design/Badge roles** (palette and mode controls, plus the
+  migration map from the 18 audited looks).
+
 - **Track rows** (`TrackResult layout="row"`, `TRACK_ROW_HEIGHT` = 80, also the
   virtualiser's `estimateSize`): three-line first cell (title, artist,
   `Album · Year`), then a Release cell that holds what must never clip (library

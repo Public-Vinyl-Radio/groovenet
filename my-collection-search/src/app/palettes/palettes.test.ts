@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { contrastRatio, luminance } from "./contrast";
+import { mixHex } from "./custom";
 import {
   defaultPaletteId,
   isPaletteId,
@@ -63,6 +64,16 @@ describe.each(Object.entries(palettes))("palette %s", (_id, palette) => {
         contrastRatio(c[fg], c[bg]),
         `${_id} ${mode}: ${fg} (${c[fg]}) on ${bg} (${c[bg]}) needs ${min}:1`,
       ).toBeGreaterThanOrEqual(min);
+    });
+
+    // The neutral tint (`bg.muted`, 6% ink over ground) behind muted text: a
+    // neutral Status tag and a Count (#963).
+    it("reads --gn-ink-muted on the neutral tint", () => {
+      const tint = mixHex(c["--gn-ground"], c["--gn-ink"], 0.06);
+      expect(
+        contrastRatio(c["--gn-ink-muted"], tint),
+        `${_id} ${mode}: --gn-ink-muted on the neutral tint (${tint}) needs ${text}:1`,
+      ).toBeGreaterThanOrEqual(text);
     });
 
     // A hard shadow is drawn flat, so a translucent colour would wash out.
