@@ -637,8 +637,9 @@ const SETTINGS_SECTIONS: Array<{ id: string; path: string; ready: (page: Page) =
       path: "/settings/libraries",
       ready: async (page) => {
         await sectionOpen(page, "Libraries");
-        await expect(page.getByText("Discogs Collections", { exact: true })).toBeVisible();
-        await expect(page.getByText("default", { exact: true })).toBeVisible();
+        await expect(page.getByText("Your account", { exact: true })).toBeVisible();
+        await expect(page.getByText("Default", { exact: true })).toBeVisible();
+        await expect(page.getByRole("radio", { name: "This library" })).toBeVisible();
         await noSpinners(page);
       },
     },

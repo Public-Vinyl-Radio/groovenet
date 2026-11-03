@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { discogsLookupQuerySchema, discogsLookupResponseSchema } from "@/api-contract/schemas";
+import {
+  discogsLookupQuerySchema,
+  discogsLookupResponseSchema,
+  discogsUserLookupResponseSchema,
+} from "@/api-contract/schemas";
 import type { DiscogsLookupRelease, DiscogsLookupVideo } from "@/types/discogs";
 import { http, streamLines } from "../http";
 
@@ -117,4 +121,14 @@ export function extractDiscogsVideos(result: DiscogsLookupResponse | null): Disc
   const vids: DiscogsLookupVideo[] = (rel.videos ?? rel.video ?? []) as DiscogsLookupVideo[];
 
   return vids || [];
+}
+
+export type DiscogsUserLookupResponse = z.infer<typeof discogsUserLookupResponseSchema>;
+
+/** Whether a Discogs user exists, and their collection's release count. One Discogs request. */
+export async function lookupDiscogsUser(username: string): Promise<DiscogsUserLookupResponse> {
+  return await http<DiscogsUserLookupResponse>(
+    `/api/discogs/users/${encodeURIComponent(username)}`,
+    { method: "GET", cache: "no-store" },
+  );
 }

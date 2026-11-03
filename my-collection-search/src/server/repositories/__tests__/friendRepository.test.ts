@@ -30,6 +30,18 @@ describe("listFriends()", () => {
   });
 });
 
+describe("listFriendsWithReleaseCounts()", () => {
+  it("counts each library's albums, keeping libraries with none", async () => {
+    const rows = [{ id: 1, username: "adam", release_count: 0 }];
+    dbQuery.mockResolvedValue({ rows });
+
+    expect(await makeRepo().listFriendsWithReleaseCounts()).toEqual(rows);
+    const sql = dbQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("LEFT JOIN albums a ON a.friend_id = f.id");
+    expect(sql).toContain("COUNT(a.release_id)::int AS release_count");
+  });
+});
+
 // ─── findIdByUsername ─────────────────────────────────────────────────────────
 
 describe("findById()", () => {

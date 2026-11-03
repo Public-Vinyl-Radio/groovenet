@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockListFriends,
+  mockListFriendsWithReleaseCounts,
+  mockGetManifestLastSynced,
   mockInsertFriendIfMissing,
   mockDeleteTracksByUsername,
   mockDeleteFriendByUsername,
@@ -13,6 +15,8 @@ const {
   mockReaddirSync,
 } = vi.hoisted(() => ({
   mockListFriends: vi.fn(),
+  mockListFriendsWithReleaseCounts: vi.fn(),
+  mockGetManifestLastSynced: vi.fn(),
   mockInsertFriendIfMissing: vi.fn(),
   mockDeleteTracksByUsername: vi.fn(),
   mockDeleteFriendByUsername: vi.fn(),
@@ -27,6 +31,7 @@ const {
 vi.mock("@/server/repositories/friendRepository", () => ({
   friendRepository: {
     listFriends: mockListFriends,
+    listFriendsWithReleaseCounts: mockListFriendsWithReleaseCounts,
     insertFriendIfMissing: mockInsertFriendIfMissing,
     deleteTracksByUsername: mockDeleteTracksByUsername,
     deleteFriendByUsername: mockDeleteFriendByUsername,
@@ -36,6 +41,7 @@ vi.mock("@/server/repositories/friendRepository", () => ({
 vi.mock("@/server/services/discogsManifestService", () => ({
   getManifestPath: mockGetManifestPath,
   getManifestReleaseIds: mockGetManifestReleaseIds,
+  getManifestLastSynced: mockGetManifestLastSynced,
   getReleasePath: mockGetReleasePath,
   DISCOGS_EXPORTS_DIR: "/exports",
 }));
@@ -71,6 +77,49 @@ describe("FriendService — list/add", () => {
   it("addFriend inserts the friend if missing", async () => {
     await friendService.addFriend("bob");
     expect(mockInsertFriendIfMissing).toHaveBeenCalledWith("bob");
+  });
+});
+
+describe("FriendService.listLibraries", () => {
+  const rows = [
+    { id: 3, username: "bob", release_count: 12 },
+    { id: 1, username: "owner", release_count: 400 },
+    { id: 2, username: "alice", release_count: 0 },
+  ];
+
+  afterEach(() => {
+    delete process.env.DISCOGS_USERNAME;
+  });
+
+  it("puts the server's account first, flagged, with each library's last sync", async () => {
+    process.env.DISCOGS_USERNAME = " owner ";
+    mockListFriendsWithReleaseCounts.mockResolvedValueOnce(rows);
+    mockGetManifestLastSynced.mockImplementation((u: string) =>
+      u === "owner" ? "2026-10-01T00:00:00.000Z" : null,
+    );
+
+    await expect(friendService.listLibraries()).resolves.toEqual({
+      account_username: "owner",
+      results: [
+        {
+          id: 1,
+          username: "owner",
+          release_count: 400,
+          is_account: true,
+          last_synced_at: "2026-10-01T00:00:00.000Z",
+        },
+        { id: 3, username: "bob", release_count: 12, is_account: false, last_synced_at: null },
+        { id: 2, username: "alice", release_count: 0, is_account: false, last_synced_at: null },
+      ],
+    });
+  });
+
+  it("flags no account when the server has no DISCOGS_USERNAME", async () => {
+    mockListFriendsWithReleaseCounts.mockResolvedValueOnce(rows);
+    const { results, account_username } = await friendService.listLibraries();
+    expect(account_username).toBeNull();
+    expect(results.map((r) => r.is_account)).toEqual([false, false, false]);
+    expect(results.map((r) => r.username)).toEqual(["bob", "owner", "alice"]);
   });
 });
 

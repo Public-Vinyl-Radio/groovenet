@@ -88,6 +88,8 @@ import {
   friendMutationResponseSchema,
   friendsListQuerySchema,
   friendsListResponseSchema,
+  librariesListResponseSchema,
+  discogsUserLookupResponseSchema,
   manifestCleanupResponseSchema,
   manifestVerificationResponseSchema,
   gamdlCookieUploadResponseSchema,
@@ -6775,6 +6777,30 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "listLibraries",
+    method: "get",
+    path: "/api/friends/libraries",
+    summary:
+      "List libraries with album counts, last sync and which is the server's Discogs account",
+    tags: ["Friends"],
+    successSchema: librariesListResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Libraries, the server's own account first",
+          content: {
+            "application/json": { schema: z.toJSONSchema(librariesListResponseSchema) },
+          },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
     operationId: "getDefaultLibrarySettings",
     method: "get",
     path: "/api/settings/default-library",
@@ -8422,6 +8448,46 @@ export const apiContractRoutes: ApiContractRoute[] = [
           content: {
             "application/json": { schema: errorResponseSchemaObject },
           },
+        },
+      },
+    },
+  },
+  {
+    operationId: "lookupDiscogsUser",
+    method: "get",
+    path: "/api/discogs/users/{username}",
+    summary:
+      "Check a Discogs username before adding it as a library (one Discogs request; an unknown user or private collection is not found)",
+    tags: ["Discogs"],
+    successSchema: discogsUserLookupResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        {
+          name: "username",
+          in: "path",
+          required: true,
+          schema: { type: "string", pattern: "^[A-Za-z0-9._-]+$", maxLength: 100 },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Whether the user exists, and their collection's release count",
+          content: {
+            "application/json": { schema: z.toJSONSchema(discogsUserLookupResponseSchema) },
+          },
+        },
+        "400": {
+          description: "Invalid username",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Discogs credentials not set",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "502": {
+          description: "Discogs returned an error other than not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
       },
     },

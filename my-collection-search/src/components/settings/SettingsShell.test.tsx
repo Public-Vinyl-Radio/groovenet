@@ -15,10 +15,16 @@ vi.mock("./BackupPolicySettingsSection", () => stub("backup policy"));
 vi.mock("./BackupStatusSection", () => stub("backup status"));
 vi.mock("./DatabaseBackups", () => stub("backups"));
 vi.mock("./DatabaseRestore", () => stub("restore"));
-vi.mock("./DefaultLibrarySettingsSection", () => stub("default library section"));
-vi.mock("./FriendsDiscogsSection", () => stub("friends section"));
 vi.mock("./GamdlSettingsSection", () => stub("gamdl section"));
-vi.mock("./SuggestionScopeSettingsSection", () => stub("suggestion scope section"));
+vi.mock("./LibrariesSettingsSection", () => ({
+  default: () => "libraries section",
+  AddLibraryButton: () => <button type="button">Add library (desktop)</button>,
+  AddLibraryHeaderButton: () => <button type="button">Add library (phone)</button>,
+  AddLibraryProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="add-library-provider">{children}</div>
+  ),
+  LIBRARIES_INTRO: "The Discogs collections GrooveNet syncs.",
+}));
 vi.mock("./settingsSummaries", () => ({
   useSettingsSummaries: () => ({
     appearance: "Mono · light on this device",
@@ -78,11 +84,29 @@ describe("SettingsShell on desktop", () => {
     expect(screen.getByText("appearance section")).toBeTruthy();
   });
 
-  it("stacks the three library sections in Libraries", () => {
+  it("frames Libraries with its intro, its ADD LIBRARY action and their provider", () => {
     renderWithProviders(<SettingsShell section="libraries" />);
+    const provider = screen.getByTestId("add-library-provider");
+    expect(within(provider).getByText("libraries section")).toBeTruthy();
+    expect(within(provider).getByText("The Discogs collections GrooveNet syncs.")).toBeTruthy();
     expect(
-      screen.getByText(/default library section\s*suggestion scope section\s*friends section/),
+      within(provider).getByRole("button", { name: "Add library (desktop)", hidden: true }),
     ).toBeTruthy();
+    expect(
+      within(provider).getByRole("button", { name: "Add library (phone)", hidden: true }),
+    ).toBeTruthy();
+  });
+
+  it("gives a section without a frame no intro or header action", () => {
+    renderWithProviders(<SettingsShell section="apple-music" />);
+    expect(screen.queryByTestId("add-library-provider")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add library/ })).toBeNull();
+  });
+
+  it("frames Libraries on desktop /settings too, but leaves the phone header alone", () => {
+    renderWithProviders(<SettingsShell section={null} />);
+    // The default section is Appearance, which has no frame.
+    expect(screen.queryByTestId("add-library-provider")).toBeNull();
   });
 
   it("does not expose Disaster Recovery in Settings", () => {

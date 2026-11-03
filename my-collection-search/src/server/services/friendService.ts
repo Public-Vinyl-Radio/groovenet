@@ -1,11 +1,38 @@
 import type { Friend } from "@groovenet/contracts";
 import { friendRepository } from "@/server/repositories/friendRepository";
+import { getManifestLastSynced } from "@/server/services/discogsManifestService";
+
+export type LibraryWithStats = Friend & {
+  is_account: boolean;
+  release_count: number;
+  last_synced_at: string | null;
+};
 
 type ProgressFn = (line: string) => void;
 
 export class FriendService {
   async listFriends(): Promise<Friend[]> {
     return friendRepository.listFriends();
+  }
+
+  /**
+   * Settings → Libraries: each library with its album count and last sync,
+   * your own account (`DISCOGS_USERNAME`) first and flagged.
+   */
+  async listLibraries(): Promise<{
+    results: LibraryWithStats[];
+    account_username: string | null;
+  }> {
+    const account = process.env.DISCOGS_USERNAME?.trim() || null;
+    const rows = await friendRepository.listFriendsWithReleaseCounts();
+    const results = rows.map((row) => ({
+      ...row,
+      is_account: row.username === account,
+      last_synced_at: getManifestLastSynced(row.username),
+    }));
+    // Stable sort: the account first, the rest in their existing order.
+    results.sort((a, b) => Number(b.is_account) - Number(a.is_account));
+    return { results, account_username: account };
   }
 
   async addFriend(username: string): Promise<void> {

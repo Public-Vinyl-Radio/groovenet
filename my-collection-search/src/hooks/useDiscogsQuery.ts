@@ -43,10 +43,11 @@ export function useSyncDiscogs(
   const { setDiscogsSyncOpen } = useSettingsDialogs();
   const { resetDiscogs, pushDiscogsLine, setDiscogsDone, setDiscogsError } = useSyncStreams();
 
-  return useMutation<SyncResult | null, Error, { username?: string }>({
-    mutationFn: async ({ username }) => {
+  // `showDialog: false` streams without the progress dialog, for a row that shows its own progress.
+  return useMutation<SyncResult | null, Error, { username?: string; showDialog?: boolean }>({
+    mutationFn: async ({ username, showDialog = true }) => {
       resetDiscogs();
-      setDiscogsSyncOpen(true);
+      if (showDialog) setDiscogsSyncOpen(true);
 
       let summary: SyncResult | null = null;
 

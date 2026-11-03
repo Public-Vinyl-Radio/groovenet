@@ -68,6 +68,34 @@ function makeAlbum(overrides: Partial<DiscogsRelease> = {}): DiscogsRelease {
   } as DiscogsRelease;
 }
 
+// ─── getManifestLastSynced ─────────────────────────────────────────────────
+
+describe("getManifestLastSynced()", () => {
+  it("is null before the first sync", () => {
+    expect(mod.getManifestLastSynced("friend1")).toBeNull();
+  });
+
+  it("reads the manifest's lastSynced", () => {
+    writeJson(path.join(exportsDir, "manifest_friend1.json"), {
+      releaseIds: [],
+      lastSynced: "2026-10-01T12:00:00Z",
+    });
+    expect(mod.getManifestLastSynced("friend1")).toBe("2026-10-01T12:00:00.000Z");
+  });
+
+  it.each([
+    ["no lastSynced", JSON.stringify({ releaseIds: [] })],
+    ["an invalid lastSynced", JSON.stringify({ lastSynced: "soon" })],
+    ["unreadable JSON", "{"],
+  ])("falls back to the file's modification time for %s", (_label, body) => {
+    const file = path.join(exportsDir, "manifest.json");
+    fs.writeFileSync(file, body, "utf8");
+    const mtime = new Date("2026-09-15T08:30:00Z");
+    fs.utimesSync(file, mtime, mtime);
+    expect(mod.getManifestLastSynced("owner")).toBe(mtime.toISOString());
+  });
+});
+
 // ─── getManifestPath ──────────────────────────────────────────────────────────
 
 describe("getManifestPath()", () => {
