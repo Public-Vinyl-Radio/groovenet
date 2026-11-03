@@ -1,116 +1,78 @@
-// @vitest-environment jsdom
-import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
 
-// Every section and provider has its own tests; here only the page's layout,
-// URL round-trip and tab switching matter.
-const { stub, passthrough } = vi.hoisted(() => ({
-  stub: (name: string) => ({ default: () => name }),
-  passthrough: (key: string) => ({ [key]: ({ children }: { children: unknown }) => children }),
-}));
+// The routes only decide what to render or where to send you; the shell has
+// its own tests. `redirect` and `notFound` throw in Next, so the stubs do too.
 const mocks = vi.hoisted(() => ({
-  replace: vi.fn(),
-  searchParams: new URLSearchParams(),
+  redirect: vi.fn((path: string) => {
+    throw new Error(`redirect:${path}`);
+  }),
+  notFound: vi.fn(() => {
+    throw new Error("not-found");
+  }),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: mocks.replace }),
-  usePathname: () => "/settings",
-  useSearchParams: () => mocks.searchParams,
-}));
-vi.mock("@/providers/SettingsDialogProvider", () => passthrough("SettingsDialogsProvider"));
-vi.mock("@/providers/SyncStreamsProvider", () => passthrough("SyncStreamsProvider"));
-vi.mock("@/components/settings/FriendsDiscogsSection", () => stub("friends"));
-vi.mock("@/components/settings/DatabaseBackups", () => stub("backups"));
-vi.mock("@/components/settings/DatabaseRestore", () => stub("restore"));
-vi.mock("@/components/settings/BackupStatusSection", () => stub("backup status"));
-vi.mock("@/components/settings/BackupPolicySettingsSection", () => stub("backup policy"));
-vi.mock("@/components/settings/GamdlSettingsSection", () => stub("gamdl"));
-vi.mock("@/components/settings/AiPromptSettingsSection", () => stub("ai prompt"));
-vi.mock("@/components/settings/DefaultLibrarySettingsSection", () =>
-  stub("default library section"),
-);
-vi.mock("@/components/settings/SuggestionScopeSettingsSection", () =>
-  stub("suggestion scope section"),
-);
-vi.mock("@/components/settings/AppearanceSettingsSection", () => stub("appearance section"));
-vi.mock("@/components/settings/AboutSection", () => stub("about"));
-vi.mock("@/components/settings/dialogs/DiscogsSyncDialog", () => stub("discogs dialog"));
-vi.mock("@/components/settings/dialogs/RemoveFriendDialog", () => stub("remove dialog"));
+vi.mock("next/navigation", () => ({ redirect: mocks.redirect, notFound: mocks.notFound }));
+vi.mock("@/components/settings/SettingsShell", () => ({ default: () => null }));
 
+import SettingsShell from "@/components/settings/SettingsShell";
 import SettingsPage from "./page";
+import SettingsSectionPage, { generateMetadata } from "./[section]/page";
 
-describe("SettingsPage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.searchParams = new URLSearchParams();
+const index = (query: Record<string, string | string[]>) =>
+  SettingsPage({ searchParams: Promise.resolve(query) });
+const section = (id: string) => SettingsSectionPage({ params: Promise.resolve({ section: id }) });
+
+describe("/settings", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("renders the shell with no section open", async () => {
+    const page = await index({});
+    expect(page.type).toBe(SettingsShell);
+    expect(page.props).toEqual({ section: null });
   });
 
-  it("shows the suggestion scope with the default library, in the first section, with no URL param", () => {
-    renderWithProviders(<SettingsPage />);
-    // The stubs render as bare text, so the two land in one text node, in this order.
-    expect(screen.getByText(/default library section\s*suggestion scope section/)).toBeTruthy();
+  it.each([
+    ["defaults", "/settings/libraries"],
+    ["library", "/settings/libraries"],
+    ["downloads", "/settings/apple-music"],
+    ["ai", "/settings/ai-metadata"],
+    ["appearance", "/settings/appearance"],
+    ["about", "/settings/about"],
+    ["disaster-recovery", "/settings/disaster-recovery"],
+  ])("redirects the old ?section=%s link to %s", async (id, target) => {
+    await expect(index({ section: id })).rejects.toThrow(`redirect:${target}`);
   });
 
-  it("falls back to the first section for an unknown ?section value", () => {
-    mocks.searchParams = new URLSearchParams("section=not-a-real-section");
-    renderWithProviders(<SettingsPage />);
-    expect(screen.getByText(/default library section\s*suggestion scope section/)).toBeTruthy();
+  it("stays on the list for an unknown or repeated ?section", async () => {
+    expect((await index({ section: "not-a-section" })).props).toEqual({ section: null });
+    expect((await index({ section: ["ai", "about"] })).props).toEqual({ section: null });
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("/settings/[section]", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("opens a section by its id", async () => {
+    const page = await section("apple-music");
+    expect(page?.type).toBe(SettingsShell);
+    expect(page?.props).toEqual({ section: "apple-music" });
   });
 
-  it("titles the page through the shared header", () => {
-    renderWithProviders(<SettingsPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();
+  it("redirects an old tab id to the section that replaced it", async () => {
+    await expect(section("downloads")).rejects.toThrow("redirect:/settings/apple-music");
+    await expect(section("defaults")).rejects.toThrow("redirect:/settings/libraries");
   });
 
-  it("opens the section named in the URL, with its heading and description", () => {
-    mocks.searchParams = new URLSearchParams("section=library");
-    renderWithProviders(<SettingsPage />);
-    expect(screen.getByRole("heading", { name: "Discogs" })).toBeTruthy();
-    expect(screen.getByText("your default library and friends' collections")).toBeTruthy();
-    expect(screen.getByText("friends")).toBeTruthy();
+  it("is a 404 for an id nothing knows", async () => {
+    await expect(section("nope")).rejects.toThrow("not-found");
   });
 
-  it("switches sections with the mouse and writes the choice into the URL", async () => {
-    const { user } = renderWithProviders(<SettingsPage />);
-    // jsdom runs no media queries, so the desktop tab row renders as "hidden".
-    const aboutTab = screen.getByRole("tab", { name: "About", hidden: true });
-    await user.click(aboutTab);
-
-    expect(mocks.replace).toHaveBeenCalledWith("/settings?section=about", { scroll: false });
-  });
-
-  it("shows the appearance section on its own tab", () => {
-    mocks.searchParams = new URLSearchParams("section=appearance");
-    renderWithProviders(<SettingsPage />);
-
-    expect(screen.getByText("appearance section")).toBeTruthy();
-  });
-
-  it("exposes the tab row with roving tabindex, so arrow keys can move between sections", () => {
-    // jsdom runs no media queries (the desktop row's base style is display:
-    // none, so it never actually gets real focus here) and Chakra's
-    // automatic-activation selection runs its DOM work a frame later via
-    // requestAnimationFrame in a way jsdom can't reliably replay — so this
-    // checks the actual mechanism arrow-key navigation depends on (a single
-    // tabbable trigger, the rest reachable only via arrow keys) rather than
-    // simulating the keypress. The mouse-click test above covers switching
-    // itself; this one covers that it is keyboard-reachable at all.
-    mocks.searchParams = new URLSearchParams("section=downloads");
-    renderWithProviders(<SettingsPage />);
-
-    const tabs = screen.getAllByRole("tab", { hidden: true });
-    expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual([
-      "false",
-      "false",
-      "true",
-      "false",
-      "false",
-      "false",
-      "false",
-    ]);
-    expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, -1, 0, -1, -1, -1, -1]);
+  it("titles the document with the section", async () => {
+    const params = (id: string) => ({ params: Promise.resolve({ section: id }) });
+    await expect(generateMetadata(params("ai-metadata"))).resolves.toEqual({
+      title: "AI metadata · Settings",
+    });
+    await expect(generateMetadata(params("nope"))).resolves.toEqual({});
   });
 });
