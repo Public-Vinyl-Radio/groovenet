@@ -104,7 +104,8 @@ export function RecapSplit({ month, recap }: { month: string; recap: Recap }) {
                 direction="column"
                 h={`${heights[index]}%`}
                 borderWidth="outline"
-                borderRadius="md"
+                // Rounded on top only: the bottom sits on the axis rule.
+                borderTopRadius="md"
                 borderBottomWidth={0}
                 borderColor="border.ink"
                 overflow="hidden"
@@ -594,7 +595,17 @@ export function RecapBpmSpread({ recap }: { recap: Recap }) {
             borderColor="border.ink"
           >
             {bpm.histogram.map((bin, index) => (
-              <Box key={bin.from} data-testid="bpm-bar" flex="1" h={`${heights[index]}%`} bg="fg" />
+              <Box
+                key={bin.from}
+                data-testid="bpm-bar"
+                flex="1"
+                h={`${heights[index]}%`}
+                bg="fg"
+                borderWidth="outline"
+                borderTopRadius="md"
+                borderBottomWidth={0}
+                borderColor="border.ink"
+              />
             ))}
           </Flex>
           <Flex justify="space-between" {...axisProps}>
