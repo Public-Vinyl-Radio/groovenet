@@ -34,6 +34,7 @@ export function CoverMosaic({ urls, size = "72px" }: { urls: string[]; size?: st
       boxSize={size}
       flexShrink={0}
       borderWidth="rule"
+      borderRadius="md"
       borderColor="border.ink"
       overflow="hidden"
       aria-hidden="true"
@@ -65,6 +66,7 @@ export function SetFlyer({ url, compact = false }: { url: string; compact?: bool
       h={compact ? "48px" : { base: "72px", md: "128px" }}
       flexShrink={0}
       borderWidth="rule"
+      borderRadius="md"
       borderColor="border.ink"
       bg="bg.muted"
       bgImage={`url(${url})`}
@@ -83,6 +85,7 @@ const LINK_STYLE = {
   minW: "44px",
   px: 3,
   borderWidth: "rule",
+  borderRadius: "md",
   borderColor: "border.ink",
   fontFamily: "mono",
   fontSize: "xs",
@@ -211,6 +214,7 @@ export default function PlaylistListItem({
       textAlign="left"
       p={3}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       _hover={{ bg: "bg.muted" }}
@@ -258,6 +262,7 @@ export default function PlaylistListItem({
                   flexShrink={0}
                   px={1.5}
                   borderWidth="rule"
+                  borderRadius="md"
                   borderColor="border.ink"
                   fontFamily="mono"
                   fontSize="2xs"

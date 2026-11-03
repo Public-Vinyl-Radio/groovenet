@@ -110,6 +110,7 @@ function Card({ item, friendId }: { item: Arrival; friendId: number }) {
         h="100%"
         overflow="hidden"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow="md"
         color="fg"
@@ -151,6 +152,8 @@ function Skeletons() {
             h="212px"
             bg="bg.muted"
             borderWidth="outline"
+            borderRadius="md"
+            overflow="clip"
             borderColor="border.ink"
           />
         ))}
@@ -158,6 +161,8 @@ function Skeletons() {
       <Box
         display={{ base: "none", md: "block" }}
         borderWidth="outline"
+        borderRadius="md"
+        overflow="clip"
         borderColor="border.ink"
         boxShadow="md"
       >
@@ -182,6 +187,7 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       px="14px"
       py={3}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       fontFamily="mono"
       fontSize="xs"
@@ -257,6 +263,7 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
           m={0}
           p={0}
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           boxShadow="md"
         >
@@ -296,6 +303,7 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
           alignItems="center"
           bg="fg"
           color="bg"
+          borderTopRadius="md"
           fontFamily="mono"
           fontSize={{ base: "11px", md: "xs" }}
           fontWeight="semibold"

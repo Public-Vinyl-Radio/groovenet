@@ -260,6 +260,7 @@ export default function PlayerControlsView({
             aria-pressed={isQueueOpen}
             onClick={onQueueToggle}
             borderWidth="outline"
+            borderRadius="md"
             borderColor="border.ink"
             bg={isQueueOpen ? "border.ink" : "bg"}
             color={isQueueOpen ? "bg" : "fg"}

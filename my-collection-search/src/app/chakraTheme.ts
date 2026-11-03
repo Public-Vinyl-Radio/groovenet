@@ -4,6 +4,7 @@ import {
   defaultConfig,
   type SystemStyleObject,
 } from "@chakra-ui/react";
+import { roundedRadius } from "./corners";
 import { fontChoiceValue, fontRoleIds, fontRoles } from "./fontChoices";
 import * as house from "./houseStyle";
 import {
@@ -74,8 +75,23 @@ export function fontBlocks(): Record<string, SystemStyleObject> {
   );
 }
 
+// The radius every corner token reads: square on :root, softer when the page
+// carries data-corners="rounded". Server-rendered with the other data-*, so
+// there is no flash.
+export function cornerBlocks(): Record<string, SystemStyleObject> {
+  return {
+    ":root": { "--gn-radius": "0" },
+    '[data-corners="rounded"]': { "--gn-radius": roundedRadius },
+  };
+}
+
 const config = defineConfig({
-  globalCss: { ...paletteBlocks(palettes, defaultPaletteId), ...fontBlocks(), ...house.globalCss },
+  globalCss: {
+    ...paletteBlocks(palettes, defaultPaletteId),
+    ...fontBlocks(),
+    ...cornerBlocks(),
+    ...house.globalCss,
+  },
   theme: {
     tokens: {
       radii: house.radii,

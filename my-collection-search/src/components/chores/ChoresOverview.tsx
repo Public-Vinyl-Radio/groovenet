@@ -211,6 +211,7 @@ export default function ChoresOverview({ progress }: { progress: RecordCareProgr
       p={{ base: 3, md: 0 }}
       mr="6px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
     >

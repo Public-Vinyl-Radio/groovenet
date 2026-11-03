@@ -195,9 +195,18 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
       }}
       p={4}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
     >
-      <Box bg="bg.panel" borderWidth="outline" borderColor="border.ink" boxShadow="md" p={3} mb={3}>
+      <Box
+        bg="bg.panel"
+        borderWidth="outline"
+        borderColor="border.ink"
+        boxShadow="md"
+        p={3}
+        mb={3}
+        borderRadius="md"
+      >
         <Heading size="sm" mb={1}>
           Preview · {mode}
         </Heading>
@@ -216,6 +225,7 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
       <Flex
         bg="bg.panel"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         p={2}
         mb={3}
@@ -318,6 +328,7 @@ export default function CustomPaletteEditor({
   return (
     <Box
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       bg="bg.panel"
       p={4}
@@ -341,6 +352,7 @@ export default function CustomPaletteEditor({
           value={draft.base}
           onChange={(e) => chooseBase(e.target.value as (typeof paletteIds)[number])}
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           bg="bg.panel"
           px={2}
@@ -360,6 +372,7 @@ export default function CustomPaletteEditor({
           role="alertdialog"
           aria-label="Replace edits"
           borderWidth="outline"
+          borderRadius="md"
           borderColor="status.analysis.border"
           bg="status.analysis.subtle"
           color="status.analysis.fg"
@@ -466,6 +479,7 @@ export default function CustomPaletteEditor({
         <Box
           role="alert"
           borderWidth="outline"
+          borderRadius="md"
           borderColor="status.analysis.border"
           bg="status.analysis.subtle"
           color="status.analysis.fg"

@@ -195,6 +195,7 @@ function NeighbourButton({
       alignItems="center"
       gap={2.5}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border"
       textAlign="left"
       fontSize="13px"
@@ -347,7 +348,7 @@ export function SpinDetailBody({
 export function SpinDetailPanel({ onClose, ...props }: DetailProps & { onClose: () => void }) {
   const { play } = props.selection;
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" bg="bg">
+    <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" bg="bg" borderRadius="md">
       <Flex align="center" gap={3} py={3} pl={3} pr={1} bg="border.ink" color="bg">
         <SpinDetailHeading
           play={play}
@@ -409,6 +410,7 @@ export function SpinDetailEmpty() {
       justify="center"
       p={6}
       borderWidth="outline"
+      borderRadius="md"
       borderStyle="dashed"
       borderColor="border"
       textAlign="center"

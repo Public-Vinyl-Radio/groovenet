@@ -3,13 +3,14 @@ import {
   appearanceSettingsPutBodySchema,
   appearanceSettingsResponseSchema,
 } from "@/api-contract/schemas";
+import { cornerIds } from "@/app/corners";
 import { fontChoiceIdsFor, fontRoleIds } from "@/app/fontChoices";
 import { paletteIds } from "@/app/palettes";
 import { customColourKeys } from "@/app/palettes/custom";
 import { AppearanceRequestError } from "@/server/appearanceRequestError";
 import { settingsService } from "@/server/services/settingsService";
 
-/** The app-wide palette and fonts. Light/dark is per device and never reaches the server. */
+/** The app-wide palette, corners and fonts. Light/dark is per device and never reaches the server. */
 export async function GET() {
   try {
     const result = await settingsService.getAppearance();
@@ -32,13 +33,15 @@ export async function PUT(request: Request) {
     const path = parsed.error.issues[0]?.path.join(".");
     const role = fontRoleIds.find((id) => path === `fonts.${id}`);
     const error =
-      path === "palette"
-        ? `palette must be one of: ${[...paletteIds, "custom"].join(", ")} (custom needs a customPalette)`
-        : path?.startsWith("customPalette")
-          ? `customPalette must be null or { base: a preset id, light and dark: { ${customColourKeys.join(", ")} } } with every colour as #rrggbb`
-          : role
-            ? `fonts.${role} must be one of: ${fontChoiceIdsFor(role).join(", ")}`
-            : `Body may only contain palette, customPalette and fonts.{${fontRoleIds.join(",")}}`;
+      path === "corners"
+        ? `corners must be one of: ${cornerIds.join(", ")}`
+        : path === "palette"
+          ? `palette must be one of: ${[...paletteIds, "custom"].join(", ")} (custom needs a customPalette)`
+          : path?.startsWith("customPalette")
+            ? `customPalette must be null or { base: a preset id, light and dark: { ${customColourKeys.join(", ")} } } with every colour as #rrggbb`
+            : role
+              ? `fonts.${role} must be one of: ${fontChoiceIdsFor(role).join(", ")}`
+              : `Body may only contain palette, customPalette, corners and fonts.{${fontRoleIds.join(",")}}`;
     return NextResponse.json({ error }, { status: 400 });
   }
 

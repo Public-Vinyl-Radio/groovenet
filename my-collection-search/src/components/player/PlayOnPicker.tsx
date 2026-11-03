@@ -66,6 +66,7 @@ function OptionRow({
       alignItems="center"
       gap="12px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor={checked ? "border.ink" : "border"}
       bg={checked ? "bg.panel" : "transparent"}
       boxShadow={checked ? "sm" : "none"}
@@ -93,6 +94,7 @@ function OptionRow({
         h="14px"
         flexShrink={0}
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         bg={checked ? "border.ink" : "transparent"}
       />
@@ -135,6 +137,7 @@ function Preview({
       px="12px"
       py="10px"
       borderWidth="outline"
+      borderRadius="md"
       borderStyle="dashed"
       borderColor={dashed === "ink" ? "border.ink" : "border"}
       fontSize="13px"
@@ -433,6 +436,7 @@ export default function PlayOnPicker() {
                 alignItems="center"
                 gap="12px"
                 borderWidth="outline"
+                borderRadius="md"
                 borderColor="border"
                 textAlign="left"
                 cursor="pointer"

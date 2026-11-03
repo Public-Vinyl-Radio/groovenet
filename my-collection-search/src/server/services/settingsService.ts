@@ -18,6 +18,7 @@ import {
   type CustomPalette,
 } from "@/app/palettes/custom";
 import { getDefaultTrackMetadataPrompt } from "@/lib/serverPrompts";
+import { resolveCorners, type CornerId } from "@/app/corners";
 import { AppearanceRequestError } from "@/server/appearanceRequestError";
 import { friendRepository } from "@/server/repositories/friendRepository";
 import type { GamdlSettings, GamdlSettingsUpdate } from "@/types/gamdl";
@@ -33,6 +34,7 @@ export interface Appearance {
   fonts: FontSelection;
   /** The saved custom palette's inputs, or null when none is saved or the stored JSON is invalid. */
   customPalette: CustomPalette | null;
+  corners: CornerId;
 }
 
 export interface AppearanceUpdate {
@@ -40,6 +42,7 @@ export interface AppearanceUpdate {
   fonts?: Partial<FontSelection>;
   /** Replaces the saved custom palette; null deletes it. */
   customPalette?: CustomPalette | null;
+  corners?: CornerId;
 }
 
 const FONT_COLUMNS = {
@@ -54,6 +57,7 @@ function toAppearance(row: AppearanceRow | null): Appearance {
   return {
     palette: resolveAppearancePalette(row?.palette, customPalette),
     customPalette,
+    corners: resolveCorners(row?.corners),
     fonts: Object.fromEntries(
       fontRoleIds.map((role) => [role, resolveFontChoice(role, row?.[FONT_COLUMNS[role]])]),
     ) as FontSelection,
@@ -87,6 +91,7 @@ export class SettingsService {
   async updateAppearance(update: AppearanceUpdate): Promise<Appearance> {
     const patch: AppearancePatch = {};
     if (update.palette !== undefined) patch.palette = update.palette;
+    if (update.corners !== undefined) patch.corners = update.corners;
     if (update.customPalette !== undefined) {
       patch.custom_palette = update.customPalette && JSON.stringify(update.customPalette);
     }

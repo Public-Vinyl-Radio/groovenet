@@ -43,6 +43,7 @@ function Section({
           textTransform="uppercase"
           bg="fg"
           color="bg"
+          borderTopRadius="md"
           px={2}
           py={1}
         >
@@ -81,6 +82,8 @@ function GenreRows({ entries, depth = 0 }: { entries: CountedGenreNode[]; depth?
           minH="44px"
           gap={3}
           ps={depth * 4}
+          // A ruled row: Link rounds by default, which would curve the rule.
+          borderRadius="0"
           borderBottomWidth="rule"
           borderColor="border"
         >
@@ -110,6 +113,7 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
         aria-hidden="true"
         h={{ base: "28px", md: "44px" }}
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow="sm"
         mb={4}
@@ -158,6 +162,7 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
                   flexShrink={0}
                   bg={fills[index % fills.length]}
                   borderWidth="outline"
+                  borderRadius="md"
                   borderColor="border.ink"
                 />
                 <Text flex={1}>{entry.node.name}</Text>

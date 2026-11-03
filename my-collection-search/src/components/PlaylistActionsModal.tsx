@@ -66,6 +66,7 @@ export default function PlaylistActionsModal({
               px="12px"
               flexShrink={0}
               borderWidth="outline"
+              borderRadius="md"
               borderColor="bg"
               fontFamily="label"
               fontSize="12px"

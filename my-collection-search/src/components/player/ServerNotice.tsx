@@ -111,6 +111,7 @@ export default function ServerNotice({ notice }: { notice?: Notice | null }) {
         pr="4px"
         py="6px"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         bg="bg.panel"
       >

@@ -70,6 +70,7 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       px={4}
       mr="6px"
       borderWidth="outline"
+      borderRadius="md"
       borderStyle="dashed"
       borderColor="border"
       fontFamily="mono"
@@ -411,6 +412,7 @@ function ChorePageContent() {
               mr="6px"
               bg="bg.muted"
               borderWidth="outline"
+              borderRadius="md"
               borderColor="border.ink"
             />
           )}

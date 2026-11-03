@@ -23,6 +23,7 @@ const APPEARANCE_COLUMNS = [
   "font_body",
   "font_label",
   "custom_palette",
+  "corners",
 ] as const;
 
 type AppearanceColumn = (typeof APPEARANCE_COLUMNS)[number];
@@ -34,6 +35,8 @@ export interface AppearanceRow {
   font_label: string | null;
   /** Unvalidated JSON; the service parses it. */
   custom_palette: unknown;
+  /** Unvalidated; the service resolves it. */
+  corners: string;
 }
 
 /** Columns to change; undefined leaves one alone, null resets it. `custom_palette` is JSON text. */

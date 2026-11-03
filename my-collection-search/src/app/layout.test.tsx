@@ -49,6 +49,13 @@ describe("root layout", () => {
     expect(html).toContain("<main>content</main>");
   });
 
+  it("server-renders the saved corners on <html>, defaulting to square", async () => {
+    service.getAppearance.mockResolvedValue(saved({ corners: "rounded" }));
+    expect(await render()).toMatch(/^<html [^>]*data-corners="rounded"/);
+    service.getAppearance.mockResolvedValue(saved({ corners: "pill" }));
+    expect(await render()).toMatch(/^<html [^>]*data-corners="square"/);
+  });
+
   it("server-renders the saved font of each role on <html>", async () => {
     service.getAppearance.mockResolvedValue(
       saved({ fonts: { display: "barlow-condensed", body: "inter", label: "system" } }),

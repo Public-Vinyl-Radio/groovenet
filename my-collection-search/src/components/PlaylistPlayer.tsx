@@ -99,6 +99,7 @@ function VisiblePlayer({
           right={{ base: "8px", md: "calc(var(--queue-w) + 16px)" }}
           bottom="calc(var(--chrome-bottom) + 14px)"
           w={{ base: "auto", md: "420px" }}
+          borderRadius="md"
           boxShadow="md"
         >
           <ServerNotice notice={notice} />

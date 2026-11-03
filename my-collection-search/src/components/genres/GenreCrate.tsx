@@ -1,5 +1,6 @@
 "use client";
 
+import { innerRadius } from "@/app/corners";
 import React from "react";
 import NextLink from "next/link";
 import { Box, Button, Heading, Link, Text } from "@chakra-ui/react";
@@ -29,6 +30,8 @@ export function GenreBarRows({
                 w="25%"
                 h="10px"
                 borderWidth="rule"
+                borderRadius="md"
+                overflow="hidden"
                 borderColor="border.ink"
                 flexShrink={0}
               >
@@ -106,6 +109,7 @@ export function GenreCrate({
       as="article"
       aria-label={`${title} crate`}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       minW={0}
@@ -120,6 +124,8 @@ export function GenreCrate({
           gap={3}
           minH="52px"
           px={4}
+          borderRadius="0"
+          borderTopRadius={innerRadius}
           borderBottomWidth="outline"
           borderColor="border.ink"
         >
@@ -133,6 +139,8 @@ export function GenreCrate({
           gap={3}
           minH="52px"
           px={4}
+          borderRadius="0"
+          borderTopRadius={innerRadius}
           borderBottomWidth="outline"
           borderColor="border.ink"
         >
@@ -148,6 +156,9 @@ export function GenreCrate({
           w="full"
           justifyContent="start"
           px={4}
+          borderWidth="0"
+          borderRadius="0"
+          borderBottomRadius={children ? "0" : innerRadius}
           borderTopWidth="rule"
           borderColor="border"
           fontFamily="label"
@@ -186,6 +197,9 @@ export function GenreIndexCrate({
         w="full"
         justifyContent="start"
         px={4}
+        borderWidth="0"
+        borderRadius="0"
+        borderBottomRadius={innerRadius}
         borderTopWidth="rule"
         borderColor="border"
         fontFamily="label"

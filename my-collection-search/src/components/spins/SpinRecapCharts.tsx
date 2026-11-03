@@ -104,8 +104,11 @@ export function RecapSplit({ month, recap }: { month: string; recap: Recap }) {
                 direction="column"
                 h={`${heights[index]}%`}
                 borderWidth="outline"
+                // Rounded on top only: the bottom sits on the axis rule.
+                borderTopRadius="md"
                 borderBottomWidth={0}
                 borderColor="border.ink"
+                overflow="hidden"
               >
                 <Box flex={week.digital} style={{ background: DIGITAL_HATCH }} />
                 <Box flex={week.vinyl} bg="fg" />
@@ -390,6 +393,8 @@ function TopList({ rows, label }: { rows: TopRow[]; label: string }) {
                   display="block"
                   h="6px"
                   borderWidth="rule"
+                  borderRadius="md"
+                  overflow="hidden"
                   borderColor="border.ink"
                 >
                   <Box as="span" display="block" h="full" w={`${widths[index]}%`} bg="fg" />
@@ -415,6 +420,9 @@ function TopList({ rows, label }: { rows: TopRow[]; label: string }) {
 
 const topFrame = {
   borderWidth: "outline",
+  borderRadius: "md",
+  // Headings and rows inside are square; the frame's radius clips them.
+  overflow: "hidden",
   borderColor: "border.ink",
   boxShadow: "md",
   mr: "6px",
@@ -538,6 +546,7 @@ export function RecapHeatmap({ recap }: { recap: Recap }) {
                   data-level={level}
                   h="22px"
                   borderWidth={level ? "outline" : "rule"}
+                  borderRadius="md"
                   borderColor={level ? "border.ink" : "border"}
                   style={{ background: inkTint(HEAT_TINTS[level]) }}
                 />
@@ -586,7 +595,17 @@ export function RecapBpmSpread({ recap }: { recap: Recap }) {
             borderColor="border.ink"
           >
             {bpm.histogram.map((bin, index) => (
-              <Box key={bin.from} data-testid="bpm-bar" flex="1" h={`${heights[index]}%`} bg="fg" />
+              <Box
+                key={bin.from}
+                data-testid="bpm-bar"
+                flex="1"
+                h={`${heights[index]}%`}
+                bg="fg"
+                borderWidth="outline"
+                borderTopRadius="md"
+                borderBottomWidth={0}
+                borderColor="border.ink"
+              />
             ))}
           </Flex>
           <Flex justify="space-between" {...axisProps}>

@@ -29,7 +29,14 @@ export default function AlbumTable({ children }: { children: React.ReactNode }) 
   return (
     // The padding leaves room for the block's 6px hard shadow.
     <Box pr="6px" pb="6px">
-      <Box overflowX="auto" borderWidth="outline" borderColor="border.ink" boxShadow="md" bg="bg">
+      <Box
+        overflowX="auto"
+        borderWidth="outline"
+        borderColor="border.ink"
+        boxShadow="md"
+        bg="bg"
+        borderRadius="md"
+      >
         <Table.Root
           minW="880px"
           w="100%"

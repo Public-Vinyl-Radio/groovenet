@@ -95,6 +95,7 @@ function SetLinkButtons({ set }: { set: Playlist["set"] }) {
             justifyContent="center"
             boxSize="32px"
             borderWidth="outline"
+            borderRadius="md"
             borderColor={link.primary ? "border.ink" : "border"}
             bg={link.primary ? "bg.subtle" : undefined}
             color="fg"
@@ -184,6 +185,7 @@ function PlaylistTableRow({
               flexShrink={0}
               px={1.5}
               borderWidth="rule"
+              borderRadius="md"
               borderColor="border.ink"
               fontFamily="mono"
               fontSize="2xs"
@@ -262,8 +264,11 @@ export default function PlaylistTable({
       mr="6px"
       mb="6px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
+      // clip, not hidden: the header stays sticky.
+      overflow="clip"
       css={{ containerType: "inline-size" }}
     >
       <Table
@@ -326,6 +331,8 @@ export default function PlaylistTable({
                     data-testid="month-tab"
                     bg="fg"
                     color="bg"
+                    // A tab on a rule: only its top corners are rounded.
+                    borderTopRadius="md"
                     fontFamily="mono"
                     fontSize="xs"
                     fontWeight="bold"

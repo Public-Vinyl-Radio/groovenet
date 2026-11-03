@@ -51,6 +51,7 @@ export default function DatabaseBackups({ embedded = false }: { embedded?: boole
           marginLeft={embedded ? { base: 0, md: "auto" } : undefined}
           variant="outline"
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           loading={addBackup.isPending}
           onClick={() =>
@@ -114,6 +115,7 @@ export default function DatabaseBackups({ embedded = false }: { embedded?: boole
                     size="xs"
                     variant="outline"
                     borderWidth="outline"
+                    borderRadius="md"
                     borderColor="border.ink"
                     colorPalette="danger"
                     aria-label={`Delete ${backup.filename}`}

@@ -52,6 +52,7 @@ export function SectionHeading({
         fontSize="xs"
         fontWeight="semibold"
         letterSpacing="0.08em"
+        borderTopRadius="md"
         flexShrink={0}
       >
         {children}
@@ -78,6 +79,8 @@ export function RecapLinkBar({
       justifyContent="space-between"
       bg="fg"
       color="bg"
+      // Square: the card around it clips it to its corners (Link rounds by default).
+      borderRadius="0"
       textDecoration="none"
       fontFamily="mono"
       fontSize="xs"
@@ -106,6 +109,7 @@ export function Bar({
       aria-label={label}
       h={{ base: "20px", md: "24px" }}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow={{ base: "none", md: "sm" }}
       overflow="hidden"
@@ -125,6 +129,7 @@ export function Swatch({ bg, size = "10px" }: { bg: string; size?: string }) {
       boxSize={size}
       flexShrink={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       style={{ background: bg }}
     />

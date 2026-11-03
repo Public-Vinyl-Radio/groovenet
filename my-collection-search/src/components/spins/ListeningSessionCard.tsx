@@ -27,7 +27,15 @@ export default function ListeningSessionCard({
   const range = formatTimeRange(session.start, session.end, timeZone);
 
   return (
-    <Box as="article" borderWidth="outline" borderColor="border.ink" boxShadow="md" bg="bg">
+    <Box
+      as="article"
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      bg="bg"
+      borderRadius="md"
+      overflow="clip"
+    >
       <Flex
         as="header"
         direction={{ base: "column", md: "row" }}

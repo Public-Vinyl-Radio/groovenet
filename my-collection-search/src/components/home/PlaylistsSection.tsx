@@ -41,6 +41,7 @@ function DraftCard({ set }: { set: DraftSet }) {
       px="14px"
       py="12px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       bg="accent.subtle"
@@ -124,6 +125,8 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       px="14px"
       py={3}
       borderWidth="outline"
+      borderRadius="md"
+      overflow="clip"
       borderColor="border.ink"
       fontFamily="mono"
       fontSize="xs"
@@ -157,6 +160,7 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
         h="160px"
         bg="bg.muted"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
       />
     );
@@ -181,6 +185,7 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
             m={0}
             p={0}
             borderWidth="outline"
+            borderRadius="md"
             borderColor="border.ink"
             boxShadow="md"
           >
@@ -217,6 +222,7 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
           alignItems="center"
           bg="fg"
           color="bg"
+          borderTopRadius="md"
           fontFamily="mono"
           fontSize={{ base: "11px", md: "xs" }}
           fontWeight="semibold"

@@ -548,6 +548,7 @@ const SearchResults: React.FC = () => {
                 <Box
                   mt={3}
                   borderWidth="outline"
+                  borderRadius="md"
                   borderColor="border.ink"
                   boxShadow="md"
                   overflow="hidden"

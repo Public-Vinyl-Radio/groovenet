@@ -39,6 +39,7 @@ export default function SpinTrackRow({ play, compact = false, selectedKey, onSel
     textAlign: "left" as const,
     cursor: "pointer",
     borderWidth: "outline",
+    borderRadius: "md",
     borderColor: selected ? "border.ink" : "transparent",
     bg: selected ? "bg.subtle" : undefined,
     _hover: { bg: selected ? "bg.subtle" : "bg.muted" },

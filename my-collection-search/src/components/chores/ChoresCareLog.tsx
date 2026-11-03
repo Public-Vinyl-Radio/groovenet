@@ -41,6 +41,7 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       justify="center"
       px={4}
       borderWidth="outline"
+      borderRadius="md"
       borderStyle="dashed"
       borderColor="border"
       fontFamily="mono"
@@ -91,6 +92,7 @@ export function CareLogEntryCard({
       as="article"
       aria-label={entry.voided ? `${headline}, voided` : headline}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       bg="bg"
@@ -136,6 +138,7 @@ export function CareLogEntryCard({
             px="10px"
             flexShrink={0}
             borderWidth="outline"
+            borderRadius="md"
             borderColor="currentColor"
             bg="transparent"
             color="inherit"

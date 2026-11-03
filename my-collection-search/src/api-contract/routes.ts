@@ -1,3 +1,4 @@
+import { cornerIds } from "@/app/corners";
 import {
   homeQuerySchema,
   homeResponseSchema,
@@ -295,6 +296,11 @@ const appearanceSettingsSchemaObject: Record<string, unknown> = {
       description: "`custom` only while a custom palette is saved.",
     },
     customPalette: { ...customPaletteSchemaObject, type: ["object", "null"] },
+    corners: {
+      type: "string",
+      enum: [...cornerIds],
+      description: "Corner style: `square` (default) or `rounded`.",
+    },
     fonts: {
       type: "object",
       description:
@@ -303,7 +309,7 @@ const appearanceSettingsSchemaObject: Record<string, unknown> = {
       required: [...fontRoleIds],
     },
   },
-  required: ["palette", "fonts", "customPalette"],
+  required: ["palette", "fonts", "customPalette", "corners"],
 };
 
 // Every field is optional on the way in; only those sent change.
@@ -312,6 +318,7 @@ const appearanceSettingsPutSchemaObject: Record<string, unknown> = {
   additionalProperties: false,
   properties: {
     palette: { type: "string", enum: paletteIdsWithCustom },
+    corners: { type: "string", enum: [...cornerIds] },
     customPalette: {
       ...customPaletteSchemaObject,
       type: ["object", "null"],
@@ -330,6 +337,7 @@ const appearanceExample = {
   palette: "sleeve",
   fonts: { display: "default", body: "default", label: "default" },
   customPalette: null,
+  corners: "square",
 };
 
 const recommendationSettingsSchemaObject: Record<string, unknown> = {
@@ -6974,7 +6982,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     operationId: "getAppearanceSettings",
     method: "get",
     path: "/api/settings/appearance",
-    summary: "Get the app-wide palette and fonts",
+    summary: "Get the app-wide palette, corners and fonts",
     tags: ["Settings"],
     successSchema: appearanceSettingsResponseSchema,
     errorSchema: apiErrorSchema,
@@ -7001,7 +7009,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     operationId: "updateAppearanceSettings",
     method: "put",
     path: "/api/settings/appearance",
-    summary: "Set the app-wide palette and fonts",
+    summary: "Set the app-wide palette, corners and fonts",
     tags: ["Settings"],
     bodySchema: appearanceSettingsPutBodySchema,
     successSchema: appearanceSettingsResponseSchema,
@@ -7017,6 +7025,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 summary: "Change one font; the rest stay",
                 value: { fonts: { body: "inter" } },
               },
+              cornersOnly: { summary: "Round the corners", value: { corners: "rounded" } },
               paletteOnly: { summary: "Change the palette only", value: { palette: "riso" } },
               custom: {
                 summary: "Save a custom palette and use it",

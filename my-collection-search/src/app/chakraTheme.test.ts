@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fontBlocks, paletteBlocks, system } from "./chakraTheme";
+import { cornerBlocks, fontBlocks, paletteBlocks, system } from "./chakraTheme";
 import { faceVariable, fontChoiceValue, fontRoleIds, fontRoles } from "./fontChoices";
 import { paletteVariableNames, palettes, statusNames } from "./palettes";
 
@@ -122,12 +122,21 @@ describe("chakra theme", () => {
     ]);
   });
 
+  describe("corners", () => {
+    it("is square on :root and softened under data-corners=rounded", () => {
+      expect(cornerBlocks()).toEqual({
+        ":root": { "--gn-radius": "0" },
+        '[data-corners="rounded"]': { "--gn-radius": "6px" },
+      });
+    });
+  });
+
   describe("house style (#667)", () => {
     const token = (path: string) => system.tokens.getByName(path)?.value;
 
-    it("squares every radius but leaves full for round things", () => {
+    it("reads every radius from --gn-radius but leaves full for round things", () => {
       for (const name of ["2xs", "xs", "sm", "md", "lg", "xl", "2xl", "3xl", "4xl"]) {
-        expect(token(`radii.${name}`), name).toBe("0");
+        expect(token(`radii.${name}`), name).toBe("var(--gn-radius)");
       }
       expect(token("radii.full")).toBe("9999px");
       // The semantic steps recipes use point at the squared scale.

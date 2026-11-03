@@ -47,6 +47,7 @@ export function Tile({
       justifyContent="center"
       gap="6px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       bg={solid ? "border.ink" : "bg"}
       color={solid ? "bg" : "fg"}
@@ -82,6 +83,7 @@ export function ActionButton({
     alignItems: "center",
     gap: 2,
     borderWidth: "outline",
+    borderRadius: "md",
     borderColor: danger ? "status.missing.border" : "border",
     color: danger ? "danger.fg" : "fg",
     fontFamily: "label",
@@ -212,6 +214,7 @@ export function PositionStepper({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: "outline",
+    borderRadius: "md",
     borderColor: "border.ink",
     fontSize: "18px",
     _hover: { bg: "bg.muted" },
@@ -316,6 +319,7 @@ export function ChipToggle({
       minH="44px"
       px="12px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       bg={checked ? "border.ink" : "bg"}
       color={checked ? "bg" : "fg"}

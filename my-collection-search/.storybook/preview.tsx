@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider as ChakraProvider } from "@/components/ui/provider";
 import React from "react";
 import { fontClassName } from "@/app/fonts";
+import { cornerIds, defaultCornerId } from "@/app/corners";
 import { fontRoleIds, fontRoles, type FontRoleId } from "@/app/fontChoices";
 
 const fontDataKey = { display: "fontDisplay", body: "fontBody", label: "fontLabel" } as const;
@@ -10,9 +11,11 @@ const fontDataKey = { display: "fontDisplay", body: "fontBody", label: "fontLabe
 function StoryProviders({
   children,
   fonts,
+  corners,
 }: {
   children: React.ReactNode;
   fonts: Record<FontRoleId, string>;
+  corners: string;
 }) {
   const [client] = React.useState(
     () =>
@@ -37,6 +40,10 @@ function StoryProviders({
     for (const role of fontRoleIds)
       document.documentElement.dataset[fontDataKey[role]] = fonts[role];
   }, [fonts]);
+  // Check a story square and rounded from the toolbar (Corners).
+  React.useEffect(() => {
+    document.documentElement.dataset.corners = corners;
+  }, [corners]);
   return (
     <ChakraProvider>
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -59,12 +66,28 @@ const fontToolbar = Object.fromEntries(
   ]),
 );
 
+const cornersToolbar = {
+  corners: {
+    description: "Corner style",
+    toolbar: {
+      title: "Corners",
+      icon: "box",
+      items: cornerIds.map((id) => ({ value: id, title: id === "square" ? "Square" : "Rounded" })),
+      dynamicTitle: true,
+    },
+  },
+};
+
 const preview: Preview = {
-  initialGlobals: Object.fromEntries(fontRoleIds.map((role) => [`font${role}`, "default"])),
-  globalTypes: fontToolbar,
+  initialGlobals: {
+    ...Object.fromEntries(fontRoleIds.map((role) => [`font${role}`, "default"])),
+    corners: defaultCornerId,
+  },
+  globalTypes: { ...fontToolbar, ...cornersToolbar },
   decorators: [
     (Story, context) => (
       <StoryProviders
+        corners={context.globals.corners ?? defaultCornerId}
         fonts={
           Object.fromEntries(
             fontRoleIds.map((role) => [role, context.globals[`font${role}`] ?? "default"]),

@@ -1,14 +1,14 @@
 ---
 title: Appearance
-description: Choose a colour palette and typefaces, build your own palette, and set light or dark mode per device.
+description: Choose a colour palette, corner style and typefaces, build your own palette, and set light or dark mode per device.
 sidebar:
   order: 11
 ---
 
-Open **Settings → Appearance** to change how GrooveNet looks. There are three choices, and they are saved in different places:
+Open **Settings → Appearance** to change how GrooveNet looks. Each part is labelled with where it applies:
 
-- The **palette** and the **typefaces** are shared by every device that uses your server.
-- **Light, dark or system** is remembered on the device you set it on, so a phone and a laptop can differ.
+- The **palette**, **corners** and **typefaces** are shared by every device that uses your server (labelled _Every device_).
+- **Light, dark or system** is remembered on the device you set it on, so a phone and a laptop can differ (labelled _This device_).
 
 ![Settings, Appearance, with palettes and mode](../../site/src/assets/screenshots/appearance-desktop-light.png)
 
@@ -36,6 +36,10 @@ Choose **Create custom palette**, then **Start from** a preset. You set five col
 
 The editor shows a live preview, and beside each colour the contrast it makes against what it sits on, marked **Pass** or **Fail** against the level it needs. Fix any failures before saving, so text stays readable. Save it and it becomes the selected palette. **Edit custom palette** reopens it, and you can delete it from the editor. Deleting returns the app to a preset.
 
+## Corners
+
+**Square** is the default: sharp corners everywhere. **Rounded** softens buttons, inputs, cards, dialogs, menus, tags and the navigation to a 6px radius; round things such as avatars stay round, and the hard shadows follow the new shape. A live preview beside the choice shows a track row, a tag, a search field and a button. The change applies as soon as you pick it and is shared by every device.
+
 ## Typefaces
 
 Typography has one choice for each kind of text:
@@ -44,8 +48,8 @@ Typography has one choice for each kind of text:
 - **Body**, for interface text.
 - **Labels**, for buttons, tags, navigation and IDs such as `LP-342`.
 
-Each role offers a few faces, with a preview in the face. **System** uses the font your device already has, which loads fastest and is the safest choice if a custom face looks wrong.
+Each role is one compact row of faces, each shown in its own face. **System** uses the font your device already has, which loads fastest and is the safest choice if a custom face looks wrong.
 
 ## Light and dark
 
-**Mode** is **Light**, **Dark** or **System**. System follows the operating system, so the app switches with it. This is remembered on the current device only. The palette you chose has both a light and a dark version.
+**Light or dark** is **Light**, **Dark** or **System**. System follows this device's setting, so the app switches with it. This is remembered on the current device only. The palette you chose has both a light and a dark version.

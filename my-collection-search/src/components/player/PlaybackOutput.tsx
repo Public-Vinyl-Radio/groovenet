@@ -52,6 +52,7 @@ function triggerCss(kind: PlaybackOutputKind) {
     display: "flex",
     alignItems: "center",
     borderWidth: "outline",
+    borderRadius: "md",
     borderColor: remote ? "border.ink" : "border",
     bg: remote ? "bg.panel" : "transparent",
     color: "fg",

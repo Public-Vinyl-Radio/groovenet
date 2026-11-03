@@ -243,6 +243,7 @@ export default function AlbumResult({
       flexShrink={0}
       objectFit="cover"
       borderWidth={layout === "cover" ? "outline" : "rule"}
+      borderRadius="md"
       borderColor="border.ink"
     />
   );
@@ -267,6 +268,7 @@ export default function AlbumResult({
         data-testid="album-discovery-card"
         direction={layout === "cover" ? "column" : { base: "column", md: "row" }}
         borderWidth={layout === "cover" ? 0 : { base: 0, md: "outline" }}
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow={layout === "cover" ? "none" : { base: "none", md: "sm" }}
         p={layout === "cover" ? 0 : { base: 0, md: 3 }}
@@ -395,6 +397,7 @@ export default function AlbumResult({
       data-testid="album-card"
       position="relative"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       p={3}

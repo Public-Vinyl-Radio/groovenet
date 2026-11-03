@@ -154,6 +154,7 @@ function Artwork({ track, size }: { track: Track; size: string }) {
       objectFit="cover"
       flexShrink={0}
       borderWidth="rule"
+      borderRadius="md"
       borderColor="border.ink"
       draggable={false}
     />
@@ -205,6 +206,7 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
   return (
     <Box
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       overflowX="auto"
@@ -313,6 +315,7 @@ export function RelatedTrackList({ base, tracks, showUsername, renderActions }: 
       m={0}
       p={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       data-testid="related-list"
