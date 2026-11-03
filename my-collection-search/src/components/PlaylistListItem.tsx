@@ -83,6 +83,7 @@ const LINK_STYLE = {
   minW: "44px",
   px: 3,
   borderWidth: "rule",
+  borderRadius: "md",
   borderColor: "border.ink",
   fontFamily: "mono",
   fontSize: "xs",

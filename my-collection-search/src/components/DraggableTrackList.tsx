@@ -97,7 +97,12 @@ export default function DraggableTrackList({
                       }
                       // The block's shadow doesn't travel with a lifted row, so it gets its own.
                       {...(isTable && snapshot.isDragging
-                        ? { borderWidth: "outline", borderColor: "border.ink", boxShadow: "md" }
+                        ? {
+                            borderWidth: "outline",
+                            borderRadius: "md",
+                            borderColor: "border.ink",
+                            boxShadow: "md",
+                          }
                         : {})}
                     >
                       <TrackResultStore

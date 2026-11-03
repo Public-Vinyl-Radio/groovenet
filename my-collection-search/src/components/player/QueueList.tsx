@@ -129,7 +129,12 @@ function QueueSection({
                     borderColor="border"
                     bg="bg"
                     {...(snapshot.isDragging
-                      ? { borderWidth: "outline", borderColor: "border.ink", boxShadow: "md" }
+                      ? {
+                          borderWidth: "outline",
+                          borderRadius: "md",
+                          borderColor: "border.ink",
+                          boxShadow: "md",
+                        }
                       : {})}
                   >
                     <Box
