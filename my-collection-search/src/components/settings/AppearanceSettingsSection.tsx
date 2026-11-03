@@ -118,10 +118,6 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
 
   return (
     <Box>
-      <Heading size="lg" mb={2}>
-        Appearance
-      </Heading>
-
       <Heading size="md" mb={1}>
         Palette
       </Heading>
