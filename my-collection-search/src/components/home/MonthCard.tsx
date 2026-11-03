@@ -30,6 +30,7 @@ export function MonthCard({ month, recap, error }: Props) {
       aria-labelledby="home-month-heading"
       borderWidth="outline"
       borderRadius="md"
+      overflow="hidden"
       borderColor="border.ink"
       boxShadow="md"
       mr="6px"

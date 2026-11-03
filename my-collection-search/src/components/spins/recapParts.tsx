@@ -79,6 +79,8 @@ export function RecapLinkBar({
       justifyContent="space-between"
       bg="fg"
       color="bg"
+      // Square: the card around it clips it to its corners (Link rounds by default).
+      borderRadius="0"
       textDecoration="none"
       fontFamily="mono"
       fontSize="xs"
