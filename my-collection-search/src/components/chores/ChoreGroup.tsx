@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Box, chakra, Flex, Heading, Spinner, Text, VisuallyHidden } from "@chakra-ui/react";
+import { Box, chakra, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import Artwork from "@/components/player/Artwork";
 
 export type ChoreRowData = {
@@ -11,7 +12,7 @@ export type ChoreRowData = {
   thumbnail: string | null;
   /** "SPUN 3× IN OCT", "ADDED OCT 17"; the backlog has none. */
   meta?: string;
-  /** No sleeve logged: the row shows the "SLEEVE ?" chip. */
+  /** No sleeve logged: the row shows a "Sleeve unknown" status tag. */
   sleeveUnknown: boolean;
 };
 
@@ -26,24 +27,9 @@ const monoLabel = {
 
 function SleeveChip() {
   return (
-    <Text
-      as="span"
-      h="22px"
-      px="7px"
-      display="inline-flex"
-      alignItems="center"
-      flexShrink={0}
-      borderWidth="outline"
-      borderStyle="dashed"
-      borderColor="border"
-      fontFamily="mono"
-      fontSize="10px"
-      letterSpacing="0.08em"
-      color="fg.muted"
-    >
-      <span aria-hidden="true">SLEEVE ?</span>
-      <VisuallyHidden>Sleeve unknown</VisuallyHidden>
-    </Text>
+    <StatusTag tone="neutral" flexShrink={0}>
+      Sleeve unknown
+    </StatusTag>
   );
 }
 

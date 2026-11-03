@@ -15,11 +15,11 @@ import {
   Image,
   Icon,
   RatingGroup,
-  Badge,
   Checkbox,
   Popover,
   Portal,
 } from "@chakra-ui/react";
+import { CountTag, MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { FiFileText, FiPlus } from "react-icons/fi";
@@ -188,23 +188,9 @@ export function KeyChip({
       </Text>
     );
   }
+  // A Metadata tag that keeps its wheel dot (#963).
   return (
-    <Flex
-      display="inline-flex"
-      alignItems="center"
-      gap={1.5}
-      h="24px"
-      px={2}
-      borderRadius="sm"
-      bg="bg.muted"
-      borderWidth="1px"
-      borderColor="border"
-      whiteSpace="nowrap"
-      minW={0}
-      maxW="100%"
-      justifySelf="start"
-      title={showName ? undefined : keyName}
-    >
+    <MetaTag minW={0} justifySelf="start" title={showName ? undefined : keyName}>
       <Box
         aria-hidden="true"
         boxSize="8px"
@@ -212,34 +198,18 @@ export function KeyChip({
         bg={camelotDotColor(camelot)}
         flexShrink={0}
       />
-      <Text
-        as="span"
-        fontSize="xs"
-        fontWeight="bold"
-        color="fg"
-        fontVariantNumeric="tabular-nums"
-        flexShrink={0}
-      >
+      <Text as="span" fontWeight="semibold" flexShrink={0}>
         {camelot}
       </Text>
       {showName && (
-        <Text
-          as="span"
-          fontSize="xs"
-          color="fg.muted"
-          overflow="hidden"
-          textOverflow="ellipsis"
-          whiteSpace="nowrap"
-          minW={0}
-          title={keyName}
-        >
+        <Text as="span" color="fg.muted" truncate minW={0} title={keyName}>
           {keyName}
         </Text>
       )}
       {typeof keyConfidence === "number" && (
         <KeyConfidenceIndicator keyConfidence={keyConfidence} />
       )}
-    </Flex>
+    </MetaTag>
   );
 }
 
@@ -320,9 +290,9 @@ function BpmValue({
   const hasBpm = Number.isFinite(num) && num > 0;
   if (!hasBpm) {
     return (
-      <Badge colorPalette="status.analysis" variant="subtle" size="sm" whiteSpace="nowrap">
+      <StatusTag tone="analysis" size="sm" whiteSpace="nowrap">
         No BPM
-      </Badge>
+      </StatusTag>
     );
   }
   return (
@@ -382,17 +352,11 @@ function GenreList({
         },
       }}
     >
-      <GenreBadgeList
-        items={shown}
-        kind={kind}
-        scope="tracks"
-        colorPalette="status.genre"
-        variant="subtle"
-      />
+      <GenreBadgeList items={shown} kind={kind} scope="tracks" />
       {overflow > 0 && (
-        <Badge data-overflow="" size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>
+        <CountTag data-overflow="" size="sm" flexShrink={0}>
           +{overflow}
-        </Badge>
+        </CountTag>
       )}
     </Flex>
   );
@@ -656,23 +620,16 @@ export default function TrackResult({
   const metaExtras: React.ReactNode[] = [];
   if (track.library_identifier) {
     metaExtras.push(
-      <Badge
-        key="lib"
-        colorPalette="accent"
-        size="sm"
-        fontWeight="bold"
-        flexShrink={0}
-        whiteSpace="nowrap"
-      >
+      <MetaTag variant="id" key="lib" size="sm" flexShrink={0} whiteSpace="nowrap">
         {libraryLabel}
-      </Badge>,
+      </MetaTag>,
     );
   }
   if (sortPositionChange) {
     metaExtras.push(
-      <Badge key="sort" colorPalette="status.genre" size="sm" flexShrink={0}>
+      <MetaTag key="sort" size="sm" flexShrink={0}>
         #{sortPositionChange.currentPosition} was #{sortPositionChange.previousPosition}
-      </Badge>,
+      </MetaTag>,
     );
   }
   // No separate "No embedding" badge: it has nowhere to go without crowding the
@@ -837,13 +794,7 @@ export default function TrackResult({
                   scope="tracks"
                   size="xs"
                 />
-                <GenreBadgeList
-                  items={trackGenres}
-                  kind="track"
-                  scope="tracks"
-                  size="xs"
-                  colorPalette="accent"
-                />
+                <GenreBadgeList items={trackGenres} kind="track" scope="tracks" size="xs" />
               </Flex>
             )}
         </Flex>
@@ -909,15 +860,13 @@ export default function TrackResult({
             </Link>
             {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
             {score !== undefined && (
-              <Badge
-                colorPalette={
-                  score > 90 ? "status.success" : score > 75 ? "status.analysis" : "status.missing"
-                }
+              <StatusTag
+                tone={score > 90 ? "success" : score > 75 ? "analysis" : "missing"}
                 size="xs"
                 flexShrink={0}
               >
                 {score.toFixed(0)}%
-              </Badge>
+              </StatusTag>
             )}
             {showRating && <RatingStars value={localRating} onChange={handleRatingChange} />}
           </Flex>
@@ -978,13 +927,7 @@ export default function TrackResult({
                   scope="tracks"
                   size="xs"
                 />
-                <GenreBadgeList
-                  items={trackGenres}
-                  kind="track"
-                  scope="tracks"
-                  size="xs"
-                  colorPalette="accent"
-                />
+                <GenreBadgeList items={trackGenres} kind="track" scope="tracks" size="xs" />
               </Flex>
             )}
           {footer && <Box mt={1}>{footer}</Box>}
@@ -1077,19 +1020,13 @@ export default function TrackResult({
               </Link>
               {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
               {score !== undefined && (
-                <Badge
-                  colorPalette={
-                    score > 90
-                      ? "status.success"
-                      : score > 75
-                        ? "status.analysis"
-                        : "status.missing"
-                  }
+                <StatusTag
+                  tone={score > 90 ? "success" : score > 75 ? "analysis" : "missing"}
                   size="sm"
                   flexShrink={0}
                 >
                   {score.toFixed(1)}%
-                </Badge>
+                </StatusTag>
               )}
             </Flex>
             <ArtistLink artist={track.artist} friendId={track.friend_id}>
@@ -1272,19 +1209,13 @@ export default function TrackResult({
                 {track.title}
               </Link>
               {score !== undefined && (
-                <Badge
-                  colorPalette={
-                    score > 90
-                      ? "status.success"
-                      : score > 75
-                        ? "status.analysis"
-                        : "status.missing"
-                  }
+                <StatusTag
+                  tone={score > 90 ? "success" : score > 75 ? "analysis" : "missing"}
                   size="sm"
                   flexShrink={0}
                 >
                   {score.toFixed(1)}%
-                </Badge>
+                </StatusTag>
               )}
             </Flex>
             {/* Desktop stacks artist and album; a phone has one `Artist · Album` line. */}
@@ -1426,9 +1357,9 @@ export default function TrackResult({
                 )}
               </Flex>
             ) : (
-              <Badge colorPalette="status.analysis" variant="subtle" size="sm" whiteSpace="nowrap">
+              <StatusTag tone="analysis" size="sm" whiteSpace="nowrap">
                 No BPM
-              </Badge>
+              </StatusTag>
             )}
             {hasCamelot && (
               <Flex
@@ -1490,8 +1421,6 @@ export default function TrackResult({
                 items={genreBadges.items}
                 kind={genreBadges.kind}
                 scope="tracks"
-                colorPalette="status.genre"
-                variant="subtle"
                 size={{ base: "xs", md: "sm" }}
               />
             </Box>

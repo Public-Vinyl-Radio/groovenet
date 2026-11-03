@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Button, Flex, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import { FiClock, FiPlus } from "react-icons/fi";
 import SectionHeader from "@/components/album-detail/SectionHeader";
 import { ALBUM_SPINS_PAGE, useAlbumSpins } from "@/hooks/useAlbumSpins";
@@ -50,13 +51,13 @@ export default function AlbumSpinPanel({ releaseId, friendId, albumTitle }: Prop
         <HStack gap={1.5} wrap="wrap" fontSize="xs">
           <Text color="fg.muted">Most played:</Text>
           {mostPlayed.map((track) => (
-            <Badge key={track.track_id} size="sm" variant="surface">
+            <MetaTag key={track.track_id} size="sm">
               {formatTrackLine({
                 position: track.position_snapshot ?? null,
                 title: track.title_snapshot,
               })}{" "}
               ×{track.play_count}
-            </Badge>
+            </MetaTag>
           ))}
         </HStack>
       )}

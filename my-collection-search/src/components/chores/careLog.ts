@@ -127,17 +127,17 @@ export function careLogHeadline(
 
 export type SourceBadge = { label: string; borderStyle: "dotted" | "solid" | "dashed" | "double" };
 
-/** VIA WEB / CLI / MCP, told apart by the border as well as the word. */
+/** Via web / CLI / MCP / API, told apart by the border as well as the word (a SourceTag stroke). */
 export function careSourceBadge(source: RecordCareLogEntry["source"]): SourceBadge {
   switch (source) {
     case "cli":
-      return { label: "VIA CLI", borderStyle: "solid" };
+      return { label: "Via CLI", borderStyle: "solid" };
     case "mcp":
-      return { label: "VIA MCP", borderStyle: "dashed" };
+      return { label: "Via MCP", borderStyle: "dashed" };
     case "api":
-      return { label: "VIA API", borderStyle: "double" };
+      return { label: "Via API", borderStyle: "double" };
     default:
-      return { label: "VIA WEB", borderStyle: "dotted" };
+      return { label: "Via web", borderStyle: "dotted" };
   }
 }
 

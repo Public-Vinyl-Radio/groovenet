@@ -3,7 +3,8 @@
 import React from "react";
 import NextLink from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Flex, Link, Popover, Portal, Text } from "@chakra-ui/react";
+import { Flex, Link, Popover, Portal, Text } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import type { Track } from "@/types/track";
 import { queryKeys } from "@/lib/queryKeys";
 import { fetchTrackPlaylists } from "@/services/internalApi/tracks";
@@ -12,15 +13,9 @@ type TrackPlaylistUsageProps = {
   track: Pick<Track, "track_id" | "friend_id">;
   count: number;
   size?: "xs" | "sm";
-  variant?: "subtle" | "surface" | "solid" | "outline";
 };
 
-export default function TrackPlaylistUsage({
-  track,
-  count,
-  size = "xs",
-  variant = "subtle",
-}: TrackPlaylistUsageProps) {
+export default function TrackPlaylistUsage({ track, count, size = "xs" }: TrackPlaylistUsageProps) {
   const [open, setOpen] = React.useState(false);
   const playlistsQuery = useQuery({
     queryKey: queryKeys.trackPlaylists(track.track_id, track.friend_id),
@@ -34,15 +29,9 @@ export default function TrackPlaylistUsage({
   return (
     <Popover.Root open={open} onOpenChange={(details) => setOpen(details.open)}>
       <Popover.Trigger asChild>
-        <Badge
-          as="button"
-          colorPalette="status.genre"
-          size={size}
-          variant={variant}
-          cursor="pointer"
-        >
+        <MetaTag as="button" size={size}>
           {count} playlist{count === 1 ? "" : "s"}
-        </Badge>
+        </MetaTag>
       </Popover.Trigger>
       {/* In a portal: a virtualised row below would otherwise paint over it. */}
       <Portal>
@@ -69,9 +58,9 @@ export default function TrackPlaylistUsage({
                       <Link asChild fontSize="sm" fontWeight="medium" lineClamp={1}>
                         <NextLink href={`/playlists/${playlist.id}`}>{playlist.name}</NextLink>
                       </Link>
-                      <Badge size="xs" colorPalette="accent" flexShrink={0}>
+                      <MetaTag size="xs" flexShrink={0}>
                         #{playlist.position}
-                      </Badge>
+                      </MetaTag>
                     </Flex>
                   ))}
                 </Flex>

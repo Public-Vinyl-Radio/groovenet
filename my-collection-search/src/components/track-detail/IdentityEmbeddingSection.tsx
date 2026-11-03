@@ -1,6 +1,7 @@
 "use client";
 
-import { Badge, Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { IdentityEmbeddingPreviewResponse } from "@/services/internalApi/tracks";
 
@@ -29,9 +30,9 @@ export default function IdentityEmbeddingSection({ query }: Props) {
       ) : query.data ? (
         <VStack align="stretch" gap={3}>
           <HStack gap={2} flexWrap="wrap">
-            <Badge colorPalette="status.genre">Music Identity</Badge>
-            <Badge variant="outline">{query.data.identityData.era}</Badge>
-            <Badge variant="outline">{query.data.identityData.country}</Badge>
+            <SourceTag stroke="solid">Music Identity</SourceTag>
+            <MetaTag>{query.data.identityData.era}</MetaTag>
+            <MetaTag>{query.data.identityData.country}</MetaTag>
           </HStack>
           <Box
             as="pre"

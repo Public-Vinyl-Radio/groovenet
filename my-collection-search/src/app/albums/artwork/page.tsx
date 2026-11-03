@@ -3,7 +3,8 @@
 import React from "react";
 import NextLink from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Box, Button, Flex, Image, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Image, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import { FiImage, FiRefreshCw } from "react-icons/fi";
 
 import PageContainer from "@/components/layout/PageContainer";
@@ -82,13 +83,13 @@ function ReviewRow({ item }: { item: AlbumArtworkReviewItem }) {
             {item.artist}
           </Text>
         </Box>
-        <Badge
-          colorPalette={item.art_match_status === "mismatch" ? "status.analysis" : "neutral"}
+        <StatusTag
+          tone={item.art_match_status === "mismatch" ? "analysis" : "neutral"}
           flexShrink={0}
         >
           {STATUS_LABELS[item.art_match_status]}
           {item.art_match_distance !== null ? ` · ${item.art_match_distance}/64` : ""}
-        </Badge>
+        </StatusTag>
       </Flex>
       <Flex gap={3} mb={3}>
         <Cover src={item.discogs_art_url} caption="Discogs" />

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Box, Button, chakra, Flex, Input, Text, VisuallyHidden } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import { FiArrowUpRight, FiCast } from "react-icons/fi";
 import type { ServerPlayer } from "@groovenet/contracts";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
@@ -104,16 +105,9 @@ function OptionRow({
         </Text>
       </Flex>
       {status && (
-        <Text
-          as="span"
-          fontFamily="mono"
-          fontSize="10px"
-          fontWeight="semibold"
-          letterSpacing="0.08em"
-          color="fg.muted"
-        >
+        <StatusTag tone="neutral" flexShrink={0}>
           {status}
-        </Text>
+        </StatusTag>
       )}
     </chakra.label>
   );
@@ -367,7 +361,7 @@ export default function PlayOnPicker() {
                             ? "Session live · join to share its queue"
                             : "Idle · start a session"
                       }
-                      status={live ? "LIVE" : "IDLE"}
+                      status={live ? "Live" : "Idle"}
                       onSelect={setSelected}
                     />
                   );

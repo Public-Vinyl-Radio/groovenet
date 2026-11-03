@@ -45,9 +45,9 @@ describe("ChoreGroup", () => {
     expect(first.getAttribute("aria-checked")).toBe("true");
     expect(second.getAttribute("aria-checked")).toBe("false");
     expect(within(first).getByText("SPUN 3× IN OCT")).toBeTruthy();
-    expect(within(first).getByText("SLEEVE ?")).toBeTruthy();
     expect(within(first).getByText("Sleeve unknown")).toBeTruthy();
-    expect(within(second).queryByText("SLEEVE ?")).toBeNull();
+    expect(within(first).getByText("Sleeve unknown")).toBeTruthy();
+    expect(within(second).queryByText("Sleeve unknown")).toBeNull();
   });
 
   it("toggles a row", async () => {

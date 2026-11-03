@@ -3,7 +3,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Badge,
   Box,
   Button,
   Checkbox,
@@ -20,6 +19,7 @@ import {
   VStack,
   useBreakpointValue,
 } from "@chakra-ui/react";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import RetroDialog from "@/components/ui/RetroDialog";
 import { toaster } from "@/components/ui/toaster";
 import { useSpinMutations } from "@/hooks/useSpinsQuery";
@@ -258,15 +258,15 @@ export default function SpinFormDialog({
       </HStack>
 
       <HStack gap={2} wrap="wrap">
-        <Badge colorPalette="accent">
+        <MetaTag>
           {form.selectionMode === "sides"
             ? `${selectedSideCount} side${selectedSideCount === 1 ? "" : "s"} selected`
             : `${selectedTrackCount} track${selectedTrackCount === 1 ? "" : "s"} selected`}
-        </Badge>
-        <Badge variant="outline">
+        </MetaTag>
+        <MetaTag>
           {selectedTrackCount} track event{selectedTrackCount === 1 ? "" : "s"}
-        </Badge>
-        {isFullAlbumSpin && <Badge colorPalette="status.success">Full album</Badge>}
+        </MetaTag>
+        {isFullAlbumSpin && <StatusTag tone="success">Full album</StatusTag>}
       </HStack>
 
       {playableStructureQuery.isLoading ? (
@@ -302,7 +302,7 @@ export default function SpinFormDialog({
                   </Checkbox.Root>
                 )}
                 <Text fontWeight="semibold">{side.side_label}</Text>
-                <Badge variant="outline">{side.track_count} tracks</Badge>
+                <MetaTag>{side.track_count} tracks</MetaTag>
               </HStack>
               <Stack gap={2} mt={3}>
                 {side.tracks.map((track) => {

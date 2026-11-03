@@ -8,11 +8,11 @@ import {
   Textarea,
   Input,
   Spinner,
-  Badge,
   Image,
   Separator,
   TagsInput,
 } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import { Checkbox } from "@chakra-ui/react";
 import type { Track, TrackGenre, YoutubeVideo } from "@/types/track";
 import type { AppleMusicResult } from "@/types/apple";
@@ -261,9 +261,9 @@ export default function EnrichmentTrackStep({
               </Text>
               {llmLoading && <Spinner size="xs" />}
               {llmError && (
-                <Badge colorPalette="status.missing" size="xs">
+                <StatusTag tone="missing" size="xs">
                   failed
-                </Badge>
+                </StatusTag>
               )}
             </Flex>
             <Checkbox.Root size="sm" checked={llmInclude} onChange={() => setLlmInclude((v) => !v)}>
@@ -338,9 +338,9 @@ export default function EnrichmentTrackStep({
               </Text>
               {appleMusicLoading && <Spinner size="xs" />}
               {appleMusicError && (
-                <Badge colorPalette="status.missing" size="xs">
+                <StatusTag tone="missing" size="xs">
                   failed
-                </Badge>
+                </StatusTag>
               )}
             </Flex>
             <Checkbox.Root
@@ -440,9 +440,9 @@ export default function EnrichmentTrackStep({
               </Text>
               {youtubeLoading && <Spinner size="xs" />}
               {youtubeError && (
-                <Badge colorPalette="status.missing" size="xs">
+                <StatusTag tone="missing" size="xs">
                   failed
-                </Badge>
+                </StatusTag>
               )}
             </Flex>
             <Checkbox.Root

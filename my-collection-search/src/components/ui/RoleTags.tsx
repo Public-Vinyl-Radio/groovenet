@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { chakra, type HTMLChakraProps } from "@chakra-ui/react";
+import { chakra, type ConditionalValue, type HTMLChakraProps } from "@chakra-ui/react";
 import { roleRecipes } from "@/app/houseStyle";
 
 // The five passive badge roles (#963). Product code renders one of these, or
@@ -17,7 +17,7 @@ const MetaRoot = chakra("span", roleRecipes.metaTag);
 const SourceRoot = chakra("span", roleRecipes.sourceTag);
 const CountRoot = chakra("span", roleRecipes.countTag);
 
-type TagProps = Omit<HTMLChakraProps<"span">, "size"> & { size?: TagSize };
+type TagProps = Omit<HTMLChakraProps<"span">, "size"> & { size?: ConditionalValue<TagSize> };
 
 export type StatusTone = "missing" | "analysis" | "success" | "neutral";
 

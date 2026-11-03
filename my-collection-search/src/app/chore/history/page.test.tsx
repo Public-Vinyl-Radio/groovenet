@@ -57,7 +57,7 @@ describe("Care history page", () => {
     expect(api.listRecordCareLog).toHaveBeenCalledWith({ friend_id: 7, limit: 20 });
 
     const struck = screen.getByRole("article", { name: "STACK 2 · CLEANED · 10 RECORDS, voided" });
-    expect(within(struck).getByText("VOIDED")).toBeTruthy();
+    expect(within(struck).getByText("Voided")).toBeTruthy();
     expect(within(struck).queryByRole("button")).toBeNull();
     expect(screen.getAllByRole("button", { name: /^VOID / })).toHaveLength(2);
   });

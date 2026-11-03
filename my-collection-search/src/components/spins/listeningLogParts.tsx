@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Image, type BoxProps } from "@chakra-ui/react";
+import { Box, Image, type BoxProps } from "@chakra-ui/react";
+import { SourceTag } from "@/components/ui/RoleTags";
 import { FiDisc } from "react-icons/fi";
 import type { ListeningSessionMedium } from "./spinSummary";
 
@@ -14,19 +15,12 @@ export function mediumLabel(medium: ListeningSessionMedium): string {
   return medium.toUpperCase();
 }
 
-/** VINYL is a solid ink tag and DIGITAL an outlined one, so they differ without colour. */
+/** Vinyl is an ink-filled source tag and Digital an outlined one, so they differ without colour. */
 export function SpinMediumChip({ medium }: { medium: "vinyl" | "digital" }) {
   return (
-    <Badge
-      size="xs"
-      colorPalette="neutral"
-      variant={medium === "vinyl" ? "solid" : "outline"}
-      borderWidth="outline"
-      borderColor="border.ink"
-      flexShrink={0}
-    >
-      {mediumLabel(medium)}
-    </Badge>
+    <SourceTag size="xs" stroke={medium === "vinyl" ? "fill" : "solid"} flexShrink={0}>
+      {medium === "vinyl" ? "Vinyl" : "Digital"}
+    </SourceTag>
   );
 }
 

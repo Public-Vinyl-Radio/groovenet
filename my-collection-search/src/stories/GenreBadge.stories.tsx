@@ -78,7 +78,6 @@ export const MixedRowCompact: Story = {
         kind="track"
         scope="tracks"
         size="xs"
-        colorPalette="accent"
         items={[
           { label: "Psychedelic Cumbia", slug: "psychedelic-cumbia" },
           { label: "Feminist Anthem", slug: null },

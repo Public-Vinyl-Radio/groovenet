@@ -176,3 +176,33 @@ it("writes state and follows URL navigation", async () => {
     expect(jobs.query).toHaveBeenLastCalledWith({ limit: 50, offset: 0, state: "completed" }),
   );
 });
+
+it("tags each job's queue, name, downloader and state with badge roles (#963)", () => {
+  jobs.rows = [
+    {
+      id: "j2",
+      queue: "downloads",
+      name: "",
+      state: "delayed",
+      progress: 0,
+      attemptsMade: 0,
+      data: { track_id: "t2", friend_id: 1, downloader: "gamdl", apple_music_url: "x" },
+    },
+    {
+      id: "j3",
+      queue: "downloads",
+      name: "download",
+      state: "active",
+      progress: 10,
+      attemptsMade: 1,
+      data: { track_id: "t3", friend_id: 1 },
+    },
+  ] as import("@/types/jobs").JobInfo[];
+  renderWithProviders(<JobsPage />);
+  expect(screen.getByText("unknown-job")).toBeTruthy();
+  // A state the map doesn't name is a neutral status, written in sentence case.
+  expect(screen.getByText("Delayed")).toBeTruthy();
+  expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
+  expect(screen.getByText("gamdl")).toBeTruthy();
+  expect(screen.getByText("unknown")).toBeTruthy();
+});

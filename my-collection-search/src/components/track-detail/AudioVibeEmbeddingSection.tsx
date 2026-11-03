@@ -1,6 +1,7 @@
 "use client";
 
-import { Badge, Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { AudioVibeEmbeddingPreviewResponse } from "@/services/internalApi/tracks";
 
@@ -29,18 +30,12 @@ export default function AudioVibeEmbeddingSection({ query }: Props) {
       ) : query.data ? (
         <VStack align="stretch" gap={3}>
           <HStack gap={2} flexWrap="wrap">
-            <Badge colorPalette="accent">Audio Vibe</Badge>
+            <SourceTag stroke="dashed">Audio Vibe</SourceTag>
             {query.data.vibeData.bpm !== "unknown" && (
-              <Badge variant="outline">{query.data.vibeData.bpm} BPM</Badge>
+              <MetaTag>{query.data.vibeData.bpm} BPM</MetaTag>
             )}
-            {query.data.vibeData.key !== "unknown" && (
-              <Badge variant="outline">{query.data.vibeData.key}</Badge>
-            )}
-            {query.data.vibeData.energy && (
-              <Badge variant="outline" colorPalette="status.analysis">
-                {query.data.vibeData.energy} energy
-              </Badge>
-            )}
+            {query.data.vibeData.key !== "unknown" && <MetaTag>{query.data.vibeData.key}</MetaTag>}
+            {query.data.vibeData.energy && <MetaTag>{query.data.vibeData.energy} energy</MetaTag>}
           </HStack>
           <Box
             as="pre"

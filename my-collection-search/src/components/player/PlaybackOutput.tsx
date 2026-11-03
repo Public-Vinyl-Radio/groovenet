@@ -2,6 +2,7 @@
 
 import React from "react";
 import { chakra, Icon, Text } from "@chakra-ui/react";
+import { SourceTag } from "@/components/ui/RoleTags";
 import { FiChevronDown, FiSmartphone, FiVolume1 } from "react-icons/fi";
 import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
@@ -127,30 +128,17 @@ export function OutputButton() {
   );
 }
 
-/** The mini player's `ON LOUNGE` / `AIRPLAY` tag under the artist; nothing while on this device. */
+/** The mini player's "On Lounge" / "AirPlay" source tag under the artist; nothing while on this device. */
 export function OutputTag() {
   const output = usePlaybackOutputState();
   if (!output || output.kind === "device") return null;
-  const text = output.kind === "airplay" ? "AIRPLAY" : `ON ${output.label.toUpperCase()}`;
+  const text = output.kind === "airplay" ? "AirPlay" : `On ${output.label}`;
   return (
-    <Text
-      as="span"
-      data-testid="output-tag"
-      mt="2px"
-      display="inline-flex"
-      alignItems="center"
-      gap="4px"
-      maxW="100%"
-      fontFamily="mono"
-      fontSize="10px"
-      lineHeight="12px"
-      fontWeight="semibold"
-      letterSpacing="0.08em"
-    >
+    <SourceTag data-testid="output-tag" size="xs" mt="2px" title={text}>
       <Icon as={FiVolume1} boxSize="10px" flexShrink={0} />
       <Text as="span" truncate>
         {text}
       </Text>
-    </Text>
+    </SourceTag>
   );
 }

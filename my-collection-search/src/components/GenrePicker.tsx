@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Box, Combobox, Flex, Tag, Text, createListCollection } from "@chakra-ui/react";
+import { Box, Combobox, Flex, Text, createListCollection } from "@chakra-ui/react";
+import { FilterChip } from "@/components/ui/FilterChip";
 import type { TrackGenre } from "@/types/track";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { filterGenreOptions, type GenreOption } from "@/lib/genres/options";
@@ -81,24 +82,15 @@ export default function GenrePicker({
         {value.length > 0 && (
           <Flex gap={1.5} flexWrap="wrap" mb={2} data-testid="genre-picker-selected">
             {value.map((genre) => (
-              <Tag.Root key={genre.id} size="lg" variant="surface">
-                <Tag.Label>
-                  {genre.name}
-                  {genre.parent_name && (
-                    <Text as="span" color="fg.muted">
-                      {" "}
-                      · {genre.parent_name}
-                    </Text>
-                  )}
-                </Tag.Label>
-                <Tag.EndElement>
-                  <Tag.CloseTrigger
-                    aria-label={`Remove ${genre.name}`}
-                    onClick={() => remove(genre.id)}
-                    disabled={disabled}
-                  />
-                </Tag.EndElement>
-              </Tag.Root>
+              <FilterChip
+                key={genre.id}
+                label={genre.name}
+                active
+                title={genre.parent_name ? `${genre.name} · ${genre.parent_name}` : genre.name}
+                aria-label={`Remove ${genre.name}`}
+                onClick={() => remove(genre.id)}
+                disabled={disabled}
+              />
             ))}
           </Flex>
         )}

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Badge,
   Box,
   Button,
   Flex,
@@ -12,6 +11,7 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackAudioMetadataResponse } from "@/services/internalApi/tracks";
 
@@ -49,10 +49,10 @@ export default function AudioMetadataSection({
       ) : query.data ? (
         <VStack align="stretch" gap={3}>
           <HStack gap={2} flexWrap="wrap">
-            <Badge colorPalette={query.data.has_embedded_cover ? "status.success" : "neutral"}>
+            <StatusTag tone={query.data.has_embedded_cover ? "success" : "neutral"}>
               {query.data.has_embedded_cover ? "Embedded Cover Found" : "No Embedded Cover"}
-            </Badge>
-            <Badge variant="outline">{query.data.local_audio_url}</Badge>
+            </StatusTag>
+            <MetaTag variant="raw">{query.data.local_audio_url}</MetaTag>
           </HStack>
 
           {(trackAudioCoverUrl || query.data.audio_file_album_art_url) && (

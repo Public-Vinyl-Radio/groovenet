@@ -68,13 +68,29 @@ describe("GenrePicker", () => {
     fetchGenreTree.mockResolvedValue(TREE);
   });
 
-  it("shows the chosen genres with their parent, and the original tags as a hint", async () => {
+  it("shows the chosen genres as chips, the parent in the title, and the original tags as a hint", async () => {
     renderWithProviders(<Harness initial={[CUMBIA]} onChange={vi.fn()} />);
 
     const selected = screen.getByTestId("genre-picker-selected");
-    expect(within(selected).getByText("Cumbia")).toBeTruthy();
-    expect(within(selected).getByText(/· Latin/)).toBeTruthy();
+    const chip = within(selected).getByRole("button", { name: "Remove Cumbia" });
+    expect(chip.textContent).toBe("Cumbia");
+    // The parent genre is in the chip's title (#963).
+    expect(chip.getAttribute("title")).toBe("Cumbia · Latin");
     expect(screen.getByText("Original tags: Psychedelic Cumbia, Uplifting")).toBeTruthy();
+  });
+
+  it("titles a top-level genre with its own name", () => {
+    const latin: TrackGenre = {
+      id: "latin",
+      name: "Latin",
+      slug: "latin",
+      parent_id: null,
+      parent_name: null,
+    };
+    renderWithProviders(<Harness initial={[latin]} onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Remove Latin" }).getAttribute("title")).toBe(
+      "Latin",
+    );
   });
 
   it("adds a genre picked from the taxonomy and clears the search", async () => {

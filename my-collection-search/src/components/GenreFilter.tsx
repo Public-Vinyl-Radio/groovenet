@@ -1,17 +1,9 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import {
-  Combobox,
-  Flex,
-  Portal,
-  Switch,
-  Text,
-  chakra,
-  createListCollection,
-} from "@chakra-ui/react";
-import { LuX } from "react-icons/lu";
-import type { FilterChip } from "@/components/FilterChips";
+import { Combobox, Flex, Portal, Switch, Text, createListCollection } from "@chakra-ui/react";
+import type { FilterChip as FilterChipSpec } from "@/components/FilterChips";
+import { FilterChip } from "@/components/ui/FilterChip";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
 import { filterGenreOptions, genreFilterOptions, type GenreOption } from "@/lib/genres/options";
@@ -24,7 +16,7 @@ export function genreFilterChips(
   selected: string[],
   genres: GenreOption[],
   counts?: ReadonlyMap<string, number>,
-): FilterChip[] {
+): FilterChipSpec[] {
   const byslug = new Map(genres.map((genre) => [genre.slug, genre]));
   return selected.map((slug) => {
     const genre = byslug.get(slug);
@@ -47,7 +39,7 @@ export function genreSlugFromChipKey(key: string): string | null {
  * "+ Chicha, Porro, Digital Cumbia". Removing one excludes that id from the
  * widening (via `similarGenreIdFromChipKey`), rather than removing a seed.
  */
-export function addedGenreChips(added: GenreFilterRef[]): FilterChip[] {
+export function addedGenreChips(added: GenreFilterRef[]): FilterChipSpec[] {
   return added.map((genre) => ({
     key: `${SIMILAR_CHIP_PREFIX}${genre.id}`,
     label: genre.name,
@@ -73,7 +65,7 @@ export function includeSimilarChips(
   includeSimilar: boolean,
   selected: string[],
   added?: GenreFilterRef[],
-): FilterChip[] {
+): FilterChipSpec[] {
   if (!includeSimilar || selected.length === 0) return [];
   const label = added?.length === 0 ? "No similar genres" : "+ Similar genres";
   return [{ key: INCLUDE_SIMILAR_CHIP_KEY, label, active: true }];
@@ -104,29 +96,13 @@ export function SelectedGenreTags({
       {selected.map((slug) => {
         const name = names.get(slug) ?? slug;
         return (
-          <chakra.button
+          <FilterChip
             key={slug}
-            type="button"
+            label={name}
+            active
             aria-label={`Remove genre ${name}`}
             onClick={() => onRemove(slug)}
-            display="inline-flex"
-            alignItems="center"
-            gap="4px"
-            minH="32px"
-            pl="8px"
-            pr="4px"
-            borderWidth="outline"
-            borderColor="border.ink"
-            bg="bg"
-            fontFamily="label"
-            fontSize="11px"
-            fontWeight="semibold"
-            textTransform="uppercase"
-            _hover={{ bg: "bg.muted" }}
-          >
-            {name}
-            <LuX aria-hidden="true" size={12} strokeWidth={2.5} />
-          </chakra.button>
+          />
         );
       })}
     </Flex>

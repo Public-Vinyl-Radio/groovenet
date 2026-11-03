@@ -3,6 +3,7 @@
 import React from "react";
 import NextLink from "next/link";
 import { Box, Flex, Grid, Heading, Link, Text, useBreakpointValue } from "@chakra-ui/react";
+import { CountTag } from "@/components/ui/RoleTags";
 import { LuCheck } from "react-icons/lu";
 import { ATTENTION_ITEMS, isAllClear, type Attention } from "./attentionItems";
 
@@ -90,21 +91,16 @@ export default function NeedsAttention({
                       href={item.href}
                       aria-label={`${count === null ? "Unavailable count for" : count} ${item.label.toLowerCase()}, open ${item.destination}`}
                     >
-                      <Text
-                        as="span"
-                        fontFamily="mono"
-                        fontWeight="semibold"
-                        fontSize={phone ? "2xl" : "xs"}
-                        minW={phone ? undefined : "48px"}
-                        textAlign="center"
-                        px={phone ? 0 : 1}
-                        borderWidth={phone ? 0 : "outline"}
-                        borderColor="border.ink"
-                        bg={!phone && item.strong ? "fg" : undefined}
-                        color={!phone && item.strong ? "bg" : undefined}
-                      >
-                        {count ?? "—"}
-                      </Text>
+                      {phone ? (
+                        <Text as="span" fontFamily="mono" fontWeight="semibold" fontSize="2xl">
+                          {count ?? "—"}
+                        </Text>
+                      ) : (
+                        // The count column lines the labels up, so it keeps a fixed width.
+                        <CountTag variant={item.strong ? "strong" : "plain"} minW="48px">
+                          {count ?? "—"}
+                        </CountTag>
+                      )}
                       <Text as="span" flex="1" fontSize={phone ? "sm" : "md"}>
                         {phone ? item.phoneLabel : item.label}
                       </Text>

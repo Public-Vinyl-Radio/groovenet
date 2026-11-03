@@ -126,10 +126,34 @@ describe("GenreBadgeRow (#470)", () => {
     // The desktop row still shows every badge, unfolded.
     expect(screen.getAllByText("Merengue").length).toBeGreaterThan(0);
   });
+
+  it("shows a count after the label and in the title, keeping the link's name", () => {
+    renderWithProviders(
+      <>
+        <GenreBadge
+          item={{ label: "Latin", slug: "latin" }}
+          kind="discogs-genre"
+          scope="tracks"
+          count={12}
+        />
+        <GenreBadge
+          item={{ label: "Odd", slug: null }}
+          kind="discogs-style"
+          scope="tracks"
+          count={3}
+        />
+      </>,
+    );
+    const link = screen.getByRole("link", { name: "Search tracks in Latin" });
+    expect(link.textContent).toBe("Latin · 12");
+    expect(link.getAttribute("title")).toBe("Latin · 12");
+    const plain = screen.getByText("Odd · 3");
+    expect(plain.getAttribute("title")).toBe("Odd");
+  });
 });
 
 describe("GenreBadgeRow badge props (#722)", () => {
-  it("passes size, palette and variant to every badge and the +N badge", () => {
+  it("passes the size to every badge and the +N count", () => {
     renderWithProviders(
       <GenreBadgeRow
         items={[
@@ -140,8 +164,6 @@ describe("GenreBadgeRow badge props (#722)", () => {
         ]}
         kind="track"
         scope="tracks"
-        colorPalette="status.genre"
-        variant="subtle"
         size="xs"
         data-testid="row"
       />,

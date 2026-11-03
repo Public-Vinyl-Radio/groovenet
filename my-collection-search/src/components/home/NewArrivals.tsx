@@ -3,6 +3,7 @@
 import React from "react";
 import NextLink from "next/link";
 import { Box, Flex, Heading, Link, Text } from "@chakra-ui/react";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { HomeResponse } from "@/services/internalApi/home";
 import Artwork from "@/components/player/Artwork";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
@@ -28,30 +29,20 @@ type Props = {
   now?: Date;
 };
 
-const mono = { fontFamily: "mono", letterSpacing: "0.08em" } as const;
-
 function Chip({ rating, compact }: { rating: number | null; compact?: boolean }) {
   const chip = ratingChip(rating);
+  const size = compact ? "xs" : "sm";
+  if (!chip.rated) {
+    return (
+      <StatusTag tone="neutral" size={size} flexShrink={0}>
+        {chip.label}
+      </StatusTag>
+    );
+  }
   return (
-    <Text
-      as="span"
-      role={chip.rated ? "img" : undefined}
-      aria-label={chip.rated ? chip.description : undefined}
-      h={compact ? "18px" : "20px"}
-      px={compact ? "4px" : "6px"}
-      display="inline-flex"
-      alignItems="center"
-      borderWidth="outline"
-      borderColor="border.ink"
-      bg={chip.rated ? "transparent" : "fg"}
-      color={chip.rated ? "fg" : "bg"}
-      fontSize={compact ? "9px" : "10px"}
-      fontWeight="semibold"
-      flexShrink={0}
-      {...mono}
-    >
+    <MetaTag role="img" aria-label={chip.description} size={size} flexShrink={0}>
       {chip.label}
-    </Text>
+    </MetaTag>
   );
 }
 

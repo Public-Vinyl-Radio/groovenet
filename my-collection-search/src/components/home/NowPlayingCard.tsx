@@ -3,6 +3,7 @@
 import React from "react";
 import NextLink from "next/link";
 import { Box, chakra, Flex, Heading, Link, Text } from "@chakra-ui/react";
+import { SourceTag } from "@/components/ui/RoleTags";
 import { formatSeconds } from "@/lib/trackUtils";
 import Artwork from "@/components/player/Artwork";
 import {
@@ -104,21 +105,9 @@ export function NowPlayingCard({
           </Text>
         </Flex>
         <Flex as="span" display={{ base: "none", md: "flex" }} align="center" gap="10px">
-          <Text
-            as="span"
-            h="20px"
-            px="6px"
-            display="inline-flex"
-            alignItems="center"
-            borderWidth="outline"
-            borderColor="border.ink"
-            fontSize="10px"
-            fontWeight="semibold"
-            flexShrink={0}
-            {...mono}
-          >
-            {mediumLabel}
-          </Text>
+          <SourceTag stroke={medium === "vinyl" ? "fill" : "solid"} flexShrink={0}>
+            {medium === "vinyl" ? "Vinyl" : "Digital"}
+          </SourceTag>
           {progress && (
             <>
               <Box

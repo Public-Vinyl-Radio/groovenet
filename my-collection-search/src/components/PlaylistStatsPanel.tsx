@@ -2,9 +2,10 @@
 
 import React, { useMemo, useState } from "react";
 import NextLink from "next/link";
-import { Badge, Box, Card, Flex, Link, Progress, SimpleGrid, Text, VStack } from "@chakra-ui/react";
+import { Box, Card, Flex, Link, Progress, SimpleGrid, Text, VStack } from "@chakra-ui/react";
 
 import GenreBadge from "@/components/GenreBadge";
+import { MetaTag } from "@/components/ui/RoleTags";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import {
   countGenreBadges,
@@ -15,12 +16,6 @@ import {
   type GenreBadgeItem,
 } from "@/lib/genres/links";
 import { Track } from "@/types/track";
-
-/** Appends the count to a badge's label, the way the plain `Badge`s used to (#480). */
-const withCount = (item: GenreBadgeCount): GenreBadgeItem => ({
-  label: `${item.label} (${item.count})`,
-  slug: item.slug,
-});
 
 const top = (counts: Map<string, number>, limit = 4): Array<[string, number]> =>
   Array.from(counts.entries())
@@ -137,7 +132,8 @@ function CountedGenreBadges({
       {items.map((item) => (
         <GenreBadge
           key={`${kind}-${item.label}`}
-          item={withCount(item)}
+          item={item}
+          count={item.count}
           kind={kind}
           scope="tracks"
           size={size}
@@ -273,9 +269,9 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
                   )}
                   <Flex gap={1} wrap="wrap">
                     {playlistStats.topKeys.map(([name, count]) => (
-                      <Badge key={`key-${name}`} variant="subtle" fontSize="xs">
-                        {name} ({count})
-                      </Badge>
+                      <MetaTag key={`key-${name}`}>
+                        {name} · {count}
+                      </MetaTag>
                     ))}
                   </Flex>
                 </VStack>
@@ -389,9 +385,9 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
               <Flex gap={1} wrap="wrap">
                 {playlistStats.topKeys.length > 0 ? (
                   playlistStats.topKeys.map(([name, count]) => (
-                    <Badge key={`key-${name}`} variant="subtle">
-                      {name} ({count})
-                    </Badge>
+                    <MetaTag key={`key-${name}`}>
+                      {name} · {count}
+                    </MetaTag>
                   ))
                 ) : (
                   <Text fontSize="xs" color="fg.muted">

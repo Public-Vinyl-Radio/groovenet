@@ -73,10 +73,10 @@ describe("playback output entry points", () => {
     expect(screen.queryByTestId("output-tag")).toBeNull();
     state.target = local(true);
     rerender(<OutputTag />);
-    expect(screen.getByTestId("output-tag").textContent).toBe("AIRPLAY");
+    expect(screen.getByTestId("output-tag").textContent).toBe("AirPlay");
     state.target = server();
     rerender(<OutputTag />);
-    expect(screen.getByTestId("output-tag").textContent).toBe("ON LOUNGE");
+    expect(screen.getByTestId("output-tag").textContent).toBe("On Lounge");
   });
 
   it("hides without a playback-target provider", () => {

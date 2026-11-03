@@ -9,7 +9,6 @@ import {
   Text,
   Button,
   Alert,
-  Badge,
   VStack,
   HStack,
   List,
@@ -18,6 +17,7 @@ import {
   Menu,
   Flex,
 } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import { LuUpload, LuTrash2, LuCheck, LuX, LuRefreshCw, LuInfo } from "react-icons/lu";
 import { FiMoreVertical } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
@@ -170,12 +170,9 @@ export default function GamdlCookieManager() {
                     <LuCheck />
                   </Icon>
                   <Text fontWeight="medium">Cookie file active</Text>
-                  <Badge
-                    colorPalette={cookieInfo.isValid ? "status.success" : "status.missing"}
-                    variant="subtle"
-                  >
+                  <StatusTag tone={cookieInfo.isValid ? "success" : "missing"}>
                     {cookieInfo.isValid ? "Valid" : "Invalid"}
-                  </Badge>
+                  </StatusTag>
                 </HStack>
 
                 <Box fontSize="sm" color="fg.muted">

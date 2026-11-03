@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Button, Flex, Stack, Text, RatingGroup } from "@chakra-ui/react";
+import { Box, Button, Flex, Stack, Text, RatingGroup } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import LabeledInput from "@/components/form/LabeledInput";
 import LabeledTextarea from "@/components/form/LabeledTextarea";
 import GenrePicker from "@/components/GenrePicker";
@@ -52,9 +53,9 @@ export default function TrackEditFormFields({
             />
             {formatBpmConfidencePercent(values.bpm_confidence) !== null &&
               (isBpmConfidenceLow(values.bpm_confidence) ? (
-                <Badge colorPalette="status.analysis" variant="subtle" size="sm" mt={1}>
+                <StatusTag tone="analysis" size="sm" mt={1}>
                   Uncertain BPM — {formatBpmConfidencePercent(values.bpm_confidence)}% confident
-                </Badge>
+                </StatusTag>
               ) : (
                 <Text fontSize="xs" color="fg.muted" mt={1}>
                   {formatBpmConfidencePercent(values.bpm_confidence)}% confident
@@ -65,9 +66,9 @@ export default function TrackEditFormFields({
             <LabeledInput label="Key" name="key" value={values.key} onChange={onChange} />
             {formatKeyConfidencePercent(values.key_confidence) !== null &&
               (isKeyConfidenceLow(values.key_confidence) ? (
-                <Badge colorPalette="status.analysis" variant="subtle" size="sm" mt={1}>
+                <StatusTag tone="analysis" size="sm" mt={1}>
                   Uncertain key — {formatKeyConfidencePercent(values.key_confidence)}% confident
-                </Badge>
+                </StatusTag>
               ) : (
                 <Text fontSize="xs" color="fg.muted" mt={1}>
                   {formatKeyConfidencePercent(values.key_confidence)}% confident

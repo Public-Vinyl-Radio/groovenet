@@ -4,7 +4,8 @@ import { artworkOf } from "@/components/player/trackMeta";
 
 import React, { useEffect, useState } from "react";
 import NextLink from "next/link";
-import { Badge, Box, chakra, Flex, Image, Link, Text } from "@chakra-ui/react";
+import { Box, chakra, Flex, Image, Link, Text } from "@chakra-ui/react";
+import { CountTag, StatusTag } from "@/components/ui/RoleTags";
 import AlbumLink from "@/components/AlbumLink";
 import ArtistLink from "@/components/ArtistLink";
 import { GenreBadgeList } from "@/components/GenreBadge";
@@ -53,15 +54,14 @@ const trackHref = (t: Track) =>
 /** The compatibility tag; its text carries the meaning, so colour is never the only cue. */
 function MixTag({ relation }: { relation: KeyRelation }) {
   return (
-    <Badge
+    <StatusTag
       size="sm"
-      variant="subtle"
-      colorPalette={relation === "clash" ? "neutral" : "status.success"}
+      tone={relation === "clash" ? "neutral" : "success"}
       whiteSpace="nowrap"
       flexShrink={0}
     >
       {KEY_RELATION_LABEL[relation]}
-    </Badge>
+    </StatusTag>
   );
 }
 
@@ -120,17 +120,11 @@ export function GenreCell({ track }: { track: Track }) {
         },
       }}
     >
-      <GenreBadgeList
-        items={items.slice(0, 1)}
-        kind={kind}
-        scope="tracks"
-        colorPalette="status.genre"
-        variant="subtle"
-      />
+      <GenreBadgeList items={items.slice(0, 1)} kind={kind} scope="tracks" />
       {overflow > 0 && (
-        <Badge data-overflow="" size="sm" variant="subtle" colorPalette="neutral" flexShrink={0}>
+        <CountTag data-overflow="" size="sm" flexShrink={0}>
           +{overflow}
-        </Badge>
+        </CountTag>
       )}
     </Flex>
   );

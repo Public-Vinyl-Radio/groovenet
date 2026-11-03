@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, IconButton, Menu } from "@chakra-ui/react";
+import { IconButton, Menu } from "@chakra-ui/react";
+import { CountTag } from "@/components/ui/RoleTags";
 import { FiMoreVertical } from "react-icons/fi";
 import { LuListChecks, LuSlidersHorizontal } from "react-icons/lu";
 
@@ -37,16 +38,9 @@ export default function TrackSearchMenu({
         >
           <FiMoreVertical />
           {activeCount > 0 && (
-            <Badge
-              size="xs"
-              colorPalette="accent"
-              variant="solid"
-              position="absolute"
-              top="2px"
-              right="2px"
-            >
+            <CountTag variant="dot" size="xs" position="absolute" top="2px" right="2px">
               {activeCount}
-            </Badge>
+            </CountTag>
           )}
         </IconButton>
       </Menu.Trigger>

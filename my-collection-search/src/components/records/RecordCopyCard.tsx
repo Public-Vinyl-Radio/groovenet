@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Button, Flex, HStack, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Stack, Text } from "@chakra-ui/react";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { RecordCopyListItem } from "@/services/internalApi/recordCare";
 import RecordActionHistory from "./RecordActionHistory";
 import RecordCopyMenu from "./RecordCopyMenu";
@@ -42,23 +43,23 @@ export default function RecordCopyCard({
             <Text fontWeight="semibold" fontSize="sm">
               {name}
             </Text>
-            {copy.is_default && hasSiblings && (
-              <Badge size="sm" variant="outline">
-                Default
-              </Badge>
+            {copy.is_default && hasSiblings && <MetaTag size="sm">Default</MetaTag>}
+            {copy.inner_sleeve_type ? (
+              <MetaTag size="sm">{sleeveLabel(copy.inner_sleeve_type)}</MetaTag>
+            ) : (
+              <StatusTag tone="neutral" size="sm">
+                Sleeve unknown
+              </StatusTag>
             )}
-            <Badge size="sm" variant="subtle" colorPalette="neutral">
-              {sleeveLabel(copy.inner_sleeve_type)}
-            </Badge>
             {state === "never_cleaned" && (
-              <Badge size="sm" colorPalette="status.missing">
+              <StatusTag tone="missing" size="sm">
                 Never cleaned
-              </Badge>
+              </StatusTag>
             )}
             {state === "overdue" && (
-              <Badge size="sm" colorPalette="status.missing">
+              <StatusTag tone="missing" size="sm">
                 Overdue
-              </Badge>
+              </StatusTag>
             )}
           </HStack>
           {state !== "never_cleaned" && (

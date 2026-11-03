@@ -95,8 +95,8 @@ describe("Play on picker", () => {
       "checked",
       true,
     );
-    expect(within(dialog).getByText("LIVE")).toBeTruthy();
-    expect(within(dialog).getByText("IDLE")).toBeTruthy();
+    expect(within(dialog).getByText("Live")).toBeTruthy();
+    expect(within(dialog).getByText("Idle")).toBeTruthy();
     expect(
       within(dialog).getByText("Playing here never stops a server. It keeps playing its queue."),
     ).toBeTruthy();

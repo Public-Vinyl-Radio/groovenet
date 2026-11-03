@@ -4,7 +4,6 @@ import React from "react";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
 import {
-  Badge,
   Box,
   Button,
   Flex,
@@ -15,6 +14,7 @@ import {
   Text,
   useBreakpointValue,
 } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import AlbumResult from "@/components/AlbumResult";
 import TrackResultStore from "@/components/TrackResultStore";
 import GenreBpmSpread from "@/components/genres/GenreBpmSpread";
@@ -117,13 +117,9 @@ function GenreContent({
       />
       <Stack gap={5}>
         {genre.source === "custom" && (
-          <Badge
-            alignSelf="start"
-            variant="outline"
-            title="Added to the taxonomy; not a Discogs genre or style"
-          >
+          <MetaTag alignSelf="start" title="Added to the taxonomy; not a Discogs genre or style">
             Custom
-          </Badge>
+          </MetaTag>
         )}
         <Grid
           as="dl"

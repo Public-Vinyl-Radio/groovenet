@@ -50,10 +50,10 @@ describe("ChoresCareLog", () => {
     renderLog();
     const cli = entry(/^STACK 1 · CLEANED \+ SLEEVE CHANGE · 10 RECORDS$/);
     const badge = within(cli).getByTestId("care-log-source");
-    expect(badge.textContent).toBe("VIA CLI");
+    expect(badge.textContent).toBe("Via CLI");
     expect(badge.getAttribute("data-border")).toBe("solid");
     const mcp = entry(/^INSPECTED · 1 RECORD$/);
-    expect(within(mcp).getByTestId("care-log-source").textContent).toBe("VIA MCP");
+    expect(within(mcp).getByTestId("care-log-source").textContent).toBe("Via MCP");
   });
 
   it("shows METHOD for a cleaning, SLEEVE for a sleeve change, and NOTE when present", () => {
@@ -150,7 +150,7 @@ describe("CareLogEntryCard", () => {
       />,
     );
     const card = screen.getByRole("article", { name: /, voided$/ });
-    expect(within(card).getByText("VOIDED")).toBeTruthy();
+    expect(within(card).getByText("Voided")).toBeTruthy();
     expect(within(card).getByText("TODAY · 10:09 AM")).toBeTruthy();
     expect(within(card).getByText("STACK 1 · CLEANED · 10 RECORDS")).toBeTruthy();
   });

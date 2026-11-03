@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Spinner,
   Text,
-  Badge,
   Box,
   SimpleGrid,
   Card,
@@ -21,6 +20,7 @@ import {
   Tabs,
   Separator,
 } from "@chakra-ui/react";
+import { CountTag, MetaTag, SourceTag, StatusTag, type StatusTone } from "@/components/ui/RoleTags";
 import { LuInfo, LuRefreshCw, LuTrash2 } from "react-icons/lu";
 import { useJobsQuery } from "@/hooks/useJobsQuery";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -95,19 +95,16 @@ function JobsPageContent() {
   const totalPages = Math.max(1, Math.ceil(totalFiltered / limit));
 
   const getStateBadge = (state: string) => {
-    const colorPalette =
-      {
-        waiting: "accent",
-        active: "status.analysis",
-        completed: "status.success",
-        failed: "status.missing",
-      }[state] || "neutral";
+    const tone =
+      (
+        {
+          active: "analysis",
+          completed: "success",
+          failed: "missing",
+        } as Record<string, StatusTone>
+      )[state] ?? "neutral";
 
-    return (
-      <Badge colorPalette={colorPalette} variant="subtle">
-        {state.charAt(0).toUpperCase() + state.slice(1)}
-      </Badge>
-    );
+    return <StatusTag tone={tone}>{state.charAt(0).toUpperCase() + state.slice(1)}</StatusTag>;
   };
 
   const getDownloaderInfo = (job: { name?: string; data?: Record<string, unknown> }) => {
@@ -121,7 +118,7 @@ function JobsPageContent() {
       return {
         name: "analyze-local",
         source: "Local Audio",
-        color: "accent" as const,
+        stroke: "dotted" as const,
         quality: "essentia",
       };
     }
@@ -129,7 +126,7 @@ function JobsPageContent() {
       return {
         name: "fix-duration",
         source: "Local Audio",
-        color: "accent" as const,
+        stroke: "dotted" as const,
         quality: "ffprobe",
       };
     }
@@ -137,7 +134,7 @@ function JobsPageContent() {
       return {
         name: "cover-art-album",
         source: "Embedded Art",
-        color: "status.genre" as const,
+        stroke: "dotted" as const,
         quality: "album",
       };
     }
@@ -145,7 +142,7 @@ function JobsPageContent() {
       return {
         name: "cover-art-track",
         source: "Embedded Art",
-        color: "status.genre" as const,
+        stroke: "dotted" as const,
         quality: "track",
       };
     }
@@ -154,7 +151,7 @@ function JobsPageContent() {
       return {
         name: "gamdl",
         source: "Apple Music",
-        color: "status.genre" as const,
+        stroke: "solid" as const,
         quality: String(data.quality || "best"),
       };
     } else if (
@@ -164,7 +161,7 @@ function JobsPageContent() {
       return {
         name: "yt-dlp",
         source: "YouTube",
-        color: "status.missing" as const,
+        stroke: "dashed" as const,
         quality: "audio",
       };
     } else if (
@@ -174,28 +171,28 @@ function JobsPageContent() {
       return {
         name: "yt-dlp",
         source: "SoundCloud",
-        color: "status.analysis" as const,
+        stroke: "dashed" as const,
         quality: "audio",
       };
     } else if (data.apple_music_url) {
       return {
         name: "gamdl",
         source: "Apple Music",
-        color: "status.genre" as const,
+        stroke: "solid" as const,
         quality: String(data.quality || "best"),
       };
     } else if (data.youtube_url) {
       return {
         name: "yt-dlp",
         source: "YouTube",
-        color: "status.missing" as const,
+        stroke: "dashed" as const,
         quality: "audio",
       };
     } else if (data.soundcloud_url) {
       return {
         name: "yt-dlp",
         source: "SoundCloud",
-        color: "status.analysis" as const,
+        stroke: "dashed" as const,
         quality: "audio",
       };
     }
@@ -203,7 +200,7 @@ function JobsPageContent() {
     return {
       name: "unknown",
       source: "Unknown",
-      color: "neutral" as const,
+      stroke: "double" as const,
       quality: "unknown",
     };
   };
@@ -469,11 +466,9 @@ function JobsPageContent() {
                   footer={
                     <Stack gap={2} pt={1}>
                       <Flex gap={2} flexWrap="wrap" alignItems="center">
-                        <Badge variant="outline">{job.queue}</Badge>
-                        <Badge variant="outline">{job.name || "unknown-job"}</Badge>
-                        <Badge colorPalette={downloaderInfo.color} variant="solid" size="sm">
-                          {downloaderInfo.name}
-                        </Badge>
+                        <MetaTag>{job.queue}</MetaTag>
+                        <MetaTag>{job.name || "unknown-job"}</MetaTag>
+                        <SourceTag stroke={downloaderInfo.stroke}>{downloaderInfo.name}</SourceTag>
                         <Text fontSize="sm" color="fg.muted">
                           {downloaderInfo.source}
                           {downloaderInfo.quality !== "unknown"
@@ -572,9 +567,9 @@ function JobsPageContent() {
                   <Tabs.Trigger value="logs">
                     Logs
                     {logsData && logsData.length > 0 && (
-                      <Badge ml={1} size="xs" variant="subtle">
+                      <CountTag ml={1} size="xs">
                         {logsData.length}
-                      </Badge>
+                      </CountTag>
                     )}
                   </Tabs.Trigger>
                 </Tabs.List>

@@ -3,7 +3,6 @@
 import React from "react";
 import NextLink from "next/link";
 import {
-  Badge,
   Box,
   Button,
   Card,
@@ -18,6 +17,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { LuRefreshCw } from "react-icons/lu";
 import {
   useEmbeddingQueueQuery,
@@ -146,9 +146,7 @@ export default function EmbeddingQueueSection({
         <Card.Root borderColor="border.error" borderWidth="1px">
           <Card.Body py={3}>
             <Flex gap={2} align="center" flexWrap="wrap">
-              <Badge colorPalette="status.missing" variant="solid">
-                Paused
-              </Badge>
+              <StatusTag tone="missing">Paused</StatusTag>
               <Text fontSize="sm" color="fg.error">
                 {data.pause_reason}
               </Text>
@@ -287,9 +285,7 @@ export default function EmbeddingQueueSection({
                         </Link>
                       </Table.Cell>
                       <Table.Cell>
-                        <Badge variant="outline" size="sm">
-                          {KIND_LABEL[job.kind] ?? job.kind}
-                        </Badge>
+                        <MetaTag size="sm">{KIND_LABEL[job.kind] ?? job.kind}</MetaTag>
                       </Table.Cell>
                       <Table.Cell>{job.attempts}</Table.Cell>
                       <Table.Cell

@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Badge, Box, Button, Flex, HStack, Image, Link, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Image, Link, Stack, Text } from "@chakra-ui/react";
+import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
 import { FiChevronDown, FiChevronUp, FiDisc } from "react-icons/fi";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
@@ -88,19 +89,11 @@ export default function SpinRow({ item, showAlbum = false, timeOnly = false }: P
         )}
         <HStack gap={1.5} wrap="wrap" align="center">
           <Tooltip content={provenance.description} showArrow>
-            <Badge
-              size="xs"
-              variant="subtle"
-              colorPalette={provenance.automatic ? "status.genre" : "neutral"}
-            >
+            <SourceTag stroke={provenance.automatic ? "solid" : "dashed"} size="xs">
               {provenance.label}
-            </Badge>
+            </SourceTag>
           </Tooltip>
-          {item.session.context_type && (
-            <Badge size="xs" variant="subtle" colorPalette="neutral">
-              {item.session.context_type}
-            </Badge>
-          )}
+          {item.session.context_type && <MetaTag size="xs">{item.session.context_type}</MetaTag>}
           <Text fontSize="xs" color="fg.muted">
             {formatPlayedAt(item.session.played_at, timeOnly, timeZone)}
           </Text>

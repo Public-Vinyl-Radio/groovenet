@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge, Box, Flex, Heading, Link, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
+import { Box, Flex, Heading, Link, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
+import { StatusTag, type StatusTone } from "@/components/ui/RoleTags";
 import Image from "next/image";
 
 import { useStatusInfo, useUpdateInfo, useVersionInfo } from "@/hooks/useSystemInfo";
@@ -18,12 +19,12 @@ const TECH_STACK = [
   "Redis-backed download worker (gamdl)",
 ];
 
-function statusColor(status: ServiceStatus): string {
+function statusColor(status: ServiceStatus): StatusTone {
   switch (status) {
     case "up":
-      return "status.success";
+      return "success";
     case "down":
-      return "status.missing";
+      return "missing";
     default:
       return "neutral";
   }
@@ -92,9 +93,7 @@ export default function AboutSection(): React.JSX.Element {
             flexWrap="wrap"
           >
             <Flex align="center" gap={3}>
-              <Badge colorPalette="status.success" variant="solid">
-                Update available
-              </Badge>
+              <StatusTag tone="success">Update available</StatusTag>
               <Text fontWeight="semibold" fontSize="sm">
                 {update.current} → {update.latest}
               </Text>
@@ -191,9 +190,7 @@ export default function AboutSection(): React.JSX.Element {
                         {svc.latencyMs}ms
                       </Text>
                     ) : null}
-                    <Badge colorPalette={statusColor(svc.status)} variant="subtle">
-                      {svc.status}
-                    </Badge>
+                    <StatusTag tone={statusColor(svc.status)}>{svc.status}</StatusTag>
                   </Flex>
                 </Flex>
                 {svc.detail ? (

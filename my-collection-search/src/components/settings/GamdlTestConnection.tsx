@@ -12,10 +12,10 @@ import {
   VStack,
   HStack,
   List,
-  Badge,
   Menu,
   Flex,
 } from "@chakra-ui/react";
+import { StatusTag, type StatusTone } from "@/components/ui/RoleTags";
 import { LuPlay, LuCheck, LuX, LuClock } from "react-icons/lu";
 import { FiMoreVertical } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
@@ -80,9 +80,9 @@ export default function GamdlTestConnection() {
     );
   };
 
-  const getStatusColor = (status?: boolean) => {
+  const getStatusColor = (status?: boolean): StatusTone => {
     if (status === undefined) return "neutral";
-    return status ? "status.success" : "status.missing";
+    return status ? "success" : "missing";
   };
 
   return (
@@ -133,12 +133,9 @@ export default function GamdlTestConnection() {
                         <HStack>
                           {getStatusIcon(lastResult.details.gamdl_available)}
                           <Text>Gamdl executable available</Text>
-                          <Badge
-                            colorPalette={getStatusColor(lastResult.details.gamdl_available)}
-                            variant="subtle"
-                          >
+                          <StatusTag tone={getStatusColor(lastResult.details.gamdl_available)}>
                             {lastResult.details.gamdl_available ? "Found" : "Missing"}
-                          </Badge>
+                          </StatusTag>
                         </HStack>
                       </List.Item>
 
@@ -146,12 +143,9 @@ export default function GamdlTestConnection() {
                         <HStack>
                           {getStatusIcon(lastResult.details.cookie_file_exists)}
                           <Text>Cookie file exists</Text>
-                          <Badge
-                            colorPalette={getStatusColor(lastResult.details.cookie_file_exists)}
-                            variant="subtle"
-                          >
+                          <StatusTag tone={getStatusColor(lastResult.details.cookie_file_exists)}>
                             {lastResult.details.cookie_file_exists ? "Found" : "Missing"}
-                          </Badge>
+                          </StatusTag>
                         </HStack>
                       </List.Item>
 
@@ -160,12 +154,9 @@ export default function GamdlTestConnection() {
                           <HStack>
                             {getStatusIcon(lastResult.details.cookie_file_valid)}
                             <Text>Cookie file valid</Text>
-                            <Badge
-                              colorPalette={getStatusColor(lastResult.details.cookie_file_valid)}
-                              variant="subtle"
-                            >
+                            <StatusTag tone={getStatusColor(lastResult.details.cookie_file_valid)}>
                               {lastResult.details.cookie_file_valid ? "Valid" : "Invalid"}
-                            </Badge>
+                            </StatusTag>
                           </HStack>
                         </List.Item>
                       )}
@@ -175,14 +166,11 @@ export default function GamdlTestConnection() {
                           <HStack>
                             {getStatusIcon(lastResult.details.test_download_success)}
                             <Text>Test download</Text>
-                            <Badge
-                              colorPalette={getStatusColor(
-                                lastResult.details.test_download_success,
-                              )}
-                              variant="subtle"
+                            <StatusTag
+                              tone={getStatusColor(lastResult.details.test_download_success)}
                             >
                               {lastResult.details.test_download_success ? "Success" : "Failed"}
-                            </Badge>
+                            </StatusTag>
                           </HStack>
                         </List.Item>
                       )}

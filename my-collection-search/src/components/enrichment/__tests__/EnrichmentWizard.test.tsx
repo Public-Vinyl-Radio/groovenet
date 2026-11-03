@@ -65,3 +65,11 @@ describe("EnrichmentWizard header", () => {
     expect(screen.getByRole("button", { name: "Back to tracks" })).toBeTruthy();
   });
 });
+
+it("counts saved and skipped tracks while enriching (#963)", async () => {
+  const { user } = renderWithProviders(<EnrichmentWizard />);
+  await user.click(screen.getByRole("button", { name: /Start Enrichment/ }));
+  useEnrichmentStore.setState({ results: { "z:1": { skipped: true } } });
+  expect(await screen.findByText("0 saved")).toBeTruthy();
+  expect(screen.getByText("1 skipped")).toBeTruthy();
+});

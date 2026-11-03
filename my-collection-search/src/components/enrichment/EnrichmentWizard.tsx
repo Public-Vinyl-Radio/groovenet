@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Box, Flex, Text, Button, Progress, Separator, Badge } from "@chakra-ui/react";
+import { Box, Flex, Text, Button, Progress, Separator } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import { Checkbox } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { FiX } from "react-icons/fi";
@@ -295,14 +296,8 @@ export default function EnrichmentWizard() {
         {/* Header */}
         <Flex align="center" justify="space-between" mb={2}>
           <Flex align="center" gap={3}>
-            <Badge size="sm" colorPalette="accent">
-              {savedCount} saved
-            </Badge>
-            {skippedCount > 0 && (
-              <Badge size="sm" variant="outline">
-                {skippedCount} skipped
-              </Badge>
-            )}
+            <MetaTag size="sm">{savedCount} saved</MetaTag>
+            {skippedCount > 0 && <MetaTag size="sm">{skippedCount} skipped</MetaTag>}
           </Flex>
           <Button
             size="xs"

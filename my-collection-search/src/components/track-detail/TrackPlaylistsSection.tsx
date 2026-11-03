@@ -1,7 +1,8 @@
 "use client";
 
 import NextLink from "next/link";
-import { Badge, Box, Heading, HStack, Link, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, HStack, Link, Text, VStack } from "@chakra-ui/react";
+import { MetaTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackPlaylistMembership } from "@/services/internalApi/tracks";
 
@@ -33,7 +34,7 @@ export default function TrackPlaylistsSection({ query }: Props) {
               <Link as={NextLink} href={`/playlists/${playlist.id}`} fontWeight="medium">
                 {playlist.name}
               </Link>
-              <Badge colorPalette="accent">Position {playlist.position}</Badge>
+              <MetaTag>Position {playlist.position}</MetaTag>
             </HStack>
           ))}
         </VStack>

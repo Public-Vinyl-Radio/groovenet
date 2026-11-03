@@ -3,6 +3,7 @@
 import React from "react";
 import NextLink from "next/link";
 import { Box, Flex, Grid, HStack, Link, Stack, Tabs, Text } from "@chakra-ui/react";
+import { CountTag } from "@/components/ui/RoleTags";
 import { FiChevronRight } from "react-icons/fi";
 import { artistHref } from "@/components/ArtistLink";
 import type { SpinRecapResponse } from "@/services/internalApi/spins";
@@ -354,23 +355,9 @@ function TopList({ rows, label }: { rows: TopRow[]; label: string }) {
               href={row.href}
               aria-label={`${index + 1}. ${[row.name, row.sub].filter(Boolean).join(", ")}, ${row.spins} spins`}
             >
-              <Flex
-                as="span"
-                w="26px"
-                h="22px"
-                flexShrink={0}
-                align="center"
-                justify="center"
-                borderWidth="outline"
-                borderColor="border.ink"
-                bg={index === 0 ? "fg" : undefined}
-                color={index === 0 ? "bg" : "fg"}
-                fontFamily="mono"
-                fontSize="11px"
-                fontWeight="semibold"
-              >
+              <CountTag variant={index === 0 ? "strong" : "plain"} flexShrink={0}>
                 {index + 1}
-              </Flex>
+              </CountTag>
               {row.cover !== undefined && (
                 <SpinArt src={row.cover} boxSize={{ base: "44px", md: "40px" }} />
               )}
