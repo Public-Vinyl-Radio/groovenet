@@ -37,6 +37,7 @@ export default function SpinMonthSwitcher({
       w={stretch ? { base: "full", md: "auto" } : undefined}
       borderWidth={framed ? "outline" : 0}
       borderRadius="md"
+      overflow="hidden"
       borderColor="border.ink"
       data-testid={short ? "month-switcher-short" : "month-switcher"}
     >

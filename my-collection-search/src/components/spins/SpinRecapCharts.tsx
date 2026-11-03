@@ -107,6 +107,7 @@ export function RecapSplit({ month, recap }: { month: string; recap: Recap }) {
                 borderRadius="md"
                 borderBottomWidth={0}
                 borderColor="border.ink"
+                overflow="hidden"
               >
                 <Box flex={week.digital} style={{ background: DIGITAL_HATCH }} />
                 <Box flex={week.vinyl} bg="fg" />
@@ -391,6 +392,8 @@ function TopList({ rows, label }: { rows: TopRow[]; label: string }) {
                   display="block"
                   h="6px"
                   borderWidth="rule"
+                  borderRadius="md"
+                  overflow="hidden"
                   borderColor="border.ink"
                 >
                   <Box as="span" display="block" h="full" w={`${widths[index]}%`} bg="fg" />
@@ -416,6 +419,9 @@ function TopList({ rows, label }: { rows: TopRow[]; label: string }) {
 
 const topFrame = {
   borderWidth: "outline",
+  borderRadius: "md",
+  // Headings and rows inside are square; the frame's radius clips them.
+  overflow: "hidden",
   borderColor: "border.ink",
   boxShadow: "md",
   mr: "6px",

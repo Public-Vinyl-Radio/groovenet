@@ -49,6 +49,7 @@ export default function SpinRecapStrip({ month, current, recap }: Props) {
       aria-labelledby="spin-recap-heading"
       borderWidth={{ base: "outline", md: 0 }}
       borderRadius="md"
+      overflow="hidden"
       borderColor="border.ink"
       boxShadow={{ base: "md", md: "none" }}
       mr={{ base: "6px", md: 0 }}
