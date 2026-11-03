@@ -82,6 +82,8 @@ function GenreRows({ entries, depth = 0 }: { entries: CountedGenreNode[]; depth?
           minH="44px"
           gap={3}
           ps={depth * 4}
+          // A ruled row: Link rounds by default, which would curve the rule.
+          borderRadius="0"
           borderBottomWidth="rule"
           borderColor="border"
         >
