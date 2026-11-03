@@ -30,6 +30,9 @@ export const queryKeys = {
     pageSize: number,
   ) => ["genres", "results", slug, friendId ?? null, view, pageSize] as const,
   friends: () => ["friends"] as const,
+  // Under "friends", so adding or removing a friend refreshes it too.
+  libraries: () => ["friends", "libraries"] as const,
+  discogsUserLookup: (username: string) => ["discogs", "user-lookup", username] as const,
   backups: () => ["backups"] as const,
   embeddingQueue: () => ["embeddings", "queue"] as const,
   spins: (args: {

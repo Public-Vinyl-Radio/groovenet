@@ -7,6 +7,18 @@ export class FriendRepository {
     return result.rows;
   }
 
+  /** Every library with the albums it holds in Postgres, newest first like `listFriends`. */
+  async listFriendsWithReleaseCounts(): Promise<Array<Friend & { release_count: number }>> {
+    const result = await dbQuery<Friend & { release_count: number }>(
+      `SELECT f.id, f.username, COUNT(a.release_id)::int AS release_count
+       FROM friends f
+       LEFT JOIN albums a ON a.friend_id = f.id
+       GROUP BY f.id, f.username, f.added_at
+       ORDER BY f.added_at DESC`,
+    );
+    return result.rows;
+  }
+
   async findById(id: number): Promise<Friend | null> {
     const result = await dbQuery<Friend>("SELECT id, username FROM friends WHERE id = $1 LIMIT 1", [
       id,

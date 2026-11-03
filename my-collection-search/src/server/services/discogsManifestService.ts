@@ -30,6 +30,24 @@ export function getManifestReleaseIds(username: string): string[] {
     return [];
   }
 }
+
+/**
+ * When a sync last wrote this user's manifest: its `lastSynced`, or the file's
+ * modification time for a manifest without one. Null when there is no manifest.
+ */
+export function getManifestLastSynced(username: string): string | null {
+  const manifestPath = getManifestPath(username);
+  if (!fs.existsSync(manifestPath)) return null;
+  try {
+    const { lastSynced } = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    if (typeof lastSynced === "string" && !Number.isNaN(Date.parse(lastSynced))) {
+      return new Date(lastSynced).toISOString();
+    }
+  } catch {
+    // An unreadable manifest still records when it was written.
+  }
+  return fs.statSync(manifestPath).mtime.toISOString();
+}
 import fs from "fs";
 import path from "path";
 import { DiscogsRelease, DiscogsTrack, ProcessedTrack } from "@/types/track";

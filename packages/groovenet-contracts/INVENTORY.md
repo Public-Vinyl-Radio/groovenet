@@ -74,6 +74,7 @@ is closed, so they need a follow-up issue as their owner.
 | GET | `/api/detections/recent` | vinyl ingest & fingerprints | #552 |  |
 | GET | `/api/discogs` | providers & Discogs | #552 |  |
 | POST | `/api/discogs/delete-releases` | providers & Discogs | #552 |  |
+| GET | `/api/discogs/users/{username}` | providers & Discogs | #552 |  |
 | GET | `/api/discogs/verify-manifests` | providers & Discogs | #552 |  |
 | POST | `/api/discogs/verify-manifests` | providers & Discogs | #552 |  |
 | GET | `/api/docs` | API docs | exception | Swagger UI HTML page, not a resource. |
@@ -90,6 +91,7 @@ is closed, so they need a follow-up issue as their owner.
 | DELETE | `/api/friends` | friends & library settings | exception | Plain-text progress stream; the `username` query is validated in the app. |
 | GET | `/api/friends` | friends & library settings | contracts |  |
 | POST | `/api/friends` | friends & library settings | contracts |  |
+| GET | `/api/friends/libraries` | friends & library settings | #552 | Settings-only view with stats; app-local schema. |
 | GET | `/api/genres` | genres | contracts |  |
 | POST | `/api/genres` | genres | contracts |  |
 | GET | `/api/genres/{id}` | genres | contracts |  |

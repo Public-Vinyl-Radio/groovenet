@@ -57,6 +57,9 @@ const CONTRACTED: Array<[method: string, path: string]> = [
   ["post", "/api/albums/{releaseId}/artwork/match"],
   ["post", "/api/albums/artwork/backfill"],
   ["get", "/api/albums/artwork/review"],
+  // Settings → Libraries (#969).
+  ["get", "/api/friends/libraries"],
+  ["get", "/api/discogs/users/{username}"],
 ];
 
 describe("OpenAPI contract coverage", () => {

@@ -39,3 +39,25 @@ export async function getReleaseDetails(releaseId: string): Promise<DiscogsRelea
     headers: { Authorization: `Discogs token=${DISCOGS_USER_TOKEN}` },
   });
 }
+
+export type DiscogsUserLookup = { found: true; releaseCount: number } | { found: false };
+
+/**
+ * Whether a Discogs user exists and how many releases their whole collection
+ * ("All" folder) holds. One request, made only when someone asks. A 404 is an
+ * unknown user and a 403 a private collection: both are "not found", because
+ * neither can be synced. Any other failure throws.
+ */
+export async function lookupDiscogsUser(username: string): Promise<DiscogsUserLookup> {
+  const url = `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0`;
+  try {
+    const folder = await http<{ count?: number }>(url, {
+      headers: { Authorization: `Discogs token=${DISCOGS_USER_TOKEN}` },
+    });
+    return { found: true, releaseCount: folder.count ?? 0 };
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status === 404 || status === 403) return { found: false };
+    throw error;
+  }
+}

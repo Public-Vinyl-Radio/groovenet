@@ -561,6 +561,40 @@ export const friendDeleteQuerySchema = z.object({
   username: z.string().min(1),
 });
 
+/** A library on Settings → Libraries: a friends row with what it holds and when it last synced. */
+export const libraryWithStatsSchema = friendSchema.extend({
+  /** The server's own Discogs account (`DISCOGS_USERNAME`), which can't be removed. */
+  is_account: z.boolean(),
+  /** Albums in Postgres for this library. */
+  release_count: z.number().int().nonnegative(),
+  /** When its manifest was last written by a sync; null before the first sync. */
+  last_synced_at: z.string().nullable(),
+});
+
+export const librariesListResponseSchema = z.object({
+  results: z.array(libraryWithStatsSchema),
+  /** `DISCOGS_USERNAME`, or null when the server has none. */
+  account_username: z.string().nullable(),
+});
+
+// Discogs usernames are letters, digits, dots, hyphens and underscores.
+export const discogsUsernameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .regex(/^[A-Za-z0-9._-]+$/, "Invalid Discogs username");
+
+/** Whether a Discogs user exists, and how many releases their collection holds. */
+export const discogsUserLookupResponseSchema = z.discriminatedUnion("found", [
+  z.object({
+    username: z.string(),
+    found: z.literal(true),
+    release_count: z.number().int().nonnegative(),
+  }),
+  z.object({ username: z.string(), found: z.literal(false) }),
+]);
+
 export const playlistTrackRefSchema = sharedPlaylistTrackRefSchema;
 export const playlistTrackInputSchema = sharedPlaylistTrackInputSchema;
 export type PlaylistTrackInput = z.infer<typeof playlistTrackInputSchema>;

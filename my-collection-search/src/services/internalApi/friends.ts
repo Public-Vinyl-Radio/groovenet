@@ -3,12 +3,15 @@ import {
   friendMutationResponseSchema,
   friendsListQuerySchema,
   friendsListResponseSchema,
+  librariesListResponseSchema,
 } from "@/api-contract/schemas";
 import type { Friend } from "@/types/track";
 import { http, streamLines } from "../http";
 
 export type FriendsListQuery = z.input<typeof friendsListQuerySchema>;
 export type FriendsListResponse = z.infer<typeof friendsListResponseSchema>;
+export type LibrariesListResponse = z.infer<typeof librariesListResponseSchema>;
+export type LibraryWithStats = LibrariesListResponse["results"][number];
 export type FriendMutationResponse = z.infer<typeof friendMutationResponseSchema>;
 export type RemoveFriendResponse = {
   lines: string[];
@@ -53,4 +56,12 @@ export async function fetchFriends(
     cache: "no-store",
   });
   return response.results ?? [];
+}
+
+/** Every library with its album count and last sync, for Settings → Libraries. */
+export async function fetchLibraries(): Promise<LibrariesListResponse> {
+  return await http<LibrariesListResponse>("/api/friends/libraries", {
+    method: "GET",
+    cache: "no-store",
+  });
 }
