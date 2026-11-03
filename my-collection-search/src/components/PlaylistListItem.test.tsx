@@ -99,7 +99,7 @@ describe("PlaylistListItem", () => {
     expect(screen.getByTestId("playlist-meta").textContent).not.toMatch(/2026|ago|Today|Yesterday/);
   });
 
-  it("renders a 2x2 mosaic from cover_urls, tinting the missing cells", async () => {
+  it("renders a seamless 2x2 mosaic with a single outer frame", async () => {
     const { screen } = await import("@testing-library/react");
     renderWithProviders(
       <PlaylistListItem
@@ -112,6 +112,13 @@ describe("PlaylistListItem", () => {
     );
     expect(screen.getAllByTestId("mosaic-cover")).toHaveLength(2);
     expect(screen.getAllByTestId("mosaic-tint")).toHaveLength(2);
+    for (const tile of [
+      ...screen.getAllByTestId("mosaic-cover"),
+      ...screen.getAllByTestId("mosaic-tint"),
+    ]) {
+      expect(getComputedStyle(tile).borderWidth).toBe("0px");
+      expect(getComputedStyle(tile).borderRadius).toBe("0px");
+    }
   });
 
   it("falls back to four tinted blocks without cover_urls", async () => {

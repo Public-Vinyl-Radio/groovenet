@@ -7,7 +7,7 @@ Set flyers remain portrait images, separate from square album covers.
 
 Tune `coverTokens` in `src/app/houseStyle.ts` to change the border width, colour,
 radius, monochrome filter and transition. Covers follow `--gn-radius`, including
-Corners; mosaic tiles use `innerRadius` inside the surrounding outline. Optional
+Corners; mosaic tiles are borderless and square, clipped by the shared outer frame. Optional
 `--gn-cover-border-width`, `--gn-cover-border-color` and `--gn-cover-grayscale`
 variables support scoped previews. Monochrome defaults to zero. Hover and keyboard
 focus restore colour; `playing` keeps the active cover in colour. Filter transitions

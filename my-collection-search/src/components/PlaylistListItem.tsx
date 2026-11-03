@@ -39,7 +39,8 @@ export function CoverMosaic({ urls, size = "72px" }: { urls: string[]; size?: st
             src={urls[i]}
             alt=""
             fill
-            inset
+            borderWidth={0}
+            borderRadius={0}
             data-testid={urls[i] ? "mosaic-cover" : "mosaic-tint"}
           />
         ))}
