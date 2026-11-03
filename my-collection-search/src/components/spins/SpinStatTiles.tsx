@@ -40,6 +40,8 @@ export default function SpinStatTiles({
       borderTopWidth="outline"
       borderInlineWidth={edge}
       borderBottomWidth={edge}
+      borderRadius={framed ? "md" : inset ? 0 : { base: 0, md: "md" }}
+      overflow="hidden"
       borderColor="border.ink"
       boxShadow={framed ? "md" : inset ? "none" : { base: "none", md: "md" }}
       mr={framed ? "6px" : inset ? 0 : { md: "6px" }}
