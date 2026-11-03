@@ -208,6 +208,8 @@ export default function AlbumHeader({
               flexShrink={0}
               cursor="pointer"
               borderWidth="rule"
+              borderRadius="md"
+              overflow="hidden"
               borderColor="border.ink"
               alignSelf="flex-start"
               css={{ width: "112px", height: "112px", [wide]: { width: "192px", height: "192px" } }}

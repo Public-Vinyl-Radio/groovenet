@@ -185,6 +185,7 @@ function PlaylistTableRow({
               flexShrink={0}
               px={1.5}
               borderWidth="rule"
+              borderRadius="md"
               borderColor="border.ink"
               fontFamily="mono"
               fontSize="2xs"
@@ -266,6 +267,8 @@ export default function PlaylistTable({
       borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
+      // clip, not hidden: the header stays sticky.
+      overflow="clip"
       css={{ containerType: "inline-size" }}
     >
       <Table
@@ -328,6 +331,7 @@ export default function PlaylistTable({
                     data-testid="month-tab"
                     bg="fg"
                     color="bg"
+                    borderRadius="md"
                     fontFamily="mono"
                     fontSize="xs"
                     fontWeight="bold"

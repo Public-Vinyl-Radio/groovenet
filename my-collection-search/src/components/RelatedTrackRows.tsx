@@ -154,6 +154,7 @@ function Artwork({ track, size }: { track: Track; size: string }) {
       objectFit="cover"
       flexShrink={0}
       borderWidth="rule"
+      borderRadius="md"
       borderColor="border.ink"
       draggable={false}
     />

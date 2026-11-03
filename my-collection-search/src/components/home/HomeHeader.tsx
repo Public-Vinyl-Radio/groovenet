@@ -75,6 +75,7 @@ export default function HomeHeader({
             display="flex"
             alignItems="center"
             borderWidth="rule"
+            borderRadius="md"
             borderColor="border"
             fontFamily="mono"
             fontSize="11px"

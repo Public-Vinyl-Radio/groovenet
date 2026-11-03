@@ -29,6 +29,8 @@ export function GenreBarRows({
                 w="25%"
                 h="10px"
                 borderWidth="rule"
+                borderRadius="md"
+                overflow="hidden"
                 borderColor="border.ink"
                 flexShrink={0}
               >

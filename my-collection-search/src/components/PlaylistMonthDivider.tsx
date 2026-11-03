@@ -13,6 +13,7 @@ export default function PlaylistMonthDivider({ group }: { group: PlaylistMonthGr
         data-testid="month-tab"
         bg="fg"
         color="bg"
+        borderRadius="md"
         fontFamily="mono"
         fontSize="xs"
         fontWeight="bold"
