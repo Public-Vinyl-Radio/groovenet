@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.10.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.9.0...groovenet-client-v3.10.0) (2026-11-03)
+
+
+### Features
+
+* **record-care:** care stacks, batch logging, source and undo ([#947](https://github.com/Public-Vinyl-Radio/groovenet/issues/947)) ([f758153](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7581536fc6afc856dc58c86a384564a50d8dea1))
+* **record-care:** chores queue and cleaning progress API ([#949](https://github.com/Public-Vinyl-Radio/groovenet/issues/949)) ([2b88b05](https://github.com/Public-Vinyl-Radio/groovenet/commit/2b88b052e4ba6ee82118b10a0c5f1ef3f1b1a979))
+
+
+### Bug Fixes
+
+* **player:** re-adopt Groovenet's own OwnTone sessions after a restart or lost output ([#927](https://github.com/Public-Vinyl-Radio/groovenet/issues/927)) ([4db958b](https://github.com/Public-Vinyl-Radio/groovenet/commit/4db958bb9cf0a70d223f4ccfcaff0fdeab084d48))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.5.0 to 1.6.0
+
 ## [3.9.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.8.1...groovenet-client-v3.9.0) (2026-10-31)
 
 

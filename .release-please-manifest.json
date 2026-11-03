@@ -1,7 +1,7 @@
 {
-  ".": "0.3.15",
-  "packages/groovenet-client": "3.9.0",
-  "packages/groovenet-player": "0.1.9",
-  "packages/groovenet-cli": "3.10.0",
-  "packages/groovenet-contracts": "1.5.0"
+  ".": "0.3.16",
+  "packages/groovenet-client": "3.10.0",
+  "packages/groovenet-player": "0.1.10",
+  "packages/groovenet-cli": "3.11.0",
+  "packages/groovenet-contracts": "1.6.0"
 }
