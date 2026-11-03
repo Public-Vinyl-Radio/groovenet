@@ -218,9 +218,13 @@ function GenreContent({
               borderRadius="md"
               borderColor="border.ink"
             >
-              {(["albums", "tracks"] as const).map((item) => (
+              {(["albums", "tracks"] as const).map((item, index) => (
                 <Button
                   key={item}
+                  // One joined strip: only its outer corners are rounded.
+                  borderRadius="0"
+                  borderStartRadius={index === 0 ? "md" : undefined}
+                  borderEndRadius={index === 1 ? "md" : undefined}
                   flex={1}
                   minH="44px"
                   variant={view === item ? "solid" : "ghost"}
