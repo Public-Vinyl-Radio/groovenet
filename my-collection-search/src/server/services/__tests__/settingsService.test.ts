@@ -50,6 +50,7 @@ describe("appearance", () => {
     font_body: null,
     font_label: null,
     custom_palette: null,
+    corners: "square",
     ...over,
   });
   const defaults = { display: "default", body: "default", label: "default" };
@@ -60,6 +61,7 @@ describe("appearance", () => {
       palette: "riso",
       fonts: { ...defaults, body: "inter" },
       customPalette: null,
+      corners: "square",
     });
   });
 
@@ -69,6 +71,7 @@ describe("appearance", () => {
       palette: "sleeve",
       fonts: defaults,
       customPalette: null,
+      corners: "square",
     });
   });
 
@@ -80,6 +83,7 @@ describe("appearance", () => {
       palette: "sleeve",
       fonts: defaults,
       customPalette: null,
+      corners: "square",
     });
   });
 
@@ -89,8 +93,20 @@ describe("appearance", () => {
       palette: "riso",
       fonts: defaults,
       customPalette: null,
+      corners: "square",
     });
     expect(repo.upsertAppearance).toHaveBeenCalledWith({ palette: "riso" }, "sleeve");
+  });
+
+  it("reads and saves the corner style, treating an unknown stored one as square", async () => {
+    repo.findAppearance.mockResolvedValueOnce(row({ corners: "rounded" }));
+    await expect(settingsService.getAppearance()).resolves.toMatchObject({ corners: "rounded" });
+    repo.findAppearance.mockResolvedValueOnce(row({ corners: "pill" }));
+    await expect(settingsService.getAppearance()).resolves.toMatchObject({ corners: "square" });
+
+    repo.upsertAppearance.mockResolvedValueOnce(row({ corners: "rounded" }));
+    await settingsService.updateAppearance({ corners: "rounded" });
+    expect(repo.upsertAppearance).toHaveBeenCalledWith({ corners: "rounded" }, "sleeve");
   });
 
   it("saves only the fonts given, storing the default as null", async () => {

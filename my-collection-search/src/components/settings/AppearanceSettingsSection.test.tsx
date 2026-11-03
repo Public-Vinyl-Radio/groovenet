@@ -24,17 +24,23 @@ beforeEach(() => {
   localStorage.clear();
   const { dataset } = document.documentElement;
   dataset.palette = "sleeve";
+  dataset.corners = "square";
   dataset.fontDisplay = "default";
   dataset.fontBody = "default";
   dataset.fontLabel = "default";
   document.documentElement.className = "";
-  api.fetchAppearanceSettings.mockResolvedValue({ palette: "sleeve", fonts: defaults });
+  api.fetchAppearanceSettings.mockResolvedValue({
+    palette: "sleeve",
+    fonts: defaults,
+    corners: "square",
+  });
   // Like the server: apply what was sent over what was saved.
-  let saved = { palette: "sleeve", fonts: { ...defaults } };
+  let saved = { palette: "sleeve", fonts: { ...defaults }, corners: "square" };
   api.updateAppearanceSettings.mockImplementation(async (patch) => {
     saved = {
       palette: patch.palette ?? saved.palette,
       fonts: { ...saved.fonts, ...patch.fonts },
+      corners: patch.corners ?? saved.corners,
     };
     return saved;
   });
@@ -231,19 +237,15 @@ describe("AppearanceSettingsSection typography", () => {
     );
   });
 
-  it("previews a line of DJ text in the chosen face, for every role", async () => {
+  it("shows no repeated sample sentence", async () => {
     const { container } = renderWithProviders(<AppearanceSettingsSection />);
     await screen.findByRole("radiogroup", { name: "Body font" });
-
-    for (const role of fontRoleIds) {
-      const preview = container.querySelector<HTMLElement>(`[data-preview=${role}]`);
-      expect(preview?.textContent).toBe("Water No Get Enemy · 104 BPM · A minor (8A)");
-      expect(preview?.style.fontFamily).toContain("--face-plex-");
-    }
+    expect(container.querySelector("[data-preview]")).toBeNull();
+    expect(screen.queryByText(/Water No Get Enemy · 104/)).toBeNull();
   });
 
-  it("applies a chosen font at once, saves only that role, and moves the preview", async () => {
-    const { user, container } = renderWithProviders(<AppearanceSettingsSection />);
+  it("applies a chosen font at once, saves only that role", async () => {
+    const { user } = renderWithProviders(<AppearanceSettingsSection />);
     await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
 
     await user.click(group("Body").getByRole("radio", { name: /inter/i }));
@@ -252,9 +254,6 @@ describe("AppearanceSettingsSection typography", () => {
     expect(document.documentElement.dataset.fontDisplay).toBe("default");
     expect(document.documentElement.dataset.palette).toBe("sleeve");
     expect(checked("Body", "inter")).toBe("true");
-    expect(container.querySelector<HTMLElement>("[data-preview=body]")?.style.fontFamily).toContain(
-      "--face-inter",
-    );
     await waitFor(() =>
       expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } }),
     );
@@ -505,5 +504,75 @@ describe("AppearanceSettingsSection custom palette", () => {
       ),
     );
     expect(document.documentElement.dataset.palette).toBe("sleeve");
+  });
+});
+
+describe("AppearanceSettingsSection corners and scope", () => {
+  it("says where each part applies", async () => {
+    const { container } = renderWithProviders(<AppearanceSettingsSection />);
+    await screen.findByRole("radiogroup", { name: "Body font" });
+
+    const scope = (title: string) =>
+      container.querySelector(`section[aria-label="${title}"] [data-scope]`)?.textContent;
+    expect(scope("Palette")).toBe("Every device");
+    expect(scope("Corners")).toBe("Every device");
+    expect(scope("Type")).toBe("Every device");
+    expect(scope("Light or dark")).toBe("This device");
+    expect(screen.getByText("System follows this device's setting.")).toBeTruthy();
+  });
+
+  it("shows the saved corners with a live preview", async () => {
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "sleeve",
+      fonts: defaults,
+      corners: "rounded",
+    });
+    renderWithProviders(<AppearanceSettingsSection />);
+
+    const rounded = await screen.findByRole("radio", { name: "Rounded" });
+    await waitFor(() => expect((rounded as HTMLInputElement).checked).toBe(true));
+    expect(screen.getByTestId("corners-preview")).toBeTruthy();
+  });
+
+  it("applies the chosen corners at once and saves only them", async () => {
+    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    await screen.findByRole("radiogroup", { name: "Body font" });
+
+    await user.click(
+      within(screen.getByRole("radiogroup", { name: "Corners" })).getByText("Rounded"),
+    );
+
+    expect(document.documentElement.dataset.corners).toBe("rounded");
+    await waitFor(() =>
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ corners: "rounded" }),
+    );
+  });
+
+  it("doesn't save when the current corners are chosen again", async () => {
+    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    await screen.findByRole("radiogroup", { name: "Body font" });
+
+    await user.click(
+      within(screen.getByRole("radiogroup", { name: "Corners" })).getByText("Square"),
+    );
+
+    expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
+  });
+
+  it("puts the corners back and says so when saving fails", async () => {
+    api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
+    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    await screen.findByRole("radiogroup", { name: "Body font" });
+
+    await user.click(
+      within(screen.getByRole("radiogroup", { name: "Corners" })).getByText("Rounded"),
+    );
+
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Failed to save corners", description: "db down" }),
+      ),
+    );
+    await waitFor(() => expect(document.documentElement.dataset.corners).toBe("square"));
   });
 });

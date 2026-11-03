@@ -57,6 +57,15 @@ describe("appearance", () => {
     expect(params).toEqual(["riso", null]);
   });
 
+  it("writes the corners column", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [row] });
+
+    await makeRepo().upsertAppearance({ corners: "rounded" }, "sleeve");
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("corners = EXCLUDED.corners");
+    expect(params).toEqual(["sleeve", "rounded"]);
+  });
+
   it("writes and clears the custom palette column", async () => {
     dbQuery.mockResolvedValue({ rows: [row] });
 
@@ -65,7 +74,7 @@ describe("appearance", () => {
     const [first, second] = dbQuery.mock.calls;
     expect(first[0]).toContain("custom_palette = EXCLUDED.custom_palette");
     expect(first[0]).toContain(
-      "RETURNING palette, font_display, font_body, font_label, custom_palette",
+      "RETURNING palette, font_display, font_body, font_label, custom_palette, corners",
     );
     expect(first[1]).toEqual(["sleeve", '{"base":"riso"}']);
     expect(second[1]).toEqual(["sleeve", null]);

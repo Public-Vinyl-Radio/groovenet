@@ -806,6 +806,8 @@ export interface AppearanceSettings {
   customPalette?: AppearanceCustomPalette | null;
   /** Absent from servers that predate font choices. */
   fonts?: AppearanceFonts;
+  /** `square` or `rounded`; absent from servers that predate the corners setting. */
+  corners?: "square" | "rounded";
 }
 
 /** A change to the appearance; only the fields sent are changed. */
@@ -814,6 +816,7 @@ export interface AppearanceSettingsUpdate {
   /** Replaces the saved custom palette; null deletes it. */
   customPalette?: AppearanceCustomPalette | null;
   fonts?: Partial<AppearanceFonts>;
+  corners?: "square" | "rounded";
 }
 
 export type {

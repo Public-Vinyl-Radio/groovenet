@@ -50,19 +50,20 @@ export const shadows = {
   pressed: { value: hard(shadowOffsets.pressed) },
 };
 
-// Everything is square. `full` stays for round things: slider thumbs,
-// avatars, player transport buttons.
-const square = { value: "0" };
+// Every step reads `--gn-radius`: 0 (square) by default, and softer under
+// `[data-corners="rounded"]` (the Corners setting, corners.ts). `full` stays for
+// round things: slider thumbs, avatars, player transport buttons.
+const corner = { value: "var(--gn-radius)" };
 export const radii = {
-  "2xs": square,
-  xs: square,
-  sm: square,
-  md: square,
-  lg: square,
-  xl: square,
-  "2xl": square,
-  "3xl": square,
-  "4xl": square,
+  "2xs": corner,
+  xs: corner,
+  sm: corner,
+  md: corner,
+  lg: corner,
+  xl: corner,
+  "2xl": corner,
+  "3xl": corner,
+  "4xl": corner,
 };
 
 export const borderWidths = {
@@ -143,7 +144,7 @@ const tagBase: SystemStyleObject = {
   maxW: "100%",
   borderWidth: "rule",
   borderStyle: "solid",
-  borderRadius: "0",
+  borderRadius: "md",
   fontFamily: "label",
   fontWeight: "medium",
   textTransform: "uppercase",
@@ -314,7 +315,7 @@ export const roleRecipes = {
       pr: "10px",
       borderWidth: "outline",
       borderStyle: "solid",
-      borderRadius: "0",
+      borderRadius: "md",
       borderColor: "border",
       bg: "transparent",
       color: "fg",
@@ -511,7 +512,7 @@ export const slotRecipes = {
         solid: {
           root: { "--switch-inset": "6px", _checked: { "--switch-inset": "4px" } },
           control: {
-            borderRadius: "0",
+            borderRadius: "md",
             bg: "bg.panel",
             boxShadow: "inset 0 0 0 2px var(--gn-ink)",
             focusVisibleRing: "outside",
@@ -526,7 +527,7 @@ export const slotRecipes = {
           },
           thumb: {
             position: "relative",
-            borderRadius: "0",
+            borderRadius: "md",
             width: "calc(var(--switch-height) - 2 * var(--switch-inset))",
             height: "calc(var(--switch-height) - 2 * var(--switch-inset))",
             ms: "var(--switch-inset)",

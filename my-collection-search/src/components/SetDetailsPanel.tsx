@@ -375,7 +375,7 @@ export default function SetDetailsPanel({ playlistId }: { playlistId: number }) 
                       width={56}
                       height={56}
                       unoptimized
-                      style={{ objectFit: "cover", borderRadius: 4 }}
+                      style={{ objectFit: "cover", borderRadius: "var(--gn-radius)" }}
                     />
                   )}
                   {m.media_type === "audio" && (

@@ -11,6 +11,7 @@ import AnalyticsInit from "@/components/AnalyticsInit";
 import { getClientAnalyticsConfig } from "@/lib/analytics/config";
 import { fontClassName } from "./fonts";
 import { defaultFontChoiceId } from "./fontChoices";
+import { defaultCornerId, resolveCorners } from "./corners";
 import { defaultPaletteId } from "./palettes";
 import { paletteGround } from "./palettes/themeColor";
 import {
@@ -65,6 +66,7 @@ const defaultAppearance: Appearance = {
   palette: defaultPaletteId,
   fonts: { display: defaultFontChoiceId, body: defaultFontChoiceId, label: defaultFontChoiceId },
   customPalette: null,
+  corners: defaultCornerId,
 };
 
 // The saved palette and fonts, or the defaults when they can't be read: a
@@ -78,6 +80,7 @@ const readAppearance = cache(async (): Promise<Appearance> => {
       ...appearance,
       customPalette,
       palette: resolveAppearancePalette(appearance.palette, customPalette),
+      corners: resolveCorners(appearance.corners),
     };
   } catch (err) {
     console.error("Failed to load the saved appearance, using the defaults:", err);
@@ -89,11 +92,12 @@ const readAppearance = cache(async (): Promise<Appearance> => {
 // place before first paint. Light/dark is per device (localStorage) and applied
 // client-side.
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const { palette, fonts, customPalette } = await readAppearance();
+  const { palette, fonts, customPalette, corners } = await readAppearance();
   return (
     <html
       lang="en"
       data-palette={palette}
+      data-corners={corners}
       data-font-display={fonts.display}
       data-font-body={fonts.body}
       data-font-label={fonts.label}

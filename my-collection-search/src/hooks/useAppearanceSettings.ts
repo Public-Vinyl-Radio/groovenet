@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { resolveCorners } from "@/app/corners";
 import { fontRoleIds, resolveFontChoice } from "@/app/fontChoices";
 import {
   customPaletteCss,
@@ -16,7 +17,7 @@ import {
   type UpdateAppearanceSettingsBody,
 } from "@/services/internalApi/settings";
 
-/** A change to the palette and/or some fonts; what isn't named stays as it is. */
+/** A change to the palette, corners and/or some fonts; what isn't named stays as it is. */
 export type AppearancePatch = UpdateAppearanceSettingsBody;
 
 /** The attribute on <html> that carries a font role's choice. */
@@ -45,10 +46,11 @@ export function applyCustomPaletteStyle(custom: CustomPalette | null) {
   el.textContent = customPaletteCss(custom);
 }
 
-/** Point the page at a palette and/or fonts now; the server-rendered attributes only matter on load. */
+/** Point the page at a palette, corners and/or fonts now; the server-rendered attributes only matter on load. */
 export function applyAppearance(patch: AppearancePatch) {
   const { dataset } = document.documentElement;
   if (patch.palette) dataset.palette = patch.palette;
+  if (patch.corners) dataset.corners = patch.corners;
   for (const role of fontRoleIds) {
     const choice = patch.fonts?.[role];
     if (choice) dataset[fontDataKey[role]] = choice;
@@ -60,6 +62,7 @@ function snapshot(patch: AppearancePatch, custom: CustomPalette | null): Appeara
   const { dataset } = document.documentElement;
   const previous: AppearancePatch = {};
   if (patch.palette) previous.palette = resolveAppearancePalette(dataset.palette, custom);
+  if (patch.corners) previous.corners = resolveCorners(dataset.corners);
   for (const role of fontRoleIds) {
     if (!patch.fonts?.[role]) continue;
     previous.fonts = {
@@ -79,6 +82,7 @@ const merge = (
     customAfter(settings, patch),
   ),
   fonts: { ...settings.fonts, ...patch.fonts },
+  corners: patch.corners ?? settings.corners,
   customPalette: customAfter(settings, patch),
 });
 

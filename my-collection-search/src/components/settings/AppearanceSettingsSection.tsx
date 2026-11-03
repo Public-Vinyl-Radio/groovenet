@@ -1,7 +1,18 @@
 "use client";
 
 import React from "react";
-import { Box, Button, chakra, Flex, Heading, SegmentGroup, Spinner, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  chakra,
+  Flex,
+  Heading,
+  Input,
+  SegmentGroup,
+  Spinner,
+  Text,
+} from "@chakra-ui/react";
+import { resolveCorners, type CornerId } from "@/app/corners";
 import {
   fontChoiceFamily,
   fontRoleIds,
@@ -19,6 +30,7 @@ import {
   type CustomPalette,
 } from "@/app/palettes/custom";
 import CustomPaletteEditor from "./CustomPaletteEditor";
+import { CategoryTag } from "@/components/ui/RoleTags";
 import { toaster } from "@/components/ui/toaster";
 import { useColorMode, type ThemeSetting } from "@/components/ui/color-mode";
 import {
@@ -41,14 +53,107 @@ const SWATCHES = [
   ["Accent", "--gn-accent-solid"],
 ] as const;
 
-/** A line of the kind of text each role sets, shown in the chosen face. */
-const PREVIEW = "Water No Get Enemy · 104 BPM · A minor (8A)";
+const CORNERS: { value: CornerId; label: string }[] = [
+  { value: "square", label: "Square" },
+  { value: "rounded", label: "Rounded" },
+];
 
 /** The preset a new custom palette starts from: the one in use, else the default. */
 const resolveBase = (selected: AppearancePaletteId) =>
   selected === customPaletteId ? defaultPaletteId : selected;
 
 const paletteName = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+
+/** Where a setting applies: every device that uses the server, or only this one. */
+function Scope({ device }: { device: "every" | "this" }) {
+  return (
+    <Text
+      as="span"
+      fontFamily="label"
+      fontSize="xs"
+      letterSpacing="0.05em"
+      textTransform="uppercase"
+      color="fg.muted"
+      data-scope={device}
+    >
+      {device === "every" ? "Every device" : "This device"}
+    </Text>
+  );
+}
+
+/** A titled part of the page: its name, where it applies, then what it holds. */
+function Part({
+  title,
+  device,
+  help,
+  children,
+}: {
+  title: string;
+  device: "every" | "this";
+  help?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box as="section" aria-label={title} mb={6}>
+      <Flex align="baseline" gap={3} mb={1} flexWrap="wrap">
+        <Heading size="md">{title}</Heading>
+        <Scope device={device} />
+      </Flex>
+      {help ? (
+        <Text color="fg.muted" fontSize="sm" mb={3}>
+          {help}
+        </Text>
+      ) : null}
+      {children}
+    </Box>
+  );
+}
+
+/** A track row, a tag, a search field and a solid button: what the corner style changes. */
+function CornersPreview(): React.JSX.Element {
+  return (
+    <Flex
+      direction="column"
+      gap={2}
+      p={3}
+      flex="1"
+      minW="240px"
+      borderWidth="outline"
+      borderColor="border.ink"
+      borderRadius="md"
+      bg="bg.panel"
+      data-testid="corners-preview"
+      aria-hidden
+    >
+      <Flex
+        align="center"
+        justify="space-between"
+        gap={2}
+        px={3}
+        py={2}
+        borderWidth="rule"
+        borderColor="border"
+        borderRadius="md"
+      >
+        <Box minW={0}>
+          <Text fontWeight="medium" truncate>
+            Water No Get Enemy
+          </Text>
+          <Text fontSize="xs" color="fg.muted">
+            Fela Kuti · 104 BPM · 8A
+          </Text>
+        </Box>
+        <CategoryTag>Afrobeat</CategoryTag>
+      </Flex>
+      <Flex gap={2}>
+        <Input size="sm" placeholder="Search tracks" tabIndex={-1} readOnly />
+        <Button size="sm" colorPalette="accent" tabIndex={-1}>
+          Play
+        </Button>
+      </Flex>
+    </Flex>
+  );
+}
 
 /** The shared palette and this device's light/dark choice. */
 export default function AppearanceSettingsSection(): React.JSX.Element {
@@ -116,204 +221,180 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
     }
   };
 
+  const corners = resolveCorners(settings.data?.corners);
+  const chooseCorners = (value: CornerId) => {
+    if (value !== corners) save({ corners: value }, "corners");
+  };
+
+  const swatchCard = (
+    key: string,
+    name: string,
+    isSelected: boolean,
+    onSelect: () => void,
+    values: Record<string, string>,
+  ) => (
+    <chakra.button
+      key={key}
+      type="button"
+      role="radio"
+      aria-checked={isSelected}
+      onClick={onSelect}
+      textAlign="left"
+      p={3}
+      minW="160px"
+      borderWidth={isSelected ? 2 : 1}
+      borderColor={isSelected ? "accent.solid" : "border"}
+      borderRadius="md"
+      bg="bg.panel"
+      cursor="pointer"
+      _hover={{ bg: "bg.muted" }}
+    >
+      <Flex gap={1} mb={2} aria-hidden>
+        {SWATCHES.map(([label, variable]) => (
+          <Box
+            key={variable}
+            title={label}
+            w={8}
+            h={8}
+            borderRadius="md"
+            borderWidth={1}
+            borderColor="border"
+            style={{ backgroundColor: values[variable] }}
+          />
+        ))}
+      </Flex>
+      <Text fontWeight="medium">{name}</Text>
+    </chakra.button>
+  );
+
   return (
     <Box>
-      <Heading size="md" mb={1}>
-        Palette
-      </Heading>
-      <Text color="fg.muted" mb={3}>
-        Colours for the whole app, shared by every device.
-      </Text>
-      <Flex gap={3} align="stretch" flexWrap="wrap" role="radiogroup" aria-label="Palette" mb={2}>
-        {paletteIds.map((id) => {
-          const values = palettes[id][colorMode];
-          const isSelected = id === selected;
-          return (
-            <chakra.button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              onClick={() => choose(id)}
-              textAlign="left"
-              p={3}
-              minW="180px"
-              borderWidth={isSelected ? 2 : 1}
-              borderColor={isSelected ? "accent.solid" : "border"}
-              borderRadius="md"
-              bg="bg.panel"
-              cursor="pointer"
-              _hover={{ bg: "bg.muted" }}
-            >
-              <Flex gap={1} mb={2} aria-hidden>
-                {SWATCHES.map(([label, variable]) => (
-                  <Box
-                    key={variable}
-                    title={label}
-                    w={8}
-                    h={8}
-                    borderRadius="md"
-                    borderWidth={1}
-                    borderColor="border"
-                    style={{ backgroundColor: values[variable] }}
-                  />
-                ))}
-              </Flex>
-              <Text fontWeight="medium">{paletteName(id)}</Text>
-            </chakra.button>
-          );
-        })}
-        {customPalette ? (
-          <Flex direction="column" gap={1} minW="180px">
-            <chakra.button
-              type="button"
-              role="radio"
-              aria-checked={selected === customPaletteId}
-              onClick={() => choose(customPaletteId)}
-              textAlign="left"
-              p={3}
-              flex="1"
-              borderWidth={selected === customPaletteId ? 2 : 1}
-              borderColor={selected === customPaletteId ? "accent.solid" : "border"}
-              borderRadius="md"
-              bg="bg.panel"
-              cursor="pointer"
-              _hover={{ bg: "bg.muted" }}
-            >
-              <Flex gap={1} mb={2} aria-hidden>
-                {SWATCHES.map(([label, variable]) => (
-                  <Box
-                    key={variable}
-                    title={label}
-                    w={8}
-                    h={8}
-                    borderRadius="md"
-                    borderWidth={1}
-                    borderColor="border"
-                    style={{ backgroundColor: derivePalette(customPalette)[colorMode][variable] }}
-                  />
-                ))}
-              </Flex>
-              <Text fontWeight="medium">Custom</Text>
-            </chakra.button>
-          </Flex>
-        ) : null}
-      </Flex>
-      {!editing ? (
-        <Button size="sm" variant="outline" mb={3} onClick={() => setEditing(true)}>
-          {customPalette ? "Edit custom palette" : "Create custom palette"}
-        </Button>
-      ) : null}
-      {editing ? (
-        <CustomPaletteEditor
-          saved={customPalette}
-          initialBase={resolveBase(selected)}
-          saving={update.isPending}
-          onSave={saveCustom}
-          onDelete={deleteCustom}
-          onClose={() => setEditing(false)}
-        />
-      ) : null}
-      <Flex gap={2} align="center" mb={6} minH={5}>
-        {update.isPending || settings.isPending ? <Spinner size="sm" /> : null}
-        {settings.error ? (
-          <Text fontSize="sm" color="fg.error">
-            Failed to load the saved appearance.
-          </Text>
-        ) : null}
-      </Flex>
-
-      <Heading size="md" mb={1}>
-        Typography
-      </Heading>
-      <Text color="fg.muted" mb={4}>
-        A face for each kind of text, shared by every device. System uses the font your device
-        already has.
-      </Text>
-      {fontRoleIds.map((role) => {
-        const { label, description, choices } = fontRoles[role];
-        const current = resolveFontChoice(role, settings.data?.fonts[role]);
-        return (
-          <Box key={role} mb={5}>
-            <Heading size="sm" mb={0.5}>
-              {label}
-            </Heading>
-            <Text color="fg.muted" fontSize="sm" mb={2}>
-              {description}
+      <Part title="Palette" device="every" help="Colours for the whole app.">
+        <Flex gap={3} align="stretch" flexWrap="wrap" role="radiogroup" aria-label="Palette" mb={2}>
+          {paletteIds.map((id) =>
+            swatchCard(
+              id,
+              paletteName(id),
+              id === selected,
+              () => choose(id),
+              palettes[id][colorMode],
+            ),
+          )}
+          {customPalette
+            ? swatchCard(
+                customPaletteId,
+                "Custom",
+                selected === customPaletteId,
+                () => choose(customPaletteId),
+                derivePalette(customPalette)[colorMode],
+              )
+            : null}
+        </Flex>
+        <Flex gap={2} align="center" minH={8}>
+          {!editing ? (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              {customPalette ? "Edit custom palette" : "Create custom palette"}
+            </Button>
+          ) : null}
+          {update.isPending || settings.isPending ? <Spinner size="sm" /> : null}
+          {settings.error ? (
+            <Text fontSize="sm" color="fg.error">
+              Failed to load the saved appearance.
             </Text>
+          ) : null}
+        </Flex>
+        {editing ? (
+          <CustomPaletteEditor
+            saved={customPalette}
+            initialBase={resolveBase(selected)}
+            saving={update.isPending}
+            onSave={saveCustom}
+            onDelete={deleteCustom}
+            onClose={() => setEditing(false)}
+          />
+        ) : null}
+      </Part>
+
+      <Part
+        title="Corners"
+        device="every"
+        help="Square is sharp; rounded softens controls and cards."
+      >
+        <Flex gap={4} align="flex-start" flexWrap="wrap">
+          <SegmentGroup.Root
+            size="sm"
+            value={corners}
+            aria-label="Corners"
+            onValueChange={(details) => chooseCorners(details.value as CornerId)}
+          >
+            <SegmentGroup.Indicator />
+            <SegmentGroup.Items items={CORNERS} />
+          </SegmentGroup.Root>
+          <CornersPreview />
+        </Flex>
+      </Part>
+
+      <Part title="Type" device="every" help="System uses the font your device already has.">
+        {fontRoleIds.map((role) => {
+          const { label, description, choices } = fontRoles[role];
+          const current = resolveFontChoice(role, settings.data?.fonts[role]);
+          return (
             <Flex
-              gap={3}
-              align="stretch"
-              flexWrap="wrap"
-              role="radiogroup"
-              aria-label={`${label} font`}
-              mb={2}
+              key={role}
+              gap={{ base: 1, md: 4 }}
+              align={{ base: "stretch", md: "center" }}
+              direction={{ base: "column", md: "row" }}
+              py={2}
+              borderTopWidth="rule"
+              borderColor="border"
             >
-              {choices.map(({ id, label: choiceLabel }) => {
-                const isSelected = id === current;
-                return (
-                  <chakra.button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => chooseFont(role, id)}
-                    textAlign="left"
-                    px={3}
-                    py={2}
-                    minW="160px"
-                    borderWidth={isSelected ? 2 : 1}
-                    borderColor={isSelected ? "accent.solid" : "border"}
-                    borderRadius="md"
-                    bg="bg.panel"
-                    cursor="pointer"
-                    _hover={{ bg: "bg.muted" }}
-                    style={{ fontFamily: fontChoiceFamily(role, id) }}
-                  >
-                    <Text
-                      as="span"
-                      display="block"
-                      fontSize="lg"
-                      fontWeight="semibold"
-                      lineHeight="1.2"
+              <Box w={{ md: "200px" }} flexShrink={0}>
+                <Heading size="sm">{label}</Heading>
+                <Text color="fg.muted" fontSize="xs">
+                  {description}
+                </Text>
+              </Box>
+              <Flex gap={2} flexWrap="wrap" role="radiogroup" aria-label={`${label} font`}>
+                {choices.map(({ id, label: choiceLabel }) => {
+                  const isSelected = id === current;
+                  return (
+                    <chakra.button
+                      key={id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => chooseFont(role, id)}
+                      px={3}
+                      py={1}
+                      borderWidth={isSelected ? 2 : 1}
+                      borderColor={isSelected ? "accent.solid" : "border"}
+                      borderRadius="md"
+                      bg="bg.panel"
+                      cursor="pointer"
+                      _hover={{ bg: "bg.muted" }}
+                      style={{ fontFamily: fontChoiceFamily(role, id) }}
                     >
                       {choiceLabel}
-                    </Text>
-                    <Text as="span" display="block" fontSize="sm" color="fg.muted">
-                      Aa 0123 LP-342
-                    </Text>
-                  </chakra.button>
-                );
-              })}
+                    </chakra.button>
+                  );
+                })}
+              </Flex>
             </Flex>
-            <Text
-              data-preview={role}
-              fontSize={role === "display" ? "xl" : "md"}
-              fontWeight={role === "display" ? "semibold" : "normal"}
-              style={{ fontFamily: fontChoiceFamily(role, current) }}
-            >
-              {PREVIEW}
-            </Text>
-          </Box>
-        );
-      })}
-      <Box mb={4} />
+          );
+        })}
+      </Part>
 
-      <Heading size="md" mb={1}>
-        Mode
-      </Heading>
-      <Text color="fg.muted" mb={3}>
-        Light, dark, or follow the operating system. Remembered on this device only.
-      </Text>
-      <SegmentGroup.Root
-        size="sm"
-        value={colorModeSetting}
-        aria-label="Colour mode"
-        onValueChange={(details) => setColorModeSetting(details.value as ThemeSetting)}
-      >
-        <SegmentGroup.Indicator />
-        <SegmentGroup.Items items={MODES} />
-      </SegmentGroup.Root>
+      <Part title="Light or dark" device="this" help="System follows this device's setting.">
+        <SegmentGroup.Root
+          size="sm"
+          value={colorModeSetting}
+          aria-label="Colour mode"
+          onValueChange={(details) => setColorModeSetting(details.value as ThemeSetting)}
+        >
+          <SegmentGroup.Indicator />
+          <SegmentGroup.Items items={MODES} />
+        </SegmentGroup.Root>
+      </Part>
     </Box>
   );
 }

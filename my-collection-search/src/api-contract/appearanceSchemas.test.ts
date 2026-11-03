@@ -48,14 +48,28 @@ describe("appearance schemas", () => {
     ).toBe(false);
   });
 
+  it("accepts square or rounded corners and nothing else", () => {
+    for (const corners of ["square", "rounded"])
+      expect(appearanceSettingsPutBodySchema.safeParse({ corners }).success).toBe(true);
+    expect(appearanceSettingsPutBodySchema.safeParse({ corners: "pill" }).success).toBe(false);
+  });
+
   it("responds with the palette inputs or null", () => {
     expect(
-      appearanceSettingsResponseSchema.parse({ palette: "custom", fonts, customPalette: custom })
-        .customPalette,
+      appearanceSettingsResponseSchema.parse({
+        palette: "custom",
+        fonts,
+        customPalette: custom,
+        corners: "square",
+      }).customPalette,
     ).toEqual(custom);
     expect(
-      appearanceSettingsResponseSchema.parse({ palette: "sleeve", fonts, customPalette: null })
-        .customPalette,
+      appearanceSettingsResponseSchema.parse({
+        palette: "sleeve",
+        fonts,
+        customPalette: null,
+        corners: "rounded",
+      }).customPalette,
     ).toBeNull();
   });
 });

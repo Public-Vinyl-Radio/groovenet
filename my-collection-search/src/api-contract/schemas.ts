@@ -141,6 +141,7 @@ import {
   type FontChoiceId,
   type FontRoleId,
 } from "@/app/fontChoices";
+import { cornerIds } from "@/app/corners";
 import { paletteIds } from "@/app/palettes";
 import { customPaletteId, customPaletteSchema } from "@/app/palettes/custom";
 import { RECOMMENDATION_SCOPES } from "@/types/recommendations";
@@ -998,6 +999,8 @@ export const aiPromptSettingsPutResponseSchema = z.object({
 // it only while one is stored.
 export const appearancePaletteSchema = z.enum([...paletteIds, customPaletteId]);
 
+export const appearanceCornersSchema = z.enum(cornerIds);
+
 // Each role accepts only its own faces, so a slab can't be set as the body font.
 const appearanceFontsShape = Object.fromEntries(
   fontRoleIds.map((role) => [role, z.enum(fontChoiceIdsFor(role))]),
@@ -1011,6 +1014,7 @@ export const appearanceSettingsPutBodySchema = z
     fonts: z.object(appearanceFontsShape).partial().strict().optional(),
     // Replaces the saved custom palette; null deletes it.
     customPalette: customPaletteSchema.nullable().optional(),
+    corners: appearanceCornersSchema.optional(),
   })
   .strict()
   .refine((body) => !(body.palette === customPaletteId && body.customPalette === null), {
@@ -1022,6 +1026,7 @@ export const appearanceSettingsResponseSchema = z.object({
   palette: appearancePaletteSchema,
   fonts: z.object(appearanceFontsShape),
   customPalette: customPaletteSchema.nullable(),
+  corners: appearanceCornersSchema,
 });
 
 export const recommendationSettingsQuerySchema = z.object({

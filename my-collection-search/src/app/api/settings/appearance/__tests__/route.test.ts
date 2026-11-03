@@ -17,6 +17,7 @@ const saved = {
   palette: "sleeve",
   fonts: { display: "default", body: "default", label: "default" },
   customPalette: null,
+  corners: "square",
 };
 
 beforeEach(() => {
@@ -86,6 +87,8 @@ describe("PUT /api/settings/appearance", () => {
       "fonts.label must be one of: default, jetbrains-mono, system",
     ],
     ["an unknown role", { fonts: { heading: "inter" } }, "Body may only contain"],
+    ["unknown corners", { corners: "pill" }, "corners must be one of: square, rounded"],
+    ["non-string corners", { corners: 3 }, "corners must be one of: square, rounded"],
     ["an unknown field", { size: "large" }, "Body may only contain"],
     ["fonts that are not an object", { fonts: "inter" }, "Body may only contain"],
   ])("rejects %s with a message that says what is allowed", async (_label, body, message) => {

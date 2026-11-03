@@ -191,8 +191,12 @@ an invalid value the browser drops, so it fails silently.
   by `chakraTheme.ts`. Components don't restyle themselves: reach for a
   token or variant, not a literal. Values there are provisional until #664 is
   signed off; tuning is a one-file change. There is no Classic style switch.
-- **Shape:** every radius token is `0`, so `borderRadius="md"`/`xl`/... are all
-  square; don't set one on a new component. `full` stays for round things only
+- **Shape:** every radius token reads `--gn-radius`: `0` by default, `6px` under
+  `data-corners="rounded"` (the Corners setting: `src/app/corners.ts`, the
+  `appearance_settings.corners` column, server-rendered on `<html>` next to
+  `data-palette`, `cornerBlocks` in `chakraTheme.ts`). So `borderRadius="md"`/`xl`/...
+  are all the same step; use a token, never a pixel literal (CSS: `var(--gn-radius)`).
+  Don't pick a size on a new component. `full` stays for round things only
   (avatars, dots). Controls and containers carry a 2px outline
   (`borderWidth="outline"`, `borderColor="border.ink"`); a literal `1px` is for
   ruled dividers inside a block (`borderWidth="rule"`).

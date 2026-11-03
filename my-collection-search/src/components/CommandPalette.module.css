@@ -15,7 +15,7 @@
   background: var(--chakra-colors-bg, #ffffff);
   border: var(--chakra-border-widths-outline, 2px) solid var(--chakra-colors-border-ink);
   box-shadow: var(--chakra-shadows-md);
-  border-radius: 0;
+  border-radius: var(--gn-radius, 0);
   padding: 10px;
   z-index: 1201;
   display: flex;
@@ -77,7 +77,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 0;
+  border-radius: var(--gn-radius, 0);
   cursor: pointer;
   color: var(--chakra-colors-fg, #111111);
 }
@@ -127,7 +127,7 @@
   align-items: center;
   justify-content: center;
   padding: 1px 5px;
-  border-radius: 0;
+  border-radius: var(--gn-radius, 0);
   font-size: 11px;
   font-family: var(--chakra-fonts-label);
   background: var(--chakra-colors-bg-subtle, rgba(0, 0, 0, 0.05));
