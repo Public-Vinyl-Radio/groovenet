@@ -292,6 +292,7 @@ function SpinsPageContent() {
                   fontSize="xs"
                   fontWeight="semibold"
                   letterSpacing="0.08em"
+                  borderRadius="md"
                   flexShrink={0}
                 >
                   LISTENING LOG
@@ -318,6 +319,10 @@ function SpinsPageContent() {
                       h="44px"
                       px={3}
                       ml={index ? "-2px" : 0}
+                      // One joined strip: only its outer corners are rounded.
+                      borderRadius="0"
+                      borderStartRadius={index === 0 ? "md" : undefined}
+                      borderEndRadius={index === MEDIUM_TABS.length - 1 ? "md" : undefined}
                       fontSize={{ base: "xs", md: "11px" }}
                       letterSpacing="0.06em"
                     >

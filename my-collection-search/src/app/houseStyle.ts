@@ -481,6 +481,7 @@ export const slotRecipes = {
           list: { gap: "2", _horizontal: { borderBottomWidth: "0" } },
           trigger: {
             borderWidth: "outline",
+            borderRadius: "md",
             borderColor: "border.ink",
             bg: "bg.panel",
             fontFamily: "label",
