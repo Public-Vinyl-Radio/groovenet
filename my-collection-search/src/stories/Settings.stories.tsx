@@ -34,7 +34,6 @@ export const DrillInList: Story = {
           "apple-music": "No cookie file",
           "ai-metadata": "Custom prompt",
           about: "Version 0.3.15",
-          "disaster-recovery": "Backups and restore",
         }}
       />
     </Box>

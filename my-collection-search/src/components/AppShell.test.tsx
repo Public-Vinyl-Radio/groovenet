@@ -66,6 +66,26 @@ describe("AppShell", () => {
     },
   );
 
+  it("shows System after Settings in production and under More, marking More current", async () => {
+    pathname.value = "/system";
+    const { user } = renderWithProviders(<AppShell developerToolsEnabled={false}>page</AppShell>);
+    const links = screen.getAllByRole("link", { hidden: true });
+    const settings = links.findIndex((link) => link.getAttribute("href") === "/settings");
+    expect(links[settings + 1].getAttribute("href")).toBe("/system");
+    const more = within(screen.getByTestId("mobile-tab-bar")).getByRole("button", {
+      name: "More",
+      hidden: true,
+    });
+    expect(more.getAttribute("aria-current")).toBe("page");
+    await user.click(more);
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog)
+        .getByRole("link", { name: /System/ })
+        .getAttribute("href"),
+    ).toBe("/system");
+  });
+
   it("marks More as the current tab for a page under it, such as Chores", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
     const tabBar = screen.getByTestId("mobile-tab-bar");

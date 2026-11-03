@@ -8,7 +8,6 @@ export const settingsSectionIds = [
   "apple-music",
   "ai-metadata",
   "about",
-  "disaster-recovery",
 ] as const;
 
 export type SettingsSectionId = (typeof settingsSectionIds)[number];
@@ -28,9 +27,6 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     ],
   },
   { label: "About", sections: [{ id: "about", label: "About GrooveNet" }] },
-  // Temporary: backups and restore move to the System page (#967), which
-  // removes this group and points `disaster-recovery` at /system.
-  { label: "Backups", sections: [{ id: "disaster-recovery", label: "Disaster Recovery" }] },
 ];
 
 /** What `/settings` opens on desktop, where there is no list to start from. */
@@ -70,6 +66,7 @@ const LEGACY_SECTION_TARGETS = new Map<string, SettingsSectionId>([
  */
 export function resolveSettingsSectionPath(value: string | null | undefined): string | null {
   if (!value) return null;
+  if (value === "disaster-recovery") return "/system";
   if (isSettingsSectionId(value)) return settingsHref(value);
   const target = LEGACY_SECTION_TARGETS.get(value);
   return target ? settingsHref(target) : null;

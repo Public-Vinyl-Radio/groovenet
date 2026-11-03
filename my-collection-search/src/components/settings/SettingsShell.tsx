@@ -9,10 +9,6 @@ import PageHeader from "@/components/layout/PageHeader";
 import AboutSection from "./AboutSection";
 import AiPromptSettingsSection from "./AiPromptSettingsSection";
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
-import BackupPolicySettingsSection from "./BackupPolicySettingsSection";
-import BackupStatusSection from "./BackupStatusSection";
-import DatabaseBackups from "./DatabaseBackups";
-import DatabaseRestore from "./DatabaseRestore";
 import DefaultLibrarySettingsSection from "./DefaultLibrarySettingsSection";
 import FriendsDiscogsSection from "./FriendsDiscogsSection";
 import GamdlSettingsSection from "./GamdlSettingsSection";
@@ -40,14 +36,6 @@ const SECTION_CONTENT: Record<SettingsSectionId, () => React.ReactNode> = {
   "apple-music": () => <GamdlSettingsSection />,
   "ai-metadata": () => <AiPromptSettingsSection />,
   about: () => <AboutSection />,
-  "disaster-recovery": () => (
-    <>
-      <BackupStatusSection />
-      <BackupPolicySettingsSection />
-      <DatabaseBackups />
-      <DatabaseRestore />
-    </>
-  ),
 };
 
 function SettingsIndexList() {

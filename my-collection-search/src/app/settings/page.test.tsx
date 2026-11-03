@@ -38,7 +38,7 @@ describe("/settings", () => {
     ["ai", "/settings/ai-metadata"],
     ["appearance", "/settings/appearance"],
     ["about", "/settings/about"],
-    ["disaster-recovery", "/settings/disaster-recovery"],
+    ["disaster-recovery", "/system"],
   ])("redirects the old ?section=%s link to %s", async (id, target) => {
     await expect(index({ section: id })).rejects.toThrow(`redirect:${target}`);
   });
@@ -62,6 +62,10 @@ describe("/settings/[section]", () => {
   it("redirects an old tab id to the section that replaced it", async () => {
     await expect(section("downloads")).rejects.toThrow("redirect:/settings/apple-music");
     await expect(section("defaults")).rejects.toThrow("redirect:/settings/libraries");
+  });
+
+  it("redirects the retired recovery path to System", async () => {
+    await expect(section("disaster-recovery")).rejects.toThrow("redirect:/system");
   });
 
   it("is a 404 for an id nothing knows", async () => {

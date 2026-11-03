@@ -32,9 +32,11 @@ describe("settings sections", () => {
     expect(settingsHref("libraries")).toBe("/settings/libraries");
     expect(isSettingsSectionId("about")).toBe(true);
     expect(isSettingsSectionId("ai")).toBe(false);
+    expect(isSettingsSectionId("disaster-recovery")).toBe(false);
   });
 
   it("resolves current ids, old tab ids and nothing else", () => {
+    expect(resolveSettingsSectionPath("disaster-recovery")).toBe("/system");
     expect(resolveSettingsSectionPath("about")).toBe("/settings/about");
     expect(resolveSettingsSectionPath("library")).toBe("/settings/libraries");
     expect(resolveSettingsSectionPath("toString")).toBeNull();

@@ -67,6 +67,5 @@ export function useSettingsSummaries(): SettingsSummaries {
     "apple-music": cookies.data ? appleMusicSummary(cookies.data.exists) : undefined,
     "ai-metadata": aiPrompt.data ? aiMetadataSummary(aiPrompt.data.isDefault) : undefined,
     about: version.data ? aboutSummary(version.data.version) : undefined,
-    "disaster-recovery": "Backups and restore",
   };
 }

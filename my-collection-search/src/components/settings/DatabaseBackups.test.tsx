@@ -142,3 +142,24 @@ describe("DatabaseBackups", () => {
     );
   });
 });
+
+it("embeds an empty list and backs up the database with mocked plumbing", async () => {
+  serve([]);
+  mocks.backupDatabase.mockResolvedValue({ message: "Saved dump" });
+  const { user } = renderWithProviders(<DatabaseBackups embedded />);
+  expect(await screen.findByText("No local backups yet.")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Database Backups" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "BACK UP DATABASE" }));
+  await waitFor(() => expect(mocks.backupDatabase).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Backup Complete", description: "Saved dump" }),
+    ),
+  );
+});
+it("embeds an existing backup without an empty message", async () => {
+  serve([backup("local.dump")]);
+  renderWithProviders(<DatabaseBackups embedded />);
+  expect(await screen.findByText("local.dump")).toBeTruthy();
+  expect(screen.queryByText("No local backups yet.")).toBeNull();
+});

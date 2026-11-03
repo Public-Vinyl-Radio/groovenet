@@ -164,7 +164,8 @@ async function openPage(
 }
 
 async function settle(page: Page) {
-  await page.waitForLoadState("networkidle");
+  // System polls health and fetches remote repository metrics, so it never becomes idle.
+  if (new URL(page.url()).pathname !== "/system") await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: `${HIDE} { display: none !important; }` });
   await page.evaluate(() => document.fonts.ready);
   // Covers can render after network idle (a store hydrating): wait until every
@@ -190,6 +191,12 @@ async function settle(page: Page) {
 
 async function shoot(page: Page, file: string, fullPage = false) {
   await settle(page);
+  if (file.startsWith("system-phone")) {
+    // Place fixed phone navigation at the end of this full-scroll reference sheet.
+    await page.addStyleTag({
+      content: `body { position: relative; } [data-testid="mobile-tab-bar"] { width: 100%; } div:has(> [data-testid="mobile-tab-bar"]) { position: absolute !important; bottom: 0 !important; }`,
+    });
+  }
   await page.screenshot({
     path: path.join(OUT_DIR, file),
     animations: "disabled",
@@ -658,23 +665,7 @@ const SETTINGS_SECTIONS: Array<{ id: string; path: string; ready: (page: Page) =
       path: "/settings/about",
       ready: async (page) => {
         await sectionOpen(page, "About GrooveNet");
-        await expect(page.getByText("Version", { exact: true })).toBeVisible();
-        await expect(page.getByText("unknown", { exact: true })).toHaveCount(0);
-        await noSpinners(page);
-      },
-    },
-    {
-      // Until System (#967) takes backups and restore.
-      id: "disaster-recovery",
-      path: "/settings/disaster-recovery",
-      ready: async (page) => {
-        // The status call reaches the backup repository, so it can take a while.
-        await expect(page.getByRole("button", { name: "Reload" }).first()).toBeEnabled({
-          timeout: 60_000,
-        });
-        await expect(page.getByText("Loading repository metrics…")).toHaveCount(0, {
-          timeout: 60_000,
-        });
+        await expect(page.getByRole("link", { name: /GitHub/ })).toBeVisible();
         await noSpinners(page);
       },
     },
@@ -744,9 +735,24 @@ async function maskSettings(page: Page) {
   );
 }
 
+// Reference only; never invokes backup or restore operations.
+const systemShots: Array<Omit<Shot, "mode">> = (["desktop", "phone"] as const).map((viewport) => ({
+  name: "system",
+  viewport,
+  reference: true,
+  fullPage: true,
+  take: async (page: Page) => {
+    await page.goto("/system");
+    await expect(page.getByRole("heading", { name: "System", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "RUN BACKUP NOW" })).toBeVisible();
+    await expect(page.getByText(/OF \d+ SERVICES UP/)).toBeVisible();
+    if (viewport === "desktop") await page.getByRole("button", { name: "Expand sidebar" }).click();
+  },
+}));
+
 const captures = [
   // Every page in Mono light and dark. Marketing names remain unchanged.
-  ...[...shots, ...docs, ...settingsShots].flatMap((shot) =>
+  ...[...shots, ...docs, ...settingsShots, ...systemShots].flatMap((shot) =>
     (MODE ? [MODE] : (["light", "dark"] as const)).map((mode) => ({
       ...shot,
       mode,

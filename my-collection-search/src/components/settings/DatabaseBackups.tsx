@@ -6,7 +6,7 @@ import { useBackupsQuery } from "@/hooks/useBackupsQuery";
 import { formatBytes } from "@/components/settings/BackupStatusSection";
 import { toaster } from "@/components/ui/toaster";
 
-export default function DatabaseBackups() {
+export default function DatabaseBackups({ embedded = false }: { embedded?: boolean }) {
   const { backups, backupsLoading, removeBackup, addBackup } = useBackupsQuery();
   const [showAllBackups, setShowAllBackups] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -33,12 +33,25 @@ export default function DatabaseBackups() {
     });
 
   return (
-    <Box mt={{ base: 6, md: 10 }} mb={8} p={4} borderWidth={1} borderRadius="md">
-      <HStack justify="space-between" align="center" mb={2}>
-        <Heading size="md">Database Backups</Heading>
+    <Box
+      mt={embedded ? 0 : { base: 6, md: 10 }}
+      mb={embedded ? 0 : 8}
+      p={embedded ? 0 : 4}
+      borderWidth={embedded ? 0 : 1}
+    >
+      <HStack justify="space-between" align="center" mb={2} flexWrap="wrap">
+        {embedded && !backupsLoading && backups.length === 0 && (
+          <Text color="fg.muted">No local backups yet.</Text>
+        )}
+        {!embedded && <Heading size="md">Database Backups</Heading>}
         <Button
           size="sm"
+          h={embedded ? "44px" : undefined}
+          width={embedded ? { base: "full", md: "auto" } : undefined}
+          marginLeft={embedded ? { base: 0, md: "auto" } : undefined}
           variant="outline"
+          borderWidth="outline"
+          borderColor="border.ink"
           loading={addBackup.isPending}
           onClick={() =>
             addBackup.mutate(undefined, {
@@ -57,7 +70,7 @@ export default function DatabaseBackups() {
             })
           }
         >
-          <FiBriefcase /> Backup Database
+          {!embedded && <FiBriefcase />} {embedded ? "BACK UP DATABASE" : "Backup Database"}
         </Button>
       </HStack>
       {backupsLoading ? (
@@ -70,7 +83,9 @@ export default function DatabaseBackups() {
           ))}
         </VStack>
       ) : backups.length === 0 ? (
-        <Text>No backups found in the directory.</Text>
+        embedded ? null : (
+          <Text>No backups found in the directory.</Text>
+        )
       ) : (
         <>
           <VStack align="stretch" gap={3}>
@@ -91,17 +106,15 @@ export default function DatabaseBackups() {
                     download
                     style={{ textDecoration: "none" }}
                   >
-                    <Button
-                      colorPalette="accent"
-                      size="xs"
-                      aria-label={`Download ${backup.filename}`}
-                    >
+                    <Button variant="outline" size="xs" aria-label={`Download ${backup.filename}`}>
                       <FiDownload />
                     </Button>
                   </a>
                   <IconButton
                     size="xs"
                     variant="outline"
+                    borderWidth="outline"
+                    borderColor="border.ink"
                     colorPalette="danger"
                     aria-label={`Delete ${backup.filename}`}
                     onClick={() => setPendingDelete(backup.filename)}

@@ -48,7 +48,6 @@ describe("SettingsShell on desktop", () => {
       ["Library", ["Libraries"]],
       ["Services", ["Apple Music", "AI metadata"]],
       ["About", ["About GrooveNet"]],
-      ["Backups", ["Disaster Recovery"]],
     ]);
   });
 
@@ -86,9 +85,9 @@ describe("SettingsShell on desktop", () => {
     ).toBeTruthy();
   });
 
-  it("keeps Disaster Recovery reachable until System lands", () => {
-    renderWithProviders(<SettingsShell section="disaster-recovery" />);
-    expect(screen.getByText(/backup status\s*backup policy\s*backups\s*restore/)).toBeTruthy();
+  it("does not expose Disaster Recovery in Settings", () => {
+    renderWithProviders(<SettingsShell section={null} />);
+    expect(screen.queryByText("Disaster Recovery")).toBeNull();
   });
 
   it.each([
@@ -117,7 +116,7 @@ describe("SettingsShell on a phone", () => {
       within(list)
         .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent),
-    ).toEqual(["You", "Library", "Services", "About", "Backups"]);
+    ).toEqual(["You", "Library", "Services", "About"]);
   });
 
   it("has no System row: System lives under More", () => {

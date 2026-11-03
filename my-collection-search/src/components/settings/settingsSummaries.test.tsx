@@ -101,7 +101,6 @@ describe("useSettingsSummaries", () => {
       "apple-music": "No cookie file",
       "ai-metadata": "Custom prompt",
       about: "Version 0.3.15",
-      "disaster-recovery": "Backups and restore",
     });
     expect(mocks.fetchAiPromptSettings).toHaveBeenCalledWith({ friend_id: 2 });
   });
