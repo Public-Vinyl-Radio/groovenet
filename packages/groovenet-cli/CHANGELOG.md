@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.11.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.10.0...groovenet-cli-v3.11.0) (2026-11-03)
+
+
+### Features
+
+* **cli,mcp:** care stack commands and tools ([#953](https://github.com/Public-Vinyl-Radio/groovenet/issues/953)) ([80c8f98](https://github.com/Public-Vinyl-Radio/groovenet/commit/80c8f989b8686d33f09ac259cacb4dfb80c23ee9))
+* **site:** reproducible TUI screenshots with VHS and composited cover art ([#954](https://github.com/Public-Vinyl-Radio/groovenet/issues/954)) ([971d1ac](https://github.com/Public-Vinyl-Radio/groovenet/commit/971d1acba11917ebbb77d5624e8a724f060d8176))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.9.0 to ^3.10.0
+    * @groovenet/contracts bumped from 1.5.0 to 1.6.0
+    * @groovenet/player bumped from 0.1.9 to 0.1.10
+
 ## [3.10.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.9.1...groovenet-cli-v3.10.0) (2026-10-31)
 
 

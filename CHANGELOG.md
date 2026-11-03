@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.16](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.15...v0.3.16) (2026-11-03)
+
+
+### Features
+
+* **chores:** log care modal and care log with undo ([#952](https://github.com/Public-Vinyl-Radio/groovenet/issues/952)) ([229b538](https://github.com/Public-Vinyl-Radio/groovenet/commit/229b5383a9853ee1a7ed74f935f7ac05c8874c09))
+* **chores:** redesigned Chores page with progress, sleeves and stack queue ([#951](https://github.com/Public-Vinyl-Radio/groovenet/issues/951)) ([aaf932f](https://github.com/Public-Vinyl-Radio/groovenet/commit/aaf932f8972f475c510f4089bbf1bb6a5898ca8a))
+* **cli,mcp:** care stack commands and tools ([#953](https://github.com/Public-Vinyl-Radio/groovenet/issues/953)) ([80c8f98](https://github.com/Public-Vinyl-Radio/groovenet/commit/80c8f989b8686d33f09ac259cacb4dfb80c23ee9))
+* **record-care:** care stacks, batch logging, source and undo ([#947](https://github.com/Public-Vinyl-Radio/groovenet/issues/947)) ([f758153](https://github.com/Public-Vinyl-Radio/groovenet/commit/f7581536fc6afc856dc58c86a384564a50d8dea1))
+* **record-care:** chores queue and cleaning progress API ([#949](https://github.com/Public-Vinyl-Radio/groovenet/issues/949)) ([2b88b05](https://github.com/Public-Vinyl-Radio/groovenet/commit/2b88b052e4ba6ee82118b10a0c5f1ef3f1b1a979))
+* **site:** generate the roadmap from GitHub issue labels ([#921](https://github.com/Public-Vinyl-Radio/groovenet/issues/921)) ([799fab0](https://github.com/Public-Vinyl-Radio/groovenet/commit/799fab04b7ad44e55f7257f5e3da804c61a3db99))
+* **site:** new landing page from the redesign ([#915](https://github.com/Public-Vinyl-Radio/groovenet/issues/915)) ([8108ebc](https://github.com/Public-Vinyl-Radio/groovenet/commit/8108ebcd6e4facf70f7c1bdf1d83e5cf998c704c))
+* **site:** Playwright screenshots for the landing page ([#917](https://github.com/Public-Vinyl-Radio/groovenet/issues/917)) ([a4d3651](https://github.com/Public-Vinyl-Radio/groovenet/commit/a4d36510e25874363e61249e220df537474db709))
+* **site:** reproducible TUI screenshots with VHS and composited cover art ([#954](https://github.com/Public-Vinyl-Radio/groovenet/issues/954)) ([971d1ac](https://github.com/Public-Vinyl-Radio/groovenet/commit/971d1acba11917ebbb77d5624e8a724f060d8176))
+* **ui:** badge role recipe and components ([#964](https://github.com/Public-Vinyl-Radio/groovenet/issues/964)) ([49faba4](https://github.com/Public-Vinyl-Radio/groovenet/commit/49faba4e34ed3220fde9f6cac8537c1e1e07063e))
+
+
+### Bug Fixes
+
+* **genres:** cap subgenres and album paging on the genre page for phones ([#922](https://github.com/Public-Vinyl-Radio/groovenet/issues/922)) ([1288a44](https://github.com/Public-Vinyl-Radio/groovenet/commit/1288a44e4059bd438b37264806110df490cacc9e))
+* **player:** re-adopt Groovenet's own OwnTone sessions after a restart or lost output ([#927](https://github.com/Public-Vinyl-Radio/groovenet/issues/927)) ([4db958b](https://github.com/Public-Vinyl-Radio/groovenet/commit/4db958bb9cf0a70d223f4ccfcaff0fdeab084d48))
+* **site:** Netlify ignore check fails on app-only PRs and skips hook builds ([#929](https://github.com/Public-Vinyl-Radio/groovenet/issues/929)) ([ceac610](https://github.com/Public-Vinyl-Radio/groovenet/commit/ceac6100b75f286064ebecc45f90288008142cff))
+* **tracks:** remove a deleted track from the store and every cached view ([#924](https://github.com/Public-Vinyl-Radio/groovenet/issues/924)) ([9191e8f](https://github.com/Public-Vinyl-Radio/groovenet/commit/9191e8f79b7c1eb8030c24bf444f07f51a8f4f8f))
+* **ui:** one page width across the app ([#960](https://github.com/Public-Vinyl-Radio/groovenet/issues/960)) ([c65bbfd](https://github.com/Public-Vinyl-Radio/groovenet/commit/c65bbfdb4e34f62e66d20d0a532dd7ca0156cb0d))
+* **worktree:** reserve APP_PORT across worktrees and lock allocation ([#932](https://github.com/Public-Vinyl-Radio/groovenet/issues/932)) ([d26f329](https://github.com/Public-Vinyl-Radio/groovenet/commit/d26f3292edd98e684cc643c4787236107461692a))
+
 ## [0.3.15](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.14...v0.3.15) (2026-10-31)
 
 
