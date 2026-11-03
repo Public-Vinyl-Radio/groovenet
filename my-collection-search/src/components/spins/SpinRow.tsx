@@ -1,10 +1,11 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React from "react";
 import NextLink from "next/link";
-import { Box, Button, Flex, HStack, Image, Link, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Link, Stack, Text } from "@chakra-ui/react";
 import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
-import { FiChevronDown, FiChevronUp, FiDisc } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import SpinSessionActions from "./SpinSessionActions";
@@ -25,37 +26,6 @@ type Props = {
   timeOnly?: boolean;
 };
 
-function AlbumArt({ src, alt }: { src: string | null; alt: string }) {
-  // Discogs art links expire; a broken one gets the same disc as a missing one.
-  const [failed, setFailed] = React.useState(false);
-  return (
-    <Box
-      boxSize="48px"
-      flexShrink={0}
-      borderRadius="md"
-      overflow="hidden"
-      bg="bg.muted"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      color="fg.subtle"
-    >
-      {src && !failed ? (
-        <Image
-          src={src}
-          alt={alt}
-          width="100%"
-          height="100%"
-          objectFit="cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <FiDisc size={20} />
-      )}
-    </Box>
-  );
-}
-
 export default function SpinRow({ item, showAlbum = false, timeOnly = false }: Props) {
   const timeZone = useDisplayTimeZone();
   const [expanded, setExpanded] = React.useState(false);
@@ -74,7 +44,7 @@ export default function SpinRow({ item, showAlbum = false, timeOnly = false }: P
       _last={{ borderBottomWidth: 0 }}
       minW={0}
     >
-      {album && <AlbumArt src={album.thumbnail} alt={album.title ?? "Album art"} />}
+      {album && <Cover size="48px" src={album.thumbnail} alt={album.title ?? "Album art"} />}
       <Stack gap={0.5} flex="1" minW={0}>
         <Text fontSize="sm" fontWeight="medium" lineClamp={1}>
           {summary.headline}

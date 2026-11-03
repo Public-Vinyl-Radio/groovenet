@@ -327,7 +327,7 @@ describe("RelatedTracksSection layout", () => {
 it.each([
   ["/chosen.jpg", "/discogs.jpg", "/chosen.jpg"],
   ["", "/discogs.jpg", "/discogs.jpg"],
-  ["", "", "/images/placeholder-artwork.png"],
+  ["", "", undefined],
 ])(
   "renders related covers without rewriting track metadata (%s, %s)",
   (chosen, discogs, expected) => {

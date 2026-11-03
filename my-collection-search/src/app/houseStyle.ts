@@ -24,6 +24,15 @@ export const outlineWidth = "2px";
 /** Ruled dividers inside a bordered block. */
 export const ruleWidth = "1px";
 
+/** Shared cover treatment; CSS variables also let Storybook preview token changes. */
+export const coverTokens = {
+  borderWidth: "var(--gn-cover-border-width, var(--chakra-border-widths-outline))",
+  borderColor: "var(--gn-cover-border-color, var(--gn-ink))",
+  radius: "var(--gn-radius)",
+  monochrome: "var(--gn-cover-grayscale, 0)",
+  transition: "filter 150ms ease",
+} as const;
+
 /** Hard offset shadows: x and y offset, no blur, no spread. */
 export const shadowOffsets = {
   /** Pressed button. */

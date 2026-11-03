@@ -1,4 +1,5 @@
 "use client";
+import Cover from "@/components/Cover";
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -8,7 +9,6 @@ import {
   Textarea,
   Input,
   Spinner,
-  Image,
   Separator,
   TagsInput,
 } from "@chakra-ui/react";
@@ -219,23 +219,13 @@ export default function EnrichmentTrackStep({
     }
   };
 
-  const placeholderSrc =
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23374151' width='100' height='100'/%3E%3Ctext fill='%23ffffff' font-family='Arial' font-size='14' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle'%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E";
-  const artworkSrc = track.audio_file_album_art_url || track.album_thumbnail || placeholderSrc;
+  const artworkSrc = track.audio_file_album_art_url || track.album_thumbnail;
 
   return (
     <Flex direction="column" gap={6}>
       {/* Track Identity */}
       <Flex gap={4} align="flex-start">
-        <Image
-          src={artworkSrc}
-          alt={track.title}
-          width="72px"
-          height="72px"
-          objectFit="cover"
-          borderRadius="md"
-          flexShrink={0}
-        />
+        <Cover src={artworkSrc} alt={track.title} size="72px" />
         <Box>
           <Text fontWeight="bold" fontSize="lg" lineClamp={1}>
             {track.title}
@@ -370,16 +360,11 @@ export default function EnrichmentTrackStep({
                   onClick={() => appleMusicInclude && setSelectedAppleUrl(result.url)}
                   bg={selectedAppleUrl === result.url ? "accent.subtle" : undefined}
                 >
-                  {result.artwork && (
-                    <Image
-                      src={result.artwork.replace("{w}", "40").replace("{h}", "40")}
-                      alt={result.title}
-                      width="40px"
-                      height="40px"
-                      borderRadius="sm"
-                      flexShrink={0}
-                    />
-                  )}
+                  <Cover
+                    src={result.artwork?.replace("{w}", "40").replace("{h}", "40")}
+                    alt={result.title}
+                    size="40px"
+                  />
                   <Box flex={1} minW={0}>
                     <Text fontSize="sm" fontWeight="medium" lineClamp={1}>
                       {result.title}
@@ -472,17 +457,7 @@ export default function EnrichmentTrackStep({
                   onClick={() => youtubeInclude && setSelectedYoutubeUrl(result.url ?? "")}
                   bg={selectedYoutubeUrl === result.url ? "accent.subtle" : undefined}
                 >
-                  {result.thumbnail && (
-                    <Image
-                      src={result.thumbnail}
-                      alt={result.title ?? ""}
-                      width="60px"
-                      height="40px"
-                      objectFit="cover"
-                      borderRadius="sm"
-                      flexShrink={0}
-                    />
-                  )}
+                  <Cover src={result.thumbnail} alt={result.title} size="40px" />
                   <Box flex={1} minW={0}>
                     <Text fontSize="sm" fontWeight="medium" lineClamp={2}>
                       {result.title}

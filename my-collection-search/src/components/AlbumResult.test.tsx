@@ -226,14 +226,14 @@ it("reuses album links and genre badges in the full cover-grid layout", () => {
   );
   const coverLink = screen.getByRole("link", { name: /^Open A very long album/ });
   expect(coverLink.getAttribute("href")).toBe("/albums/rel?friend_id=7");
-  expect(coverLink.querySelector("img")).toBeTruthy();
+  expect(coverLink.querySelector("[data-cover-placeholder]")).toBeTruthy();
   expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
 });
 
 it.each([
   ["/chosen.jpg", "/discogs.jpg", "/chosen.jpg"],
   ["", "/discogs.jpg", "/discogs.jpg"],
-  ["", "", "/images/placeholder-artwork.png"],
+  ["", "", undefined],
 ])("uses the resolved cover in album actions (%s, %s)", async (chosen, discogs, expected) => {
   const { user } = renderWithProviders(
     <AlbumResult

@@ -246,7 +246,7 @@ export default function QueueList({
             boxShadow="sm"
             bg="bg.panel"
           >
-            <Artwork src={artworkOf(current)} alt={artworkAlt(current)} size="48px" />
+            <Artwork playing src={artworkOf(current)} alt={artworkAlt(current)} size="48px" />
             <TrackText track={current} />
             <TrackFigures track={current} />
           </Flex>

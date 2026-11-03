@@ -11,10 +11,14 @@ const mocks = vi.hoisted(() => ({
   replacePlaylist: vi.fn(),
   appendToQueue: vi.fn(),
   saveTrack: vi.fn(),
+  currentTrack: null as Track | null,
+  isPlaying: false,
 }));
 
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   usePlaylistPlayer: () => ({
+    currentTrack: mocks.currentTrack,
+    isPlaying: mocks.isPlaying,
     replacePlaylist: mocks.replacePlaylist,
     appendToQueue: mocks.appendToQueue,
   }),
@@ -32,7 +36,11 @@ import TrackResult, {
   TRACK_ROW_HEIGHT,
 } from "./TrackResult";
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  mocks.currentTrack = null;
+  mocks.isPlaying = false;
+});
 
 const track = {
   ...sampleTrack,
@@ -280,11 +288,11 @@ describe("TrackResult layout", () => {
     );
     const image = () => container.querySelector("img") as HTMLImageElement;
     fireEvent.error(image());
-    expect(image().src).toContain("data:image/svg+xml");
+    expect(container.querySelector("[data-cover-placeholder]")).toBeTruthy();
 
     rerender(<TrackResult track={track} />);
     fireEvent.error(image());
-    expect(image().src).toContain("data:image/svg+xml");
+    expect(container.querySelector("[data-cover-placeholder]")).toBeTruthy();
   });
 
   it("plays the track when the artwork is clicked", async () => {
@@ -599,7 +607,7 @@ describe("TrackResult dense layouts", () => {
     expect(screen.getByText("2:28")).toBeTruthy();
     const image = container.querySelector("img") as HTMLImageElement;
     fireEvent.error(image);
-    expect(image.src).toContain("data:image/svg+xml");
+    expect(container.querySelector("[data-cover-placeholder]")).toBeTruthy();
   });
 });
 
@@ -990,4 +998,24 @@ describe("TrackResult card (#722)", () => {
     expect(screen.getByRole("radio", { name: "4 stars", hidden: true })).toBeTruthy();
     expect(screen.queryByTestId("track-genres")).toBeNull();
   });
+});
+
+it("keeps only the currently playing copy of a track in colour", () => {
+  mocks.currentTrack = track;
+  mocks.isPlaying = true;
+  const { container, rerender } = renderWithProviders(<TrackResult track={track} />);
+  const rules = () => {
+    const el = container.querySelector("img")!.parentElement!;
+    return Array.from(document.styleSheets)
+      .flatMap((s) => Array.from(s.cssRules))
+      .map((r) => r.cssText)
+      .filter((t) => [...el.classList].some((c) => t.includes(`.${c}`)))
+      .join("\n");
+  };
+  expect(rules()).not.toContain("grayscale(");
+  rerender(<TrackResult track={{ ...track, friend_id: 999 }} />);
+  expect(rules()).toContain("grayscale(");
+  mocks.currentTrack = null;
+  rerender(<TrackResult track={track} />);
+  expect(rules()).toContain("grayscale(");
 });

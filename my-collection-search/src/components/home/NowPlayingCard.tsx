@@ -73,7 +73,7 @@ export function NowPlayingCard({
   const body = (
     <>
       <Box boxSize={{ base: "48px", md: "56px" }} flexShrink={0}>
-        <Artwork src={coverUrl} alt={album || title} fill />
+        <Artwork playing src={coverUrl} alt={album || title} fill />
       </Box>
       <Flex as="span" direction="column" flex="1" minW={0} gap={{ base: "2px", md: "6px" }}>
         <Flex

@@ -256,7 +256,13 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                   pb="16px"
                 >
                   <Box alignSelf="center" w="min(calc(100% - 6px), 340px)" flexShrink={0}>
-                    <Artwork src={artworkOf(track)} alt={artworkAlt(track)} fill shadow />
+                    <Artwork
+                      playing={model.transport.isPlaying}
+                      src={artworkOf(track)}
+                      alt={artworkAlt(track)}
+                      fill
+                      shadow
+                    />
                   </Box>
                   <Box>
                     <Text

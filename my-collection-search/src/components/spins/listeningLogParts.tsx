@@ -1,9 +1,9 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React from "react";
-import { Box, Image, type BoxProps } from "@chakra-ui/react";
+import { type BoxProps } from "@chakra-ui/react";
 import { SourceTag } from "@/components/ui/RoleTags";
-import { FiDisc } from "react-icons/fi";
 import type { ListeningSessionMedium } from "./spinSummary";
 
 /** "6 SPINS", "1 RECORD". */
@@ -34,38 +34,16 @@ type SpinArtProps = {
   inverse?: boolean;
 };
 
-/** Square album art; a missing or broken image gets a disc. */
+/** Shared cover treatment for a listening-log record group. */
 export function SpinArt({ src, stacked = false, boxSize, inverse = false }: SpinArtProps) {
-  // Discogs art links expire; a broken one gets the same disc as a missing one.
-  const [failed, setFailed] = React.useState(false);
   return (
-    <Box
+    <Cover
+      src={src}
+      alt=""
+      size={boxSize ?? { base: "48px", md: "52px" }}
+      stacked={stacked}
+      inverse={inverse}
       aria-hidden="true"
-      boxSize={boxSize ?? { base: "48px", md: "52px" }}
-      flexShrink={0}
-      borderWidth="outline"
-      borderRadius="md"
-      borderColor={inverse ? "bg" : "border.ink"}
-      boxShadow={stacked ? "sm" : undefined}
-      overflow="hidden"
-      bg="bg.muted"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      color="fg.muted"
-    >
-      {src && !failed ? (
-        <Image
-          src={src}
-          alt=""
-          width="100%"
-          height="100%"
-          objectFit="cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <FiDisc size={20} />
-      )}
-    </Box>
+    />
   );
 }

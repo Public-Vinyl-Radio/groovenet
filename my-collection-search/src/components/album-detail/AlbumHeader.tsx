@@ -1,7 +1,8 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React from "react";
-import { Box, Button, Flex, Heading, Image, Popover, RatingGroup, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Popover, RatingGroup, Text } from "@chakra-ui/react";
 import { FaPlay } from "react-icons/fa";
 import { FiDisc, FiFileText, FiPlus } from "react-icons/fi";
 import ArtistLink from "@/components/ArtistLink";
@@ -207,32 +208,13 @@ export default function AlbumHeader({
               onClick={onChangeArtwork}
               flexShrink={0}
               cursor="pointer"
-              borderWidth="rule"
-              borderRadius="md"
+              borderWidth="0"
               overflow="hidden"
               borderColor="border.ink"
               alignSelf="flex-start"
               css={{ width: "112px", height: "112px", [wide]: { width: "192px", height: "192px" } }}
             >
-              {artworkSrc ? (
-                <Image
-                  src={artworkSrc}
-                  alt={`${album.title} cover`}
-                  boxSize="100%"
-                  objectFit="cover"
-                  display="block"
-                />
-              ) : (
-                <Flex
-                  boxSize="100%"
-                  alignItems="center"
-                  justifyContent="center"
-                  bg="bg.muted"
-                  color="fg.subtle"
-                >
-                  <FiDisc size={40} />
-                </Flex>
-              )}
+              <Cover src={artworkSrc} alt={`${album.title} cover`} fill />
             </Box>
 
             <Flex direction="column" gap="4px" minW={0} flex={1} css={{ [wide]: { gap: "6px" } }}>
