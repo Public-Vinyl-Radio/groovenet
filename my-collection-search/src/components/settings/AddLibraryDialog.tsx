@@ -103,6 +103,7 @@ export default function AddLibraryDialog({
         borderWidth="outline"
         borderColor="border.ink"
         borderRadius="md"
+        overflow="clip"
       >
         <Text fontSize="sm" lineHeight="20px" color="fg.error">
           Couldn&apos;t reach Discogs: {lookup.error.message}. Try again in a moment.
@@ -118,6 +119,7 @@ export default function AddLibraryDialog({
         p={3}
         borderWidth="outline"
         borderRadius="md"
+        overflow="clip"
         borderColor="border.ink"
         bg="bg.subtle"
       >
@@ -160,6 +162,7 @@ export default function AddLibraryDialog({
         p={3}
         borderWidth="outline"
         borderRadius="md"
+        overflow="clip"
         borderStyle="dashed"
         borderColor="border.ink"
       >

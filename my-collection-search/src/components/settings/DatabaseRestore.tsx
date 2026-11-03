@@ -38,6 +38,7 @@ export default function DatabaseRestore() {
           borderWidth="outline"
           borderColor="border.ink"
           borderRadius="md"
+          overflow="clip"
         >
           <Heading as="h2" bg="bg" fontFamily="mono" fontSize="xs" px={2}>
             DANGER ZONE

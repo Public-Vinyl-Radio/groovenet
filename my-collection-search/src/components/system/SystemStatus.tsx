@@ -62,7 +62,13 @@ export default function SystemStatus() {
         STATUS
       </SectionHeading>
       <Grid templateColumns={{ base: "1fr", md: "3fr 2fr" }} gap={6} alignItems="start">
-        <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" borderRadius="md">
+        <Box
+          borderWidth="outline"
+          borderColor="border.ink"
+          boxShadow="md"
+          borderRadius="md"
+          overflow="clip"
+        >
           {status.isLoading ? (
             <Spinner m={4} aria-label="Loading services" />
           ) : status.error ? (
@@ -131,6 +137,7 @@ export default function SystemStatus() {
           display={{ base: "none", md: "block" }}
           borderWidth="outline"
           borderRadius="md"
+          overflow="clip"
           borderColor="border.ink"
           boxShadow="md"
         >

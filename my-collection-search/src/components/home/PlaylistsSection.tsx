@@ -126,6 +126,7 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       py={3}
       borderWidth="outline"
       borderRadius="md"
+      overflow="clip"
       borderColor="border.ink"
       fontFamily="mono"
       fontSize="xs"

@@ -34,6 +34,7 @@ export default function ListeningSessionCard({
       boxShadow="md"
       bg="bg"
       borderRadius="md"
+      overflow="clip"
     >
       <Flex
         as="header"

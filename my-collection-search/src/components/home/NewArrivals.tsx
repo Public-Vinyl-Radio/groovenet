@@ -153,6 +153,7 @@ function Skeletons() {
             bg="bg.muted"
             borderWidth="outline"
             borderRadius="md"
+            overflow="clip"
             borderColor="border.ink"
           />
         ))}
@@ -161,6 +162,7 @@ function Skeletons() {
         display={{ base: "none", md: "block" }}
         borderWidth="outline"
         borderRadius="md"
+        overflow="clip"
         borderColor="border.ink"
         boxShadow="md"
       >

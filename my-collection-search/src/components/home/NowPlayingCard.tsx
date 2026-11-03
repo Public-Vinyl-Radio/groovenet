@@ -162,6 +162,7 @@ export function NowPlayingCard({
       align="stretch"
       borderWidth="outline"
       borderRadius="md"
+      overflow="clip"
       borderColor="border.ink"
       boxShadow="md"
       mr="6px"

@@ -315,6 +315,7 @@ function TrackRows({
     <Box
       borderWidth="outline"
       borderRadius="md"
+      overflow="clip"
       borderColor="border.ink"
       boxShadow="md"
       data-testid="album-track-list"

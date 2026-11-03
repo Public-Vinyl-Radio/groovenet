@@ -203,6 +203,7 @@ export default function ChoreGroup({
       aria-labelledby={headingId}
       borderWidth="outline"
       borderRadius="md"
+      overflow="clip"
       borderColor="border.ink"
       boxShadow="md"
       mr="6px"
