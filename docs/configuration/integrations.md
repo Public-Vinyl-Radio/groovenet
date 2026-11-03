@@ -19,7 +19,7 @@ Set `OPENAI_API_KEY` for AI features. `OPENAI_GENRE_RECONCILIATION_MODEL` select
 
 ## Backups
 
-Use **Settings → Disaster Recovery** to manage backups. For remote restic storage, set `RESTIC_REPOSITORY` and `RESTIC_PASSWORD`. Backblaze B2 also needs `B2_ACCOUNT_ID` and `B2_ACCOUNT_KEY`; the repository format is `b2:<bucket-name>:<path>`.
+Use **System → Backups** to manage backups. For remote restic storage, set `RESTIC_REPOSITORY` and `RESTIC_PASSWORD`. Backblaze B2 also needs `B2_ACCOUNT_ID` and `B2_ACCOUNT_KEY`; the repository format is `b2:<bucket-name>:<path>`.
 
 `BACKUP_HEALTH_MAX_AGE_HOURS` sets the health-alert threshold. Keep it longer than your backup interval. Keep the restic password somewhere outside the server: a backup you cannot decrypt cannot restore your collection.
 

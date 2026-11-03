@@ -60,6 +60,13 @@ describe("SettingsPage", () => {
     expect(screen.getByText(/default library section\s*suggestion scope section/)).toBeTruthy();
   });
 
+  it("redirects the old disaster recovery URL", () => {
+    mocks.searchParams = new URLSearchParams("section=disaster-recovery");
+    renderWithProviders(<SettingsPage />);
+    expect(mocks.replace).toHaveBeenCalledWith("/system");
+    expect(screen.queryByRole("tab", { name: "Disaster Recovery", hidden: true })).toBeNull();
+  });
+
   it("titles the page through the shared header", () => {
     renderWithProviders(<SettingsPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy();
@@ -109,8 +116,7 @@ describe("SettingsPage", () => {
       "false",
       "false",
       "false",
-      "false",
     ]);
-    expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, -1, 0, -1, -1, -1, -1]);
+    expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, -1, 0, -1, -1, -1]);
   });
 });

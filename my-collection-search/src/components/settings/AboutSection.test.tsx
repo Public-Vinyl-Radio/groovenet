@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("AboutSection", () => {
-  it("shows build info, service health and links once loaded, with no update banner when up to date", async () => {
+  it("keeps project info and links while removing Build and Services", async () => {
     mocks.fetchUpdateInfo.mockResolvedValue({
       current: "1.2.3",
       comparable: true,
@@ -49,11 +49,8 @@ describe("AboutSection", () => {
     });
     renderWithProviders(<AboutSection />);
 
-    expect(await screen.findByText("1.2.3")).toBeTruthy();
-    expect(screen.getByText("abc1234")).toBeTruthy();
-    expect(screen.getByText("up to date")).toBeTruthy();
-    expect(screen.getByText("essentia")).toBeTruthy();
-    expect(screen.queryByText("Update available")).toBeNull();
+    expect(screen.queryByText("Build")).toBeNull();
+    expect(screen.queryByText("Services")).toBeNull();
     expect(screen.getByRole("link", { name: /GitHub/ })).toBeTruthy();
   });
 
@@ -72,43 +69,20 @@ describe("AboutSection", () => {
 
     expect(await screen.findByText("Update available")).toBeTruthy();
     expect(screen.getByText("1.2.3 → 1.3.0")).toBeTruthy();
-    expect(screen.getByText("1.3.0 available")).toBeTruthy();
     expect(screen.getByRole("link", { name: /View release notes/ }).getAttribute("href")).toBe(
       "https://github.com/Public-Vinyl-Radio/groovenet/releases/tag/v1.3.0",
     );
   });
+});
 
-  it.each([
-    [{ comparable: false, error: null }, "n/a (dev build)"],
-    [{ comparable: true, error: "rate limited" }, "unavailable"],
-  ])("explains an update check that cannot answer (%j)", async (patch, text) => {
-    mocks.fetchUpdateInfo.mockResolvedValue({
-      current: "1.2.3",
-      latest: null,
-      updateAvailable: false,
-      releaseUrl: null,
-      releaseName: null,
-      publishedAt: null,
-      ...patch,
-    });
-    renderWithProviders(<AboutSection />);
-
-    expect(await screen.findByText(text)).toBeTruthy();
+it("shows an available update without release notes", async () => {
+  mocks.fetchUpdateInfo.mockResolvedValue({
+    updateAvailable: true,
+    current: "1",
+    latest: "2",
+    releaseUrl: null,
   });
-
-  it("shows a dash while the update check has no result, and every service state", async () => {
-    mocks.fetchUpdateInfo.mockReturnValue(new Promise(() => {}));
-    mocks.fetchStatusInfo.mockResolvedValue({
-      services: [
-        { service: "essentia", status: "up", latencyMs: 12 },
-        { service: "ga-service", status: "down", latencyMs: null, detail: "refused" },
-        { service: "redis", status: "unknown", latencyMs: null },
-      ],
-      checkedAt: "2026-10-08T00:00:00.000Z",
-    });
-    renderWithProviders(<AboutSection />);
-
-    expect(await screen.findByText("ga-service")).toBeTruthy();
-    expect(screen.getByText("redis")).toBeTruthy();
-  });
+  renderWithProviders(<AboutSection />);
+  expect(await screen.findByText("1 → 2")).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /View release notes/ })).toBeNull();
 });

@@ -1,16 +1,12 @@
 // app/(pages)/settings/page.tsx
 "use client";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { Box, Heading, Spinner, Tabs, Text } from "@chakra-ui/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { SettingsDialogsProvider } from "@/providers/SettingsDialogProvider";
 import { SyncStreamsProvider } from "@/providers/SyncStreamsProvider";
 import FriendsDiscogsSection from "@/components/settings/FriendsDiscogsSection";
-import DatabaseBackups from "@/components/settings/DatabaseBackups";
-import DatabaseRestore from "@/components/settings/DatabaseRestore";
-import BackupStatusSection from "@/components/settings/BackupStatusSection";
-import BackupPolicySettingsSection from "@/components/settings/BackupPolicySettingsSection";
 import GamdlSettingsSection from "@/components/settings/GamdlSettingsSection";
 import AiPromptSettingsSection from "@/components/settings/AiPromptSettingsSection";
 import DefaultLibrarySettingsSection from "@/components/settings/DefaultLibrarySettingsSection";
@@ -74,19 +70,6 @@ function SettingsPageContent() {
         content: <FriendsDiscogsSection />,
       },
       {
-        id: "disaster-recovery",
-        label: "Disaster Recovery",
-        description: "remote policy, local backups, and restore",
-        content: (
-          <>
-            <BackupStatusSection />
-            <BackupPolicySettingsSection />
-            <DatabaseBackups />
-            <DatabaseRestore />
-          </>
-        ),
-      },
-      {
         id: "about",
         label: "About",
         description: "version, services, and project info",
@@ -99,6 +82,9 @@ function SettingsPageContent() {
   // The URL is the source of truth, so a reload or a shared link lands on the
   // same section; an unknown or missing value falls back to the first one.
   const requestedSectionId = searchParams.get(SECTION_PARAM);
+  useEffect(() => {
+    if (requestedSectionId === "disaster-recovery") router.replace("/system");
+  }, [requestedSectionId, router]);
   const activeSectionId = sections.some((section) => section.id === requestedSectionId)
     ? (requestedSectionId as string)
     : sections[0].id;

@@ -28,6 +28,7 @@ import {
   FiCode,
   FiDroplet,
   FiHome,
+  FiServer,
 } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload, LuTags } from "react-icons/lu";
@@ -53,6 +54,7 @@ const baseMenuItems = [
   { href: "/jobs", label: "Jobs" },
   { href: "/chore", label: "Chores" },
   { href: "/settings", label: "Settings" },
+  { href: "/system", label: "System" },
 ];
 
 function getItemIcon(href: string) {
@@ -62,6 +64,7 @@ function getItemIcon(href: string) {
   if (href === "/genres") return LuTags;
   if (href === "/spins") return FiDisc;
   if (href === "/settings") return IoSettings;
+  if (href === "/system") return FiServer;
   if (href === "/playlists") return TbPlaylist;
   if (href === "/jobs") return LuCloudDownload;
   if (href === "/chore") return FiDroplet;

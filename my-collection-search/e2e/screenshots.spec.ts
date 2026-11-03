@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { mkdirSync, readdirSync } from "node:fs";
 import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,7 +50,11 @@ const QUEUE_SECONDS = 251;
 const QUEUE_POSITION = 97;
 const QUEUE_POSITION_LABEL = "1:37";
 
-const OUT_DIR = fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
+const OUT_DIR =
+  process.env.SCREENSHOT_OUT ||
+  fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
+mkdirSync(OUT_DIR, { recursive: true });
+const ONLY = process.env.SCREENSHOT_ONLY;
 const DEFAULT_PALETTE = "mono";
 const PALETTE = process.env.SCREENSHOT_PALETTE || DEFAULT_PALETTE;
 const MODE = process.env.SCREENSHOT_MODE as Mode | undefined;
@@ -151,7 +155,8 @@ async function openPage(
 }
 
 async function settle(page: Page) {
-  await page.waitForLoadState("networkidle");
+  // System polls health and fetches remote storage metrics; it never becomes idle.
+  if (new URL(page.url()).pathname !== "/system") await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: `${HIDE} { display: none !important; }` });
   await page.evaluate(() => document.fonts.ready);
   // Covers can render after network idle (a store hydrating): wait until every
@@ -177,11 +182,18 @@ async function settle(page: Page) {
 
 async function shoot(page: Page, file: string) {
   await settle(page);
+  if (file.startsWith("system-phone")) {
+    // Full-scroll reference artboard: put the fixed navigation at the end of the sheet.
+    await page.addStyleTag({
+      content: `body { position: relative; } [data-testid="mobile-tab-bar"] { width: 100%; } div:has(> [data-testid="mobile-tab-bar"]) { position: absolute !important; bottom: 0 !important; }`,
+    });
+  }
   await page.screenshot({
     path: path.join(OUT_DIR, file),
     animations: "disabled",
     caret: "hide",
     scale: "device",
+    fullPage: file.startsWith("system-"),
   });
 }
 
@@ -189,6 +201,7 @@ type Shot = {
   name: string;
   viewport: Viewport;
   mode: Mode;
+  reference?: boolean;
   take: (page: Page) => Promise<void>;
   storage?: (request: APIRequestContext) => Promise<Record<string, string>>;
 };
@@ -565,6 +578,24 @@ const docs: Array<Omit<Shot, "mode">> = [
   },
 ];
 
+// Reference captures only: service values come from the running stack. No backup actions.
+shots.push(
+  ...(["desktop", "phone"] as const).map((viewport) => ({
+    name: "system",
+    viewport,
+    reference: true,
+    mode: "light" as const,
+    take: async (page: Page) => {
+      await page.goto("/system");
+      await expect(page.getByRole("heading", { name: "System", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "RUN BACKUP NOW" })).toBeVisible();
+      await expect(page.getByText(/OF 7 SERVICES UP/)).toBeVisible();
+      if (viewport === "desktop")
+        await page.getByRole("button", { name: "Expand sidebar" }).click();
+    },
+  })),
+);
+
 const captures = [
   // Every page in Mono light and dark. Marketing names remain unchanged.
   ...[...shots, ...docs].flatMap((shot) =>
@@ -587,7 +618,7 @@ const captures = [
 const files = new Set<string>();
 for (const shot of captures) {
   const file = fileName(shot.name, shot.viewport, shot.mode, shot.palette);
-  if (files.has(file)) continue;
+  if (files.has(file) || (ONLY ? shot.name !== ONLY : shot.reference)) continue;
   files.add(file);
   test(file, async ({ browser, baseURL, request }, testInfo) => {
     test.setTimeout(90_000);
@@ -610,6 +641,7 @@ for (const shot of captures) {
 // bordered image serves both.
 const run = promisify(execFile);
 test("set-sheet-pdf.png", async ({ browser, baseURL, request }, testInfo) => {
+  test.skip(Boolean(ONLY), "Page filter excludes the PDF export");
   test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "desktop", "Each shot sets its own viewport");
   await putAppearance(request, { palette: DEFAULT_PALETTE });

@@ -300,6 +300,13 @@ site-screenshots *args:
   set -- {{args}}
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --only)
+        [[ $# -ge 2 ]] || { echo "--only requires a page name"; exit 1; }
+        export SCREENSHOT_ONLY="$2"; shift 2 ;;
+      --out)
+        [[ $# -ge 2 ]] || { echo "--out requires a directory"; exit 1; }
+        mkdir -p "$2"
+        export SCREENSHOT_OUT="$(cd "$2" && pwd)"; shift 2 ;;
       --palette)
         [[ $# -ge 2 && "$2" =~ ^(mono|sleeve|riso|midnight)$ ]] || { echo "--palette requires mono, sleeve, riso or midnight"; exit 1; }
         export SCREENSHOT_PALETTE="$2"; shift 2 ;;
@@ -318,7 +325,7 @@ site-screenshots *args:
   curl -fsS -o /dev/null "$E2E_BASE_URL/settings" || { echo "app not reachable at $E2E_BASE_URL (is the dev stack up?)"; exit 1; }
   {{mise_exec}} npx --prefix {{app_dir}} playwright install chromium
   RUN_SCREENSHOTS=1 {{mise_exec}} npm run test:e2e --prefix {{app_dir}} -- e2e/screenshots.spec.ts --project desktop
-  {{mise_exec}} node site/scripts/compress-screenshots.mjs
+  if [[ -z "${SCREENSHOT_OUT:-}" ]]; then {{mise_exec}} node site/scripts/compress-screenshots.mjs; fi
 
 # Regenerate the site's player TUI screenshots with VHS and the real covers (#931) [--calibrate].
 site-tui-screenshots *args:

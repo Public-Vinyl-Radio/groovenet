@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Heading, Link, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
-import { StatusTag, type StatusTone } from "@/components/ui/RoleTags";
+import { Box, Flex, Heading, Link, Text } from "@chakra-ui/react";
+import { StatusTag } from "@/components/ui/RoleTags";
 import Image from "next/image";
 
-import { useStatusInfo, useUpdateInfo, useVersionInfo } from "@/hooks/useSystemInfo";
-import type { ServiceStatus } from "@/services/internalApi/system";
+import { useUpdateInfo } from "@/hooks/useSystemInfo";
 
 const REPO_URL = "https://github.com/Public-Vinyl-Radio/groovenet";
 
@@ -19,39 +18,7 @@ const TECH_STACK = [
   "Redis-backed download worker (gamdl)",
 ];
 
-function statusColor(status: ServiceStatus): StatusTone {
-  switch (status) {
-    case "up":
-      return "success";
-    case "down":
-      return "missing";
-    default:
-      return "neutral";
-  }
-}
-
-function InfoRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <Flex justify="space-between" gap={4} py={1.5}>
-      <Text color="fg.muted" fontSize="sm">
-        {label}
-      </Text>
-      <Box fontSize="sm" fontWeight="medium" textAlign="right" wordBreak="break-all">
-        {children}
-      </Box>
-    </Flex>
-  );
-}
-
 export default function AboutSection(): React.JSX.Element {
-  const { data: version, isLoading: versionLoading } = useVersionInfo();
-  const { data: status, isLoading: statusLoading } = useStatusInfo();
   const { data: update } = useUpdateInfo();
 
   return (
@@ -114,95 +81,6 @@ export default function AboutSection(): React.JSX.Element {
           </Flex>
         </Box>
       ) : null}
-
-      <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
-        {/* Build info */}
-        <Box borderWidth={1} borderRadius="lg" p={4}>
-          <Heading size="sm" mb={3}>
-            Build
-          </Heading>
-          {versionLoading ? (
-            <Spinner size="sm" />
-          ) : (
-            <>
-              <InfoRow label="Version">{version?.version ?? "unknown"}</InfoRow>
-              <InfoRow label="Commit">
-                {version?.gitSha ? (
-                  <Link
-                    href={`${REPO_URL}/commit/${version.gitSha}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    colorPalette="accent"
-                    color="colorPalette.fg"
-                  >
-                    {version.gitSha}
-                  </Link>
-                ) : (
-                  "—"
-                )}
-              </InfoRow>
-              <InfoRow label="Built">
-                {version?.builtAt ? new Date(version.builtAt).toLocaleString() : "—"}
-              </InfoRow>
-              <InfoRow label="Environment">{version?.nodeEnv ?? "—"}</InfoRow>
-              <InfoRow label="Updates">
-                {!update ? (
-                  "—"
-                ) : update.updateAvailable ? (
-                  <Text as="span" color="fg.success" fontWeight="semibold">
-                    {update.latest} available
-                  </Text>
-                ) : !update.comparable ? (
-                  <Text as="span" color="fg.muted">
-                    n/a (dev build)
-                  </Text>
-                ) : update.error ? (
-                  <Text as="span" color="fg.muted">
-                    unavailable
-                  </Text>
-                ) : (
-                  <Text as="span" color="fg.success">
-                    up to date
-                  </Text>
-                )}
-              </InfoRow>
-            </>
-          )}
-        </Box>
-
-        {/* Service health */}
-        <Box borderWidth={1} borderRadius="lg" p={4}>
-          <Heading size="sm" mb={3}>
-            Services
-          </Heading>
-          {statusLoading ? (
-            <Spinner size="sm" />
-          ) : (
-            (status?.services ?? []).map((svc) => (
-              <Box key={svc.service} py={1.5}>
-                <Flex justify="space-between" align="center">
-                  <Text fontSize="sm" fontWeight="medium">
-                    {svc.service}
-                  </Text>
-                  <Flex align="center" gap={2}>
-                    {svc.latencyMs != null && svc.status === "up" ? (
-                      <Text fontSize="xs" color="fg.muted">
-                        {svc.latencyMs}ms
-                      </Text>
-                    ) : null}
-                    <StatusTag tone={statusColor(svc.status)}>{svc.status}</StatusTag>
-                  </Flex>
-                </Flex>
-                {svc.detail ? (
-                  <Text fontSize="xs" color="fg.muted">
-                    {svc.detail}
-                  </Text>
-                ) : null}
-              </Box>
-            ))
-          )}
-        </Box>
-      </SimpleGrid>
 
       {/* Tech / services */}
       <Box mt={6}>
