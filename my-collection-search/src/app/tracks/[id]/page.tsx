@@ -56,7 +56,7 @@ export default function TrackPage() {
     : undefined;
 
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       {hasValidFriendId && crumbs && track && (
         <PageHeader
           title={track.title}

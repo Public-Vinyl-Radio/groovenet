@@ -227,7 +227,7 @@ export default function GenresPage() {
   const error = taxonomyError ?? countsError;
 
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       <PageHeader
         title="Genres"
         count={genreCount === undefined ? undefined : `${genreCount.toLocaleString()} genres`}

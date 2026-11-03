@@ -158,7 +158,7 @@ function AlbumsPageContent() {
   };
 
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       <PageHeader
         title="Albums"
         actions={[

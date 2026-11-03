@@ -112,7 +112,7 @@ export default function TrackEditPage() {
     }
   };
   return (
-    <PageContainer size="standard">
+    <PageContainer>
       <PageHeader
         title="Edit Track"
         leading={<HeaderCancelButton onClick={() => router.back()} disabled={saving} />}

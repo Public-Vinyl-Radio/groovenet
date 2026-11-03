@@ -110,7 +110,7 @@ export default function CareHistoryPage() {
   }
 
   return (
-    <PageContainer size="narrow">
+    <PageContainer>
       {header}
       {body}
       {confirming && (
