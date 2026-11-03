@@ -97,7 +97,13 @@ export default function AddLibraryDialog({
     );
   } else if (lookup.isError) {
     status = (
-      <Box data-testid="lookup-error" p={3} borderWidth="outline" borderColor="border.ink">
+      <Box
+        data-testid="lookup-error"
+        p={3}
+        borderWidth="outline"
+        borderColor="border.ink"
+        borderRadius="md"
+      >
         <Text fontSize="sm" lineHeight="20px" color="fg.error">
           Couldn&apos;t reach Discogs: {lookup.error.message}. Try again in a moment.
         </Text>
@@ -111,6 +117,7 @@ export default function AddLibraryDialog({
         gap={3}
         p={3}
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         bg="bg.subtle"
       >
@@ -152,6 +159,7 @@ export default function AddLibraryDialog({
         data-testid="lookup-not-found"
         p={3}
         borderWidth="outline"
+        borderRadius="md"
         borderStyle="dashed"
         borderColor="border.ink"
       >

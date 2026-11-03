@@ -110,6 +110,7 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
         aria-hidden="true"
         h={{ base: "28px", md: "44px" }}
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow="sm"
         mb={4}
@@ -158,6 +159,7 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
                   flexShrink={0}
                   bg={fills[index % fills.length]}
                   borderWidth="outline"
+                  borderRadius="md"
                   borderColor="border.ink"
                 />
                 <Text flex={1}>{entry.node.name}</Text>

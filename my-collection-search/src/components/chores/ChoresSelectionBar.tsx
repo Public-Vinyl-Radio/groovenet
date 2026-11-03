@@ -46,6 +46,7 @@ export default function ChoresSelectionBar({
       align="center"
       gap={{ base: "10px", md: 3 }}
       borderWidth={{ base: 0, md: "outline" }}
+      borderRadius="md"
       borderTopWidth="outline"
       borderColor="border.ink"
       bg="bg"

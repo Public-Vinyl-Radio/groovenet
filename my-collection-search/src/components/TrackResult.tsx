@@ -1160,6 +1160,7 @@ export default function TrackResult({
       data-testid="track-card"
       position="relative"
       borderWidth="outline"
+      borderRadius="md"
       borderColor={isSelected ? "accent.border" : "border.ink"}
       boxShadow="md"
       p={3}

@@ -74,7 +74,7 @@ export default function TrackPage() {
         />
       )}
       {!hasValidFriendId && (
-        <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
+        <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} borderRadius="md">
           <Text fontWeight="medium" mb={2}>
             Missing `friend_id`
           </Text>
@@ -93,7 +93,13 @@ export default function TrackPage() {
               <Skeleton height="120px" />
             </VStack>
           ) : trackQuery.error ? (
-            <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
+            <Box
+              borderWidth="outline"
+              borderColor="border.ink"
+              boxShadow="sm"
+              p={4}
+              borderRadius="md"
+            >
               <Text color="fg.error" fontWeight="medium">
                 Failed to load track
               </Text>

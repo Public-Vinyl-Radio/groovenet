@@ -180,6 +180,7 @@ export default function AlbumHeader({
         as="section"
         aria-label="Album"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow="md"
         css={{

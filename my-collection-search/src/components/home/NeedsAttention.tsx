@@ -34,7 +34,7 @@ export default function NeedsAttention({
         </Heading>
         <Box flex="1" borderTopWidth="outline" borderColor="border.ink" />
       </Flex>
-      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" mr="6px">
+      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" mr="6px" borderRadius="md">
         {error ? (
           <Text role="alert" p={3} color="fg.muted">
             Couldn&apos;t load needs attention · {error}

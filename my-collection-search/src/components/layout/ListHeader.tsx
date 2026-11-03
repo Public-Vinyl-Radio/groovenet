@@ -51,6 +51,7 @@ export function HeaderButton({
       gap={2}
       flexShrink={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor={quiet ? "border" : "border.ink"}
       {...controlLabel}
       {...rest}
@@ -133,6 +134,9 @@ export function SearchField({
       minW={0}
       h={{ base: "44px", md: "48px" }}
       borderWidth="outline"
+      borderRadius="md"
+      // The fused search-mode menu is square; the field's radius clips it.
+      overflow="hidden"
       borderColor="border.ink"
       bg="bg"
       align="stretch"

@@ -98,6 +98,7 @@ function LogStatus({ children }: { children: React.ReactNode }) {
       justify="center"
       gap={2}
       borderWidth="outline"
+      borderRadius="md"
       borderStyle="dashed"
       borderColor="border"
       fontFamily="mono"

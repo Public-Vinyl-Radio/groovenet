@@ -117,6 +117,7 @@ export function NowPlayingCard({
                 maxW="420px"
                 h="8px"
                 borderWidth="outline"
+                borderRadius="md"
                 borderColor="border.ink"
                 aria-hidden="true"
               >
@@ -160,6 +161,7 @@ export function NowPlayingCard({
       direction={{ base: "column", md: "row" }}
       align="stretch"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       mr="6px"

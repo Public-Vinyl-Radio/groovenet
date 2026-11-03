@@ -25,6 +25,7 @@ const ArtworkPlaceholder: React.FC<{ size: string; shadow?: boolean; fill?: bool
     aspectRatio={1}
     bg="bg.muted"
     borderWidth="outline"
+    borderRadius="md"
     borderColor="border.ink"
     boxShadow={shadow ? "md" : undefined}
     display="flex"
@@ -60,6 +61,7 @@ const Artwork: React.FC<Props> = ({ src, alt, size = "48px", shadow = false, fil
       objectFit="cover"
       flexShrink={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow={shadow ? "md" : undefined}
       onError={() => setFailed(true)}

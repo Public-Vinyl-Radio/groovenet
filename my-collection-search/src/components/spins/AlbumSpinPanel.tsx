@@ -62,7 +62,7 @@ export default function AlbumSpinPanel({ releaseId, friendId, albumTitle }: Prop
         </HStack>
       )}
 
-      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md">
+      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" borderRadius="md">
         {spinsQuery.isLoading ? (
           <Flex justify="center" py={4}>
             <Spinner size="sm" />

@@ -28,7 +28,7 @@ import { FiCheck } from "react-icons/fi";
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
+    <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} borderRadius="md">
       <Text
         fontWeight="semibold"
         fontSize="sm"
@@ -156,7 +156,7 @@ export default function TrackEditPage() {
       </Flex>
 
       {!hasValidFriendId && (
-        <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
+        <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} borderRadius="md">
           <Text>
             Missing <code>friend_id</code> query param.
           </Text>

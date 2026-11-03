@@ -218,6 +218,7 @@ export default function LogCareDialog({
           <Grid
             templateColumns={{ base: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }}
             borderWidth="outline"
+            borderRadius="md"
             borderColor={errors.care ? "border.error" : "border.ink"}
           >
             {ACTION_OPTIONS.map((option, i) => {
@@ -344,6 +345,7 @@ export default function LogCareDialog({
             px={3}
             py={2}
             borderWidth="outline"
+            borderRadius="md"
             borderStyle="dashed"
             borderColor="border.error"
             color="fg.error"

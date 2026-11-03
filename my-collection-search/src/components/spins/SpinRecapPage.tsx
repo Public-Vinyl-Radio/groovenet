@@ -209,6 +209,7 @@ function RecapStatus({ children }: { children: React.ReactNode }) {
       align="center"
       justify="center"
       borderWidth="outline"
+      borderRadius="md"
       borderStyle="dashed"
       borderColor="border"
       fontFamily="mono"

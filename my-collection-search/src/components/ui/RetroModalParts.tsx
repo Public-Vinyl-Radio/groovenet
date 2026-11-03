@@ -47,6 +47,7 @@ export function Tile({
       justifyContent="center"
       gap="6px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       bg={solid ? "border.ink" : "bg"}
       color={solid ? "bg" : "fg"}
@@ -316,6 +317,7 @@ export function ChipToggle({
       minH="44px"
       px="12px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       bg={checked ? "border.ink" : "bg"}
       color={checked ? "bg" : "fg"}

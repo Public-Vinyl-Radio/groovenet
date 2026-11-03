@@ -77,6 +77,7 @@ export default function SpeakerDetails({ onBack }: { onBack: () => void }) {
       </Box>
       <Box
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         p="10px"
         display="flex"

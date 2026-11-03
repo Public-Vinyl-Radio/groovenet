@@ -285,6 +285,7 @@ export default function SpinFormDialog({
             <Box
               key={side.side_key}
               borderWidth="outline"
+              borderRadius="md"
               borderColor="border.ink"
               boxShadow="sm"
               p={3}

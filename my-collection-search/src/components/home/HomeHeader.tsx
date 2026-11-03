@@ -54,6 +54,7 @@ export default function HomeHeader({
           alignItems="center"
           gap="10px"
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           bg="bg"
           color="fg.muted"

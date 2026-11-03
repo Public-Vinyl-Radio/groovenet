@@ -56,6 +56,7 @@ export function TrackStripHeader({ track }: { track: Track }) {
         boxSize="44px"
         flexShrink={0}
         borderWidth="outline"
+        borderRadius="md"
         borderColor="bg"
         bg="fg.muted"
         overflow="hidden"

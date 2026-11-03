@@ -106,6 +106,7 @@ export function GenreCrate({
       as="article"
       aria-label={`${title} crate`}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       minW={0}

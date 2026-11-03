@@ -44,6 +44,7 @@ export function SpinArt({ src, stacked = false, boxSize, inverse = false }: Spin
       boxSize={boxSize ?? { base: "48px", md: "52px" }}
       flexShrink={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor={inverse ? "bg" : "border.ink"}
       boxShadow={stacked ? "sm" : undefined}
       overflow="hidden"

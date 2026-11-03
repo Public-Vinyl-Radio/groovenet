@@ -106,6 +106,7 @@ export function Bar({
       aria-label={label}
       h={{ base: "20px", md: "24px" }}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow={{ base: "none", md: "sm" }}
       overflow="hidden"
@@ -125,6 +126,7 @@ export function Swatch({ bg, size = "10px" }: { bg: string; size?: string }) {
       boxSize={size}
       flexShrink={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       style={{ background: bg }}
     />

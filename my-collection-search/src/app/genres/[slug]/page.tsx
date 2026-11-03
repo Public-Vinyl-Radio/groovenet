@@ -125,6 +125,7 @@ function GenreContent({
           as="dl"
           templateColumns={{ base: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }}
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           boxShadow="md"
         >
@@ -214,6 +215,7 @@ function GenreContent({
               aria-label="Collection view"
               alignSelf={{ base: "stretch", md: "start" }}
               borderWidth="outline"
+              borderRadius="md"
               borderColor="border.ink"
             >
               {(["albums", "tracks"] as const).map((item) => (
@@ -292,6 +294,7 @@ function GenreContent({
                           aspectRatio={1}
                           alignSelf="start"
                           borderWidth="outline"
+                          borderRadius="md"
                           borderStyle="dashed"
                           borderColor="border.ink"
                           display={{
@@ -307,6 +310,7 @@ function GenreContent({
                     <Box
                       aria-label="Tracks"
                       borderWidth="outline"
+                      borderRadius="md"
                       borderColor="border.ink"
                       boxShadow="md"
                       css={{ containerType: "inline-size" }}
@@ -362,6 +366,7 @@ function GenreContent({
                 as="section"
                 aria-label="Weekly wantlist picks"
                 borderWidth="outline"
+                borderRadius="md"
                 borderStyle="dashed"
                 borderColor="border.ink"
                 p={4}
@@ -402,7 +407,14 @@ export default function GenrePage() {
         {query.error ? (
           <>
             <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />
-            <Box role="alert" borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4}>
+            <Box
+              role="alert"
+              borderWidth="outline"
+              borderColor="border.ink"
+              boxShadow="sm"
+              p={4}
+              borderRadius="md"
+            >
               <Text fontWeight="medium">Couldn&apos;t load this genre</Text>
               <Text color="fg.muted" mt={1}>
                 {query.error.message}

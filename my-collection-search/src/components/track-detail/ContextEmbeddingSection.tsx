@@ -12,7 +12,14 @@ type Props = {
 /** The text semantic and hybrid search embed for this track (#408, #409). */
 export default function ContextEmbeddingSection({ query }: Props) {
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} mt={4}>
+    <Box
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="sm"
+      p={4}
+      mt={4}
+      borderRadius="md"
+    >
       <Heading size="sm" mb={1}>
         Context Embedding Preview
       </Heading>

@@ -138,6 +138,7 @@ export default function DraggableTrackList({
     <Box
       data-testid="track-table"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       css={{ containerType: "inline-size" }}

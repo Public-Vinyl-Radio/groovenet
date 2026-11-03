@@ -176,6 +176,7 @@ function TrackTable({
   return (
     <Box
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       overflowX="auto"
@@ -313,6 +314,7 @@ function TrackRows({
   return (
     <Box
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       data-testid="album-track-list"

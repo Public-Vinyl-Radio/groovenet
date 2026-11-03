@@ -205,6 +205,7 @@ export function RelatedTrackTable({ base, tracks, showUsername, renderActions }:
   return (
     <Box
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       overflowX="auto"
@@ -313,6 +314,7 @@ export function RelatedTrackList({ base, tracks, showUsername, renderActions }: 
       m={0}
       p={0}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       data-testid="related-list"

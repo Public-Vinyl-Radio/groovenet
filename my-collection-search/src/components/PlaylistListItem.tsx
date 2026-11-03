@@ -211,6 +211,7 @@ export default function PlaylistListItem({
       textAlign="left"
       p={3}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       _hover={{ bg: "bg.muted" }}

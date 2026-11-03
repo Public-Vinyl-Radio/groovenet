@@ -11,7 +11,14 @@ type Props = {
 
 export default function IdentityEmbeddingSection({ query }: Props) {
   return (
-    <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} mt={4}>
+    <Box
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="sm"
+      p={4}
+      mt={4}
+      borderRadius="md"
+    >
       <Heading size="sm" mb={3}>
         Identity Embedding Preview
       </Heading>

@@ -287,6 +287,7 @@ export default function AppShell({
                     px={isExpanded ? 3 : 2}
                     py={2}
                     borderWidth="outline"
+                    borderRadius="md"
                     borderColor={active ? "border.ink" : "transparent"}
                     bg={active ? "bg.subtle" : undefined}
                     title={item.label}
@@ -360,7 +361,13 @@ export default function AppShell({
         >
           <Drawer.Backdrop bg="overlay.backdrop" />
           <Drawer.Positioner paddingTop={0} paddingBottom="calc(var(--tabbar-h) + 16px)">
-            <Drawer.Content mx={4} borderWidth="outline" borderColor="border.ink" boxShadow="md">
+            <Drawer.Content
+              mx={4}
+              borderWidth="outline"
+              borderColor="border.ink"
+              boxShadow="md"
+              borderRadius="md"
+            >
               <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
                 <Box
                   position="absolute"
@@ -507,6 +514,7 @@ export default function AppShell({
                   py={1.5}
                   px={1}
                   borderWidth="outline"
+                  borderRadius="md"
                   borderColor={active ? "border.ink" : "transparent"}
                   bg={active ? "bg.subtle" : "transparent"}
                 >
@@ -534,6 +542,7 @@ export default function AppShell({
             py={1.5}
             px={1}
             borderWidth="outline"
+            borderRadius="md"
             borderColor={moreActive ? "border.ink" : "transparent"}
             bg={moreActive ? "bg.subtle" : "transparent"}
           >

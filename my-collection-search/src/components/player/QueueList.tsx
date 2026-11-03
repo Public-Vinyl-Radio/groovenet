@@ -236,6 +236,7 @@ export default function QueueList({
             mr="22px"
             p="8px"
             borderWidth="outline"
+            borderRadius="md"
             borderColor="border.ink"
             boxShadow="sm"
             bg="bg.panel"

@@ -43,6 +43,7 @@ function Tick({ checked }: { checked: boolean }) {
       flexShrink={0}
       boxSizing="border-box"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       bg={checked ? "fg" : "bg"}
       color="bg"
@@ -112,6 +113,7 @@ export function ChoreRow({
           gridArea="cover"
           boxSize="44px"
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           overflow="hidden"
           alignSelf="center"
@@ -200,6 +202,7 @@ export default function ChoreGroup({
       as="article"
       aria-labelledby={headingId}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       mr="6px"

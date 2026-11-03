@@ -69,6 +69,7 @@ export function AlbumOptionsMenu({ onOpenArtwork }: { onOpenArtwork: () => void 
           boxSize="40px"
           minW="40px"
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border"
         >
           <FiMoreHorizontal />

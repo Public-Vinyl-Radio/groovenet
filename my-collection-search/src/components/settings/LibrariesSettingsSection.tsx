@@ -527,6 +527,7 @@ export default function LibrariesSettingsSection() {
       <Box
         mr="6px"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow="md"
         bg="bg"

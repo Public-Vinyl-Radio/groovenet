@@ -457,8 +457,12 @@ export const slotRecipes = {
         borderColor: "border.ink",
         boxShadow: "none",
         bg: "bg.panel",
+        // The selection is a square fill the root's radius clips to its corners.
+        overflow: "hidden",
       },
+      indicator: { borderRadius: "0" },
       item: {
+        borderRadius: "0",
         fontFamily: "label",
         "&[data-state=checked]": { color: "neutral.contrast" },
         // Ringed inside the segment, so keyboard focus doesn't read as a

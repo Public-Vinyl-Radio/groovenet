@@ -33,6 +33,7 @@ export default function SavedStatus({ saved, subject, detail, onUndo }: SavedSta
           pl={3}
           pr={onUndo ? 1 : 3}
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           bg="bg.subtle"
         >

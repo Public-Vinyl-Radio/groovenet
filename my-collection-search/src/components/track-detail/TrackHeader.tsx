@@ -273,6 +273,7 @@ export default function TrackHeader({
         as="section"
         aria-label="Track"
         borderWidth="outline"
+        borderRadius="md"
         borderColor="border.ink"
         boxShadow="md"
         css={{
@@ -288,6 +289,7 @@ export default function TrackHeader({
       >
         <Box
           borderWidth="outline"
+          borderRadius="md"
           borderColor="border.ink"
           css={{
             gridArea: "art",

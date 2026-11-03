@@ -104,6 +104,7 @@ export function RecapSplit({ month, recap }: { month: string; recap: Recap }) {
                 direction="column"
                 h={`${heights[index]}%`}
                 borderWidth="outline"
+                borderRadius="md"
                 borderBottomWidth={0}
                 borderColor="border.ink"
               >
@@ -538,6 +539,7 @@ export function RecapHeatmap({ recap }: { recap: Recap }) {
                   data-level={level}
                   h="22px"
                   borderWidth={level ? "outline" : "rule"}
+                  borderRadius="md"
                   borderColor={level ? "border.ink" : "border"}
                   style={{ background: inkTint(HEAT_TINTS[level]) }}
                 />

@@ -95,6 +95,7 @@ function SetLinkButtons({ set }: { set: Playlist["set"] }) {
             justifyContent="center"
             boxSize="32px"
             borderWidth="outline"
+            borderRadius="md"
             borderColor={link.primary ? "border.ink" : "border"}
             bg={link.primary ? "bg.subtle" : undefined}
             color="fg"
@@ -262,6 +263,7 @@ export default function PlaylistTable({
       mr="6px"
       mb="6px"
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
       css={{ containerType: "inline-size" }}

@@ -92,6 +92,9 @@ export function TransportStrip({
       gridTemplateColumns={s.cols}
       w={s.w}
       borderWidth="outline"
+      borderRadius="md"
+      // The keys are square; the outline's radius clips them to its corners.
+      overflow="hidden"
       borderColor="border.ink"
       boxShadow={s.shadow}
       // The shadow is outside the box; keep it inside the column.
@@ -139,6 +142,7 @@ export function SquarePlayButton({
       flexShrink={0}
       css={solidKeyCss}
       borderWidth="outline"
+      borderRadius="md"
       borderColor="border.ink"
       boxShadow="sm"
       onClick={stop(isPlaying ? onPause : onPlay)}
@@ -167,6 +171,7 @@ export function BareTransportButton({
       flexShrink={0}
       css={{
         ...keyCss,
+        borderRadius: "md",
         bg: "transparent",
         _disabled: { opacity: 0.4, cursor: "not-allowed", bg: "transparent" },
       }}

@@ -38,6 +38,7 @@ export function SettingsRail({ current }: { current: SettingsSectionId }) {
                   display="flex"
                   alignItems="center"
                   borderWidth="outline"
+                  borderRadius="md"
                   borderColor={active ? "border.ink" : "transparent"}
                   bg={active ? "bg.subtle" : "transparent"}
                   color="fg"
@@ -90,6 +91,7 @@ export function SettingsDrillList({ summaries }: { summaries: SettingsSummaries 
               mr="6px"
               p={0}
               borderWidth="outline"
+              borderRadius="md"
               borderColor="border.ink"
               boxShadow="md"
               bg="bg"

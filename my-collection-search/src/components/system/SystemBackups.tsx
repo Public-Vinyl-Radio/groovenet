@@ -129,7 +129,7 @@ export default function SystemBackups() {
       >
         BACKUPS
       </SectionHeading>
-      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md">
+      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" borderRadius="md">
         {loading ? (
           <Spinner m={4} aria-label="Loading backup policy" />
         ) : policy ? (
@@ -229,8 +229,15 @@ export default function SystemBackups() {
               </Flex>
             </SystemRow>
             <SystemRow label="Keep" help="How many old snapshots to hold on to.">
-              <Flex role="group" aria-label="Retention preset">
-                {BACKUP_RETENTION_PRESETS.map((preset) => (
+              <Flex
+                role="group"
+                aria-label="Retention preset"
+                borderWidth="outline"
+                borderRadius="md"
+                borderColor="border.ink"
+                overflow="hidden"
+              >
+                {BACKUP_RETENTION_PRESETS.map((preset, index) => (
                   <Button
                     key={preset}
                     flex={{ base: 1, md: "initial" }}
@@ -238,7 +245,9 @@ export default function SystemBackups() {
                     px={{ base: 2, md: 4 }}
                     variant="outline"
                     h="44px"
-                    borderWidth="outline"
+                    borderWidth="0"
+                    borderRadius="0"
+                    borderInlineStartWidth={index > 0 ? "outline" : "0"}
                     borderColor="border.ink"
                     bg={policy.retention_preset === preset ? "fg" : "bg"}
                     color={policy.retention_preset === preset ? "bg" : "fg"}
