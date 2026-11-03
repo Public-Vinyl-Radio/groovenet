@@ -1,7 +1,7 @@
 import React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import SystemPage from "@/app/system/page";
+import SystemPage from "@/components/system/SystemPage";
 import SystemStatus from "@/components/system/SystemStatus";
 import SystemBackups from "@/components/system/SystemBackups";
 import DatabaseRestore from "@/components/settings/DatabaseRestore";
