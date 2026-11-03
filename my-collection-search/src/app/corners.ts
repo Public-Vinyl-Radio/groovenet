@@ -14,3 +14,6 @@ export const roundedRadius = "6px";
 export function resolveCorners(value: unknown): CornerId {
   return cornerIds.find((id) => id === value) ?? defaultCornerId;
 }
+
+/** The radius of a child that sits inside a 2px outline of radius `--gn-radius`: the inner edge's curve. */
+export const innerRadius = "max(0px, calc(var(--gn-radius) - 2px))";

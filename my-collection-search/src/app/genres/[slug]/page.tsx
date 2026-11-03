@@ -1,5 +1,6 @@
 "use client";
 
+import { innerRadius } from "@/app/corners";
 import React from "react";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
@@ -223,8 +224,8 @@ function GenreContent({
                   key={item}
                   // One joined strip: only its outer corners are rounded.
                   borderRadius="0"
-                  borderStartRadius={index === 0 ? "md" : undefined}
-                  borderEndRadius={index === 1 ? "md" : undefined}
+                  borderStartRadius={index === 0 ? innerRadius : undefined}
+                  borderEndRadius={index === 1 ? innerRadius : undefined}
                   flex={1}
                   minH="44px"
                   variant={view === item ? "solid" : "ghost"}

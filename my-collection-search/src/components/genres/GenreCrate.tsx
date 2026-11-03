@@ -1,5 +1,6 @@
 "use client";
 
+import { innerRadius } from "@/app/corners";
 import React from "react";
 import NextLink from "next/link";
 import { Box, Button, Heading, Link, Text } from "@chakra-ui/react";
@@ -124,7 +125,7 @@ export function GenreCrate({
           minH="52px"
           px={4}
           borderRadius="0"
-          borderTopRadius="md"
+          borderTopRadius={innerRadius}
           borderBottomWidth="outline"
           borderColor="border.ink"
         >
@@ -139,7 +140,7 @@ export function GenreCrate({
           minH="52px"
           px={4}
           borderRadius="0"
-          borderTopRadius="md"
+          borderTopRadius={innerRadius}
           borderBottomWidth="outline"
           borderColor="border.ink"
         >
@@ -157,7 +158,7 @@ export function GenreCrate({
           px={4}
           borderWidth="0"
           borderRadius="0"
-          borderBottomRadius={children ? "0" : "md"}
+          borderBottomRadius={children ? "0" : innerRadius}
           borderTopWidth="rule"
           borderColor="border"
           fontFamily="label"
@@ -198,7 +199,7 @@ export function GenreIndexCrate({
         px={4}
         borderWidth="0"
         borderRadius="0"
-        borderBottomRadius="md"
+        borderBottomRadius={innerRadius}
         borderTopWidth="rule"
         borderColor="border"
         fontFamily="label"
