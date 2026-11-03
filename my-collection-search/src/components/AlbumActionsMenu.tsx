@@ -1,7 +1,8 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React, { useState } from "react";
-import { Button, Menu, Box, Image, Link, Icon, Text } from "@chakra-ui/react";
+import { Button, Menu, Box, Link, Icon, Text } from "@chakra-ui/react";
 import {
   FiDownload,
   FiDroplet,
@@ -135,17 +136,7 @@ export default function AlbumActionsMenu({
           onOpenChange={setDrawerOpen}
           header={
             <>
-              <Box
-                boxSize="52px"
-                flexShrink={0}
-                borderWidth="outline"
-                borderRadius="md"
-                borderColor="bg"
-                bg="fg.muted"
-                overflow="hidden"
-              >
-                {coverUrl && <Image src={coverUrl} alt="" boxSize="full" objectFit="cover" />}
-              </Box>
+              <Cover src={coverUrl} alt="" size="52px" inverse />
               <Box flex="1" minW={0}>
                 <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8} lineClamp={1}>
                   {catalogue ?? "Album"}

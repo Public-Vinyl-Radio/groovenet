@@ -1,9 +1,10 @@
 "use client";
 
 import { artworkOf } from "@/components/player/trackMeta";
+import Cover from "@/components/Cover";
 import React, { useState } from "react";
 import NextLink from "next/link";
-import { Box, Flex, Table, Text, Link, Image } from "@chakra-ui/react";
+import { Box, Flex, Table, Text, Link } from "@chakra-ui/react";
 import { CountTag, MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { Album } from "@/types/track";
 import { useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
@@ -87,7 +88,7 @@ export default function AlbumResult({
   const albumFromStore = useAlbum(releaseId, friendId);
   const resolvedAlbum = albumFromStore ?? album;
 
-  const artworkSrc = artworkOf(resolvedAlbum) || "/images/placeholder-artwork.png";
+  const artworkSrc = artworkOf(resolvedAlbum);
   const [rating, setRating] = useState(resolvedAlbum?.album_rating || 0);
 
   const updateMutation = useUpdateAlbumMutation();
@@ -208,7 +209,7 @@ export default function AlbumResult({
       <AlbumActionsMenu
         albumTitle={resolvedAlbum.title}
         albumArtist={resolvedAlbum.artist}
-        coverUrl={artworkSrc}
+        coverUrl={artworkSrc ?? undefined}
         catalogue={["Album", resolvedAlbum.library_identifier].filter(Boolean).join(" · ")}
         discogsUrl={resolvedAlbum.discogs_url}
         editAlbumHref={
@@ -234,18 +235,7 @@ export default function AlbumResult({
   );
 
   const cover = (size: string | Record<string, string>) => (
-    <Image
-      src={artworkSrc}
-      alt=""
-      boxSize={layout === "cover" ? undefined : size}
-      width={layout === "cover" ? "full" : undefined}
-      aspectRatio={layout === "cover" ? 1 : undefined}
-      flexShrink={0}
-      objectFit="cover"
-      borderWidth={layout === "cover" ? "outline" : "rule"}
-      borderRadius="md"
-      borderColor="border.ink"
-    />
+    <Cover src={artworkSrc} alt="" size={size} fill={layout === "cover"} />
   );
 
   const libraryId = resolvedAlbum.library_identifier ? (

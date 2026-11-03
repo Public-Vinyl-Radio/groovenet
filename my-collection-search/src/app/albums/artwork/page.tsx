@@ -1,11 +1,12 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React from "react";
 import NextLink from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Box, Button, Flex, Image, Link, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Link, Spinner, Stack, Text } from "@chakra-ui/react";
 import { StatusTag } from "@/components/ui/RoleTags";
-import { FiImage, FiRefreshCw } from "react-icons/fi";
+import { FiRefreshCw } from "react-icons/fi";
 
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
@@ -32,18 +33,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function Cover({ src, caption }: { src: string | null; caption: string }) {
+function InspectCover({ src, caption }: { src: string | null; caption: string }) {
   return (
     <Stack gap={1} width={{ base: "50%", md: "200px" }}>
-      <Box aspectRatio={1} borderRadius="md" overflow="hidden" borderWidth="1px" bg="bg.subtle">
-        {src ? (
-          <Image src={src} alt={caption} width="100%" height="100%" objectFit="contain" />
-        ) : (
-          <Flex align="center" justify="center" height="100%" color="fg.muted">
-            <FiImage size={28} />
-          </Flex>
-        )}
-      </Box>
+      <Cover src={src} alt={caption} fill inspect />
       <Text fontSize="xs" color="fg.muted">
         {caption}
       </Text>
@@ -92,8 +85,8 @@ function ReviewRow({ item }: { item: AlbumArtworkReviewItem }) {
         </StatusTag>
       </Flex>
       <Flex gap={3} mb={3}>
-        <Cover src={item.discogs_art_url} caption="Discogs" />
-        <Cover src={item.apple_music_art_url} caption="Apple Music" />
+        <InspectCover src={item.discogs_art_url} caption="Discogs" />
+        <InspectCover src={item.apple_music_art_url} caption="Apple Music" />
       </Flex>
       <Flex gap={2} flexWrap="wrap">
         <Button

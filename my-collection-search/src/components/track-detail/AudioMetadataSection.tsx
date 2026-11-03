@@ -1,16 +1,8 @@
 "use client";
 
-import {
-  Box,
-  Button,
-  Flex,
-  Heading,
-  HStack,
-  Image,
-  Skeleton,
-  Text,
-  VStack,
-} from "@chakra-ui/react";
+import Cover from "@/components/Cover";
+
+import { Box, Button, Flex, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
 import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackAudioMetadataResponse } from "@/services/internalApi/tracks";
@@ -62,21 +54,16 @@ export default function AudioMetadataSection({
             <MetaTag variant="raw">{query.data.local_audio_url}</MetaTag>
           </HStack>
 
-          {(trackAudioCoverUrl || query.data.audio_file_album_art_url) && (
-            <Box>
-              <Text fontSize="sm" mb={2}>
-                Saved Audio Cover
-              </Text>
-              <Image
-                src={trackAudioCoverUrl || query.data.audio_file_album_art_url || ""}
-                alt="Audio embedded cover"
-                boxSize="120px"
-                objectFit="cover"
-                borderRadius="md"
-                borderWidth="1px"
-              />
-            </Box>
-          )}
+          <Box>
+            <Text fontSize="sm" mb={2}>
+              Saved Audio Cover
+            </Text>
+            <Cover
+              src={trackAudioCoverUrl || query.data.audio_file_album_art_url}
+              alt="Audio embedded cover"
+              size="120px"
+            />
+          </Box>
 
           <Box
             as="pre"

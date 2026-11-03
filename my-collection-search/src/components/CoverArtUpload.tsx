@@ -1,7 +1,8 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React, { useState, useRef } from "react";
-import { Box, Button, Text, Image, Flex } from "@chakra-ui/react";
+import { Box, Button, Text, Flex } from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
 
 interface CoverArtUploadProps {
@@ -104,23 +105,7 @@ export default function CoverArtUpload({
 
       {previewUrl ? (
         <Flex direction="column" gap={2}>
-          <Box
-            position="relative"
-            width="200px"
-            height="200px"
-            borderRadius="md"
-            overflow="hidden"
-            border="1px solid"
-            borderColor="border.subtle"
-          >
-            <Image
-              src={previewUrl}
-              alt="Album cover preview"
-              width="100%"
-              height="100%"
-              objectFit="cover"
-            />
-          </Box>
+          <Cover src={previewUrl} alt="Album cover preview" size="200px" inspect />
           <Flex gap={2}>
             <Button size="sm" onClick={handleClick} variant="outline">
               Change Image

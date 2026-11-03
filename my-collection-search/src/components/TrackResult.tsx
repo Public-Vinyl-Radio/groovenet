@@ -1,6 +1,7 @@
 "use client";
 
 import { artworkOf } from "@/components/player/trackMeta";
+import Cover from "@/components/Cover";
 import React, { useState } from "react";
 import NextLink from "next/link";
 import ArtistLink from "./ArtistLink";
@@ -12,7 +13,6 @@ import {
   Grid,
   Text,
   Link,
-  Image,
   Icon,
   RatingGroup,
   Checkbox,
@@ -50,9 +50,6 @@ function formatSeconds(seconds: number): string {
   }
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
-
-const PLACEHOLDER_SRC =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23374151' width='100' height='100'/%3E%3Ctext fill='%23ffffff' font-family='Arial' font-size='14' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle'%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E";
 
 // Artwork (left) and actions (right) sit outside the grid, as plain flex items that
 // never shrink — the grid in between holds everything squeezable (title through
@@ -403,37 +400,12 @@ export function ArtworkPlay({
   size: string | { base: string; md: string };
   iconSize: number;
 }) {
-  const [imageError, setImageError] = useState(false);
-  const { replacePlaylist } = usePlaybackPlayer();
-
-  React.useEffect(() => {
-    setImageError(false);
-  }, [track.track_id, track.audio_file_album_art_url, track.album_thumbnail]);
-
-  const artworkSrc = imageError ? PLACEHOLDER_SRC : artworkOf(track) || PLACEHOLDER_SRC;
-
-  if (!track.local_audio_url) {
-    return (
-      <Box
-        position="relative"
-        flexShrink={0}
-        width={size}
-        height={size}
-        borderRadius="md"
-        overflow="hidden"
-      >
-        <Image
-          src={artworkSrc}
-          alt=""
-          width="100%"
-          height="100%"
-          objectFit="cover"
-          draggable={false}
-          onError={() => setImageError(true)}
-        />
-      </Box>
-    );
-  }
+  const { replacePlaylist, currentTrack, isPlaying } = usePlaybackPlayer();
+  const playing =
+    isPlaying &&
+    currentTrack?.track_id === track.track_id &&
+    currentTrack?.friend_id === track.friend_id;
+  if (!track.local_audio_url) return <Cover src={artworkOf(track)} alt="" size={size} />;
 
   return (
     <Box
@@ -448,8 +420,6 @@ export function ArtworkPlay({
       flexShrink={0}
       width={size}
       height={size}
-      borderRadius="md"
-      overflow="hidden"
       p={0}
       border="none"
       bg="transparent"
@@ -461,29 +431,22 @@ export function ArtworkPlay({
         outlineColor: "accent.focusRing",
       }}
     >
-      <Image
-        src={artworkSrc}
-        alt=""
-        width="100%"
-        height="100%"
-        objectFit="cover"
-        draggable={false}
-        onError={() => setImageError(true)}
-      />
-      <Box
-        className="artwork-play-scrim"
-        position="absolute"
-        inset={0}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        bg="overlay.scrim"
-        opacity={0}
-        transition="opacity 0.15s ease"
-        pointerEvents="none"
-      >
-        <Icon as={FaPlay} boxSize={iconSize} color="overlay.fg" />
-      </Box>
+      <Cover src={artworkOf(track)} alt="" fill playing={playing}>
+        <Box
+          className="artwork-play-scrim"
+          position="absolute"
+          inset={0}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          bg="overlay.scrim"
+          opacity={0}
+          transition="opacity 0.15s ease"
+          pointerEvents="none"
+        >
+          <Icon as={FaPlay} boxSize={iconSize} color="overlay.fg" />
+        </Box>
+      </Cover>
     </Box>
   );
 }

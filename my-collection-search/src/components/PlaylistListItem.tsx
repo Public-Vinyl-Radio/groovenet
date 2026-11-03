@@ -1,5 +1,6 @@
 "use client";
 
+import Cover from "@/components/Cover";
 import React from "react";
 import { Box, HStack, VStack, Text, Spinner, Link } from "@chakra-ui/react";
 import PlaylistItemActionsMenu from "@/components/PlaylistItemActionsMenu";
@@ -16,40 +17,34 @@ export function formatDuration(seconds?: number) {
 
 /**
  * Cover URLs for the 2x2 mosaic: the first four tracks' album art.
- * Missing cells fall back to a tinted block.
+ * Missing cells use the shared cover placeholder.
  */
 export function playlistCoverUrls(playlist: Playlist): string[] {
   return (playlist.cover_urls ?? []).filter((url) => url.length > 0).slice(0, 4);
 }
 
-const MOSAIC_TINTS = ["bg.muted", "bg.subtle", "bg.emphasized", "bg.muted"] as const;
-
 export function CoverMosaic({ urls, size = "72px" }: { urls: string[]; size?: string }) {
   return (
-    <Box
-      data-testid="playlist-mosaic"
-      display="grid"
-      gridTemplateColumns="1fr 1fr"
-      gridTemplateRows="1fr 1fr"
-      boxSize={size}
-      flexShrink={0}
-      borderWidth="rule"
-      borderRadius="md"
-      borderColor="border.ink"
-      overflow="hidden"
-      aria-hidden="true"
-    >
-      {MOSAIC_TINTS.map((tint, i) => (
-        <Box
-          key={i}
-          data-testid={urls[i] ? "mosaic-cover" : "mosaic-tint"}
-          bg={tint}
-          bgImage={urls[i] ? `url(${urls[i]})` : undefined}
-          bgSize="cover"
-          backgroundPosition="center"
-        />
-      ))}
-    </Box>
+    <Cover size={size} alt="" data-testid="playlist-mosaic" aria-hidden="true">
+      <Box
+        position="absolute"
+        inset={0}
+        display="grid"
+        gridTemplateColumns="1fr 1fr"
+        gridTemplateRows="1fr 1fr"
+      >
+        {Array.from({ length: 4 }, (_, i) => (
+          <Cover
+            key={i}
+            src={urls[i]}
+            alt=""
+            fill
+            inset
+            data-testid={urls[i] ? "mosaic-cover" : "mosaic-tint"}
+          />
+        ))}
+      </Box>
+    </Cover>
   );
 }
 

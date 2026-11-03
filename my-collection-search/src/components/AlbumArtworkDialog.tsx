@@ -2,10 +2,11 @@
 
 import RetroDialog from "@/components/ui/RetroDialog";
 
+import Cover from "@/components/Cover";
 import React from "react";
-import { Box, Button, Flex, Image, Spinner, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Stack, Text } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
-import { FiImage, FiRotateCcw, FiUpload } from "react-icons/fi";
+import { FiRotateCcw, FiUpload } from "react-icons/fi";
 import { SiApplemusic } from "react-icons/si";
 
 import CoverArtUpload from "@/components/CoverArtUpload";
@@ -45,23 +46,7 @@ function ArtworkFrame({
 }) {
   return (
     <Stack gap={1} flex="1" minW={0}>
-      <Box
-        aspectRatio={1}
-        width="100%"
-        maxW="360px"
-        borderRadius="md"
-        overflow="hidden"
-        borderWidth="1px"
-        bg="bg.subtle"
-      >
-        {src ? (
-          <Image src={src} alt={alt} width="100%" height="100%" objectFit="contain" />
-        ) : (
-          <Flex align="center" justify="center" height="100%" color="fg.muted">
-            <FiImage size={32} />
-          </Flex>
-        )}
-      </Box>
+      <Cover src={src} alt={alt} fill inspect maxW="360px" />
       {caption && (
         <Text fontSize="xs" color="fg.muted">
           {caption}

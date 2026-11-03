@@ -48,7 +48,7 @@ describe("Artwork — Now playing", () => {
       <Artwork src="https://example.com/art.jpg" alt="Cover" fill shadow />,
     );
     const img = screen.getByRole("img", { name: "Cover" });
-    const css = cssOf(img);
+    const css = cssOf(img.parentElement!);
     expect(css).toMatch(/width:\s*100%/);
     expect(css).toMatch(/aspect-ratio:\s*1/);
     expect(css).toMatch(/box-shadow:\s*var\(--chakra-shadows-md\)/);

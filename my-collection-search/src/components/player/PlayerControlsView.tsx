@@ -134,7 +134,12 @@ export default function PlayerControlsView({
             textAlign="left"
             cursor={onQueueToggle ? "pointer" : "default"}
           >
-            <Artwork src={artworkOf(currentTrack)} alt={artworkAlt(currentTrack)} size="48px" />
+            <Artwork
+              playing={isPlaying}
+              src={artworkOf(currentTrack)}
+              alt={artworkAlt(currentTrack)}
+              size="48px"
+            />
             <VStack align="start" gap={0} flex="1" minW={0}>
               <Text
                 fontWeight="semibold"
@@ -173,7 +178,12 @@ export default function PlayerControlsView({
     >
       <Flex align="center" gap="12px" minW={0}>
         <AlbumLink releaseId={currentTrack?.release_id} friendId={currentTrack?.friend_id}>
-          <Artwork src={artworkOf(currentTrack)} alt={artworkAlt(currentTrack)} size="60px" />
+          <Artwork
+            playing={isPlaying}
+            src={artworkOf(currentTrack)}
+            alt={artworkAlt(currentTrack)}
+            size="60px"
+          />
         </AlbumLink>
         <VStack align="start" gap={0} minW={0}>
           <Text

@@ -1,7 +1,8 @@
 "use client";
+import Cover from "@/components/Cover";
 
 import React from "react";
-import { Box, Image, Text } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import { FiPlay, FiPlusSquare, FiList } from "react-icons/fi";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
 import {
@@ -52,17 +53,7 @@ export function TrackStripHeader({ track }: { track: Track }) {
   const catalogue = catalogueLine(track);
   return (
     <>
-      <Box
-        boxSize="44px"
-        flexShrink={0}
-        borderWidth="outline"
-        borderRadius="md"
-        borderColor="bg"
-        bg="fg.muted"
-        overflow="hidden"
-      >
-        {art && <Image src={art} alt="" boxSize="full" objectFit="cover" />}
-      </Box>
+      <Cover src={art} alt="" size="44px" inverse />
       <Box flex="1" minW={0}>
         {catalogue && (
           <Text {...overline} fontSize="11px" lineHeight="14px" opacity={0.8} lineClamp={1}>

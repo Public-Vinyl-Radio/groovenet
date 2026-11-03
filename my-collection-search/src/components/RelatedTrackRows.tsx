@@ -2,9 +2,10 @@
 
 import { artworkOf } from "@/components/player/trackMeta";
 
+import Cover from "@/components/Cover";
 import React, { useEffect, useState } from "react";
 import NextLink from "next/link";
-import { Box, chakra, Flex, Image, Link, Text } from "@chakra-ui/react";
+import { Box, chakra, Flex, Link, Text } from "@chakra-ui/react";
 import { CountTag, StatusTag } from "@/components/ui/RoleTags";
 import AlbumLink from "@/components/AlbumLink";
 import ArtistLink from "@/components/ArtistLink";
@@ -146,19 +147,7 @@ export function RatingCell({ track }: { track: Track }) {
 }
 
 function Artwork({ track, size }: { track: Track; size: string }) {
-  return (
-    <Image
-      src={artworkOf(track) || "/images/placeholder-artwork.png"}
-      alt=""
-      boxSize={size}
-      objectFit="cover"
-      flexShrink={0}
-      borderWidth="rule"
-      borderRadius="md"
-      borderColor="border.ink"
-      draggable={false}
-    />
-  );
+  return <Cover src={artworkOf(track)} alt="" size={size} />;
 }
 
 function TitleLink({ track, ...rest }: { track: Track } & React.ComponentProps<typeof Link>) {

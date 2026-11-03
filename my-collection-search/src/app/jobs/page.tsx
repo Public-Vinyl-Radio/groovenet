@@ -248,7 +248,7 @@ function JobsPageContent() {
       apple_music_url: (job.data.apple_music_url as string | undefined) || "",
       youtube_url: job.data.youtube_url,
       soundcloud_url: job.data.soundcloud_url,
-      album_thumbnail: job.data.album_thumbnail || "/images/placeholder-artwork.png",
+      album_thumbnail: job.data.album_thumbnail || undefined,
       local_tags: "",
       bpm: undefined,
       key: undefined,
