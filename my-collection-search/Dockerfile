@@ -109,7 +109,8 @@ COPY --exclude=app --exclude=server --exclude=scripts --exclude=workers \
      --exclude=**/__tests__ --exclude=**/*.test.* --exclude=**/*.spec.* \
      my-collection-search/src ./src
 COPY my-collection-search/src/app/chakraTheme.ts my-collection-search/src/app/houseStyle.ts \
-     my-collection-search/src/app/fonts.ts my-collection-search/src/app/fontChoices.ts ./src/app/
+     my-collection-search/src/app/fonts.ts my-collection-search/src/app/fontChoices.ts \
+     my-collection-search/src/app/corners.ts ./src/app/
 COPY my-collection-search/src/app/fonts ./src/app/fonts
 COPY --exclude=**/*.test.* my-collection-search/src/app/palettes ./src/app/palettes
 
