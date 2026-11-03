@@ -136,9 +136,9 @@ are exempt from the 1 MiB pre-commit limit; keep that exception limited to this 
   Settings is the exception: it shows credentials and personal data, so those
   shots run `maskSettings` in the spec before capture, replacing Discogs
   usernames with `collector-N`, emails, token-like strings, backup hosts and
-  server paths, and password inputs. Add a rule there when a tab grows a new
+  server paths, and password inputs. Add a rule there when a section grows a new
   field that holds a secret, and check every Settings image by eye.
-- **Reference shots:** the Settings tabs (`settings-<id>-<viewport>[-<palette>]-<mode>.png`,
+- **Reference shots:** the Settings sections (`settings-<id>-<viewport>[-<palette>]-<mode>.png`,
   28 of them, full page) are marked `reference: true` in the spec. They are not
   used by the site, so a plain run skips them; only `--only` or `--out` takes them.
   Don't commit them. If a docs page needs one, reference it from

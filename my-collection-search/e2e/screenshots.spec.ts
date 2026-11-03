@@ -18,7 +18,7 @@ import {
 // PNGs land in site/src/assets/screenshots/ and are committed.
 // `--only <prefix>` takes just the files that start with it, and `--out <dir>`
 // writes there instead (SCREENSHOT_ONLY, SCREENSHOT_OUT_DIR). Shots marked
-// `reference` (the Settings tabs, #956) are only taken when one of the two is
+// `reference` (the Settings sections, #956, #968) are only taken when one of the two is
 // given, so a plain run adds nothing the site doesn't use.
 //
 // Stable images:
@@ -574,95 +574,121 @@ const docs: Array<Omit<Shot, "mode">> = [
     name: "appearance",
     viewport: "desktop",
     take: async (page) => {
-      await page.goto("/settings?section=appearance");
-      await expect(page.getByRole("tab", { name: "Appearance", exact: true })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      );
+      await page.goto("/settings/appearance");
+      await expect(
+        page
+          .getByRole("navigation", { name: "Settings" })
+          .getByRole("link", { name: "Appearance", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
     },
   },
 ];
 
-/** No spinner left in the open tab: its data has loaded. */
+/** No spinner left in the open section: its data has loaded. */
 async function noSpinners(page: Page) {
-  await expect(page.getByRole("tabpanel").locator(".chakra-spinner")).toHaveCount(0, {
+  await expect(page.getByTestId("settings-layout").locator(".chakra-spinner")).toHaveCount(0, {
     timeout: 60_000,
   });
 }
 
-/** Every Settings tab, in the page's order. `ready` waits for the tab's own content, not just the tab. */
-const SETTINGS_TABS: Array<{ id: string; ready: (page: Page) => Promise<void> }> = [
-  {
-    id: "defaults",
-    ready: async (page) => {
-      await expect(page.getByText("Default Library", { exact: true })).toBeVisible();
-      await expect(page.getByText("Suggestion", { exact: false }).first()).toBeVisible();
-      await noSpinners(page);
-    },
-  },
-  {
-    id: "appearance",
-    ready: async (page) => {
-      await expect(
-        page.getByRole("tabpanel").getByRole("heading", { name: "Appearance", level: 2 }).first(),
-      ).toBeVisible();
-      await noSpinners(page);
-    },
-  },
-  {
-    id: "downloads",
-    ready: async (page) => {
-      await expect(page.getByText("Apple Music Cookie File", { exact: true })).toBeVisible();
-      await noSpinners(page);
-    },
-  },
-  {
-    id: "ai",
-    ready: async (page) => {
-      await expect(page.getByRole("textbox").first()).not.toHaveValue("");
-      await noSpinners(page);
-    },
-  },
-  {
-    id: "library",
-    ready: async (page) => {
-      await expect(page.getByText("Discogs Collections", { exact: true })).toBeVisible();
-      await expect(page.getByText("default", { exact: true })).toBeVisible();
-      await noSpinners(page);
-    },
-  },
-  {
-    id: "disaster-recovery",
-    ready: async (page) => {
-      // The status call reaches the backup repository, so it can take a while.
-      await expect(page.getByRole("button", { name: "Reload" }).first()).toBeEnabled({
-        timeout: 60_000,
-      });
-      await expect(page.getByText("Loading repository metrics…")).toHaveCount(0, {
-        timeout: 60_000,
-      });
-      await noSpinners(page);
-    },
-  },
-  {
-    id: "about",
-    ready: async (page) => {
-      await expect(page.getByText("Version", { exact: true })).toBeVisible();
-      await expect(page.getByText("unknown", { exact: true })).toHaveCount(0);
-      await noSpinners(page);
-    },
-  },
-];
+/** The section's title: the h2 beside the rail on desktop, the header's h1 on a phone. */
+async function sectionOpen(page: Page, label: string) {
+  await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
+}
 
-const settingsShots: Array<Omit<Shot, "mode">> = SETTINGS_TABS.flatMap((tab) =>
+/**
+ * Every Settings section (#968), in the rail's order, plus `/settings` itself:
+ * the drill-in list on a phone, Appearance beside the rail on desktop. `ready`
+ * waits for the section's own content, not just its title.
+ */
+const SETTINGS_SECTIONS: Array<{ id: string; path: string; ready: (page: Page) => Promise<void> }> =
+  [
+    {
+      id: "index",
+      path: "/settings",
+      ready: async (page) => {
+        // The list's values and Appearance both load from the same calls.
+        await expect(
+          page
+            .getByText(/^Version /)
+            .or(page.getByText("Palette", { exact: true }))
+            .filter({ visible: true }),
+        ).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "appearance",
+      path: "/settings/appearance",
+      ready: async (page) => {
+        await sectionOpen(page, "Appearance");
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "libraries",
+      path: "/settings/libraries",
+      ready: async (page) => {
+        await sectionOpen(page, "Libraries");
+        await expect(page.getByText("Discogs Collections", { exact: true })).toBeVisible();
+        await expect(page.getByText("default", { exact: true })).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "apple-music",
+      path: "/settings/apple-music",
+      ready: async (page) => {
+        await sectionOpen(page, "Apple Music");
+        await expect(page.getByText("Apple Music Cookie File", { exact: true })).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "ai-metadata",
+      path: "/settings/ai-metadata",
+      ready: async (page) => {
+        await sectionOpen(page, "AI metadata");
+        await expect(page.getByRole("textbox").first()).not.toHaveValue("");
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "about",
+      path: "/settings/about",
+      ready: async (page) => {
+        await sectionOpen(page, "About GrooveNet");
+        await expect(page.getByText("Version", { exact: true })).toBeVisible();
+        await expect(page.getByText("unknown", { exact: true })).toHaveCount(0);
+        await noSpinners(page);
+      },
+    },
+    {
+      // Until System (#967) takes backups and restore.
+      id: "disaster-recovery",
+      path: "/settings/disaster-recovery",
+      ready: async (page) => {
+        // The status call reaches the backup repository, so it can take a while.
+        await expect(page.getByRole("button", { name: "Reload" }).first()).toBeEnabled({
+          timeout: 60_000,
+        });
+        await expect(page.getByText("Loading repository metrics…")).toHaveCount(0, {
+          timeout: 60_000,
+        });
+        await noSpinners(page);
+      },
+    },
+  ];
+
+const settingsShots: Array<Omit<Shot, "mode">> = SETTINGS_SECTIONS.flatMap((section) =>
   (["desktop", "phone"] as const).map((viewport) => ({
-    name: `settings-${tab.id}`,
+    name: `settings-${section.id}`,
     viewport,
     fullPage: true,
     reference: true,
     take: async (page: Page) => {
-      await page.goto(`/settings?section=${tab.id}`);
-      await tab.ready(page);
+      await page.goto(section.path);
+      await section.ready(page);
       await maskSettings(page);
     },
   })),
