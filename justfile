@@ -293,27 +293,26 @@ site-preview:
 site-roadmap:
   {{mise_exec}} node site/scripts/refresh-roadmap.mjs
 
-# Regenerate the site's screenshots from this worktree's prod-seeded stack [--palette X] [--mode light|dark].
+# Regenerate the site's screenshots from this worktree's prod-seeded stack [--palette X] [--mode light|dark] [--only PREFIX] [--out DIR].
 site-screenshots *args:
   #!/usr/bin/env bash
   set -euo pipefail
   set -- {{args}}
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --only)
-        [[ $# -ge 2 ]] || { echo "--only requires a page name"; exit 1; }
-        export SCREENSHOT_ONLY="$2"; shift 2 ;;
-      --out)
-        [[ $# -ge 2 ]] || { echo "--out requires a directory"; exit 1; }
-        mkdir -p "$2"
-        export SCREENSHOT_OUT="$(cd "$2" && pwd)"; shift 2 ;;
       --palette)
         [[ $# -ge 2 && "$2" =~ ^(mono|sleeve|riso|midnight)$ ]] || { echo "--palette requires mono, sleeve, riso or midnight"; exit 1; }
         export SCREENSHOT_PALETTE="$2"; shift 2 ;;
       --mode)
         [[ $# -ge 2 && "$2" =~ ^(light|dark)$ ]] || { echo "--mode requires light or dark"; exit 1; }
         export SCREENSHOT_MODE="$2"; shift 2 ;;
-      *) echo "unknown argument: $1 (use --palette X, --mode light|dark)"; exit 1 ;;
+      --only)
+        [[ $# -ge 2 && "$2" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "--only requires a file name prefix such as settings or home-desktop"; exit 1; }
+        export SCREENSHOT_ONLY="$2"; shift 2 ;;
+      --out)
+        [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "--out requires a directory"; exit 1; }
+        mkdir -p "$2" && export SCREENSHOT_OUT_DIR="$(cd "$2" && pwd)"; shift 2 ;;
+      *) echo "unknown argument: $1 (use --palette X, --mode light|dark, --only PREFIX, --out DIR)"; exit 1 ;;
     esac
   done
   if [[ -z "${E2E_BASE_URL:-}" ]]; then
@@ -325,7 +324,10 @@ site-screenshots *args:
   curl -fsS -o /dev/null "$E2E_BASE_URL/settings" || { echo "app not reachable at $E2E_BASE_URL (is the dev stack up?)"; exit 1; }
   {{mise_exec}} npx --prefix {{app_dir}} playwright install chromium
   RUN_SCREENSHOTS=1 {{mise_exec}} npm run test:e2e --prefix {{app_dir}} -- e2e/screenshots.spec.ts --project desktop
-  if [[ -z "${SCREENSHOT_OUT:-}" ]]; then {{mise_exec}} node site/scripts/compress-screenshots.mjs; fi
+  # --out is a scratch copy: leave it as taken, and leave the committed PNGs alone.
+  if [[ -z "${SCREENSHOT_OUT_DIR:-}" ]]; then
+    {{mise_exec}} node site/scripts/compress-screenshots.mjs
+  fi
 
 # Regenerate the site's player TUI screenshots with VHS and the real covers (#931) [--calibrate].
 site-tui-screenshots *args:

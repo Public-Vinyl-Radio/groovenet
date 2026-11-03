@@ -12,6 +12,7 @@ export const queryKeys = {
   recentAlbums: (friendId?: number) => ["albums", "recent", friendId ?? null] as const,
   appearance: () => ["settings", "appearance"] as const,
   defaultLibrary: () => ["settings", "default-library"] as const,
+  aiPromptSettings: (friend_id?: number) => ["settings", "ai-prompt", friend_id ?? null] as const,
   recommendationSettings: (friend_id: number) =>
     ["settings", "recommendations", friend_id] as const,
   version: () => ["system", "version"] as const,

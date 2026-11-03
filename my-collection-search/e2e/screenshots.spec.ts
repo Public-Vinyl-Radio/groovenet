@@ -16,6 +16,10 @@ import {
 // The marketing site's product screenshots (#912), taken against a worktree
 // stack restored from the prod seed. Run with `just site-screenshots`; the
 // PNGs land in site/src/assets/screenshots/ and are committed.
+// `--only <prefix>` takes just the files that start with it, and `--out <dir>`
+// writes there instead (SCREENSHOT_ONLY, SCREENSHOT_OUT_DIR). Shots marked
+// `reference` (the Settings sections, #956, #968) are only taken when one of the two is
+// given, so a plain run adds nothing the site doesn't use.
 //
 // Stable images:
 //  - The browser clock is fixed (CLOCK) and the time zone matches the app's
@@ -26,8 +30,10 @@ import {
 //  - Hidden: the dev stack's Next.js and TanStack devtools, the Developer nav
 //    link (dev-only), toasts, and Home's Now playing card (live state).
 //
-// Collection data is public; no privacy masks are applied. HIDE only removes
-// developer controls and transient/live state for repeatable images.
+// Collection data is public; no privacy masks are applied there. HIDE only
+// removes developer controls and transient/live state for repeatable images.
+// Settings shows credentials and personal data, so those shots run `maskSettings`
+// first: the page's text is replaced before capture, never the image after.
 test.skip(
   process.env.RUN_SCREENSHOTS !== "1",
   "Set RUN_SCREENSHOTS=1 (or run `just site-screenshots`) against a prod-seeded stack",
@@ -50,11 +56,14 @@ const QUEUE_SECONDS = 251;
 const QUEUE_POSITION = 97;
 const QUEUE_POSITION_LABEL = "1:37";
 
-const OUT_DIR =
-  process.env.SCREENSHOT_OUT ||
-  fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
+const SITE_DIR = fileURLToPath(new URL("../../site/src/assets/screenshots/", import.meta.url));
+const OUT_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? path.resolve(process.env.SCREENSHOT_OUT_DIR)
+  : SITE_DIR;
+const ONLY = process.env.SCREENSHOT_ONLY || "";
+/** Reference shots are not used by the site: take them only when asked for by name or by directory. */
+const WANT_REFERENCE = Boolean(ONLY || process.env.SCREENSHOT_OUT_DIR);
 mkdirSync(OUT_DIR, { recursive: true });
-const ONLY = process.env.SCREENSHOT_ONLY;
 const DEFAULT_PALETTE = "mono";
 const PALETTE = process.env.SCREENSHOT_PALETTE || DEFAULT_PALETTE;
 const MODE = process.env.SCREENSHOT_MODE as Mode | undefined;
@@ -155,7 +164,7 @@ async function openPage(
 }
 
 async function settle(page: Page) {
-  // System polls health and fetches remote storage metrics; it never becomes idle.
+  // System polls health and fetches remote repository metrics, so it never becomes idle.
   if (new URL(page.url()).pathname !== "/system") await page.waitForLoadState("networkidle");
   await page.addStyleTag({ content: `${HIDE} { display: none !important; }` });
   await page.evaluate(() => document.fonts.ready);
@@ -180,10 +189,10 @@ async function settle(page: Page) {
     .toBe("settled");
 }
 
-async function shoot(page: Page, file: string) {
+async function shoot(page: Page, file: string, fullPage = false) {
   await settle(page);
   if (file.startsWith("system-phone")) {
-    // Full-scroll reference artboard: put the fixed navigation at the end of the sheet.
+    // Place fixed phone navigation at the end of this full-scroll reference sheet.
     await page.addStyleTag({
       content: `body { position: relative; } [data-testid="mobile-tab-bar"] { width: 100%; } div:has(> [data-testid="mobile-tab-bar"]) { position: absolute !important; bottom: 0 !important; }`,
     });
@@ -193,7 +202,7 @@ async function shoot(page: Page, file: string) {
     animations: "disabled",
     caret: "hide",
     scale: "device",
-    fullPage: file.startsWith("system-"),
+    fullPage,
   });
 }
 
@@ -201,8 +210,11 @@ type Shot = {
   name: string;
   viewport: Viewport;
   mode: Mode;
-  reference?: boolean;
   take: (page: Page) => Promise<void>;
+  /** The whole scrolling page, not just the viewport. */
+  fullPage?: boolean;
+  /** Not used by the site: only taken with `--only` or `--out`. */
+  reference?: boolean;
   storage?: (request: APIRequestContext) => Promise<Record<string, string>>;
 };
 
@@ -569,36 +581,178 @@ const docs: Array<Omit<Shot, "mode">> = [
     name: "appearance",
     viewport: "desktop",
     take: async (page) => {
-      await page.goto("/settings?section=appearance");
-      await expect(page.getByRole("tab", { name: "Appearance", exact: true })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      );
+      await page.goto("/settings/appearance");
+      await expect(
+        page
+          .getByRole("navigation", { name: "Settings" })
+          .getByRole("link", { name: "Appearance", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
     },
   },
 ];
 
-// Reference captures only: service values come from the running stack. No backup actions.
-shots.push(
-  ...(["desktop", "phone"] as const).map((viewport) => ({
-    name: "system",
+/** No spinner left in the open section: its data has loaded. */
+async function noSpinners(page: Page) {
+  await expect(page.getByTestId("settings-layout").locator(".chakra-spinner")).toHaveCount(0, {
+    timeout: 60_000,
+  });
+}
+
+/** The section's title: the h2 beside the rail on desktop, the header's h1 on a phone. */
+async function sectionOpen(page: Page, label: string) {
+  await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
+}
+
+/**
+ * Every Settings section (#968), in the rail's order, plus `/settings` itself:
+ * the drill-in list on a phone, Appearance beside the rail on desktop. `ready`
+ * waits for the section's own content, not just its title.
+ */
+const SETTINGS_SECTIONS: Array<{ id: string; path: string; ready: (page: Page) => Promise<void> }> =
+  [
+    {
+      id: "index",
+      path: "/settings",
+      ready: async (page) => {
+        // The list's values and Appearance both load from the same calls.
+        await expect(
+          page
+            .getByText(/^Version /)
+            .or(page.getByText("Palette", { exact: true }))
+            .filter({ visible: true }),
+        ).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "appearance",
+      path: "/settings/appearance",
+      ready: async (page) => {
+        await sectionOpen(page, "Appearance");
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "libraries",
+      path: "/settings/libraries",
+      ready: async (page) => {
+        await sectionOpen(page, "Libraries");
+        await expect(page.getByText("Discogs Collections", { exact: true })).toBeVisible();
+        await expect(page.getByText("default", { exact: true })).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "apple-music",
+      path: "/settings/apple-music",
+      ready: async (page) => {
+        await sectionOpen(page, "Apple Music");
+        await expect(page.getByText("Apple Music Cookie File", { exact: true })).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "ai-metadata",
+      path: "/settings/ai-metadata",
+      ready: async (page) => {
+        await sectionOpen(page, "AI metadata");
+        await expect(page.getByRole("textbox").first()).not.toHaveValue("");
+        await noSpinners(page);
+      },
+    },
+    {
+      id: "about",
+      path: "/settings/about",
+      ready: async (page) => {
+        await sectionOpen(page, "About GrooveNet");
+        await expect(page.getByRole("link", { name: /GitHub/ })).toBeVisible();
+        await noSpinners(page);
+      },
+    },
+  ];
+
+const settingsShots: Array<Omit<Shot, "mode">> = SETTINGS_SECTIONS.flatMap((section) =>
+  (["desktop", "phone"] as const).map((viewport) => ({
+    name: `settings-${section.id}`,
     viewport,
+    fullPage: true,
     reference: true,
-    mode: "light" as const,
     take: async (page: Page) => {
-      await page.goto("/system");
-      await expect(page.getByRole("heading", { name: "System", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "RUN BACKUP NOW" })).toBeVisible();
-      await expect(page.getByText(/OF 7 SERVICES UP/)).toBeVisible();
-      if (viewport === "desktop")
-        await page.getByRole("button", { name: "Expand sidebar" }).click();
+      await page.goto(section.path);
+      await section.ready(page);
+      await maskSettings(page);
     },
   })),
 );
 
+/**
+ * Replace credentials and personal data in the DOM before the shot, so the
+ * image never holds them. Text keeps its place; only the characters change.
+ *  - Discogs usernames (yours and your friends'): `collector-N`, in text, inputs and selects.
+ *  - Email addresses, and any token-like run of 32+ characters.
+ *  - Backup hosts (`Host: …`) and the server paths a snapshot lists.
+ *  - Password and secret inputs, and the cookie file's name.
+ */
+async function maskSettings(page: Page) {
+  const res = await page.request.get("/api/friends");
+  const { results } = (await res.json()) as { results: Array<{ username: string }> };
+  const usernames = results.map((friend) => friend.username);
+  await page.evaluate(
+    ({ names }) => {
+      const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const alias = new Map(names.map((name, i) => [name.toLowerCase(), `collector-${i + 1}`]));
+      const userRe = names.length
+        ? new RegExp(`\\b(${names.map(escape).join("|")})\\b`, "gi")
+        : null;
+      const rules: Array<[RegExp, (m: string) => string]> = [
+        [/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, () => "user@example.com"],
+        [/\b[A-Za-z0-9_-]{32,}\b/g, (m) => "x".repeat(Math.min(m.length, 12))],
+        [/^(Host: ).+$/, () => "Host: backup-host"],
+        [
+          /(^|\s)\/(app|srv|data|home|var|mnt)\/[^\s,]*/g,
+          (m) => `${m.startsWith("/") ? "" : " "}/path/to/source`,
+        ],
+      ];
+      const clean = (text: string) => {
+        let out = text;
+        if (userRe) out = out.replace(userRe, (m) => alias.get(m.toLowerCase()) ?? m);
+        for (const [re, to] of rules) out = out.replace(re, to as (m: string) => string);
+        return out;
+      };
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const next = clean(node.nodeValue ?? "");
+        if (next !== node.nodeValue) node.nodeValue = next;
+      }
+      for (const el of document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        "input, textarea",
+      )) {
+        if (el.type === "password") el.value = "••••••••••••";
+        else if (el.type === "text" || el.tagName === "TEXTAREA") el.value = clean(el.value);
+      }
+    },
+    { names: usernames },
+  );
+}
+
+// Reference only; never invokes backup or restore operations.
+const systemShots: Array<Omit<Shot, "mode">> = (["desktop", "phone"] as const).map((viewport) => ({
+  name: "system",
+  viewport,
+  reference: true,
+  fullPage: true,
+  take: async (page: Page) => {
+    await page.goto("/system");
+    await expect(page.getByRole("heading", { name: "System", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "RUN BACKUP NOW" })).toBeVisible();
+    await expect(page.getByText(/OF \d+ SERVICES UP/)).toBeVisible();
+    if (viewport === "desktop") await page.getByRole("button", { name: "Expand sidebar" }).click();
+  },
+}));
+
 const captures = [
   // Every page in Mono light and dark. Marketing names remain unchanged.
-  ...[...shots, ...docs].flatMap((shot) =>
+  ...[...shots, ...docs, ...settingsShots, ...systemShots].flatMap((shot) =>
     (MODE ? [MODE] : (["light", "dark"] as const)).map((mode) => ({
       ...shot,
       mode,
@@ -615,10 +769,15 @@ const captures = [
       }))),
 ];
 
+/** Whether `--only` (a prefix of the file name) and the reference rule let this file through. */
+function wanted(file: string, reference = false) {
+  return file.startsWith(ONLY) && (WANT_REFERENCE || !reference);
+}
+
 const files = new Set<string>();
 for (const shot of captures) {
   const file = fileName(shot.name, shot.viewport, shot.mode, shot.palette);
-  if (files.has(file) || (ONLY ? shot.name !== ONLY : shot.reference)) continue;
+  if (files.has(file) || !wanted(file, "reference" in shot && shot.reference)) continue;
   files.add(file);
   test(file, async ({ browser, baseURL, request }, testInfo) => {
     test.setTimeout(90_000);
@@ -628,11 +787,14 @@ for (const shot of captures) {
     const page = await openPage(browser, baseURL, shot.viewport, shot.mode, storage);
     try {
       await shot.take(page);
-      await shoot(page, file);
+      await shoot(page, file, "fullPage" in shot && shot.fullPage);
     } finally {
       await page.context().close();
     }
   });
+}
+if (ONLY && files.size === 0 && !wanted("set-sheet-pdf.png")) {
+  throw new Error(`--only ${ONLY} matches no screenshot`);
 }
 
 // The set sheet (#939): the app's own PDF export, driven through its menu so it
@@ -641,9 +803,9 @@ for (const shot of captures) {
 // bordered image serves both.
 const run = promisify(execFile);
 test("set-sheet-pdf.png", async ({ browser, baseURL, request }, testInfo) => {
-  test.skip(Boolean(ONLY), "Page filter excludes the PDF export");
   test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "desktop", "Each shot sets its own viewport");
+  test.skip(!wanted("set-sheet-pdf.png"), "Not selected by --only");
   await putAppearance(request, { palette: DEFAULT_PALETTE });
   const page = await openPage(browser, baseURL, "desktop", "light");
   try {

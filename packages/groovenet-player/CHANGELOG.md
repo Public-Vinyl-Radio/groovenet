@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.10](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.9...groovenet-player-v0.1.10) (2026-11-03)
+
+
+### Bug Fixes
+
+* **player:** re-adopt Groovenet's own OwnTone sessions after a restart or lost output ([#927](https://github.com/Public-Vinyl-Radio/groovenet/issues/927)) ([4db958b](https://github.com/Public-Vinyl-Radio/groovenet/commit/4db958bb9cf0a70d223f4ccfcaff0fdeab084d48))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.9.0 to ^3.10.0
+    * @groovenet/contracts bumped from 1.5.0 to 1.6.0
+
 ## [0.1.9](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.8...groovenet-player-v0.1.9) (2026-10-31)
 
 

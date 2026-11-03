@@ -23,7 +23,7 @@ There are three ways in.
 
 On a single track, **Fetch audio** appears in the actions menu when the track has a streaming link. It also appears when the track already has audio, so you can fetch it again. **Remove audio** removes the track's local audio.
 
-Downloading Apple Music needs a cookie file from your own account, set up under **Settings → Downloads**. That page also has **Cookie Management** and **Test Connection** to check the setup. See [integrations](/docs/configuration/integrations/) for the server side.
+Downloading Apple Music needs a cookie file from your own account, set up under **Settings → Apple Music**. That page also has **Cookie Management** and **Test Connection** to check the setup. See [integrations](/docs/configuration/integrations/) for the server side.
 
 ## The queue
 
