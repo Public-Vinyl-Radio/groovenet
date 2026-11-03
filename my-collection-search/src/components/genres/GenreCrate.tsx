@@ -123,6 +123,8 @@ export function GenreCrate({
           gap={3}
           minH="52px"
           px={4}
+          borderRadius="0"
+          borderTopRadius="md"
           borderBottomWidth="outline"
           borderColor="border.ink"
         >
@@ -136,6 +138,8 @@ export function GenreCrate({
           gap={3}
           minH="52px"
           px={4}
+          borderRadius="0"
+          borderTopRadius="md"
           borderBottomWidth="outline"
           borderColor="border.ink"
         >
@@ -151,6 +155,9 @@ export function GenreCrate({
           w="full"
           justifyContent="start"
           px={4}
+          borderWidth="0"
+          borderRadius="0"
+          borderBottomRadius={children ? "0" : "md"}
           borderTopWidth="rule"
           borderColor="border"
           fontFamily="label"
@@ -189,6 +196,9 @@ export function GenreIndexCrate({
         w="full"
         justifyContent="start"
         px={4}
+        borderWidth="0"
+        borderRadius="0"
+        borderBottomRadius="md"
         borderTopWidth="rule"
         borderColor="border"
         fontFamily="label"
