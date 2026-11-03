@@ -301,6 +301,7 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
           alignItems="center"
           bg="fg"
           color="bg"
+          borderTopRadius="md"
           fontFamily="mono"
           fontSize={{ base: "11px", md: "xs" }}
           fontWeight="semibold"

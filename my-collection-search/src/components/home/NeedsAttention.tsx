@@ -23,6 +23,7 @@ export default function NeedsAttention({
           id="home-attention-heading"
           bg="fg"
           color="bg"
+          borderTopRadius="md"
           px={2}
           py={1}
           fontFamily="mono"

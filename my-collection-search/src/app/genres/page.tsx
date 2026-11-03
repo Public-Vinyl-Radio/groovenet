@@ -43,6 +43,7 @@ function Section({
           textTransform="uppercase"
           bg="fg"
           color="bg"
+          borderTopRadius="md"
           px={2}
           py={1}
         >

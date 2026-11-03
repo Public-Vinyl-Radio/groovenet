@@ -52,7 +52,7 @@ export function SectionHeading({
         fontSize="xs"
         fontWeight="semibold"
         letterSpacing="0.08em"
-        borderRadius="md"
+        borderTopRadius="md"
         flexShrink={0}
       >
         {children}
