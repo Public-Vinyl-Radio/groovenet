@@ -34,6 +34,7 @@ contains cover art. Search uses the Tracks results view.
 | View           | 390px                            | 1440px                            |
 | -------------- | -------------------------------- | --------------------------------- |
 | Search results | [Comparison](search-390.webp)    | [Comparison](search-1440.webp)    |
+| Track detail   | [Comparison](track-390.webp)     | [Comparison](track-1440.webp)     |
 | Album detail   | [Comparison](album-390.webp)     | [Comparison](album-1440.webp)     |
 | Spins          | [Comparison](spins-390.webp)     | [Comparison](spins-1440.webp)     |
 | Playlists      | [Comparison](playlists-390.webp) | [Comparison](playlists-1440.webp) |
@@ -41,3 +42,5 @@ contains cover art. Search uses the Tracks results view.
 
 Browser checks also verify computed monochrome filters before and after hover and
 keyboard focus, and verify that reduced motion disables the transition.
+
+Track detail compares the duplicated wrapper frame with the single shared Cover frame.

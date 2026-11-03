@@ -288,9 +288,6 @@ export default function TrackHeader({
         }}
       >
         <Box
-          borderWidth="outline"
-          borderRadius="md"
-          borderColor="border.ink"
           css={{
             gridArea: "art",
             margin: "12px 0 12px 12px",
