@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
+import {
+  trackAnalyzeAsyncBodySchema,
+  trackAnalyzeAsyncResponseSchema,
+} from "@/api-contract/schemas";
 import { redisJobService } from "@/server/services/redisJobService";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const {
-      apple_music_url,
-      youtube_url,
-      soundcloud_url,
-      track_id,
-      friend_id,
-      preferred_downloader,
-    } = body;
-
-    // Validate required fields
-    if (!track_id || !friend_id) {
+    const parsed = trackAnalyzeAsyncBodySchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ error: "track_id and friend_id are required" }, { status: 400 });
     }
+    const { apple_music_url, youtube_url, soundcloud_url } = parsed.data;
 
-    // Validate that at least one URL is provided
+    // At least one URL must be given; JSON Schema cannot say "one of three".
     if (!apple_music_url && !youtube_url && !soundcloud_url) {
       return NextResponse.json(
         { error: "At least one music service URL is required" },
@@ -26,25 +22,23 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`Queueing download job for track ${track_id}`);
+    console.log(`Queueing download job for track ${parsed.data.track_id}`);
 
     // Add job to download queue
     const jobId = await redisJobService.createDownloadJob({
-      track_id,
-      friend_id: parseInt(friend_id, 10),
-      apple_music_url,
-      youtube_url,
-      soundcloud_url,
-      preferred_downloader,
-      title: body?.title,
-      artist: body?.artist,
+      ...parsed.data,
+      apple_music_url: apple_music_url ?? undefined,
+      youtube_url: youtube_url ?? undefined,
+      soundcloud_url: soundcloud_url ?? undefined,
     });
 
-    return NextResponse.json({
-      success: true,
-      jobId,
-      message: "Audio processing job queued successfully",
-    });
+    return NextResponse.json(
+      trackAnalyzeAsyncResponseSchema.parse({
+        success: true,
+        jobId,
+        message: "Audio processing job queued successfully",
+      }),
+    );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error queueing analyze job:", err);

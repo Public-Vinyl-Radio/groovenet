@@ -17,7 +17,10 @@ import {
   embeddingPreviewResponseSchema,
   identityEmbeddingDataSchema,
   identityEmbeddingPreviewResponseSchema,
+  trackAnalyzeAsyncResponseSchema,
   trackAudioMetadataResponseSchema,
+  trackDeleteResponseSchema,
+  trackFixDurationResponseSchema,
   trackEssentiaResponseSchema,
   trackExtractEmbeddedCoverResponseSchema,
   trackPlaylistsResponseSchema,
@@ -123,11 +126,9 @@ export type AnalyzeResponse = {
   metadata?: { audio_properties?: { length: number } };
   [k: string]: unknown;
 };
-export type AsyncAnalyzeResponse = {
-  success: boolean;
-  jobId: string;
-  message: string;
-};
+export type AsyncAnalyzeResponse = z.infer<typeof trackAnalyzeAsyncResponseSchema>;
+export type FixTrackDurationResponse = z.infer<typeof trackFixDurationResponseSchema>;
+export type SoftDeleteTrackResponse = z.infer<typeof trackDeleteResponseSchema>;
 export type UploadTrackAudioArgs = {
   file: File;
   track_id: string;
@@ -182,8 +183,8 @@ export async function fixTrackDuration(args: {
   track_id: string;
   friend_id: number;
   local_audio_url?: string | null;
-}): Promise<{ success: boolean; jobId: string }> {
-  return await http<{ success: boolean; jobId: string }>("/api/tracks/fix-duration", {
+}): Promise<FixTrackDurationResponse> {
+  return await http<FixTrackDurationResponse>("/api/tracks/fix-duration", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(args),
@@ -224,8 +225,8 @@ export async function fetchTrackById(params: {
 export async function softDeleteTrack(params: {
   track_id: string;
   friend_id: number;
-}): Promise<{ success: boolean; track_id: string; friend_id: number }> {
-  return await http(
+}): Promise<SoftDeleteTrackResponse> {
+  return await http<SoftDeleteTrackResponse>(
     `/api/tracks/${encodeURIComponent(params.track_id)}?friend_id=${params.friend_id}`,
     { method: "DELETE" },
   );

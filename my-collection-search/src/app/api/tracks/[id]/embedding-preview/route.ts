@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { embeddingPreviewTypeSchema } from "@/api-contract/schemas";
 import { embeddingsService, type EmbeddingPreviewType } from "@/server/services/embeddingsService";
 
 const MISSING_AUDIO_ANALYSIS_ERROR = "Track missing audio analysis data";
 
 function parsePreviewType(value: string | null): EmbeddingPreviewType {
-  return value === "audio_vibe" || value === "context" ? value : "identity";
+  const parsed = embeddingPreviewTypeSchema.safeParse(value);
+  return parsed.success ? parsed.data : "identity";
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

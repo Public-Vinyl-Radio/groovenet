@@ -15,6 +15,7 @@ import { Agent as HttpsAgent } from "https";
 import { checkPlaylist, type PlaylistCheck, type PlaylistCheckOptions } from "./playlistCheck.js";
 import type {
   Track,
+  TrackRestoreResponse,
   Playlist,
   PlaylistDetail,
   PlaylistSpinsInput,
@@ -329,16 +330,10 @@ export class GroovenetClient {
     );
   }
 
-  async restoreTrack(
-    trackId: string,
-    friendId: number,
-  ): Promise<{ success: boolean; track_id: string; friend_id: number; track: Track }> {
-    return this.request<{
-      success: boolean;
-      track_id: string;
-      friend_id: number;
-      track: Track;
-    }>("POST", `/tracks/${trackId}/restore`, undefined, { friend_id: friendId });
+  async restoreTrack(trackId: string, friendId: number): Promise<TrackRestoreResponse> {
+    return this.request<TrackRestoreResponse>("POST", `/tracks/${trackId}/restore`, undefined, {
+      friend_id: friendId,
+    });
   }
 
   // ── Albums ──────────────────────────────────────────────────────────────────

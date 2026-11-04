@@ -169,6 +169,122 @@ export const trackDeleteResponseSchema = z.object({
   friend_id: z.number().int(),
 });
 
+/** `POST /api/tracks/{id}/restore`: the restored row, with its deleted_at cleared. */
+export const trackRestoreResponseSchema = z.object({
+  success: z.boolean(),
+  track_id: z.string(),
+  friend_id: z.number().int(),
+  track: trackSchema,
+});
+
+/** `POST /api/tracks/{id}/audio-metadata` body: which friend's copy to extract the cover for. */
+export const trackExtractEmbeddedCoverRequestSchema = z.object({
+  friend_id: z.number().int(),
+});
+
+/** Which text an embedding preview renders (`type` query parameter). */
+export const trackEmbeddingPreviewTypeSchema = z.enum(["identity", "audio_vibe", "context"]);
+
+export const trackIdentityEmbeddingDataSchema = z.object({
+  title: z.string(),
+  artist: z.string(),
+  album: z.string(),
+  era: z.string(),
+  country: z.string(),
+  labels: z.array(z.string()),
+  composers: z.array(z.string()),
+  genres: z.array(z.string()),
+  styles: z.array(z.string()),
+  tags: z.array(z.string()),
+});
+
+export const trackAudioVibeEmbeddingDataSchema = z.object({
+  bpm: z.string(),
+  bpmRange: z.string(),
+  key: z.string(),
+  camelot: z.string(),
+  danceability: z.string(),
+  energy: z.string(),
+  dominantMood: z.string(),
+  moodProfile: z.string(),
+  vibeDescriptors: z.array(z.string()),
+  acoustic: z.string().optional(),
+  vocalPresence: z.string().optional(),
+  percussiveness: z.string().optional(),
+  partyMood: z.string().optional(),
+});
+
+export const trackIdentityEmbeddingPreviewSchema = z.object({
+  type: z.literal("identity"),
+  text: z.string(),
+  data: trackIdentityEmbeddingDataSchema,
+});
+
+export const trackAudioVibeEmbeddingPreviewSchema = z.object({
+  type: z.literal("audio_vibe"),
+  text: z.string(),
+  data: trackAudioVibeEmbeddingDataSchema,
+});
+
+/** Built from the same normalized data as identity, rendered for retrieval (#408). */
+export const trackContextEmbeddingPreviewSchema = z.object({
+  type: z.literal("context"),
+  text: z.string(),
+  data: trackIdentityEmbeddingDataSchema,
+});
+
+export const trackEmbeddingPreviewSchema = z.discriminatedUnion("type", [
+  trackIdentityEmbeddingPreviewSchema,
+  trackAudioVibeEmbeddingPreviewSchema,
+  trackContextEmbeddingPreviewSchema,
+]);
+
+/** Downloaders `analyze-async` can ask the worker to prefer. */
+export const trackPreferredDownloaderSchema = z.enum(["freyr", "spotdl", "yt-dlp", "scdl"]);
+
+/**
+ * `POST /api/tracks/analyze-async` body. At least one URL is required; that
+ * rule is checked by the route (it is not expressible in JSON Schema).
+ */
+export const trackAnalyzeAsyncRequestSchema = z.object({
+  track_id: z.string().min(1),
+  friend_id: z.number().int(),
+  apple_music_url: z.string().nullish(),
+  youtube_url: z.string().nullish(),
+  soundcloud_url: z.string().nullish(),
+  preferred_downloader: trackPreferredDownloaderSchema.optional(),
+  title: z.string().optional(),
+  artist: z.string().optional(),
+});
+
+export const trackAnalyzeAsyncResponseSchema = z.object({
+  success: z.boolean(),
+  jobId: z.string(),
+  message: z.string(),
+});
+
+/** `POST /api/tracks/fix-duration` body. */
+export const trackFixDurationRequestSchema = z.object({
+  track_id: z.string().min(1),
+  friend_id: z.number().int(),
+  local_audio_url: z.string().nullish(),
+});
+
+export const trackFixDurationResponseSchema = z.object({
+  success: z.boolean(),
+  jobId: z.string(),
+});
+
+/** Per-genre track counts for the current search, subgenres included (#375). */
+export const trackGenreFacetsResponseSchema = z.object({
+  genres: z.array(
+    z.object({
+      id: z.string().meta({ format: "uuid" }),
+      track_count: z.number().int(),
+    }),
+  ),
+});
+
 export type TrackGenre = z.infer<typeof trackGenreSchema>;
 export type GenreFilterRef = z.infer<typeof genreFilterRefSchema>;
 export type TrackSearchMode = z.infer<typeof trackSearchModeSchema>;
@@ -187,6 +303,21 @@ export type TrackExtractEmbeddedCoverResponse = z.infer<
 export type TrackEssentia = z.infer<typeof trackEssentiaSchema>;
 export type TrackDeleteResponse = z.infer<typeof trackDeleteResponseSchema>;
 
+export type TrackRestoreResponse = z.infer<typeof trackRestoreResponseSchema>;
+export type TrackExtractEmbeddedCoverRequest = z.infer<
+  typeof trackExtractEmbeddedCoverRequestSchema
+>;
+export type TrackEmbeddingPreviewType = z.infer<typeof trackEmbeddingPreviewTypeSchema>;
+export type TrackIdentityEmbeddingData = z.infer<typeof trackIdentityEmbeddingDataSchema>;
+export type TrackAudioVibeEmbeddingData = z.infer<typeof trackAudioVibeEmbeddingDataSchema>;
+export type TrackEmbeddingPreview = z.infer<typeof trackEmbeddingPreviewSchema>;
+export type TrackPreferredDownloader = z.infer<typeof trackPreferredDownloaderSchema>;
+export type TrackAnalyzeAsyncRequest = z.infer<typeof trackAnalyzeAsyncRequestSchema>;
+export type TrackAnalyzeAsyncResponse = z.infer<typeof trackAnalyzeAsyncResponseSchema>;
+export type TrackFixDurationRequest = z.infer<typeof trackFixDurationRequestSchema>;
+export type TrackFixDurationResponse = z.infer<typeof trackFixDurationResponseSchema>;
+export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
+
 export const trackJsonSchemas = {
   TrackGenre: z.toJSONSchema(trackGenreSchema),
   GenreFilterRef: z.toJSONSchema(genreFilterRefSchema),
@@ -200,4 +331,15 @@ export const trackJsonSchemas = {
   TrackExtractEmbeddedCoverResponse: z.toJSONSchema(trackExtractEmbeddedCoverResponseSchema),
   TrackEssentia: z.toJSONSchema(trackEssentiaSchema),
   TrackDeleteResponse: z.toJSONSchema(trackDeleteResponseSchema),
+  TrackRestoreResponse: z.toJSONSchema(trackRestoreResponseSchema),
+  TrackExtractEmbeddedCoverRequest: z.toJSONSchema(trackExtractEmbeddedCoverRequestSchema, {
+    io: "input",
+  }),
+  TrackEmbeddingPreviewType: z.toJSONSchema(trackEmbeddingPreviewTypeSchema),
+  TrackEmbeddingPreview: z.toJSONSchema(trackEmbeddingPreviewSchema),
+  TrackAnalyzeAsyncRequest: z.toJSONSchema(trackAnalyzeAsyncRequestSchema, { io: "input" }),
+  TrackAnalyzeAsyncResponse: z.toJSONSchema(trackAnalyzeAsyncResponseSchema),
+  TrackFixDurationRequest: z.toJSONSchema(trackFixDurationRequestSchema, { io: "input" }),
+  TrackFixDurationResponse: z.toJSONSchema(trackFixDurationResponseSchema),
+  TrackGenreFacetsResponse: z.toJSONSchema(trackGenreFacetsResponseSchema),
 };
