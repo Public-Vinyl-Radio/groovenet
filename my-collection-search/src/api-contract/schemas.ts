@@ -13,6 +13,39 @@ import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
 } from "@groovenet/contracts";
+import {
+  aiPromptSettingsQuerySchema as sharedAiPromptSettingsQuerySchema,
+  aiPromptSettingsSchema,
+  aiPromptSettingsUpdateResponseSchema,
+  aiPromptSettingsUpdateSchema,
+  appearanceCornersSchema,
+  appearancePaletteSchema,
+  appearanceSettingsSchema,
+  appearanceSettingsUpdateObjectSchema,
+  gamdlActionRequestSchema,
+  gamdlActionResponseSchema,
+  gamdlActionSchema,
+  gamdlAudioFormatSchema as sharedGamdlAudioFormatSchema,
+  gamdlAudioQualitySchema as sharedGamdlAudioQualitySchema,
+  gamdlConnectionTestDetailsSchema as sharedGamdlConnectionTestDetailsSchema,
+  gamdlConnectionTestResponseSchema as sharedGamdlConnectionTestResponseSchema,
+  gamdlCookieDeleteResponseSchema as sharedGamdlCookieDeleteResponseSchema,
+  gamdlCookieFileInfoSchema as sharedGamdlCookieFileInfoSchema,
+  gamdlCookieUploadResponseSchema as sharedGamdlCookieUploadResponseSchema,
+  gamdlCoverFormatSchema as sharedGamdlCoverFormatSchema,
+  gamdlLyricsFormatSchema as sharedGamdlLyricsFormatSchema,
+  gamdlSettingsQuerySchema as sharedGamdlSettingsQuerySchema,
+  gamdlSettingsResetResponseSchema as sharedGamdlSettingsResetResponseSchema,
+  gamdlSettingsResponseSchema,
+  gamdlSettingsSchema as sharedGamdlSettingsSchema,
+  gamdlSettingsUpdateResponseSchema,
+  gamdlSettingsUpdateSchema,
+  recommendationScopeSchema,
+  recommendationSettingsQuerySchema as sharedRecommendationSettingsQuerySchema,
+  recommendationSettingsSchema,
+  recommendationSettingsUpdateSchema,
+  refineAppearanceSettingsUpdate,
+} from "@groovenet/contracts";
 import { z } from "zod";
 import {
   albumArtMatchStatusSchema,
@@ -135,16 +168,7 @@ import {
   spinUpdateResponseSchema as sharedSpinUpdateResponseSchema,
   trackSpinEventSchema as sharedTrackSpinEventSchema,
 } from "@groovenet/contracts";
-import {
-  fontChoiceIdsFor,
-  fontRoleIds,
-  type FontChoiceId,
-  type FontRoleId,
-} from "@/app/fontChoices";
-import { cornerIds } from "@/app/corners";
-import { paletteIds } from "@/app/palettes";
-import { customPaletteId, customPaletteSchema } from "@/app/palettes/custom";
-import { RECOMMENDATION_SCOPES } from "@/types/recommendations";
+import { customPaletteSchema } from "@/app/palettes/custom";
 
 export const apiErrorSchema = z
   .object({
@@ -257,100 +281,35 @@ export const providerAppleMusicSearchResponseSchema = z.object({
   results: z.array(providerAppleMusicSearchItemSchema),
 });
 
-export const gamdlCookieFileInfoSchema = z
-  .object({
-    exists: z.boolean(),
-    filename: z.string().optional(),
-    size: z.number().optional(),
-    lastModified: z.string().optional(),
-    domains: z.array(z.string()).optional(),
-    cookieCount: z.number().int().optional(),
-    hasAppleMusic: z.boolean().optional(),
-    expiryDates: z.array(z.string()).optional(),
-    isValid: z.boolean().optional(),
-    validationErrors: z.array(z.string()).optional(),
-  })
-  .passthrough();
+export const gamdlCookieFileInfoSchema = sharedGamdlCookieFileInfoSchema;
+export const gamdlCookieUploadResponseSchema = sharedGamdlCookieUploadResponseSchema;
+export const gamdlCookieDeleteResponseSchema = sharedGamdlCookieDeleteResponseSchema;
+export const gamdlAudioQualitySchema = sharedGamdlAudioQualitySchema;
+export const gamdlAudioFormatSchema = sharedGamdlAudioFormatSchema;
+export const gamdlCoverFormatSchema = sharedGamdlCoverFormatSchema;
+export const gamdlLyricsFormatSchema = sharedGamdlLyricsFormatSchema;
+export const gamdlSettingsSchema = sharedGamdlSettingsSchema;
+export const gamdlSettingsGetResponseSchema = gamdlSettingsResponseSchema;
+export const gamdlSettingsPutResponseSchema = gamdlSettingsUpdateResponseSchema;
+export const gamdlSettingsResetResponseSchema = sharedGamdlSettingsResetResponseSchema;
+export const gamdlConnectionTestDetailsSchema = sharedGamdlConnectionTestDetailsSchema;
+export const gamdlConnectionTestResponseSchema = sharedGamdlConnectionTestResponseSchema;
 
-export const gamdlCookieUploadResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  cookieInfo: gamdlCookieFileInfoSchema,
-});
+export { gamdlActionRequestSchema, gamdlActionResponseSchema, gamdlActionSchema };
 
-export const gamdlCookieDeleteResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-});
-
-export const gamdlAudioQualitySchema = z.enum(["best", "high", "standard", "lossless"]);
-
-export const gamdlAudioFormatSchema = z.enum(["m4a", "mp3", "aac", "flac"]);
-export const gamdlCoverFormatSchema = z.enum(["jpg", "png", "raw"]);
-export const gamdlLyricsFormatSchema = z.enum(["lrc", "srt", "ttml"]);
-
-export const gamdlSettingsSchema = z.object({
-  id: z.number().int(),
-  friend_id: z.number().int(),
-  audio_quality: gamdlAudioQualitySchema,
-  audio_format: gamdlAudioFormatSchema,
-  save_cover: z.boolean(),
-  cover_format: gamdlCoverFormatSchema,
-  save_lyrics: z.boolean(),
-  lyrics_format: gamdlLyricsFormatSchema,
-  overwrite_existing: z.boolean(),
-  skip_music_videos: z.boolean(),
-  max_retries: z.number().int(),
-  created_at: z.string(),
-  updated_at: z.string(),
-});
-
-export const gamdlSettingsQuerySchema = z.object({
+export const gamdlSettingsQuerySchema = sharedGamdlSettingsQuerySchema.extend({
   friend_id: intFromInputSchema,
 });
 
-export const gamdlSettingsGetResponseSchema = z.object({
-  settings: gamdlSettingsSchema,
-});
-
-export const gamdlSettingsPutBodySchema = z
-  .object({
-    friend_id: intFromInputSchema,
-    audio_quality: gamdlAudioQualitySchema.optional(),
-    audio_format: gamdlAudioFormatSchema.optional(),
-    save_cover: z.boolean().optional(),
-    cover_format: gamdlCoverFormatSchema.optional(),
-    save_lyrics: z.boolean().optional(),
-    lyrics_format: gamdlLyricsFormatSchema.optional(),
-    overwrite_existing: z.boolean().optional(),
-    skip_music_videos: z.boolean().optional(),
-    max_retries: intFromInputSchema.optional(),
-  })
-  .strict();
-
-export const gamdlSettingsPutResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  settings: gamdlSettingsSchema,
+// The repository drops fields it does not know instead of rejecting them, so
+// the body is not `.strict()`; `max_retries` keeps the app's text coercion.
+export const gamdlSettingsPutBodySchema = gamdlSettingsUpdateSchema.extend({
+  friend_id: intFromInputSchema,
+  max_retries: intFromInputSchema.optional(),
 });
 
 export const gamdlSettingsResetBodySchema = z.object({
   friend_id: intFromInputSchema,
-});
-
-export const gamdlSettingsResetResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  settings: gamdlSettingsSchema,
-});
-
-export const gamdlConnectionTestDetailsSchema = z.object({
-  gamdl_available: z.boolean(),
-  cookie_file_exists: z.boolean(),
-  cookie_file_valid: z.boolean(),
-  test_download_attempted: z.boolean(),
-  test_download_success: z.boolean(),
-  error_type: z.string().optional(),
 });
 
 export const backupProviderSchema = z.enum(["restic-b2"]);
@@ -447,12 +406,6 @@ export const backupCreateCustomResponseSchema = z.object({
   message: z.string(),
   filename: z.string(),
   format: z.literal("custom"),
-});
-
-export const gamdlConnectionTestResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  details: gamdlConnectionTestDetailsSchema,
 });
 
 export const jobsListQuerySchema = z.object({
@@ -792,7 +745,7 @@ export const bulkNotesResponseSchema = z
   })
   .passthrough();
 
-export const recommendationScopeSchema = z.enum(RECOMMENDATION_SCOPES);
+export { recommendationScopeSchema };
 
 /**
  * Where candidates may come from. `scope` omitted means the library's saved
@@ -969,75 +922,42 @@ export const manifestCleanupResponseSchema = z.object({
   }),
 });
 
-export const aiPromptSettingsQuerySchema = z.object({
+export const aiPromptSettingsQuerySchema = sharedAiPromptSettingsQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),
 });
 
-export const aiPromptSettingsPutBodySchema = z.object({
+export const aiPromptSettingsPutBodySchema = aiPromptSettingsUpdateSchema.extend({
   friend_id: intFromInputSchema,
-  prompt: z.string().optional().default(""),
 });
 
-export const aiPromptSettingsGetResponseSchema = z.object({
-  prompt: z.string(),
-  defaultPrompt: z.string(),
-  isDefault: z.boolean(),
-});
+export const aiPromptSettingsGetResponseSchema = aiPromptSettingsSchema;
 
-export const aiPromptSettingsPutResponseSchema = z.object({
-  prompt: z.string(),
-  isDefault: z.boolean(),
-});
+export const aiPromptSettingsPutResponseSchema = aiPromptSettingsUpdateResponseSchema;
 
 // `custom` is the reserved id of the saved custom palette; the service accepts
 // it only while one is stored.
-export const appearancePaletteSchema = z.enum([...paletteIds, customPaletteId]);
+export { appearancePaletteSchema, appearanceCornersSchema };
 
-export const appearanceCornersSchema = z.enum(cornerIds);
-
-// Each role accepts only its own faces, so a slab can't be set as the body font.
-const appearanceFontsShape = Object.fromEntries(
-  fontRoleIds.map((role) => [role, z.enum(fontChoiceIdsFor(role))]),
-) as { [R in FontRoleId]: z.ZodEnum<{ [K in FontChoiceId]: K }> };
-
-// Every field is optional and only the ones sent change, so `{ palette }` still
-// works and a font change leaves the palette alone.
-export const appearanceSettingsPutBodySchema = z
-  .object({
-    palette: appearancePaletteSchema.optional(),
-    fonts: z.object(appearanceFontsShape).partial().strict().optional(),
-    // Replaces the saved custom palette; null deletes it.
-    customPalette: customPaletteSchema.nullable().optional(),
-    corners: appearanceCornersSchema.optional(),
-  })
-  .strict()
-  .refine((body) => !(body.palette === customPaletteId && body.customPalette === null), {
+// The shared body validates the wire shape; the app swaps in its own custom
+// palette schema, which lowercases the colours before they are stored.
+export const appearanceSettingsPutBodySchema = appearanceSettingsUpdateObjectSchema
+  .extend({ customPalette: customPaletteSchema.nullable().optional() })
+  .refine(refineAppearanceSettingsUpdate, {
     path: ["palette"],
     message: "palette custom needs a custom palette",
   });
 
-export const appearanceSettingsResponseSchema = z.object({
-  palette: appearancePaletteSchema,
-  fonts: z.object(appearanceFontsShape),
-  customPalette: customPaletteSchema.nullable(),
-  corners: appearanceCornersSchema,
-});
+export const appearanceSettingsResponseSchema = appearanceSettingsSchema;
 
-export const recommendationSettingsQuerySchema = z.object({
+export const recommendationSettingsQuerySchema = sharedRecommendationSettingsQuerySchema.extend({
   friend_id: intFromInputSchema,
 });
 
-export const recommendationSettingsPutBodySchema = z.object({
+export const recommendationSettingsPutBodySchema = recommendationSettingsUpdateSchema.extend({
   friend_id: intFromInputSchema,
-  scope: recommendationScopeSchema,
 });
 
-export const recommendationSettingsResponseSchema = z.object({
-  friend_id: z.number().int(),
-  scope: recommendationScopeSchema,
-  /** True when the library has never chosen, so `scope` is the default. */
-  isDefault: z.boolean(),
-});
+export const recommendationSettingsResponseSchema = recommendationSettingsSchema;
 
 export const albumReleaseParamsSchema = z.object({
   releaseId: z.string().min(1),

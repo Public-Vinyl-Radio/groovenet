@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { gamdlSettingsPutBodySchema } from "@/api-contract/schemas";
 import { settingsService } from "@/server/services/settingsService";
-import type { GamdlSettingsUpdate } from "@/types/gamdl";
 
 export const runtime = "nodejs";
 
@@ -41,9 +41,10 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { friend_id, ...updates } = body as {
-      friend_id?: number | string;
-    } & GamdlSettingsUpdate;
+    const { friend_id, ...rest } = body as { friend_id?: number | string } & Record<
+      string,
+      unknown
+    >;
 
     if (!friend_id) {
       return NextResponse.json({ error: "friend_id is required" }, { status: 400 });
@@ -54,10 +55,20 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "friend_id must be a number" }, { status: 400 });
     }
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(rest).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
+    // Unknown fields are stripped, as the repository always dropped them.
+    const parsed = gamdlSettingsPutBodySchema.safeParse({ ...rest, friend_id: friendIdNum });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid gamdl settings", details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+
+    const { friend_id: _friendId, ...updates } = parsed.data;
     const settings = await settingsService.updateGamdlSettings(friendIdNum, updates);
     if (!settings) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

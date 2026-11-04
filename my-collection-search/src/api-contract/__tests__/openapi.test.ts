@@ -241,6 +241,55 @@ describe("OpenAPI contract coverage", () => {
     );
   });
 
+  it("references shared settings components", () => {
+    const doc = getOpenApiDocument();
+    const schemas = doc.components.schemas as Record<
+      string,
+      { required?: string[]; additionalProperties?: unknown; properties?: Record<string, unknown> }
+    >;
+    // The prompt and GAMDL routes strip unknown fields; appearance really rejects them.
+    expect(schemas.AiPromptSettingsUpdate.additionalProperties).toBeUndefined();
+    expect(schemas.GamdlSettingsUpdate.additionalProperties).toBeUndefined();
+    expect(schemas.AppearanceSettingsUpdate.additionalProperties).toBe(false);
+    expect(schemas.GamdlSettings.properties?.audio_format).toMatchObject({
+      enum: ["m4a", "mp3", "aac", "flac"],
+    });
+
+    type Content = { content?: { "application/json"?: { schema?: { $ref?: string } } } };
+    const ref = (c?: Content) => c?.content?.["application/json"]?.schema?.$ref;
+    const op = (path: string, method: string) =>
+      getOperation(path, method) as { requestBody?: Content; responses: Record<string, Content> };
+    const component = (name: string) => `#/components/schemas/${name}`;
+
+    const cases: [string, string, string | null, string | null][] = [
+      ["/api/settings/ai-prompt", "get", null, "AiPromptSettings"],
+      [
+        "/api/settings/ai-prompt",
+        "put",
+        "AiPromptSettingsUpdate",
+        "AiPromptSettingsUpdateResponse",
+      ],
+      ["/api/settings/appearance", "get", null, "AppearanceSettings"],
+      ["/api/settings/appearance", "put", "AppearanceSettingsUpdate", "AppearanceSettings"],
+      ["/api/settings/recommendations", "get", null, "RecommendationSettings"],
+      [
+        "/api/settings/recommendations",
+        "put",
+        "RecommendationSettingsUpdate",
+        "RecommendationSettings",
+      ],
+      ["/api/settings/gamdl", "get", null, "GamdlSettingsResponse"],
+      ["/api/settings/gamdl", "put", "GamdlSettingsUpdate", "GamdlSettingsUpdateResponse"],
+      ["/api/settings/gamdl-cookies", "put", null, "GamdlCookieUploadResponse"],
+      ["/api/settings/gamdl/actions", "post", "GamdlActionRequest", "GamdlActionResponse"],
+    ];
+    for (const [path, method, request, response] of cases) {
+      const operation = op(path, method);
+      if (request) expect(ref(operation.requestBody)).toBe(component(request));
+      if (response) expect(ref(operation.responses["200"])).toBe(component(response));
+    }
+  });
+
   it("references shared record-care components and documents their enums", () => {
     const doc = getOpenApiDocument();
     const schemas = doc.components.schemas as Record<

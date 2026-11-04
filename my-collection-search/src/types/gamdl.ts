@@ -1,18 +1,4 @@
-export interface GamdlSettings {
-  id: number;
-  friend_id: number;
-  audio_quality: "best" | "high" | "standard" | "lossless";
-  audio_format: "m4a" | "mp3" | "aac" | "flac";
-  save_cover: boolean;
-  cover_format: "jpg" | "png" | "raw";
-  save_lyrics: boolean;
-  lyrics_format: "lrc" | "srt" | "ttml";
-  overwrite_existing: boolean;
-  skip_music_videos: boolean;
-  max_retries: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { GamdlSettings } from "@groovenet/contracts";
 
 export interface CookieFileInfo {
   exists: boolean;
@@ -27,32 +13,11 @@ export interface CookieFileInfo {
   validationErrors?: string[];
 }
 
-export interface GamdlConnectionTestDetails {
-  gamdl_available: boolean;
-  cookie_file_exists: boolean;
-  cookie_file_valid: boolean;
-  test_download_attempted: boolean;
-  test_download_success: boolean;
-  error_type?: string;
-}
-
-export interface GamdlConnectionTestResult {
-  success: boolean;
-  message: string;
-  details: GamdlConnectionTestDetails;
-}
-
-export interface GamdlSettingsUpdate {
-  audio_quality?: "best" | "high" | "standard" | "lossless";
-  audio_format?: "m4a" | "mp3" | "aac" | "flac";
-  save_cover?: boolean;
-  cover_format?: "jpg" | "png" | "raw";
-  save_lyrics?: boolean;
-  lyrics_format?: "lrc" | "srt" | "ttml";
-  overwrite_existing?: boolean;
-  skip_music_videos?: boolean;
-  max_retries?: number;
-}
+export type {
+  GamdlConnectionTestDetails,
+  GamdlConnectionTestResponse as GamdlConnectionTestResult,
+  GamdlSettingsChanges as GamdlSettingsUpdate,
+} from "@groovenet/contracts";
 
 export const AUDIO_QUALITY_OPTIONS = [
   { value: "best", label: "Best Available", description: "Highest quality available" },

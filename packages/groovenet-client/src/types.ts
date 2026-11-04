@@ -776,48 +776,35 @@ export type {
   RecordCareStackResponse,
 } from "@groovenet/contracts";
 
-/** The font roles the app lets you choose a face for. */
-export type AppearanceFontRole = "display" | "body" | "label";
-
-/** A face id per role: `default` (the app's own), `system`, or a registered face such as `inter`. */
-export type AppearanceFonts = Record<AppearanceFontRole, string>;
-
-/** The app-wide palette and fonts. Light/dark mode is per device and not part of it. */
-export interface AppearanceCustomColours {
-  ground: string;
-  surface: string;
-  ink: string;
-  accent: string;
-  shadow: string;
-}
-
-/** The inputs of the one saved custom palette; everything else is derived by the app. Colours are `#rrggbb`. */
-export interface AppearanceCustomPalette {
-  /** The preset it started from, which supplies the status colours. */
-  base: string;
-  light: AppearanceCustomColours;
-  dark: AppearanceCustomColours;
-}
-
-export interface AppearanceSettings {
-  /** A palette id from the app's registry, e.g. `sleeve`, or `custom` while a custom palette is saved. */
-  palette: string;
-  /** Absent from servers that predate custom palettes; null when none is saved. */
-  customPalette?: AppearanceCustomPalette | null;
-  /** Absent from servers that predate font choices. */
-  fonts?: AppearanceFonts;
-  /** `square` or `rounded`; absent from servers that predate the corners setting. */
-  corners?: "square" | "rounded";
-}
-
-/** A change to the appearance; only the fields sent are changed. */
-export interface AppearanceSettingsUpdate {
-  palette?: string;
-  /** Replaces the saved custom palette; null deletes it. */
-  customPalette?: AppearanceCustomPalette | null;
-  fonts?: Partial<AppearanceFonts>;
-  corners?: "square" | "rounded";
-}
+export type {
+  AiPromptSettings,
+  AiPromptSettingsUpdate,
+  AiPromptSettingsUpdateResponse,
+  AppearanceCorners,
+  AppearanceCustomColours,
+  AppearanceCustomPalette,
+  AppearanceFontRole,
+  AppearanceFonts,
+  AppearancePaletteId,
+  AppearanceSettings,
+  AppearanceSettingsUpdate,
+  GamdlAction,
+  GamdlActionRequest,
+  GamdlActionResponse,
+  GamdlConnectionTestDetails,
+  GamdlConnectionTestResponse,
+  GamdlCookieDeleteResponse,
+  GamdlCookieFileInfo,
+  GamdlCookieUploadResponse,
+  GamdlSettings,
+  GamdlSettingsChanges,
+  GamdlSettingsResponse,
+  GamdlSettingsUpdate,
+  GamdlSettingsUpdateResponse,
+  RecommendationScope,
+  RecommendationSettings,
+  RecommendationSettingsUpdate,
+} from "@groovenet/contracts";
 
 export type {
   CreateServerPlayer,

@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  aiPromptSettingsGetResponseSchema,
+  aiPromptSettingsPutBodySchema,
+  aiPromptSettingsPutResponseSchema,
+} from "@/api-contract/schemas";
 import { settingsService } from "@/server/services/settingsService";
 
 export async function GET(request: NextRequest) {
@@ -11,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await settingsService.getAiPrompt(friendId);
-    return NextResponse.json(result);
+    return NextResponse.json(aiPromptSettingsGetResponseSchema.parse(result));
   } catch (err) {
     console.error("Failed to load AI prompt settings:", err);
     return NextResponse.json({ error: "Failed to load AI prompt settings" }, { status: 500 });
@@ -21,15 +26,19 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const friendId = Number(body?.friend_id);
-    const prompt = String(body?.prompt ?? "");
+    // The route has always coerced with Number()/String(); the schema then
+    // checks the result (a fractional id is now a 400, not a Postgres 500).
+    const parsed = aiPromptSettingsPutBodySchema.safeParse({
+      friend_id: Number(body?.friend_id),
+      prompt: String(body?.prompt ?? ""),
+    });
 
-    if (!friendId || Number.isNaN(friendId)) {
+    if (!parsed.success || !parsed.data.friend_id) {
       return NextResponse.json({ error: "friend_id is required" }, { status: 400 });
     }
 
-    const result = await settingsService.updateAiPrompt(friendId, prompt);
-    return NextResponse.json(result);
+    const result = await settingsService.updateAiPrompt(parsed.data.friend_id, parsed.data.prompt);
+    return NextResponse.json(aiPromptSettingsPutResponseSchema.parse(result));
   } catch (err) {
     console.error("Failed to update AI prompt settings:", err);
     return NextResponse.json({ error: "Failed to update AI prompt settings" }, { status: 500 });

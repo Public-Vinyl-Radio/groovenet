@@ -1,4 +1,3 @@
-import { cornerIds } from "@/app/corners";
 import {
   homeQuerySchema,
   homeResponseSchema,
@@ -15,9 +14,6 @@ import {
   recordCareProgressResponseSchema,
 } from "./recordCareQueue";
 import { playerContracts } from "./players";
-import { fontChoiceIdsFor, fontRoleIds } from "@/app/fontChoices";
-import { paletteIds } from "@/app/palettes";
-import { customColourKeys, customPaletteId } from "@/app/palettes/custom";
 import { playlistDeleteResponseSchema } from "@groovenet/contracts";
 import {
   aiPromptSettingsGetResponseSchema,
@@ -93,6 +89,8 @@ import {
   discogsUserLookupResponseSchema,
   manifestCleanupResponseSchema,
   manifestVerificationResponseSchema,
+  gamdlActionRequestSchema,
+  gamdlActionResponseSchema,
   gamdlCookieUploadResponseSchema,
   gamdlSettingsGetResponseSchema,
   gamdlSettingsPutBodySchema,
@@ -259,95 +257,11 @@ const componentRef = (name: string) => ({ $ref: `#/components/schemas/${name}` }
 const TRACK_GENRE_REF = { $ref: "#/components/schemas/TrackGenre" };
 const ALBUM_ARTWORK_STATE_REF = { $ref: "#/components/schemas/AlbumArtworkState" };
 
-const fontsProperties = Object.fromEntries(
-  fontRoleIds.map((role) => [role, { type: "string", enum: fontChoiceIdsFor(role) }]),
-);
-
-const hexColourSchemaObject = { type: "string", pattern: "^#[0-9a-fA-F]{6}$", example: "#f4ede0" };
-
-const customColoursSchemaObject = {
-  type: "object",
-  additionalProperties: false,
-  properties: Object.fromEntries(customColourKeys.map((key) => [key, hexColourSchemaObject])),
-  required: [...customColourKeys],
-};
-
-const customPaletteSchemaObject = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "The inputs of the one saved custom palette: the preset it started from (it supplies the status colours) and five #rrggbb colours per mode. Everything else is derived when rendering.",
-  properties: {
-    base: { type: "string", enum: [...paletteIds] },
-    light: customColoursSchemaObject,
-    dark: customColoursSchemaObject,
-  },
-  required: ["base", "light", "dark"],
-};
-
-const paletteIdsWithCustom = [...paletteIds, customPaletteId];
-
-const appearanceSettingsSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    palette: {
-      type: "string",
-      enum: paletteIdsWithCustom,
-      description: "`custom` only while a custom palette is saved.",
-    },
-    customPalette: { ...customPaletteSchemaObject, type: ["object", "null"] },
-    corners: {
-      type: "string",
-      enum: [...cornerIds],
-      description: "Corner style: `square` (default) or `rounded`.",
-    },
-    fonts: {
-      type: "object",
-      description:
-        "A face per role. `default` is the app's own face for that role, `system` the platform font.",
-      properties: fontsProperties,
-      required: [...fontRoleIds],
-    },
-  },
-  required: ["palette", "fonts", "customPalette", "corners"],
-};
-
-// Every field is optional on the way in; only those sent change.
-const appearanceSettingsPutSchemaObject: Record<string, unknown> = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    palette: { type: "string", enum: paletteIdsWithCustom },
-    corners: { type: "string", enum: [...cornerIds] },
-    customPalette: {
-      ...customPaletteSchemaObject,
-      type: ["object", "null"],
-      description:
-        "Replaces the saved custom palette; null deletes it (and falls back to the default palette if it was in use).",
-    },
-    fonts: {
-      type: "object",
-      additionalProperties: false,
-      properties: fontsProperties,
-    },
-  },
-};
-
 const appearanceExample = {
   palette: "sleeve",
   fonts: { display: "default", body: "default", label: "default" },
   customPalette: null,
   corners: "square",
-};
-
-const recommendationSettingsSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    friend_id: { type: "integer" },
-    scope: { type: "string", enum: ["library", "all"] },
-    isDefault: { type: "boolean" },
-  },
-  required: ["friend_id", "scope", "isDefault"],
 };
 
 const recommendationCandidateSchemaObject: Record<string, unknown> = {
@@ -5457,15 +5371,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Cookie file uploaded",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
-                  cookieInfo: { type: "object", additionalProperties: true },
-                },
-                required: ["success", "message", "cookieInfo"],
-              },
+              schema: componentRef("GamdlCookieUploadResponse"),
             },
           },
         },
@@ -5482,25 +5388,15 @@ export const apiContractRoutes: ApiContractRoute[] = [
     path: "/api/settings/gamdl/actions",
     summary: "Run GAMDL action (cookie_status, delete_cookie, test_connection, reset_settings)",
     tags: ["Settings"],
-    successSchema: z.unknown(),
+    bodySchema: gamdlActionRequestSchema,
+    successSchema: gamdlActionResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                action: {
-                  type: "string",
-                  enum: ["cookie_status", "delete_cookie", "test_connection", "reset_settings"],
-                },
-                friend_id: { type: "integer" },
-              },
-              required: ["action"],
-              additionalProperties: false,
-            },
+            schema: componentRef("GamdlActionRequest"),
           },
         },
       },
@@ -5509,7 +5405,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Action result",
           content: {
             "application/json": {
-              schema: { type: "object", additionalProperties: true },
+              schema: componentRef("GamdlActionResponse"),
             },
           },
         },
@@ -5547,50 +5443,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "GAMDL settings",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  settings: {
-                    type: "object",
-                    properties: {
-                      id: { type: "integer" },
-                      friend_id: { type: "integer" },
-                      audio_quality: {
-                        type: "string",
-                        // Mirrors gamdlAudioQualitySchema; the OpenAPI copy had
-                        // lost the enum and rendered as a bare string.
-                        enum: ["best", "high", "standard", "lossless"],
-                      },
-                      audio_format: { type: "string" },
-                      save_cover: { type: "boolean" },
-                      cover_format: { type: "string" },
-                      save_lyrics: { type: "boolean" },
-                      lyrics_format: { type: "string" },
-                      overwrite_existing: { type: "boolean" },
-                      skip_music_videos: { type: "boolean" },
-                      max_retries: { type: "integer" },
-                      created_at: { type: "string" },
-                      updated_at: { type: "string" },
-                    },
-                    required: [
-                      "id",
-                      "friend_id",
-                      "audio_quality",
-                      "audio_format",
-                      "save_cover",
-                      "cover_format",
-                      "save_lyrics",
-                      "lyrics_format",
-                      "overwrite_existing",
-                      "skip_music_videos",
-                      "max_retries",
-                      "created_at",
-                      "updated_at",
-                    ],
-                  },
-                },
-                required: ["settings"],
-              },
+              schema: componentRef("GamdlSettingsResponse"),
             },
           },
         },
@@ -5619,28 +5472,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                friend_id: { type: "integer" },
-                audio_quality: {
-                  type: "string",
-                  // Mirrors gamdlAudioQualitySchema; the OpenAPI copy had
-                  // lost the enum and rendered as a bare string.
-                  enum: ["best", "high", "standard", "lossless"],
-                },
-                audio_format: { type: "string" },
-                save_cover: { type: "boolean" },
-                cover_format: { type: "string" },
-                save_lyrics: { type: "boolean" },
-                lyrics_format: { type: "string" },
-                overwrite_existing: { type: "boolean" },
-                skip_music_videos: { type: "boolean" },
-                max_retries: { type: "integer" },
-              },
-              required: ["friend_id"],
-              additionalProperties: false,
-            },
+            schema: componentRef("GamdlSettingsUpdate"),
           },
         },
       },
@@ -5649,15 +5481,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "GAMDL settings updated",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
-                  settings: { type: "object", additionalProperties: true },
-                },
-                required: ["success", "message", "settings"],
-              },
+              schema: componentRef("GamdlSettingsUpdateResponse"),
             },
           },
         },
@@ -6897,15 +6721,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "AI prompt settings",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  prompt: { type: "string" },
-                  defaultPrompt: { type: "string" },
-                  isDefault: { type: "boolean" },
-                },
-                required: ["prompt", "defaultPrompt", "isDefault"],
-              },
+              schema: componentRef("AiPromptSettings"),
             },
           },
         },
@@ -6938,15 +6754,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                friend_id: { type: "integer" },
-                prompt: { type: "string" },
-              },
-              required: ["friend_id"],
-              additionalProperties: false,
-            },
+            schema: componentRef("AiPromptSettingsUpdate"),
           },
         },
       },
@@ -6955,14 +6763,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "AI prompt updated",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  prompt: { type: "string" },
-                  isDefault: { type: "boolean" },
-                },
-                required: ["prompt", "isDefault"],
-              },
+              schema: componentRef("AiPromptSettingsUpdateResponse"),
             },
           },
         },
@@ -6996,7 +6797,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
             "The palette and the display, body and label fonts every device renders with. An unset or unknown stored id is reported as the default. Light/dark mode is per device and not part of this setting.",
           content: {
             "application/json": {
-              schema: appearanceSettingsSchemaObject,
+              schema: componentRef("AppearanceSettings"),
               examples: { appearance: { summary: "Default", value: appearanceExample } },
             },
           },
@@ -7022,7 +6823,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: appearanceSettingsPutSchemaObject,
+            schema: componentRef("AppearanceSettingsUpdate"),
             examples: {
               fontOnly: {
                 summary: "Change one font; the rest stay",
@@ -7066,7 +6867,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Saved",
           content: {
             "application/json": {
-              schema: appearanceSettingsSchemaObject,
+              schema: componentRef("AppearanceSettings"),
               examples: { appearance: { summary: "Saved", value: appearanceExample } },
             },
           },
@@ -7100,7 +6901,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
             "Where this library's suggestions come from: `library` (its own tracks) or `all` (every library). `isDefault` is true when it has never been set.",
           content: {
             "application/json": {
-              schema: recommendationSettingsSchemaObject,
+              schema: componentRef("RecommendationSettings"),
               examples: {
                 recommendationSettings: {
                   summary: "Never set",
@@ -7135,15 +6936,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                friend_id: { type: "integer" },
-                scope: { type: "string", enum: ["library", "all"] },
-              },
-              required: ["friend_id", "scope"],
-              additionalProperties: false,
-            },
+            schema: componentRef("RecommendationSettingsUpdate"),
           },
         },
       },
@@ -7152,7 +6945,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Saved",
           content: {
             "application/json": {
-              schema: recommendationSettingsSchemaObject,
+              schema: componentRef("RecommendationSettings"),
               examples: {
                 recommendationSettings: {
                   summary: "Search every library",
