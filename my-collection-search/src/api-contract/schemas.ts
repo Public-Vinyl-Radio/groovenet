@@ -50,9 +50,23 @@ import { z } from "zod";
 import {
   albumArtMatchStatusSchema,
   albumArtSourceSchema,
+  albumAppleMusicArtPreviewSchema,
+  albumArtMatchResultSchema,
+  albumArtworkBackfillBodySchema,
+  albumArtworkBackfillResponseSchema,
+  albumArtworkReviewItemSchema,
+  albumArtworkReviewQuerySchema as sharedAlbumArtworkReviewQuerySchema,
+  albumArtworkReviewResponseSchema,
   albumArtworkStateSchema,
+  albumCreateResponseSchema,
   albumDeleteResponseSchema,
   albumDetailSchema,
+  albumDiscogsRawResponseSchema,
+  albumDownloadResultSchema,
+  albumUpdateObjectSchema,
+  albumUpdateResponseSchema,
+  albumUpsertResponseSchema,
+  requireAlbumUpdateField,
   albumPlayableStructureSchema,
   albumPlayableStructureSideSchema,
   albumPlayableStructureTrackSchema,
@@ -590,10 +604,19 @@ export const playlistGeneticValidationErrorSchema = sharedPlaylistGeneticValidat
 // names routes and internalApi already import, and keeps query-string coercion.
 export type { TrackSearchMode, AlbumTaxonomyOverrides } from "@groovenet/contracts";
 export {
+  albumAppleMusicArtPreviewSchema,
+  albumArtMatchResultSchema,
   albumArtMatchStatusSchema,
   albumArtSourceSchema,
+  albumArtworkBackfillBodySchema,
+  albumArtworkBackfillResponseSchema,
+  albumArtworkReviewItemSchema,
+  albumArtworkReviewResponseSchema,
   albumArtworkStateSchema,
+  albumCreateResponseSchema,
   albumDeleteResponseSchema,
+  albumDiscogsRawResponseSchema,
+  albumUpdateResponseSchema,
   albumPlayableStructureSideSchema,
   albumPlayableStructureTrackSchema,
   albumSearchResponseSchema,
@@ -612,6 +635,8 @@ export const albumEntitySchema = albumSchema;
 export const trackEntitySchema = trackSchema;
 export const albumDetailResponseSchema = albumDetailSchema;
 export const albumPlayableStructureResponseSchema = albumPlayableStructureSchema;
+export const queueAlbumDownloadsResponseSchema = albumDownloadResultSchema;
+export const albumUpsertWithTracksResponseSchema = albumUpsertResponseSchema;
 export const trackAudioMetadataResponseSchema = trackAudioMetadataSchema;
 export const trackEssentiaResponseSchema = trackEssentiaSchema;
 export const trackPlaylistCountsBodySchema = trackPlaylistCountsRequestSchema;
@@ -967,14 +992,6 @@ export const albumFriendQuerySchema = z.object({
   friend_id: intFromInputSchema,
 });
 
-export const albumDiscogsRawResponseSchema = z.object({
-  friend_id: z.number().int(),
-  release_id: z.string(),
-  username: z.string(),
-  file_path: z.string(),
-  data: z.unknown(),
-});
-
 /** Omitted: unchanged; null: reset to Discogs; []: deliberately empty. */
 export const albumTaxonomyOverrideFields = albumTaxonomyOverridesSchema;
 
@@ -1033,18 +1050,6 @@ export const similarIdentityResponseSchema = z.object({
   tracks: z.array(similarIdentityTrackSchema),
 });
 
-export const albumCreateResponseSchema = z.object({
-  album: albumEntitySchema,
-  tracks: z.array(trackEntitySchema),
-});
-
-export const queueAlbumDownloadsResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  jobIds: z.array(z.string()),
-  tracksQueued: z.number().int(),
-});
-
 export const albumCleanupSampleSchema = z.object({
   release_id: z.string(),
   friend_id: z.number().int(),
@@ -1058,12 +1063,6 @@ export const albumsCleanupSummaryResponseSchema = z.object({
   emptyTrackCount: z.number().int(),
   orphanedAlbums: z.number().int(),
   sample: z.array(albumCleanupSampleSchema),
-});
-
-export const albumUpsertWithTracksResponseSchema = z.object({
-  album: albumEntitySchema,
-  tracks: z.array(z.object({}).passthrough()),
-  deletedTracks: z.number().int(),
 });
 
 export const albumSearchQuerySchema = sharedAlbumSearchQuerySchema.extend({
@@ -1085,60 +1084,9 @@ export const albumArtworkApplyBodySchema = z.object({
   source: z.enum(["apple_music", "discogs"]),
 });
 
-export const albumAppleMusicArtPreviewSchema = z.object({
-  url: z.string(),
-  width: z.number().int(),
-  height: z.number().int(),
-  track_id: z.string(),
-});
-
-export const albumArtMatchResultSchema = z.object({
-  release_id: z.string(),
-  friend_id: z.number().int(),
-  status: albumArtMatchStatusSchema,
-  distance: z.number().int().nullable(),
-  applied: z.boolean(),
-  apple_music_art_url: z.string().nullable(),
-});
-
-export const albumArtworkBackfillBodySchema = z.object({
-  friend_id: z.number().int().positive().nullable().optional(),
-});
-
-export const albumArtworkBackfillResponseSchema = z.object({
-  queued: z.number().int(),
-  queuedAlbums: z.number().int(),
-  tracksImpacted: z.number().int(),
-  jobIds: z.array(z.string()),
-  errors: z.array(
-    z.object({
-      track_id: z.string(),
-      friend_id: z.number().int(),
-      release_id: z.string().nullable().optional(),
-      error: z.string(),
-    }),
-  ),
-});
-
-export const albumArtworkReviewQuerySchema = z.object({
+export const albumArtworkReviewQuerySchema = sharedAlbumArtworkReviewQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),
   limit: z.preprocess(toInt, z.number().int().min(1).max(200)).optional().default(50),
-});
-
-export const albumArtworkReviewItemSchema = z.object({
-  release_id: z.string(),
-  friend_id: z.number().int(),
-  title: z.string(),
-  artist: z.string(),
-  current_url: z.string().nullable(),
-  discogs_art_url: z.string().nullable(),
-  apple_music_art_url: z.string().nullable(),
-  art_match_status: albumArtMatchStatusSchema,
-  art_match_distance: z.number().int().nullable(),
-});
-
-export const albumArtworkReviewResponseSchema = z.object({
-  albums: z.array(albumArtworkReviewItemSchema),
 });
 
 // Shapes live in @groovenet/contracts; these add the app's text coercion for
@@ -1394,30 +1342,10 @@ export const trackUpdateBodySchema = z
   .passthrough();
 export type TrackUpdateBody = z.infer<typeof trackUpdateBodySchema>;
 
-export const albumUpdateBodySchema = z
-  .object({
-    ...albumTaxonomyOverrideFields.shape,
-    ...albumUpdateFieldsSchema.shape,
-  })
-  .refine(
-    (value) =>
-      value.album_rating !== undefined ||
-      value.album_notes !== undefined ||
-      value.purchase_price !== undefined ||
-      value.condition !== undefined ||
-      value.library_identifier !== undefined ||
-      value.genre_override_ids !== undefined ||
-      value.style_override_ids !== undefined,
-    {
-      message: "No fields to update",
-    },
-  );
-
-export const albumUpdateResponseSchema = z.object({
-  success: z.boolean(),
-  album: albumEntitySchema,
-  tracksUpdated: z.number().int().optional(),
-});
+/** The shared wire body, with the scalar fields swapped for the ones carrying the route's 400 messages. */
+export const albumUpdateBodySchema = albumUpdateObjectSchema
+  .extend(albumUpdateFieldsSchema.shape)
+  .refine(...requireAlbumUpdateField);
 
 // ─── Fingerprints (#277) ──────────────────────────────────────────────────────
 

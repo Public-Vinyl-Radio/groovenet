@@ -33,25 +33,33 @@ describe("album override contracts", () => {
   });
   it("documents nullable UUID replacements and effective read values for generated clients", () => {
     const paths = getOpenApiDocument().paths;
+    const doc = getOpenApiDocument();
     const patch = paths["/api/albums"].patch as {
-      requestBody: {
-        content: { "application/json": { schema: { properties: Record<string, unknown> } } };
-      };
+      requestBody: { content: { "application/json": { schema: { $ref: string } } } };
     };
+    const request = patch.requestBody.content["application/json"].schema;
+    expect(request.$ref).toBe("#/components/schemas/AlbumUpdateRequest");
+    const properties = (
+      doc.components.schemas as Record<string, { properties: Record<string, unknown> }>
+    ).AlbumUpdateRequest.properties;
     for (const field of ["genre_override_ids", "style_override_ids"]) {
-      expect(patch.requestBody.content["application/json"].schema.properties[field]).toMatchObject({
-        type: ["array", "null"],
-        items: { type: "string", format: "uuid" },
+      expect(properties[field]).toMatchObject({
+        anyOf: [
+          { type: "array", items: { type: "string", format: "uuid" }, maxItems: 100 },
+          { type: "null" },
+        ],
+        description: expect.stringContaining("null: reset to latest Discogs"),
       });
     }
     const detail = paths["/api/albums/{releaseId}"].get as {
-      responses: Record<
-        string,
-        { content: { "application/json": { schema: { properties: { album: unknown } } } } }
-      >;
+      responses: Record<string, { content: { "application/json": { schema: { $ref: string } } } }>;
     };
+    expect(detail.responses["200"].content["application/json"].schema).toMatchObject({
+      $ref: "#/components/schemas/AlbumDetail",
+    });
     expect(
-      detail.responses["200"].content["application/json"].schema.properties.album,
+      (doc.components.schemas as Record<string, { properties: { album: unknown } }>).AlbumDetail
+        .properties.album,
     ).toMatchObject({
       properties: { effective_genres: { type: "array" }, effective_styles: { type: "array" } },
     });

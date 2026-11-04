@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { queueAlbumDownloadsResponseSchema } from "@/api-contract/schemas";
 import { redisJobService } from "@/server/services/redisJobService";
 import { analytics } from "@/lib/analytics/server";
 import { albumRepository } from "@/server/repositories/albumRepository";
@@ -21,12 +22,14 @@ export async function POST(
     const tracks = await albumRepository.getTracksForAlbumDownloadQueue(releaseId, friendId);
 
     if (tracks.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: "No tracks need downloading",
-        jobIds: [],
-        tracksQueued: 0,
-      });
+      return NextResponse.json(
+        queueAlbumDownloadsResponseSchema.parse({
+          success: true,
+          message: "No tracks need downloading",
+          jobIds: [],
+          tracksQueued: 0,
+        }),
+      );
     }
 
     // Enqueue download job for each track
@@ -56,12 +59,14 @@ export async function POST(
       { request },
     );
 
-    return NextResponse.json({
-      success: true,
-      message: `Queued ${jobIds.length} track${jobIds.length === 1 ? "" : "s"} for download`,
-      jobIds,
-      tracksQueued: jobIds.length,
-    });
+    return NextResponse.json(
+      queueAlbumDownloadsResponseSchema.parse({
+        success: true,
+        message: `Queued ${jobIds.length} track${jobIds.length === 1 ? "" : "s"} for download`,
+        jobIds,
+        tracksQueued: jobIds.length,
+      }),
+    );
   } catch (error) {
     console.error("Error enqueuing album downloads:", error);
     return NextResponse.json(

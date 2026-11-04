@@ -7,11 +7,14 @@ export type { AlbumEntity as Album, TrackEntity as Track, TrackSearchMode };
 
 export type {
   AlbumDeleteResponse,
+  AlbumDownloadResult,
   AlbumDetail,
   AlbumPlayableStructure,
   AlbumPlayableStructureSide,
   AlbumPlayableStructureTrack,
   AlbumSearchResponse,
+  AlbumUpdate,
+  AlbumUpdateResponse,
   TrackGenre,
   LiveSet,
   LiveSetDeleteResponse,
@@ -310,23 +313,6 @@ export interface AlbumSearchQuery {
    * matches on its Discogs genres and styles, or on any of its tracks' genres.
    */
   genre?: string[];
-}
-
-export interface AlbumUpdate {
-  genre_override_ids?: string[] | null;
-  style_override_ids?: string[] | null;
-  album_rating?: number;
-  album_notes?: string;
-  purchase_price?: number;
-  condition?: string;
-  library_identifier?: string | null;
-}
-
-export interface AlbumDownloadResult {
-  success: boolean;
-  message: string;
-  jobIds: string[];
-  tracksQueued: number;
 }
 
 export interface SimilarTrack extends Record<string, unknown> {
