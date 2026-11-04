@@ -1423,16 +1423,61 @@ export const recordCareSessionMutationResponseSchema =
 export const recordCareSessionVoidResponseSchema = sharedRecordCareSessionVoidResponseSchema;
 export const recordCareLogResponseSchema = sharedRecordCareLogResponseSchema;
 
+/** A friend id the PATCH routes require: a positive integer, numeric strings accepted. */
+const requiredFriendIdSchema = (error: string) =>
+  z.preprocess(toInt, z.number({ error }).int({ error }).positive({ error }));
+
+/** The scalar half of `PATCH /api/albums`; the `error` strings are what the route returns. */
+export const albumUpdateFieldsSchema = z.object({
+  release_id: z
+    .string({ error: "release_id and friend_id are required" })
+    .min(1, { error: "release_id and friend_id are required" }),
+  friend_id: requiredFriendIdSchema("release_id and friend_id are required"),
+  album_rating: z.number({ error: "album_rating must be a number" }).optional(),
+  album_notes: z.string({ error: "album_notes must be a string" }).optional(),
+  purchase_price: z.number({ error: "purchase_price must be a number" }).optional(),
+  condition: z.string({ error: "condition must be a string" }).optional(),
+  library_identifier: z
+    .string({ error: "library_identifier must be a string or null" })
+    .max(50, { error: "library_identifier must be 50 characters or less" })
+    .nullable()
+    .optional(),
+});
+export type AlbumUpdateFields = z.infer<typeof albumUpdateFieldsSchema>;
+
+/**
+ * `PATCH /api/tracks`. Only the identity and the taxonomy fields are checked:
+ * every other key is passed through untyped and the repository keeps just the
+ * columns it can update, so a client sending extra or loosely typed fields
+ * (`bpm` as a string, say) has always worked and still does.
+ */
+export const trackUpdateBodySchema = z
+  .object({
+    track_id: z
+      .string({ error: "track_id and friend_id are required" })
+      .min(1, { error: "track_id and friend_id are required" }),
+    friend_id: requiredFriendIdSchema("track_id and friend_id are required"),
+    genres: z
+      .array(z.string({ error: "genres must be an array of genre ids or names" }), {
+        error: "genres must be an array of genre ids or names",
+      })
+      .optional(),
+    descriptors: z
+      .array(z.string({ error: "descriptors must be an array of strings" }), {
+        error: "descriptors must be an array of strings",
+      })
+      .optional(),
+    genre_source: z
+      .enum(["manual", "enrichment"], { error: "genre_source must be 'manual' or 'enrichment'" })
+      .optional(),
+  })
+  .passthrough();
+export type TrackUpdateBody = z.infer<typeof trackUpdateBodySchema>;
+
 export const albumUpdateBodySchema = z
   .object({
     ...albumTaxonomyOverrideFields.shape,
-    release_id: z.string().min(1),
-    friend_id: intFromInputSchema,
-    album_rating: z.number().optional(),
-    album_notes: z.string().optional(),
-    purchase_price: z.number().optional(),
-    condition: z.string().optional(),
-    library_identifier: z.string().max(50).nullable().optional(),
+    ...albumUpdateFieldsSchema.shape,
   })
   .refine(
     (value) =>

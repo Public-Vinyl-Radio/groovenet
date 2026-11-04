@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { analytics } from "@/lib/analytics/server";
 import { trackRepository, type UpdateTrackInput } from "@/server/repositories/trackRepository";
+import { trackUpdateBodySchema } from "@/api-contract/schemas";
 import {
   normalizeDescriptors,
   trackGenreRepository,
-  type TrackGenreSource,
 } from "@/server/repositories/trackGenreRepository";
 import { computeEmbeddingUpdates } from "@/lib/trackEmbeddingDiff";
 import { shouldTriggerFingerprintIndex } from "@/lib/trackFingerprintTrigger";
@@ -14,30 +14,30 @@ import type { EmbeddingJob } from "@/types/embeddingQueue";
 
 export async function PATCH(req: Request) {
   try {
-    const body = (await req.json()) as UpdateTrackInput & {
-      genres?: unknown;
-      descriptors?: unknown;
-      genre_source?: unknown;
-    };
-    const { genres, descriptors, genre_source, ...fields } = body;
-    const data: UpdateTrackInput = fields;
-
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     // Who chose these genres: the enrichment wizard says so (#374), and the
     // reconciliation flow writes its links itself, never through here.
-    if (genre_source !== undefined && !isPatchGenreSource(genre_source)) {
+    //
+    // Only the identity and the taxonomy fields are checked. The scalar columns
+    // (bpm, key, notes, ...) stay lenient on purpose: callers have always sent
+    // them loosely typed and the repository keeps just the columns it can update.
+    const parsed = trackUpdateBodySchema.safeParse(raw);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "genre_source must be 'manual' or 'enrichment'" },
+        { error: parsed.error.issues[0].message, details: parsed.error.flatten() },
         { status: 400 },
       );
     }
+    const body = parsed.data;
+    const { genres, descriptors, genre_source, ...fields } = body;
+    const data = fields as UpdateTrackInput;
 
     if (descriptors !== undefined) {
-      if (!isStringArray(descriptors)) {
-        return NextResponse.json(
-          { error: "descriptors must be an array of strings" },
-          { status: 400 },
-        );
-      }
       data.descriptors = normalizeDescriptors(descriptors);
     }
 
@@ -46,12 +46,6 @@ export async function PATCH(req: Request) {
     // so an unknown name fails the whole update instead of creating a genre.
     let genreIds: string[] | undefined;
     if (genres !== undefined) {
-      if (!isStringArray(genres)) {
-        return NextResponse.json(
-          { error: "genres must be an array of genre ids or names" },
-          { status: 400 },
-        );
-      }
       const resolved = await trackGenreRepository.resolveGenreRefs(genres);
       if (resolved.unknown.length > 0) {
         return NextResponse.json(
@@ -152,12 +146,4 @@ export async function PATCH(req: Request) {
     console.error("Error updating track:", error);
     return NextResponse.json({ error: "Failed to update track" }, { status: 500 });
   }
-}
-
-function isPatchGenreSource(value: unknown): value is Exclude<TrackGenreSource, "reconciliation"> {
-  return value === "manual" || value === "enrichment";
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }

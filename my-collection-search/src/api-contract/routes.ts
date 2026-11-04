@@ -653,7 +653,8 @@ const remainingTracksContracts: ApiContractRoute[] = [
         },
       },
       "400": {
-        description: "Malformed genres or descriptors, or an unknown genre name",
+        description:
+          "Body is not valid JSON, track_id or friend_id is missing, genres, descriptors or genre_source is malformed, or a genre name is unknown. Other fields are not type-checked.",
         content: {
           "application/json": {
             schema: {
@@ -824,6 +825,8 @@ const remainingTracksContracts: ApiContractRoute[] = [
   makeTrackRoute("post", "/api/tracks/playlist_counts", "Get playlist counts for tracks", {
     requestBody: {
       required: true,
+      description:
+        "Lenient by design: a ref that is not { track_id: non-empty string, friend_id: integer } is dropped rather than rejected, and a body with no usable refs answers {} with 200. There is no 400.",
       content: {
         "application/json": {
           schema: {
@@ -7463,8 +7466,20 @@ export const apiContractRoutes: ApiContractRoute[] = [
           schema: { type: "string", default: "created_at:desc" },
         },
         { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
-        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 20 } },
-        { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 0, default: 20 },
+          description: "Page size. A value that is not a non-negative integer is a 400.",
+        },
+        {
+          name: "offset",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 0, default: 0 },
+          description: "Rows to skip. A value that is not a non-negative integer is a 400.",
+        },
         {
           name: "missing_library_identifier",
           in: "query",
@@ -7556,6 +7571,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
                 required: ["hits", "estimatedTotalHits", "offset", "limit", "query", "sort"],
               },
             },
+          },
+        },
+        "400": {
+          description: "limit or offset is not a non-negative integer, or a genre is unknown",
+          content: {
+            "application/json": { schema: errorResponseSchemaObject },
           },
         },
         "500": {
@@ -7844,7 +7865,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
           },
         },
         "400": {
-          description: "Invalid payload",
+          description:
+            "Body is not valid JSON, release_id or friend_id is missing, a field has the wrong type, library_identifier is over 50 characters, an override is malformed or unknown, or there is nothing to update",
           content: {
             "application/json": { schema: errorResponseSchemaObject },
           },
