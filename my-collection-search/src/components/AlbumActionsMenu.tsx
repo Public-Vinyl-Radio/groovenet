@@ -11,6 +11,7 @@ import {
   FiImage,
   FiMoreVertical,
   FiPlay,
+  FiPlus,
   FiTrash2,
   FiZap,
 } from "react-icons/fi";
@@ -30,6 +31,9 @@ export interface AlbumActionsMenuProps {
   albumTitle?: string;
   albumArtist?: string;
   onPlayAlbum?: () => void;
+  onAddToQueue?: () => void;
+  onOpen?: () => void;
+  isLoadingTracks?: boolean;
   onDownloadMissing?: () => void;
   isDownloading?: boolean;
   onEnrichAlbum?: () => void;
@@ -57,6 +61,9 @@ export default function AlbumActionsMenu({
   albumTitle,
   albumArtist,
   onPlayAlbum,
+  onAddToQueue,
+  onOpen,
+  isLoadingTracks,
   onDownloadMissing,
   isDownloading,
   onEnrichAlbum,
@@ -79,6 +86,7 @@ export default function AlbumActionsMenu({
     ...(onPlayAlbum
       ? [{ label: "Play", icon: <FiPlay fill="currentColor" />, solid: true, onClick: onPlayAlbum }]
       : []),
+    ...(onAddToQueue ? [{ label: "Add to queue", icon: <FiPlus />, onClick: onAddToQueue }] : []),
     ...(onLogCare ? [{ label: "Log care", icon: <FiDroplet />, onClick: onLogCare }] : []),
     ...(editAlbumHref ? [{ label: "Edit", icon: <FiEdit />, href: editAlbumHref }] : []),
   ];
@@ -127,7 +135,10 @@ export default function AlbumActionsMenu({
           aria-label="Album actions"
           px={2}
           {...(prominent ? { boxSize: "44px" } : {})}
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => {
+            setDrawerOpen(true);
+            onOpen?.();
+          }}
         >
           <FiMoreVertical />
         </Button>
@@ -159,6 +170,11 @@ export default function AlbumActionsMenu({
           }
         >
           {tiles.length > 0 && <TileRow tiles={tiles} onDone={close} />}
+          {isLoadingTracks && (
+            <Box px={4} py={2}>
+              Loading tracks…
+            </Box>
+          )}
           <Group label="Library" actions={library} onDone={close} />
           <Group label="Discogs" actions={discogs} onDone={close} />
           <Group label="Danger" actions={danger} danger onDone={close} />
@@ -167,7 +183,11 @@ export default function AlbumActionsMenu({
 
       {/* Desktop: dropdown menu */}
       <Box display={{ base: "none", md: "block" }}>
-        <Menu.Root>
+        <Menu.Root
+          onOpenChange={(details) => {
+            if (details.open) onOpen?.();
+          }}
+        >
           <Menu.Trigger asChild>
             <Button size="sm" variant="outline" aria-label="Album actions" px={2}>
               <FiMoreVertical />
@@ -178,6 +198,16 @@ export default function AlbumActionsMenu({
               {onPlayAlbum && (
                 <Menu.Item value="play" onSelect={onPlayAlbum}>
                   <FiPlay /> Play Album
+                </Menu.Item>
+              )}
+              {onAddToQueue && (
+                <Menu.Item value="queue" onSelect={onAddToQueue}>
+                  <FiPlus /> Add to queue
+                </Menu.Item>
+              )}
+              {isLoadingTracks && (
+                <Menu.Item value="loading" disabled>
+                  Loading tracks…
                 </Menu.Item>
               )}
               {onDownloadMissing && (

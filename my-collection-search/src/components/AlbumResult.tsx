@@ -9,12 +9,7 @@ import { CountTag, MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { Album } from "@/types/track";
 import { useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum } from "@/hooks/useAlbum";
-import AlbumActionsMenu from "@/components/AlbumActionsMenu";
-import RecordActionDialog from "@/components/records/RecordActionDialog";
-import { useEnrichmentStore } from "@/stores/enrichmentStore";
-import { getAlbumWithTracks } from "@/services/internalApi/albums";
-import { useRouter } from "next/navigation";
-import { toaster } from "@/components/ui/toaster";
+import { useAlbumActions } from "@/hooks/useAlbumActions";
 import { discogsGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import GenreBadge, { GenreBadgeList } from "@/components/GenreBadge";
@@ -79,24 +74,37 @@ export type AlbumResultProps = {
 export default function AlbumResult({
   album,
   albumRef,
-  showEditFields = false,
   layout = "card",
   missingTags = [],
 }: AlbumResultProps) {
   const releaseId = albumRef?.release_id ?? album?.release_id ?? "";
   const friendId = albumRef?.friend_id ?? album?.friend_id ?? -1;
   const albumFromStore = useAlbum(releaseId, friendId);
-  const resolvedAlbum = albumFromStore ?? album;
+  const resolvedAlbum: Album = React.useMemo(
+    () =>
+      albumFromStore ??
+      album ??
+      ({
+        release_id: releaseId,
+        friend_id: friendId,
+        title: "",
+        artist: "",
+        track_count: 0,
+      } as Album),
+    [album, albumFromStore, friendId, releaseId],
+  );
 
   const artworkSrc = artworkOf(resolvedAlbum);
   const [rating, setRating] = useState(resolvedAlbum?.album_rating || 0);
 
   const updateMutation = useUpdateAlbumMutation();
   const genreLookup = useGenreLookup();
-  const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
-  const router = useRouter();
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [logCareOpen, setLogCareOpen] = useState(false);
+  const albumActions = useAlbumActions({
+    album: resolvedAlbum,
+    editAlbumHref: `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}`,
+    coverUrl: artworkSrc ?? undefined,
+    catalogue: ["Album", resolvedAlbum.library_identifier].filter(Boolean).join(" · "),
+  });
   const displayYear = resolvedAlbum?.year && resolvedAlbum.year !== "0" ? resolvedAlbum.year : "";
 
   React.useEffect(() => {
@@ -104,40 +112,7 @@ export default function AlbumResult({
     setRating(resolvedAlbum.album_rating || 0);
   }, [resolvedAlbum, resolvedAlbum?.album_rating]);
 
-  if (!resolvedAlbum) return null;
-
-  const handleEnrichAlbum = async () => {
-    setIsEnriching(true);
-    try {
-      const { tracks } = await getAlbumWithTracks(
-        resolvedAlbum.release_id,
-        resolvedAlbum.friend_id,
-      );
-      if (tracks.length === 0) {
-        toaster.create({
-          title: "No tracks to enrich",
-          description: "This album has no tracks.",
-          type: "info",
-        });
-        return;
-      }
-      setEnrichmentQueue(
-        tracks.map((track) => ({
-          trackId: track.track_id,
-          friendId: track.friend_id,
-        })),
-      );
-      router.push("/enrich");
-    } catch (error) {
-      toaster.create({
-        title: "Failed to open enrichment",
-        description: error instanceof Error ? error.message : String(error),
-        type: "error",
-      });
-    } finally {
-      setIsEnriching(false);
-    }
-  };
+  if (!albumFromStore && !album) return null;
 
   const displayGenres = discogsGenreBadges(
     resolvedAlbum.effective_genres ?? resolvedAlbum.genres,
@@ -206,31 +181,8 @@ export default function AlbumResult({
         "@media (max-width: 47.99em)": { "& button": { minWidth: "44px", minHeight: "44px" } },
       }}
     >
-      <AlbumActionsMenu
-        albumTitle={resolvedAlbum.title}
-        albumArtist={resolvedAlbum.artist}
-        coverUrl={artworkSrc ?? undefined}
-        catalogue={["Album", resolvedAlbum.library_identifier].filter(Boolean).join(" · ")}
-        discogsUrl={resolvedAlbum.discogs_url}
-        editAlbumHref={
-          showEditFields
-            ? `/albums/${resolvedAlbum.release_id}/edit?friend_id=${resolvedAlbum.friend_id}`
-            : undefined
-        }
-        onEnrichAlbum={handleEnrichAlbum}
-        isEnriching={isEnriching}
-        onLogCare={() => setLogCareOpen(true)}
-      />
-      {/* Mounted only while open: a list holds many rows. */}
-      {logCareOpen && (
-        <RecordActionDialog
-          open
-          onOpenChange={setLogCareOpen}
-          releaseId={resolvedAlbum.release_id}
-          friendId={resolvedAlbum.friend_id}
-          albumTitle={resolvedAlbum.title}
-        />
-      )}
+      {albumActions.menu}
+      {albumActions.dialogs}
     </Flex>
   );
 

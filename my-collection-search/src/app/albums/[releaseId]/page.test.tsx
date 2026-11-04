@@ -60,8 +60,8 @@ vi.mock("@/hooks/useTrack", () => ({
   useTracksByReleaseHydrated: () => true,
 }));
 const replacePlaylist = vi.hoisted(() => vi.fn());
-vi.mock("@/providers/PlaylistPlayerProvider", () => ({
-  usePlaylistPlayer: () => ({ replacePlaylist }),
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ replacePlaylist, appendToQueue: vi.fn() }),
 }));
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: toast } }));
@@ -303,7 +303,7 @@ describe("album page layout (#727)", () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
     await user.click(await screen.findByRole("button", { name: /Play album/ }));
     expect(replacePlaylist).toHaveBeenLastCalledWith(tracks, { autoplay: true, startIndex: 0 });
-    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Album Enqueued" }));
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Playing Blue Lines" }));
 
     await user.click(screen.getByRole("button", { name: "Play side B" }));
     expect(replacePlaylist).toHaveBeenLastCalledWith([tracks[1]], {
@@ -358,16 +358,16 @@ describe("album page layout (#727)", () => {
     expect(routerPush).toHaveBeenCalledWith("/enrich");
   });
 
-  it("warns instead of playing or enriching an album with no tracks", async () => {
+  it("hides Play and queue for an album with no tracks", async () => {
     albumTracks.current = [];
     const { user } = renderWithProviders(<AlbumDetailPage />);
-    expect(
-      ((await screen.findByRole("button", { name: /Play album/ })) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(await screen.findByRole("region", { name: "Copies & care" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Play album/ })).toBeNull();
     expect(screen.getByText("No tracks found for this album.")).toBeTruthy();
     expect(replacePlaylist).not.toHaveBeenCalled();
     await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
     expect(screen.queryByRole("button", { name: /Enrich album/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add to queue/i })).toBeNull();
   });
 
   it("puts a back link and the overflow menu in a phone top bar", async () => {
@@ -387,6 +387,7 @@ it("shows and closes the raw Discogs file in the shared data viewer", async () =
   const { user } = renderWithProviders(<AlbumDetailPage />);
   await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
   await user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
+  expect(fetchRawRelease).toHaveBeenCalled();
   expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
   await user.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

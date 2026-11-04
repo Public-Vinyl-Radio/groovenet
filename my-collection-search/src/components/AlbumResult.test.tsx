@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import React from "react";
+const playerMocks = vi.hoisted(() => ({ replacePlaylist: vi.fn(), appendToQueue: vi.fn() }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({ usePlaybackPlayer: () => playerMocks }));
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Album } from "@/types/track";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const routerPush = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
 vi.mock("@/hooks/useAlbum", () => ({ useAlbum: () => undefined }));
 const mutate = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useAlbumsQuery", () => ({
@@ -24,6 +27,25 @@ vi.mock("@/components/records/RecordActionDialog", () => ({
     </div>
   ),
 }));
+const api = vi.hoisted(() => ({
+  getAlbumWithTracks: vi.fn(),
+  queueAlbumDownloads: vi.fn(),
+  fetchAlbumDiscogsRawRelease: vi.fn(),
+}));
+vi.mock("@/services/internalApi/albums", () => api);
+vi.mock("@/components/AlbumArtworkDialog", () => ({
+  default: (props: { open: boolean }) =>
+    props.open ? <div role="dialog" aria-label="Cover art" /> : null,
+}));
+vi.mock("@/components/DeleteAlbumDialog", () => ({
+  default: (props: { open: boolean; onDeleted: () => void }) =>
+    props.open ? (
+      <div role="alertdialog" aria-label="Delete album">
+        <button onClick={props.onDeleted}>Confirm delete</button>
+      </div>
+    ) : null,
+}));
+vi.mock("@/components/ui/toaster", () => ({ toaster: { create: vi.fn() } }));
 
 import AlbumResult from "./AlbumResult";
 import AlbumTable from "./AlbumTable";
@@ -36,7 +58,10 @@ const album: Album = {
   track_count: 9,
 };
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  setViewportWidth(1280);
+});
 
 describe("AlbumResult care action", () => {
   it("opens the care dialog for this album from its menu, and closes it", async () => {
@@ -94,6 +119,120 @@ const full: Album = {
   genres: ["Electronic"],
   styles: ["Trip Hop"],
 };
+
+const playableTracks: Array<{
+  track_id: string;
+  friend_id: number;
+  position: string;
+  local_audio_url?: string;
+}> = [
+  { track_id: "b1", friend_id: 7, position: "B1", local_audio_url: "/b.mp3" },
+  { track_id: "a1", friend_id: 7, position: "A1", local_audio_url: "/a.mp3" },
+];
+
+async function openCardActions(tracks = playableTracks) {
+  cleanup();
+  setViewportWidth(390);
+  api.getAlbumWithTracks.mockResolvedValue({ tracks });
+  const view = renderWithProviders(
+    <AlbumResult album={{ ...full, discogs_url: "https://discogs.com/release/rel" }} />,
+  );
+  await view.user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+  return view;
+}
+
+describe("AlbumResult full actions", () => {
+  it("fetches tracks lazily, then shows the full phone action set in order", async () => {
+    const { user } = await openCardActions();
+    expect(api.getAlbumWithTracks).toHaveBeenCalledWith("rel", 7);
+    const dialog = screen.getByRole("dialog");
+    for (const action of [
+      "Play",
+      "Add to queue",
+      "Log care",
+      "Edit",
+      "Enrich album",
+      "Cover art",
+      "Download missing audio",
+      "View raw Discogs file",
+      "Delete album",
+    ]) {
+      expect(await within(dialog).findByText(action)).toBeTruthy();
+    }
+    expect(within(dialog).getByRole("link", { name: "View on Discogs" }).getAttribute("href")).toBe(
+      "https://discogs.com/release/rel",
+    );
+    expect(within(dialog).getByRole("link", { name: "Edit" }).getAttribute("href")).toBe(
+      "/albums/rel/edit?friend_id=7",
+    );
+    await user.click(within(dialog).getByText("Add to queue"));
+    expect(playerMocks.appendToQueue).toHaveBeenCalledWith([
+      expect.objectContaining({ track_id: "a1" }),
+      expect.objectContaining({ track_id: "b1" }),
+    ]);
+  });
+
+  it("plays, downloads, enriches, opens cover and raw viewers, and asks before delete", async () => {
+    let view = await openCardActions();
+    await view.user.click(within(screen.getByRole("dialog")).getByText("Play"));
+    expect(playerMocks.replacePlaylist).toHaveBeenCalledWith(
+      [expect.objectContaining({ track_id: "a1" }), expect.objectContaining({ track_id: "b1" })],
+      { autoplay: true, startIndex: 0 },
+    );
+
+    view = await openCardActions();
+    api.queueAlbumDownloads.mockResolvedValue({ tracksQueued: 1 });
+    await view.user.click(within(screen.getByRole("dialog")).getByText("Download missing audio"));
+    expect(api.queueAlbumDownloads).toHaveBeenCalledWith("rel", 7);
+
+    view = await openCardActions();
+    await view.user.click(within(screen.getByRole("dialog")).getByText("Enrich album"));
+    expect(routerPush).toHaveBeenCalledWith("/enrich");
+
+    view = await openCardActions();
+    await view.user.click(within(screen.getByRole("dialog")).getByText("Cover art"));
+    expect(await screen.findByRole("dialog", { name: "Cover art" })).toBeTruthy();
+
+    api.fetchAlbumDiscogsRawRelease.mockResolvedValue({
+      file_path: "rel.json",
+      data: { title: "Blue Lines" },
+    });
+    view = await openCardActions();
+    await view.user.click(within(screen.getByRole("dialog")).getByText("View raw Discogs file"));
+    expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
+
+    view = await openCardActions();
+    await view.user.click(within(screen.getByRole("dialog")).getByText("Delete album"));
+    const confirm = await screen.findByRole("alertdialog", { name: "Delete album" });
+    await view.user.click(within(confirm).getByText("Confirm delete"));
+    expect(routerPush).toHaveBeenCalledWith("/albums");
+  });
+
+  it.each([
+    { tracks: [] as typeof playableTracks },
+    { tracks: [{ track_id: "no-audio", friend_id: 7, position: "A1" }] as typeof playableTracks },
+  ])("hides Play and Add to queue if the album has no playable audio", async ({ tracks }) => {
+    cleanup();
+    setViewportWidth(390);
+    let resolveTracks!: (value: { tracks: typeof playableTracks }) => void;
+    api.getAlbumWithTracks.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTracks = resolve;
+        }),
+    );
+    const view = renderWithProviders(
+      <AlbumResult album={{ ...full, discogs_url: "https://discogs.com/release/rel" }} />,
+    );
+    await view.user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await act(async () => resolveTracks({ tracks }));
+    const dialog = screen.getByRole("dialog");
+    await waitFor(() => {
+      expect(within(dialog).queryByText("Play")).toBeNull();
+      expect(within(dialog).queryByText("Add to queue")).toBeNull();
+    });
+  });
+});
 
 describe("AlbumResult card", () => {
   it("shows label, country and year, the meta line and the genre tags", () => {
