@@ -1,4 +1,7 @@
-import { trackExtractEmbeddedCoverResponseSchema } from "@/api-contract/schemas";
+import {
+  trackAudioMetadataResponseSchema,
+  trackExtractEmbeddedCoverResponseSchema,
+} from "@/api-contract/schemas";
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
@@ -38,23 +41,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const probe = await trackAudioMetadataService.runFfprobe(audioPath);
     const attachedPic = trackAudioMetadataService.getAttachedPicStream(probe);
 
-    return NextResponse.json({
-      track_id: track.track_id,
-      friend_id: track.friend_id,
-      local_audio_url: track.local_audio_url,
-      audio_file_album_art_url: track.audio_file_album_art_url,
-      has_embedded_cover: !!attachedPic,
-      embedded_cover: attachedPic
-        ? {
-            index: attachedPic.index,
-            codec_name: attachedPic.codec_name,
-            width: attachedPic.width,
-            height: attachedPic.height,
-            pix_fmt: attachedPic.pix_fmt,
-          }
-        : null,
-      probe,
-    });
+    return NextResponse.json(
+      trackAudioMetadataResponseSchema.parse({
+        track_id: track.track_id,
+        friend_id: track.friend_id,
+        local_audio_url: track.local_audio_url,
+        audio_file_album_art_url: track.audio_file_album_art_url,
+        has_embedded_cover: !!attachedPic,
+        embedded_cover: attachedPic
+          ? {
+              index: attachedPic.index,
+              codec_name: attachedPic.codec_name,
+              width: attachedPic.width,
+              height: attachedPic.height,
+              pix_fmt: attachedPic.pix_fmt,
+            }
+          : null,
+        probe,
+      }),
+    );
   } catch (error) {
     console.error("Error reading audio metadata:", error);
     return NextResponse.json(

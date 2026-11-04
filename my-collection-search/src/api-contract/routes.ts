@@ -642,43 +642,45 @@ const remainingTracksContracts: ApiContractRoute[] = [
   makeTrackRoute("post", "/api/tracks/analyze-async", "Queue async track analysis", {
     requestBody: {
       required: true,
+      description:
+        "At least one of apple_music_url, youtube_url and soundcloud_url must be non-empty. friend_id may also be sent as a numeric string.",
       content: {
-        "application/json": {
-          schema: {
-            type: "object",
-            properties: {
-              track_id: { type: "string" },
-              friend_id: { type: "integer" },
-              apple_music_url: { type: "string" },
-              youtube_url: { type: "string" },
-              soundcloud_url: { type: "string" },
-              preferred_downloader: { type: "string" },
-            },
-            required: ["track_id", "friend_id"],
-            additionalProperties: true,
-          },
-        },
+        "application/json": { schema: componentRef("TrackAnalyzeAsyncRequest") },
       },
     },
     responses: {
       "200": {
         description: "Job queued",
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                success: { type: "boolean" },
-                jobId: { type: "string" },
-                message: { type: "string" },
-              },
-              required: ["success", "jobId", "message"],
-            },
-          },
+          "application/json": { schema: componentRef("TrackAnalyzeAsyncResponse") },
         },
       },
       "400": {
         description: "Invalid request",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "500": {
+        description: "Queueing error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+    },
+  }),
+  makeTrackRoute("post", "/api/tracks/fix-duration", "Queue a duration fix for a track", {
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": { schema: componentRef("TrackFixDurationRequest") },
+      },
+    },
+    responses: {
+      "200": {
+        description: "Job queued",
+        content: {
+          "application/json": { schema: componentRef("TrackFixDurationResponse") },
+        },
+      },
+      "400": {
+        description: "track_id or friend_id missing",
         content: { "application/json": { schema: errorResponseSchemaObject } },
       },
       "500": {
@@ -742,24 +744,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       description:
         "Lenient by design: a ref that is not { track_id: non-empty string, friend_id: integer } is dropped rather than rejected, and a body with no usable refs answers {} with 200. There is no 400.",
       content: {
-        "application/json": {
-          schema: {
-            type: "object",
-            properties: {
-              track_refs: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    track_id: { type: "string" },
-                    friend_id: { type: "integer" },
-                  },
-                  required: ["track_id", "friend_id"],
-                },
-              },
-            },
-          },
-        },
+        "application/json": { schema: componentRef("TrackPlaylistCountsRequest") },
       },
     },
     responses: {
@@ -767,10 +752,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
         description: "Track playlist counts keyed by track_id:friend_id",
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              additionalProperties: { type: "integer" },
-            },
+            schema: componentRef("TrackPlaylistCountsResponse"),
             examples: {
               counts: {
                 summary: "Count map",
@@ -820,17 +802,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       "200": {
         description: "Track soft deleted",
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                success: { type: "boolean" },
-                track_id: { type: "string" },
-                friend_id: { type: "integer" },
-              },
-              required: ["success", "track_id", "friend_id"],
-            },
-          },
+          "application/json": { schema: componentRef("TrackDeleteResponse") },
         },
       },
       "400": {
@@ -839,6 +811,32 @@ const remainingTracksContracts: ApiContractRoute[] = [
       },
       "404": {
         description: "Track not found or already deleted",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "500": {
+        description: "Server error",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+    },
+  }),
+  makeTrackRoute("post", "/api/tracks/{id}/restore", "Restore a soft-deleted track", {
+    parameters: [
+      { name: "id", in: "path", required: true, schema: { type: "string" } },
+      { name: "friend_id", in: "query", required: true, schema: { type: "integer" } },
+    ],
+    responses: {
+      "200": {
+        description: "Track restored",
+        content: {
+          "application/json": { schema: componentRef("TrackRestoreResponse") },
+        },
+      },
+      "400": {
+        description: "Missing or invalid parameters",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Track not found or not deleted",
         content: { "application/json": { schema: errorResponseSchemaObject } },
       },
       "500": {
@@ -856,28 +854,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       "200": {
         description: "Audio metadata/probe result",
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                track_id: { type: "string" },
-                friend_id: { type: "integer" },
-                local_audio_url: { type: "string" },
-                audio_file_album_art_url: { type: ["string", "null"] },
-                has_embedded_cover: { type: "boolean" },
-                embedded_cover: { type: ["object", "null"], additionalProperties: true },
-                probe: { type: "object", additionalProperties: true },
-              },
-              required: [
-                "track_id",
-                "friend_id",
-                "local_audio_url",
-                "has_embedded_cover",
-                "embedded_cover",
-                "probe",
-              ],
-            },
-          },
+          "application/json": { schema: componentRef("TrackAudioMetadata") },
         },
       },
       "400": {
@@ -896,11 +873,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       required: true,
       content: {
         "application/json": {
-          schema: {
-            type: "object",
-            properties: { friend_id: { type: "integer" } },
-            required: ["friend_id"],
-          },
+          schema: componentRef("TrackExtractEmbeddedCoverRequest"),
         },
       },
     },
@@ -908,17 +881,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       "200": {
         description: "Cover extracted",
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                success: { type: "boolean" },
-                audio_file_album_art_url: { type: "string" },
-                message: { type: "string" },
-              },
-              required: ["success", "audio_file_album_art_url", "message"],
-            },
-          },
+          "application/json": { schema: componentRef("TrackExtractEmbeddedCoverResponse") },
         },
       },
       "400": {
@@ -939,11 +902,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
         name: "type",
         in: "query",
         required: false,
-        schema: {
-          type: "string",
-          enum: ["identity", "audio_vibe", "context"],
-          default: "identity",
-        },
+        schema: { ...componentRef("TrackEmbeddingPreviewType"), default: "identity" },
       },
     ],
     responses: {
@@ -951,37 +910,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
         description: "Embedding preview payload",
         content: {
           "application/json": {
-            schema: {
-              oneOf: [
-                {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", enum: ["identity"] },
-                    text: { type: "string" },
-                    data: { type: "object", additionalProperties: true },
-                  },
-                  required: ["type", "text", "data"],
-                },
-                {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", enum: ["audio_vibe"] },
-                    text: { type: "string" },
-                    data: { type: "object", additionalProperties: true },
-                  },
-                  required: ["type", "text", "data"],
-                },
-                {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", enum: ["context"] },
-                    text: { type: "string" },
-                    data: { type: "object", additionalProperties: true },
-                  },
-                  required: ["type", "text", "data"],
-                },
-              ],
-            },
+            schema: componentRef("TrackEmbeddingPreview"),
           },
         },
       },
@@ -1004,18 +933,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       "200": {
         description: "Essentia analysis payload",
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                track_id: { type: "string" },
-                friend_id: { type: "integer" },
-                file_path: { type: "string" },
-                data: { type: "object", additionalProperties: true },
-              },
-              required: ["track_id", "friend_id", "file_path", "data"],
-            },
-          },
+          "application/json": { schema: componentRef("TrackEssentia") },
         },
       },
       "400": {
@@ -1037,26 +955,7 @@ const remainingTracksContracts: ApiContractRoute[] = [
       "200": {
         description: "Track playlist memberships",
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                playlists: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { type: "integer" },
-                      name: { type: "string" },
-                      position: { type: "integer" },
-                    },
-                    required: ["id", "name", "position"],
-                  },
-                },
-              },
-              required: ["playlists"],
-            },
-          },
+          "application/json": { schema: componentRef("TrackPlaylistsResponse") },
         },
       },
       "400": {
@@ -6132,23 +6031,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
               example: {
                 genres: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", track_count: 113 }],
               },
-              schema: {
-                type: "object",
-                properties: {
-                  genres: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string", format: "uuid" },
-                        track_count: { type: "integer" },
-                      },
-                      required: ["id", "track_count"],
-                    },
-                  },
-                },
-                required: ["genres"],
-              },
+              schema: componentRef("TrackGenreFacetsResponse"),
             },
           },
         },

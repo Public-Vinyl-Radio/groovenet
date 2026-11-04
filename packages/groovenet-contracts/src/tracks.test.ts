@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
+  trackAnalyzeAsyncRequestSchema,
+  trackAnalyzeAsyncResponseSchema,
   trackAudioMetadataSchema,
   trackDeleteResponseSchema,
+  trackEmbeddingPreviewSchema,
+  trackEmbeddingPreviewTypeSchema,
   trackEssentiaSchema,
+  trackExtractEmbeddedCoverRequestSchema,
   trackExtractEmbeddedCoverResponseSchema,
+  trackFixDurationRequestSchema,
+  trackFixDurationResponseSchema,
+  trackGenreFacetsResponseSchema,
   trackGenreSchema,
   trackJsonSchemas,
   trackPlaylistCountsRequestSchema,
   trackPlaylistCountsResponseSchema,
   trackPlaylistsResponseSchema,
+  trackPreferredDownloaderSchema,
+  trackRestoreResponseSchema,
   trackSchema,
   trackSearchModeSchema,
   trackSearchQuerySchema,
@@ -137,6 +147,126 @@ describe("track contracts", () => {
     expect(withCover.embedded_cover).toMatchObject({ width: 500, disposition: 1 });
   });
 
+  it("validates the extract-cover body", () => {
+    expect(trackExtractEmbeddedCoverRequestSchema.parse({ friend_id: 2 })).toEqual({
+      friend_id: 2,
+    });
+    expect(trackExtractEmbeddedCoverRequestSchema.safeParse({ friend_id: 2.5 }).success).toBe(
+      false,
+    );
+    expect(trackExtractEmbeddedCoverRequestSchema.safeParse({}).success).toBe(false);
+    expect(trackExtractEmbeddedCoverRequestSchema.safeParse({ friend_id: "2" }).success).toBe(
+      false,
+    );
+  });
+
+  it("restores a track with its full entity", () => {
+    const restored = trackRestoreResponseSchema.parse({
+      success: true,
+      track_id: "t1",
+      friend_id: 1,
+      track: { ...track, deleted_at: null, extra: 1 },
+    });
+    expect(restored.track).toMatchObject({ extra: 1, deleted_at: null });
+    expect(
+      trackRestoreResponseSchema.safeParse({ success: true, track_id: "t1", friend_id: 1 }).success,
+    ).toBe(false);
+  });
+
+  it("lists every embedding preview type and discriminates the preview by it", () => {
+    expect(trackEmbeddingPreviewTypeSchema.options).toEqual(["identity", "audio_vibe", "context"]);
+    const identity = {
+      title: "A",
+      artist: "B",
+      album: "C",
+      era: "1970s",
+      country: "Colombia",
+      labels: [],
+      composers: [],
+      genres: ["Cumbia"],
+      styles: [],
+      tags: [],
+    };
+    const vibe = {
+      bpm: "120",
+      bpmRange: "mid",
+      key: "A minor",
+      camelot: "8A",
+      danceability: "high",
+      energy: "high",
+      dominantMood: "happy",
+      moodProfile: "happy",
+      vibeDescriptors: ["warm"],
+      acoustic: "low",
+    };
+    expect(
+      trackEmbeddingPreviewSchema.parse({ type: "identity", text: "t", data: identity }).type,
+    ).toBe("identity");
+    expect(
+      trackEmbeddingPreviewSchema.parse({ type: "context", text: "t", data: identity }).type,
+    ).toBe("context");
+    expect(
+      trackEmbeddingPreviewSchema.parse({ type: "audio_vibe", text: "t", data: vibe }).type,
+    ).toBe("audio_vibe");
+    expect(
+      trackEmbeddingPreviewSchema.safeParse({ type: "audio_vibe", text: "t", data: identity })
+        .success,
+    ).toBe(false);
+    expect(
+      trackEmbeddingPreviewSchema.safeParse({ type: "other", text: "t", data: {} }).success,
+    ).toBe(false);
+  });
+
+  it("validates analyze-async requests and responses", () => {
+    expect(trackPreferredDownloaderSchema.options).toEqual(["freyr", "spotdl", "yt-dlp", "scdl"]);
+    const parsed = trackAnalyzeAsyncRequestSchema.parse({
+      track_id: "t1",
+      friend_id: 1,
+      apple_music_url: null,
+      preferred_downloader: "yt-dlp",
+      title: "A",
+      artist: "B",
+      extra: true,
+    });
+    expect(parsed).toMatchObject({ apple_music_url: null, preferred_downloader: "yt-dlp" });
+    expect(parsed).not.toHaveProperty("extra");
+    expect(
+      trackAnalyzeAsyncRequestSchema.safeParse({
+        track_id: "t1",
+        friend_id: 1,
+        preferred_downloader: "curl",
+      }).success,
+    ).toBe(false);
+    expect(trackAnalyzeAsyncRequestSchema.safeParse({ track_id: "", friend_id: 1 }).success).toBe(
+      false,
+    );
+    expect(
+      trackAnalyzeAsyncResponseSchema.safeParse({ success: true, jobId: "j", message: "m" })
+        .success,
+    ).toBe(true);
+    expect(trackAnalyzeAsyncResponseSchema.safeParse({ success: true, jobId: "j" }).success).toBe(
+      false,
+    );
+  });
+
+  it("validates fix-duration requests and responses", () => {
+    expect(
+      trackFixDurationRequestSchema.parse({ track_id: "t", friend_id: 1, local_audio_url: null }),
+    ).toMatchObject({ local_audio_url: null });
+    expect(trackFixDurationRequestSchema.safeParse({ track_id: "t" }).success).toBe(false);
+    expect(trackFixDurationResponseSchema.parse({ success: true, jobId: "j" }).jobId).toBe("j");
+  });
+
+  it("validates genre facets", () => {
+    const id = "5b2d6f3a-7c1e-4d0a-9f2e-3a1b2c3d4e5f";
+    expect(
+      trackGenreFacetsResponseSchema.parse({ genres: [{ id, track_count: 3 }] }).genres,
+    ).toHaveLength(1);
+    expect(
+      trackGenreFacetsResponseSchema.safeParse({ genres: [{ id, track_count: 1.5 }] }).success,
+    ).toBe(false);
+  });
+
   it("publishes JSON Schema components", () => {
     expect(trackJsonSchemas.TrackSearchMode).toMatchObject({
       enum: ["lexical", "semantic", "hybrid"],
@@ -149,5 +279,34 @@ describe("track contracts", () => {
       "artist",
       "album",
     ]);
+  });
+
+  it("publishes the new components with their enums and input shapes", () => {
+    expect(trackJsonSchemas.TrackEmbeddingPreviewType).toMatchObject({
+      enum: ["identity", "audio_vibe", "context"],
+    });
+    expect(trackJsonSchemas.TrackAnalyzeAsyncRequest).toMatchObject({
+      properties: { preferred_downloader: { enum: ["freyr", "spotdl", "yt-dlp", "scdl"] } },
+      required: ["track_id", "friend_id"],
+    });
+    expect(trackJsonSchemas.TrackAnalyzeAsyncRequest).not.toHaveProperty(
+      "additionalProperties",
+      false,
+    );
+    expect(trackJsonSchemas.TrackGenreFacetsResponse).toMatchObject({
+      properties: {
+        genres: { items: { properties: { id: { type: "string", format: "uuid" } } } },
+      },
+    });
+    for (const name of [
+      "TrackRestoreResponse",
+      "TrackExtractEmbeddedCoverRequest",
+      "TrackEmbeddingPreview",
+      "TrackAnalyzeAsyncResponse",
+      "TrackFixDurationRequest",
+      "TrackFixDurationResponse",
+    ] as const) {
+      expect(trackJsonSchemas[name], name).toBeDefined();
+    }
   });
 });

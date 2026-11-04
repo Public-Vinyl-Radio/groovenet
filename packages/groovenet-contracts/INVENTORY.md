@@ -191,22 +191,22 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/spins/track-stats` | Spins | contracts | One track's plays, both media (#864) |
 | GET | `/api/status` | system | #552 | Auto-discovered only; no contract entry yet. |
 | PATCH | `/api/tracks` | tracks | contracts |  |
-| DELETE | `/api/tracks/{id}` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| DELETE | `/api/tracks/{id}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}` | tracks | contracts |  |
-| GET | `/api/tracks/{id}/audio-metadata` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/tracks/{id}/audio-metadata` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| GET | `/api/tracks/{id}/embedding-preview` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| GET | `/api/tracks/{id}/essentia` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| GET | `/api/tracks/{id}/playlists` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/tracks/{id}/restore` | tracks | #551 | Auto-discovered only; no contract entry yet. |
-| POST | `/api/tracks/analyze-async` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| GET | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
+| POST | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
+| GET | `/api/tracks/{id}/embedding-preview` | tracks | contracts | `type` enum shared; preview `data` is documented, not parsed at runtime (#606). |
+| GET | `/api/tracks/{id}/essentia` | tracks | contracts |  |
+| GET | `/api/tracks/{id}/playlists` | tracks | contracts |  |
+| POST | `/api/tracks/{id}/restore` | tracks | contracts | `TrackRestoreResponse`; entity parsed after `toWireRow` (#606). |
+| POST | `/api/tracks/analyze-async` | tracks | contracts | Body is `friend_id` + at least one URL; the URL rule is checked in the route (#606). |
 | POST | `/api/tracks/batch` | tracks | contracts |  |
 | GET | `/api/tracks/deleted` | tracks | contracts |  |
-| POST | `/api/tracks/fix-duration` | tracks | #551 | Auto-discovered only; no contract entry yet. |
-| POST | `/api/tracks/playlist_counts` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| POST | `/api/tracks/fix-duration` | tracks | contracts | Body and job id response shared (#606). |
+| POST | `/api/tracks/playlist_counts` | tracks | contracts |  |
 | GET | `/api/tracks/search` | tracks | contracts |  |
-| GET | `/api/tracks/search/facets` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/tracks/upload` | tracks | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| GET | `/api/tracks/search/facets` | tracks | contracts |  |
+| POST | `/api/tracks/upload` | tracks | exception | `multipart/form-data` request (a binary `file` part), which has no Zod or JSON Schema form; the route reads `formData()`. The inline OpenAPI documents the form fields and response (#606). |
 | GET | `/api/update-check` | system | #552 | Auto-discovered only; no contract entry yet. |
 | GET | `/api/version` | system | #552 | Auto-discovered only; no contract entry yet. |
 

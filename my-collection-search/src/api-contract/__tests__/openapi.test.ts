@@ -14,6 +14,8 @@ function getOperation(path: string, method: string): Operation | undefined {
 // contracts, so this guards against them regressing to generic stubs.
 const CONTRACTED: Array<[method: string, path: string]> = [
   ["get", "/api/tracks/deleted"],
+  ["post", "/api/tracks/{id}/restore"],
+  ["post", "/api/tracks/fix-duration"],
   ["get", "/api/backups"],
   ["get", "/api/backups/{filename}"],
   ["delete", "/api/backups/{filename}"],
@@ -558,5 +560,84 @@ describe("shared genre taxonomy components", () => {
     expect(paths["/api/tracks"].patch.responses["400"]).toBeDefined();
     // Lenient by design: bad refs are dropped, so there is no 400 to document.
     expect(paths["/api/tracks/playlist_counts"].post.responses["400"]).toBeUndefined();
+  });
+
+  describe("track operations migrated in #606", () => {
+    type Content = { content: { "application/json": { schema: { $ref?: string } } } };
+    type TrackOperation = {
+      parameters?: Array<{ name: string; schema: Record<string, unknown> }>;
+      requestBody?: Content;
+      responses: Record<string, Content>;
+    };
+    const trackOp = (path: string, method: string) =>
+      (getOpenApiDocument().paths as Record<string, Record<string, TrackOperation>>)[path][method];
+    const ref = (c: Content | undefined) => c?.content["application/json"].schema.$ref;
+
+    it.each([
+      ["/api/tracks/{id}", "delete", "TrackDeleteResponse", undefined],
+      ["/api/tracks/{id}/audio-metadata", "get", "TrackAudioMetadata", undefined],
+      [
+        "/api/tracks/{id}/audio-metadata",
+        "post",
+        "TrackExtractEmbeddedCoverResponse",
+        "TrackExtractEmbeddedCoverRequest",
+      ],
+      ["/api/tracks/{id}/embedding-preview", "get", "TrackEmbeddingPreview", undefined],
+      ["/api/tracks/{id}/essentia", "get", "TrackEssentia", undefined],
+      ["/api/tracks/{id}/playlists", "get", "TrackPlaylistsResponse", undefined],
+      ["/api/tracks/{id}/restore", "post", "TrackRestoreResponse", undefined],
+      [
+        "/api/tracks/analyze-async",
+        "post",
+        "TrackAnalyzeAsyncResponse",
+        "TrackAnalyzeAsyncRequest",
+      ],
+      ["/api/tracks/fix-duration", "post", "TrackFixDurationResponse", "TrackFixDurationRequest"],
+      [
+        "/api/tracks/playlist_counts",
+        "post",
+        "TrackPlaylistCountsResponse",
+        "TrackPlaylistCountsRequest",
+      ],
+      ["/api/tracks/search/facets", "get", "TrackGenreFacetsResponse", undefined],
+    ] as const)("references shared components for %s %s", (path, method, response, body) => {
+      const operation = trackOp(path, method);
+      expect(ref(operation.responses["200"])).toBe(`#/components/schemas/${response}`);
+      if (body) expect(ref(operation.requestBody)).toBe(`#/components/schemas/${body}`);
+    });
+
+    it("exports the preview types, downloaders and facet ids", () => {
+      const schemas = getOpenApiDocument().components.schemas as Record<
+        string,
+        Record<string, unknown>
+      >;
+      expect(schemas.TrackEmbeddingPreviewType).toMatchObject({
+        enum: ["identity", "audio_vibe", "context"],
+      });
+      expect(schemas.TrackEmbeddingPreview.oneOf).toHaveLength(3);
+      expect(schemas.TrackAnalyzeAsyncRequest).toMatchObject({
+        properties: { preferred_downloader: { enum: ["freyr", "spotdl", "yt-dlp", "scdl"] } },
+        required: ["track_id", "friend_id"],
+      });
+      expect(schemas.TrackAnalyzeAsyncRequest.additionalProperties).toBeUndefined();
+      expect(schemas.TrackGenreFacetsResponse).toMatchObject({
+        properties: { genres: { items: { properties: { id: { format: "uuid" } } } } },
+      });
+    });
+
+    it("keeps the embedding preview type default on the query parameter", () => {
+      const type = trackOp("/api/tracks/{id}/embedding-preview", "get").parameters?.find(
+        (parameter) => parameter.name === "type",
+      );
+      expect(type?.schema).toEqual({
+        $ref: "#/components/schemas/TrackEmbeddingPreviewType",
+        default: "identity",
+      });
+    });
+
+    it("leaves the multipart upload as an inline operation", () => {
+      const upload = trackOp("/api/tracks/upload", "post");
+      expect(upload.requestBody?.content).toHaveProperty("multipart/form-data");
+    });
   });
 });

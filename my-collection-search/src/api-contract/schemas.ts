@@ -76,17 +76,31 @@ import {
   albumSearchQuerySchema as sharedAlbumSearchQuerySchema,
   trackSearchQuerySchema as sharedTrackSearchQuerySchema,
   genreFilterRefSchema,
+  trackAnalyzeAsyncRequestSchema as sharedTrackAnalyzeAsyncRequestSchema,
+  trackAnalyzeAsyncResponseSchema,
   trackAudioMetadataEmbeddedCoverSchema,
   trackAudioMetadataSchema,
   trackDeleteResponseSchema,
+  trackAudioVibeEmbeddingDataSchema,
+  trackContextEmbeddingPreviewSchema,
+  trackEmbeddingPreviewSchema,
+  trackEmbeddingPreviewTypeSchema,
   trackEssentiaSchema,
+  trackExtractEmbeddedCoverRequestSchema,
   trackExtractEmbeddedCoverResponseSchema,
+  trackFixDurationRequestSchema as sharedTrackFixDurationRequestSchema,
+  trackFixDurationResponseSchema,
+  trackGenreFacetsResponseSchema,
   trackGenreSchema,
+  trackIdentityEmbeddingDataSchema,
+  trackAudioVibeEmbeddingPreviewSchema,
+  trackIdentityEmbeddingPreviewSchema,
   trackPlaylistCountRefSchema,
   trackPlaylistCountsRequestSchema,
   trackPlaylistCountsResponseSchema,
   trackPlaylistMembershipSchema,
   trackPlaylistsResponseSchema,
+  trackRestoreResponseSchema,
   trackSchema,
   trackSearchModeSchema,
   trackSearchResponseSchema,
@@ -621,14 +635,18 @@ export {
   albumPlayableStructureTrackSchema,
   albumSearchResponseSchema,
   genreFilterRefSchema,
+  trackAnalyzeAsyncResponseSchema,
   trackAudioMetadataEmbeddedCoverSchema,
   trackDeleteResponseSchema,
+  trackExtractEmbeddedCoverRequestSchema,
   trackExtractEmbeddedCoverResponseSchema,
+  trackFixDurationResponseSchema,
   trackGenreSchema,
   trackPlaylistCountRefSchema,
   trackPlaylistCountsResponseSchema,
   trackPlaylistMembershipSchema,
   trackPlaylistsResponseSchema,
+  trackRestoreResponseSchema,
   trackSearchModeSchema,
 };
 export const albumEntitySchema = albumSchema;
@@ -640,6 +658,14 @@ export const albumUpsertWithTracksResponseSchema = albumUpsertResponseSchema;
 export const trackAudioMetadataResponseSchema = trackAudioMetadataSchema;
 export const trackEssentiaResponseSchema = trackEssentiaSchema;
 export const trackPlaylistCountsBodySchema = trackPlaylistCountsRequestSchema;
+
+/** Job bodies keep the route's text coercion: `friend_id` may arrive as a numeric string. */
+export const trackAnalyzeAsyncBodySchema = sharedTrackAnalyzeAsyncRequestSchema.extend({
+  friend_id: intFromInputSchema,
+});
+export const trackFixDurationBodySchema = sharedTrackFixDurationRequestSchema.extend({
+  friend_id: intFromInputSchema,
+});
 export const trackSearchGetResponseSchema = trackSearchResponseSchema;
 
 /** A genre a widened filter added (#485): the removable "+ Chicha, Porro" chip. */
@@ -673,61 +699,13 @@ export const trackSearchGetQuerySchema = sharedTrackSearchQuerySchema.extend({
   similar_exclude: genreQueryParamSchema,
 });
 
-export const embeddingPreviewTypeSchema = z.enum(["identity", "audio_vibe", "context"]);
-
-export const identityEmbeddingDataSchema = z.object({
-  title: z.string(),
-  artist: z.string(),
-  album: z.string(),
-  era: z.string(),
-  country: z.string(),
-  labels: z.array(z.string()),
-  composers: z.array(z.string()),
-  genres: z.array(z.string()),
-  styles: z.array(z.string()),
-  tags: z.array(z.string()),
-});
-
-export const audioVibeEmbeddingDataSchema = z.object({
-  bpm: z.string(),
-  bpmRange: z.string(),
-  key: z.string(),
-  camelot: z.string(),
-  danceability: z.string(),
-  energy: z.string(),
-  dominantMood: z.string(),
-  moodProfile: z.string(),
-  vibeDescriptors: z.array(z.string()),
-  acoustic: z.string().optional(),
-  vocalPresence: z.string().optional(),
-  percussiveness: z.string().optional(),
-  partyMood: z.string().optional(),
-});
-
-export const embeddingIdentityPreviewApiResponseSchema = z.object({
-  type: z.literal("identity"),
-  text: z.string(),
-  data: identityEmbeddingDataSchema,
-});
-
-export const embeddingAudioVibePreviewApiResponseSchema = z.object({
-  type: z.literal("audio_vibe"),
-  text: z.string(),
-  data: audioVibeEmbeddingDataSchema,
-});
-
-/** Built from the same normalized data as identity, rendered for retrieval (#408). */
-export const embeddingContextPreviewApiResponseSchema = z.object({
-  type: z.literal("context"),
-  text: z.string(),
-  data: identityEmbeddingDataSchema,
-});
-
-export const embeddingPreviewResponseSchema = z.discriminatedUnion("type", [
-  embeddingIdentityPreviewApiResponseSchema,
-  embeddingAudioVibePreviewApiResponseSchema,
-  embeddingContextPreviewApiResponseSchema,
-]);
+export const embeddingPreviewTypeSchema = trackEmbeddingPreviewTypeSchema;
+export const identityEmbeddingDataSchema = trackIdentityEmbeddingDataSchema;
+export const audioVibeEmbeddingDataSchema = trackAudioVibeEmbeddingDataSchema;
+export const embeddingIdentityPreviewApiResponseSchema = trackIdentityEmbeddingPreviewSchema;
+export const embeddingAudioVibePreviewApiResponseSchema = trackAudioVibeEmbeddingPreviewSchema;
+export const embeddingContextPreviewApiResponseSchema = trackContextEmbeddingPreviewSchema;
+export const embeddingPreviewResponseSchema = trackEmbeddingPreviewSchema;
 
 export const identityEmbeddingPreviewResponseSchema = z.object({
   identityText: z.string(),
@@ -1630,10 +1608,7 @@ export const genreSimilarQuerySchema = sharedGenreSimilarQuerySchema.extend({
   limit: z.coerce.number().int().positive().optional(),
 });
 
-/** Per-genre track counts for the current search, subgenres included (#375). */
-export const trackGenreFacetsResponseSchema = z.object({
-  genres: z.array(z.object({ id: z.string(), track_count: z.number().int() })),
-});
+export { trackGenreFacetsResponseSchema };
 export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
 
 /**

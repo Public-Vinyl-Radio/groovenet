@@ -153,3 +153,13 @@ sleeveTypeSchema.options` and have app modules (`lib/recordCare.ts`)
 - **Wire queries omit defaults.** Shared query schemas describe what a client
   may send (`limit?: number`); the app adds `.default(50)` after coercion and
   the OpenAPI `parameters` list documents the default.
+- **Job bodies share the wire shape; the route keeps its extra rules.**
+  `analyze-async` and `fix-duration` publish `TrackAnalyzeAsyncRequest` and
+  `TrackFixDurationRequest` (`io: "input"`). The app extends `friend_id` with
+  `intFromInputSchema` for numeric strings, and the route keeps "at least one
+  URL" as a check because JSON Schema cannot say it.
+- **Documentation-only responses are fine where rows are opaque.** The embedding
+  preview's `data` is documented as `TrackEmbeddingPreview` but the route does
+  not parse it, as the service builds it from raw rows.
+- **Multipart is an exception.** `POST /api/tracks/upload` takes a binary
+  `file` part, which Zod and JSON Schema cannot describe; it stays inline.

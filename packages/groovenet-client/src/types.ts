@@ -5,6 +5,18 @@ import type { AlbumEntity, TrackEntity, TrackSearchMode } from "@groovenet/contr
 
 export type { AlbumEntity as Album, TrackEntity as Track, TrackSearchMode };
 
+// Track job and lifecycle payloads (#606).
+export type {
+  TrackAnalyzeAsyncRequest,
+  TrackAnalyzeAsyncResponse,
+  TrackDeleteResponse,
+  TrackEmbeddingPreview,
+  TrackFixDurationRequest,
+  TrackFixDurationResponse,
+  TrackGenreFacetsResponse,
+  TrackRestoreResponse,
+} from "@groovenet/contracts";
+
 export type {
   AlbumDeleteResponse,
   AlbumDownloadResult,
