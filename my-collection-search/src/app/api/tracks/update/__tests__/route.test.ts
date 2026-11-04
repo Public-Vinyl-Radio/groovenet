@@ -114,6 +114,84 @@ describe("PATCH /api/tracks — track not found", () => {
   });
 });
 
+// ─── Request validation (#596) ───────────────────────────────────────────────
+
+describe("PATCH /api/tracks — request validation", () => {
+  function rawReq(body: string) {
+    return new Request("http://localhost/api/tracks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+  }
+
+  it("returns 400 for a body that is not JSON", async () => {
+    const res = await PATCH(rawReq("not json"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Invalid JSON body");
+    expect(mockUpdateTrack).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a missing track_id", { friend_id: 1 }],
+    ["an empty track_id", { track_id: "", friend_id: 1 }],
+    ["a missing friend_id", { track_id: "t1" }],
+    ["a non-numeric friend_id", { track_id: "t1", friend_id: "abc" }],
+    ["a zero friend_id", { track_id: "t1", friend_id: 0 }],
+    ["a body that is not an object", [1, 2]],
+  ])("returns 400 for %s, before reading the track", async (_label, body) => {
+    const res = await PATCH(makeReq(body));
+    expect(res.status).toBe(400);
+    expect(mockFindTrack).not.toHaveBeenCalled();
+    expect(mockUpdateTrack).not.toHaveBeenCalled();
+  });
+
+  it("names the identity fields in the 400", async () => {
+    const res = await PATCH(makeReq({ friend_id: 1 }));
+    const body = await res.json();
+    expect(body.error).toBe("track_id and friend_id are required");
+    expect(body.details).toBeDefined();
+  });
+
+  it.each([
+    ["genres", { genres: "cumbia" }, "genres must be an array of genre ids or names"],
+    ["genres entries", { genres: [1] }, "genres must be an array of genre ids or names"],
+    ["descriptors", { descriptors: [null] }, "descriptors must be an array of strings"],
+    [
+      "genre_source",
+      { genre_source: "reconciliation" },
+      "genre_source must be 'manual' or 'enrichment'",
+    ],
+  ])("returns 400 for malformed %s", async (_label, extra, message) => {
+    const res = await PATCH(makeReq({ ...PATCH_BODY, ...extra }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(message);
+    expect(mockResolveGenres).not.toHaveBeenCalled();
+    expect(mockUpdateTrack).not.toHaveBeenCalled();
+  });
+
+  it("accepts a numeric-string friend_id and passes the number on", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+    const res = await PATCH(makeReq({ track_id: "t1", friend_id: "1", notes: "x" }));
+    expect(res.status).toBe(200);
+    expect(mockUpdateTrack).toHaveBeenCalledWith({ track_id: "t1", friend_id: 1, notes: "x" });
+  });
+
+  it("leaves the scalar columns unchecked and passes them to the repository", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+    const res = await PATCH(makeReq({ ...PATCH_BODY, bpm: "128", star_rating: null, extra: 1 }));
+    expect(res.status).toBe(200);
+    expect(mockUpdateTrack).toHaveBeenCalledWith({
+      ...PATCH_BODY,
+      bpm: "128",
+      star_rating: null,
+      extra: 1,
+    });
+  });
+});
+
 // ─── Track genres and descriptors (#371) ──────────────────────────────────────
 
 describe("PATCH /api/tracks — genres and descriptors", () => {

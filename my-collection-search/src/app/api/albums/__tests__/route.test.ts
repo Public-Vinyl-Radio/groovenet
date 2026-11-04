@@ -112,6 +112,32 @@ describe("GET /api/albums", () => {
     expect(arg.missingLibraryIdentifier).toBeUndefined();
   });
 
+  it("takes the defaults for an empty limit or offset", async () => {
+    const res = await GET(getReq("?limit=&offset="));
+    expect(res.status).toBe(200);
+    expect(mockSearchAlbums).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 20, offset: 0 }),
+    );
+  });
+
+  it("accepts zero and parseInt-style numbers for limit and offset", async () => {
+    await GET(getReq("?limit=0&offset=15abc"));
+    expect(mockSearchAlbums).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 0, offset: 15 }),
+    );
+  });
+
+  it.each(["?limit=abc", "?limit=-1", "?offset=abc", "?offset=-5", "?limit=10&offset=x"])(
+    "returns 400 instead of reaching SQL for %s",
+    async (query) => {
+      const res = await GET(getReq(query));
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("limit and offset must be non-negative integers");
+      expect(mockSearchAlbums).not.toHaveBeenCalled();
+      expect(mockResolveGenreFilter).not.toHaveBeenCalled();
+    },
+  );
+
   it("returns the service response body", async () => {
     const page = {
       ...EMPTY_PAGE,
@@ -172,6 +198,50 @@ describe("PATCH /api/albums — validation", () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/50 characters/i);
+  });
+
+  it("returns 400 for a body that is not JSON", async () => {
+    const res = await PATCH(
+      new NextRequest("http://localhost/api/albums", { method: "PATCH", body: "not json" }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Invalid JSON body");
+    expect(mockUpdateAlbumFields).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an empty release_id", { release_id: "", friend_id: 1, album_rating: 5 }],
+    ["a non-numeric friend_id", { release_id: "r1", friend_id: "abc", album_rating: 5 }],
+    ["a zero friend_id", { release_id: "r1", friend_id: 0, album_rating: 5 }],
+    ["a body that is not an object", "r1"],
+  ])("returns 400 for %s", async (_label, body) => {
+    const res = await PATCH(patchReq(body));
+    expect(res.status).toBe(400);
+    expect(mockUpdateAlbumFields).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["album_rating", { album_rating: "5" }],
+    ["album_notes", { album_notes: 5 }],
+    ["purchase_price", { purchase_price: "12" }],
+    ["condition", { condition: 1 }],
+    ["library_identifier", { library_identifier: 7 }],
+  ])("returns 400 naming %s when it has the wrong type", async (field, extra) => {
+    const res = await PATCH(patchReq({ release_id: "r1", friend_id: 1, ...extra }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(new RegExp(`^${field} must be`));
+    expect(body.details).toBeDefined();
+    expect(mockUpdateAlbumFields).not.toHaveBeenCalled();
+  });
+
+  it("accepts a numeric-string friend_id and passes the number on", async () => {
+    const res = await PATCH(patchReq({ release_id: "r1", friend_id: "3", album_rating: 4 }));
+    expect(res.status).toBe(200);
+    expect(mockUpdateAlbumFields).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ release_id: "r1", friend_id: 3, album_rating: 4 }),
+    );
   });
 
   it("allows a null library_identifier (clearing the field)", async () => {

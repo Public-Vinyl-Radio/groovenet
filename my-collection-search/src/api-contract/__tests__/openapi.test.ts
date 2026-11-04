@@ -454,4 +454,16 @@ describe("shared genre taxonomy components", () => {
       },
     });
   });
+
+  it("documents the 400s of the track and album routes validated in #596", () => {
+    const paths = getOpenApiDocument().paths as Record<
+      string,
+      Record<string, { responses: Record<string, unknown> }>
+    >;
+    expect(paths["/api/albums"].get.responses["400"]).toBeDefined();
+    expect(paths["/api/albums"].patch.responses["400"]).toBeDefined();
+    expect(paths["/api/tracks"].patch.responses["400"]).toBeDefined();
+    // Lenient by design: bad refs are dropped, so there is no 400 to document.
+    expect(paths["/api/tracks/playlist_counts"].post.responses["400"]).toBeUndefined();
+  });
 });

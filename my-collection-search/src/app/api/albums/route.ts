@@ -2,7 +2,11 @@
 // Supports sorting by created_at, date_added, year, title, album_rating
 // Example: /api/albums?q=jazz&sort=created_at:desc&friend_id=1&limit=20&offset=0&genre=latin
 import { NextRequest, NextResponse } from "next/server";
-import { albumSearchResponseSchema } from "@/api-contract/schemas";
+import {
+  albumSearchQuerySchema,
+  albumSearchResponseSchema,
+  albumUpdateFieldsSchema,
+} from "@/api-contract/schemas";
 import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { withDbTransaction } from "@/lib/serverDb";
@@ -13,24 +17,28 @@ import { AlbumOverrideError, resolveAlbumOverrides } from "@/server/genres/album
 import { syncIdentityEmbeddings } from "@/server/services/trackEmbeddingSyncService";
 import { triggerGenreSimilarityRefresh } from "@/server/services/genreSimilarityService";
 
-interface AlbumUpdateRequest {
-  genre_override_ids?: string[] | null;
-  style_override_ids?: string[] | null;
-  release_id: string;
-  friend_id: number;
-  album_rating?: number;
-  album_notes?: string;
-  purchase_price?: number;
-  condition?: string;
-  library_identifier?: string | null;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const q = searchParams.get("q") || "";
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const offset = parseInt(searchParams.get("offset") || "0");
+    // Paging is the one part of this query string that is checked: an empty or
+    // absent value takes the default (as it always has), but a value that is not a
+    // non-negative integer used to reach SQL as NaN or a negative LIMIT and come
+    // back as a 500. That is a client bug, so it is a 400. Everything else here
+    // stays lenient on purpose: flags other than "1" are off, a non-numeric
+    // friend_id matches nothing, and an unknown sort falls back to the default.
+    const limit = albumSearchQuerySchema.shape.limit.safeParse(
+      searchParams.get("limit") || undefined,
+    );
+    const offset = albumSearchQuerySchema.shape.offset.safeParse(
+      searchParams.get("offset") || undefined,
+    );
+    if (!limit.success || !offset.success) {
+      return NextResponse.json(
+        { error: "limit and offset must be non-negative integers" },
+        { status: 400 },
+      );
+    }
     const friendId = searchParams.get("friend_id");
 
     // Support multiple sort options:
@@ -59,8 +67,8 @@ export async function GET(request: NextRequest) {
 
     const response = await albumApiService.searchAlbums({
       q,
-      limit,
-      offset,
+      limit: limit.data,
+      offset: offset.data,
       friendId,
       sort,
       missingLibraryIdentifier: missingLibraryIdentifier || undefined,
@@ -90,8 +98,23 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body: AlbumUpdateRequest = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    // The taxonomy fields keep their own resolver, which also accepts the legacy
+    // `genres`/`styles` name lists; the scalar fields are checked against the
+    // shared schema, whose `error` strings are the 400 messages.
     const overrides = await resolveAlbumOverrides(body);
+    const fields = albumUpdateFieldsSchema.safeParse(body);
+    if (!fields.success) {
+      return NextResponse.json(
+        { error: fields.error.issues[0].message, details: fields.error.flatten() },
+        { status: 400 },
+      );
+    }
     const {
       release_id,
       friend_id,
@@ -100,11 +123,7 @@ export async function PATCH(request: NextRequest) {
       purchase_price,
       condition,
       library_identifier,
-    } = body;
-
-    if (!release_id || !friend_id) {
-      return NextResponse.json({ error: "release_id and friend_id are required" }, { status: 400 });
-    }
+    } = fields.data;
 
     if (
       album_rating === undefined &&
@@ -116,14 +135,6 @@ export async function PATCH(request: NextRequest) {
       overrides.style_override_ids === undefined
     ) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
-    }
-    if (library_identifier !== undefined) {
-      if (library_identifier !== null && library_identifier.length > 50) {
-        return NextResponse.json(
-          { error: "library_identifier must be 50 characters or less" },
-          { status: 400 },
-        );
-      }
     }
 
     const updatedAlbum = await withDbTransaction(async (client) => {
