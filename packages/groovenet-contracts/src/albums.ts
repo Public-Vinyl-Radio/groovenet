@@ -37,7 +37,8 @@ const albumShape = z.object({
   track_count: z.number().int().optional(),
   album_rating: z.number().nullable().optional(),
   album_notes: z.string().nullable().optional(),
-  purchase_price: z.number().nullable().optional(),
+  /** `numeric(10,2)`: the driver returns it as a decimal string such as "19.99". */
+  purchase_price: z.union([z.number(), z.string()]).nullable().optional(),
   condition: z.string().nullable().optional(),
   label: z.string().nullable().optional(),
   catalog_number: z.string().nullable().optional(),

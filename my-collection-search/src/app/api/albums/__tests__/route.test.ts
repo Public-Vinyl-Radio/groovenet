@@ -5,6 +5,15 @@ vi.mock("@/server/services/genreSimilarityService", () => ({
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const EMPTY_PAGE = {
+  hits: [],
+  estimatedTotalHits: 0,
+  offset: 0,
+  limit: 20,
+  query: "",
+  sort: "created_at:desc",
+};
+
 const { mockSearchAlbums, mockWithDbTransaction, mockUpdateAlbumFields, mockGetTracks } =
   vi.hoisted(() => ({
     mockSearchAlbums: vi.fn(),
@@ -51,7 +60,7 @@ function patchReq(body: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockSearchAlbums.mockResolvedValue({ albums: [], total: 0 });
+  mockSearchAlbums.mockResolvedValue(EMPTY_PAGE);
   // Run the transaction callback with a stub client by default.
   mockWithDbTransaction.mockImplementation(async (cb: (c: unknown) => unknown) => cb({}));
   mockUpdateAlbumFields.mockResolvedValue({ release_id: "r1" });
@@ -104,9 +113,27 @@ describe("GET /api/albums", () => {
   });
 
   it("returns the service response body", async () => {
-    mockSearchAlbums.mockResolvedValueOnce({ albums: [{ release_id: "r1" }], total: 1 });
+    const page = {
+      ...EMPTY_PAGE,
+      hits: [{ release_id: "r1", friend_id: 1, title: "T", artist: "A" }],
+      estimatedTotalHits: 1,
+    };
+    mockSearchAlbums.mockResolvedValueOnce(page);
     const res = await GET(getReq());
-    expect(await res.json()).toEqual({ albums: [{ release_id: "r1" }], total: 1 });
+    expect(await res.json()).toEqual(page);
+  });
+
+  it("serialises Date columns and 500s on a row that breaks the contract", async () => {
+    const row = { release_id: "r1", friend_id: 1, title: "T", artist: "A" };
+    mockSearchAlbums.mockResolvedValueOnce({
+      ...EMPTY_PAGE,
+      hits: [{ ...row, date_added: new Date("2024-03-04T05:06:07Z") }],
+    });
+    const ok = await (await GET(getReq())).json();
+    expect(ok.hits[0].date_added).toBe("2024-03-04T05:06:07.000Z");
+
+    mockSearchAlbums.mockResolvedValueOnce({ ...EMPTY_PAGE, hits: [{ release_id: "r1" }] });
+    expect((await GET(getReq())).status).toBe(500);
   });
 
   it("returns 500 with a message when the service throws", async () => {
@@ -235,7 +262,7 @@ describe("GET /api/albums — genre filter", () => {
 // ─── GET — include_similar (#485) ───────────────────────────────────────────
 
 describe("GET /api/albums — include_similar", () => {
-  const PORRO_ID = "11111111-1111-1111-1111-111111111111";
+  const PORRO_ID = "11111111-1111-4111-8111-111111111111";
 
   it("passes include_similar, similar_limit and similar_exclude through to resolveGenreFilter", async () => {
     mockResolveGenreFilter.mockResolvedValue({
@@ -272,7 +299,7 @@ describe("GET /api/albums — include_similar", () => {
       filter: { ids: ["id-cumbia", PORRO_ID], keys: ["cumbia", "porro"] },
       added: [{ id: PORRO_ID, name: "Porro", slug: "porro" }],
     });
-    mockSearchAlbums.mockResolvedValueOnce({ albums: [], total: 0 });
+    mockSearchAlbums.mockResolvedValueOnce(EMPTY_PAGE);
     const res = await GET(getReq("?genre=cumbia&include_similar=1"));
     const body = await res.json();
     expect(body.added_genres).toEqual([{ id: PORRO_ID, name: "Porro", slug: "porro" }]);

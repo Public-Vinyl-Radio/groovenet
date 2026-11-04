@@ -17,6 +17,7 @@ export type {
 type TrackNarrowedKeys =
   | "id"
   | "year"
+  | "album"
   | "duration"
   | "position"
   | "discogs_url"
@@ -35,6 +36,7 @@ type TrackNarrowedKeys =
   | "duration_seconds";
 export type Track = Omit<TrackEntity, TrackNarrowedKeys> & {
   id: number;
+  album: string;
   year: string | number;
   duration: string;
   position: string | number;

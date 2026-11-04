@@ -109,11 +109,11 @@ describe("GET /api/tracks/search — validation", () => {
 
 describe("GET /api/tracks/search — behavior", () => {
   it("returns hits and estimatedTotalHits with defaults applied", async () => {
-    stubDb([{ track_id: "t1", title: "Song" }], "1");
+    stubDb([hit("t1", { title: "Song" })], "1");
     const res = await GET(req());
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.hits).toEqual([{ track_id: "t1", title: "Song" }]);
+    expect(body.hits).toEqual([hit("t1", { title: "Song" })]);
     expect(body.estimatedTotalHits).toBe(1);
     expect(body.limit).toBe(20);
     expect(body.offset).toBe(0);
@@ -185,6 +185,9 @@ describe("GET /api/tracks/search — behavior", () => {
 const hit = (track_id: string, extra: Record<string, unknown> = {}) => ({
   track_id,
   friend_id: 1,
+  title: `Title ${track_id}`,
+  artist: "Artist",
+  album: null,
   release_id: `r-${track_id}`,
   ...extra,
 });
@@ -279,11 +282,21 @@ describe("GET /api/tracks/search — semantic and hybrid", () => {
   });
 
   it("lists lexically when the query is empty, whatever the mode", async () => {
-    stubDb([{ track_id: "t1" }], "1");
+    stubDb([hit("t1")], "1");
     const res = await GET(req("?mode=hybrid&q=%20%20"));
     const body = await res.json();
     expect(body).toMatchObject({ mode: "lexical", estimatedTotalHits: 1 });
     expect(mockSemanticSearch).not.toHaveBeenCalled();
+  });
+
+  it("serialises Date columns as ISO strings and rejects a row that breaks the contract", async () => {
+    stubDb([hit("t1", { date_added: new Date("2024-03-04T05:06:07Z") })], "1");
+    const ok = await (await GET(req("?q=x"))).json();
+    expect(ok.hits[0].date_added).toBe("2024-03-04T05:06:07.000Z");
+
+    stubDb([{ track_id: "t1" }], "1");
+    const bad = await GET(req("?q=x"));
+    expect(bad.status).toBe(500);
   });
 
   it("omits mode from a plain lexical response", async () => {
