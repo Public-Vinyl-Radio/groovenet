@@ -26,6 +26,7 @@ import type {
   LiveSetUpdate,
   Friend,
   FriendListResponse,
+  AppearancePaletteId,
   AppearanceSettings,
   AppearanceSettingsUpdate,
   GenreTreeResponse,
@@ -682,7 +683,7 @@ export class GroovenetClient {
     return this.request<AppearanceSettings>("GET", "/settings/appearance");
   }
 
-  async setAppearancePalette(palette: string): Promise<AppearanceSettings> {
+  async setAppearancePalette(palette: AppearancePaletteId): Promise<AppearanceSettings> {
     return this.updateAppearanceSettings({ palette });
   }
 

@@ -26,7 +26,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | friends & library settings | 4 | Flat shapes, no enums; established the inventory. |
 | done | record care | 10 | Self-contained, enum-heavy (sleeve, action, cleaning method, care status). |
 | done | spins | 6 | Client and CLI already declared `SpinSession` and friends by hand. |
-| 3 | settings (AI prompt, appearance, recommendations, gamdl) | 10 | Flat settings documents. |
+| done | settings (AI prompt, appearance, recommendations, gamdl) | 10 | Flat settings documents. |
 | 4 | backups | 10 | Settings + status payloads; one binary download stays an exception. |
 | 5 | background jobs | 5 | Job entity also shapes the SSE events. |
 | done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
@@ -162,10 +162,10 @@ is closed, so they need a follow-up issue as their owner.
 | GET | `/api/set-recordings/{sha256}` | set derivation | exception | Streams the stored recording; no JSON body. |
 | HEAD | `/api/set-recordings/{sha256}` | set derivation | exception | Existence probe; headers only. |
 | PUT | `/api/set-recordings/{sha256}` | set derivation | #552 |  |
-| GET | `/api/settings/ai-prompt` | settings | #552 |  |
-| PUT | `/api/settings/ai-prompt` | settings | #552 |  |
-| GET | `/api/settings/appearance` | settings | #552 |  |
-| PUT | `/api/settings/appearance` | settings | #552 |  |
+| GET | `/api/settings/ai-prompt` | settings | contracts |  |
+| PUT | `/api/settings/ai-prompt` | settings | contracts |  |
+| GET | `/api/settings/appearance` | settings | contracts |  |
+| PUT | `/api/settings/appearance` | settings | contracts |  |
 | GET | `/api/settings/backup` | backups | #552 |  |
 | PUT | `/api/settings/backup` | backups | #552 |  |
 | POST | `/api/settings/backup/run` | backups | #552 |  |
@@ -174,12 +174,12 @@ is closed, so they need a follow-up issue as their owner.
 | PUT | `/api/settings/default-library` | friends & library settings | contracts |  |
 | GET | `/api/settings/embedding-model` | embeddings | #552 |  |
 | PATCH | `/api/settings/embedding-model` | embeddings | #552 |  |
-| GET | `/api/settings/gamdl` | settings | #552 |  |
-| PUT | `/api/settings/gamdl` | settings | #552 |  |
-| PUT | `/api/settings/gamdl-cookies` | settings | #552 |  |
-| POST | `/api/settings/gamdl/actions` | settings | #552 |  |
-| GET | `/api/settings/recommendations` | settings | #552 |  |
-| PUT | `/api/settings/recommendations` | settings | #552 |  |
+| GET | `/api/settings/gamdl` | settings | contracts |  |
+| PUT | `/api/settings/gamdl` | settings | contracts |  |
+| PUT | `/api/settings/gamdl-cookies` | settings | contracts |  |
+| POST | `/api/settings/gamdl/actions` | settings | contracts |  |
+| GET | `/api/settings/recommendations` | settings | contracts |  |
+| PUT | `/api/settings/recommendations` | settings | contracts |  |
 | GET | `/api/spins` | spins | contracts |  |
 | POST | `/api/spins` | spins | contracts |  |
 | DELETE | `/api/spins/{id}` | spins | contracts |  |
