@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { albumDetailResponseSchema } from "@/api-contract/schemas";
+import { albumDeleteResponseSchema, albumDetailResponseSchema } from "@/api-contract/schemas";
 import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { albumRepository } from "@/server/repositories/albumRepository";
@@ -91,7 +91,7 @@ export async function DELETE(
       { request },
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(albumDeleteResponseSchema.parse({ success: true }));
   } catch (error) {
     console.error("[Album Delete API] Error:", error);
     return NextResponse.json(

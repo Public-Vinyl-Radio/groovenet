@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { albumDiscogsRawResponseSchema } from "@/api-contract/schemas";
 import { getReleasePath, loadAlbum } from "@/server/services/discogsManifestService";
 import { albumRepository } from "@/server/repositories/albumRepository";
 
@@ -33,13 +34,15 @@ export async function GET(
       return NextResponse.json({ error: "Failed to parse Discogs release file" }, { status: 500 });
     }
 
-    return NextResponse.json({
-      friend_id: friendId,
-      release_id: String(releaseId),
-      username,
-      file_path: releasePath,
-      data: album,
-    });
+    return NextResponse.json(
+      albumDiscogsRawResponseSchema.parse({
+        friend_id: friendId,
+        release_id: String(releaseId),
+        username,
+        file_path: releasePath,
+        data: album,
+      }),
+    );
   } catch (error) {
     console.error("Failed to read Discogs raw file:", error);
     return NextResponse.json(

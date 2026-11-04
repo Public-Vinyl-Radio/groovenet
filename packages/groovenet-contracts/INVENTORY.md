@@ -36,29 +36,29 @@ counts are as of this inventory; the table below is authoritative.
 | 10 | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; coordinate with its generated contracts. |
 | 11 | system (`health`, `status`, `version`, `update-check`) | 4 | Auto-discovered only today; need contract entries first. |
 
-The 25 `#551` rows are track/album operations outside this issue's scope. #551
-is closed, so they need a follow-up issue as their owner.
+The remaining `#551` rows are track operations outside this issue's scope. #551
+is closed; #606 owns them (its album half is migrated).
 
 ## Operations
 
 | Method | Path | Family | Status | Notes |
 | --- | --- | --- | --- | --- |
-| GET | `/api/albums` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| PATCH | `/api/albums` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| DELETE | `/api/albums/{releaseId}` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| GET | `/api/albums/{releaseId}` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| GET | `/api/albums` | albums | contracts |  |
+| PATCH | `/api/albums` | albums | contracts |  |
+| DELETE | `/api/albums/{releaseId}` | albums | contracts |  |
+| GET | `/api/albums/{releaseId}` | albums | contracts |  |
 | GET | `/api/albums/{releaseId}/artwork` | albums | contracts |  |
 | PUT | `/api/albums/{releaseId}/artwork` | albums | contracts |  |
-| POST | `/api/albums/{releaseId}/artwork/match` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/albums/{releaseId}/artwork/preview` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| POST | `/api/albums/{releaseId}/artwork/match` | albums | contracts |  |
+| POST | `/api/albums/{releaseId}/artwork/preview` | albums | contracts |  |
 | POST | `/api/albums/{releaseId}/artwork/upload` | albums | contracts |  |
-| GET | `/api/albums/{releaseId}/discogs-raw` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/albums/{releaseId}/download` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| GET | `/api/albums/{releaseId}/playable-structure` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/albums/artwork/backfill` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| GET | `/api/albums/artwork/review` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/albums/create` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
-| POST | `/api/albums/upsert` | albums | #551 | Inline OpenAPI; left by #594 (see its deferred list). |
+| GET | `/api/albums/{releaseId}/discogs-raw` | albums | contracts |  |
+| POST | `/api/albums/{releaseId}/download` | albums | contracts |  |
+| GET | `/api/albums/{releaseId}/playable-structure` | albums | contracts |  |
+| POST | `/api/albums/artwork/backfill` | albums | contracts |  |
+| GET | `/api/albums/artwork/review` | albums | contracts |  |
+| POST | `/api/albums/create` | albums | contracts |  |
+| POST | `/api/albums/upsert` | albums | contracts |  |
 | GET | `/api/audio` | audio streaming | exception | Byte-range audio stream; no JSON body. |
 | POST | `/api/audio/ingest` | vinyl ingest & fingerprints | #552 |  |
 | POST | `/api/audio/ingest/{ingestId}/claim` | vinyl ingest & fingerprints | #552 |  |

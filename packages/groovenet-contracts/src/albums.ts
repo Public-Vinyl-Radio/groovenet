@@ -10,9 +10,13 @@ export const albumArtMatchStatusSchema = z.enum([
 ]);
 
 /** Omitted: unchanged; null: reset to Discogs; []: deliberately empty. */
+const overrideIdsSchema = z.array(z.string().uuid()).max(100).nullable().optional().meta({
+  description:
+    "Omitted: unchanged; null: reset to latest Discogs; []: deliberately empty replacement.",
+});
 export const albumTaxonomyOverridesSchema = z.object({
-  genre_override_ids: z.array(z.string().uuid()).max(100).nullable().optional(),
-  style_override_ids: z.array(z.string().uuid()).max(100).nullable().optional(),
+  genre_override_ids: overrideIdsSchema,
+  style_override_ids: overrideIdsSchema,
 });
 
 /** The album/release entity. Unknown database columns pass through. */
@@ -79,7 +83,10 @@ export const albumSearchResponseSchema = z.object({
   limit: z.number().int(),
   query: z.string(),
   sort: z.string(),
-  added_genres: z.array(genreFilterRefSchema).optional(),
+  added_genres: z.array(genreFilterRefSchema).optional().meta({
+    description:
+      "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
+  }),
 });
 
 export const albumDetailSchema = z.object({
@@ -124,6 +131,125 @@ export const albumPlayableStructureSchema = z.object({
   sides: z.array(albumPlayableStructureSideSchema),
 });
 
+export const albumAppleMusicArtPreviewSchema = z.object({
+  url: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  track_id: z.string(),
+});
+
+export const albumArtMatchResultSchema = z.object({
+  release_id: z.string(),
+  friend_id: z.number().int(),
+  status: albumArtMatchStatusSchema,
+  distance: z.number().int().nullable(),
+  applied: z.boolean(),
+  apple_music_art_url: z.string().nullable(),
+});
+
+/** Optional body: omitted or `null` queues every library. */
+export const albumArtworkBackfillBodySchema = z.object({
+  friend_id: z.number().int().positive().nullable().optional(),
+});
+
+export const albumArtworkBackfillResponseSchema = z.object({
+  queued: z.number().int(),
+  queuedAlbums: z.number().int(),
+  tracksImpacted: z.number().int(),
+  jobIds: z.array(z.string()),
+  errors: z.array(
+    z.object({
+      track_id: z.string(),
+      friend_id: z.number().int(),
+      release_id: z.string().nullable().optional(),
+      error: z.string(),
+    }),
+  ),
+});
+
+/** Wire shape of `GET /api/albums/artwork/review` query params once coerced. */
+export const albumArtworkReviewQuerySchema = z.object({
+  friend_id: z.number().int().optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+});
+
+export const albumArtworkReviewItemSchema = z.object({
+  release_id: z.string(),
+  friend_id: z.number().int(),
+  title: z.string(),
+  artist: z.string(),
+  current_url: z.string().nullable(),
+  discogs_art_url: z.string().nullable(),
+  apple_music_art_url: z.string().nullable(),
+  art_match_status: albumArtMatchStatusSchema,
+  art_match_distance: z.number().int().nullable(),
+});
+
+export const albumArtworkReviewResponseSchema = z.object({
+  albums: z.array(albumArtworkReviewItemSchema),
+});
+
+export const albumDiscogsRawResponseSchema = z.object({
+  friend_id: z.number().int(),
+  release_id: z.string(),
+  username: z.string(),
+  file_path: z.string(),
+  /** The release payload exactly as Discogs returned it. */
+  data: z.record(z.string(), z.unknown()),
+});
+
+export const albumDownloadResultSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  jobIds: z.array(z.string()),
+  tracksQueued: z.number().int(),
+});
+
+/** `POST /api/albums/create`: the stored album and its tracks. */
+export const albumCreateResponseSchema = z.object({
+  album: albumSchema,
+  tracks: z.array(trackSchema),
+});
+
+/** `POST /api/albums/upsert`; tracks are whatever columns the repository returns. */
+export const albumUpsertResponseSchema = z.object({
+  album: albumSchema,
+  tracks: z.array(z.object({}).passthrough()),
+  deletedTracks: z.number().int(),
+});
+
+/** `PATCH /api/albums`: identity plus any of the editable fields. */
+export const albumUpdateObjectSchema = z.object({
+  release_id: z.string().min(1),
+  friend_id: z.number().int().positive(),
+  ...albumTaxonomyOverridesSchema.shape,
+  album_rating: z.number().optional(),
+  album_notes: z.string().optional(),
+  purchase_price: z.number().optional(),
+  condition: z.string().optional(),
+  library_identifier: z.string().max(50).nullable().optional(),
+});
+
+/** At least one editable field must be present. */
+export const requireAlbumUpdateField = [
+  (value: Omit<z.infer<typeof albumUpdateObjectSchema>, "release_id" | "friend_id">) =>
+    value.album_rating !== undefined ||
+    value.album_notes !== undefined ||
+    value.purchase_price !== undefined ||
+    value.condition !== undefined ||
+    value.library_identifier !== undefined ||
+    value.genre_override_ids !== undefined ||
+    value.style_override_ids !== undefined,
+  { message: "No fields to update" },
+] as const;
+export const albumUpdateSchema = albumUpdateObjectSchema.refine(...requireAlbumUpdateField);
+
+export const albumUpdateResponseSchema = z.object({
+  success: z.boolean(),
+  album: albumSchema,
+  tracksUpdated: z.number().int().optional(),
+});
+
 export type AlbumArtSource = z.infer<typeof albumArtSourceSchema>;
 export type AlbumArtMatchStatus = z.infer<typeof albumArtMatchStatusSchema>;
 export type AlbumTaxonomyOverrides = z.infer<typeof albumTaxonomyOverridesSchema>;
@@ -138,6 +264,23 @@ export type AlbumPlayableStructureTrack = z.infer<typeof albumPlayableStructureT
 export type AlbumPlayableStructureSide = z.infer<typeof albumPlayableStructureSideSchema>;
 export type AlbumPlayableStructure = z.infer<typeof albumPlayableStructureSchema>;
 
+export type AlbumAppleMusicArtPreview = z.infer<typeof albumAppleMusicArtPreviewSchema>;
+export type AlbumArtMatchResult = z.infer<typeof albumArtMatchResultSchema>;
+export type AlbumArtworkBackfillBody = z.infer<typeof albumArtworkBackfillBodySchema>;
+export type AlbumArtworkBackfillResponse = z.infer<typeof albumArtworkBackfillResponseSchema>;
+export type AlbumArtworkReviewQuery = z.infer<typeof albumArtworkReviewQuerySchema>;
+export type AlbumArtworkReviewItem = z.infer<typeof albumArtworkReviewItemSchema>;
+export type AlbumArtworkReviewResponse = z.infer<typeof albumArtworkReviewResponseSchema>;
+export type AlbumDiscogsRawResponse = z.infer<typeof albumDiscogsRawResponseSchema>;
+export type AlbumDownloadResult = z.infer<typeof albumDownloadResultSchema>;
+export type AlbumCreateResponse = z.infer<typeof albumCreateResponseSchema>;
+export type AlbumUpsertResponse = z.infer<typeof albumUpsertResponseSchema>;
+/** Body of `PATCH /api/albums`. */
+export type AlbumUpdateBody = z.infer<typeof albumUpdateSchema>;
+/** The editable half of `AlbumUpdateBody`, for callers that pass the ids separately. */
+export type AlbumUpdate = Omit<AlbumUpdateBody, "release_id" | "friend_id">;
+export type AlbumUpdateResponse = z.infer<typeof albumUpdateResponseSchema>;
+
 export const albumJsonSchemas = {
   AlbumArtSource: z.toJSONSchema(albumArtSourceSchema),
   AlbumArtMatchStatus: z.toJSONSchema(albumArtMatchStatusSchema),
@@ -147,4 +290,15 @@ export const albumJsonSchemas = {
   AlbumDeleteResponse: z.toJSONSchema(albumDeleteResponseSchema),
   AlbumArtworkState: z.toJSONSchema(albumArtworkStateSchema),
   AlbumPlayableStructure: z.toJSONSchema(albumPlayableStructureSchema),
+  AlbumAppleMusicArtPreview: z.toJSONSchema(albumAppleMusicArtPreviewSchema),
+  AlbumArtMatchResult: z.toJSONSchema(albumArtMatchResultSchema),
+  AlbumArtworkBackfillRequest: z.toJSONSchema(albumArtworkBackfillBodySchema, { io: "input" }),
+  AlbumArtworkBackfillResponse: z.toJSONSchema(albumArtworkBackfillResponseSchema),
+  AlbumArtworkReviewResponse: z.toJSONSchema(albumArtworkReviewResponseSchema),
+  AlbumDiscogsRawResponse: z.toJSONSchema(albumDiscogsRawResponseSchema),
+  AlbumDownloadResult: z.toJSONSchema(albumDownloadResultSchema),
+  AlbumCreateResponse: z.toJSONSchema(albumCreateResponseSchema),
+  AlbumUpsertResponse: z.toJSONSchema(albumUpsertResponseSchema),
+  AlbumUpdateRequest: z.toJSONSchema(albumUpdateSchema, { io: "input" }),
+  AlbumUpdateResponse: z.toJSONSchema(albumUpdateResponseSchema),
 };

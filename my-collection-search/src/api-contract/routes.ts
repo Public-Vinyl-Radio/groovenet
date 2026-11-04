@@ -4442,8 +4442,6 @@ const trackSearchParameters: Record<string, unknown>[] = [
 
 // ─── Album artwork (#494) ────────────────────────────────────────────────────
 
-const albumArtMatchStatusValues = ["matched", "mismatch", "no_reference", "no_candidate"];
-
 const albumArtworkPathParams = [
   { name: "releaseId", in: "path", required: true, schema: { type: "string" } },
   { name: "friend_id", in: "query", required: true, schema: { type: "integer" } },
@@ -4529,16 +4527,10 @@ const albumArtworkContracts: ApiContractRoute[] = [
     openapi: {
       parameters: albumArtworkPathParams,
       responses: {
-        "200": jsonOk("The embedded cover, cached locally, at full size", {
-          type: "object",
-          properties: {
-            url: { type: "string" },
-            width: { type: "integer" },
-            height: { type: "integer" },
-            track_id: { type: "string" },
-          },
-          required: ["url", "width", "height", "track_id"],
-        }),
+        "200": jsonOk(
+          "The embedded cover, cached locally, at full size",
+          componentRef("AlbumAppleMusicArtPreview"),
+        ),
         "400": jsonError("Missing friend_id"),
         "404": jsonError("Album not found, or no downloaded track has embedded art"),
         "500": jsonError("Server error"),
@@ -4592,25 +4584,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
       responses: {
         "200": jsonOk(
           "One album's step of the bulk matcher (called by download-worker). Covers are compared by perceptual hash; matched applies the Apple Music art, anything else is flagged for review.",
-          {
-            type: "object",
-            properties: {
-              release_id: { type: "string" },
-              friend_id: { type: "integer" },
-              status: { type: "string", enum: albumArtMatchStatusValues },
-              distance: { type: ["integer", "null"] },
-              applied: { type: "boolean" },
-              apple_music_art_url: { type: ["string", "null"] },
-            },
-            required: [
-              "release_id",
-              "friend_id",
-              "status",
-              "distance",
-              "applied",
-              "apple_music_art_url",
-            ],
-          },
+          componentRef("AlbumArtMatchResult"),
         ),
         "404": jsonError("Album not found"),
         "502": jsonError("Discogs artwork could not be downloaded"),
@@ -4632,10 +4606,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
         required: false,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: { friend_id: { type: ["integer", "null"] } },
-            },
+            schema: componentRef("AlbumArtworkBackfillRequest"),
             example: { friend_id: 1 },
           },
         },
@@ -4643,17 +4614,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
       responses: {
         "200": jsonOk(
           "One job per album with downloaded audio whose art nobody has chosen and that has not been matched before",
-          {
-            type: "object",
-            properties: {
-              queued: { type: "integer" },
-              queuedAlbums: { type: "integer" },
-              tracksImpacted: { type: "integer" },
-              jobIds: { type: "array", items: { type: "string" } },
-              errors: { type: "array", items: { type: "object", additionalProperties: true } },
-            },
-            required: ["queued", "queuedAlbums", "tracksImpacted", "jobIds", "errors"],
-          },
+          componentRef("AlbumArtworkBackfillResponse"),
         ),
         "400": jsonError("Invalid friend_id"),
         "500": jsonError("Server error"),
@@ -4680,82 +4641,16 @@ const albumArtworkContracts: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": jsonOk("Albums whose Apple Music art differs from, or had no, Discogs art", {
-          type: "object",
-          properties: {
-            albums: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  release_id: { type: "string" },
-                  friend_id: { type: "integer" },
-                  title: { type: "string" },
-                  artist: { type: "string" },
-                  current_url: { type: ["string", "null"] },
-                  discogs_art_url: { type: ["string", "null"] },
-                  apple_music_art_url: { type: ["string", "null"] },
-                  art_match_status: { type: "string", enum: albumArtMatchStatusValues },
-                  art_match_distance: { type: ["integer", "null"] },
-                },
-                required: [
-                  "release_id",
-                  "friend_id",
-                  "title",
-                  "artist",
-                  "current_url",
-                  "discogs_art_url",
-                  "apple_music_art_url",
-                  "art_match_status",
-                  "art_match_distance",
-                ],
-              },
-            },
-          },
-          required: ["albums"],
-        }),
+        "200": jsonOk(
+          "Albums whose Apple Music art differs from, or had no, Discogs art",
+          componentRef("AlbumArtworkReviewResponse"),
+        ),
         "400": jsonError("Invalid query"),
         "500": jsonError("Server error"),
       },
     },
   },
 ];
-
-const albumOverrideIdSchemaObject = {
-  type: ["array", "null"],
-  items: { type: "string", format: "uuid" },
-  maxItems: 100,
-  description:
-    "Omitted: unchanged; null: reset to latest Discogs; []: deliberately empty replacement.",
-};
-const albumTaxonomySchemaProperties = {
-  genres: {
-    type: ["array", "null"],
-    items: { type: "string" },
-    description: "Imported Discogs source genres.",
-  },
-  styles: {
-    type: ["array", "null"],
-    items: { type: "string" },
-    description: "Imported Discogs source styles.",
-  },
-  effective_genres: { type: "array", items: { type: "string" } },
-  effective_styles: { type: "array", items: { type: "string" } },
-  genre_override_ids: albumOverrideIdSchemaObject,
-  style_override_ids: albumOverrideIdSchemaObject,
-};
-const albumWithTaxonomySchemaObject = {
-  type: "object",
-  properties: {
-    release_id: { type: "string" },
-    friend_id: { type: "integer" },
-    title: { type: "string" },
-    artist: { type: "string" },
-    ...albumTaxonomySchemaProperties,
-  },
-  required: ["release_id", "friend_id", "title", "artist"],
-  additionalProperties: true,
-};
 
 export const apiContractRoutes: ApiContractRoute[] = [
   ...playerContracts,
@@ -7341,31 +7236,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": {
-          description: "Albums search result",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  hits: { type: "array", items: albumWithTaxonomySchemaObject },
-                  estimatedTotalHits: { type: "integer" },
-                  offset: { type: "integer" },
-                  limit: { type: "integer" },
-                  query: { type: "string" },
-                  sort: { type: "string" },
-                  added_genres: {
-                    type: "array",
-                    items: genreFilterRefObject,
-                    description:
-                      "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
-                  },
-                },
-                required: ["hits", "estimatedTotalHits", "offset", "limit", "query", "sort"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Albums search result", componentRef("AlbumSearchResponse")),
         "400": {
           description: "limit or offset is not a non-negative integer, or a genre is unknown",
           content: {
@@ -7407,37 +7278,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": {
-          description: "Normalized playable album structure",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  album: albumWithTaxonomySchemaObject,
-                  sides: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        side_key: { type: "string" },
-                        side_label: { type: "string" },
-                        ordinal: { type: "integer" },
-                        track_count: { type: "integer" },
-                        tracks: {
-                          type: "array",
-                          items: { type: "object", additionalProperties: true },
-                        },
-                      },
-                      required: ["side_key", "side_label", "ordinal", "track_count", "tracks"],
-                    },
-                  },
-                },
-                required: ["album", "sides"],
-              },
-            },
-          },
-        },
+        "200": jsonOk(
+          "Normalized playable album structure",
+          componentRef("AlbumPlayableStructure"),
+        ),
         "400": {
           description: "Missing or invalid query parameter",
           content: {
@@ -7485,46 +7329,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": {
-          description: "Album detail",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  album: albumWithTaxonomySchemaObject,
-                  tracks: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        track_id: { type: "string" },
-                        friend_id: { type: "integer" },
-                        title: { type: "string" },
-                        artist: { type: "string" },
-                        album: { type: "string" },
-                        year: { type: ["string", "number", "null"] },
-                        duration: { type: "string" },
-                        duration_seconds: { type: ["number", "null"] },
-                        position: { type: ["string", "number"] },
-                        release_id: { type: ["string", "null"] },
-                        library_identifier: { type: ["string", "null"] },
-                        hasVectors: {
-                          type: "boolean",
-                          description:
-                            "Has an audio_vibe embedding; absent means the server didn't report it",
-                        },
-                      },
-                      required: ["track_id", "friend_id", "title", "artist", "album"],
-                      additionalProperties: true,
-                    },
-                  },
-                },
-                required: ["album", "tracks"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Album detail", componentRef("AlbumDetail")),
         "400": {
           description: "Invalid query parameter",
           content: {
@@ -7574,18 +7379,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": {
-          description: "Album deleted",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: { success: { type: "boolean" } },
-                required: ["success"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Album deleted", componentRef("AlbumDeleteResponse")),
         "400": {
           description: "Invalid query parameter",
           content: {
@@ -7621,42 +7415,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                release_id: { type: "string" },
-                friend_id: { type: "integer" },
-                genre_override_ids: albumOverrideIdSchemaObject,
-                style_override_ids: albumOverrideIdSchemaObject,
-                album_rating: { type: "number" },
-                album_notes: { type: "string" },
-                purchase_price: { type: "number" },
-                condition: { type: "string" },
-                library_identifier: { type: ["string", "null"] },
-              },
-              required: ["release_id", "friend_id"],
-              additionalProperties: false,
-            },
+            schema: componentRef("AlbumUpdateRequest"),
           },
         },
       },
       responses: {
-        "200": {
-          description: "Album updated",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  album: albumWithTaxonomySchemaObject,
-                  tracksUpdated: { type: "integer" },
-                },
-                required: ["success", "album"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Album updated", componentRef("AlbumUpdateResponse")),
         "400": {
           description:
             "Body is not valid JSON, release_id or friend_id is missing, a field has the wrong type, library_identifier is over 50 characters, an override is malformed or unknown, or there is nothing to update",
@@ -7712,59 +7476,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       },
       responses: {
-        "200": {
-          description: "Album created",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  album: {
-                    type: "object",
-                    properties: {
-                      release_id: { type: "string" },
-                      friend_id: { type: "integer" },
-                      title: { type: "string" },
-                      artist: { type: "string" },
-                      year: { type: ["string", "number", "null"] },
-                      genres: { type: "array", items: { type: "string" } },
-                      styles: { type: "array", items: { type: "string" } },
-                      album_thumbnail: { type: ["string", "null"] },
-                      track_count: { type: "integer" },
-                      date_added: { type: "string" },
-                      date_changed: { type: "string" },
-                      library_identifier: { type: ["string", "null"] },
-                    },
-                    required: ["release_id", "friend_id", "title", "artist"],
-                    additionalProperties: true,
-                  },
-                  tracks: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        track_id: { type: "string" },
-                        friend_id: { type: "integer" },
-                        title: { type: "string" },
-                        artist: { type: "string" },
-                        album: { type: "string" },
-                        year: { type: ["string", "number", "null"] },
-                        duration: { type: "string" },
-                        duration_seconds: { type: ["number", "null"] },
-                        position: { type: ["string", "number"] },
-                        release_id: { type: ["string", "null"] },
-                        library_identifier: { type: ["string", "null"] },
-                      },
-                      required: ["track_id", "friend_id", "title", "artist", "album"],
-                      additionalProperties: true,
-                    },
-                  },
-                },
-                required: ["album", "tracks"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Album created", componentRef("AlbumCreateResponse")),
         "400": {
           description: "Invalid payload",
           content: { "application/json": { schema: errorResponseSchemaObject } },
@@ -7816,25 +7528,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       },
       responses: {
-        "200": {
-          description: "Album upserted",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  album: albumWithTaxonomySchemaObject,
-                  tracks: {
-                    type: "array",
-                    items: { type: "object", additionalProperties: true },
-                  },
-                  deletedTracks: { type: "integer" },
-                },
-                required: ["album", "tracks", "deletedTracks"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Album upserted", componentRef("AlbumUpsertResponse")),
         "400": {
           description: "Invalid payload",
           content: {
@@ -7888,24 +7582,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": {
-          description: "Discogs raw payload",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  friend_id: { type: "integer" },
-                  release_id: { type: "string" },
-                  username: { type: "string" },
-                  file_path: { type: "string" },
-                  data: { type: "object", additionalProperties: true },
-                },
-                required: ["friend_id", "release_id", "username", "file_path", "data"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Discogs raw payload", componentRef("AlbumDiscogsRawResponse")),
         "400": {
           description: "Missing required parameters",
           content: {
@@ -7953,23 +7630,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
       ],
       responses: {
-        "200": {
-          description: "Downloads queued",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
-                  jobIds: { type: "array", items: { type: "string" } },
-                  tracksQueued: { type: "integer" },
-                },
-                required: ["success", "message", "jobIds", "tracksQueued"],
-              },
-            },
-          },
-        },
+        "200": jsonOk("Downloads queued", componentRef("AlbumDownloadResult")),
         "400": {
           description: "Missing required parameters",
           content: {

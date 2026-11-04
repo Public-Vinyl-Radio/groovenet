@@ -84,6 +84,14 @@ the smaller resources did not need:
   Both consumers derive their query schemas from the shared wire shapes
   with `.extend()` and adapters from `@groovenet/contracts/coercion`. The
   client omits app-only track filters to preserve its existing parsing behavior.
+- **Album writes publish the entity but do not parse it.** `PATCH /api/albums`,
+  `create` and `upsert` return raw repository rows (timestamps are `Date`s until
+  `JSON.stringify`), so their routes keep returning the row untouched while
+  OpenAPI references `AlbumUpdateResponse`, `AlbumCreateResponse` and
+  `AlbumUpsertResponse`. The `PATCH` body keeps the route's own error strings:
+  the app extends `albumUpdateObjectSchema` with them and applies the shared
+  `requireAlbumUpdateField` refinement. `create`/`upsert` bodies are multipart,
+  so only their responses are shared.
 - **Add response validation only to flat payloads.** Routes that return a small
   fixed object (`essentia`, `playlists`, `DELETE`, extract-cover) parse their
   response with the shared schema; lenient request handling (e.g.

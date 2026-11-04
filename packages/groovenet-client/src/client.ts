@@ -49,13 +49,13 @@ import type {
   GenreProposalDecisionResult,
   GenreProposalSnapshot,
   GenreProposalTrack,
-  Album,
   AlbumSearchQuery,
   AlbumSearchResponse,
   AlbumDetail,
   AlbumPlayableStructure,
   AlbumUpdate,
   AlbumDownloadResult,
+  AlbumUpdateResponse,
   AlbumDeleteResponse,
   SpinCreateInput,
   SpinCreateResponse,
@@ -377,7 +377,7 @@ export class GroovenetClient {
     releaseId: string,
     friendId: number,
     updates: AlbumUpdate,
-  ): Promise<{ success: boolean; album: Album; tracksUpdated?: number }> {
+  ): Promise<AlbumUpdateResponse> {
     return this.request("PATCH", "/albums", {
       release_id: releaseId,
       friend_id: friendId,

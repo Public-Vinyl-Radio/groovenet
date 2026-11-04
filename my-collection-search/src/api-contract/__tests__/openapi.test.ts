@@ -290,6 +290,50 @@ describe("OpenAPI contract coverage", () => {
     }
   });
 
+  it("references shared album components for every album operation", () => {
+    type Content = { content?: { "application/json"?: { schema?: { $ref?: string } } } };
+    const ref = (c?: Content) => c?.content?.["application/json"]?.schema?.$ref;
+    const op = (path: string, method: string) =>
+      getOperation(path, method) as { requestBody?: Content; responses: Record<string, Content> };
+    const component = (name: string) => `#/components/schemas/${name}`;
+    const cases: [string, string, string | null, string][] = [
+      ["/api/albums", "get", null, "AlbumSearchResponse"],
+      ["/api/albums", "patch", "AlbumUpdateRequest", "AlbumUpdateResponse"],
+      ["/api/albums/{releaseId}", "get", null, "AlbumDetail"],
+      ["/api/albums/{releaseId}", "delete", null, "AlbumDeleteResponse"],
+      ["/api/albums/{releaseId}/artwork/match", "post", null, "AlbumArtMatchResult"],
+      ["/api/albums/{releaseId}/artwork/preview", "post", null, "AlbumAppleMusicArtPreview"],
+      ["/api/albums/{releaseId}/discogs-raw", "get", null, "AlbumDiscogsRawResponse"],
+      ["/api/albums/{releaseId}/download", "post", null, "AlbumDownloadResult"],
+      ["/api/albums/{releaseId}/playable-structure", "get", null, "AlbumPlayableStructure"],
+      [
+        "/api/albums/artwork/backfill",
+        "post",
+        "AlbumArtworkBackfillRequest",
+        "AlbumArtworkBackfillResponse",
+      ],
+      ["/api/albums/artwork/review", "get", null, "AlbumArtworkReviewResponse"],
+      ["/api/albums/create", "post", null, "AlbumCreateResponse"],
+      ["/api/albums/upsert", "post", null, "AlbumUpsertResponse"],
+    ];
+    for (const [path, method, request, response] of cases) {
+      const operation = op(path, method);
+      if (request) expect(ref(operation.requestBody)).toBe(component(request));
+      expect(ref(operation.responses["200"])).toBe(component(response));
+    }
+
+    const schemas = getOpenApiDocument().components.schemas as Record<
+      string,
+      { required?: string[]; additionalProperties?: unknown; properties?: Record<string, unknown> }
+    >;
+    // The route strips unknown fields rather than rejecting them.
+    expect(schemas.AlbumUpdateRequest.additionalProperties).toBeUndefined();
+    expect(schemas.AlbumUpdateRequest.required).toEqual(["release_id", "friend_id"]);
+    expect(schemas.AlbumArtMatchResult.properties?.status).toMatchObject({
+      enum: ["matched", "mismatch", "no_reference", "no_candidate"],
+    });
+  });
+
   it("references shared record-care components and documents their enums", () => {
     const doc = getOpenApiDocument();
     const schemas = doc.components.schemas as Record<
