@@ -193,6 +193,13 @@ describe("chakra theme", () => {
       expect(variants.ghost.boxShadow).toBe("none");
     });
 
+    it("labels every button variant in the mono label face", () => {
+      const variants = (system._config.theme?.recipes?.button as any).variants.variant;
+      for (const name of ["solid", "outline", "ghost"]) {
+        expect(variants[name]).toMatchObject({ fontFamily: "label", fontWeight: "semibold" });
+      }
+    });
+
     it("makes every badge an uppercase label-face tag", () => {
       const base = (system._config.theme?.recipes?.badge as any).base;
       expect(base).toMatchObject({ fontFamily: "label", textTransform: "uppercase" });
@@ -239,6 +246,21 @@ describe("chakra theme", () => {
       expect(solid.thumb.bg).toBe("transparent");
       expect(solid.thumb._checked).toMatchObject({ bg: "accent.contrast" });
       expect(solid.thumb._checked._after.content).toBe('""');
+    });
+
+    it("draws a checkbox as a 2px ink box that follows the palette in every state", () => {
+      const { control } = (system._config.theme?.slotRecipes as any).checkbox.variants.variant
+        .solid;
+      expect(control).toMatchObject({
+        borderWidth: "outline",
+        borderColor: "border.ink",
+        focusVisibleRing: "outside",
+        _checked: { bg: "accent.solid", color: "accent.contrast" },
+      });
+      // Disabled is a hatch at full opacity, so it never reads as unchecked.
+      expect(control._disabled).toMatchObject({ opacity: "1", borderColor: "fg.muted" });
+      expect(control._disabled.bgImage).toContain("repeating-linear-gradient");
+      expect(control._checked._disabled.bgImage).toBe(control._disabled.bgImage);
     });
 
     it("declares a global focus ring offset from the border", () => {

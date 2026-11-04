@@ -136,6 +136,8 @@ export default function PlaylistSelectionDialog({
                   <Button
                     key={playlist.id}
                     variant="ghost"
+                    // The label is the playlist's name, which is data.
+                    fontFamily="body"
                     disabled={isSubmitting}
                     onClick={() => handlePlaylistClick(playlist)}
                     justifyContent="flex-start"

@@ -7,6 +7,7 @@ import { monoFallback, sansFallback } from "./fontChoices";
 import { defineRecipe, defineSlotRecipe, type SystemStyleObject } from "@chakra-ui/react";
 import {
   cardAnatomy,
+  checkboxAnatomy,
   comboboxAnatomy,
   dialogAnatomy,
   drawerAnatomy,
@@ -106,8 +107,9 @@ const motionSafe = "@media (prefers-reduced-motion: no-preference)";
 // motion; the darker fill still marks the press.
 const buttonShift = "2px";
 
-// Solid and outline buttons are labelled in the mono face; ghost buttons often
-// hold content (a playlist's name), so they keep the body face.
+// Every button variant is labelled in the mono face: the line is action versus
+// content, not variant (#687). A button whose text is data (a playlist's name)
+// opts out at the call site with `fontFamily="body"`.
 const buttonLabel: SystemStyleObject = {
   fontFamily: "label",
   fontWeight: "semibold",
@@ -360,7 +362,7 @@ export const recipes = {
       variant: {
         solid: { ...buttonLabel, ...solidButton },
         outline: { ...buttonLabel, borderColor: "colorPalette.border", boxShadow: "none" },
-        ghost: { boxShadow: "none" },
+        ghost: { ...buttonLabel, boxShadow: "none" },
       },
     },
   }),
@@ -506,6 +508,39 @@ export const slotRecipes = {
             },
           },
           indicator: { display: "none" },
+        },
+      },
+    },
+  }),
+  // The stock box has a 1px zinc border (about 1.5:1 on the page) and a fixed
+  // zinc fill, so it ignored the palette and an unchecked box almost vanished
+  // (#687). Same states as the switch: off is an empty 2px ink box, on an
+  // accent fill with a check, focus the offset ring, disabled a muted outline
+  // over the hatch at full opacity so it never reads as an unchecked box.
+  checkbox: defineSlotRecipe({
+    slots: checkboxAnatomy.keys(),
+    variants: {
+      variant: {
+        solid: {
+          control: {
+            borderWidth: "outline",
+            borderColor: "border.ink",
+            borderRadius: "sm",
+            bg: "bg.panel",
+            color: "accent.contrast",
+            focusVisibleRing: "outside",
+            _checked: {
+              bg: "accent.solid",
+              borderColor: "border.ink",
+              color: "accent.contrast",
+              _disabled: { bg: "bg.panel", color: "fg.muted", bgImage: disabledHatch },
+            },
+            _disabled: {
+              opacity: "1",
+              borderColor: "fg.muted",
+              bgImage: disabledHatch,
+            },
+          },
         },
       },
     },
