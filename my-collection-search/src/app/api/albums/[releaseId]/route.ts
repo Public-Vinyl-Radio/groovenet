@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { albumDetailResponseSchema } from "@/api-contract/schemas";
+import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { albumRepository } from "@/server/repositories/albumRepository";
 import { withDbTransaction } from "@/lib/serverDb";
@@ -30,7 +32,12 @@ export async function GET(
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
-    return NextResponse.json(detail);
+    return NextResponse.json(
+      albumDetailResponseSchema.parse({
+        album: toWireRow(detail.album),
+        tracks: detail.tracks.map(toWireRow),
+      }),
+    );
   } catch (error) {
     console.error("[Album Detail API] Error:", error);
     return NextResponse.json(

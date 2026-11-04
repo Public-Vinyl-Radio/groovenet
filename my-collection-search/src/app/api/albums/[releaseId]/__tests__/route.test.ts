@@ -57,13 +57,27 @@ beforeEach(() => {
 
 describe("GET /api/albums/[releaseId]", () => {
   it("returns the album detail", async () => {
-    mockGetAlbumDetail.mockResolvedValue({ album: { release_id: "r1" }, tracks: [] });
+    const album = { release_id: "r1", friend_id: 7, title: "T", artist: "A" };
+    mockGetAlbumDetail.mockResolvedValue({ album, tracks: [] });
 
     const res = await GET(getReq("r1", "7"), params());
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ album: { release_id: "r1" }, tracks: [] });
+    expect(await res.json()).toEqual({ album, tracks: [] });
     expect(mockGetAlbumDetail).toHaveBeenCalledWith("r1", 7);
+  });
+
+  it("serialises Date columns and 500s on a row that breaks the contract", async () => {
+    const album = { release_id: "r1", friend_id: 7, title: "T", artist: "A" };
+    mockGetAlbumDetail.mockResolvedValueOnce({
+      album: { ...album, created_at: new Date("2024-03-04T05:06:07Z") },
+      tracks: [],
+    });
+    const ok = await (await GET(getReq("r1", "7"), params())).json();
+    expect(ok.album.created_at).toBe("2024-03-04T05:06:07.000Z");
+
+    mockGetAlbumDetail.mockResolvedValueOnce({ album: { release_id: "r1" }, tracks: [] });
+    expect((await GET(getReq("r1", "7"), params())).status).toBe(500);
   });
 
   it("400s without friend_id", async () => {

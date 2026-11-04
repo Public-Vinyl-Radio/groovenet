@@ -2,6 +2,8 @@
 // Supports sorting by created_at, date_added, year, title, album_rating
 // Example: /api/albums?q=jazz&sort=created_at:desc&friend_id=1&limit=20&offset=0&genre=latin
 import { NextRequest, NextResponse } from "next/server";
+import { albumSearchResponseSchema } from "@/api-contract/schemas";
+import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { withDbTransaction } from "@/lib/serverDb";
 import { albumRepository } from "@/server/repositories/albumRepository";
@@ -68,7 +70,11 @@ export async function GET(request: NextRequest) {
     });
     const addedGenres = genreResolution.added ?? [];
     return NextResponse.json(
-      addedGenres.length > 0 ? { ...response, added_genres: addedGenres } : response,
+      albumSearchResponseSchema.parse({
+        ...response,
+        hits: response.hits.map(toWireRow),
+        ...(addedGenres.length > 0 ? { added_genres: addedGenres } : {}),
+      }),
     );
   } catch (error) {
     console.error("Error searching albums:", error);

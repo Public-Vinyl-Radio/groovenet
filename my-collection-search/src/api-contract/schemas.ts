@@ -662,13 +662,7 @@ export const albumPlayableStructureResponseSchema = albumPlayableStructureSchema
 export const trackAudioMetadataResponseSchema = trackAudioMetadataSchema;
 export const trackEssentiaResponseSchema = trackEssentiaSchema;
 export const trackPlaylistCountsBodySchema = trackPlaylistCountsRequestSchema;
-/**
- * Runtime validation keeps `hits` opaque: search rows are raw SQL results the
- * contract documents (see `Track`) but the route has never rejected.
- */
-export const trackSearchGetResponseSchema = trackSearchResponseSchema.extend({
-  hits: z.array(z.unknown()),
-});
+export const trackSearchGetResponseSchema = trackSearchResponseSchema;
 
 /** A genre a widened filter added (#485): the removable "+ Chicha, Porro" chip. */
 export type GenreFilterRefDto = GenreFilterRef;

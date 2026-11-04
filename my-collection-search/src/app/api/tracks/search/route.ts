@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbQuery } from "@/lib/serverDb";
+import { toWireRow } from "@/lib/wireRow";
 import { trackSearchGetResponseSchema, type TrackSearchMode } from "@/api-contract/schemas";
 import { parseTrackFilterSpec, type TrackAttributeFilters } from "@/lib/trackFilterSpec";
 import {
@@ -271,7 +272,7 @@ export async function GET(request: NextRequest) {
         whereParams: parsedFilter.params,
       });
       const validated = trackSearchGetResponseSchema.parse({
-        hits: result.hits,
+        hits: result.hits.map(toWireRow),
         // One page: the total is what came back, so clients don't ask for more.
         estimatedTotalHits: result.hits.length,
         offset: 0,
@@ -293,6 +294,7 @@ export async function GET(request: NextRequest) {
     });
     const validated = trackSearchGetResponseSchema.parse({
       ...response,
+      hits: response.hits.map(toWireRow),
       ...(mode === "lexical" ? {} : { mode: "lexical" }),
       ...(addedGenres.length > 0 ? { added_genres: addedGenres } : {}),
     });

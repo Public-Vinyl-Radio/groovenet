@@ -105,11 +105,24 @@ describe("GET /api/tracks/[id]", () => {
   });
 
   it("returns 200 with the track on success", async () => {
-    const track = { track_id: "t1", friend_id: 1, title: "Song" };
+    const track = { track_id: "t1", friend_id: 1, title: "Song", artist: "A", album: null };
     mockFindWithFallback.mockResolvedValueOnce(track);
     const res = await GET(makeReq("?friend_id=1"), makeParams());
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(track);
+  });
+
+  it("serialises Date columns and 500s on a row that breaks the contract", async () => {
+    const track = { track_id: "t1", friend_id: 1, title: "Song", artist: "A", album: null };
+    mockFindWithFallback.mockResolvedValueOnce({
+      ...track,
+      deleted_at: new Date("2024-03-04T05:06:07Z"),
+    });
+    const ok = await (await GET(makeReq("?friend_id=1"), makeParams())).json();
+    expect(ok.deleted_at).toBe("2024-03-04T05:06:07.000Z");
+
+    mockFindWithFallback.mockResolvedValueOnce({ track_id: "t1" });
+    expect((await GET(makeReq("?friend_id=1"), makeParams())).status).toBe(500);
   });
 
   it("returns 500 when the repository throws", async () => {
