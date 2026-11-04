@@ -6,11 +6,12 @@ COPY packages/groovenet-client/package.json packages/groovenet-client/
 COPY packages/groovenet-player/package.json packages/groovenet-player/
 COPY packages/groovenet-cli/package.json packages/groovenet-cli/
 COPY mcp-server/package.json mcp-server/
-RUN npm install -g "npm@$(node -p "require('./package.json').engines.npm")" && npm ci --ignore-scripts
+RUN npm install -g "npm@$(node -p "require('./package.json').engines.npm")" && npm ci --ignore-scripts --omit=optional
 COPY packages/groovenet-contracts packages/groovenet-contracts
 COPY packages/groovenet-client packages/groovenet-client
 COPY packages/groovenet-player packages/groovenet-player
-RUN npm run build --workspace @groovenet/contracts && npm run build --workspace @groovenet/client && npm run build --workspace @groovenet/player
+# The desktop MPRIS bridge needs dbus-next; compile only the server's import graph.
+RUN npm run build --workspace @groovenet/contracts && npm run build --workspace @groovenet/client && npm run build --workspace @groovenet/player -- --project server/tsconfig.json
 
 FROM node:26-bookworm-slim
 WORKDIR /repo
