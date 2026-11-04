@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+const playerMocks = vi.hoisted(() => ({ replacePlaylist: vi.fn(), appendToQueue: vi.fn() }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({ usePlaybackPlayer: () => playerMocks }));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";

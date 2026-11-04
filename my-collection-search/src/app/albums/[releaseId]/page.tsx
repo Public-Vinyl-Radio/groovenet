@@ -1,12 +1,8 @@
 "use client";
 
-import RetroDialog from "@/components/ui/RetroDialog";
-
 import React, { Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Box, Button, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
-import { MetaTag } from "@/components/ui/RoleTags";
+import { Box, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
 
 import { useAlbumDetailQuery, useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
 import { useAlbum, useAlbumHydrated } from "@/hooks/useAlbum";
@@ -19,18 +15,13 @@ import AlbumTracklist from "@/components/album-detail/AlbumTracklist";
 import AlbumSpinPanel from "@/components/spins/AlbumSpinPanel";
 import SpinFormDialog from "@/components/spins/SpinFormDialog";
 import AlbumRecordCarePanel from "@/components/records/AlbumRecordCarePanel";
-import RecordActionDialog from "@/components/records/RecordActionDialog";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
-import AlbumActionsMenu from "@/components/AlbumActionsMenu";
-import AlbumArtworkDialog from "@/components/AlbumArtworkDialog";
-import DeleteAlbumDialog from "@/components/DeleteAlbumDialog";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
-import { toaster } from "@/components/ui/toaster";
 import PageContainer from "@/components/layout/PageContainer";
 import { compareTrackPositions } from "@/lib/albumTrackPosition";
 import { summarizeSides, summarizeSpinStats } from "@/lib/albumStats";
-import { fetchAlbumDiscogsRawRelease, queueAlbumDownloads } from "@/services/internalApi/albums";
-import { useEnrichmentStore } from "@/stores/enrichmentStore";
+import { useAlbumActions } from "@/hooks/useAlbumActions";
+import type { Album } from "@/types/track";
 
 function AlbumDetailContent() {
   const params = useParams();
@@ -45,28 +36,27 @@ function AlbumDetailContent() {
   const albumHydrated = useAlbumHydrated(releaseId, friendId);
   const tracksHydrated = useTracksByReleaseHydrated(releaseId, friendId);
   const tracksFromStore = useTracksByRelease(releaseId, friendId);
-  const discogsRawQuery = useQuery({
-    queryKey: ["album-discogs-raw", releaseId, friendId],
-    queryFn: () => fetchAlbumDiscogsRawRelease(releaseId, friendId),
-    enabled: !!releaseId && !!friendId,
-  });
   const updateMutation = useUpdateAlbumMutation();
   const { replacePlaylist } = usePlaybackPlayer();
-  const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
 
   const [rating, setRating] = React.useState(0);
-  const [isDownloading, setIsDownloading] = React.useState(false);
-  const [discogsRawModalOpen, setDiscogsRawModalOpen] = React.useState(false);
-  const [logCareOpen, setLogCareOpen] = React.useState(false);
-  const [artworkOpen, setArtworkOpen] = React.useState(false);
-  const [deleteOpen, setDeleteOpen] = React.useState(false);
 
-  const subtleText = "fg.muted";
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
   const [logSpinOpen, setLogSpinOpen] = React.useState(false);
   const { openForTracks, playlistDialog, nameDialog } = useAddToPlaylistDialog();
   const spinsQuery = useAlbumSpins(releaseId, friendId);
-  const album = albumFromStore;
+  const album = React.useMemo(
+    () =>
+      albumFromStore ??
+      ({
+        release_id: releaseId,
+        friend_id: friendId,
+        title: "",
+        artist: "",
+        track_count: 0,
+      } as Album),
+    [albumFromStore, friendId, releaseId],
+  );
   const tracks = React.useMemo(() => {
     return [...tracksFromStore].sort((a, b) => compareTrackPositions(a.position, b.position));
   }, [tracksFromStore]);
@@ -83,7 +73,6 @@ function AlbumDetailContent() {
   }, [album]);
 
   const handleRate = (value: number) => {
-    if (!album) return;
     setRating(value);
     updateMutation.mutate({
       release_id: album.release_id,
@@ -92,77 +81,25 @@ function AlbumDetailContent() {
     });
   };
 
-  const handleEnqueueAlbum = () => {
-    if (tracks.length === 0 || !album) {
-      toaster.create({
-        title: "No Tracks",
-        description: "This album has no tracks to play",
-        type: "warning",
-      });
-      return;
-    }
+  const albumArtwork =
+    album.audio_file_album_art_url ||
+    tracks.find((t) => t.audio_file_album_art_url)?.audio_file_album_art_url ||
+    album.album_thumbnail;
 
-    replacePlaylist(tracks, {
-      autoplay: true,
-      startIndex: 0,
-    });
-
-    toaster.create({
-      title: "Album Enqueued",
-      description: `Playing ${album.title} by ${album.artist}`,
-      type: "success",
-    });
-  };
-
-  const handleEnrichAlbum = () => {
-    if (tracks.length === 0) {
-      toaster.create({
-        title: "No tracks to enrich",
-        description: "This album has no tracks.",
-        type: "info",
-      });
-      return;
-    }
-    setEnrichmentQueue(
-      tracks.map((track) => ({
-        trackId: track.track_id,
-        friendId: track.friend_id,
-      })),
-    );
-    router.push("/enrich");
-  };
-
-  const handleDownloadAlbum = async () => {
-    if (!album) return;
-
-    setIsDownloading(true);
-    try {
-      const result = await queueAlbumDownloads(releaseId, friendId);
-
-      if (result.tracksQueued === 0) {
-        toaster.create({
-          title: "No Downloads Needed",
-          description: "All tracks already have audio files or no URLs available",
-          type: "info",
-        });
-      } else {
-        toaster.create({
-          title: "Downloads Queued",
-          description: `${result.tracksQueued} track${result.tracksQueued === 1 ? "" : "s"} queued for download`,
-          type: "success",
-        });
-      }
-    } catch (error) {
-      console.error("Error downloading album:", error);
-      toaster.create({
-        title: "Download Failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        type: "error",
-      });
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  const albumActions = useAlbumActions({
+    album,
+    tracks,
+    tracksLoaded: true,
+    prominent: isMobile,
+    coverUrl: albumArtwork ?? undefined,
+    catalogue: ["Album", album.library_identifier].filter(Boolean).join(" · "),
+    subtitle: [album.artist, album.label, album.year && album.year !== "0" ? album.year : null]
+      .filter(Boolean)
+      .join(" · "),
+    editAlbumHref: `/albums/${releaseId}/edit?friend_id=${friendId}`,
+    onDeleted: () => router.push("/albums"),
+  });
+  const menu = albumActions.menu;
 
   if (!friendId) {
     return (
@@ -182,7 +119,7 @@ function AlbumDetailContent() {
     );
   }
 
-  if (error || !album) {
+  if (error || !albumFromStore) {
     return (
       <PageContainer py={8}>
         <Text color="fg.error">
@@ -191,34 +128,6 @@ function AlbumDetailContent() {
       </PageContainer>
     );
   }
-
-  const albumArtwork =
-    album.audio_file_album_art_url ||
-    tracks.find((t) => t.audio_file_album_art_url)?.audio_file_album_art_url ||
-    album.album_thumbnail;
-
-  const menu = (
-    <AlbumActionsMenu
-      prominent={isMobile}
-      albumTitle={album.title}
-      albumArtist={album.artist}
-      coverUrl={albumArtwork ?? undefined}
-      catalogue={["Album", album.library_identifier].filter(Boolean).join(" · ")}
-      subtitle={[album.artist, album.label, album.year && album.year !== "0" ? album.year : null]
-        .filter(Boolean)
-        .join(" · ")}
-      onPlayAlbum={tracks.length > 0 ? handleEnqueueAlbum : undefined}
-      onDownloadMissing={tracks.length > 0 ? handleDownloadAlbum : undefined}
-      isDownloading={isDownloading}
-      onEnrichAlbum={tracks.length > 0 ? handleEnrichAlbum : undefined}
-      onLogCare={() => setLogCareOpen(true)}
-      onChangeArtwork={() => setArtworkOpen(true)}
-      discogsUrl={album.discogs_url}
-      onViewRawDiscogs={() => setDiscogsRawModalOpen(true)}
-      editAlbumHref={`/albums/${releaseId}/edit?friend_id=${friendId}`}
-      onDeleteAlbum={() => setDeleteOpen(true)}
-    />
-  );
 
   return (
     <PageContainer mb="100px">
@@ -244,10 +153,10 @@ function AlbumDetailContent() {
           artworkSrc={albumArtwork}
           rating={rating}
           onRate={handleRate}
-          onPlay={handleEnqueueAlbum}
+          onPlay={albumActions.menuProps.onPlayAlbum}
           onAddToPlaylist={() => openForTracks(tracks, album.title)}
           onLogSpin={() => setLogSpinOpen(true)}
-          onChangeArtwork={() => setArtworkOpen(true)}
+          onChangeArtwork={() => albumActions.menuProps.onChangeArtwork?.()}
           menu={isMobile ? undefined : menu}
           isMobile={isMobile}
         />
@@ -284,78 +193,7 @@ function AlbumDetailContent() {
       />
       {playlistDialog}
       {nameDialog}
-      <RecordActionDialog
-        open={logCareOpen}
-        onOpenChange={setLogCareOpen}
-        releaseId={releaseId}
-        friendId={friendId}
-        albumTitle={album.title}
-      />
-      <AlbumArtworkDialog
-        open={artworkOpen}
-        onOpenChange={setArtworkOpen}
-        releaseId={releaseId}
-        friendId={friendId}
-        albumTitle={album.title}
-      />
-      <DeleteAlbumDialog
-        open={deleteOpen}
-        releaseId={releaseId}
-        friendId={friendId}
-        albumTitle={album.title}
-        onClose={() => setDeleteOpen(false)}
-        onDeleted={() => router.push("/albums")}
-        notify={(opts) =>
-          toaster.create({ title: opts.title, type: opts.type as "success" | "error" })
-        }
-      />
-
-      <RetroDialog
-        open={discogsRawModalOpen}
-        onOpenChange={setDiscogsRawModalOpen}
-        title="Discogs Raw Release File"
-        maxW="980px"
-
-        footer={
-          <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
-            <Button minH="44px" variant="outline" onClick={() => setDiscogsRawModalOpen(false)}>
-              Close
-            </Button>
-          </Flex>
-        }
-      >
-        <Box p={4} minW={0}>
-          {discogsRawQuery.isLoading ? (
-            <Spinner size="sm" />
-          ) : discogsRawQuery.error ? (
-            <Text color={subtleText}>
-              {discogsRawQuery.error instanceof Error
-                ? discogsRawQuery.error.message
-                : "No Discogs raw file found"}
-            </Text>
-          ) : discogsRawQuery.data ? (
-            <Box>
-              <MetaTag variant="raw" mb={3}>
-                {discogsRawQuery.data.file_path}
-              </MetaTag>
-              <Box
-                as="pre"
-                p={3}
-                borderRadius="md"
-                borderWidth="1px"
-                overflow="auto"
-                maxH="65vh"
-                fontSize="xs"
-                whiteSpace="pre-wrap"
-              >
-                {JSON.stringify(discogsRawQuery.data.data, null, 2)}
-              </Box>
-            </Box>
-          ) : (
-            <Text color={subtleText}>No Discogs raw file available.</Text>
-          )}
-        </Box>
-      </RetroDialog>
+      {albumActions.dialogs}
     </PageContainer>
   );
 }

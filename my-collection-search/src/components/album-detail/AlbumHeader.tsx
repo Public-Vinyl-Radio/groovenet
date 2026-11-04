@@ -30,7 +30,7 @@ type Props = {
   artworkSrc?: string | null;
   rating: number;
   onRate: (value: number) => void;
-  onPlay: () => void;
+  onPlay?: () => void;
   onAddToPlaylist: () => void;
   onLogSpin: () => void;
   onChangeArtwork: () => void;
@@ -326,7 +326,7 @@ export default function AlbumHeader({
 
               {!isMobile && (
                 <Flex gap="10px" mt="10px" flexWrap="wrap" data-testid="album-actions-card">
-                  <PlayButton onPlay={onPlay} disabled={noTracks} />
+                  {onPlay && <PlayButton onPlay={onPlay} disabled={noTracks} />}
                   <Button variant="outline" onClick={onAddToPlaylist} disabled={noTracks}>
                     <FiPlus /> Add to playlist
                   </Button>
@@ -343,7 +343,7 @@ export default function AlbumHeader({
             <>
               {badges}
               <Flex direction="column" gap="10px" data-testid="album-actions-below">
-                <PlayButton onPlay={onPlay} disabled={noTracks} minH="44px" />
+                {onPlay && <PlayButton onPlay={onPlay} disabled={noTracks} minH="44px" />}
                 <Flex gap="10px">
                   <Button
                     variant="outline"

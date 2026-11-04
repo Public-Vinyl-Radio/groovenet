@@ -18,11 +18,16 @@ describe("AlbumActionsMenu delete action (#511)", () => {
   // Selecting through Ark is timing-sensitive in jsdom (see ArtworkMenuItems.test),
   // so the dropdown is only checked for the item.
   it("lists the delete item in the desktop menu", async () => {
-    const { user } = renderWithProviders(<AlbumActionsMenu onDeleteAlbum={vi.fn()} />);
+    const { user } = renderWithProviders(
+      <AlbumActionsMenu onAddToQueue={vi.fn()} onDeleteAlbum={vi.fn()} />,
+    );
     // jsdom renders both layouts; the second trigger is the desktop dropdown.
     await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[1]);
     expect(
       await screen.findByRole("menuitem", { name: /Delete Album/, hidden: true }),
+    ).toBeTruthy();
+    expect(
+      await screen.findByRole("menuitem", { name: /Add to queue/, hidden: true }),
     ).toBeTruthy();
   });
 });
@@ -44,6 +49,7 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
         subtitle="Babasonicos · Sony · 2024"
         coverUrl="/c.jpg"
         onPlayAlbum={vi.fn()}
+        onAddToQueue={vi.fn()}
         onLogCare={vi.fn()}
         editAlbumHref="/albums/1/edit"
         onEnrichAlbum={vi.fn()}
@@ -63,6 +69,7 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
     );
     for (const label of [
       "Play",
+      "Add to queue",
       "Log care",
       "Library",
       "Discogs",
@@ -93,6 +100,7 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
 
   it.each([
     ["Play", { onPlayAlbum: vi.fn() }],
+    ["Add to queue", { onAddToQueue: vi.fn() }],
     ["Log care", { onLogCare: vi.fn() }],
     ["Enrich album", { onEnrichAlbum: vi.fn() }],
     ["Cover art", { onChangeArtwork: vi.fn() }],
