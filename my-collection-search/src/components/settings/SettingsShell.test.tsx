@@ -9,13 +9,19 @@ const { stub } = vi.hoisted(() => ({
   stub: (name: string) => ({ default: () => name }),
 }));
 vi.mock("./AboutSection", () => stub("about section"));
-vi.mock("./AiPromptSettingsSection", () => stub("ai prompt section"));
+vi.mock("./AiPromptSettingsSection", () => ({
+  default: () => "ai prompt section",
+  AI_METADATA_INTRO: "The prompt for track metadata.",
+}));
 vi.mock("./AppearanceSettingsSection", () => stub("appearance section"));
 vi.mock("./BackupPolicySettingsSection", () => stub("backup policy"));
 vi.mock("./BackupStatusSection", () => stub("backup status"));
 vi.mock("./DatabaseBackups", () => stub("backups"));
 vi.mock("./DatabaseRestore", () => stub("restore"));
-vi.mock("./GamdlSettingsSection", () => stub("gamdl section"));
+vi.mock("./AppleMusicSettingsSection", () => ({
+  default: () => "apple music section",
+  APPLE_MUSIC_INTRO: "Downloads from Apple Music.",
+}));
 vi.mock("./LibrariesSettingsSection", () => ({
   default: () => "libraries section",
   AddLibraryButton: () => <button type="button">Add library (desktop)</button>,
@@ -74,7 +80,7 @@ describe("SettingsShell on desktop", () => {
     expect(screen.getByRole("region", { hidden: true }).getAttribute("aria-labelledby")).toBe(
       heading.id,
     );
-    expect(screen.getByText("gamdl section")).toBeTruthy();
+    expect(screen.getByText("apple music section")).toBeTruthy();
   });
 
   it("opens Appearance beside the rail on /settings", () => {

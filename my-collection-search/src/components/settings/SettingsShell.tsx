@@ -7,9 +7,9 @@ import { FiChevronLeft } from "react-icons/fi";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import AboutSection from "./AboutSection";
-import AiPromptSettingsSection from "./AiPromptSettingsSection";
+import AiPromptSettingsSection, { AI_METADATA_INTRO } from "./AiPromptSettingsSection";
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
-import GamdlSettingsSection from "./GamdlSettingsSection";
+import AppleMusicSettingsSection, { APPLE_MUSIC_INTRO } from "./AppleMusicSettingsSection";
 import LibrariesSettingsSection, {
   AddLibraryButton,
   AddLibraryHeaderButton,
@@ -25,12 +25,10 @@ import {
   type SettingsSectionId,
 } from "./settingsSections";
 
-// The sections are moved in as they were; #969 (Libraries), #970 (Appearance)
-// and #971 (Apple Music, AI metadata, About) restyle them.
 const SECTION_CONTENT: Record<SettingsSectionId, () => React.ReactNode> = {
   appearance: () => <AppearanceSettingsSection />,
   libraries: () => <LibrariesSettingsSection />,
-  "apple-music": () => <GamdlSettingsSection />,
+  "apple-music": () => <AppleMusicSettingsSection />,
   "ai-metadata": () => <AiPromptSettingsSection />,
   about: () => <AboutSection />,
 };
@@ -52,6 +50,8 @@ const SECTION_FRAMES: Partial<Record<SettingsSectionId, SectionFrame>> = {
     phoneAction: <AddLibraryHeaderButton />,
     Provider: AddLibraryProvider,
   },
+  "apple-music": { intro: APPLE_MUSIC_INTRO },
+  "ai-metadata": { intro: AI_METADATA_INTRO },
 };
 
 function SettingsIndexList() {

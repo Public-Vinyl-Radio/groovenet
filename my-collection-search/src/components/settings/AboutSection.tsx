@@ -1,117 +1,106 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Heading, Link, Text } from "@chakra-ui/react";
-import { StatusTag } from "@/components/ui/RoleTags";
-import Image from "next/image";
+import NextLink from "next/link";
+import { Box, Flex, Link, Text } from "@chakra-ui/react";
+import { FiExternalLink } from "react-icons/fi";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
+import { useColorMode } from "@/components/ui/color-mode";
+import { useUpdateInfo, useVersionInfo } from "@/hooks/useSystemInfo";
 
-import { useUpdateInfo } from "@/hooks/useSystemInfo";
-
-const REPO_URL = "https://github.com/Public-Vinyl-Radio/groovenet";
-
-const TECH_STACK = [
-  "Next.js 16 · React 19 · TypeScript",
-  "Chakra UI v3 · TanStack Query v5",
-  "PostgreSQL (pgvector) + full-text search",
-  "Essentia audio analysis (FastAPI)",
-  "Genetic-algorithm playlist service (FastAPI)",
-  "Redis-backed download worker (gamdl)",
+const SITE_URL = "https://groovenet.publicvinylradio.com";
+const LINKS = [
+  { label: "Website", href: SITE_URL },
+  { label: "Documentation", href: `${SITE_URL}/docs/` },
+  { label: "Source code", href: "https://github.com/Public-Vinyl-Radio/groovenet" },
 ];
 
+export const ABOUT_TAGLINE = "Vinyl collection management for DJs.";
+
+const linkRow = {
+  align: "center",
+  justify: "space-between",
+  gap: 3,
+  py: 3.5,
+  fontSize: "md",
+  fontWeight: "semibold",
+  color: "fg",
+  _hover: { bg: "bg.subtle", textDecoration: "none" },
+} as const;
+
+/** Settings → About GrooveNet (#971): the wordmark, version and where to find more. */
 export default function AboutSection(): React.JSX.Element {
+  const { colorMode } = useColorMode();
+  const { data: version } = useVersionInfo();
   const { data: update } = useUpdateInfo();
 
+  const updateChip = update?.updateAvailable ? (
+    <StatusTag tone="success">
+      Update available · {update.current} → {update.latest}
+    </StatusTag>
+  ) : update && !update.error ? (
+    <StatusTag tone="neutral">Up to date</StatusTag>
+  ) : null;
+
   return (
-    <Box>
-      {/* Header: logo + name + tagline */}
-      <Flex align="center" gap={4} mb={5}>
-        <Image
-          src="/groovenet-logo.png"
-          alt="GrooveNet logo"
-          width={56}
-          height={56}
-          style={{ borderRadius: 12 }}
+    <Flex direction="column" gap={6}>
+      <Box>
+        {/* The white wordmark is for dark palettes, the black one for light. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/groovenet-wordmark-${colorMode === "dark" ? "white" : "black"}.png`}
+          alt="GrooveNet"
+          width={240}
+          height={45}
+          style={{ maxWidth: "100%", height: "auto" }}
         />
-        <Box>
-          <Heading size="lg" lineHeight={1.1}>
-            GrooveNet
-          </Heading>
-          <Text color="fg.muted" fontSize="sm">
-            Vinyl collection management for DJs
-          </Text>
-        </Box>
-      </Flex>
-
-      {/* Description (from CLAUDE.md) */}
-      <Text color="fg.muted" mb={6} maxW="60ch">
-        A multi-service vinyl collection manager that combines a Next.js web app with Python
-        microservices for audio analysis, downloads, and AI-powered playlist generation. Built for
-        DJs to manage their Discogs collections with rich metadata from Apple Music, Spotify,
-        YouTube, and audio analysis.
-      </Text>
-
-      {/* Update banner */}
-      {update?.updateAvailable ? (
-        <Box borderWidth={1} borderColor="border.success" borderRadius="lg" p={4} mb={6}>
-          <Flex
-            align={{ base: "flex-start", md: "center" }}
-            justify="space-between"
-            gap={3}
-            flexWrap="wrap"
-          >
-            <Flex align="center" gap={3}>
-              <StatusTag tone="success">Update available</StatusTag>
-              <Text fontWeight="semibold" fontSize="sm">
-                {update.current} → {update.latest}
-              </Text>
-            </Flex>
-            {update.releaseUrl ? (
-              <Link
-                href={update.releaseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                colorPalette="accent"
-                color="colorPalette.fg"
-                fontSize="sm"
-                fontWeight="medium"
-              >
-                View release notes →
-              </Link>
-            ) : null}
-          </Flex>
-        </Box>
-      ) : null}
-
-      {/* Tech / services */}
-      <Box mt={6}>
-        <Heading size="sm" mb={2}>
-          Built with
-        </Heading>
-        <Flex direction="column" gap={1}>
-          {TECH_STACK.map((item) => (
-            <Text key={item} fontSize="sm" color="fg.muted">
-              {item}
-            </Text>
-          ))}
+        <Text mt={2} color="fg.muted" fontSize="md">
+          {ABOUT_TAGLINE}
+        </Text>
+        <Flex mt={3} gap={2} align="center" flexWrap="wrap">
+          {version ? <MetaTag>Version {version.version}</MetaTag> : null}
+          {updateChip}
+          {update?.updateAvailable && update.releaseUrl ? (
+            <Link
+              href={update.releaseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              colorPalette="accent"
+              color="colorPalette.fg"
+              fontSize="sm"
+              fontWeight="medium"
+            >
+              View release notes →
+            </Link>
+          ) : null}
         </Flex>
       </Box>
 
-      {/* Links */}
-      <Box mt={6}>
-        <Heading size="sm" mb={2}>
-          Links
-        </Heading>
-        <Link
-          href={REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          colorPalette="accent"
-          color="colorPalette.fg"
-          fontSize="sm"
-        >
-          GitHub — Public-Vinyl-Radio/groovenet
-        </Link>
+      <Box
+        as="ul"
+        listStyleType="none"
+        borderWidth="outline"
+        borderColor="border.ink"
+        borderRadius="md"
+        px={{ base: 4, md: 5 }}
+      >
+        {LINKS.map(({ label, href }, index) => (
+          <Box as="li" key={label} borderTopWidth={index ? "rule" : 0} borderColor="border">
+            <Link href={href} target="_blank" rel="noopener noreferrer" {...linkRow}>
+              {label}
+              <FiExternalLink aria-hidden />
+            </Link>
+          </Box>
+        ))}
+        <Box as="li" borderTopWidth="rule" borderColor="border">
+          <Link asChild {...linkRow}>
+            <NextLink href="/system">
+              System status, backups and restore
+              <span aria-hidden>→</span>
+            </NextLink>
+          </Link>
+        </Box>
       </Box>
-    </Box>
+    </Flex>
   );
 }
