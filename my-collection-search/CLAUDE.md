@@ -233,7 +233,9 @@ an invalid value the browser drops, so it fails silently.
   (`color="fg.muted"` for tertiary): both are quiet, with no shadow. `solid` is
   the one primary action: ink outline, hard shadow, and a press that shifts it
   2px down and right while the shadow shrinks (nothing moves under
-  `prefers-reduced-motion`). Solid and outline labels use the mono face. Icon-only
+  `prefers-reduced-motion`). Every variant, ghost included, labels in the mono face: the line is action versus
+  content, so a ghost button whose text is data (a playlist's name) opts out at the
+  call site with `fontFamily="body"`, never in the recipe. Icon-only
   buttons need an `aria-label`.
 - **Focus:** a solid 2px ring in the palette's focus colour, offset 2px so the
   border never hides it. Recipes use `focusVisibleRing="outside"`; the global
