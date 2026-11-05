@@ -35,12 +35,7 @@ if [ "${1:-}" = --build ]; then
         echo 'Install Xcode Command Line Tools (xcode-select --install), then retry --build.' >&2
         exit 1
     fi
-    xcrun swift build --package-path "$package" -c release
-    binary=$(xcrun swift build --package-path "$package" -c release --show-bin-path)
-    mkdir -p "$app/Contents/MacOS"
-    cp "$binary/groovenet-now-playing" "$app/Contents/MacOS/"
-    cp "$package/Info.plist" "$app/Contents/Info.plist"
-    codesign --force --sign - "$app"
+    "$(dirname "$script")/build-now-playing-app.sh" "$package" "$package/.build"
     echo "Built $app. Run groovenet-now-playing to connect to the daemon."
     exit 0
 fi

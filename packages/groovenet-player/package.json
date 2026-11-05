@@ -48,6 +48,7 @@
     "OWNTONE.md",
     "SERVER_PLAYERS.md",
     "owntone/",
+    "scripts/build-now-playing-app.sh",
     "scripts/mpris-smoke.mjs",
     "scripts/now-playing.sh",
     "scripts/now-playing-smoke.mjs"
