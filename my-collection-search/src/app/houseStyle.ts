@@ -503,8 +503,9 @@ export const pageHeader = {
     mt: { md: 2 },
     borderBottomWidth: { base: 0, md: "outline" },
     borderColor: "border.ink",
-    // The tabs stand on the rule, so with rounded corners only their tops round.
-    "& [role=tab]": { borderBottomRadius: 0 },
+    // The tabs stand on the rule and open onto it: no bottom edge of their
+    // own, and with rounded corners only their tops round.
+    "& [role=tab]": { borderBottomWidth: 0, borderBottomRadius: 0 },
   },
   toolbar: { mb: { base: 4, md: 6 } },
 } as const;
