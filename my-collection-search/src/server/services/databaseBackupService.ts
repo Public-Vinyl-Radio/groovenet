@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import type { BackupFile } from "@groovenet/contracts";
 
 // The app image installs the client tools from the PostgreSQL 16 packages.
 export const PG_DUMP_BIN = "/usr/lib/postgresql/16/bin/pg_dump";
@@ -17,12 +18,6 @@ export type PgConnection = {
   user: string;
   password: string;
   database: string;
-};
-
-export type BackupFile = {
-  filename: string;
-  size_bytes: number;
-  modified_at: string;
 };
 
 export function getBackupDir(): string {

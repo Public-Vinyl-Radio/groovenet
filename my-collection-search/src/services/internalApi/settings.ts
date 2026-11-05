@@ -6,13 +6,6 @@ import {
   aiPromptSettingsQuerySchema,
   appearanceSettingsPutBodySchema,
   appearanceSettingsResponseSchema,
-  backupPolicyGetResponseSchema,
-  backupPolicyPutBodySchema,
-  backupPolicyPutResponseSchema,
-  backupPolicySchema,
-  backupMetricsSchema,
-  backupStatusGetResponseSchema,
-  backupStatusSchema,
   defaultLibrarySettingsGetResponseSchema,
   defaultLibrarySettingsPutBodySchema,
   defaultLibrarySettingsPutResponseSchema,
@@ -27,6 +20,13 @@ import {
   recommendationSettingsResponseSchema,
 } from "@/api-contract/schemas";
 import { http } from "@/services/http";
+import type {
+  BackupPolicyGetResponse,
+  BackupPolicyUpdate,
+  BackupPolicyPutResponse,
+  BackupStatusGetResponse,
+} from "@groovenet/client";
+export type { BackupPolicy, BackupStatus, BackupMetrics } from "@groovenet/client";
 
 export type AiPromptSettingsQuery = z.input<typeof aiPromptSettingsQuerySchema>;
 export type AiPromptSettingsResponse = z.infer<typeof aiPromptSettingsGetResponseSchema>;
@@ -39,13 +39,10 @@ export type UpdateGamdlSettingsResponse = z.infer<typeof gamdlSettingsPutRespons
 export type ResetGamdlSettingsBody = z.input<typeof gamdlSettingsResetBodySchema>;
 export type ResetGamdlSettingsResponse = z.infer<typeof gamdlSettingsResetResponseSchema>;
 export type GamdlConnectionTestResponse = z.infer<typeof gamdlConnectionTestResponseSchema>;
-export type BackupPolicy = z.infer<typeof backupPolicySchema>;
-export type BackupPolicyResponse = z.infer<typeof backupPolicyGetResponseSchema>;
-export type UpdateBackupPolicyBody = z.input<typeof backupPolicyPutBodySchema>;
-export type UpdateBackupPolicyResponse = z.infer<typeof backupPolicyPutResponseSchema>;
-export type BackupStatus = z.infer<typeof backupStatusSchema>;
-export type BackupMetrics = z.infer<typeof backupMetricsSchema>;
-export type BackupStatusResponse = z.infer<typeof backupStatusGetResponseSchema>;
+export type BackupPolicyResponse = BackupPolicyGetResponse;
+export type UpdateBackupPolicyBody = BackupPolicyUpdate;
+export type UpdateBackupPolicyResponse = BackupPolicyPutResponse;
+export type BackupStatusResponse = BackupStatusGetResponse;
 export type DefaultLibrarySettingsResponse = z.infer<
   typeof defaultLibrarySettingsGetResponseSchema
 >;

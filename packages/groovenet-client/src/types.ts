@@ -18,6 +18,26 @@ export type {
 } from "@groovenet/contracts";
 
 export type {
+  BackupPolicy,
+  BackupPolicyUpdate,
+  BackupPolicyGetResponse,
+  BackupPolicyPutResponse,
+  BackupProvider,
+  BackupRetentionPreset,
+  BackupSnapshotSummary,
+  BackupMetrics,
+  BackupStatus,
+  BackupStatusGetResponse,
+  BackupStatusRunResponse,
+  BackupFile,
+  BackupListResponse,
+  BackupDeleteResponse,
+  BackupCreateResponse,
+  RestoreResponse,
+  BackupHealthResponse,
+} from "@groovenet/contracts";
+
+export type {
   AlbumDeleteResponse,
   AlbumDownloadResult,
   AlbumDetail,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { backupStatusService } from "@/server/services/backupStatusService";
 import { evaluateBackupHealth } from "@/server/services/backupHealthService";
+import { backupHealthResponseSchema } from "@/api-contract/schemas";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,11 @@ export async function GET() {
     const backup = backupStatusService.getStatus();
     const health = evaluateBackupHealth(backup, Date.now(), maxAgeHours);
     return NextResponse.json(
-      { ...health, finished_at: backup?.finished_at, max_age_hours: maxAgeHours },
+      backupHealthResponseSchema.parse({
+        ...health,
+        finished_at: backup?.finished_at,
+        max_age_hours: maxAgeHours,
+      }),
       { status: health.healthy ? 200 : 503 },
     );
   } catch (error) {

@@ -340,82 +340,26 @@ export const gamdlSettingsResetBodySchema = z.object({
   friend_id: intFromInputSchema,
 });
 
-export const backupProviderSchema = z.enum(["restic-b2"]);
-export const backupRetentionPresetSchema = z.enum(["aggressive", "balanced", "archive"]);
-
-export const backupPolicySchema = z.object({
-  enabled: z.boolean(),
-  provider: backupProviderSchema,
-  schedule_cron: z.string().min(1),
-  retention_preset: backupRetentionPresetSchema,
-  include_database: z.boolean(),
-  include_audio_files: z.boolean(),
-  include_album_covers: z.boolean(),
-  include_discogs_exports: z.boolean(),
-  include_essentia_files: z.boolean(),
-  include_uploads: z.boolean(),
-  updated_at: z.string(),
-});
-
-export const backupPolicyGetResponseSchema = z.object({
-  policy: backupPolicySchema,
-});
-
-export const backupPolicyPutBodySchema = z
-  .object({
-    enabled: z.boolean().optional(),
-    provider: backupProviderSchema.optional(),
-    schedule_cron: z.string().min(1).optional(),
-    retention_preset: backupRetentionPresetSchema.optional(),
-    include_database: z.boolean().optional(),
-    include_audio_files: z.boolean().optional(),
-    include_album_covers: z.boolean().optional(),
-    include_discogs_exports: z.boolean().optional(),
-    include_essentia_files: z.boolean().optional(),
-    include_uploads: z.boolean().optional(),
-  })
-  .strict();
-
-export const backupPolicyPutResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  policy: backupPolicySchema,
-});
-
-export const backupSnapshotSummarySchema = z.object({
-  id: z.string(),
-  short_id: z.string().nullable(),
-  time: z.string(),
-  hostname: z.string().nullable(),
-  paths: z.array(z.string()),
-  tags: z.array(z.string()),
-});
-
-export const backupStatusSchema = z.object({
-  started_at: z.string(),
-  finished_at: z.string(),
-  stored_at: z.string(),
-  status: z.enum(["success", "failed", "skipped"]),
-  reason: z.string(),
-  backed_up_paths: z.array(z.string()),
-  snapshot: backupSnapshotSummarySchema.nullable(),
-  error: z.string().optional(),
-  missing_env: z.array(z.string()).optional(),
-});
-
-export const backupMetricsSchema = z.object({
-  captured_at: z.string(),
-  local_source_bytes: z.number().nonnegative(),
-  snapshot_count: z.number().int().nonnegative().nullable(),
-  remote_repository_bytes: z.number().nonnegative().nullable(),
-  recent_snapshots: z.array(backupSnapshotSummarySchema),
-  error: z.string().optional(),
-});
-
-export const backupStatusGetResponseSchema = z.object({
-  status: backupStatusSchema.nullable(),
-  metrics: backupMetricsSchema.optional(),
-});
+export {
+  backupProviderSchema,
+  backupRetentionPresetSchema,
+  backupPolicySchema,
+  backupPolicyUpdateSchema as backupPolicyPutBodySchema,
+  backupPolicyGetResponseSchema,
+  backupPolicyPutResponseSchema,
+  backupSnapshotSummarySchema,
+  backupStatusSchema,
+  backupMetricsSchema,
+  backupStatusGetResponseSchema,
+  backupStatusRunResponseSchema,
+  backupFileSchema,
+  backupListResponseSchema,
+  backupDeleteResponseSchema,
+  backupCreateResponseSchema,
+  restoreResponseSchema,
+  backupHealthResponseSchema,
+} from "@groovenet/contracts";
+export { backupCreateResponseSchema as backupCreateCustomResponseSchema } from "@groovenet/contracts";
 
 export const defaultLibrarySettingsGetResponseSchema = defaultLibrarySettingsSchema;
 
@@ -423,18 +367,6 @@ export const defaultLibrarySettingsGetResponseSchema = defaultLibrarySettingsSch
 export const defaultLibrarySettingsPutBodySchema = defaultLibrarySettingsUpdateSchema;
 
 export const defaultLibrarySettingsPutResponseSchema = defaultLibrarySettingsUpdateResponseSchema;
-
-export const backupCreateResponseSchema = z.object({
-  message: z.string(),
-  filename: z.string(),
-  format: z.literal("custom"),
-});
-
-export const backupCreateCustomResponseSchema = z.object({
-  message: z.string(),
-  filename: z.string(),
-  format: z.literal("custom"),
-});
 
 export const jobsListQuerySchema = z.object({
   limit: nonNegativeIntFromInputSchema.optional().default(100),
