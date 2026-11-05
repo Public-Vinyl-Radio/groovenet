@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Heading, Text } from "@chakra-ui/react";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import type { SpinRecapResponse } from "@/services/internalApi/spins";
-import { Bar, RecapLinkBar, SplitSegments } from "@/components/spins/recapParts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Bar, SplitSegments } from "@/components/spins/recapParts";
 import SpinStatTiles from "@/components/spins/SpinStatTiles";
 import { currentMonth, formatMonthName } from "@/components/spins/spinMonth";
 import { useSpinRecapQuery } from "@/hooks/useSpinsQuery";
@@ -35,21 +36,14 @@ export function MonthCard({ month, recap, error }: Props) {
       boxShadow="md"
       mr="6px"
     >
-      <RecapLinkBar
+      <SectionLabel
+        variant="bar"
+        id="home-month-heading"
         href={`/spins/recap/${month}`}
-        title={
-          <Heading
-            as="h2"
-            id="home-month-heading"
-            fontFamily="mono"
-            fontSize="xs"
-            fontWeight="semibold"
-            letterSpacing="0.08em"
-          >
-            {formatMonthName(month)} SO FAR
-          </Heading>
-        }
-      />
+        meta="FULL RECAP →"
+      >
+        {formatMonthName(month)} SO FAR
+      </SectionLabel>
       {error ? (
         <Text
           role="alert"

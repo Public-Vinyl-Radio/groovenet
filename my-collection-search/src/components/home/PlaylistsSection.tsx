@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Flex, Heading, Link, Text } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Box, Flex, Link, Text } from "@chakra-ui/react";
 import type { HomeResponse } from "@/services/internalApi/home";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import {
@@ -212,36 +213,24 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
       gap={{ base: "10px", md: "12px" }}
       mr="6px"
     >
-      <Flex align="center" gap={{ base: "10px", md: "12px" }}>
-        <Heading
-          as="h2"
-          id="home-playlists-heading"
-          h={{ base: "24px", md: "26px" }}
-          px={{ base: "8px", md: "10px" }}
-          display="flex"
-          alignItems="center"
-          bg="fg"
-          color="bg"
-          borderTopRadius="md"
-          fontFamily="mono"
-          fontSize={{ base: "11px", md: "xs" }}
-          fontWeight="semibold"
-          letterSpacing="0.08em"
-        >
-          PLAYLISTS & SETS
-        </Heading>
-        <Box flex="1" h="2px" bg="fg" aria-hidden="true" />
-        <Link
-          asChild
-          fontFamily="mono"
-          fontSize={{ base: "11px", md: "xs" }}
-          fontWeight="semibold"
-          letterSpacing="0.04em"
-          color="fg"
-        >
-          <NextLink href={ALL_PLAYLISTS_HREF}>All playlists →</NextLink>
-        </Link>
-      </Flex>
+      <SectionLabel
+        variant="strip"
+        id="home-playlists-heading"
+        meta={
+          <Link
+            asChild
+            fontFamily="mono"
+            fontSize={{ base: "11px", md: "xs" }}
+            fontWeight="semibold"
+            letterSpacing="0.04em"
+            color="fg"
+          >
+            <NextLink href={ALL_PLAYLISTS_HREF}>All playlists →</NextLink>
+          </Link>
+        }
+      >
+        PLAYLISTS & SETS
+      </SectionLabel>
       {body}
     </Flex>
   );

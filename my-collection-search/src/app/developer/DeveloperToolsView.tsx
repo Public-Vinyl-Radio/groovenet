@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Button, Card, Heading, HStack, Icon, SimpleGrid, Text } from "@chakra-ui/react";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Box, Button, Card, HStack, Icon, SimpleGrid, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { FiActivity, FiBookOpen, FiExternalLink, FiFileText } from "react-icons/fi";
 import type { IconType } from "react-icons";
@@ -53,7 +54,7 @@ export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: str
               <HStack gap={3} align="flex-start">
                 <Icon as={tool.icon} boxSize={5} color="accent.fg" mt={1} />
                 <Box>
-                  <Heading size="md">{tool.title}</Heading>
+                  <SectionHeading>{tool.title}</SectionHeading>
                   <Text color="fg.muted" mt={1}>
                     {tool.description}
                   </Text>
@@ -78,7 +79,7 @@ export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: str
               <HStack gap={3} align="flex-start">
                 <Icon as={FiBookOpen} boxSize={5} color="accent.fg" mt={1} />
                 <Box>
-                  <Heading size="md">Storybook</Heading>
+                  <SectionHeading>Storybook</SectionHeading>
                   <Text color="fg.muted" mt={1}>
                     Browse isolated UI components and their documented states.
                   </Text>

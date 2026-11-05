@@ -1,4 +1,5 @@
 "use client";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import { Box, Button, Flex, Heading, Input, Text } from "@chakra-ui/react";
 import { FiUpload } from "react-icons/fi";
@@ -59,9 +60,7 @@ export default function DatabaseRestore() {
           align={{ base: "stretch", md: "center" }}
         >
           <Box w={{ base: "full", md: "30%" }}>
-            <Heading as="h3" fontSize="md">
-              Restore the database
-            </Heading>
+            <SectionHeading level={3}>Restore the database</SectionHeading>
             <Text color="fg.muted" fontSize="sm" mt={1}>
               Replaces everything in the database with a .sql or .dump backup file. This can’t be
               undone.

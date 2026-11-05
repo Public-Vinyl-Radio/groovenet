@@ -1,7 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
-import { Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Text } from "@chakra-ui/react";
 import { StatusTag, type StatusTone } from "@/components/ui/RoleTags";
 import { toaster } from "@/components/ui/toaster";
 import {
@@ -89,9 +90,9 @@ export default function BackupStatusSection(): React.JSX.Element {
     <Box mt={{ base: 4, md: 8 }} p={{ base: 4, md: 4 }} borderWidth={1} borderRadius="md">
       <Flex justify="space-between" align="start" gap={3} mb={2}>
         <Box>
-          <Heading size="md" mb={2}>
+          <SectionHeading level={3} mb={2}>
             Remote Backup Status
-          </Heading>
+          </SectionHeading>
           <Text color="fg.muted">
             Persists the last backup run result and the most recent snapshot summary.
           </Text>
@@ -143,9 +144,9 @@ export default function BackupStatusSection(): React.JSX.Element {
           ) : null}
 
           <Box>
-            <Text fontWeight="semibold" mb={1}>
+            <SectionHeading level={3} mb={1}>
               Included Paths
-            </Text>
+            </SectionHeading>
             {status.backed_up_paths.length === 0 ? (
               <Text fontSize="sm" color="fg.muted">
                 No paths were backed up in the last run.
@@ -162,9 +163,9 @@ export default function BackupStatusSection(): React.JSX.Element {
           </Box>
 
           <Box>
-            <Text fontWeight="semibold" mb={1}>
+            <SectionHeading level={3} mb={1}>
               Latest Snapshot
-            </Text>
+            </SectionHeading>
             {!status.snapshot ? (
               <Text fontSize="sm" color="fg.muted">
                 No snapshot summary is available yet.
@@ -184,9 +185,9 @@ export default function BackupStatusSection(): React.JSX.Element {
           </Box>
 
           <Box>
-            <Text fontWeight="semibold" mb={1}>
+            <SectionHeading level={3} mb={1}>
               Backup Storage
-            </Text>
+            </SectionHeading>
             {!metrics ? (
               <Text fontSize="sm" color="fg.muted">
                 Loading repository metrics…
@@ -213,9 +214,9 @@ export default function BackupStatusSection(): React.JSX.Element {
 
           {metrics?.recent_snapshots.length ? (
             <Box>
-              <Text fontWeight="semibold" mb={1}>
+              <SectionHeading level={3} mb={1}>
                 Recent Snapshot Runs
-              </Text>
+              </SectionHeading>
               <Flex direction="column" gap={1}>
                 {metrics.recent_snapshots.slice(0, 10).map((snapshot) => (
                   <Text key={snapshot.id} fontSize="sm">

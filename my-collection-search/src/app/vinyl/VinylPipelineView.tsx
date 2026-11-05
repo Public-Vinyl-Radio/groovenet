@@ -1,12 +1,12 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import {
   Box,
   Button,
   Card,
   Flex,
-  Heading,
   Input,
   NativeSelectField,
   NativeSelectRoot,
@@ -305,9 +305,7 @@ export default function VinylPipelineView() {
 
         {/* Detections timeline — the main thing you watch while a record plays. */}
         <Box>
-          <Heading size="sm" mb={2}>
-            Recent detections
-          </Heading>
+          <SectionHeading mb={2}>Recent detections</SectionHeading>
           {detections.isLoading ? (
             <Flex justify="center" py={4}>
               <Spinner size="lg" />

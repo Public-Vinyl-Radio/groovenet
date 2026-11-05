@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import { Box, Stack, Grid, Text, RatingGroup } from "@chakra-ui/react";
 import LabeledInput from "@/components/form/LabeledInput";
@@ -49,9 +50,7 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
   return (
     <Stack gap={4}>
       <Box>
-        <Text fontSize="lg" fontWeight="semibold" mb={3}>
-          Album Information
-        </Text>
+        <SectionHeading mb={3}>Album Information</SectionHeading>
         <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
           <LabeledInput
             label="Album Title *"
@@ -107,9 +106,7 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
       {taxonomyEditor}
 
       <Box>
-        <Text fontSize="lg" fontWeight="semibold" mb={3}>
-          Collection Details
-        </Text>
+        <SectionHeading mb={3}>Collection Details</SectionHeading>
         <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
           <LabeledInput
             label="Library Identifier"
@@ -139,9 +136,7 @@ export default function AlbumForm({ value, onChange, taxonomyEditor }: AlbumForm
       </Box>
 
       <Box>
-        <Text fontSize="lg" fontWeight="semibold" mb={3}>
-          Physical Details
-        </Text>
+        <SectionHeading mb={3}>Physical Details</SectionHeading>
         <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
           <LabeledInput
             label="Label"

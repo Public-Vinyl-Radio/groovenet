@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Button, Flex, Grid, Spinner, Stack, Tabs, Text } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
-import { SectionHeading } from "@/components/spins/recapParts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
 import ChoresCareLog from "@/components/chores/ChoresCareLog";
 import ChoresOverview from "@/components/chores/ChoresOverview";
@@ -434,9 +434,13 @@ function ChorePageContent() {
           gap={{ base: "18px", md: 3 }}
           minW={0}
         >
-          <SectionHeading id="chores-todo-heading" display={{ base: "none", md: "flex" }}>
+          <SectionLabel
+            variant="strip"
+            id="chores-todo-heading"
+            display={{ base: "none", md: "flex" }}
+          >
             {todoLabel}
-          </SectionHeading>
+          </SectionLabel>
           <Stack gap="18px">{groups}</Stack>
           <ChoresSelectionBar
             selected={selected.size}

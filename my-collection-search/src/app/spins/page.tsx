@@ -9,7 +9,6 @@ import {
   EmptyState,
   Flex,
   Grid,
-  Heading,
   Spinner,
   Stack,
   Tabs,
@@ -34,6 +33,8 @@ import {
   resolveMonth,
 } from "@/components/spins/spinMonth";
 import { groupListeningLog, type ListeningLogDay } from "@/components/spins/spinSummary";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useSpinRecapQuery, useSpinsInfiniteQuery } from "@/hooks/useSpinsQuery";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -50,43 +51,22 @@ const PAGE_SIZE = 50;
 
 function DayHeading({ day }: { day: ListeningLogDay }) {
   return (
-    <Flex
-      align="baseline"
-      justify="space-between"
-      wrap="wrap"
+    <SectionHeading
+      level={3}
+      meta={day.date}
+      actions={
+        <Text fontFamily="label" fontSize="xs" letterSpacing="0.06em" color="fg.muted">
+          {countLabel(day.spinCount, "SPIN")} · {countLabel(day.recordCount, "RECORD")}
+        </Text>
+      }
       columnGap={3}
       rowGap={1}
       pb={1.5}
       borderBottomWidth="outline"
       borderColor="border.ink"
     >
-      <Heading
-        as="h3"
-        fontSize={{ base: "17px", md: "18px" }}
-        lineHeight={{ base: "22px", md: "24px" }}
-        fontWeight="semibold"
-      >
-        {day.label}{" "}
-        <Text
-          as="span"
-          fontFamily="mono"
-          fontSize={{ base: "11px", md: "xs" }}
-          fontWeight="normal"
-          letterSpacing="0.06em"
-          color="fg.muted"
-        >
-          {day.date}
-        </Text>
-      </Heading>
-      <Text
-        fontFamily="mono"
-        fontSize={{ base: "11px", md: "xs" }}
-        letterSpacing={{ base: "0.04em", md: "0.06em" }}
-        color="fg.muted"
-      >
-        {countLabel(day.spinCount, "SPIN")} · {countLabel(day.recordCount, "RECORD")}
-      </Text>
-    </Flex>
+      {day.label}
+    </SectionHeading>
   );
 }
 
@@ -279,31 +259,14 @@ function SpinsPageContent() {
               activationMode="automatic"
             >
               <Flex align="center" gap={3}>
-                <Heading
-                  as="h2"
+                <SectionLabel
+                  variant="strip"
                   id="spin-log-heading"
-                  h="26px"
-                  px={2.5}
+                  flex="1"
                   display={{ base: "none", md: "flex" }}
-                  alignItems="center"
-                  bg="fg"
-                  color="bg"
-                  fontFamily="mono"
-                  fontSize="xs"
-                  fontWeight="semibold"
-                  letterSpacing="0.08em"
-                  borderTopRadius="md"
-                  flexShrink={0}
                 >
                   LISTENING LOG
-                </Heading>
-                <Box
-                  flex="1"
-                  h="2px"
-                  bg="fg"
-                  display={{ base: "none", md: "block" }}
-                  aria-hidden="true"
-                />
+                </SectionLabel>
                 <Tabs.List
                   aria-label="Source"
                   gap={0}

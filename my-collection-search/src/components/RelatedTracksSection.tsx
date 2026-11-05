@@ -1,7 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useMemo, useState } from "react";
-import { Box, Button, Flex, Heading, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
 import { LuChevronDown } from "react-icons/lu";
 import { useQuery } from "@tanstack/react-query";
 import type { Track } from "@/types/track";
@@ -182,9 +183,7 @@ export default function RelatedTracksSection({ track }: Props) {
       <Flex align="flex-end" justify="space-between" wrap="wrap" mb={3} gap={3}>
         <Box minW={0}>
           <Flex align="baseline" gap={2.5}>
-            <Heading as="h2" id="related-tracks-heading" size="lg">
-              Related tracks
-            </Heading>
+            <SectionHeading id="related-tracks-heading">Related tracks</SectionHeading>
             {!isLoading && !hasError && merged.length > 0 && (
               <Text
                 fontFamily="label"

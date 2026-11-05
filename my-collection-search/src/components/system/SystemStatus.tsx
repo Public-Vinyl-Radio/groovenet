@@ -1,6 +1,6 @@
 "use client";
 import { Box, Flex, Grid, Link, Spinner, Table, Text } from "@chakra-ui/react";
-import { SectionHeading } from "@/components/spins/recapParts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusTag } from "@/components/ui/RoleTags";
 import { useStatusInfo, useUpdateInfo, useVersionInfo } from "@/hooks/useSystemInfo";
 
@@ -51,16 +51,17 @@ export default function SystemStatus() {
   ];
   return (
     <Box as="section" aria-label="Status">
-      <SectionHeading
+      <SectionLabel
+        variant="strip"
         mb={4}
-        trailing={
-          <Text fontFamily="mono" fontSize="xs" fontWeight="bold">
+        meta={
+          <Text fontFamily="label" fontSize="xs" fontWeight="bold">
             {up} OF {services.length} SERVICES UP
           </Text>
         }
       >
         STATUS
-      </SectionHeading>
+      </SectionLabel>
       <Grid templateColumns={{ base: "1fr", md: "3fr 2fr" }} gap={6} alignItems="start">
         <Box
           borderWidth="outline"

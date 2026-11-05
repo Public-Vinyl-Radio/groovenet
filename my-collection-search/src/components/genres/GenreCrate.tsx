@@ -1,9 +1,10 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { innerRadius } from "@/app/corners";
 import React from "react";
 import NextLink from "next/link";
-import { Box, Button, Heading, Link, Text } from "@chakra-ui/react";
+import { Box, Button, Link, Text } from "@chakra-ui/react";
 import type { GenrePageRef } from "@/api-contract/schemas";
 import { rankedSubgenres } from "@/lib/genres/discovery";
 import type { CountedGenreNode } from "@/lib/genres/tree";
@@ -87,16 +88,9 @@ export function GenreCrate({
   };
   const header = (
     <>
-      <Heading
-        ref={headingRef}
-        tabIndex={-1}
-        as="h3"
-        fontSize="lg"
-        minW={0}
-        overflowWrap="anywhere"
-      >
+      <SectionHeading level={3} ref={headingRef} tabIndex={-1} minW={0} overflowWrap="anywhere">
         {title}
-      </Heading>
+      </SectionHeading>
       {count !== undefined && (
         <Text fontFamily="label" fontWeight="semibold" fontSize="sm">
           {count.toLocaleString()}

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Box, chakra, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { Box, chakra, Flex, Spinner, Text } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusTag } from "@/components/ui/RoleTags";
 import Artwork from "@/components/player/Artwork";
 
@@ -228,16 +229,9 @@ export default function ChoreGroup({
           align={{ base: "flex-start", md: "baseline" }}
           gap={{ base: "2px", md: "10px" }}
         >
-          <Heading
-            as="h3"
-            id={headingId}
-            fontFamily="mono"
-            fontSize="11px"
-            fontWeight="semibold"
-            letterSpacing={{ base: "0.06em", md: "0.08em" }}
-          >
+          <SectionLabel variant="overline" level={3} id={headingId}>
             {title}
-          </Heading>
+          </SectionLabel>
           <Text as="span" fontSize={{ base: "12px", md: "13px" }} color="fg.muted">
             {reason}
           </Text>

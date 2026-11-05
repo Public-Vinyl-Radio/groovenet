@@ -321,7 +321,7 @@ describe("PlaylistManager month grouping (#766)", () => {
       },
     ];
     renderWithProviders(<PlaylistManager />);
-    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual([
+    expect(screen.getAllByRole("heading", { level: 2 }).map((el) => el.textContent)).toEqual([
       "AUG 2026",
       "JAN 2026",
     ]);
@@ -349,7 +349,7 @@ describe("PlaylistManager month grouping (#766)", () => {
     expect(tops).toEqual(["18px", "-12px", "-12px", "18px"]);
     const bottoms = screen.getAllByTestId("timeline-rail").map((el) => getComputedStyle(el).bottom);
     expect(bottoms).toEqual(["-12px", "-12px", "calc(100% - 18px)", "calc(100% - 18px)"]);
-    expect(screen.getAllByTestId("month-tab").map((el) => el.textContent)).toEqual([
+    expect(screen.getAllByRole("heading", { level: 2 }).map((el) => el.textContent)).toEqual([
       "AUG 2026",
       "UNDATED",
     ]);

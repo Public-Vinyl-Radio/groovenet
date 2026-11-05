@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { innerRadius } from "@/app/corners";
 import React from "react";
 import NextLink from "next/link";
@@ -9,7 +10,6 @@ import {
   Button,
   Flex,
   Grid,
-  Heading,
   Skeleton,
   Stack,
   Text,
@@ -248,9 +248,7 @@ function GenreContent({
             )}
             {isThin && view === "albums" && (
               <Box>
-                <Heading as="h2" fontSize="xl">
-                  Build this crate
-                </Heading>
+                <SectionHeading>Build this crate</SectionHeading>
                 <Text color="fg.muted" fontSize="sm" mt={2}>
                   Room for more records. Explore neighbouring crates for somewhere to dig next.
                 </Text>
@@ -376,9 +374,7 @@ function GenreContent({
                 borderColor="border.ink"
                 p={4}
               >
-                <Heading as="h2" fontSize="lg" overflowWrap="anywhere">
-                  Weekly wantlist picks
-                </Heading>
+                <SectionHeading overflowWrap="anywhere">Weekly wantlist picks</SectionHeading>
                 <Text mt={3} color="fg.muted" fontSize="sm">
                   Picks arrive with the recommender. This space is reserved for future weekly
                   wantlist picks.

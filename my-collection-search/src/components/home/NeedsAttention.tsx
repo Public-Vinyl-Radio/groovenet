@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Flex, Grid, Heading, Link, Text, useBreakpointValue } from "@chakra-ui/react";
+import { Box, Flex, Grid, Link, Text, useBreakpointValue } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { CountTag } from "@/components/ui/RoleTags";
 import { LuCheck } from "react-icons/lu";
 import { ATTENTION_ITEMS, isAllClear, type Attention } from "./attentionItems";
@@ -17,24 +18,9 @@ export default function NeedsAttention({
   const phone = useBreakpointValue({ base: true, md: false });
   return (
     <Box as="section" aria-labelledby="home-attention-heading">
-      <Flex align="center" gap={3} mb={3}>
-        <Heading
-          as="h2"
-          id="home-attention-heading"
-          bg="fg"
-          color="bg"
-          borderTopRadius="md"
-          px={2}
-          py={1}
-          fontFamily="mono"
-          fontSize="xs"
-          fontWeight="semibold"
-          letterSpacing="0.08em"
-        >
-          NEEDS ATTENTION
-        </Heading>
-        <Box flex="1" borderTopWidth="outline" borderColor="border.ink" />
-      </Flex>
+      <SectionLabel variant="strip" id="home-attention-heading" mb={3}>
+        NEEDS ATTENTION
+      </SectionLabel>
       <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" mr="6px" borderRadius="md">
         {error ? (
           <Text role="alert" p={3} color="fg.muted">

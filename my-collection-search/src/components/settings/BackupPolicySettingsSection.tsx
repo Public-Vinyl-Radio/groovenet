@@ -1,7 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
-import { Box, Button, Checkbox, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+import { Box, Button, Checkbox, Flex, Spinner, Text } from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
 import {
   fetchBackupPolicy,
@@ -64,9 +65,9 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
 
   return (
     <Box mt={{ base: 4, md: 8 }} p={{ base: 4, md: 4 }} borderWidth={1} borderRadius="md">
-      <Heading size="md" mb={2}>
+      <SectionHeading level={3} mb={2}>
         Remote Backup Policy
-      </Heading>
+      </SectionHeading>
       <Text color="fg.muted" mb={4}>
         Configures file-based backup policy in <code>config/backup-policy.yml</code>. Secrets such
         as restic password and B2 keys remain server-side.

@@ -1,6 +1,7 @@
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import ConfirmDialog from "@/components/records/ConfirmDialog";
 import { useState } from "react";
-import { Box, Button, Heading, IconButton, Text, VStack, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, Button, IconButton, Text, VStack, HStack, Skeleton } from "@chakra-ui/react";
 import { FiBriefcase, FiDownload, FiTrash2 } from "react-icons/fi";
 import { useBackupsQuery } from "@/hooks/useBackupsQuery";
 import { formatBytes } from "@/components/settings/BackupStatusSection";
@@ -43,7 +44,7 @@ export default function DatabaseBackups({ embedded = false }: { embedded?: boole
         {embedded && !backupsLoading && backups.length === 0 && (
           <Text color="fg.muted">No local backups yet.</Text>
         )}
-        {!embedded && <Heading size="md">Database Backups</Heading>}
+        {!embedded && <SectionHeading level={3}>Database Backups</SectionHeading>}
         <Button
           size="sm"
           h={embedded ? "44px" : undefined}

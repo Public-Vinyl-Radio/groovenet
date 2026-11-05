@@ -14,7 +14,7 @@ describe("PlaylistMonthDivider", () => {
         group={{ key: "2026-08", label: "AUG 2026", playlists: [], playlistCount: 2, setCount: 2 }}
       />,
     );
-    expect(screen.getByTestId("month-tab").textContent).toBe("AUG 2026");
+    expect(screen.getByRole("heading", { level: 2, name: "AUG 2026" })).toBeTruthy();
     expect(screen.getByTestId("month-count").textContent).toBe("2 playlists · 2 sets");
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Box, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
 import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ContextEmbeddingPreviewResponse } from "@/services/internalApi/tracks";
@@ -20,9 +21,7 @@ export default function ContextEmbeddingSection({ query }: Props) {
       mt={4}
       borderRadius="md"
     >
-      <Heading size="sm" mb={1}>
-        Context Embedding Preview
-      </Heading>
+      <SectionHeading mb={1}>Context Embedding Preview</SectionHeading>
       <Text fontSize="xs" color="fg.muted" mb={3}>
         What natural-language search embeds: descriptors first, identifiers last. Built from the
         track as it is now, so it matches the stored vector unless the track changed since its last

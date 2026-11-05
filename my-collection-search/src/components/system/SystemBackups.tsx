@@ -12,7 +12,7 @@ import {
   Switch,
   Text,
 } from "@chakra-ui/react";
-import { SectionHeading } from "@/components/spins/recapParts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusTag } from "@/components/ui/RoleTags";
 import DatabaseBackups from "@/components/settings/DatabaseBackups";
 import {
@@ -114,12 +114,13 @@ export default function SystemBackups() {
   );
   return (
     <Box as="section" aria-label="Backups" mt={8}>
-      <SectionHeading
+      <SectionLabel
+        variant="strip"
         mb={4}
-        trailing={
+        meta={
           <Text
             display={{ base: "none", md: "block" }}
-            fontFamily="mono"
+            fontFamily="label"
             fontSize="xs"
             color="fg.muted"
           >
@@ -128,7 +129,7 @@ export default function SystemBackups() {
         }
       >
         BACKUPS
-      </SectionHeading>
+      </SectionLabel>
       <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" borderRadius="md">
         {loading ? (
           <Spinner m={4} aria-label="Loading backup policy" />

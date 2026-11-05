@@ -1,7 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
-import { Box, Button, chakra, Flex, Heading, Input, SegmentGroup, Text } from "@chakra-ui/react";
+import { Box, Button, chakra, Flex, Input, SegmentGroup, Text } from "@chakra-ui/react";
 import { LuCheck, LuTriangleAlert, LuX } from "react-icons/lu";
 import { system } from "@/app/chakraTheme";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
@@ -207,9 +208,9 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
         mb={3}
         borderRadius="md"
       >
-        <Heading size="sm" mb={1}>
+        <SectionHeading level={3} mb={1}>
           Preview · {mode}
-        </Heading>
+        </SectionHeading>
         <Text fontSize="sm" color="fg.muted" mb={3}>
           Secondary text sits here.
         </Text>
@@ -335,9 +336,9 @@ export default function CustomPaletteEditor({
       mb={6}
       data-testid="custom-palette-editor"
     >
-      <Heading size="md" mb={1}>
+      <SectionHeading level={3} mb={1}>
         Custom palette
-      </Heading>
+      </SectionHeading>
       <Text color="fg.muted" fontSize="sm" mb={3}>
         Five colours per mode. The rest, and the status colours, come from the preset it starts
         from.

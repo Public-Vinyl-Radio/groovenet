@@ -23,23 +23,14 @@ import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { cleanSoundcloudUrl } from "@/lib/url";
 import { formatBpmConfidencePercent, isBpmConfidenceLow } from "@/lib/essentiaBpm";
 import { formatKeyConfidencePercent, isKeyConfidenceLow } from "@/lib/essentiaKey";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { toaster } from "@/components/ui/toaster";
 import { FiCheck } from "react-icons/fi";
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} borderRadius="md">
-      <Text
-        fontWeight="semibold"
-        fontSize="sm"
-        color="fg.muted"
-        mb={3}
-        fontFamily="label"
-        textTransform="uppercase"
-        letterSpacing="wide"
-      >
-        {title}
-      </Text>
+      <SectionHeading mb={3}>{title}</SectionHeading>
       {children}
     </Box>
   );

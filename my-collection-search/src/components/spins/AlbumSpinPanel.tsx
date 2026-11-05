@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Button, Flex, HStack, Spinner, Stack, Text } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
 import { FiClock, FiPlus } from "react-icons/fi";
-import SectionHeader from "@/components/album-detail/SectionHeader";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ALBUM_SPINS_PAGE, useAlbumSpins } from "@/hooks/useAlbumSpins";
 import { formatSpinCount, summarizeSpinStats } from "@/lib/albumStats";
 import SpinFormDialog from "@/components/spins/SpinFormDialog";
@@ -33,19 +33,26 @@ export default function AlbumSpinPanel({ releaseId, friendId, albumTitle }: Prop
 
   return (
     <Stack gap={3}>
-      <SectionHeader
-        title="Vinyl spins"
-        count={
-          spinsQuery.isLoading
-            ? undefined
-            : formatSpinCount(summarizeSpinStats(spinsQuery.spins, ALBUM_SPINS_PAGE))
-        }
-        description="Detected automatically or logged by hand."
-      >
-        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-          <FiPlus /> Log spin
-        </Button>
-      </SectionHeader>
+      <Box>
+        <SectionHeading
+          minH="36px"
+          meta={
+            spinsQuery.isLoading
+              ? undefined
+              : formatSpinCount(summarizeSpinStats(spinsQuery.spins, ALBUM_SPINS_PAGE))
+          }
+          actions={
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              <FiPlus /> Log spin
+            </Button>
+          }
+        >
+          Vinyl spins
+        </SectionHeading>
+        <Text fontSize="sm" color="fg.muted" mt={1}>
+          Detected automatically or logged by hand.
+        </Text>
+      </Box>
 
       {mostPlayed.length > 0 && (
         <HStack gap={1.5} wrap="wrap" fontSize="xs">

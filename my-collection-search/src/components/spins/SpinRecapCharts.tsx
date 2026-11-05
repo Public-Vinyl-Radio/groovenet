@@ -23,16 +23,9 @@ import {
   relativeWidths,
   WEEKDAYS,
 } from "./recapCharts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { SpinArt } from "./listeningLogParts";
-import {
-  Bar,
-  DIGITAL_HATCH,
-  inkTint,
-  Overline,
-  SectionHeading,
-  SplitSegments,
-  Swatch,
-} from "./recapParts";
+import { Bar, DIGITAL_HATCH, inkTint, SplitSegments, Swatch } from "./recapParts";
 import { formatMonthName } from "./spinMonth";
 
 type Recap = SpinRecapResponse;
@@ -45,7 +38,9 @@ function ChartSection({ title, children }: { title: string; children: React.Reac
   const id = React.useId();
   return (
     <Stack as="section" aria-labelledby={id} gap={{ base: 2.5, md: 3 }} minW={0}>
-      <SectionHeading id={id}>{title}</SectionHeading>
+      <SectionLabel variant="strip" id={id}>
+        {title}
+      </SectionLabel>
       {children}
     </Stack>
   );
@@ -78,7 +73,9 @@ export function RecapSplit({ month, recap }: { month: string; recap: Recap }) {
           </HStack>
         </HStack>
         <Box mt={1.5}>
-          <Overline>BY WEEK</Overline>
+          <SectionLabel variant="overline" level={3}>
+            BY WEEK
+          </SectionLabel>
         </Box>
         <Flex
           role="img"
@@ -428,19 +425,7 @@ const topFrame = {
   mr: "6px",
   minW: 0,
 } as const;
-const topHeading = {
-  h: { base: "36px", md: "40px" },
-  px: { base: 3, md: 3.5 },
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  borderBottomWidth: "outline",
-  borderColor: "border.ink",
-  fontFamily: "mono",
-  fontSize: "xs",
-  fontWeight: "semibold",
-  letterSpacing: "0.08em",
-} as const;
+const topHeadingProps = { px: { base: 3, md: 3.5 }, py: 2.5 } as const;
 
 /**
  * Top five records, tracks and artists: side by side when `columns`, otherwise
@@ -468,12 +453,18 @@ export function RecapTopLists({
             aria-labelledby={`${headingId}-${list.value}`}
             {...topFrame}
           >
-            <Box as="h2" id={`${headingId}-${list.value}`} {...topHeading}>
+            <SectionLabel
+              variant="strip"
+              id={`${headingId}-${list.value}`}
+              meta={
+                <Text as="span" fontSize="xs" color="fg.muted" aria-hidden="true">
+                  SPINS
+                </Text>
+              }
+              {...topHeadingProps}
+            >
               TOP {list.label}
-              <Text as="span" fontWeight="normal" color="fg.muted" aria-hidden="true">
-                SPINS
-              </Text>
-            </Box>
+            </SectionLabel>
             <TopList rows={rows[list.value]} label={`Top ${list.label.toLowerCase()}`} />
           </Box>
         ))}
@@ -483,9 +474,9 @@ export function RecapTopLists({
 
   return (
     <Box as="section" aria-labelledby={headingId} {...topFrame}>
-      <Box as="h2" id={headingId} {...topHeading}>
+      <SectionLabel variant="strip" id={headingId} {...topHeadingProps}>
         TOP OF THE MONTH
-      </Box>
+      </SectionLabel>
       <Tabs.Root defaultValue="records" activationMode="automatic">
         <Tabs.List
           aria-label="Top lists"

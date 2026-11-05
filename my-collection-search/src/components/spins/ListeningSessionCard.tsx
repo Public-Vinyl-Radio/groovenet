@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import SpinRecordGroup from "./SpinRecordGroup";
 import type { SpinRowSelection } from "./SpinTrackRow";
@@ -52,7 +53,9 @@ export default function ListeningSessionCard({
         fontSize="11px"
         letterSpacing={{ base: "0.06em", md: "0.08em" }}
       >
-        <Text fontWeight="semibold">SESSION · {range}</Text>
+        <SectionLabel variant="overline" level={3}>
+          SESSION · {range}
+        </SectionLabel>
         <Text color="fg.muted">{listeningSessionMeta(session)}</Text>
       </Flex>
       <Box as="ul" listStyleType="none">

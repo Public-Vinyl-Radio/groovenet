@@ -5,7 +5,7 @@ import NextLink from "next/link";
 import { Box, Button, Flex, Link, SegmentGroup, Text } from "@chakra-ui/react";
 import { FaPlay } from "react-icons/fa";
 import { FiPlay } from "react-icons/fi";
-import SectionHeader from "@/components/album-detail/SectionHeader";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { BpmCell, dash, GenreCell, labelHead, RatingCell, Th } from "@/components/RelatedTrackRows";
 import { KeyChip, NotesIndicator } from "@/components/TrackResult";
 import { camelotOf } from "@/lib/mixCompat";
@@ -438,35 +438,38 @@ export default function AlbumTracklist(props: Props) {
 
   return (
     <Flex as="section" aria-label="Tracklist" direction="column" gap="14px">
-      <SectionHeader
-        title="Tracklist"
-        count={`${trackCount} ${trackCount === 1 ? "track" : "tracks"}`}
+      <SectionHeading
+        minH="36px"
+        meta={`${trackCount} ${trackCount === 1 ? "track" : "tracks"}`}
+        actions={
+          sided && sides.length > 1 ? (
+            <SegmentGroup.Root
+              size="sm"
+              css={
+                isMobile
+                  ? {
+                      "& label": {
+                        minHeight: "44px",
+                        flex: 1,
+                        justifyContent: "center",
+                        whiteSpace: "nowrap",
+                      },
+                    }
+                  : undefined
+              }
+              value={shown.length > 0 ? view : ALL}
+              aria-label="Show side"
+              width={isMobile ? "full" : undefined}
+              onValueChange={(details) => setView(details.value ?? ALL)}
+            >
+              <SegmentGroup.Indicator />
+              <SegmentGroup.Items items={items} />
+            </SegmentGroup.Root>
+          ) : undefined
+        }
       >
-        {sided && sides.length > 1 && (
-          <SegmentGroup.Root
-            size="sm"
-            css={
-              isMobile
-                ? {
-                    "& label": {
-                      minHeight: "44px",
-                      flex: 1,
-                      justifyContent: "center",
-                      whiteSpace: "nowrap",
-                    },
-                  }
-                : undefined
-            }
-            value={shown.length > 0 ? view : ALL}
-            aria-label="Show side"
-            width={isMobile ? "full" : undefined}
-            onValueChange={(details) => setView(details.value ?? ALL)}
-          >
-            <SegmentGroup.Indicator />
-            <SegmentGroup.Items items={items} />
-          </SegmentGroup.Root>
-        )}
-      </SectionHeader>
+        Tracklist
+      </SectionHeading>
       {trackCount === 0 ? (
         <Text color="fg.muted">No tracks found for this album.</Text>
       ) : isMobile ? (

@@ -2,12 +2,13 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Checkbox, Flex, Grid, Heading, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { Box, Checkbox, Flex, Grid, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { GenreIndexCrate } from "@/components/genres/GenreCrate";
 import AlbumResult from "@/components/AlbumResult";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import { SearchField } from "@/components/layout/ListHeader";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import RetroDialog from "@/components/ui/RetroDialog";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
@@ -34,38 +35,30 @@ function Section({
 }) {
   return (
     <Box as="section" aria-label={title}>
-      <Flex align="center" gap={3} mb={3} flexWrap="wrap">
-        <Heading
-          as="h2"
-          fontFamily="label"
-          fontSize="xs"
-          letterSpacing="0.06em"
-          textTransform="uppercase"
-          bg="fg"
-          color="bg"
-          borderTopRadius="md"
-          px={2}
-          py={1}
-        >
-          <Box as="span" display={{ base: "inline", md: "none" }}>
-            {mobileTitle ?? title}
-          </Box>
-          <Box as="span" display={{ base: "none", md: "inline" }}>
-            {title}
-          </Box>
-        </Heading>
-        <Box flex={1} minW={5} borderTopWidth="outline" borderColor="border.ink" />
-        {note && (
-          <Text
-            display={{ base: "none", md: "block" }}
-            fontFamily="label"
-            fontSize="xs"
-            color="fg.muted"
-          >
-            {note}
-          </Text>
-        )}
-      </Flex>
+      <SectionLabel
+        variant="strip"
+        mb={3}
+        flexWrap="wrap"
+        meta={
+          note ? (
+            <Text
+              display={{ base: "none", md: "block" }}
+              fontFamily="label"
+              fontSize="xs"
+              color="fg.muted"
+            >
+              {note}
+            </Text>
+          ) : undefined
+        }
+      >
+        <Box as="span" display={{ base: "inline", md: "none" }}>
+          {mobileTitle ?? title}
+        </Box>
+        <Box as="span" display={{ base: "none", md: "inline" }}>
+          {title}
+        </Box>
+      </SectionLabel>
       {children}
     </Box>
   );

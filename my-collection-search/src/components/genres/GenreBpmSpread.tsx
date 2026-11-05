@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Flex, Heading, Text } from "@chakra-ui/react";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import type { GenrePageResponse } from "@/api-contract/schemas";
 
 /** Position bins by their actual BPM interval, leaving genuine gaps visible. */
@@ -12,9 +13,7 @@ export default function GenreBpmSpread({ stats }: { stats: GenrePageResponse["st
   const peak = Math.max(1, ...bins.map((bin) => bin.count));
   return (
     <Box as="section" aria-label="BPM spread">
-      <Heading as="h2" fontFamily="label" fontSize="xs" textTransform="uppercase" mb={3}>
-        BPM spread
-      </Heading>
+      <SectionHeading mb={3}>BPM spread</SectionHeading>
       {bins.length === 0 ? (
         <Text color="fg.muted" fontSize="sm">
           No BPM data for this genre yet.

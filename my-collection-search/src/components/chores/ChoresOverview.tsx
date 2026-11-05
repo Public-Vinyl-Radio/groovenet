@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Box, Flex, Grid, Heading, Text } from "@chakra-ui/react";
+import { Box, Flex, Grid, Text } from "@chakra-ui/react";
 import type { RecordCareProgressResponse } from "@/services/internalApi/recordCare";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Bar, Swatch } from "@/components/spins/recapParts";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import {
@@ -28,21 +29,6 @@ const blockStyle: Record<StackBlock, { bg: string; borderWidth: string; borderCo
   todo: { bg: "bg", borderWidth: "rule", borderColor: "border" },
 };
 
-function Overline({ id, children }: { id: string; children: React.ReactNode }) {
-  return (
-    <Heading
-      as="h2"
-      id={id}
-      fontFamily="mono"
-      fontSize={{ base: "11px", md: "xs" }}
-      fontWeight="semibold"
-      letterSpacing="0.08em"
-    >
-      {children}
-    </Heading>
-  );
-}
-
 function Progress({ progress }: { progress: RecordCareProgressResponse }) {
   const timeZone = useDisplayTimeZone();
   const blocks = stackBlocks(progress);
@@ -58,7 +44,9 @@ function Progress({ progress }: { progress: RecordCareProgressResponse }) {
       py={{ base: 0, md: "14px" }}
     >
       <Flex align="baseline" justify="space-between" gap={3}>
-        <Overline id="chores-progress-heading">LIBRARY CLEANING</Overline>
+        <SectionLabel variant="overline" id="chores-progress-heading">
+          LIBRARY CLEANING
+        </SectionLabel>
         <Text as="span" fontFamily="mono" fontSize={{ base: "11px", md: "xs" }} color="fg.muted">
           <Box as="span" display={{ base: "none", md: "inline" }}>
             {stackUpNextLabel(progress, "desktop")}
@@ -150,13 +138,13 @@ function Sleeves({ progress }: { progress: RecordCareProgressResponse }) {
       borderTopColor="border"
       borderLeftColor="border.ink"
     >
-      <Overline id="chores-sleeves-heading">
+      <SectionLabel variant="overline" id="chores-sleeves-heading">
         SLEEVES
         <Box as="span" display={{ base: "none", md: "inline" }}>
           {" "}
           · {sleeveTotal(bySleeve).toLocaleString("en-US")} COPIES
         </Box>
-      </Overline>
+      </SectionLabel>
       <SleeveBar bySleeve={bySleeve} />
       <Text
         display={{ base: "block", md: "none" }}

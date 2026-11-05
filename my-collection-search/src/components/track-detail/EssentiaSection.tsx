@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Heading, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Box, Skeleton, Text, VStack } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackEssentiaResponse } from "@/services/internalApi/tracks";
@@ -19,9 +20,7 @@ export default function EssentiaSection({ query }: Props) {
       mt={4}
       borderRadius="md"
     >
-      <Heading size="sm" mb={3}>
-        Essentia Raw Analysis
-      </Heading>
+      <SectionHeading mb={3}>Essentia Raw Analysis</SectionHeading>
 
       {query.isLoading ? (
         <VStack align="stretch" gap={2}>
