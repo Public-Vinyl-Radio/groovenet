@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.12.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.11.0...groovenet-cli-v3.12.0) (2026-11-05)
+
+
+### Features
+
+* **player:** download the prebuilt Now Playing helper and add a login item ([#1006](https://github.com/Public-Vinyl-Radio/groovenet/issues/1006)) ([0ac11af](https://github.com/Public-Vinyl-Radio/groovenet/commit/0ac11afc013e92b1186e132d94b1a516faf13d5d))
+* **player:** read the Now Playing target from the CLI config ([#1005](https://github.com/Public-Vinyl-Radio/groovenet/issues/1005)) ([d529884](https://github.com/Public-Vinyl-Radio/groovenet/commit/d5298841225a9de28321adf39811e1788502e707))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.10.0 to ^3.11.0
+    * @groovenet/contracts bumped from 1.6.0 to 1.7.0
+    * @groovenet/player bumped from 0.1.10 to 0.1.11
+
 ## [3.11.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.10.0...groovenet-cli-v3.11.0) (2026-11-03)
 
 

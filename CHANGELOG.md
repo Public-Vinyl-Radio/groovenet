@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.17](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.16...v0.3.17) (2026-11-05)
+
+
+### Features
+
+* **albums:** add to queue, and the full actions menu on album cards ([#983](https://github.com/Public-Vinyl-Radio/groovenet/issues/983)) ([f51809d](https://github.com/Public-Vinyl-Radio/groovenet/commit/f51809dfb78369a95c1d812f32541b16601afcc4))
+* **appearance:** Appearance section and rounded corners option ([#977](https://github.com/Public-Vinyl-Radio/groovenet/issues/977)) ([3041375](https://github.com/Public-Vinyl-Radio/groovenet/commit/30413755076601b6b6bb3bfcfb984e8166278c72))
+* **player:** download the prebuilt Now Playing helper and add a login item ([#1006](https://github.com/Public-Vinyl-Radio/groovenet/issues/1006)) ([0ac11af](https://github.com/Public-Vinyl-Radio/groovenet/commit/0ac11afc013e92b1186e132d94b1a516faf13d5d))
+* **player:** read the Now Playing target from the CLI config ([#1005](https://github.com/Public-Vinyl-Radio/groovenet/issues/1005)) ([d529884](https://github.com/Public-Vinyl-Radio/groovenet/commit/d5298841225a9de28321adf39811e1788502e707))
+* **settings:** Apple Music, AI metadata and About sections ([#980](https://github.com/Public-Vinyl-Radio/groovenet/issues/980)) ([4cba436](https://github.com/Public-Vinyl-Radio/groovenet/commit/4cba43674f01e577504742ed30712c3594a7176a))
+* **settings:** grouped rail and phone drill-in shell ([#972](https://github.com/Public-Vinyl-Radio/groovenet/issues/972)) ([3b4c9b0](https://github.com/Public-Vinyl-Radio/groovenet/commit/3b4c9b03e0672493acff159a40271b5de6b822f3))
+* **settings:** Libraries section with add-library modal and default library ([#975](https://github.com/Public-Vinyl-Radio/groovenet/issues/975)) ([ce8dda9](https://github.com/Public-Vinyl-Radio/groovenet/commit/ce8dda991ebd38b8611ce5ad23086419e1da44ef))
+* **system:** System page for status, backups and restore ([#974](https://github.com/Public-Vinyl-Radio/groovenet/issues/974)) ([a2a61cd](https://github.com/Public-Vinyl-Radio/groovenet/commit/a2a61cd433a83fd3a87d52d3923f0fc0b2134a99))
+* **ui:** composable PageHeader parts behind the existing props ([#997](https://github.com/Public-Vinyl-Radio/groovenet/issues/997)) ([b7ad43b](https://github.com/Public-Vinyl-Radio/groovenet/commit/b7ad43b88b502ff14734c07235d5727ab8a4375d))
+* **ui:** SectionHeading and SectionLabel replace the audited section styles ([#996](https://github.com/Public-Vinyl-Radio/groovenet/issues/996)) ([30d1ed2](https://github.com/Public-Vinyl-Radio/groovenet/commit/30d1ed224bc51e7451768fef564435677ae05dbe))
+
+
+### Bug Fixes
+
+* **ui:** mono ghost buttons and a palette-driven checkbox ([#987](https://github.com/Public-Vinyl-Radio/groovenet/issues/987)) ([77322bb](https://github.com/Public-Vinyl-Radio/groovenet/commit/77322bbff282ef30e6199f312535d84215993eb2))
+
 ## [0.3.16](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.15...v0.3.16) (2026-11-03)
 
 

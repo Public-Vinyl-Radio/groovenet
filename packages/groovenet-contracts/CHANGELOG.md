@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.6.0...groovenet-contracts-v1.7.0) (2026-11-05)
+
+
+### Features
+
+* **settings:** Libraries section with add-library modal and default library ([#975](https://github.com/Public-Vinyl-Radio/groovenet/issues/975)) ([ce8dda9](https://github.com/Public-Vinyl-Radio/groovenet/commit/ce8dda991ebd38b8611ce5ad23086419e1da44ef))
+
 ## [1.6.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.5.0...groovenet-contracts-v1.6.0) (2026-11-03)
 
 
