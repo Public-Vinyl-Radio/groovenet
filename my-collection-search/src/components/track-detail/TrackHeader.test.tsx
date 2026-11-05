@@ -65,7 +65,8 @@ describe("TrackHeader", () => {
       release_id: "r1",
     });
 
-    expect(screen.getByRole("heading", { level: 1, name: "El Poder Verde" })).toBeTruthy();
+    // The page header owns the title; the card repeats none of it.
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain(
       "Los%20Mirlos",
     );

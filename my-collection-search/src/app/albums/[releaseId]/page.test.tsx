@@ -294,8 +294,11 @@ describe("album page layout (#727)", () => {
   it("shows a breadcrumb and an album card whose stats read the tracks and spins", async () => {
     renderWithProviders(<AlbumDetailPage />);
     expect(await screen.findByTestId("page-header-breadcrumbs")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 1, name: "Blue Lines" })).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2, name: "Blue Lines" })).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 1 }).map((h) => h.textContent)).toEqual([
+      "Blue Lines",
+    ]);
+    expect(screen.queryByRole("heading", { level: 2, name: "Blue Lines" })).toBeNull();
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("2 tracks · 7:00");
     expect(screen.getByText("A 3:00 · B 4:00")).toBeTruthy();
   });
 

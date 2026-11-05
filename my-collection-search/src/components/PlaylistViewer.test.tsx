@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   player: { playlist: [] as unknown[], currentTrackIndex: null as number | null },
   pending: false,
   empty: false,
+  single: false,
+  missingCount: 0,
   saveExisting: vi.fn(),
   markChanged: (() => {}) as () => void,
 }));
@@ -26,7 +28,7 @@ const tracks = [
 vi.mock("@/hooks/useSearchResults", () => ({ useSearchResults: () => ({ playlistCounts: {} }) }));
 vi.mock("@/hooks/usePlaylistTrackIdsQuery", () => ({
   usePlaylistTrackIdsQuery: () => ({
-    tracks: mocks.empty ? [] : refs,
+    tracks: mocks.empty ? [] : mocks.single ? refs.slice(0, 1) : refs,
     playlistName: "Set",
     isPending: mocks.pending,
     refetch: vi.fn(),
@@ -55,7 +57,7 @@ vi.mock("@/hooks/usePlaylistActions", () => ({
   usePlaylistActions: () => ({
     exportPlaylist: vi.fn(),
     exportToPDF: vi.fn(),
-    getTotalPlaytime: () => ({ formatted: "0:00", missingCount: 0 }),
+    getTotalPlaytime: () => ({ formatted: "0:00", missingCount: mocks.missingCount }),
   }),
 }));
 vi.mock("@/hooks/usePlaylistSaveDialog", () => ({
@@ -96,6 +98,8 @@ beforeEach(() => {
   mocks.player = { playlist: [], currentTrackIndex: null };
   mocks.pending = false;
   mocks.empty = false;
+  mocks.missingCount = 0;
+  mocks.single = false;
 });
 
 describe("PlaylistViewer view mode", () => {
@@ -161,6 +165,36 @@ describe("PlaylistViewer page header", () => {
     expect(
       screen.getByRole("link", { name: "Back to Playlists", hidden: true }).getAttribute("href"),
     ).toBe("/playlists");
+  });
+
+  it("has one h1 and totals the playlist in the header meta", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("2 tracks · 0:00");
+    expect(screen.queryByText(/Total Playtime/)).toBeNull();
+  });
+
+  it("notes tracks missing timing in the meta, and totals nothing while empty", async () => {
+    mocks.missingCount = 1;
+    const { unmount } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.getByTestId("page-header-meta").textContent).toBe(
+      "2 tracks · 0:00 · 1 missing timing",
+    );
+    unmount();
+
+    mocks.empty = true;
+    const { unmount: unmountEmpty } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.queryByTestId("page-header-meta")).toBeNull();
+    unmountEmpty();
+
+    mocks.empty = false;
+    mocks.single = true;
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.getByTestId("page-header-meta").textContent).toContain("1 track ·");
   });
 
   it("puts the actions menu in the phone header as well as beside the playtime on desktop", async () => {

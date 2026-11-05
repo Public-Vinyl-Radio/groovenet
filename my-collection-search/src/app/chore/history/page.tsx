@@ -48,11 +48,22 @@ export default function CareHistoryPage() {
     }
   };
 
+  const entryTotal = logQuery.data?.total;
   const header = (
-    <PageHeader
-      title="Care history"
-      breadcrumbs={[{ label: "Chores", href: "/chore" }, { label: "Care history" }]}
-    />
+    <PageHeader>
+      <PageHeader.Context
+        crumbs={[{ label: "Chores", href: "/chore" }, { label: "Care history" }]}
+      />
+      <PageHeader.Title
+        meta={
+          entryTotal === undefined
+            ? undefined
+            : `${entryTotal.toLocaleString("en-US")} ${entryTotal === 1 ? "entry" : "entries"}`
+        }
+      >
+        Care history
+      </PageHeader.Title>
+    </PageHeader>
   );
 
   let body: React.ReactNode;
@@ -72,9 +83,6 @@ export default function CareHistoryPage() {
     const { items, total } = logQuery.data!;
     body = (
       <Stack gap="14px" maxW="640px" pr="6px" pb={6}>
-        <Text fontFamily="mono" fontSize="11px" letterSpacing="0.06em" color="fg.muted">
-          {total.toLocaleString("en-US")} {total === 1 ? "ENTRY" : "ENTRIES"}
-        </Text>
         {items.length === 0 && (
           <Text fontSize="15px" color="fg.muted">
             Nothing logged yet.

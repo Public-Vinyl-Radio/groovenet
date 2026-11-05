@@ -116,7 +116,9 @@ export function PageHeaderTitle({ children, meta, metaOnPhone = true }: PageHead
           data-testid="page-header-meta"
           {...pageHeader.meta}
           display={metaOnPhone ? "block" : desktopOnly}
-          flexShrink={{ base: 0, md: 1 }}
+          // The title gives way first; a meta wider than half the row truncates.
+          flexShrink={0}
+          maxW="50%"
           minW={0}
           truncate
           title={typeof meta === "string" ? meta : undefined}

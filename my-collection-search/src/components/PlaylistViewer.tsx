@@ -3,7 +3,7 @@
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
 
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Box, EmptyState, Flex, Text, VStack, Skeleton, Button } from "@chakra-ui/react";
+import { Box, EmptyState, Flex, VStack, Skeleton, Button } from "@chakra-ui/react";
 import { StatusTag } from "@/components/ui/RoleTags";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiHeadphones, FiSave } from "react-icons/fi";
@@ -386,17 +386,40 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   );
 
   const displayName = playlistName || `Playlist ${playlistId ?? ""}`.trim();
+  const trackCount = tracksPlaylist.length;
+  // Nothing to total while loading or empty.
+  const meta =
+    trackIdsLoading || tracksLoading || trackCount === 0
+      ? undefined
+      : [
+          `${trackCount} ${trackCount === 1 ? "track" : "tracks"}`,
+          totalPlaytimeFormatted,
+          durationMissingCount > 0 && `${durationMissingCount} missing timing`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
   const header = (
-    <PageHeader
-      title={displayName}
-      breadcrumbs={[{ label: "Playlists", href: "/playlists" }, { label: displayName }]}
-      actions={
-        hasUnsavedChanges && playlistId
-          ? [{ label: "Save changes", icon: <FiSave />, onClick: saveExisting }]
-          : []
-      }
-      trailing={actionsMenu}
-    />
+    <PageHeader>
+      <PageHeader.Context
+        crumbs={[{ label: "Playlists", href: "/playlists" }, { label: displayName }]}
+      />
+      <PageHeader.Title meta={meta}>{displayName}</PageHeader.Title>
+      <PageHeader.Actions
+        actions={
+          hasUnsavedChanges && playlistId
+            ? [
+                {
+                  label: "Save changes",
+                  icon: <FiSave />,
+                  onClick: saveExisting,
+                  desktop: "hidden",
+                },
+              ]
+            : []
+        }
+        phone={actionsMenu}
+      />
+    </PageHeader>
   );
 
   if (trackIdsLoading || tracksLoading) {
@@ -464,15 +487,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
               </StatusTag>
             )}
           </Flex>
-          <Text fontSize="sm" color="fg.muted" mb={2}>
-            Total Playtime: {totalPlaytimeFormatted}
-            {durationMissingCount > 0 && (
-              <Text as="span" color="fg.muted">
-                {" "}
-                ({durationMissingCount} track{durationMissingCount !== 1 ? "s" : ""} missing timing)
-              </Text>
-            )}
-          </Text>
         </Box>
         <Flex gap={2} align="flex-start">
           {hasUnsavedChanges && playlistId && (

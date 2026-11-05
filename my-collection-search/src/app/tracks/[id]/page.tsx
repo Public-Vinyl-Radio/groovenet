@@ -14,6 +14,7 @@ import RelatedTracksSection from "@/components/RelatedTracksSection";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import type { Crumb } from "@/components/layout/Breadcrumbs";
+import { trackMeta } from "@/lib/entityMeta";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
 import { TrackPlaylistsSection, TrackHeader, TrackDebugModal } from "@/components/track-detail";
 
@@ -58,20 +59,24 @@ export default function TrackPage() {
   return (
     <PageContainer>
       {hasValidFriendId && crumbs && track && (
-        <PageHeader
-          title={track.title}
-          breadcrumbs={crumbs}
-          trailing={
-            isMobile ? (
-              <TrackActionsMenu
-                track={track}
-                prominent
-                onOpenTrackDebug={() => setDebugOpen(true)}
-                onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
-              />
-            ) : undefined
-          }
-        />
+        <PageHeader>
+          <PageHeader.Context crumbs={crumbs} />
+          <PageHeader.Title metaOnPhone={false} meta={trackMeta(track)}>
+            {track.title}
+          </PageHeader.Title>
+          <PageHeader.Actions
+            phone={
+              isMobile ? (
+                <TrackActionsMenu
+                  track={track}
+                  prominent
+                  onOpenTrackDebug={() => setDebugOpen(true)}
+                  onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
+                />
+              ) : undefined
+            }
+          />
+        </PageHeader>
       )}
       {!hasValidFriendId && (
         <Box borderWidth="outline" borderColor="border.ink" boxShadow="sm" p={4} borderRadius="md">

@@ -87,8 +87,6 @@ function GenreContent({
     </Flex>
   );
   const statItems = [
-    { label: "Tracks", value: counts.tracks_total.toLocaleString() },
-    { label: "Albums", value: counts.albums_total.toLocaleString() },
     {
       label: "BPM range",
       value:
@@ -104,18 +102,25 @@ function GenreContent({
   ];
   return (
     <>
-      <PageHeader
-        title={genre.name}
-        breadcrumbs={[
-          GENRES_CRUMB,
-          ...page.ancestors.map((ancestor) => ({
-            label: ancestor.name,
-            href: `/genres/${encodeURIComponent(ancestor.slug)}`,
-          })),
-          { label: genre.name },
-        ]}
-        desktopActions={actions}
-      />
+      <PageHeader>
+        <PageHeader.Context
+          crumbs={[
+            GENRES_CRUMB,
+            ...page.ancestors.map((ancestor) => ({
+              label: ancestor.name,
+              href: `/genres/${encodeURIComponent(ancestor.slug)}`,
+            })),
+            { label: genre.name },
+          ]}
+        />
+        <PageHeader.Title
+          meta={`${counts.tracks_total.toLocaleString()} tracks · ${counts.albums_total.toLocaleString()} albums`}
+          metaOnPhone={false}
+        >
+          {genre.name}
+        </PageHeader.Title>
+        <PageHeader.Actions desktop={actions} />
+      </PageHeader>
       <Stack gap={5}>
         {genre.source === "custom" && (
           <MetaTag alignSelf="start" title="Added to the taxonomy; not a Discogs genre or style">
@@ -124,7 +129,7 @@ function GenreContent({
         )}
         <Grid
           as="dl"
-          templateColumns={{ base: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }}
+          templateColumns="repeat(2, minmax(0, 1fr))"
           borderWidth="outline"
           borderRadius="md"
           borderColor="border.ink"
@@ -136,11 +141,7 @@ function GenreContent({
               px={{ base: 3, md: 4 }}
               py={3}
               minW={0}
-              borderInlineStartWidth={{
-                base: index % 2 ? "outline" : 0,
-                md: index ? "outline" : 0,
-              }}
-              borderTopWidth={{ base: index > 1 ? "outline" : 0, md: 0 }}
+              borderInlineStartWidth={index ? "outline" : 0}
               borderColor="border.ink"
               title={item.title}
             >

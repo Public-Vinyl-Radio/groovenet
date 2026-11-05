@@ -53,7 +53,9 @@ describe("Care history page", () => {
 
   it("lists every entry, voided ones struck through without a VOID", async () => {
     renderWithProviders(<CareHistoryPage />);
-    expect(await screen.findByText("3 ENTRIES")).toBeTruthy();
+    expect(await screen.findByText("3 entries")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("3 entries");
     expect(api.listRecordCareLog).toHaveBeenCalledWith({ friend_id: 7, limit: 20 });
 
     const struck = screen.getByRole("article", { name: "STACK 2 · CLEANED · 10 RECORDS, voided" });
@@ -128,7 +130,7 @@ describe("Care history page", () => {
     api.listRecordCareLog.mockResolvedValue(page([], 0));
     const { unmount } = renderWithProviders(<CareHistoryPage />);
     expect(await screen.findByText("Nothing logged yet.")).toBeTruthy();
-    expect(screen.getByText("0 ENTRIES")).toBeTruthy();
+    expect(screen.getByText("0 entries")).toBeTruthy();
     unmount();
 
     api.listRecordCareLog.mockRejectedValue(new Error("boom"));
@@ -141,6 +143,6 @@ describe("Care history page", () => {
   it("says ENTRY for one", async () => {
     api.listRecordCareLog.mockResolvedValue(page([session]));
     renderWithProviders(<CareHistoryPage />);
-    expect(await screen.findByText("1 ENTRY")).toBeTruthy();
+    expect(await screen.findByText("1 entry")).toBeTruthy();
   });
 });

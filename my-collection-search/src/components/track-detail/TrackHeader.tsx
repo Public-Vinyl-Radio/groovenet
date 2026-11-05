@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, Heading, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Text } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
 import { FaPlay } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
@@ -195,7 +195,7 @@ function Facts({ track }: { track: Track }) {
 }
 
 /**
- * The track page header: one outlined card with the artwork, title and genres on
+ * The track identity card: one outlined card with the artwork, artist and genres on
  * the left and the facts (BPM, key, duration, side) beside them or, narrow,
  * as a strip. Actions sit inside the card when wide and below it when narrow.
  */
@@ -306,28 +306,17 @@ export default function TrackHeader({
           css={{ gridArea: "info", padding: "12px", [wide]: { padding: "20px 20px 0" } }}
         >
           <Flex alignItems="center" gap={2} minW={0}>
-            <Heading
-              as="h1"
-              fontSize="20px"
-              lineHeight="26px"
-              fontWeight="semibold"
-              minW={0}
+            <Text
+              fontWeight="medium"
+              fontSize="15px"
+              lineHeight="20px"
               overflowWrap="anywhere"
-              css={{ [wide]: { fontSize: "28px", lineHeight: "36px" } }}
+              css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
             >
-              {track.title}
-            </Heading>
+              <ArtistLink artist={track.artist} friendId={track.friend_id} />
+            </Text>
             {hasNotes && <NotesIndicator notes={track.notes as string} />}
           </Flex>
-          <Text
-            fontWeight="medium"
-            fontSize="15px"
-            lineHeight="20px"
-            overflowWrap="anywhere"
-            css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
-          >
-            <ArtistLink artist={track.artist} friendId={track.friend_id} />
-          </Text>
           {/* One line: a long album ends in an ellipsis and the year stays beside it. */}
           <Flex
             color="fg.muted"

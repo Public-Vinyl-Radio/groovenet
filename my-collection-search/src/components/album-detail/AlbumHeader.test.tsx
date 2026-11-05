@@ -77,7 +77,8 @@ beforeEach(() => vi.clearAllMocks());
 describe("AlbumHeader", () => {
   it("names the album, links its artist and gives the overline and byline", () => {
     renderHeader();
-    expect(screen.getByRole("heading", { level: 2, name: "Corazón Amazónico" })).toBeTruthy();
+    // The page header owns the title; the card repeats none of it.
+    expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain(
       "Los%20Mirlos",
     );

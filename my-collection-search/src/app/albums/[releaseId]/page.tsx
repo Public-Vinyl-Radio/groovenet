@@ -20,6 +20,7 @@ import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import PageContainer from "@/components/layout/PageContainer";
 import { compareTrackPositions } from "@/lib/albumTrackPosition";
 import { summarizeSides, summarizeSpinStats } from "@/lib/albumStats";
+import { albumMeta } from "@/lib/entityMeta";
 import { useAlbumActions } from "@/hooks/useAlbumActions";
 import type { Album } from "@/types/track";
 
@@ -131,18 +132,29 @@ function AlbumDetailContent() {
 
   return (
     <PageContainer mb="100px">
-      <PageHeader
-        title={album.title}
-        // Phones go back to the list; the artist crumb is for the desktop trail.
-        breadcrumbs={[
-          { label: "Albums", href: "/albums" },
-          ...(isMobile
-            ? []
-            : [{ label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` }]),
-          { label: album.title },
-        ]}
-        trailing={isMobile ? menu : undefined}
-      />
+      <PageHeader>
+        <PageHeader.Context
+          // Phones go back to the list; the artist crumb is for the desktop trail.
+          crumbs={[
+            { label: "Albums", href: "/albums" },
+            ...(isMobile
+              ? []
+              : [{ label: album.artist, href: `/albums?q=${encodeURIComponent(album.artist)}` }]),
+            { label: album.title },
+          ]}
+        />
+        <PageHeader.Title
+          metaOnPhone={false}
+          meta={albumMeta({
+            identifier: album.library_identifier || album.catalog_number,
+            trackCount: tracks.length || album.track_count || 0,
+            totalSeconds: sides.reduce((sum, side) => sum + side.seconds, 0),
+          })}
+        >
+          {album.title}
+        </PageHeader.Title>
+        <PageHeader.Actions phone={isMobile ? menu : undefined} />
+      </PageHeader>
 
       <Box mb={{ base: 8, md: 10 }} pr="6px" pb="6px">
         <AlbumHeader
