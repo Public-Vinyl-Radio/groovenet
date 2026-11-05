@@ -32,6 +32,12 @@ export function todoCount(progress: Pick<RecordCareProgressResponse, "cleaned" |
   return Math.max(0, progress.total - progress.cleaned);
 }
 
+/** The header meta: "412 copies · 402 to do". */
+export function choresMeta(progress: Pick<RecordCareProgressResponse, "cleaned" | "total">) {
+  const copies = `${count(progress.total)} ${progress.total === 1 ? "copy" : "copies"}`;
+  return `${copies} · ${count(todoCount(progress))} to do`;
+}
+
 /** "STACK 2 OF 42 UP NEXT" (desktop), "STACK 2 OF 42 NEXT" (phone). */
 export function stackUpNextLabel(
   progress: Pick<RecordCareProgressResponse, "next_stack_no" | "stacks_total" | "total">,

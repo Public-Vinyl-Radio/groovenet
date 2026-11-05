@@ -56,6 +56,16 @@ export default function TrackPage() {
       ]
     : undefined;
 
+  const trackMenu = (prominent: boolean) =>
+    track && (
+      <TrackActionsMenu
+        track={track}
+        prominent={prominent}
+        onOpenTrackDebug={() => setDebugOpen(true)}
+        onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
+      />
+    );
+
   return (
     <PageContainer>
       {hasValidFriendId && crumbs && track && (
@@ -64,17 +74,10 @@ export default function TrackPage() {
           <PageHeader.Title metaOnPhone={false} meta={trackMeta(track)}>
             {track.title}
           </PageHeader.Title>
+          {/* The menu sits in the header at both widths, not in the card. */}
           <PageHeader.Actions
-            phone={
-              isMobile ? (
-                <TrackActionsMenu
-                  track={track}
-                  prominent
-                  onOpenTrackDebug={() => setDebugOpen(true)}
-                  onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
-                />
-              ) : undefined
-            }
+            phone={isMobile ? trackMenu(true) : undefined}
+            desktop={isMobile ? undefined : trackMenu(false)}
           />
         </PageHeader>
       )}
@@ -117,7 +120,7 @@ export default function TrackPage() {
                 friendId={friendId}
                 fallbackTrack={trackQuery.data}
                 showUsername={showUsername}
-                menuInPageHeader={isMobile}
+                menuInPageHeader
                 onOpenTrackDebug={() => setDebugOpen(true)}
                 onChangeArtwork={
                   trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined

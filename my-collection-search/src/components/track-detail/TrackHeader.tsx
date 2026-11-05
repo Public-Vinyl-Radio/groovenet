@@ -25,7 +25,7 @@ type Props = {
   showUsername?: boolean;
   onOpenTrackDebug?: () => void;
   onChangeArtwork?: () => void;
-  /** The phone page header carries the actions menu, so the strip below the card omits it. */
+  /** The page header carries the actions menu, so the card omits it. */
   menuInPageHeader?: boolean;
 };
 
@@ -256,7 +256,7 @@ export default function TrackHeader({
       >
         <FiPlus /> Add to playlist
       </Button>
-      {!(placement === "below" && menuInPageHeader) && (
+      {!menuInPageHeader && (
         <TrackActionsMenu
           track={track}
           prominent={placement === "below"}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Stack, Flex } from "@chakra-ui/react";
+import { Stack } from "@chakra-ui/react";
 import { FiCheck } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
@@ -173,21 +173,34 @@ export default function AddAlbumPage() {
   };
 
   return (
-    <PageContainer py={{ base: 0, md: 4 }} mb={playlistLength > 0 ? "120px" : "0"}>
-      <PageHeader
-        title="Add Album"
-        leading={
-          <HeaderCancelButton onClick={handleCancel} disabled={createAlbumMutation.isPending} />
-        }
-        actions={[
-          {
-            label: "Save Album",
-            icon: <FiCheck />,
-            onClick: handleSave,
-            disabled: createAlbumMutation.isPending,
-          },
-        ]}
-      />
+    <PageContainer mb={playlistLength > 0 ? "120px" : "0"}>
+      <PageHeader>
+        <PageHeader.Context
+          crumbs={[{ label: "Albums", href: "/albums" }, { label: "Add" }]}
+          leading={
+            <HeaderCancelButton onClick={handleCancel} disabled={createAlbumMutation.isPending} />
+          }
+        />
+        <PageHeader.Title>Add album</PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: "Cancel",
+              onClick: handleCancel,
+              disabled: createAlbumMutation.isPending,
+              ghost: true,
+              phone: "hidden",
+            },
+            {
+              label: "Save album",
+              icon: <FiCheck />,
+              onClick: handleSave,
+              loading: createAlbumMutation.isPending,
+              primary: true,
+            },
+          ]}
+        />
+      </PageHeader>
       <Stack gap={6} maxW="960px">
         <AlbumForm value={albumForm} onChange={setAlbumForm} />
 
@@ -199,19 +212,6 @@ export default function AddAlbumPage() {
           defaultArtist={albumForm.artist}
           defaultAlbum={albumForm.title}
         />
-
-        <Flex gap={3} justify="flex-end" pt={4} display={{ base: "none", md: "flex" }}>
-          <Button onClick={handleCancel} variant="outline" disabled={createAlbumMutation.isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            colorPalette="accent"
-            loading={createAlbumMutation.isPending}
-          >
-            Save Album
-          </Button>
-        </Flex>
       </Stack>
     </PageContainer>
   );

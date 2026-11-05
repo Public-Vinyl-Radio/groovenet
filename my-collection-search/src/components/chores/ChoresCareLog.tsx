@@ -4,7 +4,6 @@ import React from "react";
 import NextLink from "next/link";
 import { Box, Button, chakra, Flex, Grid, Spinner, Stack, Text } from "@chakra-ui/react";
 import Artwork from "@/components/player/Artwork";
-import { SectionLabel } from "@/components/ui/SectionLabel";
 import { cleaningMethodLabel, sleeveLabel } from "@/components/records/recordCareFormat";
 import type {
   RecordCareLogEntry,
@@ -303,14 +302,8 @@ export default function ChoresCareLog({
   }
 
   return (
+    // The page's CARE LOG tab names this column.
     <Stack gap={3} pr="6px">
-      <SectionLabel
-        variant="strip"
-        id="chores-care-log-heading"
-        display={{ base: "none", md: "flex" }}
-      >
-        CARE LOG
-      </SectionLabel>
       {thisMonth && (
         <Text fontFamily="mono" fontSize="11px" letterSpacing="0.06em" color="fg.muted">
           {thisMonthLine(thisMonth)}

@@ -11,6 +11,10 @@ export type HeaderAction = {
   primary?: boolean;
   /** Greyed out while a save/run is in flight. */
   disabled?: boolean;
+  /** In flight: a spinner on the desktop button, and disabled at both widths. */
+  loading?: boolean;
+  /** A quiet desktop button with no outline, for a form's Cancel beside its Save. */
+  ghost?: boolean;
   /**
    * Phones: a 44px icon, the ⋯ menu, or left out. Default: an icon while there
    * is room (two) and the action has one, otherwise the menu.

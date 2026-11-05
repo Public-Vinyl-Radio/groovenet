@@ -2,7 +2,16 @@
 
 import React, { useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Box, Button, Flex, Grid, RatingGroup, Skeleton, Stack, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Grid,
+  RatingGroup,
+  Skeleton,
+  Stack,
+  Text,
+  VisuallyHidden,
+} from "@chakra-ui/react";
 import { StatusTag } from "@/components/ui/RoleTags";
 
 import PageContainer from "@/components/layout/PageContainer";
@@ -104,22 +113,41 @@ export default function TrackEditPage() {
   };
   return (
     <PageContainer>
-      <PageHeader
-        title="Edit Track"
-        leading={<HeaderCancelButton onClick={() => router.back()} disabled={saving} />}
-        actions={
-          hasValidFriendId && track
-            ? [
-                {
-                  label: "Save",
-                  icon: <FiCheck />,
-                  onClick: () => void handleSubmit(),
-                  disabled: saving,
-                },
-              ]
-            : []
-        }
-      />
+      <PageHeader>
+        <PageHeader.Context
+          crumbs={[
+            { label: "Tracks", href: "/tracks" },
+            ...(track
+              ? [{ label: track.title, href: `/tracks/${trackId}?friend_id=${friendId}` }]
+              : []),
+            { label: "Edit" },
+          ]}
+          leading={<HeaderCancelButton onClick={() => router.back()} disabled={saving} />}
+        />
+        <PageHeader.Title>Edit track</PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: "Cancel",
+              onClick: () => router.back(),
+              disabled: saving,
+              ghost: true,
+              phone: "hidden",
+            },
+            ...(hasValidFriendId && track
+              ? [
+                  {
+                    label: "Save",
+                    icon: <FiCheck />,
+                    onClick: () => void handleSubmit(),
+                    loading: saving,
+                    primary: true,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </PageHeader>
       <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} mb={6} gap={3}>
         <Stack gap={1} minW={0} flex={1}>
           {track && (
@@ -306,14 +334,12 @@ export default function TrackEditPage() {
             </SectionCard>
           </Stack>
 
-          <Flex gap={3} mt={6} display={{ base: "none", md: "flex" }}>
-            <Button type="submit" loading={saving} disabled={saving}>
+          {/* Save is in the header; this keeps Enter in a field submitting. */}
+          <VisuallyHidden asChild>
+            <button type="submit" tabIndex={-1} aria-hidden="true">
               Save
-            </Button>
-            <Button variant="outline" onClick={() => router.back()} disabled={saving}>
-              Cancel
-            </Button>
-          </Flex>
+            </button>
+          </VisuallyHidden>
         </Box>
       )}
     </PageContainer>

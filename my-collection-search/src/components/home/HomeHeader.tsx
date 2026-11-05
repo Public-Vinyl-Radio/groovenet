@@ -41,7 +41,8 @@ export default function HomeHeader({
         Home
       </PageHeader.Title>
       <PageHeader.Actions
-        actions={[{ label: "Search", icon: <LuSearch />, onClick: onSearch }]}
+        // Desktop has the search field instead.
+        actions={[{ label: "Search", icon: <LuSearch />, onClick: onSearch, desktop: "hidden" }]}
         desktop={
           <SearchTrigger
             type="button"

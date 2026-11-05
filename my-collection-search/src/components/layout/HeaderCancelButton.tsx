@@ -4,7 +4,7 @@ import React from "react";
 import { IconButton } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 
-/** Cancel as a PageHeader `leading` control on form pages. Phones only: md+ keeps its inline buttons. */
+/** Cancel as a PageHeader `leading` control on form pages. Phones only: md+ has a Cancel action in the header. */
 export default function HeaderCancelButton({
   onClick,
   disabled,

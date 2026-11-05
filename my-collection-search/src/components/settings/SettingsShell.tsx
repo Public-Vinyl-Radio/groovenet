@@ -2,10 +2,11 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Flex, Heading, IconButton, Text } from "@chakra-ui/react";
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import { FiChevronLeft } from "react-icons/fi";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import AboutSection from "./AboutSection";
 import AiPromptSettingsSection, { AI_METADATA_INTRO } from "./AiPromptSettingsSection";
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
@@ -58,6 +59,13 @@ function SettingsIndexList() {
   return <SettingsDrillList summaries={useSettingsSummaries()} />;
 }
 
+const settingsHeader = (
+  <PageHeader>
+    <PageHeader.Title>Settings</PageHeader.Title>
+    <PageHeader.Actions />
+  </PageHeader>
+);
+
 const backToSettings = (
   <IconButton asChild aria-label="Back to Settings" variant="ghost" boxSize="44px" minW="44px">
     <NextLink href={SETTINGS_PATH} aria-label="Back to Settings">
@@ -91,14 +99,16 @@ export default function SettingsShell({ section }: { section: SettingsSectionId 
           <>
             {/* `contents`, so the phone header stays sticky against the page. */}
             <Box display={{ base: "contents", md: "none" }}>
-              <PageHeader title={label} leading={backToSettings} trailing={frame?.phoneAction} />
+              <PageHeader>
+                <PageHeader.Context leading={backToSettings} />
+                <PageHeader.Title>{label}</PageHeader.Title>
+                <PageHeader.Actions phone={frame?.phoneAction} />
+              </PageHeader>
             </Box>
-            <Box display={{ base: "none", md: "contents" }}>
-              <PageHeader title="Settings" />
-            </Box>
+            <Box display={{ base: "none", md: "contents" }}>{settingsHeader}</Box>
           </>
         ) : (
-          <PageHeader title="Settings" />
+          settingsHeader
         )}
 
         {section ? null : (
@@ -120,17 +130,9 @@ export default function SettingsShell({ section }: { section: SettingsSectionId 
           <Box as="section" aria-labelledby={headingId} flex="1" minW={0} maxW="920px">
             <Flex align="flex-end" gap={6} mb={{ base: desktopFrame?.intro ? 4 : 0, md: 5 }}>
               <Box flex="1" minW={0}>
-                <Heading
-                  as="h2"
-                  id={headingId}
-                  display={{ base: "none", md: "block" }}
-                  fontFamily="heading"
-                  fontSize="28px"
-                  lineHeight="34px"
-                  fontWeight="semibold"
-                >
+                <SectionHeading id={headingId} display={{ base: "none", md: "block" }}>
                   {label}
-                </Heading>
+                </SectionHeading>
                 {desktopFrame?.intro ? (
                   <Text
                     mt={{ base: 0, md: "6px" }}

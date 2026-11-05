@@ -153,7 +153,11 @@ function AlbumDetailContent() {
         >
           {album.title}
         </PageHeader.Title>
-        <PageHeader.Actions phone={isMobile ? menu : undefined} />
+        {/* The menu sits in the header at both widths, not in the card. */}
+        <PageHeader.Actions
+          phone={isMobile ? menu : undefined}
+          desktop={isMobile ? undefined : menu}
+        />
       </PageHeader>
 
       <Box mb={{ base: 8, md: 10 }} pr="6px" pb="6px">
@@ -169,7 +173,6 @@ function AlbumDetailContent() {
           onAddToPlaylist={() => openForTracks(tracks, album.title)}
           onLogSpin={() => setLogSpinOpen(true)}
           onChangeArtwork={() => albumActions.menuProps.onChangeArtwork?.()}
-          menu={isMobile ? undefined : menu}
           isMobile={isMobile}
         />
       </Box>

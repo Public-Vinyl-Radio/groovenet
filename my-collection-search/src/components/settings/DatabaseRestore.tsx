@@ -1,10 +1,10 @@
 "use client";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import React from "react";
-import { Box, Button, Flex, Heading, Input, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Input, Text } from "@chakra-ui/react";
 import { FiUpload } from "react-icons/fi";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { DIGITAL_HATCH } from "@/components/spins/recapParts";
 import { useRestoreDatabaseMutation } from "@/hooks/useRestoreDatabaseMutation";
 
 export default function DatabaseRestore() {
@@ -32,21 +32,9 @@ export default function DatabaseRestore() {
   };
   return (
     <Box as="section" aria-label="Danger zone" mt={8}>
-      <Flex align="center" gap={3} mb={4}>
-        <Box
-          bgImage={DIGITAL_HATCH}
-          p="3px"
-          borderWidth="outline"
-          borderColor="border.ink"
-          borderRadius="md"
-          overflow="clip"
-        >
-          <Heading as="h2" bg="bg" fontFamily="mono" fontSize="xs" px={2}>
-            DANGER ZONE
-          </Heading>
-        </Box>
-        <Box flex="1" h="2px" bg="fg" />
-      </Flex>
+      <SectionLabel variant="strip" mb={4}>
+        Danger zone
+      </SectionLabel>
       <Box
         borderWidth="outline"
         borderStyle="dashed"

@@ -10,11 +10,16 @@ export type Crumb = {
   href?: string;
 };
 
+// Only a long label gives way, so "Albums" or "Edit" never lose letters to
+// the title beside them.
+const LONG_CRUMB = 24;
+const shrink = (crumb: Crumb) => (crumb.label.length > LONG_CRUMB ? 1 : 0);
+
 type BreadcrumbsProps = { crumbs: Crumb[] } & Omit<FlexProps, "children">;
 
 /**
  * Trail of parents ending in the current page: mono, uppercase, muted. Parents
- * link; the last crumb is plain text and truncates.
+ * link; the last crumb is plain text. Any of them truncates when the trail is long.
  */
 export default function Breadcrumbs({ crumbs, ...rest }: BreadcrumbsProps) {
   const lastIndex = crumbs.length - 1;
@@ -39,11 +44,21 @@ export default function Breadcrumbs({ crumbs, ...rest }: BreadcrumbsProps) {
         <React.Fragment key={`${index}-${crumb.label}`}>
           {index > 0 && <span aria-hidden="true">/</span>}
           {index === lastIndex ? (
-            <Text as="span" color="fg" lineClamp={1} aria-current="page">
+            <Text as="span" color="fg" lineClamp={1} flexShrink={shrink(crumb)} aria-current="page">
               {crumb.label}
             </Text>
           ) : crumb.href ? (
-            <Link as={NextLink} href={crumb.href} color="fg.muted" flexShrink={0}>
+            // A long parent (a track title above its edit form) truncates
+            // rather than widening the page.
+            <Link
+              as={NextLink}
+              href={crumb.href}
+              color="fg.muted"
+              display="block"
+              flexShrink={shrink(crumb)}
+              truncate
+              title={crumb.label}
+            >
               {crumb.label}
             </Link>
           ) : (
