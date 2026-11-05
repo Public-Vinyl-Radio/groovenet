@@ -100,6 +100,13 @@ export async function resolveHelper(ctx: HelperContext): Promise<ResolvedHelper>
   return findHelper(ctx) ?? (await installHelper(ctx));
 }
 
+/** A loop, not /\/+$/, which CodeQL flags as polynomial on a long run of slashes. */
+function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end--;
+  return url.slice(0, end);
+}
+
 async function fetchBytes(ctx: HelperContext, url: string): Promise<Buffer> {
   let response: Response;
   try {
@@ -142,7 +149,7 @@ async function sweepStaleDownloads(root: string): Promise<void> {
 
 async function download(ctx: HelperContext): Promise<void> {
   const name = `groovenet-now-playing-${ctx.version}-macos-universal.zip`;
-  const base = `${ctx.baseUrl.replace(/\/+$/, "")}/groovenet-player-v${ctx.version}`;
+  const base = `${trimTrailingSlashes(ctx.baseUrl)}/groovenet-player-v${ctx.version}`;
   ctx.log(`Downloading Groovenet Now Playing ${ctx.version} (first run only)...`);
   const root = helperRoot(ctx.home);
   await mkdir(root, { recursive: true });
