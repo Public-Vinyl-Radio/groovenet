@@ -394,16 +394,7 @@ export default function GenrePage() {
   const { friend } = useUsername();
   const query = useGenrePageQuery(slug, friend?.id);
   return (
-    <Box
-      w="full"
-      css={{
-        "& [data-testid=page-header] h1": {
-          fontSize: { md: "48px" },
-          whiteSpace: { md: "normal" },
-          overflowWrap: "anywhere",
-        },
-      }}
-    >
+    <Box w="full">
       <PageContainer>
         {query.error ? (
           <>

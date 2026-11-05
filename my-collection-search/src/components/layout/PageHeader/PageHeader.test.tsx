@@ -3,7 +3,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import PageHeader from "./PageHeader";
+import PageHeader from ".";
 
 const action = (label: string, onClick = vi.fn()) => ({ label, icon: <span>i</span>, onClick });
 
@@ -21,6 +21,16 @@ describe("PageHeader", () => {
     expect(screen.getByTestId("page-header-count").textContent).toBe((1234).toLocaleString());
     rerender(<PageHeader title="Tracks" count="12 of 40" />);
     expect(screen.getByTestId("page-header-count").textContent).toBe("12 of 40");
+  });
+
+  it("shows a summary as desktop-only meta, after the count when there is one", () => {
+    const { rerender } = renderWithProviders(<PageHeader title="Home" summary="4 tracks" />);
+    expect(getComputedStyle(screen.getByTestId("page-header-meta")).display).toBe("none");
+    expect(screen.getByTestId("page-header-summary").textContent).toBe("4 tracks");
+    rerender(<PageHeader title="Home" count={2} summary="4 tracks" />);
+    expect(getComputedStyle(screen.getByTestId("page-header-meta")).display).toBe("block");
+    expect(getComputedStyle(screen.getByTestId("page-header-summary")).display).toBe("none");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("2 · 4 tracks");
   });
 
   it("puts desktop actions at the right of the title row, desktop only (#794)", () => {

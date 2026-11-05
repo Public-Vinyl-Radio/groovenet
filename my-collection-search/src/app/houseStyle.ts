@@ -511,6 +511,89 @@ export const retroDialog = {
   },
 } satisfies Record<string, SystemStyleObject>;
 
+// The page header (#990, epic #995): one shape for every route. Phones: the
+// sticky 52px bar (`--header-h`), back · title · actions, a 2px ink rule under
+// it. Desktop: an optional trail, the title row, then the same rule 16px below
+// with 24px after it; tabs, when present, take the rule's place. The title is
+// display 600 at 28/36 (20/24 in the bar); a count or summary beside it is
+// meta, in the Labels face so it follows that setting.
+const headerTabs = "&:has(> [data-page-header-tabs])";
+
+/** 44px: the phone bar's icon buttons and the desktop title row's minimum. */
+export const headerTarget = "44px";
+const headerTitleMin = "160px";
+const headerDesktopRows = `auto minmax(${headerTarget}, auto) auto`;
+
+const headerRoot: SystemStyleObject = {
+  display: "grid",
+  alignItems: "center",
+  position: { base: "sticky", md: "static" },
+  top: "var(--safe-top)",
+  zIndex: 80,
+  bg: "bg",
+  mx: { base: -4, md: 0 },
+  px: { base: 4, md: 0 },
+  h: { base: "var(--header-h)", md: "auto" },
+  mb: { base: 4, md: 6 },
+  pb: { base: 0, md: 4 },
+  borderBottomWidth: "outline",
+  borderColor: "border.ink",
+  // From `md` up the title keeps a minimum and too many actions wrap, rather
+  // than the actions squeezing the title away.
+  gridTemplateColumns: {
+    base: "auto minmax(0, 1fr) auto",
+    md: `auto minmax(${headerTitleMin}, 1fr) auto`,
+  },
+  gridTemplateRows: { base: "minmax(0, 1fr)", md: headerDesktopRows },
+  gridTemplateAreas: {
+    base: '"back title actions" "tabs tabs tabs"',
+    md: '"context context context" "back title actions" "tabs tabs tabs"',
+  },
+  // The tabs are the rule: on phones they sit under the bar, inside the
+  // header's own rule; from `md` up they draw it themselves.
+  [headerTabs]: {
+    h: { base: "auto" },
+    gridTemplateRows: {
+      base: `calc(var(--header-h) - ${outlineWidth}) auto`,
+      md: headerDesktopRows,
+    },
+    pb: { md: 0 },
+    borderBottomWidth: { md: 0 },
+  },
+};
+
+export const pageHeader = {
+  root: headerRoot,
+  title: {
+    fontFamily: "heading",
+    fontWeight: "semibold",
+    fontSize: { base: "20px", md: "28px" },
+    lineHeight: { base: "24px", md: "36px" },
+  },
+  /** A count or a summary on the title's baseline. 12/16 in the phone bar. */
+  meta: {
+    fontFamily: "label",
+    fontSize: { base: "12px", md: "13px" },
+    lineHeight: { base: "16px", md: "20px" },
+    letterSpacing: "0.02em",
+    color: "fg.muted",
+  },
+  titleGap: { base: 2, md: 3 },
+  /** Space between the trail and the title row. */
+  contextGap: 2,
+  /** Space between the title and the actions. */
+  actionsGap: { base: 2, md: 4 },
+  tabs: {
+    mt: { md: 2 },
+    borderBottomWidth: { base: 0, md: "outline" },
+    borderColor: "border.ink",
+    // The tabs stand on the rule and open onto it: no bottom edge of their
+    // own, and with rounded corners only their tops round.
+    "& [role=tab]": { borderBottomWidth: 0, borderBottomRadius: 0 },
+  },
+  toolbar: { mb: { base: 4, md: 6 } },
+} as const;
+
 // Diagonal stripes for a disabled control: readable without colour.
 const disabledHatch =
   "repeating-linear-gradient(135deg, var(--gn-border) 0 2px, transparent 2px 6px)";
