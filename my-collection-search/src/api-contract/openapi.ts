@@ -13,6 +13,7 @@ import {
   spinJsonSchemas,
   playerJsonSchemas,
   trackJsonSchemas,
+  backupJsonSchemas,
 } from "@groovenet/contracts";
 import fs from "node:fs";
 import path from "node:path";
@@ -234,6 +235,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...homeJsonSchemas,
     ...spinJsonSchemas,
     ...playerJsonSchemas,
+    ...backupJsonSchemas,
   };
   addExamplesToOpenApiDocument(paths, schemas);
 

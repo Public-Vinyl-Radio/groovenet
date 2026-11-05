@@ -1,25 +1,25 @@
 import { http } from "../http";
-
-export type BackupFile = {
-  filename: string;
-  size_bytes: number;
-  modified_at: string;
-};
+import type {
+  BackupCreateResponse,
+  BackupDeleteResponse,
+  BackupListResponse,
+} from "@groovenet/client";
+export type { BackupFile } from "@groovenet/client";
 
 export function backupDatabase() {
-  return http<{ message: string; filename: string; format: "custom" }>("/api/backup", {
+  return http<BackupCreateResponse>("/api/backup", {
     method: "POST",
   });
 }
 
 export function fetchBackups() {
-  return http<{ files: Array<string>; backups: Array<BackupFile> }>("/api/backups", {
+  return http<BackupListResponse>("/api/backups", {
     method: "GET",
   });
 }
 
 export function deleteBackup(filename: string) {
-  return http<{ deleted: string }>(`/api/backups/${encodeURIComponent(filename)}`, {
+  return http<BackupDeleteResponse>(`/api/backups/${encodeURIComponent(filename)}`, {
     method: "DELETE",
   });
 }

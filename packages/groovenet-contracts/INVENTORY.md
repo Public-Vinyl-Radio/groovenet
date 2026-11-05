@@ -27,7 +27,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | record care | 10 | Self-contained, enum-heavy (sleeve, action, cleaning method, care status). |
 | done | spins | 6 | Client and CLI already declared `SpinSession` and friends by hand. |
 | done | settings (AI prompt, appearance, recommendations, gamdl) | 10 | Flat settings documents. |
-| 4 | backups | 10 | Settings + status payloads; one binary download stays an exception. |
+| done | backups | 10 | Settings + status payloads; one binary download stays an exception. |
 | 5 | background jobs | 5 | Job entity also shapes the SSE events. |
 | done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
 | 7 | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
@@ -66,10 +66,10 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/audio/ingest/recent` | vinyl ingest & fingerprints | #552 |  |
 | GET | `/api/audio/ingest/retention` | vinyl ingest & fingerprints | #552 |  |
 | GET | `/api/audio/ingest/stats` | vinyl ingest & fingerprints | #552 |  |
-| POST | `/api/backup` | backups | #552 |  |
-| POST | `/api/backup-custom` | backups | #552 |  |
-| GET | `/api/backups` | backups | #552 |  |
-| DELETE | `/api/backups/{filename}` | backups | #552 |  |
+| POST | `/api/backup` | backups | contracts |  |
+| POST | `/api/backup-custom` | backups | contracts |  |
+| GET | `/api/backups` | backups | contracts |  |
+| DELETE | `/api/backups/{filename}` | backups | contracts |  |
 | GET | `/api/backups/{filename}` | backups | exception | Binary dump download; no JSON body. |
 | GET | `/api/detections/recent` | vinyl ingest & fingerprints | #552 |  |
 | GET | `/api/discogs` | providers & Discogs | #552 |  |
@@ -109,7 +109,7 @@ is closed; #606 owns them (its album half is migrated).
 | POST | `/api/genres/reconciliation/runs` | genre reconciliation | #552 |  |
 | GET | `/api/genres/reconciliation/runs/{id}` | genre reconciliation | #552 |  |
 | GET | `/api/health` | system | #552 | Auto-discovered only; no contract entry yet. |
-| GET | `/api/health/backup` | backups | #552 |  |
+| GET | `/api/health/backup` | backups | contracts |  |
 | DELETE | `/api/jobs` | background jobs | #552 |  |
 | GET | `/api/jobs` | background jobs | #552 |  |
 | GET | `/api/jobs/{jobId}` | background jobs | #552 |  |
@@ -154,7 +154,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/record-care/queue` | Record Care | contracts | Prioritized never-cleaned queue (`recordCareQueue.ts`) |
 | GET | `/api/record-care/progress` | Record Care | contracts | Ever-cleaned progress and pace (`recordCareQueue.ts`) |
 | PATCH | `/api/record-copies/default` | record care | contracts |  |
-| POST | `/api/restore` | backups | #552 |  |
+| POST | `/api/restore` | backups | contracts |  |
 | POST | `/api/set-derivations` | set derivation | #552 |  |
 | GET | `/api/set-derivations/{id}` | set derivation | #552 |  |
 | POST | `/api/set-derivations/{id}/claim` | set derivation | #552 |  |
@@ -166,10 +166,10 @@ is closed; #606 owns them (its album half is migrated).
 | PUT | `/api/settings/ai-prompt` | settings | contracts |  |
 | GET | `/api/settings/appearance` | settings | contracts |  |
 | PUT | `/api/settings/appearance` | settings | contracts |  |
-| GET | `/api/settings/backup` | backups | #552 |  |
-| PUT | `/api/settings/backup` | backups | #552 |  |
-| POST | `/api/settings/backup/run` | backups | #552 |  |
-| GET | `/api/settings/backup/status` | backups | #552 |  |
+| GET | `/api/settings/backup` | backups | contracts |  |
+| PUT | `/api/settings/backup` | backups | contracts |  |
+| POST | `/api/settings/backup/run` | backups | contracts |  |
+| GET | `/api/settings/backup/status` | backups | contracts |  |
 | GET | `/api/settings/default-library` | friends & library settings | contracts |  |
 | PUT | `/api/settings/default-library` | friends & library settings | contracts |  |
 | GET | `/api/settings/embedding-model` | embeddings | #552 |  |

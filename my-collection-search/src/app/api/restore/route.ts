@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { restoreDatabaseFromStream } from "@/server/services/restoreService";
+import { restoreResponseSchema } from "@/api-contract/schemas";
 
 /**
  * Restore from an uploaded backup. The preferred form is the raw file as the
@@ -17,14 +18,18 @@ export async function POST(request: Request) {
       if (!file || typeof file === "string") {
         return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
       }
-      return NextResponse.json(await restoreDatabaseFromStream(file.stream(), file.name));
+      return NextResponse.json(
+        restoreResponseSchema.parse(await restoreDatabaseFromStream(file.stream(), file.name)),
+      );
     }
 
     const fileName = new URL(request.url).searchParams.get("filename");
     if (!fileName || !request.body) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
-    return NextResponse.json(await restoreDatabaseFromStream(request.body, fileName));
+    return NextResponse.json(
+      restoreResponseSchema.parse(await restoreDatabaseFromStream(request.body, fileName)),
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : String(error) },

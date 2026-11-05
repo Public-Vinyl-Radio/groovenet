@@ -4,6 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { dbQuery } from "@/lib/serverDb";
+import type { RestoreResponse } from "@groovenet/contracts";
 import {
   pgConnectionArgs,
   pgEnv,
@@ -11,19 +12,9 @@ import {
   runCommand,
 } from "@/server/services/databaseBackupService";
 
-type BackupType = "schema+data" | "data-only";
-type FileType = "sql" | "dump";
-
-type RestoreResult = {
-  message: string;
-  backupType: BackupType;
-  fileType: FileType;
-  reindex: {
-    albumsIndexed: number;
-    tracksIndexed: number;
-    warning: string | null;
-  };
-};
+type BackupType = RestoreResponse["backupType"];
+type FileType = RestoreResponse["fileType"];
+type RestoreResult = RestoreResponse;
 
 const SCHEMA_MARKERS = ["CREATE TABLE", "CREATE SCHEMA", "ALTER TABLE"];
 const MARKER_OVERLAP = Math.max(...SCHEMA_MARKERS.map((marker) => marker.length));

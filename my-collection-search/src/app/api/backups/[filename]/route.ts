@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
 import { deleteBackup, resolveBackupPath } from "@/server/services/databaseBackupService";
+import { backupDeleteResponseSchema } from "@/api-contract/schemas";
 
 type RouteContext = { params: Promise<{ filename: string }> };
 
@@ -46,7 +47,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (result === "not-found") {
       return NextResponse.json({ error: "Backup not found" }, { status: 404 });
     }
-    return NextResponse.json({ deleted: filename });
+    return NextResponse.json(backupDeleteResponseSchema.parse({ deleted: filename }));
   } catch (error) {
     console.error("[backups/filename] DELETE error:", error);
     return NextResponse.json({ error: "Failed to delete backup" }, { status: 500 });

@@ -44,6 +44,11 @@ import {
   backupCreateResponseSchema,
   backupCreateCustomResponseSchema,
   backupStatusGetResponseSchema,
+  backupStatusRunResponseSchema,
+  backupListResponseSchema,
+  backupDeleteResponseSchema,
+  restoreResponseSchema,
+  backupHealthResponseSchema,
   defaultLibrarySettingsGetResponseSchema,
   defaultLibrarySettingsPutBodySchema,
   defaultLibrarySettingsPutResponseSchema,
@@ -965,51 +970,6 @@ const remainingTracksContracts: ApiContractRoute[] = [
     },
   }),
 ];
-
-const backupStatusSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    started_at: { type: "string" },
-    finished_at: { type: "string" },
-    stored_at: { type: "string" },
-    status: { type: "string", enum: ["success", "failed", "skipped"] },
-    reason: { type: "string", example: "no_changes_since_last_snapshot" },
-    backed_up_paths: { type: "array", items: { type: "string" } },
-    snapshot: { type: ["object", "null"], additionalProperties: true },
-    error: { type: "string" },
-    missing_env: {
-      type: "array",
-      items: { type: "string", example: "RESTIC_PASSWORD" },
-    },
-  },
-  required: [
-    "started_at",
-    "finished_at",
-    "stored_at",
-    "status",
-    "reason",
-    "backed_up_paths",
-    "snapshot",
-  ],
-  additionalProperties: true,
-};
-
-const backupHealthSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    healthy: { type: "boolean" },
-    status: { type: "string", enum: ["ok", "disabled", "unhealthy"] },
-    reason: {
-      type: "string",
-      enum: ["no-backup-status", "backup-failed", "backup-overdue", "status-unavailable"],
-    },
-    age_hours: { type: "number" },
-    finished_at: { type: "string" },
-    max_age_hours: { type: "number" },
-  },
-  required: ["status"],
-  additionalProperties: true,
-};
 
 const fingerprintContracts: ApiContractRoute[] = [
   {
@@ -3216,35 +3176,13 @@ const backupContracts: ApiContractRoute[] = [
     path: "/api/backups",
     summary: "List available database backup files",
     tags: ["Backups"],
-    successSchema: z.unknown(),
+    successSchema: backupListResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       responses: {
         "200": {
           description: "Backup files, newest first",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  files: { type: "array", items: { type: "string" } },
-                  backups: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        filename: { type: "string" },
-                        size_bytes: { type: "integer" },
-                        modified_at: { type: "string", format: "date-time" },
-                      },
-                      required: ["filename", "size_bytes", "modified_at"],
-                    },
-                  },
-                },
-                required: ["files", "backups"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("BackupListResponse") } },
         },
         "500": {
           description: "Server error",
@@ -3266,11 +3204,7 @@ const backupContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Backup file contents",
-          content: {
-            "application/octet-stream": {
-              schema: { type: "string", format: "binary" },
-            },
-          },
+          content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
         },
         "400": {
           description: "Missing or invalid filename",
@@ -3293,22 +3227,14 @@ const backupContracts: ApiContractRoute[] = [
     path: "/api/backups/{filename}",
     summary: "Delete a database backup file",
     tags: ["Backups"],
-    successSchema: z.unknown(),
+    successSchema: backupDeleteResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: buildPathParameters("/api/backups/{filename}"),
       responses: {
         "200": {
           description: "Backup deleted",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: { deleted: { type: "string" } },
-                required: ["deleted"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("BackupDeleteResponse") } },
         },
         "400": {
           description: "Invalid filename",
@@ -3331,7 +3257,7 @@ const backupContracts: ApiContractRoute[] = [
     path: "/api/restore",
     summary: "Restore the database from an uploaded backup file",
     tags: ["Backups"],
-    successSchema: z.unknown(),
+    successSchema: restoreResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
@@ -3349,9 +3275,7 @@ const backupContracts: ApiContractRoute[] = [
         description:
           "Prefer the raw file with ?filename=, which streams to disk. A multipart upload is buffered in server memory.",
         content: {
-          "application/octet-stream": {
-            schema: { type: "string", format: "binary" },
-          },
+          "application/octet-stream": { schema: { type: "string", format: "binary" } },
           "multipart/form-data": {
             schema: {
               type: "object",
@@ -3364,28 +3288,7 @@ const backupContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Restore result with reindex summary",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string" },
-                  backupType: { type: "string", enum: ["schema+data", "data-only"] },
-                  fileType: { type: "string", enum: ["sql", "dump"] },
-                  reindex: {
-                    type: "object",
-                    properties: {
-                      albumsIndexed: { type: "integer" },
-                      tracksIndexed: { type: "integer" },
-                      warning: { type: ["string", "null"] },
-                    },
-                    required: ["albumsIndexed", "tracksIndexed", "warning"],
-                  },
-                },
-                required: ["message", "backupType", "fileType", "reindex"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("RestoreResponse") } },
         },
         "400": {
           description: "No file uploaded",
@@ -3404,23 +3307,13 @@ const backupContracts: ApiContractRoute[] = [
     path: "/api/settings/backup/run",
     summary: "Trigger a manual backup run",
     tags: ["Settings", "Backups"],
-    successSchema: z.unknown(),
+    successSchema: backupStatusRunResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       responses: {
         "200": {
           description: "Latest backup status after the run",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  status: { oneOf: [backupStatusSchemaObject, { type: "null" }] },
-                },
-                required: ["status"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("BackupStatusRunResponse") } },
         },
         "500": {
           description: "Server error",
@@ -3435,17 +3328,17 @@ const backupContracts: ApiContractRoute[] = [
     path: "/api/health/backup",
     summary: "Backup health check (200 healthy, 503 unhealthy)",
     tags: ["Health"],
-    successSchema: z.unknown(),
+    successSchema: backupHealthResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       responses: {
         "200": {
           description: "Backup is healthy",
-          content: { "application/json": { schema: backupHealthSchemaObject } },
+          content: { "application/json": { schema: componentRef("BackupHealthResponse") } },
         },
         "503": {
           description: "Backup is unhealthy or its status is unavailable",
-          content: { "application/json": { schema: backupHealthSchemaObject } },
+          content: { "application/json": { schema: componentRef("BackupHealthResponse") } },
         },
       },
     },
@@ -5304,89 +5197,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Last known backup status",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  status: {
-                    anyOf: [
-                      {
-                        type: "object",
-                        properties: {
-                          started_at: { type: "string" },
-                          finished_at: { type: "string" },
-                          stored_at: { type: "string" },
-                          status: {
-                            type: "string",
-                            enum: ["success", "failed", "skipped"],
-                          },
-                          reason: {
-                            type: "string",
-                            example: "no_changes_since_last_snapshot",
-                          },
-                          backed_up_paths: {
-                            type: "array",
-                            items: { type: "string" },
-                          },
-                          snapshot: {
-                            anyOf: [
-                              {
-                                type: "object",
-                                properties: {
-                                  id: {
-                                    type: "string",
-                                    example: "9f2a1c4e8b7d6035a1c2e4f6089badc1",
-                                  },
-                                  short_id: {
-                                    type: "string",
-                                    nullable: true,
-                                    example: "9f2a1c4e",
-                                  },
-                                  time: {
-                                    type: "string",
-                                    format: "date-time",
-                                    example: "2026-02-17T03:00:00.000Z",
-                                  },
-                                  hostname: {
-                                    type: "string",
-                                    nullable: true,
-                                    example: "beelink",
-                                  },
-                                  paths: {
-                                    type: "array",
-                                    items: { type: "string", example: "/srv/docker/groovenet" },
-                                  },
-                                  tags: {
-                                    type: "array",
-                                    items: { type: "string", example: "groovenet-db" },
-                                  },
-                                },
-                                required: ["id", "short_id", "time", "hostname", "paths", "tags"],
-                              },
-                              { type: "null" },
-                            ],
-                          },
-                          error: { type: "string" },
-                          missing_env: {
-                            type: "array",
-                            items: { type: "string", example: "RESTIC_PASSWORD" },
-                          },
-                        },
-                        required: [
-                          "started_at",
-                          "finished_at",
-                          "stored_at",
-                          "status",
-                          "reason",
-                          "backed_up_paths",
-                          "snapshot",
-                        ],
-                      },
-                      { type: "null" },
-                    ],
-                  },
-                },
-                required: ["status"],
-              },
+              schema: componentRef("BackupStatusGetResponse"),
             },
           },
         },
@@ -5411,44 +5222,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Backup policy",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  policy: {
-                    type: "object",
-                    properties: {
-                      enabled: { type: "boolean" },
-                      provider: { type: "string", enum: ["restic-b2"] },
-                      schedule_cron: { type: "string" },
-                      retention_preset: {
-                        type: "string",
-                        enum: ["aggressive", "balanced", "archive"],
-                      },
-                      include_database: { type: "boolean" },
-                      include_audio_files: { type: "boolean" },
-                      include_album_covers: { type: "boolean" },
-                      include_discogs_exports: { type: "boolean" },
-                      include_essentia_files: { type: "boolean" },
-                      include_uploads: { type: "boolean" },
-                      updated_at: { type: "string" },
-                    },
-                    required: [
-                      "enabled",
-                      "provider",
-                      "schedule_cron",
-                      "retention_preset",
-                      "include_database",
-                      "include_audio_files",
-                      "include_album_covers",
-                      "include_discogs_exports",
-                      "include_essentia_files",
-                      "include_uploads",
-                      "updated_at",
-                    ],
-                  },
-                },
-                required: ["policy"],
-              },
+              schema: componentRef("BackupPolicyGetResponse"),
             },
           },
         },
@@ -5473,25 +5247,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                enabled: { type: "boolean" },
-                provider: { type: "string", enum: ["restic-b2"] },
-                schedule_cron: { type: "string" },
-                retention_preset: {
-                  type: "string",
-                  enum: ["aggressive", "balanced", "archive"],
-                },
-                include_database: { type: "boolean" },
-                include_audio_files: { type: "boolean" },
-                include_album_covers: { type: "boolean" },
-                include_discogs_exports: { type: "boolean" },
-                include_essentia_files: { type: "boolean" },
-                include_uploads: { type: "boolean" },
-              },
-              additionalProperties: false,
-            },
+            schema: componentRef("BackupPolicyUpdate"),
           },
         },
       },
@@ -5500,15 +5256,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Backup policy updated",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
-                  policy: { type: "object", additionalProperties: true },
-                },
-                required: ["success", "message", "policy"],
-              },
+              schema: componentRef("BackupPolicyPutResponse"),
             },
           },
         },
@@ -5537,15 +5285,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Backup created",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string" },
-                  filename: { type: "string" },
-                  format: { type: "string", enum: ["custom"] },
-                },
-                required: ["message", "filename", "format"],
-              },
+              schema: componentRef("BackupCreateResponse"),
             },
           },
         },
@@ -5572,15 +5312,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Custom backup created",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string" },
-                  filename: { type: "string" },
-                  format: { type: "string", enum: ["custom"] },
-                },
-                required: ["message", "filename", "format"],
-              },
+              schema: componentRef("BackupCreateResponse"),
             },
           },
         },

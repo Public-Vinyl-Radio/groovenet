@@ -505,6 +505,43 @@ describe("OpenAPI contract coverage", () => {
   });
 });
 
+describe("shared backup components", () => {
+  it("references shared components for every JSON backup operation", () => {
+    const doc = getOpenApiDocument();
+    type JsonContent = { schema?: { $ref?: string } };
+    type JsonOperation = {
+      responses: Record<string, { content?: Record<string, JsonContent> }>;
+      requestBody?: { content?: Record<string, JsonContent> };
+    };
+    const operation = (path: string, method: string) =>
+      (doc.paths[path] as Record<string, JsonOperation>)[method];
+    const ref = (path: string, method: string, status = "200") =>
+      operation(path, method).responses[status]?.content?.["application/json"]?.schema?.$ref;
+    const cases = [
+      ["/api/backups", "get", "BackupListResponse"],
+      ["/api/backups/{filename}", "delete", "BackupDeleteResponse"],
+      ["/api/restore", "post", "RestoreResponse"],
+      ["/api/settings/backup/run", "post", "BackupStatusRunResponse"],
+      ["/api/settings/backup/status", "get", "BackupStatusGetResponse"],
+      ["/api/settings/backup", "get", "BackupPolicyGetResponse"],
+      ["/api/settings/backup", "put", "BackupPolicyPutResponse"],
+      ["/api/backup", "post", "BackupCreateResponse"],
+      ["/api/backup-custom", "post", "BackupCreateResponse"],
+      ["/api/health/backup", "get", "BackupHealthResponse"],
+    ] as const;
+    for (const [path, method, name] of cases) {
+      expect(ref(path, method)).toBe(`#/components/schemas/${name}`);
+    }
+    expect(
+      operation("/api/settings/backup", "put").requestBody?.content?.["application/json"]?.schema
+        ?.$ref,
+    ).toBe("#/components/schemas/BackupPolicyUpdate");
+    expect(doc.components.schemas.BackupFile).toMatchObject({
+      properties: { modified_at: { format: "date-time" } },
+    });
+  });
+});
+
 describe("shared genre taxonomy components", () => {
   it.each([
     ["/api/genres", "get", "200", "GenreTreeResponse", undefined],
