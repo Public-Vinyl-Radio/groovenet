@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.11.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.10.0...groovenet-client-v3.11.0) (2026-11-05)
+
+
+### Features
+
+* **appearance:** Appearance section and rounded corners option ([#977](https://github.com/Public-Vinyl-Radio/groovenet/issues/977)) ([3041375](https://github.com/Public-Vinyl-Radio/groovenet/commit/30413755076601b6b6bb3bfcfb984e8166278c72))
+* **player:** read the Now Playing target from the CLI config ([#1005](https://github.com/Public-Vinyl-Radio/groovenet/issues/1005)) ([d529884](https://github.com/Public-Vinyl-Radio/groovenet/commit/d5298841225a9de28321adf39811e1788502e707))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.6.0 to 1.7.0
+
 ## [3.10.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.9.0...groovenet-client-v3.10.0) (2026-11-03)
 
 
