@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { Box, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
 import { MetaTag, SourceTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { IdentityEmbeddingPreviewResponse } from "@/services/internalApi/tracks";
@@ -19,9 +20,7 @@ export default function IdentityEmbeddingSection({ query }: Props) {
       mt={4}
       borderRadius="md"
     >
-      <Heading size="sm" mb={3}>
-        Identity Embedding Preview
-      </Heading>
+      <SectionHeading mb={3}>Identity Embedding Preview</SectionHeading>
 
       {query.isLoading ? (
         <VStack align="stretch" gap={2}>

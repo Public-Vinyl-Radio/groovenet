@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import Image from "next/image";
 import { Box, Button, Card, Flex, Input, Text, Textarea, VStack } from "@chakra-ui/react";
@@ -186,7 +187,7 @@ export default function SetDetailsPanel({ playlistId }: { playlistId: number }) 
         <Card.Header pb={0} position="sticky" top={0} bg="bg.panel" zIndex={1}>
           <Flex align="center" gap={2}>
             <FiCalendar />
-            <Text fontWeight="semibold">Set details</Text>
+            <SectionHeading>Set details</SectionHeading>
           </Flex>
         </Card.Header>
         <Card.Body>

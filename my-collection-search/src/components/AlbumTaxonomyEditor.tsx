@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Button, Stack, Text } from "@chakra-ui/react";
 import GenrePicker from "@/components/GenrePicker";
 import { useGenreTaxonomyQuery, useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
@@ -21,7 +22,7 @@ export default function AlbumTaxonomyEditor({
   const { genres, isLoading, isError } = useGenreTaxonomyQuery();
   return (
     <Stack gap={4}>
-      <Text fontWeight="semibold">Album genres and styles</Text>
+      <SectionHeading level={3}>Album genres and styles</SectionHeading>
       <Text fontSize="sm">
         Your replacements survive Discogs re-sync. Reset follows the latest Discogs values. Save
         Changes applies these choices.

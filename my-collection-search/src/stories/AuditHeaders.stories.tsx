@@ -15,7 +15,8 @@ import {
 } from "@/components/layout/ListHeader";
 import HomeHeader from "@/components/home/HomeHeader";
 import AlbumHeader from "@/components/album-detail/AlbumHeader";
-import SectionHeader from "@/components/album-detail/SectionHeader";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import TrackHeader from "@/components/track-detail/TrackHeader";
 import { TrackListHeader } from "@/components/TrackResult";
 import { TrackStripHeader } from "@/components/TrackActionsModal";
@@ -26,7 +27,6 @@ import { groupListeningLog } from "@/components/spins/spinSummary";
 import { EVENING } from "./fixtures/listeningLog";
 import { SpinRecapHeader } from "@/components/spins/SpinRecapPage";
 import SpinMonthSwitcher from "@/components/spins/SpinMonthSwitcher";
-import { Overline, SectionHeading } from "@/components/spins/recapParts";
 import { MonthCard } from "@/components/home/MonthCard";
 import { PlaylistPlayerProvider } from "@/providers/PlaylistPlayerProvider";
 import { DisplayTimeZoneProvider } from "@/providers/DisplayTimeZoneProvider";
@@ -356,20 +356,27 @@ function SharedSections() {
           />
         </Box>
       </Specimen>
-      <Specimen label="S3 · Album section" source="components/album-detail/SectionHeader.tsx:17">
-        <SectionHeader
-          title="Tracklist"
-          count="12 tracks"
-          description="Sides, timing and track actions."
-        >
-          <Button>Play all</Button>
-        </SectionHeader>
+      <Specimen
+        label="S3 · Album section (SectionHeading)"
+        source="components/ui/SectionHeading.tsx"
+      >
+        <SectionHeading meta="12 tracks" actions={<Button>Play all</Button>}>
+          Tracklist
+        </SectionHeading>
+        <Text fontSize="sm" color="fg.muted" mt={1}>
+          Sides, timing and track actions.
+        </Text>
       </Specimen>
-      <Specimen label="S4 · Ink strip / rule" source="components/spins/recapParts.tsx:31">
-        <SectionHeading>GENRE MIX</SectionHeading>
+      <Specimen
+        label="S4 · Ink strip / rule (SectionLabel)"
+        source="components/ui/SectionLabel.tsx"
+      >
+        <SectionLabel variant="strip">GENRE MIX</SectionLabel>
       </Specimen>
-      <Specimen label="S5 · Recap overline" source="components/spins/recapParts.tsx:15">
-        <Overline>BY WEEK</Overline>
+      <Specimen label="S5 · Overline (SectionLabel)" source="components/ui/SectionLabel.tsx">
+        <SectionLabel variant="overline" level={3}>
+          BY WEEK
+        </SectionLabel>
       </Specimen>
       <Specimen
         label="S9 · Track columns (container queries)"
@@ -379,7 +386,7 @@ function SharedSections() {
       </Specimen>
       <Specimen
         label="S12 · Linked month bar"
-        source="components/home/MonthCard.tsx:39; components/spins/recapParts.tsx:66"
+        source="components/home/MonthCard.tsx:39; components/ui/SectionLabel.tsx"
       >
         <MonthCard month="2026-10" recap={OCTOBER_RECAP} />
       </Specimen>
@@ -389,25 +396,18 @@ function SharedSections() {
         </Text>
       </Specimen>
       <Specimen
-        label="S13 · Box heading / top-list rule"
-        source="components/spins/SpinRecapCharts.tsx:436,476,491"
+        label="S13 · Top-list heading (SectionLabel)"
+        source="components/spins/SpinRecapCharts.tsx"
       >
-        <Box
-          as="h2"
-          h={{ base: "36px", md: "40px" }}
-          px={{ base: 3, md: 3.5 }}
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          borderBottomWidth="outline"
-          borderColor="border.ink"
-          fontFamily="mono"
-          fontSize="xs"
-          fontWeight="semibold"
-          letterSpacing="0.08em"
+        <SectionLabel
+          variant="strip"
+          level={3}
+          px={3.5}
+          py={2.5}
+          meta={<Text as="span">SPINS</Text>}
         >
-          TOP RECORDS<Text as="span">5</Text>
-        </Box>
+          TOP RECORDS
+        </SectionLabel>
       </Specimen>
     </Stack>
   );

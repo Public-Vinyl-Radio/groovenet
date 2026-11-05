@@ -1,17 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
-import {
-  Box,
-  Button,
-  chakra,
-  Flex,
-  Heading,
-  Input,
-  SegmentGroup,
-  Spinner,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Button, chakra, Flex, Input, SegmentGroup, Spinner, Text } from "@chakra-ui/react";
 import { resolveCorners, type CornerId } from "@/app/corners";
 import {
   fontChoiceFamily,
@@ -96,7 +87,7 @@ function Part({
   return (
     <Box as="section" aria-label={title} mb={6}>
       <Flex align="baseline" gap={3} mb={1} flexWrap="wrap">
-        <Heading size="md">{title}</Heading>
+        <SectionHeading level={3}>{title}</SectionHeading>
         <Scope device={device} />
       </Flex>
       {help ? (
@@ -349,7 +340,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
               borderColor="border"
             >
               <Box w={{ md: "200px" }} flexShrink={0}>
-                <Heading size="sm">{label}</Heading>
+                <SectionHeading level={3}>{label}</SectionHeading>
                 <Text color="fg.muted" fontSize="xs">
                   {description}
                 </Text>

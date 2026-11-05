@@ -302,7 +302,8 @@ describe("SpinsPage log", () => {
     ];
     const { user: ui } = renderInLosAngeles();
 
-    expect(screen.getByRole("heading", { level: 3, name: "Yesterday FRI OCT 30" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: "Yesterday" })).toBeTruthy();
+    expect(screen.getByText("FRI OCT 30")).toBeTruthy();
     expect(screen.getByText("4 SPINS · 2 RECORDS")).toBeTruthy();
     expect(screen.getByText(/^SESSION · 7:00\sPM–7:25\sPM$/)).toBeTruthy();
     expect(screen.getByText("4 SPINS · 2 RECORDS · MIXED")).toBeTruthy();

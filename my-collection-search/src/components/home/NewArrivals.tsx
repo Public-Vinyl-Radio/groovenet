@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, Flex, Heading, Link, Text } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Box, Flex, Link, Text } from "@chakra-ui/react";
 import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { HomeResponse } from "@/services/internalApi/home";
 import Artwork from "@/components/player/Artwork";
@@ -293,48 +294,36 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
       gap={{ base: "10px", md: "12px" }}
       mr={{ md: "6px" }}
     >
-      <Flex align="center" gap={{ base: "10px", md: "12px" }}>
-        <Heading
-          as="h2"
-          id="home-new-arrivals-heading"
-          h={{ base: "24px", md: "26px" }}
-          px={{ base: "8px", md: "10px" }}
-          display="flex"
-          alignItems="center"
-          bg="fg"
-          color="bg"
-          borderTopRadius="md"
-          fontFamily="mono"
-          fontSize={{ base: "11px", md: "xs" }}
-          fontWeight="semibold"
-          letterSpacing="0.08em"
-        >
-          NEW ARRIVALS
-        </Heading>
-        <Box flex="1" h="2px" bg="fg" aria-hidden="true" />
-        {showCaption && (
-          <>
-            <Text
-              as="span"
-              display={{ base: "none", md: "inline" }}
-              fontFamily="mono"
-              fontSize="xs"
-              color="fg.muted"
-            >
-              {arrivalsCaption(unrated, windowDays, "desktop")}
-            </Text>
-            <Text
-              as="span"
-              display={{ base: "inline", md: "none" }}
-              fontFamily="mono"
-              fontSize="11px"
-              color="fg.muted"
-            >
-              {arrivalsCaption(unrated, windowDays, "phone")}
-            </Text>
-          </>
-        )}
-      </Flex>
+      <SectionLabel
+        variant="strip"
+        id="home-new-arrivals-heading"
+        meta={
+          showCaption ? (
+            <>
+              <Text
+                as="span"
+                display={{ base: "none", md: "inline" }}
+                fontFamily="mono"
+                fontSize="xs"
+                color="fg.muted"
+              >
+                {arrivalsCaption(unrated, windowDays, "desktop")}
+              </Text>
+              <Text
+                as="span"
+                display={{ base: "inline", md: "none" }}
+                fontFamily="mono"
+                fontSize="11px"
+                color="fg.muted"
+              >
+                {arrivalsCaption(unrated, windowDays, "phone")}
+              </Text>
+            </>
+          ) : undefined
+        }
+      >
+        NEW ARRIVALS
+      </SectionLabel>
       {body}
     </Flex>
   );

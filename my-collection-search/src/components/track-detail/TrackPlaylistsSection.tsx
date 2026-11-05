@@ -1,7 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import NextLink from "next/link";
-import { Box, Heading, HStack, Link, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, Link, Text, VStack } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackPlaylistMembership } from "@/services/internalApi/tracks";
@@ -24,9 +25,7 @@ export default function TrackPlaylistsSection({ query }: Props) {
       mt={4}
       borderRadius="md"
     >
-      <Heading size="sm" mb={3}>
-        In Playlists
-      </Heading>
+      <SectionHeading mb={3}>In Playlists</SectionHeading>
 
       {query.error ? (
         <Text color="fg.error">

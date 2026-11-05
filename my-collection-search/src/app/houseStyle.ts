@@ -345,8 +345,92 @@ export const roleRecipes = {
   }),
 };
 
+// Section type (#991): two components, every in-page section. `SectionHeading`
+// is the display face at 18/24 (17/22 on phones); `SectionLabel` is the Labels
+// face at 12/16, capitals by CSS. Line heights are explicit on both: Chakra's
+// Heading carries a 30px line box that a 12px label used to inherit.
+const labelType: SystemStyleObject = {
+  m: 0,
+  fontFamily: "label",
+  fontSize: "12px",
+  lineHeight: "16px",
+  fontWeight: "semibold",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
+
+export const sectionRecipes = {
+  sectionHeading: defineRecipe({
+    className: "section-heading",
+    base: {
+      m: 0,
+      minW: 0,
+      fontFamily: "heading",
+      fontWeight: "semibold",
+      fontSize: { base: "17px", md: "18px" },
+      lineHeight: { base: "22px", md: "24px" },
+    },
+  }),
+  // A count or summary beside a section heading.
+  sectionMeta: defineRecipe({
+    className: "section-meta",
+    base: {
+      fontFamily: "label",
+      fontSize: "12px",
+      lineHeight: "16px",
+      letterSpacing: "0.06em",
+      textTransform: "uppercase",
+      color: "fg.muted",
+    },
+  }),
+  sectionLabel: defineRecipe({
+    className: "section-label",
+    base: labelType,
+    variants: {
+      variant: {
+        // The ink tab on a rule: 26px, 24px with 11px text on a phone.
+        strip: {
+          display: "flex",
+          alignItems: "center",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          h: { base: "24px", md: "26px" },
+          px: { base: 2, md: 2.5 },
+          fontSize: { base: "11px", md: "12px" },
+          bg: "fg",
+          color: "bg",
+          borderTopRadius: "md",
+        },
+        overline: { fontSize: "11px", color: "fg.muted" },
+        // The label inside a linked bar; the bar itself is `sectionBar`.
+        bar: {},
+      },
+    },
+    defaultVariants: { variant: "overline" },
+  }),
+  // A linked ink bar: label at the start, a trailing label at the end.
+  sectionBar: defineRecipe({
+    className: "section-bar",
+    base: {
+      ...labelType,
+      display: "flex",
+      h: "44px",
+      px: 3,
+      alignItems: "center",
+      justifyContent: "space-between",
+      bg: "fg",
+      color: "bg",
+      // Square: the card around it clips it to its corners (Link rounds by default).
+      borderRadius: "0",
+      textDecoration: "none",
+      _hover: { textDecoration: "none" },
+    },
+  }),
+};
+
 export const recipes = {
   ...roleRecipes,
+  ...sectionRecipes,
   button: defineRecipe({
     base: {
       borderWidth: "outline",

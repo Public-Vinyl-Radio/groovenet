@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import { Box, Button, Stack, Grid, Text, Flex } from "@chakra-ui/react";
 import { RatingGroup } from "@chakra-ui/react";
@@ -70,9 +71,7 @@ export default function TrackListBuilder({
   return (
     <Stack gap={4}>
       <Flex justify="space-between" align="center">
-        <Text fontSize="lg" fontWeight="semibold">
-          Tracks
-        </Text>
+        <SectionHeading>Tracks</SectionHeading>
         <Button onClick={addTrack} size="sm" colorPalette="accent">
           + Add Track
         </Button>

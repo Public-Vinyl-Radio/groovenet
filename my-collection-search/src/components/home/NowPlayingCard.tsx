@@ -2,7 +2,8 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { Box, chakra, Flex, Heading, Link, Text } from "@chakra-ui/react";
+import { Box, chakra, Flex, Link, Text } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { SourceTag } from "@/components/ui/RoleTags";
 import { formatSeconds } from "@/lib/trackUtils";
 import Artwork from "@/components/player/Artwork";
@@ -29,8 +30,6 @@ export type NowPlayingCardProps = {
   /** Without `href`: opens Now playing for a server player. */
   onOpen?: () => void;
 };
-
-const mono = { fontFamily: "mono", letterSpacing: "0.08em" } as const;
 
 const Opener = chakra("button");
 
@@ -168,10 +167,9 @@ export function NowPlayingCard({
       mr="6px"
       flexShrink={0}
     >
-      <Heading
-        as="h2"
+      <SectionLabel
+        variant="overline"
         id="now-playing-heading"
-        m={0}
         w={{ md: "132px" }}
         h={{ base: "32px", md: "auto" }}
         flexShrink={0}
@@ -184,8 +182,6 @@ export function NowPlayingCard({
         bg="fg"
         color="bg"
         fontSize={{ base: "11px", md: "12px" }}
-        fontWeight="semibold"
-        {...mono}
       >
         NOW PLAYING
         <Box as="span" fontWeight="normal" letterSpacing="0.06em">
@@ -194,7 +190,7 @@ export function NowPlayingCard({
             {outputName ? ` · ${mediumLabel}` : mediumLabel}
           </Box>
         </Box>
-      </Heading>
+      </SectionLabel>
 
       <Flex flex="1" minW={0} align="center" pr={{ base: transport ? "8px" : 0, md: 0 }}>
         {href ? (

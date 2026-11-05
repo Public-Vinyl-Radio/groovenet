@@ -1,16 +1,8 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
-import {
-  Box,
-  Button,
-  chakra,
-  Drawer,
-  Flex,
-  Heading,
-  Text,
-  useBreakpointValue,
-} from "@chakra-ui/react";
+import { Box, Button, chakra, Drawer, Flex, Text, useBreakpointValue } from "@chakra-ui/react";
 import { FiChevronDown, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { LuListMusic } from "react-icons/lu";
 import { useQueueSaveDialog } from "@/hooks/useQueueSaveDialog";
@@ -105,9 +97,7 @@ function ElapsedOfTotal() {
 function QueueTitle({ summary }: { summary: string }) {
   return (
     <Box flex="1" minW={0}>
-      <Heading as="h2" m={0} fontSize="18px" lineHeight="24px" fontWeight="semibold">
-        Queue
-      </Heading>
+      <SectionHeading>Queue</SectionHeading>
       <Text fontFamily="mono" fontSize="11px" color="fg.muted">
         {summary}
       </Text>

@@ -1,8 +1,9 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import Cover from "@/components/Cover";
 
-import { Box, Button, Flex, Heading, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Skeleton, Text, VStack } from "@chakra-ui/react";
 import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TrackAudioMetadataResponse } from "@/services/internalApi/tracks";
@@ -30,7 +31,7 @@ export default function AudioMetadataSection({
       borderRadius="md"
     >
       <Flex justify="space-between" align="center" mb={3} gap={3} wrap="wrap">
-        <Heading size="sm">Audio File Metadata (ffprobe)</Heading>
+        <SectionHeading>Audio File Metadata (ffprobe)</SectionHeading>
         <Button size="sm" variant="outline" loading={isExtractingCover} onClick={onExtractCover}>
           Update Album Cover
         </Button>

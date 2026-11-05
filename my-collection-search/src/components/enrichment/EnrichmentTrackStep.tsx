@@ -1,4 +1,5 @@
 "use client";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import Cover from "@/components/Cover";
 import React, { useEffect, useState } from "react";
 import {
@@ -246,9 +247,7 @@ export default function EnrichmentTrackStep({
           <Separator mb={4} />
           <Flex align="center" justify="space-between" mb={3}>
             <Flex align="center" gap={2}>
-              <Text fontWeight="semibold" fontSize="sm">
-                AI Metadata
-              </Text>
+              <SectionHeading>AI Metadata</SectionHeading>
               {llmLoading && <Spinner size="xs" />}
               {llmError && (
                 <StatusTag tone="missing" size="xs">
@@ -323,9 +322,7 @@ export default function EnrichmentTrackStep({
           <Separator mb={4} />
           <Flex align="center" justify="space-between" mb={3}>
             <Flex align="center" gap={2}>
-              <Text fontWeight="semibold" fontSize="sm">
-                Apple Music
-              </Text>
+              <SectionHeading>Apple Music</SectionHeading>
               {appleMusicLoading && <Spinner size="xs" />}
               {appleMusicError && (
                 <StatusTag tone="missing" size="xs">
@@ -420,9 +417,7 @@ export default function EnrichmentTrackStep({
           <Separator mb={4} />
           <Flex align="center" justify="space-between" mb={3}>
             <Flex align="center" gap={2}>
-              <Text fontWeight="semibold" fontSize="sm">
-                YouTube
-              </Text>
+              <SectionHeading>YouTube</SectionHeading>
               {youtubeLoading && <Spinner size="xs" />}
               {youtubeError && (
                 <StatusTag tone="missing" size="xs">

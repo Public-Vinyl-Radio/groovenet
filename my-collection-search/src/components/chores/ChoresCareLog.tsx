@@ -4,7 +4,7 @@ import React from "react";
 import NextLink from "next/link";
 import { Box, Button, chakra, Flex, Grid, Spinner, Stack, Text } from "@chakra-ui/react";
 import Artwork from "@/components/player/Artwork";
-import { SectionHeading } from "@/components/spins/recapParts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { cleaningMethodLabel, sleeveLabel } from "@/components/records/recordCareFormat";
 import type {
   RecordCareLogEntry,
@@ -304,9 +304,13 @@ export default function ChoresCareLog({
 
   return (
     <Stack gap={3} pr="6px">
-      <SectionHeading id="chores-care-log-heading" display={{ base: "none", md: "flex" }}>
+      <SectionLabel
+        variant="strip"
+        id="chores-care-log-heading"
+        display={{ base: "none", md: "flex" }}
+      >
         CARE LOG
-      </SectionHeading>
+      </SectionLabel>
       {thisMonth && (
         <Text fontFamily="mono" fontSize="11px" letterSpacing="0.06em" color="fg.muted">
           {thisMonthLine(thisMonth)}

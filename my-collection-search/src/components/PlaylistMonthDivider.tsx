@@ -2,42 +2,30 @@
 
 import React from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { formatGroupCount, type PlaylistMonthGroup } from "@/lib/playlistGroups";
 
-/** Ink-filled mono month tab, 2px rule and the playlist/set count. */
+/** Ink-filled month tab, 2px rule and the playlist/set count. */
 export default function PlaylistMonthDivider({ group }: { group: PlaylistMonthGroup }) {
   return (
-    <Flex align="flex-end" gap={3} mb={3} borderBottomWidth="2px" borderColor="fg">
-      <Text
-        as="h2"
-        data-testid="month-tab"
-        bg="fg"
-        color="bg"
-        // A tab on a rule: only its top corners are rounded.
-        borderTopRadius="md"
-        fontFamily="mono"
-        fontSize="xs"
-        fontWeight="bold"
-        letterSpacing="0.1em"
-        px={3}
-        py={1}
-      >
-        {group.label}
-      </Text>
-      <Text
-        data-testid="month-count"
-        ml="auto"
-        pb={1}
-        fontFamily="mono"
-        fontSize="2xs"
-        letterSpacing="0.06em"
-        color="fg.muted"
-        textTransform="uppercase"
-        whiteSpace="nowrap"
-      >
-        {formatGroupCount(group)}
-      </Text>
-    </Flex>
+    <SectionLabel
+      variant="strip"
+      mb={3}
+      meta={
+        <Text
+          data-testid="month-count"
+          fontFamily="label"
+          fontSize="xs"
+          letterSpacing="0.06em"
+          color="fg.muted"
+          whiteSpace="nowrap"
+        >
+          {formatGroupCount(group)}
+        </Text>
+      }
+    >
+      {group.label}
+    </SectionLabel>
   );
 }
 

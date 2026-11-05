@@ -1,4 +1,5 @@
 "use client";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React, { useEffect, useState } from "react";
 import { Box, Flex, Text, Button, Progress, Separator } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
@@ -159,9 +160,7 @@ export default function EnrichmentWizard() {
             p={5}
             borderRadius="md"
           >
-            <Text fontWeight="semibold" mb={4} fontSize="sm">
-              Data sources
-            </Text>
+            <SectionHeading mb={4}>Data sources</SectionHeading>
             <Flex direction="column" gap={4}>
               <Flex justify="space-between" align="center">
                 <Box>

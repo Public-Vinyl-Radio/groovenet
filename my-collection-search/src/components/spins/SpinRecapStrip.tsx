@@ -4,15 +4,8 @@ import React from "react";
 import { Box, Flex, Grid, Heading, HStack, Stack, Text } from "@chakra-ui/react";
 import type { SpinRecapResponse } from "@/services/internalApi/spins";
 import { genreTint } from "./recapCharts";
-import {
-  Bar,
-  DIGITAL_HATCH,
-  inkTint,
-  Overline,
-  RecapLinkBar,
-  SplitSegments,
-  Swatch,
-} from "./recapParts";
+import { Bar, DIGITAL_HATCH, inkTint, SplitSegments, Swatch } from "./recapParts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { formatMonthName } from "./spinMonth";
 import SpinStatTiles from "./SpinStatTiles";
 
@@ -54,11 +47,16 @@ export default function SpinRecapStrip({ month, current, recap }: Props) {
       boxShadow={{ base: "md", md: "none" }}
       mr={{ base: "6px", md: 0 }}
     >
-      <RecapLinkBar
+      <SectionLabel
+        variant="bar"
+        // The screen-reader heading below names the section.
+        level={null}
         display={{ base: "flex", md: "none" }}
         href={recapHref}
-        title={<span>{current ? `${monthName} SO FAR` : `${monthName} RECAP`}</span>}
-      />
+        meta="FULL RECAP →"
+      >
+        {current ? `${monthName} SO FAR` : `${monthName} RECAP`}
+      </SectionLabel>
       <Heading as="h2" id="spin-recap-heading" srOnly>
         {monthName} recap
       </Heading>
@@ -75,7 +73,9 @@ export default function SpinRecapStrip({ month, current, recap }: Props) {
         borderColor="border.ink"
       >
         <Stack as="section" aria-labelledby="spin-split-heading" gap={2}>
-          <Overline id="spin-split-heading">VINYL / DIGITAL</Overline>
+          <SectionLabel variant="overline" level={3} id="spin-split-heading">
+            VINYL / DIGITAL
+          </SectionLabel>
           <Bar label={`Vinyl ${vinyl} spins, digital ${digital} spins`}>
             <SplitSegments vinyl={vinyl} digital={digital} />
           </Bar>
@@ -104,13 +104,13 @@ export default function SpinRecapStrip({ month, current, recap }: Props) {
         </Stack>
 
         <Stack as="section" aria-labelledby="spin-genre-heading" gap={2}>
-          <Overline id="spin-genre-heading">
+          <SectionLabel variant="overline" level={3} id="spin-genre-heading">
             GENRE MIX
             <Box as="span" display={{ base: "none", md: "inline" }}>
               {" "}
               THIS MONTH
             </Box>
-          </Overline>
+          </SectionLabel>
           {genres.length === 0 ? (
             <Text fontSize="13px" color="fg.muted">
               No genres yet.

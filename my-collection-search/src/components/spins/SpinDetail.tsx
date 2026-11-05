@@ -14,6 +14,7 @@ import {
   chakra,
 } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
 import { useAlbum } from "@/hooks/useAlbum";
 import { useAlbumDetailQuery } from "@/hooks/useAlbumsQuery";
@@ -43,15 +44,6 @@ type DetailProps = {
   onSelect: (key: string) => void;
   /** Called once the spin session is deleted. */
   onDeleted: () => void;
-};
-
-const sectionHeading = {
-  as: "h3" as const,
-  fontFamily: "mono",
-  fontSize: "11px",
-  fontWeight: "semibold",
-  letterSpacing: "0.08em",
-  color: "fg.muted",
 };
 
 const titleStyle = {
@@ -133,7 +125,9 @@ function HowItWasLogged({ play }: { play: SpinPlay }) {
   ];
   return (
     <Section first>
-      <Heading {...sectionHeading}>HOW IT WAS LOGGED</Heading>
+      <SectionLabel variant="overline" level={3}>
+        HOW IT WAS LOGGED
+      </SectionLabel>
       <Grid
         as="dl"
         templateColumns={{ base: "96px minmax(0, 1fr)", xl: "110px minmax(0, 1fr)" }}
@@ -229,7 +223,9 @@ function SessionSection({
   const showEnds = variant === "panel";
   return (
     <Section>
-      <Heading {...sectionHeading}>SESSION</Heading>
+      <SectionLabel variant="overline" level={3}>
+        SESSION
+      </SectionLabel>
       <Text fontSize="sm" fontWeight="semibold">
         {describeSessionPosition(selection, timeZone)}
       </Text>
@@ -273,7 +269,9 @@ function ThisTrack({
         justify="space-between"
         gap={2}
       >
-        <Heading {...sectionHeading}>THIS TRACK</Heading>
+        <SectionLabel variant="overline" level={3}>
+          THIS TRACK
+        </SectionLabel>
         <Text fontFamily="mono" fontSize={variant === "panel" ? "13px" : "xs"}>
           {plays}
         </Text>

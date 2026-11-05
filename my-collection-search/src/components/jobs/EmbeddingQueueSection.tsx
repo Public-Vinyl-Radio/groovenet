@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import NextLink from "next/link";
 import {
@@ -8,7 +9,6 @@ import {
   Card,
   Checkbox,
   Flex,
-  Heading,
   Link,
   Progress,
   SimpleGrid,
@@ -123,7 +123,7 @@ export default function EmbeddingQueueSection({
     <Stack gap={{ base: 3, md: 4 }}>
       <Flex direction="column" gap={2}>
         <Flex justify="space-between" align="center" gap={2}>
-          <Heading size={{ base: "sm", md: "md" }}>Embeddings</Heading>
+          <SectionHeading>Embeddings</SectionHeading>
           <Button
             onClick={() => refetch()}
             loading={isLoading}
@@ -187,9 +187,9 @@ export default function EmbeddingQueueSection({
       {data.active_backfill_runs.length > 0 && (
         <Card.Root>
           <Card.Body>
-            <Heading size="sm" mb={3}>
+            <SectionHeading level={3} mb={3}>
               Active backfill runs
-            </Heading>
+            </SectionHeading>
             <Stack gap={3}>
               {data.active_backfill_runs.map((run) => {
                 const done = run.success + run.skipped + run.failed;
@@ -228,7 +228,7 @@ export default function EmbeddingQueueSection({
         <Card.Root>
           <Card.Body>
             <Flex justify="space-between" align="center" mb={3}>
-              <Heading size="sm">Failed jobs ({failed.length})</Heading>
+              <SectionHeading level={3}>Failed jobs ({failed.length})</SectionHeading>
               <Button
                 size="sm"
                 colorPalette="danger"
