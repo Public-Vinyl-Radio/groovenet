@@ -113,6 +113,22 @@ describe("TrackPage username attribution", () => {
   });
 });
 
+describe("TrackPage header meta", () => {
+  it("puts the library ID, duration, BPM and key on the title line, only on desktop", () => {
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      library_identifier: "LP-322",
+      duration_seconds: 252,
+      bpm: "124",
+      key: "A minor",
+    };
+    renderWithProviders(<TrackPage />);
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("LP-322 · 4:12 · 124 BPM · 8A");
+  });
+});
+
 describe("TrackPage cover art (#494)", () => {
   it("opens the album artwork dialog from the track menu", async () => {
     queries.trackQuery.data = {
@@ -150,7 +166,9 @@ describe("TrackPage breadcrumbs", () => {
       album: "Blue Lines",
     };
     renderWithProviders(<TrackPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Song" })).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 1 }).map((h) => h.textContent)).toEqual([
+      "Song",
+    ]);
     expect(
       screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href"),
     ).toBe("/albums/r9?friend_id=6");

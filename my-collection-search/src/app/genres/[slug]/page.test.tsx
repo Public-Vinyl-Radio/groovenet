@@ -142,8 +142,8 @@ describe("genre detail", () => {
       "/genres/cumbia",
     );
     expect(screen.getByText("Custom")).toBeTruthy();
-    expect(screen.getByText("24")).toBeTruthy();
-    expect(screen.getByText("9")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("24 tracks · 9 albums");
     expect(screen.getByText("90.5–128")).toBeTruthy();
     expect(screen.getByText("5")).toBeTruthy();
     expect(screen.getByText("Added this year").parentElement?.title).toContain("date_added");

@@ -2,7 +2,7 @@
 
 import Cover from "@/components/Cover";
 import React from "react";
-import { Box, Button, Flex, Heading, Popover, RatingGroup, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Popover, RatingGroup, Text } from "@chakra-ui/react";
 import { FaPlay } from "react-icons/fa";
 import { FiDisc, FiFileText, FiPlus } from "react-icons/fi";
 import ArtistLink from "@/components/ArtistLink";
@@ -118,8 +118,8 @@ const Missing = () => (
 );
 
 /**
- * The album page's header: one outlined card with the cover, title and actions
- * on the left and a 2x2 stat panel beside it, or, narrow, under it.
+ * The album identity card: the cover, artist and actions on the left and a 2x2
+ * stat panel beside it, or, narrow, under it. The page title is the header's h1.
  */
 export default function AlbumHeader({
   album,
@@ -240,27 +240,15 @@ export default function AlbumHeader({
                 )}
               </Text>
               <Flex alignItems="center" gap={2.5} minW={0}>
-                <Heading
-                  as="h2"
-                  fontSize="22px"
-                  lineHeight="28px"
-                  fontWeight="semibold"
+                <Text
+                  fontWeight="medium"
+                  fontSize="16px"
+                  lineHeight="22px"
                   overflowWrap="anywhere"
-                  minW={0}
-                  title={album.title}
-                  // A long title takes three lines beside the phone's small cover, then ends in an ellipsis.
-                  lineClamp={3}
-                  css={{
-                    [wide]: {
-                      fontSize: "30px",
-                      lineHeight: "38px",
-                      WebkitLineClamp: "unset",
-                      display: "block",
-                    },
-                  }}
+                  css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
                 >
-                  {album.title}
-                </Heading>
+                  <ArtistLink artist={album.artist} friendId={album.friend_id} />
+                </Text>
                 {hasNotes && (
                   <Popover.Root>
                     <Popover.Trigger asChild>
@@ -302,15 +290,6 @@ export default function AlbumHeader({
                   </Popover.Root>
                 )}
               </Flex>
-              <Text
-                fontWeight="medium"
-                fontSize="16px"
-                lineHeight="22px"
-                overflowWrap="anywhere"
-                css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
-              >
-                <ArtistLink artist={album.artist} friendId={album.friend_id} />
-              </Text>
               {byline && (
                 <Text
                   color="fg.muted"
