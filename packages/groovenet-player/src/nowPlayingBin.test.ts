@@ -11,6 +11,7 @@ afterEach(() => {
   vi.doUnmock("node:child_process");
   vi.doUnmock("@groovenet/client");
   vi.doUnmock("./nowPlayingRemote.js");
+  vi.doUnmock("./nowPlayingHelper.js");
   vi.resetModules();
 });
 
@@ -68,7 +69,31 @@ function setup({
     RemoteNowPlaying: controller,
     startRemoteSocket: socket,
   }));
-  return { config, close, stop, start, fetch, api, controller, socket, child, spawn, error, off };
+  const resolveHelper = vi.fn().mockResolvedValue({ path: "/resolved/helper", source: "cache" });
+  const installHelper = vi
+    .fn()
+    .mockResolvedValue({ path: "/installed/helper", source: "download" });
+  vi.doMock("./nowPlayingHelper.js", () => ({
+    defaultHelperContext: () => ({ ctx: true }),
+    resolveHelper,
+    installHelper,
+  }));
+  return {
+    config,
+    close,
+    stop,
+    start,
+    fetch,
+    api,
+    controller,
+    socket,
+    child,
+    spawn,
+    error,
+    off,
+    resolveHelper,
+    installHelper,
+  };
 }
 
 it("uses existing config credentials and launches only the helper against the private proxy", async () => {
@@ -114,13 +139,72 @@ it.each(["start", "socket", "spawn"])(
 
 it("reports invalid arguments without loading config or starting a helper", async () => {
   const mock = setup();
-  process.argv = ["node", "bin", "--remote", "lounge"];
+  process.argv = ["node", "bin", "--bogus"];
   await import("./nowPlayingBin.js");
   expect(mock.error).toHaveBeenCalledWith(
     "Groovenet Now Playing:",
     expect.stringContaining("Usage:"),
   );
   expect(mock.api).not.toHaveBeenCalled();
+  expect(mock.resolveHelper).not.toHaveBeenCalled();
+});
+
+it("rejects --helper without a path", async () => {
+  const mock = setup();
+  process.argv = ["node", "bin", "--helper"];
+  await import("./nowPlayingBin.js");
+  expect(process.exitCode).toBe(1);
+  expect(mock.spawn).not.toHaveBeenCalled();
+});
+
+it("resolves the helper in Node when --helper is not given", async () => {
+  const mock = setup();
+  process.argv = ["node", "bin", "--remote", "lounge"];
+  await import("./nowPlayingBin.js");
+  expect(mock.resolveHelper).toHaveBeenCalledWith({ ctx: true });
+  expect(mock.spawn).toHaveBeenCalledWith(
+    "/resolved/helper",
+    ["--socket", "/private/temporary.sock"],
+    { stdio: "inherit" },
+  );
+});
+
+it("does not resolve or download a helper when the stored target is invalid", async () => {
+  const mock = setup({ stored: "../bad" });
+  process.argv = ["node", "bin"];
+  await import("./nowPlayingBin.js");
+  expect(process.exitCode).toBe(1);
+  expect(mock.resolveHelper).not.toHaveBeenCalled();
+});
+
+it("reports a failed helper download without starting anything", async () => {
+  const mock = setup();
+  mock.resolveHelper.mockRejectedValueOnce(new Error("No prebuilt helper exists"));
+  process.argv = ["node", "bin", "--remote", "lounge"];
+  await import("./nowPlayingBin.js");
+  expect(process.exitCode).toBe(1);
+  expect(mock.error).toHaveBeenCalledWith("Groovenet Now Playing:", "No prebuilt helper exists");
+  expect(mock.start).not.toHaveBeenCalled();
+  expect(mock.spawn).not.toHaveBeenCalled();
+});
+
+it("--install downloads the helper, prints its path and starts nothing", async () => {
+  const mock = setup();
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  process.argv = ["node", "bin", "--install"];
+  await import("./nowPlayingBin.js");
+  expect(mock.installHelper).toHaveBeenCalledWith({ ctx: true });
+  expect(log).toHaveBeenCalledWith("/installed/helper");
+  expect(mock.spawn).not.toHaveBeenCalled();
+  expect(mock.resolveHelper).not.toHaveBeenCalled();
+});
+
+it("--install rejects other arguments", async () => {
+  const mock = setup();
+  process.argv = ["node", "bin", "--install", "--remote", "lounge"];
+  await import("./nowPlayingBin.js");
+  expect(process.exitCode).toBe(1);
+  expect(mock.installHelper).not.toHaveBeenCalled();
 });
 
 it("reports non-Error startup failures without leaking configuration", async () => {

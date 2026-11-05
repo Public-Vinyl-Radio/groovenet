@@ -9,3 +9,5 @@ export * from "./paths.js";
 export * from "./playThreshold.js";
 export * from "./playLogger.js";
 export * from "./ownToneBackend.js";
+export * from "./nowPlayingHelper.js";
+export * from "./nowPlayingTarget.js";
