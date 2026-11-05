@@ -63,10 +63,12 @@ and exits disabled without a Linux session bus. See [MPRIS.md](MPRIS.md) for set
 the platform design and smoke tests.
 
 macOS Now Playing and media keys have an optional companion,
-`groovenet-now-playing`. Its first run downloads a prebuilt helper (no Xcode
-needed), then it follows an existing daemon in your desktop session, or a remote
+`groovenet-now-playing`, installable with
+`brew install public-vinyl-radio/tap/groovenet-now-playing` (started at login by
+`brew services start groovenet-now-playing`) or from this package. From npm, its
+first run downloads a prebuilt helper (no Xcode needed). It follows an existing daemon in your desktop session, or a remote
 player via `now_playing_target` or `--remote <id>`, using the same configuration
-as the CLI. `groovenet now-playing enable` starts it at login. `--build`
+as the CLI. `groovenet now-playing enable` starts the npm copy at login. `--build`
 compiles it from source for contributors. Ordinary npm installation and
 headless playback do not require Swift. See [NOW_PLAYING.md](NOW_PLAYING.md) for
 setup, design, and verification limits.

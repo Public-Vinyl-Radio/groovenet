@@ -1,9 +1,10 @@
 name: Now Playing release asset
 
 # Builds the macOS Now Playing helper and attaches it to the @groovenet/player
-# release that triggered this run. Release Please tags the player as
-# groovenet-player-vX.Y.Z and creates its release with a PAT, so `published`
-# fires for it; the app and the other packages' releases are skipped.
+# release that triggered this run, then points the Homebrew formula at it.
+# Release Please tags the player as groovenet-player-vX.Y.Z and creates its
+# release with a PAT, so `published` fires for it; the app and the other
+# packages' releases are skipped.
 #
 # Assets (consumed by the Homebrew formula and the npm wrapper):
 #   groovenet-now-playing-<version>-macos-universal.zip
@@ -12,19 +13,37 @@ name: Now Playing release asset
 # workflow_dispatch builds the selected ref and uploads to the release for
 # `tag`, replacing assets of the same name. Use it to retry a failed run or to
 # dry-run against a draft release; the release must already exist.
+# `homebrew_only` skips the build and only updates the tap, and `dry_run` stops
+# before the push.
+#
+# The homebrew job is separate so a failed tap push reruns without a rebuild.
+# Homebrew installs npm dependencies with --min-release-age=1, so a formula is
+# not installable until every dependency it resolves is a day old. A release
+# that bumps @groovenet/client or contracts is deferred, and the daily schedule
+# picks it up once the cooldown has passed.
 
 on:
   release:
     types: [published]
+  schedule:
+    - cron: "23 7 * * *"
   workflow_dispatch:
     inputs:
       tag:
         description: Player release tag to attach the helper to (groovenet-player-vX.Y.Z)
         required: true
         type: string
+      homebrew_only:
+        description: Skip the build and only update the Homebrew formula
+        type: boolean
+        default: false
+      dry_run:
+        description: Update the formula but do not push it to the tap
+        type: boolean
+        default: false
 
 concurrency:
-  group: now-playing-release-${{ github.event.release.tag_name || inputs.tag }}
+  group: now-playing-release-${{ github.event.release.tag_name || inputs.tag || github.event_name }}
   cancel-in-progress: false
 
 permissions:
@@ -32,7 +51,7 @@ permissions:
 
 jobs:
   macos:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'groovenet-player-v')
+    if: (github.event_name == 'workflow_dispatch' && !inputs.homebrew_only) || startsWith(github.event.release.tag_name, 'groovenet-player-v')
     runs-on: macos-15
     timeout-minutes: 20
     env:
@@ -91,3 +110,135 @@ jobs:
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber
           "groovenet-now-playing-$VERSION-macos-universal.zip"
           "groovenet-now-playing-$VERSION-macos-universal.zip.sha256"
+
+  homebrew:
+    needs: macos
+    # After a build, or without one on the schedule and for homebrew_only.
+    if: >-
+      !cancelled() && (needs.macos.result == 'success' ||
+      (needs.macos.result == 'skipped' && (github.event_name == 'schedule' || inputs.homebrew_only)))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # One tap writer at a time, whichever release or schedule started it.
+    concurrency:
+      group: homebrew-tap
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The pinned npm, which supports --min-release-age like Homebrew's.
+      - uses: ./.github/actions/setup-npm
+
+      - name: Resolve release
+        id: release
+        run: |
+          if [ -z "$TAG" ]; then
+            # Scheduled: the newest published player release.
+            TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases \
+              --limit 100 --json tagName \
+              --jq '[.[] | select(.tagName | startswith("groovenet-player-v"))][0].tagName // ""')
+          fi
+          case "$TAG" in
+            groovenet-player-v[0-9]*) ;;
+            *) echo "::error::No groovenet-player-vX.Y.Z release (got '$TAG')"; exit 1 ;;
+          esac
+          state=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease \
+            --jq 'if .isDraft then "draft" elif .isPrerelease then "prerelease" else "published" end')
+          if [ "$state" != published ]; then
+            echo "::notice::$TAG is a $state release; the formula is left alone."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=${TAG#groovenet-player-v}" >> "$GITHUB_ENV"
+
+      # npm publishing runs from the app's v* release, a separate event that
+      # can finish after this one.
+      - name: Wait for the npm package
+        if: steps.release.outputs.skip != 'true'
+        run: |
+          deadline=$((SECONDS + 1800))
+          until [ "$(npm view "@groovenet/player@$VERSION" version 2>/dev/null)" = "$VERSION" ]; do
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::@groovenet/player@$VERSION is not on npm after 30 minutes; rerun this job once it is."
+              exit 1
+            fi
+            echo "Waiting for @groovenet/player@$VERSION on npm..."
+            sleep 30
+          done
+
+      - name: Download and hash the release files
+        if: steps.release.outputs.skip != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          tarball=$(npm view "@groovenet/player@$VERSION" dist.tarball)
+          expected="https://registry.npmjs.org/@groovenet/player/-/player-$VERSION.tgz"
+          if [ "$tarball" != "$expected" ]; then
+            echo "::error::npm serves $tarball, but the formula expects $expected"
+            exit 1
+          fi
+          curl --fail --silent --show-error --location --retry 3 --output player.tgz "$tarball"
+          zip="groovenet-now-playing-$VERSION-macos-universal.zip"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            --pattern "$zip" --pattern "$zip.sha256"
+          shasum -a 256 -c "$zip.sha256"
+          # Hash what was downloaded; npm's dist.shasum is SHA-1.
+          echo "NPM_SHA256=$(shasum -a 256 player.tgz | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "APP_SHA256=$(shasum -a 256 "$zip" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      # The same resolution `brew install` does through std_npm_args.
+      - name: Check Homebrew's npm release cooldown
+        id: cooldown
+        if: steps.release.outputs.skip != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir -p cooldown/lib
+          if npm install --global --prefix "$RUNNER_TEMP/cooldown" --min-release-age=1 \
+            --ignore-scripts --dry-run ./player.tgz > cooldown.log 2>&1; then
+            exit 0
+          fi
+          cat cooldown.log
+          if grep -q 'notarget' cooldown.log; then
+            echo "::notice::A dependency of @groovenet/player@$VERSION is under a day old, so brew could not install it yet. The daily run updates the formula once it can."
+            echo "defer=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::npm could not resolve @groovenet/player@$VERSION's dependencies"
+          exit 1
+
+      - name: Check out the tap
+        if: steps.release.outputs.skip != 'true' && steps.cooldown.outputs.defer != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: Public-Vinyl-Radio/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: homebrew-tap
+
+      - name: Update the formula
+        if: steps.release.outputs.skip != 'true' && steps.cooldown.outputs.defer != 'true'
+        working-directory: homebrew-tap
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          formula=Formula/groovenet-now-playing.rb
+          node "$GITHUB_WORKSPACE/.github/scripts/update-homebrew-formula.mjs" \
+            "$formula" "$VERSION" "$NPM_SHA256" "$APP_SHA256"
+          if git diff --quiet -- "$formula"; then
+            echo "The formula already points at $VERSION."
+            exit 0
+          fi
+          git diff -- "$formula"
+          if [ "$DRY_RUN" = true ]; then
+            echo "::notice::Dry run: not pushing groovenet-now-playing $VERSION."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet -m "groovenet-now-playing $VERSION" -- "$formula"
+          # A deploy key cannot open pull requests, so this goes straight to main.
+          git push origin HEAD:main

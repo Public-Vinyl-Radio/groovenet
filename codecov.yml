@@ -31,3 +31,6 @@ flags:
   ci-changes:
     paths:
       - .github/scripts/ci-changes.mjs
+  homebrew-formula:
+    paths:
+      - .github/scripts/update-homebrew-formula.mjs

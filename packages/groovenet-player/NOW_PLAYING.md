@@ -8,7 +8,39 @@ leaves remote playback running.
 ## Setup
 
 The helper targets macOS 13+ and requires a local graphical login session.
-No Xcode, Swift toolchain or Developer ID is needed:
+No Xcode, Swift toolchain or Developer ID is needed.
+
+### Homebrew
+
+```sh
+brew install public-vinyl-radio/tap/groovenet-now-playing
+brew services start groovenet-now-playing   # now and at every login
+```
+
+The formula installs `@groovenet/player` from npm and the prebuilt helper app
+from the same player release (see "Release builds") into its keg, and runs the
+helper with Homebrew's `node`. It never downloads into `~/.groovenet`. With no
+config it follows the local daemon; to follow a remote player, set the target
+with the CLI (`npm i -g @groovenet/cli`), which also holds the API settings
+remote mode reads, then restart the service:
+
+```sh
+groovenet config set now_playing_target lounge
+brew services restart groovenet-now-playing
+```
+
+The service (`homebrew.mxcl.groovenet-now-playing`) restarts the helper
+whenever it exits, waiting 30 s between restarts, and logs to
+`$(brew --prefix)/var/log/groovenet-now-playing.log`. `brew upgrade` picks up
+each player release; run `brew services restart groovenet-now-playing`
+afterwards. To remove it, `brew services stop groovenet-now-playing`, then
+`brew uninstall groovenet-now-playing`.
+
+The tap is updated by the release workflow. A release whose npm dependencies
+are less than a day old reaches the tap a day later, because Homebrew installs
+npm dependencies with `--min-release-age=1`.
+
+### npm
 
 ```sh
 npm i -g @groovenet/cli
@@ -39,7 +71,19 @@ release downloads (`<base>/groovenet-player-v<version>/<asset>`).
 
 The helper is ad-hoc signed, not notarised, and that is enough: Gatekeeper only
 checks files carrying the quarantine attribute, which browsers set and a Node
-`fetch` does not. A browser download of the zip would be quarantined and blocked.
+`fetch` or a Homebrew formula does not. A browser download of the zip would be
+quarantined and blocked.
+
+### Don't run both
+
+Use either `brew services` or the npm login item, not both: each starts a
+helper. `groovenet now-playing enable` refuses while the Homebrew service plist
+exists, and the Homebrew `groovenet-now-playing` refuses to start while
+`~/Library/LaunchAgents/radio.publicvinyl.groovenet.nowplaying.plist` exists;
+run `groovenet now-playing disable` before switching to Homebrew, or
+`brew services stop groovenet-now-playing` before switching to npm.
+
+### Target
 
 Choose what the helper follows once, in the CLI config, then start it with no
 arguments:
@@ -103,9 +147,8 @@ removes the plist.
 The plist records the `node` that ran `enable`. If that path goes away (a
 version manager switching or removing Node), run `enable` again.
 
-If you use Homebrew's `brew services` for this helper, do not also enable the
-login item: both would start a helper. `enable` refuses when the service
-`homebrew.mxcl.groovenet-now-playing` is present.
+Don't combine it with `brew services` (see "Don't run both"): `enable`
+refuses when the service `homebrew.mxcl.groovenet-now-playing` is present.
 
 ### Building from source
 
@@ -129,7 +172,17 @@ prebuilt helper, built by `.github/workflows/now-playing-release.yml`:
   `shasum -a 256` line for the zip, so `shasum -a 256 -c` verifies it.
 
 The bundle's `CFBundleShortVersionString` and `CFBundleVersion` are the package
-version. To build one yourself, run
+version.
+
+The same workflow then points `Formula/groovenet-now-playing.rb` in
+[`Public-Vinyl-Radio/homebrew-tap`](https://github.com/Public-Vinyl-Radio/homebrew-tap)
+at the release: it waits for the npm version, hashes the npm tarball and the
+zip, and pushes the change to the tap's `main` with a deploy key
+(`HOMEBREW_TAP_DEPLOY_KEY`). `.github/scripts/update-homebrew-formula.mjs` makes
+the edit. A release that is already current is a no-op, and one whose npm
+dependencies Homebrew would still hold back (`--min-release-age=1`) is deferred
+to the workflow's daily run. Dispatch it with `homebrew_only` to update the tap
+without rebuilding, and `dry_run` to see the diff without pushing. To build one yourself, run
 `scripts/build-now-playing-app.sh <macos package dir> <output dir> [--universal]`.
 
 ## Lifecycle and limitations

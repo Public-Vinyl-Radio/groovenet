@@ -220,7 +220,10 @@ and this command share it.
 - **Label and paths.** `radio.publicvinyl.groovenet.nowplaying`, plist at
   `~/Library/LaunchAgents/<label>.plist`, logs `~/.groovenet/now-playing/launchd.{out,err}.log`.
   Homebrew's service uses `homebrew.mxcl.groovenet-now-playing`; `enable` refuses
-  when its plist is in `~/Library/LaunchAgents` or under a brew prefix.
+  when its plist is in `~/Library/LaunchAgents` or under a brew prefix. The
+  formula (`Public-Vinyl-Radio/homebrew-tap`) checks the reverse: its wrapper
+  refuses to start while this command's plist exists. Keep the label and plist
+  path stable; both sides match on them.
 - **Absolute paths.** `ProgramArguments` is `process.execPath` plus the player's
   `NOW_PLAYING_BIN`: launchd's PATH finds neither node nor the npm bin. The
   plist carries no target; the helper reads `now_playing_target` when it starts.

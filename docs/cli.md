@@ -168,19 +168,39 @@ run. The daemon reads config when it starts, so restart a running detached
 daemon (`groovenet player stop`, then start it again) after changing
 `player_artwork`.
 
-The optional macOS Now Playing companion, `groovenet-now-playing`, needs no Xcode:
-its first run downloads a prebuilt helper (verified against its checksum) into
-`~/.groovenet/now-playing/`. It follows the local daemon unless told otherwise.
-To follow a remote player instead, run
-`groovenet config set now_playing_target <player-id>` once (`local` is the
-default), then start it with no arguments. `--remote` and `--socket` override
-the config for one run. To start it at every login, run
-`groovenet now-playing enable` (macOS only): it installs the helper if needed and
-loads a LaunchAgent (`radio.publicvinyl.groovenet.nowplaying`) that restarts it
-if it exits. `now-playing status` shows the helper, the agent and the target,
-and `now-playing disable` removes it. After changing `now_playing_target`, run
-`enable` again to restart the agent. Don't combine it with `brew services` for
-the same helper; `enable` refuses if the Homebrew service is present. See
+The optional macOS Now Playing companion, `groovenet-now-playing`, shows what
+the player is playing in macOS Now Playing and routes the media keys to it. It
+needs no Xcode. The easiest install is Homebrew, which also starts it at every
+login:
+
+```bash
+brew install public-vinyl-radio/tap/groovenet-now-playing
+brew services start groovenet-now-playing
+```
+
+Upgrade with `brew upgrade groovenet-now-playing` and then
+`brew services restart groovenet-now-playing`; remove it with
+`brew services stop groovenet-now-playing` and `brew uninstall
+groovenet-now-playing`. The service logs to
+`$(brew --prefix)/var/log/groovenet-now-playing.log`.
+
+Without Homebrew, the CLI install includes the companion: its first run
+downloads a prebuilt helper (verified against its checksum) into
+`~/.groovenet/now-playing/`, and `groovenet now-playing enable` (macOS only)
+starts it at every login with a LaunchAgent
+(`radio.publicvinyl.groovenet.nowplaying`) that restarts it if it exits.
+`now-playing status` shows the helper, the agent and the target, and
+`now-playing disable` removes it. Its logs are in `~/.groovenet/now-playing/`.
+
+Either way, it follows the local daemon unless told otherwise. To follow a
+remote player instead, run `groovenet config set now_playing_target <player-id>`
+once (`local` is the default), then restart it: `brew services restart
+groovenet-now-playing`, or `groovenet now-playing enable` again. `--remote` and
+`--socket` override the config for one run.
+
+Use one or the other, not both. `enable` refuses while the Homebrew service is
+installed, and the Homebrew companion refuses to start while the login item is
+enabled; run `groovenet now-playing disable` before switching to Homebrew. See
 `packages/groovenet-player/NOW_PLAYING.md`.
 
 Plays can be logged as spins. It is off by default; enable it with
