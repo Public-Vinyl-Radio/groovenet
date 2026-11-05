@@ -130,17 +130,19 @@ export default function VinylPipelineView() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Vinyl Pipeline"
-        actions={[
-          {
-            label: live ? "Pause live updates" : "Resume live updates",
-            icon: live ? <LuPause /> : <LuPlay />,
-            onClick: () => setLive((v) => !v),
-          },
-          { label: "Refresh now", icon: <LuRefreshCw />, onClick: refreshNow },
-        ]}
-      />
+      <PageHeader>
+        <PageHeader.Title>Vinyl Pipeline</PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: live ? "Pause live updates" : "Resume live updates",
+              icon: live ? <LuPause /> : <LuPlay />,
+              onClick: () => setLive((v) => !v),
+            },
+            { label: "Refresh now", icon: <LuRefreshCw />, onClick: refreshNow },
+          ]}
+        />
+      </PageHeader>
       <Stack gap={{ base: 3, md: 6 }}>
         <Flex direction="column" gap={2}>
           <Flex justify="flex-end" align="center" gap={2} wrap="wrap">

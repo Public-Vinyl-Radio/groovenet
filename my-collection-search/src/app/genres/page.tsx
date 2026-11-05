@@ -226,22 +226,16 @@ export default function GenresPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Genres"
-        count={genreCount === undefined ? undefined : `${genreCount.toLocaleString()} genres`}
-        desktopActions={
-          <Box w="320px">
-            <SearchField
-              label="Find a genre"
-              placeholder="Find a genre"
-              value={search}
-              onChange={setSearch}
-            />
-          </Box>
-        }
-      />
-      <Stack gap={7}>
-        <Box display={{ base: "block", md: "none" }}>
+      <PageHeader>
+        <PageHeader.Title
+          meta={genreCount === undefined ? undefined : `${genreCount.toLocaleString()} genres`}
+        >
+          Genres
+        </PageHeader.Title>
+        <PageHeader.Actions />
+      </PageHeader>
+      <PageHeader.Toolbar>
+        <Box maxW="320px">
           <SearchField
             label="Find a genre"
             placeholder="Find a genre"
@@ -249,6 +243,8 @@ export default function GenresPage() {
             onChange={setSearch}
           />
         </Box>
+      </PageHeader.Toolbar>
+      <Stack gap={7}>
         {error ? (
           <Text role="alert" color="fg.error">
             Couldn&apos;t load genres: {error.message}

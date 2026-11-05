@@ -36,55 +36,58 @@ export default function HomeHeader({
   onSearch: () => void;
 }) {
   return (
-    <PageHeader
-      title="Home"
-      summary={counts ? formatHomeCounts(counts) : undefined}
-      actions={[{ label: "Search", icon: <LuSearch />, onClick: onSearch }]}
-      desktopActions={
-        <SearchTrigger
-          type="button"
-          onClick={onSearch}
-          aria-label="Search tracks, albums, artists"
-          aria-keyshortcuts="Meta+K"
-          w="360px"
-          maxW="40vw"
-          h="44px"
-          px="14px"
-          display="flex"
-          alignItems="center"
-          gap="10px"
-          borderWidth="outline"
-          borderRadius="md"
-          borderColor="border.ink"
-          bg="bg"
-          color="fg.muted"
-          cursor="text"
-          textAlign="left"
-          _hover={{ bg: "bg.muted" }}
-        >
-          <Box display="flex" flexShrink={0} aria-hidden="true">
-            <LuSearch size={18} />
-          </Box>
-          <Text as="span" flex="1" minW={0} fontSize="15px" truncate>
-            Search tracks, albums, artists
-          </Text>
-          <Text
-            as="kbd"
-            h="22px"
-            px="6px"
+    <PageHeader>
+      <PageHeader.Title meta={counts ? formatHomeCounts(counts) : undefined} metaOnPhone={false}>
+        Home
+      </PageHeader.Title>
+      <PageHeader.Actions
+        actions={[{ label: "Search", icon: <LuSearch />, onClick: onSearch }]}
+        desktop={
+          <SearchTrigger
+            type="button"
+            onClick={onSearch}
+            aria-label="Search tracks, albums, artists"
+            aria-keyshortcuts="Meta+K"
+            w="360px"
+            maxW="40vw"
+            h="44px"
+            px="14px"
             display="flex"
             alignItems="center"
-            borderWidth="rule"
+            gap="10px"
+            borderWidth="outline"
             borderRadius="md"
-            borderColor="border"
-            fontFamily="mono"
-            fontSize="11px"
-            aria-hidden="true"
+            borderColor="border.ink"
+            bg="bg"
+            color="fg.muted"
+            cursor="text"
+            textAlign="left"
+            _hover={{ bg: "bg.muted" }}
           >
-            ⌘K
-          </Text>
-        </SearchTrigger>
-      }
-    />
+            <Box display="flex" flexShrink={0} aria-hidden="true">
+              <LuSearch size={18} />
+            </Box>
+            <Text as="span" flex="1" minW={0} fontSize="15px" truncate>
+              Search tracks, albums, artists
+            </Text>
+            <Text
+              as="kbd"
+              h="22px"
+              px="6px"
+              display="flex"
+              alignItems="center"
+              borderWidth="rule"
+              borderRadius="md"
+              borderColor="border"
+              fontFamily="mono"
+              fontSize="11px"
+              aria-hidden="true"
+            >
+              ⌘K
+            </Text>
+          </SearchTrigger>
+        }
+      />
+    </PageHeader>
   );
 }

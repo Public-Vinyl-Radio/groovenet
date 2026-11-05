@@ -166,13 +166,13 @@ describe("AlbumSearchResults layouts (#730)", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
-  it("shows the count with the sort label, and changes the sort from it", async () => {
+  it("keeps the sort label with the results after moving the total into the header", async () => {
     mocks.searchParams = new URLSearchParams("sort=year:desc");
     const onSortChange = vi.fn();
     const { user } = renderWithProviders(
       <AlbumSearchResults friendId={6} onSortChange={onSortChange} />,
     );
-    expect(screen.getByText("1 album")).toBeTruthy();
+    expect(screen.queryByText("1 album")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Sort: Newest Releases" }));
     await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)" }));
     expect(onSortChange).toHaveBeenCalledWith("title:asc");
@@ -217,7 +217,7 @@ describe("AlbumSearchResults layouts (#730)", () => {
     expect(screen.getByText(/boom/)).toBeTruthy();
   });
 
-  it("keeps the count and sort above an empty result", async () => {
+  it("keeps the sort above an empty result while the total lives in the header", async () => {
     albumsInStore.list = [];
     mocks.useAlbumsInfiniteQuery.mockReturnValue({
       data: { pages: [{ hits: [], estimatedTotalHits: 0 }] },
@@ -230,7 +230,7 @@ describe("AlbumSearchResults layouts (#730)", () => {
     });
     mocks.searchParams = new URLSearchParams("q=zzz");
     renderWithProviders(<AlbumSearchResults friendId={6} onSortChange={vi.fn()} />);
-    expect(screen.getByText("0 albums")).toBeTruthy();
+    expect(screen.queryByText("0 albums")).toBeNull();
     expect(screen.getByRole("button", { name: /Sort:/ })).toBeTruthy();
     expect(screen.getByText("No albums found.")).toBeTruthy();
   });

@@ -111,8 +111,7 @@ export default function AlbumSearchResults({
     );
   }
 
-  // Phones only: the count with the sort beside it. Desktop shows the count in
-  // the chip row and sorts from the search row (#794).
+  // Phones keep the sort control beside the results; the total is in PageHeader meta.
   const countRow = (
     <Flex
       display={{ base: "flex", md: "none" }}
@@ -121,9 +120,7 @@ export default function AlbumSearchResults({
       gap={2}
       mb={2}
     >
-      <Text fontSize="sm" color="fg.muted">
-        {totalHits.toLocaleString()} {totalHits === 1 ? "album" : "albums"}
-      </Text>
+      <Box flex="1" />
       {onSortChange && (
         <Box display={{ base: "block", md: "none" }}>
           <AlbumSortMenu value={sort} onChange={onSortChange} trigger="label" />

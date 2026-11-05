@@ -159,29 +159,38 @@ function AlbumsPageContent() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Albums"
-        actions={[
-          { label: "Add album", icon: <LuPlus />, onClick: () => router.push("/albums/add") },
-        ]}
-        desktopActions={
-          <>
-            <AlbumOptionsMenu onOpenArtwork={() => router.push("/albums/artwork")} />
-            <ViewModeSwitch value={viewMode} onChange={setViewMode} />
-            <HeaderButton variant="solid" onClick={() => router.push("/albums/add")}>
-              <LuPlus aria-hidden="true" />
-              Add album
-            </HeaderButton>
-          </>
-        }
-        trailing={
-          <AlbumSearchMenu
-            activeCount={filterCount}
-            onOpenFilters={() => setFiltersOpen(true)}
-            onOpenArtwork={() => router.push("/albums/artwork")}
-          />
-        }
-      />
+      <PageHeader>
+        <PageHeader.Title meta={total === null ? undefined : albumCountLabel(total)}>
+          Albums
+        </PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: "Add album",
+              icon: <LuPlus />,
+              onClick: () => router.push("/albums/add"),
+              desktop: "hidden",
+            },
+          ]}
+          desktop={
+            <>
+              <AlbumOptionsMenu onOpenArtwork={() => router.push("/albums/artwork")} />
+              <ViewModeSwitch value={viewMode} onChange={setViewMode} />
+              <HeaderButton variant="solid" onClick={() => router.push("/albums/add")}>
+                <LuPlus aria-hidden="true" />
+                Add album
+              </HeaderButton>
+            </>
+          }
+          phone={
+            <AlbumSearchMenu
+              activeCount={filterCount}
+              onOpenFilters={() => setFiltersOpen(true)}
+              onOpenArtwork={() => router.push("/albums/artwork")}
+            />
+          }
+        />
+      </PageHeader>
       <Flex gap={3} direction="column">
         {!isHydrated || !currentUserFriend ? (
           <Flex justify="center" py={8}>
@@ -189,34 +198,36 @@ function AlbumsPageContent() {
           </Flex>
         ) : (
           <>
-            <ListSearchRow
-              maxW="640px"
-              mb={0}
-              field={
-                <SearchField
-                  value={query}
-                  onChange={setQuery}
-                  onEnter={handleSearch}
-                  label="Search albums"
-                  placeholder="Search albums"
-                />
-              }
-              controls={
-                <>
-                  <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="button" />
-                  <FiltersPanel
-                    open={panelOpen}
-                    onOpenChange={setPanelOpen}
-                    scope="Albums"
-                    activeCount={filterCount}
-                    onReset={clearAll}
-                    showLabel={showAlbumsLabel(total)}
-                  >
-                    <AlbumFilterSections {...filterControls} />
-                  </FiltersPanel>
-                </>
-              }
-            />
+            <PageHeader.Toolbar>
+              <ListSearchRow
+                maxW="640px"
+                mb={0}
+                field={
+                  <SearchField
+                    value={query}
+                    onChange={setQuery}
+                    onEnter={handleSearch}
+                    label="Search albums"
+                    placeholder="Search albums"
+                  />
+                }
+                controls={
+                  <>
+                    <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="button" />
+                    <FiltersPanel
+                      open={panelOpen}
+                      onOpenChange={setPanelOpen}
+                      scope="Albums"
+                      activeCount={filterCount}
+                      onReset={clearAll}
+                      showLabel={showAlbumsLabel(total)}
+                    >
+                      <AlbumFilterSections {...filterControls} />
+                    </FiltersPanel>
+                  </>
+                }
+              />
+            </PageHeader.Toolbar>
 
             <AlbumFiltersModal
               open={filtersOpen}
@@ -235,7 +246,6 @@ function AlbumsPageContent() {
               onClearAll={filterCount > 0 ? clearAll : undefined}
               // Phones keep the count beside the sort above the results.
               summaryOnPhones={false}
-              summary={total === null ? undefined : albumCountLabel(total)}
             />
 
             {/* Album Results */}

@@ -21,7 +21,7 @@ import {
   Separator,
 } from "@chakra-ui/react";
 import { CountTag, MetaTag, SourceTag, StatusTag, type StatusTone } from "@/components/ui/RoleTags";
-import { LuInfo, LuRefreshCw, LuTrash2 } from "react-icons/lu";
+import { LuInfo, LuRefreshCw } from "react-icons/lu";
 import { useJobsQuery } from "@/hooks/useJobsQuery";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { clearAllJobs } from "@/services/internalApi/jobs";
@@ -270,22 +270,29 @@ function JobsPageContent() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Downloads"
-        actions={[
-          {
-            label: "Refresh jobs",
-            icon: <LuRefreshCw />,
-            onClick: () => refetch(),
-            disabled: isLoading,
-          },
-        ]}
-        overflow={
-          summary.total > 0
-            ? [{ label: "Clear all jobs", onClick: () => clearJobsMutation.mutate() }]
-            : []
-        }
-      />
+      <PageHeader>
+        <PageHeader.Title>Downloads</PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: "Refresh jobs",
+              icon: <LuRefreshCw />,
+              onClick: () => refetch(),
+              disabled: isLoading,
+            },
+            ...(summary.total > 0
+              ? [
+                  {
+                    label: "Clear all jobs",
+                    onClick: () => clearJobsMutation.mutate(),
+                    phone: "menu" as const,
+                    desktop: "menu" as const,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </PageHeader>
       <Stack gap={{ base: 3, md: 6 }}>
         <Flex direction="column" gap={2}>
           <Flex justify="flex-end" align="center" gap={2}>
@@ -311,30 +318,6 @@ function JobsPageContent() {
                   <option value="failed">Failed</option>
                 </NativeSelectField>
               </NativeSelectRoot>
-              <Button
-                display={{ base: "none", md: "inline-flex" }}
-                onClick={() => clearJobsMutation.mutate()}
-                loading={clearJobsMutation.isPending}
-                variant="outline"
-                colorPalette="danger"
-                disabled={summary.total === 0}
-                aria-label="Clear all jobs"
-                size="sm"
-              >
-                <LuTrash2 />
-                <Text display={{ base: "none", md: "inline" }}>Clear All</Text>
-              </Button>
-              <Button
-                display={{ base: "none", md: "inline-flex" }}
-                onClick={() => refetch()}
-                loading={isLoading}
-                variant="outline"
-                aria-label="Refresh jobs"
-                size="sm"
-              >
-                <LuRefreshCw />
-                <Text display={{ base: "none", md: "inline" }}>Refresh</Text>
-              </Button>
             </Flex>
           </Flex>
           <Flex gap={2} fontSize="xs" color="fg.muted" flexWrap="wrap">

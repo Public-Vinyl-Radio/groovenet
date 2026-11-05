@@ -38,7 +38,7 @@ describe("VinylPipelineView header", () => {
   it("titles the page and refreshes everything from the header action", async () => {
     const { user } = renderWithProviders(<VinylPipelineView />);
     expect(screen.getByRole("heading", { level: 1, name: "Vinyl Pipeline" })).toBeTruthy();
-    await user.click(header().getByRole("button", { name: "Refresh now", hidden: true }));
+    await user.click(header().getAllByRole("button", { name: "Refresh now", hidden: true })[0]);
     expect(q.stats.refetch).toHaveBeenCalledTimes(1);
     expect(q.detections.refetch).toHaveBeenCalledTimes(1);
     expect(q.retention.refetch).toHaveBeenCalledTimes(1);
@@ -47,9 +47,13 @@ describe("VinylPipelineView header", () => {
   it("pauses and resumes live polling from the header action", async () => {
     const { user } = renderWithProviders(<VinylPipelineView />);
     expect(q.intervals.at(-1)).toBe(15000);
-    await user.click(header().getByRole("button", { name: "Pause live updates", hidden: true }));
+    await user.click(
+      header().getAllByRole("button", { name: "Pause live updates", hidden: true })[0],
+    );
     expect(q.intervals.at(-1)).toBe(false);
-    await user.click(header().getByRole("button", { name: "Resume live updates", hidden: true }));
+    await user.click(
+      header().getAllByRole("button", { name: "Resume live updates", hidden: true })[0],
+    );
     expect(q.intervals.at(-1)).toBe(15000);
   });
 });
