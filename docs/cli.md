@@ -109,6 +109,7 @@ mpv's separate artwork window.
 | `vinyl`               | Inspect ingest, detections and spin aggregation                                      |
 | `embeddings`          | Inspect and manage collection embeddings                                             |
 | `status`              | One-line now-playing segment for tmux and status bars                                |
+| `now-playing`         | `enable` / `disable` / `status` a macOS login item for the Now Playing helper        |
 
 ### Record care
 
@@ -167,11 +168,20 @@ run. The daemon reads config when it starts, so restart a running detached
 daemon (`groovenet player stop`, then start it again) after changing
 `player_artwork`.
 
-The optional macOS Now Playing companion, `groovenet-now-playing`, follows the
-local daemon unless told otherwise. To follow a remote player instead, run
+The optional macOS Now Playing companion, `groovenet-now-playing`, needs no Xcode:
+its first run downloads a prebuilt helper (verified against its checksum) into
+`~/.groovenet/now-playing/`. It follows the local daemon unless told otherwise.
+To follow a remote player instead, run
 `groovenet config set now_playing_target <player-id>` once (`local` is the
 default), then start it with no arguments. `--remote` and `--socket` override
-the config for one run. See `packages/groovenet-player/NOW_PLAYING.md`.
+the config for one run. To start it at every login, run
+`groovenet now-playing enable` (macOS only): it installs the helper if needed and
+loads a LaunchAgent (`radio.publicvinyl.groovenet.nowplaying`) that restarts it
+if it exits. `now-playing status` shows the helper, the agent and the target,
+and `now-playing disable` removes it. After changing `now_playing_target`, run
+`enable` again to restart the agent. Don't combine it with `brew services` for
+the same helper; `enable` refuses if the Homebrew service is present. See
+`packages/groovenet-player/NOW_PLAYING.md`.
 
 Plays can be logged as spins. It is off by default; enable it with
 `groovenet config set player_log_plays true` or pass `--log-plays` to

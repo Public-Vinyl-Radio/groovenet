@@ -62,13 +62,14 @@ MPRIS for `playerctl` and desktop media keys. It is off unless explicitly starte
 and exits disabled without a Linux session bus. See [MPRIS.md](MPRIS.md) for setup,
 the platform design and smoke tests.
 
-macOS Now Playing and media keys have an optional Swift companion,
-`groovenet-now-playing`. Build it explicitly with `groovenet-now-playing --build`,
-then run it against an existing daemon in your desktop session. It also
-supports remote players via `groovenet-now-playing --remote <id>`,
-using the same configuration as the CLI; no local daemon is needed in that mode.
-Ordinary npm installation and headless playback do not require Swift. See
-[NOW_PLAYING.md](NOW_PLAYING.md) for setup, design, and verification limits.
+macOS Now Playing and media keys have an optional companion,
+`groovenet-now-playing`. Its first run downloads a prebuilt helper (no Xcode
+needed), then it follows an existing daemon in your desktop session, or a remote
+player via `now_playing_target` or `--remote <id>`, using the same configuration
+as the CLI. `groovenet now-playing enable` starts it at login. `--build`
+compiles it from source for contributors. Ordinary npm installation and
+headless playback do not require Swift. See [NOW_PLAYING.md](NOW_PLAYING.md) for
+setup, design, and verification limits.
 
 Persistent Debian server players with independent queues and a shared control
 API are documented in [SERVER_PLAYERS.md](SERVER_PLAYERS.md).

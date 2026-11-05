@@ -15,7 +15,11 @@ fi
 case "${1:-}" in
     --help|-h)
         echo 'Usage: groovenet-now-playing [--socket PATH | --remote PLAYER_ID]'
+        echo '       groovenet-now-playing --install'
         echo '       groovenet-now-playing --build'
+        echo
+        echo 'The first run downloads the prebuilt helper into ~/.groovenet/now-playing;'
+        echo '--install does only that. --build compiles from source (contributors).'
         echo
         echo 'With no flag, follows the now_playing_target CLI config key: a remote'
         echo 'player ID, or local (the default). Set it once with:'
@@ -44,16 +48,12 @@ if [ "${1:-}" = --build ]; then
     exit 0
 fi
 
-if [ ! -x "$app/Contents/MacOS/groovenet-now-playing" ]; then
-    echo 'Build the optional macOS companion first: groovenet-now-playing --build' >&2
-    exit 1
-fi
-
-# Target resolution (flags, then the now_playing_target config key, then local)
-# lives in Node so this script never parses the config file.
+# Helper resolution (a --build copy, then the download, fetching it if needed)
+# and target resolution (flags, then the now_playing_target config key, then
+# local) live in Node so this script never parses the config file.
 entry="$package/../build/nowPlayingBin.js"
 if [ ! -f "$entry" ]; then
     echo 'Build the Node player package first: npm run build --workspace @groovenet/player' >&2
     exit 1
 fi
-exec node "$entry" "$@" --helper "$app/Contents/MacOS/groovenet-now-playing"
+exec node "$entry" "$@"

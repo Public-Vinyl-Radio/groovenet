@@ -8,14 +8,38 @@ leaves remote playback running.
 ## Setup
 
 The helper targets macOS 13+ and requires a local graphical login session.
-Building requires Swift 5.9+ and a macOS SDK from Xcode or Command Line Tools.
-Ordinary npm installation and headless playback do not require native tooling.
-
-After installing `@groovenet/player` (also a CLI dependency), build once:
+No Xcode, Swift toolchain or Developer ID is needed:
 
 ```sh
-groovenet-now-playing --build
+npm i -g @groovenet/cli
+groovenet config set now_playing_target lounge   # only for a remote player; skip for local
+groovenet-now-playing                            # downloads the helper on first run
 ```
+
+Or start it at every login instead of by hand:
+
+```sh
+groovenet now-playing enable
+```
+
+The first run downloads the prebuilt helper for the installed
+`@groovenet/player` version (see "Release builds") into
+`~/.groovenet/now-playing/<version>/`, outside `node_modules` so upgrading the
+package does not wipe it. Later runs reuse it; a new package version downloads
+its own copy and leaves older ones in place. `groovenet-now-playing --install`
+does only the download, for scripts.
+
+The download is verified against the release's `.sha256` before it is unpacked,
+unpacked into a temporary directory and checked with `codesign --verify`, and
+only then renamed into place, so an interrupted download never looks installed.
+If the download fails (offline, or a checkout whose version has no release yet)
+the command says so and suggests `--build`; it never falls back silently. Set
+`GROOVENET_NOW_PLAYING_BASE_URL` to fetch from a mirror laid out like the GitHub
+release downloads (`<base>/groovenet-player-v<version>/<asset>`).
+
+The helper is ad-hoc signed, not notarised, and that is enough: Gatekeeper only
+checks files carrying the quarantine attribute, which browsers set and a Node
+`fetch` does not. A browser download of the zip would be quarantined and blocked.
 
 Choose what the helper follows once, in the CLI config, then start it with no
 arguments:
@@ -59,13 +83,40 @@ From a checkout, substitute `packages/groovenet-player/scripts/now-playing.sh`
 for `groovenet-now-playing`. Remote mode also requires built contracts → client
 → player workspaces; published packages include those Node builds.
 
-`--build` creates and ad-hoc signs `macos/.build/Groovenet Now Playing.app` in
-the package directory, which must be writable. It compiles for the current
-architecture; rebuild after upgrading the package or changing architectures.
-No developer certificate or third-party Swift dependency is required. The npm
-package ships no native binary, and nothing starts automatically at installation
-or login. `--build` is the contributor path: it runs
-`scripts/build-now-playing-app.sh`, the same script CI uses for releases.
+### Login item
+
+`groovenet now-playing enable` makes sure the helper is installed, writes
+`~/Library/LaunchAgents/radio.publicvinyl.groovenet.nowplaying.plist` and loads
+it with `launchctl bootstrap gui/$UID`. The agent runs `node nowPlayingBin.js`
+by absolute path (launchd's `PATH` finds neither `node` nor the npm bin),
+starts at login (`RunAtLoad`), restarts whenever the helper exits
+(`KeepAlive`, so a disconnect is also the reconnect) and waits 30 s between
+restarts (`ThrottleInterval`) so a dead daemon does not spin. Output goes to
+`~/.groovenet/now-playing/launchd.out.log` and `launchd.err.log`.
+
+No target is written into the plist: the helper reads `now_playing_target`
+itself. After changing the config, run `groovenet now-playing enable` again to
+restart it. `groovenet now-playing status` shows the helper, whether the plist
+exists and is loaded, and the target it will follow; `disable` boots it out and
+removes the plist.
+
+The plist records the `node` that ran `enable`. If that path goes away (a
+version manager switching or removing Node), run `enable` again.
+
+If you use Homebrew's `brew services` for this helper, do not also enable the
+login item: both would start a helper. `enable` refuses when the service
+`homebrew.mxcl.groovenet-now-playing` is present.
+
+### Building from source
+
+`--build` is the contributor path. It creates and ad-hoc signs
+`macos/.build/Groovenet Now Playing.app` in the package directory, which must be
+writable, for the current architecture, using Swift 5.9+ and a macOS SDK from
+Xcode or Command Line Tools. It runs `scripts/build-now-playing-app.sh`, the same
+script CI uses for releases. A `--build` copy takes precedence over a download, so
+a contributor always runs what they built; delete `macos/.build` to go back to
+the downloaded one. Rebuild after changing architectures. Nothing starts
+automatically at installation.
 
 ## Release builds
 
@@ -86,12 +137,12 @@ version. To build one yourself, run
 Ctrl-C or SIGTERM clears Now Playing and closes the companion connection while
 preserving playback and the queue. A daemon or remote-stream disconnect clears
 metadata and exits with an error; restart the companion after restoring the
-connection. Duplicate instances are rejected using an advisory lock in the
+connection (the login item does this for you). Duplicate instances are rejected using an advisory lock in the
 private player directory. The lock is released on exit; do not delete its file
 while a companion is running.
 
-Volume keys remain system-owned. Volume control, artwork, seeking, automatic
-startup/reconnection, and a graphical player are outside this version's scope.
+Volume keys remain system-owned. Volume control, artwork, seeking and a graphical player are outside this
+version's scope.
 macOS chooses the active media application, and headset button mappings vary.
 Remote album metadata requires collection API access; otherwise title and artist
 remain available with an empty album. Speaker acknowledgements must be handled

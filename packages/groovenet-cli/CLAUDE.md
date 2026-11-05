@@ -38,6 +38,7 @@ player              start | stop | play | pause | next | prev | seek | volume
                     keys | status | queue (add | remove | list) | devices
                     (bare `player` opens the lazy-loaded Ink TUI)
 status              (no subcommands — one-line segment for tmux / status bars)
+now-playing         enable | disable | status (macOS login item for the Now Playing helper)
 ```
 
 **Every command takes `--json`.** Use it for anything programmatic — the default
@@ -207,6 +208,28 @@ no session or stream.
 - `--max-width` shortens title and artist first, the longer one first, and only
   cuts the rest of the line when the fixed parts alone do not fit. In tmux mode
   it counts visible cells, not `#[…]` styles.
+
+## now-playing
+
+`groovenet now-playing enable|disable|status` (#1000) manages a LaunchAgent that
+starts `groovenet-now-playing` at login. `src/commands/nowPlaying.ts` holds it;
+the helper download itself (`resolveHelper`, `installHelper`, `findHelper`) lives
+in `@groovenet/player`'s `nowPlayingHelper.ts`, so `groovenet-now-playing`
+and this command share it.
+
+- **Label and paths.** `radio.publicvinyl.groovenet.nowplaying`, plist at
+  `~/Library/LaunchAgents/<label>.plist`, logs `~/.groovenet/now-playing/launchd.{out,err}.log`.
+  Homebrew's service uses `homebrew.mxcl.groovenet-now-playing`; `enable` refuses
+  when its plist is in `~/Library/LaunchAgents` or under a brew prefix.
+- **Absolute paths.** `ProgramArguments` is `process.execPath` plus the player's
+  `NOW_PLAYING_BIN`: launchd's PATH finds neither node nor the npm bin. The
+  plist carries no target; the helper reads `now_playing_target` when it starts.
+- **`bootout`, then wait, then `bootstrap`.** `bootout` returns before the old
+  process is gone, and a `bootstrap` in that window fails with "Input/output
+  error". `unload` polls `launchctl print` until the service is gone.
+- Everything external (platform, home, uid, `launchctl`, sleep, the helper
+  context) is on `NowPlayingEnv`, so the tests use a temp home and a stateful
+  fake `launchctl`. The commands are macOS only and say so elsewhere.
 
 ## Keymap
 
