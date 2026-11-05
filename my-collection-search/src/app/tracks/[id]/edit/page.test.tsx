@@ -163,31 +163,67 @@ describe("TrackEditPage header", () => {
     } as Partial<Track>;
   });
 
-  it("cancels back to where the user came from, without saving", async () => {
+  const header = () => within(screen.getByTestId("page-header"));
+
+  it("titles the form under the track's trail", () => {
+    renderWithProviders(<TrackEditPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Edit track" })).toBeTruthy();
+    const trail = within(screen.getByTestId("page-header-breadcrumbs"));
+    const link = (name: string) => trail.getByRole("link", { name, hidden: true });
+    expect(link("Tracks").getAttribute("href")).toBe("/tracks");
+    expect(link("Cumbia del Sol").getAttribute("href")).toBe("/tracks/t1?friend_id=1");
+    expect(trail.getByText("Edit").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("cancels back to where the user came from at both widths, without saving", async () => {
     const { user } = renderWithProviders(<TrackEditPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Edit Track" })).toBeTruthy();
-    await user.click(
-      within(screen.getByTestId("page-header")).getByRole("button", {
-        name: "Cancel",
-        hidden: true,
-      }),
-    );
-    expect(mocks.back).toHaveBeenCalledTimes(1);
+    for (const cancel of header().getAllByRole("button", { name: "Cancel", hidden: true }))
+      await user.click(cancel);
+    expect(mocks.back).toHaveBeenCalledTimes(2);
     expect(mocks.saveTrack).not.toHaveBeenCalled();
   });
 
-  it("saves from the header action", async () => {
+  it("saves from the phone and desktop header actions", async () => {
     const { user } = renderWithProviders(<TrackEditPage />);
-    const header = screen.getByTestId("page-header");
-    await user.click(within(header).getByRole("button", { name: "Save", hidden: true }));
-    await waitFor(() => expect(mocks.saveTrack).toHaveBeenCalledOnce());
+    const saves = header().getAllByRole("button", { name: "Save", hidden: true });
+    expect(saves).toHaveLength(2);
+    await user.click(saves[0]);
+    await waitFor(() => expect(mocks.saveTrack).toHaveBeenCalledTimes(1));
+    await user.click(saves[1]);
+    await waitFor(() => expect(mocks.saveTrack).toHaveBeenCalledTimes(2));
+  });
+
+  it("still submits with Enter in a field", async () => {
+    const { user } = renderWithProviders(<TrackEditPage />);
+    await user.type(screen.getByDisplayValue("Cumbia del Sol"), " Remix{Enter}");
+    await waitFor(() =>
+      expect(mocks.saveTrack).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Cumbia del Sol Remix" }),
+      ),
+    );
+  });
+
+  it("locks the header while a save is in flight", async () => {
+    let finish = () => {};
+    mocks.saveTrack.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const { user } = renderWithProviders(<TrackEditPage />);
+    await user.click(header().getAllByRole("button", { name: "Save", hidden: true })[0]);
+    await waitFor(() =>
+      expect(
+        header()
+          .getAllByRole("button", { hidden: true })
+          .every((button) => (button as HTMLButtonElement).disabled),
+      ).toBe(true),
+    );
+    finish();
+    await waitFor(() => expect(mocks.back).toHaveBeenCalledTimes(1));
   });
 
   it("offers no Save until a track has loaded", () => {
     mocks.track = null;
     renderWithProviders(<TrackEditPage />);
-    const header = screen.getByTestId("page-header");
-    expect(within(header).queryByRole("button", { name: "Save", hidden: true })).toBeNull();
-    expect(within(header).getByRole("button", { name: "Cancel", hidden: true })).toBeTruthy();
+    expect(header().queryByRole("button", { name: "Save", hidden: true })).toBeNull();
+    expect(header().getAllByRole("button", { name: "Cancel", hidden: true })).toHaveLength(2);
+    expect(header().queryByRole("link", { name: "Cumbia del Sol", hidden: true })).toBeNull();
   });
 });

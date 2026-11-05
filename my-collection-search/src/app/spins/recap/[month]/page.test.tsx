@@ -39,7 +39,7 @@ vi.mock("@/hooks/useSpinsQuery", () => ({
 }));
 
 import SpinRecapRoute, { generateMetadata } from "./page";
-import SpinRecapPage from "@/components/spins/SpinRecapPage";
+import SpinRecapPage, { recapMeta } from "@/components/spins/SpinRecapPage";
 
 // 05:00 UTC on Nov 1 is still Oct 31 in Los Angeles.
 const NOW = new Date("2026-11-01T05:00:00Z");
@@ -102,7 +102,9 @@ describe("SpinRecapPage", () => {
       { enabled: true },
     );
     expect(screen.getByRole("heading", { level: 1, name: "October 2026" })).toBeTruthy();
-    expect(screen.getByText("OCT 2026 · SO FAR")).toBeTruthy();
+    // The month is in progress: the meta says so, in the header and under the phone bar.
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("so far · 120 spins");
+    expect(screen.getAllByText("so far · 120 spins")).toHaveLength(2);
     expect(within(document.querySelector("dl")!).getByText("120")).toBeTruthy();
     expect(screen.getByText("≈8.4")).toBeTruthy();
     expect(screen.getByText("+16 VS SEP")).toBeTruthy();
@@ -153,32 +155,62 @@ describe("SpinRecapPage", () => {
 
   it("goes back to the log on the same month", () => {
     renderRecap("2026-08");
-    expect(href("Back to listening log")).toBe("/spins?month=2026-08");
-    const crumbs = screen.getByTestId("recap-breadcrumbs-phone");
-    expect(within(crumbs).getByRole("link", { name: "Spins" }).getAttribute("href")).toBe(
+    expect(href("Back to Spins")).toBe("/spins?month=2026-08");
+    const crumbs = within(screen.getByTestId("page-header-breadcrumbs"));
+    expect(crumbs.getByRole("link", { name: "Spins", hidden: true }).getAttribute("href")).toBe(
       "/spins?month=2026-08",
     );
-    expect(within(crumbs).getByText("Recap").getAttribute("aria-current")).toBe("page");
-    // The desktop button: jsdom applies no media queries, so it stays hidden here.
-    expect(screen.getByText("← LISTENING LOG").closest("a")?.getAttribute("href")).toBe(
-      "/spins?month=2026-08",
-    );
+    expect(crumbs.getByText("Recap").getAttribute("aria-current")).toBe("page");
+    const desktop = within(screen.getByTestId("page-header-desktop-actions"));
+    expect(
+      desktop.getByRole("link", { name: "Listening log", hidden: true }).getAttribute("href"),
+    ).toBe("/spins?month=2026-08");
+    // Phones go back from the bar, so Listening log isn't repeated there.
+    expect(
+      within(screen.getByTestId("page-header-phone-actions")).queryByRole("link", {
+        name: "Listening log",
+        hidden: true,
+      }),
+    ).toBeNull();
   });
 
-  it("switches months by URL and stops at this month", async () => {
+  it("switches months by URL from the phone bar and stops at this month", async () => {
     const { user: actor } = renderRecap();
-    const next = screen.getByRole("button", { name: "Next month" });
-    expect(next.hasAttribute("disabled")).toBe(true);
-    await actor.click(screen.getByRole("button", { name: "Previous month" }));
+    const bar = within(screen.getByTestId("page-header-phone-actions"));
+    expect((bar.getByRole("button", { name: "November 2026" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    await actor.click(bar.getByRole("button", { name: "September 2026" }));
     expect(nav.push).toHaveBeenCalledWith("/spins/recap/2026-09");
   });
 
-  it("moves forward from an earlier month, without SO FAR", async () => {
+  it("switches months from the desktop switcher, stopping at this month", async () => {
+    const { user: actor } = renderRecap();
+    const desktop = within(screen.getByTestId("page-header-desktop-actions"));
+    const next = desktop.getByRole("button", { name: "Next month", hidden: true });
+    expect(next.hasAttribute("disabled")).toBe(true);
+    await actor.click(desktop.getByRole("button", { name: "Previous month", hidden: true }));
+    expect(nav.push).toHaveBeenCalledWith("/spins/recap/2026-09");
+  });
+
+  it("moves forward from an earlier month, without so far", async () => {
     const { user: actor } = renderRecap("2026-09");
-    expect(screen.getByText("SEP 2026")).toBeTruthy();
-    expect(screen.queryByText(/SO FAR/)).toBeNull();
-    await actor.click(screen.getByRole("button", { name: "Next month" }));
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("120 spins");
+    expect(screen.queryByText(/so far/i)).toBeNull();
+    const bar = within(screen.getByTestId("page-header-phone-actions"));
+    await actor.click(bar.getByRole("button", { name: "October 2026" }));
     expect(nav.push).toHaveBeenCalledWith("/spins/recap/2026-10");
+  });
+
+  it("words the meta for one spin and for thousands", () => {
+    expect(recapMeta(1, false)).toBe("1 spin");
+    expect(recapMeta(1204, true)).toBe("so far · 1,204 spins");
+  });
+
+  it("leaves the meta out until the recap loads", () => {
+    hooks.recap = { recap: null, isLoading: true, error: null };
+    renderRecap();
+    expect(screen.queryByTestId("page-header-meta")).toBeNull();
   });
 
   it("puts the top lists in a tablist on phones, with arrow keys", async () => {

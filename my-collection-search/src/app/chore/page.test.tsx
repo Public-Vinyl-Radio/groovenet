@@ -284,7 +284,35 @@ describe("Chores page", () => {
     expect(screen.queryByRole("button", { name: /MORE IN THE BACKLOG/ })).toBeNull();
   });
 
-  it("switches to the care log tab on a phone", async () => {
+  it("sums the library up in the header, desktop only, and keeps the count on the tab", async () => {
+    await renderPage();
+    const meta = await screen.findByTestId("page-header-meta");
+    expect(meta.textContent).toBe("412 copies · 402 to do");
+    expect(getComputedStyle(meta).display).toBe("none");
+    expect(within(screen.getByTestId("page-header")).getByRole("tablist")).toBeTruthy();
+  });
+
+  it("pulls a stack from the desktop header action", async () => {
+    api.pullRecordCareStack.mockResolvedValue({ stack: stackFixture([6]), created: true });
+    const { user } = await renderPage();
+    const desktop = within(screen.getByTestId("page-header-desktop-actions"));
+    await user.click(desktop.getByRole("button", { name: "PULL NEXT STACK OF 10", hidden: true }));
+    expect(api.pullRecordCareStack).toHaveBeenCalledWith({ friend_id: 7, size: 10 });
+    // Phones pull from under the overview, not the bar.
+    expect(screen.queryByTestId("page-header-phone-actions")).toBeNull();
+  });
+
+  it("names each panel by its tab", async () => {
+    await renderPage();
+    const panels = screen.getAllByRole("tabpanel", { hidden: true });
+    expect(panels.map((panel) => panel.getAttribute("aria-labelledby"))).toEqual([
+      "chores-tab-todo",
+      "chores-tab-log",
+    ]);
+    expect(screen.getByRole("tab", { name: /TO DO/ }).id).toBe("chores-tab-todo");
+  });
+
+  it("switches to the care log tab", async () => {
     const { user } = await renderPage();
     await user.click(screen.getByRole("tab", { name: "CARE LOG" }));
     expect(screen.getByRole("tab", { name: "CARE LOG" }).getAttribute("aria-selected")).toBe(

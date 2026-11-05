@@ -418,6 +418,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             : []
         }
         phone={actionsMenu}
+        desktop={actionsMenu}
       />
     </PageHeader>
   );
@@ -500,7 +501,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             </Button>
           )}
           {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
-          <Box display={{ base: "none", md: "block" }}>{actionsMenu}</Box>
         </Flex>
       </Flex>
       {playlistId && <SetDetailsPanel playlistId={playlistId} />}

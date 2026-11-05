@@ -4,22 +4,21 @@ import React from "react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Box,
   Button,
   EmptyState,
   Flex,
   Grid,
-  Heading,
-  IconButton,
   Spinner,
   Stack,
+  Text,
   VStack,
   useBreakpointValue,
 } from "@chakra-ui/react";
-import { FiChevronLeft, FiDisc } from "react-icons/fi";
-import Breadcrumbs from "@/components/layout/Breadcrumbs";
+import { FiChevronLeft, FiChevronRight, FiDisc } from "react-icons/fi";
+import { pageHeader } from "@/app/houseStyle";
 import PageContainer from "@/components/layout/PageContainer";
-import { useRootFlag } from "@/hooks/useRootFlag";
+import PageHeader from "@/components/layout/PageHeader";
+import { HeaderButton } from "@/components/layout/ListHeader";
 import { useSpinRecapQuery } from "@/hooks/useSpinsQuery";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -42,98 +41,67 @@ type HeaderProps = {
   month: string;
   latest: string;
   onMonthChange: (month: string) => void;
+  /** The month's spin count once it has loaded, for the meta. */
+  spins?: number;
 };
 
+/** "so far · 358 spins" for the month in progress, "358 spins" for one that's over. */
+export function recapMeta(spins: number, current: boolean): string {
+  const count = `${spins.toLocaleString("en-US")} ${spins === 1 ? "spin" : "spins"}`;
+  return current ? `so far · ${count}` : count;
+}
+
 /**
- * Phones: a 52px bar with back and the SPINS / RECAP trail, then the title and
- * a full-width month switcher. From `md`: the trail, then title, switcher and
- * "← LISTENING LOG" in one row.
+ * The month is the page title. From `md`: the Spins / Recap trail, then the
+ * month switcher and Listening log in the actions. Phones: one bar with back
+ * to Spins and the months either side as two icons.
  */
-export function SpinRecapHeader({ month, latest, onMonthChange }: HeaderProps) {
-  useRootFlag("data-page-header", true);
-  const crumbs = [{ label: "Spins", href: logHref(month) }, { label: "Recap" }];
+export function SpinRecapHeader({ month, latest, onMonthChange, spins }: HeaderProps) {
+  const current = month >= latest;
+  const meta = spins === undefined ? undefined : recapMeta(spins, current);
+  const previous = shiftMonth(month, -1);
+  const next = shiftMonth(month, 1);
   return (
     <>
-      {/* Sticky against the page, so it sits outside the title block. */}
-      <Flex
-        as="header"
-        display={{ base: "flex", md: "none" }}
-        position="sticky"
-        top="var(--safe-top)"
-        zIndex={80}
-        bg="bg"
-        mx={-4}
-        pl={1}
-        pr={4}
-        h="var(--header-h)"
-        align="center"
-        gap={1}
-        borderBottomWidth="outline"
-        borderColor="border.ink"
-        mb={4}
-      >
-        <IconButton
-          asChild
-          aria-label="Back to listening log"
-          variant="ghost"
-          boxSize="44px"
-          minW="44px"
-        >
-          <NextLink href={logHref(month)}>
-            <FiChevronLeft />
-          </NextLink>
-        </IconButton>
-        <Breadcrumbs
-          crumbs={crumbs}
-          mb={0}
-          flex="1"
-          h="full"
-          // The bar is the touch target's height; the trail's link fills it.
-          css={{ "& a": { minHeight: "44px", display: "inline-flex", alignItems: "center" } }}
-          data-testid="recap-breadcrumbs-phone"
+      <PageHeader>
+        <PageHeader.Context
+          crumbs={[{ label: "Spins", href: logHref(month) }, { label: "Recap" }]}
         />
-      </Flex>
-      <Box mb={{ base: 7, md: 6 }}>
-        <Breadcrumbs
-          crumbs={crumbs}
-          display={{ base: "none", md: "flex" }}
-          mb={2.5}
-          data-testid="recap-breadcrumbs"
+        <PageHeader.Title meta={meta} metaOnPhone={false}>
+          {formatMonthTitle(month)}
+        </PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: formatMonthTitle(previous),
+              icon: <FiChevronLeft />,
+              onClick: () => onMonthChange(previous),
+              desktop: "hidden",
+            },
+            {
+              label: formatMonthTitle(next),
+              icon: <FiChevronRight />,
+              onClick: () => onMonthChange(next),
+              disabled: current,
+              desktop: "hidden",
+            },
+          ]}
+          // Phones go back to the log from the bar, so Listening log is desktop only.
+          desktop={
+            <>
+              <SpinMonthSwitcher month={month} latest={latest} onChange={onMonthChange} />
+              <HeaderButton asChild>
+                <NextLink href={logHref(month)}>Listening log</NextLink>
+              </HeaderButton>
+            </>
+          }
         />
-        <Flex
-          direction={{ base: "column", md: "row" }}
-          align={{ base: "stretch", md: "center" }}
-          gap={{ base: 3, md: 4 }}
-        >
-          <Heading
-            as="h1"
-            flex={{ md: 1 }}
-            fontFamily="heading"
-            fontSize={{ base: "30px", md: "44px" }}
-            lineHeight={{ base: "36px", md: "48px" }}
-            fontWeight="semibold"
-          >
-            {formatMonthTitle(month)}
-          </Heading>
-          <SpinMonthSwitcher
-            month={month}
-            latest={latest}
-            onChange={onMonthChange}
-            short
-            soFar
-            stretch
-          />
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            h="44px"
-            display={{ base: "none", md: "inline-flex" }}
-          >
-            <NextLink href={logHref(month)}>← LISTENING LOG</NextLink>
-          </Button>
-        </Flex>
-      </Box>
+      </PageHeader>
+      {meta && (
+        <Text display={{ base: "block", md: "none" }} mt={-1} mb={4} {...pageHeader.meta}>
+          {meta}
+        </Text>
+      )}
     </>
   );
 }
@@ -266,6 +234,7 @@ export default function SpinRecapPage({ month }: { month: string }) {
         month={month}
         latest={latest}
         onMonthChange={(next) => router.push(recapHref(next))}
+        spins={query.recap?.stats.spins.value}
       />
       {body}
     </PageContainer>

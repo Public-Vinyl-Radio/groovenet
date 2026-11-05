@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { Button, Stack, Flex, Spinner, Text } from "@chakra-ui/react";
+import { Stack, Flex, Spinner, Text } from "@chakra-ui/react";
 import { FiCheck } from "react-icons/fi";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { toaster } from "@/components/ui/toaster";
@@ -228,7 +228,7 @@ function EditAlbumContent() {
       });
 
       // Navigate back to album detail
-      router.push(`/albums/${releaseId}?friend_id=${friendId}`);
+      router.push(albumHref);
     } catch (error) {
       toaster.create({
         title: "Failed to update album",
@@ -238,8 +238,9 @@ function EditAlbumContent() {
     }
   };
 
+  const albumHref = `/albums/${releaseId}?friend_id=${friendId}`;
   const handleCancel = () => {
-    router.push(`/albums/${releaseId}?friend_id=${friendId}`);
+    router.push(albumHref);
   };
 
   if (!friendId) {
@@ -271,19 +272,38 @@ function EditAlbumContent() {
   }
 
   return (
-    <PageContainer py={{ base: 0, md: 4 }}>
-      <PageHeader
-        title="Edit Album"
-        leading={<HeaderCancelButton onClick={handleCancel} disabled={updateMutation.isPending} />}
-        actions={[
-          {
-            label: "Save Changes",
-            icon: <FiCheck />,
-            onClick: handleSave,
-            disabled: updateMutation.isPending,
-          },
-        ]}
-      />
+    <PageContainer>
+      <PageHeader>
+        <PageHeader.Context
+          crumbs={[
+            { label: "Albums", href: "/albums" },
+            { label: album.title, href: albumHref },
+            { label: "Edit" },
+          ]}
+          leading={
+            <HeaderCancelButton onClick={handleCancel} disabled={updateMutation.isPending} />
+          }
+        />
+        <PageHeader.Title>Edit album</PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: "Cancel",
+              onClick: handleCancel,
+              disabled: updateMutation.isPending,
+              ghost: true,
+              phone: "hidden",
+            },
+            {
+              label: "Save changes",
+              icon: <FiCheck />,
+              onClick: handleSave,
+              loading: updateMutation.isPending,
+              primary: true,
+            },
+          ]}
+        />
+      </PageHeader>
       <Stack gap={6} maxW="960px">
         <AlbumForm
           value={albumForm}
@@ -305,15 +325,6 @@ function EditAlbumContent() {
           defaultArtist={albumForm.artist}
           defaultAlbum={albumForm.title}
         />
-
-        <Flex gap={3} justify="flex-end" pt={4} display={{ base: "none", md: "flex" }}>
-          <Button onClick={handleCancel} variant="outline" disabled={updateMutation.isPending}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} colorPalette="accent" loading={updateMutation.isPending}>
-            Save Changes
-          </Button>
-        </Flex>
       </Stack>
     </PageContainer>
   );

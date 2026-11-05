@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, Grid, Spinner, Stack, Tabs, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Stack, Tabs, Text } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
-import PageHeader from "@/components/layout/PageHeader";
-import { SectionLabel } from "@/components/ui/SectionLabel";
+import PageHeader, { type HeaderAction } from "@/components/layout/PageHeader";
 import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
 import ChoresCareLog from "@/components/chores/ChoresCareLog";
 import ChoresOverview from "@/components/chores/ChoresOverview";
@@ -13,6 +12,7 @@ import LogCareDialog, { type LogCareRecord } from "@/components/chores/LogCareDi
 import { copyRefFromKey, undoErrorText, type LogCareTarget } from "@/components/chores/careLog";
 import {
   addedMeta,
+  choresMeta,
   moreInBacklog,
   rowKey,
   spunMeta,
@@ -48,6 +48,8 @@ const PULL_LABEL = `PULL NEXT STACK OF ${STACK_SIZE}`;
 
 type Tab = "todo" | "log";
 const panelId = (tab: string) => `chores-panel-${tab}`;
+const triggerId = (tab: string) => `chores-tab-${tab}`;
+const tabLabel = { fontSize: "xs", letterSpacing: "0.06em", px: { md: 4 } } as const;
 
 function toRow(item: RecordCareQueueItem, meta?: string): ChoreRowData {
   return {
@@ -221,30 +223,57 @@ function ChorePageContent() {
   const todoLabel = todo === null ? "TO DO" : `TO DO · ${todo.toLocaleString("en-US")}`;
   const nothingToPull = todo === 0 && !stack;
 
-  const pullButton = (props: React.ComponentProps<typeof Button>) => (
-    <Button
-      size="sm"
-      onClick={() => void pull()}
-      loading={pullPending}
-      disabled={!enabled || nothingToPull}
-      {...props}
-    >
-      {PULL_LABEL}
-    </Button>
-  );
+  const pullAction: HeaderAction = {
+    label: PULL_LABEL,
+    onClick: () => void pull(),
+    loading: pullPending,
+    disabled: !enabled || nothingToPull,
+    primary: true,
+    // Phones pull from under the overview instead.
+    phone: "hidden",
+  };
 
-  const header = (
-    <PageHeader title="Chores" desktopActions={pullButton({ variant: "solid", h: "44px" })} />
+  // The tabs close the header at both widths, so the page sits inside them.
+  const page = (children: React.ReactNode) => (
+    <PageContainer>
+      <Tabs.Root
+        value={tab}
+        onValueChange={(details) => setTab(details.value as Tab)}
+        activationMode="automatic"
+        ids={{ content: panelId, trigger: triggerId }}
+      >
+        <PageHeader>
+          <PageHeader.Title meta={progress ? choresMeta(progress) : undefined} metaOnPhone={false}>
+            Chores
+          </PageHeader.Title>
+          <PageHeader.Actions actions={[pullAction]} />
+          <PageHeader.Tabs>
+            <Tabs.List
+              aria-label="Chores"
+              gap={0}
+              mx={{ base: -4, md: 0 }}
+              display={{ base: "grid", md: "flex" }}
+              gridTemplateColumns="repeat(2, minmax(0, 1fr))"
+            >
+              <Tabs.Trigger value="todo" justifyContent="center" h="44px" {...tabLabel}>
+                {todoLabel}
+              </Tabs.Trigger>
+              <Tabs.Trigger value="log" justifyContent="center" h="44px" ml="-2px" {...tabLabel}>
+                CARE LOG
+              </Tabs.Trigger>
+            </Tabs.List>
+          </PageHeader.Tabs>
+        </PageHeader>
+        {children}
+      </Tabs.Root>
+    </PageContainer>
   );
 
   if (!enabled) {
-    return (
-      <PageContainer>
-        {header}
-        <Flex justify="center" py={10}>
-          <Spinner />
-        </Flex>
-      </PageContainer>
+    return page(
+      <Flex justify="center" py={10}>
+        <Spinner />
+      </Flex>,
     );
   }
 
@@ -340,65 +369,24 @@ function ChorePageContent() {
     );
   }
 
-  return (
-    <PageContainer>
-      {header}
-      <Text display={{ base: "none", md: "block" }} mt={-2} mb={5} fontSize="15px" color="fg.muted">
+  return page(
+    <>
+      <Text display={{ base: "none", md: "block" }} mt={-1} mb={5} fontSize="15px" color="fg.muted">
         Get the whole library cleaned and sleeved, one stack of ten at a time.
       </Text>
 
-      <Tabs.Root
-        value={tab}
-        onValueChange={(details) => setTab(details.value as Tab)}
-        activationMode="automatic"
-        ids={{ content: panelId }}
-        display={{ base: "block", md: "none" }}
-        mx={-4}
-        mt={-4}
-        mb={4}
-      >
-        <Tabs.List
-          aria-label="Chores"
-          gap={0}
-          display="grid"
-          gridTemplateColumns="repeat(2, minmax(0, 1fr))"
-        >
-          <Tabs.Trigger
-            value="todo"
-            justifyContent="center"
-            h="44px"
-            fontSize="xs"
-            letterSpacing="0.06em"
-          >
-            {todoLabel}
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="log"
-            justifyContent="center"
-            h="44px"
-            ml="-2px"
-            fontSize="xs"
-            letterSpacing="0.06em"
-          >
-            CARE LOG
-          </Tabs.Trigger>
-        </Tabs.List>
-      </Tabs.Root>
-
-      {/* The overview spans both columns from `xl`; on a phone it heads the TO DO tab. */}
-      <Grid
-        templateColumns={{ base: "minmax(0, 1fr)", xl: "minmax(0, 1fr) 380px" }}
-        templateAreas={{ base: `"overview" "queue" "log"`, xl: `"overview overview" "queue log"` }}
-        columnGap={8}
-        rowGap={{ base: "18px", md: 5 }}
+      {/* The overview heads the TO DO tab. */}
+      <Stack
+        as="section"
+        id={panelId("todo")}
+        role="tabpanel"
+        aria-labelledby={triggerId("todo")}
+        display={tab === "todo" ? "flex" : "none"}
+        gap={{ base: "18px", md: 5 }}
         pb={6}
+        minW={0}
       >
-        <Stack
-          gridArea="overview"
-          display={{ base: tab === "todo" ? "flex" : "none", md: "flex" }}
-          gap="18px"
-          minW={0}
-        >
+        <Stack gap="18px" minW={0}>
           {progress ? (
             <ChoresOverview progress={progress} />
           ) : progressQuery.error ? (
@@ -416,61 +404,50 @@ function ChorePageContent() {
               borderColor="border.ink"
             />
           )}
-          {pullButton({
-            variant: "outline",
-            h: "48px",
-            mr: "6px",
-            boxShadow: "sm",
-            display: { base: "flex", md: "none" },
-          })}
-        </Stack>
-
-        <Stack
-          as="section"
-          gridArea="queue"
-          id={panelId("todo")}
-          aria-labelledby="chores-todo-heading"
-          display={{ base: tab === "todo" ? "flex" : "none", md: "flex" }}
-          gap={{ base: "18px", md: 3 }}
-          minW={0}
-        >
-          <SectionLabel
-            variant="strip"
-            id="chores-todo-heading"
-            display={{ base: "none", md: "flex" }}
+          <Button
+            size="sm"
+            variant="outline"
+            h="48px"
+            mr="6px"
+            boxShadow="sm"
+            display={{ base: "flex", md: "none" }}
+            onClick={pullAction.onClick}
+            loading={pullPending}
+            disabled={pullAction.disabled}
           >
-            {todoLabel}
-          </SectionLabel>
-          <Stack gap="18px">{groups}</Stack>
-          <ChoresSelectionBar
-            selected={selected.size}
-            stackNo={selectedStack?.stack_no ?? null}
-            onClear={() => void clear()}
-            clearing={discardPending}
-            onLogCare={() => setLogOpen(true)}
-          />
+            {PULL_LABEL}
+          </Button>
         </Stack>
+        <Stack gap="18px">{groups}</Stack>
+        <ChoresSelectionBar
+          selected={selected.size}
+          stackNo={selectedStack?.stack_no ?? null}
+          onClear={() => void clear()}
+          clearing={discardPending}
+          onLogCare={() => setLogOpen(true)}
+        />
+      </Stack>
 
-        <Box
-          as="aside"
-          gridArea="log"
-          id={panelId("log")}
-          aria-labelledby="chores-care-log-heading"
-          display={{ base: tab === "log" ? "block" : "none", md: "block" }}
-          minW={0}
-        >
-          <ChoresCareLog
-            thisMonth={progress?.this_month}
-            entries={logQuery.data?.items}
-            error={logQuery.error}
-            timeZone={timeZone}
-            justSavedSessionId={justSavedId}
-            onUndo={(sessionId) => void undo(sessionId)}
-            undoPending={voidPending}
-            undoError={undoError}
-          />
-        </Box>
-      </Grid>
+      <Box
+        as="section"
+        id={panelId("log")}
+        role="tabpanel"
+        aria-labelledby={triggerId("log")}
+        display={tab === "log" ? "block" : "none"}
+        maxW={{ md: "720px" }}
+        minW={0}
+      >
+        <ChoresCareLog
+          thisMonth={progress?.this_month}
+          entries={logQuery.data?.items}
+          error={logQuery.error}
+          timeZone={timeZone}
+          justSavedSessionId={justSavedId}
+          onUndo={(sessionId) => void undo(sessionId)}
+          undoPending={voidPending}
+          undoError={undoError}
+        />
+      </Box>
 
       <LogCareDialog
         open={logOpen}
@@ -482,7 +459,7 @@ function ChorePageContent() {
         defaultSleeve={summaryQuery.data?.needs_sleeve_type ?? DEFAULT_TARGET_SLEEVE}
         onSave={save}
       />
-    </PageContainer>
+    </>,
   );
 }
 

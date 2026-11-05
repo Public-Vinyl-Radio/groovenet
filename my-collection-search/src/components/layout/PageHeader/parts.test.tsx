@@ -161,6 +161,58 @@ describe("PageHeader parts", () => {
       expect(remove.onClick).toHaveBeenCalledTimes(1);
     });
 
+    it("draws a form's Cancel quiet beside its solid Save", () => {
+      renderWithProviders(
+        <PageHeader>
+          <PageHeader.Title>Edit album</PageHeader.Title>
+          <PageHeader.Actions
+            actions={[
+              act("Cancel", { ghost: true, phone: "hidden" }),
+              act("Save", { primary: true }),
+              act("Archive"),
+            ]}
+          />
+        </PageHeader>,
+      );
+      const desktop = within(screen.getByTestId("page-header-desktop-actions"));
+      const button = (name: string) =>
+        desktop.getByRole("button", { name: new RegExp(name), hidden: true });
+      // jsdom can't resolve the colour tokens, so compare styles: the ghost
+      // differs from a plain outline action, which differs from the solid.
+      expect(button("Cancel").className).not.toBe(button("Archive").className);
+      expect(button("Save").className).not.toBe(button("Archive").className);
+      expect(desktop.getAllByRole("button", { hidden: true }).map((b) => b.textContent)).toEqual([
+        "iCancel",
+        "iSave",
+        "iArchive",
+      ]);
+    });
+
+    it("disables a loading action everywhere it shows", async () => {
+      renderWithProviders(
+        <PageHeader>
+          <PageHeader.Title>Edit album</PageHeader.Title>
+          <PageHeader.Actions
+            actions={[
+              act("Save", { loading: true, primary: true }),
+              act("Sync", { loading: true, desktop: "menu", phone: "menu" }),
+            ]}
+          />
+        </PageHeader>,
+      );
+      const phone = within(screen.getByTestId("page-header-phone-actions"));
+      expect((phone.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      const desktop = within(screen.getByTestId("page-header-desktop-actions"));
+      const save = desktop.getAllByRole("button", { hidden: true })[0] as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      expect(save.hasAttribute("data-loading")).toBe(true);
+      fireEvent.click(desktop.getByRole("button", { name: "More actions", hidden: true }));
+      const items = await screen.findAllByRole("menuitem", { name: "Sync", hidden: true });
+      expect(items[0].hasAttribute("data-disabled")).toBe(true);
+    });
+
     it("puts the custom slots beside the generated controls", () => {
       renderWithProviders(
         <PageHeader>
