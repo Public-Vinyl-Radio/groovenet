@@ -1,0 +1,93 @@
+name: Now Playing release asset
+
+# Builds the macOS Now Playing helper and attaches it to the @groovenet/player
+# release that triggered this run. Release Please tags the player as
+# groovenet-player-vX.Y.Z and creates its release with a PAT, so `published`
+# fires for it; the app and the other packages' releases are skipped.
+#
+# Assets (consumed by the Homebrew formula and the npm wrapper):
+#   groovenet-now-playing-<version>-macos-universal.zip
+#   groovenet-now-playing-<version>-macos-universal.zip.sha256
+#
+# workflow_dispatch builds the selected ref and uploads to the release for
+# `tag`, replacing assets of the same name. Use it to retry a failed run or to
+# dry-run against a draft release; the release must already exist.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Player release tag to attach the helper to (groovenet-player-vX.Y.Z)
+        required: true
+        type: string
+
+concurrency:
+  group: now-playing-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # gh release upload
+
+jobs:
+  macos:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'groovenet-player-v')
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve version
+        run: |
+          case "$TAG" in
+            groovenet-player-v[0-9]*) ;;
+            *) echo "::error::$TAG is not a groovenet-player-vX.Y.Z tag"; exit 1 ;;
+          esac
+          version=${TAG#groovenet-player-v}
+          package=$(node -p "require('./packages/groovenet-player/package.json').version")
+          # A release builds the tagged commit; a dispatch may build another ref.
+          if [ "$GITHUB_EVENT_NAME" = release ] && [ "$package" != "$version" ]; then
+            echo "::error::$TAG does not match packages/groovenet-player/package.json ($package)"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Test Swift companion
+        run: swift test --package-path packages/groovenet-player/macos
+
+      - name: Build universal app bundle
+        run: >-
+          packages/groovenet-player/scripts/build-now-playing-app.sh
+          packages/groovenet-player/macos "$RUNNER_TEMP/dist" --universal --version "$VERSION"
+
+      - name: Verify architectures and signature
+        run: |
+          app="$RUNNER_TEMP/dist/Groovenet Now Playing.app"
+          archs=$(lipo -archs "$app/Contents/MacOS/groovenet-now-playing")
+          echo "archs: $archs"
+          for arch in arm64 x86_64; do
+            if ! echo "$archs" | grep -qw "$arch"; then
+              echo "::error::Missing $arch slice, got: $archs"
+              exit 1
+            fi
+          done
+          codesign --verify --strict --verbose=2 "$app"
+
+      - name: Package
+        working-directory: ${{ runner.temp }}/dist
+        run: |
+          zip="groovenet-now-playing-$VERSION-macos-universal.zip"
+          ditto -c -k --keepParent "Groovenet Now Playing.app" "$zip"
+          shasum -a 256 "$zip" > "$zip.sha256"
+          cat "$zip.sha256"
+
+      - name: Attach to release
+        working-directory: ${{ runner.temp }}/dist
+        run: >-
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber
+          "groovenet-now-playing-$VERSION-macos-universal.zip"
+          "groovenet-now-playing-$VERSION-macos-universal.zip.sha256"

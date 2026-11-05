@@ -45,9 +45,24 @@ for `groovenet-now-playing`. Remote mode also requires built contracts → clien
 `--build` creates and ad-hoc signs `macos/.build/Groovenet Now Playing.app` in
 the package directory, which must be writable. It compiles for the current
 architecture; rebuild after upgrading the package or changing architectures.
-No developer certificate or third-party Swift dependency is required. Native
-binaries are not shipped, and nothing starts automatically at installation or
-login.
+No developer certificate or third-party Swift dependency is required. The npm
+package ships no native binary, and nothing starts automatically at installation
+or login. `--build` is the contributor path: it runs
+`scripts/build-now-playing-app.sh`, the same script CI uses for releases.
+
+## Release builds
+
+Each `@groovenet/player` release (tag `groovenet-player-vX.Y.Z`) carries a
+prebuilt helper, built by `.github/workflows/now-playing-release.yml`:
+
+- `groovenet-now-playing-<version>-macos-universal.zip` holds
+  `Groovenet Now Playing.app` with arm64 and x86_64 slices, ad-hoc signed.
+- `groovenet-now-playing-<version>-macos-universal.zip.sha256` is the
+  `shasum -a 256` line for the zip, so `shasum -a 256 -c` verifies it.
+
+The bundle's `CFBundleShortVersionString` and `CFBundleVersion` are the package
+version. To build one yourself, run
+`scripts/build-now-playing-app.sh <macos package dir> <output dir> [--universal]`.
 
 ## Lifecycle and limitations
 
