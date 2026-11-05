@@ -499,7 +499,13 @@ export const pageHeader = {
   contextGap: 2,
   /** Space between the title and the actions. */
   actionsGap: { base: 2, md: 4 },
-  tabs: { mt: { md: 2 }, borderBottomWidth: { base: 0, md: "outline" }, borderColor: "border.ink" },
+  tabs: {
+    mt: { md: 2 },
+    borderBottomWidth: { base: 0, md: "outline" },
+    borderColor: "border.ink",
+    // The tabs stand on the rule, so with rounded corners only their tops round.
+    "& [role=tab]": { borderBottomRadius: 0 },
+  },
   toolbar: { mb: { base: 4, md: 6 } },
 } as const;
 
