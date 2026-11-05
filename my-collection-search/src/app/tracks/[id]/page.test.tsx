@@ -188,11 +188,11 @@ describe("TrackPage breadcrumbs", () => {
 });
 
 describe("TrackPage actions menu placement", () => {
-  it("keeps the menu in the track card on desktop", () => {
+  it("puts the menu in the page header on desktop too, not the track card", () => {
     queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
     renderWithProviders(<TrackPage />);
-    expect(screen.queryByTestId("header-menu")).toBeNull();
-    expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("false");
+    expect(screen.getByTestId("header-menu").dataset.prominent).toBe("false");
+    expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("true");
   });
 
   it("moves the menu into the page header on a phone", async () => {

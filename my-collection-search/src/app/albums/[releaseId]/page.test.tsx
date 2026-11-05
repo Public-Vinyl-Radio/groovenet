@@ -137,7 +137,7 @@ describe("album page record care", () => {
       "rel:7",
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: /Log care/i }));
     expect(await screen.findByRole("dialog", { name: "Log care" })).toBeTruthy();
 
@@ -216,7 +216,7 @@ describe("album page cover art (#494)", () => {
       "/uploads/album-covers/apple.jpg",
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: /Cover art/i }));
     expect(await screen.findByRole("dialog", { name: "Cover art" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Close art" }));
@@ -231,7 +231,7 @@ describe("album page delete (#511)", () => {
   it("opens the delete dialog from the album menu and can be dismissed without deleting", async () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
 
-    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: /Delete album/i }));
     expect(await screen.findByRole("dialog", { name: "Delete album" })).toBeTruthy();
 
@@ -243,7 +243,7 @@ describe("album page delete (#511)", () => {
   it("navigates to the albums list once the album is deleted", async () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
 
-    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: /Delete album/i }));
     await user.click(await screen.findByRole("button", { name: "Confirm delete" }));
 
@@ -344,7 +344,9 @@ describe("album page layout (#727)", () => {
       .mockResolvedValueOnce({ tracksQueued: 0 })
       .mockRejectedValueOnce(new Error("nope"));
     for (const title of ["Downloads Queued", "No Downloads Needed", "Download Failed"]) {
-      await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
+      await user.click(
+        (await screen.findAllByRole("button", { name: "Album actions", hidden: true }))[0],
+      );
       await user.click(await screen.findByRole("button", { name: /Download missing/i }));
       await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title })));
     }
@@ -352,7 +354,9 @@ describe("album page layout (#727)", () => {
 
   it("sends the tracks to enrichment", async () => {
     const { user } = renderWithProviders(<AlbumDetailPage />);
-    await user.click((await screen.findAllByRole("button", { name: "Album actions" }))[0]);
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Album actions", hidden: true }))[0],
+    );
     await user.click(await screen.findByRole("button", { name: /Enrich album/i }));
     expect(enrichQueue).toHaveBeenCalledWith([
       { trackId: "a1", friendId: 7 },
@@ -368,7 +372,7 @@ describe("album page layout (#727)", () => {
     expect(screen.queryByRole("button", { name: /Play album/ })).toBeNull();
     expect(screen.getByText("No tracks found for this album.")).toBeTruthy();
     expect(replacePlaylist).not.toHaveBeenCalled();
-    await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
     expect(screen.queryByRole("button", { name: /Enrich album/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /Add to queue/i })).toBeNull();
   });
@@ -381,14 +385,16 @@ describe("album page layout (#727)", () => {
         "href",
       ),
     ).toBe("/albums");
-    expect(screen.getAllByRole("button", { name: "Album actions" }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: "Album actions", hidden: true }).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByTestId("album-track-list")).toBeTruthy();
   });
 });
 
 it("shows and closes the raw Discogs file in the shared data viewer", async () => {
   const { user } = renderWithProviders(<AlbumDetailPage />);
-  await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+  await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
   await user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
   expect(fetchRawRelease).toHaveBeenCalled();
   expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
@@ -399,7 +405,9 @@ it("shows and closes the raw Discogs file in the shared data viewer", async () =
 describe("raw Discogs file viewer", () => {
   async function openViewer() {
     const view = renderWithProviders(<AlbumDetailPage />);
-    await view.user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
+    await view.user.click(
+      screen.getAllByRole("button", { name: "Album actions", hidden: true })[0],
+    );
     await view.user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
     return {
       ...view,

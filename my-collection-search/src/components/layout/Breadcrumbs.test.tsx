@@ -37,4 +37,22 @@ describe("Breadcrumbs", () => {
     expect(screen.getByText("Unlinked").getAttribute("aria-current")).toBeNull();
     expect(screen.getByText("Song").getAttribute("aria-current")).toBe("page");
   });
+
+  it("lets only a long crumb give way, with its full text as a tooltip", () => {
+    const long = "Wind, Thunder, Rain, Creaking Trees, Owls, Bat Screeching";
+    renderWithProviders(
+      <Breadcrumbs
+        crumbs={[
+          { label: "Tracks", href: "/tracks" },
+          { label: long, href: "/tracks/t1" },
+          { label: "Edit" },
+        ]}
+      />,
+    );
+    const shrink = (el: HTMLElement) => getComputedStyle(el).flexShrink;
+    expect(shrink(screen.getByRole("link", { name: long }))).toBe("1");
+    expect(screen.getByRole("link", { name: long }).getAttribute("title")).toBe(long);
+    expect(shrink(screen.getByRole("link", { name: "Tracks" }))).toBe("0");
+    expect(shrink(screen.getByText("Edit"))).toBe("0");
+  });
 });

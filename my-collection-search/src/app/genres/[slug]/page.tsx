@@ -390,6 +390,17 @@ function GenreContent({
   );
 }
 
+/** While the genre loads, or when it couldn't: the trail and a generic title. */
+function GenrePlaceholderHeader() {
+  return (
+    <PageHeader>
+      <PageHeader.Context crumbs={[GENRES_CRUMB, { label: "Genre" }]} />
+      <PageHeader.Title>Genre</PageHeader.Title>
+      <PageHeader.Actions />
+    </PageHeader>
+  );
+}
+
 export default function GenrePage() {
   const slug = decodeURIComponent(useParams<{ slug: string }>().slug);
   const { friend } = useUsername();
@@ -399,7 +410,7 @@ export default function GenrePage() {
       <PageContainer>
         {query.error ? (
           <>
-            <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />
+            <GenrePlaceholderHeader />
             <Box
               role="alert"
               borderWidth="outline"
@@ -422,7 +433,7 @@ export default function GenrePage() {
           </>
         ) : !query.data ? (
           <>
-            <PageHeader title="Genre" breadcrumbs={[GENRES_CRUMB, { label: "Genre" }]} />
+            <GenrePlaceholderHeader />
             <Stack data-testid="genre-page-loading">
               <Skeleton h="36px" maxW="320px" />
               <Skeleton h="80px" />

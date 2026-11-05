@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, Grid, Heading, Text } from "@chakra-ui/react";
+import { Box, Grid, Text } from "@chakra-ui/react";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 
 export default function SystemRow({
   label,
@@ -23,9 +24,9 @@ export default function SystemRow({
       bg={surface ? "bg.subtle" : "bg"}
     >
       <Box>
-        <Heading as="h3" fontSize="md" pr={{ base: label === "Remote backups" ? 14 : 0, md: 0 }}>
+        <SectionHeading level={3} pr={{ base: label === "Remote backups" ? 14 : 0, md: 0 }}>
           {label}
-        </Heading>
+        </SectionHeading>
         <Text display={{ base: "none", md: "block" }} color="fg.muted" fontSize="sm" mt={1}>
           {help}
         </Text>

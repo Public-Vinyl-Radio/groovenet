@@ -141,7 +141,7 @@ function ActionsMenu({ items, trigger }: { items: HeaderAction[]; trigger: React
               key={item.label}
               value={item.label}
               onClick={item.onClick}
-              disabled={item.disabled}
+              disabled={item.disabled || item.loading}
             >
               {item.label}
             </Menu.Item>
@@ -183,7 +183,7 @@ export function PageHeaderActions({ actions = [], desktop, phone }: PageHeaderAc
               boxSize={headerTarget}
               minW={headerTarget}
               onClick={action.onClick}
-              disabled={action.disabled}
+              disabled={action.disabled || action.loading}
             >
               {action.icon}
             </IconButton>
@@ -219,9 +219,11 @@ export function PageHeaderActions({ actions = [], desktop, phone }: PageHeaderAc
           {placed.desktopButtons.map((action) => (
             <HeaderButton
               key={action.label}
-              variant={action === placed.solid ? "solid" : "outline"}
+              variant={action === placed.solid ? "solid" : action.ghost ? "ghost" : "outline"}
+              {...(action.ghost && action !== placed.solid && { borderColor: "transparent" })}
               onClick={action.onClick}
               disabled={action.disabled}
+              loading={action.loading}
             >
               {action.icon}
               {action.label}

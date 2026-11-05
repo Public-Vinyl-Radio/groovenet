@@ -16,6 +16,7 @@ import {
   stackItemRow,
   stackUpNextLabel,
   todoCount,
+  choresMeta,
 } from "./choresWording";
 
 const bySleeve = { original: 0, paper: 0, "poly-rice-paper-poly": 10, poly: 0, unknown: 402 };
@@ -34,6 +35,11 @@ describe("chores wording", () => {
   it("counts what is left, never below zero", () => {
     expect(todoCount({ cleaned: 10, total: 412 })).toBe(402);
     expect(todoCount({ cleaned: 5, total: 3 })).toBe(0);
+  });
+
+  it("sums the library up for the header", () => {
+    expect(choresMeta({ cleaned: 10, total: 4120 })).toBe("4,120 copies · 4,110 to do");
+    expect(choresMeta({ cleaned: 0, total: 1 })).toBe("1 copy · 1 to do");
   });
 
   it("names the next stack", () => {

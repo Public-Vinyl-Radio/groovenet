@@ -26,8 +26,6 @@ vi.mock("@/components/TrackListBuilder", () => ({ default: () => null }));
 
 import AddAlbumPage from "./page";
 
-const header = () => within(screen.getByTestId("page-header"));
-
 beforeEach(() => {
   state.push.mockReset();
   state.mutate.mockReset();
@@ -37,29 +35,68 @@ beforeEach(() => {
 });
 
 describe("AddAlbumPage header", () => {
-  it("titles the page and cancels back to the collection", async () => {
+  const desktop = () => within(screen.getByTestId("page-header-desktop-actions"));
+  const phone = () => within(screen.getByTestId("page-header"));
+  const button = (scope: ReturnType<typeof within>, name: string) =>
+    scope.getByRole("button", { name, hidden: true }) as HTMLButtonElement;
+
+  it("titles the page under the Albums trail", () => {
+    renderWithProviders(<AddAlbumPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Add album" })).toBeTruthy();
+    const trail = within(screen.getByTestId("page-header-breadcrumbs"));
+    expect(trail.getByRole("link", { name: "Albums", hidden: true }).getAttribute("href")).toBe(
+      "/albums",
+    );
+    expect(trail.getByText("Add").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("cancels back to the collection from the phone bar and the desktop row", async () => {
     const { user } = renderWithProviders(<AddAlbumPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Add Album" })).toBeTruthy();
-    await user.click(header().getByRole("button", { name: "Cancel", hidden: true }));
+    await user.click(
+      within(screen.getByTestId("page-header-leading")).getByRole("button", {
+        name: "Cancel",
+        hidden: true,
+      }),
+    );
+    await user.click(button(desktop(), "Cancel"));
+    expect(state.push).toHaveBeenCalledTimes(2);
     expect(state.push).toHaveBeenCalledWith("/albums");
   });
 
-  it("saves from the header action (validation runs as before)", async () => {
+  it("saves from either header action (validation runs as before)", async () => {
     const { user } = renderWithProviders(<AddAlbumPage />);
-    await user.click(header().getByRole("button", { name: "Save Album", hidden: true }));
+    await user.click(
+      within(screen.getByTestId("page-header-phone-actions")).getByRole("button", {
+        name: "Save album",
+        hidden: true,
+      }),
+    );
+    await user.click(button(desktop(), "Save album"));
+    expect(state.toast).toHaveBeenCalledTimes(2);
     expect(state.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Album title required" }),
     );
     expect(state.mutate).not.toHaveBeenCalled();
   });
 
-  it("locks both header controls while saving", () => {
+  it("puts Cancel then Save in the desktop row, and nothing under the form", () => {
+    renderWithProviders(<AddAlbumPage />);
+    expect(
+      desktop()
+        .getAllByRole("button", { hidden: true })
+        .map((b) => b.textContent),
+    ).toEqual(["Cancel", "Save album"]);
+    // One Cancel per width: the phone bar's icon and the desktop button.
+    expect(phone().getAllByRole("button", { name: "Cancel", hidden: true })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /Save album/, hidden: true })).toHaveLength(2);
+  });
+
+  it("locks both header controls at both widths while saving", () => {
     state.pending = true;
     renderWithProviders(<AddAlbumPage />);
-    for (const name of ["Cancel", "Save Album"]) {
-      expect(
-        (header().getByRole("button", { name, hidden: true }) as HTMLButtonElement).disabled,
-      ).toBe(true);
+    for (const name of ["Cancel", /Save album/]) {
+      for (const el of phone().getAllByRole("button", { name, hidden: true }))
+        expect((el as HTMLButtonElement).disabled).toBe(true);
     }
   });
 });
