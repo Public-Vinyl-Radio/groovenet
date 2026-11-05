@@ -14,9 +14,15 @@ afterEach(() => {
   vi.resetModules();
 });
 
-function setup({ fail = "", exit = 0 as number | null, signal = false } = {}) {
+function setup({
+  fail = "",
+  exit = 0 as number | null,
+  signal = false,
+  stored = undefined as string | undefined,
+} = {}) {
   process.argv = ["node", "bin", "--remote", "lounge", "--helper", "/helper"];
   const config = {
+    now_playing_target: stored,
     api_base: "https://example/api",
     api_key: "collection",
     player_api_key: "player",
@@ -52,7 +58,8 @@ function setup({ fail = "", exit = 0 as number | null, signal = false } = {}) {
   });
   const error = vi.spyOn(console, "error").mockImplementation(() => {});
   vi.doMock("node:child_process", () => ({ spawn }));
-  vi.doMock("@groovenet/client", () => ({
+  vi.doMock("@groovenet/client", async (importActual) => ({
+    ...(await importActual<typeof import("@groovenet/client")>()),
     GroovenetClient: api,
     clientTransport: () => ({}),
     loadConfig: () => config,
@@ -67,7 +74,7 @@ function setup({ fail = "", exit = 0 as number | null, signal = false } = {}) {
 it("uses existing config credentials and launches only the helper against the private proxy", async () => {
   const mock = setup({ signal: true });
   vi.stubEnv("PLAYER_API_KEY", "override");
-  await import("./nowPlayingRemoteBin.js");
+  await import("./nowPlayingBin.js");
   expect(mock.api).toHaveBeenCalledWith({
     baseUrl: "https://example/api",
     apiKey: "collection",
@@ -87,7 +94,7 @@ it("uses existing config credentials and launches only the helper against the pr
 it("uses configured player key and propagates a native signal exit", async () => {
   const mock = setup({ exit: null });
   vi.stubEnv("PLAYER_API_KEY", "");
-  await import("./nowPlayingRemoteBin.js");
+  await import("./nowPlayingBin.js");
   expect(mock.api).toHaveBeenCalledWith(expect.objectContaining({ playerApiKey: "player" }));
   expect(process.exitCode).toBe(1);
 });
@@ -96,7 +103,7 @@ it.each(["start", "socket", "spawn"])(
   "cleans up after %s errors without changing playback",
   async (fail) => {
     const mock = setup({ fail });
-    await import("./nowPlayingRemoteBin.js");
+    await import("./nowPlayingBin.js");
     expect(process.exitCode).toBe(1);
     expect(mock.error).toHaveBeenCalledWith("Groovenet Now Playing:", expect.any(String));
     expect(mock.stop).toHaveBeenCalledOnce();
@@ -107,8 +114,8 @@ it.each(["start", "socket", "spawn"])(
 
 it("reports invalid arguments without loading config or starting a helper", async () => {
   const mock = setup();
-  process.argv = ["node", "bin"];
-  await import("./nowPlayingRemoteBin.js");
+  process.argv = ["node", "bin", "--remote", "lounge"];
+  await import("./nowPlayingBin.js");
   expect(mock.error).toHaveBeenCalledWith(
     "Groovenet Now Playing:",
     expect.stringContaining("Usage:"),
@@ -119,6 +126,61 @@ it("reports invalid arguments without loading config or starting a helper", asyn
 it("reports non-Error startup failures without leaking configuration", async () => {
   const mock = setup();
   mock.start.mockRejectedValueOnce("unknown");
-  await import("./nowPlayingRemoteBin.js");
-  expect(mock.error).toHaveBeenCalledWith("Groovenet Now Playing:", "Remote integration failed.");
+  await import("./nowPlayingBin.js");
+  expect(mock.error).toHaveBeenCalledWith("Groovenet Now Playing:", "Now Playing failed.");
+});
+
+it("starts the local helper with no arguments when nothing is configured", async () => {
+  const mock = setup();
+  process.argv = ["node", "bin", "--helper", "/helper"];
+  await import("./nowPlayingBin.js");
+  expect(mock.spawn).toHaveBeenCalledWith("/helper", [], { stdio: "inherit" });
+  expect(mock.api).not.toHaveBeenCalled();
+  expect(mock.socket).not.toHaveBeenCalled();
+});
+
+it("passes --socket through to the helper", async () => {
+  const mock = setup({ stored: "lounge" });
+  process.argv = ["node", "bin", "--socket", "/tmp/p.sock", "--helper", "/helper"];
+  await import("./nowPlayingBin.js");
+  expect(mock.spawn).toHaveBeenCalledWith("/helper", ["--socket", "/tmp/p.sock"], {
+    stdio: "inherit",
+  });
+  expect(mock.api).not.toHaveBeenCalled();
+});
+
+it("follows a remote player stored in config", async () => {
+  const mock = setup({ stored: "kitchen" });
+  process.argv = ["node", "bin", "--helper", "/helper"];
+  await import("./nowPlayingBin.js");
+  expect(mock.controller).toHaveBeenCalledWith("kitchen", expect.anything(), expect.anything());
+  expect(mock.spawn).toHaveBeenCalledWith("/helper", ["--socket", "/private/temporary.sock"], {
+    stdio: "inherit",
+  });
+});
+
+it("lets --remote override a stored target", async () => {
+  const mock = setup({ stored: "kitchen" });
+  await import("./nowPlayingBin.js");
+  expect(mock.controller).toHaveBeenCalledWith("lounge", expect.anything(), expect.anything());
+});
+
+it("fails on an invalid stored target instead of falling back to local", async () => {
+  const mock = setup({ stored: "../bad" });
+  process.argv = ["node", "bin", "--helper", "/helper"];
+  await import("./nowPlayingBin.js");
+  expect(process.exitCode).toBe(1);
+  expect(mock.error).toHaveBeenCalledWith(
+    "Groovenet Now Playing:",
+    expect.stringContaining("Invalid now_playing_target"),
+  );
+  expect(mock.spawn).not.toHaveBeenCalled();
+});
+
+it("rejects --remote together with --socket", async () => {
+  const mock = setup();
+  process.argv = ["node", "bin", "--remote", "a", "--socket", "/s", "--helper", "/helper"];
+  await import("./nowPlayingBin.js");
+  expect(process.exitCode).toBe(1);
+  expect(mock.spawn).not.toHaveBeenCalled();
 });

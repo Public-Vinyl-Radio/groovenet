@@ -16,6 +16,10 @@ case "${1:-}" in
     --help|-h)
         echo 'Usage: groovenet-now-playing [--socket PATH | --remote PLAYER_ID]'
         echo '       groovenet-now-playing --build'
+        echo
+        echo 'With no flag, follows the now_playing_target CLI config key: a remote'
+        echo 'player ID, or local (the default). Set it once with:'
+        echo '       groovenet config set now_playing_target PLAYER_ID'
         exit 0
         ;;
 esac
@@ -45,16 +49,11 @@ if [ ! -x "$app/Contents/MacOS/groovenet-now-playing" ]; then
     exit 1
 fi
 
-if [ "${1:-}" = --remote ]; then
-    if [ "$#" -ne 2 ] || [ -z "$2" ]; then
-        echo 'Usage: groovenet-now-playing --remote PLAYER_ID' >&2
-        exit 1
-    fi
-    remote="$package/../build/nowPlayingRemoteBin.js"
-    if [ ! -f "$remote" ]; then
-        echo 'Build the Node player package first: npm run build --workspace @groovenet/player' >&2
-        exit 1
-    fi
-    exec node "$remote" --remote "$2" --helper "$app/Contents/MacOS/groovenet-now-playing"
+# Target resolution (flags, then the now_playing_target config key, then local)
+# lives in Node so this script never parses the config file.
+entry="$package/../build/nowPlayingBin.js"
+if [ ! -f "$entry" ]; then
+    echo 'Build the Node player package first: npm run build --workspace @groovenet/player' >&2
+    exit 1
 fi
-exec "$app/Contents/MacOS/groovenet-now-playing" "$@"
+exec node "$entry" "$@" --helper "$app/Contents/MacOS/groovenet-now-playing"
