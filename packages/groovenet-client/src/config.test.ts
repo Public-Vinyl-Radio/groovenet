@@ -36,3 +36,10 @@ it("tightens existing file permissions and tolerates malformed config", async ()
   saveConfig({ player_api_key: "private" });
   expect(statSync(path).mode & 0o777).toBe(0o600);
 });
+it("accepts local or a valid player ID as a Now Playing target", async () => {
+  const { parseNowPlayingTarget } = await import("./config.js");
+  expect(parseNowPlayingTarget("local")).toBe("local");
+  expect(parseNowPlayingTarget("lounge-2")).toBe("lounge-2");
+  for (const bad of ["../bad", "", "Lounge", "-x", 7, undefined])
+    expect(parseNowPlayingTarget(bad)).toBeUndefined();
+});

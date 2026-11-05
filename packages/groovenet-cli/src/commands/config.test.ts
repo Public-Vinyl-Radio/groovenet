@@ -10,7 +10,11 @@ const { saveConfig, loadConfig } = vi.hoisted(() => ({
     player_artwork: true,
   })),
 }));
-vi.mock("@groovenet/client", () => ({ saveConfig, loadConfig }));
+vi.mock("@groovenet/client", async (importActual) => ({
+  ...(await importActual<typeof import("@groovenet/client")>()),
+  saveConfig,
+  loadConfig,
+}));
 
 async function run(...args: string[]) {
   const program = new Command();
@@ -148,5 +152,37 @@ describe("player credentials", () => {
     const json = output.mock.calls.flat().join("");
     expect(json).not.toContain("secret");
     expect(json).toContain("***");
+  });
+});
+
+describe("now_playing_target", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(["local", "lounge", "kitchen-2"])("accepts %s", async (value) => {
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    await run("set", "now_playing_target", value);
+    expect(saveConfig).toHaveBeenLastCalledWith({ now_playing_target: value });
+  });
+
+  it.each(["../bad", "Lounge", "", "a/b"])("rejects %j", async (value) => {
+    saveConfig.mockClear();
+    const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit");
+    }) as never);
+    await expect(run("set", "now_playing_target", value)).rejects.toThrow("exit");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("now_playing_target must be"));
+    expect(saveConfig).not.toHaveBeenCalled();
+  });
+
+  it("shows the stored target", async () => {
+    loadConfig.mockReturnValueOnce({
+      api_base: "http://x/api",
+      default_friend_id: 1,
+      now_playing_target: "lounge",
+    } as unknown as ReturnType<typeof loadConfig>);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await run("show");
+    expect(log).toHaveBeenCalledWith("  now_playing_target: lounge");
   });
 });

@@ -1,5 +1,6 @@
 import { homedir } from "os";
 import { join } from "path";
+import { playerIdSchema } from "@groovenet/contracts";
 import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from "fs";
 
 export interface GroovenetConfig {
@@ -22,6 +23,11 @@ export interface GroovenetConfig {
   owntone_library?: string;
   owntone_output?: string;
   /**
+   * What `groovenet-now-playing` follows when started without a target flag: a
+   * remote player ID, or `local` for the local daemon. Unset means `local`.
+   */
+  now_playing_target?: string;
+  /**
    * Overrides for the player TUI's keys: action id to a list of keys, e.g.
    * `{ "transport.next": ["n", "ctrl+right"] }`. Validated by the CLI, which
    * reports bad entries rather than failing, so it is typed loosely here.
@@ -36,6 +42,13 @@ const DEFAULT_CONFIG: GroovenetConfig = {
   api_base: "http://localhost:3000/api",
   default_friend_id: 1,
 };
+
+/** `local`, or a player ID by the same rule the server enforces; undefined when neither. */
+export function parseNowPlayingTarget(value: unknown): string | undefined {
+  if (value === "local") return value;
+  const id = playerIdSchema.safeParse(value);
+  return id.success ? id.data : undefined;
+}
 
 export function loadConfig(): GroovenetConfig {
   if (!existsSync(CONFIG_PATH)) {

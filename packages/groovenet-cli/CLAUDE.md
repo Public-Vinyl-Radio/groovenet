@@ -12,7 +12,7 @@ groovenet config set api_base https://groovenet.home.arpa/api
 groovenet config show
 ```
 
-Keys: `api_base`, `api_key`, `player_api_key`, `default_friend_id`, `username`, `insecure_tls`, `player_artwork`, `player_log_plays`, `player_backend`, `owntone_url`, `owntone_library`, `owntone_output`, `owntone_password`, `player_keymap` (an object, edited in the file; see Keymap).
+Keys: `api_base`, `api_key`, `player_api_key`, `default_friend_id`, `username`, `insecure_tls`, `player_artwork`, `player_log_plays`, `player_backend`, `owntone_url`, `owntone_library`, `owntone_output`, `owntone_password`, `now_playing_target` (`local` or a player ID; read by `groovenet-now-playing`), `player_keymap` (an object, edited in the file; see Keymap).
 
 Remote controls use `player --remote <id>` as an initial target; `o` switches at runtime; the separate `PLAYER_API_KEY` environment
 variable overrides `player_api_key`. Local playback remains the default. See the

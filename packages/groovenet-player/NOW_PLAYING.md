@@ -17,7 +17,22 @@ After installing `@groovenet/player` (also a CLI dependency), build once:
 groovenet-now-playing --build
 ```
 
-For a remote player, use the same ID and credential environment as the CLI:
+Choose what the helper follows once, in the CLI config, then start it with no
+arguments:
+
+```sh
+groovenet config set now_playing_target lounge   # a remote player ID
+groovenet-now-playing
+```
+
+`now_playing_target` is a remote player ID or `local`; unset means `local`. The
+resolution order is: flags, then `now_playing_target`, then `local`. `config set`
+rejects values that are neither `local` nor a valid player ID, and a bad value
+already in the config file makes the helper exit with an error rather than fall
+back to `local`. A missing or unreadable config file means `local`.
+
+Flags override the config for one run: `--remote PLAYER_ID` or `--socket PATH`
+(they cannot be combined):
 
 ```sh
 groovenet-now-playing --remote lounge
@@ -26,9 +41,11 @@ groovenet-now-playing --remote lounge
 Remote mode reads `api_base`, `api_key`, `player_api_key`, and `insecure_tls` from
 the CLI configuration. `PLAYER_API_KEY` overrides `player_api_key`. No local
 daemon is needed. The target is explicit; switching targets in the TUI does not
-retarget this companion.
+retarget this companion. A remote player whose ID is literally `local` needs
+`--remote local`.
 
-For local playback, start the daemon and populate its queue through the CLI/TUI:
+For local playback (the default), start the daemon and populate its queue through
+the CLI/TUI:
 
 ```sh
 groovenet player start --detach
@@ -36,7 +53,7 @@ groovenet-now-playing
 ```
 
 The default socket is `~/.groovenet/player/player.sock`. Use `--socket PATH` for
-another local daemon; it cannot be combined with `--remote`.
+another local daemon.
 
 From a checkout, substitute `packages/groovenet-player/scripts/now-playing.sh`
 for `groovenet-now-playing`. Remote mode also requires built contracts → client

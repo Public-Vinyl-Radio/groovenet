@@ -96,7 +96,7 @@ mpv's separate artwork window.
 
 | Command               | Description                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------ |
-| `config`              | Manage CLI configuration (`api_base`, `api_key`)                                     |
+| `config`              | Manage CLI configuration (`api_base`, `api_key`, `now_playing_target`, …)            |
 | `tracks`              | Search and manage tracks                                                             |
 | `albums`              | Browse and manage albums                                                             |
 | `playlists`           | Manage playlists                                                                     |
@@ -166,6 +166,12 @@ or pass `--artwork` to `groovenet player` / `groovenet player start` for one
 run. The daemon reads config when it starts, so restart a running detached
 daemon (`groovenet player stop`, then start it again) after changing
 `player_artwork`.
+
+The optional macOS Now Playing companion, `groovenet-now-playing`, follows the
+local daemon unless told otherwise. To follow a remote player instead, run
+`groovenet config set now_playing_target <player-id>` once (`local` is the
+default), then start it with no arguments. `--remote` and `--socket` override
+the config for one run. See `packages/groovenet-player/NOW_PLAYING.md`.
 
 Plays can be logged as spins. It is off by default; enable it with
 `groovenet config set player_log_plays true` or pass `--log-plays` to

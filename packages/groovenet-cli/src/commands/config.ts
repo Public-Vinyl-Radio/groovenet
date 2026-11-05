@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { loadConfig, saveConfig } from "@groovenet/client";
+import { loadConfig, parseNowPlayingTarget, saveConfig } from "@groovenet/client";
 import { printJson, printSuccess, printError } from "../output.js";
 
 type ConfigKey =
@@ -15,7 +15,8 @@ type ConfigKey =
   | "owntone_url"
   | "owntone_password"
   | "owntone_library"
-  | "owntone_output";
+  | "owntone_output"
+  | "now_playing_target";
 
 const VALID_KEYS: ConfigKey[] = [
   "api_base",
@@ -31,6 +32,7 @@ const VALID_KEYS: ConfigKey[] = [
   "owntone_password",
   "owntone_library",
   "owntone_output",
+  "now_playing_target",
 ];
 
 export function addConfigCommands(program: Command): void {
@@ -64,6 +66,12 @@ export function addConfigCommands(program: Command): void {
       } else {
         if (key === "player_backend" && value !== "mpv" && value !== "owntone") {
           printError("player_backend must be mpv or owntone");
+          process.exit(2);
+        }
+        if (key === "now_playing_target" && parseNowPlayingTarget(value) === undefined) {
+          printError(
+            "now_playing_target must be local or a player ID (lowercase letters, digits, -)",
+          );
           process.exit(2);
         }
         update[key] = value;
