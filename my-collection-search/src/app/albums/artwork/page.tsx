@@ -154,22 +154,19 @@ export default function AlbumArtworkReviewPage() {
 
   return (
     <PageContainer mb="100px">
-      <PageHeader
-        title="Album artwork"
-        actions={[
-          {
-            label: "Run artwork matching",
-            icon: <FiRefreshCw />,
-            onClick: () => backfill.mutate(),
-            disabled: backfill.isPending || !friendId,
-          },
-        ]}
-      />
-      <Flex justify="flex-end" mb={2} display={{ base: "none", md: "flex" }}>
-        <Button onClick={() => backfill.mutate()} loading={backfill.isPending} disabled={!friendId}>
-          Run artwork matching
-        </Button>
-      </Flex>
+      <PageHeader>
+        <PageHeader.Title>Album artwork</PageHeader.Title>
+        <PageHeader.Actions
+          actions={[
+            {
+              label: "Run artwork matching",
+              icon: <FiRefreshCw />,
+              onClick: () => backfill.mutate(),
+              disabled: backfill.isPending || !friendId,
+            },
+          ]}
+        />
+      </PageHeader>
       <Text fontSize="sm" color="fg.muted" mb={6}>
         Matching compares the Apple Music art embedded in downloaded audio with the Discogs cover,
         and uses it only when they are the same image. Albums it is unsure about are listed here.

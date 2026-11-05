@@ -17,7 +17,10 @@ const SearchPage = () => {
           <Suspense
             fallback={
               <>
-                <PageHeader title="Tracks" />
+                <PageHeader>
+                  <PageHeader.Title>Tracks</PageHeader.Title>
+                  <PageHeader.Actions />
+                </PageHeader>
                 <Flex justify="center" pt={6}>
                   <Spinner />
                 </Flex>

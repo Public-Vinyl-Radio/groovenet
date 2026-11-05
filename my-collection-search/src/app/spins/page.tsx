@@ -153,18 +153,20 @@ function SpinsPageContent() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, days.length]);
 
   const header = (
-    <PageHeader
-      title="Spins"
-      trailing={<SpinMonthSwitcher month={month} latest={latest} onChange={setMonth} short />}
-      desktopActions={
-        <>
-          <SpinMonthSwitcher month={month} latest={latest} onChange={setMonth} />
-          <Button asChild variant="solid" size="sm" h="44px">
-            <NextLink href={`/spins/recap/${month}`}>FULL RECAP →</NextLink>
-          </Button>
-        </>
-      }
-    />
+    <PageHeader>
+      <PageHeader.Title>Spins</PageHeader.Title>
+      <PageHeader.Actions
+        phone={<SpinMonthSwitcher month={month} latest={latest} onChange={setMonth} short />}
+        desktop={
+          <>
+            <SpinMonthSwitcher month={month} latest={latest} onChange={setMonth} />
+            <Button asChild variant="solid" size="sm" h="44px">
+              <NextLink href={`/spins/recap/${month}`}>FULL RECAP →</NextLink>
+            </Button>
+          </>
+        }
+      />
+    </PageHeader>
   );
 
   if (!enabled) {

@@ -12,6 +12,7 @@ type Props = {
   viewMode: PlaylistsViewMode;
   onViewModeChange: (mode: PlaylistsViewMode) => void;
   onImport: () => void;
+  importInHeader?: boolean;
 };
 
 const VIEW_OPTIONS: Array<{ value: PlaylistsViewMode; label: string }> = [
@@ -30,6 +31,7 @@ export default function PlaylistsToolbar({
   viewMode,
   onViewModeChange,
   onImport,
+  importInHeader = false,
 }: Props) {
   return (
     <Flex gap={3} align="center" mb={4}>
@@ -61,9 +63,11 @@ export default function PlaylistsToolbar({
             </Button>
           ))}
         </Box>
-        <Button size="sm" variant="outline" flexShrink={0} onClick={onImport}>
-          <TbFileImport /> Import
-        </Button>
+        {!importInHeader && (
+          <Button size="sm" variant="outline" flexShrink={0} onClick={onImport}>
+            <TbFileImport /> Import
+          </Button>
+        )}
       </Flex>
     </Flex>
   );

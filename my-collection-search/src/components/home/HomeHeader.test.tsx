@@ -22,14 +22,14 @@ describe("HomeHeader", () => {
   it("titles the page Home with the counts line", () => {
     renderWithProviders(<HomeHeader counts={HOME_COUNTS} onSearch={() => {}} />);
     expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeTruthy();
-    expect(screen.getByTestId("page-header-summary").textContent).toBe(
+    expect(screen.getByTestId("page-header-meta").textContent).toBe(
       "4,044 tracks · 312 albums · 18 playlists",
     );
   });
 
   it("leaves the counts out until they load", () => {
     renderWithProviders(<HomeHeader counts={null} onSearch={() => {}} />);
-    expect(screen.queryByTestId("page-header-summary")).toBeNull();
+    expect(screen.queryByTestId("page-header-meta")).toBeNull();
   });
 
   it("opens search from the phone icon and the desktop field", async () => {

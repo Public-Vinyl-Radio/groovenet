@@ -29,21 +29,24 @@ describe("EnrichmentWizard header", () => {
   it("titles setup with the queue size", () => {
     renderWithProviders(<EnrichmentWizard />);
     expect(screen.getByRole("heading", { level: 1, name: "Enrich" })).toBeTruthy();
-    expect(screen.getByTestId("page-header-count").textContent).toBe("2 tracks");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("2 tracks");
   });
 
   it("singularises a one-track queue", () => {
     useEnrichmentStore.getState().setQueue([{ trackId: "a", friendId: 1 }]);
     renderWithProviders(<EnrichmentWizard />);
-    expect(screen.getByTestId("page-header-count").textContent).toBe("1 track");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("1 track");
   });
 
   it("shows progress in the header while enriching, with Exit as its action", async () => {
     const { user } = renderWithProviders(<EnrichmentWizard />);
     await user.click(screen.getByRole("button", { name: /Start Enrichment/ }));
-    expect(screen.getByTestId("page-header-count").textContent).toBe("1 of 2");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("1 of 2");
     await user.click(
-      within(screen.getByTestId("page-header")).getByRole("button", { name: "Exit", hidden: true }),
+      within(screen.getByTestId("page-header")).getAllByRole("button", {
+        name: "Exit",
+        hidden: true,
+      })[0],
     );
     expect(nav.push).toHaveBeenCalledWith("/tracks");
   });
@@ -51,7 +54,7 @@ describe("EnrichmentWizard header", () => {
   it("keeps the inline Exit for desktop", async () => {
     const { user } = renderWithProviders(<EnrichmentWizard />);
     await user.click(screen.getByRole("button", { name: /Start Enrichment/ }));
-    const inline = screen.getByText("Exit");
+    const inline = screen.getAllByRole("button", { name: "Exit", hidden: true }).at(-1)!;
     fireEvent.click(inline);
     expect(nav.push).toHaveBeenCalledWith("/tracks");
   });
@@ -61,7 +64,7 @@ describe("EnrichmentWizard header", () => {
     await user.click(screen.getByRole("button", { name: /Start Enrichment/ }));
     useEnrichmentStore.getState().setQueue([]);
     // An emptied queue lands on the done phase via the progress effect.
-    expect((await screen.findByText("Done")).getAttribute("data-testid")).toBe("page-header-count");
+    expect((await screen.findByText("Done")).getAttribute("data-testid")).toBe("page-header-meta");
     expect(screen.getByRole("button", { name: "Back to tracks" })).toBeTruthy();
   });
 });

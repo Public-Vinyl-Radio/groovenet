@@ -164,23 +164,22 @@ describe("PlaylistManager header and toolbar (#765)", () => {
   it("shows the title and count in the shared header", () => {
     renderWithProviders(<PlaylistManager />);
     expect(screen.getByRole("heading", { level: 1, name: "Playlists" })).toBeTruthy();
-    expect(screen.getByTestId("page-header-count").textContent).toBe("1");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("1 playlist");
   });
 
   it("filters by name and updates the count", async () => {
     const { user } = renderWithProviders(<PlaylistManager />);
     await user.type(screen.getByRole("textbox", { name: "Search playlists" }), "zzz");
     expect(screen.getByText('No playlists match "zzz"')).toBeTruthy();
-    expect(screen.getByTestId("page-header-count").textContent).toBe("0");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("0 playlists");
   });
 
-  it("opens the file picker from the header and toolbar Import buttons", async () => {
+  it("opens the file picker from the header Import action", async () => {
     const { user, container } = renderWithProviders(<PlaylistManager />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const click = vi.spyOn(input, "click");
-    await user.click(screen.getByRole("button", { name: "Import playlist", hidden: true }));
-    await user.click(screen.getByRole("button", { name: /^Import$/, hidden: true }));
-    expect(click).toHaveBeenCalledTimes(2);
+    await user.click(screen.getAllByRole("button", { name: "Import playlist", hidden: true })[0]);
+    expect(click).toHaveBeenCalledTimes(1);
   });
 
   it("remembers the Cards/List choice", async () => {
@@ -196,7 +195,7 @@ describe("PlaylistManager header and toolbar (#765)", () => {
   it("omits the count while loading", () => {
     providerState.loading = true;
     renderWithProviders(<PlaylistManager />);
-    expect(screen.queryByTestId("page-header-count")).toBeNull();
+    expect(screen.queryByTestId("page-header-meta")).toBeNull();
   });
 
   it("offers Import JSON from the empty state", async () => {

@@ -238,18 +238,30 @@ export default function PlaylistManager() {
 
   return (
     <Box minW="240px">
-      <PageHeader
-        title="Playlists"
-        count={playlistsLoading || loadingPlaylists ? undefined : filtered.length}
-        actions={[{ label: "Import playlist", icon: <TbFileImport />, onClick: openImport }]}
-      />
-      <PlaylistsToolbar
-        query={filter}
-        onQueryChange={setFilter}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        onImport={openImport}
-      />
+      <PageHeader>
+        <PageHeader.Title
+          meta={
+            playlistsLoading || loadingPlaylists
+              ? undefined
+              : `${filtered.length.toLocaleString()} ${filtered.length === 1 ? "playlist" : "playlists"}`
+          }
+        >
+          Playlists
+        </PageHeader.Title>
+        <PageHeader.Actions
+          actions={[{ label: "Import playlist", icon: <TbFileImport />, onClick: openImport }]}
+        />
+      </PageHeader>
+      <PageHeader.Toolbar>
+        <PlaylistsToolbar
+          query={filter}
+          onQueryChange={setFilter}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onImport={openImport}
+          importInHeader
+        />
+      </PageHeader.Toolbar>
 
       {playlistsLoading ? (
         <SimpleGrid columns={showTable ? 1 : PLAYLIST_GRID_COLUMNS} gap={3}>

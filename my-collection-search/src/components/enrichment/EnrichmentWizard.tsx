@@ -143,10 +143,12 @@ export default function EnrichmentWizard() {
   if (phase === "setup") {
     return (
       <>
-        <PageHeader
-          title="Enrich"
-          count={`${queue.length} track${queue.length !== 1 ? "s" : ""}`}
-        />
+        <PageHeader>
+          <PageHeader.Title meta={`${queue.length} track${queue.length !== 1 ? "s" : ""}`}>
+            Enrich
+          </PageHeader.Title>
+          <PageHeader.Actions />
+        </PageHeader>
         <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4}>
           <Text color="fg.muted" fontSize="sm">
             Choose what data to fetch for each track. You can review and edit each result before
@@ -259,7 +261,10 @@ export default function EnrichmentWizard() {
   if (phase === "done") {
     return (
       <>
-        <PageHeader title="Enrich" count="Done" />
+        <PageHeader>
+          <PageHeader.Title meta="Done">Enrich</PageHeader.Title>
+          <PageHeader.Actions />
+        </PageHeader>
         <Flex direction="column" gap={6} maxW="lg" mx="auto" px={4} align="center">
           <Flex gap={6}>
             <Box textAlign="center">
@@ -292,11 +297,14 @@ export default function EnrichmentWizard() {
 
   return (
     <>
-      <PageHeader
-        title="Enrich"
-        count={`${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`}
-        actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/tracks") }]}
-      />
+      <PageHeader>
+        <PageHeader.Title meta={`${Math.min(currentIndex + 1, queue.length)} of ${queue.length}`}>
+          Enrich
+        </PageHeader.Title>
+        <PageHeader.Actions
+          actions={[{ label: "Exit", icon: <FiX />, onClick: () => router.push("/tracks") }]}
+        />
+      </PageHeader>
       <Flex direction="column" maxW="2xl" mx="auto" px={4}>
         {/* Header */}
         <Flex align="center" justify="space-between" mb={2}>

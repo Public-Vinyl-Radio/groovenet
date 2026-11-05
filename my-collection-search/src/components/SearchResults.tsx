@@ -446,60 +446,72 @@ const SearchResults: React.FC = () => {
 
   return (
     <Box mb={"100px"}>
-      <PageHeader
-        title="Tracks"
-        desktopActions={
-          <>
-            <HeaderButton
-              quiet
-              variant={selectMode ? "solid" : "outline"}
-              aria-pressed={selectMode}
-              onClick={toggleSelectMode}
-            >
-              <LuListChecks aria-hidden="true" />
-              Select
-            </HeaderButton>
-            <ViewModeSwitch value={viewMode} onChange={handleViewModeChange} />
-          </>
-        }
-        trailing={
-          <TrackSearchMenu
-            activeCount={activeFilterCount}
-            selectMode={selectMode}
-            onOpenOptions={() => setOptionsOpen(true)}
-            onToggleSelect={toggleSelectMode}
-          />
-        }
-      />
+      <PageHeader>
+        <PageHeader.Title
+          meta={
+            initialLoading
+              ? undefined
+              : `${estimatedResults.toLocaleString()} ${estimatedResults === 1 ? "result" : "results"}`
+          }
+        >
+          Tracks
+        </PageHeader.Title>
+        <PageHeader.Actions
+          desktop={
+            <>
+              <HeaderButton
+                quiet
+                variant={selectMode ? "solid" : "outline"}
+                aria-pressed={selectMode}
+                onClick={toggleSelectMode}
+              >
+                <LuListChecks aria-hidden="true" />
+                Select
+              </HeaderButton>
+              <ViewModeSwitch value={viewMode} onChange={handleViewModeChange} />
+            </>
+          }
+          phone={
+            <TrackSearchMenu
+              activeCount={activeFilterCount}
+              selectMode={selectMode}
+              onOpenOptions={() => setOptionsOpen(true)}
+              onToggleSelect={toggleSelectMode}
+            />
+          }
+        />
+      </PageHeader>
       {!isHydrated || !currentUserFriend ? (
         <Flex justify="center" py={8}>
           <Spinner />
         </Flex>
       ) : (
         <>
-          <ListSearchRow
-            field={
-              <SearchField
-                value={debouncedValue}
-                onChange={setDebouncedValue}
-                label="Search tracks"
-                placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
-                endElement={<SearchModeMenu value={searchMode} onChange={setSearchMode} />}
-              />
-            }
-            controls={
-              <FiltersPanel
-                open={panelOpen}
-                onOpenChange={setPanelOpen}
-                scope="Tracks"
-                activeCount={activeFilterCount}
-                onReset={handleClearAllFilters}
-                showLabel={showResultsLabel(estimatedResults)}
-              >
-                <TrackFilterSections {...filterControls} first />
-              </FiltersPanel>
-            }
-          />
+          <PageHeader.Toolbar>
+            <ListSearchRow
+              field={
+                <SearchField
+                  value={debouncedValue}
+                  onChange={setDebouncedValue}
+                  label="Search tracks"
+                  placeholder={SEARCH_MODE_PLACEHOLDERS[searchMode]}
+                  endElement={<SearchModeMenu value={searchMode} onChange={setSearchMode} />}
+                />
+              }
+              controls={
+                <FiltersPanel
+                  open={panelOpen}
+                  onOpenChange={setPanelOpen}
+                  scope="Tracks"
+                  activeCount={activeFilterCount}
+                  onReset={handleClearAllFilters}
+                  showLabel={showResultsLabel(estimatedResults)}
+                >
+                  <TrackFilterSections {...filterControls} first />
+                </FiltersPanel>
+              }
+            />
+          </PageHeader.Toolbar>
 
           <TrackSearchOptionsModal
             open={optionsOpen}
@@ -525,11 +537,6 @@ const SearchResults: React.FC = () => {
             ]}
             onToggle={handleFilterToggle}
             onClearAll={activeFilterCount > 0 ? handleClearAllFilters : undefined}
-            summary={
-              initialLoading
-                ? undefined
-                : `${estimatedResults.toLocaleString()} ${estimatedResults === 1 ? "result" : "results"}`
-            }
           />
 
           {initialLoading ? (

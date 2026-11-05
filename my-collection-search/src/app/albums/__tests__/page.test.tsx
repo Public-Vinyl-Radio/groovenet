@@ -396,10 +396,10 @@ describe("albums page desktop header (#794)", () => {
     expect(mocks.replace).toHaveBeenLastCalledWith("/albums?genre=dub");
   });
 
-  it("shows the reported total in the chip row once known", async () => {
+  it("shows the reported total in header meta once known", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     expect(screen.queryByTestId("filter-summary")).toBeNull();
     await user.click(await screen.findByRole("button", { name: "report total" }));
-    expect(screen.getByTestId("filter-summary").textContent).toBe("42 albums");
+    expect(screen.getByTestId("page-header-meta").textContent).toBe("42 albums");
   });
 });

@@ -57,7 +57,7 @@ describe("JobsPage header", () => {
   it("titles the page and refreshes from the header action", async () => {
     const { user } = renderWithProviders(<JobsPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Downloads" })).toBeTruthy();
-    await user.click(header().getByRole("button", { name: "Refresh jobs", hidden: true }));
+    await user.click(header().getAllByRole("button", { name: "Refresh jobs", hidden: true })[0]);
     expect(jobs.refetch).toHaveBeenCalledTimes(1);
   });
 
@@ -65,14 +65,18 @@ describe("JobsPage header", () => {
     jobs.isLoading = true;
     renderWithProviders(<JobsPage />);
     expect(
-      (header().getByRole("button", { name: "Refresh jobs", hidden: true }) as HTMLButtonElement)
-        .disabled,
+      (
+        header().getAllByRole("button", {
+          name: "Refresh jobs",
+          hidden: true,
+        })[0] as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
   });
 
   it("clears all jobs from the header overflow menu", async () => {
     const { user } = renderWithProviders(<JobsPage />);
-    await user.click(header().getByRole("button", { name: "More actions", hidden: true }));
+    await user.click(header().getAllByRole("button", { name: "More actions", hidden: true })[0]);
     await user.click(await screen.findByText("Clear all jobs"));
     await waitFor(() => expect(jobs.clear).toHaveBeenCalledTimes(1));
   });
@@ -80,7 +84,9 @@ describe("JobsPage header", () => {
   it("offers no overflow menu when there is nothing to clear", () => {
     jobs.total = 0;
     renderWithProviders(<JobsPage />);
-    expect(header().queryByRole("button", { name: "More actions", hidden: true })).toBeNull();
+    expect(header().queryAllByRole("button", { name: "More actions", hidden: true })).toHaveLength(
+      0,
+    );
   });
 });
 
