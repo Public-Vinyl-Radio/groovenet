@@ -63,6 +63,16 @@ const BADGE_SYNTAX_RULES = [
   },
 ];
 
+const PAGE_H1_MESSAGE =
+  'Use PageHeader.Title as the page\'s one h1; raw Chakra Heading as="h1" is reserved for PageHeader parts (#994).';
+const PAGE_H1_SYNTAX_RULES = [
+  {
+    selector:
+      "JSXOpeningElement[name.name='Heading']:has(> JSXAttribute[name.name='as'][value.value='h1'])",
+    message: PAGE_H1_MESSAGE,
+  },
+];
+
 const ANALYTICS_MESSAGE = "Use @/lib/analytics/client or @/lib/analytics/server instead.";
 const ANALYTICS_PATHS = ["posthog-js", "posthog-node"].map((name) => ({
   name,
@@ -87,6 +97,19 @@ const eslintConfig = [
       // the unused destructured sibling isn't a real unused variable.
       "@typescript-eslint/no-unused-vars": ["warn", { ignoreRestSiblings: true }],
       "no-restricted-syntax": ["error", ...SYNTAX_RULES, ...BADGE_SYNTAX_RULES],
+    },
+  },
+  {
+    // PageHeader owns the page-level h1; its parts are the sole exception.
+    files: ["src/**/*.{js,jsx,ts,tsx}"],
+    ignores: ["src/components/layout/PageHeader/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...SYNTAX_RULES,
+        ...BADGE_SYNTAX_RULES,
+        ...PAGE_H1_SYNTAX_RULES,
+      ],
     },
   },
   {
