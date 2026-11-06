@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   single: false,
   missingCount: 0,
   saveExisting: vi.fn(),
+  insertTrack: vi.fn(),
+  saved: (() => {}) as () => void,
   markChanged: (() => {}) as () => void,
 }));
 
@@ -42,8 +44,8 @@ vi.mock("@/hooks/usePlaylistMutations", () => ({
     mocks.markChanged = onChange;
     return {
       moveTrack: vi.fn(),
+      insertTrack: mocks.insertTrack,
       removeFromPlaylist: vi.fn(),
-      addToPlaylist: vi.fn(),
       sortGreedy: vi.fn(),
       sortGenetic: vi.fn(),
       sortCohesiveBlocks: vi.fn(),
@@ -61,8 +63,11 @@ vi.mock("@/hooks/usePlaylistActions", () => ({
   }),
 }));
 vi.mock("@/hooks/usePlaylistSaveDialog", () => ({
-  usePlaylistSaveDialog: () => ({
-    Dialog: () => null,
+  usePlaylistSaveDialog: (_id: unknown, onSaved: () => void) => ({
+    Dialog: () => {
+      mocks.saved = onSaved;
+      return null;
+    },
     open: vi.fn(),
     saveExisting: mocks.saveExisting,
   }),
@@ -84,8 +89,35 @@ vi.mock("@/components/PlaylistActionsMenu", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/PlaylistItemMenu", () => ({ default: () => <button>item menu</button> }));
-vi.mock("@/components/PlaylistRecommendations", () => ({ default: () => null }));
+vi.mock("@/components/PlaylistItemMenu", () => ({
+  default: ({
+    track,
+    onSuggestAfter,
+  }: {
+    track: { track_id: string };
+    onSuggestAfter: (t: unknown) => void;
+  }) => <button onClick={() => onSuggestAfter(track)}>item menu</button>,
+}));
+vi.mock("@/components/SuggestionsPanel", () => ({
+  default: ({
+    seed,
+    onSeedChange,
+    onAdd,
+    onClose,
+  }: {
+    seed: { track_id: string } | null;
+    onSeedChange: (s: null) => void;
+    onAdd: (t: unknown, i: number) => void;
+    onClose: () => void;
+  }) => (
+    <div data-testid="panel">
+      <span>seed {seed?.track_id ?? "none"}</span>
+      <button onClick={() => onSeedChange(null)}>whole</button>
+      <button onClick={() => onAdd({ track_id: "new", friend_id: 1 }, 1)}>add new</button>
+      <button onClick={onClose}>close panel</button>
+    </div>
+  ),
+}));
 vi.mock("@/components/FriendSelectDialog", () => ({ default: () => null }));
 vi.mock("@/components/NamePlaylistDialog", () => ({ default: () => null }));
 
@@ -236,11 +268,50 @@ describe("PlaylistViewer page header", () => {
   });
 });
 
-it("opens, refreshes and dismisses recommendations in the shared dialog", async () => {
-  const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
-  await user.click((await screen.findAllByTestId("actions-menu"))[0]);
-  expect(await screen.findByRole("dialog", { name: "AI Recommendations" })).toBeTruthy();
-  await user.click(screen.getByRole("button", { name: "Refresh" }));
-  await user.click(screen.getByRole("button", { name: "Close" }));
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+describe("PlaylistViewer suggestions panel", () => {
+  it("toggles the panel from the header, pressed while it is open", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    const toggle = await screen.findByRole("button", { name: "Suggestions", hidden: true });
+    expect(screen.queryByTestId("panel")).toBeNull();
+    await user.click(toggle);
+    expect(await screen.findByTestId("panel")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Suggestions", pressed: true, hidden: true }),
+    ).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "close panel" }));
+    expect(screen.queryByTestId("panel")).toBeNull();
+  });
+
+  it("opens from the actions menu", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByTestId("actions-menu"))[0]);
+    expect(await screen.findByTestId("panel")).toBeTruthy();
+  });
+
+  it("seeds from a row, marks it, and lets the panel change the seed", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("item menu"))[1]);
+    expect(await screen.findByText("seed b")).toBeTruthy();
+    expect(screen.getByText("Suggesting after")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "whole" }));
+    expect(screen.getByText("seed none")).toBeTruthy();
+    expect(screen.queryByText("Suggesting after")).toBeNull();
+  });
+
+  it("inserts an added suggestion, marks it until saved, and keeps the panel open", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("item menu"))[0]);
+    await user.click(screen.getByRole("button", { name: "add new" }));
+    expect(mocks.insertTrack).toHaveBeenCalledWith({ track_id: "new", friend_id: 1 }, 1);
+    expect(screen.getByTestId("panel")).toBeTruthy();
+  });
+
+  it("clears Just added once the playlist is saved", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("item menu"))[0]);
+    await user.click(screen.getByRole("button", { name: "add new" }));
+    act(() => mocks.markChanged());
+    act(() => mocks.saved());
+    expect(screen.queryByText("Just added")).toBeNull();
+  });
 });

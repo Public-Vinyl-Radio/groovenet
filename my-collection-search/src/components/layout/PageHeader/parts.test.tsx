@@ -188,6 +188,21 @@ describe("PageHeader parts", () => {
       ]);
     });
 
+    it("exposes a toggle action as pressed at both widths", () => {
+      renderWithProviders(
+        <PageHeader>
+          <PageHeader.Title>Set</PageHeader.Title>
+          <PageHeader.Actions actions={[act("Suggestions", { pressed: true })]} />
+        </PageHeader>,
+      );
+      const phone = within(screen.getByTestId("page-header-phone-actions"));
+      expect(phone.getByRole("button", { name: "Suggestions", pressed: true })).toBeTruthy();
+      const desktop = within(screen.getByTestId("page-header-desktop-actions"));
+      expect(
+        desktop.getByRole("button", { name: /Suggestions/, pressed: true, hidden: true }),
+      ).toBeTruthy();
+    });
+
     it("disables a loading action everywhere it shows", async () => {
       renderWithProviders(
         <PageHeader>
