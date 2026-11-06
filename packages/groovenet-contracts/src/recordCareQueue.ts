@@ -29,6 +29,10 @@ export const recordCareQueueItemSchema = z.object({
   title: z.string(),
   artist: z.string(),
   thumbnail: z.string().nullable(),
+  library_identifier: z
+    .string()
+    .nullable()
+    .meta({ description: "Shelf code the album is filed under (LP-182, S-013); null if none" }),
   inner_sleeve_type: sleeveTypeSchema.nullable(),
   added_at: z.string().nullable().meta({
     format: "date-time",

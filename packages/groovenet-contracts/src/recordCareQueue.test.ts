@@ -33,6 +33,7 @@ it("documents implicit copies, group metadata and nullable progress integrations
     title: "Record",
     artist: "Artist",
     thumbnail: null,
+    library_identifier: "LP-182",
     inner_sleeve_type: null,
     added_at: "2026-10-01T00:00:00Z",
   };

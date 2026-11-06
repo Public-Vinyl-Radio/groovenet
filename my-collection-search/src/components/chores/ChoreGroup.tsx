@@ -5,12 +5,20 @@ import { Box, chakra, Flex, Spinner, Text } from "@chakra-ui/react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusTag } from "@/components/ui/RoleTags";
 import Artwork from "@/components/player/Artwork";
+import { ViewModeSwitch } from "@/components/layout/ListHeader";
+import type { TrackViewMode } from "@/hooks/useTrackViewMode";
+import ChoreCard from "./ChoreCard";
+import ShelfCode from "./ShelfCode";
 
 export type ChoreRowData = {
   key: string;
   title: string;
   artist: string;
   thumbnail: string | null;
+  /** The shelf code (`albums.library_identifier`); null shows "No ID". */
+  code: string | null;
+  /** The album's edit page, where a missing code is fixed. */
+  editHref: string;
   /** "SPUN 3× IN OCT", "ADDED OCT 17"; the backlog has none. */
   meta?: string;
   /** No sleeve logged: the row shows a "Sleeve unknown" status tag. */
@@ -79,12 +87,31 @@ export function ChoreRow({
 }) {
   const hasExtras = !!row.meta || row.sleeveUnknown;
   return (
-    <Box as="li" borderTopWidth="rule" borderColor="border" _first={{ borderTopWidth: 0 }}>
+    <Box
+      as="li"
+      position="relative"
+      borderTopWidth="rule"
+      borderColor="border"
+      _first={{ borderTopWidth: 0 }}
+      bg={checked ? "bg.subtle" : "transparent"}
+      _hover={{ bg: checked ? "bg.subtle" : "bg.muted" }}
+    >
+      {/* The whole row is the checkbox; the "No ID" link sits above it. */}
       <RowButton
         type="button"
         role="checkbox"
         aria-checked={checked}
+        aria-label={[row.code ?? "No ID", row.title, row.artist].filter(Boolean).join(", ")}
         onClick={() => onToggle(row.key)}
+        position="absolute"
+        inset={0}
+        zIndex={0}
+        cursor="pointer"
+        bg="transparent"
+        _focusVisible={{ outline: "2px solid", outlineColor: "border.ink", outlineOffset: "-2px" }}
+      />
+      <Box
+        pointerEvents="none"
         w="full"
         minH="64px"
         px={3}
@@ -103,11 +130,6 @@ export function ChoreRow({
             : `"check cover title" "check cover artist"`,
           md: `"check cover title meta" "check cover artist meta"`,
         }}
-        bg={checked ? "bg.subtle" : "transparent"}
-        color="fg"
-        textAlign="left"
-        cursor="pointer"
-        _hover={{ bg: checked ? "bg.subtle" : "bg.muted" }}
       >
         <Tick checked={checked} />
         <Box
@@ -121,17 +143,12 @@ export function ChoreRow({
         >
           <Artwork src={row.thumbnail} alt="" size="40px" />
         </Box>
-        <Text
-          as="span"
-          gridArea="title"
-          alignSelf="end"
-          fontSize="15px"
-          lineHeight="20px"
-          fontWeight="semibold"
-          truncate
-        >
-          {row.title}
-        </Text>
+        <Flex as="span" gridArea="title" alignSelf="end" align="center" gap={2} minW={0}>
+          <ShelfCode code={row.code} editHref={row.editHref} title={row.title} />
+          <Text as="span" fontSize="15px" lineHeight="20px" fontWeight="semibold" truncate minW={0}>
+            {row.title}
+          </Text>
+        </Flex>
         <Text
           as="span"
           gridArea="artist"
@@ -159,7 +176,7 @@ export function ChoreRow({
             {row.sleeveUnknown && <SleeveChip />}
           </Flex>
         )}
-      </RowButton>
+      </Box>
     </Box>
   );
 }
@@ -177,6 +194,8 @@ type Props = {
   onToggleSection: (keys: string[], select: boolean) => void;
   /** The backlog's "N MORE IN THE BACKLOG →". */
   more?: { label: string; onClick: () => void; loading?: boolean };
+  /** A List/Grid switch in the header, and the layout it picks. */
+  view?: { mode: TrackViewMode; onChange: (mode: TrackViewMode) => void };
 };
 
 /**
@@ -193,10 +212,12 @@ export default function ChoreGroup({
   onToggle,
   onToggleSection,
   more,
+  view,
 }: Props) {
   if (rows.length === 0) return null;
   const keys = rows.map((row) => row.key);
   const allSelected = keys.every((key) => selected.has(key));
+  const grid = view?.mode === "card";
   const headingId = `${id}-heading`;
   return (
     <Box
@@ -217,13 +238,14 @@ export default function ChoreGroup({
         pr={1}
         py={{ base: 2, md: 0 }}
         align="center"
+        flexWrap={{ base: "wrap", md: "nowrap" }}
         gap={{ base: 2, md: 3 }}
         borderBottomWidth="outline"
         borderColor="border.ink"
         bg="bg.subtle"
       >
         <Flex
-          flex="1"
+          flex={{ base: "1 1 100%", md: "1" }}
           minW={0}
           direction={{ base: "column", md: "row" }}
           align={{ base: "flex-start", md: "baseline" }}
@@ -236,6 +258,11 @@ export default function ChoreGroup({
             {reason}
           </Text>
         </Flex>
+        {view && (
+          <Box ms={{ base: 0, md: "auto" }} me={{ base: "auto", md: 0 }} flexShrink={0}>
+            <ViewModeSwitch value={view.mode} onChange={view.onChange} />
+          </Box>
+        )}
         <HeaderButton
           type="button"
           onClick={() => onToggleSection(keys, !allSelected)}
@@ -252,11 +279,38 @@ export default function ChoreGroup({
           {allSelected ? "CLEAR SECTION" : "SELECT SECTION"}
         </HeaderButton>
       </Flex>
-      <Box as="ul" listStyleType="none" m={0} p={0}>
-        {rows.map((row) => (
-          <ChoreRow key={row.key} row={row} checked={selected.has(row.key)} onToggle={onToggle} />
-        ))}
-      </Box>
+      {grid ? (
+        <Box
+          as="ul"
+          listStyleType="none"
+          m={0}
+          p="14px"
+          pr="17px"
+          pb="17px"
+          display="grid"
+          gap="14px"
+          gridTemplateColumns={{
+            base: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(5, minmax(0, 1fr))",
+          }}
+        >
+          {rows.map((row) => (
+            <ChoreCard
+              key={row.key}
+              row={row}
+              checked={selected.has(row.key)}
+              onToggle={onToggle}
+            />
+          ))}
+        </Box>
+      ) : (
+        <Box as="ul" listStyleType="none" m={0} p={0}>
+          {rows.map((row) => (
+            <ChoreRow key={row.key} row={row} checked={selected.has(row.key)} onToggle={onToggle} />
+          ))}
+        </Box>
+      )}
       {more && (
         <HeaderButton
           type="button"

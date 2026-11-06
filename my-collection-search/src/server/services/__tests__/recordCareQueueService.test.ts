@@ -25,6 +25,7 @@ const row = (group_name: QueueRow["group_name"], copy_id: number | null): QueueR
   title: "Title",
   artist: "Artist",
   thumbnail: null,
+  library_identifier: null,
   inner_sleeve_type: null,
   added_at: null,
   spin_count: 2,

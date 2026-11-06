@@ -53,6 +53,7 @@ const stack = {
       album_title: "Album",
       album_artist: "Artist",
       album_thumbnail: null,
+      library_identifier: null,
       inner_sleeve_type: null,
       last_cleaned_at: null,
     },
