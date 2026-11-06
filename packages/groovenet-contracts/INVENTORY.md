@@ -32,7 +32,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
 | done | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
 | done | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
-| 9 | providers & Discogs | 8 | External-provider passthroughs; least shared shape. |
+| done | providers & Discogs | 9 | External-provider passthroughs; least shared shape. |
 | 10 | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; coordinate with its generated contracts. |
 | 11 | system (`health`, `status`, `version`, `update-check`) | 4 | Auto-discovered only today; need contract entries first. |
 
@@ -72,11 +72,11 @@ is closed; #606 owns them (its album half is migrated).
 | DELETE | `/api/backups/{filename}` | backups | contracts |  |
 | GET | `/api/backups/{filename}` | backups | exception | Binary dump download; no JSON body. |
 | GET | `/api/detections/recent` | vinyl ingest & fingerprints | #552 |  |
-| GET | `/api/discogs` | providers & Discogs | #552 |  |
-| POST | `/api/discogs/delete-releases` | providers & Discogs | #552 |  |
-| GET | `/api/discogs/users/{username}` | providers & Discogs | #552 |  |
-| GET | `/api/discogs/verify-manifests` | providers & Discogs | #552 |  |
-| POST | `/api/discogs/verify-manifests` | providers & Discogs | #552 |  |
+| GET | `/api/discogs` | providers & Discogs | exception | Server-sent progress stream (`text/event-stream`), not JSON. |
+| POST | `/api/discogs/delete-releases` | providers & Discogs | contracts |  |
+| GET | `/api/discogs/users/{username}` | providers & Discogs | contracts |  |
+| GET | `/api/discogs/verify-manifests` | providers & Discogs | contracts |  |
+| POST | `/api/discogs/verify-manifests` | providers & Discogs | contracts |  |
 | GET | `/api/docs` | API docs | exception | Swagger UI HTML page, not a resource. |
 | POST | `/api/embeddings/backfill` | embeddings | contracts |  |
 | GET | `/api/embeddings/backfill/{runId}` | embeddings | contracts |  |
@@ -129,10 +129,10 @@ is closed; #606 owns them (its album half is migrated).
 | POST | `/api/playlists/{id}/spins` | playlists | contracts |  |
 | GET | `/api/playlists/{id}/tracks` | playlists | contracts |  |
 | POST | `/api/playlists/genetic` | playlists | contracts |  |
-| POST | `/api/providers/apple-music/search` | providers & Discogs | #552 |  |
-| GET | `/api/providers/discogs/release-lookup` | providers & Discogs | #552 |  |
-| POST | `/api/providers/openai/track-metadata` | providers & Discogs | #552 |  |
-| POST | `/api/providers/youtube/music-search` | providers & Discogs | #552 |  |
+| POST | `/api/providers/apple-music/search` | providers & Discogs | contracts |  |
+| GET | `/api/providers/discogs/release-lookup` | providers & Discogs | contracts |  |
+| POST | `/api/providers/openai/track-metadata` | providers & Discogs | contracts |  |
+| POST | `/api/providers/youtube/music-search` | providers & Discogs | contracts |  |
 | GET | `/api/recommendations/candidates` | recommendations | contracts |  |
 | POST | `/api/recommendations/candidates` | recommendations | contracts |  |
 | POST | `/api/record-actions` | record care | contracts |  |

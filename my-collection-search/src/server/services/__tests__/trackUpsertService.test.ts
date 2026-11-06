@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DiscogsTrack } from "@/types/track";
+import type { DiscogsTrack } from "@/server/types/discogsTrack";
 
 const {
   mockInsertFriendsIfMissing,

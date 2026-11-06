@@ -5859,61 +5859,15 @@ export const apiContractRoutes: ApiContractRoute[] = [
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
-        {
-          name: "track_id",
-          in: "query",
-          required: true,
-          schema: { type: "string" },
-        },
-        {
-          name: "username",
-          in: "query",
-          required: false,
-          schema: { type: "string" },
-        },
-        {
-          name: "friend_id",
-          in: "query",
-          required: false,
-          schema: { type: "integer" },
-        },
+        { name: "track_id", in: "query", required: true, schema: { type: "string" } },
+        { name: "username", in: "query", required: false, schema: { type: "string" } },
+        { name: "friend_id", in: "query", required: false, schema: { type: "integer" } },
       ],
       responses: {
-        "200": {
-          description: "Discogs lookup result",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  releaseId: { type: "string" },
-                  filePath: { type: "string" },
-                  release: { type: "object", additionalProperties: true },
-                  matchedTrack: { type: "object", additionalProperties: true },
-                },
-                additionalProperties: true,
-              },
-            },
-          },
-        },
-        "400": {
-          description: "Missing or invalid query parameter",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-        "404": {
-          description: "Discogs release file not found",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-        "500": {
-          description: "Server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
+        "200": jsonOk("Discogs lookup result", componentRef("DiscogsLookupResponse")),
+        "400": jsonError("Missing or invalid query parameter"),
+        "404": jsonError("Discogs release file not found"),
+        "500": jsonError("Server error"),
       },
     },
   },
@@ -5930,52 +5884,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                artist: { type: "string" },
-              },
-              additionalProperties: false,
-            },
-          },
+          "application/json": { schema: componentRef("ProviderYouTubeMusicSearchRequest") },
         },
       },
       responses: {
-        "200": {
-          description: "YouTube matches",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  results: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        title: { type: "string" },
-                        url: { type: "string" },
-                        channel: { type: "string" },
-                        thumbnail: { type: "string" },
-                      },
-                      required: ["id", "title", "url", "channel"],
-                    },
-                  },
-                },
-                required: ["results"],
-              },
-            },
-          },
-        },
-        "500": {
-          description: "Provider or server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
+        "200": jsonOk("YouTube matches", componentRef("ProviderYouTubeMusicSearchResponse")),
+        "500": jsonError("Provider or server error"),
       },
     },
   },
@@ -5992,57 +5906,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                artist: { type: "string" },
-                album: { type: "string" },
-                isrc: { type: "string" },
-              },
-              additionalProperties: false,
-            },
-          },
+          "application/json": { schema: componentRef("ProviderAppleMusicSearchRequest") },
         },
       },
       responses: {
-        "200": {
-          description: "Apple Music matches",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  results: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        title: { type: "string" },
-                        artist: { type: "string" },
-                        album: { type: "string" },
-                        url: { type: "string" },
-                        artwork: { type: "string" },
-                        duration: { type: "number" },
-                        isrc: { type: "string" },
-                      },
-                      required: ["id"],
-                    },
-                  },
-                },
-                required: ["results"],
-              },
-            },
-          },
-        },
-        "500": {
-          description: "Provider or server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
+        "200": jsonOk("Apple Music matches", componentRef("ProviderAppleMusicSearchResponse")),
+        "500": jsonError("Provider or server error"),
       },
     },
   },
@@ -6058,63 +5927,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                prompt: { type: "string" },
-                friend_id: { type: "integer" },
-                track_id: {
-                  type: "string",
-                  description:
-                    "The track being enriched. Adds its album's Discogs genres and styles, and the genres its other tracks use, to the prompt.",
-                },
-              },
-              required: ["prompt"],
-              additionalProperties: false,
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("ProviderTrackMetadataRequest") } },
       },
       responses: {
-        "200": {
-          description: "Generated metadata",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  genres: {
-                    type: "array",
-                    description:
-                      "Up to 3 suggested track genres. Always taxonomy entries: the model chooses from an enum of the taxonomy, and anything else is dropped.",
-                    items: TRACK_GENRE_REF,
-                  },
-                  descriptors: {
-                    type: "array",
-                    description: "Up to 3 normalised mood or description words.",
-                    items: { type: "string" },
-                  },
-                  notes: { type: "string" },
-                },
-                required: ["genres", "descriptors", "notes"],
-              },
-            },
-          },
-        },
-        "400": {
-          description: "Invalid prompt payload",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-        "500": {
-          description: "Provider or server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
+        "200": jsonOk("Generated metadata", componentRef("ProviderTrackMetadataResponse")),
+        "400": jsonError("Invalid prompt payload"),
+        "500": jsonError("Provider or server error"),
       },
     },
   },
@@ -6942,7 +6760,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         "200": {
           description: "Whether the user exists, and their collection's release count",
           content: {
-            "application/json": { schema: z.toJSONSchema(discogsUserLookupResponseSchema) },
+            "application/json": { schema: componentRef("DiscogsUserLookupResponse") },
           },
         },
         "400": {
@@ -6972,63 +6790,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                username: { type: "string" },
-                releaseIds: { type: "array", items: { type: "string" } },
-              },
-              required: ["username", "releaseIds"],
-              additionalProperties: false,
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("DiscogsDeleteReleasesRequest") } },
       },
       responses: {
-        "200": {
-          description: "Release delete summary",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string" },
-                  deletedFiles: {
-                    type: "array",
-                    items: { type: "string", example: "/audio/trk_001.m4a" },
-                  },
-                  failedDeletes: {
-                    type: "array",
-                    items: { type: "string", example: "/audio/trk_404.m4a" },
-                  },
-                  deletedTrackIds: { type: "array", items: { type: "string" } },
-                  deletedFromDb: { type: "integer" },
-                },
-                required: [
-                  "message",
-                  "deletedFiles",
-                  "failedDeletes",
-                  "deletedTrackIds",
-                  "deletedFromDb",
-                ],
-              },
-            },
-          },
-        },
-        "400": {
-          description: "Invalid request body",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
-        "500": {
-          description: "Server error",
-          content: {
-            "application/json": { schema: errorResponseSchemaObject },
-          },
-        },
+        "200": jsonOk("Release delete summary", componentRef("DiscogsDeleteReleasesResponse")),
+        "400": jsonError("Invalid request body"),
+        "500": jsonError("Server error"),
       },
     },
   },
@@ -7046,35 +6813,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Manifest verification report",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string" },
-                  results: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        username: { type: "string" },
-                        totalReleaseIds: { type: "integer" },
-                        missingFiles: { type: "array", items: { type: "string" } },
-                        validFiles: { type: "array", items: { type: "string" } },
-                      },
-                      required: ["username", "totalReleaseIds", "missingFiles", "validFiles"],
-                    },
-                  },
-                  summary: {
-                    type: "object",
-                    properties: {
-                      totalManifests: { type: "integer" },
-                      totalMissingFiles: { type: "integer" },
-                      totalValidFiles: { type: "integer" },
-                    },
-                    required: ["totalManifests", "totalMissingFiles", "totalValidFiles"],
-                  },
-                },
-                required: ["message", "results", "summary"],
-              },
+              schema: componentRef("ManifestVerificationResponse"),
               examples: {
                 manifestVerification: {
                   summary: "Playlist sync manifest verification",
@@ -7107,35 +6846,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Manifest cleanup report",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string" },
-                  results: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        username: { type: "string" },
-                        before: { type: "integer" },
-                        after: { type: "integer" },
-                        removed: { type: "array", items: { type: "string" } },
-                      },
-                      required: ["username", "before", "after", "removed"],
-                    },
-                  },
-                  summary: {
-                    type: "object",
-                    properties: {
-                      totalManifests: { type: "integer" },
-                      totalRemoved: { type: "integer" },
-                      totalKept: { type: "integer" },
-                    },
-                    required: ["totalManifests", "totalRemoved", "totalKept"],
-                  },
-                },
-                required: ["message", "results", "summary"],
-              },
+              schema: componentRef("ManifestCleanupResponse"),
               examples: {
                 manifestCleanup: {
                   summary: "Playlist sync manifest cleanup",

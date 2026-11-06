@@ -85,6 +85,24 @@ describe("OpenAPI contract coverage", () => {
     expect(operation.summary).toContain("bearer-only availability policy");
     expect(operation.responses).toHaveProperty("403");
   });
+  it.each([
+    ["/api/providers/discogs/release-lookup", "get", "DiscogsLookupResponse"],
+    ["/api/providers/youtube/music-search", "post", "ProviderYouTubeMusicSearchResponse"],
+    ["/api/providers/apple-music/search", "post", "ProviderAppleMusicSearchResponse"],
+    ["/api/providers/openai/track-metadata", "post", "ProviderTrackMetadataResponse"],
+    ["/api/discogs/delete-releases", "post", "DiscogsDeleteReleasesResponse"],
+    ["/api/discogs/users/{username}", "get", "DiscogsUserLookupResponse"],
+    ["/api/discogs/verify-manifests", "get", "ManifestVerificationResponse"],
+    ["/api/discogs/verify-manifests", "post", "ManifestCleanupResponse"],
+  ])("references the shared component for %s %s", (path, method, component) => {
+    const op = getOperation(path, method as "get" | "post") as unknown as {
+      responses: Record<string, { content: Record<string, { schema: { $ref: string } }> }>;
+    };
+    expect(op.responses["200"].content["application/json"].schema.$ref).toBe(
+      `#/components/schemas/${component}`,
+    );
+  });
+
   it.each(CONTRACTED)("documents %s %s with a real contract entry", (method, path) => {
     const op = getOperation(path, method);
     expect(op, `${method} ${path} should be present`).toBeTruthy();

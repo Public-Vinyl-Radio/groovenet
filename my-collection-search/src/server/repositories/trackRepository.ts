@@ -1,6 +1,7 @@
 import { dbQuery } from "@/lib/serverDb";
 import { stripNullBytes } from "@/lib/stripNullBytes";
-import type { DiscogsTrack, Track } from "@/types/track";
+import type { Track } from "@/types/track";
+import type { DiscogsTrack } from "@/server/types/discogsTrack";
 import {
   hasVectorsSelectSql,
   trackGenresSelectSql,

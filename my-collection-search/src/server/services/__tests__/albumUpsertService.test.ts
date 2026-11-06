@@ -6,7 +6,8 @@ import {
   getAllAlbumsFromManifests,
   getAlbumsFromManifestReleases,
 } from "../albumUpsertService";
-import type { DiscogsRelease, Album } from "@/types/track";
+import type { DiscogsRelease } from "@groovenet/contracts";
+import type { Album } from "@/types/track";
 
 // ─── mocks ────────────────────────────────────────────────────────────────────
 

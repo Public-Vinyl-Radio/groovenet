@@ -1,9 +1,11 @@
-import { z } from "zod";
-import {
-  discogsLookupQuerySchema,
-  discogsLookupResponseSchema,
-  discogsUserLookupResponseSchema,
-} from "@/api-contract/schemas";
+import type {
+  DiscogsDeleteReleasesResponse,
+  DiscogsLookupResponse,
+  DiscogsUserLookupResponse,
+  ManifestCleanupResponse,
+  ManifestVerificationResponse,
+  ManifestVerificationResult,
+} from "@groovenet/contracts";
 import type { DiscogsLookupRelease, DiscogsLookupVideo } from "@/types/discogs";
 import { http, streamLines } from "../http";
 
@@ -16,48 +18,12 @@ export type SyncResult = {
   newCount?: number;
   errors?: { releaseId: string; error: string }[];
 };
-export type VerificationResult = {
-  username: string;
-  totalReleaseIds: number;
-  missingFiles: string[];
-  validFiles: string[];
-};
+export type VerificationResult = ManifestVerificationResult;
+export type { ManifestVerificationResponse, ManifestCleanupResponse };
+export type DeleteReleasesResponse = DiscogsDeleteReleasesResponse;
 
-export type ManifestVerificationResponse = {
-  message: string;
-  results: VerificationResult[];
-  summary: {
-    totalManifests: number;
-    totalMissingFiles: number;
-    totalValidFiles: number;
-  };
-};
-
-export type ManifestCleanupResponse = {
-  message: string;
-  results: {
-    username: string;
-    before: number;
-    after: number;
-    removed: string[];
-  }[];
-  summary: {
-    totalManifests: number;
-    totalRemoved: number;
-    totalKept: number;
-  };
-};
-
-export type DeleteReleasesResponse = {
-  message: string;
-  deletedFiles: string[];
-  failedDeletes: string[];
-  deletedTrackIds: string[];
-  deletedFromDb: number;
-};
-
-export type DiscogsLookupQuery = z.input<typeof discogsLookupQuerySchema>;
-export type DiscogsLookupResponse = z.infer<typeof discogsLookupResponseSchema>;
+export type { DiscogsLookupResponse };
+export type DiscogsLookupQuery = { track_id: string; username?: string; friend_id?: number };
 
 export function verifyManifests() {
   return http<ManifestVerificationResponse>("/api/discogs/verify-manifests", {
@@ -123,7 +89,7 @@ export function extractDiscogsVideos(result: DiscogsLookupResponse | null): Disc
   return vids || [];
 }
 
-export type DiscogsUserLookupResponse = z.infer<typeof discogsUserLookupResponseSchema>;
+export type { DiscogsUserLookupResponse };
 
 /** Whether a Discogs user exists, and their collection's release count. One Discogs request. */
 export async function lookupDiscogsUser(username: string): Promise<DiscogsUserLookupResponse> {
