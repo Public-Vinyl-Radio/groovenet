@@ -39,7 +39,6 @@
     "psql": "docker compose exec db psql -U djplaylist -d djplaylist",
     "worker": "tsx src/workers/index.ts",
     "worker:dev": "nodemon --watch src --ext ts,js --exec 'npm run worker'",
-    "screenshots:readme": "tsx scripts/readme-screenshots.ts",
     "screenshots:mobile": "tsx scripts/mobile-screenshots.ts",
     "backfill-essentia": "tsx src/scripts/backfill-essentia.ts",
     "backfill-key-confidence": "tsx src/scripts/backfill-key-confidence.ts",
