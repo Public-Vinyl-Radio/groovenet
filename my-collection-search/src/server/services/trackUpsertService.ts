@@ -1,6 +1,7 @@
 import { friendRepository } from "@/server/repositories/friendRepository";
 import { trackRepository } from "@/server/repositories/trackRepository";
-import type { DiscogsTrack, Track } from "@/types/track";
+import type { Track } from "@/types/track";
+import type { DiscogsTrack } from "@/server/types/discogsTrack";
 
 export type TrackUpsertFailure = {
   trackId: string;

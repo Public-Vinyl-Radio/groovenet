@@ -1,4 +1,3 @@
-import type { DiscogsSimpleArtist, DiscogsVideo } from "@/types/discogs";
 import type { AlbumEntity, TrackEntity } from "@groovenet/contracts";
 export type {
   Friend,
@@ -58,81 +57,10 @@ export type Track = Omit<TrackEntity, TrackNarrowedKeys> & {
   _vectors?: { default?: number[] };
 };
 
-export type YoutubeVideo = {
-  id: string;
-  title: string;
-  channel: string;
-  thumbnail?: string;
-  url: string;
-};
-
-export type AppleMusicResult = {
-  id: string;
-  title: string;
-  artist: string;
-  album: string;
-  artwork?: string;
-  url: string;
-  duration?: number;
-};
+export type { YoutubeVideo } from "@groovenet/contracts";
+export type { AppleMusicResult } from "@/types/apple";
 
 export type { Playlist } from "@groovenet/contracts";
-
-export interface DiscogsRelease {
-  id: number | string;
-  title: string;
-  artists?: { name: string }[];
-  artists_sort?: string;
-  year?: number;
-  styles?: string[];
-  genres?: string[];
-  uri?: string;
-  thumb?: string;
-  videos?: DiscogsVideo[];
-  tracklist: ProcessedTrack[];
-  date_added: string;
-  date_changed: string;
-  labels?: Array<{ name: string; catno: string }>;
-  country?: string;
-  formats?: string;
-}
-
-export interface DiscogsTrack {
-  track_id: string;
-  release_id?: string; // Discogs release ID for linking to albums
-  title: string;
-  artist: string;
-  album: string;
-  year: number | null;
-  styles: string[];
-  genres: string[];
-  duration: string;
-  discogs_url: string;
-  album_thumbnail: string;
-  position: string;
-  duration_seconds: number | null;
-  bpm: number | null;
-  key: string | null;
-  notes: string | null;
-  local_tags: string | null;
-  apple_music_url: string | null;
-  local_audio_url: string | null;
-  username: string;
-  date_added?: string | null; // When user added to Discogs collection
-  friend_id?: number; // resolved via friends table during upsert/index
-}
-
-export interface ProcessedTrack {
-  position: string;
-  title: string;
-  duration: string;
-  artists: DiscogsSimpleArtist[];
-  duration_seconds?: number | null;
-  apple_music_url?: string | null;
-  youtube_url?: string | null;
-  soundcloud_url?: string | null;
-  local_audio_url?: string | null;
-}
 
 export type Album = Omit<
   AlbumEntity,

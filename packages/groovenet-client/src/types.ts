@@ -147,23 +147,15 @@ export type {
   GenreReconciliationCoverage,
 } from "@groovenet/contracts";
 
-export interface YoutubeVideo {
-  id: string;
-  title: string;
-  channel: string;
-  thumbnail?: string;
-  url: string;
-}
-
-export interface AppleMusicResult {
-  id: string;
-  title: string;
-  artist: string;
-  album: string;
-  artwork?: string;
-  url: string;
-  duration?: number;
-}
+export type {
+  AppleMusicResult,
+  DiscogsLookupResponse,
+  DiscogsUserLookupResponse,
+  ProviderAppleMusicSearchResponse,
+  ProviderTrackMetadataResponse,
+  ProviderYouTubeMusicSearchResponse,
+  YoutubeVideo,
+} from "@groovenet/contracts";
 
 export interface TrackSearchQuery {
   query?: string;

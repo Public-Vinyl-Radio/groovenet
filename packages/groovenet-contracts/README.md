@@ -8,8 +8,9 @@ physical-copy record care (`recordCare.ts`), genre taxonomy (`genres.ts`),
 settings (`settings.ts`: AI prompt, appearance, suggestion scope, GAMDL),
 backups (`backups.ts`), background jobs (`jobs.ts`), embeddings and their
 queue and model settings (`embeddings.ts`), recommendation candidates
-(`recommendations.ts`) and system probes (`system.ts`: health, status,
-version, update check).
+(`recommendations.ts`), system probes (`system.ts`: health, status,
+version, update check) and the provider and Discogs operations (`providers.ts`,
+including the release-export types `DiscogsRelease` and `ProcessedTrack`).
 
 [`INVENTORY.md`](INVENTORY.md) lists every published API operation with its
 family and migration status, and the order the remaining families follow.
@@ -28,7 +29,7 @@ family and migration status, and the order the remaining families follow.
    shape and enum values.
 
 Migrate one resource family at a time: live sets, playlists, tracks, albums,
-friends, record care, spins, genre taxonomy, settings, backups, background jobs, recommendations and embeddings are done;
+friends, record care, spins, genre taxonomy, settings, backups, background jobs, recommendations, embeddings and providers & Discogs are done;
 `INVENTORY.md` orders the rest. Preserve permissive response fields where
 the database returns additional wire fields; make request schemas strict only
 when the endpoint already rejects unknown fields.

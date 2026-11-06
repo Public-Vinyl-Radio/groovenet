@@ -18,6 +18,7 @@ import {
   jobJsonSchemas,
   embeddingJsonSchemas,
   recommendationJsonSchemas,
+  providerJsonSchemas,
   systemJsonSchemas,
 } from "@groovenet/contracts";
 import fs from "node:fs";
@@ -245,6 +246,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...jobJsonSchemas,
     ...embeddingJsonSchemas,
     ...recommendationJsonSchemas,
+    ...providerJsonSchemas,
     ...systemJsonSchemas,
   };
   addExamplesToOpenApiDocument(paths, schemas);

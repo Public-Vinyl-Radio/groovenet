@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
-import { DiscogsRelease } from "@/types/track";
+import type { DiscogsRelease } from "@groovenet/contracts";
 
 const DISCOGS_EXPORTS_DIR = path.resolve(process.cwd(), "discogs_exports");
 

@@ -11,7 +11,7 @@ import { albumRepository } from "@/server/repositories/albumRepository";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { discogsReleaseToAlbum, upsertAlbum } from "@/server/services/albumUpsertService";
 import { extractTracksFromAlbum } from "@/server/services/discogsManifestService";
-import type { DiscogsRelease } from "@/types/track";
+import type { DiscogsRelease } from "@groovenet/contracts";
 import { up as backfill } from "../../../../migrations/1793200000000_backfill-track-date-added.js";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");

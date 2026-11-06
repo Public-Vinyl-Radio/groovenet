@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type * as ManifestService from "../discogsManifestService";
-import type { DiscogsRelease } from "@/types/track";
+import type { DiscogsRelease } from "@groovenet/contracts";
 
 let tmpDir: string;
 let exportsDir: string;

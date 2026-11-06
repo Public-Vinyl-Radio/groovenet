@@ -9,7 +9,7 @@ import { discogsReleaseToAlbum, upsertAlbum } from "@/server/services/albumUpser
 import { createGenre, mergeGenres } from "@/server/services/genreAdminService";
 import { trackSpinEventRepository } from "@/server/repositories/trackSpinEventRepository";
 import { trackGenreFilterClause } from "@/lib/trackFilterSpec";
-import type { DiscogsRelease } from "@/types/track";
+import type { DiscogsRelease } from "@groovenet/contracts";
 
 vi.mock("@/server/services/genreSimilarityService", () => ({
   triggerGenreSimilarityRefresh: vi.fn(),

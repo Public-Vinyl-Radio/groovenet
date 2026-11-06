@@ -16,4 +16,5 @@ export * from "./backups.js";
 export * from "./jobs.js";
 export * from "./embeddings.js";
 export * from "./recommendations.js";
+export * from "./providers.js";
 export * from "./system.js";

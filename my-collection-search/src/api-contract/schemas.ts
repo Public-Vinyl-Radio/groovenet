@@ -63,6 +63,28 @@ import {
 } from "@groovenet/contracts";
 import { z } from "zod";
 import {
+  appleMusicResultSchema,
+  discogsDeleteReleasesRequestSchema,
+  discogsDeleteReleasesResponseSchema as sharedDiscogsDeleteReleasesResponseSchema,
+  discogsLookupQuerySchema as sharedDiscogsLookupQuerySchema,
+  discogsLookupReleaseSchema as sharedDiscogsLookupReleaseSchema,
+  discogsLookupResponseSchema as sharedDiscogsLookupResponseSchema,
+  discogsLookupTrackSchema as sharedDiscogsLookupTrackSchema,
+  discogsUsernameSchema as sharedDiscogsUsernameSchema,
+  discogsUserLookupResponseSchema as sharedDiscogsUserLookupResponseSchema,
+  manifestCleanupResponseSchema as sharedManifestCleanupResponseSchema,
+  manifestCleanupResultSchema as sharedManifestCleanupResultSchema,
+  manifestVerificationResponseSchema as sharedManifestVerificationResponseSchema,
+  manifestVerificationResultSchema as sharedManifestVerificationResultSchema,
+  providerAppleMusicSearchRequestSchema,
+  providerAppleMusicSearchResponseSchema as sharedProviderAppleMusicSearchResponseSchema,
+  providerTrackMetadataRequestSchema,
+  providerTrackMetadataResponseSchema as sharedProviderTrackMetadataResponseSchema,
+  providerYouTubeMusicSearchRequestSchema,
+  providerYouTubeMusicSearchResponseSchema as sharedProviderYouTubeMusicSearchResponseSchema,
+  youtubeVideoSchema,
+} from "@groovenet/contracts";
+import {
   genreProposalActionSchema as sharedGenreProposalActionSchema,
   genreProposalMethodSchema as sharedGenreProposalMethodSchema,
   genreProposalStatusSchema as sharedGenreProposalStatusSchema,
@@ -242,109 +264,26 @@ export const apiErrorSchema = z
   })
   .passthrough();
 
-export const discogsLookupQuerySchema = z.object({
-  track_id: z.string().min(1),
-  username: z.string().optional(),
+export const discogsLookupQuerySchema = sharedDiscogsLookupQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),
 });
+export const discogsLookupTrackSchema = sharedDiscogsLookupTrackSchema;
+export const discogsLookupReleaseSchema = sharedDiscogsLookupReleaseSchema;
+export const discogsLookupResponseSchema = sharedDiscogsLookupResponseSchema;
+export const discogsDeleteReleasesBodySchema = discogsDeleteReleasesRequestSchema;
+export const discogsDeleteReleasesResponseSchema = sharedDiscogsDeleteReleasesResponseSchema;
 
-export const discogsLookupTrackSchema = z
-  .object({
-    position: z.string(),
-    title: z.string(),
-    duration: z.string(),
-    artists: z.array(z.object({ name: z.string() })).optional(),
-  })
-  .passthrough();
-
-export const discogsLookupReleaseSchema = z
-  .object({
-    id: z.union([z.string(), z.number()]).optional(),
-    title: z.string().optional(),
-    artists: z.array(z.object({ name: z.string() })).optional(),
-    artists_sort: z.string().optional(),
-    year: z.number().nullable().optional(),
-    styles: z.array(z.string()).optional(),
-    genres: z.array(z.string()).optional(),
-    uri: z.string().nullable().optional(),
-    thumb: z.string().nullable().optional(),
-    videos: z.array(z.object({}).passthrough()).optional(),
-    video: z.array(z.object({}).passthrough()).optional(),
-  })
-  .passthrough();
-
-export const discogsLookupResponseSchema = z
-  .object({
-    releaseId: z.string().optional(),
-    filePath: z.string().optional(),
-    release: discogsLookupReleaseSchema.nullable().optional(),
-    matchedTrack: discogsLookupTrackSchema.nullable().optional(),
-  })
-  .passthrough();
-
-export const discogsDeleteReleasesBodySchema = z.object({
-  username: z.string().min(1),
-  releaseIds: z.array(z.string().min(1)),
-});
-
-export const discogsDeleteReleasesResponseSchema = z.object({
-  message: z.string(),
-  deletedFiles: z.array(z.string()),
-  failedDeletes: z.array(z.string()),
-  deletedTrackIds: z.array(z.string()),
-  deletedFromDb: z.number().int(),
-});
-
-export const providerTrackMetadataBodySchema = z.object({
-  prompt: z.string().min(1),
+export const providerTrackMetadataBodySchema = providerTrackMetadataRequestSchema.extend({
   friend_id: intFromInputSchema.optional(),
-  track_id: z.string().min(1).optional(),
 });
-
-export const providerTrackMetadataResponseSchema = z.object({
-  genres: z.array(trackGenreSchema),
-  descriptors: z.array(z.string()),
-  notes: z.string(),
-});
-
-export const providerYouTubeMusicSearchBodySchema = z.object({
-  title: z.string().optional(),
-  artist: z.string().optional(),
-});
-
-export const providerYouTubeMusicSearchItemSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  url: z.string(),
-  channel: z.string(),
-  thumbnail: z.string().optional(),
-});
-
-export const providerYouTubeMusicSearchResponseSchema = z.object({
-  results: z.array(providerYouTubeMusicSearchItemSchema),
-});
-
-export const providerAppleMusicSearchBodySchema = z.object({
-  title: z.string().optional(),
-  artist: z.string().optional(),
-  album: z.string().optional(),
-  isrc: z.string().optional(),
-});
-
-export const providerAppleMusicSearchItemSchema = z.object({
-  id: z.string(),
-  title: z.string().optional(),
-  artist: z.string().optional(),
-  album: z.string().optional(),
-  url: z.string().optional(),
-  artwork: z.string().optional(),
-  duration: z.number().optional(),
-  isrc: z.string().optional(),
-});
-
-export const providerAppleMusicSearchResponseSchema = z.object({
-  results: z.array(providerAppleMusicSearchItemSchema),
-});
+export const providerTrackMetadataResponseSchema = sharedProviderTrackMetadataResponseSchema;
+export const providerYouTubeMusicSearchBodySchema = providerYouTubeMusicSearchRequestSchema;
+export const providerYouTubeMusicSearchItemSchema = youtubeVideoSchema;
+export const providerYouTubeMusicSearchResponseSchema =
+  sharedProviderYouTubeMusicSearchResponseSchema;
+export const providerAppleMusicSearchBodySchema = providerAppleMusicSearchRequestSchema;
+export const providerAppleMusicSearchItemSchema = appleMusicResultSchema;
+export const providerAppleMusicSearchResponseSchema = sharedProviderAppleMusicSearchResponseSchema;
 
 export const gamdlCookieFileInfoSchema = sharedGamdlCookieFileInfoSchema;
 export const gamdlCookieUploadResponseSchema = sharedGamdlCookieUploadResponseSchema;
@@ -448,23 +387,8 @@ export const friendDeleteQuerySchema = z.object({
 
 export { libraryWithStatsSchema, librariesListResponseSchema };
 
-// Discogs usernames are letters, digits, dots, hyphens and underscores.
-export const discogsUsernameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(100)
-  .regex(/^[A-Za-z0-9._-]+$/, "Invalid Discogs username");
-
-/** Whether a Discogs user exists, and how many releases their collection holds. */
-export const discogsUserLookupResponseSchema = z.discriminatedUnion("found", [
-  z.object({
-    username: z.string(),
-    found: z.literal(true),
-    release_count: z.number().int().nonnegative(),
-  }),
-  z.object({ username: z.string(), found: z.literal(false) }),
-]);
+export const discogsUsernameSchema = sharedDiscogsUsernameSchema;
+export const discogsUserLookupResponseSchema = sharedDiscogsUserLookupResponseSchema;
 
 export const playlistTrackRefSchema = sharedPlaylistTrackRefSchema;
 export const playlistTrackInputSchema = sharedPlaylistTrackInputSchema;
@@ -726,39 +650,10 @@ export const essentiaBackfillResponseSchema = z.object({
   errors: z.array(essentiaBackfillQueueErrorSchema),
 });
 
-export const manifestVerificationResultSchema = z.object({
-  username: z.string(),
-  totalReleaseIds: z.number().int(),
-  missingFiles: z.array(z.string()),
-  validFiles: z.array(z.string()),
-});
-
-export const manifestVerificationResponseSchema = z.object({
-  message: z.string(),
-  results: z.array(manifestVerificationResultSchema),
-  summary: z.object({
-    totalManifests: z.number().int(),
-    totalMissingFiles: z.number().int(),
-    totalValidFiles: z.number().int(),
-  }),
-});
-
-export const manifestCleanupResultSchema = z.object({
-  username: z.string(),
-  before: z.number().int(),
-  after: z.number().int(),
-  removed: z.array(z.string()),
-});
-
-export const manifestCleanupResponseSchema = z.object({
-  message: z.string(),
-  results: z.array(manifestCleanupResultSchema),
-  summary: z.object({
-    totalManifests: z.number().int(),
-    totalRemoved: z.number().int(),
-    totalKept: z.number().int(),
-  }),
-});
+export const manifestVerificationResultSchema = sharedManifestVerificationResultSchema;
+export const manifestVerificationResponseSchema = sharedManifestVerificationResponseSchema;
+export const manifestCleanupResultSchema = sharedManifestCleanupResultSchema;
+export const manifestCleanupResponseSchema = sharedManifestCleanupResponseSchema;
 
 export const aiPromptSettingsQuerySchema = sharedAiPromptSettingsQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),

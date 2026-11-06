@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
-import type { Album, DiscogsRelease } from "@/types/track";
+import type { DiscogsRelease } from "@groovenet/contracts";
+import type { Album } from "@/types/track";
 import { albumRepository, type AlbumUpsertInput } from "@/server/repositories/albumRepository";
 import { friendRepository } from "@/server/repositories/friendRepository";
 
@@ -34,8 +35,8 @@ export function discogsReleaseToAlbum(release: DiscogsRelease, friendId: number)
     year: release.year?.toString(),
     genres: release.genres || [],
     styles: release.styles || [],
-    album_thumbnail: release.thumb,
-    discogs_url: release.uri,
+    album_thumbnail: release.thumb ?? undefined,
+    discogs_url: release.uri ?? undefined,
     date_added: release.date_added,
     date_changed: release.date_changed,
     track_count: release.tracklist?.length || 0,

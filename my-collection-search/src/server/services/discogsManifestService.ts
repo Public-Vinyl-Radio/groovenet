@@ -50,7 +50,8 @@ export function getManifestLastSynced(username: string): string | null {
 }
 import fs from "fs";
 import path from "path";
-import { DiscogsRelease, DiscogsTrack, ProcessedTrack } from "@/types/track";
+import type { DiscogsRelease, ProcessedTrack } from "@groovenet/contracts";
+import type { DiscogsTrack } from "@/server/types/discogsTrack";
 import { parseDurationToSeconds } from "@/lib/trackUtils";
 
 export const DISCOGS_EXPORTS_DIR = path.resolve(process.cwd(), "discogs_exports");
